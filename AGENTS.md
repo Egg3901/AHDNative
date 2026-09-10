@@ -16,6 +16,6 @@ Read README.md before changing product scope or architecture.
 - Codemagic allowance is 500 minutes. Run checks locally first; use Codemagic sparingly for deliberate private signed iOS builds. No push/PR/scheduled Codemagic triggers, automatic retry loops, or parallel duplicate builds.
 - Keep the Codemagic workflow capped at 20 minutes. Review failure logs and minute usage before retrying; do not raise the cap without owner agreement.
 - Signed binaries, archives, signing identities, profiles, Apple account identifiers and signing logs stay off GitHub. Never publish them as GitHub releases, Actions artifacts, PR attachments, or committed files.
-- Keep Codemagic dashboards/artifact sharing private. Apple credentials belong in Codemagic integrations and signing identities, never in source. Do not send them to subagents.
+- Keep Codemagic dashboards/artifact sharing private. Apple credentials belong in encrypted Codemagic app variables or integrations/signing identities, never in source. Do not send them to subagents.
 - Use internal TestFlight distribution first. Do not automatically submit to external beta review, the App Store, or invite testers.
 - Use Muse Spark and Grok for bounded independent implementation and research tasks. They must not trigger paid builds or access signing credentials.

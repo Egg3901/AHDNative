@@ -1,31 +1,39 @@
 # Private iPhone testing
 
-The shell is not yet a playable game. No Codemagic build has been run by this implementation session.
+The shell is not yet a playable game. Signing setup is separate from a successful signed build or device test.
 
-## One-time owner setup
+## Signing configuration
 
-1. Use an active Apple Developer Program membership. Keep your Apple account details and signing material out of the public repository.
-2. Register the explicit App ID `net.lakesidegames.ahdnative` in Apple Developer Certificates, Identifiers & Profiles. Create an iOS app record in App Store Connect using that bundle ID, name AHDNative, and a unique SKU.
-3. In App Store Connect, create a dedicated API key under Users and Access > Integrations > App Store Connect API with App Manager access. Download its `.p8` once. Add it directly to Codemagic Team integrations > Developer Portal under the integration name `ahdnative-app-store`, together with its Key ID and Issuer ID.
-4. In Codemagic Code signing identities, upload an existing Apple Distribution certificate including its private key, or generate one through the Apple integration. Add/fetch an App Store provisioning profile for this bundle ID and ensure its certificate matches. The YAML `ios_signing` block selects uploaded matching identities; it does not create them by itself.
-5. Keep Codemagic builds and dashboards private. Do not enable public artifact sharing, GitHub artifact publishing, or automatic triggers.
-6. Once signing is ready and local checks pass, run `ios-private-testflight` manually on a reviewed commit. It has a 20-minute cap, dependency caches, and no automatic retries. Inspect any failure before spending another build. A first cold build may need tuning; do not repeatedly rerun it unchanged.
-7. After Apple processes the upload, open the app's TestFlight tab and resolve export-compliance questions accurately. Create an internal group, add your App Store Connect user and the build, and accept the invitation in the TestFlight app on your iPhone. External testers require a separate distribution decision and may require beta review.
+The workflow uses the app-scoped encrypted Codemagic variable group `ahdnative-signing`. The current configuration does not require a named Developer Portal integration or a manual Code signing identities upload.
 
-The workflow marks exports for internal testing only. It uploads without automatic external beta review or App Store submission. Apple processing does not require keeping a build machine running.
+Required encrypted variables:
 
-## Privacy and evidence
+- `IOS_CERTIFICATE`: base64 PKCS#12 distribution certificate including its private key.
+- `IOS_CERTIFICATE_PASSWORD`: the PKCS#12 password.
+- `IOS_MOBILE_PROVISION`: base64 App Store provisioning profile matching the certificate and `net.lakesidegames.ahdnative`.
+- `TAURI_APPLE_DEVELOPMENT_TEAM`: Apple developer team identifier.
+- `APP_STORE_CONNECT_PRIVATE_KEY`: App Store Connect API private key in PEM format.
+- `APP_STORE_CONNECT_KEY_IDENTIFIER`: matching API key ID.
+- `APP_STORE_CONNECT_ISSUER_ID`: matching team issuer ID.
 
-Private delivery prevents publishing signing identities through GitHub artifacts. It does not make your Apple developer identity anonymous to Apple or recipients. Use the appropriate existing developer account and inspect what testers can see before expanding distribution.
+Tauri imports the certificate and profile during signing. Codemagic uses the API variables for uploading to App Store Connect. Every value must remain encrypted and outside this repository; never print the environment or expose signing material to subagents.
 
-Keep certificates, profiles, generated Xcode signing settings, IPA files, archives, and signing logs in private services. Public CI checks source without Apple credentials and uploads no native artifacts.
+## First phone test
 
-Record each paid build's commit, result, elapsed minutes and remaining allowance in private tracking. Do not claim device validation until the app has actually launched on a phone.
+1. Confirm the app record and explicit bundle ID exist in Apple Developer and App Store Connect, and all seven signing variables are configured in the app-scoped group.
+2. Keep Codemagic dashboards and artifacts private. Disable public sharing and automatic build triggers.
+3. After local checks pass, run `ios-private-testflight` manually on a reviewed commit. It has a 20-minute cap and dependency caches. Review failure logs before retrying; never repeat a failed build unchanged or raise the cap without agreement.
+4. After Apple processes the upload, open AHDNative > TestFlight and answer export-compliance questions accurately. Add the build and your App Store Connect user to an internal testing group.
+5. Accept the invitation in TestFlight on your iPhone and install. No external beta review or App Store submission is requested by this workflow.
+
+The export is restricted to internal testing. Apple processing does not require keeping a build machine running. Record build commit, result and elapsed minutes in private tracking. Device validation requires an actual phone launch.
+
+## Privacy
+
+Private delivery keeps signing identities out of GitHub artifacts; it does not make the Apple developer identity anonymous to Apple or recipients. Certificates, profiles, generated signing settings, IPA files, archives and signing logs stay private. Public Linux CI has no Apple credentials and uploads no native artifacts.
 
 ## References
 
-- [Apple: add an app](https://developer.apple.com/help/app-store-connect/create-an-app-record/add-a-new-app/)
 - [Apple: internal TestFlight testers](https://developer.apple.com/help/app-store-connect/test-a-beta-version/add-internal-testers)
-- [Codemagic: signing identities](https://docs.codemagic.io/yaml-code-signing/signing-ios/)
-- [Codemagic: App Store Connect upload](https://docs.codemagic.io/yaml-publishing/app-store-connect/)
-- [Tauri: CLI](https://v2.tauri.app/reference/cli/)
+- [Tauri: manual iOS signing](https://v2.tauri.app/distribute/sign/ios/)
+- [Codemagic: API-key upload authentication](https://docs.codemagic.io/yaml-publishing/app-store-connect/)
