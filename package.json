@@ -9,12 +9,13 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "tauri": "tauri",
-    "verify": "npm run build && npm test",
+    "verify": "npm run build && npm test && npm run test:ui",
     "test": "vitest run --config vitest.config.ts",
     "test:engine": "npm run test:ci --workspace @ahdclient/engine",
     "test:content": "npm run test --workspace @ahdclient/content",
     "typecheck:engine": "npm run typecheck --workspace @ahdclient/engine",
-    "test:smoke": "playwright test"
+    "test:smoke": "playwright test",
+    "test:ui": "vitest run --config vitest.ui.config.ts"
   },
   "dependencies": {
     "react": "^19.0.0",
@@ -31,7 +32,11 @@
     "vitest": "4.1.11",
     "@types/node": "^22.0.0",
     "tsx": "^4.0.0",
-    "@playwright/test": "^1.0.0"
+    "@playwright/test": "^1.0.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "jsdom": "^26.1.0"
   },
   "workspaces": [
     "packages/*"
