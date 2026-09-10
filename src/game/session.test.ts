@@ -39,3 +39,37 @@ describe("singleplayer session", () => {
     expect(session.serialize("2026-09-10T00:00:00.000Z")).toBe(before);
   });
 });
+
+
+describe("player candidacy through the session contract", () => {
+  it("exposes filing choices and preserves candidacy through reload and withdrawal", () => {
+    const session = new GameSession();
+    session.create(options);
+    session.advance();
+    expect(session.view().elections.length).toBeGreaterThan(40);
+    expect(session.view().elections[0].candidacy).toMatchObject({ available: false, disabledReason: "Join a party before filing." });
+    expect(session.act("joinParty", { partyId: "US_DEM" }).ok).toBe(true);
+    const race = session.view().elections.find((e) => e.candidacy.available)!;
+    expect(race).toBeDefined();
+    expect(session.act("declareCandidacy", { electionId: race.id }).ok).toBe(true);
+    expect(session.view().elections[0]).toMatchObject({ id: race.id, playerCandidate: true, candidacy: { id: "withdrawCandidacy", available: true } });
+    const another = session.view().elections.find((e) => e.id !== race.id)!;
+    expect(another.candidacy.available).toBe(false);
+    const before = session.serialize("2026-09-10T00:00:00.000Z");
+    expect(session.act("declareCandidacy", { electionId: another.id }).ok).toBe(false);
+    expect(session.serialize("2026-09-10T00:00:00.000Z")).toBe(before);
+    const loaded = new GameSession();
+    loaded.load(before);
+    expect(loaded.view().elections.find((e) => e.id === race.id)?.candidateNames).toContain("Alex");
+    expect(loaded.act("withdrawCandidacy", { electionId: race.id }).ok).toBe(true);
+    expect(loaded.view().elections.find((e) => e.id === race.id)).toMatchObject({ playerCandidate: false, candidacy: { id: "declareCandidacy", available: true } });
+  });
+  it("reflects engine withdrawal when the player leaves their party", () => {
+    const session = new GameSession(); session.create(options); session.advance();
+    session.act("joinParty", { partyId: "US_DEM" });
+    const race = session.view().elections.find((e) => e.candidacy.available)!;
+    session.act("declareCandidacy", { electionId: race.id });
+    expect(session.act("leaveParty").ok).toBe(true);
+    expect(session.view().elections.find((e) => e.id === race.id)).toMatchObject({ playerCandidate: false, candidacy: { available: false } });
+  });
+});
