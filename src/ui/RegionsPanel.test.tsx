@@ -53,7 +53,7 @@ describe("RegionsPanel", () => {
     render(<RegionsPanel query={projectRegions(world)} onQueryChange={vi.fn()} directoryOpen={false} onDirectoryOpenChange={vi.fn()} />);
 
     expect(screen.getByRole("heading", { name: "Alabama" })).toBeInTheDocument();
-    expect(screen.getByText("Southeast")).toBeInTheDocument();
+    expect(screen.getAllByText("Southeast").length).toBeGreaterThan(0);
     expect(screen.getByText("Vacant")).toBeInTheDocument();
     expect(screen.getByText("No elections recorded for this region.")).toBeInTheDocument();
     expect(screen.getByText("No members seated.")).toBeInTheDocument();
@@ -68,8 +68,46 @@ describe("RegionsPanel", () => {
     expect(screen.getByText(/Winners: Janet Rodriguez/)).toBeInTheDocument();
     expect(screen.getAllByText("House of Representatives").length).toBeGreaterThan(0);
     expect(screen.getAllByText("State Senate").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getAllByText("House of Representatives").find((element) => element.closest("summary"))!.closest("summary")!);
     expect(screen.getByText("Muse")).toBeInTheDocument();
     expect(screen.getByText(/9 seated/)).toBeInTheDocument();
+  });
+
+  it("opens recorded budget and demographic detail through counted disclosures", () => {
+    const world = createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "regions-panel-detail" });
+    render(<RegionsPanel query={projectRegions(world)} onQueryChange={vi.fn()} directoryOpen={false} onDirectoryOpenChange={vi.fn()} />);
+
+    const budgetSummary = screen.getByText(/Revenue and spending detail/);
+    expect(budgetSummary.closest("details")).not.toHaveAttribute("open");
+    fireEvent.click(budgetSummary);
+    expect(budgetSummary.closest("details")).toHaveAttribute("open");
+    expect(screen.getByText("Spending by category")).toBeInTheDocument();
+    expect(screen.getByText("Council tax")).toBeInTheDocument();
+
+    const demographicsSummary = screen.getByText(/Demographic detail/);
+    expect(demographicsSummary.closest("details")).not.toHaveAttribute("open");
+    fireEvent.click(demographicsSummary);
+    expect(demographicsSummary.closest("details")).toHaveAttribute("open");
+    expect(screen.getByText("Military service population")).toBeInTheDocument();
+    expect(screen.getByText("Demographic groups")).toBeInTheDocument();
+  });
+
+  it("pages long chamber rosters and resets the page when the selected region changes", () => {
+    const world = electedWorld();
+    const { rerender } = render(
+      <RegionsPanel query={projectRegions(world, { regionId: "AL" })} onQueryChange={vi.fn()} directoryOpen={false} onDirectoryOpenChange={vi.fn()} />,
+    );
+
+    fireEvent.click(screen.getAllByText("State Senate").find((element) => element.closest("summary"))!.closest("summary")!);
+    expect(screen.getByText(/Page 1 of 3 · 35 members/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next State Senate members" }));
+    expect(screen.getByText(/Page 2 of 3 · 35 members/)).toBeInTheDocument();
+
+    rerender(
+      <RegionsPanel query={projectRegions(world, { regionId: "CA" })} onQueryChange={vi.fn()} directoryOpen={false} onDirectoryOpenChange={vi.fn()} />,
+    );
+    fireEvent.click(screen.getAllByText("State Senate").find((element) => element.closest("summary"))!.closest("summary")!);
+    expect(screen.getByText(/Page 1 of 4 · 40 members/)).toBeInTheDocument();
   });
 
   it("shows UK Commons and regional data without inventing a governor", () => {

@@ -75,6 +75,13 @@ export const BOTTOM_TABS: { id: BottomTabId; label: string; path: string }[] = [
   },
 ];
 
+function bottomDestination(route: DrawerRouteId): BottomTabId | "menu" {
+  if (route === "overview") return "overview";
+  if (["actions", "profile", "portfolio", "markets", "bonds"].includes(route)) return "actions";
+  if (["parties", "partyDetails", "partyManagement", "caucuses"].includes(route)) return "parties";
+  return "menu";
+}
+
 const MENU_ICON_PATH = "M4 7h16M4 12h16M4 17h16";
 
 function NavIcon({ path, label }: { path: string; label: string }) {
@@ -99,14 +106,14 @@ export function BottomNav({
   onNavigate: (next: DrawerRouteId) => void;
   onOpenMenu: () => void;
 }) {
+  const destination = bottomDestination(route);
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
     const order: (BottomTabId | "menu")[] = ["overview", "actions", "parties", "menu"];
-    const current: BottomTabId | "menu" = menuOpen
-      ? "menu"
-      : BOTTOM_TABS.some((t) => t.id === route) ? (route as BottomTabId) : "overview";
-    const idx = order.indexOf(current);
+    const buttons = Array.from(e.currentTarget.querySelectorAll("button"));
+    const focused = buttons.indexOf(document.activeElement as HTMLButtonElement);
+    const idx = focused >= 0 ? focused : order.indexOf(destination);
     const next = order[(idx + (e.key === "ArrowRight" ? 1 : order.length - 1)) % order.length];
     if (next === "menu") {
       onOpenMenu();
@@ -122,7 +129,7 @@ export function BottomNav({
   return (
     <nav aria-label="Primary" className="ahd-bottomnav" onKeyDown={onKeyDown}>
       {BOTTOM_TABS.map((t) => {
-        const active = route === t.id;
+        const active = destination === t.id;
         return (
           <button
             key={t.id}
@@ -130,7 +137,7 @@ export function BottomNav({
             type="button"
             className="ahd-bottomnav-item"
             aria-label={t.label}
-            aria-current={active ? "page" : undefined}
+            aria-current={active ? (route === t.id ? "page" : "location") : undefined}
             data-active={active ? "true" : undefined}
             onClick={() => onNavigate(t.id)}
           >
@@ -147,7 +154,8 @@ export function BottomNav({
         aria-haspopup="dialog"
         aria-expanded={menuOpen}
         aria-controls="ahd-drawer"
-        data-active={menuOpen ? "true" : undefined}
+        data-active={menuOpen || destination === "menu" ? "true" : undefined}
+        aria-current={destination === "menu" ? "location" : undefined}
         onClick={onOpenMenu}
       >
         <NavIcon path={MENU_ICON_PATH} label="" />

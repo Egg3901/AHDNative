@@ -40,6 +40,7 @@ test('mobile politics, national accounts and resource explanations use a real UK
   await expect(page.getByRole('heading', { name: 'Current tax settings', exact: true })).toBeVisible();
 
   await openMenu(page, 'Nations');
+  await page.getByText('Browse nations', { exact: true }).click();
   await page.getByRole('searchbox', { name: 'Search nations' }).fill('United States');
   await page.getByRole('button', { name: 'View United States details' }).click();
   await expect(page.getByRole('article', { name: 'United States', exact: true })).toBeVisible();

@@ -23,7 +23,7 @@ test('offline search opens the matching party, foreign nation and company withou
   await expect(page.getByRole('region', { name: 'Party details', exact: true })).toBeFocused();
   await expect(page.getByRole('article', { name: 'Labour Party', exact: true })).toBeVisible();
   await (await search(page, 'United States')).getByRole('button', { name: 'United States Nation', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'View United States details' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('article', { name: 'United States', exact: true })).toBeVisible();
   await openGameMenu(page);
   await expect(page.getByRole('dialog', { name: 'Game menu' })).toContainText('United Kingdom');
   await (await search(page, 'US.MEDI')).getByRole('button', { name: /US.MEDI/ }).click();

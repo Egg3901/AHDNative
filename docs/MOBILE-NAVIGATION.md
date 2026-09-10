@@ -23,3 +23,9 @@ Validation covers the updated GameScreen and navigation component contracts,
 real gameplay smoke flows through the drawer, and 320px/390px layout checks.
 Browser screenshots cannot prove phone safe-area, hardware-back or operating
 system gesture behavior. Physical iOS/Android checks remain release gates.
+
+Bottom destinations now reset the reading position and focus the page on entry.
+Tapping the current destination returns to its start. Child pages retain a
+parent-section indicator: Character for profile/portfolio/markets/bonds, Parties
+for party detail/founding/caucuses, and Menu for other sections. The section
+indicator does not imply that the drawer is open.

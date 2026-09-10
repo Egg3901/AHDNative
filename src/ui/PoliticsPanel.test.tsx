@@ -86,6 +86,63 @@ describe("PoliticsPanel parties", () => {
     expect(screen.getByRole("button", { name: /leave democratic party/i })).toBeDisabled();
     rerender(<PoliticsPanel politics={{ ...makePolitics(), playerPartyId: null }} section="parties" busy={false} onAction={vi.fn()} />);
   });
+
+  it("reaches every saved roster name through paging and search, and resets those on party change", async () => {
+    const user = userEvent.setup();
+    const PoliticsPanel = await renderPanel();
+    const names = Array.from({ length: 25 }, (_, i) => `Member ${String(i + 1).padStart(2, "0")}`);
+    const base = makePolitics();
+    const dem = { ...base.parties[0], memberNames: names };
+    const rep = { ...base.parties[1], memberNames: ["Ron Member", "Unique Rival"] };
+    const view = { ...base, parties: [dem, rep] };
+    const { rerender } = render(<PoliticsPanel politics={view} section="parties" busy={false} onAction={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Leave Democratic Party" })).toBeInTheDocument();
+    expect(screen.getByText(/Left/)).toBeInTheDocument();
+    expect(screen.getByText("Roster (25)")).toBeInTheDocument();
+    expect(screen.queryByRole("searchbox", { name: "Search roster" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Member 13")).not.toBeInTheDocument();
+
+    await user.click(screen.getByText("Roster (25)"));
+    expect(screen.getByText("Member 01")).toBeInTheDocument();
+    expect(screen.getByText("Member 12")).toBeInTheDocument();
+    expect(screen.queryByText("Member 13")).not.toBeInTheDocument();
+    expect(screen.queryByText("and 13 more")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Next roster page" }));
+    expect(screen.getByText("Member 13")).toBeInTheDocument();
+    expect(screen.queryByText("Member 01")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Next roster page" }));
+    expect(screen.getByText("Member 25")).toBeInTheDocument();
+    expect(screen.queryByText("Member 13")).not.toBeInTheDocument();
+
+    await user.clear(screen.getByRole("searchbox", { name: "Search roster" }));
+    await user.type(screen.getByRole("searchbox", { name: "Search roster" }), "Member 07");
+    expect(screen.getByText("Member 07")).toBeInTheDocument();
+    expect(screen.queryByText("Member 25")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Next roster page" })).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Party"), "US_REP");
+    expect(screen.getByRole("button", { name: "Join Republican Party" })).toBeInTheDocument();
+    expect(screen.getByText("Roster (2)")).toBeInTheDocument();
+    await user.click(screen.getByText("Roster (2)"));
+    expect(screen.getByRole("searchbox", { name: "Search roster" })).toHaveValue("");
+    expect(screen.getByText("Ron Member")).toBeInTheDocument();
+    expect(screen.getByText("Unique Rival")).toBeInTheDocument();
+    expect(screen.queryByText("Member 07")).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Party"), "US_DEM");
+    await user.click(screen.getByText("Roster (25)"));
+    await user.click(screen.getByRole("button", { name: "Next roster page" }));
+    expect(screen.getByText("Member 13")).toBeInTheDocument();
+    rerender(<PoliticsPanel politics={{ ...view, parties: [{ ...dem, memberNames: names.slice(0, 5) }, rep] }} section="parties" busy={false} onAction={vi.fn()} />);
+    expect(screen.getByText("Roster (5)")).toBeInTheDocument();
+    expect(screen.getByText("Member 01")).toBeInTheDocument();
+    expect(screen.getByText("Member 05")).toBeInTheDocument();
+    expect(screen.queryByText("Member 13")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Next roster page" })).not.toBeInTheDocument();
+  });
 });
 
 describe("PoliticsPanel elections", () => {

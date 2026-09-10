@@ -331,3 +331,9 @@ html, body { overflow-x: hidden; }
 }
 
 .ahd-drawer-feedback { margin: 0.5rem 1rem 0; }
+
+/* Keep bottom labels intact when larger text meets a narrow phone. */
+.ahd-bottomnav-item > span {
+  white-space: nowrap;
+  font-size: min(0.66rem, 3.75vw);
+}

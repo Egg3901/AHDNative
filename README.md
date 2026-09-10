@@ -21,6 +21,7 @@ Development progress, not an iPhone build or a 1.0.0 release. What holds today:
 - Main runs a local singleplayer world through React game screens and a dedicated simulation worker. New game, actions, turns, save, app reload and resume have passed a real browser smoke test at phone screen size.
 - Bottom navigation and a side drawer reach politics, national economy/budget/policy, home region, nations, portfolio and banking. Turn, save and exit controls live in the drawer. The compact footer opens full resource details. Full feature parity is still in progress.
 - Party and caucus founding, membership, stock and sovereign bond trades, bill inspection and tax-rate sponsorship use real engine actions and retain state across reloads. Offline search opens actual saved entities; appearance settings persist.
+- The mobile overview links to real game destinations. Party rosters expose all recorded members through search and paging; regional chambers and secondary details expand on demand.
 - Native save storage has passing Rust tests.
 - The reusable TypeScript engine is pinned to a recorded AHDClient revision (354 non-test engine/content files scanned; baseline provenance in [engine-source-manifest.json](docs/engine-source-manifest.json), with [subsequent adaptations](docs/ENGINE-ADAPTATIONS.md)).
 

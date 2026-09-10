@@ -1,0 +1,105 @@
+/* OverviewPanel: compact mobile overview. Tokens from ui.css; no new palette. */
+.ov-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.ov-name {
+  margin: 0.2rem 0 0;
+  font-size: 1.05rem;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.ov-sub {
+  font-size: 0.76rem;
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.ov-resources {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.65rem 0 0;
+  padding: 0;
+}
+
+.ov-resource {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.ov-resource dt {
+  color: var(--ahd-muted);
+}
+
+.ov-resource dd {
+  margin: 0;
+  font-weight: 650;
+  text-align: right;
+  min-width: 0;
+}
+
+/* Keep full values readable as viewport width and reading size change. */
+.ov-metrics {
+  list-style: none;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: 0.5rem;
+}
+
+.ov-metric {
+  background: var(--ahd-card-elevated);
+  border: 1px solid var(--ahd-border);
+  border-radius: var(--ahd-radius-sm);
+  padding: 0.55rem 0.6rem;
+  min-width: 0;
+}
+
+.ov-metric-label {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ahd-muted);
+  overflow-wrap: anywhere;
+}
+
+.ov-metric-value {
+  font-size: 1rem;
+  font-weight: 800;
+  margin-top: 0.2rem;
+  overflow-wrap: anywhere;
+}
+
+.ov-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.ov-shortcut {
+  width: 100%;
+  min-height: 44px;
+}
+
+@media (min-width: 640px) {
+  .ov-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .ov-shortcuts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.ov-metric-exact { font-size: 0.72rem; margin-top: 0.2rem; overflow-wrap: anywhere; }

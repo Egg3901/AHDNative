@@ -115,6 +115,14 @@ describe("GameScreen", () => {
     expect(screen.getByText("Markets rally")).toBeInTheDocument();
   });
 
+  it("bottom navigation opens its destination with page focus", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: "Character" }));
+    expect(screen.getByRole("region", { name: "Character" })).toHaveFocus();
+  });
+
   it("supports keyboard arrow navigation", async () => {
     const user = userEvent.setup();
     const world = makeWorld();
