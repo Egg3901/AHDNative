@@ -27,6 +27,8 @@ export class GameClient {
     port.addEventListener("messageerror", () => this.close("The simulation response could not be read. Reload your last saved game."));
   }
 
+  get isClosed(): boolean { return this.closed; }
+
   choices() { return this.send<EraChoice[]>({ type: "choices" }); }
   create(options: NewGameOptions) { return this.send<GameView>({ type: "create", options }); }
   view() { return this.send<GameView>({ type: "view" }); }

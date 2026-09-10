@@ -87,6 +87,6 @@ SHA-256 of the exact `serializeSave` string at create and after the third turn:
 | 2019 | IE | `b3c33167507857e0998ae2fcf8ecfd9e4c6d0dceb3c5904c6e5dee4356745625` | `4f8f5b90db77411fbb2767679724f44bfeca90f313e9ad91223cb69230109e18` |
 | 2019 | CN | `bb6060fafd099b69ab828e295d79e3291219feeb733c26b356f13f11a63cc869` | `214c6cae22844b42391c21ab12792bf3138f1f501ceae625402db7ca071a19f9` |
 
-1991 and 2019 combos cost about 5.0–5.8 s each on this host; 1953 and 1979 about 1.9–2.3 s. That is why the oracle comparison has to overlap the local twins to stay inside 120 seconds.
+1991 and 2019 combos cost about 5.0-5.8 s each on this host; 1953 and 1979 about 1.9-2.3 s. That is why the oracle comparison has to overlap the local twins to stay inside 120 seconds.
 
 Optional authentic v42 input, if one is later obtained from the v42 engine commit above: `--v42-fixture path/to/envelope.json`. The file must already have `schemaVersion: 42`. The harness will not relabel a v43 save to satisfy that probe.

@@ -22,12 +22,12 @@ function validate(opts: NewGameOptions, eras: EraChoice[]): Record<string, strin
     }
   }
   const trimmedName = opts.playerName.trim();
-  const nameLen = [...trimmedName].length;
+  const nameLen = trimmedName.length;
   if (!trimmedName) errs.playerName = "Enter your name.";
   else if (nameLen > 80) errs.playerName = "Name must be 80 characters or fewer.";
   else if (nameLen < 1) errs.playerName = "Enter your name.";
   const seedTrimmed = opts.seed.trim();
-  if ([...seedTrimmed].length > 256) errs.seed = "Seed must be 256 characters or fewer.";
+  if (seedTrimmed.length > 256) errs.seed = "Seed must be 256 characters or fewer.";
   return errs;
 }
 
