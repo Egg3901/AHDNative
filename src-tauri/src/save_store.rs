@@ -7,10 +7,10 @@
 //! Listing scans each slot JSON. That is acceptable initially; a metadata sidecar
 //! is deferred until it can be proven crash-consistent with the save file.
 //!
-//! Atomic persist is temp-file + `sync_all` + rename. On Linux/macOS/iOS, rename
-//! replaces the destination atomically. On Windows, `fs::rename` cannot replace
-//! an existing file, so persist moves the prior file aside then renames; a crash
-//! between those steps can leave the slot missing until the `.bak` is recovered.
+//! Persist writes a sibling temporary file, syncs it, then replaces the slot with
+//! std::fs::rename. Never move the original aside: a failed replacement must leave
+//! the previous slot available. Unix also syncs the parent directory.
+//! See https://doc.rust-lang.org/std/fs/fn.rename.html for platform behavior.
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
@@ -172,6 +172,12 @@ impl SaveStore {
                     continue;
                 };
                 if validate_slot(slot_id).is_err() {
+                    continue;
+                }
+                let Ok(metadata) = entry.metadata() else {
+                    continue;
+                };
+                if !metadata.is_file() || metadata.len() > MAX_SAVE_BYTES {
                     continue;
                 }
                 let Ok(contents) = fs::read_to_string(&path) else {
@@ -352,31 +358,7 @@ fn write_atomic(root: &Path, dest: &Path, contents: &str) -> Result<(), SaveErro
 }
 
 fn persist_rename(tmp: &Path, dest: &Path) -> io::Result<()> {
-    #[cfg(not(windows))]
-    {
-        fs::rename(tmp, dest)
-    }
-    #[cfg(windows)]
-    {
-        match fs::rename(tmp, dest) {
-            Ok(()) => Ok(()),
-            Err(err) if dest.exists() => {
-                let backup = dest.with_extension("json.bak");
-                fs::rename(dest, &backup)?;
-                match fs::rename(tmp, dest) {
-                    Ok(()) => {
-                        let _ = fs::remove_file(&backup);
-                        Ok(())
-                    }
-                    Err(rename_err) => {
-                        let _ = fs::rename(&backup, dest);
-                        Err(rename_err)
-                    }
-                }
-            }
-            Err(err) => Err(err),
-        }
-    }
+    fs::rename(tmp, dest)
 }
 
 #[cfg(unix)]
