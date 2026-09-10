@@ -1,3 +1,7 @@
+import type { LegislationSelection } from "./game/legislationDetails";
+import { loadPreferences, savePreferences, applyPreferencesToDocument, type Preferences } from "./preferences";
+import { SettingsPanel } from "./ui/SettingsPanel";
+import { HelpPanel } from "./ui/HelpPanel";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createGameClient, type GameClient } from './game/client';
 import { saveRepository, type SaveMetadata } from './game/storage';
@@ -6,17 +10,28 @@ import { NewGameScreen } from './ui/NewGameScreen';
 import { GameScreen } from './ui/GameScreen';
 
 export function App() {
+  const [presentation, setPresentation] = useState(loadPreferences);
+  useEffect(() => applyPreferencesToDocument(presentation.value), [presentation.value]);
+  const changePreferences = useCallback((value: Preferences) => setPresentation(savePreferences(value)), []);
   const client = useRef<GameClient | null>(null);
   const locked = useRef(false);
   const [eras, setEras] = useState<EraChoice[]>([]);
   const [saves, setSaves] = useState<SaveMetadata[]>([]);
-  const [screen, setScreen] = useState<'home' | 'new' | 'game'>('home');
+  const [screen, setScreen] = useState<'home' | 'new' | 'game' | 'help' | 'settings'>('home');
   const [world, setWorld] = useState<GameView>();
   const slot = useRef<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [message, setMessage] = useState<string>();
   const [pendingDelete, setPendingDelete] = useState<SaveMetadata | null>(null);
+  const loadMarkets = useCallback(() => {
+    if (!client.current) return Promise.reject(new Error("Start or load a game first."));
+    return client.current.markets();
+  }, []);
+  const loadLegislation = useCallback((selection?: LegislationSelection) => {
+    if (!client.current) return Promise.reject(new Error("Start or load a game first."));
+    return client.current.legislation(selection);
+  }, []);
   const loadWorldOverview = useCallback(() => {
     if (!client.current) return Promise.reject(new Error("Start or load a game first."));
     return client.current.worldOverview();
@@ -125,8 +140,12 @@ export function App() {
     });
   }
 
+  if (screen === 'help' || screen === 'settings') return <main className="ahd-screen"><div className="ahd-container" style={{ maxWidth: '42rem', paddingTop: 'max(1rem, env(safe-area-inset-top))', paddingBottom: '2rem' }}>
+    <button className="ahd-btn" onClick={() => setScreen('home')} autoFocus>Back to home</button>
+    {screen === 'help' ? <HelpPanel /> : <SettingsPanel value={presentation.value} onChange={changePreferences} error={presentation.error} />}
+  </div></main>;
   if (screen === 'new') return <NewGameScreen eras={eras} busy={busy} error={error} onStart={start} onBack={() => setScreen('home')} />;
-  if (screen === 'game' && world) return <GameScreen loadPolitics={loadPolitics} loadWorldOverview={loadWorldOverview} world={world} busy={busy} error={error} message={message}
+  if (screen === 'game' && world) return <GameScreen preferences={presentation.value} onPreferencesChange={changePreferences} preferencesError={presentation.error} loadPolitics={loadPolitics} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={busy} error={error} message={message}
     onAdvanceTurn={() => void run(async () => { setWorld(await client.current!.advance()); await save(); })}
     onAction={(id, params) => void run(async () => {
       const response = await client.current!.act(id, params); setWorld(response.view);
@@ -144,6 +163,10 @@ export function App() {
     {message && !error && <p className="ahd-notice" role="status">{message}</p>}
     {error && !eras.length && <button className="ahd-btn" onClick={() => window.location.reload()}>Reload app</button>}
     <button className="ahd-btn ahd-btn-primary" disabled={busy || !eras.length} onClick={() => { setError(undefined); setScreen('new'); }}>New game</button>
+    <div style={{ display: 'flex', gap: '.5rem', marginTop: '.75rem' }}>
+      <button className="ahd-btn" onClick={() => setScreen('help')}>Help</button>
+      <button className="ahd-btn" onClick={() => setScreen('settings')}>Settings</button>
+    </div>
     {world && <button className="ahd-btn" disabled={busy} onClick={() => setScreen('game')}>Return to game</button>}
     <label className="ahd-field" style={{ marginTop: '1rem' }}>
       <span className="ahd-label">Import saved game</span>

@@ -1,3 +1,5 @@
+import type { MarketsView } from "./markets";
+import type { LegislationDetailsQuery, LegislationSelection } from "./legislationDetails";
 import type { WorldOverviewView } from "./worldOverview";
 import type { PoliticsView } from "./politics";
 import type { GameCommand, GameResponse } from "./protocol";
@@ -33,7 +35,9 @@ export class GameClient {
 
   choices() { return this.send<EraChoice[]>({ type: "choices" }); }
   create(options: NewGameOptions) { return this.send<GameView>({ type: "create", options }); }
+  legislation(selection: LegislationSelection = {}) { return this.send<LegislationDetailsQuery>({ type: "legislation", selection }); }
   worldOverview() { return this.send<WorldOverviewView>({ type: "worldOverview" }); }
+  markets() { return this.send<MarketsView>({ type: "markets" }); }
   politics() { return this.send<PoliticsView>({ type: "politics" }); }
   view() { return this.send<GameView>({ type: "view" }); }
   advance() { return this.send<GameView>({ type: "advance" }); }

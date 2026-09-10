@@ -1,3 +1,4 @@
+import type { LegislationSelection } from "./legislationDetails";
 import type { NewGameOptions } from "./types";
 
 export type GameCommand =
@@ -5,7 +6,9 @@ export type GameCommand =
   | { type: "create"; options: NewGameOptions }
   | { type: "view" }
   | { type: "politics" }
+  | { type: "markets" }
   | { type: "worldOverview" }
+  | { type: "legislation"; selection?: LegislationSelection }
   | { type: "advance" }
   | { type: "action"; actionId: string; params?: Record<string, string | number> }
   | { type: "serialize"; savedAt: string }

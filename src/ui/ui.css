@@ -327,3 +327,24 @@ html, body { overflow-x: hidden; }
 }
 .ahd-resource-facts { font-size: 0.82rem; line-height: 1.5; overflow-wrap: anywhere; }
 .ahd-resource-links { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+/* Device-local reading and motion preferences. */
+:root[data-text-size="large"] { font-size: 20px; }
+:root[data-text-size="large"] .ahd-input,
+:root[data-text-size="large"] .ahd-select { font-size: 1rem; }
+:root[data-reduced-motion="on"] *,
+:root[data-reduced-motion="on"] *::before,
+:root[data-reduced-motion="on"] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-reduced-motion="off"]) *,
+  :root:not([data-reduced-motion="off"]) *::before,
+  :root:not([data-reduced-motion="off"]) *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+@media (max-width: 480px) {
+  :root[data-text-size="large"] .ahd-header-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :root[data-text-size="large"] .ahd-header-meta > span:not(:first-child),
+  :root[data-text-size="large"] .ahd-header-context,
+  :root[data-text-size="large"] .ahd-header-title > .ahd-eyebrow { display: none; }
+  :root[data-text-size="large"] .ahd-footer-resources { flex-wrap: nowrap; overflow-x: auto; padding-bottom: .2rem; }
+  :root[data-text-size="large"] .ahd-footer-btn { flex: 0 0 auto; }
+}

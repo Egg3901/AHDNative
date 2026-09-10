@@ -136,3 +136,19 @@ N04-N08 remain in progress. The app now reaches fifteen menu destinations plus p
 Resource panels use actual local action refresh, hoarding, cap, current-influence income and party-tax values, with recorded balance history. No unimplemented office bonus or MP income is invented. Optional politics/world detail is queried on demand to avoid megabytes of routine worker traffic in late worlds.
 
 These are bounded capabilities, not completion of the inventory. Executive controls, campaign management/projections, legislative effect depth, country-specific regional legislatures, markets/trade/corporations/unions, search/help/settings/notifications, and device validation remain open. Work proceeds through the complete gameplay/mechanics/save/mobile/performance roadmap alongside navigation parity.
+
+## Current implementation delta after the baseline audit
+
+The tables above preserve the initial audit at `fbc9e90`. Current execution status is tracked in [ROADMAP.md](ROADMAP.md); the following capabilities have landed since that snapshot:
+
+| Area | Current functional coverage | Still open |
+|---|---|---|
+| Character and finance | Profile, Actions, Portfolio, savings deposit/withdraw, actual stock holdings | Full currency/asset interfaces |
+| Politics | Party/race details, candidate directory, eligibility and candidacy controls | Projections, complete country electoral models |
+| Legislature | Office, chamber-specific bills and voting, selected-bill details, tax-rate sponsorship | General policy-level selection, regional legislative actions, complete executive powers |
+| Nation and region | Economy/history, budget, enacted policies, nation directory, home-region profile/support/elections | Maps, deep regional government and country-specific systems |
+| Stock market | Search/filter, company details, buy/sell in player cash currency, save/reload holdings | FX settlement, order books, corporation management, price history |
+| Resource footer | Persistent resources, current engine income/action breakdowns, recorded balance history and links | Full office/corporation/election calculations and controls |
+| Help/settings | Offline guide, persistent large text and reduced motion, storage-error handling | Global search, notifications, full account/help destinations |
+
+These are working local SP features, not a declaration of complete MP/SP parity. Browser evidence does not substitute for physical iOS/Android validation.

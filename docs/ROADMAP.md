@@ -16,7 +16,7 @@ Owner direction: mobile-first layout can differ, but navigation and footer funct
 | N06 | In progress | Nation executive, policy, budget and economy | Actual local queries/actions, country-specific conditions and meaningful panels |
 | N07 | In progress | World navigation | Nations, map, corporations, sectors, markets, exchange, trade, unions, organizations and crises mapped to SP capabilities |
 | N08 | In progress | Full footer resource breakdowns | Action/income components, election projections/history and conditional corporation controls supported by actual engine evidence |
-| N09 | Queued | Help, settings, search and notifications | Explicit offline behavior, real content/results and accessible controls; MP-only presence stays deferred |
+| N09 | In progress | Help, settings, search and notifications | Explicit offline behavior, real content/results and accessible controls; MP-only presence stays deferred |
 | N10 | Queued | Complete functional parity review | Each inventory row demonstrated through the integrated UI, including relevant country/role conditions; named remaining gaps block parity claims |
 
 This priority guides UI work within the complete roadmap. The owner has explicitly reaffirmed that gameplay, mechanics, save compatibility, lifecycle and performance work continue alongside it. Existing mechanics, save compatibility and physical-device release gates remain binding. N07 and N09 are not blanket multiplayer deferrals.
@@ -72,7 +72,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | M02 | Mechanics | In progress | M01 | Close referendum lifecycle omissions | Behavioral parity scenarios through public actions/turns |
 | M03 | Mechanics | Queued | M01 | Resolve war abstraction mismatch | Actual authoritative rules; no rebalancing or blanket waiver |
 | M04 | Mechanics | In progress | M01 | Close phase order and TFP differences | Reference-driven tests; impacts traced |
-| M05 | Mechanics | Queued | M01 | Close electoral and content omissions | National/subnational lifecycle and all supported content |
+| M05 | Mechanics | In progress | M01 | Close electoral and content omissions | National/subnational lifecycle and all supported content |
 | M06 | Mechanics | Queued | M02,M03,M04,M05 | Sign off reference mechanics coverage | No unacknowledged mechanics gaps in 1.0 candidate |
 | Q01 | Validation | Done | E03,S02,U07 | Integrated gameplay smoke through actual UI | Create,country,action,turn,save,close,reload,continue |
 | Q02 | Validation | In progress | Q01 | Exercise error and concurrency smoke | Corrupt import,double-click turn,save failure and recovery |
@@ -175,3 +175,14 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Saves: conservative v42 projection plus an exclusive-create local export CLI proves the authentic fixture and pre-turn cash conversion cases. Corrupt input, overwrites, native home-region loss and progressed national-politics loss are refused. Full bidirectional in-app interchange remains a release blocker.
 - Verification: production build; 41 session/query/save/CLI tests after focused eligibility-copy correction; 84 UI tests after country-label correction; 765 engine tests including the short referendum suite; career fixture integrity. The 13 existing browser flows passed, then both the extended US directory/banking flow and new UK detail/economy/policy/world/resource/reload flow passed after correcting the empty-UK-roster expectation. Screenshot inspection drove the country-specific label fix. No long career generator, native rebuild or paid build was repeated.
 - Next batch is already active: real market trading, deeper legislative proposals/bills, and offline help/presentation settings. Hub project-filter/archive issues remain open; supported board clearing is still unavailable, so no Hub status-update claim is made.
+
+
+## Actions and presentation checkpoint, 2026-09-10
+
+- The preceding feature-depth batch merged as PR #10 (`b1cedbf`); its full verify CI passed.
+- Stock market now has searchable country/company lists, actual company detail and home-currency buy/sell. Fresh balances preserve the selected company. Foreign quotes remain browsable, with trading held where quote and player cash currencies differ because the imported action has no FX settlement. Price history, order books and corporation management remain open.
+- Bills and proposals adds tax-rate selection, reference policy descriptions, chamber-specific bill lists and selected-bill details. The genuine elected save retains its cooldown, then sponsors income tax at 38% and preserves that rate on reload. General policy-level selection remains unavailable because the imported action has no corresponding parameter.
+- Offline Help and device presentation settings are available from home and the game menu. Large text and reduced-motion preferences survive reload; storage failure preserves the current-session selection and reports the persistence failure. At 320 x 568, large-text header/footer layout leaves at least 160 pixels for content. Resources remain reachable in a horizontal footer row.
+- Pure presentation helpers are separated from engine runtime imports. This brought the initial integrated main bundle from 731 KB to 349 KB without moving simulation onto the UI thread. This is a bundle-size observation, not device performance evidence.
+- Independent next work covers UK electoral careers, referendum lifecycle and bidirectional v42 compatibility. No paid build has run; mechanics, save interchange and physical-device candidate gates remain open.
+- Validation: production build, 71 session/query/preferences/save/CLI tests, 109 UI tests and fixture integrity passed. The production-browser batch passed 17 of 18 scenarios and exposed the player-chamber default bug. After fixing it, all four affected market/legislature browser flows passed, alongside 9 focused session/query and 46 UI checks. Existing engine/content/native code was unchanged in this batch, so those broader suites were left to CI. No campaign fixture regeneration or paid build ran.
