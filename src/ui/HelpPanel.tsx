@@ -70,7 +70,7 @@ export function HelpPanel() {
       <HelpSection title="Available here">
         <ul style={{ margin: 0, paddingLeft: "1.15rem" }}>
           <li>Offline world creation for the eras and playable countries shown by the app.</li>
-          <li>Local actions, turn advancement, economic and budget details, parties, candidacy, elections, legislature, world browsing, news, banking, portfolio and stock market views.</li>
+          <li>Local actions, turn advancement, economic and budget details, parties, candidacy, elections, legislature, world browsing, local search, news, banking, portfolio and stock market views.</li>
           <li>Device saves, resume, JSON import, confirmed deletion, and visible recovery errors.</li>
         </ul>
       </HelpSection>

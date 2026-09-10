@@ -12,6 +12,7 @@ self.addEventListener("message", (event: MessageEvent<GameRequest>) => {
       case "create": value = session.create(command.options); break;
       case "legislation": value = session.legislation(command.selection); break;
       case "worldOverview": value = session.worldOverview(); break;
+      case "search": value = session.search(command.query); break;
       case "markets": value = session.markets(); break;
       case "politics": value = session.politics(); break;
       case "view": value = session.view(); break;

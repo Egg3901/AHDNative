@@ -280,9 +280,9 @@ function ElectionsSection({ politics, busy, onAction, initialId }: Omit<Politics
   );
 }
 
-function PoliticiansSection({ politics, busy, onOpenElection }: Omit<PoliticsPanelProps, "section" | "onAction">) {
+function PoliticiansSection({ politics, busy, onOpenElection, initialId }: Omit<PoliticsPanelProps, "section" | "onAction">) {
   const [partyId, setPartyId] = useState("all");
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState(initialId ?? "");
   const filtered = useMemo(() => politics.politicians.filter((p) => partyId === "all" || p.partyId === partyId),
     [politics.politicians, partyId]);
   useEffect(() => {
@@ -337,7 +337,7 @@ function PoliticiansSection({ politics, busy, onOpenElection }: Omit<PoliticsPan
 
 export function PoliticsPanel({ politics, section, busy, onAction, initialId, onOpenElection }: PoliticsPanelProps) {
   if (section === "elections") return <ElectionsSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} />;
-  if (section === "politicians") return <PoliticiansSection politics={politics} busy={busy} onOpenElection={onOpenElection} />;
+  if (section === "politicians") return <PoliticiansSection politics={politics} busy={busy} initialId={initialId} onOpenElection={onOpenElection} />;
   return <PartiesSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} />;
 }
 

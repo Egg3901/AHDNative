@@ -12,6 +12,7 @@ import type {
 
 export interface WorldPanelProps {
   overview: WorldOverviewView;
+  initialId?: string;
   section: "nations" | "state";
 }
 
@@ -193,9 +194,9 @@ function NationDetail({ nation, current }: { nation: WorldNationView; current: b
   );
 }
 
-function NationsSection({ overview }: { overview: WorldOverviewView }) {
+function NationsSection({ overview, initialId }: { overview: WorldOverviewView; initialId?: string }) {
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(overview.playerCountryId);
+  const [selectedId, setSelectedId] = useState(initialId ?? overview.playerCountryId);
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const filteredNations = overview.nations.filter((nation) => {
     if (normalizedQuery.length === 0) return true;
@@ -399,6 +400,6 @@ function StateSection({ overview }: { overview: WorldOverviewView }) {
   );
 }
 
-export function WorldPanel({ overview, section }: WorldPanelProps) {
-  return section === "nations" ? <NationsSection overview={overview} /> : <StateSection overview={overview} />;
+export function WorldPanel({ overview, section, initialId }: WorldPanelProps) {
+  return section === "nations" ? <NationsSection overview={overview} initialId={initialId} /> : <StateSection overview={overview} />;
 }

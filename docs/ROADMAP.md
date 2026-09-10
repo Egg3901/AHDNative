@@ -193,3 +193,10 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - The pure soft-cap, turnout-weighted aggregation, diminishing-spend and bounded poll-history formulas match the pinned AHDGame source. Native lacks the granular electorate substrate, so new campaign snapshots use that source's single-cohort fallback. This does not establish parity with fully populated UK cohorts.
 - Public turn/save tests cover the campaign boundary through resolution, one transition per turn, absent closing dates and stale scalar values on both sides of the pass threshold. Complete serialized worlds match at every replay checkpoint after a mid-campaign reload. The local short engine suite passes 795 tests and engine typecheck passes.
 - Request/grant actions, campaign spending/ground-game writers, consent bills and actuation remain incomplete. Passed votes still wait at actuation. This closes a bounded calculation/lifecycle slice, not M02 as a whole. No paid build, long simulation or UI/native rebuild was run for this engine slice.
+
+
+## Offline discovery checkpoint
+
+- Local search now opens the exact profile, politician, party, nation, company, election or bill destination. Country-scoped results follow available detail adapters; foreign nation/company browsing never switches the played country. Broader region/seat/commodity/currency/bond search remains open.
+- Queries run on demand in the worker, return at most 30 ranked matches with a total count, and preserve complete saved-world state. The UI ignores stale responses, retries failures and transfers focus to the selected destination.
+- Production build, 73 session/query/save tests, 111 UI tests, fixture integrity and all 20 production-browser scenarios pass. Browser coverage includes offline UK search/navigation and actual bill/election/politician selection from the genuine elected US save. No engine formulas changed in this slice and no paid build ran.

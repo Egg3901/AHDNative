@@ -1,3 +1,4 @@
+import { searchWorld } from "./search";
 import { projectMarkets } from "./markets";
 import { buildLegislationDetails, type LegislationSelection } from "./legislationDetails";
 import { projectWorldOverview } from "./worldOverview";
@@ -67,6 +68,8 @@ export class GameSession {
   legislation(selection: LegislationSelection = {}) { return buildLegislationDetails(this.requireWorld(), selection); }
 
   worldOverview() { return projectWorldOverview(this.requireWorld()); }
+
+  search(query: string) { return searchWorld(this.requireWorld(), query); }
 
   markets() { return projectMarkets(this.requireWorld()); }
 
