@@ -1,3 +1,5 @@
+import { projectMarkets } from "./markets";
+import { buildLegislationDetails, type LegislationSelection } from "./legislationDetails";
 import { projectWorldOverview } from "./worldOverview";
 import { projectNation } from "./nation";
 import { projectPolitics, projectPartyMembership } from "./politics";
@@ -62,7 +64,11 @@ export class GameSession {
 
   view(): GameView { return projectWorld(this.requireWorld()); }
 
+  legislation(selection: LegislationSelection = {}) { return buildLegislationDetails(this.requireWorld(), selection); }
+
   worldOverview() { return projectWorldOverview(this.requireWorld()); }
+
+  markets() { return projectMarkets(this.requireWorld()); }
 
   politics() { return projectPolitics(this.requireWorld()); }
 

@@ -1,3 +1,5 @@
+import type { LegislationDetailsQuery, LegislationSelection } from "./legislationDetails";
+import type { Preferences } from "../preferences";
 import type { WorldOverviewView } from "./worldOverview";
 import type { NationView } from "./nation";
 import type { PoliticsView } from "./politics";
@@ -37,6 +39,11 @@ export interface GameView {
   actions: ActionView[]; regions: { id: string; name: string }[];
 }
 export interface GameScreenProps {
+  preferences: Preferences;
+  onPreferencesChange: (value: Preferences) => void;
+  preferencesError?: string | null;
+  loadMarkets: () => Promise<import("./markets").MarketsView>;
+  loadLegislation: (selection?: LegislationSelection) => Promise<LegislationDetailsQuery>;
   loadWorldOverview: () => Promise<WorldOverviewView>;
   loadPolitics: () => Promise<PoliticsView>;
   world: GameView; busy: boolean; message?: string; error?: string;

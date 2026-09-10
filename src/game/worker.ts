@@ -10,7 +10,9 @@ self.addEventListener("message", (event: MessageEvent<GameRequest>) => {
     switch (command.type) {
       case "choices": value = gameChoices(); break;
       case "create": value = session.create(command.options); break;
+      case "legislation": value = session.legislation(command.selection); break;
       case "worldOverview": value = session.worldOverview(); break;
+      case "markets": value = session.markets(); break;
       case "politics": value = session.politics(); break;
       case "view": value = session.view(); break;
       case "advance": value = session.advance(); break;

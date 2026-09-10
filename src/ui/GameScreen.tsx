@@ -1,6 +1,10 @@
+import { LegislationRoute } from "./LegislationRoute";
+import { SettingsPanel } from "./SettingsPanel";
+import { HelpPanel } from "./HelpPanel";
 import { WorldPanel } from "./WorldPanel";
 import { DetailQuery } from "./DetailQuery";
 import { NationPanel } from "./NationPanel";
+import { MarketsRoute } from "./MarketsRoute";
 import { PoliticsRoute } from "./PoliticsRoute";
 import { ResourceBreakdown } from "./ResourceBreakdown";
 /**
@@ -20,7 +24,7 @@ import "./ui.css";
 const ELECTIONS_PAGE_SIZE = 20;
 
 type TabId = "overview" | "actions" | "parties" | "legislature" | "elections" | "news";
-type RouteId = TabId | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "politicians" | "economy" | "budget" | "policy" | "nations" | "state";
+type RouteId = TabId | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "politicians" | "economy" | "budget" | "policy" | "nations" | "state" | "help" | "settings" | "legislationDetails" | "markets";
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "actions", label: "Character" },
@@ -37,6 +41,7 @@ const MENU_GROUPS: { label: string; items: { id: RouteId; label: string }[] }[] 
       { id: "profile", label: "Profile" },
       { id: "actions", label: "Actions" },
       { id: "portfolio", label: "Portfolio" },
+      { id: "markets", label: "Stock market" },
     ],
   },
   {
@@ -48,6 +53,7 @@ const MENU_GROUPS: { label: string; items: { id: RouteId; label: string }[] }[] 
       { id: "overview", label: "Overview" },
       { id: "parties", label: "Parties" },
       { id: "legislature", label: "Legislature" },
+      { id: "legislationDetails", label: "Bills and proposals" },
       { id: "elections", label: "Elections" },
       { id: "politicians", label: "Politicians" },
       { id: "economy", label: "Economy" },
@@ -63,11 +69,15 @@ const MENU_GROUPS: { label: string; items: { id: RouteId; label: string }[] }[] 
       { id: "news", label: "News" },
     ],
   },
+  { label: "Help", items: [{ id: "help", label: "Help" }, { id: "settings", label: "Settings" }] },
 ];
 
 const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
   nations: "Nations", state: "Home region",
   economy: "Economy", budget: "Budget", policy: "Policy",
+  legislationDetails: "Legislation details",
+  markets: "Stock market",
+  help: "Help", settings: "Settings",
   profile: "Profile",
   portfolio: "Portfolio",
   banking: "Banking",
@@ -218,7 +228,7 @@ function ProfileSection({ world }: { world: GameView }) {
   );
 }
 
-export function GameScreen({ loadPolitics, loadWorldOverview, world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction }: GameScreenProps) {
+export function GameScreen({ preferences, onPreferencesChange, preferencesError, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("overview");
   const [detailId, setDetailId] = useState<string>();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -340,7 +350,7 @@ export function GameScreen({ loadPolitics, loadWorldOverview, world, busy, messa
             <div className="ahd-eyebrow">A House Divided</div>
             <div style={{ display: "flex", gap: "0.4rem", alignItems: "baseline", flexWrap: "wrap" }}>
               <strong style={{ fontSize: "0.9rem", letterSpacing: "-0.01em" }}>{world.countryName}</strong>
-              <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{world.era} · Turn {world.turn} · {world.date}</span>
+              <span className="ahd-muted ahd-header-context" style={{ fontSize: "0.72rem" }}>{world.era} · Turn {world.turn} · {world.date}</span>
             </div>
             <div className="ahd-header-meta" aria-label="Player summary">
               <span>{world.player.name} · {world.player.partyName || "Independent"}</span>
@@ -539,7 +549,7 @@ export function GameScreen({ loadPolitics, loadWorldOverview, world, busy, messa
           ) : null}
 
           {route === "legislature" ? (
-            <LegislaturePanel legislature={world.legislature} busy={busy} onAction={onAction} />
+            <div className="ahd-stack"><button className="ahd-btn" onClick={() => go("legislationDetails")}>Browse bills and proposals</button><LegislaturePanel legislature={world.legislature} busy={busy} onAction={onAction} /></div>
           ) : null}
 
           {route === "elections" ? (
@@ -637,6 +647,10 @@ export function GameScreen({ loadPolitics, loadWorldOverview, world, busy, messa
         >
           {(route === "economy" || route === "budget" || route === "policy") && <NationPanel nation={world.nation} section={route} />}
           {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} />}</DetailQuery>}
+          {route === "markets" && <MarketsRoute load={loadMarkets} revision={world} busy={busy} onAction={onAction} />}
+          {route === "legislationDetails" && <LegislationRoute load={loadLegislation} revision={world} busy={busy} onAction={onAction} />}
+          {route === "help" && <HelpPanel />}
+          {route === "settings" && <SettingsPanel value={preferences} onChange={onPreferencesChange} error={preferencesError} />}
           {route === "profile" ? <ProfileSection world={world} /> : null}
           {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} /> : null}
           {(route === "partyDetails" || route === "electionDetails") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => go(route === "partyDetails" ? "parties" : "elections")}>Back to {route === "partyDetails" ? "parties" : "elections"}</button>}
