@@ -18,7 +18,12 @@ export function App() {
   const [message, setMessage] = useState<string>();
 
   useEffect(() => {
-    const worker = createGameClient(); client.current = worker;
+    let worker: GameClient;
+    try { worker = createGameClient(); client.current = worker; }
+    catch {
+      setError('The local game could not start. Reload the app to try again.');
+      return;
+    }
     let live = true;
     const report = (reason: unknown) => { if (live) setError(reason instanceof Error ? reason.message : String(reason)); };
     void worker.choices().then(choices => { if (live) setEras(choices); }).catch(report);
@@ -88,6 +93,7 @@ export function App() {
     <p className="ahd-eyebrow">Singleplayer</p><h1 className="ahd-h1">A House Divided</h1>
     <p className="ahd-muted">Build your political career. Your world stays on this device.</p>
     {error && <p className="ahd-alert" role="alert">{error}</p>}
+    {error && !eras.length && <button className="ahd-btn" onClick={() => window.location.reload()}>Reload app</button>}
     <button className="ahd-btn ahd-btn-primary" disabled={busy || !eras.length} onClick={() => { setError(undefined); setScreen('new'); }}>New game</button>
     {world && <button className="ahd-btn" disabled={busy} onClick={() => setScreen('game')}>Return to game</button>}
     <label className="ahd-field" style={{ marginTop: '1rem' }}>

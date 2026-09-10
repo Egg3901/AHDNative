@@ -91,7 +91,7 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 
 ## Follow-up checkpoint, 2026-09-10 11:50 UTC
 
-- Production bundle: 4 integrated browser smoke tests pass. They cover meaningful action/turn/save/relaunch, corrupt import recovery, duplicate-click turn protection, autosave and injected storage failure preserving the preceding save.
+- Production bundle: 5 integrated browser smoke tests pass. They cover meaningful action/turn/save/relaunch, corrupt import recovery, duplicate-click turn protection, autosave and injected storage failure preserving the preceding save, and a visible recovery screen when worker startup is denied.
 - Regression batch: 740 engine tests, 41 content tests, 7 session/worker tests, 28 UI tests and 10 native storage tests pass. Rust clippy and formatting pass. Long simulation suites were not repeated.
 - All 21 imported era/country combinations pass scripted action and save/reload replay. 126 checkpoint hashes match the pinned AHDClient oracle. See [world validation](WORLD-VALIDATION.md); this does not establish AHDGame parity.
 - Rate formatting and keyboard/form/focus behavior are corrected. A 390 x 844 running-world screenshot has no horizontal overflow. Native visual comparison remains open.

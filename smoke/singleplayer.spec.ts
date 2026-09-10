@@ -83,3 +83,14 @@ test('a failed save reports failure and preserves the last completed save', asyn
   await page.getByRole('button', { name: 'Continue Storage Recovery' }).click();
   await expect(page.getByText(/^1953 · Turn 0 ·/)).toBeVisible();
 });
+
+test('worker startup failure leaves a visible recovery screen', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.Worker = class {
+      constructor() { throw new DOMException('Worker unavailable', 'SecurityError'); }
+    } as unknown as typeof Worker;
+  });
+  await page.goto('/');
+  await expect(page.getByRole('alert')).toContainText('local game could not start', { timeout: 10_000 });
+  await expect(page.getByRole('button', { name: 'Reload app' })).toBeVisible();
+});
