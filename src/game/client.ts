@@ -1,3 +1,4 @@
+import type { PartyManagementView } from "./partyManagement";
 import type { SearchResults } from "./search";
 import type { MarketsView } from "./markets";
 import type { LegislationDetailsQuery, LegislationSelection } from "./legislationDetails";
@@ -39,6 +40,7 @@ export class GameClient {
   legislation(selection: LegislationSelection = {}) { return this.send<LegislationDetailsQuery>({ type: "legislation", selection }); }
   worldOverview() { return this.send<WorldOverviewView>({ type: "worldOverview" }); }
   search(query: string) { return this.send<SearchResults>({ type: "search", query }); }
+  partyManagement() { return this.send<PartyManagementView>({ type: "partyManagement" }); }
   markets() { return this.send<MarketsView>({ type: "markets" }); }
   politics() { return this.send<PoliticsView>({ type: "politics" }); }
   view() { return this.send<GameView>({ type: "view" }); }

@@ -152,3 +152,8 @@ The tables above preserve the initial audit at `fbc9e90`. Current execution stat
 | Help/settings/search | Offline guide, persistent large text and reduced motion, storage-error handling, local search with working detail links | Remaining search entity types, notifications, full account/help destinations |
 
 These are working local SP features, not a declaration of complete MP/SP parity. Browser evidence does not substitute for physical iOS/Android validation.
+
+Party founding now has an integrated form under Nation > Start a party and the
+Parties page, with real eligibility, a single 100k charge, automatic membership,
+charter display and save/reload. See [party management](PARTY-MANAGEMENT.md)
+for the remaining multi-founder and platform-action differences.
