@@ -7,6 +7,7 @@ export type GameCommand =
   | { type: "view" }
   | { type: "politics" }
   | { type: "markets" }
+  | { type: "caucusManagement" }
   | { type: "partyManagement" }
   | { type: "bondMarket" }
   | { type: "search"; query: string }

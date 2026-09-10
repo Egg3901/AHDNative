@@ -1,3 +1,4 @@
+import { projectCaucusManagement } from "./caucusManagement";
 import { projectBondMarket } from "./bondMarket";
 import { projectPartyManagement } from "./partyManagement";
 import { searchWorld } from "./search";
@@ -74,6 +75,8 @@ export class GameSession {
   search(query: string) { return searchWorld(this.requireWorld(), query); }
 
   bondMarket() { return projectBondMarket(this.requireWorld()); }
+
+  caucusManagement() { return projectCaucusManagement(this.requireWorld()); }
 
   partyManagement() { return projectPartyManagement(this.requireWorld()); }
 

@@ -158,3 +158,10 @@ Party founding now has an integrated form under Nation > Start a party and the
 Parties page, with real eligibility, a single 100k charge, automatic membership,
 charter display and save/reload. See [party management](PARTY-MANAGEMENT.md)
 for the remaining multi-founder and platform-action differences.
+
+
+Caucuses are reachable under Nation and from Parties. The roster, founding
+with initial tax, leave and join use the real action/session/save path.
+The accidental double entry threshold is repaired. Chair/whip/health,
+recruitment, disbanding, post-create tax editing and reference action costs
+remain open; see [caucus management](CAUCUS-MANAGEMENT.md).

@@ -317,6 +317,16 @@ function executeActionInner(
     if (!pre.ok) return { ok: false, error: (pre as { ok: false; error: string }).error };
   }
   if (actionId === "createCaucus" && !params.caucusName) return { ok: false, error: "createCaucus requires caucusName" };
+  // Validate before shared accounting. The caucus helper owns the sole charge.
+  if (actionId === "createCaucus") {
+    if (found.kind !== "player") return { ok: false, error: "Only player can create caucuses" };
+    const taxRate = params.caucusTaxRate ?? 0;
+    if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > Caucus.CAUCUS_TAX_MAX) {
+      return { ok: false, error: `taxRate must be 0-${Caucus.CAUCUS_TAX_MAX}` };
+    }
+    const pre = Caucus.canCreateCaucus(world, params.caucusName!);
+    if (!pre.ok) return pre;
+  }
   if (actionId === "joinCaucus" && !params.caucusId) return { ok: false, error: "joinCaucus requires caucusId" };
   if (actionId === "endorse" && !params.endorsedId) return { ok: false, error: "endorse requires endorsedId" };
 
@@ -331,8 +341,8 @@ function executeActionInner(
   }
 
   // Deduct fund cost where applicable (except convertCash which adds).
-  // foundParty is excluded: Membership.foundParty owns the sole 100k charge.
-  if (fundCost > 0 && actionId !== "convertCash" && actionId !== "rest" && actionId !== "investInfluence" && actionId !== "foundParty") {
+  // Founding helpers own their sole charges: party 100k, caucus 25k.
+  if (fundCost > 0 && actionId !== "convertCash" && actionId !== "rest" && actionId !== "investInfluence" && actionId !== "foundParty" && actionId !== "createCaucus") {
     actor.funds -= fundCost;
   }
 
@@ -476,17 +486,12 @@ function executeActionInner(
     return { ok: true, message: `Founded party ${res.partyId}` };
   }
   if (actionId === "createCaucus") {
-    if (found.kind !== "player") return { ok: false, error: "Only player can create caucuses" };
-    const taxRate = params.caucusTaxRate ?? 0;
-    const res = Caucus.createCaucus(world, params.caucusName!, taxRate);
+    const res = Caucus.createCaucus(world, params.caucusName!, params.caucusTaxRate ?? 0);
     if (!res.ok) {
       actor.actions += cost;
-      actor.funds += fundCost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
-      return { ok: false, error: res.error };
+      return res;
     }
-    // createCaucus already deducted its own fund cost (same as catalog); fix double debit
-    actor.funds += fundCost;
     return { ok: true, message: `Created caucus ${res.caucusId}` };
   }
   if (actionId === "joinCaucus") {

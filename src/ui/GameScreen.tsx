@@ -1,3 +1,4 @@
+import { CaucusPanel } from "./CaucusPanel";
 import { BondMarketRoute } from "./BondMarketRoute";
 import { PartyManagementPanel } from "./PartyManagementPanel";
 import { LegislationRoute } from "./LegislationRoute";
@@ -28,7 +29,7 @@ import "./ui.css";
 const ELECTIONS_PAGE_SIZE = 20;
 
 type TabId = "overview" | "actions" | "parties" | "legislature" | "elections" | "news";
-type RouteId = TabId | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "politicians" | "economy" | "budget" | "policy" | "nations" | "state" | "help" | "settings" | "legislationDetails" | "markets" | "search" | "partyManagement" | "bonds";
+type RouteId = TabId | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "politicians" | "economy" | "budget" | "policy" | "nations" | "state" | "help" | "settings" | "legislationDetails" | "markets" | "search" | "partyManagement" | "bonds" | "caucuses";
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "actions", label: "Character" },
@@ -58,6 +59,7 @@ const MENU_GROUPS: { label: string; items: { id: RouteId; label: string }[] }[] 
       { id: "overview", label: "Overview" },
       { id: "parties", label: "Parties" },
       { id: "partyManagement", label: "Start a party" },
+      { id: "caucuses", label: "Caucuses" },
       { id: "legislature", label: "Legislature" },
       { id: "legislationDetails", label: "Bills and proposals" },
       { id: "elections", label: "Elections" },
@@ -87,6 +89,7 @@ const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
   bonds: "Bond market",
   search: "Search",
   partyManagement: "Party management",
+  caucuses: "Caucuses",
   help: "Help", settings: "Settings",
   profile: "Profile",
   portfolio: "Portfolio",
@@ -238,7 +241,7 @@ function ProfileSection({ world }: { world: GameView }) {
   );
 }
 
-export function GameScreen({ preferences, onPreferencesChange, preferencesError, search, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction }: GameScreenProps) {
+export function GameScreen({ preferences, onPreferencesChange, preferencesError, search, loadCaucusManagement, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("overview");
   const [detailId, setDetailId] = useState<string>();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -520,6 +523,7 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
               <div className="ahd-card ahd-card-pad">
                 <h2 className="ahd-h2">Parties</h2>
                 <button className="ahd-btn ahd-btn-sm" onClick={() => go("partyManagement")}>Start a party</button>
+                <button className="ahd-btn ahd-btn-sm" onClick={() => go("caucuses")}>Caucuses</button>
                 <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>{world.parties.length} parties in {world.countryName}</p>
                 <p className="ahd-help" role="note" style={{ marginTop: "0.3rem" }}>Switching parties or leaving your party withdraws your candidacy.</p>
               </div>
@@ -664,6 +668,7 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
         >
           {(route === "economy" || route === "budget" || route === "policy") && <NationPanel nation={world.nation} section={route} />}
           {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={detailId} />}</DetailQuery>}
+          {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "bonds" && <BondMarketRoute load={loadBondMarket} revision={world} busy={busy} onAction={onAction} />}
           {route === "partyManagement" && <DetailQuery load={loadPartyManagement} revision={world} label="Party management">{management => <PartyManagementPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "search" && <SearchPanel load={search} revision={world} onOpen={openSearchResult} />}

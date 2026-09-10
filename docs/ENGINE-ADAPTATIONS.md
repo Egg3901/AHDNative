@@ -65,3 +65,13 @@ The prior end-of-turn spend in an imported save is retained, not discarded.
 [Campaign evidence](CAMPAIGN-ORDER-DEPTH.md) records the final-tick and resume
 contracts, the still-missing decaying stock, and existing non-reference NPC
 algorithms. Earlier lag statements above describe previous checkpoints.
+
+## Caucus action accounting
+
+`executeAction` now validates founding before shared accounting and lets the
+caucus helper own the single existing 25k charge. This removes the accidental
+50k entry threshold without changing the net price or 4 AP cost. Non-finite
+and out-of-range tax inputs reject without mutation. Eight public action tests
+cover the price boundaries and rejected-save identity. The pinned AHDGame
+founding route does not debit funds/AP; Native's inherited prices and other
+caucus mechanics are still reference gaps. See [caucus evidence](CAUCUS-MANAGEMENT.md).
