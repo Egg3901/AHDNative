@@ -72,12 +72,13 @@ export function HelpPanel() {
           <li>Offline world creation for the eras and playable countries shown by the app.</li>
           <li>Local actions, turn advancement, economic and budget details, parties, candidacy, elections, legislature, world browsing, local search, news, banking, portfolio and stock market views.</li>
           <li>Device saves, resume, JSON import, confirmed deletion, and visible recovery errors.</li>
+          <li>Local notification inbox with a five-item preview, unread badge, mark-read and delete, and action-required flags for elections, bills, party changes, finances, and saves.</li>
         </ul>
       </HelpSection>
 
       <HelpSection title="Still unavailable here">
         <p style={{ margin: 0 }}>
-          Multiplayer accounts and live server play are not part of this offline app. The current local screen also does not expose the full AHDGame world destinations such as corporation management, unions, and notifications.
+          Multiplayer accounts, live server play, and player mail are not part of this offline app. The current local screen also does not expose the full AHDGame world destinations such as corporation management and unions.
         </p>
         <p style={{ margin: 0 }}>
           Maps, changing your played country, regional legislative actions, and several advanced country systems remain unavailable. You can inspect regions and browse other nations. This project is development software; this page describes current behavior and does not claim a released native product.

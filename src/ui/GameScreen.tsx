@@ -16,6 +16,8 @@ import { PoliticsRoute } from "./PoliticsRoute";
 import { ResourceBreakdown } from "./ResourceBreakdown";
 import { BottomNav, GameDrawer } from "./MobileNavigation";
 import type { DrawerRouteId } from "./MobileNavigation";
+import { ActionsHub, type ActionsCategoryFilter } from "./ActionsHub";
+import { NotificationBellButton, NotificationPreview, NotificationsInbox, type NotificationTarget } from "./Notifications";
 /**
  * GameScreen: AHDNative primary game shell.
  *
@@ -25,7 +27,7 @@ import type { DrawerRouteId } from "./MobileNavigation";
  * Public source Egg3901/AHDGame. Layout is original, responsive for Tauri web.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ActionView, GameScreenProps, GameView } from "../game/types";
+import type { GameScreenProps } from "../game/types";
 import { FinancePanel, formatFinanceMoney } from "./FinancePanel";
 import { LegislaturePanel } from "./LegislaturePanel";
 import "./ui.css";
@@ -72,6 +74,7 @@ const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
   portfolio: "Portfolio",
   banking: "Banking",
   partyDetails: "Party details", electionDetails: "Election details", politicians: "Politicians",
+  notifications: "Notifications",
 };
 
 function isTabRoute(route: RouteId): route is TabId {
@@ -91,108 +94,15 @@ const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
   { id: "favorability", short: "Favorability", label: "Favorability" },
 ];
 
-function ActionRow({
-  action,
-  busy,
-  regions,
-  parties,
-  onAction,
-}: {
-  action: ActionView;
-  busy: boolean;
-  regions: GameView["regions"];
-  parties: GameView["parties"];
-  onAction: GameScreenProps["onAction"];
-}) {
-  const [amount, setAmount] = useState("10");
-  const [partyId, setPartyId] = useState(parties[0]?.id ?? "");
-  const [regionId, setRegionId] = useState(regions[0]?.id ?? "");
-
-  const [amountError, setAmountError] = useState<string | null>(null);
-  const disabled = busy || !action.available;
-  const hint = !action.available ? action.disabledReason ?? "Unavailable" : `Cost ${action.cost} actions`;
-
-  const handle = () => {
-    if (disabled) return;
-    const params: Record<string, string | number> = {};
-    if (action.requires === "amount") {
-      const n = Number(amount);
-      if (!Number.isFinite(n) || n <= 0 || !Number.isInteger(n)) {
-        setAmountError("Enter a positive whole amount.");
-        return;
-      }
-      setAmountError(null);
-      params.amount = n;
-    }
-    if (action.requires === "party") {
-      if (!partyId || !parties.some((pp) => pp.id === partyId)) {
-        return;
-      }
-      params.partyId = partyId;
-    }
-    if (action.requires === "region") {
-      if (!regionId || !regions.some((rr) => rr.id === regionId)) {
-        return;
-      }
-      params.regionId = regionId;
-    }
-    onAction(action.id, Object.keys(params).length ? params : undefined);
-  };
-
-  return (
-    <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
-      <div style={{ display: "flex", gap: "0.6rem", alignItems: "flex-start", justifyContent: "space-between" }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 750, fontSize: "0.86rem" }}>{action.name}</div>
-          <div className="ahd-muted" style={{ fontSize: "0.76rem", lineHeight: 1.45 }}>{action.description}</div>
-          {action.fundsGain !== undefined && <div className="ahd-help">Raises {action.fundsGain.toLocaleString()} campaign funds</div>}
-        </div>
-        <span className="ahd-badge" style={{ flexShrink: 0, whiteSpace: "nowrap" }} aria-label={hint}>{action.available ? `${action.cost}` : "locked"}</span>
-      </div>
-
-      {action.requires === "amount" ? (
-        <label className="ahd-field" style={{ maxWidth: "12rem" }}>
-          <span className="ahd-label">Amount</span>
-          <input className="ahd-input" type="number" inputMode="numeric" min={1} value={amount} onChange={(e) => { setAmount(e.target.value); if (amountError) setAmountError(null); }} disabled={busy} aria-label={`Amount for ${action.name}`} aria-invalid={!!amountError} aria-describedby={amountError ? `amount-error-${action.id}` : undefined} />
-          {amountError ? <span id={`amount-error-${action.id}`} className="ahd-error-text" role="alert">{amountError}</span> : null}
-        </label>
-      ) : null}
-      {action.requires === "party" ? (
-        <label className="ahd-field" style={{ maxWidth: "16rem" }}>
-          <span className="ahd-label">Party</span>
-          <select className="ahd-select" value={partyId} onChange={(e) => setPartyId(e.target.value)} disabled={busy || parties.length === 0} aria-label={`Party for ${action.name}`}>
-            {parties.map((p) => <option key={p.id} value={p.id}>{p.name} ({p.abbreviation})</option>)}
-            {parties.length === 0 ? <option value="">No parties</option> : null}
-          </select>
-        </label>
-      ) : null}
-      {action.requires === "region" ? (
-        <label className="ahd-field" style={{ maxWidth: "16rem" }}>
-          <span className="ahd-label">Region</span>
-          <select className="ahd-select" value={regionId} onChange={(e) => setRegionId(e.target.value)} disabled={busy || regions.length === 0} aria-label={`Region for ${action.name}`}>
-            {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-            {regions.length === 0 ? <option value="">No regions</option> : null}
-          </select>
-        </label>
-      ) : null}
-
-      <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap" }}>
-        <button type="button" className="ahd-btn ahd-btn-primary ahd-btn-sm" onClick={handle} disabled={disabled} aria-disabled={disabled} aria-label={`${action.available ? "Take action" : "Unavailable"}: ${action.name}`}>
-          {busy ? <span className="ahd-spinner" aria-hidden /> : null}
-          {action.available ? `Take action: ${action.name}` : "Unavailable"}
-        </button>
-        {action.available && <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{hint}{action.requires ? ` · requires ${action.requires}` : ""}</span>}
-      </div>
-      {!action.available && action.disabledReason ? <p className="ahd-help" role="note">{action.disabledReason}</p> : null}
-    </div>
-  );
-}
-
-export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction }: GameScreenProps) {
+export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("profile");
   const [detailId, setDetailId] = useState<string>();
+  // Selected hub category survives route changes so Profile/footer deep-links
+  // and returns never lose the player's filter selection.
+  const [actionsCategory, setActionsCategory] = useState<ActionsCategoryFilter>("all");
   const [menuOpen, setMenuOpen] = useState(false);
   const [openResource, setOpenResource] = useState<ResourceId | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [electionPage, setElectionPage] = useState(0);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const screenRef = useRef<HTMLDivElement | null>(null);
@@ -221,6 +131,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
     setRoute(next);
     setMenuOpen(false);
     setOpenResource(null);
+    setPreviewOpen(false);
     if (next === route && !menuOpen && openResource === null) {
       focusPage.current = false;
       document.getElementById(tabPanelId)?.focus({ preventScroll: true });
@@ -243,6 +154,15 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
     setDetailId(result.id); focusPage.current = true; setRoute(destinations[result.kind]);
   };
 
+  const openNotificationTarget = (target: { route: RouteId; detailId?: string }) => {
+    focusPage.current = true;
+    setDetailId(target.detailId);
+    setRoute(target.route);
+    setMenuOpen(false);
+    setOpenResource(null);
+    setPreviewOpen(false);
+  };
+
   const closeDetails = () => {
     const current = openResource;
     setOpenResource(null);
@@ -250,6 +170,18 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
       resourceButtonRefs.current[current]?.focus();
     }
   };
+
+  const bellWrapRef = useRef<HTMLSpanElement | null>(null);
+  const previewRef = useRef<HTMLDivElement | null>(null);
+  const closePreview = () => {
+    setPreviewOpen(false);
+    bellWrapRef.current?.querySelector("button")?.focus();
+  };
+  useEffect(() => {
+    if (previewOpen) {
+      previewRef.current?.focus();
+    }
+  }, [previewOpen]);
 
   useEffect(() => {
     if (openResource) {
@@ -298,16 +230,16 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
                 </div>
               </div>
 
-              <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: "0.2rem 0 0" }}>Actions</h3>
-              {world.actions.length === 0 ? (
-                <div className="ahd-empty">No actions available.</div>
-              ) : (
-                <div className="ahd-stack">
-                  {world.actions.map((a: ActionView) => (
-                    <ActionRow key={a.id} action={a} busy={busy} regions={world.regions} parties={world.parties} onAction={onAction} />
-                  ))}
-                </div>
-              )}
+              <ActionsHub
+                actions={world.actions}
+                busy={busy}
+                currency={world.finance.currency}
+                regions={world.regions}
+                parties={world.parties}
+                category={actionsCategory}
+                onCategoryChange={setActionsCategory}
+                onAction={onAction}
+              />
             </div>
           ) : null}
 
@@ -471,6 +403,13 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
           {route === "help" && <HelpPanel />}
           {route === "settings" && <SettingsPanel value={preferences} onChange={onPreferencesChange} error={preferencesError} />}
           {route === "profile" ? <ProfileRoute load={loadProfile} revision={world} busy={busy} onUpdateProfile={onUpdateProfile} onNavigate={(next, id) => {
+            // Profile deep-links into the hub carry the hub category in `id`;
+            // detail ids only apply to non-actions destinations.
+            if (next === "actions" && (id === "influence" || id === "fundraising" || id === "intelligence")) {
+              setActionsCategory(id);
+              go(next);
+              return;
+            }
             go(next);
             if (id) setDetailId(id);
           }} /> : null}
@@ -480,6 +419,18 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
           {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} busy={busy} onAction={onAction} />}
           {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} />}
           {route === "banking" ? <FinancePanel finance={world.finance} section="banking" busy={busy} onAction={onAction} /> : null}
+          {route === "notifications" ? (
+            <NotificationsInbox
+              items={world.notifications.items}
+              turn={world.turn}
+              busy={busy}
+              onRead={onMarkNotificationRead}
+              onDelete={onDeleteNotification}
+              onReadAll={onMarkAllNotificationsRead}
+              onOpen={openNotificationTarget}
+              index={{ elections: world.elections, parties: world.parties, bills: world.legislature.bills }}
+            />
+          ) : null}
         </section>
         )}
       </main>
@@ -501,6 +452,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
         onSave={onSave}
         onExit={onExit}
         onClose={() => setMenuOpen(false)}
+        unreadCount={world.notifications.unread}
       />
       <footer aria-hidden={menuOpen || undefined} inert={menuOpen} ref={footerRef} className="ahd-footer" aria-label="Status and primary navigation">
         <div className="ahd-container ahd-footer-inner">
@@ -508,6 +460,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
             <span className="ahd-mono">Turn {world.turn} · {world.date}</span>
             {saveNotice && !busy && !error ? <span className="ahd-muted" role="status">{message}</span>
               : <span className="ahd-muted">{busy ? (message ? `Processing: ${message}` : "Processing...") : "Player paced"}</span>}
+
           </div>
           <div className="ahd-status-resources" role="group" aria-label="Resources">
             {RESOURCES.map((r) => {
@@ -526,7 +479,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
                   aria-label={`${r.label}: ${value}`}
                   aria-expanded={open}
                   aria-controls={open ? `ahd-resource-${r.id}` : undefined}
-                  onClick={() => setOpenResource(open ? null : r.id)}
+                  onClick={() => { setPreviewOpen(false); setOpenResource(open ? null : r.id); }}
                 >
                   <span className="ahd-status-btn-label">{r.id === "influence" ? "INF" : r.id === "favorability" ? "FAV" : r.short}</span>
                   <span className="ahd-mono ahd-status-btn-value">{r.id === "funds" || r.id === "cash"
@@ -535,6 +488,14 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
                 </button>
               );
             })}
+            <span ref={bellWrapRef} style={{ display: "inline-flex" }}>
+              <NotificationBellButton
+                unread={world.notifications.unread}
+                busy={busy}
+                expanded={previewOpen}
+                onOpen={() => { setOpenResource(null); setPreviewOpen(true); }}
+              />
+            </span>
           </div>
           <BottomNav
             route={route}
@@ -544,6 +505,33 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
             onOpenMenu={() => { setOpenResource(null); setMenuOpen(true); }}
           />
         </div>
+        {previewOpen && !openResource ? (
+          <div
+            ref={previewRef}
+            id="ahd-notification-preview"
+            role="dialog"
+            aria-modal="false"
+            aria-label="Notification preview"
+            tabIndex={-1}
+            className="ahd-container ahd-resource-popover"
+            onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closePreview(); } }}
+            style={{ outline: "none" }}
+          >
+            <NotificationPreview
+              items={world.notifications.items}
+              unread={world.notifications.unread}
+              busy={busy}
+              onRead={onMarkNotificationRead}
+              onDelete={onDeleteNotification}
+              onOpenInbox={() => openNotificationTarget({ route: "notifications" })}
+            />
+            <div style={{ marginTop: "0.5rem" }}>
+              <button type="button" className="ahd-btn ahd-btn-sm ahd-btn-ghost" onClick={closePreview} aria-label="Close notification preview">
+                Close
+              </button>
+            </div>
+          </div>
+        ) : null}
         {openResource ? (
           <div
             ref={detailsRef}
@@ -568,7 +556,16 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
               </div>
               <ResourceBreakdown details={world.resources} resource={openResource} currency={world.finance.currency} />
               <div className="ahd-resource-links">
-                <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => go("actions")}>Go to Actions</button>
+                <button
+                  type="button"
+                  className="ahd-btn ahd-btn-sm"
+                  onClick={() => {
+                    // Footer details deep-link into the matching hub category;
+                    // the world turn and hub selection survive the round trip.
+                    setActionsCategory(openResource === "funds" || openResource === "cash" ? "fundraising" : "influence");
+                    go("actions");
+                  }}
+                >Go to Actions</button>
                 <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => go("profile")}>Go to Profile</button>
                 <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => go("portfolio")}>Go to Portfolio</button>
                 <button type="button" className="ahd-btn ahd-btn-sm ahd-btn-ghost" onClick={closeDetails} aria-label="Close details">Close</button>

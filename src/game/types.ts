@@ -7,7 +7,17 @@ import type { ResourceDetailsView } from "./resources";
 export interface NewGameOptions { era: string; countryId: string; playerName: string; seed: string; }
 export interface EraChoice { id: string; label: string; countries: { id: string; name: string }[]; }
 export interface MetricView { id: string; label: string; value: number; format: "money" | "percent" | "number"; }
-export interface ActionView { id: string; name: string; description: string; cost: number; fundsGain?: number; available: boolean; disabledReason?: string; requires?: "amount" | "party" | "region"; }
+export type ActionCategory = "influence" | "fundraising" | "intelligence";
+export interface ActionView { id: string; name: string; description: string; cost: number; fundsGain?: number; available: boolean; disabledReason?: string; requires?: "amount" | "party" | "region";
+  /** Hub grouping, mirroring AHDGame actions categories (influence/money/research). */
+  category?: ActionCategory;
+  /** Quoted fund cost from the engine projection; executeAction remains authoritative. */
+  fundCost?: number;
+  /** Turns until the cooldown clears; 0 when ready. */
+  cooldownTurns?: number;
+  /** Static non-cost gate (membership, donor network, cash, target selection). */
+  prerequisite?: string;
+}
 export interface PartyView { id: string; name: string; abbreviation: string; color: string; members: number; treasury: number; isPlayerParty: boolean; membership?: { join: ActionView; leave: ActionView }; }
 export interface ElectionView {
   id: string; title: string; status: string; date: string; filingDate: string;
@@ -37,6 +47,7 @@ export interface GameView {
   nation: NationView;
   metrics: MetricView[]; parties: PartyView[]; elections: ElectionView[]; news: NewsView[];
   actions: ActionView[]; regions: { id: string; name: string }[];
+  notifications: import("./notifications").NotificationInbox;
 }
 export interface GameScreenProps {
   loadProfile: () => Promise<import("./profileTypes").ProfileView>;
@@ -56,5 +67,8 @@ export interface GameScreenProps {
   world: GameView; busy: boolean; message?: string; error?: string;
   onAdvanceTurn: () => void; onSave: () => void; onExit: () => void;
   onAction: (id: string, params?: Record<string, string | number>) => void;
+  onMarkNotificationRead: (id: string) => void;
+  onDeleteNotification: (id: string) => void;
+  onMarkAllNotificationsRead: () => void;
 }
 export interface NewGameScreenProps { eras: EraChoice[]; busy: boolean; error?: string; onStart: (options: NewGameOptions) => void; onBack: () => void; }

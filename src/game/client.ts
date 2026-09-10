@@ -58,8 +58,12 @@ export class GameClient {
   act(actionId: string, params?: Record<string, string | number>) {
     return this.send<{ result: { ok: true; message: string } | { ok: false; error: string }; view: GameView }>({ type: "action", actionId, params });
   }
-  serialize(savedAt: string) { return this.send<string>({ type: "serialize", savedAt }); }
+  serialize(savedAt: string, includeSaveNotice = false) { return this.send<string>({ type: "serialize", savedAt, ...(includeSaveNotice ? { includeSaveNotice: true } : {}) }); }
   load(contents: string) { return this.send<GameView>({ type: "load", contents }); }
+  markNotificationRead(id: string) { return this.send<GameView>({ type: "notificationsRead", id }); }
+  deleteNotification(id: string) { return this.send<GameView>({ type: "notificationsDelete", id }); }
+  markAllNotificationsRead() { return this.send<GameView>({ type: "notificationsReadAll" }); }
+  recordSaved() { return this.send<GameView>({ type: "notificationsSaved" }); }
   dispose() { this.close("The game session was closed."); }
 
   private send<T>(command: GameCommand): Promise<T> {

@@ -11,6 +11,7 @@ import { newId } from './game/ids';
 import { BUILD_LABEL } from './buildIdentity';
 import { NewGameScreen } from './ui/NewGameScreen';
 import { GameScreen } from './ui/GameScreen';
+import { LandingScreen } from './ui/LandingScreen';
 
 export function App() {
   const [presentation, setPresentation] = useState(loadPreferences);
@@ -130,10 +131,13 @@ export function App() {
       setMessage('Saved game imported.');
     });
   }
-  async function save() {
+  async function save(includeSaveNotice = true) {
     if (!client.current || !slot.current) throw new Error('Start or load a game first.');
-    const contents = await client.current.serialize(new Date().toISOString());
+    // Prepare the prospective notice without mutating the session. Only
+    // acknowledge it after storage succeeds; failed writes never claim success.
+    const contents = await client.current.serialize(new Date().toISOString(), includeSaveNotice);
     await saveRepository.save(slot.current, contents);
+    if (includeSaveNotice) setWorld(await client.current.recordSaved());
     setMessage('Game saved.');
   }
 
@@ -177,6 +181,9 @@ export function App() {
     await save();
     setMessage("Profile saved.");
   })} preferences={presentation.value} onPreferencesChange={changePreferences} preferencesError={presentation.error} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={busy} error={error} message={message}
+    onMarkNotificationRead={(id) => void run(async () => { setWorld(await client.current!.markNotificationRead(id)); await save(false); })}
+    onDeleteNotification={(id) => void run(async () => { setWorld(await client.current!.deleteNotification(id)); await save(false); })}
+    onMarkAllNotificationsRead={() => void run(async () => { setWorld(await client.current!.markAllNotificationsRead()); await save(false); })}
     onAdvanceTurn={() => void run(async () => { setWorld(await client.current!.advance()); await save(); })}
     onAction={(id, params) => void run(async () => {
       const response = await client.current!.act(id, params); setWorld(response.view);
@@ -187,81 +194,25 @@ export function App() {
       if (!client.current?.isClosed) await save();
       setScreen('home'); setSaves(await saveRepository.list());
     })} />;
-  return <main className="ahd-screen"><div className="ahd-container" style={{ maxWidth: '42rem', paddingTop: 'max(2rem, env(safe-area-inset-top))' }}>
-    <p className="ahd-eyebrow">Singleplayer</p><h1 className="ahd-h1">A House Divided</h1>
-    <p className="ahd-muted">Build your political career. Your world stays on this device.</p>
-    <p className="ahd-muted" style={{ fontSize: '0.75rem' }} aria-label="Build version">{BUILD_LABEL}</p>
-    {error && <p className="ahd-alert" role="alert">{error}</p>}
-    {message && !error && <p className="ahd-notice" role="status">{message}</p>}
-    {error && !eras.length && <button className="ahd-btn" onClick={() => window.location.reload()}>Reload app</button>}
-    <button className="ahd-btn ahd-btn-primary" disabled={busy || !eras.length} onClick={() => { setError(undefined); setScreen('new'); }}>New game</button>
-    <div style={{ display: 'flex', gap: '.5rem', marginTop: '.75rem' }}>
-      <button className="ahd-btn" onClick={() => setScreen('help')}>Help</button>
-      <button className="ahd-btn" onClick={() => setScreen('settings')}>Settings</button>
-    </div>
-    {world && <button className="ahd-btn" disabled={busy} onClick={() => setScreen('game')}>Return to game</button>}
-    <label className="ahd-field" style={{ marginTop: '1rem' }}>
-      <span className="ahd-label">Import saved game</span>
-      <input type="file" accept=".json,application/json" disabled={busy} onChange={event => {
-        const file = event.currentTarget.files?.[0]; event.currentTarget.value = '';
-        if (file) importSave(file);
-      }} />
-    </label>
-    <section aria-label="Saved games" style={{ marginTop: '1.5rem' }}>
-      <h2 className="ahd-h2">Saved games</h2>
-      {!saves.length && <p className="ahd-muted">Your saved worlds will appear here.</p>}
-      {saves.map(saved => {
-        const isPending = pendingDelete?.slotId === saved.slotId;
-        return <article className="ahd-card ahd-card-pad" key={saved.slotId} style={{ marginTop: '.75rem' }}>
-          <h3 style={{ margin: 0, fontSize: '0.95rem' }}>{saved.playerName}</h3><p className="ahd-muted" style={{ margin: '0.2rem 0 0', fontSize: '0.78rem' }}>{saved.countryId} · Turn {saved.turn} · {new Date(saved.savedAt).toLocaleString()}</p>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.65rem', flexWrap: 'wrap' }}>
-            <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => load(saved)} aria-label={`Continue ${saved.playerName}`}>Continue</button>
-            <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" disabled={busy} id={`delete-request-${saved.slotId}`} onClick={() => requestDelete(saved)} aria-label={`Delete ${saved.playerName}`}>Delete</button>
-          </div>
-          {isPending && (
-            <div
-              role="dialog"
-              aria-labelledby={`delete-title-${saved.slotId}`}
-              aria-describedby={`delete-desc-${saved.slotId}`}
-              style={{
-                marginTop: '0.75rem',
-                border: '1px solid var(--ahd-border)',
-                borderRadius: 'var(--ahd-radius-sm)',
-                background: 'var(--ahd-card-elevated)',
-                padding: '0.75rem',
-              }}
-            >
-              <h4 id={`delete-title-${saved.slotId}`} style={{ margin: 0, fontSize: '0.88rem', fontWeight: 750 }}>
-                Delete {saved.playerName} · {saved.countryId} Turn {saved.turn}?
-              </h4>
-              <p id={`delete-desc-${saved.slotId}`} className="ahd-muted" style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', lineHeight: 1.5 }}>
-                This will permanently delete this saved game. This cannot be undone.
-              </p>
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-                <button
-                  id={`delete-cancel-${saved.slotId}`}
-                  className="ahd-btn ahd-btn-sm"
-                  disabled={busy}
-                  onClick={cancelDelete}
-                  autoFocus
-                >
-                  Cancel
-                </button>
-                <button
-                  className="ahd-btn ahd-btn-sm ahd-btn-primary"
-                  disabled={busy}
-                  onClick={confirmDelete}
-                  aria-label={`Confirm delete ${saved.playerName}`}
-                >
-                  {busy ? <span className="ahd-spinner" aria-hidden /> : null}
-                  Confirm delete
-                </button>
-              </div>
-            </div>
-          )}
-        </article>;
-      })}
-    </section>
-    {busy && <p role="status">Loading your world...</p>}
-  </div></main>;
+  return <LandingScreen
+    eras={eras}
+    saves={saves}
+    worldActive={Boolean(world)}
+    busy={busy}
+    error={error}
+    message={message}
+    buildLabel={BUILD_LABEL}
+    reducedMotion={presentation.value.reducedMotion}
+    pendingDelete={pendingDelete}
+    onNew={() => { setError(undefined); setScreen('new'); }}
+    onHelp={() => setScreen('help')}
+    onSettings={() => setScreen('settings')}
+    onReturn={() => setScreen('game')}
+    onReload={() => window.location.reload()}
+    onImport={importSave}
+    onLoad={load}
+    onRequestDelete={requestDelete}
+    onCancelDelete={cancelDelete}
+    onConfirmDelete={confirmDelete}
+  />;
 }

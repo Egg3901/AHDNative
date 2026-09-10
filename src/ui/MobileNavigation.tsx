@@ -5,7 +5,7 @@ export type DrawerRouteId =
   | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails"
   | "politicians" | "economy" | "budget" | "policy" | "nations" | "state"
   | "help" | "settings" | "legislationDetails" | "markets" | "search"
-  | "partyManagement" | "bonds" | "caucuses" | "regions";
+  | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications";
 
 export type BottomTabId = "profile" | "actions" | "parties";
 
@@ -41,6 +41,7 @@ export const MENU_GROUPS: { label: string; items: { id: DrawerRouteId; label: st
   {
     label: "World",
     items: [
+      { id: "notifications", label: "Notifications" },
       { id: "nations", label: "Nations" },
       { id: "banking", label: "Banking" },
       { id: "news", label: "News" },
@@ -181,6 +182,7 @@ export function GameDrawer({
   onSave,
   onExit,
   onClose,
+  unreadCount,
 }: {
   open: boolean;
   route: DrawerRouteId;
@@ -198,6 +200,7 @@ export function GameDrawer({
   onSave: () => void;
   onExit: () => void;
   onClose: () => void;
+  unreadCount?: number;
 }) {
   const drawerRef = useRef<HTMLElement | null>(null);
   const closeRef = useRef(onClose);
@@ -297,6 +300,11 @@ export function GameDrawer({
                   onClick={() => onNavigate(item.id)}
                 >
                   {item.label}
+                  {item.id === "notifications" && (unreadCount ?? 0) > 0 ? (
+                    <span className="ahd-badge" aria-hidden="true" style={{ marginLeft: "0.4rem", background: "var(--ahd-primary)", color: "white" }}>
+                      {unreadCount! > 99 ? "99+" : unreadCount}
+                    </span>
+                  ) : null}
                 </button>
               ))}
             </div>

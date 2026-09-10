@@ -125,10 +125,32 @@ The refined contract harness passed 23 checks with zero errors in 7.2 seconds. I
 
 ## Local v42 export
 
-A [local v42 export tool](SAVE-EXPORT-TOOL.md) calls the engine `projectSaveToV42` via the `src/game/saveCompatibility.ts` re-export. There is one projector.
+A [local v42 export tool](SAVE-EXPORT-TOOL.md) calls the engine `projectSaveToV42` via the `src/game/saveCompatibility.ts` app wrapper. The engine remains the sole world projector.
 
 - Authentic fixture (`fixtures/v42-1953-US.save.json.gz`): returned byte-identical. `homeRegionId` is absent.
 - Native-fresh pre-turn 1953 US: written as a schema 42 **extension** document that keeps `homeRegionId` `"AL"` and drops reconstructable `countryPolitics`. That is not the authentic mint. Old-reader SHA-256 of that extension: `f141e9a919d8a6626c53a1ca6c4c9856ec5ccc97410b0a4c2ba8d61ba3aaa320`.
 - Progressed `countryPolitics` after a Native turn, relabeled v43, and corrupt input are refused. Exclusive-create CLI rules are unchanged.
 
 This is not full interchange of progressed worlds. Native `serializeSave` still emits schema 43. Native file export remains unresolved. Field policy: [interchange depth](V42-INTERCHANGE-DEPTH.md). Investigation evidence: [the investigation](SAVE-WRITER-INVESTIGATION.md).
+
+
+## Native notification metadata
+
+Preview 0.1.1 adds a top-level `notifications` array beside the existing engine
+save envelope fields. World schema remains 43. Historical saves without this
+array load with an empty inbox; malformed or duplicate metadata rejects the
+load without replacing the active world or inbox. Native retains read state,
+deletions and action-required history without a storage count limit. The UI
+paginates history and shows five preview items.
+
+Notification mutations autosave without creating another save notice. Normal
+world saves prepare a notice in the saved document and acknowledge it in the
+session only after storage succeeds. Native's v42 wrapper preserves inbox
+metadata around the existing fail-closed world projection. Historical AHDClient
+can open a supported projected world but may discard this app-owned metadata
+when rewriting its envelope. This does not establish lossless inbox interchange
+through AHDClient, or extend supported world mechanics.
+
+Evidence: `src/game/notificationDurability.test.ts` and
+`smoke/notifications.spec.ts` exercise storage preparation, failed loads,
+retained history and closing/reopening without a manual save.

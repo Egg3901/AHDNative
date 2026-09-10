@@ -20,7 +20,11 @@ export type GameCommand =
   | { type: "legislation"; selection?: LegislationSelection }
   | { type: "advance" }
   | { type: "action"; actionId: string; params?: Record<string, string | number> }
-  | { type: "serialize"; savedAt: string }
-  | { type: "load"; contents: string };
+  | { type: "serialize"; savedAt: string; includeSaveNotice?: boolean }
+  | { type: "load"; contents: string }
+  | { type: "notificationsRead"; id: string }
+  | { type: "notificationsDelete"; id: string }
+  | { type: "notificationsReadAll" }
+  | { type: "notificationsSaved" };
 export interface GameRequest { id: number; command: GameCommand; }
 export type GameResponse = { id: number; ok: true; value: unknown } | { id: number; ok: false; error: string };

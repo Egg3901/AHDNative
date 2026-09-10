@@ -36,7 +36,8 @@ function makeElection(overrides: Partial<ElectionView> = {}): ElectionView {
   };
 }
 
-const preferencesProps = { preferences: DEFAULT_PREFERENCES, onPreferencesChange: vi.fn(), onUpdateProfile: vi.fn(async () => true) };
+const preferencesProps = { preferences: DEFAULT_PREFERENCES, onPreferencesChange: vi.fn(), onUpdateProfile: vi.fn(async () => true),
+  onMarkNotificationRead: vi.fn(), onDeleteNotification: vi.fn(), onMarkAllNotificationsRead: vi.fn() };
 function profileFor(world: GameView): ProfileView {
   return {
     name: world.player.name, bio: "", avatarUrl: null,
@@ -88,6 +89,7 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
     actions: [{ id: "fundraise", name: "Fundraise", description: "Raise money", cost: 1, available: true, requires: "amount" }],
     regions: [{ id: "r1", name: "Midwest" }],
     finance: makeFinance(),
+    notifications: { items: [], unread: 0 },
     nation: { countryId: "US", countryName: "United States", currency: "USD",
       economy: { gdpMillions: 100, growthRate: .04, inflationRate: .02, unemploymentRate: .05, outputGap: 0, primeRate: 3, macroHistory: [], primeRateHistory: [] },
       budget: { fiscalYear: 1953, gdpAbsolute: 100000000, population: 1000000, currency: "USD", taxRates: [], revenue: { components: [], total: 1000 }, spending: { categories: [], stateGrants: 0, debtInterest: 0, total: 800 }, surplus: 200, treasuryBalance: 4000, debt: { principal: 0, ceiling: 10000, interestRate: .02, debtToGdpRatio: 0, creditRating: "AA" } },
@@ -431,6 +433,40 @@ describe("GameScreen", () => {
     await navigate(user, "Parties");
     expect(screen.getByRole("button", { name: /join tories/i })).toBeDisabled();
     expect(screen.getAllByText(/cooldown/i).length).toBeGreaterThan(0);
+  });
+
+  it("deep-links from Profile finances into Fundraising and preserves the filter on return", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld({
+      actions: [
+        { id: "campaign", name: "Campaign", description: "Influence work.", cost: 1, available: true, category: "influence", fundCost: 20000, cooldownTurns: 0 },
+        { id: "fundraise", name: "Fundraise", description: "Raise money.", cost: 3, available: true, category: "fundraising", fundCost: 0, cooldownTurns: 0 },
+      ],
+    });
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    await user.click(await screen.findByRole("button", { name: "Fundraising actions" }));
+    const hub = screen.getByRole("region", { name: "Actions" });
+    expect(within(hub).getByRole("tab", { name: /fundraising/i })).toHaveAttribute("aria-selected", "true");
+    expect(within(hub).queryByText("Campaign")).not.toBeInTheDocument();
+    expect(within(hub).getByText("Fundraise")).toBeInTheDocument();
+    await navigate(user, "Profile");
+    expect(screen.getByText(/turn 1/i)).toBeInTheDocument();
+    await navigate(user, "Actions");
+    expect(screen.getByRole("tab", { name: /fundraising/i })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("deep-links from footer funds details into Fundraising", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld({
+      actions: [
+        { id: "campaign", name: "Campaign", description: "Influence work.", cost: 1, available: true, category: "influence", fundCost: 20000, cooldownTurns: 0 },
+        { id: "fundraise", name: "Fundraise", description: "Raise money.", cost: 3, available: true, category: "fundraising", fundCost: 0, cooldownTurns: 0 },
+      ],
+    });
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: /campaign funds:/i }));
+    await user.click(screen.getByRole("button", { name: "Go to Actions" }));
+    expect(screen.getByRole("tab", { name: /fundraising/i })).toHaveAttribute("aria-selected", "true");
   });
 });
 

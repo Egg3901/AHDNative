@@ -17,13 +17,49 @@ import {
   getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, listEras, listPlayableCountries, serializeSave,
   type ActionId, type ExecuteActionParams, type WorldState,
 } from "@ahdclient/engine";
-import type { ActionView, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions } from "./types";
+import type { ActionCategory, ActionView, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions } from "./types";
+import {
+  actionNotification, addNotifications, deleteNotification, diffTurnSnapshots, markAllNotificationsRead,
+  markNotificationRead, parseNotifications, saveNotification, toInbox, welcomeNotification,
+  type NotificationDraft, type NotificationItem, type TurnSnapshot,
+} from "./notifications";
 
-const ACTIONS: { id: ActionId; requires?: ActionView["requires"] }[] = [
-  { id: "convertCash", requires: "amount" }, { id: "fundraise" }, { id: "buildDonorBase" },
-  { id: "campaign", requires: "region" }, { id: "advertise" }, { id: "canvass", requires: "region" },
-  { id: "joinParty", requires: "party" }, { id: "leaveParty" },
+/**
+ * Player Actions hub membership. Categories mirror AHDGame src/app/actions
+ * (influence/money/research): campaign, advertise and canvass drive influence;
+ * fundraise, donor network and self-funding raise money; polls read the
+ * electorate. Party membership stays reachable here under Influence.
+ * poll/pollLarge are engine PORT-STUBs surfaced as honestly unavailable.
+ */
+const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: ActionCategory; prerequisite?: string }[] = [
+  { id: "campaign", requires: "region", category: "influence", prerequisite: "Choose a region." },
+  { id: "advertise", category: "influence" },
+  { id: "canvass", requires: "region", category: "influence", prerequisite: "Choose a region." },
+  { id: "joinParty", requires: "party", category: "influence", prerequisite: "Choose a party." },
+  { id: "leaveParty", category: "influence", prerequisite: "Requires party membership." },
+  { id: "fundraise", category: "fundraising", prerequisite: "Requires a donor network." },
+  { id: "buildDonorBase", category: "fundraising" },
+  { id: "convertCash", requires: "amount", category: "fundraising", prerequisite: "Requires personal cash." },
+  { id: "poll", category: "intelligence" },
+  { id: "pollLarge", category: "intelligence" },
 ];
+
+/**
+ * Fund-cost quote mirroring executeAction's tier scaling
+ * (packages/engine/src/actions/execute.ts); executeAction stays authoritative.
+ */
+function quoteFundCost(id: ActionId, flat: number, donorBaseLevel: number, apCost: number): number {
+  if (id === "campaign") {
+    const mult = 1 + (apCost - 1) * 0.2;
+    return Math.round((20_000 * apCost * mult) / 1_000) * 1_000;
+  }
+  if (id === "advertise") {
+    const mult = 1 + (apCost - 5) * 0.2;
+    return Math.round((100_000 * mult) / 1_000) * 1_000;
+  }
+  if (id === "buildDonorBase") return Math.round((3_000 + donorBaseLevel * 1_500) / 1_000) * 1_000;
+  return flat;
+}
 
 export function gameChoices(): EraChoice[] {
   return listEras().map((era) => ({ id: era.id, label: era.label, countries: listPlayableCountries(era.id) }));
@@ -32,6 +68,7 @@ export function gameChoices(): EraChoice[] {
 /** Owns mutable engine state; only detached display data and save strings cross the boundary. */
 export class GameSession {
   private world?: WorldState;
+  private notifications: NotificationItem[] = [];
 
   create(options: NewGameOptions): GameView {
     if (!options || typeof options.playerName !== "string" || !options.playerName.trim() || options.playerName.trim().length > 80) {
@@ -44,33 +81,79 @@ export class GameSession {
     if (!era?.countries.some((country) => country.id === options.countryId)) {
       throw new Error("Choose a playable country in the selected era.");
     }
-    return this.commit(createWorld({ ...options, playerName: options.playerName.trim() }));
+    const world = createWorld({ ...options, playerName: options.playerName.trim() });
+    return this.commit(world, addNotifications([], [welcomeNotification(world.player.name, world.meta.turn, world.meta.date)]));
   }
 
   act(actionId: string, params: ExecuteActionParams = {}) {
+    const before = snapshotNotifications(this.requireWorld());
     const candidate = structuredClone(this.requireWorld());
     const result = executeAction(candidate, "player", actionId, params);
-    if (result.ok) this.commit(candidate);
+    if (!result.ok) return result;
+    const world = candidate;
+    const drafts: NotificationDraft[] = [];
+    const detail = describeAction(actionId, params, world, result);
+    if (detail) {
+      const draft = actionNotification(actionId, detail, world.meta.turn, world.meta.date);
+      if (draft) drafts.push({ ...draft, key: this.uniqueKey(draft.key) });
+    }
+    drafts.push(...diffTurnSnapshots(before, snapshotNotifications(world), world.player.name));
+    this.commit(candidate, addNotifications(this.notifications, drafts));
     return result;
   }
 
   advance(): GameView {
     // The engine mutates in place. Commit only a completed turn so phase failures
     // cannot leave the active session partially advanced. Profile this copy cost.
+    const before = snapshotNotifications(this.requireWorld());
     const candidate = structuredClone(this.requireWorld());
     advanceTurn(candidate);
-    return this.commit(candidate);
+    const world = candidate;
+    return this.commit(candidate, addNotifications(
+      this.notifications, diffTurnSnapshots(before, snapshotNotifications(world), world.player.name)));
   }
 
-  serialize(savedAt: string): string {
-    return serializeSave(this.requireWorld(), savedAt);
+  markNotificationRead(id: string): GameView {
+    this.notifications = markNotificationRead(this.notifications, id);
+    return this.view();
+  }
+
+  deleteNotification(id: string): GameView {
+    this.notifications = deleteNotification(this.notifications, id);
+    return this.view();
+  }
+
+  markAllNotificationsRead(): GameView {
+    this.notifications = markAllNotificationsRead(this.notifications);
+    return this.view();
+  }
+
+  /** Save-event notice, upserted after a successful save; deduped to one per turn. */
+  recordSave(): GameView {
+    const world = this.requireWorld();
+    this.notifications = addNotifications(
+      this.notifications, [saveNotification(world.meta.turn, world.meta.date)]);
+    return this.view();
+  }
+
+  serialize(savedAt: string, includeSaveNotice = false): string {
+    const world = this.requireWorld();
+    const envelope = serializeSave(world, savedAt);
+    const items = includeSaveNotice
+      ? addNotifications(this.notifications, [saveNotification(world.meta.turn, world.meta.date)])
+      : this.notifications;
+    // Canonical field order: live-built and save-parsed items must serialize
+    // to identical bytes so reload round-trips stay byte-deterministic.
+    // serializeSave returns a compact object. Append app metadata without
+    // parsing and copying the full world a second time on every autosave.
+    return envelope.slice(0, -1) + ",\"notifications\":" + JSON.stringify(parseNotifications(items)) + "}";
   }
 
   load(contents: string): GameView {
-    return this.commit(deserializeSave(contents));
+    const world = deserializeSave(contents);
+    const stored = parseNotifications((JSON.parse(contents) as { notifications?: unknown }).notifications);
+    return this.commit(world, stored);
   }
-
-  view(): GameView { return projectWorld(this.requireWorld()); }
 
   profile() { return projectProfile(this.requireWorld()); }
 
@@ -105,14 +188,106 @@ export class GameSession {
     return this.world;
   }
 
-  private commit(candidate: WorldState): GameView {
-    const view = projectWorld(candidate);
+  private commit(candidate: WorldState, notifications = this.notifications): GameView {
+    const view = projectWorld(candidate, notifications);
     this.world = candidate;
+    this.notifications = notifications;
     return view;
+  }
+
+  view(): GameView { return projectWorld(this.requireWorld(), this.notifications); }
+
+  /** Keeps repeated same-turn action notices distinct while staying deterministic. */
+  private uniqueKey(base: string): string {
+    if (!this.notifications.some((item) => item.key === base)) return base;
+    let attempt = 2;
+    while (this.notifications.some((item) => item.key === `${base}:${attempt}`)) attempt += 1;
+    return `${base}:${attempt}`;
   }
 }
 
-function projectWorld(world: WorldState): GameView {
+/** Minimal notification snapshot over the authoritative world; diffs drive local notices. */
+function snapshotNotifications(world: WorldState): TurnSnapshot {
+  const player = world.player;
+  const seat = player.legislativeSeat;
+  const votingOpen = (status: string) => ["active", "active_other", "veto_override"].includes(status);
+  return {
+    turn: world.meta.turn,
+    date: world.meta.date,
+    news: world.news.map((item) => ({ headline: item.headline })),
+    elections: world.elections
+      .filter((election) => election.countryId === player.countryId)
+      .map((election) => ({
+        id: election.id,
+        title: election.electionType.replaceAll("_", " ") + (election.state ? ` · ${election.state}` : ""),
+        status: election.status,
+        playerCandidate: election.candidates.some((candidate) => candidate.id === "player"),
+        playerWon: election.winners?.includes("player") ?? false,
+        winnerNames: (election.winners ?? []).map((id) =>
+          election.candidates.find((candidate) => candidate.id === id)?.name
+          ?? world.politicians.find((politician) => politician.id === id)?.name ?? id),
+        filingOpen: election.status !== "resolved" && world.meta.turn <= election.primaryEndTurn,
+      })),
+    bills: world.bills
+      .filter((bill) => bill.countryId === player.countryId)
+      .map((bill) => ({
+        id: bill.id,
+        title: bill.title,
+        status: bill.status,
+        votingOpenForPlayer: votingOpen(bill.status) && seat !== null
+          && seat.countryId === bill.countryId && seat.chamberKey === bill.currentChamber,
+      })),
+    partyId: player.partyId,
+    partyName: player.partyId ? world.parties[player.partyId]?.name ?? "Independent" : "Independent",
+    funds: player.funds,
+    savings: player.savings,
+  };
+}
+
+function stringParam(params: ExecuteActionParams, key: "partyId" | "electionId"): string | undefined {
+  const value = params[key];
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function numberParam(params: ExecuteActionParams, key: "amount"): number | undefined {
+  const value = params[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/** Gathers real display details for an action notice from the committed world. */
+function describeAction(
+  actionId: string, params: ExecuteActionParams, world: WorldState, result: { ok: boolean },
+): import("./notifications").ActionDetail | null {
+  if (!result.ok) return null;
+  const message = (result as { message?: unknown }).message;
+  const detail: import("./notifications").ActionDetail =
+    typeof message === "string" && message.length > 0 ? { message } : {};
+  const partyId = stringParam(params, "partyId");
+  if (partyId) {
+    detail.partyId = partyId;
+    detail.partyName = world.parties[partyId]?.name;
+  }
+  const electionId = stringParam(params, "electionId");
+  if (electionId) {
+    detail.electionId = electionId;
+    detail.electionTitle = world.elections.find((election) => election.id === electionId)?.electionType
+      .replaceAll("_", " ");
+  }
+  const amount = numberParam(params, "amount");
+  if (amount !== undefined) detail.amount = amount;
+  switch (actionId) {
+    case "joinParty": case "leaveParty":
+    case "declareCandidacy": case "withdrawCandidacy":
+    case "fundraise": case "convertCash": case "depositSavings": case "withdrawSavings":
+    case "campaign": case "advertise": case "canvass":
+    case "sponsorBill": case "voteOnBill": case "buildDonorBase":
+      return detail;
+    default:
+      return null;
+  }
+}
+
+function projectWorld(world: WorldState, notifications: NotificationItem[]): GameView {
   const country = world.countries[world.player.countryId];
   if (!country || !country.playable) throw new Error("The save does not contain the player's playable country.");
   const player = world.player;
@@ -139,18 +314,27 @@ function projectWorld(world: WorldState): GameView {
     })),
     elections: projectElections(world),
     news: world.news.slice(-50).reverse().map((item, index) => ({ id: `${item.turn}:${index}`, title: item.headline, body: "", date: item.date })),
-    actions: ACTIONS.map(({ id, requires }) => {
+    actions: ACTIONS.map(({ id, requires, category, prerequisite }) => {
       const entry = ACTION_CATALOG[id];
       const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
-      const cooldown = (player.actionCooldowns[id] ?? 0) > world.meta.turn;
-      const reason = cooldown ? "Available after its cooldown." : player.actions < cost ? "Not enough action points."
+      const fundCost = quoteFundCost(id, entry.fundCost, player.donorBaseLevel, cost);
+      const cooldownTurns = Math.max(0, (player.actionCooldowns[id] ?? 0) - world.meta.turn);
+      // Gate order mirrors executeAction validation; executeAction stays authoritative.
+      const reason = entry.status === "unavailable" ? `Not yet available: requires the ${entry.blockingSystem ?? "unported system"} system.`
+        : cooldownTurns > 0 ? `Available in ${cooldownTurns} ${cooldownTurns === 1 ? "turn" : "turns"}.`
+        : player.actions < cost ? "Not enough action points."
+        : fundCost > 0 && player.funds < fundCost ? `Not enough funds. Requires ${fundCost}.`
         : id === "fundraise" && !isFundraiseEligible(player.donorBaseLevel) ? "No donor base. Use Build Donor Network first."
+        : id === "convertCash" && player.cash <= 0 ? "No cash to convert."
         : id === "leaveParty" && !player.partyId ? "You are independent." : undefined;
       return { id, name: entry.name, description: entry.description, cost, available: !reason,
+        category, fundCost, cooldownTurns,
         ...(id === "fundraise" && isFundraiseEligible(player.donorBaseLevel) ? { fundsGain: fundraiseQuote(player.donorBaseLevel, player.politicalInfluence) } : {}),
-        ...(requires ? { requires } : {}), ...(reason ? { disabledReason: reason } : {}) };
+        ...(requires ? { requires } : {}), ...(prerequisite ? { prerequisite } : {}),
+        ...(reason ? { disabledReason: reason } : {}) };
     }),
     regions: Object.values(world.regions).filter((region) => region.countryId === country.id).map(({ id, name }) => ({ id, name })),
+    notifications: toInbox(notifications),
   };
 }
 
