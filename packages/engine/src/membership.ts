@@ -50,6 +50,30 @@ export function prunePurgeRejoinBlocks(blocks: PurgeRejoinBlock[] | undefined, c
 
 export type JoinResult = { ok: true } | { ok: false; error: string };
 
+/** Supported holder cleanup from Game cleanupPartyPositionsOnSwitch. */
+function vacatePlayerPartyLeadership(world: WorldState, partyId: string): void {
+  const party = world.parties[partyId];
+  if (party) {
+    for (const role of ["chairId", "viceChairId", "treasurerId"] as const) {
+      if (party[role] === "player") party[role] = null;
+    }
+    if (party.committeeIds?.includes("player")) {
+      party.committeeIds = party.committeeIds.filter(id => id !== "player");
+    }
+  }
+  for (const org of Object.values(world.partyRegions)) {
+    if (org.partyId !== partyId) continue;
+    for (const role of ["chairId", "viceChairId", "treasurerId", "campaignerId"] as const) {
+      if (org[role] === "player") org[role] = null;
+    }
+  }
+  for (const caucus of world.caucuses) {
+    if (caucus.partyId !== partyId) continue;
+    if (caucus.chairId === "player") caucus.chairId = null;
+    if (caucus.viceChairId === "player") caucus.viceChairId = null;
+  }
+}
+
 export function canJoinParty(world: WorldState, partyId: string): JoinResult {
   const player = world.player;
   const party = world.parties[partyId];
@@ -72,6 +96,7 @@ export function joinParty(world: WorldState, partyId: string): JoinResult {
   const oldPartyId = player.partyId;
   // Decrement old party memberCount if leaving
   if (oldPartyId) {
+    vacatePlayerPartyLeadership(world, oldPartyId);
     const old = world.parties[oldPartyId];
     if (old) old.memberCount = Math.max(0, (old.memberCount ?? 1) - 1);
     // Clear old caucus membership (same as leave)
@@ -88,7 +113,7 @@ export function joinParty(world: WorldState, partyId: string): JoinResult {
   player.partyId = partyId;
   player.partyJoinedTurn = world.meta.turn;
   player.lastPartySwitchTurn = world.meta.turn;
-  player.politicalInfluence = 0; // reset per applyCharacterPartyJoin partyInfluence:0
+  player.partyInfluence = 0; // Game resets party clout, preserving state influence.
   const party = world.parties[partyId]!;
   party.memberCount = (party.memberCount ?? 0) + 1;
   // Sweep endorsements that become misaligned (primary-phase rule simplified: any cross-party endorsement while active)
@@ -109,6 +134,7 @@ export function leaveParty(world: WorldState): JoinResult {
   if (!check.ok) return check;
   const player = world.player;
   const oldPartyId = player.partyId!;
+  vacatePlayerPartyLeadership(world, oldPartyId);
   const party = world.parties[oldPartyId];
   if (party) party.memberCount = Math.max(0, (party.memberCount ?? 1) - 1);
   // Clear caucus membership (mirrors src/app/api/country/[code]/parties/[id]/leave/route.ts caucus cleanup)
@@ -120,7 +146,7 @@ export function leaveParty(world: WorldState): JoinResult {
   player.partyId = null;
   player.partyJoinedTurn = null;
   // lastPartySwitchTurn intentionally NOT cleared (hop escape prevention, see leave route comment)
-  player.politicalInfluence = 0;
+  player.partyInfluence = 0;
   sweepEndorsementsOnPartyChange(world, null, oldPartyId);
   // W22: an independent player can no longer stand on any party ballot line.
   sweepCandidaciesOnPartyChange(world, null);
@@ -205,6 +231,7 @@ export function foundParty(world: WorldState, input: FoundPartyInput): { ok: tru
   // Auto-join founder (mirrors ratifyCharter joining founders)
   const oldPartyId = player.partyId;
   if (oldPartyId) {
+    vacatePlayerPartyLeadership(world, oldPartyId);
     const old = world.parties[oldPartyId];
     if (old) old.memberCount = Math.max(0, (old.memberCount ?? 1) - 1);
     if (player.caucusId) {
@@ -216,7 +243,7 @@ export function foundParty(world: WorldState, input: FoundPartyInput): { ok: tru
   player.partyId = partyId;
   player.partyJoinedTurn = world.meta.turn;
   player.lastPartySwitchTurn = world.meta.turn;
-  player.politicalInfluence = 0;
+  player.partyInfluence = 0;
   party.memberCount = 1;
   // Purge blocks pruned
   player.purgeRejoinBlocks = prunePurgeRejoinBlocks(player.purgeRejoinBlocks, world.meta.turn);

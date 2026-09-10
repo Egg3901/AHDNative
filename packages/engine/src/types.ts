@@ -637,6 +637,14 @@ export interface PlayerCharacter {
   funds: number;
   donorBaseLevel: number;
   politicalInfluence: number;
+  /** Accumulated national reputation. Legacy saves omit it and start at zero. */
+  nationalInfluence?: number;
+  /** Party clout, uncapped. Legacy Native saves start at zero. */
+  partyInfluence?: number;
+  /** Character policy axes (-5..5). Legacy Native saves use neutral 0/0. */
+  policies?: { economic: number; social: number };
+  /** Optional imported Energy. Allocation and the remaining RPG stats are #48/#91. */
+  stats?: { energy?: number };
   favorability: number;
   infamy: number;
   /** Action cooldowns: actionId -> turn when next available. */
@@ -888,6 +896,9 @@ export interface Caucus {
   taxRate: number;
   disbandedAt: string | null;
   memberIds: string[];
+  /** Absent in legacy saves; do not infer a leader from member ordering. */
+  chairId?: string | null;
+  viceChairId?: string | null;
 }
 
 /**

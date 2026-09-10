@@ -93,3 +93,13 @@ Older saves may omit them. Native validates edits through the session/worker
 boundary and stores raster portraits locally. Source behavior and validation,
 including the bounded real v42/v43 reader round-trip, are recorded in
 [behavioral parity](BEHAVIORAL-PARITY.md). Missing player mechanics remain gaps.
+
+## Player influence and office resources
+
+The player now persists national and party influence, receives supported office
+action bonuses, and gets party influence/AP during the correct turn boundary.
+Membership changes reset party clout rather than state influence. Profile and
+the footer share these engine projections, including imported Energy limits.
+[Player resource parity](PLAYER-RESOURCE-PARITY.md) records the pinned source,
+legacy defaults, tests and remaining related systems. The non-reference manual
+clout exchange is retired; this does not add a new game action.

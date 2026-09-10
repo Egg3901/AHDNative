@@ -9,6 +9,8 @@
 
 import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
+import { playerNationalInfluenceGain } from "./playerInfluence.js";
+import { projectPlayerActionRefresh } from "./officeBonus.js";
 import { MIN_BASE_ACTIONS_PER_TURN, ACTION_HOARD_PENALTY, ENERGY_BASE_ACTION_CAP, ENERGY_BASE_HOARD_THRESHOLD, OFFICE_ACTION_BONUS } from "./constants.js";
 
 function officeActionBonus(chamberKey: string): number {
@@ -66,13 +68,14 @@ export const actionRefreshPhase: TurnPhase = {
     for (const pol of world.politicians) refreshForPolitician(pol);
 
     // Player refresh mirrors character path
-    const player = world.player as unknown as { actions?: number; bonusActions?: number; politicalInfluence?: number; infamy?: number; favorability?: number; chamberKey?: string };
+    const player = world.player;
     if (typeof player.actions === "number") {
-      const bonus = 0; // player has no office bonus unless we add currentOffice later
-      let refresh = base + bonus;
-      const penalty = player.actions > threshold ? ACTION_HOARD_PENALTY : 0;
-      player.actions = Math.min(cap, Math.max(0, player.actions - penalty + refresh));
+      player.actions = projectPlayerActionRefresh(world).next;
       if (typeof player.politicalInfluence === "number") {
+        // Game d4baf899 shared/constants/formulas.ts calculateNationalInfluenceGain
+        // and turn/actionRefresh.ts: use pre-decay influence; reputation is uncapped.
+        const nationalGain = playerNationalInfluenceGain(world);
+        player.nationalInfluence = (player.nationalInfluence ?? 0) + nationalGain;
         player.politicalInfluence = Math.min(100, Math.max(0, applyPoliticalInfluenceDecay(player.politicalInfluence)));
       }
       if (typeof player.infamy === "number" && typeof player.favorability === "number") {

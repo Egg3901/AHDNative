@@ -9,6 +9,7 @@ export function ResourceBreakdown({ details, resource, currency }: {
   const f = details.funds;
   const rows: [string, string][] = resource === 'ap' ? [
     ['Base refresh', String(a.base)], ['Office bonus', String(a.office)],
+    ['Party influence bonus', String(a.party ?? 0)],
     [`Hoarding penalty above ${a.threshold}`, String(a.penalty)],
     ['Balance after next refresh', String(a.next)], ['Action cap', String(a.cap)],
   ] : resource === 'funds' ? [

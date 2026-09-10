@@ -48,7 +48,7 @@ describe('profile through the saved game session', () => {
     const session = new GameSession(); session.create(options);
     const loaded = new GameSession(); loaded.load(session.serialize(savedAt));
     expect(loaded.profile()).toMatchObject({ name: 'Alex', bio: '', avatarUrl: null,
-      standing: { nationalInfluence: null, partyInfluence: null, infamy: 0 },
+      standing: { nationalInfluence: 0, partyInfluence: 0, infamy: 0 },
       finances: { donorBaseLevel: 0 },
     });
   });

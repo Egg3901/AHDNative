@@ -58,6 +58,8 @@ export function createCaucus(world: WorldState, name: string, taxRate = 0): Cauc
     taxRate,
     disbandedAt: null,
     memberIds: ["player"],
+    chairId: "player",
+    viceChairId: null,
   };
   world.caucuses.push(caucus);
   player.caucusId = id;
@@ -96,7 +98,11 @@ export function leaveCaucus(world: WorldState): CaucusResult {
   if (!check.ok) return check;
   const caucusId = world.player.caucusId!;
   const caucus = world.caucuses.find((c) => c.id === caucusId);
-  if (caucus) caucus.memberIds = caucus.memberIds.filter((id) => id !== "player");
+  if (caucus) {
+    caucus.memberIds = caucus.memberIds.filter((id) => id !== "player");
+    if (caucus.chairId === "player") caucus.chairId = null;
+    if (caucus.viceChairId === "player") caucus.viceChairId = null;
+  }
   world.player.caucusId = null;
   return { ok: true };
 }

@@ -18,11 +18,12 @@ export interface AdvanceTurnOptions {
 
 export function advanceTurn(world: WorldState, options: AdvanceTurnOptions = {}): TurnReport {
   const rng = rngFromState(world.meta.rng);
+  const context = { playerAtTurnStart: structuredClone(world.player) };
   const phaseTimings = [];
   for (const phase of TURN_PHASES) {
     if (!isTurnPhaseEnabled(world.featureFlags, phase.name)) continue;
     const startedAt = options.now?.();
-    phase.run(world, rng);
+    phase.run(world, rng, context);
     const ms = startedAt === undefined ? 0 : options.now!() - startedAt;
     phaseTimings.push({ name: phase.name, ms });
     options.afterPhase?.(phase.name, world, rng.state());

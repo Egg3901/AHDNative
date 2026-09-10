@@ -16,6 +16,21 @@ describe('resource details through the session contract', () => {
   });
 });
 
+it('keeps Profile, footer breakdown and granted actions consistent for an office holder', () => {
+  const session = new GameSession();
+  session.create(options);
+  const save = JSON.parse(session.serialize('2026-09-10T00:00:00.000Z'));
+  save.world.player.legislativeSeat = { chamberKey: 'senate', countryId: 'US' };
+  save.world.player.actions = 5;
+  session.load(JSON.stringify(save));
+  // Footer breakdown (world.resources) previews the same refresh the phase grants.
+  expect(session.view().resources.actions).toMatchObject({ base: 4, office: 2, penalty: 0, threshold: 100, cap: 200, next: 11 });
+  expect(session.profile().standing).toMatchObject({ actions: 5, actionCap: 200, actionGain: 6 });
+  session.advance();
+  expect(session.view().player.actions).toBe(11);
+  expect(session.profile().standing).toMatchObject({ actions: 11, actionGain: 6 });
+});
+
 it('does not promise campaign income when economy phases are disabled', () => {
   const session = new GameSession();
   session.create(options);

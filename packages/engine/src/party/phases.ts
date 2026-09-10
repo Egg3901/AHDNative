@@ -11,6 +11,8 @@
 
 import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
+import { energyActionLimits } from "../actions/officeBonus.js";
+import { projectPlayerPartyInfluence } from "./playerInfluence.js";
 import {
   ORG_DECAY_RATE,
   MIN_PRESENCE_ORG,
@@ -40,17 +42,27 @@ import {
 // ---------------------------------------------------------------------------
 // partyInfluenceTurn
 // Source: src/lib/turn/partyInfluenceTurn.ts
-// PORT-STUB: infamy 0 (no infamy tracking), leadership 0 (no chair data),
-// bonus actions stored as politician.bonusActions counter.
+// Player path matches the Character bootstrap snapshot and same-turn grants.
+// Legacy NPC simulation below remains separate from the player pool.
 // ---------------------------------------------------------------------------
 export const partyInfluenceTurnPhase: TurnPhase = {
   name: "partyInfluenceTurn",
-  run(world: WorldState) {
+  run(world, _rng, context) {
     const decayRate = PARTY_INFLUENCE_DECAY_RATE;
     const baseRate = PARTY_INFLUENCE_BASE_RATE;
     const maxPenalty = PARTY_INFLUENCE_MAX_PENALTY;
     const poolMultiplier = PARTY_INFLUENCE_POOL_MULTIPLIER;
     const maxBonus = PARTY_INFLUENCE_MAX_BONUS;
+
+    const player = world.player;
+    const source = context?.playerAtTurnStart ?? player;
+    const projected = projectPlayerPartyInfluence(world, source);
+    if (projected) {
+      player.partyInfluence = projected.next;
+      if (projected.bonusActions > 0) {
+        player.actions = Math.min(energyActionLimits(source.stats?.energy ?? 1).cap, player.actions + projected.bonusActions);
+      }
+    }
 
     const byParty = new Map<string, typeof world.politicians>();
     for (const pol of world.politicians) {

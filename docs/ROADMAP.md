@@ -450,3 +450,16 @@ from later build findings. These counts are scope counts, not effort percentages
 for their bounded acceptance; A01/A02 reflect completed packaging with device
 checks outstanding. Future batches must update issues and roadmap rows as
 part of completion, as required by AGENTS.md and the PR template.
+
+### Active player resources and visual follow-through
+
+The #30/#31/#32 implementation and its validation are documented in
+[Player resource parity](PLAYER-RESOURCE-PARITY.md). Issue closure follows the
+verified PR merge. The active P0 batch remains tracked in
+[milestone 1](https://github.com/Egg3901/AHDNative/milestone/1).
+
+Owner visual feedback adds [the globe landing page](https://github.com/Egg3901/AHDNative/issues/142)
+and [reference imagery across screens](https://github.com/Egg3901/AHDNative/issues/143).
+These require rendered comparison with AHDGame/AHDClient, beyond matching colors
+and functional controls. The shared React/Tauri app and TypeScript engine remain;
+Rust implementation stays conditional on representative device profiling.

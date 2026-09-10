@@ -439,15 +439,6 @@ function executeActionInner(
     void decayPressure; // cite import
     return { ok: true, message: `Pressure ${pkey} now ${pp.value}.` };
   }
-  if (actionId === "investInfluence") {
-    const pol = found.kind === "politician" ? actor as unknown as { partyInfluence: number; bonusActions: number } : null;
-    if (!pol) return { ok: false, error: "Only politicians can invest influence" };
-    if ((pol.partyInfluence ?? 0) < 10) return { ok: false, error: "Need at least 10 party influence to invest" };
-    pol.partyInfluence -= 10;
-    // bonusActions consumed by actionRefresh; add directly to actions for immediacy
-    (actor as unknown as { actions: number }).actions += 2;
-    return { ok: true, message: "Invested 10 influence for +2 actions." };
-  }
   if (actionId === "joinParty") {
     if (found.kind !== "player") return { ok: false, error: "Only player can join parties" };
     // Pre-charge already done; refund on failure
