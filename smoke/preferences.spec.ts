@@ -1,3 +1,4 @@
+import { openGameMenu, gameReady } from './game-navigation';
 import { test, expect } from '@playwright/test';
 
 test('offline help and presentation preferences remain usable and survive relaunch', async ({ page }) => {
@@ -22,14 +23,15 @@ test('offline help and presentation preferences remain usable and survive relaun
   await page.getByRole('button', { name: 'New game', exact: true }).click();
   await page.getByLabel('Your name').fill('Reading Player');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'End turn', exact: true })).toBeEnabled();
-  await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('menuitemradio', { name: 'Settings', exact: true }).click();
+  await gameReady(page);
+  await openGameMenu(page);
+  await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByRole('radio', { name: 'Large', exact: true })).toBeChecked();
   await expect(page.getByRole('contentinfo')).toContainText('Turn 0');
-  const header = await page.getByRole('banner').boundingBox();
+  await expect(page.getByRole('banner')).toHaveCount(0);
+  const main = await page.getByRole('main').boundingBox();
   const footer = await page.getByRole('contentinfo').boundingBox();
-  expect(footer!.y - (header!.y + header!.height)).toBeGreaterThanOrEqual(160);
+  expect(footer!.y - main!.y).toBeGreaterThanOrEqual(160);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: 'artifacts/smoke/mobile-large-text-settings.png', fullPage: true });
 });

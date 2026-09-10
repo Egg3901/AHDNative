@@ -299,3 +299,26 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
   passed. Fifteen focused founding-accounting tests and 58 related
   action/membership/head-of-state tests passed. Full engine simulations and
   unchanged Rust checks were not repeated for this bounded action/UI slice.
+
+## Mobile navigation correction
+
+The owner rejected the desktop-style top banner and scrolling top tabs.
+They are removed. Primary navigation now sits at the bottom; the complete
+hierarchy and End Turn, Save and Exit controls live in a left-side drawer.
+The five resource controls use one compact row above navigation, with full
+values and breakdowns retained. Content reserves the actual measured footer
+height, and resource details scroll above it.
+
+The drawer is modal, traps focus, blocks background interaction and shows
+turn/save outcomes directly. Route selection closes it and focuses the page.
+[Mobile navigation](MOBILE-NAVIGATION.md) records the interaction and device
+limits. Existing gameplay and the full roadmap remain in scope; no mechanics,
+authentication, signing or paid-build behavior changed in this interface slice.
+
+Validation: production build, 92 app/session tests, 123 UI tests and fixture
+integrity passed. All 25 browser scenarios are covered by passing results:
+21 passed in the broad batch, and the four old header/heading-dependent
+checks passed in an eight-scenario focused follow-up. The final 39 affected
+UI tests and build also passed. Screenshots at 320px and 390px show the new
+footer and drawer; large-text 320px/568px flow passes. Engine and Rust tests
+were not repeated for this UI-only change. Paid build usage remains unchanged.

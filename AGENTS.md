@@ -31,3 +31,16 @@ Read README.md before changing product scope or architecture.
 - Attach reproducible commands, source commit, results and remaining limitations to the candidate readiness record. Smoke tests must exercise the actual integrated implementation, not a mock world or placeholder screen.
 - The first candidate is for owner review, not an automatic 1.0.0 release. Physical iOS signing, phone lifecycle and device performance validation occur after the first eligible private build; never claim those were proven on Linux.
 - Continue local development and testing while paid builds are held. The existing budget, privacy and platform rules remain binding.
+
+## Mobile navigation correction
+
+- The owner rejected the desktop-style top banner, exposed turn/save/exit row,
+  and scrolling top tabs. Do not restore them on iOS or Android.
+- Use a side navigation drawer for the full destination hierarchy and turn,
+  save and exit controls, with primary navigation at the bottom.
+- Keep the persistent resource/turn footer compact. Resource details remain
+  reachable without a wall of large pills or hiding content behind the footer.
+- Preserve all existing features through the new navigation. Validate the real
+  player flows and inspect 320px/390px screens before calling the layout ready.
+- The shared React/Tauri stack remains. Native-feeling navigation is not proof
+  of a UIKit/SwiftUI implementation or physical-device gesture validation.

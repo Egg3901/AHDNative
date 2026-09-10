@@ -82,27 +82,35 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
   };
 }
 
+async function navigate(user: ReturnType<typeof userEvent.setup>, name: string) {
+  const primary = within(screen.getByRole("navigation", { name: "Primary" }));
+  const direct = primary.queryByRole("button", { name });
+  if (direct) { await user.click(direct); return; }
+  await user.click(primary.getByRole("button", { name: "Menu" }));
+  await user.click(within(screen.getByRole("dialog", { name: "Game menu" })).getByRole("button", { name }));
+}
+
 describe("GameScreen", () => {
-  it("renders header with end turn and save and overview by default", () => {
+  it("starts with content and bottom navigation while turn controls stay in the closed drawer", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
-    expect(screen.getByRole("banner")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /end turn/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /save game/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { selected: true })).toHaveTextContent("Overview");
+    expect(screen.queryByRole("banner")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /end turn/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /save game/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Overview" })).toHaveAttribute("aria-current", "page");
     expect(screen.getAllByText(/united states/i).length).toBeGreaterThan(0);
   });
 
-  it("switches tabs via accessible tablist", async () => {
+  it("switches between bottom destinations and drawer destinations", async () => {
     const user = userEvent.setup();
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
-    await user.click(screen.getByRole("tab", { name: "Parties" }));
-    expect(screen.getByRole("tab", { name: "Parties" })).toHaveAttribute("aria-selected", "true");
+    await navigate(user, "Parties");
+    expect(screen.getByRole("button", { name: "Parties" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByText("Labor")).toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: "Elections" }));
+    await navigate(user, "Elections");
     expect(screen.getByText("General Election")).toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: "News" }));
+    await navigate(user, "News");
     expect(screen.getByText("Markets rally")).toBeInTheDocument();
   });
 
@@ -110,18 +118,18 @@ describe("GameScreen", () => {
     const user = userEvent.setup();
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
-    const overview = screen.getByRole("tab", { name: "Overview" });
+    const overview = screen.getByRole("button", { name: "Overview" });
     overview.focus();
     await user.keyboard("{ArrowRight}");
-    expect(screen.getByRole("tab", { name: "Character" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "Character" })).toHaveAttribute("aria-current", "page");
   });
 
-  it("tabs have proper roving tabindex", () => {
+  it("has four keyboard-reachable bottom destinations", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
-    const tabs = screen.getAllByRole("tab");
-    expect(tabs[0]).toHaveAttribute("tabIndex", "0");
-    expect(tabs[1]).toHaveAttribute("tabIndex", "-1");
+    const buttons = within(screen.getByRole("navigation", { name: "Primary" })).getAllByRole("button");
+    expect(buttons).toHaveLength(4);
+    expect(buttons.every(button => button.tabIndex === 0)).toBe(true);
   });
 
   it("shows empty states explicitly for each collection", async () => {
@@ -129,13 +137,13 @@ describe("GameScreen", () => {
     const world = makeWorld({ metrics: [], parties: [], elections: [], news: [], actions: [] });
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
     expect(screen.getByText("No metrics for this world.")).toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: "Character" }));
+    await navigate(user, "Character");
     expect(screen.getByText("No actions available.")).toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: "Parties" }));
+    await navigate(user, "Parties");
     expect(screen.getByText("No parties in this world.")).toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: "Elections" }));
+    await navigate(user, "Elections");
     expect(screen.getByText("No elections scheduled.")).toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: "News" }));
+    await navigate(user, "News");
     expect(screen.getByText("No news yet.")).toBeInTheDocument();
   });
 
@@ -144,10 +152,11 @@ describe("GameScreen", () => {
     const onAction = vi.fn();
     const { rerender } = render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={true} message="Advancing" onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
     expect(screen.getByText("Advancing")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Menu" }));
     expect(screen.getByRole("button", { name: /end turn/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /save game/i })).toBeDisabled();
     rerender(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} error="Save failed" onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
-    expect(screen.getByRole("alert")).toHaveTextContent("Save failed");
+    expect(within(screen.getByRole("dialog", { name: "Game menu" })).getByRole("alert")).toHaveTextContent("Save failed");
   });
 
   it("invokes onAdvanceTurn, onSave, onExit", async () => {
@@ -157,6 +166,7 @@ describe("GameScreen", () => {
     const onSave = vi.fn();
     const onExit = vi.fn();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={onAdvanceTurn} onSave={onSave} onExit={onExit} onAction={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: "Menu" }));
     await user.click(screen.getByRole("button", { name: /end turn/i }));
     await user.click(screen.getByRole("button", { name: /save game/i }));
     await user.click(screen.getByRole("button", { name: /exit game/i }));
@@ -175,7 +185,7 @@ describe("GameScreen", () => {
       ],
     });
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
-    await user.click(screen.getByRole("tab", { name: "Character" }));
+    await navigate(user, "Character");
     expect(screen.getAllByText("Need more influence").length).toBeGreaterThan(0);
     const takeButtons = screen.getAllByRole("button", { name: /take action/i });
     const available = takeButtons.find((b) => b.textContent?.includes("Fundraise"));
@@ -194,7 +204,7 @@ describe("GameScreen", () => {
       actions: [{ id: "fundraise", name: "Fundraise", description: "Raise money", cost: 1, available: true, requires: "amount" }],
     });
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
-    await user.click(screen.getByRole("tab", { name: "Character" }));
+    await navigate(user, "Character");
     const amountInput = screen.getByLabelText(/amount for fundraise/i) as HTMLInputElement;
     await user.clear(amountInput);
     await user.type(amountInput, "0");
@@ -212,7 +222,7 @@ describe("GameScreen", () => {
       ],
     });
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
-    await user.click(screen.getByRole("tab", { name: "Character" }));
+    await navigate(user, "Character");
     expect(screen.getByRole("button", { name: /take action: fundraise/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /take action: advertise/i })).toBeInTheDocument();
   });
@@ -229,7 +239,7 @@ describe("GameScreen", () => {
       ],
     });
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
-    await user.click(screen.getByRole("tab", { name: "Character" }));
+    await navigate(user, "Character");
     const buttons = screen.getAllByRole("button", { name: /take action:/i });
     await user.click(buttons[0]!);
     expect(onAction).toHaveBeenCalledWith("endorse", expect.objectContaining({ partyId: "p2" }));
@@ -248,7 +258,7 @@ describe("GameScreen", () => {
       ],
     });
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
-    await user.click(screen.getByRole("tab", { name: "Character" }));
+    await navigate(user, "Character");
     await user.click(screen.getByRole("button", { name: /take action: join party/i }));
     expect(onAction).not.toHaveBeenCalled();
   });
@@ -256,9 +266,9 @@ describe("GameScreen", () => {
   it("does not render fake disabled feature pages", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
-    const tabs = screen.getAllByRole("tab");
+    const tabs = within(screen.getByRole("navigation", { name: "Primary" })).getAllByRole("button");
     tabs.forEach((t) => expect(t).not.toBeDisabled());
-    expect(tabs.map((t) => t.textContent)).toEqual(["Overview", "Character", "Parties", "Legislature", "Elections", "News"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["Overview", "Character", "Parties", "Menu"]);
   });
 
   it("renders percent metrics as fractions multiplied by 100", async () => {
@@ -280,7 +290,7 @@ describe("GameScreen", () => {
       elections: [makeElection({ playerCandidate: true, candidateNames: ["Ada", "Bob"] })],
     });
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
-    await user.click(screen.getByRole("tab", { name: "Elections" }));
+    await navigate(user, "Elections");
     const card = screen.getByRole("article", { name: "General Election" });
     expect(within(card).getByText(/1954-09-01/)).toBeInTheDocument();
     expect(within(card).getByText("Candidate")).toBeInTheDocument();
@@ -305,7 +315,7 @@ describe("GameScreen", () => {
       ],
     });
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
-    await user.click(screen.getByRole("tab", { name: "Elections" }));
+    await navigate(user, "Elections");
     const card = screen.getByRole("article", { name: "Senate Race" });
     expect(within(card).getByText(/winners:.*bob/i)).toBeInTheDocument();
     const withdraw = within(card).getByRole("button", { name: /withdraw candidacy/i });
@@ -320,7 +330,7 @@ describe("GameScreen", () => {
     const onAction = vi.fn();
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={true} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
-    await user.click(screen.getByRole("tab", { name: "Elections" }));
+    await navigate(user, "Elections");
     const card = screen.getByRole("article", { name: "General Election" });
     expect(within(card).getByRole("button", { name: /run for office/i })).toBeDisabled();
   });
@@ -332,7 +342,7 @@ describe("GameScreen", () => {
     );
     const world = makeWorld({ elections });
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
-    await user.click(screen.getByRole("tab", { name: "Elections" }));
+    await navigate(user, "Elections");
     expect(screen.getByRole("article", { name: "Race 0" })).toBeInTheDocument();
     expect(screen.queryByRole("article", { name: "Race 24" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /next page/i }));
@@ -356,7 +366,7 @@ describe("GameScreen", () => {
       ],
     });
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
-    await user.click(screen.getByRole("tab", { name: "Parties" }));
+    await navigate(user, "Parties");
     expect(screen.getByText(/withdraws your candidacy/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /join tories/i }));
     expect(onAction).toHaveBeenCalledWith("joinParty", { partyId: "p2" });
@@ -370,7 +380,7 @@ describe("GameScreen", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
     expect(screen.getByText("Representative")).toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: "Legislature" }));
+    await navigate(user, "Legislature");
     expect(screen.getByLabelText("Legislation")).toBeInTheDocument();
     expect(screen.getByRole("article", { name: "Wage Bill" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /sponsor bill/i }));
@@ -390,7 +400,7 @@ describe("GameScreen", () => {
       actions: [{ id: "joinParty", name: "Join Party", description: "Join", cost: 2, available: false, disabledReason: "Cooldown", requires: "party" }],
     });
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
-    await user.click(screen.getByRole("tab", { name: "Parties" }));
+    await navigate(user, "Parties");
     expect(screen.getByRole("button", { name: /join tories/i })).toBeDisabled();
     expect(screen.getAllByText(/cooldown/i).length).toBeGreaterThan(0);
   });
@@ -399,7 +409,7 @@ describe("GameScreen", () => {
 describe("GameScreen navigation menu", () => {
   async function openMenu(user: ReturnType<typeof userEvent.setup>) {
     await user.click(screen.getByRole("button", { name: "Menu" }));
-    return screen.getByRole("menu", { name: "Game menu" });
+    return screen.getByRole("dialog", { name: "Game menu" });
   }
 
   it("opens a grouped menu with all destinations and closes on selection", async () => {
@@ -408,26 +418,26 @@ describe("GameScreen navigation menu", () => {
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
     const menuButton = screen.getByRole("button", { name: "Menu" });
     expect(menuButton).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Game menu" })).not.toBeInTheDocument();
     const menu = await openMenu(user);
     expect(menuButton).toHaveAttribute("aria-expanded", "true");
     expect(within(menu).getByRole("group", { name: "Character" })).toBeInTheDocument();
     expect(within(menu).getByRole("group", { name: "Nation" })).toBeInTheDocument();
     expect(within(menu).getByRole("group", { name: "World" })).toBeInTheDocument();
     const character = within(menu).getByRole("group", { name: "Character" });
-    expect(within(character).getByRole("menuitemradio", { name: "Profile" })).toBeInTheDocument();
-    expect(within(character).getByRole("menuitemradio", { name: "Actions" })).toBeInTheDocument();
-    expect(within(character).getByRole("menuitemradio", { name: "Portfolio" })).toBeInTheDocument();
+    expect(within(character).getByRole("button", { name: "Profile" })).toBeInTheDocument();
+    expect(within(character).getByRole("button", { name: "Actions" })).toBeInTheDocument();
+    expect(within(character).getByRole("button", { name: "Portfolio" })).toBeInTheDocument();
     const nation = within(menu).getByRole("group", { name: "Nation" });
-    expect(within(nation).getByRole("menuitemradio", { name: "Overview" })).toBeInTheDocument();
-    expect(within(nation).getByRole("menuitemradio", { name: "Parties" })).toBeInTheDocument();
-    expect(within(nation).getByRole("menuitemradio", { name: "Legislature" })).toBeInTheDocument();
-    expect(within(nation).getByRole("menuitemradio", { name: "Elections" })).toBeInTheDocument();
+    expect(within(nation).getByRole("button", { name: "Overview" })).toBeInTheDocument();
+    expect(within(nation).getByRole("button", { name: "Parties" })).toBeInTheDocument();
+    expect(within(nation).getByRole("button", { name: "Legislature" })).toBeInTheDocument();
+    expect(within(nation).getByRole("button", { name: "Elections" })).toBeInTheDocument();
     const worldGroup = within(menu).getByRole("group", { name: "World" });
-    expect(within(worldGroup).getByRole("menuitemradio", { name: "Banking" })).toBeInTheDocument();
-    expect(within(worldGroup).getByRole("menuitemradio", { name: "News" })).toBeInTheDocument();
-    await user.click(within(menu).getByRole("menuitemradio", { name: "News" }));
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(within(worldGroup).getByRole("button", { name: "Banking" })).toBeInTheDocument();
+    expect(within(worldGroup).getByRole("button", { name: "News" })).toBeInTheDocument();
+    await user.click(within(menu).getByRole("button", { name: "News" }));
+    expect(screen.queryByRole("dialog", { name: "Game menu" })).not.toBeInTheDocument();
     expect(screen.getByText("Markets rally")).toBeInTheDocument();
   });
 
@@ -437,7 +447,7 @@ describe("GameScreen navigation menu", () => {
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
     await openMenu(user);
     await user.keyboard("{Escape}");
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Game menu" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Menu" })).toHaveFocus();
   });
 
@@ -446,13 +456,13 @@ describe("GameScreen navigation menu", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("menuitemradio", { name: "Profile" }));
+    await user.click(within(menu).getByRole("button", { name: "Profile" }));
     const region = screen.getByRole("region", { name: "Profile" });
     expect(within(region).getByText("Ada")).toBeInTheDocument();
     expect(within(region).getByText(/labor/i)).toBeInTheDocument();
     expect(within(region).getByText("Representative")).toBeInTheDocument();
     expect(screen.queryByRole("tabpanel")).not.toBeInTheDocument();
-    screen.getAllByRole("tab").forEach((t) => expect(t).toHaveAttribute("aria-selected", "false"));
+    within(screen.getByRole("navigation", { name: "Primary" })).getAllByRole("button").forEach(t => expect(t).not.toHaveAttribute("aria-current", "page"));
   });
 
   it("renders Portfolio from world.finance in a region with no tab selected", async () => {
@@ -460,12 +470,12 @@ describe("GameScreen navigation menu", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("menuitemradio", { name: "Portfolio" }));
+    await user.click(within(menu).getByRole("button", { name: "Portfolio" }));
     const region = screen.getByRole("region", { name: "Portfolio" });
     expect(within(region).getByText("Acme Steel")).toBeInTheDocument();
     expect(within(region).getByText(/ACME/)).toBeInTheDocument();
     expect(screen.queryByRole("tabpanel")).not.toBeInTheDocument();
-    screen.getAllByRole("tab").forEach((t) => expect(t).toHaveAttribute("aria-selected", "false"));
+    within(screen.getByRole("navigation", { name: "Primary" })).getAllByRole("button").forEach(t => expect(t).not.toHaveAttribute("aria-current", "page"));
   });
 
   it("renders Banking from world.finance and deposits through the real action", async () => {
@@ -474,7 +484,7 @@ describe("GameScreen navigation menu", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("menuitemradio", { name: "Banking" }));
+    await user.click(within(menu).getByRole("button", { name: "Banking" }));
     const region = screen.getByRole("region", { name: "Banking" });
     expect(within(region).getByText("First National Bank")).toBeInTheDocument();
     await user.clear(within(region).getByLabelText(/amount/i));
@@ -488,9 +498,9 @@ describe("GameScreen navigation menu", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("menuitemradio", { name: "Actions" }));
-    expect(screen.getByRole("tab", { name: "Character" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tabpanel")).toBeInTheDocument();
+    await user.click(within(menu).getByRole("button", { name: "Actions" }));
+    expect(screen.getByRole("button", { name: "Character" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("main")).toBeInTheDocument();
   });
 
   it("returns to a tab route from a region route", async () => {
@@ -498,11 +508,11 @@ describe("GameScreen navigation menu", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
     const menu = await openMenu(user);
-    await user.click(within(menu).getByRole("menuitemradio", { name: "Portfolio" }));
+    await user.click(within(menu).getByRole("button", { name: "Portfolio" }));
     expect(screen.getByRole("region", { name: "Portfolio" })).toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: "Overview" }));
-    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tabpanel")).toBeInTheDocument();
+    await navigate(user, "Overview");
+    expect(screen.getByRole("button", { name: "Overview" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("main")).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Portfolio" })).not.toBeInTheDocument();
   });
 });
@@ -511,7 +521,7 @@ describe("GameScreen status footer", () => {
   it("persists turn, date, player-paced status and five resource buttons", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
-    const footer = screen.getByRole("contentinfo", { name: "Character stats and turn timer" });
+    const footer = screen.getByRole("contentinfo", { name: "Status and primary navigation" });
     expect(within(footer).getByText(/turn 1/i)).toBeInTheDocument();
     expect(within(footer).getByText(/1953-01-01/)).toBeInTheDocument();
     expect(within(footer).getByText(/player paced/i)).toBeInTheDocument();
@@ -525,7 +535,7 @@ describe("GameScreen status footer", () => {
   it("shows processing status while busy", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={true} message="Advancing" onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
-    const footer = screen.getByRole("contentinfo", { name: "Character stats and turn timer" });
+    const footer = screen.getByRole("contentinfo", { name: "Status and primary navigation" });
     expect(within(footer).getByText(/processing/i)).toBeInTheDocument();
     expect(within(footer).queryByText(/player paced/i)).not.toBeInTheDocument();
   });
@@ -533,7 +543,7 @@ describe("GameScreen status footer", () => {
   it("formats money with finance.currency", () => {
     const world = makeWorld({ finance: makeFinance({ currency: "EUR", cash: 1200, savings: 300 }) });
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
-    const footer = screen.getByRole("contentinfo", { name: "Character stats and turn timer" });
+    const footer = screen.getByRole("contentinfo", { name: "Status and primary navigation" });
     const cash = within(footer).getByRole("button", { name: /cash/i });
     expect(cash.getAttribute("aria-label")).toMatch(/€|EUR/);
   });
@@ -542,7 +552,7 @@ describe("GameScreen status footer", () => {
     const user = userEvent.setup();
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
-    const footer = screen.getByRole("contentinfo", { name: "Character stats and turn timer" });
+    const footer = screen.getByRole("contentinfo", { name: "Status and primary navigation" });
     const cash = within(footer).getByRole("button", { name: /cash/i });
     await user.click(cash);
     const dialog = screen.getByRole("dialog", { name: /cash details/i });
@@ -554,26 +564,26 @@ describe("GameScreen status footer", () => {
     expect(within(dialog).getByRole("button", { name: /go to portfolio/i })).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: /close/i }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(within(screen.getByRole("contentinfo", { name: "Character stats and turn timer" })).getByRole("button", { name: /cash/i })).toHaveFocus();
+    expect(within(screen.getByRole("contentinfo", { name: "Status and primary navigation" })).getByRole("button", { name: /cash/i })).toHaveFocus();
   });
 
   it("closes resource details on Escape and returns focus", async () => {
     const user = userEvent.setup();
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
-    const footer = screen.getByRole("contentinfo", { name: "Character stats and turn timer" });
+    const footer = screen.getByRole("contentinfo", { name: "Status and primary navigation" });
     await user.click(within(footer).getByRole("button", { name: /influence/i }));
     expect(screen.getByRole("dialog", { name: /influence details/i })).toBeInTheDocument();
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(within(screen.getByRole("contentinfo", { name: "Character stats and turn timer" })).getByRole("button", { name: /influence/i })).toHaveFocus();
+    expect(within(screen.getByRole("contentinfo", { name: "Status and primary navigation" })).getByRole("button", { name: /influence/i })).toHaveFocus();
   });
 
   it("details links navigate to real destinations", async () => {
     const user = userEvent.setup();
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
-    const footer = screen.getByRole("contentinfo", { name: "Character stats and turn timer" });
+    const footer = screen.getByRole("contentinfo", { name: "Status and primary navigation" });
     await user.click(within(footer).getByRole("button", { name: /campaign funds/i }));
     const dialog = screen.getByRole("dialog", { name: /campaign funds details/i });
     await user.click(within(dialog).getByRole("button", { name: /go to portfolio/i }));
@@ -587,9 +597,10 @@ describe("GameScreen menu keyboard flow", () => {
     const user = userEvent.setup();
     render(<GameScreen {...preferencesProps} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={makeWorld()} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
     await user.click(screen.getByRole("button", { name: "Menu" }));
-    expect(screen.getByRole("menuitemradio", { name: "Profile" })).toHaveFocus();
-    await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+    const drawer = screen.getByRole("dialog", { name: "Game menu" });
+    within(drawer).getByRole("button", { name: "Profile" }).focus();
+    await user.keyboard("{Tab}{Tab}{Enter}");
     expect(screen.getByRole("region", { name: "Portfolio" })).toHaveFocus();
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Game menu" })).not.toBeInTheDocument();
   });
 });

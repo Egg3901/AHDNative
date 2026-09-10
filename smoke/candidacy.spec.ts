@@ -1,12 +1,13 @@
+import { openGameMenu, closeGameMenu, gameReady, navigateGame, advanceGame, saveGame } from './game-navigation';
 import { test, expect, type Locator, type Page } from '@playwright/test';
 
 async function idle(page: Page) {
-  await expect(page.getByRole('button', { name: 'End turn', exact: true })).toBeEnabled();
+  await gameReady(page);
 }
 
 async function openElections(page: Page) {
-  await page.getByRole('tab', { name: 'Elections', exact: true }).click();
-  await expect(page.getByRole('tab', { name: 'Elections', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await navigateGame(page, 'Elections');
+  await expect(page.getByRole('heading', { name: 'Elections', exact: true, level: 2 })).toBeVisible();
 }
 
 async function firstEnabledRun(page: Page): Promise<Locator | null> {
@@ -53,16 +54,18 @@ test('a real career files, reloads, and withdraws through Worker UI buttons', as
   await page.getByRole('button', { name: 'Start', exact: true }).click();
   await idle(page);
 
-  await page.getByRole('tab', { name: 'Parties', exact: true }).click();
+  await navigateGame(page, 'Parties');
   await page.getByRole('button', { name: 'Join Democratic Party', exact: true }).click();
   await idle(page);
-  await expect(page.getByLabel('Player summary')).toContainText('Democratic Party');
+  await openGameMenu(page);
+  await expect(page.getByRole('dialog', { name: 'Game menu' })).toContainText('Democratic Party');
+  await closeGameMenu(page);
 
   await openElections(page);
   // 1953 US races spawn in electionTimers on the first advance. Cap at 2.
   let run = await firstEnabledRun(page);
   for (let turn = 0; turn < 2 && !run; turn++) {
-    await page.getByRole('button', { name: 'End turn', exact: true }).click();
+    await advanceGame(page);
     await idle(page);
     await openElections(page);
     run = await firstEnabledRun(page);
@@ -81,12 +84,14 @@ test('a real career files, reloads, and withdraws through Worker UI buttons', as
   await expect(filed).toContainText('Career Player');
   await expect(filed.getByRole('button', { name: 'Withdraw candidacy', exact: true })).toBeEnabled();
 
-  await page.getByRole('button', { name: 'Save game', exact: true }).click();
+  await saveGame(page);
   await expect(page.getByRole('status').filter({ hasText: 'Game saved' })).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: 'Continue Career Player', exact: true }).click();
   await idle(page);
-  await expect(page.getByLabel('Player summary')).toContainText('Democratic Party');
+  await openGameMenu(page);
+  await expect(page.getByRole('dialog', { name: 'Game menu' })).toContainText('Democratic Party');
+  await closeGameMenu(page);
 
   await openElections(page);
   const reloaded = await raceArticle(page, raceTitle!);

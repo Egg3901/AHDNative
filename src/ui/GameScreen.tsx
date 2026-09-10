@@ -12,6 +12,8 @@ import type { SearchResult } from "../game/search";
 import { MarketsRoute } from "./MarketsRoute";
 import { PoliticsRoute } from "./PoliticsRoute";
 import { ResourceBreakdown } from "./ResourceBreakdown";
+import { BottomNav, GameDrawer } from "./MobileNavigation";
+import type { DrawerRouteId } from "./MobileNavigation";
 /**
  * GameScreen: AHDNative primary game shell.
  *
@@ -28,8 +30,17 @@ import "./ui.css";
 
 const ELECTIONS_PAGE_SIZE = 20;
 
+function formatCompactMoney(amount: number, currency: string): string {
+  if (!Number.isFinite(amount)) return "-";
+  try {
+    return new Intl.NumberFormat(undefined, { style: "currency", currency, notation: "compact", maximumFractionDigits: 1 }).format(amount);
+  } catch {
+    return formatFinanceMoney(amount, currency);
+  }
+}
+
 type TabId = "overview" | "actions" | "parties" | "legislature" | "elections" | "news";
-type RouteId = TabId | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "politicians" | "economy" | "budget" | "policy" | "nations" | "state" | "help" | "settings" | "legislationDetails" | "markets" | "search" | "partyManagement" | "bonds" | "caucuses";
+type RouteId = DrawerRouteId;
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "actions", label: "Character" },
@@ -39,47 +50,11 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "news", label: "News" },
 ];
 
-const MENU_GROUPS: { label: string; items: { id: RouteId; label: string }[] }[] = [
-  {
-    label: "Character",
-    items: [
-      { id: "profile", label: "Profile" },
-      { id: "actions", label: "Actions" },
-      { id: "portfolio", label: "Portfolio" },
-      { id: "markets", label: "Stock market" },
-      { id: "bonds", label: "Bonds" },
-    ],
-  },
-  {
-    label: "State", items: [{ id: "state", label: "Home region" }],
-  },
-  {
-    label: "Nation",
-    items: [
-      { id: "overview", label: "Overview" },
-      { id: "parties", label: "Parties" },
-      { id: "partyManagement", label: "Start a party" },
-      { id: "caucuses", label: "Caucuses" },
-      { id: "legislature", label: "Legislature" },
-      { id: "legislationDetails", label: "Bills and proposals" },
-      { id: "elections", label: "Elections" },
-      { id: "politicians", label: "Politicians" },
-      { id: "economy", label: "Economy" },
-      { id: "budget", label: "Budget" },
-      { id: "policy", label: "Policy" },
-    ],
-  },
-  {
-    label: "World",
-    items: [
-      { id: "nations", label: "Nations" },
-      { id: "banking", label: "Banking" },
-      { id: "news", label: "News" },
-    ],
-  },
-  { label: "Help", items: [{ id: "search", label: "Search" },
-      { id: "help", label: "Help" }, { id: "settings", label: "Settings" }] },
-];
+function pageTitle(route: RouteId): string {
+  const tab = TABS.find((t) => t.id === route);
+  if (tab) return tab.label;
+  return REGION_LABELS[route as Exclude<RouteId, TabId>];
+}
 
 const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
   nations: "Nations", state: "Home region",
@@ -248,12 +223,24 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
   const [openResource, setOpenResource] = useState<ResourceId | null>(null);
   const [electionPage, setElectionPage] = useState(0);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const screenRef = useRef<HTMLDivElement | null>(null);
+  const footerRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const footer = footerRef.current;
+    if (!footer) return;
+    const measure = () => screenRef.current?.style.setProperty("--ahd-footer-height", `${footer.getBoundingClientRect().height}px`);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(footer);
+    return () => observer.disconnect();
+  }, []);
   const detailsRef = useRef<HTMLDivElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
   const focusPage = useRef(false);
   const resourceButtonRefs = useRef<Partial<Record<ResourceId, HTMLButtonElement | null>>>({});
 
-  const selectedTab: TabId | null = isTabRoute(route) ? route : null;
+  const saveNotice = message === "Game saved." || message === "Saved game imported.";
+
   const tabPanelId = useMemo(() => `ahd-panel-${route}`, [route]);
 
   const go = (next: RouteId) => {
@@ -271,22 +258,6 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
     document.scrollingElement?.scrollTo?.({ top: 0 });
   }, [route, menuOpen, openResource, tabPanelId]);
 
-  const onMenuKeyDown = (e: React.KeyboardEvent) => {
-    const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]') ?? []);
-    const index = items.findIndex((item) => item === document.activeElement);
-    let next: number | undefined;
-    if (e.key === "ArrowDown") next = (index + 1) % items.length;
-    if (e.key === "ArrowUp") next = (index - 1 + items.length) % items.length;
-    if (e.key === "Home") next = 0;
-    if (e.key === "End") next = items.length - 1;
-    if (next !== undefined) { e.preventDefault(); items[next]?.focus(); }
-    if (e.key === "Tab") {
-      e.preventDefault();
-      setMenuOpen(false);
-      menuButtonRef.current?.focus();
-    }
-  };
-
   const openParty = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("partyDetails"); };
   const openElection = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("electionDetails"); };
 
@@ -302,19 +273,6 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
       resourceButtonRefs.current[current]?.focus();
     }
   };
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitemradio"]')?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setMenuOpen(false);
-        menuButtonRef.current?.focus();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [menuOpen]);
 
   useEffect(() => {
     if (openResource) {
@@ -337,129 +295,18 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
   const joinPartyAction = world.actions.find((a) => a.id === "joinParty");
   const leavePartyAction = world.actions.find((a) => a.id === "leaveParty");
 
-  const onTabKeyDown = (e: React.KeyboardEvent) => {
-    const base = selectedTab ?? TABS[0].id;
-    const idx = TABS.findIndex((t) => t.id === base);
-    let next: TabId | null = null;
-    if (e.key === "ArrowRight") {
-      e.preventDefault();
-      next = TABS[(idx + 1) % TABS.length].id;
-    } else if (e.key === "ArrowLeft") {
-      e.preventDefault();
-      next = TABS[(idx - 1 + TABS.length) % TABS.length].id;
-    } else if (e.key === "Home") {
-      e.preventDefault(); next = TABS[0].id;
-    } else if (e.key === "End") {
-      e.preventDefault(); next = TABS[TABS.length - 1].id;
-    }
-    if (next) {
-      go(next);
-      requestAnimationFrame(() => {
-        const el = document.getElementById(`ahd-tab-${next}`);
-        el?.focus();
-      });
-    }
-  };
-
   return (
-    <div className="ahd-screen">
-      <header className="ahd-header" role="banner">
-        <div className="ahd-container ahd-header-inner">
-          <div className="ahd-header-title">
-            <div className="ahd-eyebrow">A House Divided</div>
-            <div style={{ display: "flex", gap: "0.4rem", alignItems: "baseline", flexWrap: "wrap" }}>
-              <strong style={{ fontSize: "0.9rem", letterSpacing: "-0.01em" }}>{world.countryName}</strong>
-              <span className="ahd-muted ahd-header-context" style={{ fontSize: "0.72rem" }}>{world.era} · Turn {world.turn} · {world.date}</span>
-            </div>
-            <div className="ahd-header-meta" aria-label="Player summary">
-              <span>{world.player.name} · {world.player.partyName || "Independent"}</span>
-              <span className="ahd-mono">{formatFinanceMoney(world.player.cash, world.finance.currency)} cash</span>
-              <span className="ahd-mono">{world.player.actions} actions</span>
-              <span className="ahd-mono">{world.player.influence.toLocaleString(undefined, { maximumFractionDigits: 1 })} influence</span>
-            </div>
-          </div>
-
-          <div className="ahd-header-actions">
-            <div className="ahd-menu-wrap" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setMenuOpen(false); }}>
-              <button
-                type="button"
-                ref={menuButtonRef}
-                className="ahd-btn ahd-btn-sm"
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-                aria-controls="ahd-game-menu"
-                onClick={() => { setMenuOpen((o) => !o); setOpenResource(null); }}
-              >
-                Menu
-              </button>
-              {menuOpen ? (
-                <div ref={menuRef} onKeyDown={onMenuKeyDown} role="menu" id="ahd-game-menu" aria-label="Game menu" className="ahd-menu">
-                  {MENU_GROUPS.map((group) => (
-                    <div key={group.label} role="group" aria-label={group.label} className="ahd-menu-group">
-                      <div className="ahd-menu-heading" aria-hidden>{group.label}</div>
-                      {group.items.map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          role="menuitemradio"
-                          tabIndex={-1}
-                          aria-checked={route === item.id}
-                          className="ahd-menu-item"
-                          onClick={() => go(item.id)}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={onExit} disabled={busy} aria-label="Exit game">Exit</button>
-            <button type="button" className="ahd-btn ahd-btn-sm" onClick={onSave} disabled={busy} aria-busy={busy} aria-label="Save game">
-              {busy ? <span className="ahd-spinner" aria-hidden /> : null}
-              Save
-            </button>
-            <button type="button" className="ahd-btn ahd-btn-primary ahd-btn-sm" onClick={onAdvanceTurn} disabled={busy} aria-busy={busy} aria-label="End turn">
-              {busy ? <span className="ahd-spinner" aria-hidden /> : null}
-              End turn
-            </button>
-          </div>
-        </div>
-
-        <div className="ahd-container" style={{ paddingBottom: "0.5rem" }}>
-          {busy && message ? <div className="ahd-notice" role="status" aria-live="polite" style={{ marginBottom: "0.45rem" }}>{message}</div> : null}
-          {error ? <div className="ahd-alert" role="alert" style={{ marginBottom: "0.45rem" }}>{error}</div> : null}
-          {!busy && message && !error ? <div className="ahd-notice" role="status" style={{ marginBottom: "0.45rem" }}>{message}</div> : null}
-
-          <nav aria-label="Game sections" onKeyDown={onTabKeyDown}>
-            <div role="tablist" aria-label="Game sections" className="ahd-tabs">
-              {TABS.map((t, i) => (
-                <button
-                  key={t.id}
-                  role="tab"
-                  id={`ahd-tab-${t.id}`}
-                  aria-selected={selectedTab === t.id}
-                  aria-controls={selectedTab ? tabPanelId : undefined}
-                  tabIndex={selectedTab ? (selectedTab === t.id ? 0 : -1) : (i === 0 ? 0 : -1)}
-                  className="ahd-tab"
-                  onClick={() => go(t.id)}
-                  type="button"
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </nav>
-        </div>
-      </header>
-
-      <main className="ahd-container ahd-main">
+    <div ref={screenRef} className="ahd-screen">
+      <main aria-hidden={menuOpen || undefined} inert={menuOpen} className="ahd-container ahd-main">
+        <h1 className="ahd-sr-only">A House Divided · {pageTitle(route)}</h1>
+        {busy && message ? <div className="ahd-notice" role="status" aria-live="polite" style={{ marginBottom: "0.6rem" }}>{message}</div> : null}
+        {error ? <div className="ahd-alert" role="alert" style={{ marginBottom: "0.6rem" }}>{error}</div> : null}
+        {!busy && message && !error && !saveNotice ? <div className="ahd-notice" role="status" style={{ marginBottom: "0.6rem" }}>{message}</div> : null}
         {isTabRoute(route) ? (
         <section
           id={tabPanelId}
-          role="tabpanel"
-          aria-labelledby={`ahd-tab-${selectedTab}`}
+          role="region"
+          aria-label={pageTitle(route)}
           tabIndex={0}
           style={{ outline: "none" }}
         >
@@ -687,13 +534,32 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
         )}
       </main>
 
-      <footer className="ahd-footer" aria-label="Character stats and turn timer">
+      <GameDrawer
+        open={menuOpen}
+        route={route}
+        busy={busy}
+        playerName={world.player.name}
+        playerParty={world.player.partyName || "Independent"}
+        countryName={world.countryName}
+        turn={world.turn}
+        date={world.date}
+        message={message}
+        error={error}
+        menuButtonRef={menuButtonRef}
+        onNavigate={go}
+        onAdvanceTurn={onAdvanceTurn}
+        onSave={onSave}
+        onExit={onExit}
+        onClose={() => setMenuOpen(false)}
+      />
+      <footer aria-hidden={menuOpen || undefined} inert={menuOpen} ref={footerRef} className="ahd-footer" aria-label="Status and primary navigation">
         <div className="ahd-container ahd-footer-inner">
-          <div className="ahd-footer-status">
+          <div className="ahd-statusline">
             <span className="ahd-mono">Turn {world.turn} · {world.date}</span>
-            <span className="ahd-muted">{busy ? (message ? `Processing: ${message}` : "Processing...") : "Player paced"}</span>
+            {saveNotice && !busy && !error ? <span className="ahd-muted" role="status">{message}</span>
+              : <span className="ahd-muted">{busy ? (message ? `Processing: ${message}` : "Processing...") : "Player paced"}</span>}
           </div>
-          <div className="ahd-footer-resources" role="group" aria-label="Resources">
+          <div className="ahd-status-resources" role="group" aria-label="Resources">
             {RESOURCES.map((r) => {
               const value = r.id === "ap" ? formatCount(world.player.actions)
                 : r.id === "funds" ? formatFinanceMoney(world.player.funds, world.finance.currency)
@@ -706,18 +572,27 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
                   key={r.id}
                   type="button"
                   ref={(el) => { resourceButtonRefs.current[r.id] = el; }}
-                  className="ahd-footer-btn"
+                  className="ahd-status-btn"
                   aria-label={`${r.label}: ${value}`}
                   aria-expanded={open}
                   aria-controls={open ? `ahd-resource-${r.id}` : undefined}
                   onClick={() => setOpenResource(open ? null : r.id)}
                 >
-                  <span className="ahd-footer-btn-label">{r.short}</span>
-                  <span className="ahd-mono ahd-footer-btn-value">{value}</span>
+                  <span className="ahd-status-btn-label">{r.id === "influence" ? "INF" : r.id === "favorability" ? "FAV" : r.short}</span>
+                  <span className="ahd-mono ahd-status-btn-value">{r.id === "funds" || r.id === "cash"
+                    ? formatCompactMoney(r.id === "funds" ? world.player.funds : world.finance.cash, world.finance.currency)
+                    : value}</span>
                 </button>
               );
             })}
           </div>
+          <BottomNav
+            route={route}
+            menuOpen={menuOpen}
+            menuButtonRef={menuButtonRef}
+            onNavigate={go}
+            onOpenMenu={() => { setOpenResource(null); setMenuOpen(true); }}
+          />
         </div>
         {openResource ? (
           <div
@@ -727,7 +602,7 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
             aria-label={`${RESOURCES.find((r) => r.id === openResource)?.label} details`}
             id={`ahd-resource-${openResource}`}
             tabIndex={-1}
-            className="ahd-container"
+            className="ahd-container ahd-resource-popover"
             onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closeDetails(); } }}
             style={{ outline: "none" }}
           >
