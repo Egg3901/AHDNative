@@ -4,7 +4,7 @@ A unified A House Divided app for singleplayer and multiplayer on mobile and des
 
 ## Status
 
-This repository is the initial project bootstrap. It does not yet contain a playable application or a Rust game engine. Target mobile hardware profiling and the engine implementation decision are still pending.
+This repository contains a React/Tauri application shell and a private signed iOS build workflow. It does not yet contain game screens, a playable world, or a Rust game engine. Target mobile hardware profiling and the engine implementation decision are still pending.
 
 ## Standing product rules
 
@@ -36,13 +36,15 @@ If profiling supports a Rust engine, integrate it directly into the Tauri shell 
 
 ## Development
 
-There are no build commands or application dependencies yet. Build instructions and executable CI checks will be added with the first runnable implementation.
+Run `npm ci`, then `npm run verify` for the frontend build and type checks. Run `npm run tauri -- dev` for the native shell after installing the platform prerequisites. Rust uses the pinned toolchain in `rust-toolchain.toml`. The temporary development screen is not the proposed game interface.
 
 ## Codemagic setup
 
-Connect this GitHub repository in Codemagic and select `main`. The included `bootstrap-check` workflow validates the repository bootstrap only; it does not compile or sign an iOS app.
+Connect this GitHub repository in Codemagic. The manual `ios-private-testflight` workflow builds a signed iPhone application and uploads it privately to App Store Connect for internal testing. It requires signing setup first and has not yet been validated on a macOS builder.
 
-The next iOS milestone adds the Tauri shell, generated Xcode project, and a real simulator build workflow. A device or TestFlight workflow will also need an agreed bundle identifier, Apple developer team, and signing configuration in Codemagic. Keep credentials in Codemagic integrations or encrypted environment groups.
+Codemagic runs are capped at 20 minutes to conserve the build allowance. No push, pull request, or scheduled triggers are configured. Routine checks run locally and on Linux CI. Signed builds, credentials, and signing logs must stay off GitHub and public build dashboards.
+
+See [iPhone testing setup](docs/IOS-TESTING.md) for the owner setup. The workflow uploads to App Store Connect without automatically requesting external beta review or App Store release. Assign the processed build to an internal TestFlight group yourself.
 
 ## Licensing
 

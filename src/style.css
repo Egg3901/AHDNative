@@ -1,0 +1,8 @@
+/* Temporary shell screen; game screen parity is a separate acceptance gate. */
+:root { font-family: system-ui, sans-serif; color: #e8e8ee; background: #14141c; color-scheme: dark; }
+body { margin: 0; }
+main { max-width: 40rem; margin: 0 auto; padding: max(4rem, env(safe-area-inset-top)) max(1.5rem, env(safe-area-inset-right)) max(2rem, env(safe-area-inset-bottom)) max(1.5rem, env(safe-area-inset-left)); }
+h1 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.15; }
+p { line-height: 1.6; }
+.eyebrow { color: #f87171; text-transform: uppercase; letter-spacing: .15em; font-size: .75rem; font-weight: 600; }
+.muted { color: #a1a1aa; }
