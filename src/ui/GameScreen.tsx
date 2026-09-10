@@ -1,4 +1,4 @@
-import { OverviewPanel } from "./OverviewPanel";
+import { ProfileRoute } from "./ProfileRoute";
 import { RegionsRoute } from "./RegionsRoute";
 import { CaucusPanel } from "./CaucusPanel";
 import { BondMarketRoute } from "./BondMarketRoute";
@@ -41,11 +41,10 @@ function formatCompactMoney(amount: number, currency: string): string {
   }
 }
 
-type TabId = "overview" | "actions" | "parties" | "legislature" | "elections" | "news";
+type TabId = "actions" | "parties" | "legislature" | "elections" | "news";
 type RouteId = DrawerRouteId;
 const TABS: { id: TabId; label: string }[] = [
-  { id: "overview", label: "Overview" },
-  { id: "actions", label: "Character" },
+  { id: "actions", label: "Actions" },
   { id: "parties", label: "Parties" },
   { id: "legislature", label: "Legislature" },
   { id: "elections", label: "Elections" },
@@ -188,33 +187,8 @@ function ActionRow({
   );
 }
 
-function ProfileSection({ world }: { world: GameView }) {
-  return (
-    <div className="ahd-stack">
-      <div className="ahd-card ahd-card-pad">
-        <h2 className="ahd-h2">Profile</h2>
-        <div style={{ marginTop: "0.4rem", fontSize: "0.86rem" }}>
-          <strong>{world.player.name}</strong>
-          <span className="ahd-muted"> · {world.player.partyName || "Independent"}</span>
-        </div>
-        <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.25rem 0 0" }}>
-          {world.countryName} · {world.era} · Turn {world.turn} · {world.date}
-        </p>
-        <dl style={{ marginTop: "0.65rem", display: "grid", gap: "0.35rem" }}>
-          <div className="ahd-kv"><dt>Office</dt><dd>{world.legislature.office ?? "No legislative seat"}</dd></div>
-          <div className="ahd-kv"><dt>Action points</dt><dd className="ahd-mono">{formatCount(world.player.actions)}</dd></div>
-          <div className="ahd-kv"><dt>Campaign funds</dt><dd className="ahd-mono">{formatFinanceMoney(world.player.funds, world.finance.currency)}</dd></div>
-          <div className="ahd-kv"><dt>Cash</dt><dd className="ahd-mono">{formatFinanceMoney(world.finance.cash, world.finance.currency)}</dd></div>
-          <div className="ahd-kv"><dt>Influence</dt><dd className="ahd-mono">{formatCount(world.player.influence)}</dd></div>
-          <div className="ahd-kv"><dt>Favorability</dt><dd className="ahd-mono">{formatCount(world.player.favorability)}</dd></div>
-        </dl>
-      </div>
-    </div>
-  );
-}
-
-export function GameScreen({ preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction }: GameScreenProps) {
-  const [route, setRoute] = useState<RouteId>("overview");
+export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction }: GameScreenProps) {
+  const [route, setRoute] = useState<RouteId>("profile");
   const [detailId, setDetailId] = useState<string>();
   const [menuOpen, setMenuOpen] = useState(false);
   const [openResource, setOpenResource] = useState<ResourceId | null>(null);
@@ -312,12 +286,10 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
           tabIndex={0}
           style={{ outline: "none" }}
         >
-          {route === "overview" && <OverviewPanel world={world} onNavigate={go} />}
-
           {route === "actions" ? (
             <div className="ahd-stack">
               <div className="ahd-card ahd-card-pad">
-                <h2 className="ahd-h2">Character</h2>
+                <h2 className="ahd-h2">Actions</h2>
                 <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", marginTop: "0.4rem", fontSize: "0.78rem" }}>
                   <span><strong>{world.player.name}</strong> · {world.player.partyName || "Independent"}</span>
                   <span className="ahd-badge">{world.player.actions} actions</span>
@@ -497,7 +469,10 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
           {route === "legislationDetails" && <LegislationRoute initialId={detailId} load={loadLegislation} revision={world} busy={busy} onAction={onAction} />}
           {route === "help" && <HelpPanel />}
           {route === "settings" && <SettingsPanel value={preferences} onChange={onPreferencesChange} error={preferencesError} />}
-          {route === "profile" ? <ProfileSection world={world} /> : null}
+          {route === "profile" ? <ProfileRoute load={loadProfile} revision={world} busy={busy} onUpdateProfile={onUpdateProfile} onNavigate={(next, id) => {
+            go(next);
+            if (id) setDetailId(id);
+          }} /> : null}
           {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} /> : null}
           {(route === "partyDetails" || route === "electionDetails") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => go(route === "partyDetails" ? "parties" : "elections")}>Back to {route === "partyDetails" ? "parties" : "elections"}</button>}
           {route === "partyDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="parties" initialId={detailId} busy={busy} onAction={onAction} />}

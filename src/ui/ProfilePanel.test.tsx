@@ -1,0 +1,215 @@
+import { describe, expect, it, vi, afterEach } from "vitest";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { ProfilePanel } from "./ProfilePanel";
+import type { ProfileUpdate, ProfileView } from "../game/profileTypes";
+
+const BASE: ProfileView = {
+  name: "Ada Crane",
+  bio: "Organizer from the north ward.",
+  avatarUrl: null,
+  country: { id: "US", name: "United States" },
+  homeRegion: { id: "US-NY", name: "New York" },
+  party: { id: "7", name: "Labor Caucus", color: "#2563eb" },
+  office: "Councilor",
+  standing: {
+    actions: 5,
+    actionCap: 12,
+    actionGain: 4,
+    politicalInfluence: 32.5,
+    nationalInfluence: null,
+    favorability: 61,
+    infamy: 4,
+    partyInfluence: null,
+  },
+  finances: {
+    currency: "USD",
+    cash: 1200,
+    savings: 300,
+    funds: 5400,
+    donorBaseLevel: 3,
+    regularIncome: 150,
+    donorIncome: 90,
+  },
+};
+
+function renderPanel(overrides: Partial<ProfileView> = {}, props = {}) {
+  const profile = {
+    ...BASE,
+    ...overrides,
+    standing: { ...BASE.standing, ...(overrides.standing ?? {}) },
+    finances: { ...BASE.finances, ...(overrides.finances ?? {}) },
+  };
+  return render(
+    <ProfilePanel
+      profile={profile}
+      busy={false}
+      onNavigate={vi.fn()}
+      onUpdateProfile={vi.fn(async () => true)}
+      {...props}
+    />
+  );
+}
+
+class LoadImage {
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  naturalWidth = 0;
+  naturalHeight = 0;
+  width = 0;
+  height = 0;
+  set src(_value: string) {
+    queueMicrotask(() => this.onload?.());
+  }
+}
+
+class BrokenImage {
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  set src(_value: string) {
+    queueMicrotask(() => this.onerror?.());
+  }
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("ProfilePanel", () => {
+  it("renders the header portrait, name, party, office, home region and country", () => {
+    const onNavigate = vi.fn();
+    renderPanel({}, { onNavigate });
+    expect(screen.getByRole("heading", { name: "Ada Crane" })).toBeInTheDocument();
+    expect(screen.getByText("Labor Caucus")).toBeInTheDocument();
+    expect(screen.getByText("Councilor")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New York" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "United States" })).toBeInTheDocument();
+    expect(screen.getByText("A")).toBeInTheDocument();
+  });
+
+  it("shows the saved picture with the expected alt text when present", () => {
+    renderPanel({ avatarUrl: "data:image/png;base64,AAA" });
+    expect(screen.getByAltText("Ada Crane profile picture")).toBeInTheDocument();
+  });
+
+  it("navigates to actions and portfolio through the section links", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    renderPanel({}, { onNavigate });
+    await user.click(screen.getByRole("button", { name: "Campaign Office" }));
+    expect(onNavigate).toHaveBeenCalledWith("actions");
+    await user.click(screen.getByRole("button", { name: "View portfolio" }));
+    expect(onNavigate).toHaveBeenCalledWith("portfolio");
+    await user.click(screen.getByRole("button", { name: "New York" }));
+    expect(onNavigate).toHaveBeenCalledWith("state", "US-NY");
+  });
+
+  it("saves an edited biography and closes the editor on success", async () => {
+    const user = userEvent.setup();
+    const onUpdateProfile = vi.fn(async () => true);
+    renderPanel({}, { onUpdateProfile });
+    await user.click(screen.getByRole("button", { name: "Edit biography" }));
+    const box = screen.getByRole("textbox", { name: "Biography" });
+    await user.clear(box);
+    await user.type(box, "New bio text.");
+    await user.click(screen.getByRole("button", { name: "Save biography" }));
+    await waitFor(() => expect(onUpdateProfile).toHaveBeenCalledWith({ bio: "New bio text." }));
+    expect(screen.queryByRole("textbox", { name: "Biography" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the draft and reports when a biography save returns false", async () => {
+    const user = userEvent.setup();
+    const onUpdateProfile = vi.fn(async () => false);
+    renderPanel({}, { onUpdateProfile });
+    await user.click(screen.getByRole("button", { name: "Edit biography" }));
+    await user.clear(screen.getByRole("textbox", { name: "Biography" }));
+    await user.type(screen.getByRole("textbox", { name: "Biography" }), "Unsaved draft.");
+    await user.click(screen.getByRole("button", { name: "Save biography" }));
+    await waitFor(() => expect(onUpdateProfile).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Biography" })).toHaveValue("Unsaved draft.");
+  });
+
+  it("rejects an overlong biography without saving", async () => {
+    const user = userEvent.setup();
+    const onUpdateProfile = vi.fn(async () => true);
+    renderPanel({}, { onUpdateProfile });
+    await user.click(screen.getByRole("button", { name: "Edit biography" }));
+    const box = screen.getByRole("textbox", { name: "Biography" }) as HTMLTextAreaElement;
+    fireEvent.change(box, { target: { value: "x".repeat(501) } });
+    await user.click(screen.getByRole("button", { name: "Save biography" }));
+    expect(onUpdateProfile).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+
+  it("rejects a non image file without updating", async () => {
+    const onUpdateProfile = vi.fn(async () => true);
+    renderPanel({}, { onUpdateProfile });
+    const file = new File(["hello"], "note.txt", { type: "text/plain" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(onUpdateProfile).not.toHaveBeenCalled();
+  });
+
+  it("rejects an oversized picture without updating", async () => {
+    const onUpdateProfile = vi.fn(async () => true);
+    renderPanel({}, { onUpdateProfile });
+    const big = new Uint8Array(2 * 1024 * 1024 + 1);
+    const file = new File([big], "face.png", { type: "image/png" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(onUpdateProfile).not.toHaveBeenCalled();
+  });
+
+  it("saves an accepted picture as a data URL after decode", async () => {
+    vi.stubGlobal("Image", LoadImage);
+    const onUpdateProfile = vi.fn(async () => true);
+    renderPanel({}, { onUpdateProfile });
+    const bytes = new Uint8Array([137, 80, 78, 71]);
+    const file = new File([bytes], "face.png", { type: "image/png" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() => expect(onUpdateProfile).toHaveBeenCalledTimes(1));
+    const calls = onUpdateProfile.mock.calls as unknown as Array<[ProfileUpdate]>;
+    const update = calls[0][0] as { avatarUrl: string };
+    expect(typeof update.avatarUrl).toBe("string");
+    expect(update.avatarUrl.startsWith("data:image/png")).toBe(true);
+  });
+
+  it("shows an error and never updates when the picture cannot be decoded", async () => {
+    vi.stubGlobal("Image", BrokenImage);
+    const onUpdateProfile = vi.fn(async () => true);
+    renderPanel({}, { onUpdateProfile });
+    const file = new File([new Uint8Array([1, 2, 3])], "face.png", { type: "image/png" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    expect(onUpdateProfile).not.toHaveBeenCalled();
+  });
+
+  it("removes the picture through a null update and reports a false result", async () => {
+    const user = userEvent.setup();
+    const onUpdateProfile = vi.fn(async () => false);
+    renderPanel({ avatarUrl: "data:image/png;base64,AAA" }, { onUpdateProfile });
+    await user.click(screen.getByRole("button", { name: "Remove picture" }));
+    await waitFor(() => expect(onUpdateProfile).toHaveBeenCalledWith({ avatarUrl: null }));
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+
+  it("marks missing national and party figures unavailable instead of zero", () => {
+    renderPanel();
+    const values = screen.getAllByText("Not available yet");
+    expect(values.length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText("0%")).not.toBeInTheDocument();
+  });
+
+  it("hides party influence for independents and disables forms while busy", () => {
+    renderPanel({ party: null }, { busy: true });
+    expect(screen.queryByText("Party influence")).not.toBeInTheDocument();
+    expect(screen.getByText("Independent")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit biography" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Upload picture" })).toBeDisabled();
+  });
+});

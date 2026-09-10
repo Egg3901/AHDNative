@@ -84,3 +84,12 @@ unknown/non-finite ages and callers omitting age preserve full strength.
 Public turn/save tests check exact phase values and complete resume identity.
 No new war action or save field is added. The GDP margin and simplified
 settlement system remain gaps, recorded in [war depth](WAR-PARITY-DEPTH.md).
+
+## Optional saved profile identity
+
+`PlayerCharacter` now accepts optional `bio` and `avatarUrl` fields. They carry
+character presentation only and do not change simulation rules, AP, time or RNG.
+Older saves may omit them. Native validates edits through the session/worker
+boundary and stores raster portraits locally. Source behavior and validation,
+including the bounded real v42/v43 reader round-trip, are recorded in
+[behavioral parity](BEHAVIORAL-PARITY.md). Missing player mechanics remain gaps.

@@ -33,10 +33,10 @@ export function HelpPanel() {
 
       <HelpSection title="Actions and turns">
         <p style={{ margin: 0 }}>
-          The Character tab shows the actions available to your player. Each action shows its action point cost and any requirement for an amount, party, or region. The app shows the reason when an action is unavailable.
+          Actions shows the actions available to your player. Each action shows its action point cost and any requirement for an amount, party, or region. The app shows the reason when an action is unavailable.
         </p>
         <p style={{ margin: 0 }}>
-          A successful action updates the world and saves automatically. A rejected action leaves the saved world unchanged. Use End turn to move the local world forward one turn. The header and Overview show the current date, turn, player resources, economic figures, and news available in the save.
+          A successful action updates the world and saves automatically. A rejected action leaves the saved world unchanged. Open Menu and use End turn to move the local world forward one turn. Profile shows your character and resources when you start or resume. The footer shows the current turn and resource details. Open Economy or News from Menu for national figures or world events.
         </p>
       </HelpSection>
 

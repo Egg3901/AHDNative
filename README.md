@@ -4,7 +4,7 @@
 
 A unified A House Divided app for singleplayer and multiplayer on mobile and desktop. Delivery starts with offline singleplayer on iOS.
 
-Companion to the public browser game at [Egg3901/AHDGame](https://github.com/Egg3901/AHDGame), which remains the authoritative multiplayer server and the mechanics reference. Licensed proprietary - see [LICENSE.md](./LICENSE.md).
+A native app port of the game at at [Egg3901/AHDGame](https://github.com/Egg3901/AHDGame), which remains the authoritative multiplayer server and the mechanics reference. Licensed proprietary - see [LICENSE.md](./LICENSE.md).
 
 ## The app
 
@@ -21,15 +21,17 @@ Development progress, not an iPhone build or a 1.0.0 release. What holds today:
 - Main runs a local singleplayer world through React game screens and a dedicated simulation worker. New game, actions, turns, save, app reload and resume have passed a real browser smoke test at phone screen size.
 - Bottom navigation and a side drawer reach politics, national economy/budget/policy, home region, nations, portfolio and banking. Turn, save and exit controls live in the drawer. The compact footer opens full resource details. Full feature parity is still in progress.
 - Party and caucus founding, membership, stock and sovereign bond trades, bill inspection and tax-rate sponsorship use real engine actions and retain state across reloads. Offline search opens actual saved entities; appearance settings persist.
-- The mobile overview links to real game destinations. Party rosters expose all recorded members through search and paging; regional chambers and secondary details expand on demand.
+- Starting or resuming a character game opens Profile; national figures remain under Economy. Profile now includes saved portraits and biographies, political standing and finances; the remaining reference sections and player mechanics are still being ported. Party rosters expose all recorded members through search and paging; regional chambers and secondary details expand on demand.
 - Native save storage has passing Rust tests.
 - The reusable TypeScript engine is pinned to a recorded AHDClient revision (354 non-test engine/content files scanned; baseline provenance in [engine-source-manifest.json](docs/engine-source-manifest.json), with [subsequent adaptations](docs/ENGINE-ADAPTATIONS.md)).
+
+The imported engine is incomplete. Working turns, save round-trips and deterministic replays do not establish AHDGame parity. Whole-game findings are tracked in [issue #28](https://github.com/Egg3901/AHDNative/issues/28).
 
 Known acceptance gates before any release claim: differences from current AHDGame ([mechanics audit](docs/MECHANICS-PARITY.md)), v42/v43 save compatibility ([save compatibility](docs/SAVE-COMPATIBILITY.md)), native lifecycle and physical-device performance. A Rust engine rewrite stays profile gated: it ships only if device measurements justify it. Not every era, country, or mechanic is available yet; supported content is whatever the docs above and the [roadmap](docs/ROADMAP.md) show as validated.
 
 ## Top priority now
 
-Feature parity with AHDGame navigation and its persistent game status bar is priority one. This means working destinations, submenus, country/role-dependent entries, resource details and linked actions. Layout is mobile-first; matching pixels is not required. Labels and placeholder screens do not count as completed features. Work continues through the entire roadmap, including gameplay, mechanics, saves, lifecycle and performance. See the [navigation and footer inventory](docs/NAVIGATION-PARITY.md), [UI reference](docs/UI-REFERENCE.md) and [roadmap](docs/ROADMAP.md).
+Existing game behavior and display hierarchy are requirements across the entire app, including entry, profile sections, nested navigation, conditional controls and action outcomes. Mobile layout adapts those flows to the device. Feature parity with AHDGame navigation and its persistent game status bar remains priority one. This means working destinations, submenus, country/role-dependent entries, resource details and linked actions. Layout is mobile-first; matching pixels is not required. Labels and placeholder screens do not count as completed features. Work continues through the entire roadmap, including gameplay, mechanics, saves, lifecycle and performance. See the [navigation and footer inventory](docs/NAVIGATION-PARITY.md), [UI reference](docs/UI-REFERENCE.md) and [roadmap](docs/ROADMAP.md).
 
 ## How it runs
 

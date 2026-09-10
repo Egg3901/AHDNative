@@ -1,3 +1,6 @@
+import { projectProfile } from "./profile";
+import { validateProfileUpdate } from "./profileValidation";
+import type { ProfileUpdate } from "./profileTypes";
 import { projectRegions, type RegionsQuery } from "./regions";
 import { projectCaucusManagement } from "./caucusManagement";
 import { projectBondMarket } from "./bondMarket";
@@ -68,6 +71,16 @@ export class GameSession {
   }
 
   view(): GameView { return projectWorld(this.requireWorld()); }
+
+  profile() { return projectProfile(this.requireWorld()); }
+
+  updateProfile(update: ProfileUpdate): GameView {
+    const valid = validateProfileUpdate(update);
+    const candidate = structuredClone(this.requireWorld());
+    Object.assign(candidate.player, valid);
+    return this.commit(candidate);
+  }
+
 
   legislation(selection: LegislationSelection = {}) { return buildLegislationDetails(this.requireWorld(), selection); }
 

@@ -9,12 +9,12 @@ test('bottom destinations reset reading position and retain their section highli
   await page.getByRole('button', { name: 'Start', exact: true }).click();
   await gameReady(page);
   const primary = page.getByRole('navigation', { name: 'Primary', exact: true });
-  await primary.getByRole('button', { name: 'Character', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Character', exact: true })).toBeFocused();
+  await primary.getByRole('button', { name: 'Actions', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Actions', exact: true })).toBeFocused();
   await page.mouse.move(150, 200);
   await page.mouse.wheel(0, 1200);
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(100);
-  await primary.getByRole('button', { name: 'Character', exact: true }).click();
+  await primary.getByRole('button', { name: 'Actions', exact: true }).click();
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
   await page.mouse.wheel(0, 1200);
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(100);
@@ -22,7 +22,7 @@ test('bottom destinations reset reading position and retain their section highli
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
   await expect(page.getByRole('region', { name: 'Parties', exact: true })).toBeFocused();
   await navigateGame(page, 'Profile');
-  await expect(primary.getByRole('button', { name: 'Character', exact: true })).toHaveAttribute('aria-current', 'location');
+  await expect(primary.getByRole('button', { name: 'Profile', exact: true })).toHaveAttribute('aria-current', 'page');
   await navigateGame(page, 'Economy');
   await expect(primary.getByRole('button', { name: 'Menu', exact: true })).toHaveAttribute('aria-current', 'location');
   await expect(primary.getByRole('button', { name: 'Menu', exact: true })).toHaveAttribute('aria-expanded', 'false');
@@ -30,7 +30,7 @@ test('bottom destinations reset reading position and retain their section highli
 });
 
 for (const width of [320, 390]) {
-  test(`overview shortcuts and full values remain usable at ${width}px`, async ({ page }) => {
+  test(`profile entry and existing game destinations remain usable at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/');
     if (width === 320) {
@@ -43,20 +43,19 @@ for (const width of [320, 390]) {
     await page.getByLabel('Country', { exact: true }).selectOption('UK');
     await page.getByRole('button', { name: 'Start', exact: true }).click();
     await gameReady(page);
-    const overview = page.getByRole('region', { name: 'Player overview', exact: true });
-    await expect(overview).toContainText('Mobile Player');
-    await expect(overview).toContainText('£10,000.00');
-    await expect(page.getByRole('region', { name: 'Nation metrics', exact: true })).toContainText('$40,336,000,000');
-    const shortcuts = page.getByRole('navigation', { name: 'Continue to', exact: true });
-    for (const [label, destination] of [['Take an action', 'Character'], ['View elections', 'Elections'], ['View economy', 'Economy'], ['Browse regions', 'Regions']]) {
-      const button = shortcuts.getByRole('button', { name: label, exact: true });
-      await button.scrollIntoViewIfNeeded();
-      expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-      await button.click();
+    const profile = page.getByRole('region', { name: 'Profile', exact: true });
+    await expect(profile).toContainText('Mobile Player');
+    await expect(profile).toContainText('£10,000.00');
+    await expect(page.getByText('GDP', { exact: true })).toHaveCount(0);
+    for (const destination of ['Actions', 'Elections', 'Economy', 'Regions']) {
+      await navigateGame(page, destination);
       await expect(page.getByRole('region', { name: destination, exact: true })).toBeFocused();
-      await page.getByRole('navigation', { name: 'Primary', exact: true }).getByRole('button', { name: 'Overview', exact: true }).click();
+      if (destination === 'Economy') await expect(page.getByRole('region', { name: 'Economy', exact: true })).toContainText('GDP');
+      const home = page.getByRole('navigation', { name: 'Primary', exact: true }).getByRole('button', { name: 'Profile', exact: true });
+      expect((await home.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await home.click();
     }
-    await expect(overview).toBeVisible();
+    await expect(profile).toBeVisible();
     const labelBounds = await page.getByRole('navigation', { name: 'Primary', exact: true })
       .locator('button > span').evaluateAll(labels => labels.map(label => ({
         height: label.getBoundingClientRect().height,
@@ -64,7 +63,7 @@ for (const width of [320, 390]) {
       })));
     expect(labelBounds.every(label => label.height < 24 && label.fits)).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.screenshot({ path: `artifacts/reviews/mobile-readability/overview-depth-${width}.png`, fullPage: true });
+    await page.screenshot({ path: `artifacts/reviews/mobile-readability/profile-entry-${width}.png`, fullPage: true });
   });
 }
 

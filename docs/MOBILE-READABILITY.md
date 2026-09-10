@@ -4,12 +4,11 @@ The mobile layout continues to use the shared React/Tauri screens, side drawer
 and bottom navigation. This pass builds on main `52f598a` and changes presentation
 and detached display queries only. It does not change simulation formulas.
 
-The overview groups identity, office, resources and national metrics into two
-cards, with shortcuts to actual actions, elections, economy and regions. The
-metric grid adapts to viewport and reading size. Large monetary figures show a
-compact value plus the full amount below, avoiding a broken number across lines.
-Player balances use the saved currency. GDP retains the engine's documented
-in-game dollar units; a foreign country's currency must not silently relabel it.
+The national Overview landing from this checkpoint has been removed following
+owner correction. Character games start and resume on Profile, matching the
+reference game's entry flow. National data remains on Economy. Earlier overview
+screenshots and metric tests are historical presentation evidence, not acceptance
+of that landing hierarchy. See [behavioral parity](BEHAVIORAL-PARITY.md).
 
 Party detail keeps identity, platform, leaders and join/leave controls above the
 roster. The recorded roster opens on demand, supports name search, and pages all

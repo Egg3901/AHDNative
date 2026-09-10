@@ -1,3 +1,4 @@
+import type { ProfileUpdate, ProfileView } from "./profileTypes";
 import type { RegionsQuery, RegionsView } from "./regions";
 import type { CaucusManagementView } from "./caucusManagement";
 import type { BondMarketView } from "./bondMarket";
@@ -50,6 +51,8 @@ export class GameClient {
   partyManagement() { return this.send<PartyManagementView>({ type: "partyManagement" }); }
   markets() { return this.send<MarketsView>({ type: "markets" }); }
   politics() { return this.send<PoliticsView>({ type: "politics" }); }
+  profile() { return this.send<ProfileView>({ type: "profile" }); }
+  updateProfile(update: ProfileUpdate) { return this.send<GameView>({ type: "updateProfile", update }); }
   view() { return this.send<GameView>({ type: "view" }); }
   advance() { return this.send<GameView>({ type: "advance" }); }
   act(actionId: string, params?: Record<string, string | number>) {
