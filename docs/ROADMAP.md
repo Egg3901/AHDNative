@@ -35,7 +35,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | E08 | Engine | Queued | E07 | Audit long-world election memory and turn spikes | Profile once per changed performance concern; no pruning without compatibility proof |
 | S01 | Saves | Done | G02 | Build native atomic save-slot storage with TDD | Fresh instance reads saved data; failed replacement preserves prior data |
 | S02 | Saves | In progress | S01,E02 | Connect native save and reload commands | Raw engine envelope retained; completion and errors visible |
-| S03 | Saves | Queued | S02 | Implement slot list,delete and replacement confirmation | No traversal; deliberate overwrite/delete; deterministic metadata |
+| S03 | Saves | Done | S02 | Implement slot list,delete and replacement confirmation | No traversal; deliberate overwrite/delete; deterministic metadata |
 | S04 | Saves | Queued | S02 | Provide save import/export interchange | Real fixture both directions; no silent version downgrade |
 | S05 | Saves | Queued | S04 | Resolve v42/v43 compatibility explicitly | Fixture-backed policy; no promise of roundtrip until verified |
 | S06 | Saves | Queued | S02 | Recover after close,crash and partial write | Last completed save survives; no false saved status |
@@ -77,7 +77,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 - Physical iOS gameplay/lifecycle/performance evidence does not exist yet.
 - Historical engine mechanics differ from current AHDGame in known systems. Reuse is an integration starting point, not parity certification.
 - Historical schema is v43; bidirectional v42 compatibility is not yet proven.
-- The current main branch remains a shell until the integration batch lands.
+- Main contains the local SP development slice from PR #4; it is not a validated iPhone release.
 
 Status changes must cite an actual commit, test result, artifact or explicit blocker. Completed shell/RNG/replay groundwork does not imply a playable release.
 
@@ -98,3 +98,10 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - A source AST scan over 354 non-test engine/content files found no direct `Math.random` references. Direct math references: pow 19, sqrt 12, log 7, exp 3, hypot 5. This count is not proof against arbitrary computed aliases or float drift.
 - The cutoff has passed with 1.0.0 withheld. No iOS build or paid minutes were used. The candidate remains version 0.1.0 pending mechanics, interchange and device gates. See [iOS runtime gate](IOS-RUNTIME-VALIDATION.md).
 - Hub board clearing and population remain pending supported card archive/clear operations. The project-scoping and archive issues are filed in the separate private Hub repository. This document is the current detailed execution record; it is not a claim that the Hub board has been updated.
+
+## Save hardening checkpoint
+
+- Main integration CI completed successfully before this batch.
+- Native validation now extracts metadata without allocating a second world tree. A bounded local synthetic listing fell from 180 to 115 ms and peak process memory from 46,336 to 19,220 KiB. See [storage evidence](SAVE-STORAGE.md); no phone performance claim.
+- Removed the full save-list rescan from each autosaved action/turn.
+- Added explicit delete/cancel controls, failure handling and disposal of a deleted active session. Eight production-browser smoke tests and 11 Rust correctness tests pass; the manual memory profile is separate and ignored by CI.

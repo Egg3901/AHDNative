@@ -4,7 +4,7 @@ A unified A House Divided app for singleplayer and multiplayer on mobile and des
 
 ## Status
 
-The integration branch runs a local singleplayer world through React game screens and a dedicated simulation worker. New game, actions, turns, save, app reload and resume have passed a real browser smoke test at phone screen size. Native save storage has passing Rust tests. This is development progress, not an iPhone build or a 1.0.0 release.
+Main runs a local singleplayer world through React game screens and a dedicated simulation worker. New game, actions, turns, save, app reload and resume have passed a real browser smoke test at phone screen size. Native save storage has passing Rust tests. This is development progress, not an iPhone build or a 1.0.0 release.
 
 The reusable TypeScript engine is pinned to a recorded AHDClient revision. Known differences from current AHDGame, v42/v43 save compatibility, native lifecycle and physical-device performance remain acceptance gates. A Rust engine rewrite remains profile gated. See [roadmap](docs/ROADMAP.md), [mechanics audit](docs/MECHANICS-PARITY.md) and [engine provenance](docs/engine-source-manifest.json).
 

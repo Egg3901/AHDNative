@@ -17,8 +17,9 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+use serde::de::{self, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use std::marker::PhantomData;
 
 /// Maximum accepted save payload, inclusive. Documented bound for 100+ MiB worlds.
 pub const MAX_SAVE_BYTES: u64 = 256 * 1024 * 1024;
@@ -247,73 +248,103 @@ fn slot_path(root: &Path, slot_id: &str) -> PathBuf {
     root.join(format!("{slot_id}.json"))
 }
 
-fn validate_envelope(contents: &str) -> Result<Value, SaveError> {
-    let parsed: Value = serde_json::from_str(contents).map_err(|_| SaveError::InvalidEnvelope {
-        reason: "unparseable JSON",
-    })?;
-    if !parsed.is_object() {
-        return Err(SaveError::InvalidEnvelope {
-            reason: "root must be an object",
-        });
-    }
-    match parsed.get("format").and_then(Value::as_str) {
-        Some(FORMAT_MARKER) => {}
-        _ => {
-            return Err(SaveError::InvalidEnvelope {
-                reason: "format must be ahdsolo-save",
-            });
-        }
-    }
-    match parsed.get("schemaVersion").and_then(Value::as_u64) {
-        Some(version) if version >= 1 => {}
-        _ => {
-            return Err(SaveError::InvalidEnvelope {
-                reason: "schemaVersion must be a positive integer",
-            });
-        }
-    }
-    match parsed.get("world") {
-        Some(Value::Object(_)) => Ok(parsed),
-        _ => Err(SaveError::InvalidEnvelope {
-            reason: "world must be an object",
-        }),
-    }
+// Unknown world fields are consumed by serde's IgnoredAny path. Slot metadata
+// never requires allocating the elections, history or economy object trees.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SaveEnvelope {
+    format: String,
+    schema_version: u64,
+    #[serde(default)]
+    saved_at: String,
+    #[serde(deserialize_with = "deserialize_object")]
+    world: WorldMetadata,
 }
 
-fn meta_from(slot_id: &str, value: &Value) -> SaveMeta {
-    let schema_version = value
-        .get("schemaVersion")
-        .and_then(Value::as_u64)
-        .unwrap_or(0);
-    let saved_at = value
-        .get("savedAt")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_string();
-    let world = value.get("world");
-    let turn = world
-        .and_then(|world| world.get("meta"))
-        .and_then(|meta| meta.get("turn"))
-        .and_then(Value::as_i64)
-        .unwrap_or(0);
-    let player = world.and_then(|world| world.get("player"));
-    let country_id = player
-        .and_then(|player| player.get("countryId"))
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_string();
-    let player_name = player
-        .and_then(|player| player.get("name"))
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .to_string();
+#[derive(Default, Deserialize)]
+struct WorldMetadata {
+    #[serde(default)]
+    meta: TurnMetadata,
+    #[serde(default)]
+    player: PlayerMetadata,
+}
+
+#[derive(Default, Deserialize)]
+struct TurnMetadata {
+    #[serde(default)]
+    turn: i64,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PlayerMetadata {
+    #[serde(default)]
+    country_id: String,
+    #[serde(default)]
+    name: String,
+}
+
+// Derived structs also accept sequences. Save envelopes and worlds must be JSON
+// objects, so request map deserialization explicitly at those two boundaries.
+fn deserialize_object<'de, D, T>(decoder: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    struct ObjectVisitor<T>(PhantomData<T>);
+    impl<'de, T: Deserialize<'de>> Visitor<'de> for ObjectVisitor<T> {
+        type Value = T;
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("a JSON object")
+        }
+        fn visit_map<M: MapAccess<'de>>(self, map: M) -> Result<T, M::Error> {
+            T::deserialize(de::value::MapAccessDeserializer::new(map))
+        }
+    }
+    decoder.deserialize_map(ObjectVisitor(PhantomData))
+}
+
+fn decode_envelope<'de, R: serde_json::de::Read<'de>>(
+    decoder: &mut serde_json::Deserializer<R>,
+) -> Result<SaveEnvelope, SaveError> {
+    let parsed: SaveEnvelope =
+        deserialize_object(&mut *decoder).map_err(|error: serde_json::Error| {
+            SaveError::InvalidEnvelope {
+                reason: if error.is_syntax() || error.is_eof() {
+                    "unparseable JSON"
+                } else {
+                    "invalid JSON save envelope or metadata"
+                },
+            }
+        })?;
+    decoder.end().map_err(|_| SaveError::InvalidEnvelope {
+        reason: "unexpected data after the save envelope",
+    })?;
+    if parsed.format != FORMAT_MARKER {
+        return Err(SaveError::InvalidEnvelope {
+            reason: "format must be ahdsolo-save",
+        });
+    }
+    if parsed.schema_version == 0 {
+        return Err(SaveError::InvalidEnvelope {
+            reason: "schemaVersion must be a positive integer",
+        });
+    }
+    Ok(parsed)
+}
+
+fn validate_envelope(contents: &str) -> Result<SaveEnvelope, SaveError> {
+    decode_envelope(&mut serde_json::Deserializer::from_str(contents))
+}
+
+fn meta_from(slot_id: &str, value: &SaveEnvelope) -> SaveMeta {
     SaveMeta {
         slot_id: slot_id.to_string(),
-        saved_at,
-        schema_version,
-        turn,
-        country_id,
-        player_name,
+        saved_at: value.saved_at.clone(),
+        schema_version: value.schema_version,
+        turn: value.world.meta.turn,
+        country_id: value.world.player.country_id.clone(),
+        player_name: value.world.player.name.clone(),
     }
 }
 
@@ -387,6 +418,51 @@ mod tests {
         let dir = tempfile::tempdir().expect("temp dir");
         let store = SaveStore::open(dir.path()).expect("open");
         (dir, store)
+    }
+
+    #[test]
+    fn opaque_world_data_round_trips_and_invalid_shapes_preserve_it() {
+        let (_dir, store) = open_temp();
+        let raw = r#"{"format":"ahdsolo-save","schemaVersion":42,"savedAt":"2026-09-10T00:00:00Z","world":{"meta":{"turn":7},"player":{"countryId":"US","name":"Test"},"history":{"opaque":[1.000,null,{"escaped":"brace } and quote \""}]}}}"#;
+        store.save("opaque", raw).unwrap();
+        let rows = store.list().unwrap();
+        assert_eq!(rows[0].schema_version, 42);
+        assert_eq!(rows[0].turn, 7);
+        assert_eq!(store.load("opaque").unwrap(), raw);
+        for invalid in [
+            r#"["ahdsolo-save",43,"",{}]"#,
+            r#"{"format":"ahdsolo-save","schemaVersion":43,"world":[]}"#,
+            r#"{"format":"ahdsolo-save","schemaVersion":0,"world":{}}"#,
+            r#"{"format":"ahdsolo-save","schemaVersion":43,"world":{}} trailing"#,
+        ] {
+            assert!(store.save("opaque", invalid).is_err());
+            assert_eq!(store.load("opaque").unwrap(), raw);
+        }
+    }
+
+    #[test]
+    #[ignore = "Manual bounded save-list memory profile"]
+    fn profile_large_save_listing() {
+        use std::io::BufWriter;
+        let (dir, store) = open_temp();
+        let mut file = BufWriter::new(File::create(dir.path().join("large.json")).unwrap());
+        file.write_all(br#"{"format":"ahdsolo-save","schemaVersion":43,"savedAt":"2026-09-10T00:00:00Z","world":{"meta":{"turn":7},"player":{"countryId":"US","name":"Profile"},"history":["#).unwrap();
+        for index in 0..250_000 {
+            if index > 0 {
+                file.write_all(b",").unwrap();
+            }
+            file.write_all(br#""abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz""#)
+                .unwrap();
+        }
+        file.write_all(b"]}}").unwrap();
+        file.flush().unwrap();
+        drop(file);
+        let start = std::time::Instant::now();
+        let rows = store.list().unwrap();
+        println!("list_ms={}", start.elapsed().as_millis());
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].turn, 7);
+        assert_eq!(rows[0].player_name, "Profile");
     }
 
     #[test]
