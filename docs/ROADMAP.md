@@ -339,3 +339,25 @@ Validation: 835 engine tests, 54 focused/related war and settlement checks,
 and engine typecheck passed. Existing war golden assertions did not change;
 no long-world fixture was regenerated. This engine-only slice leaves the
 new side drawer and bottom navigation unchanged.
+
+## Regional browsing and mobile follow-through
+
+The drawer's Regions destination opens a country-scoped directory and saved
+regional details. The directory is collapsed by default and closes on selection,
+so the selected region is immediately accessible on a phone. Filtering and paging
+preserve the open directory across worker requests. Browsing never changes the
+player's country or home region and does not write world state.
+
+US and UK views retain their actual saved office, chamber and election data.
+The player's current seat is included only when saved election history identifies
+its region; empty or missing records are shown explicitly. Regional governance,
+constituency geometry and executive actions remain outside this read-only slice.
+[Regional scope](REGION-DEPTH.md) records those limits. The UI reference and
+navigation inventory now make the rejected top-bar layout explicitly obsolete.
+
+Integration validation: `npm run verify` passed with 103 app/session tests,
+127 UI tests, production build and fixture integrity. Final panel tests (4)
+and build passed after the directory toggle fix. The new US/UK offline
+browse, save, reload and home-preservation browser flows passed, as did the
+320px/390px bottom navigation checks. The directory touch target is at least
+44px. No engine changes, repeated Rust checks or paid signing build were needed for this display slice.

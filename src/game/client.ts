@@ -1,3 +1,4 @@
+import type { RegionsQuery, RegionsView } from "./regions";
 import type { CaucusManagementView } from "./caucusManagement";
 import type { BondMarketView } from "./bondMarket";
 import type { PartyManagementView } from "./partyManagement";
@@ -43,6 +44,8 @@ export class GameClient {
   worldOverview() { return this.send<WorldOverviewView>({ type: "worldOverview" }); }
   search(query: string) { return this.send<SearchResults>({ type: "search", query }); }
   bondMarket() { return this.send<BondMarketView>({ type: "bondMarket" }); }
+  regions(query: RegionsQuery = {}) { return this.send<RegionsView>({ type: "regions", query }); }
+
   caucusManagement() { return this.send<CaucusManagementView>({ type: "caucusManagement" }); }
   partyManagement() { return this.send<PartyManagementView>({ type: "partyManagement" }); }
   markets() { return this.send<MarketsView>({ type: "markets" }); }

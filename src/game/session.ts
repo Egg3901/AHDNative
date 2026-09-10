@@ -1,3 +1,4 @@
+import { projectRegions, type RegionsQuery } from "./regions";
 import { projectCaucusManagement } from "./caucusManagement";
 import { projectBondMarket } from "./bondMarket";
 import { projectPartyManagement } from "./partyManagement";
@@ -75,6 +76,8 @@ export class GameSession {
   search(query: string) { return searchWorld(this.requireWorld(), query); }
 
   bondMarket() { return projectBondMarket(this.requireWorld()); }
+
+  regions(query: RegionsQuery = {}) { return projectRegions(this.requireWorld(), query); }
 
   caucusManagement() { return projectCaucusManagement(this.requireWorld()); }
 
