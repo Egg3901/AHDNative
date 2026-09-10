@@ -57,7 +57,12 @@ workflows:
           rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
           rustup target add aarch64-apple-ios --toolchain 1.96.0
       - name: Generate iOS project
-        script: npm run tauri -- ios init --ci --skip-targets-install
+        script: |
+          set -eu
+          export APPLE_DEVELOPMENT_TEAM="$TAURI_APPLE_DEVELOPMENT_TEAM"
+          npm run tauri -- ios init --ci --skip-targets-install
+      - name: Prepare existing Xcode signing settings
+        script: python3 scripts/prepare-ios-signing.py src-tauri/gen/apple/ahdnative.xcodeproj/project.pbxproj
       - name: Restrict export to internal TestFlight
         script: |
           set -eu
