@@ -45,6 +45,185 @@ export function serializeSave(world: WorldState, savedAt: string): string {
   return JSON.stringify(save);
 }
 
+const V42_SCHEMA = 42;
+
+export type ProjectSaveToV42Result =
+  | { ok: true; contents: string }
+  | { ok: false; error: string };
+
+function hasOwn(value: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function ownEnumerableValue(value: object, key: string): unknown {
+  const desc = Object.getOwnPropertyDescriptor(value, key);
+  return desc === undefined ? undefined : desc.value;
+}
+
+/**
+ * Exact structural equality for save envelopes. Array order is preserved.
+ * Record key order is ignored. Enumerable own keys are compared, including
+ * "__proto__", by reading descriptors so assignment cannot poison a clone.
+ * Primitives use ===. No numeric tolerance.
+ */
+function structurallyEqual(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (left === null || right === null || typeof left !== "object" || typeof right !== "object") {
+    return false;
+  }
+  if (Array.isArray(left) || Array.isArray(right)) {
+    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+    for (let i = 0; i < left.length; i += 1) {
+      if (!structurallyEqual(left[i], right[i])) return false;
+    }
+    return true;
+  }
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  if (leftKeys.length !== rightKeys.length) return false;
+  const rightKeySet = new Set(rightKeys);
+  for (const key of leftKeys) {
+    if (!rightKeySet.has(key)) return false;
+    if (!structurallyEqual(ownEnumerableValue(left, key), ownEnumerableValue(right, key))) return false;
+  }
+  return true;
+}
+
+/**
+ * Project a public serializeSave envelope to schema 42.
+ *
+ * countryPolitics is dropped only when Native deserializeSave of the
+ * stripped document re-seeds the same gauges and history. A string
+ * player.homeRegionId is kept as an opaque extra: the historical v42
+ * reader does not interpret it and preserves it through load, turn, and
+ * serializeSave. Progressed countryPolitics is refused; the old engine
+ * does not run that phase, so easing and approval history cannot be
+ * reconstructed from schema 42 fields.
+ */
+export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
+  if (typeof contents !== "string" || contents.length === 0) {
+    return { ok: false, error: "Not a valid save file: empty document" };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(contents);
+  } catch {
+    return { ok: false, error: "Not a valid save file: unparseable JSON" };
+  }
+  if (!isRecord(parsed) || parsed["format"] !== "ahdsolo-save") {
+    return { ok: false, error: "Not a valid save file: wrong format marker" };
+  }
+  if (!isRecord(parsed["world"]) || !isRecord(parsed["world"]["meta"]) || !isRecord(parsed["world"]["player"])) {
+    return { ok: false, error: "Not a valid save file: invalid world state" };
+  }
+  const save = parsed;
+  const world = parsed["world"];
+  const meta = world["meta"] as Record<string, unknown>;
+  const player = world["player"] as Record<string, unknown>;
+  const envelopeSchema = save["schemaVersion"];
+  const metaSchema = meta["schemaVersion"];
+
+  if (envelopeSchema === V42_SCHEMA && metaSchema === V42_SCHEMA) {
+    if (hasOwn(world, "countryPolitics")) {
+      return {
+        ok: false,
+        error:
+          "This schema 42 document still carries countryPolitics; it is not an authentic schema 42 save",
+      };
+    }
+    if (hasOwn(player, "homeRegionId") && typeof player["homeRegionId"] !== "string") {
+      return {
+        ok: false,
+        error:
+          "This schema 42 document still carries v43 homeRegionId; it is not an authentic schema 42 save",
+      };
+    }
+    try {
+      deserializeSave(contents);
+    } catch (error) {
+      return { ok: false, error: `Schema 42 save is not loadable: ${errorMessage(error)}` };
+    }
+    return { ok: true, contents };
+  }
+
+  if (envelopeSchema !== SCHEMA_VERSION || metaSchema !== SCHEMA_VERSION) {
+    return {
+      ok: false,
+      error: `Save schema ${String(envelopeSchema)} cannot be projected to schema 42 without a Native load of a schema ${SCHEMA_VERSION} document`,
+    };
+  }
+  const savedAt = save["savedAt"];
+  if (typeof savedAt !== "string" || savedAt.length === 0) {
+    return { ok: false, error: "Not a valid save file: missing savedAt" };
+  }
+  const homeRegionId = player["homeRegionId"];
+  if (homeRegionId !== null && homeRegionId !== undefined && typeof homeRegionId !== "string") {
+    return {
+      ok: false,
+      error: "player.homeRegionId is not a nullable string. Schema 42 cannot store that identity",
+    };
+  }
+  if (!hasOwn(world, "countryPolitics")) {
+    return {
+      ok: false,
+      error: "Schema 43 save is missing countryPolitics, so a reversible schema 42 projection cannot be proven",
+    };
+  }
+
+  const candidateSave = structuredClone(save);
+  const candidateWorld = candidateSave["world"] as Record<string, unknown>;
+  const candidateMeta = candidateWorld["meta"] as Record<string, unknown>;
+  const candidatePlayer = candidateWorld["player"] as Record<string, unknown>;
+  candidateSave["schemaVersion"] = V42_SCHEMA;
+  candidateMeta["schemaVersion"] = V42_SCHEMA;
+  delete candidateWorld["countryPolitics"];
+  if (typeof candidatePlayer["homeRegionId"] !== "string") {
+    delete candidatePlayer["homeRegionId"];
+  }
+  const candidate = JSON.stringify(candidateSave);
+
+  let restoredWorld: WorldState;
+  try {
+    restoredWorld = deserializeSave(candidate);
+  } catch (error) {
+    return {
+      ok: false,
+      error: `Schema 42 projection is not loadable: ${errorMessage(error)}`,
+    };
+  }
+
+  const restoredSave = {
+    format: "ahdsolo-save",
+    schemaVersion: restoredWorld.meta.schemaVersion,
+    savedAt,
+    world: restoredWorld,
+  };
+  if (structurallyEqual(save, restoredSave)) {
+    return { ok: true, contents: candidate };
+  }
+  if (!structurallyEqual(world["countryPolitics"], restoredWorld.countryPolitics)) {
+    return {
+      ok: false,
+      error:
+        "countryPolitics live gauges are not reconstructable from schema 42. Exporting would drop national approval, legitimacy, unrest, or approval history. Keep this save as schema 43",
+    };
+  }
+  if (player["homeRegionId"] !== restoredWorld.player.homeRegionId) {
+    return {
+      ok: false,
+      error: `player.homeRegionId is set to ${String(player["homeRegionId"])}. Schema 42 has no home-region identity; exporting would drop it. Keep this save as schema 43`,
+    };
+  }
+  return {
+    ok: false,
+    error: "Schema 42 projection is not reversible: Native reload does not restore the original schema 43 document",
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

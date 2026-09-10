@@ -12,8 +12,8 @@ export {
   isWorldFeatureFlag,
 } from "./featureFlags.js";
 export type { WorldFeatureFlag, WorldFeatureFlags } from "./featureFlags.js";
-export { serializeSave, deserializeSave } from "./save.js";
-export type { SaveFile } from "./save.js";
+export { serializeSave, deserializeSave, projectSaveToV42 } from "./save.js";
+export type { SaveFile, ProjectSaveToV42Result } from "./save.js";
 export { rngFromSeed, rngFromState } from "./rng.js";
 export type { WorldRng, RngState } from "./rng.js";
 export { dateForTurn, eraForDate, nextEraForDate, addDaysIso, START_DATE, DAYS_PER_TURN } from "./calendar.js";

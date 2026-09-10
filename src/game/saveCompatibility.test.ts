@@ -57,15 +57,24 @@ describe("schema 42 projection of public save envelopes", () => {
     expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });
   });
 
-  it("refuses a Native-fresh schema 43 world whose home region would be dropped", () => {
+  it("projects a Native-fresh schema 43 world as a v42 extension that keeps homeRegionId AL", () => {
     const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
     expect(world.player.homeRegionId).toBe("AL");
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
-    expect(projected.ok).toBe(false);
-    if (projected.ok) throw new Error("expected home-region refusal");
-    expect(projected.error).toMatch(/homeRegionId/);
-    expect(projected.error).toMatch(/AL/);
-    expect(projected.error).not.toMatch(/schemaVersion rewritten|relabel/i);
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) throw new Error(projected.error);
+    const parsed = JSON.parse(projected.contents) as {
+      schemaVersion: number;
+      world: { meta: { schemaVersion: number }; countryPolitics?: unknown; player: { homeRegionId?: unknown } };
+    };
+    expect(parsed.schemaVersion).toBe(42);
+    expect(parsed.world.meta.schemaVersion).toBe(42);
+    expect(parsed.world.player.homeRegionId).toBe("AL");
+    expect(Object.prototype.hasOwnProperty.call(parsed.world, "countryPolitics")).toBe(false);
+    expect(sha256(projected.contents)).toBe("f141e9a919d8a6626c53a1ca6c4c9856ec5ccc97410b0a4c2ba8d61ba3aaa320");
+    const restored = deserializeSave(projected.contents);
+    expect(restored.player.homeRegionId).toBe("AL");
+    expect(restored.countryPolitics).toEqual(world.countryPolitics);
   });
 
   it("refuses a migrated world after a Native turn mutates countryPolitics", () => {
