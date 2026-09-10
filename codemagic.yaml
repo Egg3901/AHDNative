@@ -77,6 +77,7 @@ workflows:
       - name: Build signed iPhone application
         script: |
           set -eu
+          export APPLE_DEVELOPMENT_TEAM="$TAURI_APPLE_DEVELOPMENT_TEAM"
           npm run tauri -- ios build --ci --target aarch64 --export-method app-store-connect --build-number "$BUILD_NUMBER"
     artifacts:
       - src-tauri/gen/apple/build/**/*.ipa

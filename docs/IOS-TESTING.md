@@ -59,7 +59,9 @@ The marketing version stays `0.1.0`. The iOS bundle version has base `1`; Tauri 
 The pinned Tauri CLI 2.11.4 can insert new manual-signing settings outside
 `buildSettings` ([upstream issue #14462](https://github.com/tauri-apps/tauri/issues/14462)).
 The workflow runs `scripts/prepare-ios-signing.py` after project generation to
-create empty keys in the correct blocks before Tauri updates them from encrypted
-inputs. The script contains no identities. Keep this workaround until an upstream
+create signing keys in the correct blocks before Tauri updates them. Both team
+settings are filled from the encrypted team input so an empty SDK override cannot
+shadow the general team during IPA export. The build command also receives
+Tauri's documented `APPLE_DEVELOPMENT_TEAM` alias. The script contains no identities. Keep this workaround until an upstream
 fix is verified. A local replay of the exact upstream parser reproduces the missing
 settings before preparation and preserves all seven signing keys afterward.
