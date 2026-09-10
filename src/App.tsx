@@ -84,7 +84,7 @@ export function App() {
     if (!client.current || !slot.current) throw new Error('Start or load a game first.');
     const contents = await client.current.serialize(new Date().toISOString());
     await saveRepository.save(slot.current, contents);
-    setSaves(await saveRepository.list()); setMessage('Game saved.');
+    setMessage('Game saved.');
   }
 
   function requestDelete(saved: SaveMetadata) {
@@ -95,19 +95,16 @@ export function App() {
   }
   function cancelDelete() {
     if (busy) return;
+    const id = pendingDelete?.slotId;
     setPendingDelete(null);
+    if (id) requestAnimationFrame(() => document.getElementById(`delete-request-${id}`)?.focus());
   }
   function confirmDelete() {
     if (!pendingDelete || locked.current) return;
     const target = pendingDelete;
     void run(async () => {
-      try {
-        await saveRepository.delete(target.slotId);
-      } catch (reason) {
-        throw reason;
-      }
-      const nextSaves = await saveRepository.list();
-      setSaves(nextSaves);
+      await saveRepository.delete(target.slotId);
+      setSaves(previous => previous.filter(saved => saved.slotId !== target.slotId));
       setPendingDelete(null);
       setMessage('Save deleted.');
       if (slot.current === target.slotId) {
@@ -128,7 +125,10 @@ export function App() {
       if (response.result.ok) { await save(); setMessage(response.result.message); } else setError(response.result.error);
     })}
     onSave={() => void run(save)}
-    onExit={() => void run(async () => { if (!client.current?.isClosed) await save(); setScreen('home'); })} />;
+    onExit={() => void run(async () => {
+      if (!client.current?.isClosed) await save();
+      setScreen('home'); setSaves(await saveRepository.list());
+    })} />;
   return <main className="ahd-screen"><div className="ahd-container" style={{ maxWidth: '42rem', paddingTop: 'max(2rem, env(safe-area-inset-top))' }}>
     <p className="ahd-eyebrow">Singleplayer</p><h1 className="ahd-h1">A House Divided</h1>
     <p className="ahd-muted">Build your political career. Your world stays on this device.</p>
@@ -153,12 +153,11 @@ export function App() {
           <h3 style={{ margin: 0, fontSize: '0.95rem' }}>{saved.playerName}</h3><p className="ahd-muted" style={{ margin: '0.2rem 0 0', fontSize: '0.78rem' }}>{saved.countryId} · Turn {saved.turn} · {new Date(saved.savedAt).toLocaleString()}</p>
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.65rem', flexWrap: 'wrap' }}>
             <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => load(saved)} aria-label={`Continue ${saved.playerName}`}>Continue</button>
-            <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" disabled={busy} onClick={() => requestDelete(saved)} aria-label={`Delete ${saved.playerName}`}>Delete</button>
+            <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" disabled={busy} id={`delete-request-${saved.slotId}`} onClick={() => requestDelete(saved)} aria-label={`Delete ${saved.playerName}`}>Delete</button>
           </div>
           {isPending && (
             <div
               role="dialog"
-              aria-modal="true"
               aria-labelledby={`delete-title-${saved.slotId}`}
               aria-describedby={`delete-desc-${saved.slotId}`}
               style={{
@@ -170,7 +169,7 @@ export function App() {
               }}
             >
               <h4 id={`delete-title-${saved.slotId}`} style={{ margin: 0, fontSize: '0.88rem', fontWeight: 750 }}>
-                Delete {saved.playerName} — {saved.countryId} Turn {saved.turn}?
+                Delete {saved.playerName} · {saved.countryId} Turn {saved.turn}?
               </h4>
               <p id={`delete-desc-${saved.slotId}`} className="ahd-muted" style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', lineHeight: 1.5 }}>
                 This will permanently delete this saved game. This cannot be undone.
