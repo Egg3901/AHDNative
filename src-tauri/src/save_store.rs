@@ -7,7 +7,8 @@
 //! Listing scans each slot JSON. That is acceptable initially; a metadata sidecar
 //! is deferred until it can be proven crash-consistent with the save file.
 //!
-//! Persist writes a sibling temporary file, syncs it, then replaces the slot with
+//! Persist writes a uniquely named sibling temporary file (one per write,
+//! claimed with `create_new`), syncs it, then replaces the slot with
 //! std::fs::rename. Never move the original aside: a failed replacement must leave
 //! the previous slot available. Unix also syncs the parent directory.
 //! See https://doc.rust-lang.org/std/fs/fn.rename.html for platform behavior.
@@ -15,7 +16,10 @@
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc, Mutex,
+};
 
 use serde::de::{self, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
@@ -125,7 +129,7 @@ impl SaveStore {
         let dest = slot_path(&self.inner.root, slot_id);
         self.locked(|_| {
             reject_symlink(&dest)?;
-            write_atomic(&self.inner.root, &dest, contents)
+            write_atomic(&self.inner.root, &dest, slot_id, contents)
         })
     }
 
@@ -366,26 +370,48 @@ fn reject_symlink(path: &Path) -> Result<(), SaveError> {
     }
 }
 
-fn write_atomic(root: &Path, dest: &Path, contents: &str) -> Result<(), SaveError> {
-    let tmp = dest.with_extension("json.tmp");
-    let persist = (|| {
+/// Sequence for per-write temp names. Combined with the process id it keeps
+/// temp names unique across threads and processes sharing a saves directory.
+static TMP_SEQ: AtomicU64 = AtomicU64::new(0);
+
+fn write_atomic(root: &Path, dest: &Path, slot_id: &str, contents: &str) -> Result<(), SaveError> {
+    // Each write claims a unique sibling temp with `create_new`, so two
+    // independently opened stores (separate mutexes, separate processes)
+    // never share temp bytes. The final `rename` is still atomic: a crash
+    // lands on the complete prior file or one complete new file. Only the
+    // temp this call created is ever removed by this call; foreign temps are
+    // left alone, and failures before rename leave the prior slot untouched.
+    const ATTEMPTS: u32 = 8;
+    for _ in 0..ATTEMPTS {
+        let seq = TMP_SEQ.fetch_add(1, Ordering::Relaxed);
+        let tmp = root.join(format!("{slot_id}.{}.{seq}.json.tmp", std::process::id()));
         reject_symlink(&tmp)?;
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&tmp)?;
-        file.write_all(contents.as_bytes())?;
-        file.sync_all()?;
+        let mut file = match OpenOptions::new().write(true).create_new(true).open(&tmp) {
+            Ok(file) => file,
+            Err(err) if err.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(err) => return Err(err.into()),
+        };
+        let wrote = (|| {
+            file.write_all(contents.as_bytes())?;
+            file.sync_all()?;
+            Ok::<_, io::Error>(())
+        })();
         drop(file);
-        persist_rename(&tmp, dest)?;
+        if let Err(err) = wrote {
+            let _ = fs::remove_file(&tmp);
+            return Err(err.into());
+        }
+        if let Err(err) = persist_rename(&tmp, dest) {
+            let _ = fs::remove_file(&tmp);
+            return Err(err.into());
+        }
         sync_dir(root)?;
-        Ok(())
-    })();
-    if persist.is_err() {
-        let _ = fs::remove_file(&tmp);
+        return Ok(());
     }
-    persist
+    Err(SaveError::Io(io::Error::new(
+        io::ErrorKind::AlreadyExists,
+        "could not claim a unique save temp name",
+    )))
 }
 
 fn persist_rename(tmp: &Path, dest: &Path) -> io::Result<()> {
@@ -661,6 +687,118 @@ mod tests {
             loaded == *first || loaded == *second,
             "load returned mixed or unknown contents"
         );
+    }
+
+    fn envelope_padded(
+        schema: u64,
+        saved_at: &str,
+        turn: i64,
+        country: &str,
+        player: &str,
+        pad_bytes: usize,
+    ) -> String {
+        let pad = "p".repeat(pad_bytes);
+        format!(
+            r#"{{"format":"ahdsolo-save","schemaVersion":{schema},"savedAt":"{saved_at}","pad":"{pad}","world":{{"meta":{{"turn":{turn}}},"player":{{"countryId":"{country}","name":"{player}"}}}}}}"#
+        )
+    }
+
+    #[test]
+    fn open_leaves_foreign_tmps_alone_and_keeps_prior_slot() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let prior = envelope(43, "2026-01-01T00:00:00Z", 1, "US", "Alex");
+        let store = SaveStore::open(dir.path()).expect("open");
+        store.save("slot", &prior).expect("prior save");
+        drop(store);
+
+        // A crashed writer's unacknowledged temp is not a save: open must
+        // neither promote it nor delete another writer's in-flight bytes.
+        let interrupted = envelope(43, "2026-01-02T00:00:00Z", 9, "UK", "Bea");
+        let interrupted_tmp = dir
+            .path()
+            .join(format!("slot.{}.0.json.tmp", std::process::id()));
+        fs::write(&interrupted_tmp, &interrupted).expect("plant tmp");
+        // A first save that crashed before any rename: temp only.
+        let orphan = envelope(43, "2026-01-03T00:00:00Z", 2, "FR", "Cam");
+        let orphan_tmp = dir
+            .path()
+            .join(format!("fresh.{}.0.json.tmp", std::process::id()));
+        fs::write(&orphan_tmp, &orphan).expect("plant orphan");
+        // A directory at the legacy fixed temp name must not abort startup.
+        fs::create_dir(dir.path().join("slot.json.tmp")).expect("plant legacy tmp dir");
+
+        let reopened = SaveStore::open(dir.path()).expect("reopen with foreign tmps present");
+        assert!(
+            interrupted_tmp.exists(),
+            "another writer's temp must be left alone"
+        );
+        assert!(
+            orphan_tmp.exists(),
+            "unacknowledged temp must not be promoted or deleted"
+        );
+        assert!(
+            dir.path().join("slot.json.tmp").is_dir(),
+            "legacy tmp dir must be left alone"
+        );
+        assert_eq!(reopened.load("slot").expect("prior survives"), prior);
+        assert!(matches!(
+            reopened.load("fresh"),
+            Err(SaveError::NotFound { .. })
+        ));
+        let rows = reopened.list().expect("list");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].slot_id, "slot");
+        assert_eq!(rows[0].turn, 1);
+    }
+
+    #[test]
+    fn concurrent_saves_from_independently_opened_stores_stay_complete() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let first = Arc::new(envelope_padded(
+            43,
+            "2026-01-01T00:00:00Z",
+            1,
+            "US",
+            "A",
+            1 << 20,
+        ));
+        let second = Arc::new(envelope_padded(
+            43,
+            "2026-01-01T00:00:00Z",
+            2,
+            "US",
+            "B",
+            1 << 20,
+        ));
+        // Independently opened stores have separate mutexes, like two app
+        // instances sharing a saves directory. Every save must land whole:
+        // the final slot is always exactly one complete payload, never a mix.
+        for _ in 0..20 {
+            let store_a = SaveStore::open(dir.path()).expect("open A");
+            let store_b = SaveStore::open(dir.path()).expect("open B");
+            let barrier = Arc::new(std::sync::Barrier::new(2));
+            std::thread::scope(|scope| {
+                let barrier_a = Arc::clone(&barrier);
+                let first = Arc::clone(&first);
+                let second = Arc::clone(&second);
+                scope.spawn(move || {
+                    barrier_a.wait();
+                    store_a.save("slot", &first).unwrap();
+                });
+                scope.spawn(move || {
+                    barrier.wait();
+                    store_b.save("slot", &second).unwrap();
+                });
+            });
+            let loaded = SaveStore::open(dir.path())
+                .expect("reopen")
+                .load("slot")
+                .expect("load after concurrent saves");
+            assert!(
+                loaded == *first || loaded == *second,
+                "torn or interleaved save detected"
+            );
+        }
     }
 
     #[cfg(unix)]

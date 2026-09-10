@@ -57,7 +57,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | S03 | Saves | Done | S02 | Implement slot list,delete and replacement confirmation | No traversal; deliberate overwrite/delete; deterministic metadata |
 | S04 | Saves | In progress | S02 | Provide save import/export interchange | Real fixture both directions; no silent version downgrade |
 | S05 | Saves | In progress | S04 | Resolve v42/v43 compatibility explicitly | Fixture-backed policy; no promise of roundtrip until verified |
-| S06 | Saves | Queued | S02 | Recover after close,crash and partial write | Last completed save survives; no false saved status |
+| S06 | Saves | In progress | S02 | Recover after close,crash and partial write | Last completed save survives; no false saved status |
 | U01 | Interface | In progress | G01 | Extract actual MP/SP visual and navigation baseline | Reference source/screens; no historical client redesign |
 | U02 | Interface | Done | U01 | Build new-game era/country/player flow | Accessible form; real content choices; validation |
 | U03 | Interface | In progress | U01,E05 | Build shared game chrome and country overview | Actual MP/SP hierarchy; compact mobile navigation |
@@ -241,3 +241,15 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
   explicit weekly-date/phase-timing assertion was updated for the intended
   source-backed move and passed separately (one selected test; 47 skipped).
   No historical world-hash goldens or career fixtures were regenerated.
+
+## Native save isolation checkpoint, 2026-09-10
+
+- S06: independently opened stores now claim separate temporary files for each
+  save. Concurrent writes cannot share temporary bytes; final replacement
+  remains atomic and concurrent completed saves resolve to the last rename.
+- The original writer failed the separate-store concurrency regression at
+  rename. The replacement passed all 13 native storage tests, with formatting
+  and clippy clean. One manual profiling test remains intentionally ignored.
+- Startup never deletes or promotes temporary files. [Recovery evidence](SAVE-RECOVERY-DEPTH.md)
+  distinguishes pre-rename failures from a directory-sync failure after rename.
+  Cross-process ordering and physical phone lifecycle validation remain open.
