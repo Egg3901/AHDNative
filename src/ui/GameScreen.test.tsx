@@ -27,6 +27,19 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
     countryId: "US",
     countryName: "United States",
     player: { name: "Ada", cash: 1200, funds: 5000, actions: 3, influence: 12, favorability: 48, partyName: "Labor" },
+    legislature: {
+      office: "Representative",
+      proposals: [{ id: "cat-a", title: "Labor Standards", description: "Workplace rules." }],
+      sponsor: { id: "sponsorBill", name: "Sponsor bill", description: "Sponsor", cost: 2, available: true },
+      bills: [
+        {
+          id: "b1", title: "Wage Bill", status: "active", chamber: "house", sponsorName: "Ada",
+          votesFor: 12, votesAgainst: 7, votesAbstain: 3,
+          playerVote: null,
+          voting: { id: "voteOnBill", name: "Vote", description: "Vote", cost: 0, available: true },
+        },
+      ],
+    },
     metrics: [{ id: "gdp", label: "GDP", value: 12345, format: "money" }],
     parties: [{ id: "p1", name: "Labor", abbreviation: "LAB", color: "#dc2626", members: 120, treasury: 9000, isPlayerParty: true }],
     elections: [makeElection()],
@@ -213,7 +226,7 @@ describe("GameScreen", () => {
     render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
     const tabs = screen.getAllByRole("tab");
     tabs.forEach((t) => expect(t).not.toBeDisabled());
-    expect(tabs.map((t) => t.textContent)).toEqual(["Overview", "Character", "Parties", "Elections", "News"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["Overview", "Character", "Parties", "Legislature", "Elections", "News"]);
   });
 
   it("renders percent metrics as fractions multiplied by 100", async () => {
@@ -317,6 +330,25 @@ describe("GameScreen", () => {
     expect(onAction).toHaveBeenCalledWith("joinParty", { partyId: "p2" });
     await user.click(screen.getByRole("button", { name: /leave labor/i }));
     expect(onAction).toHaveBeenCalledWith("leaveParty", undefined);
+  });
+
+  it("shows the legislature office on Overview and through the Legislature tab", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const world = makeWorld();
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
+    expect(screen.getByText("Representative")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Legislature" }));
+    expect(screen.getByLabelText("Legislation")).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "Wage Bill" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /sponsor bill/i }));
+    expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "cat-a" });
+  });
+
+  it("shows No legislative seat on Overview without an office", () => {
+    const world = makeWorld({ legislature: { ...makeWorld().legislature, office: null } });
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    expect(screen.getByText("No legislative seat")).toBeInTheDocument();
   });
 
   it("party join button surfaces disabled reason from world.actions", async () => {

@@ -1,0 +1,846 @@
+{
+  "seed": "career-muse-1",
+  "player": "Muse",
+  "era": "1953",
+  "country": "US",
+  "party": "US_DEM",
+  "race": "house:US:AL:c1",
+  "oracleCommit": "568c0c039efcca2db17c52b2920747ff05fbd794",
+  "subjectCommit": "0945c9418d461ea8b59180b5af9ea7f3432fe846",
+  "oracleSchema": 43,
+  "policy": "deterministic per-turn priority: buildDonorBase<4, fundraise while funds<120k, convertCash<=10k while funds<30k, campaign, advertise, fundraise, canvass(home), organize(home); setup at t1 join+file; full ordered action log embedded",
+  "actionLog": [
+    {
+      "turn": 1,
+      "actionId": "joinParty",
+      "params": {
+        "partyId": "US_DEM"
+      }
+    },
+    {
+      "turn": 1,
+      "actionId": "declareCandidacy",
+      "params": {
+        "electionId": "house:US:AL:c1"
+      }
+    },
+    {
+      "turn": 1,
+      "actionId": "buildDonorBase",
+      "params": {}
+    },
+    {
+      "turn": 1,
+      "actionId": "buildDonorBase",
+      "params": {}
+    },
+    {
+      "turn": 1,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 1,
+      "actionId": "buildDonorBase",
+      "params": {}
+    },
+    {
+      "turn": 1,
+      "actionId": "buildDonorBase",
+      "params": {}
+    },
+    {
+      "turn": 1,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 1,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 2,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 2,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 2,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 2,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 3,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 3,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 4,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 4,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 4,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 4,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 5,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 5,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 6,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 6,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 7,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 7,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 7,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 7,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 8,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 8,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 9,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 9,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 9,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 9,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 10,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 10,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 11,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 11,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 12,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 13,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 13,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 14,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 14,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 15,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 16,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 16,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 17,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 17,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 18,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 18,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 19,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 20,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 20,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 21,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 21,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 22,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 23,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 23,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 24,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 24,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 25,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 25,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 26,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 27,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 27,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 28,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 28,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 29,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 30,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 30,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 31,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 31,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 32,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 33,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 33,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 34,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 35,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 36,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 36,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 37,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 38,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 39,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 39,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 40,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 41,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 42,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 42,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 43,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 44,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 45,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 45,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 46,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 47,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 48,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 48,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 49,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 50,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 51,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 51,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 52,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 53,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 54,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 54,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 55,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 56,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 57,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 57,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 58,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 59,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 60,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 60,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 61,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 62,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 63,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 63,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 64,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 65,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 66,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 66,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 67,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 68,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 69,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 69,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 70,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 71,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 72,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 72,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 73,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 74,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 75,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 75,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 76,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 77,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 78,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 78,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 79,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 80,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 81,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 81,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 82,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 83,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 84,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 84,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 85,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 86,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 87,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 87,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 88,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 89,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 90,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 90,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 91,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 92,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 93,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 93,
+      "actionId": "fundraise",
+      "params": {}
+    },
+    {
+      "turn": 94,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 95,
+      "actionId": "campaign",
+      "params": {}
+    },
+    {
+      "turn": 96,
+      "actionId": "fundraise",
+      "params": {}
+    }
+  ],
+  "outcome": {
+    "won": true,
+    "winners": [
+      "player",
+      "US-1",
+      "US-10",
+      "US-100",
+      "US-101",
+      "US-102",
+      "US-103",
+      "US-104",
+      "US-105"
+    ],
+    "seat": {
+      "chamberKey": "house",
+      "countryId": "US"
+    },
+    "detail": "status=resolved winners=[\"player\",\"US-1\",\"US-10\",\"US-100\",\"US-101\",\"US-102\",\"US-103\",\"US-104\",\"US-105\"] seat={\"chamberKey\":\"house\",\"countryId\":\"US\"}"
+  },
+  "reloadVerified": true,
+  "replay": {
+    "match": true,
+    "hash": "98fb057e518e2544bf522bd0c5873597ce8f7f75b3421cb6a7031be0f32b884a"
+  },
+  "localParity": {
+    "won": true,
+    "hashMatch": true
+  },
+  "billFlow": "sponsored catalog=us.economy.workerSecurity.primary bill=bill-97-7-us.economy.workerSecurity.primary voted=true ",
+  "fixtures": {
+    "career-t95-1953-US.save.json.gz": {
+      "sha256": "0174821eb8e9eb7cf8e3a8a8b741a39ebd0622896976da53a5b32f5dd54e6a3f",
+      "gzipSha256": "faf1e5a34903c87fe211f942fbbd9d2b055775acb49eb4f91a7f391c52e770b9",
+      "bytes": 46407302,
+      "gzipBytes": 2814011
+    },
+    "career-elected-1953-US.save.json.gz": {
+      "sha256": "553de007a3c56b58e9e4ac92eb5ae3ac3c135da3f836f033a69b0d30c17df13b",
+      "gzipSha256": "dfb30ecb72c260e4c4b920c980952d51767c3a88ec0bf0e5057f78ba5c43158b",
+      "bytes": 50473209,
+      "gzipBytes": 2749114
+    }
+  }
+}

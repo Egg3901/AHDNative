@@ -1,9 +1,9 @@
 import {
   ACTION_CATALOG, addDaysIso, advanceTurn, createWorld, deserializeSave, executeAction,
-  getActionCost, listEras, listPlayableCountries, serializeSave,
+  getActionCost, getCatalog, listEras, listPlayableCountries, serializeSave,
   type ActionId, type ExecuteActionParams, type WorldState,
 } from "@ahdclient/engine";
-import type { ActionView, ElectionView, EraChoice, GameView, NewGameOptions } from "./types";
+import type { ActionView, ElectionView, EraChoice, GameView, LegislatureView, NewGameOptions } from "./types";
 
 const ACTIONS: { id: ActionId; requires?: ActionView["requires"] }[] = [
   { id: "convertCash", requires: "amount" }, { id: "fundraise" }, { id: "buildDonorBase" },
@@ -80,6 +80,7 @@ function projectWorld(world: WorldState): GameView {
     player: { name: player.name, cash: player.cash, funds: player.funds, actions: player.actions,
       influence: player.politicalInfluence, favorability: player.favorability,
       partyName: player.partyId ? world.parties[player.partyId]?.name ?? "Independent" : "Independent" },
+    legislature: projectLegislature(world),
     metrics: [
       { id: "gdp", label: "GDP", value: country.economy.gdp * 1_000_000, format: "money" },
       { id: "growth", label: "GDP growth", value: country.economy.growthRate, format: "percent" },
@@ -135,4 +136,45 @@ function projectElections(world: WorldState): ElectionView[] {
           available: !reason, ...(reason ? { disabledReason: reason } : {}) },
       };
     });
+}
+
+
+function projectLegislature(world: WorldState): LegislatureView {
+  const player = world.player;
+  const seat = player.legislativeSeat;
+  const chamberName = (countryId: string, key: string) => world.legislatures[countryId]?.chambers.find((c) => c.key === key)?.name ?? key;
+  const action = (id: "sponsorBill" | "voteOnBill", reason?: string): ActionView => {
+    const entry = ACTION_CATALOG[id];
+    const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
+    const remaining = (player.actionCooldowns[id] ?? 0) - world.meta.turn;
+    reason ??= remaining > 0 ? `Available in ${remaining} ${remaining === 1 ? "turn" : "turns"}.`
+      : player.actions < cost ? "Not enough action points." : undefined;
+    return { id, name: entry.name, description: "", cost, available: !reason, ...(reason ? { disabledReason: reason } : {}) };
+  };
+  return {
+    office: seat ? `${chamberName(seat.countryId, seat.chamberKey)} · ${world.countries[seat.countryId]?.name ?? seat.countryId}`
+      : player.mode === "hos" ? "Head of state" : null,
+    proposals: getCatalog(player.countryId, Number(world.meta.date.slice(0, 4)))
+      .filter((entry) => entry.status === "available" && entry.kind !== "tax")
+      .map(({ id, title, description }) => ({ id, title, description })),
+    sponsor: action("sponsorBill", !seat && player.mode !== "hos" ? "Win a legislative seat before sponsoring a bill." : undefined),
+    bills: world.bills.filter((bill) => bill.countryId === player.countryId)
+      .sort((a, b) => b.proposedAtTurn - a.proposedAtTurn)
+      .map((bill) => {
+        const override = bill.status === "veto_override" || bill.status === "override_failed" || bill.overrideDisplaySnapshot != null;
+        const other = !override && bill.currentChamber !== bill.originChamber;
+        const votingOpen = ["active", "active_other", "veto_override"].includes(bill.status);
+        const votes = other ? bill.otherChamberVotes : override ? bill.vetoOverrideVotes : bill.votes;
+        const liveTally = { for: 0, against: 0, abstain: 0 };
+        for (const vote of Object.values(votes ?? {})) liveTally[vote]++;
+        const reason = !seat ? "Win a legislative seat before voting."
+          : seat.countryId !== bill.countryId || seat.chamberKey !== bill.currentChamber ? "This bill is in another chamber."
+          : !votingOpen ? "Voting is not open on this bill." : undefined;
+        return { id: bill.id, title: bill.title, status: bill.status, chamber: chamberName(bill.countryId, bill.currentChamber), sponsorName: bill.sponsorName,
+          votesFor: votingOpen ? liveTally.for : (other ? bill.otherChamberVotesFor : override ? bill.vetoOverrideVotesFor : bill.votesFor) ?? 0,
+          votesAgainst: votingOpen ? liveTally.against : (other ? bill.otherChamberVotesAgainst : override ? bill.vetoOverrideVotesAgainst : bill.votesAgainst) ?? 0,
+          votesAbstain: votingOpen ? liveTally.abstain : (other ? bill.otherChamberVotesAbstain : override ? 0 : bill.votesAbstain) ?? 0,
+          playerVote: votes?.player ?? null, voting: action("voteOnBill", reason) };
+      }),
+  };
 }
