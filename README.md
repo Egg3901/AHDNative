@@ -1,53 +1,100 @@
 # AHDNative
 
+<img src="app-icon.svg" alt="" width="96" align="right">
+
 A unified A House Divided app for singleplayer and multiplayer on mobile and desktop. Delivery starts with offline singleplayer on iOS.
+
+Companion to the public browser game at [Egg3901/AHDGame](https://github.com/Egg3901/AHDGame), which remains the authoritative multiplayer server and the mechanics reference. Licensed proprietary - see [LICENSE.md](./LICENSE.md).
+
+## The app
+
+**Singleplayer.** Runs locally on the device through a pinned reusable engine and supports offline play. New game, actions, turns, save, app reload and resume.
+
+**Multiplayer (later).** Will connect to the existing authoritative AHDGame server; the device never runs authoritative simulation. Existing authentication is preserved.
+
+**One UI.** Both modes share React screens and interaction patterns, with adapters at the game data and action boundary. Players do not pass through a separate AHDClient application. The visual baseline is the actual MP/SP interface in AHDGame (see [UI reference](docs/UI-REFERENCE.md)).
 
 ## Status
 
-Main runs a local singleplayer world through React game screens and a dedicated simulation worker. New game, actions, turns, save, app reload and resume have passed a real browser smoke test at phone screen size. Native save storage has passing Rust tests. This is development progress, not an iPhone build or a 1.0.0 release.
+Development progress, not an iPhone build or a 1.0.0 release. What holds today:
 
-The reusable TypeScript engine is pinned to a recorded AHDClient revision. Known differences from current AHDGame, v42/v43 save compatibility, native lifecycle and physical-device performance remain acceptance gates. A Rust engine rewrite remains profile gated. See [roadmap](docs/ROADMAP.md), [mechanics audit](docs/MECHANICS-PARITY.md) and [engine provenance](docs/engine-source-manifest.json).
+- Main runs a local singleplayer world through React game screens and a dedicated simulation worker. New game, actions, turns, save, app reload and resume have passed a real browser smoke test at phone screen size.
+- Grouped navigation reaches nine working destinations. A persistent resource bar links to actions, profile and portfolio; banking deposits and withdrawals survive save/reload. Full navigation/footer parity is still in progress.
+- Native save storage has passing Rust tests.
+- The reusable TypeScript engine is pinned to a recorded AHDClient revision (354 non-test engine/content files scanned; provenance in [engine-source-manifest.json](docs/engine-source-manifest.json)).
 
-## Standing product rules
+Known acceptance gates before any release claim: differences from current AHDGame ([mechanics audit](docs/MECHANICS-PARITY.md)), v42/v43 save compatibility ([save compatibility](docs/SAVE-COMPATIBILITY.md)), native lifecycle and physical-device performance. A Rust engine rewrite stays profile gated: it ships only if device measurements justify it. Not every era, country, or mechanic is available yet; supported content is whatever the docs above and the [roadmap](docs/ROADMAP.md) show as validated.
 
-- AHDNative is the intended unified mobile and desktop app for SP and MP. Players should not have to pass through a separate AHDClient application.
-- SP runs locally and supports offline play. MP connects to the existing authoritative AHDGame server; it does not run authoritative simulation on the device.
-- Both modes share React screens and interaction patterns, with adapters at the game data and action boundary. Preserve existing authentication.
-- Polish the actual MP/SP interface for touch, responsive layouts, platform navigation, accessibility, and reliable lifecycle behavior. Visual parity is an acceptance criterion from the first playable screen.
-- Reuse suitable AHDClient code during development without maintaining competing UI implementations long term.
-- Deliver a convincing iOS SP slice first, complete and harden SP, then connect MP to the shared screens. Expand Android and desktop with appropriate device navigation. Web still requires separate approval.
+## Top priority now
 
-## Product requirements
+Feature parity with AHDGame navigation and its persistent game status bar is priority one. This means working destinations, submenus, country/role-dependent entries, resource details and linked actions. Layout is mobile-first; matching pixels is not required. Labels and placeholder screens do not count as completed features. See the [navigation and footer inventory](docs/NAVIGATION-PARITY.md), [UI reference](docs/UI-REFERENCE.md) and [roadmap](docs/ROADMAP.md).
 
-- Preserve the familiar A House Divided multiplayer and singleplayer React UI. Native packaging must retain its layout, styling, and interaction patterns.
-- Support every shipped era and playable country in singleplayer.
-- Keep mechanics aligned with AHDGame. Port formulas without rebalancing them.
-- Measure representative late-game turn performance on named iOS and Android hardware. The proposed UX budget is p95 below 500 ms per turn.
-- Validate deterministic seeded action replays and save interchange against the reference engine. Save schema compatibility must be verified explicitly before promising support for a specific version.
-- Prioritize the iOS build and device validation, then Android. A web build is conditional on separate approval.
+## How it runs
 
-## Implementation sequence
+```
+React 19 UI (Vite, Tauri webview)
+  -> world session boundary (createWorld, actions, advanceTurn, serialize/deserialize)
+  -> dedicated simulation worker (TypeScript engine, pinned revision)
+  -> native save store (Rust app-data; IndexedDB under browser QA)
+```
 
-1. Record mobile performance measurements and the engine go/no-go decision.
-2. Establish the actual MP/SP UI reference and a tested game contract boundary.
-3. Add the native shell and compatible engine implementation, guided by profiling and differential tests.
-4. Validate save interchange, full singleplayer playthroughs, lifecycle behavior, and device performance.
-5. Bring up Android after the initial iOS milestone.
+MP later reuses the same screens against the AHDGame server API instead of the local worker.
 
-If profiling supports a Rust engine, integrate it directly into the Tauri shell and port it in independently validated system slices. Repository creation does not establish that the performance gate has passed.
+## Running it locally
+
+Requires Node 22.12+ and the pinned Rust toolchain in `rust-toolchain.toml`.
+
+```bash
+git clone https://github.com/Egg3901/AHDNative.git
+cd AHDNative
+npm ci
+npm run dev              # http://127.0.0.1:1420
+```
+
+For the native shell (after installing the platform prerequisites):
+
+```bash
+npm run tauri -- dev
+```
 
 ## Development
 
-Run `npm ci`, then `npm run verify` for the frontend build, type checks, session tests and UI tests. Run `npm run test:smoke` with a Playwright Chromium installation for integrated browser QA. `PLAYWRIGHT_CHROMIUM_EXECUTABLE` can select an existing browser binary. Browser QA uses IndexedDB; native builds use the Rust app-data save store. Run `npm run tauri -- dev` for the native shell after installing the platform prerequisites. Rust uses the pinned toolchain in `rust-toolchain.toml`.
+```bash
+npm run verify            # frontend build, session tests, UI tests, career fixtures
+npm run test:smoke        # Playwright integrated browser QA (needs a Chromium install;
+                          # PLAYWRIGHT_CHROMIUM_EXECUTABLE can select an existing binary)
+npm run typecheck         # tsc --noEmit
+npm run test:ui           # UI component tests
+```
 
-## Codemagic setup
+Browser QA uses IndexedDB; native builds use the Rust app-data save store. Behavior work follows TDD through the agreed public contract or player flow (red-to-green per slice), with expected mechanics results grounded in reference-engine evidence. Repository bootstrap does not satisfy the physical-device performance gate.
 
-Connect this GitHub repository in Codemagic. The manual `ios-private-testflight` workflow builds a signed iPhone application and uploads it privately to App Store Connect for internal testing. It requires signing setup first and has not yet been validated on a macOS builder.
+## iOS testing and build budget
 
-Codemagic runs are capped at 20 minutes to conserve the build allowance. No push, pull request, or scheduled triggers are configured. Routine checks run locally and on Linux CI. Signed builds, credentials, and signing logs must stay off GitHub and public build dashboards.
+Paid Codemagic builds and signed distribution are on hold until a solid 1.0.0 candidate passes real behavioral tests and smoke evidence. The allowance is 500 minutes; runs are capped at 20 minutes each, with no push/PR/scheduled triggers. Signed binaries, credentials, signing identities, and signing logs stay off GitHub and public dashboards; signing lives in encrypted Codemagic variables, internal TestFlight first, no automatic external review. Full owner setup in [iPhone testing setup](docs/IOS-TESTING.md).
 
-See [iPhone testing setup](docs/IOS-TESTING.md) for the owner setup. The workflow uploads to App Store Connect without automatically requesting external beta review or App Store release. Assign the processed build to an internal TestFlight group yourself.
+## Documentation
 
-## Licensing
+| Doc | What it covers |
+|---|---|
+| [Roadmap](docs/ROADMAP.md) | Delivery sequence and completion evidence |
+| [Navigation and footer parity](docs/NAVIGATION-PARITY.md) | Destination inventory, resource controls and remaining feature gaps |
+| [UI reference](docs/UI-REFERENCE.md) | Actual MP/SP baseline, tokens, parity notes |
+| [Mechanics parity](docs/MECHANICS-PARITY.md) | Audit against AHDGame at pinned revisions |
+| [Save compatibility](docs/SAVE-COMPATIBILITY.md) | v42 interchange validation |
+| [Save storage](docs/SAVE-STORAGE.md) | Native save store behavior |
+| [Career playthrough](docs/CAREER-PLAYTHROUGH.md) / [validation](docs/CAREER-VALIDATION.md) | Career flow coverage |
+| [World validation](docs/WORLD-VALIDATION.md) | Seeded world evidence |
+| [iOS runtime validation](docs/IOS-RUNTIME-VALIDATION.md) | Device runtime checks |
+| [iPhone testing setup](docs/IOS-TESTING.md) | Private signing and TestFlight setup |
+| [Engine source manifest](docs/engine-source-manifest.json) | Imported engine/content provenance |
 
-This source is proprietary under [LICENSE.md](LICENSE.md). Public visibility does not grant permission to reuse A House Divided code or assets. Imported engine and content provenance is recorded in the source manifest.
+Standing implementation rules live in [AGENTS.md](./AGENTS.md); read them before changing product scope or architecture.
+
+## Contributing
+
+Bug reports, UI feedback and documentation corrections are welcome through the issue templates. Source modifications require written permission under the proprietary license. Authorized mechanics work needs parity evidence against the reference engine before it merges; formulas are ported, never rebalanced. Save-schema support must be verified explicitly before it is promised. Report exploits through [private vulnerability reporting](https://github.com/Egg3901/AHDNative/security/advisories/new), never public issues.
+
+## License
+
+Proprietary source-available - see [LICENSE.md](./LICENSE.md). Public visibility grants inspection and evaluation only: no reuse, modification, distribution, or hosted/commercial operation without written permission. "A House Divided" and the logo are trademarks of Lakeside Games.

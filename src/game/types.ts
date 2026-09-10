@@ -17,10 +17,16 @@ export interface LegislatureView {
     votesFor: number; votesAgainst: number; votesAbstain: number;
     playerVote: "for" | "against" | "abstain" | null; voting: ActionView; }[];
 }
+export interface FinanceView {
+  cash: number; savings: number; currency: string; savingsHolder: string;
+  holdings: { id: string; name: string; ticker: string; shares: number; price: number; currency: string }[];
+  deposit: ActionView; withdraw: ActionView;
+}
 export interface GameView {
   turn: number; date: string; era: string; countryId: string; countryName: string;
   player: { name: string; cash: number; funds: number; actions: number; influence: number; favorability: number; partyName: string; };
   legislature: LegislatureView;
+  finance: FinanceView;
   metrics: MetricView[]; parties: PartyView[]; elections: ElectionView[]; news: NewsView[];
   actions: ActionView[]; regions: { id: string; name: string }[];
 }

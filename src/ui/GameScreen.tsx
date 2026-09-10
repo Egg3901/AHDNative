@@ -6,14 +6,16 @@
  *   (compact cards, primary #dc2626, bg #14141c, border #2a2a3d).
  * Public source Egg3901/AHDGame. Layout is original, responsive for Tauri web.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ActionView, GameScreenProps, GameView } from "../game/types";
+import { FinancePanel, formatFinanceMoney } from "./FinancePanel";
 import { LegislaturePanel } from "./LegislaturePanel";
 import "./ui.css";
 
 const ELECTIONS_PAGE_SIZE = 20;
 
 type TabId = "overview" | "actions" | "parties" | "legislature" | "elections" | "news";
+type RouteId = TabId | "profile" | "portfolio" | "banking";
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "actions", label: "Character" },
@@ -21,6 +23,56 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "legislature", label: "Legislature" },
   { id: "elections", label: "Elections" },
   { id: "news", label: "News" },
+];
+
+const MENU_GROUPS: { label: string; items: { id: RouteId; label: string }[] }[] = [
+  {
+    label: "Character",
+    items: [
+      { id: "profile", label: "Profile" },
+      { id: "actions", label: "Actions" },
+      { id: "portfolio", label: "Portfolio" },
+    ],
+  },
+  {
+    label: "Nation",
+    items: [
+      { id: "overview", label: "Overview" },
+      { id: "parties", label: "Parties" },
+      { id: "legislature", label: "Legislature" },
+      { id: "elections", label: "Elections" },
+    ],
+  },
+  {
+    label: "World",
+    items: [
+      { id: "banking", label: "Banking" },
+      { id: "news", label: "News" },
+    ],
+  },
+];
+
+const REGION_LABELS: Record<"profile" | "portfolio" | "banking", string> = {
+  profile: "Profile",
+  portfolio: "Portfolio",
+  banking: "Banking",
+};
+
+function isTabRoute(route: RouteId): route is TabId {
+  return TABS.some((t) => t.id === route);
+}
+
+function formatCount(v: number): string {
+  return v.toLocaleString(undefined, { maximumFractionDigits: 1 });
+}
+
+type ResourceId = "ap" | "funds" | "cash" | "influence" | "favorability";
+const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
+  { id: "ap", short: "AP", label: "Action points" },
+  { id: "funds", short: "Funds", label: "Campaign funds" },
+  { id: "cash", short: "Cash", label: "Cash" },
+  { id: "influence", short: "Influence", label: "Influence" },
+  { id: "favorability", short: "Favorability", label: "Favorability" },
 ];
 
 function formatMetric(v: number, fmt: GameView["metrics"][number]["format"]): string {
@@ -125,11 +177,101 @@ function ActionRow({
   );
 }
 
-export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction }: GameScreenProps) {
-  const [tab, setTab] = useState<TabId>("overview");
-  const [electionPage, setElectionPage] = useState(0);
+function ProfileSection({ world }: { world: GameView }) {
+  return (
+    <div className="ahd-stack">
+      <div className="ahd-card ahd-card-pad">
+        <h2 className="ahd-h2">Profile</h2>
+        <div style={{ marginTop: "0.4rem", fontSize: "0.86rem" }}>
+          <strong>{world.player.name}</strong>
+          <span className="ahd-muted"> · {world.player.partyName || "Independent"}</span>
+        </div>
+        <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.25rem 0 0" }}>
+          {world.countryName} · {world.era} · Turn {world.turn} · {world.date}
+        </p>
+        <dl style={{ marginTop: "0.65rem", display: "grid", gap: "0.35rem" }}>
+          <div className="ahd-kv"><dt>Office</dt><dd>{world.legislature.office ?? "No legislative seat"}</dd></div>
+          <div className="ahd-kv"><dt>Action points</dt><dd className="ahd-mono">{formatCount(world.player.actions)}</dd></div>
+          <div className="ahd-kv"><dt>Campaign funds</dt><dd className="ahd-mono">{formatFinanceMoney(world.player.funds, world.finance.currency)}</dd></div>
+          <div className="ahd-kv"><dt>Cash</dt><dd className="ahd-mono">{formatFinanceMoney(world.finance.cash, world.finance.currency)}</dd></div>
+          <div className="ahd-kv"><dt>Influence</dt><dd className="ahd-mono">{formatCount(world.player.influence)}</dd></div>
+          <div className="ahd-kv"><dt>Favorability</dt><dd className="ahd-mono">{formatCount(world.player.favorability)}</dd></div>
+        </dl>
+      </div>
+    </div>
+  );
+}
 
-  const tabPanelId = useMemo(() => `ahd-panel-${tab}`, [tab]);
+export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction }: GameScreenProps) {
+  const [route, setRoute] = useState<RouteId>("overview");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [openResource, setOpenResource] = useState<ResourceId | null>(null);
+  const [electionPage, setElectionPage] = useState(0);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const detailsRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const focusPage = useRef(false);
+  const resourceButtonRefs = useRef<Partial<Record<ResourceId, HTMLButtonElement | null>>>({});
+
+  const selectedTab: TabId | null = isTabRoute(route) ? route : null;
+  const tabPanelId = useMemo(() => `ahd-panel-${route}`, [route]);
+
+  const go = (next: RouteId) => {
+    focusPage.current = menuOpen || openResource !== null;
+    setRoute(next);
+    setMenuOpen(false);
+    setOpenResource(null);
+  };
+
+  useEffect(() => {
+    if (!focusPage.current) return;
+    focusPage.current = false;
+    document.getElementById(tabPanelId)?.focus({ preventScroll: true });
+    document.scrollingElement?.scrollTo?.({ top: 0 });
+  }, [route, menuOpen, openResource, tabPanelId]);
+
+  const onMenuKeyDown = (e: React.KeyboardEvent) => {
+    const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]') ?? []);
+    const index = items.findIndex((item) => item === document.activeElement);
+    let next: number | undefined;
+    if (e.key === "ArrowDown") next = (index + 1) % items.length;
+    if (e.key === "ArrowUp") next = (index - 1 + items.length) % items.length;
+    if (e.key === "Home") next = 0;
+    if (e.key === "End") next = items.length - 1;
+    if (next !== undefined) { e.preventDefault(); items[next]?.focus(); }
+    if (e.key === "Tab") {
+      e.preventDefault();
+      setMenuOpen(false);
+      menuButtonRef.current?.focus();
+    }
+  };
+
+  const closeDetails = () => {
+    const current = openResource;
+    setOpenResource(null);
+    if (current) {
+      resourceButtonRefs.current[current]?.focus();
+    }
+  };
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitemradio"]')?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (openResource) {
+      detailsRef.current?.focus();
+    }
+  }, [openResource]);
 
   const electionPageCount = Math.max(1, Math.ceil(world.elections.length / ELECTIONS_PAGE_SIZE));
   const safeElectionPage = Math.min(Math.max(0, electionPage), electionPageCount - 1);
@@ -147,8 +289,9 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
   const leavePartyAction = world.actions.find((a) => a.id === "leaveParty");
 
   const onTabKeyDown = (e: React.KeyboardEvent) => {
-    const idx = TABS.findIndex((t) => t.id === tab);
-    let next: typeof tab | null = null;
+    const base = selectedTab ?? TABS[0].id;
+    const idx = TABS.findIndex((t) => t.id === base);
+    let next: TabId | null = null;
     if (e.key === "ArrowRight") {
       e.preventDefault();
       next = TABS[(idx + 1) % TABS.length].id;
@@ -161,7 +304,7 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
       e.preventDefault(); next = TABS[TABS.length - 1].id;
     }
     if (next) {
-      setTab(next);
+      go(next);
       requestAnimationFrame(() => {
         const el = document.getElementById(`ahd-tab-${next}`);
         el?.focus();
@@ -181,13 +324,48 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
             </div>
             <div className="ahd-header-meta" aria-label="Player summary">
               <span>{world.player.name} · {world.player.partyName || "Independent"}</span>
-              <span className="ahd-mono">${world.player.cash.toLocaleString()} cash</span>
+              <span className="ahd-mono">{formatFinanceMoney(world.player.cash, world.finance.currency)} cash</span>
               <span className="ahd-mono">{world.player.actions} actions</span>
               <span className="ahd-mono">{world.player.influence.toLocaleString(undefined, { maximumFractionDigits: 1 })} influence</span>
             </div>
           </div>
 
           <div className="ahd-header-actions">
+            <div className="ahd-menu-wrap" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setMenuOpen(false); }}>
+              <button
+                type="button"
+                ref={menuButtonRef}
+                className="ahd-btn ahd-btn-sm"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                aria-controls="ahd-game-menu"
+                onClick={() => { setMenuOpen((o) => !o); setOpenResource(null); }}
+              >
+                Menu
+              </button>
+              {menuOpen ? (
+                <div ref={menuRef} onKeyDown={onMenuKeyDown} role="menu" id="ahd-game-menu" aria-label="Game menu" className="ahd-menu">
+                  {MENU_GROUPS.map((group) => (
+                    <div key={group.label} role="group" aria-label={group.label} className="ahd-menu-group">
+                      <div className="ahd-menu-heading" aria-hidden>{group.label}</div>
+                      {group.items.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          role="menuitemradio"
+                          tabIndex={-1}
+                          aria-checked={route === item.id}
+                          className="ahd-menu-item"
+                          onClick={() => go(item.id)}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
             <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={onExit} disabled={busy} aria-label="Exit game">Exit</button>
             <button type="button" className="ahd-btn ahd-btn-sm" onClick={onSave} disabled={busy} aria-busy={busy} aria-label="Save game">
               {busy ? <span className="ahd-spinner" aria-hidden /> : null}
@@ -207,16 +385,16 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
 
           <nav aria-label="Game sections" onKeyDown={onTabKeyDown}>
             <div role="tablist" aria-label="Game sections" className="ahd-tabs">
-              {TABS.map((t) => (
+              {TABS.map((t, i) => (
                 <button
                   key={t.id}
                   role="tab"
                   id={`ahd-tab-${t.id}`}
-                  aria-selected={tab === t.id}
-                  aria-controls={tabPanelId}
-                  tabIndex={tab === t.id ? 0 : -1}
+                  aria-selected={selectedTab === t.id}
+                  aria-controls={selectedTab ? tabPanelId : undefined}
+                  tabIndex={selectedTab ? (selectedTab === t.id ? 0 : -1) : (i === 0 ? 0 : -1)}
                   className="ahd-tab"
-                  onClick={() => setTab(t.id)}
+                  onClick={() => go(t.id)}
                   type="button"
                 >
                   {t.label}
@@ -227,15 +405,16 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
         </div>
       </header>
 
-      <main className="ahd-container" style={{ paddingTop: "0.8rem", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
+      <main className="ahd-container ahd-main">
+        {isTabRoute(route) ? (
         <section
           id={tabPanelId}
           role="tabpanel"
-          aria-labelledby={`ahd-tab-${tab}`}
+          aria-labelledby={`ahd-tab-${selectedTab}`}
           tabIndex={0}
           style={{ outline: "none" }}
         >
-          {tab === "overview" ? (
+          {route === "overview" ? (
             <div className="ahd-stack">
               <div className="ahd-card ahd-card-pad">
                 <h2 className="ahd-h2">Overview</h2>
@@ -244,8 +423,8 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
                 </p>
                 <dl style={{ marginTop: "0.65rem", display: "grid", gap: "0.35rem" }}>
                   <div className="ahd-kv"><dt>Office</dt><dd>{world.legislature.office ?? "No legislative seat"}</dd></div>
-                  <div className="ahd-kv"><dt>Cash</dt><dd className="ahd-mono">${world.player.cash.toLocaleString()}</dd></div>
-                  <div className="ahd-kv"><dt>Funds</dt><dd className="ahd-mono">${world.player.funds.toLocaleString()}</dd></div>
+                  <div className="ahd-kv"><dt>Cash</dt><dd className="ahd-mono">{formatFinanceMoney(world.player.cash, world.finance.currency)}</dd></div>
+                  <div className="ahd-kv"><dt>Funds</dt><dd className="ahd-mono">{formatFinanceMoney(world.player.funds, world.finance.currency)}</dd></div>
                   <div className="ahd-kv"><dt>Influence</dt><dd className="ahd-mono">{world.player.influence.toLocaleString(undefined, { maximumFractionDigits: 1 })}</dd></div>
                   <div className="ahd-kv"><dt>Favorability</dt><dd className="ahd-mono">{world.player.favorability.toLocaleString(undefined, { maximumFractionDigits: 1 })}</dd></div>
                 </dl>
@@ -266,7 +445,7 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
             </div>
           ) : null}
 
-          {tab === "actions" ? (
+          {route === "actions" ? (
             <div className="ahd-stack">
               <div className="ahd-card ahd-card-pad">
                 <h2 className="ahd-h2">Character</h2>
@@ -290,7 +469,7 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
             </div>
           ) : null}
 
-          {tab === "parties" ? (
+          {route === "parties" ? (
             <div className="ahd-stack">
               <div className="ahd-card ahd-card-pad">
                 <h2 className="ahd-h2">Parties</h2>
@@ -319,7 +498,7 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
                           <strong style={{ fontSize: "0.86rem" }}>{p.name} <span className="ahd-muted" style={{ fontWeight: 600 }}>({p.abbreviation})</span></strong>
                           {p.isPlayerParty ? <span className="ahd-pill" style={{ background: "var(--ahd-primary)", color: "white" }}>Yours</span> : null}
                         </div>
-                        <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.2rem" }}>{p.members.toLocaleString()} members · ${p.treasury.toLocaleString()} treasury</div>
+                        <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.2rem" }}>{p.members.toLocaleString()} members · {formatFinanceMoney(p.treasury, world.finance.currency)} treasury</div>
                         <div style={{ marginTop: "0.3rem", height: "6px", borderRadius: 999, background: "var(--ahd-border)", overflow: "hidden" }}>
                           <div style={{ width: `${Math.min(100, p.members / 50)}%`, height: "100%", background: p.color }} />
                         </div>
@@ -338,11 +517,11 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
             </div>
           ) : null}
 
-          {tab === "legislature" ? (
+          {route === "legislature" ? (
             <LegislaturePanel legislature={world.legislature} busy={busy} onAction={onAction} />
           ) : null}
 
-          {tab === "elections" ? (
+          {route === "elections" ? (
             <div className="ahd-stack">
               <div className="ahd-card ahd-card-pad">
                 <h2 className="ahd-h2">Elections</h2>
@@ -404,7 +583,7 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
             </div>
           ) : null}
 
-          {tab === "news" ? (
+          {route === "news" ? (
             <div className="ahd-stack">
               <div className="ahd-card ahd-card-pad">
                 <h2 className="ahd-h2">News</h2>
@@ -426,7 +605,85 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
             </div>
           ) : null}
         </section>
+        ) : (
+        <section
+          id={tabPanelId}
+          role="region"
+          aria-label={REGION_LABELS[route]}
+          tabIndex={0}
+          style={{ outline: "none" }}
+        >
+          {route === "profile" ? <ProfileSection world={world} /> : null}
+          {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} /> : null}
+          {route === "banking" ? <FinancePanel finance={world.finance} section="banking" busy={busy} onAction={onAction} /> : null}
+        </section>
+        )}
       </main>
+
+      <footer className="ahd-footer" aria-label="Character stats and turn timer">
+        <div className="ahd-container ahd-footer-inner">
+          <div className="ahd-footer-status">
+            <span className="ahd-mono">Turn {world.turn} · {world.date}</span>
+            <span className="ahd-muted">{busy ? (message ? `Processing: ${message}` : "Processing...") : "Player paced"}</span>
+          </div>
+          <div className="ahd-footer-resources" role="group" aria-label="Resources">
+            {RESOURCES.map((r) => {
+              const value = r.id === "ap" ? formatCount(world.player.actions)
+                : r.id === "funds" ? formatFinanceMoney(world.player.funds, world.finance.currency)
+                : r.id === "cash" ? formatFinanceMoney(world.finance.cash, world.finance.currency)
+                : r.id === "influence" ? formatCount(world.player.influence)
+                : formatCount(world.player.favorability);
+              const open = openResource === r.id;
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  ref={(el) => { resourceButtonRefs.current[r.id] = el; }}
+                  className="ahd-footer-btn"
+                  aria-label={`${r.label}: ${value}`}
+                  aria-expanded={open}
+                  aria-controls={open ? `ahd-resource-${r.id}` : undefined}
+                  onClick={() => setOpenResource(open ? null : r.id)}
+                >
+                  <span className="ahd-footer-btn-label">{r.short}</span>
+                  <span className="ahd-mono ahd-footer-btn-value">{value}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {openResource ? (
+          <div
+            ref={detailsRef}
+            role="dialog"
+            aria-modal="false"
+            aria-label={`${RESOURCES.find((r) => r.id === openResource)?.label} details`}
+            id={`ahd-resource-${openResource}`}
+            tabIndex={-1}
+            className="ahd-container"
+            onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closeDetails(); } }}
+            style={{ outline: "none" }}
+          >
+            <div className="ahd-resource-details">
+              <div className="ahd-resource-facts">
+                {openResource === "ap" ? <span>Available action points: {formatCount(world.player.actions)}.</span> : null}
+                {openResource === "funds" ? <span>Campaign funds: {formatFinanceMoney(world.player.funds, world.finance.currency)}.</span> : null}
+                {openResource === "cash" ? (
+                  <span>Cash: {formatFinanceMoney(world.finance.cash, world.finance.currency)}. Savings: {formatFinanceMoney(world.finance.savings, world.finance.currency)}.</span>
+                ) : null}
+                {openResource === "influence" ? <span>Influence: {formatCount(world.player.influence)}.</span> : null}
+                {openResource === "favorability" ? <span>Favorability: {formatCount(world.player.favorability)}.</span> : null}
+              </div>
+              <div className="ahd-resource-links">
+                <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => go("actions")}>Go to Actions</button>
+                <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => go("profile")}>Go to Profile</button>
+                <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => go("portfolio")}>Go to Portfolio</button>
+                <button type="button" className="ahd-btn ahd-btn-sm ahd-btn-ghost" onClick={closeDetails} aria-label="Close details">Close</button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </footer>
     </div>
   );
 }

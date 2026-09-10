@@ -2,7 +2,22 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { GameScreen } from "./GameScreen";
-import type { ElectionView, GameView } from "../game/types";
+import type { ElectionView, FinanceView, GameView } from "../game/types";
+
+function makeFinance(overrides: Partial<FinanceView> = {}): FinanceView {
+  return {
+    cash: 1200,
+    savings: 300,
+    currency: "USD",
+    savingsHolder: "First National Bank",
+    holdings: [
+      { id: "h1", name: "Acme Steel", ticker: "ACME", shares: 10, price: 25, currency: "USD" },
+    ],
+    deposit: { id: "depositSavings", name: "Deposit", description: "Move cash to savings.", cost: 0, available: true },
+    withdraw: { id: "withdrawSavings", name: "Withdraw", description: "Move savings to cash.", cost: 0, available: true },
+    ...overrides,
+  };
+}
 
 function makeElection(overrides: Partial<ElectionView> = {}): ElectionView {
   return {
@@ -46,6 +61,7 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
     news: [{ id: "n1", title: "Markets rally", body: "Stocks up.", date: "1953-02-01" }],
     actions: [{ id: "fundraise", name: "Fundraise", description: "Raise money", cost: 1, available: true, requires: "amount" }],
     regions: [{ id: "r1", name: "Midwest" }],
+    finance: makeFinance(),
     ...overrides,
   };
 }
@@ -361,5 +377,203 @@ describe("GameScreen", () => {
     await user.click(screen.getByRole("tab", { name: "Parties" }));
     expect(screen.getByRole("button", { name: /join tories/i })).toBeDisabled();
     expect(screen.getAllByText(/cooldown/i).length).toBeGreaterThan(0);
+  });
+});
+
+describe("GameScreen navigation menu", () => {
+  async function openMenu(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: "Menu" }));
+    return screen.getByRole("menu", { name: "Game menu" });
+  }
+
+  it("opens a grouped menu with all destinations and closes on selection", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    const menuButton = screen.getByRole("button", { name: "Menu" });
+    expect(menuButton).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    const menu = await openMenu(user);
+    expect(menuButton).toHaveAttribute("aria-expanded", "true");
+    expect(within(menu).getByRole("group", { name: "Character" })).toBeInTheDocument();
+    expect(within(menu).getByRole("group", { name: "Nation" })).toBeInTheDocument();
+    expect(within(menu).getByRole("group", { name: "World" })).toBeInTheDocument();
+    const character = within(menu).getByRole("group", { name: "Character" });
+    expect(within(character).getByRole("menuitemradio", { name: "Profile" })).toBeInTheDocument();
+    expect(within(character).getByRole("menuitemradio", { name: "Actions" })).toBeInTheDocument();
+    expect(within(character).getByRole("menuitemradio", { name: "Portfolio" })).toBeInTheDocument();
+    const nation = within(menu).getByRole("group", { name: "Nation" });
+    expect(within(nation).getByRole("menuitemradio", { name: "Overview" })).toBeInTheDocument();
+    expect(within(nation).getByRole("menuitemradio", { name: "Parties" })).toBeInTheDocument();
+    expect(within(nation).getByRole("menuitemradio", { name: "Legislature" })).toBeInTheDocument();
+    expect(within(nation).getByRole("menuitemradio", { name: "Elections" })).toBeInTheDocument();
+    const worldGroup = within(menu).getByRole("group", { name: "World" });
+    expect(within(worldGroup).getByRole("menuitemradio", { name: "Banking" })).toBeInTheDocument();
+    expect(within(worldGroup).getByRole("menuitemradio", { name: "News" })).toBeInTheDocument();
+    await user.click(within(menu).getByRole("menuitemradio", { name: "News" }));
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.getByText("Markets rally")).toBeInTheDocument();
+  });
+
+  it("closes the menu on Escape and returns focus to the Menu button", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    await openMenu(user);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Menu" })).toHaveFocus();
+  });
+
+  it("navigates to a real Profile route with player data", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    const menu = await openMenu(user);
+    await user.click(within(menu).getByRole("menuitemradio", { name: "Profile" }));
+    const region = screen.getByRole("region", { name: "Profile" });
+    expect(within(region).getByText("Ada")).toBeInTheDocument();
+    expect(within(region).getByText(/labor/i)).toBeInTheDocument();
+    expect(within(region).getByText("Representative")).toBeInTheDocument();
+    expect(screen.queryByRole("tabpanel")).not.toBeInTheDocument();
+    screen.getAllByRole("tab").forEach((t) => expect(t).toHaveAttribute("aria-selected", "false"));
+  });
+
+  it("renders Portfolio from world.finance in a region with no tab selected", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    const menu = await openMenu(user);
+    await user.click(within(menu).getByRole("menuitemradio", { name: "Portfolio" }));
+    const region = screen.getByRole("region", { name: "Portfolio" });
+    expect(within(region).getByText("Acme Steel")).toBeInTheDocument();
+    expect(within(region).getByText(/ACME/)).toBeInTheDocument();
+    expect(screen.queryByRole("tabpanel")).not.toBeInTheDocument();
+    screen.getAllByRole("tab").forEach((t) => expect(t).toHaveAttribute("aria-selected", "false"));
+  });
+
+  it("renders Banking from world.finance and deposits through the real action", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const world = makeWorld();
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
+    const menu = await openMenu(user);
+    await user.click(within(menu).getByRole("menuitemradio", { name: "Banking" }));
+    const region = screen.getByRole("region", { name: "Banking" });
+    expect(within(region).getByText("First National Bank")).toBeInTheDocument();
+    await user.clear(within(region).getByLabelText(/amount/i));
+    await user.type(within(region).getByLabelText(/amount/i), "200");
+    await user.click(within(region).getByRole("button", { name: /deposit/i }));
+    expect(onAction).toHaveBeenCalledWith("depositSavings", { amount: 200 });
+  });
+
+  it("menu Actions destination selects the Character tab", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    const menu = await openMenu(user);
+    await user.click(within(menu).getByRole("menuitemradio", { name: "Actions" }));
+    expect(screen.getByRole("tab", { name: "Character" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel")).toBeInTheDocument();
+  });
+
+  it("returns to a tab route from a region route", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    const menu = await openMenu(user);
+    await user.click(within(menu).getByRole("menuitemradio", { name: "Portfolio" }));
+    expect(screen.getByRole("region", { name: "Portfolio" })).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Overview" }));
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Portfolio" })).not.toBeInTheDocument();
+  });
+});
+
+describe("GameScreen status footer", () => {
+  it("persists turn, date, player-paced status and five resource buttons", () => {
+    const world = makeWorld();
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    const footer = screen.getByRole("contentinfo", { name: "Character stats and turn timer" });
+    expect(within(footer).getByText(/turn 1/i)).toBeInTheDocument();
+    expect(within(footer).getByText(/1953-01-01/)).toBeInTheDocument();
+    expect(within(footer).getByText(/player paced/i)).toBeInTheDocument();
+    expect(within(footer).getByRole("button", { name: /action points/i })).toBeInTheDocument();
+    expect(within(footer).getByRole("button", { name: /campaign funds/i })).toBeInTheDocument();
+    expect(within(footer).getByRole("button", { name: /cash/i })).toBeInTheDocument();
+    expect(within(footer).getByRole("button", { name: /influence/i })).toBeInTheDocument();
+    expect(within(footer).getByRole("button", { name: /favorability/i })).toBeInTheDocument();
+  });
+
+  it("shows processing status while busy", () => {
+    const world = makeWorld();
+    render(<GameScreen world={world} busy={true} message="Advancing" onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    const footer = screen.getByRole("contentinfo", { name: "Character stats and turn timer" });
+    expect(within(footer).getByText(/processing/i)).toBeInTheDocument();
+    expect(within(footer).queryByText(/player paced/i)).not.toBeInTheDocument();
+  });
+
+  it("formats money with finance.currency", () => {
+    const world = makeWorld({ finance: makeFinance({ currency: "EUR", cash: 1200, savings: 300 }) });
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    const footer = screen.getByRole("contentinfo", { name: "Character stats and turn timer" });
+    const cash = within(footer).getByRole("button", { name: /cash/i });
+    expect(cash.getAttribute("aria-label")).toMatch(/€|EUR/);
+  });
+
+  it("opens nonmodal cash details with close, real data, and links to Actions, Profile and Portfolio", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    const footer = screen.getByRole("contentinfo", { name: "Character stats and turn timer" });
+    const cash = within(footer).getByRole("button", { name: /cash/i });
+    await user.click(cash);
+    const dialog = screen.getByRole("dialog", { name: /cash details/i });
+    expect(dialog).toHaveAttribute("aria-modal", "false");
+    expect(within(dialog).getByText(/1,200/)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/per turn/i)).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: /go to actions/i })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: /go to profile/i })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: /go to portfolio/i })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: /close/i }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("contentinfo", { name: "Character stats and turn timer" })).getByRole("button", { name: /cash/i })).toHaveFocus();
+  });
+
+  it("closes resource details on Escape and returns focus", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    const footer = screen.getByRole("contentinfo", { name: "Character stats and turn timer" });
+    await user.click(within(footer).getByRole("button", { name: /influence/i }));
+    expect(screen.getByRole("dialog", { name: /influence details/i })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("contentinfo", { name: "Character stats and turn timer" })).getByRole("button", { name: /influence/i })).toHaveFocus();
+  });
+
+  it("details links navigate to real destinations", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    const footer = screen.getByRole("contentinfo", { name: "Character stats and turn timer" });
+    await user.click(within(footer).getByRole("button", { name: /campaign funds/i }));
+    const dialog = screen.getByRole("dialog", { name: /campaign funds details/i });
+    await user.click(within(dialog).getByRole("button", { name: /go to portfolio/i }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Portfolio" })).toBeInTheDocument();
+  });
+});
+
+describe("GameScreen menu keyboard flow", () => {
+  it("focuses and moves between destinations, then focuses the selected page", async () => {
+    const user = userEvent.setup();
+    render(<GameScreen world={makeWorld()} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: "Menu" }));
+    expect(screen.getByRole("menuitemradio", { name: "Profile" })).toHaveFocus();
+    await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+    expect(screen.getByRole("region", { name: "Portfolio" })).toHaveFocus();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 });

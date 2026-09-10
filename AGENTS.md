@@ -5,6 +5,7 @@ Read README.md before changing product scope or architecture.
 - Build AHDNative as one mobile/desktop app for SP and MP, with iOS SP first.
 - SP uses a local offline engine. MP uses the existing authoritative AHDGame server. Preserve existing authentication.
 - Share the React UI across modes through explicit data/action adapters. Do not introduce a replacement UI stack or route players through a separate AHDClient app.
+- Priority one is feature parity with AHDGame MP/SP navigation and the persistent footer status bar. Inventory destinations, nested menus, conditional role/country entries, resource details and linked actions. Mobile-first layout may differ; matching pixels is not required. Labels or placeholder pages alone do not count as completed features.
 - Use actual MP/SP screens as the visual baseline. Device polish means responsive layouts, touch controls, navigation, accessibility, and lifecycle reliability. Require visual comparison from the first playable slice.
 - Prioritize an iOS slice with a real game screen, local turns, and save/load; complete and harden SP before adding MP integration. Android and desktop follow. Web requires separate approval.
 - Keep mechanics aligned with AHDGame. Performance changes must preserve behavior and be validated with replay evidence. Repository bootstrap does not satisfy the physical-device performance gate.

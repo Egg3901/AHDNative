@@ -3,7 +3,7 @@ import {
   getActionCost, getCatalog, listEras, listPlayableCountries, serializeSave,
   type ActionId, type ExecuteActionParams, type WorldState,
 } from "@ahdclient/engine";
-import type { ActionView, ElectionView, EraChoice, GameView, LegislatureView, NewGameOptions } from "./types";
+import type { ActionView, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions } from "./types";
 
 const ACTIONS: { id: ActionId; requires?: ActionView["requires"] }[] = [
   { id: "convertCash", requires: "amount" }, { id: "fundraise" }, { id: "buildDonorBase" },
@@ -81,6 +81,7 @@ function projectWorld(world: WorldState): GameView {
       influence: player.politicalInfluence, favorability: player.favorability,
       partyName: player.partyId ? world.parties[player.partyId]?.name ?? "Independent" : "Independent" },
     legislature: projectLegislature(world),
+    finance: projectFinance(world),
     metrics: [
       { id: "gdp", label: "GDP", value: country.economy.gdp * 1_000_000, format: "money" },
       { id: "growth", label: "GDP growth", value: country.economy.growthRate, format: "percent" },
@@ -138,6 +139,38 @@ function projectElections(world: WorldState): ElectionView[] {
     });
 }
 
+
+function homeCurrency(world: WorldState, countryId: string): string {
+  return world.budgets[countryId]?.currencyCode ?? world.exchangeRates[countryId]?.currencyCode ?? "XXX";
+}
+
+/** Display hints mirror the pinned engine; executeAction remains authoritative. */
+function projectFinance(world: WorldState): FinanceView {
+  const player = world.player;
+  const savingsAction = (id: "depositSavings" | "withdrawSavings", empty: boolean, emptyReason: string): ActionView => {
+    const entry = ACTION_CATALOG[id];
+    const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
+    const remaining = (player.actionCooldowns[id] ?? 0) - world.meta.turn;
+    const reason = remaining > 0 ? `Available in ${remaining} ${remaining === 1 ? "turn" : "turns"}.`
+      : player.actions < cost ? "Not enough action points."
+      : empty ? emptyReason : undefined;
+    return { id, name: entry.name, description: entry.description, cost, available: !reason,
+      requires: "amount", ...(reason ? { disabledReason: reason } : {}) };
+  };
+  return {
+    cash: player.cash, savings: player.savings, currency: homeCurrency(world, player.countryId),
+    savingsHolder: player.savingsHolder === "centralBank" ? "Central Bank"
+      : world.corporations[player.savingsHolder]?.id ?? player.savingsHolder,
+    holdings: Object.values(world.corporations).flatMap((corp) => {
+      const entry = corp.shareholders.find((s) => s.holder === "player");
+      if (!entry || entry.shares <= 0) return [];
+      return [{ id: corp.id, name: corp.id, ticker: corp.tickerSymbol, shares: entry.shares,
+        price: corp.sharePrice, currency: homeCurrency(world, corp.countryId) }];
+    }),
+    deposit: savingsAction("depositSavings", player.cash <= 0, "No cash to deposit."),
+    withdraw: savingsAction("withdrawSavings", player.savings <= 0, "No savings to withdraw."),
+  };
+}
 
 function projectLegislature(world: WorldState): LegislatureView {
   const player = world.player;
