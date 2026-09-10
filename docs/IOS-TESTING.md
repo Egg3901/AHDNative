@@ -59,9 +59,14 @@ The marketing version stays `0.1.0`. The iOS bundle version has base `1`; Tauri 
 The pinned Tauri CLI 2.11.4 can insert new manual-signing settings outside
 `buildSettings` ([upstream issue #14462](https://github.com/tauri-apps/tauri/issues/14462)).
 The workflow runs `scripts/prepare-ios-signing.py` after project generation to
-create signing keys in the correct blocks before Tauri updates them. Both team
-settings are filled from the encrypted team input so an empty SDK override cannot
-shadow the general team during IPA export. The build command also receives
-Tauri's documented `APPLE_DEVELOPMENT_TEAM` alias. The script contains no identities. Keep this workaround until an upstream
-fix is verified. A local replay of the exact upstream parser reproduces the missing
-settings before preparation and preserves all seven signing keys afterward.
+set all seven manual-signing fields before Tauri parses the project. Tauri also
+reads stale in-memory values when creating export options, so empty placeholders
+are insufficient. The helper decodes the encrypted profile with macOS `security`,
+uses its certificate fingerprint and profile UUID, and takes the team from the
+encrypted team input. No identity is stored in source. Both team settings are
+populated, and the build receives Tauri's documented `APPLE_DEVELOPMENT_TEAM` alias.
+
+Keep this workaround until an upstream fix is verified. Local replays of the
+exact pinned parser check both the in-memory export fields and the written Xcode
+settings, including the missing parsed-certificate-team path. Signing values
+remain private during those checks.
