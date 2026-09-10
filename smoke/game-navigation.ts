@@ -16,11 +16,12 @@ export async function gameReady(page: Page) {
   await closeGameMenu(page);
   await expect(page.getByRole('contentinfo')).toBeVisible();
   await expect(page.getByRole('contentinfo')).not.toContainText('Processing');
+  await expect(page.getByText('Loading profile...', { exact: true })).toHaveCount(0);
 }
 
 export async function navigateGame(page: Page, name: string) {
   await openGameMenu(page);
-  await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: name === 'Character' ? 'Actions' : name, exact: true }).click();
+  await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name, exact: true }).click();
   await expect(page.locator('button[aria-controls="ahd-drawer"]')).toHaveAttribute('aria-expanded', 'false');
 }
 

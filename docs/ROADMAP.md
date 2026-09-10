@@ -2,6 +2,13 @@
 
 The owner delegates uncertain feature decisions to the implementation team. The lodestar is native iOS and Android UI for SP first, then MP, with performance central to every decision. The target is a unified mobile/desktop app with local offline SP and server-authoritative MP. iOS SP comes first. This roadmap records real completion evidence; card counts are not a progress percentage.
 
+## Required throughout: existing game behavior and hierarchy
+
+This is a game port. Every screen must preserve reference entry behavior, section
+order, conditional controls and action flows. Responsive layout does not authorize
+a new game hierarchy. The national Overview landing is superseded by Profile.
+[Behavioral parity](BEHAVIORAL-PARITY.md) records source evidence and remaining gaps.
+
 ## Priority one: navigation and persistent footer feature parity
 
 Owner direction: mobile-first layout can differ, but navigation and footer functionality must match the MP/SP feature surface. The [source inventory](NAVIGATION-PARITY.md) records destinations, submenus, conditional entries and status-bar interactions against AHDGame. A label or empty page is not completion.
@@ -60,7 +67,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | S06 | Saves | In progress | S02 | Recover after close,crash and partial write | Last completed save survives; no false saved status |
 | U01 | Interface | In progress | G01 | Extract actual MP/SP visual and navigation baseline | Reference source/screens; no historical client redesign |
 | U02 | Interface | Done | U01 | Build new-game era/country/player flow | Accessible form; real content choices; validation |
-| U03 | Interface | In progress | U01,E05 | Build shared game chrome and country overview | Actual MP/SP hierarchy; compact mobile navigation |
+| U03 | Interface | In progress | U01,E05 | Port shared game chrome and character-first entry | Actual MP/SP hierarchy; compact mobile navigation |
 | U04 | Interface | Done | U03,E05 | Expose real character and action flow | Costs,target input,result/errors; no fake actions |
 | U05 | Interface | In progress | U03,E05 | Expose party membership and party views | Actual joins/leaves/party state wired through contract |
 | U06 | Interface | Done | U03,E05 | Expose election and news views | Real records and clear empty states |
@@ -383,3 +390,13 @@ new nation-directory case. All 32 scenarios have passing coverage across the
 batches. Final narrow/large-text label checks passed four scenarios. Screenshots
 were inspected at 320px and 390px. No engine formulas changed, and unchanged
 Rust/engine suites or paid signing builds were not repeated.
+
+## Character-first port correction
+
+The owner clarified that existing game behavior and display hierarchy are binding
+across the entire port. The national Overview landing from the previous UI
+checkpoint is superseded. New and resumed games open Profile, matching AHDGame;
+Actions is labeled consistently and national details remain under Economy.
+Saved portrait/bio, standing and finance sections now replace the basic summary; the full profile and underlying player mechanics remain incomplete. Source-backed profile,
+action and conditional-navigation slices now lead UI work in
+[behavioral parity](BEHAVIORAL-PARITY.md), with validation evidence there.

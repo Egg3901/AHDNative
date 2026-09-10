@@ -1,5 +1,11 @@
 # Navigation Parity Audit - AHDNative vs AHDGame (MP/SP)
 
+This is a historical inventory with later checkpoints appended. The owner
+clarified that behavior and display hierarchy across the whole game are required,
+not only destination access. The current entry is Profile; the invented national
+Overview landing is removed. See [behavioral parity](BEHAVIORAL-PARITY.md) for
+source-backed acceptance and the next profile/action slices.
+
 - Date: 2026-09-10. AHDGame source commit `e364c0495` (public repo Egg3901/AHDGame).
 - AHDNative worktree commit `fbc9e90` (`feat: connect election victories to legislature actions (#8)`).
 - Scope: player-visible top navigation + persistent footer status bar. SiteFooter links listed separately.

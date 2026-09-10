@@ -1,13 +1,13 @@
 import { useEffect, useRef } from "react";
 
 export type DrawerRouteId =
-  | "overview" | "actions" | "parties" | "legislature" | "elections" | "news"
+  | "actions" | "parties" | "legislature" | "elections" | "news"
   | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails"
   | "politicians" | "economy" | "budget" | "policy" | "nations" | "state"
   | "help" | "settings" | "legislationDetails" | "markets" | "search"
   | "partyManagement" | "bonds" | "caucuses" | "regions";
 
-export type BottomTabId = "overview" | "actions" | "parties";
+export type BottomTabId = "profile" | "actions" | "parties";
 
 export const MENU_GROUPS: { label: string; items: { id: DrawerRouteId; label: string }[] }[] = [
   {
@@ -26,7 +26,6 @@ export const MENU_GROUPS: { label: string; items: { id: DrawerRouteId; label: st
   {
     label: "Nation",
     items: [
-      { id: "overview", label: "Overview" },
       { id: "parties", label: "Parties" },
       { id: "partyManagement", label: "Start a party" },
       { id: "caucuses", label: "Caucuses" },
@@ -59,13 +58,13 @@ export const MENU_GROUPS: { label: string; items: { id: DrawerRouteId; label: st
 
 export const BOTTOM_TABS: { id: BottomTabId; label: string; path: string }[] = [
   {
-    id: "overview",
-    label: "Overview",
+    id: "profile",
+    label: "Profile",
     path: "M3 10.5 12 3l9 7.5M5 9.5V21h5v-6h4v6h5V9.5",
   },
   {
     id: "actions",
-    label: "Character",
+    label: "Actions",
     path: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0",
   },
   {
@@ -76,8 +75,8 @@ export const BOTTOM_TABS: { id: BottomTabId; label: string; path: string }[] = [
 ];
 
 function bottomDestination(route: DrawerRouteId): BottomTabId | "menu" {
-  if (route === "overview") return "overview";
-  if (["actions", "profile", "portfolio", "markets", "bonds"].includes(route)) return "actions";
+  if (route === "actions") return "actions";
+  if (["profile", "portfolio", "markets", "bonds"].includes(route)) return "profile";
   if (["parties", "partyDetails", "partyManagement", "caucuses"].includes(route)) return "parties";
   return "menu";
 }
@@ -110,7 +109,7 @@ export function BottomNav({
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
-    const order: (BottomTabId | "menu")[] = ["overview", "actions", "parties", "menu"];
+    const order: (BottomTabId | "menu")[] = ["profile", "actions", "parties", "menu"];
     const buttons = Array.from(e.currentTarget.querySelectorAll("button"));
     const focused = buttons.indexOf(document.activeElement as HTMLButtonElement);
     const idx = focused >= 0 ? focused : order.indexOf(destination);

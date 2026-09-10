@@ -1,3 +1,4 @@
+import type { ProfileUpdate } from "./profileTypes";
 import type { RegionsQuery } from "./regions";
 import type { LegislationSelection } from "./legislationDetails";
 import type { NewGameOptions } from "./types";
@@ -6,6 +7,8 @@ export type GameCommand =
   | { type: "choices" }
   | { type: "create"; options: NewGameOptions }
   | { type: "view" }
+  | { type: "profile" }
+  | { type: "updateProfile"; update: ProfileUpdate }
   | { type: "politics" }
   | { type: "markets" }
   | { type: "regions"; query?: RegionsQuery }

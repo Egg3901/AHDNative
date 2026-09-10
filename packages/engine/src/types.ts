@@ -619,6 +619,10 @@ export interface PurgeRejoinBlock {
 
 export interface PlayerCharacter {
   name: string;
+  /** Optional profile metadata. Older saves omit it; no simulation effect. */
+  bio?: string;
+  /** Offline raster data URL in Native. Unknown optional fields survive JSON saves. */
+  avatarUrl?: string | null;
   countryId: string;
   /** Home state or region for the State navigation cluster. Null on migrated saves that never chose one. */
   homeRegionId?: string | null;

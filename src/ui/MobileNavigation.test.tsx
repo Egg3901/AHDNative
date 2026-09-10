@@ -8,18 +8,18 @@ describe("MobileNavigation", () => {
   it("bottom nav has exactly four labeled items", () => {
     const ref = createRef<HTMLButtonElement | null>();
     render(
-      <BottomNav route="overview" menuOpen={false} menuButtonRef={ref} onNavigate={vi.fn()} onOpenMenu={vi.fn()} />,
+      <BottomNav route="profile" menuOpen={false} menuButtonRef={ref} onNavigate={vi.fn()} onOpenMenu={vi.fn()} />,
     );
     const nav = screen.getByRole("navigation", { name: "Primary" });
     expect(nav).toBeInTheDocument();
-    for (const label of ["Overview", "Character", "Parties", "Menu"]) {
+    for (const label of ["Profile", "Actions", "Parties", "Menu"]) {
       expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
     }
-    expect(screen.getByRole("button", { name: "Overview" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "Profile" })).toHaveAttribute("aria-current", "page");
   });
 
   it.each([
-    ["profile", "Character"], ["portfolio", "Character"],
+    ["portfolio", "Profile"], ["markets", "Profile"],
     ["partyDetails", "Parties"], ["caucuses", "Parties"],
     ["regions", "Menu"], ["economy", "Menu"],
   ] as const)("keeps the parent destination marked while viewing %s", (route, label) => {
@@ -36,13 +36,13 @@ describe("MobileNavigation", () => {
     const onSave = vi.fn();
     const onClose = vi.fn();
     const flat = MENU_GROUPS.flatMap((g) => g.items.map((i) => i.id));
-    for (const id of ["overview", "actions", "parties", "legislature", "elections", "news", "profile", "portfolio", "banking", "politicians", "economy", "budget", "policy", "nations", "state", "help", "settings", "legislationDetails", "markets", "search", "partyManagement", "bonds", "caucuses"]) {
+    for (const id of ["actions", "parties", "legislature", "elections", "news", "profile", "portfolio", "banking", "politicians", "economy", "budget", "policy", "nations", "state", "help", "settings", "legislationDetails", "markets", "search", "partyManagement", "bonds", "caucuses"]) {
       expect(flat).toContain(id);
     }
     render(
       <GameDrawer
         open
-        route="overview"
+        route="profile"
         busy={false}
         playerName="Ada"
         playerParty="Labor"
@@ -76,7 +76,7 @@ describe("MobileNavigation", () => {
     render(
       <GameDrawer
         open
-        route="overview"
+        route="profile"
         busy
         playerName="Ada"
         playerParty="Labor"

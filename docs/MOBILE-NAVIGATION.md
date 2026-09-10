@@ -1,8 +1,8 @@
 # Mobile navigation
 
 The owner rejected the desktop-style top banner, visible turn/save/exit row
-and scrolling top tabs. The game now starts with page content. A bottom bar
-provides Overview, Character, Parties and Menu; Menu opens a left-side drawer
+and scrolling top tabs. Character games now start and resume on Profile. A bottom bar
+provides Profile, Actions, Parties and Menu; Menu opens a left-side drawer
 with the complete destination hierarchy.
 
 End Turn, Save and Exit live inside the drawer. Turn and save actions keep
@@ -26,6 +26,6 @@ system gesture behavior. Physical iOS/Android checks remain release gates.
 
 Bottom destinations now reset the reading position and focus the page on entry.
 Tapping the current destination returns to its start. Child pages retain a
-parent-section indicator: Character for profile/portfolio/markets/bonds, Parties
+parent-section indicator: Profile for portfolio/markets/bonds, Parties
 for party detail/founding/caucuses, and Menu for other sections. The section
 indicator does not imply that the drawer is open.

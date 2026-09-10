@@ -39,6 +39,8 @@ export interface GameView {
   actions: ActionView[]; regions: { id: string; name: string }[];
 }
 export interface GameScreenProps {
+  loadProfile: () => Promise<import("./profileTypes").ProfileView>;
+  onUpdateProfile: (update: import("./profileTypes").ProfileUpdate) => Promise<boolean>;
   preferences: Preferences;
   onPreferencesChange: (value: Preferences) => void;
   preferencesError?: string | null;
