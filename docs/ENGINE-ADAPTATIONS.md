@@ -54,3 +54,14 @@ so players needed twice the advertised funds. The formula and actual successful
 charge are unchanged. Public action tests exercise the 100k-200k band, exact
 100k boundary and no-charge rejection. [Party evidence](PARTY-MANAGEMENT.md)
 records the still-divergent single-founder charter lifecycle.
+
+## Campaign timing
+
+The campaign tick and its existing subsidy/investment producers now precede
+vote accumulation; reset follows the tally before timers/resolution. The
+relative source edge matches AHDGame `e364c0495`. No moved phase draws RNG,
+but changed election outcomes can affect later state-dependent RNG use.
+The prior end-of-turn spend in an imported save is retained, not discarded.
+[Campaign evidence](CAMPAIGN-ORDER-DEPTH.md) records the final-tick and resume
+contracts, the still-missing decaying stock, and existing non-reference NPC
+algorithms. Earlier lag statements above describe previous checkpoints.

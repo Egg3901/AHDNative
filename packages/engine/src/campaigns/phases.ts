@@ -34,18 +34,27 @@ import { investCampaign } from "./npcInvestment.js";
  *     same saturation-curve infrastructure; the season multiplier below is
  *     the one passive-effect nuance ported since it is self-contained.
  *
- * Registry placement: mainline runs campaignTurn BEFORE voteAccumulation and
- * campaignSpendReset AFTER it, same turn (turnPhaseNames.ts). Per this
- * repo's established tail-placement rule (registry.ts: elections/
- * demographics/budget/centralBank clusters), this whole cluster instead
- * runs at the END of the turn, after voteAccumulationPhase/
- * electionResolutionPhase have already executed for THIS turn — so a
- * one-turn lag applies: spend recorded here becomes visible to the tally's
- * fundsByParty (elections/tallyAdapter.ts) and media favorability becomes
- * visible to the tally's support read starting NEXT turn, not this one.
- * campaignSpendResetPhase therefore runs FIRST in this cluster (clearing
- * what THIS turn's earlier voteAccumulation just read) before
- * campaignTurnPhase re-accrues for the next read.
+ * Registry placement (M04, source-backed): registry.ts runs campaignTurn,
+ * campaignPartySubsidy and campaignNpcInvestment immediately BEFORE
+ * voteAccumulationPhase and campaignSpendResetPhase immediately AFTER it
+ * (before electionTimersPhase), mirroring mainline's same-turn edges at
+ * e364c0495 (turnPhaseNames.ts: campaignTurn 56, voteAccumulation 64,
+ * campaignSpendReset 65). Spend accrued here is therefore what THIS turn's
+ * tally fundsByParty read (elections/tallyAdapter.ts) sees, and the media
+ * favorability tick lands in candidateSupports before the tally's support
+ * read; the reset then clears the interval so the next turn starts fresh.
+ * A race resolving this turn gets its final campaign tick before
+ * electionResolutionPhase archives the row, as in mainline (where
+ * resolution deletes the Campaign doc afterwards).
+ *
+ * Solo deviation that REMAINS, by design: mainline's fundsByParty reads a
+ * decaying spendStock PLUS the live spendThisTurn accumulator (ticket
+ * #1261), and its reset sweep folds the accumulator into the stock.
+ * Solo's Campaign has no spendStock field and electionEngine/fundsByParty.ts
+ * reads spendThisTurn only, so the reset here is a pure wipe, not a
+ * rollover — idle turns read exactly zero instead of a fading stock. That
+ * is a port gap, not a rebalance of anything ported; flag for a future
+ * spendStock wave rather than folding guessed decay math into this move.
  */
 
 const PLAYER_BASE_CAMPAIGN_ACTIONS = 4;

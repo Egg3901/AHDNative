@@ -2,6 +2,28 @@
 
 Date: 2026-09-10. Bounded read-only source audit, 20 minute cap. No engine edits, no full test run.
 
+## Corrections since this baseline audit
+
+The source audit below is preserved at its recorded revisions. Current work
+and validation live in [ROADMAP.md](ROADMAP.md) and
+[ENGINE-ADAPTATIONS.md](ENGINE-ADAPTATIONS.md). Landed corrections include:
+
+- Reference referendum variance and campaign/cohort/poll timing. Request,
+  consent and actuation remain open.
+- Reference TFP basket inputs and current-turn corporate output before macro.
+- Campaign tick before tally, reset afterwards and final tick before resolution.
+  Decaying spend stock and the imported NPC financing model remain gaps.
+- Explicit opt-in UK historical initialization, with the founding default kept.
+- Single-charge party founding, while full charter ratification remains open.
+- Authentic v42 import and a validated reversible export subset. Progressed
+  political state still blocks full v42 interchange.
+
+These corrections do not establish whole-engine parity or physical-device
+performance. In particular, war abstraction, remaining phase/content/electoral
+gaps, fiscal policy-level consequences and cross-platform numeric/collation
+behavior still need work. The old acceptance statements below are historical
+findings, not a claim that later corrections have not happened.
+
 ## Sources pinned
 
 - Reference engine (import candidate, unchanged): `AHDClient` worktree `packages/engine/src` at `568c0c039efc` (`568c0c0 test(engine): pin scripted phase replay and reject incomplete traces`). Historical coverage docs at that revision: `docs/historical-engine-coverage.md` and `docs/historical-engine-validation.md` (audit `378126dcb6c5b3366d182b442c6395d548b5edf5` baseline, current `568c0c0` retains same gaps).
@@ -78,7 +100,7 @@ Each is a single-phase, RNG-contained change with a pre-agreed seam test. Expect
 
 Out of scope tonight: full phase-order re-golden (requires reordering ~20 tail clusters to `turnPhaseRegistry.ts` order and regenerating every golden hash), full `battle.ts` combat port (thousands of lines: units/generals/doctrine/logistics), `requestReferendum` + cohort + poll + actuation, `1960/1999/2007/2023` era synthesis.
 
-## Release blockers (1.0.0 candidate gate)
+## Release blockers recorded by the baseline audit
 
 - Any claim of AHDGame parity while proven divergent gaps remain unaddressed or undisclosed. Historical determinism passing does not clear this gate.
 - Any claim of all-era coverage: only `1953/1979/1991/2019` are imported; `1999/2007/2023` and most `CountryId` values are not.
@@ -104,7 +126,7 @@ Out of scope tonight: full phase-order re-golden (requires reordering ~20 tail c
 - Pack country budgets for 1979/1991/2019 are a mix of mainline `NATIONAL_BUDGET_SEED_CONFIGS_*` and external historical unemployment where mainline has no table - cited in pack headers, not verified row-by-row here.
 - Commit refs are `HEAD` at read time; a newer AHDGame commit may move lines without changing the gap classification.
 
-## Suggested exact next slice
+## First correction identified by the baseline audit
 
 Implement bounded correction 1 (seededVariance) in the TS worker. Add `src/referendum/seededVariance.ts` mirroring `AHDGame/src/lib/referendum/processReferendumLifecycle.ts:seededVariance`, replace the `rng.next()` call in `lifecycle.ts:46`, add a `.test.ts` that pins `resolveReferendumVote` at `varianceRoll -1/0/1` and `seededVariance("SCO-1953-0",10)` against the AHDGame hash at `e364c0495`, plus a deterministic re-run check (`advanceTurn` on same JSON world yields identical `finalYesShare`). Keep historical goldens green; worlds without a polling referendum are unaffected, but removing the old draw intentionally shifts downstream shared RNG draws for referendum-bearing worlds. See [the implemented correction](REFERENDUM-PARITY.md). Commit as `fix(engine): use seededVariance for referendum vote`.
 
