@@ -4,6 +4,8 @@ import { HelpPanel } from "./HelpPanel";
 import { WorldPanel } from "./WorldPanel";
 import { DetailQuery } from "./DetailQuery";
 import { NationPanel } from "./NationPanel";
+import { SearchPanel } from "./SearchPanel";
+import type { SearchResult } from "../game/search";
 import { MarketsRoute } from "./MarketsRoute";
 import { PoliticsRoute } from "./PoliticsRoute";
 import { ResourceBreakdown } from "./ResourceBreakdown";
@@ -24,7 +26,7 @@ import "./ui.css";
 const ELECTIONS_PAGE_SIZE = 20;
 
 type TabId = "overview" | "actions" | "parties" | "legislature" | "elections" | "news";
-type RouteId = TabId | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "politicians" | "economy" | "budget" | "policy" | "nations" | "state" | "help" | "settings" | "legislationDetails" | "markets";
+type RouteId = TabId | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "politicians" | "economy" | "budget" | "policy" | "nations" | "state" | "help" | "settings" | "legislationDetails" | "markets" | "search";
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "actions", label: "Character" },
@@ -69,7 +71,8 @@ const MENU_GROUPS: { label: string; items: { id: RouteId; label: string }[] }[] 
       { id: "news", label: "News" },
     ],
   },
-  { label: "Help", items: [{ id: "help", label: "Help" }, { id: "settings", label: "Settings" }] },
+  { label: "Help", items: [{ id: "search", label: "Search" },
+      { id: "help", label: "Help" }, { id: "settings", label: "Settings" }] },
 ];
 
 const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
@@ -77,6 +80,7 @@ const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
   economy: "Economy", budget: "Budget", policy: "Policy",
   legislationDetails: "Legislation details",
   markets: "Stock market",
+  search: "Search",
   help: "Help", settings: "Settings",
   profile: "Profile",
   portfolio: "Portfolio",
@@ -228,7 +232,7 @@ function ProfileSection({ world }: { world: GameView }) {
   );
 }
 
-export function GameScreen({ preferences, onPreferencesChange, preferencesError, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction }: GameScreenProps) {
+export function GameScreen({ preferences, onPreferencesChange, preferencesError, search, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("overview");
   const [detailId, setDetailId] = useState<string>();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -245,6 +249,7 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
 
   const go = (next: RouteId) => {
     focusPage.current = menuOpen || openResource !== null;
+    setDetailId(undefined);
     setRoute(next);
     setMenuOpen(false);
     setOpenResource(null);
@@ -275,6 +280,11 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
 
   const openParty = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("partyDetails"); };
   const openElection = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("electionDetails"); };
+
+  const openSearchResult = (result: SearchResult) => {
+    const destinations: Record<SearchResult['kind'], RouteId> = { nation: 'nations', party: 'partyDetails', company: 'markets', election: 'electionDetails', bill: 'legislationDetails', politician: 'politicians', player: 'profile' };
+    setDetailId(result.id); focusPage.current = true; setRoute(destinations[result.kind]);
+  };
 
   const closeDetails = () => {
     const current = openResource;
@@ -646,9 +656,10 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
           style={{ outline: "none" }}
         >
           {(route === "economy" || route === "budget" || route === "policy") && <NationPanel nation={world.nation} section={route} />}
-          {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} />}</DetailQuery>}
-          {route === "markets" && <MarketsRoute load={loadMarkets} revision={world} busy={busy} onAction={onAction} />}
-          {route === "legislationDetails" && <LegislationRoute load={loadLegislation} revision={world} busy={busy} onAction={onAction} />}
+          {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={detailId} />}</DetailQuery>}
+          {route === "search" && <SearchPanel load={search} revision={world} onOpen={openSearchResult} />}
+          {route === "markets" && <MarketsRoute initialId={detailId} load={loadMarkets} revision={world} busy={busy} onAction={onAction} />}
+          {route === "legislationDetails" && <LegislationRoute initialId={detailId} load={loadLegislation} revision={world} busy={busy} onAction={onAction} />}
           {route === "help" && <HelpPanel />}
           {route === "settings" && <SettingsPanel value={preferences} onChange={onPreferencesChange} error={preferencesError} />}
           {route === "profile" ? <ProfileSection world={world} /> : null}
@@ -656,7 +667,7 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
           {(route === "partyDetails" || route === "electionDetails") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => go(route === "partyDetails" ? "parties" : "elections")}>Back to {route === "partyDetails" ? "parties" : "elections"}</button>}
           {route === "partyDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="parties" initialId={detailId} busy={busy} onAction={onAction} />}
           {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} busy={busy} onAction={onAction} />}
-          {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} section="politicians" onOpenElection={openElection} busy={busy} onAction={onAction} />}
+          {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} />}
           {route === "banking" ? <FinancePanel finance={world.finance} section="banking" busy={busy} onAction={onAction} /> : null}
         </section>
         )}

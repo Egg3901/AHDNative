@@ -42,6 +42,7 @@ export interface GameScreenProps {
   preferences: Preferences;
   onPreferencesChange: (value: Preferences) => void;
   preferencesError?: string | null;
+  search: (query: string) => Promise<import("./search").SearchResults>;
   loadMarkets: () => Promise<import("./markets").MarketsView>;
   loadLegislation: (selection?: LegislationSelection) => Promise<LegislationDetailsQuery>;
   loadWorldOverview: () => Promise<WorldOverviewView>;

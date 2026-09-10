@@ -200,3 +200,10 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Added an explicit engine `historical` initialization option for the source-backed 1953/1979 UK synthetic winner roster. Regional magnitudes and largest-remainder allocation preserve 625/650 Commons seats and allow government formation on the first turn.
 - `founding` remains the default. Historical UK politicians consume the shared creation RNG even when playing another country, so changing the app default is held for a controlled rollout with cross-world replay evidence. The new-game form has not changed and loaded saves are never reseeded.
 - Nineteen focused UK/politician tests and engine typecheck passed. Tests include complete-world equality for omitted versus explicit founding and exact historical save/reload, alongside seat totals and government formation. Full regional constituencies, campaign eligibility and a UK career playthrough remain open. No paid build or long simulation ran.
+
+
+## Offline discovery checkpoint
+
+- Local search now opens the exact profile, politician, party, nation, company, election or bill destination. Country-scoped results follow available detail adapters; foreign nation/company browsing never switches the played country. Broader region/seat/commodity/currency/bond search remains open.
+- Queries run on demand in the worker, return at most 30 ranked matches with a total count, and preserve complete saved-world state. The UI ignores stale responses, retries failures and transfers focus to the selected destination.
+- Production build, 73 session/query/save tests, 111 UI tests, fixture integrity and all 20 production-browser scenarios pass. Browser coverage includes offline UK search/navigation and actual bill/election/politician selection from the genuine elected US save. No engine formulas changed in this slice and no paid build ran.
