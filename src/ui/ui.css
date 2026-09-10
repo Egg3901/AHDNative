@@ -94,8 +94,8 @@ html, body { overflow-x: hidden; }
 }
 @media (max-width: 560px) {
   .ahd-header-inner { flex-wrap: wrap; }
-  .ahd-header-actions { width: 100%; justify-content: stretch; }
-  .ahd-header-actions > * { flex: 1; }
+  .ahd-header-actions { width: 100%; justify-content: stretch; flex-wrap: wrap; }
+  .ahd-header-actions > * { flex: 1 0 auto; }
 }
 
 /* Tabs - compact segmented, accessible - proper keyboard focus and tap targets */
@@ -220,3 +220,109 @@ html, body { overflow-x: hidden; }
   border-radius: var(--ahd-radius-sm); padding: 0.55rem 0.65rem; font-size: 0.78rem;
   overflow-wrap: anywhere;
 }
+
+/* Main reserves space for the fixed status footer */
+.ahd-main {
+  padding-top: 0.8rem;
+  padding-bottom: calc(9rem + max(1rem, env(safe-area-inset-bottom)));
+}
+
+/* Grouped navigation menu */
+.ahd-menu-wrap { position: relative; }
+.ahd-menu-wrap > .ahd-btn { width: 100%; }
+.ahd-header-actions > .ahd-btn, .ahd-menu-wrap > .ahd-btn { white-space: nowrap; }
+.ahd-menu {
+  position: absolute; top: calc(100% + 0.4rem); left: 0; z-index: 30;
+  background: var(--ahd-card-elevated);
+  border: 1px solid var(--ahd-border);
+  border-radius: var(--ahd-radius);
+  box-shadow: var(--ahd-shadow-md);
+  min-width: 13rem; max-width: calc(100vw - 2rem);
+  max-height: 50dvh; overflow-y: auto; overscroll-behavior: contain;
+  padding: 0.5rem;
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.ahd-menu-group {
+  display: flex; flex-direction: column; gap: 0.15rem;
+  border-top: 1px solid var(--ahd-border); padding-top: 0.4rem;
+}
+.ahd-menu-group:first-child { border-top: none; padding-top: 0; }
+.ahd-menu-heading {
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--ahd-muted);
+  padding: 0.2rem 0.55rem;
+}
+.ahd-menu-item {
+  appearance: none; border: 1px solid transparent;
+  background: transparent; color: var(--ahd-fg);
+  font-size: 0.82rem; font-weight: 600; text-align: left;
+  padding: 0.5rem 0.55rem; border-radius: var(--ahd-radius-sm);
+  cursor: pointer; touch-action: manipulation;
+  min-height: 44px; display: flex; align-items: center;
+  max-width: 100%;
+}
+.ahd-menu-item:hover { background: var(--ahd-card-elevated); }
+.ahd-menu-item:focus-visible { outline: none; box-shadow: var(--ahd-focus); }
+.ahd-menu-item[aria-checked="true"] {
+  border-color: var(--ahd-primary);
+  background: color-mix(in srgb, var(--ahd-primary) 12%, transparent);
+}
+
+/* Persistent status footer */
+.ahd-footer {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  background: color-mix(in srgb, var(--ahd-bg) 94%, transparent);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--ahd-border);
+  padding-top: 0.45rem;
+  padding-bottom: max(0.55rem, env(safe-area-inset-bottom));
+  overflow-x: hidden;
+}
+.ahd-footer-inner {
+  display: flex; flex-direction: column; gap: 0.4rem;
+  min-width: 0;
+}
+.ahd-footer-status {
+  display: flex; flex-wrap: wrap; gap: 0.3rem 0.7rem;
+  font-size: 0.72rem; align-items: baseline;
+  overflow-wrap: anywhere;
+}
+.ahd-footer-resources {
+  display: flex; flex-wrap: wrap; gap: 0.35rem;
+  min-width: 0;
+}
+.ahd-footer-btn {
+  appearance: none; border: 1px solid var(--ahd-border);
+  background: var(--ahd-card); color: var(--ahd-fg);
+  border-radius: 999px; padding: 0.4rem 0.6rem;
+  display: inline-flex; align-items: baseline; gap: 0.35rem;
+  font-size: 0.74rem; font-weight: 650;
+  cursor: pointer; touch-action: manipulation;
+  min-height: 44px; max-width: 100%;
+}
+.ahd-footer-btn:hover { border-color: var(--ahd-primary); }
+.ahd-footer-btn:focus-visible { outline: none; box-shadow: var(--ahd-focus); }
+.ahd-footer-btn[aria-expanded="true"] {
+  border-color: var(--ahd-primary);
+  background: color-mix(in srgb, var(--ahd-primary) 12%, var(--ahd-card));
+}
+.ahd-footer-btn-label {
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--ahd-muted);
+}
+.ahd-footer-btn-value { overflow-wrap: anywhere; min-width: 0; }
+
+/* Nonmodal resource details above the footer */
+.ahd-resource-details {
+  background: var(--ahd-card-elevated);
+  border: 1px solid var(--ahd-border);
+  border-radius: var(--ahd-radius);
+  box-shadow: var(--ahd-shadow-md);
+  padding: 0.7rem;
+  margin-top: 0.45rem;
+  margin-bottom: 0.45rem;
+  display: flex; flex-direction: column; gap: 0.55rem;
+  max-width: 100%;
+}
+.ahd-resource-facts { font-size: 0.82rem; line-height: 1.5; overflow-wrap: anywhere; }
+.ahd-resource-links { display: flex; flex-wrap: wrap; gap: 0.4rem; }

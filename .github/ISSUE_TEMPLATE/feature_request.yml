@@ -1,0 +1,20 @@
+name: Feature or mechanic proposal
+description: Propose a feature, screen, or mechanics change
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Mechanics proposals need parity evidence before code - see the [mechanics audit](https://github.com/Egg3901/AHDNative/blob/main/docs/MECHANICS-PARITY.md) and [roadmap](https://github.com/Egg3901/AHDNative/blob/main/docs/ROADMAP.md). Mechanics are ported from AHDGame, never rebalanced.
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should change and why. Include the player problem it solves.
+    validations:
+      required: true
+  - type: textarea
+    id: interactions
+    attributes:
+      label: Interactions
+      description: Which existing surfaces does this touch (screens, nav/footer, session boundary, saves, engine)?

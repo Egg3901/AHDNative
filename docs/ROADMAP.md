@@ -2,6 +2,25 @@
 
 The owner delegates uncertain feature decisions to the implementation team. The lodestar is native iOS and Android UI for SP first, then MP, with performance central to every decision. The target is a unified mobile/desktop app with local offline SP and server-authoritative MP. iOS SP comes first. This roadmap records real completion evidence; card counts are not a progress percentage.
 
+## Priority one: navigation and persistent footer feature parity
+
+Owner direction: mobile-first layout can differ, but navigation and footer functionality must match the MP/SP feature surface. The [source inventory](NAVIGATION-PARITY.md) records destinations, submenus, conditional entries and status-bar interactions against AHDGame. A label or empty page is not completion.
+
+| ID | Status | Slice | Acceptance |
+|---|---|---|---|
+| N01 | Done | Inventory AHDGame nav and persistent status bar | Named source revision, conditions, destination behavior and honest missing-feature matrix |
+| N02 | Done | Grouped mobile menu and basic resource footer | Real destination routes, resource details/links, keyboard and touch access, safe-area clearance |
+| N03 | Done | Portfolio and banking | Real balances/holdings; deposit and withdrawal through engine; save/reload smoke |
+| N04 | Queued | Party and election detail | Full list-to-detail flow, candidacy controls, active-race links and reference-backed election information |
+| N05 | Queued | State and legislature navigation depth | Regional overview, chambers, schedule, office-dependent entries and working details |
+| N06 | Queued | Nation executive, policy, budget and economy | Actual local queries/actions, country-specific conditions and meaningful panels |
+| N07 | Queued | World navigation | Nations, map, corporations, sectors, markets, exchange, trade, unions, organizations and crises mapped to SP capabilities |
+| N08 | Queued | Full footer resource breakdowns | Action/income components, election projections/history and conditional corporation controls supported by actual engine evidence |
+| N09 | Queued | Help, settings, search and notifications | Explicit offline behavior, real content/results and accessible controls; MP-only presence stays deferred |
+| N10 | Queued | Complete functional parity review | Each inventory row demonstrated through the integrated UI, including relevant country/role conditions; named remaining gaps block parity claims |
+
+This priority guides the next UI work ahead of additional unrelated features. Existing mechanics, save compatibility and physical-device release gates remain binding. N07 and N09 are not blanket multiplayer deferrals.
+
 ## Overnight execution plan
 
 - Cutoff: 2026-09-10 06:00 Eastern local time (10:00 UTC). Work autonomously without depending on an overnight reply.
@@ -133,3 +152,14 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Validation batch: production build, 12 session/worker tests, 42 UI tests, fixture integrity and 12 browser smoke tests passed. After screenshot-driven tally/formatting refinements, the affected session/UI tests and both legislature smoke scenarios were rechecked. Routine fixture validation does not rerun the full campaign.
 - Screenshot inspection corrected long floating-point display, duplicate availability text, live tally delay and completed Senate cards showing House totals. Closed bills omit voting controls. Layout follows AHDGame BillCard/BillVoteIndicator hierarchy; complete MP/SP visual parity remains unverified.
 - No engine formulas, native storage or signing configuration changed. No paid build ran. Next gaps: campaign management depth, legislative effect/end-of-term scenarios, current mechanics drift and bidirectional save compatibility. See [playthrough evidence](CAREER-PLAYTHROUGH.md).
+
+
+## Navigation, resource footer and repository presentation checkpoint
+
+- Muse adapted the README structure and GitHub issue/PR templates to AHDGame conventions. Current capabilities, proprietary license and candidate/device gates remain explicit. Repository description/topics and private vulnerability reporting are configured.
+- A source-backed inventory records the actual AHDGame destinations, conditional entries and footer resource controls. Navigation/footer functional parity is priority one in the standing rules. Market, corporation, union and other SP display gaps are not blanket deferred to MP.
+- Nine destinations are reachable through a grouped mobile menu: basic Profile, Actions, Portfolio, Overview, Parties, Legislature, Elections, Banking and News. The existing quick tabs remain. Menu keyboard navigation, focus on selected pages and Escape handling work.
+- The persistent footer shows actual turn/date, processing/player-paced state and five resource controls with real data and links. Full income/action breakdowns, election projections/history and corporation strips remain open.
+- Banking uses the existing deposit/withdraw actions. Portfolio shows real balances and stock holdings in their own currencies. Six finance contract scenarios cover US and UK savings, rejection atomicity, holdings and save/reload. No formulas changed.
+- Validation: production build, 18 session/worker tests, 63 initial UI tests and fixture integrity passed; a keyboard-focus regression was then added and fixed, bringing UI coverage to 64. All 12 pre-existing browser scenarios passed. The new banking/menu/footer flow passed after correcting its expected action-result message; the five core SP smokes also passed after the focus changes. Screenshot review at 390 and 320 pixels caught and corrected header label wrapping. Focused verification follows changes; full engine/content/Rust simulations were not repeated locally for this adapter/UI batch.
+- No Codemagic build or paid minutes used. Current mechanics drift, bidirectional v42 output and physical-device validation remain release blockers. N04-N10 track the remaining navigation/footer features; this batch does not claim complete feature parity.
