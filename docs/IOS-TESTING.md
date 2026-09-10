@@ -51,3 +51,5 @@ Codemagic is iOS only. Its workflow installs locked dependencies, validates the 
 The offline preview implements no non-exempt encryption. `Info.ios.plist` records that fact for App Store Connect; re-evaluate it when adding networking, authentication or encrypted saves. See [Apple export-compliance keys](https://help.apple.com/xcode/mac/current/en.lproj/dev0dc15d044.html).
 
 The Mac image does not preinstall `rustup`. The workflow bootstraps it from the official Rust installer when absent, installs the pinned toolchain and records the Cargo binary path for later steps. The first attempt failed at this prerequisite before compilation or signing; inspect a failed step before retrying.
+
+The marketing version stays `0.1.0`. The iOS bundle version has base `1`; Tauri appends Codemagic's build number, producing `1.N` instead of appending a fourth numeric component to `0.1.0`.
