@@ -2,6 +2,12 @@
 
 The shell is not yet a playable game. Signing setup is separate from a successful signed build or device test.
 
+## Candidate build hold
+
+Do not run Codemagic until a solid AHDNative 1.0.0 candidate has passing TDD and real integrated smoke-test evidence. A shell-only signing test is not an eligible candidate. The readiness record must show the playable SP loop, deterministic replay, save/reload and failure handling, supported content coverage, and comparison against the actual MP/SP interface.
+
+Local evidence is the prerequisite for the first paid build. Phone-specific lifecycle and performance checks follow that build and remain required before release. The first candidate is for review, not automatic release.
+
 ## Signing configuration
 
 The workflow uses the app-scoped encrypted Codemagic variable group `ahdnative-signing`. The current configuration does not require a named Developer Portal integration or a manual Code signing identities upload.
