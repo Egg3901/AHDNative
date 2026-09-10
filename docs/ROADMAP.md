@@ -253,3 +253,14 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Startup never deletes or promotes temporary files. [Recovery evidence](SAVE-RECOVERY-DEPTH.md)
   distinguishes pre-rename failures from a directory-sync failure after rename.
   Cross-process ordering and physical phone lifecycle validation remain open.
+
+## Sovereign bond interface checkpoint, 2026-09-10
+
+- N07/finance: domestic bond purchases and sales now run through worker actions,
+  with real issuer, coupon, maturity, float and player-holding details.
+- The genuine elected-save flow retains the selected issue and remaining units
+  across trades and relaunch. [Bond evidence](BOND-MARKET.md) records the exact
+  local pricing contract and the remaining dealer-pool/FX mechanics gaps.
+- Validation: 84 root tests, 116 UI tests, fixture integrity and build passed.
+  The production build with the corporation/macro correction passed all 22
+  browser scenarios, including bond trade/relaunch at phone size.
