@@ -3,22 +3,12 @@
  * then the per-country revenue rollup that feeds macroCountryTurn's growth
  * signal (see macroCountryTurn.ts THE KEY WIRE comment).
  *
- * Registered at the END of the phase list (registry.ts), just before
- * newsMaintenancePhase, per the same rng-stream-stability rule the elections,
- * demographics, budget, and central-bank blocks already follow there —
- * mainline runs corporationTurn near turn-pipeline index ~ (see
- * turnPhaseNames.ts "corporationTurn"), well before macroCountryTurn's
- * metric-engine consumers; inserting it there would shift every downstream
- * rng draw for existing goldens.
- *
- * Ordering consequence (documented, not a bug): because corporationTurn runs
- * at the END of turn N while macroCountryTurn runs near the START of turn N,
- * macroCountryTurn always reads a snapshot that is one turn behind this
- * phase's own output — corpRevenueSnapshots reflects corp state as of the end
- * of turn N-1 when macroCountryTurn computes turn N's growth. This is a
- * deliberate lag, not a race: computeRealizedRevenueGrowthRate only needs a
- * consistent (previous, current, turnsSincePrev) triple, and turnsSincePrev
- * is always exactly 1 once a country's corps have run once.
+ * Registered immediately before macroCountryTurnPhase in registry.ts. AHDGame
+ * runs corporationTurn before macroCountryTurn, and the macro phase reads the
+ * per-country corpRevenueSnapshots written here. Keeping this causal edge in
+ * the Native order makes current-turn corporate output visible to current-turn
+ * macro growth. This phase is RNG-free, so the move does not consume or shift
+ * the shared RNG stream.
  *
  * Scope (see types.ts + constants.ts file docs for full citations): per-corp
  * growth trend + affordability brake (sectorGrowthPolicy.ts, command-economy
@@ -34,10 +24,9 @@
  * W10 wire: runCorporationTurn also pushes this turn's annualized net income
  * into corp.earningsHistory (see the end of the function), which
  * market/recomputeSharePricesPhase reads as the earnings-power input to the
- * share-price formula. recomputeSharePricesPhase runs immediately after this
- * phase in registry.ts, so it always sees the current turn's fresh push, not
- * a one-turn-stale value — no lag equivalent to the corpRevenueSnapshots one
- * above.
+ * share-price formula. recomputeSharePricesPhase runs later in registry.ts,
+ * after the other tail phases, and still sees the current turn's fresh push
+ * because no intervening phase mutates corporation earnings history.
  */
 
 import type { TurnPhase } from "../phases/types.js";

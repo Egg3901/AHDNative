@@ -140,6 +140,11 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   partyInfluenceTurnPhase,
   playerEndorsementPartySweepPhase,
   caucusTaxPhase,
+  // W9 corporation output must settle before macroCountryTurn reads the
+  // per-country revenue snapshot. AHDGame registers corporationTurn before
+  // macroCountryTurn for this dependency. This phase is RNG-free, so moving
+  // this single causal edge does not consume or shift the shared RNG stream.
+  corporationTurnPhase,
   macroCountryTurnPhase,
   turnoutDecayPhase,
   partyGOTVPhase,
@@ -201,12 +206,6 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // mirrors mainline's relative order.
   centralBankChairTurnPhase,
   centralBankChairSelectionPhase,
-  // W9 corporations at the end of the ported subset, before newsMaintenance -
-  // same rng-stream-stability rule as every block above (mainline runs
-  // corporationTurn mid-pipeline; inserting it there would shift every
-  // downstream rng draw for existing goldens). See corporation/corporationTurn.ts
-  // file doc for the resulting one-turn lag on the macroCountryTurn wire.
-  corporationTurnPhase,
   // W26 campaign cluster at end of ported subset, before newsMaintenance -
   // same rng-stream-stability rule as every other tail cluster above.
   // Deviation from mainline order (see campaigns/phases.ts file doc for the

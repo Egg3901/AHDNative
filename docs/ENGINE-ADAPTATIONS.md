@@ -13,8 +13,33 @@ The source manifest retains hashes from AHDClient `568c0c039efcca2db17c52b292074
 | `packages/engine/src/referendum/{cohort,lifecycle,types}.ts` | Campaign window, baseline/poll snapshot, canonical cohort/spend calculation before resolution | [Lifecycle evidence](REFERENDUM-LIFECYCLE.md). Exact source math and source fallback for absent substrate; request/grant, granular electorate, consent and actuation remain open |
 
 | `packages/engine/src/{world,initialization/ukHistorical}.ts` | Explicit synthetic UK historical bootstrap for 1953/1979, preserving founding default | [UK evidence](UK-CAREER-DEPTH.md). Opt-in changes shared creation RNG; no existing save reseeding or full UK career parity |
+| `packages/engine/src/phases/registry.ts`, `packages/engine/src/corporation/corporationTurn.ts`, `packages/engine/src/phases/macroCountryTurn.ts` | Register `corporationTurnPhase` immediately before `macroCountryTurnPhase` so current-turn corporate revenue is the macro growth signal | [Phase order evidence](PHASE-ORDER-DEPTH.md). RNG-free does not mean no behavior change. Same-turn macro signal is intended. See the integration note below |
 
 AHDGame reference for the mechanics corrections: `e364c04954ed628beef73a993a8e9e156650a31e`. Expected vectors come from those source formulas, independently calculated. New targeted tests live alongside each changed system. The historical 21-world replay evidence predates these corrections; it must not be represented as fresh whole-engine parity with current AHDGame.
+
+## Corporation and macro order (M04 slice)
+
+Native copied the completed M04 registry move from the `feat/phase-order-depth` worktree onto `f21da25`. AHDGame `e364c0495` runs `corporationTurn` (index 5) before `macroCountryTurn` (index 17) in `src/simulation/phases/turnPhaseNames.ts`. The corporation phase writes `corpRevenueSnapshots`; macro reads that snapshot as `sectorSignal`. Native previously ran macro near the head and corporation after central-bank, so turn 1 macro saw the bootstrap snapshot (`current === previous`).
+
+`corporationTurnPhase` draws no RNG. The move does not add or reorder stream draws: `macroCountryTurn` still takes one inflation shock per country, and `commodityPrices` still takes two jitter draws per commodity independent of GDP. Later numeric state still changes because the intended growth path is different.
+
+Direct corp-write consumer in the moved-over window:
+
+- `macroCountryTurn` reads `corpRevenueSnapshots`. Intended same-turn signal. Source-backed.
+
+No other moved-over phase reads `corp.revenue`, `liquidCapital`, `earningsHistory`, or `corpRevenueSnapshots`. `subsidyBudget` remains a PORT-STUB cost of 0. `contractSettlement` still uses corporationId test hooks and does not debit `liquidCapital`. `tradeGrowth` reads tariff and foreign-corporate tax rates, not corp books. `fiscalBaseGrowth` grows seeded `budget.economicFactors`, not `country.economy.growthRate`.
+
+Source-aligned cascade, not a separate consumer of corp fields:
+
+- `centralBankChairTurn` already ran after macro and now sees current-turn corp-driven `growthRate`. AHDGame keeps central bank at indices 116-121, after both corporation and macro. `inflationRecalc`, `nationalMetrics` (`economic.gdpGrowth`), `economicVitalSigns`, `recordWorldHistory`, and `countryPolitics` remain after both phases and inherit the same intended growth values.
+
+Corporation reads that now precede same-turn writers, matching AHDGame rather than the old Native tail:
+
+- `billLifecycle` can write `taxRates` on enactment. `fiscalBaseGrowth` can step `taxRatePhaseIn`. Corporation now taxes at the pre-bill, pre-phase-in rate this turn. AHDGame places `corporationTurn` at index 5 and `billLifecycle` at index 50, with fiscal processing later. Default no-action worlds typically have no pending phase-in or same-turn tax enactment.
+
+Share-price, unowned-sector growth, economic-model, banking, and history phases still run after corporation and still see this turn's corp writes. Nothing between the new corporation slot and `recomputeSharePrices` mutates `earningsHistory`.
+
+Historical contract not rewritten: `packages/engine/src/engine.sim.test.ts` `advanceTurn > advances the date weekly and reports phase timings` still expects `corporationTurn` after `centralBankChairSelection`. Actual order now inserts it after `caucusTax` and before `macroCountryTurn`. Left failing on purpose. Bounded engine CI excludes `*.sim.test.ts`. Campaign spend still reaches the tally next turn. Absolute Native tail placement is otherwise unchanged. This is not whole-pipeline or TFP-input parity.
 
 ## Party founding accounting
 

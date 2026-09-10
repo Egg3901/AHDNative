@@ -207,11 +207,10 @@ export const macroCountryTurnPhase: TurnPhase = {
       // plus RNG shock). Source: src/lib/turn/gdpGrowth.ts
       // computeRealizedRevenueGrowthRate (ported verbatim in
       // corporation/constants.ts) fed by corporationTurn.ts's per-country
-      // revenue rollup (world.corpRevenueSnapshots — one turn lagged, see
-      // corporation/corporationTurn.ts file doc for why). Falls back to flat
-      // (no shock) previous growth for countries with no corp data — either a
-      // non-playable country (W9 only seeds playable countries) or the first
-      // turn or two after world creation before the snapshot has a real prior.
+      // revenue rollup (world.corpRevenueSnapshots, written earlier this same
+      // turn because corporationTurnPhase precedes this phase in registry.ts).
+      // Falls back to flat previous growth for countries with no corp data,
+      // such as a non-playable country (W9 only seeds playable countries).
       const revenueSnapshot = world.corpRevenueSnapshots?.[id];
       const realizedGrowth = revenueSnapshot
         ? computeRealizedRevenueGrowthRate(revenueSnapshot.current, revenueSnapshot.previous, 1, TURNS_PER_YEAR)
