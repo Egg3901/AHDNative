@@ -56,6 +56,14 @@ describe("GameScreen", () => {
     expect(screen.getByRole("tab", { name: "Character" })).toHaveAttribute("aria-selected", "true");
   });
 
+  it("tabs have proper roving tabindex", () => {
+    const world = makeWorld();
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs[0]).toHaveAttribute("tabIndex", "0");
+    expect(tabs[1]).toHaveAttribute("tabIndex", "-1");
+  });
+
   it("shows empty states explicitly for each collection", async () => {
     const user = userEvent.setup();
     const world = makeWorld({ metrics: [], parties: [], elections: [], news: [], actions: [] });
@@ -109,15 +117,44 @@ describe("GameScreen", () => {
     render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
     await user.click(screen.getByRole("tab", { name: "Character" }));
     expect(screen.getAllByText("Need more influence").length).toBeGreaterThan(0);
-    const takeButtons = screen.getAllByRole("button", { name: /take action|unavailable/i });
-    const available = takeButtons.find((b) => b.textContent?.includes("Take action"));
+    const takeButtons = screen.getAllByRole("button", { name: /take action/i });
+    const available = takeButtons.find((b) => b.textContent?.includes("Fundraise"));
     expect(available).toBeTruthy();
-    // change amount and trigger
     const amountInput = screen.getByLabelText(/amount for fundraise/i) as HTMLInputElement;
     await user.clear(amountInput);
     await user.type(amountInput, "25");
     await user.click(available!);
     expect(onAction).toHaveBeenCalledWith("fundraise", expect.objectContaining({ amount: 25 }));
+  });
+
+  it("validates amount before invocation and shows error for invalid", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const world = makeWorld({
+      actions: [{ id: "fundraise", name: "Fundraise", description: "Raise money", cost: 1, available: true, requires: "amount" }],
+    });
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
+    await user.click(screen.getByRole("tab", { name: "Character" }));
+    const amountInput = screen.getByLabelText(/amount for fundraise/i) as HTMLInputElement;
+    await user.clear(amountInput);
+    await user.type(amountInput, "0");
+    await user.click(screen.getByRole("button", { name: /take action: fundraise/i }));
+    expect(onAction).not.toHaveBeenCalled();
+    expect(screen.getByText(/positive whole amount/i)).toBeInTheDocument();
+  });
+
+  it("action labels distinguish which action", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld({
+      actions: [
+        { id: "fundraise", name: "Fundraise", description: "Raise money", cost: 1, available: true, requires: "amount" },
+        { id: "advertise", name: "Advertise", description: "Run ads", cost: 1, available: true },
+      ],
+    });
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    await user.click(screen.getByRole("tab", { name: "Character" }));
+    expect(screen.getByRole("button", { name: /take action: fundraise/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /take action: advertise/i })).toBeInTheDocument();
   });
 
   it("handles party and region required actions via actual props", async () => {
@@ -133,11 +170,27 @@ describe("GameScreen", () => {
     });
     render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
     await user.click(screen.getByRole("tab", { name: "Character" }));
-    const buttons = screen.getAllByRole("button", { name: "Take action" });
-    await user.click(buttons[0]);
+    const buttons = screen.getAllByRole("button", { name: /take action:/i });
+    await user.click(buttons[0]!);
     expect(onAction).toHaveBeenCalledWith("endorse", expect.objectContaining({ partyId: "p2" }));
-    await user.click(buttons[1]);
+    await user.click(buttons[1]!);
     expect(onAction).toHaveBeenCalledWith("tour", expect.objectContaining({ regionId: "r2" }));
+  });
+
+  it("does not invoke when party or region selection missing", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const world = makeWorld({
+      parties: [],
+      regions: [],
+      actions: [
+        { id: "joinParty", name: "Join Party", description: "Join", cost: 1, available: true, requires: "party" },
+      ],
+    });
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
+    await user.click(screen.getByRole("tab", { name: "Character" }));
+    await user.click(screen.getByRole("button", { name: /take action: join party/i }));
+    expect(onAction).not.toHaveBeenCalled();
   });
 
   it("does not render fake disabled feature pages", () => {
@@ -146,5 +199,17 @@ describe("GameScreen", () => {
     const tabs = screen.getAllByRole("tab");
     tabs.forEach((t) => expect(t).not.toBeDisabled());
     expect(tabs.map((t) => t.textContent)).toEqual(["Overview", "Character", "Parties", "Elections", "News"]);
+  });
+
+  it("renders percent metrics as fractions multiplied by 100", async () => {
+    const world = makeWorld({
+      metrics: [
+        { id: "growth", label: "GDP growth", value: 0.031, format: "percent" },
+        { id: "inflation", label: "Inflation", value: 0.046, format: "percent" },
+      ],
+    });
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    expect(screen.getByText("3.1%")).toBeInTheDocument();
+    expect(screen.getByText("4.6%")).toBeInTheDocument();
   });
 });

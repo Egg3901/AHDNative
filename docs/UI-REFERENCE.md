@@ -14,7 +14,9 @@ Adaptation: tokens and card/border density reused for parity; layout is original
 Visual notes:
 - Dense compact chrome, red accents, no decorative dashboard.
 - Header: sticky backdrop-blur, turn/date/era/country + End turn/Save always reachable on small screens (flex wrap).
-- Tabs: Overview, Character, Parties, Elections, News — all backed by real props, explicit empty states, no disabled fake pages.
-- NewGame: era radio cards, country select filtered by era, name/seed validation, busy/error reflection.
+- Tabs: Overview, Character, Parties, Elections, News — all backed by real props, explicit empty states, no disabled fake pages. Roving tabindex, arrow/Home/End keyboard, focus follows selection.
+- NewGame: era radio cards with focus-visible ring, country select filtered by era, name 1 to 80 any unicode, seed optional up to 256 any unicode (empty means root generates UUID), form submit via Enter.
+- Game: percent metrics are fractions multiplied by 100, money absolute, action buttons labeled with action name, amount validates positive integer before invoke, party/region validates selection exists, tap targets 44px, no horizontal overflow.
+- CSP: style-src allows inline styles for React, script-src stays self, worker-src self blob.
 
 No server paths, user data, or secrets committed.

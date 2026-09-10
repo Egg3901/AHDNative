@@ -21,11 +21,13 @@ function validate(opts: NewGameOptions, eras: EraChoice[]): Record<string, strin
       errs.countryId = "Country not available in this era.";
     }
   }
-  if (!opts.playerName.trim()) errs.playerName = "Enter your name.";
-  else if (opts.playerName.trim().length < 2) errs.playerName = "Name must be at least 2 characters.";
-  else if (opts.playerName.trim().length > 40) errs.playerName = "Name must be 40 characters or fewer.";
-  if (opts.seed && opts.seed.length > 64) errs.seed = "Seed must be 64 characters or fewer.";
-  if (opts.seed && !/^[a-zA-Z0-9_-]*$/.test(opts.seed)) errs.seed = "Seed may only contain letters, numbers, hyphen and underscore.";
+  const trimmedName = opts.playerName.trim();
+  const nameLen = [...trimmedName].length;
+  if (!trimmedName) errs.playerName = "Enter your name.";
+  else if (nameLen > 80) errs.playerName = "Name must be 80 characters or fewer.";
+  else if (nameLen < 1) errs.playerName = "Enter your name.";
+  const seedTrimmed = opts.seed.trim();
+  if ([...seedTrimmed].length > 256) errs.seed = "Seed must be 256 characters or fewer.";
   return errs;
 }
 
@@ -39,7 +41,6 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
 
   const activeEra = useMemo(() => eras.find((e) => e.id === era) ?? null, [eras, era]);
 
-  // Country adjusts with era: if current country not in new era, reset to first available.
   useEffect(() => {
     if (!activeEra) {
       if (countryId) setCountryId("");
@@ -51,7 +52,6 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
     }
   }, [activeEra, countryId]);
 
-  // If eras prop changes externally (e.g. empty -> loaded), initialise era.
   useEffect(() => {
     if (!era && eras[0]) {
       setEra(eras[0].id);
@@ -63,7 +63,8 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
   const fieldErrors = useMemo(() => (touched ? validate(options, eras) : {}), [touched, options, eras]);
   const canSubmit = useMemo(() => Object.keys(validate(options, eras)).length === 0, [options, eras]);
 
-  const handleSubmit = () => {
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setTouched(true);
     setLocalError(null);
     const errs = validate(options, eras);
@@ -90,6 +91,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
           <div className="ahd-empty" role="status">No eras available. Engine content not loaded.</div>
         ) : null}
 
+        <form onSubmit={handleSubmit} noValidate>
         <div className="ahd-card ahd-card-pad">
           <h2 className="ahd-h2">New game</h2>
 
@@ -102,13 +104,9 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
                   return (
                     <label
                       key={e.id}
+                      className={selected ? "ahd-era-card ahd-era-card-selected" : "ahd-era-card"}
                       style={{
                         cursor: busy ? "not-allowed" : "pointer",
-                        border: selected ? "1px solid var(--ahd-primary)" : "1px solid var(--ahd-border)",
-                        background: selected ? "color-mix(in srgb, var(--ahd-primary) 10%, var(--ahd-card))" : "var(--ahd-card)",
-                        borderRadius: "var(--ahd-radius-sm)",
-                        padding: "0.62rem 0.7rem",
-                        display: "flex", flexDirection: "column", gap: "0.15rem",
                       }}
                     >
                       <input
@@ -117,8 +115,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
                         value={e.id}
                         checked={selected}
                         onChange={() => setEra(e.id)}
-                        className="sr-only"
-                        style={{ position: "absolute", opacity: 0, width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)" }}
+                        className="ahd-era-input"
                         aria-label={e.label}
                       />
                       <span style={{ fontWeight: 750, fontSize: "0.92rem" }}>{e.label}</span>
@@ -159,12 +156,12 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
                   value={playerName}
                   onChange={(e) => setPlayerName(e.target.value)}
                   placeholder="Player"
-                  maxLength={40}
+                  maxLength={80}
                   autoComplete="nickname"
                   aria-describedby={fieldErrors.playerName ? "ng-name-error" : undefined}
                   aria-invalid={!!fieldErrors.playerName}
                 />
-                {fieldErrors.playerName ? <span id="ng-name-error" className="ahd-error-text" role="alert">{fieldErrors.playerName}</span> : <span className="ahd-help">2 to 40 characters</span>}
+                {fieldErrors.playerName ? <span id="ng-name-error" className="ahd-error-text" role="alert">{fieldErrors.playerName}</span> : <span className="ahd-help">1 to 80 characters</span>}
               </div>
             </div>
 
@@ -177,21 +174,21 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
                 value={seed}
                 onChange={(e) => setSeed(e.target.value)}
                 placeholder="Leave empty for random"
-                maxLength={64}
+                maxLength={256}
                 spellCheck={false}
                 autoCorrect="off"
                 autoCapitalize="off"
                 aria-describedby={fieldErrors.seed ? "ng-seed-error" : "ng-seed-help"}
                 aria-invalid={!!fieldErrors.seed}
               />
-              {fieldErrors.seed ? <span id="ng-seed-error" className="ahd-error-text" role="alert">{fieldErrors.seed}</span> : <span id="ng-seed-help" className="ahd-help">Letters, numbers, hyphen and underscore, up to 64</span>}
+              {fieldErrors.seed ? <span id="ng-seed-error" className="ahd-error-text" role="alert">{fieldErrors.seed}</span> : <span id="ng-seed-help" className="ahd-help">Optional, any characters, up to 256</span>}
             </div>
 
             {localError ? <div className="ahd-alert" role="alert">{localError}</div> : null}
             {error ? <div className="ahd-alert" role="alert">{error}</div> : null}
 
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
-              <button type="button" className="ahd-btn ahd-btn-primary" onClick={handleSubmit} disabled={busy} aria-busy={busy}>
+              <button type="submit" className="ahd-btn ahd-btn-primary" disabled={busy} aria-busy={busy}>
                 {busy ? <span className="ahd-spinner" aria-hidden /> : null}
                 {busy ? "Starting" : "Start"}
               </button>
@@ -200,6 +197,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
             </div>
           </fieldset>
         </div>
+        </form>
 
         <p className="ahd-muted" style={{ fontSize: "0.72rem", marginTop: "0.65rem" }}>
           Countries shown are those the local content reports for the chosen era. Multiplayer keeps the authoritative roster on the server.

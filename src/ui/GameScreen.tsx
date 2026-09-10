@@ -21,7 +21,7 @@ const TABS: { id: TabId; label: string }[] = [
 
 function formatMetric(v: number, fmt: GameView["metrics"][number]["format"]): string {
   if (fmt === "money") return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(v);
-  if (fmt === "percent") return `${v.toFixed(1)}%`;
+  if (fmt === "percent") return `${(v * 100).toFixed(1)}%`;
   return new Intl.NumberFormat(undefined).format(v);
 }
 
@@ -42,15 +42,34 @@ function ActionRow({
   const [partyId, setPartyId] = useState(parties[0]?.id ?? "");
   const [regionId, setRegionId] = useState(regions[0]?.id ?? "");
 
+  const [amountError, setAmountError] = useState<string | null>(null);
   const disabled = busy || !action.available;
   const hint = !action.available ? action.disabledReason ?? "Unavailable" : `Cost ${action.cost} actions`;
 
   const handle = () => {
     if (disabled) return;
     const params: Record<string, string | number> = {};
-    if (action.requires === "amount") params.amount = Number(amount) || 0;
-    if (action.requires === "party") params.partyId = partyId;
-    if (action.requires === "region") params.regionId = regionId;
+    if (action.requires === "amount") {
+      const n = Number(amount);
+      if (!Number.isFinite(n) || n <= 0 || !Number.isInteger(n)) {
+        setAmountError("Enter a positive whole amount.");
+        return;
+      }
+      setAmountError(null);
+      params.amount = n;
+    }
+    if (action.requires === "party") {
+      if (!partyId || !parties.some((pp) => pp.id === partyId)) {
+        return;
+      }
+      params.partyId = partyId;
+    }
+    if (action.requires === "region") {
+      if (!regionId || !regions.some((rr) => rr.id === regionId)) {
+        return;
+      }
+      params.regionId = regionId;
+    }
     onAction(action.id, Object.keys(params).length ? params : undefined);
   };
 
@@ -67,7 +86,8 @@ function ActionRow({
       {action.requires === "amount" ? (
         <label className="ahd-field" style={{ maxWidth: "12rem" }}>
           <span className="ahd-label">Amount</span>
-          <input className="ahd-input" type="number" inputMode="numeric" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} disabled={busy} aria-label={`Amount for ${action.name}`} />
+          <input className="ahd-input" type="number" inputMode="numeric" min={1} value={amount} onChange={(e) => { setAmount(e.target.value); if (amountError) setAmountError(null); }} disabled={busy} aria-label={`Amount for ${action.name}`} aria-invalid={!!amountError} aria-describedby={amountError ? `amount-error-${action.id}` : undefined} />
+          {amountError ? <span id={`amount-error-${action.id}`} className="ahd-error-text" role="alert">{amountError}</span> : null}
         </label>
       ) : null}
       {action.requires === "party" ? (
@@ -90,9 +110,9 @@ function ActionRow({
       ) : null}
 
       <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap" }}>
-        <button type="button" className="ahd-btn ahd-btn-primary ahd-btn-sm" onClick={handle} disabled={disabled} aria-disabled={disabled}>
+        <button type="button" className="ahd-btn ahd-btn-primary ahd-btn-sm" onClick={handle} disabled={disabled} aria-disabled={disabled} aria-label={`${action.available ? "Take action" : "Unavailable"}: ${action.name}`}>
           {busy ? <span className="ahd-spinner" aria-hidden /> : null}
-          {action.available ? "Take action" : "Unavailable"}
+          {action.available ? `Take action: ${action.name}` : "Unavailable"}
         </button>
         <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{hint}{action.requires ? ` · requires ${action.requires}` : ""}</span>
       </div>
@@ -108,16 +128,24 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
 
   const onTabKeyDown = (e: React.KeyboardEvent) => {
     const idx = TABS.findIndex((t) => t.id === tab);
+    let next: typeof tab | null = null;
     if (e.key === "ArrowRight") {
       e.preventDefault();
-      setTab(TABS[(idx + 1) % TABS.length].id);
+      next = TABS[(idx + 1) % TABS.length].id;
     } else if (e.key === "ArrowLeft") {
       e.preventDefault();
-      setTab(TABS[(idx - 1 + TABS.length) % TABS.length].id);
+      next = TABS[(idx - 1 + TABS.length) % TABS.length].id;
     } else if (e.key === "Home") {
-      e.preventDefault(); setTab(TABS[0].id);
+      e.preventDefault(); next = TABS[0].id;
     } else if (e.key === "End") {
-      e.preventDefault(); setTab(TABS[TABS.length - 1].id);
+      e.preventDefault(); next = TABS[TABS.length - 1].id;
+    }
+    if (next) {
+      setTab(next);
+      requestAnimationFrame(() => {
+        const el = document.getElementById(`ahd-tab-${next}`);
+        el?.focus();
+      });
     }
   };
 
