@@ -41,7 +41,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | G01 | Evidence | Done | - | Record unified SP/MP architecture and iOS-first delivery | Standing rules committed |
 | G02 | Evidence | Done | G01 | Bootstrap React/Tauri shell and private signing setup | Local compile; encrypted signing; no device claim |
 | G03 | Evidence | Done | G01 | Pin historical engine and identify reuse limits | Provenance and known mechanics differences recorded |
-| G04 | Evidence | Ready | G03 | Audit production RNG and imported source publication | No unseeded runtime randomness or secret/ops material |
+| G04 | Evidence | Done | G03 | Audit production RNG and imported source publication | [Determinism audit](DETERMINISM-AUDIT.md) at `f61c28f`; no unseeded runtime randomness or secret/ops material in non-test engine/content. Rust/device float parity is not established |
 | G05 | Evidence | Blocked | G03 | Measure named physical iOS device late-turn performance | p95 budget plus worst-turn,memory,thermal evidence; needs eligible device build |
 | G06 | Evidence | Queued | G05 | Record TS optimization versus Rust go/no-go | Device evidence determines rewrite; no speculative bulk port |
 | E01 | Engine | Done | G04 | Import pinned reusable engine/content without UI/history | Unchanged formulas; source manifest; proprietary notice |
