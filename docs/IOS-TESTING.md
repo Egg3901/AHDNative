@@ -1,6 +1,6 @@
 # Private iPhone testing
 
-The app has an integrated local SP loop. Its first private feedback preview is authorized after local checks, with the remaining mechanics and save gaps recorded. A successful signed build and actual phone validation still require separate evidence.
+The app has an integrated local SP loop. Private preview 0.1.0, build 1.6, has passed signed IPA export and Apple processing as Internal Only. It is attached to the internal Owner review group. Actual phone validation and the remaining mechanics/save gates are still open. See [candidate evidence](https://github.com/Egg3901/AHDNative/issues/124).
 
 ## Private feedback preview
 
