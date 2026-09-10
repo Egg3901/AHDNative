@@ -2,6 +2,6 @@
 @import "./ui/ui.css";
 :root { font-family: system-ui, sans-serif; color-scheme: dark; }
 html, body { margin: 0; background: var(--ahd-bg); color: var(--ahd-fg); }
-#root { min-height: 100dvh; }
+#root { min-height: 100vh; min-height: 100dvh; }
 /* Fallback for legacy placeholder */
 main { line-height: 1.6; }

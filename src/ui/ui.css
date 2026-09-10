@@ -26,6 +26,7 @@
 /* Base - no horizontal overflow */
 html, body { overflow-x: hidden; }
 .ahd-screen {
+  min-height: 100vh;
   min-height: 100dvh;
   background: var(--ahd-bg);
   color: var(--ahd-fg);
@@ -326,6 +327,7 @@ html, body { overflow-x: hidden; }
 }
 .ahd-resource-popover {
   position: absolute; bottom: calc(100% + 0.25rem); left: 0; right: 0;
+  max-height: calc(100vh - var(--ahd-footer-height, 9rem) - max(1rem, env(safe-area-inset-top)));
   max-height: calc(100dvh - var(--ahd-footer-height, 9rem) - max(1rem, env(safe-area-inset-top)));
   overflow-y: auto; overscroll-behavior: contain;
 }

@@ -7,6 +7,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createGameClient, type GameClient } from './game/client';
 import { saveRepository, type SaveMetadata } from './game/storage';
 import type { EraChoice, GameView, NewGameOptions } from './game/types';
+import { newId } from './game/ids';
+import { BUILD_LABEL } from './buildIdentity';
 import { NewGameScreen } from './ui/NewGameScreen';
 import { GameScreen } from './ui/GameScreen';
 
@@ -103,7 +105,7 @@ export function App() {
   }
   function start(options: NewGameOptions) {
     void run(async () => {
-      await replaceWorld(worker => worker.create({ ...options, seed: options.seed || crypto.randomUUID() }), crypto.randomUUID());
+      await replaceWorld(worker => worker.create({ ...options, seed: options.seed || newId() }), newId());
       await save();
     });
   }
@@ -117,7 +119,7 @@ export function App() {
     void run(async () => {
       if (file.size > 256 * 1024 * 1024) throw new Error('This save exceeds the 256 MB limit.');
       const contents = await file.text();
-      const nextSlot = crypto.randomUUID();
+      const nextSlot = newId();
       await replaceWorld(async worker => {
         const view = await worker.load(contents);
         // Keep the original bytes for interchange; the worker migrates its own copy.
@@ -188,6 +190,7 @@ export function App() {
   return <main className="ahd-screen"><div className="ahd-container" style={{ maxWidth: '42rem', paddingTop: 'max(2rem, env(safe-area-inset-top))' }}>
     <p className="ahd-eyebrow">Singleplayer</p><h1 className="ahd-h1">A House Divided</h1>
     <p className="ahd-muted">Build your political career. Your world stays on this device.</p>
+    <p className="ahd-muted" style={{ fontSize: '0.75rem' }} aria-label="Build version">{BUILD_LABEL}</p>
     {error && <p className="ahd-alert" role="alert">{error}</p>}
     {message && !error && <p className="ahd-notice" role="status">{message}</p>}
     {error && !eras.length && <button className="ahd-btn" onClick={() => window.location.reload()}>Reload app</button>}

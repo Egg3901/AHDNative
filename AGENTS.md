@@ -17,6 +17,7 @@ Read README.md before changing product scope or architecture.
 
 ## Build budget and signing privacy
 
+- Codemagic is for iOS only. Prepare Windows and Android builds locally or through a separately authorized private build route.
 - Codemagic allowance is 500 minutes. Run checks locally first; use Codemagic sparingly for deliberate private signed iOS builds. No push/PR/scheduled Codemagic triggers, automatic retry loops, or parallel duplicate builds.
 - Keep the Codemagic workflow capped at 20 minutes. Review failure logs and minute usage before retrying; do not raise the cap without owner agreement.
 - Signed binaries, archives, signing identities, profiles, Apple account identifiers and signing logs stay off GitHub. Never publish them as GitHub releases, Actions artifacts, PR attachments, or committed files.
@@ -26,7 +27,7 @@ Read README.md before changing product scope or architecture.
 
 ## AHDNative 1.0.0 candidate gate
 
-- Paid Codemagic and signed distribution builds are on hold until a solid 1.0.0 candidate has real passing behavioral tests and smoke evidence. Signing readiness, a placeholder screen, compilation, or an empty test suite do not satisfy this gate.
+- The owner authorized the first private feedback preview after local behavioral tests and integrated smoke evidence pass. Use development versioning and record remaining mechanics/save gaps; this does not approve a public or 1.0.0 release. Codemagic is iOS only, within the existing 20-minute cap. Signing readiness, a placeholder screen, compilation, or an empty test suite do not satisfy the review gate.
 - Develop behavior using TDD: demonstrate a failing test through the agreed public contract or player flow, implement the smallest working slice, then demonstrate it passes. Expected mechanics results come from independent reference-engine evidence.
 - Use the already established engine contract, save interchange and actual player flows as test boundaries. Record the specific boundary and expected behavior for each slice; do not invent internal-only tests to inflate coverage.
 - Before a paid candidate build, demonstrate the real SP loop locally: create a world, select a playable country, perform meaningful actions, advance turns, save, close/relaunch and reload, then continue. Include corrupt-save failure behavior, deterministic replay, supported content coverage and visual comparison with actual MP/SP screens.
