@@ -44,6 +44,7 @@ export interface GameScreenProps {
   preferencesError?: string | null;
   search: (query: string) => Promise<import("./search").SearchResults>;
   loadBondMarket: () => Promise<import("./bondMarket").BondMarketView>;
+  loadRegions: (query?: import("./regions").RegionsQuery) => Promise<import("./regions").RegionsView>;
   loadCaucusManagement: () => Promise<import("./caucusManagement").CaucusManagementView>;
   loadPartyManagement: () => Promise<import("./partyManagement").PartyManagementView>;
   loadMarkets: () => Promise<import("./markets").MarketsView>;

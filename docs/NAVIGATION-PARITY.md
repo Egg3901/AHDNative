@@ -165,3 +165,10 @@ with initial tax, leave and join use the real action/session/save path.
 The accidental double entry threshold is repaired. Chair/whip/health,
 recruitment, disbanding, post-create tax editing and reference action costs
 remain open; see [caucus management](CAUCUS-MANAGEMENT.md).
+
+## Mobile layout standing correction
+
+The top banner and scrolling tab row have been removed. The reference inventory
+above describes required features, not a requirement to copy desktop chrome.
+Primary navigation sits at the bottom, and the full hierarchy plus End Turn,
+Save and Exit lives in the side drawer. See [mobile navigation](MOBILE-NAVIGATION.md).

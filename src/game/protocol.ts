@@ -1,3 +1,4 @@
+import type { RegionsQuery } from "./regions";
 import type { LegislationSelection } from "./legislationDetails";
 import type { NewGameOptions } from "./types";
 
@@ -7,6 +8,7 @@ export type GameCommand =
   | { type: "view" }
   | { type: "politics" }
   | { type: "markets" }
+  | { type: "regions"; query?: RegionsQuery }
   | { type: "caucusManagement" }
   | { type: "partyManagement" }
   | { type: "bondMarket" }

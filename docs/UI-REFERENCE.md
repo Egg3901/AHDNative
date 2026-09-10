@@ -9,12 +9,12 @@ Baseline: public AHDGame multiplayer/singleplayer React interface (Egg3901/AHDGa
   - `src/components/national/tabs/*` - Nation tabs compact pattern
   - `src/app/globals.css` - default theme tokens: bg #14141c, fg #e8e8ee, primary #dc2626, card #1d1d2a, border #2a2a3d, muted #8f8f9d
 
-Adaptation: tokens and card/border density reused for parity; layout is original responsive Tauri web (touch 44px, `env(safe-area-inset-*)`, sticky header, tablist accessibility). No proprietary assets or internal operational files copied. Attribution preserved in `src/ui/NewGameScreen.tsx` and `src/ui/GameScreen.tsx` headers.
+Adaptation: tokens and card/border density reused for parity; layout is original responsive Tauri web (touch 44px, `env(safe-area-inset-*)`, modal side drawer, labeled bottom navigation). No proprietary assets or internal operational files copied. Attribution preserved in `src/ui/NewGameScreen.tsx` and `src/ui/GameScreen.tsx` headers.
 
 Visual notes:
 - Dense compact chrome, red accents, no decorative dashboard.
-- Header: sticky backdrop-blur, turn/date/era/country + End turn/Save always reachable on small screens (flex wrap).
-- Tabs: Overview, Character, Parties, Legislature, Elections, News - all backed by real props, explicit empty states, no disabled fake pages. Roving tabindex, arrow/Home/End keyboard, focus follows selection.
+- Navigation: side drawer contains the destination hierarchy, player identity and End Turn/Save/Exit. Four labeled primary controls stay at the bottom; page content begins without a top banner.
+- Drawer destinations use real screens and explicit empty states. Background content is inert while open; Escape, Close or backdrop dismisses it. Focus follows navigation. See [mobile navigation](MOBILE-NAVIGATION.md).
 - NewGame: era radio cards with focus-visible ring, country select filtered by era, name 1 to 80 any unicode, seed optional up to 256 any unicode (empty means root generates UUID), form submit via Enter.
 - Game: percent metrics are fractions multiplied by 100, money absolute, action buttons labeled with action name, amount validates positive integer before invoke, party/region validates selection exists, tap targets 44px, no horizontal overflow.
 - CSP: style-src allows inline styles for React, script-src stays self, worker-src self blob.

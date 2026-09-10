@@ -5,7 +5,7 @@ export type DrawerRouteId =
   | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails"
   | "politicians" | "economy" | "budget" | "policy" | "nations" | "state"
   | "help" | "settings" | "legislationDetails" | "markets" | "search"
-  | "partyManagement" | "bonds" | "caucuses";
+  | "partyManagement" | "bonds" | "caucuses" | "regions";
 
 export type BottomTabId = "overview" | "actions" | "parties";
 
@@ -21,7 +21,7 @@ export const MENU_GROUPS: { label: string; items: { id: DrawerRouteId; label: st
     ],
   },
   {
-    label: "State", items: [{ id: "state", label: "Home region" }],
+    label: "State", items: [{ id: "state", label: "Home region" }, { id: "regions", label: "Regions" }],
   },
   {
     label: "Nation",

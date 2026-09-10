@@ -1,3 +1,4 @@
+import { RegionsRoute } from "./RegionsRoute";
 import { CaucusPanel } from "./CaucusPanel";
 import { BondMarketRoute } from "./BondMarketRoute";
 import { PartyManagementPanel } from "./PartyManagementPanel";
@@ -64,6 +65,7 @@ const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
   bonds: "Bond market",
   search: "Search",
   partyManagement: "Party management",
+  regions: "Regions",
   caucuses: "Caucuses",
   help: "Help", settings: "Settings",
   profile: "Profile",
@@ -216,7 +218,7 @@ function ProfileSection({ world }: { world: GameView }) {
   );
 }
 
-export function GameScreen({ preferences, onPreferencesChange, preferencesError, search, loadCaucusManagement, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction }: GameScreenProps) {
+export function GameScreen({ preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("overview");
   const [detailId, setDetailId] = useState<string>();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -515,6 +517,7 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
         >
           {(route === "economy" || route === "budget" || route === "policy") && <NationPanel nation={world.nation} section={route} />}
           {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={detailId} />}</DetailQuery>}
+          {route === "regions" && <RegionsRoute load={loadRegions} revision={world} busy={busy} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "bonds" && <BondMarketRoute load={loadBondMarket} revision={world} busy={busy} onAction={onAction} />}
           {route === "partyManagement" && <DetailQuery load={loadPartyManagement} revision={world} label="Party management">{management => <PartyManagementPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
