@@ -25,7 +25,24 @@ export const OCCUPATION = {
   decisiveMargin: 45,
   maxShift: 5,
   retreatYield: 0.7,
+  mobilizationTurns: 50,
+  mobilizationFloor: 0.4,
 } as const;
+
+/**
+ * How much of a normal advance the front is worth this early in the war.
+ * Verbatim port of occupation.ts mobilizationFactor: 1 when the age is
+ * unknown (a caller that does not know the war's age must not silently damp
+ * the front), ramp from mobilizationFloor at turn zero to full value at
+ * mobilizationTurns, negative ages read as turn zero.
+ */
+export function mobilizationFactor(turnsElapsed?: number): number {
+  if (turnsElapsed == null || !Number.isFinite(turnsElapsed)) return 1;
+  const t = Math.max(0, turnsElapsed);
+  const { mobilizationTurns: span, mobilizationFloor: floor } = OCCUPATION;
+  if (span <= 0) return 1;
+  return Math.min(1, floor + (1 - floor) * (t / span));
+}
 
 /** Source: military/principal.ts DICTATE_WINDOW_TURNS. */
 export const DICTATE_WINDOW_TURNS = 24;
@@ -40,11 +57,20 @@ export const POLE_HOLD_TURNS = 3;
  * linearly; a side that "retreated" (AHDClient: the loser's coalition GDP
  * share fell below 40% of the pair, i.e. heavily outmatched) yields less
  * ground per step, same intuition as mainline's orderly-withdrawal discount.
- * Source: occupation.ts occupationShift (verbatim formula).
+ * The step is then scaled by mobilizationFactor(turnsElapsed): full value when
+ * the age is unknown, ramped from 0.4 at turn zero to 1.0 at turn 50.
+ * Source: occupation.ts occupationShift + mobilizationFactor (verbatim formula).
  */
-export function occupationShift(control: number, winner: "A" | "B", margin: number, loserRetreated: boolean): number {
+export function occupationShift(
+  control: number,
+  winner: "A" | "B",
+  margin: number,
+  loserRetreated: boolean,
+  turnsElapsed?: number,
+): number {
   let shift = Math.min(1, Math.abs(margin) / OCCUPATION.decisiveMargin) * OCCUPATION.maxShift;
   if (loserRetreated) shift *= OCCUPATION.retreatYield;
+  shift *= mobilizationFactor(turnsElapsed);
   const next = winner === "B" ? control + shift : control - shift;
   return Math.max(0, Math.min(100, next));
 }
@@ -63,11 +89,16 @@ export interface ConflictStepResult {
 }
 
 /** One turn of the control track for a conflict, given each side's GDP proxy. */
-export function stepConflictControl(conflict: Conflict, strengthA: number, strengthB: number): ConflictStepResult {
+export function stepConflictControl(
+  conflict: Conflict,
+  strengthA: number,
+  strengthB: number,
+  turnsElapsed?: number,
+): ConflictStepResult {
   const margin = gdpMargin(strengthA, strengthB);
   if (margin === 0) return { control: conflict.control ?? 50, winner: null, loserRetreated: false };
   const winner: "A" | "B" = margin > 0 ? "B" : "A";
   const loserRetreated = Math.min(strengthA, strengthB) / Math.max(strengthA, strengthB, 1) < 0.4;
-  const control = occupationShift(conflict.control ?? 50, winner, margin, loserRetreated);
+  const control = occupationShift(conflict.control ?? 50, winner, margin, loserRetreated, turnsElapsed);
   return { control, winner, loserRetreated };
 }

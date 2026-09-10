@@ -49,7 +49,11 @@ export const warsTurnPhase: TurnPhase = {
       if (conflict.status === "resolved") continue;
       const strengthA = sumGdp(world, conflict.sideA.countries);
       const strengthB = sumGdp(world, conflict.sideB.countries);
-      const { control } = stepConflictControl(conflict, strengthA, strengthB);
+      // Source: battleResolution.ts threads currentTurn - startTurn. A record
+      // without startedAtTurn yields NaN here, which mobilizationFactor reads
+      // as unknown age (full value), same as the source guard.
+      const age = world.meta.turn - conflict.startedAtTurn;
+      const { control } = stepConflictControl(conflict, strengthA, strengthB, age);
       conflict.control = control;
       const atPole = control >= 100 || control <= 0;
       const poleSide: "A" | "B" = control >= 100 ? "B" : "A";

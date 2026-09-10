@@ -75,3 +75,12 @@ and out-of-range tax inputs reject without mutation. Eight public action tests
 cover the price boundaries and rejected-save identity. The pinned AHDGame
 founding route does not debit funds/AP; Native's inherited prices and other
 caucus mechanics are still reference gaps. See [caucus evidence](CAUCUS-MANAGEMENT.md).
+
+## Occupation mobilization
+
+The war control track now applies the pinned reference's 50-turn mobilization
+ramp with a 0.4 opening floor. `warsTurn` supplies the existing conflict age;
+unknown/non-finite ages and callers omitting age preserve full strength.
+Public turn/save tests check exact phase values and complete resume identity.
+No new war action or save field is added. The GDP margin and simplified
+settlement system remain gaps, recorded in [war depth](WAR-PARITY-DEPTH.md).
