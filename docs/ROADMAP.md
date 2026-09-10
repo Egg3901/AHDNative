@@ -241,3 +241,14 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
   explicit weekly-date/phase-timing assertion was updated for the intended
   source-backed move and passed separately (one selected test; 47 skipped).
   No historical world-hash goldens or career fixtures were regenerated.
+
+## Sovereign bond interface checkpoint, 2026-09-10
+
+- N07/finance: domestic bond purchases and sales now run through worker actions,
+  with real issuer, coupon, maturity, float and player-holding details.
+- The genuine elected-save flow retains the selected issue and remaining units
+  across trades and relaunch. [Bond evidence](BOND-MARKET.md) records the exact
+  local pricing contract and the remaining dealer-pool/FX mechanics gaps.
+- Validation: 84 root tests, 116 UI tests, fixture integrity and build passed.
+  The production build with the corporation/macro correction passed all 22
+  browser scenarios, including bond trade/relaunch at phone size.
