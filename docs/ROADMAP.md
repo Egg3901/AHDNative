@@ -264,3 +264,17 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Validation: 84 root tests, 116 UI tests, fixture integrity and build passed.
   The production build with the corporation/macro correction passed all 22
   browser scenarios, including bond trade/relaunch at phone size.
+
+## Campaign timing checkpoint, 2026-09-10
+
+- M04: campaign income, maintenance, media support and existing investment now
+  settle before vote accumulation. The spend interval resets after the tally,
+  and a resolving race receives its final campaign tick before archival.
+- Source-backed order and focused red-to-green final-turn/save-resume evidence:
+  [campaign timing](CAMPAIGN-ORDER-DEPTH.md). Decaying spend stock and the
+  imported non-reference subsidy/investment algorithms remain explicit gaps.
+- Integrated engine gate: 820 tests across 81 files and engine typecheck passed.
+  Frontend gate: 84 root tests, 116 UI tests, production build and fixture
+  integrity passed. Historical world-hash goldens were not regenerated.
+- All 22 production browser scenarios passed, including the genuine election
+  win, legislation, party founding, share/bond trading and save/relaunch flows.

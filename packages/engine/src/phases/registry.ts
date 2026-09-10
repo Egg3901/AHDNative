@@ -171,7 +171,27 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // mainline's absolute position would shift the shared rng stream under every
   // integration golden. A dedicated re-ordering pass re-goldens once the phase
   // set stabilizes (mainline: commodity < bills < elections).
+  //
+  // M04 campaign same-turn correction (AHDGame e364c0495 turnPhaseNames.ts):
+  // mainline runs campaignTurn (index 56) BEFORE voteAccumulation (64) and
+  // campaignSpendReset (65) AFTER it, same turn. The tally's fundsByParty
+  // reads spendThisTurn and its support input reads favorability-driven
+  // candidateSupports, so both campaign writes must land before the tally,
+  // and the reset must clear the interval after the tally read (before
+  // electionTimers/electionResolution). The three writer phases move here
+  // as a unit in their existing relative order (campaignTurn accrues, then
+  // the disclosed non-port partySubsidy funds the non-port npcInvestment
+  // purchases below it - see campaigns/npcInvestment.ts and
+  // campaigns/partySubsidy.ts file docs; formulas untouched). All four
+  // moved phases are RNG-free, so the move consumes no shared RNG draws and
+  // the RNG-consuming phases (voteAccumulation, electionTimers) keep their
+  // relative order. Later state-dependent RNG use can still change with
+  // election outcomes; this is not a whole-world RNG equivalence claim.
+  campaignTurnPhase,
+  campaignPartySubsidyPhase,
+  campaignNpcInvestmentPhase,
   voteAccumulationPhase,
+  campaignSpendResetPhase,
   electionTimersPhase,
   electionResolutionPhase,
   // Demographics at end of ported subset (before newsMaintenance) to avoid
@@ -206,24 +226,6 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // mirrors mainline's relative order.
   centralBankChairTurnPhase,
   centralBankChairSelectionPhase,
-  // W26 campaign cluster at end of ported subset, before newsMaintenance -
-  // same rng-stream-stability rule as every other tail cluster above.
-  // Deviation from mainline order (see campaigns/phases.ts file doc for the
-  // full explanation): mainline runs campaignTurn BEFORE voteAccumulation
-  // and campaignSpendReset AFTER it, same turn. Tail placement means this
-  // whole cluster runs after THIS turn's voteAccumulationPhase /
-  // electionResolutionPhase already executed, so campaign spend and media
-  // favorability become visible to the tally starting NEXT turn (one-turn
-  // lag). campaignSpendReset runs FIRST in the cluster (clearing what this
-  // turn's earlier voteAccumulation just read) so campaignTurn's fresh
-  // accrual is what next turn's tally sees, not a double-counted carry-over.
-  // campaignPartySubsidy (funds the NPC investment below) then
-  // campaignNpcInvestment (spends it) both mutate spendThisTurn further
-  // this same turn - also visible next turn.
-  campaignSpendResetPhase,
-  campaignTurnPhase,
-  campaignPartySubsidyPhase,
-  campaignNpcInvestmentPhase,
   // W20 intra-party democracy cluster at END before newsMaintenance.
   // Ordering deviation: mainline runs statePartyElections/nationalPartyElections/
   // nationalCommitteeElections and coalitionDisbandCheck interleaved with partyOrg
