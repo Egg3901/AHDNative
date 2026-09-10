@@ -1,6 +1,11 @@
 import type { WorldRng } from "../rng.js";
 import type { WorldState } from "../types.js";
 
+/** Mainline Character inputs are a bootstrap snapshot, separate from live writes. */
+export interface TurnContext {
+  playerAtTurnStart: Readonly<WorldState["player"]>;
+}
+
 /**
  * A turn phase is a pure-ish function: it may mutate the passed world (the
  * engine owns the only reference during a turn) and draw from the turn rng,
@@ -9,7 +14,7 @@ import type { WorldState } from "../types.js";
  */
 export interface TurnPhase {
   name: string;
-  run(world: WorldState, rng: WorldRng): void;
+  run(world: WorldState, rng: WorldRng, context?: TurnContext): void;
 }
 
 export interface PhaseTiming {

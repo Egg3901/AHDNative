@@ -165,7 +165,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     baseCost: 1,
     cooldown: 0,
     fundCost: 20000,
-    systems: ["support", "partyInfluence"],
+    systems: ["support", "politicalInfluence"],
     status: "available",
     quotedActionCost: (_donor, influence) => campaignActionCost(influence),
   },
@@ -266,12 +266,15 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   investInfluence: {
     id: "investInfluence",
     name: "Invest Party Influence",
-    description: "Spend accumulated party influence to gain bonus actions.",
+    description: "Party influence grants actions automatically each turn.",
     baseCost: 2,
     cooldown: 0,
     fundCost: 0,
     systems: ["partyInfluence"],
-    status: "available",
+    status: "unavailable",
+    // No reference action exchanges party clout for AP. Retain the ID only
+    // to reject old callers explicitly; partyInfluenceTurn owns passive grants.
+    blockingSystem: "no reference action for exchanging party influence",
   },
   joinParty: {
     id: "joinParty",

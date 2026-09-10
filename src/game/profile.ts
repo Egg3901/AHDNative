@@ -49,12 +49,12 @@ export function projectProfile(world: WorldState): ProfileView {
     standing: {
       actions: player.actions,
       actionCap: resources.actions.cap,
-      actionGain: resources.actions.base + resources.actions.office - resources.actions.penalty,
+      actionGain: resources.actions.next - player.actions,
       politicalInfluence: player.politicalInfluence,
-      nationalInfluence: null,
+      nationalInfluence: player.nationalInfluence ?? 0,
       favorability: player.favorability,
       infamy: player.infamy,
-      partyInfluence: null,
+      partyInfluence: player.partyInfluence ?? 0,
     },
     finances: {
       currency: homeCurrency(world, country.id),

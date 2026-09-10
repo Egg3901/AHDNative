@@ -69,7 +69,14 @@ export * from "./governor/powers.js";
 // Read-only display queries use the same action refresh constants as the engine.
 export { MIN_BASE_ACTIONS_PER_TURN, ACTION_HOARD_PENALTY, ENERGY_BASE_ACTION_CAP, ENERGY_BASE_HOARD_THRESHOLD } from "./actions/constants.js";
 
+// Authoritative player action refresh projection (#31), shared by the
+// actionRefresh phase and the Profile/footer resource breakdowns.
+export { projectPlayerActionRefresh, resolvePlayerSeat } from "./actions/officeBonus.js";
+export type { PlayerActionProjection, PlayerSeat } from "./actions/officeBonus.js";
+
 // Read-only membership eligibility for display adapters.
 export { canJoinParty, canLeaveParty } from "./membership.js";
 
 export type { WorldInitialization } from "./initialization/ukHistorical.js";
+
+export { projectPlayerPartyInfluence } from "./party/playerInfluence.js";

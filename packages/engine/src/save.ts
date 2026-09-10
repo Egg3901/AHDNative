@@ -281,6 +281,34 @@ function assertCurrentWorldState(world: WorldState): void {
     throw new Error("Not a valid save file: invalid world state");
   }
 
+  // Legacy saves omit NI. Present values must be valid uncapped reputation.
+  const nationalInfluence = player["nationalInfluence"];
+  if (
+    nationalInfluence !== undefined &&
+    (typeof nationalInfluence !== "number" || !Number.isFinite(nationalInfluence) || nationalInfluence < 0)
+  ) {
+    throw new Error("Not a valid save file: invalid player national influence");
+  }
+  const partyInfluence = player["partyInfluence"];
+  if (partyInfluence !== undefined && (typeof partyInfluence !== "number" || !Number.isFinite(partyInfluence) || partyInfluence < 0)) {
+    throw new Error("Not a valid save file: invalid player party influence");
+  }
+  const policies = player["policies"];
+  if (policies !== undefined && (!isRecord(policies) || ["economic", "social"].some(axis => {
+    const n = policies[axis];
+    return typeof n !== "number" || !Number.isFinite(n) || n < -5 || n > 5;
+  }))) {
+    throw new Error("Not a valid save file: invalid player policies");
+  }
+  const stats = player["stats"];
+  if (stats !== undefined) {
+    if (!isRecord(stats)) throw new Error("Not a valid save file: invalid player Energy stats");
+    const energy = stats["energy"];
+    if (energy !== undefined && (typeof energy !== "number" || !Number.isFinite(energy) || energy < 1 || energy > 10)) {
+      throw new Error("Not a valid save file: invalid player Energy");
+    }
+  }
+
   for (const field of REQUIRED_WORLD_ARRAYS) {
     if (!Array.isArray(value[field])) {
       throw new Error(`Not a valid save file: invalid world state field ${field}`);
