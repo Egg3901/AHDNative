@@ -1,10 +1,10 @@
 # Private iPhone testing
 
-The shell is not yet a playable game. Signing setup is separate from a successful signed build or device test.
+The app has an integrated local SP loop. Its first private feedback preview is authorized after local checks, with the remaining mechanics and save gaps recorded. A successful signed build and actual phone validation still require separate evidence.
 
-## Candidate build hold
+## Private feedback preview
 
-Do not run Codemagic until a solid AHDNative 1.0.0 candidate has passing TDD and real integrated smoke-test evidence. A shell-only signing test is not an eligible candidate. The readiness record must show the playable SP loop, deterministic replay, save/reload and failure handling, supported content coverage, and comparison against the actual MP/SP interface.
+Prepare the development-version preview for owner feedback after passing TDD and real integrated smoke-test evidence. This is not a 1.0.0 release. A shell-only signing test is not an eligible candidate. The readiness record must show the playable SP loop, deterministic replay, save/reload and failure handling, supported content coverage, and comparison against the actual MP/SP interface.
 
 Local evidence is the prerequisite for the first paid build. Phone-specific lifecycle and performance checks follow that build and remain required before release. The first candidate is for review, not automatic release.
 
@@ -28,7 +28,7 @@ Tauri imports the certificate and profile during signing. Codemagic uses the API
 
 1. Confirm the app record and explicit bundle ID exist in Apple Developer and App Store Connect, and all seven signing variables are configured in the app-scoped group.
 2. Keep Codemagic dashboards and artifacts private. Disable public sharing and automatic build triggers.
-3. After local checks pass, run `ios-private-testflight` manually on a reviewed commit. It has a 20-minute cap and dependency caches. Review failure logs before retrying; never repeat a failed build unchanged or raise the cap without agreement.
+3. After local checks pass, run `ios-private-testflight` manually with `AHD_REVIEW_COMMIT` set to the full reviewed Git commit, using a branch or tag pointing to that commit. It has a 20-minute cap and dependency caches. Review failure logs before retrying; never repeat a failed build unchanged or raise the cap without agreement.
 4. After Apple processes the upload, open AHDNative > TestFlight and answer export-compliance questions accurately. Add the build and your App Store Connect user to an internal testing group.
 5. Accept the invitation in TestFlight on your iPhone and install. No external beta review or App Store submission is requested by this workflow.
 
@@ -43,3 +43,9 @@ Private delivery keeps signing identities out of GitHub artifacts; it does not m
 - [Apple: internal TestFlight testers](https://developer.apple.com/help/app-store-connect/test-a-beta-version/add-internal-testers)
 - [Tauri: manual iOS signing](https://v2.tauri.app/distribute/sign/ios/)
 - [Codemagic: API-key upload authentication](https://docs.codemagic.io/yaml-publishing/app-store-connect/)
+
+## Build allocation
+
+Codemagic is iOS only. Its workflow installs locked dependencies, validates the bundled rules and builds the frontend once through Tauri. Run the app, engine, UI and browser checks locally or in ordinary verification CI before starting it; do not repeat that suite on the paid Mac. Xcode is pinned to 26.6. The preview targets iOS 16.4 or newer, matching its explicit Safari build target and modern web APIs such as structured cloning. Windows and Android review builds use separate local routes.
+
+The offline preview implements no non-exempt encryption. `Info.ios.plist` records that fact for App Store Connect; re-evaluate it when adding networking, authentication or encrypted saves. See [Apple export-compliance keys](https://help.apple.com/xcode/mac/current/en.lproj/dev0dc15d044.html).

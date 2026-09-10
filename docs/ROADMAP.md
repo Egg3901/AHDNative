@@ -412,3 +412,18 @@ RPG stats, campaign currency context, dynamic actions, complete source inventory
 automatic consumer updates and save ruleset policy are still open. Current
 AHDClient desktop SP already runs Game's packaged server; its provenance fix is
 [AHDClient #56](https://github.com/Egg3901/AHDClient/pull/56).
+
+
+## Private feedback preview, 2026-09-10
+
+The owner authorized a development 0.1.0 feedback build for iOS, Windows and
+Android. Codemagic is iOS only, with the existing manual 20-minute cap and
+private signing rules. This supersedes the earlier blanket build hold for
+this review candidate; full feature/mechanics/save and device acceptance
+gates still apply to a 1.0.0 release. Track delivery in [#124](https://github.com/Egg3901/AHDNative/issues/124)
+and use the [review walkthrough](REVIEW-WALKTHROUGH.md).
+
+Local app tests and production-browser smoke precede paid signing. The
+Windows portable executable and Android ARM64 debug APK use separate
+[local build scripts](WINDOWS-ANDROID-REVIEW-BUILDS.md). Actual device launch,
+save/reopen, lifecycle and performance results must follow each build.

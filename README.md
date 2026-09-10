@@ -77,7 +77,7 @@ Browser QA uses IndexedDB; native builds use the Rust app-data save store. Behav
 
 ## iOS testing and build budget
 
-Paid Codemagic builds and signed distribution are on hold until a solid 1.0.0 candidate passes real behavioral tests and smoke evidence. The allowance is 500 minutes; runs are capped at 20 minutes each, with no push/PR/scheduled triggers. Signed binaries, credentials, signing identities, and signing logs stay off GitHub and public dashboards; signing lives in encrypted Codemagic variables, internal TestFlight first, no automatic external review. Full owner setup in [iPhone testing setup](docs/IOS-TESTING.md).
+The first private feedback preview is authorized after local behavioral tests and integrated smoke pass on its recorded source commit. It remains development version 0.1.0; a 1.0.0 release is not approved. Codemagic is iOS only. Windows and Android use separate local build routes. The allowance is 500 minutes; runs are capped at 20 minutes each, with no push/PR/scheduled triggers. Signed binaries, credentials, signing identities, and signing logs stay off GitHub and public dashboards; signing lives in encrypted Codemagic variables, internal TestFlight first, no automatic external review. Full owner setup in [iPhone testing setup](docs/IOS-TESTING.md).
 
 ## Documentation
 

@@ -1,3 +1,4 @@
+import { BUILD_LABEL } from '../buildIdentity';
 import type { Preferences, ReducedMotion, TextSize } from "../preferences";
 import "./ui.css";
 
@@ -121,6 +122,8 @@ export function SettingsPanel({ value, onChange, error }: SettingsPanelProps) {
           These presentation choices apply to this app on this device. They do not change world rules, actions, saves, or account access.
         </p>
       </header>
+
+      <p className="ahd-muted" aria-label="Build version">{BUILD_LABEL}</p>
 
       {error ? <div className="ahd-alert" role="alert">{error}</div> : null}
 

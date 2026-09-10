@@ -6,7 +6,7 @@ workflows:
     max_build_duration: 20
     environment:
       node: 22
-      xcode: latest
+      xcode: "26.6"
       groups:
         - ahdnative-signing
     cache:
@@ -16,6 +16,17 @@ workflows:
         - $HOME/.cargo/git
         - $CM_BUILD_DIR/src-tauri/target
     scripts:
+      - name: Confirm reviewed source
+        script: |
+          set -eu
+          python3 - <<'PYTHON'
+          import os, re, subprocess
+          expected = os.environ.get("AHD_REVIEW_COMMIT", "")
+          actual = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          if not re.fullmatch(r"[0-9a-f]{40}", expected) or actual != expected:
+              raise SystemExit("Build must target the exact locally reviewed commit")
+          print("Reviewed source:", actual)
+          PYTHON
       - name: Check private signing inputs
         script: |
           set -eu
@@ -29,17 +40,16 @@ workflows:
               raise SystemExit("Missing encrypted signing variables: " + ", ".join(missing))
           print("Private signing inputs present")
           PYTHON
-      - name: Install dependencies and check frontend
+      - name: Install locked dependencies and validate bundled rules
         script: |
           set -eu
-          npm ci
-          npm run verify
+          npm ci --no-audit --no-fund
+          node scripts/shared-rules.mjs --verify
       - name: Prepare Rust for iOS
         script: |
           set -eu
           rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
           rustup target add aarch64-apple-ios --toolchain 1.96.0
-          cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - name: Generate iOS project
         script: npm run tauri -- ios init --ci --skip-targets-install
       - name: Restrict export to internal TestFlight
