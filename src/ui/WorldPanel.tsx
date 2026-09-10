@@ -197,6 +197,7 @@ function NationDetail({ nation, current }: { nation: WorldNationView; current: b
 function NationsSection({ overview, initialId }: { overview: WorldOverviewView; initialId?: string }) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(initialId ?? overview.playerCountryId);
+  const [directoryOpen, setDirectoryOpen] = useState(false);
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const filteredNations = overview.nations.filter((nation) => {
     if (normalizedQuery.length === 0) return true;
@@ -208,17 +209,23 @@ function NationsSection({ overview, initialId }: { overview: WorldOverviewView; 
     ?? null;
   return (
     <WorldLayout overview={overview} title="Nations">
-      <div className="ahd-card ahd-card-pad">
-        <p className="ahd-muted" style={{ margin: 0, fontSize: "0.76rem" }}>
-          Browse the nations present in this save. Choosing a row only opens its details and does not change your country.
-        </p>
+      <p className="ahd-muted" style={{ margin: 0, fontSize: "0.76rem" }}>
+        Browse the nations present in this save. Choosing a row only opens its details and does not change your country.
+      </p>
+      <details className="ahd-card ahd-card-pad" open={directoryOpen ? true : undefined} onToggle={(event) => setDirectoryOpen(event.currentTarget.open)}>
+        <summary
+          style={{ minHeight: "44px", paddingBlock: "0.65rem", cursor: "pointer", fontWeight: 600 }}
+          onClick={(event) => { event.preventDefault(); setDirectoryOpen((open) => !open); }}
+        >
+          Browse nations
+        </summary>
         <label className="ahd-field" style={{ marginTop: "0.7rem" }}>
           <span className="ahd-label">Search nations</span>
           <input
             className="ahd-input"
             type="search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => { setQuery(event.target.value); setDirectoryOpen(true); }}
             placeholder="Name, ID, or currency"
             aria-label="Search nations"
           />
@@ -236,7 +243,7 @@ function NationsSection({ overview, initialId }: { overview: WorldOverviewView; 
                   type="button"
                   aria-pressed={selected}
                   className="ahd-btn"
-                  onClick={() => setSelectedId(nation.id)}
+                  onClick={() => { setSelectedId(nation.id); setDirectoryOpen(false); }}
                   style={{ width: "100%", minHeight: "3.1rem", borderRadius: "var(--ahd-radius-sm)", justifyContent: "space-between", textAlign: "left", background: selected ? "color-mix(in srgb, var(--ahd-primary) 10%, var(--ahd-card-elevated))" : undefined }}
                   aria-label={`View ${nation.name} details`}
                 >
@@ -253,7 +260,7 @@ function NationsSection({ overview, initialId }: { overview: WorldOverviewView; 
             })}
           </div>
         ) : <div className="ahd-empty" style={{ marginTop: "0.55rem" }}>No nations match this search.</div>}
-      </div>
+      </details>
       {selectedNation ? <NationDetail nation={selectedNation} current={selectedNation.id === overview.playerCountryId} /> : <div className="ahd-empty">No nations recorded.</div>}
     </WorldLayout>
   );

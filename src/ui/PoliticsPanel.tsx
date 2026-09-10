@@ -29,6 +29,85 @@ export interface PoliticsPanelProps {
 }
 
 const score = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 1 });
+const ROSTER_PAGE_SIZE = 12;
+
+function PartyRoster({ names, busy }: { names: string[]; busy: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(0);
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return names;
+    return names.filter((name) => name.toLowerCase().includes(needle));
+  }, [names, query]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / ROSTER_PAGE_SIZE));
+  const safePage = Math.min(Math.max(0, page), pageCount - 1);
+  const pageNames = filtered.slice(safePage * ROSTER_PAGE_SIZE, (safePage + 1) * ROSTER_PAGE_SIZE);
+
+  useEffect(() => {
+    setPage((p) => Math.min(Math.max(0, p), Math.max(0, Math.ceil(filtered.length / ROSTER_PAGE_SIZE) - 1)));
+  }, [filtered.length]);
+
+  return (
+    <details
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+      style={{ marginTop: "0.55rem" }}
+    >
+      <summary
+        style={{ cursor: "pointer", fontWeight: 750, fontSize: "0.78rem", minHeight: 44, paddingBlock: "0.65rem", boxSizing: "border-box" }}
+      >
+        {`Roster (${names.length})`}
+      </summary>
+      {open ? (
+        <div style={{ marginTop: "0.35rem" }}>
+          <label className="ahd-field" style={{ maxWidth: "20rem" }}>
+            <span className="ahd-label">Search</span>
+            <input
+              className="ahd-input"
+              type="search"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setPage(0);
+              }}
+              placeholder="Name"
+              aria-label="Search roster"
+              disabled={busy}
+            />
+          </label>
+          <div className="ahd-muted" style={{ fontSize: "0.72rem", marginTop: "0.45rem" }} aria-live="polite">
+            {filtered.length} of {names.length} recorded
+          </div>
+          {filtered.length === 0 ? (
+            <div className="ahd-empty" style={{ marginTop: "0.55rem" }}>No members match this search.</div>
+          ) : (
+            <ul aria-label="Party roster" style={{ listStyle: "none", margin: "0.5rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+              {pageNames.map((name, i) => (
+                <li key={`${safePage}-${i}-${name}`} style={{ borderTop: "1px solid var(--ahd-border)", paddingTop: "0.4rem", fontSize: "0.8rem" }}>
+                  {name}
+                </li>
+              ))}
+            </ul>
+          )}
+          {filtered.length > ROSTER_PAGE_SIZE && pageCount > 1 ? (
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "0.4rem", flexWrap: "wrap" }}>
+              <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => setPage(safePage - 1)} disabled={busy || safePage === 0} aria-label="Previous roster page">
+                Previous
+              </button>
+              <span className="ahd-muted" style={{ fontSize: "0.74rem" }} aria-live="polite">
+                Page {safePage + 1} of {pageCount}
+              </span>
+              <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => setPage(safePage + 1)} disabled={busy || safePage >= pageCount - 1} aria-label="Next roster page">
+                Next
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </details>
+  );
+}
 
 function ideologyLabel(value: number, axis: "econ" | "social"): string {
   if (axis === "econ") {
@@ -101,17 +180,6 @@ function PartiesSection({ politics, busy, onAction, initialId }: Omit<PoliticsPa
             {selected.viceLeaderName ? <div className="ahd-kv"><dt>Deputy</dt><dd>{selected.viceLeaderName}</dd></div> : null}
             {selected.treasurerName ? <div className="ahd-kv"><dt>Treasurer</dt><dd>{selected.treasurerName}</dd></div> : null}
           </dl>
-          {selected.memberNames.length > 0 ? (
-            <div style={{ marginTop: "0.55rem" }}>
-              <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>
-                Roster ({selected.memberNames.length})
-              </h4>
-              <p className="ahd-muted" style={{ fontSize: "0.78rem", lineHeight: 1.55, margin: 0 }}>
-                {selected.memberNames.slice(0, 12).join(", ")}
-                {selected.memberNames.length > 12 ? ` and ${selected.memberNames.length - 12} more` : ""}
-              </p>
-            </div>
-          ) : null}
           <div style={{ display: "flex", gap: "0.6rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.6rem" }}>
             {selected.isPlayerParty ? (
               <span style={{ display: "inline-flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap" }}>
@@ -145,6 +213,9 @@ function PartiesSection({ politics, busy, onAction, initialId }: Omit<PoliticsPa
             ? <p className="ahd-help" role="note">{selected.leave.disabledReason}</p> : null}
           {!selected.isPlayerParty && !selected.join.available && selected.join.disabledReason
             ? <p className="ahd-help" role="note">{selected.join.disabledReason}</p> : null}
+          {selected.memberNames.length > 0
+            ? <PartyRoster key={selected.id} names={selected.memberNames} busy={busy} />
+            : null}
         </article>
       ) : null}
     </div>

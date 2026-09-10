@@ -18,6 +18,16 @@ describe("MobileNavigation", () => {
     expect(screen.getByRole("button", { name: "Overview" })).toHaveAttribute("aria-current", "page");
   });
 
+  it.each([
+    ["profile", "Character"], ["portfolio", "Character"],
+    ["partyDetails", "Parties"], ["caucuses", "Parties"],
+    ["regions", "Menu"], ["economy", "Menu"],
+  ] as const)("keeps the parent destination marked while viewing %s", (route, label) => {
+    render(<BottomNav route={route} menuOpen={false} menuButtonRef={createRef()} onNavigate={vi.fn()} onOpenMenu={vi.fn()} />);
+    expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-current", "location");
+    expect(screen.getByRole("button", { name: "Menu" })).toHaveAttribute("aria-expanded", "false");
+  });
+
   it("drawer groups keep full parity and end turn stays open", async () => {
     const user = userEvent.setup();
     const ref = createRef<HTMLButtonElement | null>();

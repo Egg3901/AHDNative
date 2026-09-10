@@ -18,6 +18,8 @@ import type {
   RegionsView,
 } from "../game/regions";
 
+const CHAMBER_MEMBER_PAGE_SIZE = 12;
+
 export interface RegionsPanelProps {
   query: RegionsView;
   onQueryChange: (query: RegionsQuery) => void;
@@ -118,6 +120,49 @@ function Pager({
       </button>
       <span className="ahd-muted" style={{ fontSize: "0.74rem" }} aria-live="polite">{statusLabel}</span>
       <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onPage(page + 1)} disabled={disabled || page >= pageCount - 1} aria-label={nextLabel}>
+        Next
+      </button>
+    </div>
+  );
+}
+
+function MemberPager({
+  chamberName,
+  page,
+  pageCount,
+  total,
+  disabled,
+  onPage,
+}: {
+  chamberName: string;
+  page: number;
+  pageCount: number;
+  total: number;
+  disabled: boolean;
+  onPage: (page: number) => void;
+}) {
+  if (pageCount <= 1) return null;
+  return (
+    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "0.55rem", flexWrap: "wrap" }}>
+      <button
+        type="button"
+        className="ahd-btn ahd-btn-sm"
+        onClick={() => onPage(page - 1)}
+        disabled={disabled || page === 0}
+        aria-label={`Previous ${chamberName} members`}
+      >
+        Previous
+      </button>
+      <span className="ahd-muted" style={{ fontSize: "0.74rem" }} aria-live="polite">
+        Page {page + 1} of {pageCount} · {total} members
+      </span>
+      <button
+        type="button"
+        className="ahd-btn ahd-btn-sm"
+        onClick={() => onPage(page + 1)}
+        disabled={disabled || page >= pageCount - 1}
+        aria-label={`Next ${chamberName} members`}
+      >
         Next
       </button>
     </div>
@@ -279,34 +324,71 @@ function OfficeCard({ office }: { office: RegionOfficeView | null }) {
   );
 }
 
-function ChamberCard({ chamber }: { chamber: RegionChamberView }) {
+function ChamberCard({
+  chamber,
+  page,
+  busy,
+  onPage,
+}: {
+  chamber: RegionChamberView;
+  page: number;
+  busy: boolean;
+  onPage: (page: number) => void;
+}) {
+  const pageCount = Math.max(1, Math.ceil(chamber.members.length / CHAMBER_MEMBER_PAGE_SIZE));
+  const safePage = Math.min(Math.max(Number.isFinite(page) ? Math.trunc(page) : 0, 0), pageCount - 1);
+  const visibleMembers = chamber.members.slice(
+    safePage * CHAMBER_MEMBER_PAGE_SIZE,
+    (safePage + 1) * CHAMBER_MEMBER_PAGE_SIZE,
+  );
   return (
     <li className="ahd-card ahd-card-pad" aria-label={chamber.name}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "baseline" }}>
-        <h3 style={{ margin: 0, fontSize: "0.86rem", fontWeight: 700 }}>{chamber.name}</h3>
-        <span className="ahd-mono" style={{ fontSize: "0.74rem" }}>
-          {chamber.seats === null ? "Seats not recorded" : `${number(chamber.seats)} seats`}
-        </span>
-      </div>
-      <div className="ahd-muted" style={{ fontSize: "0.7rem", marginTop: "0.2rem" }}>
-        {chamber.elected ? "Elected" : "Appointed"} · {number(chamber.seatedCount)} seated
-      </div>
-      {chamber.members.length === 0 ? (
-        <div className="ahd-empty" style={{ marginTop: "0.55rem" }}>No members seated.</div>
-      ) : (
-        <ul style={{ listStyle: "none", margin: "0.45rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-          {chamber.members.map((member) => (
-            <li key={member.id} className="ahd-kv">
-              <span>
-                {member.name}
-                {member.party ? <span className="ahd-muted"> · {member.party.abbreviation}</span> : null}
-                {member.senateClass !== null ? <span className="ahd-muted"> · class {member.senateClass}</span> : null}
+      <details>
+        <summary style={{ cursor: "pointer", minHeight: 44, paddingBlock: "0.45rem", boxSizing: "border-box" }}>
+          <span style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "baseline" }}>
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: "block", fontSize: "0.86rem", fontWeight: 700, overflowWrap: "anywhere" }}>{chamber.name}</span>
+              <span className="ahd-muted" style={{ display: "block", fontSize: "0.7rem", marginTop: "0.2rem" }}>
+                {chamber.elected ? "Elected" : "Appointed"} · {number(chamber.seatedCount)} seated
               </span>
-              <span className="ahd-mono ahd-muted" style={{ fontSize: "0.68rem" }}>{member.id}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+            </span>
+            <span className="ahd-mono" style={{ fontSize: "0.74rem", flexShrink: 0 }}>
+              {chamber.seats === null ? "Seats not recorded" : `${number(chamber.seats)} seats`}
+            </span>
+          </span>
+          <span className="ahd-muted" style={{ display: "block", fontSize: "0.7rem", marginTop: "0.2rem" }}>
+            {chamber.members.length === 0 ? "No members recorded" : `${number(chamber.members.length)} members recorded`}
+          </span>
+        </summary>
+        <div style={{ marginTop: "0.55rem" }}>
+          {chamber.members.length === 0 ? (
+            <div className="ahd-empty">No members seated.</div>
+          ) : (
+            <>
+              <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                {visibleMembers.map((member) => (
+                  <li key={member.id} className="ahd-kv">
+                    <span>
+                      {member.name}
+                      {member.party ? <span className="ahd-muted"> · {member.party.abbreviation}</span> : null}
+                      {member.senateClass !== null ? <span className="ahd-muted"> · class {member.senateClass}</span> : null}
+                    </span>
+                    <span className="ahd-mono ahd-muted" style={{ fontSize: "0.68rem" }}>{member.id}</span>
+                  </li>
+                ))}
+              </ul>
+              <MemberPager
+                chamberName={chamber.name}
+                page={safePage}
+                pageCount={pageCount}
+                total={chamber.members.length}
+                disabled={busy}
+                onPage={onPage}
+              />
+            </>
+          )}
+        </div>
+      </details>
     </li>
   );
 }
@@ -351,11 +433,25 @@ function SelectedRegion({
   onQueryChange: (query: RegionsQuery) => void;
 }) {
   const [electionDraft, setElectionDraft] = useState(selected.electionQuery);
+  const [memberPages, setMemberPages] = useState<Record<string, number>>({});
   useEffect(() => {
     setElectionDraft(selected.electionQuery);
   }, [selected.id, selected.electionQuery]);
+  useEffect(() => {
+    setMemberPages({});
+  }, [selected.id]);
 
   const currency = selected.currency ?? selected.economy.currency;
+  const demographics = selected.demographics;
+  const demographicMetricCount = [
+    demographics.votingEligiblePopulation,
+    demographics.workingAgePopulation,
+    demographics.militaryServicePopulation,
+    demographics.laborForce,
+  ].filter((value) => value !== null).length +
+    (demographics.censusRegion !== null ? 1 : 0) +
+    (demographics.independenceDesire !== null ? 1 : 0);
+  const hasDemographicData = demographics.groups.length > 0 || demographicMetricCount > 0;
   return (
     <article className="ahd-stack" aria-label={selected.name}>
       <div className="ahd-card ahd-card-pad">
@@ -372,11 +468,6 @@ function SelectedRegion({
           <KeyValue label="GDP" value={millions(selected.economy.gdpMillions, currency)} note="millions" />
           {selected.senateClasses ? <KeyValue label="Senate classes" value={selected.senateClasses.join(", ")} /> : null}
           {selected.demographics.censusRegion ? <KeyValue label="Census region" value={selected.demographics.censusRegion} /> : null}
-          <KeyValue label="Voting-eligible population" value={number(selected.demographics.votingEligiblePopulation)} />
-          <KeyValue label="Working-age population" value={number(selected.demographics.workingAgePopulation)} />
-          {selected.demographics.independenceDesire !== null ? (
-            <KeyValue label="Independence desire" value={pointsPercent(selected.demographics.independenceDesire)} />
-          ) : null}
         </dl>
       </div>
 
@@ -412,7 +503,15 @@ function SelectedRegion({
           <div className="ahd-empty" style={{ marginTop: "0.65rem" }}>No chambers recorded for this region.</div>
         ) : (
           <ul className="ahd-stack" style={{ listStyle: "none", margin: "0.6rem 0 0", padding: 0 }}>
-            {selected.chambers.map((chamber) => <ChamberCard key={chamber.key} chamber={chamber} />)}
+            {selected.chambers.map((chamber) => (
+              <ChamberCard
+                key={chamber.key}
+                chamber={chamber}
+                page={memberPages[chamber.key] ?? 0}
+                busy={busy}
+                onPage={(page) => setMemberPages((current) => ({ ...current, [chamber.key]: page }))}
+              />
+            ))}
           </ul>
         )}
       </div>
@@ -495,29 +594,42 @@ function SelectedRegion({
           {selected.economy.budget === null ? (
             <div className="ahd-empty" style={{ marginTop: "0.65rem" }}>No regional budget recorded.</div>
           ) : (
-            <dl className="ahd-stack" style={{ marginTop: "0.65rem", gap: "0.42rem" }}>
-              <KeyValue label="Council tax" value={money(selected.economy.budget.revenue.councilTax, currency)} />
-              <KeyValue label="Business rates" value={money(selected.economy.budget.revenue.businessRates, currency)} />
-              <KeyValue label="Grant" value={money(selected.economy.budget.revenue.grant, currency)} />
-              <KeyValue label="Revenue total" value={money(selected.economy.budget.revenue.total, currency)} />
-              <KeyValue label="Spending total" value={money(selected.economy.budget.spendingTotal, currency)} />
-              <KeyValue label="Balance" value={money(selected.economy.budget.balance, currency)} />
-              <KeyValue label="Consecutive deficits" value={number(selected.economy.budget.consecutiveDeficits)} />
-            </dl>
+            <>
+              <dl className="ahd-stack" style={{ marginTop: "0.65rem", gap: "0.42rem" }}>
+                <KeyValue label="Revenue total" value={money(selected.economy.budget.revenue.total, currency)} />
+                <KeyValue label="Spending total" value={money(selected.economy.budget.spendingTotal, currency)} />
+                <KeyValue label="Balance" value={money(selected.economy.budget.balance, currency)} />
+                <KeyValue label="Consecutive deficits" value={number(selected.economy.budget.consecutiveDeficits)} />
+              </dl>
+              <details style={{ marginTop: "0.7rem" }}>
+                <summary style={{ cursor: "pointer", minHeight: 44, paddingBlock: "0.65rem", boxSizing: "border-box" }}>
+                  Revenue and spending detail ({number(selected.economy.budget.spending.length)} categories)
+                </summary>
+                <div style={{ marginTop: "0.55rem" }}>
+                  <dl className="ahd-stack" style={{ gap: "0.42rem" }}>
+                    <KeyValue label="Council tax" value={money(selected.economy.budget.revenue.councilTax, currency)} />
+                    <KeyValue label="Business rates" value={money(selected.economy.budget.revenue.businessRates, currency)} />
+                    <KeyValue label="Grant" value={money(selected.economy.budget.revenue.grant, currency)} />
+                  </dl>
+                  {selected.economy.budget.spending.length > 0 ? (
+                    <div style={{ marginTop: "0.7rem", borderTop: "1px solid var(--ahd-border)", paddingTop: "0.6rem" }}>
+                      <h3 style={{ margin: 0, fontSize: "0.78rem" }}>Spending by category</h3>
+                      <ul style={{ listStyle: "none", margin: "0.45rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                        {selected.economy.budget.spending.map((line) => (
+                          <li key={line.id} className="ahd-kv">
+                            <span>{line.label}</span>
+                            <span className="ahd-mono">{money(line.amount, currency)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <div className="ahd-empty" style={{ marginTop: "0.7rem" }}>No spending categories recorded.</div>
+                  )}
+                </div>
+              </details>
+            </>
           )}
-          {selected.economy.budget && selected.economy.budget.spending.length > 0 ? (
-            <div style={{ marginTop: "0.7rem", borderTop: "1px solid var(--ahd-border)", paddingTop: "0.6rem" }}>
-              <h3 style={{ margin: 0, fontSize: "0.78rem" }}>Spending by category</h3>
-              <ul style={{ listStyle: "none", margin: "0.45rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-                {selected.economy.budget.spending.map((line) => (
-                  <li key={line.id} className="ahd-kv">
-                    <span>{line.label}</span>
-                    <span className="ahd-mono">{money(line.amount, currency)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
         </div>
         <div className="ahd-card ahd-card-pad">
           <h2 className="ahd-h2">Electorate pool</h2>
@@ -532,19 +644,49 @@ function SelectedRegion({
         </div>
       </div>
 
-      {selected.demographics.groups.length > 0 ? (
+      {hasDemographicData ? (
         <div className="ahd-card ahd-card-pad">
-          <h2 className="ahd-h2">Demographic groups</h2>
-          <ul style={{ listStyle: "none", margin: "0.6rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-            {selected.demographics.groups.map((group) => (
-              <li key={group.id} className="ahd-kv" style={{ alignItems: "flex-start" }}>
-                <span>{group.name}</span>
-                <span className="ahd-mono" style={{ textAlign: "right" }}>{pointsPercent(group.populationShare)} share</span>
-              </li>
-            ))}
-          </ul>
+          <h2 className="ahd-h2">Demographics</h2>
+          <details style={{ marginTop: "0.35rem" }}>
+            <summary style={{ cursor: "pointer", minHeight: 44, paddingBlock: "0.65rem", boxSizing: "border-box" }}>
+              Demographic detail ({number(demographics.groups.length)} groups, {number(demographicMetricCount)} metrics)
+            </summary>
+            <div style={{ marginTop: "0.55rem" }}>
+              <dl className="ahd-stack" style={{ gap: "0.42rem" }}>
+                <KeyValue label="Voting-eligible population" value={number(demographics.votingEligiblePopulation)} />
+                <KeyValue label="Working-age population" value={number(demographics.workingAgePopulation)} />
+                <KeyValue label="Military service population" value={number(demographics.militaryServicePopulation)} />
+                <KeyValue label="Labor force" value={number(demographics.laborForce)} />
+                <KeyValue label="Census region" value={demographics.censusRegion ?? "Not recorded"} />
+                <KeyValue label="Independence desire" value={pointsPercent(demographics.independenceDesire)} />
+              </dl>
+              {demographics.groups.length > 0 ? (
+                <div style={{ marginTop: "0.7rem", borderTop: "1px solid var(--ahd-border)", paddingTop: "0.6rem" }}>
+                  <h3 style={{ margin: 0, fontSize: "0.78rem" }}>Demographic groups</h3>
+                  <ul style={{ listStyle: "none", margin: "0.45rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+                    {demographics.groups.map((group) => (
+                      <li key={group.id} className="ahd-kv" style={{ alignItems: "flex-start" }}>
+                        <span>{group.name}</span>
+                        <span className="ahd-mono" style={{ textAlign: "right" }}>
+                          <span style={{ display: "block" }}>{pointsPercent(group.populationShare)} share</span>
+                          <span className="ahd-muted" style={{ display: "block", fontSize: "0.68rem", fontWeight: 400 }}>
+                            Economic lean {number(group.economicLean, 1)} · Social lean {number(group.socialLean, 1)} · Turnout {pointsPercent(group.turnout)}
+                          </span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          </details>
         </div>
-      ) : null}
+      ) : (
+        <div className="ahd-card ahd-card-pad">
+          <h2 className="ahd-h2">Demographics</h2>
+          <div className="ahd-empty" style={{ marginTop: "0.65rem" }}>No demographic data recorded.</div>
+        </div>
+      )}
     </article>
   );
 }
@@ -568,7 +710,7 @@ export function RegionsPanel({ query, onQueryChange, busy = false, directoryOpen
         onQueryChange={onQueryChange}
       />
       {query.selected ? (
-        <SelectedRegion view={query} selected={query.selected} busy={busy} onQueryChange={onQueryChange} />
+        <SelectedRegion key={query.selected.id} view={query} selected={query.selected} busy={busy} onQueryChange={onQueryChange} />
       ) : (
         <div className="ahd-empty">No region selected.</div>
       )}

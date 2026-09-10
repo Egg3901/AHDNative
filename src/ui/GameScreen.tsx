@@ -1,3 +1,4 @@
+import { OverviewPanel } from "./OverviewPanel";
 import { RegionsRoute } from "./RegionsRoute";
 import { CaucusPanel } from "./CaucusPanel";
 import { BondMarketRoute } from "./BondMarketRoute";
@@ -90,12 +91,6 @@ const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
   { id: "influence", short: "Influence", label: "Influence" },
   { id: "favorability", short: "Favorability", label: "Favorability" },
 ];
-
-function formatMetric(v: number, fmt: GameView["metrics"][number]["format"]): string {
-  if (fmt === "money") return new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(v);
-  if (fmt === "percent") return `${(v * 100).toFixed(1)}%`;
-  return new Intl.NumberFormat(undefined).format(v);
-}
 
 function ActionRow({
   action,
@@ -246,11 +241,16 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
   const tabPanelId = useMemo(() => `ahd-panel-${route}`, [route]);
 
   const go = (next: RouteId) => {
-    focusPage.current = menuOpen || openResource !== null;
+    focusPage.current = true;
     setDetailId(undefined);
     setRoute(next);
     setMenuOpen(false);
     setOpenResource(null);
+    if (next === route && !menuOpen && openResource === null) {
+      focusPage.current = false;
+      document.getElementById(tabPanelId)?.focus({ preventScroll: true });
+      document.scrollingElement?.scrollTo?.({ top: 0 });
+    }
   };
 
   useEffect(() => {
@@ -312,36 +312,7 @@ export function GameScreen({ preferences, onPreferencesChange, preferencesError,
           tabIndex={0}
           style={{ outline: "none" }}
         >
-          {route === "overview" ? (
-            <div className="ahd-stack">
-              <div className="ahd-card ahd-card-pad">
-                <h2 className="ahd-h2">Overview</h2>
-                <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: "0.35rem 0 0" }}>
-                  {world.countryName} · {world.era} · Turn {world.turn} · {world.date} · Player {world.player.name}
-                </p>
-                <dl style={{ marginTop: "0.65rem", display: "grid", gap: "0.35rem" }}>
-                  <div className="ahd-kv"><dt>Office</dt><dd>{world.legislature.office ?? "No legislative seat"}</dd></div>
-                  <div className="ahd-kv"><dt>Cash</dt><dd className="ahd-mono">{formatFinanceMoney(world.player.cash, world.finance.currency)}</dd></div>
-                  <div className="ahd-kv"><dt>Funds</dt><dd className="ahd-mono">{formatFinanceMoney(world.player.funds, world.finance.currency)}</dd></div>
-                  <div className="ahd-kv"><dt>Influence</dt><dd className="ahd-mono">{world.player.influence.toLocaleString(undefined, { maximumFractionDigits: 1 })}</dd></div>
-                  <div className="ahd-kv"><dt>Favorability</dt><dd className="ahd-mono">{world.player.favorability.toLocaleString(undefined, { maximumFractionDigits: 1 })}</dd></div>
-                </dl>
-              </div>
-
-              {world.metrics.length === 0 ? (
-                <div className="ahd-empty">No metrics for this world.</div>
-              ) : (
-                <div className="ahd-grid ahd-grid-3">
-                  {world.metrics.map((m) => (
-                    <div key={m.id} className="ahd-card ahd-card-pad">
-                      <div className="ahd-muted" style={{ fontSize: "0.68rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" }}>{m.label}</div>
-                      <div style={{ fontSize: "1.05rem", fontWeight: 800, marginTop: "0.2rem" }} className="ahd-mono">{formatMetric(m.value, m.format)}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : null}
+          {route === "overview" && <OverviewPanel world={world} onNavigate={go} />}
 
           {route === "actions" ? (
             <div className="ahd-stack">

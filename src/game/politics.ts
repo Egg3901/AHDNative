@@ -182,7 +182,11 @@ export function projectPolitics(world: WorldState): PoliticsView {
   const parties = Object.values(world.parties).filter((party) => party.countryId === country.id)
     .map((party) => {
       const isPlayerParty = player.partyId === party.id;
-      const memberNames = world.politicians.filter((p) => p.partyId === party.id).map((p) => p.name).sort();
+      const memberNames = world.politicians
+        .filter((p) => p.id !== "player" && p.countryId === country.id && p.partyId === party.id)
+        .map((p) => p.name);
+      if (isPlayerParty) memberNames.push(player.name);
+      memberNames.sort();
       return {
         id: party.id, name: party.name, abbreviation: party.abbreviation, color: party.color,
         members: party.memberCount, treasury: party.treasury, isPlayerParty,

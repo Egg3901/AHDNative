@@ -361,3 +361,25 @@ and build passed after the directory toggle fix. The new US/UK offline
 browse, save, reload and home-preservation browser flows passed, as did the
 320px/390px bottom navigation checks. The directory touch target is at least
 44px. No engine changes, repeated Rust checks or paid signing build were needed for this display slice.
+
+## Mobile overview and readable detail checkpoint
+
+U03/U08 and N04/N05: the overview has grouped metrics and real destination
+shortcuts. Party rosters are searchable and paginated rather than truncated;
+regional chambers and secondary detail use counted disclosures. Bottom navigation
+resets reading position, focuses the destination and marks the active parent
+section. The player's current party membership is now present in its recorded
+roster query. [Mobile readability](MOBILE-READABILITY.md) records behavior and units.
+Nation browsing now opens from a collapsible directory near the top; foreign
+country deep links remain accurate without switching the player country.
+Full navigation, mechanics and physical-device parity remain in progress.
+
+Validation: the integration batch passed 104 app/session tests, 142 UI tests,
+production build and fixture integrity. Final overview/nation checks passed
+13 tests. The browser broad batch passed 29 scenarios; two new overview tests
+needed the documented engine GDP units rather than local budget values. The
+final eight-scenario follow-up passed, including both corrected checks and the
+new nation-directory case. All 32 scenarios have passing coverage across the
+batches. Final narrow/large-text label checks passed four scenarios. Screenshots
+were inspected at 320px and 390px. No engine formulas changed, and unchanged
+Rust/engine suites or paid signing builds were not repeated.

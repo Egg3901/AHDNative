@@ -109,3 +109,15 @@ it('shows the engine party-switch cooldown after leaving a party', () => {
   expect(party.join.available).toBe(false);
   expect(party.join.disabledReason).toMatch(/switch cooldown/i);
 });
+
+it("includes the player's current party membership in the recorded roster across save and leave", () => {
+  const session = new GameSession();
+  session.create({ ...options, playerName: "Roster Player" });
+  expect(session.act("joinParty", { partyId: DEM }).ok).toBe(true);
+  expect(session.politics().parties.find(party => party.id === DEM)!.memberNames).toContain("Roster Player");
+  const resumed = new GameSession();
+  resumed.load(session.serialize(SAVED_AT));
+  expect(resumed.politics().parties.find(party => party.id === DEM)!.memberNames).toContain("Roster Player");
+  expect(resumed.act("leaveParty").ok).toBe(true);
+  expect(resumed.politics().parties.find(party => party.id === DEM)!.memberNames).not.toContain("Roster Player");
+});

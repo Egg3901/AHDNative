@@ -156,6 +156,8 @@ describe("WorldPanel", () => {
 
     expect(screen.getByRole("heading", { name: "Nations" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "United States" })).toBeInTheDocument();
+    expect(screen.getByText("Browse nations")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Browse nations"));
     expect(screen.getByText("France")).toBeInTheDocument();
     expect(screen.getByText("387,000 million")).toBeInTheDocument();
     expect(screen.getByText("Presidential republic")).toBeInTheDocument();
@@ -167,6 +169,45 @@ describe("WorldPanel", () => {
     fireEvent.change(screen.getByRole("searchbox", { name: "Search nations" }), { target: { value: "France" } });
     expect(screen.queryByRole("option", { name: "View United States details" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "View France details" }));
+    expect(screen.getByText("No government record.")).toBeInTheDocument();
+  });
+
+  it("keeps the nation directory closed until opened with selected details visible", () => {
+    render(<WorldPanel overview={makeOverview()} section="nations" />);
+
+    expect(screen.getByRole("heading", { name: "United States" })).toBeVisible();
+    const directory = screen.getByText("Browse nations").closest("details");
+    expect(directory).not.toBeNull();
+    expect(directory).not.toHaveAttribute("open");
+    expect(screen.getByRole("button", { name: "View France details" })).not.toBeVisible();
+  });
+
+  it("opens, filters, selects, and closes the nation directory", () => {
+    render(<WorldPanel overview={makeOverview()} section="nations" />);
+
+    fireEvent.click(screen.getByText("Browse nations"));
+    const directory = screen.getByText("Browse nations").closest("details");
+    expect(directory).toHaveAttribute("open");
+    const summary = screen.getByText("Browse nations");
+    expect(summary).toHaveStyle({ minHeight: "44px" });
+    expect(screen.getByRole("button", { name: "View France details" })).toHaveStyle({ minHeight: "3.1rem" });
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search nations" }), { target: { value: "France" } });
+    expect(directory).toHaveAttribute("open");
+    expect(screen.queryByRole("button", { name: "View United States details" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "View France details" }));
+    expect(directory).not.toHaveAttribute("open");
+    expect(screen.getByRole("heading", { name: "France" })).toBeVisible();
+    expect(screen.getByText("No government record.")).toBeInTheDocument();
+  });
+
+  it("shows the deep-linked nation even while the directory stays closed", () => {
+    render(<WorldPanel overview={makeOverview()} section="nations" initialId="FR" />);
+
+    const directory = screen.getByText("Browse nations").closest("details");
+    expect(directory).not.toHaveAttribute("open");
+    expect(screen.getByRole("heading", { name: "France" })).toBeVisible();
     expect(screen.getByText("No government record.")).toBeInTheDocument();
   });
 
