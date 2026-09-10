@@ -52,7 +52,7 @@ import { investCampaign } from "./npcInvestment.js";
  * #1261), and its reset sweep folds the accumulator into the stock.
  * Solo's Campaign has no spendStock field and electionEngine/fundsByParty.ts
  * reads spendThisTurn only, so the reset here is a pure wipe, not a
- * rollover — idle turns read exactly zero instead of a fading stock. That
+ * rollover - idle turns read exactly zero instead of a fading stock. That
  * is a port gap, not a rebalance of anything ported; flag for a future
  * spendStock wave rather than folding guessed decay math into this move.
  */
