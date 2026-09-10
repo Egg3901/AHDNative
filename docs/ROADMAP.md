@@ -70,7 +70,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | U10 | UI | Done | U09,Q01 | Complete a seeded election-to-office loop and expose legislature actions | Genuine t95 fixture, election win,sponsor,vote,relaunch through production UI |
 | M01 | Mechanics | Done | G03 | Inventory phase/order and feature drift from AHDGame | Named differences,source refs,release blockers |
 | M02 | Mechanics | In progress | M01 | Close referendum lifecycle omissions | Behavioral parity scenarios through public actions/turns |
-| M03 | Mechanics | Queued | M01 | Resolve war abstraction mismatch | Actual authoritative rules; no rebalancing or blanket waiver |
+| M03 | Mechanics | In progress | M01 | Resolve war abstraction mismatch | Actual authoritative rules; no rebalancing or blanket waiver |
 | M04 | Mechanics | In progress | M01 | Close phase order and TFP differences | Reference-driven tests; impacts traced |
 | M05 | Mechanics | In progress | M01 | Close electoral and content omissions | National/subnational lifecycle and all supported content |
 | M06 | Mechanics | Queued | M02,M03,M04,M05 | Sign off reference mechanics coverage | No unacknowledged mechanics gaps in 1.0 candidate |
@@ -322,3 +322,20 @@ checks passed in an eight-scenario focused follow-up. The final 39 affected
 UI tests and build also passed. Screenshots at 320px and 390px show the new
 footer and drawer; large-text 320px/568px flow passes. Engine and Rust tests
 were not repeated for this UI-only change. Paid build usage remains unchanged.
+
+
+## War mechanics prerequisite checkpoint
+
+The control-track mobilization ramp now matches the pinned source: a 0.4
+opening multiplier rises to 1 over 50 turns. Unknown ages retain the legacy
+full multiplier. Seven public turn/save scenarios cover exact phase values
+and complete mid-ramp resume identity; three cases failed before the fix.
+[War depth](WAR-PARITY-DEPTH.md) records the remaining unit/combat, supply,
+command, declaration/treaty and peace dependencies. No declaration UI is
+exposed over the inherited GDP proxy. M03 remains in progress and full war
+parity remains a release blocker.
+
+Validation: 835 engine tests, 54 focused/related war and settlement checks,
+and engine typecheck passed. Existing war golden assertions did not change;
+no long-world fixture was regenerated. This engine-only slice leaves the
+new side drawer and bottom navigation unchanged.
