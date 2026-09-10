@@ -1,3 +1,4 @@
+import type { CaucusManagementView } from "./caucusManagement";
 import type { BondMarketView } from "./bondMarket";
 import type { PartyManagementView } from "./partyManagement";
 import type { SearchResults } from "./search";
@@ -42,6 +43,7 @@ export class GameClient {
   worldOverview() { return this.send<WorldOverviewView>({ type: "worldOverview" }); }
   search(query: string) { return this.send<SearchResults>({ type: "search", query }); }
   bondMarket() { return this.send<BondMarketView>({ type: "bondMarket" }); }
+  caucusManagement() { return this.send<CaucusManagementView>({ type: "caucusManagement" }); }
   partyManagement() { return this.send<PartyManagementView>({ type: "partyManagement" }); }
   markets() { return this.send<MarketsView>({ type: "markets" }); }
   politics() { return this.send<PoliticsView>({ type: "politics" }); }

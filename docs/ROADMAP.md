@@ -278,3 +278,24 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
   integrity passed. Historical world-hash goldens were not regenerated.
 - All 22 production browser scenarios passed, including the genuine election
   win, legislation, party founding, share/bond trading and save/relaunch flows.
+
+## Caucus action depth checkpoint
+
+- The Nation menu and Parties page expose actual party-scoped caucuses:
+  founding, initial tax, treasury/member roster, leave and join. Queries run
+  on demand; successful actions refresh and autosave through the worker.
+- Repaired the existing public founding contract: a 25k charge now needs 25k
+  on hand, not 50k. Invalid tax values reject atomically. This fixes Native
+  accounting without certifying its inherited charges against AHDGame.
+- [Caucus evidence](CAUCUS-MANAGEMENT.md) records the genuine turn-99
+  create/leave/rejoin/relaunch flow and still-missing chair, whip, health,
+  recruitment, disband and tax-edit mechanics. U05 and N04 remain in progress.
+- Policy-level enactment is held as a draft until per-law fiscal baselines,
+  replacement/repeal accounting and graded metric effects have source-backed
+  implementations. War dependencies and regional browsing are active next
+  slices. These do not change the paid-build hold or release criteria.
+- Validation batch: 92 app/session tests, 120 component tests, production
+  build, fixture integrity, engine typecheck and all 23 browser scenarios
+  passed. Fifteen focused founding-accounting tests and 58 related
+  action/membership/head-of-state tests passed. Full engine simulations and
+  unchanged Rust checks were not repeated for this bounded action/UI slice.
