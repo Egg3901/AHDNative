@@ -145,8 +145,9 @@ function ActionRow({
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 750, fontSize: "0.86rem" }}>{action.name}</div>
           <div className="ahd-muted" style={{ fontSize: "0.76rem", lineHeight: 1.45 }}>{action.description}</div>
+          {action.fundsGain !== undefined && <div className="ahd-help">Raises {action.fundsGain.toLocaleString()} campaign funds</div>}
         </div>
-        <span className="ahd-badge" aria-label={hint}>{action.available ? `${action.cost}` : "locked"}</span>
+        <span className="ahd-badge" style={{ flexShrink: 0, whiteSpace: "nowrap" }} aria-label={hint}>{action.available ? `${action.cost}` : "locked"}</span>
       </div>
 
       {action.requires === "amount" ? (
@@ -180,7 +181,7 @@ function ActionRow({
           {busy ? <span className="ahd-spinner" aria-hidden /> : null}
           {action.available ? `Take action: ${action.name}` : "Unavailable"}
         </button>
-        <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{hint}{action.requires ? ` · requires ${action.requires}` : ""}</span>
+        {action.available && <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{hint}{action.requires ? ` · requires ${action.requires}` : ""}</span>}
       </div>
       {!action.available && action.disabledReason ? <p className="ahd-help" role="note">{action.disabledReason}</p> : null}
     </div>

@@ -4,6 +4,8 @@
  * at mainline-neutral values. All pure, deterministic.
  */
 
+import { fundraiseYieldAnchor } from "@ahd/game-rules/actions";
+
 import {
   FUND_GENERATION_RATES,
   DONOR_BASE_BONUS_PER_LEVEL,
@@ -84,28 +86,15 @@ export function calculateTaxAmount(baseAmount: number, taxRate: number): number 
   return Math.floor(baseAmount * (taxRate / 100));
 }
 
-// ─── Fundraise quote (src/lib/actions.ts actions.fundraiseQuote) ─────────────
+// Fundraise is generated from the pinned AHDGame rules, never maintained here.
+export { calculateFundraisingAmount, isFundraiseEligible } from "@ahd/game-rules/actions";
 
 /**
- * Per-use fundraising yield (anchor/local same in solo, no forex).
- * Ports calculateFundraisingAmount + fundraiseYieldAnchor per src/lib/actions.ts:
- *   base = 50_000 + donorBaseLevel * 2_000
- *   scaled by influence multiplier (1 + influence/100)
- */
-export function calculateFundraisingAmount(donorBaseLevel: number, politicalInfluence?: number): number {
-  const base = 50_000 + donorBaseLevel * 2_000;
-  if (politicalInfluence === undefined) return base;
-  const multiplier = 1 + Math.max(0, Math.min(100, politicalInfluence)) / 100;
-  return Math.round(base * multiplier);
-}
-
-/**
- * Canonical fundraise quote for UI and crediting.
- * Solo has no fundraising stat multiplier (neutral 1.0) and no forex conversion,
- * so this is the single source of truth for both card and effect.
+ * Native currently has no RPG stats or campaign currency conversion. Pass the
+ * legacy neutral-stat configuration explicitly; those parity gaps remain open.
  */
 export function fundraiseYield(donorBaseLevel: number, politicalInfluence?: number): number {
-  return calculateFundraisingAmount(donorBaseLevel, politicalInfluence ?? 0);
+  return fundraiseYieldAnchor({ donorBaseLevel, politicalInfluence: politicalInfluence ?? 0 });
 }
 
 // ─── Logarithmic variant for NPC comparison (kept for parity) ─────────────────

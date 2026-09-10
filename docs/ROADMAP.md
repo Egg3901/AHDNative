@@ -80,7 +80,9 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | M03 | Mechanics | In progress | M01 | Resolve war abstraction mismatch | Actual authoritative rules; no rebalancing or blanket waiver |
 | M04 | Mechanics | In progress | M01 | Close phase order and TFP differences | Reference-driven tests; impacts traced |
 | M05 | Mechanics | In progress | M01 | Close electoral and content omissions | National/subnational lifecycle and all supported content |
-| M06 | Mechanics | Queued | M02,M03,M04,M05 | Sign off reference mechanics coverage | No unacknowledged mechanics gaps in 1.0 candidate |
+| M06 | Mechanics | Queued | M02,M03,M04,M05,M07,M08 | Sign off reference mechanics coverage | No unacknowledged mechanics gaps in 1.0 candidate |
+| M07 | Mechanics | In progress | M01 | Consume authoritative Game-owned rules one action/system at a time | Fundraise shared cost/yield/eligibility first; preserve complete stat/currency context before parity signoff; [Game #1724](https://github.com/Egg3901/AHDGame/issues/1724) |
+| M08 | Mechanics | In progress | M01,M07 | Detect upstream drift and gate consumer updates | Immutable source checks first; complete source coverage, update PRs and ruleset/save policy in [#120](https://github.com/Egg3901/AHDNative/issues/120) |
 | Q01 | Validation | Done | E03,S02,U07 | Integrated gameplay smoke through actual UI | Create,country,action,turn,save,close,reload,continue |
 | Q02 | Validation | In progress | Q01 | Exercise error and concurrency smoke | Corrupt import,double-click turn,save failure and recovery |
 | Q03 | Validation | In progress | Q01,U08 | Capture representative UI evidence | Desktop and mobile screenshots from real running world |
@@ -98,7 +100,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | R02 | Conditional Rust | Conditional | R01,E07 | Port integer-clean systems in phase order | One bounded slice with phase hash gate |
 | R03 | Conditional Rust | Conditional | R02 | Port transcendental-heavy systems | Exact first; documented proven tolerance only |
 | R04 | Conditional Rust | Conditional | R03 | Integrate native contract after replay gate | Complete reference replay before shell engine switch |
-| W01 | Deferred | Deferred | I04 | Web/WASM and drift automation | Separate approval; not initial release |
+| W01 | Deferred | Deferred | I04 | Web/WASM | Separate approval; not initial release. Mechanics drift is M08 and does not wait for web. |
 
 ## Current release blockers
 
@@ -400,3 +402,13 @@ Actions is labeled consistently and national details remain under Economy.
 Saved portrait/bio, standing and finance sections now replace the basic summary; the full profile and underlying player mechanics remain incomplete. Source-backed profile,
 action and conditional-navigation slices now lead UI work in
 [behavioral parity](BEHAVIORAL-PARITY.md), with validation evidence there.
+
+## Shared rules checkpoint
+
+[Shared rules](SHARED-RULES.md) records the Game-owned Fundraise package,
+immutable source comparison, actual Native session/save and browser action
+checks, and the controlled cost-change exercise. M07/M08 remain in progress:
+RPG stats, campaign currency context, dynamic actions, complete source inventory,
+automatic consumer updates and save ruleset policy are still open. Current
+AHDClient desktop SP already runs Game's packaged server; its provenance fix is
+[AHDClient #56](https://github.com/Egg3901/AHDClient/pull/56).

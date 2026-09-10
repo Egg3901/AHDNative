@@ -4,7 +4,7 @@
 
 A unified A House Divided app for singleplayer and multiplayer on mobile and desktop. Delivery starts with offline singleplayer on iOS.
 
-A native app port of the game at at [Egg3901/AHDGame](https://github.com/Egg3901/AHDGame), which remains the authoritative multiplayer server and the mechanics reference. Licensed proprietary - see [LICENSE.md](./LICENSE.md).
+A native app port of the game at [Egg3901/AHDGame](https://github.com/Egg3901/AHDGame), which remains the authoritative multiplayer server and the mechanics reference. Licensed proprietary - see [LICENSE.md](./LICENSE.md).
 
 ## The app
 
@@ -13,6 +13,8 @@ A native app port of the game at at [Egg3901/AHDGame](https://github.com/Egg3901
 **Multiplayer (later).** Will connect to the existing authoritative AHDGame server; the device never runs authoritative simulation. Existing authentication is preserved.
 
 **One UI.** Both modes share React screens and interaction patterns, with adapters at the game data and action boundary. Players do not pass through a separate AHDClient application. The visual baseline is the actual MP/SP interface in AHDGame (see [UI reference](docs/UI-REFERENCE.md)).
+
+Fundraise now consumes [Game-owned shared rules](docs/SHARED-RULES.md) through a generated package pinned to an immutable AHDGame revision. The remaining engine systems are still being brought into parity.
 
 ## Status
 
