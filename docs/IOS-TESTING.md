@@ -53,3 +53,13 @@ The offline preview implements no non-exempt encryption. `Info.ios.plist` record
 The Mac image does not preinstall `rustup`. The workflow bootstraps it from the official Rust installer when absent, installs the pinned toolchain and records the Cargo binary path for later steps. The first attempt failed at this prerequisite before compilation or signing; inspect a failed step before retrying.
 
 The marketing version stays `0.1.0`. The iOS bundle version has base `1`; Tauri appends Codemagic's build number, producing `1.N` instead of appending a fourth numeric component to `0.1.0`.
+
+### Generated Xcode signing settings
+
+The pinned Tauri CLI 2.11.4 can insert new manual-signing settings outside
+`buildSettings` ([upstream issue #14462](https://github.com/tauri-apps/tauri/issues/14462)).
+The workflow runs `scripts/prepare-ios-signing.py` after project generation to
+create empty keys in the correct blocks before Tauri updates them from encrypted
+inputs. The script contains no identities. Keep this workaround until an upstream
+fix is verified. A local replay of the exact upstream parser reproduces the missing
+settings before preparation and preserves all seven signing keys afterward.
