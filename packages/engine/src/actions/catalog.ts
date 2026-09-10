@@ -8,6 +8,7 @@
  * Deterministic pure definitions; no RNG.
  */
 
+import { FUNDRAISE_ACTION_COST } from "@ahd/game-rules/actions";
 import { fundraiseYield } from "./fundGeneration.js";
 
 export type ActionId =
@@ -112,7 +113,7 @@ function advertiseActionCost(favorability: number): number {
 }
 
 function donorActionCost(donorBaseLevel: number, action: "fundraise" | "buildDonorBase"): number {
-  if (action === "fundraise") return 3;
+  if (action === "fundraise") return FUNDRAISE_ACTION_COST;
   return Math.min(20, Math.round(4 + Math.pow(donorBaseLevel / 75, 1.4) * 16));
 }
 
@@ -148,8 +149,8 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   fundraise: {
     id: "fundraise",
     name: "Fundraise",
-    description: "Raise campaign funds from your donor base. Yield scales with donor base and influence per actions.fundraiseQuote.",
-    baseCost: 3,
+    description: "Raise money from your donor base.",
+    baseCost: FUNDRAISE_ACTION_COST,
     cooldown: 0,
     fundCost: 0,
     systems: ["funds"],
@@ -275,7 +276,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   joinParty: {
     id: "joinParty",
     name: "Join Party",
-    description: "Join a political party. Requires 24-turn switch cooldown and no purge block. Costs 2 AP. Cites src/lib/parties/antiAbuseGuards.ts PARTY_SWITCH_COOLDOWN_MS 24h -> 24 turns and PURGE_REJOIN_COOLDOWN_TURNS=24.",
+    description: "Join a political party. Switching parties has a 24-turn cooldown.",
     baseCost: 2,
     cooldown: 0,
     fundCost: 0,
@@ -285,7 +286,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   leaveParty: {
     id: "leaveParty",
     name: "Leave Party",
-    description: "Leave current party and become independent. Clears caucus membership and withdraws misaligned endorsements per src/app/api/country/[code]/parties/[id]/leave/route.ts.",
+    description: "Leave your party and become independent. This also ends caucus membership and withdraws conflicting endorsements.",
     baseCost: 1,
     cooldown: 0,
     fundCost: 0,

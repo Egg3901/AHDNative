@@ -12,7 +12,8 @@
     "test:ci": "vitest run --exclude \"**/*.sim.test.ts\""
   },
   "dependencies": {
-    "@ahdclient/content": "*"
+    "@ahdclient/content": "*",
+    "@ahd/game-rules": "*"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

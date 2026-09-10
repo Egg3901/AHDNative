@@ -9,14 +9,15 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "tauri": "tauri",
-    "verify": "npm run build && npm test && npm run test:ui && npm run test:career-fixtures",
+    "verify": "npm run verify:rules && npm run build && npm test && npm run test:ui && npm run test:career-fixtures",
     "test": "vitest run --config vitest.config.ts",
     "test:engine": "npm run test:ci --workspace @ahdclient/engine",
     "test:content": "npm run test --workspace @ahdclient/content",
     "typecheck:engine": "npm run typecheck --workspace @ahdclient/engine",
     "test:smoke": "playwright test",
     "test:ui": "vitest run --config vitest.ui.config.ts",
-    "test:career-fixtures": "tsx scripts/validate-career.ts --mode=validate"
+    "test:career-fixtures": "tsx scripts/validate-career.ts --mode=validate",
+    "verify:rules": "node --test scripts/shared-rules.test.mjs && node scripts/shared-rules.mjs --verify"
   },
   "dependencies": {
     "react": "^19.0.0",

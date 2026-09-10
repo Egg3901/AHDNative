@@ -35,3 +35,6 @@ src-tauri/gen/
 *.dSYM.zip
 ExportOptions.plist
 export_options.plist
+
+# Read-only pinned Game source used by the shared-rules CI gate.
+.reference-game/

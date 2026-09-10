@@ -6,7 +6,7 @@
 
 import type { WorldState } from "../types.js";
 import { ACTION_CATALOG, getActionCost, type ActionId } from "./catalog.js";
-import { fundraiseYield } from "./fundGeneration.js";
+import { fundraiseYield, isFundraiseEligible } from "./fundGeneration.js";
 import { DOLLARS_PER_TURNOUT_POINT } from "../support/constants.js";
 import { applyBoost, calculateAlignmentMultiplier, getVoterGroups, DEFAULT_GOTV_CATEGORY } from "../support/turnout.js";
 import { decayPressure } from "../support/pressure.js";
@@ -278,7 +278,7 @@ function executeActionInner(
   }
 
   // Eligibility per-type
-  if (actionId === "fundraise" && (actor.donorBaseLevel ?? 0) === 0) {
+  if (actionId === "fundraise" && !isFundraiseEligible(actor.donorBaseLevel)) {
     return { ok: false, error: "No donor base. Use Build Donor Network first." };
   }
   if (actionId === "convertCash") {

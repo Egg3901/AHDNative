@@ -1,0 +1,13 @@
+{
+  "repo": "Egg3901/AHDGame",
+  "revision": "d4baf899fd8bd529099f03d7410807143604e2e5",
+  "rootEntry": "src/lib/actions/rules.ts",
+  "scope": "fundraiser action rules only",
+  "files": {
+    "actions/rules.ts": "03f16796bd038926f16f1ec8fc299a35f0f4dcc9fb328117e40dbe13f953dd24",
+    "stats/statMultiplier.ts": "ad4e5a33c7bab8257e1acf710de8465432a367f460c3c79950383b58b8269e77",
+    "stats/statsConstants.ts": "365e991f73b10461446e1dac8fd066e3a7e72d384c168d431356eadc809bd5b6",
+    "LICENSE.md": "b9ed0205126dcc10ef012e917f02de57ed801e31fa59fec7014b47ab45f2bcb8"
+  },
+  "packageIdentityHash": "2082284780856395f76005d1728f651bbba6f7bba7d1ed3df33bd8db5b510b4e"
+}

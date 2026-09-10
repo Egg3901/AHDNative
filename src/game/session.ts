@@ -14,7 +14,7 @@ import { projectPolitics, projectPartyMembership } from "./politics";
 import { projectResources } from "./resources";
 import {
   ACTION_CATALOG, addDaysIso, advanceTurn, createWorld, deserializeSave, executeAction,
-  getActionCost, getCatalog, listEras, listPlayableCountries, serializeSave,
+  getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, listEras, listPlayableCountries, serializeSave,
   type ActionId, type ExecuteActionParams, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionView, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions } from "./types";
@@ -144,8 +144,10 @@ function projectWorld(world: WorldState): GameView {
       const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
       const cooldown = (player.actionCooldowns[id] ?? 0) > world.meta.turn;
       const reason = cooldown ? "Available after its cooldown." : player.actions < cost ? "Not enough action points."
+        : id === "fundraise" && !isFundraiseEligible(player.donorBaseLevel) ? "No donor base. Use Build Donor Network first."
         : id === "leaveParty" && !player.partyId ? "You are independent." : undefined;
       return { id, name: entry.name, description: entry.description, cost, available: !reason,
+        ...(id === "fundraise" && isFundraiseEligible(player.donorBaseLevel) ? { fundsGain: fundraiseQuote(player.donorBaseLevel, player.politicalInfluence) } : {}),
         ...(requires ? { requires } : {}), ...(reason ? { disabledReason: reason } : {}) };
     }),
     regions: Object.values(world.regions).filter((region) => region.countryId === country.id).map(({ id, name }) => ({ id, name })),
