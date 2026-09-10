@@ -39,7 +39,11 @@ Corporation reads that now precede same-turn writers, matching AHDGame rather th
 
 Share-price, unowned-sector growth, economic-model, banking, and history phases still run after corporation and still see this turn's corp writes. Nothing between the new corporation slot and `recomputeSharePrices` mutates `earningsHistory`.
 
-Historical contract not rewritten: `packages/engine/src/engine.sim.test.ts` `advanceTurn > advances the date weekly and reports phase timings` still expects `corporationTurn` after `centralBankChairSelection`. Actual order now inserts it after `caucusTax` and before `macroCountryTurn`. Left failing on purpose. Bounded engine CI excludes `*.sim.test.ts`. Campaign spend still reaches the tally next turn. Absolute Native tail placement is otherwise unchanged. This is not whole-pipeline or TFP-input parity.
+The explicit phase-order assertion in `engine.sim.test.ts` now places
+`corporationTurn` before `macroCountryTurn`, matching the documented source
+edge. Its single weekly-date/timing test passes; world-hash goldens were not
+regenerated. Campaign spend still reaches the tally next turn. Absolute Native
+tail placement is otherwise unchanged. Full pipeline parity remains open.
 
 ## Party founding accounting
 

@@ -236,9 +236,8 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
   `centralBankChairTurn`. Corporation now taxes before same-turn bill
   enactment and tax-rate phase-in, which matches AHDGame order. No other
   moved-over phase reads corp books.
-- Validation: `npm run typecheck --workspace @ahdclient/engine` passed.
-  `npm run test:ci --workspace @ahdclient/engine -- --maxWorkers=2` passed,
-  801 tests, 78 files, 19.67s. The excluded sim golden
-  `engine.sim.test.ts` `advances the date weekly and reports phase timings`
-  still expects tail `corporationTurn` and was not rewritten. No UI, save,
-  world, fixture, or paid-build work in this slice.
+- Validation: engine typecheck passed. The integrated branch including party
+  founding and v42 projection passed 817 engine tests across 80 files. The
+  explicit weekly-date/phase-timing assertion was updated for the intended
+  source-backed move and passed separately (one selected test; 47 skipped).
+  No historical world-hash goldens or career fixtures were regenerated.
