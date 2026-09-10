@@ -98,8 +98,8 @@ function ActionCard({
           <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.25rem" }}>
             Cost: {action.cost} AP
             {(action.fundCost ?? 0) > 0 ? ` · Funds: ${formatFunds(action.fundCost ?? 0, currency)}` : ""}
-            {action.fundsGain !== undefined ? ` · Raises ${action.fundsGain.toLocaleString()} campaign funds` : ""}
           </div>
+          {action.fundsGain !== undefined ? <div className="ahd-help">Raises {action.fundsGain.toLocaleString()} campaign funds</div> : null}
           {cooldown > 0 ? (
             <div className="ahd-help">Cooldown: {cooldown} {cooldown === 1 ? "turn" : "turns"} left</div>
           ) : null}
