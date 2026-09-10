@@ -14,4 +14,4 @@ All country elections remain reachable through UI pagination. The active player 
 
 ## Remaining scope
 
-Campaign management, reaching office through a full election, officeholder actions, current AHDGame parity, authentic bidirectional v42 saves, and physical iOS validation remain open. Browser smoke is local integration evidence, not an iPhone test. No paid build is authorized by this slice alone.
+A subsequent [election-to-office slice](CAREER-PLAYTHROUGH.md) validates a seeded win, sponsorship and voting. Campaign management depth, broader officeholder actions, current AHDGame parity, authentic bidirectional v42 saves, and physical iOS validation remain open. Browser smoke is local integration evidence, not an iPhone test. No paid build is authorized by this slice alone.

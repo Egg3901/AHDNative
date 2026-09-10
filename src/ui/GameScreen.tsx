@@ -8,15 +8,17 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import type { ActionView, GameScreenProps, GameView } from "../game/types";
+import { LegislaturePanel } from "./LegislaturePanel";
 import "./ui.css";
 
 const ELECTIONS_PAGE_SIZE = 20;
 
-type TabId = "overview" | "actions" | "parties" | "elections" | "news";
+type TabId = "overview" | "actions" | "parties" | "legislature" | "elections" | "news";
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "actions", label: "Character" },
   { id: "parties", label: "Parties" },
+  { id: "legislature", label: "Legislature" },
   { id: "elections", label: "Elections" },
   { id: "news", label: "News" },
 ];
@@ -181,7 +183,7 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
               <span>{world.player.name} · {world.player.partyName || "Independent"}</span>
               <span className="ahd-mono">${world.player.cash.toLocaleString()} cash</span>
               <span className="ahd-mono">{world.player.actions} actions</span>
-              <span className="ahd-mono">{world.player.influence} influence</span>
+              <span className="ahd-mono">{world.player.influence.toLocaleString(undefined, { maximumFractionDigits: 1 })} influence</span>
             </div>
           </div>
 
@@ -238,13 +240,14 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
               <div className="ahd-card ahd-card-pad">
                 <h2 className="ahd-h2">Overview</h2>
                 <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: "0.35rem 0 0" }}>
-                  {world.countryName} — {world.era} · Turn {world.turn} · {world.date} · Player {world.player.name}
+                  {world.countryName} · {world.era} · Turn {world.turn} · {world.date} · Player {world.player.name}
                 </p>
                 <dl style={{ marginTop: "0.65rem", display: "grid", gap: "0.35rem" }}>
+                  <div className="ahd-kv"><dt>Office</dt><dd>{world.legislature.office ?? "No legislative seat"}</dd></div>
                   <div className="ahd-kv"><dt>Cash</dt><dd className="ahd-mono">${world.player.cash.toLocaleString()}</dd></div>
                   <div className="ahd-kv"><dt>Funds</dt><dd className="ahd-mono">${world.player.funds.toLocaleString()}</dd></div>
-                  <div className="ahd-kv"><dt>Influence</dt><dd className="ahd-mono">{world.player.influence}</dd></div>
-                  <div className="ahd-kv"><dt>Favorability</dt><dd className="ahd-mono">{world.player.favorability}</dd></div>
+                  <div className="ahd-kv"><dt>Influence</dt><dd className="ahd-mono">{world.player.influence.toLocaleString(undefined, { maximumFractionDigits: 1 })}</dd></div>
+                  <div className="ahd-kv"><dt>Favorability</dt><dd className="ahd-mono">{world.player.favorability.toLocaleString(undefined, { maximumFractionDigits: 1 })}</dd></div>
                 </dl>
               </div>
 
@@ -268,9 +271,9 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
               <div className="ahd-card ahd-card-pad">
                 <h2 className="ahd-h2">Character</h2>
                 <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", marginTop: "0.4rem", fontSize: "0.78rem" }}>
-                  <span><strong>{world.player.name}</strong> — {world.player.partyName || "Independent"}</span>
+                  <span><strong>{world.player.name}</strong> · {world.player.partyName || "Independent"}</span>
                   <span className="ahd-badge">{world.player.actions} actions</span>
-                  <span className="ahd-badge">{world.player.influence} influence</span>
+                  <span className="ahd-badge">{world.player.influence.toLocaleString(undefined, { maximumFractionDigits: 1 })} influence</span>
                 </div>
               </div>
 
@@ -333,6 +336,10 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
                 </div>
               )}
             </div>
+          ) : null}
+
+          {tab === "legislature" ? (
+            <LegislaturePanel legislature={world.legislature} busy={busy} onAction={onAction} />
           ) : null}
 
           {tab === "elections" ? (

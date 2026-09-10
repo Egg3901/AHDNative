@@ -48,6 +48,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | U07 | Interface | In progress | U03,S03 | Connect save browser and in-game lifecycle | New/resume/save/reload/exit flow tested |
 | U08 | Interface | In progress | U02,U07 | Verify mobile layout and accessibility | Small-screen overflow,touch,keyboard,focus and errors |
 | U09 | UI | Done | E02,U07 | Expose party membership and candidacy through real engine actions | Filing,withdrawal,save/reload and accessible race pagination |
+| U10 | UI | Done | U09,Q01 | Complete a seeded election-to-office loop and expose legislature actions | Genuine t95 fixture, election win,sponsor,vote,relaunch through production UI |
 | M01 | Mechanics | Done | G03 | Inventory phase/order and feature drift from AHDGame | Named differences,source refs,release blockers |
 | M02 | Mechanics | Queued | M01 | Close referendum lifecycle omissions | Behavioral parity scenarios through public actions/turns |
 | M03 | Mechanics | Queued | M01 | Resolve war abstraction mismatch | Actual authoritative rules; no rebalancing or blanket waiver |
@@ -122,3 +123,13 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - The new production smoke creates a real 1953 US world, joins the Democratic Party, advances to scheduled races, files, saves, relaunches, checks candidacy and withdraws. Existing save import/deletion/error/concurrency smoke remains green.
 - No engine formulas changed. Existing engine/content/Rust suites were not repeated locally for this adapter/UI-only batch; CI retains the full verify gate. No Codemagic build or paid minutes used.
 - Next: complete an election-to-office scenario, expose necessary campaign/officeholder actions, and compare the resulting mobile screens against actual MP/SP references. Mechanics parity, bidirectional v42 output, and physical device validation remain release blockers. See [career evidence](CAREER-VALIDATION.md).
+
+
+## Election-to-office checkpoint
+
+- Two Muse agents implemented the legislature screen and genuine campaign replay/fixtures. The 1953 US campaign wins an Alabama House seat at turn 96. Exact final world hash matches a replay and the pinned historical AHDClient oracle; this is not current AHDGame parity.
+- Legislature now displays held office, available policy proposals, bill sponsorship, chamber-specific vote totals and player votes. Sponsorship/voting availability follows existing office, chamber, phase, action-point and cooldown rules. Tax proposal controls remain outside this slice.
+- The production browser imports the authentic turn-95 world, advances into office, sponsors a bill, advances to voting, votes, closes/reloads the app and retains the vote. No election result or seat was injected. A second smoke confirms an unelected player cannot sponsor. The pre-election fixture is about 46 MB uncompressed, useful for the eventual device performance workload.
+- Validation batch: production build, 12 session/worker tests, 42 UI tests, fixture integrity and 12 browser smoke tests passed. After screenshot-driven tally/formatting refinements, the affected session/UI tests and both legislature smoke scenarios were rechecked. Routine fixture validation does not rerun the full campaign.
+- Screenshot inspection corrected long floating-point display, duplicate availability text, live tally delay and completed Senate cards showing House totals. Closed bills omit voting controls. Layout follows AHDGame BillCard/BillVoteIndicator hierarchy; complete MP/SP visual parity remains unverified.
+- No engine formulas, native storage or signing configuration changed. No paid build ran. Next gaps: campaign management depth, legislative effect/end-of-term scenarios, current mechanics drift and bidirectional save compatibility. See [playthrough evidence](CAREER-PLAYTHROUGH.md).

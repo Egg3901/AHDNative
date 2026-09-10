@@ -1,0 +1,52 @@
+import { expect, test } from '@playwright/test';
+
+test('an unelected player can inspect legislation without sponsoring a bill', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New game', exact: true }).click();
+  await page.getByLabel('Your name').fill('Legislature Player');
+  await page.getByLabel('Seed', { exact: false }).fill('native-legislature-v1');
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'End turn', exact: true })).toBeEnabled();
+  await page.getByRole('tab', { name: 'Legislature', exact: true }).click();
+  await expect(page.getByText('No legislative seat', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Legislation', { exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Sponsor bill', exact: true })).toBeDisabled();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: 'artifacts/smoke/mobile-legislature.png', fullPage: true });
+});
+
+test('a real election leads to office, sponsorship and a vote that survives relaunch', async ({ page }) => {
+  const { readFileSync } = await import('node:fs');
+  const { gunzipSync } = await import('node:zlib');
+  const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-t95-1953-US.save.json.gz', import.meta.url)));
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/');
+  await page.getByLabel('Import saved game', { exact: true }).setInputFiles({ name: 'career.json', mimeType: 'application/json', buffer: fixture });
+  const endTurn = page.getByRole('button', { name: 'End turn', exact: true });
+  await expect(endTurn).toBeEnabled();
+  await endTurn.click();
+  await expect(page.getByText(/^1953 · Turn 96 ·/)).toBeVisible();
+  await expect(endTurn).toBeEnabled();
+  await page.getByRole('tab', { name: 'Legislature', exact: true }).click();
+  await expect(page.getByText(/House of Representatives/).first()).toBeVisible();
+  await page.getByLabel('Legislation', { exact: true }).selectOption('us.economy.workerSecurity.primary');
+  await page.getByRole('button', { name: 'Sponsor bill', exact: true }).click();
+  await expect(endTurn).toBeEnabled();
+  const bill = page.getByRole('article').filter({ hasText: 'Sponsored by Muse' }).first();
+  await expect(bill).toContainText('Fair Labor Standards and Employment Security Act');
+  await expect(bill.getByRole('button', { name: /^For on/ })).toHaveCount(0);
+  await endTurn.click();
+  await expect(endTurn).toBeEnabled();
+  await bill.getByRole('button', { name: /^For on/ }).click();
+  await expect(bill).toContainText('Your vote: for');
+  await expect(endTurn).toBeEnabled();
+  await page.reload();
+  await page.getByRole('button', { name: 'Continue Muse', exact: true }).click();
+  await expect(endTurn).toBeEnabled();
+  await page.getByRole('tab', { name: 'Legislature', exact: true }).click();
+  await expect(page.getByRole('article').filter({ hasText: 'Sponsored by Muse' }).first()).toContainText('Your vote: for');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(errors).toEqual([]);
+  await page.screenshot({ path: 'artifacts/smoke/mobile-officeholder.png', fullPage: true });
+});
