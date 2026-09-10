@@ -1,0 +1,13 @@
+workflows:
+  bootstrap-check:
+    name: Repository bootstrap check (no iOS app yet)
+    instance_type: mac_mini_m2
+    max_build_duration: 10
+    scripts:
+      - name: Verify initial repository files
+        script: |
+          set -eu
+          test -s README.md
+          test -s .gitignore
+          git diff --check
+          echo "Bootstrap verified. An iOS application build is not implemented yet."

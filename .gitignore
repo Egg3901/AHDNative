@@ -1,0 +1,21 @@
+# Local secrets
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+
+# Build products
+node_modules/
+target/
+dist/
+build/
+
+# Local tooling and worktrees
+.DS_Store
+.idea/
+.vscode/
+.claude/
+worktrees/
