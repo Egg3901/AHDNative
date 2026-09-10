@@ -1,13 +1,50 @@
+# Manual only. Never attach signed artifacts to public GitHub runs or releases.
 workflows:
-  bootstrap-check:
-    name: Repository bootstrap check (no iOS app yet)
+  ios-private-testflight:
+    name: Private iOS TestFlight build
     instance_type: mac_mini_m2
-    max_build_duration: 10
+    max_build_duration: 20
+    integrations:
+      app_store_connect: ahdnative-app-store
+    environment:
+      node: 22
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: net.lakesidegames.ahdnative
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - $HOME/.cargo/registry
+        - $HOME/.cargo/git
+        - $CM_BUILD_DIR/src-tauri/target
     scripts:
-      - name: Verify initial repository files
+      - name: Install dependencies and check frontend
         script: |
           set -eu
-          test -s README.md
-          test -s .gitignore
-          git diff --check
-          echo "Bootstrap verified. An iOS application build is not implemented yet."
+          npm ci
+          npm run verify
+      - name: Prepare Rust for iOS
+        script: |
+          set -eu
+          rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+          rustup target add aarch64-apple-ios --toolchain 1.96.0
+          cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - name: Generate iOS project
+        script: npm run tauri -- ios init --ci --skip-targets-install
+      - name: Apply private signing identities
+        script: |
+          set -eu
+          xcode-project use-profiles --custom-export-options='{"testFlightInternalTestingOnly": true}'
+          cp "$HOME/export_options.plist" src-tauri/gen/apple/ExportOptions.plist
+      - name: Build signed iPhone application
+        script: |
+          set -eu
+          npm run tauri -- ios build --ci --target aarch64 --export-method app-store-connect --build-number "$BUILD_NUMBER"
+    artifacts:
+      - src-tauri/gen/apple/build/**/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false
+        submit_to_app_store: false

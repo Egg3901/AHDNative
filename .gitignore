@@ -19,3 +19,19 @@ build/
 .vscode/
 .claude/
 worktrees/
+
+artifacts/
+src-tauri/gen/
+
+# Signing material and private native build output
+*.p8
+*.pem
+*.key
+*.cer
+*.ipa
+*.app/
+*.xcarchive/
+*.dSYM/
+*.dSYM.zip
+ExportOptions.plist
+export_options.plist
