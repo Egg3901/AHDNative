@@ -76,7 +76,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 
 - Physical iOS gameplay/lifecycle/performance evidence does not exist yet.
 - Historical engine mechanics differ from current AHDGame in known systems. Reuse is an integration starting point, not parity certification.
-- Historical schema is v43; bidirectional v42 compatibility is not yet proven.
+- Authentic v42 import now passes for the pinned 1953 US fixture. Current v43 output is rejected by the old v42 reader; a compatibility writer remains unimplemented.
 - Main contains the local SP development slice from PR #4; it is not a validated iPhone release.
 
 Status changes must cite an actual commit, test result, artifact or explicit blocker. Completed shell/RNG/replay groundwork does not imply a playable release.
@@ -105,3 +105,10 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Native validation now extracts metadata without allocating a second world tree. A bounded local synthetic listing fell from 180 to 115 ms and peak process memory from 46,336 to 19,220 KiB. See [storage evidence](SAVE-STORAGE.md); no phone performance claim.
 - Removed the full save-list rescan from each autosaved action/turn.
 - Added explicit delete/cancel controls, failure handling and disposal of a deleted active session. Eight production-browser smoke tests and 11 Rust correctness tests pass; the manual memory profile is separate and ignored by CI.
+
+## Authentic save interchange checkpoint
+
+- Save hardening PR #5 passed CI and merged.
+- Minted a real schema-v42 fixture using clean AHDClient source at `c5017542c860f5f94b7d4b4d5cfea2939b28995d`. Compressed fixture and SHA-256 provenance are committed; no version relabeling was used to create it.
+- Twenty-three contract checks pass for authentic load, deterministic continuation and the old reader's rejection of new schema-v43 saves. The actual import/turn/autosave/reload UI smoke also passes.
+- This closes the missing-authentic-fixture evidence gap, not bidirectional save portability. No compatibility writer or silent downgrade was added. See [save compatibility](SAVE-COMPATIBILITY.md).
