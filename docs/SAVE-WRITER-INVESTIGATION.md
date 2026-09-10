@@ -11,8 +11,9 @@ Evidence for a scoped v43 to v42 writer. Not a silent version rewrite, not AHDGa
 | v42 oracle worktree | AHDClient reference checkout at `c5017542c860f5f94b7d4b4d5cfea2939b28995d`, sources clean |
 | Authentic fixture | `fixtures/v42-1953-US.save.json.gz` SHA-256 `471352be87c8887dcc6ae02f465b898272f62843b5e0861a45138c2de7f58cdc` |
 | Public contract | `createWorld`, `executeAction`, `advanceTurn`, `serializeSave`, `deserializeSave` |
-| Writer | `src/game/saveCompatibility.ts` (`projectSaveToV42`) |
-| Tests | `src/game/saveCompatibility.test.ts` (7 contract cases) |
+| Writer (investigation) | Originally `src/game/saveCompatibility.ts` (`projectSaveToV42`) |
+| Writer (current) | Engine `packages/engine/src/save.ts` `projectSaveToV42`; `src/game/saveCompatibility.ts` re-exports it; local CLI uses that same function |
+| Tests | `packages/engine/src/save.v42Projection.test.ts`, `src/game/saveCompatibility.test.ts`, `scripts/export-save-v42.test.ts` |
 
 The v42 worktree was used read-only. Imported engine, formulas, fixtures, session, and types were not modified for this slice.
 
@@ -53,7 +54,7 @@ Scripted action messages matched: `Converted 2000 cash to 1000 funds.` on both e
 
 ## Fail-closed states (exact blockers)
 
-**Native-fresh home region.** `createWorld` for this seed/era/country writes `player.homeRegionId = "AL"`. Dropping it produces the v42 mint bytes, but that discards Character-panel home-region identity. The writer refuses with an error that names `homeRegionId` and `AL`. Native reload of a dropped-home-region document would restore `null`, not `AL`.
+**Native-fresh home region.** `createWorld` for this seed/era/country writes `player.homeRegionId = "AL"`. Dropping it produces the v42 mint bytes, but that discards Character-panel home-region identity. Native reload of a dropped-home-region document would restore `null`, not `AL`. The investigation-time session writer refused that drop. The current engine projector keeps the string as an opaque extra the old reader preserved. That export is a schema 42 **extension** document, not the authentic mint (the mint omits the key). Old-reader SHA-256 of the Native-fresh keep-home projection: `f141e9a919d8a6626c53a1ca6c4c9856ec5ccc97410b0a4c2ba8d61ba3aaa320`.
 
 **Live `countryPolitics` after a Native turn.** `updateCountryPolitics` eases gauges and appends approval history. Re-seeding on a v42 load uses the current turn's live macro, which is not the eased history. Native `deserializeSave` of the strip after turn 1 does not restore the original schema 43 `countryPolitics`. The v42-compatible *subset* still matched v42 continuation on this three-turn path, but exporting it would silently drop national approval, legitimacy, unrest, and history. The writer refuses.
 
@@ -63,26 +64,26 @@ Scripted action messages matched: `Converted 2000 cash to 1000 funds.` on both e
 
 ## What the writer therefore supports
 
-`projectSaveToV42(serializeSave(...))` succeeds only when:
+`projectSaveToV42(serializeSave(...))` succeeds when:
 
-1. The envelope is schema 42, validates through `deserializeSave`, and carries no v43 fields: byte-preserving identity.
-2. The envelope is schema 43, `homeRegionId` is `null` or absent, `countryPolitics` is present, and Native `deserializeSave` of the stripped document plus `serializeSave` with the same `savedAt` restores the original schema 43 bytes.
+1. The envelope is schema 42, validates through `deserializeSave`, and does not carry `countryPolitics`. `homeRegionId` may be absent (authentic mint) or a string (Native-fresh extension). Byte-preserving identity of the input document.
+2. The envelope is schema 43, `countryPolitics` is present, and Native `deserializeSave` of the stripped document restores the original schema 43 values (structural equality: array order preserved, record key order ignored, own keys including `__proto__`, primitives `===`). Null `homeRegionId` is deleted; a string `homeRegionId` is kept.
 
-That covers the authentic 1953 US fixture and `convertCash` on that world before any Native turn. It does not cover Native-fresh worlds or post-turn worlds.
+That covers the authentic 1953 US fixture, `convertCash` on that migrated world before any Native turn, and Native-fresh pre-turn 1953 US as the keep-home extension. It does not cover post-turn worlds. It does not claim those two schema 42 shapes are the same document.
 
 ## Gaps (not guessed, not waived)
 
 - Only the committed 1953 US fixture and its `convertCash` continuation were used. Other era/country pairs, late-game careers, and the t95 election fixture were not regenerated or projected.
 - Between v42 `c5017542` and Native `568c0c03` many non-test engine files changed. This three-turn 1953 US path still matched after the strip; that is not a proof for arbitrary actions or later turns.
 - `compactResolvedNpcBallots` runs on every Native load. It was a no-op on the unplayed fixture; it was not separately certified as identity-preserving after elections resolve.
-- Session, worker, native storage, and the import UI are unwired. Root owns integration.
-- No v42 reader import in CI. Old-reader load was demonstrated against the clean oracle worktree during this investigation; the public test uses the committed fixture SHA and the recorded convertCash SHA as independent expected bytes.
+- The local export CLI is wired to the engine projector through the session re-export. Worker, native storage, and in-app export remain out of this slice.
+- No v42 reader import in CI. Old-reader load was demonstrated against the clean oracle worktree during this investigation; public tests use the committed fixture SHA, the recorded migrated convertCash SHA, and the recorded Native-fresh keep-home SHA as independent expected bytes.
 
 ## Commands
 
 ```sh
-npx vitest run --config vitest.config.ts src/game/saveCompatibility.test.ts
-# 7 contract cases, including invalid-v42 rejection
+npx vitest run --config packages/engine/vitest.config.ts packages/engine/src/save.v42Projection.test.ts
+npx vitest run --config vitest.config.ts src/game/saveCompatibility.test.ts scripts/export-save-v42.test.ts
 ```
 
 Oracle probe used the v42 worktree read-only and the existing gzip fixture. No signing, no Codemagic, no git commit.

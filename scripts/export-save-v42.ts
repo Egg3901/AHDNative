@@ -4,8 +4,8 @@
  *   npx tsx scripts/export-save-v42.ts --input <save.json> --output <v42.save.json>
  *
  * Local filesystem use only. Not a browser or native export, and not AHDGame
- * parity. Calls the existing public projectSaveToV42 writer
- * (src/game/saveCompatibility.ts) and writes the projected bytes verbatim on
+ * parity. Calls projectSaveToV42 (engine public projector, re-exported from
+ * src/game/saveCompatibility.ts) and writes the projected bytes verbatim on
  * success only. Refuses without creating output when the projection fails
  * closed, never overwrites an existing file (exclusive create), and never
  * overwrites the input. Prints no world content, only concise errors.
@@ -16,11 +16,13 @@ import { projectSaveToV42 } from "../src/game/saveCompatibility";
 
 const USAGE = `usage: npx tsx scripts/export-save-v42.ts --input <save.json> --output <v42.save.json>
 
-Project a save envelope to authentic schema 42 for local developer
-interchange. Writes the projected bytes verbatim on success only, never
-overwrites an existing file, and never overwrites the input.
+Project a save envelope to schema 42 for local developer interchange.
+Authentic v42 fixtures stay byte-identical. Native-fresh pre-turn worlds
+are written as the keep-home extension document. Writes the projected
+bytes verbatim on success only, never overwrites an existing file, and
+never overwrites the input.
 
-  --input <path>   save file to read (authentic schema 42, or projectable schema 43)
+  --input <path>   save file to read (authentic schema 42, or projectable schema 43 including Native-fresh pre-turn)
   --output <path>  new file to create; refused when it already exists
   --help, -h       print this usage
 `;

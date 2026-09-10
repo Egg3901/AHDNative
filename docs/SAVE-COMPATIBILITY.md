@@ -57,7 +57,7 @@ v42 pin `convertCash`: `Converted 2000 cash to 1000 funds.` Native after load: s
 
 ## Safe v42 export
 
-**No v42 compatibility writer is implemented or certified.**
+The engine now exposes `projectSaveToV42` for a narrow, fail-closed projection. It is not a silent version rewrite and it is not certified for every Native world. Field policy and oracle evidence: [interchange depth](V42-INTERCHANGE-DEPTH.md).
 
 The v42-to-v43 migration adds two WorldState fields (`packages/engine/src/save.ts` v42→v43 migration, `types.ts`):
 
@@ -67,8 +67,8 @@ The v42-to-v43 migration adds two WorldState fields (`packages/engine/src/save.t
 Evidence:
 
 - Native `serializeSave` stamps `schemaVersion` from `world.meta.schemaVersion` (43). The v42 reader rejects that envelope before walking fields.
-- A Native-fresh 1953 US world in this tree writes `player.homeRegionId` as a real region (`AL`). A migrated authentic v42 world gets `homeRegionId: null` because v42 never selected one. Those are different player identities.
-- Dropping `countryPolitics` discards live gauges and approval history. Dropping `homeRegionId` discards the Character-panel home region. The old engine does not maintain these new fields as gameplay advances, even if it tolerates them in the document.
+- A Native-fresh 1953 US world in this tree writes `player.homeRegionId` as a real region (`AL`). A migrated authentic v42 world gets `homeRegionId: null` because v42 never selected one. Those are different player identities. The engine projector keeps a string `homeRegionId` as an opaque extra the old reader preserved; it does not invent a v42 home-region mechanic.
+- Dropping progressed `countryPolitics` discards live gauges and approval history. The old engine does not run that phase, so easing cannot be reconstructed. The projector refuses those worlds instead of smuggling frozen gauges.
 
 Do not waive those mechanics to force an export.
 
@@ -76,7 +76,7 @@ Do not waive those mechanics to force an export.
 
 Rewriting a v43 envelope and `world.meta.schemaVersion` to 42 is **inauthentic**. The current v42 `deserializeSave` still accepts that rewrite: `assertCurrentWorldState` checks required fields, not a whitelist, so `countryPolitics` and `homeRegionId` are smuggled through. This harness records that acceptance. It does not treat the rewrite as a v42 fixture.
 
-Acceptance alone does not certify cross-version semantics or a lossless round-trip. Unknown extension fields are tolerated by the old reader, so this observation does not prove that a future compatibility writer is impossible. Any such writer needs an explicit field policy and cross-version continuation tests. This tree does not change either reader or silently relabel new saves.
+Acceptance alone does not certify cross-version semantics or a lossless round-trip. Unknown extension fields are tolerated by the old reader. The engine projector uses an explicit field policy and old-reader continuation hashes; see [interchange depth](V42-INTERCHANGE-DEPTH.md). This tree does not change either reader or silently relabel new saves.
 
 ## Claims this harness does not support
 
@@ -123,6 +123,12 @@ Local artifact: `artifacts/v42-validation.json` (gitignored).
 The refined contract harness passed 23 checks with zero errors in 7.2 seconds. It verifies the pinned source is clean before importing it. The relabeling probe is recorded as an observation rather than an always-passing assertion.
 
 
-## Conservative export groundwork
+## Local v42 export
 
-A [local v42 export tool](SAVE-EXPORT-TOOL.md) now wraps a validated, reversible projection. It reproduces the authentic fixture and a pre-turn cash conversion against recorded v42 oracle hashes. It rejects native-fresh home regions and progressed country-politics data that schema 42 cannot restore. See [the investigation](SAVE-WRITER-INVESTIGATION.md). This is developer interchange tooling; native file export and full two-way portability remain unresolved.
+A [local v42 export tool](SAVE-EXPORT-TOOL.md) calls the engine `projectSaveToV42` via the `src/game/saveCompatibility.ts` re-export. There is one projector.
+
+- Authentic fixture (`fixtures/v42-1953-US.save.json.gz`): returned byte-identical. `homeRegionId` is absent.
+- Native-fresh pre-turn 1953 US: written as a schema 42 **extension** document that keeps `homeRegionId` `"AL"` and drops reconstructable `countryPolitics`. That is not the authentic mint. Old-reader SHA-256 of that extension: `f141e9a919d8a6626c53a1ca6c4c9856ec5ccc97410b0a4c2ba8d61ba3aaa320`.
+- Progressed `countryPolitics` after a Native turn, relabeled v43, and corrupt input are refused. Exclusive-create CLI rules are unchanged.
+
+This is not full interchange of progressed worlds. Native `serializeSave` still emits schema 43. Native file export remains unresolved. Field policy: [interchange depth](V42-INTERCHANGE-DEPTH.md). Investigation evidence: [the investigation](SAVE-WRITER-INVESTIGATION.md).
