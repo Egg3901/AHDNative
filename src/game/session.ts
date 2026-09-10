@@ -1,3 +1,4 @@
+import { projectPartyManagement } from "./partyManagement";
 import { searchWorld } from "./search";
 import { projectMarkets } from "./markets";
 import { buildLegislationDetails, type LegislationSelection } from "./legislationDetails";
@@ -70,6 +71,8 @@ export class GameSession {
   worldOverview() { return projectWorldOverview(this.requireWorld()); }
 
   search(query: string) { return searchWorld(this.requireWorld(), query); }
+
+  partyManagement() { return projectPartyManagement(this.requireWorld()); }
 
   markets() { return projectMarkets(this.requireWorld()); }
 

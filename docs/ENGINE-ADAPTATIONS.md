@@ -14,3 +14,13 @@ The source manifest retains hashes from AHDClient `568c0c039efcca2db17c52b292074
 | `packages/engine/src/{world,initialization/ukHistorical}.ts` | Explicit synthetic UK historical bootstrap for 1953/1979, preserving founding default | [UK evidence](UK-CAREER-DEPTH.md). Opt-in changes shared creation RNG; no existing save reseeding or full UK career parity |
 
 AHDGame reference for the mechanics corrections: `e364c04954ed628beef73a993a8e9e156650a31e`. Expected vectors come from those source formulas, independently calculated. New targeted tests live alongside each changed system. The historical 21-world replay evidence predates these corrections; it must not be represented as fresh whole-engine parity with current AHDGame.
+
+## Party founding accounting
+
+`packages/engine/src/actions/execute.ts` now checks founding eligibility before
+shared mutations and lets membership debit the single catalog price of 100k.
+Previously the dispatcher debited first and membership checked another 100k,
+so players needed twice the advertised funds. The formula and actual successful
+charge are unchanged. Public action tests exercise the 100k-200k band, exact
+100k boundary and no-charge rejection. [Party evidence](PARTY-MANAGEMENT.md)
+records the still-divergent single-founder charter lifecycle.

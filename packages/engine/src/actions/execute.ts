@@ -306,6 +306,16 @@ function executeActionInner(
   }
   if (actionId === "joinParty" && !params.partyId) return { ok: false, error: "joinParty requires partyId" };
   if (actionId === "foundParty" && (!params.foundPartyName || !params.foundPartyAbbr)) return { ok: false, error: "foundParty requires foundPartyName and foundPartyAbbr" };
+  // foundParty preflight before any shared mutation. The common fund gate
+  // above already enforces the single 100k charge threshold; canFoundParty
+  // re-checks names, country uniqueness, switch cooldown and funds on the
+  // unmutated world so a rejection costs nothing (no actions, funds,
+  // cooldown or actionCounts change). Membership owns the sole fund charge.
+  if (actionId === "foundParty") {
+    if (found.kind !== "player") return { ok: false, error: "Only player can found parties" };
+    const pre = Membership.canFoundParty(world, { name: params.foundPartyName!, abbreviation: params.foundPartyAbbr! });
+    if (!pre.ok) return { ok: false, error: (pre as { ok: false; error: string }).error };
+  }
   if (actionId === "createCaucus" && !params.caucusName) return { ok: false, error: "createCaucus requires caucusName" };
   if (actionId === "joinCaucus" && !params.caucusId) return { ok: false, error: "joinCaucus requires caucusId" };
   if (actionId === "endorse" && !params.endorsedId) return { ok: false, error: "endorse requires endorsedId" };
@@ -320,8 +330,9 @@ function executeActionInner(
     actor.actionCounts[actionId] = (actor.actionCounts[actionId] ?? 0) + 1;
   }
 
-  // Deduct fund cost where applicable (except convertCash which adds)
-  if (fundCost > 0 && actionId !== "convertCash" && actionId !== "rest" && actionId !== "investInfluence") {
+  // Deduct fund cost where applicable (except convertCash which adds).
+  // foundParty is excluded: Membership.foundParty owns the sole 100k charge.
+  if (fundCost > 0 && actionId !== "convertCash" && actionId !== "rest" && actionId !== "investInfluence" && actionId !== "foundParty") {
     actor.funds -= fundCost;
   }
 
@@ -451,21 +462,17 @@ function executeActionInner(
     return { ok: true, message: "Left party" };
   }
   if (actionId === "foundParty") {
-    if (found.kind !== "player") return { ok: false, error: "Only player can found parties" };
+    // Preflight above already enforced player-only and canFoundParty, and
+    // the common path skipped the catalog fund deduction, so the dispatch
+    // below applies the single Membership charge. A defensive failure only
+    // refunds actions and cooldown (no fund moved yet); the outer accounting
+    // snapshot also restores actionCounts.
     const res = Membership.foundParty(world, { name: params.foundPartyName!, abbreviation: params.foundPartyAbbr! });
     if (!res.ok) {
       actor.actions += cost;
-      // funds not yet debited via membership? we already debited via catalog fundCost; need to compensate
-      actor.funds += fundCost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: res.error };
     }
-    // Membership.foundParty already deducted FOUND_PARTY_FUND_COST which equals catalog fundCost; we double-debited.
-    // Refund one copy: catalog debited fundCost, so restore.
-    actor.funds += fundCost;
-    // Now apply the single correct deduction via membership (already done). So we keep funds as is after refund.
-    // But membership deducted from player.funds directly; we need to undo catalog's deduction and keep membership's.
-    // We refunded catalog, so net is membership deduction only. Correct.
     return { ok: true, message: `Founded party ${res.partyId}` };
   }
   if (actionId === "createCaucus") {
