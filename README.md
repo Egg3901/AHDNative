@@ -1,10 +1,19 @@
 # AHDNative
 
-A native A House Divided client, targeting full offline singleplayer on iOS first, then Android.
+A unified A House Divided app for singleplayer and multiplayer on mobile and desktop. Delivery starts with offline singleplayer on iOS.
 
 ## Status
 
 This repository is the initial project bootstrap. It does not yet contain a playable application or a Rust game engine. Target mobile hardware profiling and the engine implementation decision are still pending.
+
+## Standing product rules
+
+- AHDNative is the intended unified mobile and desktop app for SP and MP. Players should not have to pass through a separate AHDClient application.
+- SP runs locally and supports offline play. MP connects to the existing authoritative AHDGame server; it does not run authoritative simulation on the device.
+- Both modes share React screens and interaction patterns, with adapters at the game data and action boundary. Preserve existing authentication.
+- Polish the actual MP/SP interface for touch, responsive layouts, platform navigation, accessibility, and reliable lifecycle behavior. Visual parity is an acceptance criterion from the first playable screen.
+- Reuse suitable AHDClient code during development without maintaining competing UI implementations long term.
+- Deliver a convincing iOS SP slice first, complete and harden SP, then connect MP to the shared screens. Expand Android and desktop with appropriate device navigation. Web still requires separate approval.
 
 ## Product requirements
 
