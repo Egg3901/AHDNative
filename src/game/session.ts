@@ -1,3 +1,7 @@
+import { projectWorldOverview } from "./worldOverview";
+import { projectNation } from "./nation";
+import { projectPolitics, projectPartyMembership } from "./politics";
+import { projectResources } from "./resources";
 import {
   ACTION_CATALOG, addDaysIso, advanceTurn, createWorld, deserializeSave, executeAction,
   getActionCost, getCatalog, listEras, listPlayableCountries, serializeSave,
@@ -58,6 +62,10 @@ export class GameSession {
 
   view(): GameView { return projectWorld(this.requireWorld()); }
 
+  worldOverview() { return projectWorldOverview(this.requireWorld()); }
+
+  politics() { return projectPolitics(this.requireWorld()); }
+
   private requireWorld(): WorldState {
     if (!this.world) throw new Error("Start or load a game first.");
     return this.world;
@@ -82,6 +90,8 @@ function projectWorld(world: WorldState): GameView {
       partyName: player.partyId ? world.parties[player.partyId]?.name ?? "Independent" : "Independent" },
     legislature: projectLegislature(world),
     finance: projectFinance(world),
+    resources: projectResources(world),
+    nation: projectNation(world),
     metrics: [
       { id: "gdp", label: "GDP", value: country.economy.gdp * 1_000_000, format: "money" },
       { id: "growth", label: "GDP growth", value: country.economy.growthRate, format: "percent" },
@@ -91,6 +101,7 @@ function projectWorld(world: WorldState): GameView {
     parties: Object.values(world.parties).filter((party) => party.countryId === country.id).map((party) => ({
       id: party.id, name: party.name, abbreviation: party.abbreviation, color: party.color,
       members: party.memberCount, treasury: party.treasury, isPlayerParty: player.partyId === party.id,
+      membership: projectPartyMembership(world, party.id),
     })),
     elections: projectElections(world),
     news: world.news.slice(-50).reverse().map((item, index) => ({ id: `${item.turn}:${index}`, title: item.headline, body: "", date: item.date })),

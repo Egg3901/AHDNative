@@ -4,6 +4,8 @@ export type GameCommand =
   | { type: "choices" }
   | { type: "create"; options: NewGameOptions }
   | { type: "view" }
+  | { type: "politics" }
+  | { type: "worldOverview" }
   | { type: "advance" }
   | { type: "action"; actionId: string; params?: Record<string, string | number> }
   | { type: "serialize"; savedAt: string }

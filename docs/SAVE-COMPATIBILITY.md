@@ -121,3 +121,8 @@ Local artifact: `artifacts/v42-validation.json` (gitignored).
 `smoke/save-compatibility.spec.ts` opens this compressed fixture through the real import UI, advances a turn, waits for autosave, reloads the app and resumes. It passes against the production frontend bundle with the actual engine worker and browser QA persistence. This does not validate the iOS native bridge or every historical save.
 
 The refined contract harness passed 23 checks with zero errors in 7.2 seconds. It verifies the pinned source is clean before importing it. The relabeling probe is recorded as an observation rather than an always-passing assertion.
+
+
+## Conservative export groundwork
+
+A [local v42 export tool](SAVE-EXPORT-TOOL.md) now wraps a validated, reversible projection. It reproduces the authentic fixture and a pre-turn cash conversion against recorded v42 oracle hashes. It rejects native-fresh home regions and progressed country-politics data that schema 42 cannot restore. See [the investigation](SAVE-WRITER-INVESTIGATION.md). This is developer interchange tooling; native file export and full two-way portability remain unresolved.

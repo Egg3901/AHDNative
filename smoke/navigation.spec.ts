@@ -12,6 +12,11 @@ test('mobile navigation and resource footer connect real savings actions through
   await expect(page.getByRole('button', { name: 'End turn', exact: true })).toBeEnabled();
 
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Politicians', exact: true }).click();
+  await expect(page.getByLabel('Politician', { exact: true })).toBeVisible();
+  expect(await page.getByLabel('Politician', { exact: true }).locator('option').count()).toBeGreaterThan(0);
+
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('menuitemradio', { name: 'Banking', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Banking', exact: true })).toBeVisible();
   await page.getByRole('spinbutton', { name: 'Amount', exact: true }).fill('1000');

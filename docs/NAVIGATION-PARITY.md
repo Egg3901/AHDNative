@@ -127,3 +127,12 @@ The persistent footer exposes turn/date, player-paced or processing state, and f
 Portfolio displays cash, savings and actual player stock holdings with per-corporation currency and price. Banking supports deposit and withdrawal through existing engine actions, with amount/balance checks and authoritative action results. The imported engine has a single local savings pool; this does not claim AHDGame's multi-currency wallet, bank selection, trading, loan or monetary-policy parity. Corporations currently expose deterministic IDs and tickers rather than display names.
 
 Validation and landing evidence are recorded in the [roadmap checkpoint](ROADMAP.md). No feature in the remaining inventory is completed merely by adding this menu.
+
+
+## Full feature-depth implementation checkpoint
+
+N04-N08 remain in progress. The app now reaches fifteen menu destinations plus party/race details. New working surfaces: party platform/leadership/roster and real eligibility; race candidate/tally detail and filters; politician directory with active-race links; economy/history, national budget/debt and current policy records; home-region profile; and searchable nation/government/chamber browsing. The imported UK 1953 starting Parliament has no NPC roster, which is represented as empty. Congressional field labels are US-only.
+
+Resource panels use actual local action refresh, hoarding, cap, current-influence income and party-tax values, with recorded balance history. No unimplemented office bonus or MP income is invented. Optional politics/world detail is queried on demand to avoid megabytes of routine worker traffic in late worlds.
+
+These are bounded capabilities, not completion of the inventory. Executive controls, campaign management/projections, legislative effect depth, country-specific regional legislatures, markets/trade/corporations/unions, search/help/settings/notifications, and device validation remain open. Work proceeds through the complete gameplay/mechanics/save/mobile/performance roadmap alongside navigation parity.

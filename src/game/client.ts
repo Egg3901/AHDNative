@@ -1,3 +1,5 @@
+import type { WorldOverviewView } from "./worldOverview";
+import type { PoliticsView } from "./politics";
 import type { GameCommand, GameResponse } from "./protocol";
 import type { EraChoice, GameView, NewGameOptions } from "./types";
 
@@ -31,6 +33,8 @@ export class GameClient {
 
   choices() { return this.send<EraChoice[]>({ type: "choices" }); }
   create(options: NewGameOptions) { return this.send<GameView>({ type: "create", options }); }
+  worldOverview() { return this.send<WorldOverviewView>({ type: "worldOverview" }); }
+  politics() { return this.send<PoliticsView>({ type: "politics" }); }
   view() { return this.send<GameView>({ type: "view" }); }
   advance() { return this.send<GameView>({ type: "advance" }); }
   act(actionId: string, params?: Record<string, string | number>) {

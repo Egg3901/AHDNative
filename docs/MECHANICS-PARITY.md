@@ -106,5 +106,10 @@ Out of scope tonight: full phase-order re-golden (requires reordering ~20 tail c
 
 ## Suggested exact next slice
 
-Implement bounded correction 1 (seededVariance) in the TS worker. Add `src/referendum/seededVariance.ts` mirroring `AHDGame/src/lib/referendum/processReferendumLifecycle.ts:seededVariance`, replace the `rng.next()` call in `lifecycle.ts:46`, add a `.test.ts` that pins `resolveReferendumVote` at `varianceRoll -1/0/1` and `seededVariance("SCO-1953-0",10)` against the AHDGame hash at `e364c0495`, plus a deterministic re-run check (`advanceTurn` on same JSON world yields identical `finalYesShare`). Keep historical goldens green; this change is isolated to the single referendum phase and does not shift any other phase's RNG draw. Commit as `fix(engine): use seededVariance for referendum vote`.
+Implement bounded correction 1 (seededVariance) in the TS worker. Add `src/referendum/seededVariance.ts` mirroring `AHDGame/src/lib/referendum/processReferendumLifecycle.ts:seededVariance`, replace the `rng.next()` call in `lifecycle.ts:46`, add a `.test.ts` that pins `resolveReferendumVote` at `varianceRoll -1/0/1` and `seededVariance("SCO-1953-0",10)` against the AHDGame hash at `e364c0495`, plus a deterministic re-run check (`advanceTurn` on same JSON world yields identical `finalYesShare`). Keep historical goldens green; worlds without a polling referendum are unaffected, but removing the old draw intentionally shifts downstream shared RNG draws for referendum-bearing worlds. See [the implemented correction](REFERENDUM-PARITY.md). Commit as `fix(engine): use seededVariance for referendum vote`.
 
+
+
+## Implemented corrections after the audit
+
+The inventory above describes the imported baseline. [Referendum variance](REFERENDUM-PARITY.md) now follows the AHDGame per-record FNV hash and consumes no shared RNG. This closes only the variance-source difference, not the lifecycle. [TFP](GROWTH-PARITY.md) now uses the reference basket with exact prior-turn national metric keys when present; missing inputs retain reference defaults. Default worlds still lack the full state-metric inputs and phase-order parity remains open. Neither M02 nor M04 is complete.

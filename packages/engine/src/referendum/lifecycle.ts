@@ -1,6 +1,6 @@
-import type { WorldRng } from "../rng.js";
 import type { WorldState } from "../types.js";
 import type { ReferendumRecord } from "./types.js";
+import { seededVariance } from "./seededVariance.js";
 
 /**
  * W25: referendumLifecycle. Ports the vote-resolution edge of mainline's
@@ -37,13 +37,11 @@ import type { ReferendumRecord } from "./types.js";
  *
  * `resolveReferendumVote` below is a verbatim port of
  * src/lib/constants/referendum.ts:152-165 (constants CAMPAIGN_VARIANCE_BAND=4,
- * REFERENDUM_PASS_THRESHOLD=50 also verbatim). The only deviation: mainline's
- * `varianceRoll` is deterministic via `seededVariance(id, turn)`, an FNV hash
- * over the record id + turn, chosen there specifically to avoid `Math.random`.
- * AHDClient's determinism doctrine routes ALL randomness through the world RNG
- * instead (docs/FRAMEWORK.md) — equally deterministic (same save -> same
- * draw sequence) and consistent with every other ported phase in this
- * codebase, so this port draws `rng.next() * 2 - 1` in place of the hash.
+ * REFERENDUM_PASS_THRESHOLD=50 also verbatim). The variance source is now
+ * also verbatim: `seededVariance(id, turn)` (see seededVariance.ts), matching
+ * mainline's FNV hash over the record id + turn. This phase draws nothing
+ * from the shared world RNG (see seededVariance.ts file doc for the RNG
+ * policy and why the old `rng.next() * 2 - 1` draw was reference-divergent).
  */
 
 export const CAMPAIGN_VARIANCE_BAND = 4;
@@ -67,10 +65,10 @@ export function resolveReferendumVote(args: {
   };
 }
 
-export function runReferendumLifecycle(world: WorldState, rng: WorldRng): void {
+export function runReferendumLifecycle(world: WorldState): void {
   for (const ref of world.referendums) {
     if (ref.status !== "polling") continue;
-    const outcome = resolveReferendumVote({ yesShare: ref.yesShare, varianceRoll: rng.next() * 2 - 1 });
+    const outcome = resolveReferendumVote({ yesShare: ref.yesShare, varianceRoll: seededVariance(ref.id, world.meta.turn) });
     ref.finalYesShare = outcome.finalYesShare;
     ref.turnout = outcome.turnout;
     ref.passed = outcome.passed;

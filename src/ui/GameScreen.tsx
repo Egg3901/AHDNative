@@ -1,3 +1,8 @@
+import { WorldPanel } from "./WorldPanel";
+import { DetailQuery } from "./DetailQuery";
+import { NationPanel } from "./NationPanel";
+import { PoliticsRoute } from "./PoliticsRoute";
+import { ResourceBreakdown } from "./ResourceBreakdown";
 /**
  * GameScreen: AHDNative primary game shell.
  *
@@ -15,7 +20,7 @@ import "./ui.css";
 const ELECTIONS_PAGE_SIZE = 20;
 
 type TabId = "overview" | "actions" | "parties" | "legislature" | "elections" | "news";
-type RouteId = TabId | "profile" | "portfolio" | "banking";
+type RouteId = TabId | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "politicians" | "economy" | "budget" | "policy" | "nations" | "state";
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "actions", label: "Character" },
@@ -35,27 +40,38 @@ const MENU_GROUPS: { label: string; items: { id: RouteId; label: string }[] }[] 
     ],
   },
   {
+    label: "State", items: [{ id: "state", label: "Home region" }],
+  },
+  {
     label: "Nation",
     items: [
       { id: "overview", label: "Overview" },
       { id: "parties", label: "Parties" },
       { id: "legislature", label: "Legislature" },
       { id: "elections", label: "Elections" },
+      { id: "politicians", label: "Politicians" },
+      { id: "economy", label: "Economy" },
+      { id: "budget", label: "Budget" },
+      { id: "policy", label: "Policy" },
     ],
   },
   {
     label: "World",
     items: [
+      { id: "nations", label: "Nations" },
       { id: "banking", label: "Banking" },
       { id: "news", label: "News" },
     ],
   },
 ];
 
-const REGION_LABELS: Record<"profile" | "portfolio" | "banking", string> = {
+const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
+  nations: "Nations", state: "Home region",
+  economy: "Economy", budget: "Budget", policy: "Policy",
   profile: "Profile",
   portfolio: "Portfolio",
   banking: "Banking",
+  partyDetails: "Party details", electionDetails: "Election details", politicians: "Politicians",
 };
 
 function isTabRoute(route: RouteId): route is TabId {
@@ -202,8 +218,9 @@ function ProfileSection({ world }: { world: GameView }) {
   );
 }
 
-export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction }: GameScreenProps) {
+export function GameScreen({ loadPolitics, loadWorldOverview, world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("overview");
+  const [detailId, setDetailId] = useState<string>();
   const [menuOpen, setMenuOpen] = useState(false);
   const [openResource, setOpenResource] = useState<ResourceId | null>(null);
   const [electionPage, setElectionPage] = useState(0);
@@ -245,6 +262,9 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
       menuButtonRef.current?.focus();
     }
   };
+
+  const openParty = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("partyDetails"); };
+  const openElection = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("electionDetails"); };
 
   const closeDetails = () => {
     const current = openResource;
@@ -481,7 +501,7 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
               ) : (
                 <div className="ahd-grid ahd-grid-2">
                   {world.parties.map((p) => {
-                    const membershipAction = p.isPlayerParty ? leavePartyAction : joinPartyAction;
+                    const membershipAction = p.isPlayerParty ? (p.membership?.leave ?? leavePartyAction) : (p.membership?.join ?? joinPartyAction);
                     const label = p.isPlayerParty ? `Leave ${p.name}` : `Join ${p.name}`;
                     const disabled = busy || !membershipAction?.available;
                     const hint = !membershipAction ? "Unavailable"
@@ -508,6 +528,7 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
                           </button>
                           <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{hint}</span>
                         </div>
+                        <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => openParty(p.id)}>View {p.name} details</button>
                         {!membershipAction?.available && membershipAction?.disabledReason ? <p className="ahd-help" role="note">{membershipAction.disabledReason}</p> : null}
                       </div>
                     );
@@ -574,6 +595,7 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
                           </button>
                           <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{candidacyHint}</span>
                         </div>
+                        <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => openElection(e.id)}>View race details</button>
                         {!candidacy?.available && candidacy?.disabledReason ? <p className="ahd-help" role="note">{candidacy.disabledReason}</p> : null}
                       </article>
                     );
@@ -613,8 +635,14 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
           tabIndex={0}
           style={{ outline: "none" }}
         >
+          {(route === "economy" || route === "budget" || route === "policy") && <NationPanel nation={world.nation} section={route} />}
+          {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} />}</DetailQuery>}
           {route === "profile" ? <ProfileSection world={world} /> : null}
           {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} /> : null}
+          {(route === "partyDetails" || route === "electionDetails") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => go(route === "partyDetails" ? "parties" : "elections")}>Back to {route === "partyDetails" ? "parties" : "elections"}</button>}
+          {route === "partyDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="parties" initialId={detailId} busy={busy} onAction={onAction} />}
+          {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} busy={busy} onAction={onAction} />}
+          {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} section="politicians" onOpenElection={openElection} busy={busy} onAction={onAction} />}
           {route === "banking" ? <FinancePanel finance={world.finance} section="banking" busy={busy} onAction={onAction} /> : null}
         </section>
         )}
@@ -674,6 +702,7 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
                 {openResource === "influence" ? <span>Influence: {formatCount(world.player.influence)}.</span> : null}
                 {openResource === "favorability" ? <span>Favorability: {formatCount(world.player.favorability)}.</span> : null}
               </div>
+              <ResourceBreakdown details={world.resources} resource={openResource} currency={world.finance.currency} />
               <div className="ahd-resource-links">
                 <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => go("actions")}>Go to Actions</button>
                 <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => go("profile")}>Go to Profile</button>
