@@ -11,4 +11,6 @@ The source manifest retains hashes from AHDClient `568c0c039efcca2db17c52b292074
 
 | `packages/engine/src/referendum/{cohort,lifecycle,types}.ts` | Campaign window, baseline/poll snapshot, canonical cohort/spend calculation before resolution | [Lifecycle evidence](REFERENDUM-LIFECYCLE.md). Exact source math and source fallback for absent substrate; request/grant, granular electorate, consent and actuation remain open |
 
+| `packages/engine/src/{world,initialization/ukHistorical}.ts` | Explicit synthetic UK historical bootstrap for 1953/1979, preserving founding default | [UK evidence](UK-CAREER-DEPTH.md). Opt-in changes shared creation RNG; no existing save reseeding or full UK career parity |
+
 AHDGame reference for the mechanics corrections: `e364c04954ed628beef73a993a8e9e156650a31e`. Expected vectors come from those source formulas, independently calculated. New targeted tests live alongside each changed system. The historical 21-world replay evidence predates these corrections; it must not be represented as fresh whole-engine parity with current AHDGame.

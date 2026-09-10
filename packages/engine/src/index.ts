@@ -71,3 +71,5 @@ export { MIN_BASE_ACTIONS_PER_TURN, ACTION_HOARD_PENALTY, ENERGY_BASE_ACTION_CAP
 
 // Read-only membership eligibility for display adapters.
 export { canJoinParty, canLeaveParty } from "./membership.js";
+
+export type { WorldInitialization } from "./initialization/ukHistorical.js";
