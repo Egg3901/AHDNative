@@ -4,7 +4,9 @@ A unified A House Divided app for singleplayer and multiplayer on mobile and des
 
 ## Status
 
-This repository contains a React/Tauri application shell and a private signed iOS build workflow. It does not yet contain game screens, a playable world, or a Rust game engine. Target mobile hardware profiling and the engine implementation decision are still pending.
+The integration branch runs a local singleplayer world through React game screens and a dedicated simulation worker. New game, actions, turns, save, app reload and resume have passed a real browser smoke test at phone screen size. Native save storage has passing Rust tests. This is development progress, not an iPhone build or a 1.0.0 release.
+
+The reusable TypeScript engine is pinned to a recorded AHDClient revision. Known differences from current AHDGame, v42/v43 save compatibility, native lifecycle and physical-device performance remain acceptance gates. A Rust engine rewrite remains profile gated. See [roadmap](docs/ROADMAP.md), [mechanics audit](docs/MECHANICS-PARITY.md) and [engine provenance](docs/engine-source-manifest.json).
 
 ## Standing product rules
 
@@ -36,7 +38,7 @@ If profiling supports a Rust engine, integrate it directly into the Tauri shell 
 
 ## Development
 
-Run `npm ci`, then `npm run verify` for the frontend build and type checks. Run `npm run tauri -- dev` for the native shell after installing the platform prerequisites. Rust uses the pinned toolchain in `rust-toolchain.toml`. The temporary development screen is not the proposed game interface.
+Run `npm ci`, then `npm run verify` for the frontend build, type checks, session tests and UI tests. Run `npm run test:smoke` with a Playwright Chromium installation for integrated browser QA. `PLAYWRIGHT_CHROMIUM_EXECUTABLE` can select an existing browser binary. Browser QA uses IndexedDB; native builds use the Rust app-data save store. Run `npm run tauri -- dev` for the native shell after installing the platform prerequisites. Rust uses the pinned toolchain in `rust-toolchain.toml`.
 
 ## Codemagic setup
 
@@ -48,4 +50,4 @@ See [iPhone testing setup](docs/IOS-TESTING.md) for the owner setup. The workflo
 
 ## Licensing
 
-No open-source license is granted by this repository at present. Public visibility does not grant permission to reuse proprietary A House Divided code or assets. Source and asset licensing must be established before they are imported.
+This source is proprietary under [LICENSE.md](LICENSE.md). Public visibility does not grant permission to reuse A House Divided code or assets. Imported engine and content provenance is recorded in the source manifest.
