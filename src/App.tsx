@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createGameClient, type GameClient } from './game/client';
 import { saveRepository, type SaveMetadata } from './game/storage';
 import type { EraChoice, GameView, NewGameOptions } from './game/types';
@@ -17,6 +17,14 @@ export function App() {
   const [error, setError] = useState<string>();
   const [message, setMessage] = useState<string>();
   const [pendingDelete, setPendingDelete] = useState<SaveMetadata | null>(null);
+  const loadWorldOverview = useCallback(() => {
+    if (!client.current) return Promise.reject(new Error("Start or load a game first."));
+    return client.current.worldOverview();
+  }, []);
+  const loadPolitics = useCallback(() => {
+    if (!client.current) return Promise.reject(new Error('Start or load a game first.'));
+    return client.current.politics();
+  }, []);
 
   useEffect(() => {
     let worker: GameClient;
@@ -118,7 +126,7 @@ export function App() {
   }
 
   if (screen === 'new') return <NewGameScreen eras={eras} busy={busy} error={error} onStart={start} onBack={() => setScreen('home')} />;
-  if (screen === 'game' && world) return <GameScreen world={world} busy={busy} error={error} message={message}
+  if (screen === 'game' && world) return <GameScreen loadPolitics={loadPolitics} loadWorldOverview={loadWorldOverview} world={world} busy={busy} error={error} message={message}
     onAdvanceTurn={() => void run(async () => { setWorld(await client.current!.advance()); await save(); })}
     onAction={(id, params) => void run(async () => {
       const response = await client.current!.act(id, params); setWorld(response.view);

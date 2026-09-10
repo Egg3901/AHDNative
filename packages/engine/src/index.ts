@@ -65,3 +65,9 @@ export type { ExtractableResource } from "./commodity/constants.js";
 export * from "./countryPolitics/index.js";
 export * from "./governor/constants.js";
 export * from "./governor/powers.js";
+
+// Read-only display queries use the same action refresh constants as the engine.
+export { MIN_BASE_ACTIONS_PER_TURN, ACTION_HOARD_PENALTY, ENERGY_BASE_ACTION_CAP, ENERGY_BASE_HOARD_THRESHOLD } from "./actions/constants.js";
+
+// Read-only membership eligibility for display adapters.
+export { canJoinParty, canLeaveParty } from "./membership.js";

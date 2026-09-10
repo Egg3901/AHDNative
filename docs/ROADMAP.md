@@ -11,15 +11,15 @@ Owner direction: mobile-first layout can differ, but navigation and footer funct
 | N01 | Done | Inventory AHDGame nav and persistent status bar | Named source revision, conditions, destination behavior and honest missing-feature matrix |
 | N02 | Done | Grouped mobile menu and basic resource footer | Real destination routes, resource details/links, keyboard and touch access, safe-area clearance |
 | N03 | Done | Portfolio and banking | Real balances/holdings; deposit and withdrawal through engine; save/reload smoke |
-| N04 | Queued | Party and election detail | Full list-to-detail flow, candidacy controls, active-race links and reference-backed election information |
-| N05 | Queued | State and legislature navigation depth | Regional overview, chambers, schedule, office-dependent entries and working details |
-| N06 | Queued | Nation executive, policy, budget and economy | Actual local queries/actions, country-specific conditions and meaningful panels |
-| N07 | Queued | World navigation | Nations, map, corporations, sectors, markets, exchange, trade, unions, organizations and crises mapped to SP capabilities |
-| N08 | Queued | Full footer resource breakdowns | Action/income components, election projections/history and conditional corporation controls supported by actual engine evidence |
+| N04 | In progress | Party and election detail | Full list-to-detail flow, candidacy controls, active-race links and reference-backed election information |
+| N05 | In progress | State and legislature navigation depth | Regional overview, chambers, schedule, office-dependent entries and working details |
+| N06 | In progress | Nation executive, policy, budget and economy | Actual local queries/actions, country-specific conditions and meaningful panels |
+| N07 | In progress | World navigation | Nations, map, corporations, sectors, markets, exchange, trade, unions, organizations and crises mapped to SP capabilities |
+| N08 | In progress | Full footer resource breakdowns | Action/income components, election projections/history and conditional corporation controls supported by actual engine evidence |
 | N09 | Queued | Help, settings, search and notifications | Explicit offline behavior, real content/results and accessible controls; MP-only presence stays deferred |
 | N10 | Queued | Complete functional parity review | Each inventory row demonstrated through the integrated UI, including relevant country/role conditions; named remaining gaps block parity claims |
 
-This priority guides the next UI work ahead of additional unrelated features. Existing mechanics, save compatibility and physical-device release gates remain binding. N07 and N09 are not blanket multiplayer deferrals.
+This priority guides UI work within the complete roadmap. The owner has explicitly reaffirmed that gameplay, mechanics, save compatibility, lifecycle and performance work continue alongside it. Existing mechanics, save compatibility and physical-device release gates remain binding. N07 and N09 are not blanket multiplayer deferrals.
 
 ## Overnight execution plan
 
@@ -51,12 +51,12 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | E05 | Engine | Done | E02 | Produce stable display queries from real world | Economy/player/party/election/news views use engine state |
 | E06 | Engine | Done | E02 | Validate supported era/country matrix | All shipped imported combinations create,act,turn,save/reload |
 | E07 | Engine | Done | E02 | Run independent seeded replay and save-boundary comparison | Exact checkpoint hash; record reference commit |
-| E08 | Engine | Queued | E07 | Audit long-world election memory and turn spikes | Profile once per changed performance concern; no pruning without compatibility proof |
+| E08 | Engine | In progress | E07 | Audit long-world election memory and turn spikes | Profile once per changed performance concern; no pruning without compatibility proof |
 | S01 | Saves | Done | G02 | Build native atomic save-slot storage with TDD | Fresh instance reads saved data; failed replacement preserves prior data |
 | S02 | Saves | In progress | S01,E02 | Connect native save and reload commands | Raw engine envelope retained; completion and errors visible |
 | S03 | Saves | Done | S02 | Implement slot list,delete and replacement confirmation | No traversal; deliberate overwrite/delete; deterministic metadata |
-| S04 | Saves | Queued | S02 | Provide save import/export interchange | Real fixture both directions; no silent version downgrade |
-| S05 | Saves | Queued | S04 | Resolve v42/v43 compatibility explicitly | Fixture-backed policy; no promise of roundtrip until verified |
+| S04 | Saves | In progress | S02 | Provide save import/export interchange | Real fixture both directions; no silent version downgrade |
+| S05 | Saves | In progress | S04 | Resolve v42/v43 compatibility explicitly | Fixture-backed policy; no promise of roundtrip until verified |
 | S06 | Saves | Queued | S02 | Recover after close,crash and partial write | Last completed save survives; no false saved status |
 | U01 | Interface | In progress | G01 | Extract actual MP/SP visual and navigation baseline | Reference source/screens; no historical client redesign |
 | U02 | Interface | Done | U01 | Build new-game era/country/player flow | Accessible form; real content choices; validation |
@@ -69,9 +69,9 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | U09 | UI | Done | E02,U07 | Expose party membership and candidacy through real engine actions | Filing,withdrawal,save/reload and accessible race pagination |
 | U10 | UI | Done | U09,Q01 | Complete a seeded election-to-office loop and expose legislature actions | Genuine t95 fixture, election win,sponsor,vote,relaunch through production UI |
 | M01 | Mechanics | Done | G03 | Inventory phase/order and feature drift from AHDGame | Named differences,source refs,release blockers |
-| M02 | Mechanics | Queued | M01 | Close referendum lifecycle omissions | Behavioral parity scenarios through public actions/turns |
+| M02 | Mechanics | In progress | M01 | Close referendum lifecycle omissions | Behavioral parity scenarios through public actions/turns |
 | M03 | Mechanics | Queued | M01 | Resolve war abstraction mismatch | Actual authoritative rules; no rebalancing or blanket waiver |
-| M04 | Mechanics | Queued | M01 | Close phase order and TFP differences | Reference-driven tests; impacts traced |
+| M04 | Mechanics | In progress | M01 | Close phase order and TFP differences | Reference-driven tests; impacts traced |
 | M05 | Mechanics | Queued | M01 | Close electoral and content omissions | National/subnational lifecycle and all supported content |
 | M06 | Mechanics | Queued | M02,M03,M04,M05 | Sign off reference mechanics coverage | No unacknowledged mechanics gaps in 1.0 candidate |
 | Q01 | Validation | Done | E03,S02,U07 | Integrated gameplay smoke through actual UI | Create,country,action,turn,save,close,reload,continue |
@@ -97,8 +97,8 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 
 - Physical iOS gameplay/lifecycle/performance evidence does not exist yet.
 - Historical engine mechanics differ from current AHDGame in known systems. Reuse is an integration starting point, not parity certification.
-- Authentic v42 import now passes for the pinned 1953 US fixture. Current v43 output is rejected by the old v42 reader; a compatibility writer remains unimplemented.
-- Main contains the local SP development slice from PR #4; it is not a validated iPhone release.
+- Authentic v42 import now passes for the pinned 1953 US fixture. Current v43 output is rejected by the old v42 reader; a conservative compatibility writer and local export tool cover only reversible cases; native-fresh and progressed worlds still cannot round-trip without loss.
+- Main contains the growing local SP development app; it is not a validated iPhone release.
 
 Status changes must cite an actual commit, test result, artifact or explicit blocker. Completed shell/RNG/replay groundwork does not imply a playable release.
 
@@ -163,3 +163,15 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Banking uses the existing deposit/withdraw actions. Portfolio shows real balances and stock holdings in their own currencies. Six finance contract scenarios cover US and UK savings, rejection atomicity, holdings and save/reload. No formulas changed.
 - Validation: production build, 18 session/worker tests, 63 initial UI tests and fixture integrity passed; a keyboard-focus regression was then added and fixed, bringing UI coverage to 64. All 12 pre-existing browser scenarios passed. The new banking/menu/footer flow passed after correcting its expected action-result message; the five core SP smokes also passed after the focus changes. Screenshot review at 390 and 320 pixels caught and corrected header label wrapping. Focused verification follows changes; full engine/content/Rust simulations were not repeated locally for this adapter/UI batch.
 - No Codemagic build or paid minutes used. Current mechanics drift, bidirectional v42 output and physical-device validation remain release blockers. N04-N10 track the remaining navigation/footer features; this batch does not claim complete feature parity.
+
+
+## Full feature depth checkpoint, 2026-09-10
+
+- Politics: list-to-party and list-to-race detail, platform/leadership/roster, actual candidate tally shares, filters, politician directory and active-race links. Eligibility uses real party-switch/purge checks plus action costs. The UK 1953 starting Commons has vacant seats and no NPC roster; the UI preserves that empty state instead of inventing politicians. Campaign projections, election system completeness and full national/subnational career coverage remain open.
+- Nation and world: real macro history, local-currency budget/revenue/spending/debt, enacted policy records, searchable nation directory with government/chamber metadata, and home region demographics/support/elections/office. Browsing another nation does not change the player country. US congressional labels are limited to US regions. Executive actions, detailed regional chambers and other world systems remain in progress.
+- Resources: existing engine constants drive refresh/hoarding/cap and current-influence fund generation/tax details; disabled income phases are respected. Recent recorded balances are available. Office bonuses are shown as the imported engine actually implements them, not invented from MP rules. Full footer mechanics parity remains open.
+- Performance: optional politics/world queries run only while visible. On the existing turn-95 fixture, embedding politics in routine responses had increased JSON payload from 174,384 to 2,797,081 bytes. On-demand queries reduce the final routine response to 194,264 bytes, including new national history and resource data. In a 15-sample Linux characterization, routine view median was 1.15 ms versus 1.01 ms at the baseline. This is view construction only, not worker transport, turn p95 or phone performance.
+- Mechanics: reference-exact referendum variance and TFP basket/input wiring are integrated with independent vectors and public turn/save replay tests. Full referendum lifecycle, state-metric inputs and phase-order drift remain open. [Engine adaptations](ENGINE-ADAPTATIONS.md) records changes from the pinned import without rewriting its baseline manifest.
+- Saves: conservative v42 projection plus an exclusive-create local export CLI proves the authentic fixture and pre-turn cash conversion cases. Corrupt input, overwrites, native home-region loss and progressed national-politics loss are refused. Full bidirectional in-app interchange remains a release blocker.
+- Verification: production build; 41 session/query/save/CLI tests after focused eligibility-copy correction; 84 UI tests after country-label correction; 765 engine tests including the short referendum suite; career fixture integrity. The 13 existing browser flows passed, then both the extended US directory/banking flow and new UK detail/economy/policy/world/resource/reload flow passed after correcting the empty-UK-roster expectation. Screenshot inspection drove the country-specific label fix. No long career generator, native rebuild or paid build was repeated.
+- Next batch is already active: real market trading, deeper legislative proposals/bills, and offline help/presentation settings. Hub project-filter/archive issues remain open; supported board clearing is still unavailable, so no Hub status-update claim is made.

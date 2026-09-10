@@ -277,6 +277,7 @@ html, body { overflow-x: hidden; }
   padding-top: 0.45rem;
   padding-bottom: max(0.55rem, env(safe-area-inset-bottom));
   overflow-x: hidden;
+  max-height: 65dvh; overflow-y: auto; overscroll-behavior: contain;
 }
 .ahd-footer-inner {
   display: flex; flex-direction: column; gap: 0.4rem;

@@ -27,7 +27,6 @@ import {
   UNEMPLOYMENT_MIN,
   WEEKS_PER_YEAR,
   NEUTRAL_GDP_GROWTH,
-  TFP_BASELINE,
   SECTOR_SIGNAL_MIN,
   SECTOR_SIGNAL_MAX,
 } from "../economy/macroConstants.js";
@@ -36,6 +35,8 @@ import {
   computeLaborForce,
   NEUTRAL_LABOR_PARTICIPATION,
   potentialGrowth,
+  tfpBasket,
+  type TfpBasketInputs,
 } from "../demographics/laborForce.js";
 import { CENTRAL_BANK_COUNTRY_ANCHORS, computeMonetaryTerm } from "../centralBank/constants.js";
 import { computeRealizedRevenueGrowthRate } from "../corporation/constants.js";
@@ -150,6 +151,40 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+/**
+ * Read a prev-turn nationalMetrics leaf if it is a finite number.
+ * Paths match AHDGame src/lib/metricEngine/phase.ts tfpBasket inputs at e364c0495.
+ * Absent or non-finite values stay undefined so tfpBasket's orRef fallback applies.
+ * Do not invent aliases: only these exact keys are TFP inputs.
+ */
+function finiteMetricValue(
+  metrics: Record<string, { value: number }> | undefined,
+  path: string,
+): number | undefined {
+  const v = metrics?.[path]?.value;
+  return typeof v === "number" && Number.isFinite(v) ? v : undefined;
+}
+
+/** Only exact AHDGame tfpBasket paths. Omit missing keys; do not invent aliases. */
+function tfpInputsFromNationalMetrics(
+  metrics: Record<string, { value: number }> | undefined,
+): TfpBasketInputs {
+  const out: TfpBasketInputs = {};
+  const rdIntensity = finiteMetricValue(metrics, "economic.rdIntensity");
+  const workforceSkill = finiteMetricValue(metrics, "education.workforceSkill");
+  const transportEfficiency = finiteMetricValue(metrics, "infrastructure.transportEfficiency");
+  const broadbandAccess = finiteMetricValue(metrics, "infrastructure.broadbandAccess");
+  const powerGridReliability = finiteMetricValue(metrics, "infrastructure.powerGridReliability");
+  const urbanizationRate = finiteMetricValue(metrics, "population.urbanizationRate");
+  if (rdIntensity !== undefined) out.rdIntensity = rdIntensity;
+  if (workforceSkill !== undefined) out.workforceSkill = workforceSkill;
+  if (transportEfficiency !== undefined) out.transportEfficiency = transportEfficiency;
+  if (broadbandAccess !== undefined) out.broadbandAccess = broadbandAccess;
+  if (powerGridReliability !== undefined) out.powerGridReliability = powerGridReliability;
+  if (urbanizationRate !== undefined) out.urbanizationRate = urbanizationRate;
+  return out;
+}
+
 export const macroCountryTurnPhase: TurnPhase = {
   name: "macroCountryTurn",
   run(world, rng) {
@@ -186,16 +221,19 @@ export const macroCountryTurnPhase: TurnPhase = {
         SECTOR_SIGNAL_MIN,
         SECTOR_SIGNAL_MAX,
       );
-      // Labor force → potential growth (real laborForce replacing the PORT-STUB).
+      // Labor force -> potential growth (real laborForce replacing the PORT-STUB).
       // Source: src/lib/metricEngine/potentialGrowth.ts computeLaborForce +
       // potentialGrowth (Solow LEVEL form). Labor participation is 62.5% default;
       // workingAge and militaryService come from demographics flows (per-region).
-      // W14: capital stock growth (gK) is now real too — see below. What
-      // remains PORT-STUB is only the TFP basket (tfpBasket() in
-      // potentialGrowth.ts needs rdIntensity/workforceSkill/transportEfficiency/
-      // broadbandAccess/powerGridReliability/urbanizationRate inputs AHDClient
-      // has no education/infrastructure/urbanization metrics for yet); `tfp`
-      // stays flat at TFP_BASELINE until that basket lands.
+      // W14: capital stock growth (gK) is now real too. TFP uses tfpBasket
+      // (AHDGame potentialGrowth.ts at e364c0495) with prev-turn nationalMetrics
+      // at the exact phase.ts paths. nationalMetricsPhase runs later in the
+      // registry, so this read is last turn's row (C3 lag). Missing keys fall
+      // back to TFP_REFERENCE_INPUTS. The six basket metrics are not seeded by
+      // computeNationalMetrics (E01_PER_STATE_METRICS), so default worlds stay
+      // at TFP_BASELINE. That missing-input gate is unresolved: the helper
+      // alone does not create education/infrastructure/urbanization growth
+      // effects.
       const regionIds = Object.values(world.regions)
         .filter((r) => r.countryId === id)
         .map((r) => r.id);
@@ -229,7 +267,7 @@ export const macroCountryTurnPhase: TurnPhase = {
       // turn. Same lag shape as the corpRevenueSnapshot sectorSignal above.
       // Falls back to 0 for the first turn or two before the phase has run.
       const gK = world.capitalGrowth?.[id] ?? 0;
-      const tfp = TFP_BASELINE; // PORT-STUB: TFP basket (needs rdIntensity/skill/infra/urbanization)
+      const tfp = tfpBasket(tfpInputsFromNationalMetrics(world.nationalMetrics?.[id]));
       const potential = hasLabor ? potentialGrowth(gL, gK, tfp) : NEUTRAL_GDP_GROWTH;
       const step = advanceOutputGap(prevGap, sectorSignal, potential, TURNS_PER_YEAR);
       const newGrowth = clamp(step.gdpGrowth / 100, GROWTH_RATE_MIN, GROWTH_RATE_MAX);
