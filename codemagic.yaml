@@ -4,14 +4,11 @@ workflows:
     name: Private iOS TestFlight build
     instance_type: mac_mini_m2
     max_build_duration: 20
-    integrations:
-      app_store_connect: ahdnative-app-store
     environment:
       node: 22
       xcode: latest
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: net.lakesidegames.ahdnative
+      groups:
+        - ahdnative-signing
     cache:
       cache_paths:
         - $HOME/.npm
@@ -19,6 +16,19 @@ workflows:
         - $HOME/.cargo/git
         - $CM_BUILD_DIR/src-tauri/target
     scripts:
+      - name: Check private signing inputs
+        script: |
+          set -eu
+          python3 - <<'PYTHON'
+          import os
+          required = ["IOS_CERTIFICATE", "IOS_CERTIFICATE_PASSWORD", "IOS_MOBILE_PROVISION",
+                      "TAURI_APPLE_DEVELOPMENT_TEAM", "APP_STORE_CONNECT_PRIVATE_KEY",
+                      "APP_STORE_CONNECT_KEY_IDENTIFIER", "APP_STORE_CONNECT_ISSUER_ID"]
+          missing = [name for name in required if not os.environ.get(name)]
+          if missing:
+              raise SystemExit("Missing encrypted signing variables: " + ", ".join(missing))
+          print("Private signing inputs present")
+          PYTHON
       - name: Install dependencies and check frontend
         script: |
           set -eu
@@ -32,11 +42,17 @@ workflows:
           cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - name: Generate iOS project
         script: npm run tauri -- ios init --ci --skip-targets-install
-      - name: Apply private signing identities
+      - name: Restrict export to internal TestFlight
         script: |
           set -eu
-          xcode-project use-profiles --custom-export-options='{"testFlightInternalTestingOnly": true}'
-          cp "$HOME/export_options.plist" src-tauri/gen/apple/ExportOptions.plist
+          python3 - <<'PYTHON'
+          import plistlib
+          from pathlib import Path
+          path = Path("src-tauri/gen/apple/ExportOptions.plist")
+          options = plistlib.loads(path.read_bytes()) if path.exists() else {}
+          options["testFlightInternalTestingOnly"] = True
+          path.write_bytes(plistlib.dumps(options))
+          PYTHON
       - name: Build signed iPhone application
         script: |
           set -eu
@@ -45,6 +61,8 @@ workflows:
       - src-tauri/gen/apple/build/**/*.ipa
     publishing:
       app_store_connect:
-        auth: integration
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: false
         submit_to_app_store: false
