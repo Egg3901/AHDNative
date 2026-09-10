@@ -15,7 +15,7 @@ import * as Caucus from "../caucus.js";
 import * as Endorsement from "../endorsement.js";
 import * as Candidacy from "../elections/candidacy.js";
 import * as Coalition from "../intraparty/coalitions.js";
-import { getLaw } from "../legislation/catalog.js";
+import { getLaw, resolveCatalogPolicyOption } from "../legislation/catalog.js";
 import { calculateBudgetSpending } from "../budget/spending.js";
 import { calculateBudgetRevenue } from "../budget/revenue.js";
 import { launchProspectingSurvey } from "../extraction/prospecting.js";
@@ -39,6 +39,8 @@ export type ExecuteActionParams = {
   electionId?: string;
   // Legislation
   catalogId?: string;
+  /** Source-generated program-law option id (`l0` through `l4`). */
+  policyOptionId?: string;
   billId?: string;
   vote?: "for" | "against" | "abstain";
   sponsorCountryId?: string;
@@ -562,8 +564,23 @@ function executeActionInner(
         if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
         return { ok: false, error: `Catalog entry unavailable: ${leg.blockingSystem ?? "unported system"} — PORT-STUB` };
       }
-      // Origin chamber: player's seat chamber or first elected chamber of country
       const countryId = params.sponsorCountryId ?? world.player.countryId;
+      if (leg.countryId !== countryId) {
+        actor.actions += cost;
+        if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+        return { ok: false, error: `Catalog entry ${catalogId} belongs to ${leg.countryId}, not ${countryId}` };
+      }
+      const selectedPolicyOption =
+        params.policyOptionId === undefined ? null : resolveCatalogPolicyOption(leg, params.policyOptionId);
+      if (params.policyOptionId !== undefined && !selectedPolicyOption) {
+        const reason = leg.kind === "tax" || !leg.levels
+          ? "policyOptionId is only valid for catalog laws with discrete levels"
+          : `Unknown policy option ${params.policyOptionId} for ${catalogId}`;
+        actor.actions += cost;
+        if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+        return { ok: false, error: reason };
+      }
+      // Origin chamber: player's seat chamber or first elected chamber of country
       const legConfig = world.legislatures[countryId];
       const originChamber = params.originChamber ?? player.legislativeSeat?.chamberKey ?? legConfig?.chambers.find((c) => c.elected)?.key ?? "house";
       const title = params.billTitle ?? leg.title;
@@ -573,7 +590,8 @@ function executeActionInner(
         {
           type: "policy" as const,
           legislationTypeId: catalogId,
-          effectDirection: 1,
+          ...(selectedPolicyOption ? { policyOptionId: selectedPolicyOption.id } : {}),
+          effectDirection: selectedPolicyOption?.effectDirection ?? 1,
           economic: 0,
           social: 0,
         },
@@ -586,7 +604,7 @@ function executeActionInner(
         countryId,
         category,
         legislationTypeId: catalogId,
-        effectDirection: 1,
+        effectDirection: selectedPolicyOption?.effectDirection ?? 1,
         // Tax bills: selected rate from the catalog ladder (params.taxRate, snapped
         // to step and clamped to [minRate, maxRate]; defaults to baselineRate).
         // Source: mainline billEnactment.ts applyTaxRateChange(policyOption.rate).
