@@ -2,7 +2,7 @@
 
 Characterization of public save interchange between the historical v42 engine and this repository's current v43 engine. It is not a downgrade writer, not an AHDGame parity proof, and not a full-suite run.
 
-Pinned v42 source: [Egg3901/AHDClient@c5017542c860f5f94b7d4b4d5cfea2939b28995d](https://github.com/Egg3901/AHDClient/commit/c5017542c860f5f94b7d4b4d5cfea2939b28995d) (`feat(singleplayer): add world controls and feature flags`). Operator checkout used for this run: a detached AHDClient worktree at that commit (`worktrees/v42-engine` under the AHDClient clone). Native engine in this tree is SCHEMA_VERSION **43**. A v43 save with `schemaVersion` rewritten to 42 is not an authentic v42 fixture and was not used as one.
+Pinned v42 source: [Egg3901/AHDClient@c5017542c860f5f94b7d4b4d5cfea2939b28995d](https://github.com/Egg3901/AHDClient/commit/c5017542c860f5f94b7d4b4d5cfea2939b28995d) (`feat(singleplayer): add world controls and feature flags`). Native engine in this tree is SCHEMA_VERSION **43**. A v43 save with `schemaVersion` rewritten to 42 is not an authentic v42 fixture and was not used as one.
 
 ## Run
 
@@ -57,9 +57,9 @@ v42 pin `convertCash`: `Converted 2000 cash to 1000 funds.` Native after load: s
 
 ## Safe v42 export
 
-**Not possible without losing v43 fields. No downgrade writer is implemented.**
+**No v42 compatibility writer is implemented or certified.**
 
-v43 adds exactly two WorldState fields relative to v42 (`packages/engine/src/save.ts` v42→v43 migration, `types.ts`):
+The v42-to-v43 migration adds two WorldState fields (`packages/engine/src/save.ts` v42→v43 migration, `types.ts`):
 
 - `world.countryPolitics` (national approval/history, regime, legitimacy, unrest)
 - `player.homeRegionId` (optional string or null)
@@ -68,15 +68,15 @@ Evidence:
 
 - Native `serializeSave` stamps `schemaVersion` from `world.meta.schemaVersion` (43). The v42 reader rejects that envelope before walking fields.
 - A Native-fresh 1953 US world in this tree writes `player.homeRegionId` as a real region (`AL`). A migrated authentic v42 world gets `homeRegionId: null` because v42 never selected one. Those are different player identities.
-- Dropping `countryPolitics` discards live gauges and approval history. Dropping `homeRegionId` discards the Character-panel home region. Keeping them is not a v42 save.
+- Dropping `countryPolitics` discards live gauges and approval history. Dropping `homeRegionId` discards the Character-panel home region. The old engine does not maintain these new fields as gameplay advances, even if it tolerates them in the document.
 
 Do not waive those mechanics to force an export.
 
-## Expected wrong case (future rejection)
+## Version relabeling probe
 
 Rewriting a v43 envelope and `world.meta.schemaVersion` to 42 is **inauthentic**. The current v42 `deserializeSave` still accepts that rewrite: `assertCurrentWorldState` checks required fields, not a whitelist, so `countryPolitics` and `homeRegionId` are smuggled through. This harness records that acceptance. It does not treat the rewrite as a v42 fixture.
 
-Future reader/writer policy should reject that case. This tree does not implement that rejection or a downgrade.
+Acceptance alone does not certify cross-version semantics or a lossless round-trip. Unknown extension fields are tolerated by the old reader, so this observation does not prove that a future compatibility writer is impossible. Any such writer needs an explicit field policy and cross-version continuation tests. This tree does not change either reader or silently relabel new saves.
 
 ## Claims this harness does not support
 
@@ -115,3 +115,9 @@ Native after authentic v42 load:
 | after_turn_3 | `04dee870ddf455467358c695af0117ba98fa75265cc28ffe889452e34ec368a0` |
 
 Local artifact: `artifacts/v42-validation.json` (gitignored).
+
+## Integrated import evidence
+
+`smoke/save-compatibility.spec.ts` opens this compressed fixture through the real import UI, advances a turn, waits for autosave, reloads the app and resumes. It passes against the production frontend bundle with the actual engine worker and browser QA persistence. This does not validate the iOS native bridge or every historical save.
+
+The refined contract harness passed 23 checks with zero errors in 7.2 seconds. It verifies the pinned source is clean before importing it. The relabeling probe is recorded as an observation rather than an always-passing assertion.

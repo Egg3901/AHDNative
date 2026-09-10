@@ -50,7 +50,7 @@ Per combo:
 ## Claims this harness does not support
 
 - **AHDGame parity.** Not measured. Same-engine twins and AHDClient oracle match are reported separately. Matching the pinned historical client engine does not prove current AHDGame mechanics.
-- **Authentic v42 load.** No historical serialized v42 save is in this tree. [Egg3901/AHDClient@c5017542c860f5f94b7d4b4d5cfea2939b28995d](https://github.com/Egg3901/AHDClient/commit/c5017542c860f5f94b7d4b4d5cfea2939b28995d) is SCHEMA_VERSION 42, but this run did not mint a save from that engine. A current v43 save with `schemaVersion` rewritten to 42 is not an authentic v42 fixture and was not used. Bidirectional v42 interchange remains unproven.
+- **Authentic v42 load.** This three-turn roster harness did not establish it. A separate pinned-engine probe and an authentic compressed fixture now cover one historical 1953 US save. See [save compatibility](SAVE-COMPATIBILITY.md). Current v43 output is rejected by the v42 reader; bidirectional compatibility remains open.
 - **Full action catalog, late-game turns, elections, or UI/session/native storage.** This is a three-turn contract smoke across supported worlds.
 - **Device performance.** Linux process timings only.
 
@@ -89,4 +89,4 @@ SHA-256 of the exact `serializeSave` string at create and after the third turn:
 
 1991 and 2019 combos cost about 5.0-5.8 s each on this host; 1953 and 1979 about 1.9-2.3 s. That is why the oracle comparison has to overlap the local twins to stay inside 120 seconds.
 
-Optional authentic v42 input, if one is later obtained from the v42 engine commit above: `--v42-fixture path/to/envelope.json`. The file must already have `schemaVersion: 42`. The harness will not relabel a v43 save to satisfy that probe.
+Optional authentic v42 input (decompress the committed fixture first): `--v42-fixture path/to/envelope.json`. The file must already have `schemaVersion: 42`. The harness will not relabel a v43 save to satisfy that probe.

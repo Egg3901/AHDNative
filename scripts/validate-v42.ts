@@ -202,6 +202,14 @@ async function main(): Promise<void> {
     actual: v42Commit ?? "unreadable",
   });
 
+  const sourceChanges = gitCapture(v42Root, ["status", "--porcelain", "--", "packages/engine", "packages/content"]);
+  add({ name: "v42_engine_sources_clean", passed: !sourceChanges, expected: "no source changes", actual: sourceChanges ?? "clean" });
+  if (errors.length) {
+    writeReport(args.output, started, deadline, v42Commit, subjectCommit, checks, errors, null, v42Root, null);
+    process.exitCode = 1;
+    return;
+  }
+
   const native = await loadEngine(null);
   const v42 = await loadEngine(pathToFileURL(join(v42Root, "packages", "engine", "src", "index.ts")).href);
 
@@ -426,23 +434,17 @@ async function main(): Promise<void> {
   } catch (error) {
     relabelV42 = { accepted: false, message: errorMessage(error), hasCountryPolitics: null };
   }
-  // Recorded wrong case, not a pass/fail of this harness. Future reader should reject it.
-  checks.push({
-    name: "wrong_case_relabeled_v43_as_v42",
-    passed: true,
-    expected: "record current acceptance; future rejection required; do not treat as authentic v42",
-    actual: relabelV42.accepted
-      ? `currently accepted by v42 reader; countryPolitics smuggled=${String(relabelV42.hasCountryPolitics)}`
-      : `currently rejected: ${relabelV42.message}`,
-  });
+  // This probes extension tolerance, not certified compatibility. Record the
+  // observation without counting it as an always-passing behavioral assertion.
 
   const timedOut = Date.now() >= deadline;
   if (timedOut) fail("harness 120s cap reached");
 
   const exportEvidence = {
-    losslessV42ExportPossible: false,
+    losslessV42ExportValidated: false,
+    relabelObservation: relabelV42,
     reason:
-      "Native v43 serializeSave stamps schemaVersion 43. The v42 reader rejects that envelope before field inspection. A lossless writer would have to emit schema 42 while preserving countryPolitics and player.homeRegionId, which the v42 WorldState does not represent. Stripping those fields loses v43 mechanics. Relabeling the envelope is inauthentic and is the recorded wrong case.",
+      "Native writes schema 43, which the v42 reader rejects. The old reader tolerates additional fields when the version is changed, but this does not certify their semantics across old-engine turns. A compatibility writer requires explicit field policy and continuation tests; none is implemented.",
     v43OnlyFields: ["world.countryPolitics", "player.homeRegionId"],
     nativeFreshHomeRegionId: v43info.homeRegionId,
     migratedV42HomeRegionId: loadA.player.homeRegionId ?? null,
