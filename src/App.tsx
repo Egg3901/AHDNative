@@ -28,6 +28,10 @@ export function App() {
     if (!client.current) return Promise.reject(new Error("Start or load a game first."));
     return client.current.search(query);
   }, []);
+  const loadBondMarket = useCallback(() => {
+    if (!client.current) return Promise.reject(new Error("Start or load a game first."));
+    return client.current.bondMarket();
+  }, []);
   const loadPartyManagement = useCallback(() => {
     if (!client.current) return Promise.reject(new Error("Start or load a game first."));
     return client.current.partyManagement();
@@ -153,7 +157,7 @@ export function App() {
     {screen === 'help' ? <HelpPanel /> : <SettingsPanel value={presentation.value} onChange={changePreferences} error={presentation.error} />}
   </div></main>;
   if (screen === 'new') return <NewGameScreen eras={eras} busy={busy} error={error} onStart={start} onBack={() => setScreen('home')} />;
-  if (screen === 'game' && world) return <GameScreen preferences={presentation.value} onPreferencesChange={changePreferences} preferencesError={presentation.error} loadPolitics={loadPolitics} search={search} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={busy} error={error} message={message}
+  if (screen === 'game' && world) return <GameScreen preferences={presentation.value} onPreferencesChange={changePreferences} preferencesError={presentation.error} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={busy} error={error} message={message}
     onAdvanceTurn={() => void run(async () => { setWorld(await client.current!.advance()); await save(); })}
     onAction={(id, params) => void run(async () => {
       const response = await client.current!.act(id, params); setWorld(response.view);

@@ -147,6 +147,7 @@ The tables above preserve the initial audit at `fbc9e90`. Current execution stat
 | Politics | Party/race details, candidate directory, eligibility and candidacy controls | Projections, complete country electoral models |
 | Legislature | Office, chamber-specific bills and voting, selected-bill details, tax-rate sponsorship | General policy-level selection, regional legislative actions, complete executive powers |
 | Nation and region | Economy/history, budget, enacted policies, nation directory, home-region profile/support/elections | Maps, deep regional government and country-specific systems |
+| Bonds | Domestic sovereign issue details, buy/sell, remaining units and save/reload | Dealer pools/spreads, FX, corporate issuance, default lifecycle |
 | Stock market | Search/filter, company details, buy/sell in player cash currency, save/reload holdings | FX settlement, order books, corporation management, price history |
 | Resource footer | Persistent resources, current engine income/action breakdowns, recorded balance history and links | Full office/corporation/election calculations and controls |
 | Help/settings/search | Offline guide, persistent large text and reduced motion, storage-error handling, local search with working detail links | Remaining search entity types, notifications, full account/help destinations |

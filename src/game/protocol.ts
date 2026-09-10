@@ -8,6 +8,7 @@ export type GameCommand =
   | { type: "politics" }
   | { type: "markets" }
   | { type: "partyManagement" }
+  | { type: "bondMarket" }
   | { type: "search"; query: string }
   | { type: "worldOverview" }
   | { type: "legislation"; selection?: LegislationSelection }
