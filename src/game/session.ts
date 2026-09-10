@@ -3,7 +3,7 @@ import {
   getActionCost, listEras, listPlayableCountries, serializeSave,
   type ActionId, type ExecuteActionParams, type WorldState,
 } from "@ahdclient/engine";
-import type { ActionView, EraChoice, GameView, NewGameOptions } from "./types";
+import type { ActionView, ElectionView, EraChoice, GameView, NewGameOptions } from "./types";
 
 const ACTIONS: { id: ActionId; requires?: ActionView["requires"] }[] = [
   { id: "convertCash", requires: "amount" }, { id: "fundraise" }, { id: "buildDonorBase" },
@@ -90,11 +90,7 @@ function projectWorld(world: WorldState): GameView {
       id: party.id, name: party.name, abbreviation: party.abbreviation, color: party.color,
       members: party.memberCount, treasury: party.treasury, isPlayerParty: player.partyId === party.id,
     })),
-    elections: world.elections.filter((election) => election.countryId === country.id)
-      .sort((a, b) => (a.status === "resolved" ? 1 : 0) - (b.status === "resolved" ? 1 : 0) || b.endTurn - a.endTurn)
-      .slice(0, 40).map((election) => ({ id: election.id,
-        title: election.electionType.replaceAll("_", " ") + (election.state ? ` · ${election.state}` : ""),
-        status: election.status, date: addDaysIso(world.meta.date, (election.endTurn - world.meta.turn) * 7) })),
+    elections: projectElections(world),
     news: world.news.slice(-50).reverse().map((item, index) => ({ id: `${item.turn}:${index}`, title: item.headline, body: "", date: item.date })),
     actions: ACTIONS.map(({ id, requires }) => {
       const entry = ACTION_CATALOG[id];
@@ -107,4 +103,36 @@ function projectWorld(world: WorldState): GameView {
     }),
     regions: Object.values(world.regions).filter((region) => region.countryId === country.id).map(({ id, name }) => ({ id, name })),
   };
+}
+
+/** Display hints mirror the pinned engine; executeAction remains authoritative. */
+function projectElections(world: WorldState): ElectionView[] {
+  const player = world.player;
+  const active = world.elections.find((e) => e.status !== "resolved" && e.candidates.some((c) => c.id === "player"));
+  return world.elections.filter((e) => e.countryId === player.countryId)
+    .sort((a, b) => Number(b.id === active?.id) - Number(a.id === active?.id)
+      || Number(a.status === "resolved") - Number(b.status === "resolved")
+      || (a.status === "resolved" ? b.endTurn - a.endTurn : a.primaryEndTurn - b.primaryEndTurn))
+    .map((election) => {
+      const playerCandidate = election.candidates.some((c) => c.id === "player");
+      const id = playerCandidate ? "withdrawCandidacy" : "declareCandidacy";
+      const entry = ACTION_CATALOG[id];
+      const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
+      const reason = election.status === "resolved" ? "This election has ended."
+        : !playerCandidate && world.meta.turn > election.primaryEndTurn ? "Filing has closed."
+        : !playerCandidate && !player.partyId ? "Join a party before filing."
+        : !playerCandidate && active ? "Withdraw from your current race before filing for another."
+        : (player.actionCooldowns[id] ?? 0) > world.meta.turn ? "Available after its cooldown."
+        : player.actions < cost ? "Not enough action points." : undefined;
+      const dateAt = (turn: number) => addDaysIso(world.meta.date, (turn - world.meta.turn) * 7);
+      return {
+        id: election.id,
+        title: election.electionType.replaceAll("_", " ") + (election.state ? ` · ${election.state}` : ""),
+        status: election.status, date: dateAt(election.endTurn), filingDate: dateAt(election.primaryEndTurn),
+        playerCandidate, candidateNames: election.candidates.map((c) => c.name),
+        winnerNames: (election.winners ?? []).map((id) => election.candidates.find((c) => c.id === id)?.name ?? world.politicians.find((p) => p.id === id)?.name ?? id),
+        candidacy: { id, name: playerCandidate ? "Withdraw candidacy" : "Run for office", description: "", cost,
+          available: !reason, ...(reason ? { disabledReason: reason } : {}) },
+      };
+    });
 }

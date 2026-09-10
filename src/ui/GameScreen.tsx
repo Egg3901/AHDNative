@@ -1,14 +1,16 @@
 /**
- * GameScreen — AHDNative primary game shell.
+ * GameScreen: AHDNative primary game shell.
  *
  * Visual baseline adapted from public AHDGame chrome:
  *   src/app/globals.css (default tokens) and navbar/country tab density
  *   (compact cards, primary #dc2626, bg #14141c, border #2a2a3d).
  * Public source Egg3901/AHDGame. Layout is original, responsive for Tauri web.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ActionView, GameScreenProps, GameView } from "../game/types";
 import "./ui.css";
+
+const ELECTIONS_PAGE_SIZE = 20;
 
 type TabId = "overview" | "actions" | "parties" | "elections" | "news";
 const TABS: { id: TabId; label: string }[] = [
@@ -123,8 +125,24 @@ function ActionRow({
 
 export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction }: GameScreenProps) {
   const [tab, setTab] = useState<TabId>("overview");
+  const [electionPage, setElectionPage] = useState(0);
 
   const tabPanelId = useMemo(() => `ahd-panel-${tab}`, [tab]);
+
+  const electionPageCount = Math.max(1, Math.ceil(world.elections.length / ELECTIONS_PAGE_SIZE));
+  const safeElectionPage = Math.min(Math.max(0, electionPage), electionPageCount - 1);
+  const pagedElections = world.elections.slice(safeElectionPage * ELECTIONS_PAGE_SIZE, (safeElectionPage + 1) * ELECTIONS_PAGE_SIZE);
+
+  useEffect(() => { setElectionPage(0); }, [world.countryId]);
+  useEffect(() => {
+    setElectionPage((p) => Math.min(Math.max(0, p), Math.max(0, Math.ceil(world.elections.length / ELECTIONS_PAGE_SIZE) - 1)));
+  }, [world.elections.length]);
+
+  const activeRaceId = world.elections.find((e) => e.playerCandidate && e.status !== "resolved")?.id;
+  useEffect(() => { setElectionPage(0); }, [activeRaceId]);
+
+  const joinPartyAction = world.actions.find((a) => a.id === "joinParty");
+  const leavePartyAction = world.actions.find((a) => a.id === "leaveParty");
 
   const onTabKeyDown = (e: React.KeyboardEvent) => {
     const idx = TABS.findIndex((t) => t.id === tab);
@@ -274,23 +292,44 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
               <div className="ahd-card ahd-card-pad">
                 <h2 className="ahd-h2">Parties</h2>
                 <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>{world.parties.length} parties in {world.countryName}</p>
+                <p className="ahd-help" role="note" style={{ marginTop: "0.3rem" }}>Switching parties or leaving your party withdraws your candidacy.</p>
               </div>
               {world.parties.length === 0 ? (
                 <div className="ahd-empty">No parties in this world.</div>
               ) : (
                 <div className="ahd-grid ahd-grid-2">
-                  {world.parties.map((p) => (
-                    <div key={p.id} className="ahd-card ahd-card-pad" style={{ borderLeft: `3px solid ${p.color}` }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "center" }}>
-                        <strong style={{ fontSize: "0.86rem" }}>{p.name} <span className="ahd-muted" style={{ fontWeight: 600 }}>({p.abbreviation})</span></strong>
-                        {p.isPlayerParty ? <span className="ahd-pill" style={{ background: "var(--ahd-primary)", color: "white" }}>Yours</span> : null}
+                  {world.parties.map((p) => {
+                    const membershipAction = p.isPlayerParty ? leavePartyAction : joinPartyAction;
+                    const label = p.isPlayerParty ? `Leave ${p.name}` : `Join ${p.name}`;
+                    const disabled = busy || !membershipAction?.available;
+                    const hint = !membershipAction ? "Unavailable"
+                      : !membershipAction.available ? (membershipAction.disabledReason ?? "Unavailable")
+                      : membershipAction.cost > 0 ? `Cost ${membershipAction.cost} actions` : "Free";
+                    const handleMembership = () => {
+                      if (disabled || !membershipAction) return;
+                      if (p.isPlayerParty) onAction(membershipAction.id, undefined);
+                      else onAction(membershipAction.id, { partyId: p.id });
+                    };
+                    return (
+                      <div key={p.id} className="ahd-card ahd-card-pad" style={{ borderLeft: `3px solid ${p.color}` }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "center" }}>
+                          <strong style={{ fontSize: "0.86rem" }}>{p.name} <span className="ahd-muted" style={{ fontWeight: 600 }}>({p.abbreviation})</span></strong>
+                          {p.isPlayerParty ? <span className="ahd-pill" style={{ background: "var(--ahd-primary)", color: "white" }}>Yours</span> : null}
+                        </div>
+                        <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.2rem" }}>{p.members.toLocaleString()} members · ${p.treasury.toLocaleString()} treasury</div>
+                        <div style={{ marginTop: "0.3rem", height: "6px", borderRadius: 999, background: "var(--ahd-border)", overflow: "hidden" }}>
+                          <div style={{ width: `${Math.min(100, p.members / 50)}%`, height: "100%", background: p.color }} />
+                        </div>
+                        <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.5rem" }}>
+                          <button type="button" className="ahd-btn ahd-btn-primary ahd-btn-sm" onClick={handleMembership} disabled={disabled} aria-disabled={disabled} aria-label={label}>
+                            {label}
+                          </button>
+                          <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{hint}</span>
+                        </div>
+                        {!membershipAction?.available && membershipAction?.disabledReason ? <p className="ahd-help" role="note">{membershipAction.disabledReason}</p> : null}
                       </div>
-                      <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.2rem" }}>{p.members.toLocaleString()} members · ${p.treasury.toLocaleString()} treasury</div>
-                      <div style={{ marginTop: "0.3rem", height: "6px", borderRadius: 999, background: "var(--ahd-border)", overflow: "hidden" }}>
-                        <div style={{ width: `${Math.min(100, p.members / 50)}%`, height: "100%", background: p.color }} />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -301,17 +340,58 @@ export function GameScreen({ world, busy, message, error, onAdvanceTurn, onSave,
               <div className="ahd-card ahd-card-pad">
                 <h2 className="ahd-h2">Elections</h2>
                 <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>{world.elections.length} elections</p>
+                {electionPageCount > 1 ? (
+                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "0.4rem" }}>
+                    <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => setElectionPage(safeElectionPage - 1)} disabled={busy || safeElectionPage === 0} aria-label="Previous page">
+                      Previous
+                    </button>
+                    <span className="ahd-muted" style={{ fontSize: "0.74rem" }} aria-live="polite">Page {safeElectionPage + 1} of {electionPageCount}</span>
+                    <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => setElectionPage(safeElectionPage + 1)} disabled={busy || safeElectionPage >= electionPageCount - 1} aria-label="Next page">
+                      Next
+                    </button>
+                  </div>
+                ) : null}
               </div>
               {world.elections.length === 0 ? (
                 <div className="ahd-empty">No elections scheduled.</div>
               ) : (
                 <div className="ahd-stack">
-                  {world.elections.map((e) => (
-                    <div key={e.id} className="ahd-card ahd-card-pad">
-                      <div style={{ fontWeight: 700, fontSize: "0.86rem" }}>{e.title}</div>
-                      <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>{e.status} · {e.date}</div>
-                    </div>
-                  ))}
+                  {pagedElections.map((e) => {
+                    const candidacy = e.candidacy;
+                    const isWithdraw = candidacy?.id === "withdrawCandidacy";
+                    const candidacyLabel = isWithdraw ? "Withdraw candidacy" : "Run for office";
+                    const candidacyDisabled = busy || !candidacy?.available;
+                    const candidacyHint = !candidacy ? "Unavailable"
+                      : !candidacy.available ? (candidacy.disabledReason ?? "Unavailable")
+                      : candidacy.cost > 0 ? `Cost ${candidacy.cost} actions` : "Free";
+                    const handleCandidacy = () => {
+                      if (candidacyDisabled || !candidacy) return;
+                      onAction(candidacy.id, { electionId: e.id });
+                    };
+                    return (
+                      <article key={e.id} aria-label={e.title} className="ahd-card ahd-card-pad">
+                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                          <div style={{ fontWeight: 700, fontSize: "0.86rem" }}>{e.title}</div>
+                          {e.playerCandidate ? <span className="ahd-pill" style={{ background: "var(--ahd-primary)", color: "white" }}>Candidate</span> : null}
+                        </div>
+                        <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>{e.status} · {e.date}</div>
+                        <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>Filing deadline: {e.filingDate ?? "Unknown"}</div>
+                        {(e.candidateNames ?? []).length > 0 ? (
+                          <div style={{ fontSize: "0.78rem", marginTop: "0.25rem" }}>Candidates: {(e.candidateNames ?? []).join(", ")}</div>
+                        ) : null}
+                        {(e.winnerNames ?? []).length > 0 ? (
+                          <div style={{ fontSize: "0.78rem", marginTop: "0.15rem" }}>Winners: {(e.winnerNames ?? []).join(", ")}</div>
+                        ) : null}
+                        <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.5rem" }}>
+                          <button type="button" className="ahd-btn ahd-btn-primary ahd-btn-sm" onClick={handleCandidacy} disabled={candidacyDisabled} aria-disabled={candidacyDisabled} aria-label={candidacyLabel}>
+                            {candidacyLabel}
+                          </button>
+                          <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{candidacyHint}</span>
+                        </div>
+                        {!candidacy?.available && candidacy?.disabledReason ? <p className="ahd-help" role="note">{candidacy.disabledReason}</p> : null}
+                      </article>
+                    );
+                  })}
                 </div>
               )}
             </div>

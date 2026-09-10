@@ -3,7 +3,11 @@ export interface EraChoice { id: string; label: string; countries: { id: string;
 export interface MetricView { id: string; label: string; value: number; format: "money" | "percent" | "number"; }
 export interface ActionView { id: string; name: string; description: string; cost: number; available: boolean; disabledReason?: string; requires?: "amount" | "party" | "region"; }
 export interface PartyView { id: string; name: string; abbreviation: string; color: string; members: number; treasury: number; isPlayerParty: boolean; }
-export interface ElectionView { id: string; title: string; status: string; date: string; }
+export interface ElectionView {
+  id: string; title: string; status: string; date: string; filingDate: string;
+  playerCandidate: boolean; candidateNames: string[]; winnerNames: string[];
+  candidacy: ActionView;
+}
 export interface NewsView { id: string; title: string; body: string; date: string; }
 export interface GameView {
   turn: number; date: string; era: string; countryId: string; countryName: string;

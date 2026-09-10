@@ -47,6 +47,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | U06 | Interface | Done | U03,E05 | Expose election and news views | Real records and clear empty states |
 | U07 | Interface | In progress | U03,S03 | Connect save browser and in-game lifecycle | New/resume/save/reload/exit flow tested |
 | U08 | Interface | In progress | U02,U07 | Verify mobile layout and accessibility | Small-screen overflow,touch,keyboard,focus and errors |
+| U09 | UI | Done | E02,U07 | Expose party membership and candidacy through real engine actions | Filing,withdrawal,save/reload and accessible race pagination |
 | M01 | Mechanics | Done | G03 | Inventory phase/order and feature drift from AHDGame | Named differences,source refs,release blockers |
 | M02 | Mechanics | Queued | M01 | Close referendum lifecycle omissions | Behavioral parity scenarios through public actions/turns |
 | M03 | Mechanics | Queued | M01 | Resolve war abstraction mismatch | Actual authoritative rules; no rebalancing or blanket waiver |
@@ -112,3 +113,12 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Minted a real schema-v42 fixture using clean AHDClient source at `c5017542c860f5f94b7d4b4d5cfea2939b28995d`. Compressed fixture and SHA-256 provenance are committed; no version relabeling was used to create it.
 - Twenty-three contract checks pass for authentic load, deterministic continuation and the old reader's rejection of new schema-v43 saves. The actual import/turn/autosave/reload UI smoke also passes.
 - This closes the missing-authentic-fixture evidence gap, not bidirectional save portability. No compatibility writer or silent downgrade was added. See [save compatibility](SAVE-COMPATIBILITY.md).
+
+
+## Candidacy checkpoint
+
+- Added party join/leave controls and real engine candidacy actions, with filing dates, action costs, availability reasons, candidate/winner names and 20-race pagination. Removed the old 40-race projection cap so open races remain reachable. The active player race appears first.
+- TDD: two new session scenarios and six new UI scenarios failed against the previous implementation, then passed. Production build, 9 session/worker tests, 34 component tests and 10 integrated browser smoke tests pass.
+- The new production smoke creates a real 1953 US world, joins the Democratic Party, advances to scheduled races, files, saves, relaunches, checks candidacy and withdraws. Existing save import/deletion/error/concurrency smoke remains green.
+- No engine formulas changed. Existing engine/content/Rust suites were not repeated locally for this adapter/UI-only batch; CI retains the full verify gate. No Codemagic build or paid minutes used.
+- Next: complete an election-to-office scenario, expose necessary campaign/officeholder actions, and compare the resulting mobile screens against actual MP/SP references. Mechanics parity, bidirectional v42 output, and physical device validation remain release blockers. See [career evidence](CAREER-VALIDATION.md).

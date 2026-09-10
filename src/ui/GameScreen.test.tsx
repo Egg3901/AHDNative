@@ -2,7 +2,22 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { GameScreen } from "./GameScreen";
-import type { GameView } from "../game/types";
+import type { ElectionView, GameView } from "../game/types";
+
+function makeElection(overrides: Partial<ElectionView> = {}): ElectionView {
+  return {
+    id: "e1",
+    title: "General Election",
+    status: "upcoming",
+    date: "1954-11-02",
+    filingDate: "1954-09-01",
+    playerCandidate: false,
+    candidateNames: ["Ada", "Bob"],
+    winnerNames: [],
+    candidacy: { id: "declareCandidacy", name: "Declare candidacy", description: "Run", cost: 1, available: true },
+    ...overrides,
+  };
+}
 
 function makeWorld(overrides: Partial<GameView> = {}): GameView {
   return {
@@ -14,7 +29,7 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
     player: { name: "Ada", cash: 1200, funds: 5000, actions: 3, influence: 12, favorability: 48, partyName: "Labor" },
     metrics: [{ id: "gdp", label: "GDP", value: 12345, format: "money" }],
     parties: [{ id: "p1", name: "Labor", abbreviation: "LAB", color: "#dc2626", members: 120, treasury: 9000, isPlayerParty: true }],
-    elections: [{ id: "e1", title: "General Election", status: "upcoming", date: "1954-11-02" }],
+    elections: [makeElection()],
     news: [{ id: "n1", title: "Markets rally", body: "Stocks up.", date: "1953-02-01" }],
     actions: [{ id: "fundraise", name: "Fundraise", description: "Raise money", cost: 1, available: true, requires: "amount" }],
     regions: [{ id: "r1", name: "Midwest" }],
@@ -211,5 +226,108 @@ describe("GameScreen", () => {
     render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
     expect(screen.getByText("3.1%")).toBeInTheDocument();
     expect(screen.getByText("4.6%")).toBeInTheDocument();
+  });
+
+  it("election card shows filing deadline, badge, candidates and runs for office", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const world = makeWorld({
+      elections: [makeElection({ playerCandidate: true, candidateNames: ["Ada", "Bob"] })],
+    });
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
+    await user.click(screen.getByRole("tab", { name: "Elections" }));
+    const card = screen.getByRole("article", { name: "General Election" });
+    expect(within(card).getByText(/1954-09-01/)).toBeInTheDocument();
+    expect(within(card).getByText("Candidate")).toBeInTheDocument();
+    expect(within(card).getByText(/Ada/)).toBeInTheDocument();
+    const run = within(card).getByRole("button", { name: /run for office/i });
+    expect(run).toBeEnabled();
+    await user.click(run);
+    expect(onAction).toHaveBeenCalledWith("declareCandidacy", { electionId: "e1" });
+  });
+
+  it("withdraw candidacy dispatches with electionId and shows reason when unavailable", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const world = makeWorld({
+      elections: [
+        makeElection({
+          id: "e9",
+          title: "Senate Race",
+          candidacy: { id: "withdrawCandidacy", name: "Withdraw", description: "Out", cost: 0, available: false, disabledReason: "Filing closed" },
+          winnerNames: ["Bob"],
+        }),
+      ],
+    });
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
+    await user.click(screen.getByRole("tab", { name: "Elections" }));
+    const card = screen.getByRole("article", { name: "Senate Race" });
+    expect(within(card).getByText(/winners:.*bob/i)).toBeInTheDocument();
+    const withdraw = within(card).getByRole("button", { name: /withdraw candidacy/i });
+    expect(withdraw).toBeDisabled();
+    expect(within(card).getAllByText(/filing closed/i).length).toBeGreaterThan(0);
+    await user.click(withdraw).catch(() => undefined);
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it("candidacy button is disabled while busy", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const world = makeWorld();
+    render(<GameScreen world={world} busy={true} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
+    await user.click(screen.getByRole("tab", { name: "Elections" }));
+    const card = screen.getByRole("article", { name: "General Election" });
+    expect(within(card).getByRole("button", { name: /run for office/i })).toBeDisabled();
+  });
+
+  it("paginates elections 20 per page so every election stays reachable", async () => {
+    const user = userEvent.setup();
+    const elections = Array.from({ length: 25 }, (_, i) =>
+      makeElection({ id: `e${i}`, title: `Race ${i}`, filingDate: "1954-09-01" }),
+    );
+    const world = makeWorld({ elections });
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    await user.click(screen.getByRole("tab", { name: "Elections" }));
+    expect(screen.getByRole("article", { name: "Race 0" })).toBeInTheDocument();
+    expect(screen.queryByRole("article", { name: "Race 24" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /next page/i }));
+    expect(screen.getByRole("article", { name: "Race 24" })).toBeInTheDocument();
+    expect(screen.queryByRole("article", { name: "Race 0" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /previous page/i }));
+    expect(screen.getByRole("article", { name: "Race 0" })).toBeInTheDocument();
+  });
+
+  it("party cards join and leave via world.actions availability with candidacy warning", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const world = makeWorld({
+      parties: [
+        { id: "p1", name: "Labor", abbreviation: "LAB", color: "#dc2626", members: 120, treasury: 9000, isPlayerParty: true },
+        { id: "p2", name: "Tories", abbreviation: "CON", color: "#1d4ed8", members: 80, treasury: 4000, isPlayerParty: false },
+      ],
+      actions: [
+        { id: "joinParty", name: "Join Party", description: "Join", cost: 2, available: true, requires: "party" },
+        { id: "leaveParty", name: "Leave Party", description: "Leave", cost: 0, available: true },
+      ],
+    });
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
+    await user.click(screen.getByRole("tab", { name: "Parties" }));
+    expect(screen.getByText(/withdraws your candidacy/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /join tories/i }));
+    expect(onAction).toHaveBeenCalledWith("joinParty", { partyId: "p2" });
+    await user.click(screen.getByRole("button", { name: /leave labor/i }));
+    expect(onAction).toHaveBeenCalledWith("leaveParty", undefined);
+  });
+
+  it("party join button surfaces disabled reason from world.actions", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld({
+      parties: [{ id: "p2", name: "Tories", abbreviation: "CON", color: "#1d4ed8", members: 80, treasury: 4000, isPlayerParty: false }],
+      actions: [{ id: "joinParty", name: "Join Party", description: "Join", cost: 2, available: false, disabledReason: "Cooldown", requires: "party" }],
+    });
+    render(<GameScreen world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    await user.click(screen.getByRole("tab", { name: "Parties" }));
+    expect(screen.getByRole("button", { name: /join tories/i })).toBeDisabled();
+    expect(screen.getAllByText(/cooldown/i).length).toBeGreaterThan(0);
   });
 });
