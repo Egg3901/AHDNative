@@ -49,7 +49,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | G02 | Evidence | Done | G01 | Bootstrap React/Tauri shell and private signing setup | Local compile; encrypted signing; no device claim |
 | G03 | Evidence | Done | G01 | Pin historical engine and identify reuse limits | Provenance and known mechanics differences recorded |
 | G04 | Evidence | Done | G03 | Audit production RNG and imported source publication | [Determinism audit](DETERMINISM-AUDIT.md) at `f61c28f`; no unseeded runtime randomness or secret/ops material in non-test engine/content. Rust/device float parity is not established |
-| G05 | Evidence | Blocked | G03 | Measure named physical iOS device late-turn performance | p95 budget plus worst-turn,memory,thermal evidence; needs eligible device build |
+| G05 | Evidence | Blocked | G03,I01 | Measure named physical iOS device late-turn performance | Eligible build 0.1.0 (1.6) exists; named-device p95,worst-turn,memory and thermal measurements remain #43 |
 | G06 | Evidence | Queued | G05 | Record TS optimization versus Rust go/no-go | Device evidence determines rewrite; no speculative bulk port |
 | E01 | Engine | Done | G04 | Import pinned reusable engine/content without UI/history | Unchanged formulas; source manifest; proprietary notice |
 | E02 | Engine | Done | E01 | Implement world session through public engine contract | Create,actions,turn,serialize,load behavior tests |
@@ -69,9 +69,9 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | U02 | Interface | Done | U01 | Build new-game era/country/player flow | Accessible form; real content choices; validation |
 | U03 | Interface | In progress | U01,E05 | Port shared game chrome and character-first entry | Actual MP/SP hierarchy; compact mobile navigation |
 | U04 | Interface | Done | U03,E05 | Expose real character and action flow | Costs,target input,result/errors; no fake actions |
-| U05 | Interface | In progress | U03,E05 | Expose party membership and party views | Actual joins/leaves/party state wired through contract |
+| U05 | Interface | Done | U03,E05 | Expose party membership and party views | Basic join/leave/detail flow is wired and tested in PRs #7/#15; full platform/charter/coalition work remains #59 |
 | U06 | Interface | Done | U03,E05 | Expose election and news views | Real records and clear empty states |
-| U07 | Interface | In progress | U03,S03 | Connect save browser and in-game lifecycle | New/resume/save/reload/exit flow tested |
+| U07 | Interface | Done | U03,S03 | Connect save browser and in-game lifecycle | New/resume/save/reload/exit and confirmed deletion pass browser smoke; native-device lifecycle remains I02/I03 and #44 |
 | U08 | Interface | In progress | U02,U07 | Verify mobile layout and accessibility | Small-screen overflow,touch,keyboard,focus and errors |
 | U09 | UI | Done | E02,U07 | Expose party membership and candidacy through real engine actions | Filing,withdrawal,save/reload and accessible race pagination |
 | U10 | UI | Done | U09,Q01 | Complete a seeded election-to-office loop and expose legislature actions | Genuine t95 fixture, election win,sponsor,vote,relaunch through production UI |
@@ -84,18 +84,18 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | M07 | Mechanics | In progress | M01 | Consume authoritative Game-owned rules one action/system at a time | Fundraise shared cost/yield/eligibility first; preserve complete stat/currency context before parity signoff; [Game #1724](https://github.com/Egg3901/AHDGame/issues/1724) |
 | M08 | Mechanics | In progress | M01,M07 | Detect upstream drift and gate consumer updates | Immutable source checks first; complete source coverage, update PRs and ruleset/save policy in [#120](https://github.com/Egg3901/AHDNative/issues/120) |
 | Q01 | Validation | Done | E03,S02,U07 | Integrated gameplay smoke through actual UI | Create,country,action,turn,save,close,reload,continue |
-| Q02 | Validation | In progress | Q01 | Exercise error and concurrency smoke | Corrupt import,double-click turn,save failure and recovery |
+| Q02 | Validation | Done | Q01 | Exercise error and concurrency smoke | Corrupt import,double-click turn,save failure/recovery and worker startup failure pass integrated smoke at fc87a991 |
 | Q03 | Validation | In progress | Q01,U08 | Capture representative UI evidence | Desktop and mobile screenshots from real running world |
 | Q04 | Validation | Done | E06,E07,Q02,Q03 | Run batched regression gate | Focused changes first; full suite only integration checkpoint |
 | Q05 | Validation | Queued | Q04,M06,S05 | Assess 1.0.0 candidate readiness | Exact commit/results/remaining limitations; no placeholder success |
-| I01 | iOS | Blocked | Q05 | Build one private signed candidate | Manual <=20min; no public artifacts; no retries unchanged |
+| I01 | iOS | Done | Q04,owner preview approval | Build first private signed feedback preview | 0.1.0 (1.6) exported, Apple VALID/INTERNAL_ONLY, attached to Owner review; #124. Full 1.0 gate remains Q05/I04 |
 | I02 | iOS | Queued | I01 | Install and smoke on iPhone | Real install,launch,world,turn,save/relaunch |
 | I03 | iOS | Queued | I02 | Validate lifecycle and memory/performance | Background,lock,interruption,low memory,named-device measurements |
 | I04 | Release | Queued | I03,G06 | Cut private 1.0.0 when release gates pass | Version consistency,private artifact,release notes,known risks |
 | P01 | Multiplayer | Queued | I04 | Adapt shared screens to authoritative MP transport | Existing auth/server authority unchanged |
 | P02 | Multiplayer | Queued | P01 | Validate reconnect,read-only safety and mode separation | SP remains offline; MP cannot mutate local authoritative world |
-| A01 | Platforms | Queued | I04 | Bring up Android shell and lifecycle | Same game UI; physical Android smoke/performance |
-| A02 | Platforms | Queued | I04 | Adapt desktop navigation and packaging | No janky alternate UI; keyboard/window state and saves |
+| A01 | Platforms | In progress | owner preview approval | Bring up Android shell and lifecycle | Local ARM64 APK built; signature and 16 KB binary/package checks pass. Device smoke/performance remain #44/#43/#126 |
+| A02 | Platforms | In progress | owner preview approval | Adapt desktop navigation and packaging | Local Windows x64 portable EXE built with shared UI. Windows launch,keyboard/window state and save checks remain unverified |
 | R01 | Conditional Rust | Conditional | G06 | Port exact RNG and save model | Only if rewrite activated; TS vectors and fixture parity |
 | R02 | Conditional Rust | Conditional | R01,E07 | Port integer-clean systems in phase order | One bounded slice with phase hash gate |
 | R03 | Conditional Rust | Conditional | R02 | Port transcendental-heavy systems | Exact first; documented proven tolerance only |
@@ -107,7 +107,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 - Physical iOS gameplay/lifecycle/performance evidence does not exist yet.
 - Historical engine mechanics differ from current AHDGame in known systems. Reuse is an integration starting point, not parity certification.
 - Authentic v42 import now passes for the pinned 1953 US fixture. Current v43 output is rejected by the old v42 reader. The engine projector and local export CLI write authentic fixtures byte-identical and Native-fresh pre-turn worlds as a keep-home schema 42 extension (not the authentic mint). Progressed `countryPolitics` still cannot round-trip without loss and is refused.
-- Main contains the growing local SP development app; it is not a validated iPhone release.
+- The private iOS preview has passed signing, upload and Apple processing. Full phone playthrough, lifecycle and measured performance remain unverified; 1.0.0 is still gated.
 
 Status changes must cite an actual commit, test result, artifact or explicit blocker. Completed shell/RNG/replay groundwork does not imply a playable release.
 
@@ -427,3 +427,26 @@ Local app tests and production-browser smoke precede paid signing. The
 Windows portable executable and Android ARM64 debug APK use separate
 [local build scripts](WINDOWS-ANDROID-REVIEW-BUILDS.md). Actual device launch,
 save/reopen, lifecycle and performance results must follow each build.
+
+Delivery is complete: iOS 0.1.0 (1.6) from `fc87a991` processed as Internal Only
+and is attached to Owner review; local Windows and Android packages are built.
+The [exact source verification](https://github.com/Egg3901/AHDNative/actions/runs/34533476660)
+and all 36 integrated production-browser smoke scenarios passed. The owner has
+given initial positive visual feedback while reporting remaining UI gaps; no
+specific device, full playthrough or performance measurements were supplied.
+Detailed results remain in [#124](https://github.com/Egg3901/AHDNative/issues/124).
+
+## Issue reconciliation
+
+GitHub open issues include partially delivered work, verification gates and
+deferred MP scope. The parity audit was filed after most earlier feature PRs,
+so its issue count measures remaining acceptance scopes rather than all work
+performed since bootstrap. The reconciliation records 55 partially delivered issues, 34 whose requested
+capability is not implemented, two physical-device gates, two deferred MP
+issues, and parent #28. All 94 remain open; nine earlier issues are closed.
+Each open child has a status label, current evidence and remaining criteria.
+Parent #28 records these counts and distinguishes the original 92-child audit
+from later build findings. These counts are scope counts, not effort percentages. Roadmap rows U05/U07/Q02/I01 above were stale and are now marked done
+for their bounded acceptance; A01/A02 reflect completed packaging with device
+checks outstanding. Future batches must update issues and roadmap rows as
+part of completion, as required by AGENTS.md and the PR template.

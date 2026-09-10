@@ -14,6 +14,7 @@ Read README.md before changing product scope or architecture.
 - Keep mechanics aligned with AHDGame. Performance changes must preserve behavior and be validated with replay evidence. Repository bootstrap does not satisfy the physical-device performance gate.
 - This repository is public. Audit source and asset rights before import; never commit credentials, private operational material, or proprietary source without authorization to publish it.
 - Report actual build and validation results. Never describe bootstrap checks as an iOS build or claim playable features before they exist.
+- Keep issue status and roadmap rows current as part of finishing each batch. Link affected issues in every implementation PR, mark verified completed substeps with source/test evidence, and state the remaining acceptance criteria. Use `Closes #N` only when all criteria are met; partial work keeps the issue open with a `status: partial` label. Update parent tracker counts after closures. Do not report an open issue count as the amount of untouched work.
 
 ## Build budget and signing privacy
 
