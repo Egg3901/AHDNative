@@ -193,3 +193,10 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - The pure soft-cap, turnout-weighted aggregation, diminishing-spend and bounded poll-history formulas match the pinned AHDGame source. Native lacks the granular electorate substrate, so new campaign snapshots use that source's single-cohort fallback. This does not establish parity with fully populated UK cohorts.
 - Public turn/save tests cover the campaign boundary through resolution, one transition per turn, absent closing dates and stale scalar values on both sides of the pass threshold. Complete serialized worlds match at every replay checkpoint after a mid-campaign reload. The local short engine suite passes 795 tests and engine typecheck passes.
 - Request/grant actions, campaign spending/ground-game writers, consent bills and actuation remain incomplete. Passed votes still wait at actuation. This closes a bounded calculation/lifecycle slice, not M02 as a whole. No paid build, long simulation or UI/native rebuild was run for this engine slice.
+
+
+## UK initialization checkpoint
+
+- Added an explicit engine `historical` initialization option for the source-backed 1953/1979 UK synthetic winner roster. Regional magnitudes and largest-remainder allocation preserve 625/650 Commons seats and allow government formation on the first turn.
+- `founding` remains the default. Historical UK politicians consume the shared creation RNG even when playing another country, so changing the app default is held for a controlled rollout with cross-world replay evidence. The new-game form has not changed and loaded saves are never reseeded.
+- Nineteen focused UK/politician tests and engine typecheck passed. Tests include complete-world equality for omitted versus explicit founding and exact historical save/reload, alongside seat totals and government formation. Full regional constituencies, campaign eligibility and a UK career playthrough remain open. No paid build or long simulation ran.

@@ -72,6 +72,11 @@ import type { ColdWarTensionState, NuclearProgramState } from "./coldWar/types.j
 import type { AlignmentRecord, AlignmentPoleId } from "./alignment/types.js";
 import { normalizeShares } from "./alignment/alignment.js";
 import { seedInternationalOrgs } from "./internationalOrgs/seed.js";
+import {
+  DEFAULT_WORLD_INITIALIZATION,
+  projectUkHistoricalCommonsComposition,
+  type WorldInitialization,
+} from "./initialization/ukHistorical.js";
 
 // Pre-allocated v37 for the W28 (enactment depth) + W32 (cold war / world
 // politics) batch. Main is v33 as of this wave's branch point; parallel
@@ -204,6 +209,13 @@ export interface NewWorldOptions {
    * change to turn/phase logic (FRAMEWORK.md "Play modes (binding)").
    */
   mode?: "career" | "hos";
+  /**
+   * Fresh-world political initialization. Historical applies the source-backed
+   * UK 1953/1979 winner roster when selected. Founding is
+   * the current default and preserves the authored empty-seat start for a
+   * deliberate founding election.
+   */
+  initialization?: WorldInitialization;
 }
 
 export function listEras(): EraInfo[] {
@@ -327,6 +339,10 @@ export function createWorld(options: NewWorldOptions): WorldState {
   const era = options.era;
   const pack = getPackByEra(era);
   if (!pack) throw new Error(`Unknown era: ${era}`);
+  const initialization = options.initialization ?? DEFAULT_WORLD_INITIALIZATION;
+  if (initialization !== "historical" && initialization !== "founding") {
+    throw new Error(`Unknown world initialization: ${String(initialization)}`);
+  }
 
   const countries: WorldState["countries"] = {};
   for (const c of pack.countries) {
@@ -449,6 +465,17 @@ export function createWorld(options: NewWorldOptions): WorldState {
         return chamber;
       }),
     };
+  }
+
+  if (initialization === "historical") {
+    const ukCommonsComposition = projectUkHistoricalCommonsComposition(pack);
+    const ukCommons = legislatures.UK?.chambers.find((chamber) => chamber.key === "commons");
+    if (ukCommonsComposition && ukCommons) {
+      ukCommons.composition = {
+        seatsByParty: ukCommonsComposition,
+        vacancies: ukCommons.seats - Object.values(ukCommonsComposition).reduce((sum, seats) => sum + seats, 0),
+      };
+    }
   }
 
   // Populate politicians for elected chambers of playable countries.
