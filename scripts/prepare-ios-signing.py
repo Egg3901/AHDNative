@@ -5,6 +5,7 @@ Updating existing keys works. Keep real identities in encrypted CI inputs.
 Remove this workaround after upgrading to a verified upstream fix.
 """
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -22,6 +23,10 @@ SIGNING_KEYS = (
 
 
 def prepare(path: Path) -> None:
+    team = os.environ.get("TAURI_APPLE_DEVELOPMENT_TEAM", "")
+    if not re.fullmatch(r"[A-Z0-9]{10}", team):
+        raise ValueError("Expected encrypted Apple development team input")
+    team_keys = {"DEVELOPMENT_TEAM", '"DEVELOPMENT_TEAM[sdk=iphoneos*]"'}
     lines = path.read_text().splitlines(keepends=True)
     result = []
     in_section = False
@@ -42,11 +47,15 @@ def prepare(path: Path) -> None:
             if line == indent + "};\n":
                 for key in SIGNING_KEYS:
                     if key not in present:
-                        result.append(f'{indent}\t{key} = "";\n')
+                        value = team if key in team_keys else ""
+                        result.append(f'{indent}\t{key} = "{value}";\n')
                 indent = None
                 count += 1
             elif " = " in line:
-                present.add(line.strip().split(" = ", 1)[0])
+                key = line.strip().split(" = ", 1)[0]
+                present.add(key)
+                if key in team_keys:
+                    line = f'{indent}\t{key} = "{team}";\n'
         result.append(line)
     if indent is not None or count == 0:
         raise ValueError("Expected complete generated Xcode build settings")
