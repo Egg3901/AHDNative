@@ -1,3 +1,4 @@
+import { gameReady, advanceGame } from './game-navigation';
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -10,17 +11,16 @@ test('an authentic v42 save imports, advances, and reloads through the game UI',
   await page.getByLabel('Import saved game', { exact: true }).setInputFiles({
     name: 'historical-v42.json', mimeType: 'application/json', buffer: historicalSave,
   });
-  const endTurn = page.getByRole('button', { name: 'End turn', exact: true });
-  await expect(endTurn).toBeEnabled();
-  await expect(page.getByText(/^1953 · Turn 0 ·/)).toBeVisible();
+  await gameReady(page);
+  await expect(page.getByRole('contentinfo')).toContainText('Turn 0 ·');
   await expect(page.getByRole('status')).toContainText('Saved game imported');
-  await endTurn.click();
-  await expect(endTurn).toBeEnabled();
-  await expect(page.getByText(/^1953 · Turn 1 ·/)).toBeVisible();
+  await advanceGame(page);
+  await gameReady(page);
+  await expect(page.getByRole('contentinfo')).toContainText('Turn 1 ·');
   await expect(page.getByRole('status')).toContainText('Game saved');
   await page.reload();
   await page.getByRole('button', { name: 'Continue Validator', exact: true }).click();
-  await expect(endTurn).toBeEnabled();
-  await expect(page.getByText(/^1953 · Turn 1 ·/)).toBeVisible();
+  await gameReady(page);
+  await expect(page.getByRole('contentinfo')).toContainText('Turn 1 ·');
   await expect(page.getByRole('alert')).toHaveCount(0);
 });

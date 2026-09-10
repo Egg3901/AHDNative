@@ -1,8 +1,9 @@
+import { openGameMenu, gameReady, navigateGame, advanceGame } from './game-navigation';
 import { test, expect, type Page } from '@playwright/test';
 
 async function openMenu(page: Page, destination: string) {
-  await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('menuitemradio', { name: destination, exact: true }).click();
+  await openGameMenu(page);
+  await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: destination, exact: true }).click();
 }
 
 test('mobile politics, national accounts and resource explanations use a real UK world', async ({ page }) => {
@@ -14,9 +15,9 @@ test('mobile politics, national accounts and resource explanations use a real UK
   await page.getByLabel('Country', { exact: true }).selectOption('UK');
   await page.getByLabel('Seed', { exact: false }).fill('mobile-feature-depth');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'End turn', exact: true })).toBeEnabled();
+  await gameReady(page);
 
-  await page.getByRole('tab', { name: 'Parties', exact: true }).click();
+  await navigateGame(page, 'Parties');
   await page.getByRole('button', { name: /^View .* details$/ }).first().click();
   const party = page.getByRole('region', { name: 'Party details', exact: true });
   await expect(party.getByText('Platform', { exact: true })).toBeVisible();
@@ -48,16 +49,16 @@ test('mobile politics, national accounts and resource explanations use a real UK
   await expect(page.getByRole('region', { name: 'Home region', exact: true })).toBeVisible();
   await page.screenshot({ path: 'artifacts/smoke/mobile-region.png', fullPage: true });
 
-  const footer = page.getByRole('contentinfo', { name: 'Character stats and turn timer' });
+  const footer = page.getByRole('contentinfo', { name: 'Status and primary navigation' });
   await footer.getByRole('button', { name: /action points/i }).click();
   await expect(page.getByText('Base refresh', { exact: true })).toBeVisible();
   await footer.getByRole('button', { name: /campaign funds/i }).click();
   await expect(page.getByText('Regular net generation', { exact: true })).toBeVisible();
   await expect(page.getByText('Donor bonus', { exact: true })).toBeVisible();
   await footer.getByRole('button', { name: /campaign funds/i }).click();
-  await page.getByRole('button', { name: 'End turn', exact: true }).click();
+  await advanceGame(page);
   await expect(footer).toContainText('Turn 1');
-  await expect(page.getByRole('button', { name: 'End turn', exact: true })).toBeEnabled();
+  await gameReady(page);
   await page.reload();
   await page.getByRole('button', { name: 'Continue Detail Player' }).click();
   await openMenu(page, 'Economy');
