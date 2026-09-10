@@ -220,3 +220,24 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Integrated gate: 81 root tests, 114 UI tests, fixture integrity, engine
   typecheck and 7 focused action-accounting tests passed. All 21 production
   browser scenarios passed, including founding and reload at phone size.
+
+## Phase-order corporation/macro checkpoint, 2026-09-10 15:02 UTC
+
+- M04 remains in progress. This checkpoint closes only the corporate-revenue to
+  macro-growth edge. Campaign spend still reaches the tally next turn. Other
+  Native tail clusters stay where they are. TFP missing-input and remaining
+  phase-order drift are unchanged.
+- Registry now runs RNG-free `corporationTurnPhase` immediately before
+  `macroCountryTurnPhase`, matching AHDGame `e364c0495`. Public
+  `advanceTurn` tests cover same-turn snapshot visibility and save/resume
+  byte identity. [Phase order evidence](PHASE-ORDER-DEPTH.md).
+- RNG-free is not a no-behavior-change claim. Same-turn macro `sectorSignal`
+  is the intended change and flows into later readers of `growthRate` such as
+  `centralBankChairTurn`. Corporation now taxes before same-turn bill
+  enactment and tax-rate phase-in, which matches AHDGame order. No other
+  moved-over phase reads corp books.
+- Validation: engine typecheck passed. The integrated branch including party
+  founding and v42 projection passed 817 engine tests across 80 files. The
+  explicit weekly-date/phase-timing assertion was updated for the intended
+  source-backed move and passed separately (one selected test; 47 skipped).
+  No historical world-hash goldens or career fixtures were regenerated.
