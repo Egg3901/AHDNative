@@ -218,6 +218,12 @@ describe("PoliticsPanel elections", () => {
         targets: [{ id: "US-9", name: "Ron Rival", partyName: "Republican Party" }],
         action: { id: "campaignRetarget", name: "Change opposition target", description: "", cost: 0, available: true },
       },
+      manager: {
+        managerId: "US-9",
+        managerName: "Ron Rival",
+        managers: [{ id: "US-9", name: "Ron Rival", office: "House · AL" }],
+        action: { id: "campaignManager", name: "Update campaign manager", description: "", cost: 0, available: true },
+      },
       activity: [{
         type: "upgrade", category: "fundraising", branch: null,
         fromLevel: null, newLevel: 1, costFunds: 15000, costActions: 10,
@@ -245,6 +251,8 @@ describe("PoliticsPanel elections", () => {
     expect(onAction).toHaveBeenCalledWith("campaignRallyTour", { electionId: "house:US:AL:c1", rallyTour: "start" });
     await user.click(screen.getByRole("button", { name: "Change opposition target" }));
     expect(onAction).toHaveBeenCalledWith("campaignRetarget", { electionId: "house:US:AL:c1", oppositionTargetId: "US-9" });
+    await user.click(screen.getByRole("button", { name: "Save campaign manager" }));
+    expect(onAction).toHaveBeenCalledWith("campaignManager", { electionId: "house:US:AL:c1", managerId: "US-9" });
   });
 
   it("shows archived campaign detail without management controls", async () => {
@@ -284,6 +292,15 @@ describe("PoliticsPanel elections", () => {
           available: false, disabledReason: "Campaign is archived and read-only.",
         },
       },
+      manager: {
+        managerId: null,
+        managerName: null,
+        managers: [],
+        action: {
+          id: "campaignManager", name: "Set campaign manager", description: "", cost: 0,
+          available: false, disabledReason: "Campaign is archived and read-only.",
+        },
+      },
       activity: [],
       levers: [{
         category: "fundraising", started: false,
@@ -309,6 +326,7 @@ describe("PoliticsPanel elections", () => {
     expect(screen.getByRole("button", { name: "Fire campaign rally" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Start campaign rally tour" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Set opposition target" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save campaign manager" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Unlock fundraising starter" })).toBeDisabled();
     expect(onAction).not.toHaveBeenCalled();
 
