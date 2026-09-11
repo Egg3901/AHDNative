@@ -7,6 +7,10 @@
   ],
   "permissions": [
     "core:default",
+    "allow-save-game",
+    "allow-load-game",
+    "allow-list-saves",
+    "allow-delete-save",
     "allow-open-online-window"
   ]
 }

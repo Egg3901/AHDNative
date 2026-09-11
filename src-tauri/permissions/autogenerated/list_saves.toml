@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-list-saves"
+description = "Enables the list_saves command without any pre-configured scope."
+commands.allow = ["list_saves"]
+
+[[permission]]
+identifier = "deny-list-saves"
+description = "Denies the list_saves command without any pre-configured scope."
+commands.deny = ["list_saves"]

@@ -205,3 +205,22 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod capability_tests {
+    #[test]
+    fn main_capability_keeps_offline_save_commands_available() {
+        let capability = include_str!("../capabilities/default.json");
+        for permission in [
+            "allow-save-game",
+            "allow-load-game",
+            "allow-list-saves",
+            "allow-delete-save",
+        ] {
+            assert!(
+                capability.contains(permission),
+                "main capability must include {permission}"
+            );
+        }
+    }
+}
