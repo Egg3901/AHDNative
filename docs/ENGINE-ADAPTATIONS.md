@@ -14,6 +14,7 @@ The source manifest retains hashes from AHDClient `568c0c039efcca2db17c52b292074
 
 | `packages/engine/src/{world,initialization/ukHistorical}.ts` | Explicit synthetic UK historical bootstrap for 1953/1979, preserving founding default | [UK evidence](UK-CAREER-DEPTH.md). Opt-in changes shared creation RNG; no existing save reseeding or full UK career parity |
 | `packages/engine/src/phases/registry.ts`, `packages/engine/src/corporation/corporationTurn.ts`, `packages/engine/src/phases/macroCountryTurn.ts` | Register `corporationTurnPhase` immediately before `macroCountryTurnPhase` so current-turn corporate revenue is the macro growth signal | [Phase order evidence](PHASE-ORDER-DEPTH.md). RNG-free does not mean no behavior change. Same-turn macro signal is intended. See the integration note below |
+| `packages/engine/src/stats/debatePrep.ts`, `packages/engine/src/actions/{catalog,execute}.ts`, `packages/engine/src/types.ts`, `packages/engine/src/save.ts`, `src/game/session.ts` | Port the `debatePrep` character action at coded values (1 AP, 15%, Debate +1 capped at 10) with the turn-clock mapping in the section below | Pinned-seed success/failure vectors, AP-gate, cap, save round-trip, missing-stat rejection/no-op and replay tests. No schema bump: `stats.debate` is optional and old saves load unchanged |
 
 AHDGame reference for the mechanics corrections: `e364c04954ed628beef73a993a8e9e156650a31e`. Expected vectors come from those source formulas, independently calculated. New targeted tests live alongside each changed system. The historical 21-world replay evidence predates these corrections; it must not be represented as fresh whole-engine parity with current AHDGame.
 
@@ -93,6 +94,33 @@ Older saves may omit them. Native validates edits through the session/worker
 boundary and stores raster portraits locally. Source behavior and validation,
 including the bounded real v42/v43 reader round-trip, are recorded in
 [behavioral parity](BEHAVIORAL-PARITY.md). Missing player mechanics remain gaps.
+
+## Debate Prep character action (#37)
+
+Ports `ACTIONS.debatePrep` (`src/lib/actions.ts`) and `rollDebatePrep`
+(`src/lib/stats/debatePrep.ts`) at AHDGame `36192953d`: cost
+`DEBATE_PREP_ACTION_COST=1` AP, no fund cost, success iff `rng() < 0.15` with
+`+1` Debate clamped at `STAT_MAX=10`. Documented turn-clock mapping:
+
+- No wall-clock cooldown exists in the source execute route (repeatable while
+  AP lasts; the real-time 72h clock governs decay, not execution), so the
+  catalog sets `cooldown: 0` and repeat attempts are AP-gated. No turn
+  equivalent was invented.
+- The mainline RPG-stats flag and "allocate your stats" gates have no Native
+  counterpart yet (no flag, no allocation step until #48/#91), so the action
+  rejects a missing `stats.debate` before any AP charge or RNG draw and the
+  shared accounting wrapper refunds the attempt fully. Successful rolls persist
+  `player.stats.debate`.
+- The draw flows through `world.meta.rng` (read + writeback, same pattern as
+  `advanceTurn`), so save/load mid-campaign and deterministic replay hold.
+- Mainline skips generic use-growth XP for debatePrep; Native has no
+  `statXp` system, so there is nothing to exclude.
+- NPC politicians carry no stat block, so the action is player-only; the
+  shared accounting wrapper refunds AP on that refusal.
+- The 72h Debate decay clock and debate-participation practice rolls are not
+  ported (separate systems, out of #37 scope).
+- Copy note: mainline card/effect text still says "10% chance" but the coded
+  constant is `0.15`; Native states 15% to match behavior.
 
 ## Player influence and office resources
 

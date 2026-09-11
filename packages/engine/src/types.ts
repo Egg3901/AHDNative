@@ -658,8 +658,14 @@ export interface PlayerCharacter {
   partyInfluence?: number;
   /** Character policy axes (-5..5). Legacy Native saves use neutral 0/0. */
   policies?: { economic: number; social: number };
-  /** Optional imported Energy. Allocation and the remaining RPG stats are #48/#91. */
-  stats?: { energy?: number };
+  /**
+   * Optional imported Energy plus the Debate skill (#37). Debate ports
+   * Character.stats.debate (src/lib/stats/statsConstants.ts, range 1-10).
+   * A missing Debate stat means unallocated: debatePrep rejects before any
+   * AP charge or RNG draw. Allocation and the remaining RPG stats are
+   * #48/#91.
+   */
+  stats?: { energy?: number; debate?: number };
   favorability: number;
   infamy: number;
   /** Action cooldowns: actionId -> turn when next available. */

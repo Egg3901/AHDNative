@@ -96,3 +96,52 @@ describe("player candidacy through the session contract", () => {
     expect(session.view().elections.find((e) => e.id === race.id)).toMatchObject({ playerCandidate: false, candidacy: { available: false } });
   });
 });
+
+describe("debatePrep character action (#37)", () => {
+  // Native has no stat-allocation step yet (#48/#91), so tests allocate the
+  // Debate stat through the save boundary: create, inject stats, reload.
+  function createAllocatedSession(seed: string): GameSession {
+    const fresh = new GameSession();
+    fresh.create({ ...options, seed });
+    const stamp = "2026-09-10T00:00:00.000Z";
+    const raw = JSON.parse(fresh.serialize(stamp)) as { world: { player: { stats?: { debate?: number } } } };
+    raw.world.player.stats = { debate: 1 };
+    const session = new GameSession();
+    session.load(JSON.stringify(raw));
+    return session;
+  }
+  it("exposes debate prep in the Intelligence hub with engine-backed cost", () => {
+    const session = new GameSession(); session.create(options);
+    const action = session.view().actions.find((a) => a.id === "debatePrep");
+    expect(action).toMatchObject({ category: "intelligence", cost: 1, fundCost: 0, available: true });
+    expect(action?.name).toContain("Debate");
+  });
+  it("refuses debate prep until stats are allocated", () => {
+    const session = new GameSession(); session.create(options);
+    const response = session.act("debatePrep");
+    expect(response.ok).toBe(false);
+    if (!response.ok) expect(response.error).toMatch(/allocate your stats/i);
+  });
+  it("runs create -> debate prep -> save/reload through the session boundary", () => {
+    const session = createAllocatedSession("debate-seed-2");
+    const response = session.act("debatePrep");
+    expect(response.ok).toBe(true);
+    const stamp = "2026-09-10T00:00:00.000Z";
+    const saved = (JSON.parse(session.serialize(stamp)) as { world: { player: { stats?: { debate?: number } } } })
+      .world.player.stats?.debate;
+    expect(saved).toBe(2);
+    const loaded = new GameSession();
+    loaded.load(session.serialize(stamp));
+    expect((JSON.parse(loaded.serialize(stamp)) as { world: { player: { stats?: { debate?: number } } } })
+      .world.player.stats?.debate).toBe(2);
+    // The reloaded world continues the same deterministic RNG stream.
+    expect(loaded.act("debatePrep").ok).toBe(true);
+  });
+  it("surfaces the engine AP refusal instead of executing", () => {
+    const session = createAllocatedSession(options.seed);
+    for (let i = 0; i < 30; i += 1) session.act("debatePrep");
+    const exhausted = session.act("debatePrep");
+    expect(exhausted.ok).toBe(false);
+    if (!exhausted.ok) expect(exhausted.error).toMatch(/action points/i);
+  });
+});

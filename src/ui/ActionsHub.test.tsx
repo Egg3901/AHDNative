@@ -15,6 +15,7 @@ const actions: ActionView[] = [
   { id: "advertise", name: "Run Advertisements", description: "Ads.", cost: 5, available: false, disabledReason: "Not enough action points.", category: "influence", fundCost: 100000, cooldownTurns: 0 },
   { id: "fundraise", name: "Fundraise", description: "Raise money.", cost: 3, available: false, disabledReason: "No donor base. Use Build Donor Network first.", category: "fundraising", fundCost: 0, cooldownTurns: 0, prerequisite: "Requires a donor network." },
   { id: "poll", name: "Quick Poll", description: "Poll.", cost: 2, available: false, disabledReason: "Not yet available: requires the polling/election polling system.", category: "intelligence", fundCost: 25000, cooldownTurns: 0 },
+  { id: "debatePrep", name: "Debate Prep", description: "Study briefing books and rehearse.", cost: 1, available: true, category: "intelligence", fundCost: 0, cooldownTurns: 0 },
 ];
 
 const props = {
@@ -29,10 +30,10 @@ describe("ActionsHub", () => {
   it("shows category tabs with eligible-of-total counts from current availability", () => {
     render(<ActionsHub actions={actions} {...props} category="all" onCategoryChange={() => {}} />);
     const tabs = screen.getByRole("tablist", { name: /filter actions by category/i });
-    expect(within(tabs).getByRole("tab", { name: /all, 1 of 4 available/i })).toBeInTheDocument();
+    expect(within(tabs).getByRole("tab", { name: /all, 2 of 5 available/i })).toBeInTheDocument();
     expect(within(tabs).getByRole("tab", { name: /influence, 1 of 2 available/i })).toBeInTheDocument();
     expect(within(tabs).getByRole("tab", { name: /fundraising, 0 of 1 available/i })).toBeInTheDocument();
-    expect(within(tabs).getByRole("tab", { name: /intelligence, 0 of 1 available/i })).toBeInTheDocument();
+    expect(within(tabs).getByRole("tab", { name: /intelligence, 1 of 2 available/i })).toBeInTheDocument();
   });
 
   it("filters to the selected category and shows projection details on each card", async () => {

@@ -24,6 +24,8 @@ import { issueContractOffer } from "../extraction/contracts.js";
 import type { ExtractableResource } from "../commodity/constants.js";
 import { depositToSavings, withdrawFromSavings, moveSavingsHolder } from "../finance/savingsActions.js";
 import { wireTransfer as wireTransferFn } from "../finance/wireTransfer.js";
+import { rollDebatePrep } from "../stats/debatePrep.js";
+import { rngFromState } from "../rng.js";
 
 export type ExecuteActionParams = {
   regionId?: string;
@@ -333,6 +335,16 @@ function executeActionInner(
   }
   if (actionId === "joinCaucus" && !params.caucusId) return { ok: false, error: "joinCaucus requires caucusId" };
   if (actionId === "endorse" && !params.endorsedId) return { ok: false, error: "endorse requires endorsedId" };
+  // debatePrep preflight before any shared mutation. AHDGame requires
+  // allocated stats: a missing player Debate stat rejects here so the attempt
+  // costs no AP and draws no RNG (the branch below re-checks before its draw;
+  // the outer wrapper refunds accounting on any failure).
+  if (actionId === "debatePrep") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can train Debate (politicians have no stat block)" };
+    if (world.player.stats?.debate === undefined) {
+      return { ok: false, error: "Allocate your stats before training Debate (missing Debate stat)" };
+    }
+  }
 
   // Deduct action points + cooldown stamp
   actor.actions -= cost;
@@ -401,6 +413,29 @@ function executeActionInner(
   }
   if (actionId === "rest") {
     return { ok: true, message: "Rested." };
+  }
+  if (actionId === "debatePrep") {
+    // Player-only: Native NPC politicians carry no stat block, so mainline's
+    // "allocate your stats" gate has no provisionable target for them. A
+    // missing player Debate stat is unallocated (see ENGINE-ADAPTATIONS.md):
+    // reject before the RNG draw; the preflight above already rejected before
+    // the shared AP charge and the outer wrapper refunds any accounting.
+    // Ports executeAction.ts debatePrep branch + rollDebatePrep at the coded
+    // 15% chance; the draw flows through world.meta.rng so save/load
+    // mid-campaign and deterministic replay are preserved (see engine.ts).
+    if (found.kind !== "player") return { ok: false, error: "Only the player can train Debate (politicians have no stat block)" };
+    const current = world.player.stats?.debate;
+    if (current === undefined) {
+      return { ok: false, error: "Allocate your stats before training Debate (missing Debate stat)" };
+    }
+    const rng = rngFromState(world.meta.rng);
+    const roll = rollDebatePrep(() => rng.next(), current);
+    world.meta.rng = rng.state();
+    if (roll.success) {
+      world.player.stats = { ...world.player.stats, debate: roll.debate };
+      return { ok: true, message: "Breakthrough in the briefing room: your Debate skill improved (+1)." };
+    }
+    return { ok: true, message: "You studied hard, but no breakthrough this time." };
   }
   if (actionId === "canvass") {
     const regionId = params.regionId!;

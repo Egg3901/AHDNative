@@ -10,6 +10,7 @@
 
 import { FUNDRAISE_ACTION_COST } from "@ahd/game-rules/actions";
 import { fundraiseYield } from "./fundGeneration.js";
+import { DEBATE_PREP_ACTION_COST } from "../stats/debatePrep.js";
 
 export type ActionId =
   | "buyBond"
@@ -22,6 +23,7 @@ export type ActionId =
   | "pollLarge"
   | "convertCash"
   | "rest"
+  | "debatePrep"
   | "canvass"
   | "organize"
   | "pressureBoost"
@@ -233,6 +235,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: [],
+    status: "available",
+  },
+  debatePrep: {
+    id: "debatePrep",
+    name: "Debate Prep",
+    description: "Study briefing books and rehearse. 15% chance to raise your Debate skill by 1. No fund cost. Requires an allocated Debate stat. Ports ACTIONS.debatePrep + rollDebatePrep (src/lib/actions.ts, src/lib/stats/debatePrep.ts); the card text states the coded 15% chance, not the stale 10% label in mainline copy.",
+    baseCost: DEBATE_PREP_ACTION_COST,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["debate"],
     status: "available",
   },
   canvass: {
