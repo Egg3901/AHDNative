@@ -96,6 +96,7 @@ The first private feedback preview is authorized after local behavioral tests an
 | [iOS runtime validation](docs/IOS-RUNTIME-VALIDATION.md) | Device runtime checks |
 | [iPhone testing setup](docs/IOS-TESTING.md) | Private signing and TestFlight setup |
 | [Engine source manifest](docs/engine-source-manifest.json) | Imported engine/content provenance |
+| [Feature flag parity](docs/FEATURE-FLAG-PARITY.md) | Native phase-family controls mapped to AHDGame gates and defaults |
 
 Standing implementation rules live in [AGENTS.md](./AGENTS.md); read them before changing product scope or architecture.
 
