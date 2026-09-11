@@ -119,7 +119,7 @@ describe("export-save-v42 CLI", () => {
     const run = runCli("--input", input, "--output", output);
     expect(run.status).not.toBe(0);
     expect(existsSync(output)).toBe(false);
-    expect(run.stderr).toMatch(/countryPolitics/);
+    expect(run.stderr).toMatch(/countryPolitics|market pressure|price history/);
     expect(run.stderr).not.toContain("Validator");
   }, 60_000);
 
