@@ -35,6 +35,20 @@ export interface PrimaryResults {
   recordedAt: string;
 }
 
+/** Per-turn primary standing, retained separately from the general tally. */
+export interface PrimarySnapshotEntry {
+  candidateId: string;
+  candidateName: string;
+  score: number;
+  sharePct: number;
+}
+
+export interface PrimarySnapshot {
+  turn: number;
+  recordedAt: string;
+  byParty: Record<string, PrimarySnapshotEntry[]>;
+}
+
 export interface ElectionRecord {
   /** Deterministic: `${electionType}:${countryId}:${state ?? "-"}:c${cycle}`. */
   id: string;
@@ -75,6 +89,10 @@ export interface ElectionRecord {
   /** Persisted one-shot nominee transition, recorded before general tallying. */
   primaryResults?: PrimaryResults;
   primaryResolvedTurn?: number;
+  /** Cumulative registered-party primary ballots, separate from general votes. */
+  primaryVotes?: Record<string, number>;
+  /** Per-turn primary standings used to render the live primary phase. */
+  primarySnapshots?: PrimarySnapshot[];
   winners?: string[];
   resolvedTurn?: number;
 }
