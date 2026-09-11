@@ -46,14 +46,14 @@ import { seededVariance } from "./seededVariance.js";
  *    reunification "actuation" engine (transfer/actuateReferendum.ts) that
  *    actually mutates country/region ownership; a materially different,
  *    large port on its own.
- *  - There is also no `requestReferendum` player action ported yet
- *    (src/lib/referendum/requestReferendum.ts, gated on
- *    `referendumRequestEligibility` + the independence-desire threshold from
- *    independenceDesireDrift.ts), so nothing in solo can create a "granted"
- *    record today. Fixtures stand in for the grant action and must carry the
- *    window the grant would have written (`campaignOpenTurn`,
- *    `campaignCloseTurn = grantTurn + CAMPAIGN_WINDOW_TURNS`,
- *    `campaignBaseYesShare`); the lifecycle never invents them.
+ *  - `actions/execute.ts` now exposes the bounded Native equivalent of
+ *    `requestReferendum`: it applies the source eligibility gate and writes a
+ *    granted record with the window the grant would have written
+ *    (`campaignOpenTurn`, `campaignCloseTurn = grantTurn +
+ *    CAMPAIGN_WINDOW_TURNS`, `campaignBaseYesShare`). Native still has no
+ *    devolved First Minister office ledger, so the action catalog owns the
+ *    source's three-point cost. Consent bills and actuation remain explicitly
+ *    unported; a passed vote parks in `actuating` below.
  * Each record advances at most one edge per turn, matching mainline's
  * per-record `continue` after each branch.
  *

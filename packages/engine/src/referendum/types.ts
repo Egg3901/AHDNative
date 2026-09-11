@@ -28,6 +28,8 @@ export interface ReferendumRecord {
   regionId: string;
   kind: ReferendumKind;
   status: ReferendumStatus;
+  /** Null for independence; "IE" for Northern Ireland reunification. */
+  targetCountryId?: string | null;
   /** Denormalized current Yes share (0-100): refreshed from the canonical
    * cohort aggregate every campaigning turn (see lifecycle.ts). Never read it
    * for resolution ; call `referendumYesShare` instead. */
@@ -53,6 +55,8 @@ export interface ReferendumRecord {
   campaignOpenTurn?: number | null;
   campaignCloseTurn?: number | null;
   campaignBaseYesShare?: number;
+  /** Set by terminal resolution in source-compatible records; null when none. */
+  cooldownReadyAtTurn?: number | null;
   resolvedTurn?: number;
   /** Set once the popular vote resolves (polling -> actuating|settled). */
   finalYesShare?: number;

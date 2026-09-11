@@ -13,6 +13,7 @@ import { fundraiseYield } from "./fundGeneration.js";
 import { DEBATE_PREP_ACTION_COST } from "../stats/debatePrep.js";
 import { CAMPAIGN_CANVASS_ACTIONS, CAMPAIGN_CANVASS_FUNDS } from "./campaignCanvass.js";
 import { CAMPAIGN_TARGETED_AD_ACTIONS, CAMPAIGN_TARGETED_AD_FUNDS } from "./campaignTargetedAd.js";
+import { REQUEST_AP_COST } from "../referendum/request.js";
 
 export type ActionId =
   | "buyBond"
@@ -79,7 +80,8 @@ export type ActionId =
   | "campaignRetarget"
   | "campaignManager"
   | "campaignCanvass"
-  | "campaignTargetedAd";
+  | "campaignTargetedAd"
+  | "requestReferendum";
 
 // Costs mirror mainline's dynamic tier functions but collapsed to neutral
 // goldens for solo's simpler state (no per-state GDP tier). Cited.
@@ -781,6 +783,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: CAMPAIGN_TARGETED_AD_FUNDS,
     systems: ["campaign/targeting"],
+    status: "available",
+  },
+  requestReferendum: {
+    id: "requestReferendum",
+    name: "Request Referendum",
+    description: "Request and grant a UK devolved-region independence or reunification referendum once desire reaches 60. Consent and actuation remain a named follow-on; passed votes park in actuating.",
+    baseCost: REQUEST_AP_COST,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["devolution/referendum"],
     status: "available",
   },
 };

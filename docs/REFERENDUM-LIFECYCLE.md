@@ -1,11 +1,25 @@
-# Referendum lifecycle note (M02 campaign edges + cohort snapshot/recompute)
+# Referendum lifecycle note (M02 request + campaign edges + cohort snapshot/recompute)
 
 Base: `b1cedbf`. AHDGame reference: `e364c04954ed628beef73a993a8e9e156650a31e`.
-Scope: `packages/engine/src/referendum/lifecycle.ts`, `packages/engine/src/referendum/types.ts`,
+Scope: `packages/engine/src/referendum/request.ts`, `packages/engine/src/referendum/request.test.ts`,
+`packages/engine/src/referendum/lifecycle.ts`, `packages/engine/src/referendum/types.ts`,
 `packages/engine/src/referendum/cohort.ts` (new), `packages/engine/src/referendum/cohort.test.ts` (new),
 `packages/engine/src/referendum/campaignWindow.test.ts`, plus this note only.
 
-## Omission closed
+## Request seam now closed
+
+`executeAction(world, "player", "requestReferendum", { regionId })` now ports
+the source request eligibility order: UK-only devolved regions, no active
+record, terminal cooldown, and `independenceDesire >= 60`. Native has no
+devolved First Minister office ledger, so the source's three office action
+points are represented by the action catalog's three player action points.
+The bounded Native action combines the request and PM grant seam because the
+solo engine has no separate PM decision command. It writes a deterministic
+`granted` record with `campaignOpenTurn = grantTurn` and
+`campaignCloseTurn = grantTurn + 48`, including the NIR `targetCountryId = IE`
+case. Fresh worlds remain empty until the player invokes the action.
+
+## Campaign edges
 
 `runReferendumLifecycle` parked every `granted` and `campaigning` record forever:
 both statuses hit the old `if (ref.status !== "polling") continue` guard, so the
@@ -36,10 +50,12 @@ Ported (new `cohort.ts`):
   (`cohortEngine.ts` + constants), `referendumYesShare` (`resolveYesShare.ts`),
   `upsertPollPoint` (`pollSnapshot.ts`).
 - `CAMPAIGN_WINDOW_TURNS = 48`.
-- New optional record fields (`cohortBaseline`, `cohortModifiers`,
+- New optional record fields (`targetCountryId`, `cooldownReadyAtTurn`,
+  `cohortBaseline`, `cohortModifiers`,
   `campaignSpendUnits`, `pollHistory`, plus the earlier window fields): the
   lifecycle writes the baseline/history and reads the window, never invents it.
-  Fixtures stand in for the missing grant action and must carry the window.
+  Fixtures still cover isolated lifecycle edges, while the request test covers
+  the public action-to-save boundary.
 
 Baseline substrate decision: mainline builds the baseline from the Layer-1
 bucket profile (`age:young`-style vocabulary). AHDNative demographics are voter
@@ -60,8 +76,9 @@ Still stubbed (unchanged, documented in `lifecycle.ts` / `cohort.ts`):
   substrate to feed them.
 - Wire events (`opened`, `swing`): AHDClient has no wire; mainline treats them
   as best-effort `.catch(() => {})`, display-only.
-- No `requestReferendum` / grant / decline actions, no consent-bill gate, no
-  secession actuation. Passed votes still park in `actuating`.
+- No separate grant / decline command, no consent-bill gate, and no secession
+  actuation. The bounded request action combines request with grant; passed
+  votes still park in `actuating`.
 
 ## RNG and determinism
 
@@ -69,13 +86,16 @@ All campaign edges are rng-free except the pre-existing seeded vote variance.
 Worlds with empty `referendums` never enter the new branches and are unaffected
 by construction. The full world state replays byte-identically from a mid-campaign save through polling resolution, comparing each complete serialized checkpoint. The boundary chain advances one edge per turn.
 
-Tests: `cohort.test.ts` (21 tests, vectors mirrored from mainline's
+Tests: `request.test.ts` (3 tests: public action, eligibility rollback, and
+save/turn boundary), `cohort.test.ts` (21 tests, vectors mirrored from mainline's
 `cohortEngine.test.ts` / `resolveYesShare.test.ts` / `pollSnapshot.test.ts`),
 `campaignWindow.test.ts` (9 tests: window gates, one-edge-per-turn pin,
 null/missing close, 4-turn boundary chain to resolution, stale-scalar
 resolution on the canonical aggregate both directions, save/load round trip),
-plus the existing `lifecycle.test.ts` (14 tests, unmodified). After: 44/44 pass across pure reference vectors and public `advanceTurn`/save checks, and `tsc -p packages/engine/tsconfig.json`
-is clean. No full-suite run, no 48-turn simulation: boundary coverage uses
-small-window fixtures (close on turn 1/3) plus the verbatim `48` constant pin.
+plus the existing `lifecycle.test.ts` (14 tests, unmodified). After: 47/47 pass
+across pure reference vectors and public `advanceTurn`/save checks, and
+`tsc -p packages/engine/tsconfig.json` is clean. No full-suite run; the
+request boundary also exercises a real 48-turn replay while the lifecycle
+fixtures use small windows (close on turn 1/3).
 
 `Math.tanh` is newly used by the reference soft-cap formula. Exact cross-language float behavior remains part of the conditional Rust parity gate; these tests establish JavaScript reference behavior only. Native worlds still lack the granular UK electorate substrate, so the fallback path is not proof of full UK referendum parity.
