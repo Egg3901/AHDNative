@@ -926,6 +926,8 @@ export interface PartyCharter {
   id: string;
   countryId: string;
   partyId: string | null;
+  /** Player id that founded this party, when known. Used for leadership tenure exemption. */
+  founderId?: string | null;
   status: CharterStatus;
   /** Turn-based expiry for draft/pending. Null for ratified/migrated. */
   expiresOnTurn: number | null;

@@ -219,6 +219,7 @@ export function foundParty(world: WorldState, input: FoundPartyInput): { ok: tru
     id: `charter-${partyId}-${world.meta.turn}`,
     countryId: player.countryId,
     partyId,
+    founderId: "player",
     status: "ratified",
     expiresOnTurn: null,
     expiresAt: null,

@@ -23,6 +23,7 @@ import * as CampaignCanvass from "./campaignCanvass.js";
 import * as CampaignTargetedAd from "./campaignTargetedAd.js";
 import * as Referendum from "../referendum/request.js";
 import * as Coalition from "../intraparty/coalitions.js";
+import { getPartyLeadershipTenure } from "../intraparty/leadershipTenure.js";
 import { getLaw, resolveCatalogPolicyOption } from "../legislation/catalog.js";
 import { calculateBudgetSpending } from "../budget/spending.js";
 import { calculateBudgetRevenue } from "../budget/revenue.js";
@@ -973,7 +974,24 @@ function executeActionInner(
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "No matching party leadership election found" };
     }
-    const rec = election as unknown as { candidateIds: string[]; partyId: string };
+    const rec = election as unknown as { candidateIds: string[]; partyId: string; founding?: boolean };
+    const foundedPartyId = world.charters.find(
+      (charter) => charter.partyId === rec.partyId && charter.founderId === "player",
+    )?.partyId;
+    const tenure = getPartyLeadershipTenure(
+      world.player.partyJoinedTurn,
+      world.meta.turn,
+      rec.partyId,
+      foundedPartyId,
+    );
+    if (!rec.founding && !tenure.eligible) {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return {
+        ok: false,
+        error: `Party leadership tenure: ${tenure.turnsRemaining} turn(s) remaining`,
+      };
+    }
     if (rec.candidateIds.includes("player")) {
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
@@ -994,7 +1012,7 @@ function executeActionInner(
     const candidateId = params.candidateId;
     if (!electionId || !candidateId) return { ok: false, error: "votePartyLeadership requires intrapartyElectionId and candidateId" };
     const election = (world.statePartyElections.find((e) => e.id === electionId)
-      ?? world.nationalPartyElections.find((e) => e.id === electionId)) as unknown as { votes: Record<string, string>; candidateIds: string[]; partyId: string; status: string } | undefined;
+      ?? world.nationalPartyElections.find((e) => e.id === electionId)) as unknown as { votes: Record<string, string>; candidateIds: string[]; partyId: string; status: string; founding?: boolean } | undefined;
     if (!election) {
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
@@ -1009,6 +1027,23 @@ function executeActionInner(
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "Election is for a different party" };
+    }
+    const foundedPartyId = world.charters.find(
+      (charter) => charter.partyId === election.partyId && charter.founderId === "player",
+    )?.partyId;
+    const tenure = getPartyLeadershipTenure(
+      world.player.partyJoinedTurn,
+      world.meta.turn,
+      election.partyId,
+      foundedPartyId,
+    );
+    if (!election.founding && !tenure.eligible) {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return {
+        ok: false,
+        error: `Party leadership tenure: ${tenure.turnsRemaining} turn(s) remaining`,
+      };
     }
     if (!election.candidateIds.includes(candidateId)) {
       actor.actions += cost;

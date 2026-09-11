@@ -150,6 +150,45 @@ describe("leadership changes deterministic", () => {
     expect(election!.votes["player"]).toBe("player");
   });
 
+  it("enforces the 24-turn party tenure gate for leadership candidacy and voting", () => {
+    const world = createWorld({ seed: "leadership-tenure", playerName: "Player", countryId: "US", era: "1953" });
+    world.player.partyId = "US_DEM";
+    world.player.partyJoinedTurn = 0;
+    world.player.actions = 100;
+    advanceTurn(world);
+    const election = world.nationalPartyElections.find((e) => e.status === "voting" && e.partyId === "US_DEM");
+    expect(election).toBeDefined();
+    election!.candidateIds.push("npc-candidate");
+
+    const actionsBeforeContest = world.player.actions;
+    const contestTooSoon = executeAction(world, "player", "contestPartyLeadership", {
+      intrapartyElectionId: election!.id,
+      position: "chair",
+    });
+    expect(contestTooSoon.ok).toBe(false);
+    expect(contestTooSoon).toMatchObject({ error: expect.stringMatching(/tenure/i) });
+    expect(world.player.actions).toBe(actionsBeforeContest);
+
+    const actionsBeforeVote = world.player.actions;
+    const voteTooSoon = executeAction(world, "player", "votePartyLeadership", {
+      intrapartyElectionId: election!.id,
+      candidateId: "npc-candidate",
+    });
+    expect(voteTooSoon.ok).toBe(false);
+    expect(voteTooSoon).toMatchObject({ error: expect.stringMatching(/tenure/i) });
+    expect(world.player.actions).toBe(actionsBeforeVote);
+
+    world.meta.turn = 24;
+    expect(executeAction(world, "player", "contestPartyLeadership", {
+      intrapartyElectionId: election!.id,
+      position: "chair",
+    }).ok).toBe(true);
+    expect(executeAction(world, "player", "votePartyLeadership", {
+      intrapartyElectionId: election!.id,
+      candidateId: "player",
+    }).ok).toBe(true);
+  });
+
   it("ignores legacy NPP candidates and ballots at national resolution", () => {
     const world = createWorld(OPTS);
     advanceTurn(world);

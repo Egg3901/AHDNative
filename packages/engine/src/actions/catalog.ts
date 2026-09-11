@@ -436,7 +436,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   contestPartyLeadership: {
     id: "contestPartyLeadership",
     name: "Contest Party Leadership",
-    description: "Enter a state or national party leadership race (chair/viceChair/treasurer) for your current party. Ports the Character candidacy entry in src/lib/statePartyElections.ts and src/lib/nationalPartyElections.ts; NPPs are not auto-entered. 24h cooldown and party tenure gates remain PORT-STUB. Cost 2 AP.",
+    description: "Enter a state or national party leadership race (chair/viceChair/treasurer) for your current party. Ports the Character candidacy entry in src/lib/statePartyElections.ts and src/lib/nationalPartyElections.ts; NPPs are not auto-entered. Party leadership requires 24 turns of current-party tenure; founding elections and founders are exempt. Cost 2 AP.",
     baseCost: 2,
     cooldown: 0,
     fundCost: 0,
