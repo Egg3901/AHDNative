@@ -505,3 +505,38 @@ GitHub scope after closure: 92 open and 15 closed issues. Open does not mean
 untouched. The Hub board remains blocked by LakesideHub #4; no Hub sync is
 claimed. The remaining original five (#39/#40/#67/#68/#92) and the related live
 election distributor #141 continue under source-backed review.
+
+
+### Next owner priorities and handoff, 2026-09-11
+
+The owner requires the canonical AHD logo and platform icons (#148), plus
+AHDClient-equivalent authentication (#149) as active work. Auth is not buried in the
+deferred MP presence/countdown milestone: reuse the actual account/session
+contract while preserving the offline SP boundary. Full MP gameplay remains
+later. Inspect reference behavior before implementing either surface.
+
+Six reviewed local slices (#39/#40/#67/#68/#92 and the related
+#141 distributor) are preserved with `work: review` labels. Their agents have
+finished bounded implementation; root integration and acceptance are still
+required. They are excluded from Windows 0.1.1. #88 records its merged metadata
+and invented-action corrections while retaining broader unchecked acceptance.
+#96/#97 now explicitly record the distributor's missing country/primary inputs
+and lifecycle dependencies. The logo is a child of the still-open imagery #143.
+
+A handoff audit updated the affected issue bodies/checklists and confirmed that
+#30/#31/#32/#56/#85/#142 remain closed. Do not rerun paid builds for this
+handoff or claim local mechanics branches are already shipped.
+
+
+After adding the two explicit owner requirements, GitHub scope is 94 open and
+15 closed: 55 partial, 33 not delivered, two device gates, two deferred MP and
+two trackers. Six unmerged implementation slices carry `work: review`.
+Account auth #149 is active; only the remaining MP integration in #86 is deferred.
+
+
+Source inspection of AHDClient `378126dc` confirms live-site authentication:
+desktop opens a dedicated online WebView, mobile navigates the main WebView,
+and AHDGame owns login and the cookie session. Preserve persistent WebView
+storage, auth navigation handling and isolation from native/local-save powers.
+SP has no network or account requirement. Native currently has no auth path;
+#149 needs runtime validation of the existing flow, not a second identity store.
