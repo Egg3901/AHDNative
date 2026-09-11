@@ -13,7 +13,9 @@
 //! the previous slot available. Unix also syncs the parent directory.
 //! See https://doc.rust-lang.org/std/fs/fn.rename.html for platform behavior.
 
-use std::fs::{self, File, OpenOptions};
+#[cfg(any(unix, test))]
+use std::fs::File;
+use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{
