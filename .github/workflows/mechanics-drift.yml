@@ -1,0 +1,47 @@
+name: mechanics drift report
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: AHDGame branch, tag, or full commit to compare
+        required: true
+        default: development
+        type: string
+      fail_on_drift:
+        description: Fail the job when any tracked source path changed
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: Egg3901/AHDGame
+          ref: ${{ inputs.target_ref }}
+          path: .reference-game
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Report mechanics drift
+        run: |
+          if [ "${{ inputs.fail_on_drift }}" = "true" ]; then
+            node scripts/mechanics-drift.mjs \
+              --source .reference-game \
+              --manifest docs/mechanics-drift-manifest.json \
+              --to HEAD \
+              --fail-on-drift
+          else
+            node scripts/mechanics-drift.mjs \
+              --source .reference-game \
+              --manifest docs/mechanics-drift-manifest.json \
+              --to HEAD
+          fi

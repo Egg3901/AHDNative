@@ -17,7 +17,7 @@
     "test:smoke": "playwright test",
     "test:ui": "vitest run --config vitest.ui.config.ts",
     "test:career-fixtures": "tsx scripts/validate-career.ts --mode=validate",
-    "verify:rules": "node --test scripts/shared-rules.test.mjs && node scripts/shared-rules.mjs --verify"
+    "verify:rules": "node --test scripts/shared-rules.test.mjs scripts/mechanics-drift.test.mjs && node scripts/shared-rules.mjs --verify"
   },
   "dependencies": {
     "react": "^19.0.0",

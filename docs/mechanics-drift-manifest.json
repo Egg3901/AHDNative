@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "repository": "Egg3901/AHDGame",
+  "baselineRevision": "e364c04954ed628beef73a993a8e9e156650a31e",
+  "trackedRoots": [
+    "src/lib",
+    "src/simulation",
+    "src/data",
+    "src/types"
+  ],
+  "slices": [
+    {
+      "id": "actions",
+      "description": "action costs, eligibility, effects and targeting",
+      "paths": [
+        "src/lib/actions/",
+        "src/lib/actions.ts"
+      ],
+      "consumers": [
+        "packages/engine/src/actions/",
+        "packages/game-rules/actions/"
+      ]
+    },
+    {
+      "id": "turn-phases",
+      "description": "turn phases, phase order and simulation runtime",
+      "paths": [
+        "src/lib/turn/",
+        "src/simulation/"
+      ],
+      "consumers": [
+        "packages/engine/src/phases/",
+        "packages/engine/src/registry.ts",
+        "packages/engine/src/engine.ts"
+      ]
+    },
+    {
+      "id": "legislation",
+      "description": "bills, policy catalogs, sponsorship, voting and enactment",
+      "paths": [
+        "src/lib/legislation/",
+        "src/lib/legislature/",
+        "src/lib/billEnactment.ts",
+        "src/lib/billLifecycle.ts",
+        "src/lib/billVoteLogic.ts"
+      ],
+      "consumers": [
+        "packages/engine/src/legislation/",
+        "packages/engine/src/policyEffects/"
+      ]
+    },
+    {
+      "id": "elections-and-government",
+      "description": "election resolution, government formation and office lifecycles",
+      "paths": [
+        "src/lib/electionEngine/",
+        "src/lib/elections/",
+        "src/lib/government/",
+        "src/lib/cabinet/",
+        "src/lib/executive/",
+        "src/lib/governanceStyle/",
+        "src/lib/impeachment/",
+        "src/lib/nationalCommitteeElections.ts",
+        "src/lib/nationalPartyElections.ts",
+        "src/lib/presidentialElectionEngine.ts",
+        "src/lib/singleplayerHeadOfState.ts"
+      ],
+      "consumers": [
+        "packages/engine/src/electionEngine/",
+        "packages/engine/src/elections/",
+        "packages/engine/src/government/"
+      ]
+    },
+    {
+      "id": "authored-content",
+      "description": "era packs, authored constants and source-backed world data",
+      "paths": [
+        "src/lib/era/",
+        "src/lib/data/",
+        "src/lib/events/",
+        "src/lib/admin/seed/",
+        "src/lib/seeds/",
+        "src/lib/world/",
+        "src/lib/constants/",
+        "src/lib/constants.ts",
+        "src/data/",
+        "src/types/"
+      ],
+      "consumers": [
+        "packages/content/src/packs/",
+        "packages/engine/src/content/",
+        "packages/engine/src/types.ts"
+      ]
+    },
+    {
+      "id": "feature-conditions",
+      "description": "feature flags, country availability and regime conditions",
+      "paths": [
+        "src/lib/featureFlags.ts",
+        "src/lib/gameConfig/",
+        "src/lib/countryAccess.ts",
+        "src/lib/countryAvailability.ts",
+        "src/lib/countrySystems/"
+      ],
+      "consumers": [
+        "packages/engine/src/featureFlags.ts",
+        "packages/content/src/"
+      ]
+    },
+    {
+      "id": "save-and-migrations",
+      "description": "save envelopes, persistence adapters and migration contracts",
+      "paths": [
+        "src/lib/db/",
+        "src/lib/migrations/",
+        "src/lib/gameState.ts",
+        "src/lib/save/",
+        "src/lib/save.ts"
+      ],
+      "consumers": [
+        "packages/engine/src/save.ts",
+        "packages/engine/src/types.ts",
+        "docs/SAVE-COMPATIBILITY.md"
+      ]
+    },
+    {
+      "id": "economy-and-metrics",
+      "description": "budgets, macro metrics, demographics, finance and central banking",
+      "paths": [
+        "src/lib/budget/",
+        "src/lib/banking/",
+        "src/lib/corporation/",
+        "src/lib/corporations/",
+        "src/lib/currency/",
+        "src/lib/economy/",
+        "src/lib/finance/",
+        "src/lib/lineOfCredit/",
+        "src/lib/centralBank/",
+        "src/lib/demographics/",
+        "src/lib/metricEngine/",
+        "src/lib/monetaryPolicy/",
+        "src/lib/nationalMetrics.ts",
+        "src/lib/macroMetrics/"
+      ],
+      "consumers": [
+        "packages/engine/src/budget/",
+        "packages/engine/src/economy/",
+        "packages/engine/src/demographics/",
+        "packages/engine/src/finance/"
+      ]
+    },
+    {
+      "id": "parties-and-organizations",
+      "description": "parties, caucuses, coalitions, unions and NPP behavior",
+      "paths": [
+        "src/lib/parties/",
+        "src/lib/partyAnalytics/",
+        "src/lib/partyWhips/",
+        "src/lib/caucus/",
+        "src/lib/coalitions/",
+        "src/lib/npp/",
+        "src/lib/npps/",
+        "src/lib/unions/"
+      ],
+      "consumers": [
+        "packages/engine/src/party/",
+        "packages/engine/src/intraparty/",
+        "packages/engine/src/unions/",
+        "packages/engine/src/npp/"
+      ]
+    }
+  ]
+}

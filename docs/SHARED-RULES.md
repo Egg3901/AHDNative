@@ -47,6 +47,33 @@ proves correspondence to that revision, not that Native tracks today's Game
 branch automatically. Automatic update PRs and whole-engine drift inventory
 remain tracked in [#120](https://github.com/Egg3901/AHDNative/issues/120).
 
+## Upstream mechanics drift scan
+
+`docs/mechanics-drift-manifest.json` is the first declared ownership boundary
+for mechanics source outside the shared Fundraise package. It tracks declared
+mechanics roots under `src/lib`, `src/simulation`, `src/data` and `src/types`,
+assigns the high-risk source areas to Native consumers, and deliberately leaves
+unmatched paths unclassified. A new or changed path must be assigned before a
+strict consumer update gate can pass.
+
+Run a report against an explicit AHDGame checkout and revision:
+
+```sh
+node scripts/mechanics-drift.mjs \
+  --source ../AHDGame \
+  --manifest docs/mechanics-drift-manifest.json \
+  --to <target-ref>
+```
+
+The report names every changed source path, its declared slice and downstream
+Native consumers. Add `--fail-on-drift` in a consumer update PR or release gate
+to fail on any tracked change, including an unclassified path. The command
+compares immutable Git revisions and does not execute source, contact GitHub,
+or silently update the manifest. `.github/workflows/mechanics-drift.yml`
+provides the same report as an explicit manual workflow with an optional strict
+gate. Automatic upstream PR preparation, differential execution and complete
+ruleset/save policy remain open in #120.
+
 ## Validation boundaries and limits
 
 The Game tests preserve established Fundraise results: 3 AP, donor level 50 and
