@@ -71,7 +71,8 @@ export type ActionId =
   | "moveSavings"
   | "wireTransfer"
   // P0 campaign management (#67): player campaign upgrade purchases
-  | "campaignUpgrade";
+  | "campaignUpgrade"
+  | "campaignRally";
 
 // Costs mirror mainline's dynamic tier functions but collapsed to neutral
 // goldens for solo's simpler state (no per-state GDP tier). Cited.
@@ -713,6 +714,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["campaign"],
+    status: "available",
+  },
+  campaignRally: {
+    id: "campaignRally",
+    name: "Campaign Rally",
+    description: "Fire a one-shot rally for your active campaign. Spends campaign actions and applies immediate plus trailing candidate support; once per turn.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["campaign/support"],
     status: "available",
   },
 };

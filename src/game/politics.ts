@@ -1,7 +1,9 @@
 import {
   ACTION_CATALOG, addDaysIso, calculateCampaignIncome, calculateMaintenanceCosts,
   campaignAnchorToLocal, campaignKey, canJoinParty, canLeaveParty, getActionCost,
-  getEffectiveBranchCost, type OpsBranchKey, type WorldState,
+  getCampaignFamilyScalar, getEffectiveBranchCost, RALLY_IMMEDIATE_SHARE,
+  RALLY_SPREAD_TURNS, SUPPORT_RALLY_ACTION_COST, SUPPORT_RALLY_FULL_VALUE,
+  type OpsBranchKey, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionView } from "./types";
 
@@ -58,6 +60,13 @@ export interface PoliticsCampaignActivityView {
   turnNumber: number;
 }
 
+export interface PoliticsCampaignRallyView {
+  action: ActionView;
+  immediateSupport: number;
+  pendingPerTurn: number;
+  pendingTurns: number;
+}
+
 export interface PoliticsPlayerCampaignView {
   status: string;
   funds: number; actions: number;
@@ -68,6 +77,7 @@ export interface PoliticsPlayerCampaignView {
   support: number | null;
   generalPhase: boolean;
   activity: PoliticsCampaignActivityView[];
+  rally: PoliticsCampaignRallyView;
   levers: PoliticsCampaignLeverView[];
 }
 
@@ -217,6 +227,39 @@ function upgradeAction(
   };
 }
 
+function rallyAction(
+  world: WorldState,
+  election: WorldState["elections"][number],
+  campaignActions: number,
+  supportStatus: "active" | "withdrawn" | undefined,
+  lastRallyTurn: number | undefined,
+): PoliticsCampaignRallyView {
+  const scalar = getCampaignFamilyScalar(election.electionType);
+  const actionCost = Math.ceil(SUPPORT_RALLY_ACTION_COST * scalar);
+  const fullValue = SUPPORT_RALLY_FULL_VALUE * scalar;
+  const immediateSupport = fullValue * RALLY_IMMEDIATE_SHARE;
+  const pendingPerTurn = fullValue * (1 - RALLY_IMMEDIATE_SHARE) / RALLY_SPREAD_TURNS;
+  const noRace = election.status === "resolved"
+    ? "This election has ended."
+    : election.status !== "active" ? "Election is not active" : undefined;
+  const reason = noRace
+    ?? (supportStatus === "withdrawn" ? "Candidate support is inactive." : undefined)
+    ?? (typeof lastRallyTurn === "number" && lastRallyTurn >= world.meta.turn
+      ? "Rally already fired this turn"
+      : undefined)
+    ?? (campaignActions < actionCost ? `Needs ${actionCost} campaign actions.` : undefined);
+  const entry = ACTION_CATALOG.campaignRally;
+  return {
+    action: {
+      id: "campaignRally", name: entry.name, description: entry.description,
+      cost: actionCost, available: !reason, ...(reason ? { disabledReason: reason } : {}),
+    },
+    immediateSupport,
+    pendingPerTurn,
+    pendingTurns: RALLY_SPREAD_TURNS,
+  };
+}
+
 function projectPlayerCampaign(
   world: WorldState,
   election: WorldState["elections"][number],
@@ -226,6 +269,11 @@ function projectPlayerCampaign(
   if (!campaign || campaign.status !== "active") return null;
   const generalPhase = isGeneralPhase(world, election);
   const noRace = election.status === "resolved" ? "This election has ended." : undefined;
+  const storedSupport = world.candidateSupports?.["player"];
+  const supportRow = storedSupport &&
+    (storedSupport.electionId === undefined || storedSupport.electionId === election.id)
+    ? storedSupport : undefined;
+  const rally = rallyAction(world, election, campaign.actions, supportRow?.status, supportRow?.lastRallyTurn);
   const levers: PoliticsCampaignLeverView[] = CAMPAIGN_LEVERS.map((category) => {
     const tree = campaign[`${category}Tree`];
     const starterCost = tree.starter ? null
@@ -269,7 +317,7 @@ function projectPlayerCampaign(
       calculateCampaignIncome(campaign, election.electionType), campaign.countryId),
     maintenancePerTurn: campaignAnchorToLocal(
       calculateMaintenanceCosts(campaign, election.electionType), campaign.countryId),
-    support: world.candidateSupports?.["player"]?.support ?? null,
+    support: supportRow?.support ?? 50,
     generalPhase,
     activity: (campaign.activityHistory ?? []).map((entry) => ({
       type: entry.type,
@@ -282,6 +330,7 @@ function projectPlayerCampaign(
       reason: entry.reason ?? null,
       turnNumber: entry.turnNumber,
     })),
+    rally,
     levers,
   };
 }
