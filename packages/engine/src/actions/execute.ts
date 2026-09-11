@@ -15,6 +15,7 @@ import * as Caucus from "../caucus.js";
 import * as Endorsement from "../endorsement.js";
 import * as Candidacy from "../elections/candidacy.js";
 import * as CampaignUpgrade from "./campaignUpgrade.js";
+import * as CampaignRally from "./campaignRally.js";
 import * as Coalition from "../intraparty/coalitions.js";
 import { getLaw, resolveCatalogPolicyOption } from "../legislation/catalog.js";
 import { calculateBudgetSpending } from "../budget/spending.js";
@@ -582,6 +583,17 @@ function executeActionInner(
       category: params.category,
       branch: params.branch,
     });
+    if (!res.ok) {
+      actor.actions += cost;
+      actor.funds += fundCost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: res.error };
+    }
+    return { ok: true, message: res.message };
+  }
+  if (actionId === "campaignRally") {
+    if (found.kind !== "player") return { ok: false, error: "Only player can manage a campaign" };
+    const res = CampaignRally.campaignRally(world, { electionId: params.electionId });
     if (!res.ok) {
       actor.actions += cost;
       actor.funds += fundCost;
@@ -1419,6 +1431,7 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.endorsedId ? null : "endorse requires endorsedId";
     case "declareCandidacy":
     case "withdrawCandidacy":
+    case "campaignRally":
       return params.electionId ? null : `${actionId} requires electionId`;
     case "sponsorBill":
     case "repealLaw":

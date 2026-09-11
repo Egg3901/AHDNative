@@ -1172,6 +1172,8 @@ export interface CandidateSupport {
   electionId?: string;
   support: number;
   supportAccrual: Array<{ amountPerTurn: number; turnsRemaining: number }>;
+  /** One-shot rally throttle; absent on saves created before rally support. */
+  lastRallyTurn?: number;
   status: "active" | "withdrawn";
 }
 

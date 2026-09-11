@@ -202,6 +202,10 @@ describe("PoliticsPanel elections", () => {
       totalFundsGenerated: 12000, totalFundsSpent: 0,
       incomePerTurn: 6000, maintenancePerTurn: 0,
       support: 52, generalPhase: false,
+      rally: {
+        action: { id: "campaignRally", name: "Campaign Rally", description: "", cost: 6, available: true },
+        immediateSupport: 1.8, pendingPerTurn: 0.3, pendingTurns: 4,
+      },
       activity: [{
         type: "upgrade", category: "fundraising", branch: null,
         fromLevel: null, newLevel: 1, costFunds: 15000, costActions: 10,
@@ -219,9 +223,12 @@ describe("PoliticsPanel elections", () => {
     expect(screen.getByRole("heading", { name: "house · AL" })).toBeInTheDocument();
     expect(screen.getByText(/Your campaign \[active\]/)).toBeInTheDocument();
     expect(screen.getByText(/mood input, not a vote forecast/)).toBeInTheDocument();
+    expect(screen.getByText(/\+1\.8 support now/)).toBeInTheDocument();
     expect(screen.getByText(/Turn 4 · upgraded fundraising starter to level 1/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Unlock fundraising starter" }));
     expect(onAction).toHaveBeenCalledWith("campaignUpgrade", { electionId: "house:US:AL:c1", category: "fundraising" });
+    await user.click(screen.getByRole("button", { name: "Fire campaign rally" }));
+    expect(onAction).toHaveBeenCalledWith("campaignRally", { electionId: "house:US:AL:c1" });
   });
 
   it("shows no vote figures before any tally exists", async () => {

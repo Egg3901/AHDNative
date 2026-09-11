@@ -283,6 +283,10 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
       ? { electionId, category }
       : { electionId, category, branch });
   };
+  const fireRally = () => {
+    if (busy || !campaign.rally.action.available) return;
+    onAction("campaignRally", { electionId });
+  };
   const categoryLabel = (category: string) => category.replace(/([A-Z])/g, " $1").toLowerCase();
   const activityLabel = (entry: PoliticsPlayerCampaignView["activity"][number]) => {
     const target = entry.branch ? `branch ${entry.branch}` : "starter";
@@ -305,6 +309,24 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
           <div className="ahd-kv"><dt>Candidate support</dt><dd className="ahd-mono">{campaign.support.toFixed(1)} (mood input, not a vote forecast)</dd></div>
         ) : null}
       </dl>
+      <section aria-label="Campaign rally" style={{ marginTop: "0.6rem" }}>
+        <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>Campaign rally</h4>
+        <p className="ahd-help" style={{ margin: "0 0 0.35rem" }}>
+          +{campaign.rally.immediateSupport.toFixed(1)} support now, then +{campaign.rally.pendingPerTurn.toFixed(2)} per turn for {campaign.rally.pendingTurns} turns.
+        </p>
+        <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap" }}>
+          <button type="button" className="ahd-btn ahd-btn-sm"
+            disabled={busy || !campaign.rally.action.available}
+            aria-disabled={busy || !campaign.rally.action.available}
+            aria-label="Fire campaign rally"
+            onClick={fireRally}>
+            Rally ({campaign.rally.action.cost} actions)
+          </button>
+          {!campaign.rally.action.available ? (
+            <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{campaign.rally.action.disabledReason ?? "Unavailable"}</span>
+          ) : null}
+        </div>
+      </section>
       {campaign.generalPhase ? (
         <p className="ahd-help" role="note">General phase: upgrade costs carry the 1.5x surcharge.</p>
       ) : null}
