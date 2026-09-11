@@ -9,6 +9,7 @@ import type { WorldState } from "../types.js";
 import type { WorldRng } from "../rng.js";
 import type { CoalitionRecord } from "./types.js";
 import { COALITION_DISBAND_VOTE_DURATION_TURNS } from "./constants.js";
+import { isPartyLeadershipAuthority } from "./leadershipTenure.js";
 
 export function ensureCoalitionsForWorld(world: WorldState): void {
   // No auto-creation; coalitions are player/NPC initiated. But ensure array exists.
@@ -17,18 +18,36 @@ export function ensureCoalitionsForWorld(world: WorldState): void {
 
 export function createCoalition(
   world: WorldState,
-  params: { countryId: string; name: string; abbreviation: string; color?: string; founderPartyId: string },
+  params: { countryId: string; name: string; abbreviation: string; color?: string; founderPartyId: string; actorId?: string },
 ): CoalitionRecord {
-  if (!world.parties[params.founderPartyId]) throw new Error(`Unknown party ${params.founderPartyId}`);
+  const founderParty = world.parties[params.founderPartyId];
+  if (!founderParty) throw new Error(`Unknown party ${params.founderPartyId}`);
+  if (!world.countries[params.countryId]) throw new Error(`Unknown country ${params.countryId}`);
+  if (founderParty.countryId !== params.countryId) throw new Error("Founder party is not in the coalition country");
+  const name = params.name.trim();
+  const abbreviation = params.abbreviation.trim();
+  if (!name || !abbreviation) throw new Error("Coalition name and abbreviation are required");
+  if (world.coalitions.some((co) => co.countryId === params.countryId && co.name.toLowerCase() === name.toLowerCase())) {
+    throw new Error(`Coalition name already exists in ${params.countryId}`);
+  }
+  if (world.coalitions.some((co) => co.countryId === params.countryId && co.abbreviation.toLowerCase() === abbreviation.toLowerCase())) {
+    throw new Error(`Coalition abbreviation already exists in ${params.countryId}`);
+  }
+  if (founderParty.coalitionId || world.coalitions.some((co) => co.memberPartyIds.includes(params.founderPartyId))) {
+    throw new Error("Party is already in a coalition");
+  }
+  const actorId = params.actorId ?? params.founderPartyId;
+  if (!isPartyLeadershipAuthority(world, params.founderPartyId, actorId)) {
+    throw new Error("Coalition creation requires the national chair or acting vice chair");
+  }
   const seq = world.coalitions.length > 0 ? Math.max(...world.coalitions.map((c) => c.sequentialId)) + 1 : 1;
   const id = `coalition-${params.countryId}-${seq}`;
-  const founderParty = world.parties[params.founderPartyId] as unknown as { chairId?: string | null } | undefined;
   const rec: CoalitionRecord = {
     id,
     sequentialId: seq,
     countryId: params.countryId,
-    name: params.name,
-    abbreviation: params.abbreviation,
+    name,
+    abbreviation,
     color: params.color ?? "#888888",
     memberPartyIds: [params.founderPartyId],
     chairPartyId: params.founderPartyId,
@@ -38,28 +57,38 @@ export function createCoalition(
     updatedAtTurn: world.meta.turn,
   };
   world.coalitions.push(rec);
-  // Mark party's coalitionId if field exists (we store on party as coalitionId stub)
-  // PORT-STUB: mainline PoliticalParty.coalitionId is a ObjectId; solo stores on party extension if present
+  // Keep the party-side membership pointer in sync with the coalition record.
   const partyExt = world.parties[params.founderPartyId] as unknown as Record<string, unknown>;
   if (partyExt) partyExt["coalitionId"] = id;
   return rec;
 }
 
-export function joinCoalition(world: WorldState, coalitionId: string, partyId: string): void {
+export function joinCoalition(world: WorldState, coalitionId: string, partyId: string, actorId?: string): void {
   const co = world.coalitions.find((c) => c.id === coalitionId);
   if (!co) throw new Error(`Unknown coalition ${coalitionId}`);
-  if (!world.parties[partyId]) throw new Error(`Unknown party ${partyId}`);
+  const party = world.parties[partyId];
+  if (!party) throw new Error(`Unknown party ${partyId}`);
+  if (party.countryId !== co.countryId) throw new Error("Party is not in the coalition country");
   if (co.memberPartyIds.includes(partyId)) throw new Error("Party already in coalition");
+  if (party.coalitionId || world.coalitions.some((candidate) => candidate.memberPartyIds.includes(partyId))) {
+    throw new Error("Party is already in a coalition");
+  }
+  if (!isPartyLeadershipAuthority(world, partyId, actorId ?? partyId)) {
+    throw new Error("Joining a coalition requires the national chair or acting vice chair");
+  }
   co.memberPartyIds.push(partyId);
   co.updatedAtTurn = world.meta.turn;
   const partyExt = world.parties[partyId] as unknown as Record<string, unknown>;
   if (partyExt) partyExt["coalitionId"] = co.id;
 }
 
-export function initiateDisbandVote(world: WorldState, coalitionId: string, initiatorPartyId: string): void {
+export function initiateDisbandVote(world: WorldState, coalitionId: string, initiatorPartyId: string, actorId?: string): void {
   const co = world.coalitions.find((c) => c.id === coalitionId);
   if (!co) throw new Error(`Unknown coalition ${coalitionId}`);
   if (!co.memberPartyIds.includes(initiatorPartyId)) throw new Error("Initiator not in coalition");
+  if (!isPartyLeadershipAuthority(world, initiatorPartyId, actorId ?? initiatorPartyId)) {
+    throw new Error("Disband votes require the national chair or acting vice chair");
+  }
   if (co.disbandVote) throw new Error("Disband vote already active");
   co.disbandVote = {
     initiatedByPartyId: initiatorPartyId,
@@ -117,15 +146,17 @@ export function resolveExpiredDisbandVotes(world: WorldState, _rng: WorldRng): {
   if (toDelete.length > 0) {
     world.coalitions = world.coalitions.filter((c) => !toDelete.includes(c.id));
   }
-  // Sync chairCharacterId drift: if coalition still exists but chair party's chair changed, sync
   for (const co of world.coalitions) {
-    if (!co.chairPartyId) continue;
-    const party = world.parties[co.chairPartyId] as unknown as { chairId?: string | null } | undefined;
-    const currentChair = party?.chairId ?? null;
-    if (co.chairCharacterId !== currentChair) {
-      co.chairCharacterId = currentChair;
-      co.updatedAtTurn = world.meta.turn;
-    }
+    if (co.chairPartyId) syncCoalitionChairsForParty(world, co.chairPartyId);
   }
   return { resolved, disbanded };
+}
+
+export function syncCoalitionChairsForParty(world: WorldState, partyId: string): void {
+  const currentChair = world.parties[partyId]?.chairId ?? null;
+  for (const co of world.coalitions) {
+    if (co.chairPartyId !== partyId || co.chairCharacterId === currentChair) continue;
+    co.chairCharacterId = currentChair;
+    co.updatedAtTurn = world.meta.turn;
+  }
 }

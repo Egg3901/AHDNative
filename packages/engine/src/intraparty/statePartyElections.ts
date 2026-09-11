@@ -13,6 +13,7 @@ import {
   STATE_PARTY_POSITIONS,
 } from "./constants.js";
 import { pickCandidateForVoter } from "./ballot.js";
+import { getPlayerPartyLeadershipGate } from "./leadershipTenure.js";
 
 function electionId(regionId: string, partyId: string, position: string, cycle: number): string {
   return `${regionId}:${partyId}:${position}:c${cycle}`;
@@ -23,16 +24,20 @@ function eligibleCandidatesForStateParty(
   regionId: string,
   partyId: string,
 ): Politician[] {
-  // Candidates must be members of this party. For state scope, prefer those whose
-  // electedState or party membership indicates regional presence, but don't gate strictly
-  // since solo politicians may not have electedState set. Include all party members.
-  return world.politicians.filter((p) => p.partyId === partyId);
+  // Candidates must be members of this party and, where Native has a seat
+  // geography, belong to the region. Older non-US rosters do not carry an
+  // electedState, so they retain the party-wide fallback.
+  const partyMembers = world.politicians.filter((p) => p.partyId === partyId);
+  const regional = partyMembers.filter((p) => p.electedState === regionId);
+  return regional.length > 0 ? regional : partyMembers;
 }
 
 function votersForStateParty(world: WorldState, regionId: string, partyId: string): Array<Politician | { id: string; ideology: Politician["ideology"]; personality: Politician["personality"] }> {
   // Eligible voters are party members in this state/region (mirrors StatePartyVote voter being a character in that state party).
   // For solo, use all party members as voters; if none, fall back to empty (rare).
-  const polityVoters = world.politicians.filter((p) => p.partyId === partyId);
+  const partyMembers = world.politicians.filter((p) => p.partyId === partyId);
+  const regional = partyMembers.filter((p) => p.electedState === regionId);
+  const polityVoters = regional.length > 0 ? regional : partyMembers;
   const result: Array<Politician | { id: string; ideology: Politician["ideology"]; personality: Politician["personality"] }> = [...polityVoters];
   // Player may vote if member of this party and eligible via ballot action (recorded in votes map).
   return result;
@@ -42,8 +47,6 @@ export function createMissingStatePartyElections(world: WorldState, rng: WorldRn
   const duration = STATE_PARTY_ELECTION_DURATION_TURNS;
   const foundingDuration = FOUNDING_STATE_ELECTION_DURATION_TURNS;
   const turn = world.meta.turn;
-  const isFounding = false; // PORT-STUB: mainline founding phase via gameState.preIteration.active — no preIteration in solo
-  const effectiveDuration = isFounding ? foundingDuration : duration;
 
   const activeKeys = new Set(
     world.statePartyElections.filter((e) => e.status === "voting").map((e) => `${e.regionId}:${e.partyId}:${e.position}`),
@@ -64,6 +67,9 @@ export function createMissingStatePartyElections(world: WorldState, rng: WorldRn
             .map((e) => e.cycle),
         );
         const cycle = existingMaxCycle + 1;
+        const isFounding = existingMaxCycle === 0
+          && world.charters.some((charter) => charter.partyId === party.id && charter.foundedAtTurn !== undefined);
+        const effectiveDuration = isFounding ? foundingDuration : duration;
         const rec: StatePartyElectionRecord = {
           id: electionId(region.id, party.id, position, cycle),
           regionId: region.id,
@@ -98,7 +104,11 @@ export function createMissingStatePartyElections(world: WorldState, rng: WorldRn
         const chosen = shuffled.slice(0, Math.min(numCandidates, shuffled.length));
         rec.candidateIds = chosen.map((c) => c.id);
         // Include player if member of this party and not already candidate
-        if (world.player.partyId === party.id && !rec.candidateIds.includes("player") && rng.next() < 0.3) {
+        const playerGate = getPlayerPartyLeadershipGate(world, party.id, {
+          founding: isFounding,
+          regionId: region.id,
+        });
+        if (playerGate.eligible && !rec.candidateIds.includes("player") && rng.next() < 0.3) {
           // Player contests 30% of races where eligible, deterministic via rng
           rec.candidateIds.push("player");
         }
@@ -173,7 +183,6 @@ export function resolveStatePartyElections(world: WorldState, rng: WorldRng): nu
     if (candidatePols.length === 0 || maxVotes <= 0) winnerId = null;
     // If still null but candidates exist, pick earliest (handles zero-vote case differently from mainline which vacates)
     // For state, mainline vacates on no-winner+incumbent not stood. Solo: keep current leadership if no winner.
-    const priorHolder = getStatePartyLeadership(world, election.regionId, election.partyId, election.position);
     if (winnerId === null) {
       election.status = "completed";
       election.winnerId = null;
@@ -198,17 +207,8 @@ export function resolveStatePartyElections(world: WorldState, rng: WorldRng): nu
     });
     // If winner was previous holder of another position in same state-party, vacate prior
     vacateOtherStatePositions(world, election.regionId, election.partyId, election.position, winnerId);
-    void priorHolder;
   }
   return resolved;
-}
-
-function getStatePartyLeadership(world: WorldState, regionId: string, partyId: string, position: string): string | null {
-  const pr = world.partyRegions[`${regionId}:${partyId}`];
-  if (!pr) return null;
-  const field = position === "chair" ? "chairId" : position === "viceChair" ? "viceChairId" : "treasurerId";
-  const v = pr[field] as string | null | undefined;
-  return v ?? null;
 }
 
 function setStatePartyLeadership(world: WorldState, regionId: string, partyId: string, position: string, winnerId: string): void {

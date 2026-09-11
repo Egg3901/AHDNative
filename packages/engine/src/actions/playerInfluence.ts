@@ -5,8 +5,9 @@ import type { WorldState } from '../types.js';
  * d4baf899 shared/constants/formulas.ts and src/lib/turn/actionRefresh.ts.
  * Position NI uses the highest tier, unlike stacking office action bonuses.
  * Read actual persisted holders; HoS play mode alone does not hold an office.
- * Congress leadership has no Native holder records yet (#102). Central-bank
- * chair grants AP in Game, not a standalone NI tier.
+ * Congress leadership remains unavailable because Native has no per-chamber
+ * elected-official holder records. Central-bank chair grants AP in Game, not
+ * a standalone NI tier.
  */
 export function playerNationalInfluenceGain(world: WorldState): number {
   const player = world.player;

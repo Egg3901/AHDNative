@@ -150,6 +150,45 @@ describe("leadership changes deterministic", () => {
     expect(election!.votes["player"]).toBe("player");
   });
 
+  it("enforces the 24-turn party tenure gate for leadership candidacy and voting", () => {
+    const world = createWorld({ seed: "leadership-tenure", playerName: "Player", countryId: "US", era: "1953" });
+    world.player.partyId = "US_DEM";
+    world.player.partyJoinedTurn = 0;
+    world.player.actions = 100;
+    advanceTurn(world);
+    const election = world.nationalPartyElections.find((e) => e.status === "voting" && e.partyId === "US_DEM");
+    expect(election).toBeDefined();
+    election!.candidateIds.push("npc-candidate");
+
+    const actionsBeforeContest = world.player.actions;
+    const contestTooSoon = executeAction(world, "player", "contestPartyLeadership", {
+      intrapartyElectionId: election!.id,
+      position: "chair",
+    });
+    expect(contestTooSoon.ok).toBe(false);
+    expect(contestTooSoon).toMatchObject({ error: expect.stringMatching(/tenure/i) });
+    expect(world.player.actions).toBe(actionsBeforeContest);
+
+    const actionsBeforeVote = world.player.actions;
+    const voteTooSoon = executeAction(world, "player", "votePartyLeadership", {
+      intrapartyElectionId: election!.id,
+      candidateId: "npc-candidate",
+    });
+    expect(voteTooSoon.ok).toBe(false);
+    expect(voteTooSoon).toMatchObject({ error: expect.stringMatching(/tenure/i) });
+    expect(world.player.actions).toBe(actionsBeforeVote);
+
+    world.meta.turn = 24;
+    expect(executeAction(world, "player", "contestPartyLeadership", {
+      intrapartyElectionId: election!.id,
+      position: "chair",
+    }).ok).toBe(true);
+    expect(executeAction(world, "player", "votePartyLeadership", {
+      intrapartyElectionId: election!.id,
+      candidateId: "player",
+    }).ok).toBe(true);
+  });
+
   it("ignores legacy NPP candidates and ballots at national resolution", () => {
     const world = createWorld(OPTS);
     advanceTurn(world);
@@ -190,6 +229,8 @@ describe("coalition lifecycle", () => {
   it("create, join, disband vote majority threshold floor(n/2)+1 per src/lib/turn/coalitionDisbandCheck.ts", async () => {
     const world = createWorld(OPTS);
     world.player.partyId = "US_DEM";
+    world.parties["US_DEM"]!.chairId = "player";
+    world.parties["US_REP"]!.chairId = "US_REP-chair";
     world.player.actions = 100;
     const resCreate = executeAction(world, "player", "createCoalition", {
       coalitionName: "Test Coalition",
@@ -202,11 +243,11 @@ describe("coalition lifecycle", () => {
     // Join with another party (simulate via direct join)
     const { joinCoalition: joinCoalitionFn, initiateDisbandVote: initiateDisbandVoteFn, voteDisband: voteDisbandFn } = await import("./coalitions.js");
     // Need second party - use US_REP via manual join
-    joinCoalitionFn(world, co.id, "US_REP");
+    joinCoalitionFn(world, co.id, "US_REP", "US_REP-chair");
     expect(co.memberPartyIds.length).toBe(2);
     expect(co.memberPartyIds).toContain("US_REP");
     // Initiate disband vote
-    initiateDisbandVoteFn(world, co.id, "US_DEM");
+    initiateDisbandVoteFn(world, co.id, "US_DEM", "player");
     expect(co.disbandVote).not.toBeNull();
     expect(co.disbandVote!.expiresOnTurn).toBe(world.meta.turn + 168);
     // Vote: 1 yes out of 2 needs threshold 2 (floor(2/2)+1=2) so should NOT disband yet
@@ -220,7 +261,7 @@ describe("coalition lifecycle", () => {
     expect(after).toBeDefined();
     expect(after!.disbandVote).toBeNull();
     // Now create majority: both yes
-    initiateDisbandVoteFn(world, after!.id, "US_DEM");
+    initiateDisbandVoteFn(world, after!.id, "US_DEM", "player");
     voteDisbandFn(world, after!.id, "US_DEM", "yes");
     voteDisbandFn(world, after!.id, "US_REP", "yes");
     const expires2 = after!.disbandVote!.expiresOnTurn;
@@ -232,6 +273,7 @@ describe("coalition lifecycle", () => {
   it("player actions for coalition disband voting work via catalog", () => {
     const world = createWorld(OPTS);
     world.player.partyId = "US_DEM";
+    world.parties["US_DEM"]!.chairId = "player";
     world.player.actions = 100;
     executeAction(world, "player", "createCoalition", { coalitionName: "C2", coalitionAbbr: "C2", countryId: "US" });
     const co = world.coalitions[0]!;

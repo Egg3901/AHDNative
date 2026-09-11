@@ -85,8 +85,10 @@ Full device performance and native lifecycle remain separate acceptance gates.
 - Player policy editing and the profile compass: #87/#50. Imported axes already
   feed the correct influence calculation.
 - Central-bank character chair nomination: #119. Native currently has only NPP
-  chairs, so no player chair AP is fabricated. Congress leadership records and
-  full intra-party elections: #102.
+  chairs, so no player chair AP is fabricated. Party leadership, coalition,
+  tenure, and party-whip behavior are live; congressional chamber leadership
+  remains explicitly unavailable until Native has elected-official holder
+  records.
 - Legacy NPP clout still affects Native's separate PM/internal-election proxy
   algorithms. Its source correction is #144; it never enters the player pool.
 - Broader membership/charter costs and lifecycle remain #61/#95. This slice

@@ -212,6 +212,11 @@ export function foundParty(world: WorldState, input: FoundPartyInput): { ok: tru
     psCapEarnedRegions: [],
     memberCount: 0,
     isDefault: false,
+    chairId: null,
+    viceChairId: null,
+    treasurerId: null,
+    committeeIds: [],
+    leadershipElectionMethod: "party",
   };
   world.parties[partyId] = party;
   // Charter machinery (W18): create a ratified charter marking this founding
@@ -219,6 +224,8 @@ export function foundParty(world: WorldState, input: FoundPartyInput): { ok: tru
     id: `charter-${partyId}-${world.meta.turn}`,
     countryId: player.countryId,
     partyId,
+    founderId: "player",
+    foundedAtTurn: world.meta.turn,
     status: "ratified",
     expiresOnTurn: null,
     expiresAt: null,

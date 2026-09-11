@@ -46,6 +46,7 @@ export type ActionId =
   | "withdrawCandidacy"
   | "contestPartyLeadership"
   | "votePartyLeadership"
+  | "issuePartyWhip"
   | "contestCommittee"
   | "voteCommittee"
   | "createCoalition"
@@ -436,7 +437,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   contestPartyLeadership: {
     id: "contestPartyLeadership",
     name: "Contest Party Leadership",
-    description: "Enter a state or national party leadership race (chair/viceChair/treasurer) for your current party. Ports the Character candidacy entry in src/lib/statePartyElections.ts and src/lib/nationalPartyElections.ts; NPPs are not auto-entered. 24h cooldown and party tenure gates remain PORT-STUB. Cost 2 AP.",
+    description: "Enter a state or national party leadership race (chair/viceChair/treasurer) for your current party. State races require home-region residence; leadership requires 24 turns of current-party tenure; founding elections and founders are exempt. Cost 2 AP.",
     baseCost: 2,
     cooldown: 0,
     fundCost: 0,
@@ -446,11 +447,21 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   votePartyLeadership: {
     id: "votePartyLeadership",
     name: "Vote in Party Leadership Election",
-    description: "Cast ballot in a state or national party leadership election for your party. Single-choice per election. Ports StatePartyVote/NationalPartyVote ballot. NPPs do not vote in mainline national leadership elections; Native only persists the player ballot there. Cost 1 AP.",
+    description: "Cast a single-choice ballot in a state or national party leadership election. State races require home-region residence; committee-method national races are limited to committee members and party officers. Cost 1 AP.",
     baseCost: 1,
     cooldown: 0,
     fundCost: 0,
     systems: ["intraparty/partyElections"],
+    status: "available",
+  },
+  issuePartyWhip: {
+    id: "issuePartyWhip",
+    name: "Issue Party Whip",
+    description: "Issue a bill-specific national party instruction. The national chair or acting vice chair may set a hard or soft for/against/abstain direction, which NPP bill voting follows and persists through save/reload. Cost 2 AP.",
+    baseCost: 2,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["intraparty/partyWhip", "legislation/voting"],
     status: "available",
   },
   contestCommittee: {
@@ -476,7 +487,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   createCoalition: {
     id: "createCoalition",
     name: "Create Coalition",
-    description: "Found a coalition with your current party as lead. Ports src/lib/coalitions/types.ts Coalition + creation. Cost 3 AP.",
+    description: "Found a coalition with your current party as lead. Requires the national chair or acting vice chair; names and party membership must be unique within the country. Cost 3 AP.",
     baseCost: 3,
     cooldown: 0,
     fundCost: 0,
@@ -486,7 +497,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   joinCoalition: {
     id: "joinCoalition",
     name: "Join Coalition",
-    description: "Join an existing coalition with your current party. Ports CoalitionMember join flow.",
+    description: "Join an existing coalition with your current party. Requires the national chair or acting vice chair and rejects cross-country or duplicate membership.",
     baseCost: 2,
     cooldown: 0,
     fundCost: 0,
@@ -496,7 +507,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   initiateCoalitionDisband: {
     id: "initiateCoalitionDisband",
     name: "Initiate Coalition Disband Vote",
-    description: "Start a majority disband vote in your coalition. Expires in 168 turns; threshold floor(n/2)+1 per src/lib/turn/coalitionDisbandCheck.ts. Cost 2 AP.",
+    description: "Start a majority disband vote in your coalition as national chair or acting vice chair. Expires in 168 turns; threshold floor(n/2)+1. Cost 2 AP.",
     baseCost: 2,
     cooldown: 0,
     fundCost: 0,

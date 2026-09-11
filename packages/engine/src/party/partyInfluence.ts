@@ -26,9 +26,9 @@ export function computeLeadershipBonus(
   isChair: boolean,
   isViceChair: boolean,
 ): number {
-  // PORT-STUB: mainline checks national chair/vice/treasurer/committee +
-  // state/caucus chairs. Solo has no leadership assignments yet, so stub
-  // with boolean flags. Value matches mainline magnitude (+5 chair, +2 vice).
+  // This legacy helper covers the national chair/vice pair. The authoritative
+  // projection in playerInfluence.ts reads every persisted national,
+  // state-party, committee, and caucus holder.
   let bonus = 0;
   if (isChair) bonus += 5;
   if (isViceChair) bonus += 2;

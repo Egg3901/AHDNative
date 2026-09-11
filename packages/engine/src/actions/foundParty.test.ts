@@ -80,7 +80,7 @@ describe("foundParty public action accounting", () => {
     expect(world.player.actionCounts["foundParty"]).toBe(countsBefore + 1);
     expect(world.player.partyId).toBe("US_NFP");
     const charter = world.charters.find((c) => c.partyId === "US_NFP");
-    expect(charter).toMatchObject({ status: "ratified" });
+    expect(charter).toMatchObject({ status: "ratified", founderId: "player" });
   });
 
   it("founds at exactly 100k funds, leaving zero", () => {
