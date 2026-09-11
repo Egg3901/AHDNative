@@ -24,7 +24,7 @@ function clampPercentStat(value: number, fallback: number): number {
 
 /** Plain party row mirroring `politicalParties` fields read. */
 export interface PartyInput {
-  sequentialId: number;
+  sequentialId: string | number;
   countryId?: string;
   abbreviation?: string;
   economicPosition: number;

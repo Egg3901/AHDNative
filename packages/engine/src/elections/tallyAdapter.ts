@@ -20,6 +20,8 @@ import type {
 import { aggregateFundsByParty } from "../electionEngine/fundsByParty.js";
 import { campaignKey } from "../campaigns/lifecycle.js";
 import { buildNationwideElectoratePreload } from "../electionEngine/nationwideElectorate.js";
+import { distributeVotesByGroupLevelAllocation } from "../electionEngine/voteDistribution.js";
+import { distributeVotesBySwingFlow } from "../electionEngine/voteDistributionSwingFlow.js";
 
 /**
  * W21c tally wiring: feeds the ported accumulateVoteTurn from WorldState.
@@ -146,6 +148,7 @@ function derivedInputs(world: WorldState, rec: ElectionRecord): TallyDerivedInpu
     incumbentSeatShareByParty,
     govExecutive: null,
     president,
+    isOnePartyState: world.countryPolitics[rec.countryId]?.regime === "one-party",
   } as TallyDerivedInputs;
 }
 
@@ -277,6 +280,7 @@ function runAccumulateCore(
   const { stateId, state, demographics, turnout, statePartyOrgs } = slice;
 
   const now = worldNow(world);
+  const player = world.player;
   const candidates: TallyCandidateInput[] = rec.candidates.map((c) => {
     const support = world.candidateSupports?.[c.id]?.support;
     return {
@@ -298,6 +302,34 @@ function runAccumulateCore(
   }
 
   const categories = world.demographicCategories?.[rec.countryId] ?? [];
+  const characters = rec.candidates.some((c) => c.id === "player")
+    ? [
+        {
+          _id: "player",
+          policies: player.policies ?? { economic: 0, social: 0 },
+          favorability: player.favorability,
+          politicalInfluence: player.politicalInfluence,
+          ...(typeof player.nationalInfluence === "number"
+            ? { nationalInfluence: player.nationalInfluence }
+            : {}),
+          ...(typeof player.partyInfluence === "number" ? { partyInfluence: player.partyInfluence } : {}),
+          infamy: player.infamy,
+        },
+      ]
+    : [];
+  const npps = rec.candidates.flatMap((candidate) => {
+    if (!candidate.isNPP) return [];
+    const politician = world.politicians.find((entry) => entry.id === candidate.id);
+    if (!politician) return [];
+    return [
+      {
+        _id: candidate.id,
+        policies: politician.ideology,
+        favorability: politician.favorability,
+        politicalInfluence: politician.politicalInfluence,
+      },
+    ];
+  });
 
   const enriched = enrichCandidates(
     candidates.map((c) => ({
@@ -309,6 +341,7 @@ function runAccumulateCore(
       characterName: c.characterName,
       party: c.party,
       isNPP: c.isNPP ?? true,
+      ...(typeof c.support === "number" ? { support: c.support } : {}),
     })),
     {
       parties: Object.values(world.parties)
@@ -316,14 +349,19 @@ function runAccumulateCore(
         .map((p) => ({
           sequentialId: p.id,
           name: p.name,
+          abbreviation: p.abbreviation,
           color: p.color ?? "#888888",
           countryId: p.countryId,
           economicPosition: p.economicPosition,
           socialPosition: p.socialPosition,
         })),
+      characters,
+      npps,
+      includePartyPositions: true,
     } as unknown as Parameters<typeof enrichCandidates>[1],
   );
 
+  const isGeneralElection = world.meta.turn >= rec.primaryEndTurn;
   const input: AccumulateVoteTurnInput = {
     election: {
       _id: rec.id,
@@ -355,8 +393,11 @@ function runAccumulateCore(
     turnNumber: world.meta.turn,
     now,
     derived: derivedInputs(world, rec),
+    distributeFn: isGeneralElection
+      ? distributeVotesBySwingFlow
+      : distributeVotesByGroupLevelAllocation,
     rng,
-    isGeneralElection: world.meta.turn > rec.primaryEndTurn,
+    isGeneralElection,
   };
 
   const result = accumulateVoteTurn(input);

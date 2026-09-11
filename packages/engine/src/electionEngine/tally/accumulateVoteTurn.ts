@@ -332,11 +332,18 @@ export function accumulateVoteTurn(
       effCategories as unknown as import("../types.js").DemographicCategory[],
       partyOrgByParty,
       {
+        useAveragedPositions: election.electionType === "president" && isGeneral,
+        partyPositionWeight:
+          election.electionType === "president" && isGeneral ? 1 / 3 : undefined,
         includeInfluenceInAppeal: false,
-        useNationalInfluenceForReach: false,
+        useNationalInfluenceForReach: election.electionType === "president",
+        presidentialPrimaryNationalReach:
+          election.electionType === "president" && !isGeneral,
+        applyPartyFit: election.electionType === "president" && !isGeneral,
         votingSystem: (state.votingSystem as string) ?? "fptp",
         isGeneralElection: isGeneral,
         countryId: election.countryId,
+        isOnePartyState: derived.isOnePartyState,
         currentStateId: state._id,
         parentRegionId: state.parentRegionId ?? undefined,
         manifestoMultipliers: derived.manifestoMultipliers,
@@ -355,6 +362,10 @@ export function accumulateVoteTurn(
         fundsByParty: derived.fundsByParty,
         presidentialModifierByParty,
         medianVoter,
+        spoilerRate:
+          election.electionType === "president" && isGeneral ? 0.02 : undefined,
+        useOrgAwareSpoiler:
+          election.electionType === "president" && isGeneral,
         useSwingFlowModel: true,
       },
     );
