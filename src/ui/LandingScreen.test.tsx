@@ -33,6 +33,8 @@ function props(overrides: Partial<LandingScreenProps> = {}): LandingScreenProps 
     onRequestDelete: vi.fn(),
     onCancelDelete: vi.fn(),
     onConfirmDelete: vi.fn(),
+    onlineBusy: false,
+    onEnterMultiplayer: vi.fn(),
     ...overrides,
   };
 }
@@ -57,6 +59,18 @@ describe("LandingScreen", () => {
     // Square intrinsic size pins the aspect ratio before the PNG loads.
     expect(logo?.width).toBeGreaterThan(0);
     expect(logo?.height).toBe(logo?.width);
+  });
+
+  it("enters multiplayer without blocking offline New game", async () => {
+    const user = userEvent.setup();
+    const onEnterMultiplayer = vi.fn();
+    const onNew = vi.fn();
+    render(<LandingScreen {...props({ onEnterMultiplayer, onNew })} />);
+    expect(screen.getByRole("button", { name: "New game" })).toBeEnabled();
+    expect(screen.getByText(/local games do not need an account/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Enter multiplayer" }));
+    expect(onEnterMultiplayer).toHaveBeenCalledTimes(1);
+    expect(onNew).not.toHaveBeenCalled();
   });
 
   it("blocks New game until eras load, then starts the new-game flow", async () => {

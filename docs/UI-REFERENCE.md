@@ -119,6 +119,31 @@ The globe remains decorative. Per-era selection, nation detail and drag/zoom
 are outside this landing slice. Physical WebView frame pacing and battery
 use remain device checks. Cross-screen imagery remains #143.
 
+## Multiplayer account entry (issue #149)
+
+Native follows AHDClient at
+`378126dcb6c5b3366d182b442c6395d548b5edf5`. The launcher exposes Enter
+multiplayer, then hands the player to the live AHDGame site. AHDGame owns sign
+in, provider callbacks, account identity, logout and expiry. Native stores no
+credentials, tokens or duplicate account record. Offline singleplayer remains
+available without a network or account, and a saved character is not an
+authenticated account.
+
+Desktop opens or focuses one persistent in-app multiplayer WebView. Only the
+exact HTTPS game and www origins plus the existing Discord and Google provider
+hosts stay in that WebView; insecure, custom-port, deceptive-subdomain and
+unrelated navigation opens externally. Every new-window request also opens
+externally. The multiplayer WebView has an explicit empty capability grant, so
+remote content cannot invoke Native saves or other IPC. On mobile the trusted
+launcher command navigates the main WebView to the same live site, preserving
+the platform's normal persistent cookie and storage profile.
+
+Local tests cover launcher reachability, recoverable open failure, exact-host
+classification and the explicit capability boundary. Real provider callbacks,
+cookie restoration across relaunch, logout/expiry, cancellation, network
+failure presentation and desktop/mobile lifecycle remain runtime acceptance
+checks. Source and unit evidence alone do not complete #149.
+
 ## Route-level visual inventory (issue #143, compact)
 
 Full destination/conditional-menu inventory lives in
