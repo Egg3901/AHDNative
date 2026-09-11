@@ -6,17 +6,42 @@ Date: 2026-09-10. Bounded read-only source audit, 20 minute cap. No engine edits
 
 The source audit below is preserved at its recorded revisions. Current work
 and validation live in [ROADMAP.md](ROADMAP.md) and
-[ENGINE-ADAPTATIONS.md](ENGINE-ADAPTATIONS.md). Landed corrections include:
+[ENGINE-ADAPTATIONS.md](ENGINE-ADAPTATIONS.md). The corrections below have
+landed and describe current behavior (verified 2026-09-11 against current
+main). Each names the live evidence doc and the child issue carrying the
+remainder; do not cite the baseline rows for these areas as current.
 
-- Reference referendum variance and campaign/cohort/poll timing. Request,
-  consent and actuation remain open.
-- Reference TFP basket inputs and current-turn corporate output before macro.
-- Campaign tick before tally, reset afterwards and final tick before resolution.
-  Decaying spend stock and the imported NPC financing model remain gaps.
+- Referendum variance: `polling` votes resolve with `seededVariance(id, turn)`
+  (FNV-1a hash over `id:turn`, no shared RNG draw), not `rng.next()*2-1`. See
+  [referendum parity](REFERENDUM-PARITY.md). Lifecycle remainder (request
+  action, cohort/poll/actuation/consent): issues #42 and #70.
+- TFP: `macroCountryTurnPhase` reads `tfpBasket` over prev-turn national
+  metrics at the exact AHDGame paths, with reference-input fallback for
+  missing keys. See [growth parity](GROWTH-PARITY.md). Unseeded-input
+  remainder: issues #40 and #106.
+- Corporation/macro order: `corporationTurnPhase` runs immediately before
+  `macroCountryTurnPhase`, same turn. See [phase
+  order](PHASE-ORDER-DEPTH.md). Remaining tail-placement deviations:
+  issue #34.
+- Campaign/vote/reset order: the campaign cluster precedes
+  `voteAccumulation` with `campaignSpendReset` after, same turn (M04). See
+  [campaign order](CAMPAIGN-ORDER-DEPTH.md). Campaign-operations remainder:
+  issues #67 and #88.
+- Party/caucus charging: party founding and caucus creation single-charge
+  through the public action boundary (no double deduct). See [party
+  management](PARTY-MANAGEMENT.md) and [caucus
+  management](CAUCUS-MANAGEMENT.md). Charter/lifecycle remainder: issues
+  #59, #60, #61, and #95.
+- Occupation mobilization: `occupationShift` applies the 50-turn ramp
+  (`mobilizationFloor` 0.4). See [war depth](WAR-PARITY-DEPTH.md). War-verb
+  remainder (declare/peace/intel/navair): issue #41.
+- Save interchange: current `SCHEMA_VERSION` is 44; authentic v42 saves load
+  (migrated) and `projectSaveToV42` projects a narrow fail-closed subset.
+  See [save compatibility](SAVE-COMPATIBILITY.md). Progressed-export
+  remainder: issue #116; current-SP interchange: issue #122.
 - Explicit opt-in UK historical initialization, with the founding default kept.
-- Single-charge party founding, while full charter ratification remains open.
-- Authentic v42 import and a validated reversible export subset. Progressed
-  political state still blocks full v42 interchange.
+- Decaying campaign spend stock ported by #92 (closed); the imported NPC
+  financing model stays a disclosed non-port.
 
 These corrections do not establish whole-engine parity or physical-device
 performance. In particular, war abstraction, remaining phase/content/electoral
@@ -46,12 +71,12 @@ AHDGame mechanics parity: same seed + same world + same `advanceTurn` on AHDNati
 
 | Gap | Classification | Evidence (reference engine) | Evidence (AHDGame) | Effect |
 |---|---|---|---|---|
-| Referendum lifecycle | proven divergent (partial port) | `packages/engine/src/referendum/lifecycle.ts:13` documents 3 of 4 transitions as PORT-STUB (`granted->campaigning`, `campaigning->polling`, `actuating->completed\|cancelled`). `:29` no `requestReferendum` action. `:38-46` draws `rng.next()*2-1` for `varianceRoll`. `packages/engine/src/referendum/phases.ts:1` wires one live phase. `WorldState.referendums` empty except fixtures (`types.ts`). | `src/lib/constants/referendum.ts:152-165` `resolveReferendumVote` pure math is the ported piece (constants `CAMPAIGN_VARIANCE_BAND=4`, `REFERENDUM_PASS_THRESHOLD=50` verbatim). `src/lib/referendum/processReferendumLifecycle.ts:1-80` drives 5 states (`requested`/`declined`/`granted`/`campaigning`/`polling`/`actuating`/`completed`/`settled`/`cancelled`) with DB I/O, cohort engine (`cohortEngine.ts`), poll history (`upsertPollPoint`), and `seededVariance(id, turn)` FNV hash over `id+turn` in `[-1,1]` instead of world RNG. `src/lib/db/types/referendum.ts` carries `cohortBaseline`, `pollHistory`, `westminsterBillId`/`dailBillId`. | `resolveReferendumVote` arithmetic matches exactly. End-to-end referendum is not playable: no request, no cohort/poll/actuation/consent bills. Identical `yesShare` inputs diverge on random outcome because variance source differs (hash vs RNG stream). |
+| Referendum lifecycle | proven divergent (partial port) | `packages/engine/src/referendum/lifecycle.ts` uses `seededVariance(id, turn)` for polling resolution. Request, cohort/poll setup, consent, and final actuation remain absent; issues #42 and #70 track them. | `src/lib/constants/referendum.ts:152-165` `resolveReferendumVote` pure math is the ported piece. `src/lib/referendum/processReferendumLifecycle.ts:1-80` drives the full state sequence with DB I/O, cohort history, and the same seeded FNV variance. | Resolution arithmetic and variance source align. End-to-end referendum playability remains incomplete under #42 and #70. |
 | War abstraction | proven divergent (replacement mechanic) | `packages/engine/src/wars/types.ts:1-6` header: full unit combat absent, GDP-based margin is new. `packages/engine/src/wars/settlement.ts:1-30` documents margin as `100*(B-A)/(A+B)` from coalition GDP. `OCCUPATION` values match (`decisiveMargin 45`, `maxShift 5`, `retreatYield 0.7`). Constants `DICTATE_WINDOW_TURNS 24`, `TRUCE_TURNS 240`, `POLE_HOLD_TURNS 3` verbatim. | `src/lib/military/battle.ts:1` seeded per-unit combat with casualties, logistics (`supplyState`), doctrine, generals, `FrontSupport` (`navair/frontSupport.ts`), `occupation.ts:166` `occupationShift` (same formula but fed by battle margin, not GDP). Coalition/logistics matter. `src/lib/world/transitions/rules.ts` (8 rules) shows no dissolution transition even for RU/DD. | `occupationShift` and the three window constants are aligned. War outcome is not: GDP ratio is a new abstraction, not a port. Cannot satisfy no-mechanics-redesign unchanged. Any war/occupation balance claim is blocked until `src/lib/military/battle.ts` core is assessed directly. |
 | TFP / potential growth | proven divergent (stubbed basket) | `packages/engine/src/phases/macroCountryTurn.ts:190-232` computes `computeLaborForce` + `annualizedGrowthRate` + `potentialGrowth` (Solow) live, but `const tfp = TFP_BASELINE` (`:232`) with comment: basket needs `rdIntensity/workforceSkill/transportEfficiency/broadbandAccess/powerGridReliability/urbanizationRate`. `TFP_BASELINE` pinned at `1.2` (from `src/lib/metricEngine/potentialGrowth.ts`). | `src/lib/metricEngine/potentialGrowth.ts:95-150` implements `tfpBasket(inputs)` with `TFP_BOUNDS [0.2,2.6]`, `TFP_REFERENCE_INPUTS`, `agglomeration()` saturating, and deviation-from-reference form where reference inputs yield exactly `TFP_BASELINE`. Called from `metricEngine` with prev-turn `stateMetrics` lag. | Labor and capital growth are real; TFP is flat. Research/skills/infrastructure/urbanization have no effect on growth in the imported engine. Porting `tfpBasket` verbatim is parity-preserving at reference inputs, diverging elsewhere by design (and desired). |
 | Phase order | proven divergent (intentional tail lag) | `packages/engine/src/phases/registry.ts:164-400` documents append-only tail placement to avoid shifting RNG streams under existing goldens. Every cluster after `billLifecyclePhase` is deferred: `voteAccumulation`/`electionTimers`/`electionResolution` (`:168`), `demographicEffects/Flows/census`, `tradeGrowth/fiscalBaseGrowth/subsidy/fiscalYear/regionalBudget` (`:190`), `centralBankChairTurn/Selection`, `corporationTurnPhase` (`:204` one-turn lag noted in `corporation/corporationTurn.ts`), `campaignSpendReset/Turn/Subsidy/NpcInvestment` (`:212` one-turn lag: spend visible next turn), `governmentFormation/VacancyWatcher`, `impeachmentLifecycle/presidentialSuccession`, `cabinet*`, `recomputeSharePrices` (`:286` after `corporationTurnPhase`), plus 14 more tail clusters. Opening comment still says ~60 phases while indices exceed 119. | `src/simulation/phases/turnPhaseNames.ts:1-147` `BASE_TURN_PHASE_NAMES` (136 entries) + `COUNTRY_ELECTION_PHASES` + `src/simulation/phases/turnPhaseRegistry.ts:1-1421` authoritative order: e.g. `corporationTurn` at index 5 (before macro), `campaignTurn` index 51 (before `voteAccumulation` 60), `campaignSpendReset` index 61 (after), `fiscalBaseGrowth`/`economicModel` before `tradeGrowthMirror`, `centralBankChairTurn` `116-121` mid-pipeline, `recomputeSharePrices` right after `bondTurn`, `intelligenceTurn`/`navairOperations` before `ministerialOrders`. | Same-turn causality differs: corporation earnings visible next turn not this turn; campaign spend visible next turn; metric/fiscal/budget interlocks are tail-shifted. Reordering to mainline order changes RNG stream and invalidates every existing golden hash. The registry has 105 entries vs 136 base names - count alone does not measure coverage. |
 | Electoral omissions | proven divergent (partial) | `packages/engine/src/elections/presidentialElectoralCollege.ts:22` `electoralVotesByState` uses `houseSeats+2` per region, no DC/ME/NE district special cases (documented, byte-identical for 48-state 1953: 435+96=531, majority 266). `:63-70` resolves exact per-state ties alphabetically. `packages/engine/src/elections/tallyAdapter.ts` does per-state accumulation (W24b), replacing older nationwide path. `docs/ROADMAP-1.0.md:50` nationwide-only claim superseded by W24b (`:51`). | `src/lib/elections/apportionment.ts` `electoralVotesFromSeats` (EV = house+2+DC/ ME-NE districts from 1961/1972/1992), `src/lib/presidentialElectionEngine.ts:945-980` per-candidate per-state vote pipeline: `groundGame` bonuses, VP home-state `*1.03`, governor endorsement `*GOVERNOR_ENDORSEMENT_STATE_BONUS`, coalition credibility, `campaignStrengthVoteMultiplier`, `presidentialRuleset.ts` `CONVENTION`/`suspendTransferMode`/`primaryCalendar stretched` etc. Mainline exact-tie resolves via `sha256` hash of unit+ids, not alphabetical. `seatGeography.ts` has `assignUsSeatGeography` but no district entities. | EC math is correctly scoped for 1953 (DC absent, districts absent). At 2019 it is structurally incomplete. VP home-state and governor endorsement effects are unported. Alphabetical tie-break diverges on exact ties (rare but deterministic difference). Roadmap W24 nationwide claim must not be cited as current. |
-| Era/country coverage | proven divergent (scope-limited, not invented) | `packages/content/src/packs/index.ts:20-32` `PACKS` = `1953/1979/1991/2019` only. No `1960` pack (deleted, calendar retains legacy date anchor). `packages/engine/src/world.ts:209-230` `listEras` from `PACKS_BY_DATE`. Each pack header documents conversion method (budgets `gdp / INITIAL_RATES_* / 1e6`, `growthRate/100`) and gaps. Playable list is code truth, not doc intent: see mapping below. `SCHEMA_VERSION 43` at `world.ts:129`. | `src/lib/constants/countries.ts:5406` `ERA_COUNTRY_CONFIG_OVERRIDES`, `src/lib/world/worldEntityManifest.ts` `COLD_WAR_PLAYER [US,UK,RU,DD]`, `POST_COLD_WAR_PLAYER [US,UK]`, preset manifests for `1953-default/1979-default/1991-default/2019-default/1999-default/2007-default/2023-default` and 28 `CountryId` values. Authoritative budgets for 19 (1979) / 13 (1991) / 8 (2019) countries; per-era legislature/party/seat data in `seeds/*`. | Imported engine supports exactly 4 eras, with documented per-era playable subsets. It does not support `1999/2007/2023` or the full 28-country roster. Claiming otherwise is false. |
+| Era/country coverage | proven divergent (scope-limited, not invented) | `packages/content/src/packs/index.ts:20-32` `PACKS` = `1953/1979/1991/2019` only. No `1960` pack (deleted, calendar retains legacy date anchor). `packages/engine/src/world.ts:209-230` `listEras` from `PACKS_BY_DATE`. Each pack header documents conversion method and gaps. Playable list is code truth, not doc intent: see mapping below. Current saves use schema 44. | `src/lib/constants/countries.ts:5406` `ERA_COUNTRY_CONFIG_OVERRIDES`, `src/lib/world/worldEntityManifest.ts` preset manifests, and 28 `CountryId` values define the broader authority. | Imported engine supports exactly 4 eras, with documented per-era playable subsets. It does not support `1999/2007/2023` or the full 28-country roster. Claiming otherwise is false. |
 
 ### Supporting detail for the two aligned edge claims
 
@@ -107,7 +132,7 @@ Out of scope tonight: full phase-order re-golden (requires reordering ~20 tail c
 - Any claim of war/combat parity while GDP-margin abstraction remains.
 - Any claim of referendum E2E playability (no request/cohort/consent/actuation).
 - Phase-order same-turn causality: corporation/campaign/metric lags must be disclosed until re-golden lands with profile data.
-- Save interchange: `SCHEMA_VERSION 43` current vs v42 fixture compat not yet proven with a real player save; writing v43 and loading in pinned `c5017542` v42 reader correctly rejects, so bidirectional compat is not established.
+- Save interchange: current `SCHEMA_VERSION` is 44. Authentic v42 saves load (migrated) and `projectSaveToV42` projects a narrow fail-closed subset (see [save compatibility](SAVE-COMPATIBILITY.md)). Progressed political state still blocks full interchange (issue #116); bidirectional lossless compat is not established.
 - Device gate: no representative late-game workload, no named Android hardware `advanceTurn` p95, no save/serialize cost vs 131 MB historical sample re-measured on target.
 
 ## Acceptance evidence needed (before paid build)
@@ -116,7 +141,7 @@ Out of scope tonight: full phase-order re-golden (requires reordering ~20 tail c
 - Differential parity: for each bounded correction above, the seam test passes against AHDGame expected values at `e364c0495` (not against historical goldens). Historical goldens remain the determinism gate, not the parity gate.
 - Phase mapping artifact: `BASE_TURN_PHASE_NAMES` index -> imported `TURN_PHASES` name or `combined/missing/inapplicable` with data-dependency notes (not just name sets).
 - Era/country matrix above re-validated from `PACKS` code, not pack docs.
-- Save compat: load a genuine v42 fixture and round-trip v43 (and document that v43 does not load in v42).
+- Save compat: genuine v42 fixture load is proven (see [save compatibility](SAVE-COMPATIBILITY.md)). Still needed: progressed-world round-trip without loss (issue #116) and documented rejection of current-schema saves by the old reader.
 - Device profile: named iOS + Android hardware, justified late-game world (not server smoke `turn 401-500 p95 744 ms`), with `advanceTurn` p95, save size/time, and per-phase clocks.
 
 ## Source limitations

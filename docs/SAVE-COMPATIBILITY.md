@@ -1,8 +1,8 @@
 # Save compatibility: authentic v42 interchange
 
-Characterization of public save interchange between the historical v42 engine and this repository's current v43 engine. It is not a downgrade writer, not an AHDGame parity proof, and not a full-suite run.
+Characterization of public save interchange between the historical v42 engine and this repository's current v44 engine. It is not a downgrade writer, not an AHDGame parity proof, and not a full-suite run.
 
-Pinned v42 source: [Egg3901/AHDClient@c5017542c860f5f94b7d4b4d5cfea2939b28995d](https://github.com/Egg3901/AHDClient/commit/c5017542c860f5f94b7d4b4d5cfea2939b28995d) (`feat(singleplayer): add world controls and feature flags`). Native engine in this tree is SCHEMA_VERSION **43**. A v43 save with `schemaVersion` rewritten to 42 is not an authentic v42 fixture and was not used as one.
+Pinned v42 source: [Egg3901/AHDClient@c5017542c860f5f94b7d4b4d5cfea2939b28995d](https://github.com/Egg3901/AHDClient/commit/c5017542c860f5f94b7d4b4d5cfea2939b28995d) (`feat(singleplayer): add world controls and feature flags`). Native engine in this tree is SCHEMA_VERSION **44**. A current-schema save with `schemaVersion` rewritten to 42 is not an authentic v42 fixture and was not used as one.
 
 ## Run
 
@@ -66,7 +66,7 @@ The v42-to-v43 migration adds two WorldState fields (`packages/engine/src/save.t
 
 Evidence:
 
-- Native `serializeSave` stamps `schemaVersion` from `world.meta.schemaVersion` (43). The v42 reader rejects that envelope before walking fields.
+- Native `serializeSave` stamps `schemaVersion` from `world.meta.schemaVersion` (44). The v42 reader rejects that envelope before walking fields.
 - A Native-fresh 1953 US world in this tree writes `player.homeRegionId` as a real region (`AL`). A migrated authentic v42 world gets `homeRegionId: null` because v42 never selected one. Those are different player identities. The engine projector keeps a string `homeRegionId` as an opaque extra the old reader preserved; it does not invent a v42 home-region mechanic.
 - Dropping progressed `countryPolitics` discards live gauges and approval history. The old engine does not run that phase, so easing cannot be reconstructed. The projector refuses those worlds instead of smuggling frozen gauges.
 
@@ -137,7 +137,7 @@ This is not full interchange of progressed worlds. Native `serializeSave` still 
 ## Native notification metadata
 
 Preview 0.1.1 adds a top-level `notifications` array beside the existing engine
-save envelope fields. World schema remains 43. Historical saves without this
+save envelope fields. World schema remains 44. Historical saves without this
 array load with an empty inbox; malformed or duplicate metadata rejects the
 load without replacing the active world or inbox. Native retains read state,
 deletions and action-required history without a storage count limit. The UI
