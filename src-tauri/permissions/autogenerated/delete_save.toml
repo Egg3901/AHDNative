@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-delete-save"
+description = "Enables the delete_save command without any pre-configured scope."
+commands.allow = ["delete_save"]
+
+[[permission]]
+identifier = "deny-delete-save"
+description = "Denies the delete_save command without any pre-configured scope."
+commands.deny = ["delete_save"]
