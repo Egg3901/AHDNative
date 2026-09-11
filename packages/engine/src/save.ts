@@ -135,6 +135,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
           "This schema 42 document still carries countryPolitics; it is not an authentic schema 42 save",
       };
     }
+    const authenticSubsidies = world["subsidies"];
+    if (Array.isArray(authenticSubsidies) && authenticSubsidies.length > 0) {
+      return { ok: false, error: "This schema 42 document still carries subsidies; it is not an authentic schema 42 save" };
+    }
     if (hasOwn(player, "homeRegionId") && typeof player["homeRegionId"] !== "string") {
       return {
         ok: false,
@@ -170,8 +174,12 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (!hasOwn(world, "countryPolitics")) {
     return {
       ok: false,
-      error: "Schema 43 save is missing countryPolitics, so a reversible schema 42 projection cannot be proven",
+      error: `Schema ${SCHEMA_VERSION} save is missing countryPolitics, so a reversible schema 42 projection cannot be proven`,
     };
+  }
+  const subsidies = world["subsidies"];
+  if (Array.isArray(subsidies) && subsidies.length > 0) {
+    return { ok: false, error: `Active industry subsidies cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
 
   const candidateSave = structuredClone(save);
@@ -181,6 +189,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   candidateSave["schemaVersion"] = V42_SCHEMA;
   candidateMeta["schemaVersion"] = V42_SCHEMA;
   delete candidateWorld["countryPolitics"];
+  delete candidateWorld["subsidies"];
   if (typeof candidatePlayer["homeRegionId"] !== "string") {
     delete candidatePlayer["homeRegionId"];
   }
@@ -209,18 +218,18 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     return {
       ok: false,
       error:
-        "countryPolitics live gauges are not reconstructable from schema 42. Exporting would drop national approval, legitimacy, unrest, or approval history. Keep this save as schema 43",
+        `countryPolitics live gauges are not reconstructable from schema 42. Exporting would drop national approval, legitimacy, unrest, or approval history. Keep this save as schema ${SCHEMA_VERSION}`,
     };
   }
   if (player["homeRegionId"] !== restoredWorld.player.homeRegionId) {
     return {
       ok: false,
-      error: `player.homeRegionId is set to ${String(player["homeRegionId"])}. Schema 42 has no home-region identity; exporting would drop it. Keep this save as schema 43`,
+      error: `player.homeRegionId is set to ${String(player["homeRegionId"])}. Schema 42 has no home-region identity; exporting would drop it. Keep this save as schema ${SCHEMA_VERSION}`,
     };
   }
   return {
     ok: false,
-    error: "Schema 42 projection is not reversible: Native reload does not restore the original schema 43 document",
+    error: `Schema 42 projection is not reversible: Native reload does not restore the original schema ${SCHEMA_VERSION} document`,
   };
 }
 
@@ -241,7 +250,7 @@ const REQUIRED_WORLD_ARRAYS = [
   "cabinetMembers", "cabinetNominations", "supremeCourtSeats", "scotusNominations", "docketCases",
   "ukJudicialReviewCases", "activeWorldModifiers", "crises", "playerEventLog", "governorAddresses",
   "governorOrders", "bills", "committees", "enactedLaws", "stateBills", "news", "bankLoans",
-  "vitalSignsHistory", "ministerialOrders", "conflicts", "settlements",
+  "vitalSignsHistory", "ministerialOrders", "conflicts", "settlements", "subsidies",
 ] as const;
 
 const REQUIRED_WORLD_RECORDS = [
@@ -2281,6 +2290,21 @@ export function deserializeSave(raw: string): WorldState {
       w["countryPolitics"] = seedCountryPolitics(save.world);
     }
     save.world.meta.schemaVersion = 43;
+  }
+  // v43 -> v44: pre-v44 worlds could not enact subsidies, so the exact
+  // compatible backfill is an empty collection. No RNG is consumed.
+  if (save.schemaVersion < 44) {
+    const w = save.world as unknown as Record<string, unknown>;
+    if (!Array.isArray(w["subsidies"])) {
+      const entries = Object.entries(w);
+      for (const key of Object.keys(w)) delete w[key];
+      for (const [key, value] of entries) {
+        w[key] = value;
+        if (key === "corpRevenueSnapshots") w["subsidies"] = [];
+      }
+      if (!Array.isArray(w["subsidies"])) w["subsidies"] = [];
+    }
+    save.world.meta.schemaVersion = 44;
   }
   // 1.0.0 stored every synthetic NPC party ballot after resolution. They
   // cannot affect a future turn, so compact them on load while retaining the

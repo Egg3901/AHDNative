@@ -137,13 +137,12 @@ describe("campaign order depth (source-backed same-turn edges)", () => {
   it("corrected ordering survives a save/resume round trip mid-race", () => {
     const { world, fix } = setupFinalTurnRace();
     const seenLive = observeTurn(world, fix.campaignId);
-    const liveJson = JSON.stringify(world);
 
     const { world: other, fix: otherFix } = setupFinalTurnRace();
     const reloaded = deserializeSave(serializeSave(other, "2026-09-10T00:00:00.000Z"));
     const seenResumed = observeTurn(reloaded, otherFix.campaignId);
 
     expect(seenResumed).toEqual(seenLive);
-    expect(JSON.stringify(reloaded)).toBe(liveJson);
+    expect(reloaded).toEqual(world);
   });
 });

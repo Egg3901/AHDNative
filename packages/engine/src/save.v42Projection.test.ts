@@ -57,7 +57,7 @@ function parseProjected(contents: string): {
 
 describe("projectSaveToV42 public envelope", () => {
   it("returns the authentic v42 fixture unchanged", () => {
-    expect(SCHEMA_VERSION).toBe(43);
+    expect(SCHEMA_VERSION).toBe(44);
     const authentic = loadAuthenticV42();
     expect(sha256(authentic)).toBe(FIXTURE_SHA);
     expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });
@@ -77,7 +77,7 @@ describe("projectSaveToV42 public envelope", () => {
     expect(parsed.homeRegionId).toBe("AL");
     expect(sha256(projected.contents)).toBe(NATIVE_FRESH_KEEP_HOME_SHA);
     const restored = deserializeSave(projected.contents);
-    expect(restored.meta.schemaVersion).toBe(43);
+    expect(restored.meta.schemaVersion).toBe(44);
     expect(restored.player.homeRegionId).toBe("AL");
     expect(restored.countryPolitics).toEqual(world.countryPolitics);
   });

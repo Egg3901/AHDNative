@@ -1,18 +1,19 @@
 # v42 interchange depth
 
-Field and behavior matrix for public save interchange between Native schema 43 and the historical v42 engine. Companion to [save compatibility](SAVE-COMPATIBILITY.md). Not AHDGame parity, not in-app export, and not a claim that every Native world can round-trip.
+Field and behavior matrix for public save interchange between Native schema 44 and the historical v42 engine. Companion to [save compatibility](SAVE-COMPATIBILITY.md). Not AHDGame parity, not in-app export, and not a claim that every Native world can round-trip.
 
-Pinned v42 engine: Egg3901/AHDClient@`c5017542c860f5f94b7d4b4d5cfea2939b28995d`. Native `SCHEMA_VERSION` 43. Public contract: `createWorld`, `executeAction`, `advanceTurn`, `serializeSave`, `deserializeSave`, `projectSaveToV42`.
+Pinned v42 engine: Egg3901/AHDClient@`c5017542c860f5f94b7d4b4d5cfea2939b28995d`. Native `SCHEMA_VERSION` 44. Public contract: `createWorld`, `executeAction`, `advanceTurn`, `serializeSave`, `deserializeSave`, `projectSaveToV42`.
 
 ## Exact additive save shape (1953 US)
 
 Live JSON key diff of the authentic fixture versus Native `createWorld` / `deserializeSave` then `serializeSave` for seed `v42-interchange-v1`, player `Validator`, era `1953`, country `US`:
 
-| Location | Authentic v42 mint | Native schema 43 |
+| Location | Authentic v42 mint | Native schema 44 |
 |---|---|---|
-| Envelope / `world.meta.schemaVersion` | 42 | 43 |
+| Envelope / `world.meta.schemaVersion` | 42 | 44 |
 | `world.countryPolitics` | absent | required record, RNG-free seed at create, eased each Native turn |
 | `player.homeRegionId` | absent | `"AL"` on Native-fresh; `null` after authentic v42 migration |
+| `world.subsidies` | absent | required array; active entries make v42 projection fail closed |
 
 No other world or player keys differ on this mint. Feature-flag keys are the same. Native `countryPoliticsPhase` maps onto the existing `governments` flag and does not consume the turn RNG stream.
 
