@@ -38,11 +38,37 @@ describe("subsidy cost from live corporations (#39)", () => {
     expect(line(world, "UK")).toBe(0);
   });
 
+  it("does not invent state-sector coverage", () => {
+    const world = createWorld(OPTS);
+    world.subsidies = [{ ...US_SUBSIDY, scope: "state", stateId: "CA" }];
+    advanceTurn(world);
+    expect(line(world)).toBe(0);
+  });
+
   it("refuses lossy v42 projection with an active subsidy", () => {
     const world = createWorld(OPTS);
     world.subsidies = [US_SUBSIDY];
     const result = projectSaveToV42(serializeSave(world, "2026-09-11T00:00:00.000Z"));
     expect(result.ok).toBe(false);
+  });
+
+  it("projects a subsidy-free current world to v42", () => {
+    const world = createWorld(OPTS);
+    expect(projectSaveToV42(serializeSave(world, "2026-09-11T00:00:00.000Z")).ok).toBe(true);
+  });
+
+  it("migrates a v43 world with an empty subsidy collection", () => {
+    const world = createWorld(OPTS);
+    const legacy = JSON.parse(serializeSave(world, "2026-09-11T00:00:00.000Z")) as {
+      schemaVersion: number;
+      world: { meta: { schemaVersion: number }; subsidies?: Subsidy[] };
+    };
+    legacy.schemaVersion = 43;
+    legacy.world.meta.schemaVersion = 43;
+    delete legacy.world.subsidies;
+    const restored = deserializeSave(JSON.stringify(legacy));
+    expect(restored.meta.schemaVersion).toBe(44);
+    expect(restored.subsidies).toEqual([]);
   });
 
   it("persists subsidy state and its computed spending line", () => {
