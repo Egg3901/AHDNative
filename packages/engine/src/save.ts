@@ -2287,6 +2287,14 @@ export function deserializeSave(raw: string): WorldState {
   // player's historical ballot. This is a storage cleanup, not a schema
   // change, and therefore applies to current-schema saves too.
   compactResolvedNpcBallots(save.world);
+  // #92: persisted spendStock default. Saves written before the spend-stock
+  // port carry campaigns without the field; missing degrades to 0 in the
+  // aggregation (same absent-means-zero invariant as upstream), but the
+  // backfill keeps every loaded row explicit. Applies to current-schema
+  // saves too, so no version renumber is needed.
+  for (const campaign of Object.values(save.world.campaigns)) {
+    if (typeof campaign.spendStock !== "number") campaign.spendStock = 0;
+  }
   assertCurrentWorldState(save.world);
   return save.world;
 }

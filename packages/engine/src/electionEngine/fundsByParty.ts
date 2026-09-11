@@ -3,13 +3,15 @@
  *
  * Ported from `src/lib/electionEngine/fundsByParty.ts`.
  * Mainline mapping: DB-dependent `getFundsByPartyForElection(electionId, db)`
- * read `campaigns` collection rows (`Campaign.spendThisTurn`). In this pure
- * layer callers supply plain campaign rows (`FundsByPartyInput`) directly.
- * Aggregation logic is verbatim.
+ * read `campaigns` collection rows (`Campaign.spendStock` +
+ * `Campaign.spendThisTurn`). In this pure layer callers supply plain
+ * campaign rows (`FundsByPartyInput`) directly. Aggregation logic is
+ * verbatim.
  */
 
 export interface FundsByPartyInput {
   party: string;
+  spendStock?: number;
   spendThisTurn?: number;
 }
 
@@ -18,7 +20,13 @@ export function aggregateFundsByParty(
 ): Map<string, number> {
   const fundsByParty = new Map<string, number>();
   for (const c of campaigns) {
-    const spend = typeof c.spendThisTurn === "number" ? c.spendThisTurn : 0;
+    // #92: decaying stock of recent spend plus the live accumulator.
+    // This turn's spend counts at full weight at tally time; the reset
+    // sweep folds it into the stock afterwards. Missing values degrade
+    // to 0 (backward-compat with old rows / saves).
+    const stock = typeof c.spendStock === "number" ? c.spendStock : 0;
+    const fresh = typeof c.spendThisTurn === "number" ? c.spendThisTurn : 0;
+    const spend = stock + fresh;
     if (spend <= 0) continue;
     fundsByParty.set(c.party, (fundsByParty.get(c.party) ?? 0) + spend);
   }

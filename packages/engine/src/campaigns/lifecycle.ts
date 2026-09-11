@@ -60,6 +60,7 @@ export function ensureCampaign(world: WorldState, args: CreateCampaignArgs): voi
     groundGameTree: freshOpsTree(),
     mediaSpendingTree: freshOpsTree(),
     spendThisTurn: 0,
+    spendStock: 0,
     totalFundsGenerated: 0,
     totalFundsSpent: 0,
     totalActionsGenerated: 0,

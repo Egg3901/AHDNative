@@ -116,18 +116,20 @@ function derivedInputs(world: WorldState, rec: ElectionRecord): TallyDerivedInpu
       }
     }
   }
-  // W26: fundsByParty now reads the real per-turn campaign spend
-  // (Campaign.spendThisTurn via campaigns/phases.ts), exactly mirroring
-  // mainline's getFundsByPartyForElection (which reads the `campaigns`
-  // collection's spendThisTurn, not a raw funds stock). Ported verbatim via
+  // #92: tally reads the decaying campaign spend stock plus this turn's
+  // accumulator. Hoarded treasury funds never enter this driver.
   // electionEngine/fundsByParty.ts aggregateFundsByParty. Races without
   // campaigns (isCampaignEligible.ts gates which races get one) correctly
   // yield an empty map, same as mainline where no Campaign doc exists.
   const fundsByParty = aggregateFundsByParty(
-    rec.candidates.map((cand) => ({
-      party: cand.partyId,
-      spendThisTurn: world.campaigns[campaignKey(rec.id, cand.id)]?.spendThisTurn ?? 0,
-    })),
+    rec.candidates.map((cand) => {
+      const campaign = world.campaigns[campaignKey(rec.id, cand.id)];
+      return {
+        party: cand.partyId,
+        spendStock: campaign?.spendStock ?? 0,
+        spendThisTurn: campaign?.spendThisTurn ?? 0,
+      };
+    }),
   );
   // W24: the sitting president's party feeds the presidential-coattail driver
   // for down-ballot races (accumulateVoteTurn.ts self-excludes the
