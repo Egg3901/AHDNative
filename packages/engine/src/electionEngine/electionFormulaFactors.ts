@@ -428,3 +428,18 @@ export function persuasionResistance(reg: number | undefined): number {
 export function effectivePeelableFraction(reg: number | undefined): number {
   return transferableShare(reg) * (1 - persuasionResistance(reg));
 }
+
+// Money-driver spend stock (#92), ported from AHDGame d4baf899.
+export const SPEND_STOCK_RETENTION = 0.8;
+export const SPEND_STOCK_DUST_CUTOFF = 1;
+
+export function rollSpendStock(
+  stock: number | undefined,
+  spendThisTurn: number | undefined,
+  retention: number = SPEND_STOCK_RETENTION,
+): number | undefined {
+  const prior = typeof stock === "number" && stock > 0 ? stock : 0;
+  const fresh = typeof spendThisTurn === "number" && spendThisTurn > 0 ? spendThisTurn : 0;
+  const rolled = prior * retention + fresh;
+  return rolled < SPEND_STOCK_DUST_CUTOFF ? undefined : rolled;
+}

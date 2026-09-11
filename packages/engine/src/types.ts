@@ -467,11 +467,20 @@ export interface Campaign {
   /**
    * Per-turn spend accumulator (local currency) — the swing-flow money
    * driver's input (electionEngine/fundsByParty.ts, tallyAdapter.ts).
-   * Ports Campaign.spendThisTurn. Reset each turn by campaigns/phases.ts
-   * campaignSpendResetPhase; accrued by campaignTurnPhase (maintenance) and
-   * campaignNpcInvestmentPhase (upgrade purchases).
+   * Ports Campaign.spendThisTurn. Folded into spendStock and cleared each
+   * turn by campaigns/phases.ts campaignSpendResetPhase; accrued by
+   * campaignTurnPhase (maintenance) and campaignNpcInvestmentPhase
+   * (upgrade purchases).
    */
   spendThisTurn: number;
+  /**
+   * Decaying stock of recent campaign spend (#92), fed only by actual
+   * spend (the reset sweep folds spendThisTurn in each turn; hoarded
+   * `funds` never enter). Ports Campaign.spendStock (optional upstream;
+   * missing degrades to 0 in the aggregation). deserializeSave backfills
+   * 0 for old saves; ensureCampaign seeds 0 for new rows.
+   */
+  spendStock?: number;
   totalFundsGenerated: number;
   totalFundsSpent: number;
   totalActionsGenerated: number;

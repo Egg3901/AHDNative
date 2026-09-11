@@ -5,6 +5,7 @@ import { calculateMaintenanceCosts } from "./maintenance.js";
 import { computeAutoDowngrade } from "./autoDowngrade.js";
 import { getMediaFavPerTurn } from "./opsEffects.js";
 import { campaignAnchorToLocal, campaignLocalToAnchor } from "./campaignCurrency.js";
+import { rollSpendStock } from "../electionEngine/electionFormulaFactors.js";
 import { applyCampaignPartySubsidies } from "./partySubsidy.js";
 import { investCampaign } from "./npcInvestment.js";
 
@@ -47,14 +48,13 @@ import { investCampaign } from "./npcInvestment.js";
  * electionResolutionPhase archives the row, as in mainline (where
  * resolution deletes the Campaign doc afterwards).
  *
- * Solo deviation that REMAINS, by design: mainline's fundsByParty reads a
- * decaying spendStock PLUS the live spendThisTurn accumulator (ticket
- * #1261), and its reset sweep folds the accumulator into the stock.
- * Solo's Campaign has no spendStock field and electionEngine/fundsByParty.ts
- * reads spendThisTurn only, so the reset here is a pure wipe, not a
- * rollover - idle turns read exactly zero instead of a fading stock. That
- * is a port gap, not a rebalance of anything ported; flag for a future
- * spendStock wave rather than folding guessed decay math into this move.
+ * Spend-stock parity (#92, ticket #1261 upstream): fundsByParty reads the
+ * decaying spendStock PLUS the live spendThisTurn accumulator, and the
+ * reset sweep above folds the accumulator into the stock with
+ * SPEND_STOCK_RETENTION fade and the dust cutoff (both ported verbatim
+ * from electionFormulaFactors). Idle turns fade gradually instead of
+ * cliffing to zero; hoarded treasuries still score zero since the stock
+ * only grows through actual spend.
  */
 
 const PLAYER_BASE_CAMPAIGN_ACTIONS = 4;
@@ -73,7 +73,14 @@ function seasonMultiplier(world: WorldState, electionId: string): number {
 export const campaignSpendResetPhase: TurnPhase = {
   name: "campaignSpendReset",
   run(world: WorldState) {
+    // #92: rollover sweep, not a wipe. Runs AFTER voteAccumulation, so the
+    // tally has already read stock + accumulator at full weight
+    // (tallyAdapter.ts); fold the accumulator into the decaying stock now
+    // so the next turn's interval starts fresh with no double spend.
+    // Ports campaignSpendReset.ts processCampaignSpendReset.
     for (const campaign of Object.values(world.campaigns)) {
+      const rolled = rollSpendStock(campaign.spendStock, campaign.spendThisTurn);
+      campaign.spendStock = rolled ?? 0;
       if (campaign.spendThisTurn !== 0) campaign.spendThisTurn = 0;
     }
   },

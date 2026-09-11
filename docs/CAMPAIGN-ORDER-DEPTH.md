@@ -49,12 +49,20 @@ after the tally read, so post-turn `spendThisTurn` is 0.
 - `campaignPartySubsidy` / `npcInvestment` remain disclosed non-port
   mechanics (see their file docs); not rebalanced, only repositioned with
   the cluster they feed.
-- `spendStock` NOT ported: mainline's money driver reads a decaying stock
-  plus the live accumulator and its reset folds one into the other (ticket
-  #1261). Solo has no `spendStock` field; `electionEngine/fundsByParty.ts`
-  reads `spendThisTurn` only and the reset stays a pure wipe. Idle turns
-  therefore read zero instead of a fading stock. Flagged for a future
-  spendStock wave; no guessed decay math was folded into this move.
+- `spendStock` ported by #92 (AHDGame `d4baf899`, ticket #1261): `Campaign`
+  carries optional `spendStock` (missing degrades to 0, same invariant as
+  upstream; `deserializeSave` backfills 0, `ensureCampaign` seeds 0, no
+  schema renumber). `fundsByParty` aggregates stock + accumulator,
+  `campaignSpendResetPhase` folds with `SPEND_STOCK_RETENTION = 0.8` and
+  dust cutoff 1 (both verbatim in `electionFormulaFactors`), and
+  `tallyAdapter` passes both fields. Money-driver math itself is
+  unchanged (log-ratio over the map). Provenance for #67/#68: the tally
+  input for a candidate is `world.campaigns[campaignKey(rec.id,
+  cand.id)].spendStock + .spendThisTurn` read at `voteAccumulation`;
+  hoarded `funds` never enter (stock grows only through actual spend);
+  resolution archives (upstream deletes) so nothing carries across
+  elections; post-turn `spendThisTurn` is 0 with the value folded once
+  into the stock. Tests: `campaigns/spendStock.test.ts` (10 passed).
 - Tally, timers, resolution, support, endorsement sweep: comment-only
   context already accurate; no changes needed. The endorsement sweep
   already ran before `campaignTurn` in both orders (matches mainline).
