@@ -298,11 +298,19 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
   useEffect(() => {
     setOppositionTargetId(campaign.oppositionResearch.targetId ?? "");
   }, [campaign.oppositionResearch.targetId]);
+  const [managerId, setManagerId] = useState(campaign.manager.managerId ?? "");
+  useEffect(() => {
+    setManagerId(campaign.manager.managerId ?? "");
+  }, [campaign.manager.managerId]);
   const targetSelectionAvailable = campaign.oppositionResearch.action.available
     || campaign.oppositionResearch.action.disabledReason === "Select an opposition target.";
   const retarget = () => {
     if (busy || !campaign.oppositionResearch.action.available || !oppositionTargetId) return;
     onAction("campaignRetarget", { electionId, oppositionTargetId });
+  };
+  const saveManager = () => {
+    if (busy || !campaign.manager.action.available) return;
+    onAction("campaignManager", { electionId, managerId });
   };
   const categoryLabel = (category: string) => category.replace(/([A-Z])/g, " $1").toLowerCase();
   const activityLabel = (entry: PoliticsPlayerCampaignView["activity"][number]) => {
@@ -405,6 +413,46 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
           {!campaign.oppositionResearch.action.available ? (
             <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
               {campaign.oppositionResearch.action.disabledReason ?? "Unavailable"}
+            </span>
+          ) : null}
+        </div>
+      </section>
+      <section aria-label="Campaign manager" style={{ marginTop: "0.6rem" }}>
+        <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>Campaign manager</h4>
+        <p className="ahd-help" style={{ margin: "0 0 0.35rem" }}>
+          Manager: {campaign.manager.managerName ?? "none"}
+        </p>
+        <label className="ahd-field" style={{ maxWidth: "24rem" }}>
+          <span className="ahd-label">Manager</span>
+          <select
+            className="ahd-select"
+            aria-label="Campaign manager"
+            value={managerId}
+            onChange={(event) => setManagerId(event.target.value)}
+            disabled={busy || !campaign.manager.action.available}
+          >
+            <option value="">No manager</option>
+            {campaign.manager.managers.map((manager) => (
+              <option key={manager.id} value={manager.id}>
+                {manager.name}{manager.office ? ` (${manager.office})` : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.35rem" }}>
+          <button
+            type="button"
+            className="ahd-btn ahd-btn-sm"
+            disabled={busy || !campaign.manager.action.available}
+            aria-disabled={busy || !campaign.manager.action.available}
+            aria-label="Save campaign manager"
+            onClick={saveManager}
+          >
+            {campaign.manager.action.name}
+          </button>
+          {!campaign.manager.action.available ? (
+            <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+              {campaign.manager.action.disabledReason ?? "Unavailable"}
             </span>
           ) : null}
         </div>

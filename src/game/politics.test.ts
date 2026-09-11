@@ -204,6 +204,44 @@ describe("projectPolitics", () => {
       partyName: "Democratic Party",
     }]);
   });
+
+  it("projects the selected campaign manager and same-country roster", () => {
+    const world = createWorld({ ...options, seed: "politics-campaign-manager" });
+    const manager = world.politicians.find((politician) => politician.countryId === "US");
+    expect(manager).toBeDefined();
+    world.player.partyId = DEM;
+    const election = {
+      id: "house:US:NY:c1",
+      electionType: "house",
+      countryId: "US",
+      state: "NY",
+      cycle: 1,
+      status: "active" as const,
+      startTurn: 0,
+      primaryEndTurn: 10,
+      endTurn: 20,
+      totalSeats: 1,
+      chamberKey: "house",
+      candidates: [],
+      tally: {},
+    };
+    world.elections = [election];
+    expect(declareCandidacy(world, election.id).ok).toBe(true);
+    const campaign = world.campaigns[`${election.id}:player`]!;
+    campaign.managerId = manager!.id;
+    campaign.managerName = manager!.name;
+
+    const projected = projectPolitics(world).elections.find((item) => item.id === election.id)!;
+    expect(projected.playerCampaign!.manager).toMatchObject({
+      managerId: manager!.id,
+      managerName: manager!.name,
+      action: { id: "campaignManager", available: true },
+    });
+    expect(projected.playerCampaign!.manager.managers).toContainEqual(expect.objectContaining({
+      id: manager!.id,
+      name: manager!.name,
+    }));
+  });
 });
 
 it('keeps detailed politics out of routine world updates', () => {

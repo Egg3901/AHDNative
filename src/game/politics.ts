@@ -81,6 +81,13 @@ export interface PoliticsCampaignOppositionView {
   action: ActionView;
 }
 
+export interface PoliticsCampaignManagerView {
+  managerId: string | null;
+  managerName: string | null;
+  managers: { id: string; name: string; office: string | null }[];
+  action: ActionView;
+}
+
 export interface PoliticsPlayerCampaignView {
   status: string;
   funds: number; actions: number;
@@ -93,6 +100,7 @@ export interface PoliticsPlayerCampaignView {
   activity: PoliticsCampaignActivityView[];
   rally: PoliticsCampaignRallyView;
   oppositionResearch: PoliticsCampaignOppositionView;
+  manager: PoliticsCampaignManagerView;
   levers: PoliticsCampaignLeverView[];
 }
 
@@ -338,6 +346,39 @@ function oppositionResearchAction(
   };
 }
 
+function campaignManagerAction(
+  world: WorldState,
+  campaign: Campaign,
+  campaignReason?: string,
+): PoliticsCampaignManagerView {
+  const managers = world.politicians
+    .filter((politician) => politician.countryId === campaign.countryId)
+    .map((politician) => ({
+      id: politician.id,
+      name: politician.name,
+      office: officeLabel(world, politician.chamberKey, politician.electedState, politician.senateClass),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const selected = managers.find((manager) => manager.id === campaign.managerId);
+  const managerId = campaign.managerId ?? null;
+  const managerName = campaign.managerName ?? selected?.name ?? null;
+  const reason = campaignReason ?? (managers.length === 0 ? "No eligible same-country managers." : undefined);
+  const entry = ACTION_CATALOG.campaignManager;
+  return {
+    managerId,
+    managerName,
+    managers,
+    action: {
+      id: "campaignManager",
+      name: managerId ? "Update campaign manager" : "Set campaign manager",
+      description: entry.description,
+      cost: 0,
+      available: !reason,
+      ...(reason ? { disabledReason: reason } : {}),
+    },
+  };
+}
+
 function projectPlayerCampaign(
   world: WorldState,
   election: WorldState["elections"][number],
@@ -416,6 +457,7 @@ function projectPlayerCampaign(
     })),
     rally,
     oppositionResearch: oppositionResearchAction(world, election, campaign, campaignReason),
+    manager: campaignManagerAction(world, campaign, campaignReason),
     levers,
   };
 }

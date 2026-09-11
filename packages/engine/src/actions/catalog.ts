@@ -74,7 +74,8 @@ export type ActionId =
   | "campaignUpgrade"
   | "campaignRally"
   | "campaignRallyTour"
-  | "campaignRetarget";
+  | "campaignRetarget"
+  | "campaignManager";
 
 // Costs mirror mainline's dynamic tier functions but collapsed to neutral
 // goldens for solo's simpler state (no per-state GDP tier). Cited.
@@ -746,6 +747,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["campaign/opposition-research"],
+    status: "available",
+  },
+  campaignManager: {
+    id: "campaignManager",
+    name: "Set campaign manager",
+    description: "Choose a same-country politician to represent the campaign manager.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["campaign/management"],
     status: "available",
   },
 };

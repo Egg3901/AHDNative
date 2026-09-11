@@ -457,11 +457,11 @@ export interface CampaignActivity {
  * Per-candidate campaign (W26). Ports src/lib/db/types/campaign.ts Campaign,
  * trimmed to the fields the ported turn loop and tally integration need:
  * treasury (funds/actions), the four ops-lever trees, and per-turn spend
- * accounting. Cut vs mainline: managerId (no Campaign Manager NPC-hire UI
- * this wave), donationLog/fogOfWar (UI-facing history, no consumer in solo),
- * oppositionTargetId (opposition-research targeting is
- * now wired for the player campaign; manager/surrogate targeting remains
- * outside the solo action model), campaignStrength (player
+ * accounting. Cut vs mainline: donationLog/fogOfWar (UI-facing history, no
+ * consumer in solo), manager permissions/effects (the player campaign has a
+ * single native manager state, but managers do not yet act independently),
+ * oppositionTargetId (opposition-research targeting is wired for the player
+ * campaign), campaignStrength (player
  * contribution mechanic — PORT-STUB, see campaigns/README note in
  * campaigns/lifecycle.ts).
  */
@@ -485,6 +485,9 @@ export interface Campaign {
   oppositionResearchTree: CampaignOpsTree;
   groundGameTree: CampaignOpsTree;
   mediaSpendingTree: CampaignOpsTree;
+  /** Selected same-country politician shown as the campaign manager. */
+  managerId?: string;
+  managerName?: string;
   /** Current opposition-research target, when the player has selected one. */
   oppositionTargetId?: string;
   oppositionTargetName?: string;
