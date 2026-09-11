@@ -302,6 +302,11 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
   useEffect(() => {
     setManagerId(campaign.manager.managerId ?? "");
   }, [campaign.manager.managerId]);
+  const [canvassTarget, setCanvassTarget] = useState("");
+  useEffect(() => {
+    setCanvassTarget((current) => campaign.canvassing.targets.some((target) =>
+      `${target.category}:${target.group}` === current) ? current : "");
+  }, [campaign.canvassing.targets]);
   const targetSelectionAvailable = campaign.oppositionResearch.action.available
     || campaign.oppositionResearch.action.disabledReason === "Select an opposition target.";
   const retarget = () => {
@@ -311,6 +316,17 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
   const saveManager = () => {
     if (busy || !campaign.manager.action.available) return;
     onAction("campaignManager", { electionId, managerId });
+  };
+  const canvass = () => {
+    const target = campaign.canvassing.targets.find((candidate) =>
+      `${candidate.category}:${candidate.group}` === canvassTarget);
+    if (busy || !campaign.canvassing.action.available || !target || !campaign.canvassing.regionId) return;
+    onAction("campaignCanvass", {
+      electionId,
+      regionId: campaign.canvassing.regionId,
+      demographicCategory: target.category,
+      demographicGroup: target.group,
+    });
   };
   const categoryLabel = (category: string) => category.replace(/([A-Z])/g, " $1").toLowerCase();
   const activityLabel = (entry: PoliticsPlayerCampaignView["activity"][number]) => {
@@ -453,6 +469,46 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
           {!campaign.manager.action.available ? (
             <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
               {campaign.manager.action.disabledReason ?? "Unavailable"}
+            </span>
+          ) : null}
+        </div>
+      </section>
+      <section aria-label="Campaign canvassing" style={{ marginTop: "0.6rem" }}>
+        <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>Campaign canvassing</h4>
+        <p className="ahd-help" style={{ margin: "0 0 0.35rem" }}>
+          Region: {campaign.canvassing.regionId ?? "none"}. Each canvass costs one action and 100 funds.
+        </p>
+        <label className="ahd-field" style={{ maxWidth: "24rem" }}>
+          <span className="ahd-label">Voter target</span>
+          <select
+            className="ahd-select"
+            aria-label="Canvass target"
+            value={canvassTarget}
+            onChange={(event) => setCanvassTarget(event.target.value)}
+            disabled={busy || !campaign.canvassing.action.available}
+          >
+            <option value="">Select a voter target</option>
+            {campaign.canvassing.targets.map((target) => (
+              <option key={`${target.category}:${target.group}`} value={`${target.category}:${target.group}`}>
+                {target.groupName} ({target.categoryName})
+              </option>
+            ))}
+          </select>
+        </label>
+        <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.35rem" }}>
+          <button
+            type="button"
+            className="ahd-btn ahd-btn-sm"
+            disabled={busy || !campaign.canvassing.action.available || !canvassTarget}
+            aria-disabled={busy || !campaign.canvassing.action.available || !canvassTarget}
+            aria-label="Canvass selected target"
+            onClick={canvass}
+          >
+            {campaign.canvassing.action.name}
+          </button>
+          {!campaign.canvassing.action.available ? (
+            <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+              {campaign.canvassing.action.disabledReason ?? "Unavailable"}
             </span>
           ) : null}
         </div>

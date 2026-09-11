@@ -19,6 +19,7 @@ import * as CampaignRally from "./campaignRally.js";
 import * as CampaignRallyTour from "./campaignRallyTour.js";
 import * as CampaignRetarget from "./campaignRetarget.js";
 import * as CampaignManager from "./campaignManager.js";
+import * as CampaignCanvass from "./campaignCanvass.js";
 import * as Coalition from "../intraparty/coalitions.js";
 import { getLaw, resolveCatalogPolicyOption } from "../legislation/catalog.js";
 import { calculateBudgetSpending } from "../budget/spending.js";
@@ -91,6 +92,8 @@ export type ExecuteActionParams = {
   rallyTour?: "start" | "stop";
   oppositionTargetId?: string;
   managerId?: string;
+  demographicCategory?: string;
+  demographicGroup?: string;
 };
 
 export type ExecuteActionResult =
@@ -644,6 +647,22 @@ function executeActionInner(
     const res = CampaignManager.campaignManager(world, {
       electionId: params.electionId,
       managerId: params.managerId,
+    });
+    if (!res.ok) {
+      actor.actions += cost;
+      actor.funds += fundCost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: res.error };
+    }
+    return { ok: true, message: res.message };
+  }
+  if (actionId === "campaignCanvass") {
+    if (found.kind !== "player") return { ok: false, error: "Only player can manage a campaign" };
+    const res = CampaignCanvass.campaignCanvass(world, {
+      electionId: params.electionId,
+      regionId: params.regionId,
+      demographicCategory: params.demographicCategory,
+      demographicGroup: params.demographicGroup,
     });
     if (!res.ok) {
       actor.actions += cost;
@@ -1493,6 +1512,10 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.electionId && Object.prototype.hasOwnProperty.call(params, "managerId")
         ? null
         : "campaignManager requires electionId and managerId";
+    case "campaignCanvass":
+      return params.electionId && params.regionId && params.demographicCategory && params.demographicGroup
+        ? null
+        : "campaignCanvass requires electionId, regionId, demographicCategory, and demographicGroup";
     case "sponsorBill":
     case "repealLaw":
       return params.catalogId ? null : `${actionId} requires catalogId`;

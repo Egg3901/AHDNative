@@ -15,6 +15,7 @@ import {
 import { buildRallyAccrualEntry } from "../support/support.js";
 import { applyCampaignPartySubsidies } from "./partySubsidy.js";
 import { investCampaign } from "./npcInvestment.js";
+import { decayCampaignCanvassModifiers } from "../actions/campaignCanvass.js";
 
 /**
  * Campaign turn cluster (W26). Ports src/lib/turn/campaignTurn.ts
@@ -98,6 +99,10 @@ export const campaignTurnPhase: TurnPhase = {
   run(world: WorldState) {
     for (const campaign of Object.values(world.campaigns)) {
       if (campaign.status !== "active") continue;
+
+      const decayedCanvass = decayCampaignCanvassModifiers(campaign.canvassModifiers);
+      if (decayedCanvass) campaign.canvassModifiers = decayedCanvass;
+      else delete campaign.canvassModifiers;
 
       const electionType = campaign.electionType;
       const countryId = campaign.countryId;

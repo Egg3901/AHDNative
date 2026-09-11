@@ -11,6 +11,7 @@
 import { FUNDRAISE_ACTION_COST } from "@ahd/game-rules/actions";
 import { fundraiseYield } from "./fundGeneration.js";
 import { DEBATE_PREP_ACTION_COST } from "../stats/debatePrep.js";
+import { CAMPAIGN_CANVASS_ACTIONS, CAMPAIGN_CANVASS_FUNDS } from "./campaignCanvass.js";
 
 export type ActionId =
   | "buyBond"
@@ -75,7 +76,8 @@ export type ActionId =
   | "campaignRally"
   | "campaignRallyTour"
   | "campaignRetarget"
-  | "campaignManager";
+  | "campaignManager"
+  | "campaignCanvass";
 
 // Costs mirror mainline's dynamic tier functions but collapsed to neutral
 // goldens for solo's simpler state (no per-state GDP tier). Cited.
@@ -757,6 +759,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["campaign/management"],
+    status: "available",
+  },
+  campaignCanvass: {
+    id: "campaignCanvass",
+    name: "Canvass voters",
+    description: "Spend one action and 100 funds to boost turnout for a demographic group in the campaign region.",
+    baseCost: CAMPAIGN_CANVASS_ACTIONS,
+    cooldown: 0,
+    fundCost: CAMPAIGN_CANVASS_FUNDS,
+    systems: ["campaign/targeting"],
     status: "available",
   },
 };

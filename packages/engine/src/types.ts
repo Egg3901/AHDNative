@@ -488,6 +488,8 @@ export interface Campaign {
   /** Selected same-country politician shown as the campaign manager. */
   managerId?: string;
   managerName?: string;
+  /** Race-local turnout modifiers keyed by `${category}:${group}`. */
+  canvassModifiers?: Record<string, number>;
   /** Current opposition-research target, when the player has selected one. */
   oppositionTargetId?: string;
   oppositionTargetName?: string;
