@@ -48,6 +48,7 @@ export interface GameView {
   metrics: MetricView[]; parties: PartyView[]; elections: ElectionView[]; news: NewsView[];
   actions: ActionView[]; regions: { id: string; name: string }[];
   notifications: import("./notifications").NotificationInbox;
+  actionHistory?: import("./notifications").ActionHistoryEntry[];
 }
 export interface GameScreenProps {
   loadProfile: () => Promise<import("./profileTypes").ProfileView>;

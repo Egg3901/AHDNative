@@ -22,6 +22,7 @@ import {
   actionNotification, addNotifications, deleteNotification, diffTurnSnapshots, markAllNotificationsRead,
   markNotificationRead, parseNotifications, saveNotification, toInbox, welcomeNotification,
   type NotificationDraft, type NotificationItem, type TurnSnapshot,
+  type ActionChange, type ActionOutcome, type ActionTarget,
 } from "./notifications";
 
 /**
@@ -88,20 +89,23 @@ export class GameSession {
   }
 
   act(actionId: string, params: ExecuteActionParams = {}) {
-    const before = snapshotNotifications(this.requireWorld());
+    const source = this.requireWorld();
+    const before = snapshotNotifications(source);
+    const actionBefore = snapshotActionFields(source);
     const candidate = structuredClone(this.requireWorld());
     const result = executeAction(candidate, "player", actionId, params);
     if (!result.ok) return result;
     const world = candidate;
     const drafts: NotificationDraft[] = [];
-    const detail = describeAction(actionId, params, world, result);
+    const outcome = buildActionOutcome(actionId, params, actionBefore, world);
+    const detail = describeAction(actionId, params, world, result, outcome);
     if (detail) {
       const draft = actionNotification(actionId, detail, world.meta.turn, world.meta.date);
       if (draft) drafts.push({ ...draft, key: this.uniqueKey(draft.key) });
     }
     drafts.push(...diffTurnSnapshots(before, snapshotNotifications(world), world.player.name));
     this.commit(candidate, addNotifications(this.notifications, drafts));
-    return result;
+    return { ...result, outcome };
   }
 
   advance(): GameView {
@@ -258,12 +262,13 @@ function numberParam(params: ExecuteActionParams, key: "amount"): number | undef
 
 /** Gathers real display details for an action notice from the committed world. */
 function describeAction(
-  actionId: string, params: ExecuteActionParams, world: WorldState, result: { ok: boolean },
+  actionId: string, params: ExecuteActionParams, world: WorldState, result: { ok: boolean }, outcome: ActionOutcome,
 ): import("./notifications").ActionDetail | null {
   if (!result.ok) return null;
   const message = (result as { message?: unknown }).message;
   const detail: import("./notifications").ActionDetail =
     typeof message === "string" && message.length > 0 ? { message } : {};
+  detail.outcome = outcome;
   const partyId = stringParam(params, "partyId");
   if (partyId) {
     detail.partyId = partyId;
@@ -285,8 +290,67 @@ function describeAction(
     case "sponsorBill": case "voteOnBill": case "buildDonorBase":
       return detail;
     default:
-      return null;
+      return detail;
   }
+}
+
+const ACTION_FIELDS = [
+  ["actions", "Actions"], ["funds", "Campaign funds"], ["cash", "Cash"], ["savings", "Savings"],
+  ["politicalInfluence", "Influence"], ["nationalInfluence", "National influence"],
+  ["partyInfluence", "Party influence"], ["favorability", "Favorability"], ["infamy", "Infamy"],
+  ["donorBaseLevel", "Donor network"], ["partyId", "Party"],
+] as const;
+
+function snapshotActionFields(world: WorldState): Record<string, number | string | null> {
+  const player = world.player as unknown as Record<string, unknown>;
+  return Object.fromEntries(ACTION_FIELDS.map(([field]) => {
+    const value = player[field];
+    return [field, typeof value === "number" || typeof value === "string" ? value : null];
+  }));
+}
+
+function actionTarget(params: ExecuteActionParams, world: WorldState): ActionTarget | undefined {
+  const candidates: [keyof ExecuteActionParams, string, (id: string) => string | undefined][] = [
+    ["regionId", "region", id => world.regions[id]?.name],
+    ["partyId", "party", id => world.parties[id]?.name],
+    ["electionId", "election", id => world.elections.find(item => item.id === id)?.electionType.replaceAll("_", " ")],
+    ["billId", "bill", id => world.bills.find(item => item.id === id)?.title],
+    ["corpId", "company", id => world.corporations[id]?.tickerSymbol],
+    ["bondId", "bond", id => world.bonds[id]?.id],
+    ["caucusId", "caucus", id => world.caucuses.find(item => item.id === id)?.name],
+    ["intrapartyElectionId", "intra-party election", () => undefined],
+    ["candidateId", "candidate", id => world.politicians.find(item => item.id === id)?.name],
+    ["endorsedId", "endorsement", id => world.politicians.find(item => item.id === id)?.name ?? world.parties[id]?.name],
+    ["coalitionId", "coalition", () => undefined],
+    ["targetPoliticianId", "politician", id => world.politicians.find(item => item.id === id)?.name],
+    ["budgetCountryId", "nation", id => world.countries[id]?.name],
+    ["countryId", "nation", id => world.countries[id]?.name],
+    ["catalogId", "proposal", () => undefined],
+  ];
+  for (const [key, kind, label] of candidates) {
+    const id = params[key];
+    if (typeof id === "string" && id) return { kind, id, label: label(id) ?? id };
+  }
+  return undefined;
+}
+
+function buildActionOutcome(actionId: string, params: ExecuteActionParams,
+  before: Record<string, number | string | null>, world: WorldState): ActionOutcome {
+  const after = snapshotActionFields(world);
+  const changes: ActionChange[] = [];
+  for (const [field, label] of ACTION_FIELDS) {
+    if (before[field] === after[field]) continue;
+    const previous = before[field]; const next = after[field];
+    changes.push({ field, label, before: previous, after: next,
+      ...(typeof previous === "number" && typeof next === "number" ? { delta: next - previous } : {}) });
+  }
+  const entry = ACTION_CATALOG[actionId as ActionId];
+  const readyTurn = world.player.actionCooldowns[actionId] ?? world.meta.turn;
+  const followUps = readyTurn > world.meta.turn
+    ? [`Available again on turn ${readyTurn}.`]
+    : [`No cooldown. You can use ${entry?.name ?? actionId} again this turn.`];
+  const target = actionTarget(params, world);
+  return { actionId, changes, ...(target ? { target } : {}), followUps };
 }
 
 function projectWorld(world: WorldState, notifications: NotificationItem[]): GameView {
@@ -337,6 +401,10 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     }),
     regions: Object.values(world.regions).filter((region) => region.countryId === country.id).map(({ id, name }) => ({ id, name })),
     notifications: toInbox(notifications),
+    actionHistory: notifications.flatMap((item) => item.actionOutcome ? [{
+      ...item.actionOutcome, id: item.id, turn: item.turn, date: item.date,
+      title: item.title, message: item.body || item.title, destination: item.destination,
+    }] : []),
   };
 }
 

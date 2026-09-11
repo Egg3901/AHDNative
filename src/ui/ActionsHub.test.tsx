@@ -64,4 +64,21 @@ describe("ActionsHub", () => {
       expect(screen.getByRole("article", { name: new RegExp(action.name, "i") })).toBeInTheDocument();
     }
   });
+
+  it("renders structured recent outcomes with targets, changes and follow-ups", () => {
+    render(<ActionsHub actions={actions} {...props} category="all" onCategoryChange={() => {}} outcomes={[{
+      id: "t0-action:campaign:1", actionId: "campaign", title: "Campaign complete", message: "Campaigned successfully.",
+      turn: 0, date: "1953-01-01", destination: { route: "actions" },
+      target: { kind: "region", id: "r1", label: "Midwest" },
+      changes: [
+        { field: "actions", label: "Actions", before: 25, after: 24, delta: -1 },
+        { field: "politicalInfluence", label: "Influence", before: 10, after: 11.5, delta: 1.5 },
+      ],
+      followUps: ["No cooldown. You can use Campaign again this turn."],
+    }]} />);
+    const history = screen.getByRole("region", { name: "Recent action results" });
+    expect(within(history).getByText("Midwest")).toBeInTheDocument();
+    expect(within(history).getByText(/Influence.*\+1.5/)).toBeInTheDocument();
+    expect(within(history).getByText(/use Campaign again this turn/i)).toBeInTheDocument();
+  });
 });

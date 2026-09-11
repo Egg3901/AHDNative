@@ -9,6 +9,7 @@ import type { LegislationDetailsQuery, LegislationSelection } from "./legislatio
 import type { WorldOverviewView } from "./worldOverview";
 import type { PoliticsView } from "./politics";
 import type { GameCommand, GameResponse } from "./protocol";
+import type { ActionOutcome } from "./notifications";
 import type { EraChoice, GameView, NewGameOptions } from "./types";
 
 export interface WorkerPort {
@@ -56,7 +57,7 @@ export class GameClient {
   view() { return this.send<GameView>({ type: "view" }); }
   advance() { return this.send<GameView>({ type: "advance" }); }
   act(actionId: string, params?: Record<string, string | number>) {
-    return this.send<{ result: { ok: true; message: string } | { ok: false; error: string }; view: GameView }>({ type: "action", actionId, params });
+    return this.send<{ result: { ok: true; message: string; outcome: ActionOutcome } | { ok: false; error: string }; view: GameView }>({ type: "action", actionId, params });
   }
   serialize(savedAt: string, includeSaveNotice = false) { return this.send<string>({ type: "serialize", savedAt, ...(includeSaveNotice ? { includeSaveNotice: true } : {}) }); }
   load(contents: string) { return this.send<GameView>({ type: "load", contents }); }
