@@ -11,13 +11,12 @@ import {
   FOUNDING_CHAIR_ELECTION_DURATION_TURNS,
   NATIONAL_PARTY_POSITIONS,
 } from "./constants.js";
-import { pickCandidateForVoter } from "./ballot.js";
 
 function electionId(countryId: string, partyId: string, position: string, cycle: number): string {
   return `${countryId}:${partyId}:${position}:c${cycle}`;
 }
 
-export function createMissingNationalPartyElections(world: WorldState, rng: WorldRng): number {
+export function createMissingNationalPartyElections(world: WorldState, _rng: WorldRng): number {
   const turn = world.meta.turn;
   // PORT-STUB: founding phase not modeled; effective duration is default 72, but party.customElectionDurationTurns may override
   const parties = Object.values(world.parties);
@@ -53,20 +52,10 @@ export function createMissingNationalPartyElections(world: WorldState, rng: Worl
         createdAt: world.meta.date,
         updatedAt: world.meta.date,
       };
-      const pool = world.politicians.filter((p) => p.partyId === party.id);
-      const sorted = [...pool].sort((a, b) => a.id.localeCompare(b.id));
-      const numCandidates = Math.min(sorted.length, 1 + rng.int(1, 2));
-      const shuffled = [...sorted];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = rng.int(0, i);
-        const tmp = shuffled[i]!;
-        shuffled[i] = shuffled[j]!;
-        shuffled[j] = tmp;
-      }
-      rec.candidateIds = shuffled.slice(0, Math.min(numCandidates, shuffled.length)).map((c) => c.id);
-      if (world.player.partyId === party.id && !rec.candidateIds.includes("player") && rng.next() < 0.3) {
-        rec.candidateIds.push("player");
-      }
+      // AHDGame leadership candidacy is a Character action. NPPs are not
+      // auto-entered, and Native has no separate Character roster beyond the
+      // player. contestPartyLeadership adds the player explicitly.
+      rec.candidateIds = [];
       world.nationalPartyElections.push(rec);
       created++;
     }
@@ -75,7 +64,7 @@ export function createMissingNationalPartyElections(world: WorldState, rng: Worl
   return created;
 }
 
-export function resolveNationalPartyElections(world: WorldState, rng: WorldRng): number {
+export function resolveNationalPartyElections(world: WorldState, _rng: WorldRng): number {
   const turn = world.meta.turn;
   const due = world.nationalPartyElections.filter((e) => e.status === "voting" && e.endTurn <= turn);
   if (due.length === 0) return 0;
@@ -86,42 +75,21 @@ export function resolveNationalPartyElections(world: WorldState, rng: WorldRng):
       if (cid === "player") {
         const party = world.parties[election.partyId];
         candidatePols.push({ id: "player", ideology: { economic: party?.economicPosition ?? 0, social: party?.socialPosition ?? 0 } });
-      } else {
-        const pol = world.politicians.find((p) => p.id === cid);
-        if (pol) candidatePols.push({ id: pol.id, ideology: pol.ideology });
       }
     }
-    // Eligible voters: all party members (mirrors mainline getEligibleVoterSet or player members)
-    // For "committee" method, voters would be committee+leadership; we PORT-STUB to full party since eligibility calc is pure but membership method not yet in world.
-    const voters = world.politicians.filter((p) => p.partyId === election.partyId);
-    // Weighted scoring if leadershipElectionMethod === "influence": tally uses partyInfluenceSum
+    // AHDGame's national leadership voters are Characters. NPPs do not vote,
+    // and their partyInfluence is always zero. Native persists only the
+    // player's ballot here; old NPC ballot keys are ignored on resolution.
     const party = world.parties[election.partyId] as unknown as { leadershipElectionMethod?: string; chairId?: string | null; viceChairId?: string | null; treasurerId?: string | null; committeeIds?: string[] } | undefined;
     const useInfluence = party?.leadershipElectionMethod === "influence";
     const counts = new Map<string, number>();
     for (const cid of election.candidateIds) counts.set(cid, 0);
 
-    // Accept persisted player ballots and the NPC ballots found in older
-    // saves. New NPC decisions are tallied below without bloating the save.
     for (const [voterId, votedFor] of Object.entries(election.votes)) {
-      const voter = voters.find((candidate) => candidate.id === voterId);
-      const weight = useInfluence && voter ? Math.max(0, voter.partyInfluence ?? 0) : 1;
-      const effectiveWeight = useInfluence ? weight : 1;
-      if (counts.has(votedFor)) counts.set(votedFor, (counts.get(votedFor) ?? 0) + effectiveWeight);
-    }
-
-    for (const voter of voters) {
-      if (election.votes[voter.id] !== undefined) continue;
-      if (candidatePols.length === 0) break;
-      const pick = pickCandidateForVoter(voter, candidatePols, rng);
-      if (pick) {
-        // For influence method, weight by voter.partyInfluence; else 1 vote.
-        // Citing src/lib/nationalPartyElections.ts partyInfluenceSum aggregation.
-        const weight = useInfluence ? Math.max(0, (voter.partyInfluence ?? 0)) : 1;
-        // If influence is 0 for all, still count as 1? Mainline sums; solo: ensure at least 1 if abstain not triggered but pick existed
-        const effectiveWeight = useInfluence && weight === 0 ? 0 : (useInfluence ? weight : 1);
-        if (effectiveWeight > 0 && counts.has(pick)) {
-          counts.set(pick, (counts.get(pick) ?? 0) + effectiveWeight);
-        }
+      if (voterId !== "player") continue;
+      const weight = useInfluence ? Math.max(0, world.player.partyInfluence ?? 0) : 1;
+      if (weight > 0 && counts.has(votedFor)) {
+        counts.set(votedFor, (counts.get(votedFor) ?? 0) + weight);
       }
     }
     let winnerId: string | null = null;

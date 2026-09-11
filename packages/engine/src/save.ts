@@ -2326,6 +2326,13 @@ export function deserializeSave(raw: string): WorldState {
     }
     save.world.meta.schemaVersion = 45;
   }
+  // NPP-backed politicians used to carry Character-only party clout and
+  // bonus-action counters. Keep the fields readable for older save shapes, but
+  // normalize their obsolete values before any post-load consumer can use them.
+  for (const politician of save.world.politicians) {
+    politician.partyInfluence = 0;
+    politician.bonusActions = 0;
+  }
   // 1.0.0 stored every synthetic NPC party ballot after resolution. They
   // cannot affect a future turn, so compact them on load while retaining the
   // player's historical ballot. This is a storage cleanup, not a schema

@@ -83,34 +83,22 @@ export function computeFormation(seatsByParty: Record<string, number>, totalSeat
  * Ports mainline's PM-nominator rule: the party's seated chair, falling back
  * to the vice-chair ("VC-acting-chair" rule — src/lib/db/types/party.ts:29-31,
  * checkAppointmentEligibility). AHDClient's Party type (types.ts) has no
- * chairId/viceChairId field yet — the W20 leadership wave that would add one
- * had not merged as of this wave. PORT-STUB: feature-detect an optional
- * `chairId`/`viceChairId`/`leaderId` string field on the party record (so
- * this starts working for free the moment a later wave adds one) and fall
- * back to the seat-holding politician of that party with the highest
- * accumulated `partyInfluence` (tie-break: lowest politician id) as a
- * deterministic stand-in for "the party's senior figure" — a reasonable
- * proxy since partyInfluence already exists in this repo as the per-politician
- * standing/seniority accumulator (party/partyInfluence.ts).
+ * Use the party's seated chair, falling back to the vice-chair only when the
+ * chair seat is vacant. If neither pointer resolves to a seated Native
+ * politician, return null. Native politicians are NPP-backed and do not carry
+ * Character party clout, so partyInfluence is not a PM-selection proxy.
  *
  * The player is never returned: mainline's PM path runs through an
  * interactive nomination+chamber-vote flow this wave does not port (see
- * government/phases.ts file doc), so per operator instruction this does not
- * invent a player-PM shortcut — PM is always drawn from `world.politicians`.
+ * government/phases.ts file doc), so this does not invent a player-PM
+ * shortcut.
  */
 export function selectPm(world: WorldState, countryId: string, chamberKey: string, partyId: string): string | null {
-  const party = world.parties[partyId] as unknown as Record<string, unknown> | undefined;
-  const leaderId = party?.["chairId"] ?? party?.["viceChairId"] ?? party?.["leaderId"];
-  if (typeof leaderId === "string" && leaderId.length > 0) {
-    const held = world.politicians.find(
-      (p) => p.id === leaderId && p.countryId === countryId && p.chamberKey === chamberKey && p.partyId === partyId,
-    );
-    if (held) return held.id;
-  }
-  const candidates = world.politicians.filter(
-    (p) => p.countryId === countryId && p.chamberKey === chamberKey && p.partyId === partyId,
+  const party = world.parties[partyId];
+  const leaderId = party?.chairId ?? party?.viceChairId ?? null;
+  if (leaderId === null) return null;
+  const leader = world.politicians.find(
+    (p) => p.id === leaderId && p.countryId === countryId && p.chamberKey === chamberKey && p.partyId === partyId,
   );
-  if (candidates.length === 0) return null;
-  candidates.sort((a, b) => b.partyInfluence - a.partyInfluence || a.id.localeCompare(b.id));
-  return candidates[0]!.id;
+  return leader?.id ?? null;
 }

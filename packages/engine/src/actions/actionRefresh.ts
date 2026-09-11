@@ -42,11 +42,10 @@ export const actionRefreshPhase: TurnPhase = {
     const refreshForPolitician = (pol: (typeof world.politicians)[number]) => {
       const bonus = officeActionBonus(pol.chamberKey);
       let refresh = base + bonus;
-      // Consume bonusActions counter into actions (partyInfluenceTurn side effect)
-      if (pol.bonusActions > 0) {
-        refresh += pol.bonusActions;
-        pol.bonusActions = 0;
-      }
+      // Native politicians are NPP-backed. The reference party-influence
+      // bonus applies to Characters only, so discard the legacy counter rather
+      // than granting synthetic AP during the refresh.
+      pol.bonusActions = 0;
       const penalty = pol.actions > threshold ? ACTION_HOARD_PENALTY : 0;
       const next = Math.min(cap, Math.max(0, pol.actions - penalty + refresh));
       pol.actions = next;

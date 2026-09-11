@@ -124,13 +124,14 @@ describe("resolveTierTransition", () => {
 // Phase integration tests
 // ---------------------------------------------------------------------------
 describe("partyInfluenceTurn phase", () => {
-  it("accumulates influence for politicians over turns", () => {
+  it("does not accrue party influence or bonus AP for NPP-backed politicians", () => {
     const world = createWorld(OPTS);
-    const pid = world.politicians[0]!.id;
-    const before = world.politicians.find((p) => p.id === pid)!.partyInfluence;
+    const politician = world.politicians[0]!;
+    politician.partyInfluence = 80;
+    politician.bonusActions = 6;
     advanceTurn(world);
-    const after = world.politicians.find((p) => p.id === pid)!.partyInfluence;
-    expect(after).toBeGreaterThanOrEqual(before);
+    expect(politician.partyInfluence).toBe(0);
+    expect(politician.bonusActions).toBe(0);
   });
 
   it("is deterministic", () => {
@@ -150,6 +151,16 @@ describe("partyInfluenceTurn phase", () => {
     expect(computeNewInfluence(100, 3, 0.04)).toBeCloseTo(99, 5);
     expect(computeTurnGain(1, 0, 0, 3)).toBe(3);
     expect(computeInfamyPenalty(0, 4)).toBe(0);
+  });
+
+  it("normalizes obsolete NPP clout fields when loading a legacy save", () => {
+    const world = createWorld(OPTS);
+    world.politicians[0]!.partyInfluence = 45;
+    world.politicians[0]!.bonusActions = 3;
+
+    const restored = deserializeSave(serializeSave(world, "2026-09-11T00:00:00Z"));
+    expect(restored.politicians[0]!.partyInfluence).toBe(0);
+    expect(restored.politicians[0]!.bonusActions).toBe(0);
   });
 });
 

@@ -15,15 +15,18 @@ describe("actionRefresh goldens", () => {
     const world = createWorld(OPTS);
     const pol = world.politicians[0]!;
     pol.actions = 5;
-    pol.bonusActions = 2; // extra from influence turn
-    // house bonus ~1, so refresh = 4+1+2=7 => 5+7=12
+    pol.bonusActions = 2; // obsolete NPP counter must not affect refresh
+
+    const control = createWorld(OPTS);
+    const controlPol = control.politicians.find((p) => p.id === pol.id)!;
+    controlPol.actions = 5;
+
     advanceTurn(world);
-    // after fundGeneration etc, actions should have refreshed
-    // Find same politician after turn (id same)
+    advanceTurn(control);
     const after = world.politicians.find((p) => p.id === pol.id)!;
-    // Exact value depends on chamberKey; house gives 1, senate gives 1, etc. So check range
-    expect(after.actions).toBeGreaterThanOrEqual(9);
-    expect(after.actions).toBeLessThanOrEqual(20);
+    const controlAfter = control.politicians.find((p) => p.id === pol.id)!;
+    expect(after.actions).toBe(controlAfter.actions);
+    expect(after.actions).toBeGreaterThan(5);
   });
 
   it("caps at 200 (ENERGY_BASE_ACTION_CAP at neutral energy=1, cites statsConstants)", () => {
