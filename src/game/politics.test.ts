@@ -230,6 +230,8 @@ describe("projectPolitics", () => {
     const campaign = world.campaigns[`${election.id}:player`]!;
     campaign.managerId = manager!.id;
     campaign.managerName = manager!.name;
+    world.player.actions = 10;
+    world.player.funds = 1_000;
 
     const projected = projectPolitics(world).elections.find((item) => item.id === election.id)!;
     expect(projected.playerCampaign!.manager).toMatchObject({
@@ -241,6 +243,11 @@ describe("projectPolitics", () => {
       id: manager!.id,
       name: manager!.name,
     }));
+    expect(projected.playerCampaign!.canvassing).toMatchObject({
+      regionId: election.state,
+      action: { id: "campaignCanvass", available: true, cost: 1 },
+    });
+    expect(projected.playerCampaign!.canvassing.targets.length).toBeGreaterThan(0);
   });
 });
 

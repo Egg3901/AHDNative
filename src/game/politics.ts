@@ -88,6 +88,18 @@ export interface PoliticsCampaignManagerView {
   action: ActionView;
 }
 
+export interface PoliticsCampaignCanvassingView {
+  regionId: string | null;
+  targets: {
+    category: string;
+    categoryName: string;
+    group: string;
+    groupName: string;
+    modifier: number;
+  }[];
+  action: ActionView;
+}
+
 export interface PoliticsPlayerCampaignView {
   status: string;
   funds: number; actions: number;
@@ -101,6 +113,7 @@ export interface PoliticsPlayerCampaignView {
   rally: PoliticsCampaignRallyView;
   oppositionResearch: PoliticsCampaignOppositionView;
   manager: PoliticsCampaignManagerView;
+  canvassing: PoliticsCampaignCanvassingView;
   levers: PoliticsCampaignLeverView[];
 }
 
@@ -379,6 +392,45 @@ function campaignManagerAction(
   };
 }
 
+function campaignCanvassingAction(
+  world: WorldState,
+  election: WorldState["elections"][number],
+  campaign: Campaign,
+  campaignReason?: string,
+): PoliticsCampaignCanvassingView {
+  const regionId = election.state ?? campaign.countryId;
+  const state = world.stateDemographics[regionId];
+  const categories = world.demographicCategories[campaign.countryId] ?? [];
+  const targets = categories.flatMap((category) => category.groups
+    .filter((group) => state?.groups[group.id] != null)
+    .map((group) => ({
+      category: category._id,
+      categoryName: category.name,
+      group: group.id,
+      groupName: group.name,
+      modifier: campaign.canvassModifiers?.[`${category._id}:${group.id}`] ?? 0,
+    })));
+  const entry = ACTION_CATALOG.campaignCanvass;
+  const cost = getActionCost(entry, world.player.donorBaseLevel, world.player.politicalInfluence, world.player.favorability);
+  const reason = campaignReason
+    ?? (!state ? "No campaign region is available." : undefined)
+    ?? (targets.length === 0 ? "No eligible campaign demographic targets." : undefined)
+    ?? (world.player.actions < cost ? "Not enough action points." : undefined)
+    ?? (world.player.funds < entry.fundCost ? "Not enough funds." : undefined);
+  return {
+    regionId: state ? regionId : null,
+    targets,
+    action: {
+      id: "campaignCanvass",
+      name: entry.name,
+      description: entry.description,
+      cost,
+      available: !reason,
+      ...(reason ? { disabledReason: reason } : {}),
+    },
+  };
+}
+
 function projectPlayerCampaign(
   world: WorldState,
   election: WorldState["elections"][number],
@@ -458,6 +510,7 @@ function projectPlayerCampaign(
     rally,
     oppositionResearch: oppositionResearchAction(world, election, campaign, campaignReason),
     manager: campaignManagerAction(world, campaign, campaignReason),
+    canvassing: campaignCanvassingAction(world, election, campaign, campaignReason),
     levers,
   };
 }

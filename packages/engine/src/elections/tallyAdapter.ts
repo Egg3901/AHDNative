@@ -51,12 +51,15 @@ function worldNow(world: WorldState): Date {
 function deriveTurnoutFrom(
   demo: Pick<EngineStateDemographics, "groups" | "categoryWeights">,
   vep: number,
+  campaignModifiers: Record<string, number> = {},
 ): TallyTurnoutInput {
   const byGroup: Record<string, number> = {};
   let weighted = 0;
   let weightSum = 0;
   for (const [groupId, group] of Object.entries(demo.groups)) {
-    const turnout = typeof group.turnout === "number" ? group.turnout : 55;
+    const turnout = Math.max(0, Math.min(100,
+      (typeof group.turnout === "number" ? group.turnout : 55) + (campaignModifiers[groupId] ?? 0),
+    ));
     byGroup[groupId] = turnout;
     const wgt = demo.categoryWeights[groupId] ?? 0;
     weighted += wgt * turnout;
@@ -66,12 +69,27 @@ function deriveTurnoutFrom(
   return { totalPool: Math.round((vep * avgTurnout) / 100), byGroup };
 }
 
-function deriveTurnout(world: WorldState, stateId: string): TallyTurnoutInput | null {
+function campaignTurnoutModifiers(world: WorldState, electionId: string | undefined): Record<string, number> {
+  if (!electionId) return {};
+  const modifiers: Record<string, number> = {};
+  for (const campaign of Object.values(world.campaigns)) {
+    if (campaign.electionId !== electionId || campaign.status !== "active") continue;
+    for (const [key, value] of Object.entries(campaign.canvassModifiers ?? {})) {
+      const separator = key.indexOf(":");
+      if (separator < 0 || !Number.isFinite(value)) continue;
+      const groupId = key.slice(separator + 1);
+      modifiers[groupId] = (modifiers[groupId] ?? 0) + value;
+    }
+  }
+  return modifiers;
+}
+
+function deriveTurnout(world: WorldState, stateId: string, electionId?: string): TallyTurnoutInput | null {
   const demo = world.stateDemographics[stateId];
   const region = world.regions[stateId];
   if (!demo || !region) return null;
   const vep = region.votingEligiblePopulation ?? region.population ?? 0;
-  return deriveTurnoutFrom(demo, vep);
+  return deriveTurnoutFrom(demo, vep, campaignTurnoutModifiers(world, electionId));
 }
 
 /**
@@ -162,11 +180,11 @@ export interface StateSlice {
 }
 
 /** Per-state slice (house/senate/governor/...): real region + demographic table lookups. */
-function stateSliceFor(world: WorldState, stateId: string): StateSlice | null {
+function stateSliceFor(world: WorldState, stateId: string, electionId?: string): StateSlice | null {
   const demoRaw = world.stateDemographics[stateId];
   const region = world.regions[stateId];
   if (!demoRaw || !region) return null;
-  const turnout = deriveTurnout(world, stateId);
+  const turnout = deriveTurnout(world, stateId, electionId);
   if (!turnout) return null;
 
   const statePartyOrgs: TallyStatePartyOrgInput[] = [];
@@ -475,7 +493,7 @@ export function realAccumulate(world: WorldState, rng: WorldRng, rec: ElectionRe
   if (rec.electionType === "president") {
     return realAccumulatePresident(world, rng, rec);
   }
-  const slice = rec.state ? stateSliceFor(world, rec.state) : null;
+  const slice = rec.state ? stateSliceFor(world, rec.state, rec.id) : null;
   if (!slice) return false;
   return runAccumulate(world, rng, rec, slice);
 }
