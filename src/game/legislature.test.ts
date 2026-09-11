@@ -36,7 +36,7 @@ describe("legislature through the session contract", () => {
     expect(loaded.act("voteOnBill", { billId: bill.id, vote: "for" }).ok).toBe(false);
     expect(loaded.serialize(savedAt)).toBe(before);
   });
-  it("resolves the historical fixture deterministically under the current distributor", () => {
+  it("resolves the historical fixture after the primary nominee transition", () => {
     const session = new GameSession();
     const raw = gunzipSync(readFileSync(new URL("../../fixtures/career-t95-1953-US.save.json.gz", import.meta.url))).toString("utf8");
     session.load(raw);
@@ -46,15 +46,15 @@ describe("legislature through the session contract", () => {
       .toMatchObject({ chamber: "Senate", votesFor: 52, votesAgainst: 27, votesAbstain: 16 });
     const afterElection = session.advance();
     expect(afterElection.turn).toBe(96);
-    expect(afterElection.legislature.office).toBeNull();
+    expect(afterElection.legislature.office).toBe("House of Representatives · United States");
     const race = afterElection.elections.find((e) => e.id === "house:US:AL:c1");
+    expect(race?.candidateNames).toEqual(["Priya Russell", "Muse"]);
     expect(race?.winnerNames).toEqual([
-      "Virginia Hayes", "Roberto Russo", "Priya Russell", "Gabriela Turner",
-      "Jose Monroe", "Alexander Jackson", "Aisha Cohen", "Mary Friedman", "Dorothy White",
+      "Muse", "Priya Russell",
     ]);
-    expect(race?.winnerNames).not.toContain("Muse");
-    expect(session.act("sponsorBill", { catalogId: "us.economy.workerSecurity.primary" }).ok).toBe(false);
+    expect(session.act("sponsorBill", { catalogId: "us.economy.workerSecurity.primary" }).ok).toBe(true);
     const loaded = new GameSession(); loaded.load(session.serialize(savedAt));
+    expect(loaded.view().legislature.office).toBe("House of Representatives · United States");
     expect(loaded.view().elections.find((e) => e.id === race?.id)?.winnerNames).toEqual(race?.winnerNames);
   }, 20_000);
 });
