@@ -179,7 +179,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   }
   const subsidies = world["subsidies"];
   if (Array.isArray(subsidies) && subsidies.length > 0) {
-    return { ok: false, error: `Active industry subsidies cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+    return { ok: false, error: `Industry subsidy records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
 
   const candidateSave = structuredClone(save);
