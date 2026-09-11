@@ -294,6 +294,16 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
       rallyTour: campaign.rally.tour.active ? "stop" : "start",
     });
   };
+  const [oppositionTargetId, setOppositionTargetId] = useState(campaign.oppositionResearch.targetId ?? "");
+  useEffect(() => {
+    setOppositionTargetId(campaign.oppositionResearch.targetId ?? "");
+  }, [campaign.oppositionResearch.targetId]);
+  const targetSelectionAvailable = campaign.oppositionResearch.action.available
+    || campaign.oppositionResearch.action.disabledReason === "Select an opposition target.";
+  const retarget = () => {
+    if (busy || !campaign.oppositionResearch.action.available || !oppositionTargetId) return;
+    onAction("campaignRetarget", { electionId, oppositionTargetId });
+  };
   const categoryLabel = (category: string) => category.replace(/([A-Z])/g, " $1").toLowerCase();
   const activityLabel = (entry: PoliticsPlayerCampaignView["activity"][number]) => {
     const target = entry.branch ? `branch ${entry.branch}` : "starter";
@@ -351,6 +361,51 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
           </button>
           {!campaign.rally.tour.action.available ? (
             <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{campaign.rally.tour.action.disabledReason ?? "Unavailable"}</span>
+          ) : null}
+        </div>
+      </section>
+      <section aria-label="Opposition research" style={{ marginTop: "0.6rem" }}>
+        <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>Opposition research</h4>
+        <p className="ahd-help" style={{ margin: "0 0 0.35rem" }}>
+          Target: {campaign.oppositionResearch.targetName ?? "none"}
+          {campaign.oppositionResearch.cooldownTurns > 0
+            ? ` · retarget in ${campaign.oppositionResearch.cooldownTurns} ${campaign.oppositionResearch.cooldownTurns === 1 ? "turn" : "turns"}`
+            : ""}
+        </p>
+        {campaign.oppositionResearch.targets.length > 0 ? (
+          <label className="ahd-field" style={{ maxWidth: "24rem" }}>
+            <span className="ahd-label">Opposition target</span>
+            <select
+              className="ahd-select"
+              aria-label="Opposition target"
+              value={oppositionTargetId}
+              onChange={(event) => setOppositionTargetId(event.target.value)}
+              disabled={busy || !targetSelectionAvailable}
+            >
+              <option value="">Select a target</option>
+              {campaign.oppositionResearch.targets.map((target) => (
+                <option key={target.id} value={target.id}>
+                  {target.name} ({target.partyName})
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.35rem" }}>
+          <button
+            type="button"
+            className="ahd-btn ahd-btn-sm"
+            disabled={busy || !campaign.oppositionResearch.action.available || !oppositionTargetId}
+            aria-disabled={busy || !campaign.oppositionResearch.action.available || !oppositionTargetId}
+            aria-label={campaign.oppositionResearch.action.name}
+            onClick={retarget}
+          >
+            {campaign.oppositionResearch.action.name}
+          </button>
+          {!campaign.oppositionResearch.action.available ? (
+            <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+              {campaign.oppositionResearch.action.disabledReason ?? "Unavailable"}
+            </span>
           ) : null}
         </div>
       </section>

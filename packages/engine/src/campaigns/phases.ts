@@ -3,7 +3,7 @@ import type { WorldState } from "../types.js";
 import { calculateCampaignIncome } from "./income.js";
 import { calculateMaintenanceCosts } from "./maintenance.js";
 import { computeAutoDowngrade } from "./autoDowngrade.js";
-import { getMediaFavPerTurn } from "./opsEffects.js";
+import { getMediaFavPerTurn, getOppoDrainPerTurn } from "./opsEffects.js";
 import { campaignAnchorToLocal, campaignLocalToAnchor } from "./campaignCurrency.js";
 import { rollSpendStock } from "../electionEngine/electionFormulaFactors.js";
 import { getCampaignFamilyScalar } from "./upgradeCosts.js";
@@ -28,9 +28,8 @@ import { investCampaign } from "./npcInvestment.js";
  *
  * PORT-STUB (not ported from campaignTurn.ts — all gated behind unported
  * systems, named per system):
- *   - Opposition-research passive drain: needs Campaign.oppositionTargetId /
- *     targeting UI (opsEffects.ts getOppoDrainPerTurn is ported and callable,
- *     just never invoked here since no campaign ever sets a target).
+ *   - Opposition-research passive drain is applied to the selected active
+ *     opponent after the retarget action persists Campaign.oppositionTargetId.
  *   - Travel-presence bonus, primary in-state bonus,
  *     player/governor/executive endorsement campaign-action boosts beyond
  *     the plain endorsement count below: all keyed off presidential-only
@@ -168,6 +167,19 @@ export const campaignTurnPhase: TurnPhase = {
           support.supportAccrual = [...(support.supportAccrual ?? []), entry];
           campaign.actions -= tickCost;
         }
+      }
+
+      // Opposition research passive -> the selected opponent's support mood.
+      // The target must still be an active candidate in this campaign's race;
+      // primary losers and resolved races cannot continue taking a drain.
+      const oppositionTargetId = campaign.oppositionTargetId;
+      const oppositionTarget = oppositionTargetId && election?.status === "active"
+        ? election.candidates.find((candidate) => candidate.id === oppositionTargetId)
+        : undefined;
+      const oppositionSupport = oppositionTarget ? world.candidateSupports[oppositionTarget.id] : undefined;
+      const oppositionDrain = getOppoDrainPerTurn(campaign);
+      if (oppositionTarget && oppositionSupport?.status === "active" && oppositionDrain > 0) {
+        oppositionSupport.support = clamp01to100(oppositionSupport.support - oppositionDrain);
       }
 
       // Media favorability passive -> candidateSupports.support (solo's

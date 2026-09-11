@@ -17,6 +17,7 @@ import * as Candidacy from "../elections/candidacy.js";
 import * as CampaignUpgrade from "./campaignUpgrade.js";
 import * as CampaignRally from "./campaignRally.js";
 import * as CampaignRallyTour from "./campaignRallyTour.js";
+import * as CampaignRetarget from "./campaignRetarget.js";
 import * as Coalition from "../intraparty/coalitions.js";
 import { getLaw, resolveCatalogPolicyOption } from "../legislation/catalog.js";
 import { calculateBudgetSpending } from "../budget/spending.js";
@@ -87,6 +88,7 @@ export type ExecuteActionParams = {
   category?: string;
   branch?: "a" | "b" | "c" | null;
   rallyTour?: "start" | "stop";
+  oppositionTargetId?: string;
 };
 
 export type ExecuteActionResult =
@@ -612,6 +614,20 @@ function executeActionInner(
     const res = CampaignRallyTour.campaignRallyTour(world, {
       electionId: params.electionId,
       active: params.rallyTour === "start",
+    });
+    if (!res.ok) {
+      actor.actions += cost;
+      actor.funds += fundCost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: res.error };
+    }
+    return { ok: true, message: res.message };
+  }
+  if (actionId === "campaignRetarget") {
+    if (found.kind !== "player") return { ok: false, error: "Only player can manage a campaign" };
+    const res = CampaignRetarget.campaignRetarget(world, {
+      electionId: params.electionId,
+      oppositionTargetId: params.oppositionTargetId,
     });
     if (!res.ok) {
       actor.actions += cost;
@@ -1453,6 +1469,10 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
     case "campaignRally":
     case "campaignRallyTour":
       return params.electionId ? null : `${actionId} requires electionId`;
+    case "campaignRetarget":
+      return params.electionId && params.oppositionTargetId
+        ? null
+        : "campaignRetarget requires electionId and oppositionTargetId";
     case "sponsorBill":
     case "repealLaw":
       return params.catalogId ? null : `${actionId} requires catalogId`;

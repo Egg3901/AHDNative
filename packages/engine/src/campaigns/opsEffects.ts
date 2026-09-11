@@ -35,13 +35,9 @@ export function getMediaFavPerTurn(campaign: Pick<Campaign, "mediaSpendingTree">
 /**
  * Opposition-research favorability drain this campaign inflicts per turn
  * (positive magnitude; caller applies the sign and the target's shield).
- * PORT-STUB caveat: no campaign in solo ever sets an opposition target this
- * wave (targeting UI/AI not ported — mainline's oppositionTargetId flow is
- * player-driven via /api/campaigns/[id]/retarget), so this can be non-zero
- * (a campaign can still buy the oppositionResearch tree — it costs real
- * funds, which is the point) while never actually firing. See
- * campaigns/phases.ts campaignTurnPhase for the (currently unreachable)
- * application site, kept for when targeting lands.
+ * A campaign only receives this effect after the player selects an active
+ * opposition target through campaignRetarget. campaigns/phases.ts applies the
+ * resulting positive drain to that target's support mood.
  */
 export function getOppoDrainPerTurn(campaign: Pick<Campaign, "oppositionResearchTree">): number {
   const tree = campaign.oppositionResearchTree;

@@ -151,6 +151,59 @@ describe("projectPolitics", () => {
       !lever.starterUpgrade?.available && lever.branches.every((branch) => !branch.upgrade.available),
     )).toBe(true);
   });
+
+  it("projects opposition research targets and their retarget cooldown", () => {
+    const world = createWorld({ ...options, seed: "politics-opposition-target" });
+    const opponent = world.politicians.find((politician) =>
+      politician.countryId === "US" && politician.partyId === DEM);
+    expect(opponent).toBeDefined();
+    world.player.partyId = DEM;
+    const election = {
+      id: "house:US:NY:c1",
+      electionType: "house",
+      countryId: "US",
+      state: "NY",
+      cycle: 1,
+      status: "active" as const,
+      startTurn: 0,
+      primaryEndTurn: 10,
+      endTurn: 20,
+      totalSeats: 1,
+      chamberKey: "house",
+      candidates: [{
+        id: opponent!.id,
+        name: opponent!.name,
+        partyId: DEM,
+        isNPP: true,
+        incumbent: false,
+      }],
+      tally: {},
+    };
+    world.elections = [election];
+    expect(declareCandidacy(world, election.id).ok).toBe(true);
+    const campaign = world.campaigns[`${election.id}:player`]!;
+    campaign.oppositionResearchTree.starter = true;
+    campaign.oppositionTargetId = opponent!.id;
+    campaign.oppositionTargetName = opponent!.name;
+    campaign.oppositionResearchCooldownUntilTurn = world.meta.turn + 3;
+
+    const projected = projectPolitics(world).elections.find((item) => item.id === election.id)!;
+    expect(projected.playerCampaign!.oppositionResearch).toMatchObject({
+      targetId: opponent!.id,
+      targetName: opponent!.name,
+      cooldownTurns: 3,
+      action: {
+        id: "campaignRetarget",
+        available: false,
+        disabledReason: "Available in 3 turns.",
+      },
+    });
+    expect(projected.playerCampaign!.oppositionResearch.targets).toEqual([{
+      id: opponent!.id,
+      name: opponent!.name,
+      partyName: "Democratic Party",
+    }]);
+  });
 });
 
 it('keeps detailed politics out of routine world updates', () => {

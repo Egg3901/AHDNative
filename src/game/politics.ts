@@ -4,7 +4,7 @@ import {
   getCampaignFamilyScalar, getEffectiveBranchCost, RALLY_IMMEDIATE_SHARE,
   RALLY_SPREAD_TURNS, SUPPORT_RALLY_ACTION_COST, SUPPORT_RALLY_FULL_VALUE,
   SUPPORT_RALLY_TOUR_TICK_ACTION_COST,
-  type OpsBranchKey, type WorldState,
+  type Campaign, type OpsBranchKey, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionView } from "./types";
 
@@ -73,6 +73,14 @@ export interface PoliticsCampaignRallyView {
   };
 }
 
+export interface PoliticsCampaignOppositionView {
+  targetId: string | null;
+  targetName: string | null;
+  cooldownTurns: number;
+  targets: { id: string; name: string; partyName: string }[];
+  action: ActionView;
+}
+
 export interface PoliticsPlayerCampaignView {
   status: string;
   funds: number; actions: number;
@@ -84,6 +92,7 @@ export interface PoliticsPlayerCampaignView {
   generalPhase: boolean;
   activity: PoliticsCampaignActivityView[];
   rally: PoliticsCampaignRallyView;
+  oppositionResearch: PoliticsCampaignOppositionView;
   levers: PoliticsCampaignLeverView[];
 }
 
@@ -281,6 +290,54 @@ function rallyAction(
   };
 }
 
+function oppositionResearchAction(
+  world: WorldState,
+  election: WorldState["elections"][number],
+  campaign: Campaign,
+  campaignReason?: string,
+): PoliticsCampaignOppositionView {
+  const playerCandidate = election.candidates.find((candidate) => candidate.id === "player");
+  const primaryOpen = world.meta.turn < election.primaryEndTurn;
+  const targets = playerCandidate
+    ? election.candidates
+      .filter((candidate) => candidate.id !== "player")
+      .filter((candidate) => !primaryOpen || candidate.partyId === playerCandidate.partyId)
+      .map((candidate) => ({
+        id: candidate.id,
+        name: candidate.name,
+        partyName: world.parties[candidate.partyId]?.name ?? candidate.partyId,
+      }))
+    : [];
+  const storedTargetId = campaign.oppositionTargetId ?? null;
+  const selectedTarget = targets.find((target) => target.id === storedTargetId);
+  const targetId = selectedTarget?.id ?? null;
+  const targetName = campaign.oppositionTargetName ?? selectedTarget?.name ?? null;
+  const cooldownTurns = Math.max(0,
+    (campaign.oppositionResearchCooldownUntilTurn ?? 0) - world.meta.turn);
+  const reason = campaignReason
+    ?? (!campaign.oppositionResearchTree.starter ? "Unlock opposition research first." : undefined)
+    ?? (targets.length === 0 ? "No eligible opposition targets in this phase." : undefined)
+    ?? (cooldownTurns > 0
+      ? `Available in ${cooldownTurns} ${cooldownTurns === 1 ? "turn" : "turns"}.`
+      : undefined)
+    ?? (!targetId ? "Select an opposition target." : undefined);
+  const entry = ACTION_CATALOG.campaignRetarget;
+  return {
+    targetId,
+    targetName,
+    cooldownTurns,
+    targets,
+    action: {
+      id: "campaignRetarget",
+      name: targetId ? "Change opposition target" : "Set opposition target",
+      description: entry.description,
+      cost: 0,
+      available: !reason,
+      ...(reason ? { disabledReason: reason } : {}),
+    },
+  };
+}
+
 function projectPlayerCampaign(
   world: WorldState,
   election: WorldState["elections"][number],
@@ -358,6 +415,7 @@ function projectPlayerCampaign(
       turnNumber: entry.turnNumber,
     })),
     rally,
+    oppositionResearch: oppositionResearchAction(world, election, campaign, campaignReason),
     levers,
   };
 }

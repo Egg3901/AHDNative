@@ -73,7 +73,8 @@ export type ActionId =
   // P0 campaign management (#67): player campaign controls
   | "campaignUpgrade"
   | "campaignRally"
-  | "campaignRallyTour";
+  | "campaignRallyTour"
+  | "campaignRetarget";
 
 // Costs mirror mainline's dynamic tier functions but collapsed to neutral
 // goldens for solo's simpler state (no per-state GDP tier). Cited.
@@ -735,6 +736,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["campaign/support"],
+    status: "available",
+  },
+  campaignRetarget: {
+    id: "campaignRetarget",
+    name: "Retarget opposition research",
+    description: "Select the active opponent who receives your campaign's opposition-research drain.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["campaign/opposition-research"],
     status: "available",
   },
 };
