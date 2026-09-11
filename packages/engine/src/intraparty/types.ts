@@ -1,8 +1,9 @@
 /**
  * Intra-party democracy types for solo WorldState.
  * Ports mainline collections for statePartyElections, nationalPartyElections,
- * nationalCommitteeElections, coalitions, and leadership congress leaves as PORT-STUB.
- * See per-field citations in file doc comments.
+ * nationalCommitteeElections, coalitions, and party whips.
+ * Congressional chamber leadership remains explicitly unavailable until
+ * Native has a per-chamber elected-official holder model.
  */
 
 export type PartyPosition = "chair" | "viceChair" | "treasurer";
@@ -83,4 +84,21 @@ export interface CoalitionRecord {
   disbandVote: CoalitionDisbandVote | null;
   createdAtTurn: number;
   updatedAtTurn: number;
+}
+
+export type PartyWhipDirection = "for" | "against" | "abstain";
+export type PartyWhipMode = "hard" | "soft";
+
+/** A bill-specific national party instruction consumed by NPP bill voting. */
+export interface PartyWhip {
+  id: string;
+  billId: string;
+  partyId: string;
+  countryId: string;
+  chamber: string;
+  direction: PartyWhipDirection;
+  mode: PartyWhipMode;
+  issuedAtTurn: number;
+  issuerId: string;
+  issuerRole: "chair" | "actingViceChair";
 }

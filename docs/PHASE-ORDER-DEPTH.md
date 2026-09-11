@@ -106,7 +106,7 @@ once below. Names sharing a disposition are grouped to keep the map readable.
 | `turnoutDecay`, `partyGOTV`, `partyOrgTurn`, `regDriftDecay`, `pressureDecay`, `priorityRegionDecay`, `supportDecay`, `supportAccrual`, `partyTierTurn` | same-edge | Native preserves this complete direct support sequence. |
 | `statePartyElections`, `nationalPartyElections`, `nationalCommitteeElections` | same-edge | Matching three-phase order in the Native intraparty tail cluster. Committee integration gaps are [#119](https://github.com/Egg3901/AHDNative/issues/119). |
 | `partyActionGeneration`, `expireCharters`, `emptyPartyCleanup` | same-edge | Matching order in the main party cluster. |
-| `coalitionDisbandVotes` | combined-into | `coalitionDisbandPhase`; leadership/coalition gates are [#102](https://github.com/Egg3901/AHDNative/issues/102). |
+| `coalitionDisbandVotes` | combined-into | `coalitionDisbandPhase`; coalition authority, expiry, majority, and chair synchronization are live. |
 | `nppRelationshipMaintenance`, `nppBillSponsorship` | same-edge | Matching direct phases. |
 | `generateChallengers` | combined-into | `runElectionTimers` calls candidate fill when an active race is empty. Country variants remain [#96](https://github.com/Egg3901/AHDNative/issues/96). |
 | `nppBehavior` | same-edge | `nppBehaviorPhase`; Native additionally has `nppStanceDriftPhase`. |
@@ -126,13 +126,13 @@ once below. Names sharing a disposition are grouped to keep the map readable.
 | `primarySnapshots` | missing | Primary ballot snapshots and resolution are [#97](https://github.com/Egg3901/AHDNative/issues/97). |
 | `electionResolution` | same-edge | `electionResolutionPhase` follows timers. |
 | `clearResolvedSupport` | inapplicable | Native support is a persistent per-politician mood row, not an election-scoped support document. Deleting it at race resolution would erase input used by later races. |
-| `leadershipVacate` | combined-into | Intraparty election lifecycle reconciles office terms and winners. Remaining tenure gates are [#102](https://github.com/Egg3901/AHDNative/issues/102). |
+| `leadershipVacate` | combined-into | Intraparty election lifecycle reconciles office terms, winners, tenure, founding exemptions, and invalid transitions. |
 | `parliamentaryGovernmentFormation`, `parliamentaryGovernmentPhases` | combined-into | `governmentFormationPhase`; it seats or advances the government before vacancy checks. |
 | `parliamentaryVacancyWatcher` | same-edge | `governmentVacancyWatcherPhase` follows formation. |
 | `perpetualElections` | combined-into | `runElectionTimers` plans the next record per Native election series. Missing country families are [#96](https://github.com/Egg3901/AHDNative/issues/96). |
 | `byElectionWatcher` | combined-into | `governorByElectionWatcherPhase` covers Native's supported special-governor path. Other country by-elections are [#96](https://github.com/Egg3901/AHDNative/issues/96). |
-| `leadershipElections` | missing behavior behind registered shell | `leadershipElectionsPhase` is a no-op pending per-chamber elected-official seat scope. Congressional leadership and whip lifecycle remain [#102](https://github.com/Egg3901/AHDNative/issues/102). |
-| `leadershipPartyEligibility` | combined-into | Eligibility is checked in intraparty lifecycle/action entry. Remaining gates are [#102](https://github.com/Egg3901/AHDNative/issues/102). |
+| `leadershipElections` | missing behavior behind registered shell | `leadershipElectionsPhase` remains explicitly unavailable pending per-chamber elected-official holder scope. Party leadership elections and persisted party whips are handled by the intraparty cluster. |
+| `leadershipPartyEligibility` | combined-into | Eligibility is checked in intraparty lifecycle/action entry, including tenure, founding/founder, state residence, status, and committee-method gates. |
 | `staleCandidateCleanup` | combined-into | `cullOrphanedGenerated` runs from election resolution. |
 | `withdrawInactiveCandidates` | inapplicable | Native has no separate inactive Character/NPP documents. Candidacy cleanup documents this data-model difference. |
 | `autoReelectionEntry` | combined-into | `runAutoReelectionEntry` is called by `runElectionTimers`; lost-race fallback remains [#97](https://github.com/Egg3901/AHDNative/issues/97). |

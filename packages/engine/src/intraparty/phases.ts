@@ -14,6 +14,7 @@ import {
 import {
   createMissingNationalPartyElections,
   resolveNationalPartyElections,
+  accelerateNationalPartyElections,
 } from "./nationalPartyElections.js";
 import {
   createMissingCommitteeElections,
@@ -46,7 +47,7 @@ export const statePartyElectionsPhase: TurnPhase = {
 /**
  * National party leadership: src/lib/nationalPartyElections.ts
  * createMissingNationalElections (72-turn, custom override) + processCompletedNationalElections
- * with quorum acceleration omitted as PORT-STUB (requires eligible-voter denominator logic).
+ * with vacant-chair quorum acceleration based on persisted eligible ballots.
  */
 export const nationalPartyElectionsPhase: TurnPhase = {
   name: "nationalPartyElections",
@@ -54,6 +55,7 @@ export const nationalPartyElectionsPhase: TurnPhase = {
     const fork = forkRng(rng, "nationalPartyElections", world.meta.turn);
     resolveNationalPartyElections(world, fork);
     createMissingNationalPartyElections(world, fork);
+    accelerateNationalPartyElections(world);
   },
 };
 
@@ -83,16 +85,17 @@ export const coalitionDisbandPhase: TurnPhase = {
 };
 
 /**
- * PORT-STUB for congress leadership elections that would require
+ * Explicitly unavailable congress leadership phase. Implementing it would require
  * src/lib/congress/leadershipElections.ts chamber seat scopes (ElectedOfficial collection,
  * senateComposition/houseComposition). Solo has no per-chamber seat maps beyond
  * legislatures.composition, so congress leadership is not yet modeled.
- * This stub keeps the phase name reserved while documenting the blocker.
- * No state mutation.
+ * This phase keeps the name reserved and documents the blocker. No action
+ * catalog entry advertises chamber leadership as supported, so no partial
+ * holder state is fabricated.
  */
 export const leadershipElectionsPhase: TurnPhase = {
   name: "leadershipElections",
   run(_world: WorldState, _rng: WorldRng) {
-    // PORT-STUB blocked on: chamber seat scope (ElectedOfficial) + leadership role policy (src/lib/congress/leadership/rolePolicy.ts)
+    // Blocked on: chamber seat scope (ElectedOfficial) + leadership role policy (src/lib/congress/leadership/rolePolicy.ts).
   },
 };

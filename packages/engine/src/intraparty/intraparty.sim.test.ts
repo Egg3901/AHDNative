@@ -229,6 +229,8 @@ describe("coalition lifecycle", () => {
   it("create, join, disband vote majority threshold floor(n/2)+1 per src/lib/turn/coalitionDisbandCheck.ts", async () => {
     const world = createWorld(OPTS);
     world.player.partyId = "US_DEM";
+    world.parties["US_DEM"]!.chairId = "player";
+    world.parties["US_REP"]!.chairId = "US_REP-chair";
     world.player.actions = 100;
     const resCreate = executeAction(world, "player", "createCoalition", {
       coalitionName: "Test Coalition",
@@ -241,11 +243,11 @@ describe("coalition lifecycle", () => {
     // Join with another party (simulate via direct join)
     const { joinCoalition: joinCoalitionFn, initiateDisbandVote: initiateDisbandVoteFn, voteDisband: voteDisbandFn } = await import("./coalitions.js");
     // Need second party - use US_REP via manual join
-    joinCoalitionFn(world, co.id, "US_REP");
+    joinCoalitionFn(world, co.id, "US_REP", "US_REP-chair");
     expect(co.memberPartyIds.length).toBe(2);
     expect(co.memberPartyIds).toContain("US_REP");
     // Initiate disband vote
-    initiateDisbandVoteFn(world, co.id, "US_DEM");
+    initiateDisbandVoteFn(world, co.id, "US_DEM", "player");
     expect(co.disbandVote).not.toBeNull();
     expect(co.disbandVote!.expiresOnTurn).toBe(world.meta.turn + 168);
     // Vote: 1 yes out of 2 needs threshold 2 (floor(2/2)+1=2) so should NOT disband yet
@@ -259,7 +261,7 @@ describe("coalition lifecycle", () => {
     expect(after).toBeDefined();
     expect(after!.disbandVote).toBeNull();
     // Now create majority: both yes
-    initiateDisbandVoteFn(world, after!.id, "US_DEM");
+    initiateDisbandVoteFn(world, after!.id, "US_DEM", "player");
     voteDisbandFn(world, after!.id, "US_DEM", "yes");
     voteDisbandFn(world, after!.id, "US_REP", "yes");
     const expires2 = after!.disbandVote!.expiresOnTurn;
@@ -271,6 +273,7 @@ describe("coalition lifecycle", () => {
   it("player actions for coalition disband voting work via catalog", () => {
     const world = createWorld(OPTS);
     world.player.partyId = "US_DEM";
+    world.parties["US_DEM"]!.chairId = "player";
     world.player.actions = 100;
     executeAction(world, "player", "createCoalition", { coalitionName: "C2", coalitionAbbr: "C2", countryId: "US" });
     const co = world.coalitions[0]!;

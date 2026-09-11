@@ -9,6 +9,7 @@ import type { WorldRng } from "../rng.js";
 import type { NationalCommitteeElectionRecord } from "./types.js";
 import { COMMITTEE_ELECTION_DURATION_TURNS, COMMITTEE_SIZE, MAX_VOTES_PER_VOTER } from "./constants.js";
 import { pickCommitteeCandidatesForVoter } from "./ballot.js";
+import { getPlayerPartyLeadershipGate } from "./leadershipTenure.js";
 
 function electionId(countryId: string, partyId: string, cycle: number): string {
   return `${countryId}:${partyId}:c${cycle}`;
@@ -60,7 +61,8 @@ export function createMissingCommitteeElections(world: WorldState, rng: WorldRng
       shuffled[j] = tmp;
     }
     rec.candidateIds = shuffled.slice(0, Math.min(numCandidates, shuffled.length)).map((c) => c.id);
-    if (world.player.partyId === party.id && !rec.candidateIds.includes("player") && sorted.length > 0 && rng.next() < 0.3) {
+    const playerGate = getPlayerPartyLeadershipGate(world, party.id);
+    if (playerGate.eligible && !rec.candidateIds.includes("player") && sorted.length > 0 && rng.next() < 0.3) {
       rec.candidateIds.push("player");
     }
     world.nationalCommitteeElections.push(rec);

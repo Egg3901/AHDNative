@@ -168,6 +168,8 @@ export interface WorldState {
   nationalCommitteeElections: import("./intraparty/types.js").NationalCommitteeElectionRecord[];
   /** Coalitions (W20). Ports src/lib/coalitions + src/lib/turn/coalitionDisbandCheck.ts. Schema v21. */
   coalitions: import("./intraparty/types.js").CoalitionRecord[];
+  /** Bill-specific national party instructions consumed by NPP voting. Absent on saves before whip support. */
+  partyWhips?: import("./intraparty/types.js").PartyWhip[];
   /**
    * Parliamentary government-formation state (W23), one entry per country in
    * government/constants.ts GOVERNMENT_CHAMBER_BY_COUNTRY (UK/RU/DD). Ports
@@ -928,6 +930,8 @@ export interface PartyCharter {
   partyId: string | null;
   /** Player id that founded this party, when known. Used for leadership tenure exemption. */
   founderId?: string | null;
+  /** Turn the player founded this party; used to mark its first leadership races. */
+  foundedAtTurn?: number;
   status: CharterStatus;
   /** Turn-based expiry for draft/pending. Null for ratified/migrated. */
   expiresOnTurn: number | null;

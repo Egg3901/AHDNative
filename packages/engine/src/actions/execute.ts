@@ -23,7 +23,11 @@ import * as CampaignCanvass from "./campaignCanvass.js";
 import * as CampaignTargetedAd from "./campaignTargetedAd.js";
 import * as Referendum from "../referendum/request.js";
 import * as Coalition from "../intraparty/coalitions.js";
-import { getPartyLeadershipTenure } from "../intraparty/leadershipTenure.js";
+import {
+  getPlayerPartyLeadershipGate,
+  isPartyLeadershipAuthority,
+  isPlayerNationalLeadershipVoter,
+} from "../intraparty/leadershipTenure.js";
 import { getLaw, resolveCatalogPolicyOption } from "../legislation/catalog.js";
 import { calculateBudgetSpending } from "../budget/spending.js";
 import { calculateBudgetRevenue } from "../budget/revenue.js";
@@ -68,6 +72,8 @@ export type ExecuteActionParams = {
   position?: "chair" | "viceChair" | "treasurer";
   countryId?: string;
   disbandVote?: "yes" | "no";
+  whipDirection?: "for" | "against" | "abstain";
+  whipMode?: "hard" | "soft";
   // W10 markets
   corpId?: string;
   shares?: number;
@@ -134,6 +140,7 @@ const HOS_PARTY_BYPASS_ACTIONS: ReadonlySet<string> = new Set([
   "leaveCaucus",
   "contestPartyLeadership",
   "votePartyLeadership",
+  "issuePartyWhip",
   "contestCommittee",
   "voteCommittee",
   "createCoalition",
@@ -974,33 +981,41 @@ function executeActionInner(
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "No matching party leadership election found" };
     }
-    const rec = election as unknown as { candidateIds: string[]; partyId: string; founding?: boolean };
-    const foundedPartyId = world.charters.find(
-      (charter) => charter.partyId === rec.partyId && charter.founderId === "player",
-    )?.partyId;
-    const tenure = getPartyLeadershipTenure(
-      world.player.partyJoinedTurn,
-      world.meta.turn,
-      rec.partyId,
-      foundedPartyId,
-    );
-    if (!rec.founding && !tenure.eligible) {
+    const rec = election as unknown as {
+      candidateIds: string[];
+      partyId: string;
+      status: string;
+      founding?: boolean;
+      regionId?: string;
+    };
+    if (rec.status !== "voting") {
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
-      return {
-        ok: false,
-        error: `Party leadership tenure: ${tenure.turnsRemaining} turn(s) remaining`,
-      };
-    }
-    if (rec.candidateIds.includes("player")) {
-      actor.actions += cost;
-      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
-      return { ok: false, error: "Already a candidate in this election" };
+      return { ok: false, error: "Election not in voting status" };
     }
     if (rec.partyId !== world.player.partyId) {
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "Election is for a different party" };
+    }
+    const gate = getPlayerPartyLeadershipGate(world, rec.partyId, {
+      ...(rec.founding !== undefined ? { founding: rec.founding } : {}),
+      ...(rec.regionId !== undefined ? { regionId: rec.regionId } : {}),
+    });
+    if (!gate.eligible) {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      const error = gate.reason === "region"
+        ? "State party leadership requires residence in the election region"
+        : gate.reason === "tenure"
+          ? `Party leadership tenure: ${gate.turnsRemaining} turn(s) remaining`
+          : "Election is for a different party";
+      return { ok: false, error };
+    }
+    if (rec.candidateIds.includes("player")) {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: "Already a candidate in this election" };
     }
     rec.candidateIds.push("player");
     return { ok: true, message: `Entered ${election.id} as candidate` };
@@ -1012,7 +1027,14 @@ function executeActionInner(
     const candidateId = params.candidateId;
     if (!electionId || !candidateId) return { ok: false, error: "votePartyLeadership requires intrapartyElectionId and candidateId" };
     const election = (world.statePartyElections.find((e) => e.id === electionId)
-      ?? world.nationalPartyElections.find((e) => e.id === electionId)) as unknown as { votes: Record<string, string>; candidateIds: string[]; partyId: string; status: string; founding?: boolean } | undefined;
+      ?? world.nationalPartyElections.find((e) => e.id === electionId)) as unknown as {
+        votes: Record<string, string>;
+        candidateIds: string[];
+        partyId: string;
+        status: string;
+        founding?: boolean;
+        regionId?: string;
+      } | undefined;
     if (!election) {
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
@@ -1028,21 +1050,26 @@ function executeActionInner(
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "Election is for a different party" };
     }
-    const foundedPartyId = world.charters.find(
-      (charter) => charter.partyId === election.partyId && charter.founderId === "player",
-    )?.partyId;
-    const tenure = getPartyLeadershipTenure(
-      world.player.partyJoinedTurn,
-      world.meta.turn,
-      election.partyId,
-      foundedPartyId,
-    );
-    if (!election.founding && !tenure.eligible) {
+    if (!("regionId" in election) && !isPlayerNationalLeadershipVoter(world, election.partyId)) {
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: "Committee-method leadership voting is limited to committee members and party officers" };
+    }
+    const gate = getPlayerPartyLeadershipGate(world, election.partyId, {
+      ...(election.founding !== undefined ? { founding: election.founding } : {}),
+      ...(election.regionId !== undefined ? { regionId: election.regionId } : {}),
+    });
+    if (!gate.eligible) {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      const error = gate.reason === "region"
+        ? "State party leadership requires residence in the election region"
+        : gate.reason === "tenure"
+          ? `Party leadership tenure: ${gate.turnsRemaining} turn(s) remaining`
+          : "Election is for a different party";
       return {
         ok: false,
-        error: `Party leadership tenure: ${tenure.turnsRemaining} turn(s) remaining`,
+        error,
       };
     }
     if (!election.candidateIds.includes(candidateId)) {
@@ -1064,6 +1091,27 @@ function executeActionInner(
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "No committee election found for your party" };
+    }
+    if (election.status !== "voting") {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: "Committee election not in voting status" };
+    }
+    if (election.partyId !== world.player.partyId) {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: "Committee election is for a different party" };
+    }
+    const committeeGate = getPlayerPartyLeadershipGate(world, election.partyId);
+    if (!committeeGate.eligible) {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return {
+        ok: false,
+        error: committeeGate.reason === "tenure"
+          ? `Party leadership tenure: ${committeeGate.turnsRemaining} turn(s) remaining`
+          : "Must be a member of the committee election party",
+      };
     }
     if (election.candidateIds.includes("player")) {
       actor.actions += cost;
@@ -1094,11 +1142,27 @@ function executeActionInner(
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "Wrong party" };
     }
+    const committeeGate = getPlayerPartyLeadershipGate(world, election.partyId);
+    if (!committeeGate.eligible) {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return {
+        ok: false,
+        error: committeeGate.reason === "tenure"
+          ? `Party leadership tenure: ${committeeGate.turnsRemaining} turn(s) remaining`
+          : "Must be a member of the committee election party",
+      };
+    }
     const maxVotes = 6; // COMMITTEE SIZE
     if (picks.length > maxVotes) {
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: `Too many picks, max ${maxVotes}` };
+    }
+    if (new Set(picks).size !== picks.length) {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: "Committee picks must be unique" };
     }
     for (const cid of picks) {
       if (!election.candidateIds.includes(cid)) {
@@ -1110,6 +1174,55 @@ function executeActionInner(
     election.votes["player"] = picks;
     return { ok: true, message: `Voted committee ${picks.join(",")} in ${electionId}` };
   }
+  if (actionId === "issuePartyWhip") {
+    if (found.kind !== "player") return { ok: false, error: "Only player can issue a party whip" };
+    const partyId = world.player.partyId;
+    const billId = params.billId;
+    const direction = params.whipDirection;
+    const mode = params.whipMode ?? "soft";
+    if (!partyId || !billId || !direction) {
+      return { ok: false, error: "issuePartyWhip requires party membership, billId, and whipDirection" };
+    }
+    const bill = world.bills.find((candidate) => candidate.id === billId);
+    if (!bill) {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: `Unknown bill: ${billId}` };
+    }
+    if (bill.countryId !== world.player.countryId || bill.sponsorPartyId === null && world.parties[partyId]?.countryId !== bill.countryId) {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: "Party and bill must be in the same country" };
+    }
+    if (bill.status !== "active" && bill.status !== "active_other") {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: `Bill not in voting status: ${bill.status}` };
+    }
+    if (!isPartyLeadershipAuthority(world, partyId, "player")) {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: "Party whip requires the national chair or acting vice chair" };
+    }
+    const issuerRole = world.parties[partyId]?.chairId === "player" ? "chair" : "actingViceChair";
+    const whip = {
+      id: `whip-${billId}-${partyId}`,
+      billId,
+      partyId,
+      countryId: bill.countryId,
+      chamber: bill.currentChamber,
+      direction,
+      mode,
+      issuedAtTurn: world.meta.turn,
+      issuerId: "player",
+      issuerRole,
+    } as const;
+    const partyWhips = world.partyWhips ??= [];
+    const existing = partyWhips.findIndex((candidate) => candidate.billId === billId && candidate.partyId === partyId);
+    if (existing >= 0) partyWhips[existing] = whip;
+    else partyWhips.push(whip);
+    return { ok: true, message: `Issued ${mode} ${direction} whip for ${partyId} on ${billId}` };
+  }
   if (actionId === "createCoalition") {
     if (found.kind !== "player") return { ok: false, error: "Only player can create coalition" };
     if (!world.player.partyId) return { ok: false, error: "Must be party member" };
@@ -1117,7 +1230,7 @@ function executeActionInner(
     const abbr = params.coalitionAbbr ?? `C${world.coalitions.length + 1}`;
     const countryId = params.countryId ?? world.player.countryId;
     try {
-      const co = Coalition.createCoalition(world, { countryId, name, abbreviation: abbr, founderPartyId: world.player.partyId });
+      const co = Coalition.createCoalition(world, { countryId, name, abbreviation: abbr, founderPartyId: world.player.partyId, actorId: "player" });
       return { ok: true, message: `Created coalition ${co.id}` };
     } catch (e) {
       actor.actions += cost;
@@ -1131,7 +1244,7 @@ function executeActionInner(
     const coalitionId = params.coalitionId;
     if (!coalitionId) return { ok: false, error: "joinCoalition requires coalitionId" };
     try {
-      Coalition.joinCoalition(world, coalitionId, world.player.partyId);
+      Coalition.joinCoalition(world, coalitionId, world.player.partyId, "player");
       return { ok: true, message: `Joined ${coalitionId}` };
     } catch (e) {
       actor.actions += cost;
@@ -1145,7 +1258,7 @@ function executeActionInner(
     if (!coalitionId) return { ok: false, error: "requires coalitionId" };
     if (!world.player.partyId) return { ok: false, error: "Must be member" };
     try {
-      Coalition.initiateDisbandVote(world, coalitionId, world.player.partyId);
+      Coalition.initiateDisbandVote(world, coalitionId, world.player.partyId, "player");
       return { ok: true, message: `Disband vote started for ${coalitionId}` };
     } catch (e) {
       actor.actions += cost;
@@ -1596,6 +1709,11 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.intrapartyElectionId && params.candidateId
         ? null
         : "votePartyLeadership requires intrapartyElectionId and candidateId";
+    case "issuePartyWhip":
+      return params.billId && (params.whipDirection === "for" || params.whipDirection === "against" || params.whipDirection === "abstain")
+        && (params.whipMode === undefined || params.whipMode === "hard" || params.whipMode === "soft")
+        ? null
+        : "issuePartyWhip requires billId, whipDirection, and a valid whipMode";
     case "voteCommittee":
       return params.intrapartyElectionId && (params.committeeCandidateIds || params.candidateId)
         ? null

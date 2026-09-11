@@ -27,7 +27,10 @@ function hashUnit(s: string): number {
   return (h >>> 0) / 0xffffffff;
 }
 
-function voteForBill(pol: WorldState["politicians"][number], bill: WorldState["bills"][number], turn: number, seed: string): "for" | "against" | "abstain" {
+type BillVote = "for" | "against" | "abstain";
+type PartyWhip = NonNullable<WorldState["partyWhips"]>[number];
+
+function ideologyVote(pol: WorldState["politicians"][number], bill: WorldState["bills"][number], turn: number, seed: string): BillVote {
   const sponsorParty = bill.sponsorPartyId;
   const polParty = pol.partyId;
   const r = hashUnit(`${seed}:${pol.id}:${bill.id}:${turn}:vote`);
@@ -45,6 +48,31 @@ function voteForBill(pol: WorldState["politicians"][number], bill: WorldState["b
   if (r < 0.4) return "for";
   if (r < 0.8) return "against";
   return "abstain";
+}
+
+function voteForBill(
+  pol: WorldState["politicians"][number],
+  bill: WorldState["bills"][number],
+  turn: number,
+  seed: string,
+  whip: PartyWhip | undefined,
+): BillVote {
+  if (!whip) return ideologyVote(pol, bill, turn, seed);
+  if (whip.mode === "hard") return whip.direction;
+  // A soft whip is followed by the same 80% compliance convention used by
+  // the source's NPP party-line behavior; the remaining ballots use ideology.
+  if (hashUnit(`${seed}:${pol.id}:${bill.id}:${turn}:whip`) < 0.8) return whip.direction;
+  return ideologyVote(pol, bill, turn, seed);
+}
+
+function currentPartyWhip(world: WorldState, partyId: string, bill: WorldState["bills"][number]): PartyWhip | undefined {
+  return (world.partyWhips ?? [])
+    .filter((whip) => whip.billId === bill.id
+      && whip.partyId === partyId
+      && whip.countryId === bill.countryId
+      && whip.chamber === bill.currentChamber
+      && whip.issuedAtTurn <= world.meta.turn)
+    .sort((a, b) => b.issuedAtTurn - a.issuedAtTurn || b.id.localeCompare(a.id))[0];
 }
 
 export const nppBehaviorPhase: TurnPhase = {
@@ -72,7 +100,13 @@ export const nppBehaviorPhase: TurnPhase = {
         if (voteMap[pol.id] !== undefined) continue; // already voted
         // 85% chance to vote this turn (some abstain by not voting yet) — deterministic
         if (hashUnit(`${world.meta.seed}:${pol.id}:${bill.id}:${world.meta.turn}:turnout`) < 0.15) continue;
-        const vote = voteForBill(pol, bill, world.meta.turn, world.meta.seed);
+        const vote = voteForBill(
+          pol,
+          bill,
+          world.meta.turn,
+          world.meta.seed,
+          currentPartyWhip(world, pol.partyId, bill),
+        );
         voteMap[pol.id] = vote;
       }
     }

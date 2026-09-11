@@ -11,6 +11,8 @@ import {
   FOUNDING_CHAIR_ELECTION_DURATION_TURNS,
   NATIONAL_PARTY_POSITIONS,
 } from "./constants.js";
+import { isPlayerNationalLeadershipVoter } from "./leadershipTenure.js";
+import { syncCoalitionChairsForParty } from "./coalitions.js";
 
 function electionId(countryId: string, partyId: string, position: string, cycle: number): string {
   return `${countryId}:${partyId}:${position}:c${cycle}`;
@@ -18,14 +20,13 @@ function electionId(countryId: string, partyId: string, position: string, cycle:
 
 export function createMissingNationalPartyElections(world: WorldState, _rng: WorldRng): number {
   const turn = world.meta.turn;
-  // PORT-STUB: founding phase not modeled; effective duration is default 72, but party.customElectionDurationTurns may override
   const parties = Object.values(world.parties);
   const activeKeys = new Set(
     world.nationalPartyElections.filter((e) => e.status === "voting").map((e) => `${e.countryId}:${e.partyId}:${e.position}`),
   );
   let created = 0;
   for (const party of parties) {
-    const effectiveDuration = (party as unknown as { customElectionDurationTurns?: number }).customElectionDurationTurns ?? NATIONAL_PARTY_ELECTION_DURATION_TURNS;
+    const customDuration = party.customElectionDurationTurns ?? NATIONAL_PARTY_ELECTION_DURATION_TURNS;
     for (const position of NATIONAL_PARTY_POSITIONS) {
       const key = `${party.countryId}:${party.id}:${position}`;
       if (activeKeys.has(key)) continue;
@@ -36,6 +37,10 @@ export function createMissingNationalPartyElections(world: WorldState, _rng: Wor
           .map((e) => e.cycle),
       );
       const cycle = existingMax + 1;
+      const isFounding = existingMax === 0
+        && position === "chair"
+        && world.charters.some((charter) => charter.partyId === party.id && charter.foundedAtTurn !== undefined);
+      const effectiveDuration = isFounding ? FOUNDING_CHAIR_ELECTION_DURATION_TURNS : customDuration;
       const rec: NationalPartyElectionRecord = {
         id: electionId(party.countryId, party.id, position, cycle),
         partyId: party.id,
@@ -47,6 +52,7 @@ export function createMissingNationalPartyElections(world: WorldState, _rng: Wor
         durationTurns: effectiveDuration,
         cycle,
         winnerId: null,
+        ...(isFounding ? { founding: true } : {}),
         candidateIds: [],
         votes: {},
         createdAt: world.meta.date,
@@ -86,7 +92,7 @@ export function resolveNationalPartyElections(world: WorldState, _rng: WorldRng)
     for (const cid of election.candidateIds) counts.set(cid, 0);
 
     for (const [voterId, votedFor] of Object.entries(election.votes)) {
-      if (voterId !== "player") continue;
+      if (voterId !== "player" || !isPlayerNationalLeadershipVoter(world, election.partyId)) continue;
       const weight = useInfluence ? Math.max(0, world.player.partyInfluence ?? 0) : 1;
       if (weight > 0 && counts.has(votedFor)) {
         counts.set(votedFor, (counts.get(votedFor) ?? 0) + weight);
@@ -111,7 +117,7 @@ export function resolveNationalPartyElections(world: WorldState, _rng: WorldRng)
       if (holderId && !incumbentStood && party) {
         (party as Record<string, unknown>)[field] = null;
         if (election.position === "chair") {
-          // coalition sync stubbed; news will note vacancy
+          syncCoalitionChairsForParty(world, election.partyId);
         }
         world.news.push({
           turn: world.meta.turn,
@@ -130,7 +136,6 @@ export function resolveNationalPartyElections(world: WorldState, _rng: WorldRng)
     election.updatedAt = world.meta.date;
     // Apply to party leadership
     const field = election.position === "chair" ? "chairId" : election.position === "viceChair" ? "viceChairId" : "treasurerId";
-    const prior = (party as Record<string, unknown> | undefined)?.[field] as string | null | undefined ?? null;
     if (party) {
       (party as Record<string, unknown>)[field] = winnerId;
       // Auto-vacate other offices held by same winner (src/lib/nationalPartyElections.ts cross-position vacate)
@@ -143,12 +148,7 @@ export function resolveNationalPartyElections(world: WorldState, _rng: WorldRng)
       }
       // Sync coalition chairCharacterId if this was chair election
       if (election.position === "chair") {
-        for (const co of world.coalitions) {
-          if (co.chairPartyId === election.partyId) {
-            co.chairCharacterId = winnerId === "player" ? "player" : winnerId;
-            co.updatedAtTurn = world.meta.turn;
-          }
-        }
+        syncCoalitionChairsForParty(world, election.partyId);
       }
     }
     resolved++;
@@ -158,7 +158,6 @@ export function resolveNationalPartyElections(world: WorldState, _rng: WorldRng)
       date: world.meta.date,
       headline: `National party election: ${partyIdLabel(election.partyId, world)} ${election.position} won by ${winnerName}`,
     });
-    void prior;
   }
   return resolved;
 }
@@ -167,4 +166,24 @@ function partyIdLabel(partyId: string, world: WorldState): string {
   return world.parties[partyId]?.name ?? partyId;
 }
 
-void FOUNDING_CHAIR_ELECTION_DURATION_TURNS;
+/** Apply the vacant-chair majority-vote acceleration once per race. */
+export function accelerateNationalPartyElections(world: WorldState): number {
+  let accelerated = 0;
+  for (const election of world.nationalPartyElections) {
+    if (election.status !== "voting") continue;
+    const party = world.parties[election.partyId];
+    if (!party || party.chairId !== null && party.chairId !== undefined) continue;
+    const eligibleVoters = world.politicians.filter((p) => p.partyId === election.partyId).length
+      + (world.player.partyId === election.partyId ? 1 : 0);
+    const recordedVoters = Object.keys(election.votes).length;
+    if (eligibleVoters > 0 && recordedVoters > Math.floor(eligibleVoters / 2)) {
+      const acceleratedEnd = world.meta.turn + Math.max(1, Math.ceil(election.durationTurns / 2));
+      if (acceleratedEnd < election.endTurn) {
+        election.endTurn = acceleratedEnd;
+        election.updatedAt = world.meta.date;
+        accelerated++;
+      }
+    }
+  }
+  return accelerated;
+}
