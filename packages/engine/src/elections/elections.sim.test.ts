@@ -4,7 +4,8 @@ import { advanceTurn } from "../engine.js";
 import { createWorld, SCHEMA_VERSION } from "../world.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { executeAction } from "../actions/execute.js";
-import { cycleContextForWorld } from "./orchestration.js";
+import { cycleContextForWorld, runAutoReelectionEntry } from "./orchestration.js";
+import type { ElectionRecord } from "./types.js";
 
 const OPTS = { seed: "elections-test", playerName: "Tester", countryId: "US", era: "1953" } as const;
 
@@ -173,6 +174,58 @@ describe("election orchestration (W21c)", () => {
       if (rec) nextTarget = rec.id;
     }
     expect(nextTarget).not.toBeNull();
+  });
+
+  it("W22: autoRunForReelection re-files a player who lost the previous primary", () => {
+    const w = createWorld(OPTS);
+    w.player.partyId = "US_DEM";
+    w.player.autoRunForReelection = true;
+    w.player.legislativeSeat = null;
+    w.player.homeRegionId = "AL";
+    w.meta.turn = 12;
+
+    const previous: ElectionRecord = {
+      id: "house:US:AL:c1",
+      electionType: "house",
+      countryId: "US",
+      state: "AL",
+      cycle: 1,
+      status: "resolved",
+      startTurn: 0,
+      primaryEndTurn: 8,
+      endTurn: 10,
+      totalSeats: 1,
+      chamberKey: "house",
+      candidates: [{ id: "npc-winner", name: "Winner", partyId: "US_DEM", isNPP: true, incumbent: false }],
+      tally: { "npc-winner": 100 },
+      primaryResults: {
+        byParty: {
+          US_DEM: [
+            { candidateId: "player", candidateName: w.player.name, score: 10, sharePct: 40, won: false },
+            { candidateId: "npc-winner", candidateName: "Winner", score: 20, sharePct: 60, won: true },
+          ],
+        },
+        recordedAt: "1953-01-01T00:00:00.000Z",
+      },
+      resolvedTurn: 10,
+    };
+    const { primaryResults: _previousPrimaryResults, resolvedTurn: _previousResolvedTurn, ...nextBase } = previous;
+    const next: ElectionRecord = {
+      ...nextBase,
+      id: "house:US:AL:c2",
+      cycle: 2,
+      status: "active",
+      startTurn: 11,
+      primaryEndTurn: 20,
+      endTurn: 30,
+      candidates: [],
+      tally: {},
+    };
+    w.elections = [previous, next];
+
+    runAutoReelectionEntry(w);
+
+    expect(next.candidates.some((candidate) => candidate.id === "player")).toBe(true);
   });
 
   it("declare requires party membership and an open filing window", () => {
