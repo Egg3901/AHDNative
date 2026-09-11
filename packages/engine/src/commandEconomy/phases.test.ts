@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
 import { rngFromSeed } from "../rng.js";
 import { governmentFormationPhase } from "../government/phases.js";
+import { GOVERNMENT_CHAMBER_BY_COUNTRY } from "../government/constants.js";
 import { commandEconomyPhase } from "./phases.js";
 import { governmentReformismFromEconomicPosition, internalRepressionFromReformism } from "./constants.js";
 
@@ -9,6 +10,22 @@ describe("commandEconomyPhase", () => {
   it("reads the LIVE governing party's economicPosition (W23 governments) for reformism, not the NPP default", () => {
     const world = createWorld({ seed: "ce-phase-gov-seed", playerName: "P", countryId: "RU", era: "1953" });
     const rng = rngFromSeed("ce-phase-gov-rng");
+    const ruChair = world.politicians.find(
+      (politician) =>
+        politician.countryId === "RU" &&
+        politician.partyId === "RU_CPSU" &&
+        politician.chamberKey === GOVERNMENT_CHAMBER_BY_COUNTRY.RU,
+    );
+    const ddChair = world.politicians.find(
+      (politician) =>
+        politician.countryId === "DD" &&
+        politician.partyId === "DD_SED" &&
+        politician.chamberKey === GOVERNMENT_CHAMBER_BY_COUNTRY.DD,
+    );
+    expect(ruChair).toBeDefined();
+    expect(ddChair).toBeDefined();
+    world.parties["RU_CPSU"]!.chairId = ruChair!.id;
+    world.parties["DD_SED"]!.chairId = ddChair!.id;
     governmentFormationPhase.run(world, rng); // seats RU_CPSU / DD_SED (government.test.ts)
     expect(world.governments["RU"]!.governingPartyId).toBe("RU_CPSU");
     expect(world.governments["DD"]!.governingPartyId).toBe("DD_SED");
