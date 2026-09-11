@@ -56,6 +56,7 @@ export function LandingScreen({
     <section className="ahd-landing-hero" aria-label="Begin your career">
       <LandingGlobe reducedMotion={reducedMotion} />
       <div className="ahd-landing-intro">
+        <img className="ahd-landing-logo" src="ahd-logo.png" alt="" width={96} height={96} decoding="async" />
         <p className="ahd-eyebrow">Singleplayer · Offline</p>
         <h1 className="ahd-h1 ahd-landing-title">A House Divided</h1>
         <p className="ahd-muted ahd-landing-dek">Build your political career. Your world stays on this device.</p>

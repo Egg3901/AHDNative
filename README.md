@@ -1,6 +1,6 @@
 # AHDNative
 
-<img src="app-icon.svg" alt="" width="96" align="right">
+<img src="public/ahd-logo.png" alt="A House Divided logo" width="96" align="right">
 
 A unified A House Divided app for singleplayer and multiplayer on mobile and desktop. Delivery starts with offline singleplayer on iOS.
 
