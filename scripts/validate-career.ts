@@ -7,6 +7,7 @@
  * visible world state; every action is recorded so the run replays exactly.
  *
  *   npx tsx scripts/validate-career.ts --mode=generate --engine-root <pinned oracle checkout>
+ *   npx tsx scripts/validate-career.ts --mode=generate-current
  *   npx tsx scripts/validate-career.ts --mode=validate   # CI-safe: no oracle, no heavy run
  *
  * Generate plays one bounded run (cap 150 turns): join US_DEM at t1, file for
@@ -26,6 +27,7 @@ const REPO_ROOT = resolve(SCRIPT_DIR, "..");
 const FIXTURE_DIR = join(REPO_ROOT, "fixtures");
 
 const PINNED_ORACLE_COMMIT = "568c0c039efcca2db17c52b2920747ff05fbd794";
+const CURRENT_DISTRIBUTOR_COMMIT = "c25ba40a427ae8fd85e802d7af8f755a19977997";
 const SEED = "career-muse-1";
 const PLAYER_NAME = "Muse";
 const ERA = "1953";
@@ -72,6 +74,10 @@ function gitCapture(cwd: string, args: string[]): string | null {
   const result = spawnSync("git", args, { cwd, encoding: "utf8" });
   if (result.status !== 0) return null;
   return (result.stdout ?? "").trim() || null;
+}
+
+function gitOk(cwd: string, args: string[]): boolean {
+  return spawnSync("git", args, { cwd, encoding: "utf8" }).status === 0;
 }
 
 function worldHash(engine: Engine, world: any): string {
@@ -213,27 +219,33 @@ async function main(): Promise<void> {
     await validateMode();
     return;
   }
-  if (args.mode !== "generate") {
-    console.error(`Unknown --mode=${args.mode}; expected generate or validate.`);
+  const currentMode = args.mode === "generate-current";
+  if (args.mode !== "generate" && !currentMode) {
+    console.error(`Unknown --mode=${args.mode}; expected generate, generate-current or validate.`);
     process.exitCode = 1;
     return;
   }
-  if (!args.engineRoot) {
+  if (!currentMode && !args.engineRoot) {
     console.error("Generate mode requires --engine-root <pinned oracle checkout> (no default path baked into the repo).");
     process.exitCode = 1;
     return;
   }
-  const oracleRoot = resolve(args.engineRoot);
-  const oracleCommit = gitCapture(oracleRoot, ["rev-parse", "HEAD"]);
+  const oracleRoot = currentMode ? REPO_ROOT : resolve(args.engineRoot!);
+  const oracleCommit = currentMode ? null : gitCapture(oracleRoot, ["rev-parse", "HEAD"]);
   const subjectCommit = gitCapture(REPO_ROOT, ["rev-parse", "HEAD"]);
-  if (oracleCommit !== PINNED_ORACLE_COMMIT) {
+  if (!currentMode && oracleCommit !== PINNED_ORACLE_COMMIT) {
     console.error(`Oracle pin mismatch: expected ${PINNED_ORACLE_COMMIT}, got ${oracleCommit ?? "unreadable"}. Refusing to generate.`);
     process.exitCode = 1;
     return;
   }
-  const dirty = gitCapture(oracleRoot, ["status", "--porcelain", "--", "packages/engine", "packages/content"]);
+  const dirty = gitCapture(REPO_ROOT, ["status", "--porcelain", "--", "packages/engine", "packages/content"]);
   if (dirty) {
-    console.error(`Oracle engine sources dirty:\n${dirty}\nRefusing to generate.`);
+    console.error(`Subject engine sources dirty:\n${dirty}\nRefusing to generate.`);
+    process.exitCode = 1;
+    return;
+  }
+  if (currentMode && (!subjectCommit || !gitOk(REPO_ROOT, ["merge-base", "--is-ancestor", CURRENT_DISTRIBUTOR_COMMIT, subjectCommit]))) {
+    console.error(`Subject ${subjectCommit ?? "unreadable"} does not contain current distributor ${CURRENT_DISTRIBUTOR_COMMIT}. Refusing to generate.`);
     process.exitCode = 1;
     return;
   }
@@ -277,10 +289,12 @@ async function main(): Promise<void> {
   const postSeasonHash = primaryHash;
 
   // Local-engine parity gate against the pinned oracle.
-  const localRun = await runSeason(local, { record: false });
-  const localOutcome = summarizeOutcome(localRun.world, localRun.raceId);
-  const parityMatch = worldHash(local, localRun.world) === primaryHash;
-  console.log(`PARITY localWon=${localOutcome.won} hashMatch=${parityMatch}`);
+  const localRun = currentMode ? null : await runSeason(local, { record: false });
+  const localOutcome = localRun ? summarizeOutcome(localRun.world, localRun.raceId) : outcome;
+  const parityMatch = localRun ? worldHash(local, localRun.world) === primaryHash : replayMatch;
+  console.log(currentMode
+    ? `CURRENT replayWon=${localOutcome.won} hashMatch=${parityMatch}`
+    : `PARITY localWon=${localOutcome.won} hashMatch=${parityMatch}`);
 
   let billFlow = "not attempted (player did not win)";
   let electedRaw: string | null = null;
@@ -327,7 +341,10 @@ async function main(): Promise<void> {
   const written: Record<string, { sha256: string; gzipSha256: string; bytes: number; gzipBytes: number }> = {};
   const writeFixture = (name: string, raw: string | null): void => {
     if (!raw) return;
-    const gz = gzipSync(Buffer.from(raw, "utf8"));
+    // Current distributor worlds carry substantially more generated candidate
+    // detail. Maximum gzip compression keeps genuine full-world fixtures under
+    // the repository's existing 3 MiB artifact cap without trimming state.
+    const gz = gzipSync(Buffer.from(raw, "utf8"), { level: 9 });
     if (gz.length > MAX_GZIP_BYTES) {
       console.log(`SKIP ${name}: ${gz.length} compressed bytes exceeds 3MB; not written.`);
       return;
@@ -337,8 +354,9 @@ async function main(): Promise<void> {
     console.log(`WROTE fixtures/${name} gz=${gz.length}`);
   };
 
-  writeFixture("career-t95-1953-US.save.json.gz", primary.preResolutionRaw);
-  if (electedRaw) writeFixture("career-elected-1953-US.save.json.gz", electedRaw);
+  const fixturePrefix = currentMode ? "career-current-distributor" : "career";
+  writeFixture(`${fixturePrefix}-t95-1953-US.save.json.gz`, primary.preResolutionRaw);
+  if (electedRaw) writeFixture(`${fixturePrefix}-elected-1953-US.save.json.gz`, electedRaw);
 
   const provenance = {
     seed: SEED,
@@ -347,19 +365,23 @@ async function main(): Promise<void> {
     country: COUNTRY_ID,
     party: PARTY_ID,
     race: primary.raceId,
+    kind: currentMode ? "current-distributor" : "historical-oracle",
     oracleCommit,
     subjectCommit,
+    ...(currentMode ? { distributorCommit: CURRENT_DISTRIBUTOR_COMMIT } : {}),
     oracleSchema: oracle.SCHEMA_VERSION,
     policy: "deterministic per-turn priority: buildDonorBase<4, fundraise while funds<120k, convertCash<=10k while funds<30k, campaign, advertise, fundraise, canvass(home), organize(home); setup at t1 join+file; full ordered action log embedded",
     actionLog: primary.log,
     outcome: { won: outcome.won, winners: outcome.winners, seat: outcome.seat, detail: outcome.detail },
     reloadVerified: primary.reloadVerified,
     replay: { match: replayMatch, hash: primaryHash },
-    localParity: { won: localOutcome.won, hashMatch: parityMatch },
+    ...(currentMode ? {} : { localParity: { won: localOutcome.won, hashMatch: parityMatch } }),
     billFlow,
     fixtures: written,
   };
-  const provName = outcome.won ? "career-elected-1953-US.provenance.json" : "career-t95-1953-US.provenance.json";
+  const provName = outcome.won
+    ? `${fixturePrefix}-elected-1953-US.provenance.json`
+    : `${fixturePrefix}-t95-1953-US.provenance.json`;
   writeFileSync(join(FIXTURE_DIR, provName), `${JSON.stringify(provenance, null, 2)}\n`);
   console.log(`WROTE fixtures/${provName} won=${outcome.won}`);
 
@@ -371,7 +393,7 @@ async function main(): Promise<void> {
     `local parity won=${localOutcome.won} hashMatch=${parityMatch}`,
     `bill: ${billFlow}`,
     `fixtures: ${JSON.stringify(written)}`,
-    `oracle=${oracleCommit} subject=${subjectCommit}`,
+    `${currentMode ? `distributor=${CURRENT_DISTRIBUTOR_COMMIT}` : `oracle=${oracleCommit}`} subject=${subjectCommit}`,
   ].join("\n");
   console.log(report);
   if (!replayMatch || !parityMatch || !primary.reloadVerified) process.exitCode = 1;
@@ -390,7 +412,9 @@ async function validateMode(): Promise<void> {
   for (const provFile of provFiles) {
     const prov = JSON.parse(readFileSync(join(FIXTURE_DIR, provFile), "utf8")) as {
       fixtures: Record<string, { sha256: string; gzipSha256: string; bytes: number; gzipBytes: number }>;
-      oracleCommit: string; seed: string; replay?: { hash: string; match: boolean };
+      kind?: "current-distributor" | "historical-oracle"; oracleCommit: string | null;
+      subjectCommit?: string; distributorCommit?: string; seed: string;
+      outcome?: { won?: boolean }; replay?: { hash: string; match: boolean };
       localParity?: { hashMatch: boolean }; reloadVerified?: boolean;
     };
     for (const [name, meta] of Object.entries(prov.fixtures ?? {})) {
@@ -411,8 +435,16 @@ async function validateMode(): Promise<void> {
         failures.push(`${name}: deserialize failed: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
-    if (!prov.replay?.match || !prov.localParity?.hashMatch || !prov.reloadVerified) failures.push(`${provFile}: replay evidence failed`);
-    if (prov.oracleCommit !== PINNED_ORACLE_COMMIT) failures.push(`${provFile}: oracle ${prov.oracleCommit} != pinned`);
+    if (!prov.replay?.match || !prov.reloadVerified) failures.push(`${provFile}: replay evidence failed`);
+    if (prov.kind === "current-distributor") {
+      if (!prov.outcome?.won) failures.push(`${provFile}: current-distributor fixture is not a player win`);
+      if (prov.distributorCommit !== CURRENT_DISTRIBUTOR_COMMIT) failures.push(`${provFile}: distributor commit is not pinned`);
+      if (!prov.subjectCommit || !/^[0-9a-f]{40}$/.test(prov.subjectCommit)) failures.push(`${provFile}: subject commit is missing or malformed`);
+      if (Object.keys(prov.fixtures ?? {}).some((name) => !name.startsWith("career-current-distributor-"))) failures.push(`${provFile}: current fixture reused a historical filename`);
+    } else {
+      if (!prov.localParity?.hashMatch) failures.push(`${provFile}: historical local parity failed`);
+      if (prov.oracleCommit !== PINNED_ORACLE_COMMIT) failures.push(`${provFile}: oracle ${prov.oracleCommit} != pinned`);
+    }
   }
   if (failures.length) {
     for (const failure of failures) console.error(`validate FAIL: ${failure}`);

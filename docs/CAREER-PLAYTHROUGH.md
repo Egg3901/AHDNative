@@ -49,6 +49,27 @@ The player won; success was measured, not manufactured.
   workspace-local engine agrees (same win, same hash; the one known source
   delta is type-only).
 
+## Current distributor fixture
+
+`npx tsx scripts/validate-career.ts --mode=generate-current` runs the same
+public-action policy against a clean AHDNative checkout that contains
+distributor commit `c25ba40a427ae8fd85e802d7af8f755a19977997`. It performs a second
+full replay before writing separately named artifacts, so it cannot replace
+the historical-oracle fixtures above.
+
+- `fixtures/career-current-distributor-t95-1953-US.save.json.gz` is the fresh
+  pre-resolution save.
+- `fixtures/career-current-distributor-elected-1953-US.save.json.gz` is the
+  post-win save with the House seat and recorded bill vote.
+- `fixtures/career-current-distributor-elected-1953-US.provenance.json` records
+  the exact subject and distributor commits, complete action log, replay hash,
+  save/reload result, outcome, and artifact hashes.
+
+The current run resolved at turn 96 with `player` among the House winners and
+the saved seat `{ chamberKey: house, countryId: US }`. Maximum gzip compression
+preserves the complete serialized worlds below the existing 3 MiB fixture cap;
+no world fields are removed.
+
 ## Run history (3 generate runs, 1 strategy + 2 script fixes)
 
 1. Season policy as above; won, but post-win `sponsorBill` failed: 2 AP
