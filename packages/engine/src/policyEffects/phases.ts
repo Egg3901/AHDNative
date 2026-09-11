@@ -7,18 +7,13 @@
  * demographicEffects (no enactment-time push, only a per-turn pull).
  *
  * Simplifications from mainline (named so a future wave can tighten them):
- *  - B01 intensity: mainline reads a -1..1 intensity from the enacted
- *    option's ladder position (policyOptionId indexes into an authored
- *    option list). AHDClient's catalog does not author that ladder, so
- *    intensity = sign(effectDirection) (-1, 0, or 1) — the faithful
- *    degenerate case (effectiveIntensity(±1) = ±1 either way, so a binary
- *    ladder is exact; only intermediate rungs are lost).
+ *  - B01 intensity: explicit source-generated lN option ids resolve through
+ *    the authored five-level ladder and preserve intermediate strength.
+ *    Numeric legacy ids and unknown ids retain sign-only fallback behavior.
  *  - B02 regional scope: mainline's regional-scope multiplier (1) applies to
- *    that ONE region's own metric row. AHDClient has no per-region metric
- *    store for catalog targets (see metrics/nationalMetrics.ts E01 blocker),
- *    so a regional-scope policy is folded into the same national aggregate
- *    at scope 1 (full local strength) rather than diluted — a deliberate
- *    overstatement flagged here, not a silent one.
+ *    that ONE region's own metric row. Native persists those rows in
+ *    WorldState.regionalMetrics; a legacy regional ledger row without a
+ *    regionId is applied to every region of its country for compatibility.
  *  - B03 direction: CatalogEntry.targets[].higherBetter defaults true when
  *    absent (see legislation/catalog.ts).
  *  - B05 weight: mainline's per-target `weight` is authored per metric on
@@ -30,8 +25,9 @@
  */
 import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
-import { getLaw } from "../legislation/catalog.js";
+import { CATALOG, getLaw, policyOptionIntensity, resolveCatalogPolicyOption } from "../legislation/catalog.js";
 import {
+  applyHalfLifeDecay,
   applyPolicyDecay,
   calculatePolicyContribution,
   effectiveIntensity,
@@ -40,36 +36,45 @@ import {
   nationalDecayScope,
   POLICY_TAU,
 } from "./constants.js";
+import { rebuildPolicyBudgets } from "./budget.js";
 
 export interface ActivePolicyInput {
   effectDirection: number;
+  effectIntensity?: number;
   countryId: string;
   scope: "national" | "regional";
   weight?: number;
+  enactedTurn?: number;
+  adjustmentHalfLife?: number;
 }
 
 /**
  * Sum every active policy's decay-path contribution onto `baseline`, then
  * (optionally) clamp/range-scale to [min,max]. Faithful port of
  * calculateMetricTarget's per-policy loop (policyEffects.ts:229-260) minus
- * the adjustmentHalfLife sub-term (no catalog target authors a half-life
- * yet — PORT-STUB, same B01 class: no content to drive it).
+ * the adjustmentHalfLife sub-term when a catalog target authors one.
  */
 export function computeMetricTarget(
   baseline: number,
   policies: readonly ActivePolicyInput[],
   higherBetter: boolean,
   range?: { min: number; max: number },
+  currentTurn = 0,
 ): number {
   let total = 0;
   for (const policy of policies) {
-    const intensity = Math.sign(policy.effectDirection);
+    const intensity = policy.effectIntensity ?? Math.sign(policy.effectDirection);
     if (intensity === 0) continue;
     const strength = effectiveIntensity(intensity) * 3;
     const rawScope = policy.scope === "national" ? getFederalMultiplier(policy.countryId) : 1;
     const scopeMultiplier = policy.scope === "national" ? nationalDecayScope(rawScope) : rawScope;
     const weight = policy.weight ?? 1;
-    total += calculatePolicyContribution(strength, weight, scopeMultiplier, higherBetter);
+    let contribution = calculatePolicyContribution(strength, weight, scopeMultiplier, higherBetter);
+    if (policy.adjustmentHalfLife && policy.enactedTurn !== undefined && currentTurn > 0) {
+      const turnsElapsed = Math.max(0, currentTurn - policy.enactedTurn);
+      contribution *= applyHalfLifeDecay(1, turnsElapsed, policy.adjustmentHalfLife);
+    }
+    total += contribution;
   }
   const rangeScale = range ? metricRangeScale(range.min, range.max, baseline) : 1;
   const target = baseline + total * rangeScale;
@@ -78,36 +83,116 @@ export function computeMetricTarget(
 }
 
 /**
- * Group active policyLedger entries by (countryId, metricId) via their
- * catalog entry's `targets`, then decay world.nationalMetrics[countryId]
- * [metricId] toward the computed target. Metrics with no active policy this
- * turn are left untouched (B06: no baseline table for catalog-target metric
- * ids exists to decay toward — see nationalMetrics.ts E01 note; only
- * demographics and the natural-decay-rate constant carry a baseline today).
+ * Group active policyLedger entries by their metric destination and catalog
+ * entry's `targets`, then decay the persisted national or regional metric row
+ * toward the computed target. Metrics with no active policy and no authored
+ * baseline remain untouched.
  */
 export function runPolicyEffects(world: WorldState): { metricsUpdated: number } {
-  const groups = new Map<string, { countryId: string; metricId: string; weight: number; higherBetter: boolean; policies: ActivePolicyInput[] }>();
-  for (const entry of Object.values(world.policyLedger)) {
-    const catalog = getLaw(entry.legislationTypeId);
-    if (!catalog || catalog.targets.length === 0) continue;
+  rebuildPolicyBudgets(world);
+  const groups = new Map<
+    string,
+    {
+      countryId: string;
+      metricId: string;
+      scope: "national" | "regional";
+      regionId?: string;
+      baseline: number;
+      weight: number;
+      higherBetter: boolean;
+      policies: ActivePolicyInput[];
+    }
+  >();
+  const policyKeys = new Set<string>();
+  const addPolicy = (
+    catalog: NonNullable<ReturnType<typeof getLaw>>,
+    policy: ActivePolicyInput,
+    regionId?: string,
+  ): void => {
+    if (catalog.targets.length === 0) return;
     for (const target of catalog.targets) {
-      const key = `${entry.countryId}:${target.metricId}`;
+      const destination = policy.scope === "regional" ? `regional:${regionId ?? "unknown"}` : `national:${policy.countryId}`;
+      const key = `${destination}:${target.metricId}`;
       let group = groups.get(key);
       if (!group) {
-        group = { countryId: entry.countryId, metricId: target.metricId, weight: target.weight, higherBetter: target.higherBetter ?? true, policies: [] };
+        group = {
+          countryId: policy.countryId,
+          metricId: target.metricId,
+          scope: policy.scope,
+          ...(regionId ? { regionId } : {}),
+          baseline: 50,
+          weight: target.weight,
+          higherBetter: target.higherBetter ?? true,
+          policies: [],
+        };
         groups.set(key, group);
       }
-      group.policies.push({ effectDirection: entry.effectDirection, countryId: entry.countryId, scope: entry.scope, weight: target.weight });
+      group.policies.push({
+        ...policy,
+        weight: target.weight,
+        ...(target.adjustmentHalfLife !== undefined ? { adjustmentHalfLife: target.adjustmentHalfLife } : {}),
+      });
     }
+  };
+
+  for (const entry of Object.values(world.policyLedger)) {
+    if (entry.repealedAtTurn !== undefined) continue;
+    const catalog = getLaw(entry.legislationTypeId);
+    if (!catalog) continue;
+    policyKeys.add(`${entry.countryId}:${entry.legislationTypeId}:${entry.scope}`);
+    const policy: ActivePolicyInput = {
+      effectDirection: entry.effectDirection,
+      effectIntensity: policyOptionIntensity(
+        catalog,
+        entry.sourcePolicyOptionId ?? entry.policyOptionId,
+        entry.effectDirection,
+      ),
+      countryId: entry.countryId,
+      scope: entry.scope,
+      enactedTurn: entry.enactedTurn,
+    };
+    if (entry.scope === "regional") {
+      const regionIds = entry.regionId
+        ? [entry.regionId]
+        : Object.values(world.regions)
+          .filter((region) => region.countryId === entry.countryId)
+          .map((region) => region.id);
+      for (const regionId of regionIds) addPolicy(catalog, policy, regionId);
+    } else {
+      addPolicy(catalog, policy);
+    }
+  }
+
+  // AHDGame seeds one current policy row per program law. Native stores the
+  // authored baseline in the catalog, so derive that row until a player bill
+  // or a repeal tombstone supplies an explicit current entry.
+  for (const catalog of CATALOG) {
+    if (catalog.status !== "available" || catalog.kind === "tax" || catalog.allowedScope === "regional") continue;
+    if (!world.countries[catalog.countryId]) continue;
+    const baselineLevel = catalog.baselineLevel ?? 0;
+    if (baselineLevel <= 0) continue;
+    const key = `${catalog.countryId}:${catalog.id}:national`;
+    if (policyKeys.has(key)) continue;
+    const option = resolveCatalogPolicyOption(catalog, `l${baselineLevel}`);
+    if (!option) continue;
+    addPolicy(catalog, {
+      effectDirection: option.effectDirection,
+      effectIntensity: policyOptionIntensity(catalog, option.id, option.effectDirection),
+      countryId: catalog.countryId,
+      scope: "national",
+      enactedTurn: 0,
+    });
   }
 
   let metricsUpdated = 0;
   for (const group of groups.values()) {
-    const perCountry = (world.nationalMetrics[group.countryId] ??= {});
-    const current = perCountry[group.metricId]?.value ?? 50;
-    const target = computeMetricTarget(current, group.policies, group.higherBetter, { min: 0, max: 100 });
+    const metricMap = group.scope === "regional"
+      ? (world.regionalMetrics[group.regionId!] ??= {})
+      : (world.nationalMetrics[group.countryId] ??= {});
+    const current = metricMap[group.metricId]?.value ?? 50;
+    const target = computeMetricTarget(group.baseline, group.policies, group.higherBetter, { min: 0, max: 100 }, world.meta.turn);
     const next = applyPolicyDecay(current, target, POLICY_TAU);
-    perCountry[group.metricId] = { value: Math.round(next * 1000) / 1000 };
+    metricMap[group.metricId] = { value: Math.round(next * 1000) / 1000 };
     metricsUpdated++;
   }
   return { metricsUpdated };

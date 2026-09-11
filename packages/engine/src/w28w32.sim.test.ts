@@ -234,6 +234,188 @@ describe("W28 integration: billEnactment -> policyLedger -> policyEffects/minist
     expect(after).toBeGreaterThan(before); // higherBetter defaults true, effectDirection +1 pulls target up
   });
 
+  it("uses the source ladder distance for a selected program level", () => {
+    const world = createWorld({ seed: "w28-graded-policy", playerName: "P", countryId: "US", era: "1953" });
+    world.nationalMetrics["US"] = { "economy.workerSecurity": { value: 50 } };
+    const bill = makeBill({
+      id: "bill-graded-1",
+      countryId: "US",
+      legislationTypeId: "us.economy.workerSecurity.primary",
+      effectDirection: 1,
+      enactedLevel: 3,
+      provisions: [{
+        type: "policy",
+        legislationTypeId: "us.economy.workerSecurity.primary",
+        policyOptionId: "l3",
+        effectDirection: 1,
+      }],
+    });
+
+    applyBillEffects(world, bill);
+    runPolicyEffects(world);
+
+    // AHDGame's five-level option ladder gives l3 a +0.5 intensity. The
+    // national US decay target is therefore 50 + (12 * 0.21 * 0.5), followed
+    // by one POLICY_TAU=139 decay step.
+    expect(world.nationalMetrics["US"]!["economy.workerSecurity"]!.value).toBeCloseTo(50.01, 2);
+  });
+
+  it("keeps a law with no authored baseline stable when no policy is active", () => {
+    const world = createWorld({ seed: "w28-policy-no-law", playerName: "P", countryId: "US", era: "1953" });
+    world.nationalMetrics["US"] = { "health.universalCare": { value: 60 } };
+
+    runPolicyEffects(world);
+
+    expect(world.nationalMetrics["US"]!["health.universalCare"]!.value).toBe(60);
+  });
+
+  it("fades a policy contribution by its authored adjustment half-life", () => {
+    const target = computeMetricTarget(
+      50,
+      [{ effectDirection: 1, effectIntensity: 1, countryId: "US", scope: "regional", enactedTurn: 0, adjustmentHalfLife: 2 }],
+      true,
+      undefined,
+      2,
+    );
+
+    expect(target).toBeCloseTo(56, 10);
+  });
+
+  it("applies an authored catalog baseline when no bill has been enacted", () => {
+    const world = createWorld({ seed: "w28-policy-baseline", playerName: "P", countryId: "US", era: "1953" });
+    world.nationalMetrics["US"] = { "economy.workerSecurity": { value: 60 } };
+
+    runPolicyEffects(world);
+
+    // workerSecurity's authored baseline is l1, the negative half-strength
+    // rung. A fresh world therefore moves down from a deliberately displaced
+    // metric even though policyLedger has no player bill yet.
+    expect(world.nationalMetrics["US"]!["economy.workerSecurity"]!.value).toBeLessThan(60);
+  });
+
+  it("replaces the previous law contribution when the same catalog law is enacted again", () => {
+    const world = createWorld({ seed: "w28-policy-replacement", playerName: "P", countryId: "US", era: "1953" });
+    world.nationalMetrics["US"] = { "economy.workerSecurity": { value: 50 } };
+    const catalogId = "us.economy.workerSecurity.primary";
+
+    applyBillEffects(world, makeBill({
+      id: "bill-replace-old",
+      countryId: "US",
+      legislationTypeId: catalogId,
+      effectDirection: 1,
+      enactedLevel: 4,
+      provisions: [{ type: "policy", legislationTypeId: catalogId, policyOptionId: "l4", effectDirection: 1 }],
+    }));
+    runPolicyEffects(world);
+    const afterFirstLaw = world.nationalMetrics["US"]!["economy.workerSecurity"]!.value;
+
+    applyBillEffects(world, makeBill({
+      id: "bill-replace-new",
+      countryId: "US",
+      legislationTypeId: catalogId,
+      effectDirection: -1,
+      enactedLevel: 0,
+      provisions: [{ type: "policy", legislationTypeId: catalogId, policyOptionId: "l0", effectDirection: -1 }],
+    }));
+
+    expect(world.policyLedger["bill-replace-old"]?.repealedAtTurn).toBe(0);
+    runPolicyEffects(world);
+    expect(world.nationalMetrics["US"]!["economy.workerSecurity"]!.value).toBeLessThan(afterFirstLaw);
+  });
+
+  it("repeals the current law instead of enacting a second opposing law", () => {
+    const world = createWorld({ seed: "w28-policy-repeal", playerName: "P", countryId: "US", era: "1953" });
+    world.nationalMetrics["US"] = { "economy.workerSecurity": { value: 60 } };
+    const catalogId = "us.economy.workerSecurity.primary";
+    applyBillEffects(world, makeBill({
+      id: "bill-repeal-old",
+      countryId: "US",
+      legislationTypeId: catalogId,
+      effectDirection: 1,
+      enactedLevel: 4,
+      provisions: [{ type: "policy", legislationTypeId: catalogId, policyOptionId: "l4", effectDirection: 1 }],
+    }));
+    runPolicyEffects(world);
+    const afterLaw = world.nationalMetrics["US"]!["economy.workerSecurity"]!.value;
+
+    applyBillEffects(world, makeBill({
+      id: "bill-repeal-now",
+      countryId: "US",
+      legislationTypeId: catalogId,
+      effectDirection: -1,
+      repealsLawId: catalogId,
+      provisions: [{ type: "policy", legislationTypeId: catalogId, effectDirection: -1 }],
+    }));
+
+    expect(world.enactedLaws).toHaveLength(1);
+    expect(world.enactedLaws[0]?.repealedAtTurn).toBe(0);
+    expect(world.policyLedger["bill-repeal-now"]?.isRepeal).toBe(true);
+    for (let i = 0; i < 4; i++) runPolicyEffects(world);
+    expect(world.nationalMetrics["US"]!["economy.workerSecurity"]!.value).toBeLessThan(afterLaw);
+  });
+
+  it("applies selected program cost as a relative budget delta", () => {
+    const world = createWorld({ seed: "w28-policy-budget", playerName: "P", countryId: "US", era: "1953" });
+    const budget = world.budgets.US!;
+    const before = budget.spending.total;
+    const catalogId = "us.economy.workerSecurity.primary";
+
+    applyBillEffects(world, makeBill({
+      id: "bill-budget-level",
+      countryId: "US",
+      legislationTypeId: catalogId,
+      effectDirection: 1,
+      enactedLevel: 4,
+      provisions: [{ type: "policy", legislationTypeId: catalogId, policyOptionId: "l4", effectDirection: 1 }],
+    }));
+    const expanded = world.budgets.US!.spending.total;
+    expect(expanded).toBeGreaterThan(before);
+
+    applyBillEffects(world, makeBill({
+      id: "bill-budget-repeal",
+      countryId: "US",
+      legislationTypeId: catalogId,
+      effectDirection: -1,
+      repealsLawId: catalogId,
+      provisions: [{ type: "policy", legislationTypeId: catalogId, effectDirection: -1 }],
+    }));
+    expect(world.budgets.US!.spending.total).toBeLessThan(before);
+
+    const loaded = deserializeSave(serializeSave(world, "2026-09-11T00:00:00Z"));
+    expect(loaded.budgets.US!.policySpendingByCategory).toEqual(world.budgets.US!.policySpendingByCategory);
+  });
+
+  it("applies a regional policy to its selected region and persists the regional value", () => {
+    const world = createWorld({ seed: "w28-policy-regional", playerName: "P", countryId: "US", era: "1953" });
+    const usRegions = Object.values(world.regions).filter((region) => region.countryId === "US");
+    const targetRegion = usRegions[0]!;
+    const otherRegion = usRegions[1]!;
+    const catalogId = "us.economy.workerSecurity.primary";
+    world.regionalMetrics[targetRegion.id] = { "economy.workerSecurity": { value: 50 } };
+    world.regionalMetrics[otherRegion.id] = { "economy.workerSecurity": { value: 50 } };
+
+    applyBillEffects(world, makeBill({
+      id: "bill-regional-level",
+      countryId: "US",
+      regionId: targetRegion.id,
+      legislationTypeId: catalogId,
+      effectDirection: 1,
+      enactedLevel: 4,
+      provisions: [{ type: "policy", legislationTypeId: catalogId, policyOptionId: "l4", effectDirection: 1 }],
+    }));
+    runPolicyEffects(world);
+
+    expect(world.policyLedger["bill-regional-level"]?.regionId).toBe(targetRegion.id);
+    expect(world.enactedLaws[0]?.scope).toBe("regional");
+    expect(world.enactedLaws[0]?.regionId).toBe(targetRegion.id);
+    expect(world.regionalMetrics[targetRegion.id]!["economy.workerSecurity"]!.value).toBeGreaterThan(50);
+    expect(world.regionalMetrics[otherRegion.id]!["economy.workerSecurity"]!.value).toBe(50);
+
+    const loaded = deserializeSave(serializeSave(world, "2026-09-11T00:00:00Z"));
+    expect(loaded.regionalMetrics).toEqual(world.regionalMetrics);
+    expect(loaded.policyLedger["bill-regional-level"]?.regionId).toBe(targetRegion.id);
+  });
+
   it("runMinisterialOrders caps combined active order modifiers per metric", () => {
     const world = createWorld({ seed: "w28-orders", playerName: "P", countryId: "US", era: "1953" });
     world.ministerialOrders.push(
@@ -457,7 +639,7 @@ describe("save migration v33 -> v37 (W28 + W32 batch)", () => {
     expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(37);
     const world = createWorld({ seed: "mig-w28w32", playerName: "P", countryId: "US", era: "1953" });
     const stripped = JSON.parse(JSON.stringify(world)) as Record<string, unknown>;
-    for (const key of ["policyLedger", "ministerialOrders", "enactmentGates", "currencyUnions", "coldWarTension", "nuclearPrograms", "conflicts", "alignments", "settlements", "internationalOrgs"]) {
+    for (const key of ["policyLedger", "regionalMetrics", "ministerialOrders", "enactmentGates", "currencyUnions", "coldWarTension", "nuclearPrograms", "conflicts", "alignments", "settlements", "internationalOrgs"]) {
       delete stripped[key];
     }
     (stripped["meta"] as Record<string, unknown>)["schemaVersion"] = 33;
@@ -466,6 +648,7 @@ describe("save migration v33 -> v37 (W28 + W32 batch)", () => {
     const loaded = deserializeSave(raw);
     expect(loaded.meta.schemaVersion).toBe(SCHEMA_VERSION);
     expect(loaded.policyLedger).toEqual({});
+    expect(loaded.regionalMetrics).toEqual({});
     expect(loaded.ministerialOrders).toEqual([]);
     expect(loaded.enactmentGates).toEqual({ debtCeilingCrisis: {} });
     expect(loaded.currencyUnions).toEqual({});

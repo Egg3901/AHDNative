@@ -184,6 +184,6 @@ describe("program law policy levels", () => {
     expect(center.unemploymentAfterEnactment).toBe(center.unemploymentBeforeEnactment);
     expect(strong.unemploymentAfterEnactment).toBe(strong.unemploymentBeforeEnactment);
     expect(center.metric).toBe(50);
-    expect(strong.metric).toBe(50.018);
+    expect(strong.metric).toBe(50.01);
   });
 });

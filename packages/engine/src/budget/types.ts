@@ -88,6 +88,8 @@ export interface CountryBudget {
   economicFactors: BudgetEconomicFactors;
   // Optional baseline spend for fallback
   baselineSpendingByCategory?: Record<string, number>;
+  /** Policy-law delta from the authored baseline, rebuilt from the active law book. */
+  policySpendingByCategory?: Record<string, number>;
   baselineStateGrants?: number;
   /** W6: investor confidence 0-100, baseline 70, decays 5%/turn when below. Source: nationalization/constants.ts */
   investorConfidence?: number;

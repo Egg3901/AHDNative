@@ -482,6 +482,7 @@ describe("repeal and expiry", () => {
     expect(res.ok).toBe(true);
     expect(world.bills.length).toBe(2);
     expect(world.bills[1]!.effectDirection).toBe(-1);
+    expect(world.bills[1]!.repealsLawId).toBe("us.economy.workerSecurity.primary");
   });
 
   it("stateBillTimers processes regional bills", () => {

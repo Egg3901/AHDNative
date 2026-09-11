@@ -24,6 +24,7 @@ import { applyCurrencyUnionProvision } from "../finance/currencyUnion.js";
 import type { PolicyLedgerEntry } from "../policyEffects/types.js";
 import { stepTaxRate, needsPhaseIn } from "../budget/taxRatePhaseIn.js";
 import { calculateBudgetRevenue } from "../budget/revenue.js";
+import { rebuildPolicyBudgets } from "../policyEffects/budget.js";
 
 const VOTING_TURNS = 2;
 const EXEC_WINDOW_TURNS = 2;
@@ -275,18 +276,89 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
   // carries an immediate `effect` bump below — these are two different
   // mainline channels (one-time tick-path economy delta vs. ongoing
   // decay-path metric target pull read every turn by policyEffectsPhase).
+  const catalogScope = bill.regionId || catalog?.allowedScope === "regional" ? "regional" : "national";
   if (bill.legislationTypeId && catalog) {
+    const scope = catalogScope;
+    if (bill.repealsLawId) {
+      const repealCatalog = getLaw(bill.repealsLawId);
+      const repealScope = bill.regionId || repealCatalog?.allowedScope === "regional" ? "regional" : scope;
+      for (const existing of Object.values(world.policyLedger)) {
+        if (
+          existing.legislationTypeId === bill.repealsLawId &&
+          existing.countryId === bill.countryId &&
+          existing.scope === repealScope &&
+          existing.regionId === bill.regionId &&
+          existing.repealedAtTurn === undefined
+        ) {
+          existing.repealedAtTurn = world.meta.turn;
+        }
+      }
+      for (const existing of world.enactedLaws) {
+        if (
+          existing.id === bill.repealsLawId &&
+          existing.countryId === bill.countryId &&
+          existing.scope === repealScope &&
+          existing.regionId === bill.regionId &&
+          existing.repealedAtTurn === undefined
+        ) {
+          existing.repealedAtTurn = world.meta.turn;
+        }
+      }
+      world.policyLedger[bill.id] = {
+        id: bill.id,
+        legislationTypeId: bill.repealsLawId,
+        policyOptionId: "0",
+        effectDirection: 0,
+        scope: repealScope,
+        countryId: bill.countryId,
+        enactedTurn: world.meta.turn,
+        enactedAt: world.meta.date,
+        ...(bill.regionId ? { regionId: bill.regionId } : {}),
+        isRepeal: true,
+      };
+      world.news.push({ turn: world.meta.turn, date: world.meta.date, headline: `Law repealed: ${bill.repealsLawId}` });
+      rebuildPolicyBudgets(world);
+      return;
+    }
+    // A catalog law has one current posture per country and scope. Retain the
+    // old rows for provenance, but make them inactive before writing the new
+    // posture so policy effects never sum replacement history.
+    for (const existing of Object.values(world.policyLedger)) {
+      if (
+        existing.legislationTypeId === bill.legislationTypeId &&
+        existing.countryId === bill.countryId &&
+        existing.scope === scope &&
+        existing.regionId === bill.regionId &&
+        existing.repealedAtTurn === undefined
+      ) {
+        existing.repealedAtTurn = world.meta.turn;
+      }
+    }
+    for (const existing of world.enactedLaws) {
+      if (
+        existing.id === bill.legislationTypeId &&
+        existing.countryId === bill.countryId &&
+        existing.scope === scope &&
+        existing.regionId === bill.regionId &&
+        existing.repealedAtTurn === undefined
+      ) {
+        existing.repealedAtTurn = world.meta.turn;
+      }
+    }
     const entry: PolicyLedgerEntry = {
       id: bill.id,
       legislationTypeId: bill.legislationTypeId,
       policyOptionId: String(bill.enactedLevel ?? catalog.baselineLevel ?? 0),
+      ...(selectedProvision?.policyOptionId ? { sourcePolicyOptionId: selectedProvision.policyOptionId } : {}),
       effectDirection: bill.effectDirection ?? 1,
-      scope: catalog.allowedScope === "regional" ? "regional" : "national",
+      scope,
+      ...(bill.regionId ? { regionId: bill.regionId } : {}),
       countryId: bill.countryId,
       enactedTurn: world.meta.turn,
       enactedAt: world.meta.date,
     };
     world.policyLedger[entry.id] = entry;
+    rebuildPolicyBudgets(world);
   }
 
   const effect = catalog?.effect;
@@ -312,7 +384,8 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
     billId: bill.id,
     enactedAtTurn: world.meta.turn,
     level: bill.enactedLevel ?? 1,
-    scope: "national",
+    scope: catalogScope,
+    ...(bill.regionId ? { regionId: bill.regionId } : {}),
     expiresAtTurn: bill.expiresAtTurn ?? null,
   };
   world.enactedLaws.push(enacted);

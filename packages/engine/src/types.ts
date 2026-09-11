@@ -307,6 +307,8 @@ export interface WorldState {
    */
   /** Per-country national metrics aggregation (metric families). Schema v33. */
   nationalMetrics: Record<string, import("./metrics/nationalMetrics.js").NationalMetrics>;
+  /** Per-region policy metrics, keyed by region id. Schema v45. */
+  regionalMetrics: Record<string, import("./metrics/nationalMetrics.js").NationalMetrics>;
   /** Per-country economic model identity. Schema v33. */
   economicModels: Record<string, import("./metrics/economicModel.js").EconomicModelState>;
   /** Per-commodity price history for annualized commodity pressure (inflationRecalc). Schema v33. */

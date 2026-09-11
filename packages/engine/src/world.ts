@@ -132,7 +132,8 @@ import type { WorldFeatureFlags } from "./featureFlags.js";
 // v43: country political overview (countryPolitics); see save.ts migration
 // and countryPolitics/overview.ts.
 // v44: active industry subsidy records (world.subsidies); see save.ts.
-export const SCHEMA_VERSION = 44;
+// v45: regional policy metric values (world.regionalMetrics); see save.ts.
+export const SCHEMA_VERSION = 45;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -823,6 +824,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
     ledgerPreForexSnapshot: null,
     // W6 metric engine cluster
     nationalMetrics: {},
+    regionalMetrics: {},
     economicModels: {},
     commodityPriceHistory,
     economicVitalSigns: null,

@@ -181,6 +181,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (Array.isArray(subsidies) && subsidies.length > 0) {
     return { ok: false, error: `Industry subsidy records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
+  const regionalMetrics = world["regionalMetrics"];
+  if (isRecord(regionalMetrics) && Object.keys(regionalMetrics).length > 0) {
+    return { ok: false, error: `Regional metric records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
 
   const candidateSave = structuredClone(save);
   const candidateWorld = candidateSave["world"] as Record<string, unknown>;
@@ -190,6 +194,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   candidateMeta["schemaVersion"] = V42_SCHEMA;
   delete candidateWorld["countryPolitics"];
   delete candidateWorld["subsidies"];
+  delete candidateWorld["regionalMetrics"];
   if (typeof candidatePlayer["homeRegionId"] !== "string") {
     delete candidatePlayer["homeRegionId"];
   }
@@ -259,7 +264,7 @@ const REQUIRED_WORLD_RECORDS = [
   "stateDemographics", "baselineDemographics", "demographicCategories", "census", "laborForces", "budgets",
   "regionalBudgets", "nppRelationships", "nppSponsorLastTurn", "centralBanks", "corporations",
   "corpRevenueSnapshots", "campaigns", "governments", "worldEventLedger", "governors", "depositInsurance",
-  "unions", "bonds", "exchangeRates", "nationalMetrics", "economicModels", "commodityPriceHistory",
+  "unions", "bonds", "exchangeRates", "nationalMetrics", "regionalMetrics", "economicModels", "commodityPriceHistory",
   "commandEconomy", "capitalStock", "capitalGrowth", "unownedSectors", "history", "policyLedger",
   "enactmentGates", "currencyUnions", "coldWarTension", "nuclearPrograms", "alignments", "internationalOrgs",
   "countryPolitics",
@@ -2310,6 +2315,16 @@ export function deserializeSave(raw: string): WorldState {
       if (!Array.isArray(w["subsidies"])) w["subsidies"] = [];
     }
     save.world.meta.schemaVersion = 44;
+  }
+  // v44 -> v45: regional policy metric values. Existing saves have no region
+  // metric history, so start with an empty map and let policyEffects populate
+  // it from active regional ledger entries. No RNG is consumed.
+  if (save.schemaVersion < 45) {
+    const w = save.world as unknown as Record<string, unknown>;
+    if (typeof w["regionalMetrics"] !== "object" || w["regionalMetrics"] === null || Array.isArray(w["regionalMetrics"])) {
+      w["regionalMetrics"] = {};
+    }
+    save.world.meta.schemaVersion = 45;
   }
   // 1.0.0 stored every synthetic NPC party ballot after resolution. They
   // cannot affect a future turn, so compact them on load while retaining the
