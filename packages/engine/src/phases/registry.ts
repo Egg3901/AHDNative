@@ -56,7 +56,7 @@ import { nppBillSponsorshipPhase } from "../npp/nppBillSponsorship.js";
 import { nppActionProcessingPhase } from "../npp/nppActionProcessing.js";
 import { nppStanceDriftPhase } from "../npp/stanceDrift.js";
 import { nppBehaviorPhase } from "../npp/nppBehavior.js";
-import { voteAccumulationPhase, electionTimersPhase, electionResolutionPhase } from "../elections/phases.js";
+import { primaryResolutionPhase, voteAccumulationPhase, electionTimersPhase, electionResolutionPhase } from "../elections/phases.js";
 import { demographicEffectsPhase } from "../demographics/demographicEffects.js";
 import { demographicFlowsPhase } from "../demographics/demographicFlows.js";
 import { censusPhase } from "../demographics/census.js";
@@ -190,6 +190,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   campaignTurnPhase,
   campaignPartySubsidyPhase,
   campaignNpcInvestmentPhase,
+  primaryResolutionPhase,
   voteAccumulationPhase,
   campaignSpendResetPhase,
   electionTimersPhase,

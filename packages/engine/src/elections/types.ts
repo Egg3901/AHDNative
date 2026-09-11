@@ -22,6 +22,19 @@ export interface ElectionCandidate {
 
 export type ElectionStatus = "upcoming" | "active" | "resolved";
 
+export interface PrimaryResultEntry {
+  candidateId: string;
+  candidateName: string;
+  score: number;
+  sharePct: number;
+  won: boolean;
+}
+
+export interface PrimaryResults {
+  byParty: Record<string, PrimaryResultEntry[]>;
+  recordedAt: string;
+}
+
 export interface ElectionRecord {
   /** Deterministic: `${electionType}:${countryId}:${state ?? "-"}:c${cycle}`. */
   id: string;
@@ -59,6 +72,9 @@ export interface ElectionRecord {
    * for the full compatibility rationale; no SCHEMA_VERSION bump needed).
    */
   stateTallyStates?: Record<string, unknown>;
+  /** Persisted one-shot nominee transition, recorded before general tallying. */
+  primaryResults?: PrimaryResults;
+  primaryResolvedTurn?: number;
   winners?: string[];
   resolvedTurn?: number;
 }

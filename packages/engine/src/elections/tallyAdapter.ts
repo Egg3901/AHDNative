@@ -297,7 +297,13 @@ function runAccumulateCore(
 
   let tallyState = priorTallyState as TallyInput | undefined;
   if (!tallyState) {
-    const init = initElectionVoteTally({ electionId: rec.id, candidates, state: stateId, now });
+    const init = initElectionVoteTally({
+      electionId: rec.id,
+      candidates,
+      state: stateId,
+      primaryResults: rec.primaryResults,
+      now,
+    });
     tallyState = init.tally;
   }
 

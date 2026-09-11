@@ -97,8 +97,9 @@ function patchStock(world: ReturnType<typeof createWorld>, raceId: string, party
 /** Upstream contract: sum of stock plus accumulator by party, zero spends skipped. */
 function expectedFunds(world: ReturnType<typeof createWorld>, raceId: string): Map<string, number> {
   const out = new Map<string, number>();
+  const nominees = new Set(world.elections.find((e) => e.id === raceId)?.candidates.map((c) => c.id) ?? []);
   for (const c of Object.values(world.campaigns)) {
-    if (c.electionId !== raceId) continue;
+    if (c.electionId !== raceId || !nominees.has(c.candidateId)) continue;
     const spend = (c.spendStock ?? 0) + (c.spendThisTurn ?? 0);
     if (spend <= 0) continue;
     out.set(c.partyId, (out.get(c.partyId) ?? 0) + spend);
