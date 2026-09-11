@@ -412,7 +412,7 @@ html, body { overflow-x: hidden; }
   text-align: center;
   align-items: center;
 }
-.ahd-landing-logo { width: clamp(4.5rem, 18vw, 6rem); aspect-ratio: 1 / 1; object-fit: contain; display: block; filter: drop-shadow(0 0 1.1rem rgb(99 102 241 / 0.35)); }
+.ahd-landing-logo { width: clamp(4.5rem, 18vw, 6rem); height: auto; aspect-ratio: 1 / 1; object-fit: contain; display: block; filter: drop-shadow(0 0 1.1rem rgb(99 102 241 / 0.35)); }
 .ahd-landing-title { font-family: "AHD Fraunces", Georgia, serif; font-weight: 600; font-size: clamp(1.9rem, 7vw, 2.9rem); letter-spacing: -0.035em; text-wrap: balance; text-shadow: 0 1px 18px rgb(10 15 35 / 0.9); }
 .ahd-landing-dek { margin: 0; font-size: 0.9rem; line-height: 1.5; max-width: 30rem; color: #c3c9dd; }
 .ahd-landing .ahd-eyebrow { color: #f0ab9e; }

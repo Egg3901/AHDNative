@@ -115,6 +115,24 @@ hard halo with a soft atmosphere, styles the import control, aligns desktop
 actions and adds a sparse full-page starfield. The desktop window opens at
 1100x760; narrower windows retain the mobile layout.
 
+Responsive identity acceptance was repeated against the production bundle for
+0.1.4 preparation. `smoke/landing-review.spec.ts` verifies at all three
+viewports that the bundled image loads at its canonical 500x500 dimensions,
+renders square with `object-fit: contain`, stays inside the viewport, remains
+decorative beside the accessible product heading, and makes no external asset
+request. The check exposed the HTML height attribute holding the phone render
+at 96px while its responsive width shrank; `.ahd-landing-logo` now uses
+`height: auto`. All four landing scenarios pass after that correction.
+Screenshots show the navy bell and white field remaining distinct from the
+ethereal background without clipping at 320x568, 390x844 and 1280x800.
+
+Representative generated resources were inspected directly: transparent 32px
+desktop PNG, transparent 192px Android launcher, 432px Android foreground and
+opaque 180px iOS icon. The mark remains centered and recognizable in each;
+the Windows ICO contains six sizes and the macOS ICNS is readable. This is
+asset and browser evidence only. Installed launcher treatment, OS masking and
+device accessibility remain package/device acceptance.
+
 The globe remains decorative. Per-era selection, nation detail and drag/zoom
 are outside this landing slice. Physical WebView frame pacing and battery
 use remain device checks. Cross-screen imagery remains #143.
