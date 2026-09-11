@@ -229,6 +229,11 @@ describe("PoliticsPanel elections", () => {
         targets: [{ category: "voterGroups", categoryName: "Voter Groups", group: "young_renters", groupName: "Young Renters", modifier: 0 }],
         action: { id: "campaignCanvass", name: "Canvass voters", description: "", cost: 1, available: true },
       },
+      targetedAds: {
+        regionId: "AL",
+        targets: [{ category: "voterGroups", categoryName: "Voter Groups", group: "young_renters", groupName: "Young Renters", bonus: 0, maxed: false }],
+        action: { id: "campaignTargetedAd", name: "Buy targeted ads", description: "", cost: 1, available: true },
+      },
       activity: [{
         type: "upgrade", category: "fundraising", branch: null,
         fromLevel: null, newLevel: 1, costFunds: 15000, costActions: 10,
@@ -261,6 +266,14 @@ describe("PoliticsPanel elections", () => {
     await user.selectOptions(screen.getByLabelText("Canvass target"), "voterGroups:young_renters");
     await user.click(screen.getByRole("button", { name: "Canvass selected target" }));
     expect(onAction).toHaveBeenCalledWith("campaignCanvass", {
+      electionId: "house:US:AL:c1",
+      regionId: "AL",
+      demographicCategory: "voterGroups",
+      demographicGroup: "young_renters",
+    });
+    await user.selectOptions(screen.getByLabelText("Targeted ad target"), "voterGroups:young_renters");
+    await user.click(screen.getByRole("button", { name: "Buy targeted ads for selected target" }));
+    expect(onAction).toHaveBeenCalledWith("campaignTargetedAd", {
       electionId: "house:US:AL:c1",
       regionId: "AL",
       demographicCategory: "voterGroups",
@@ -322,6 +335,14 @@ describe("PoliticsPanel elections", () => {
           available: false, disabledReason: "Campaign is archived and read-only.",
         },
       },
+      targetedAds: {
+        regionId: "AL",
+        targets: [],
+        action: {
+          id: "campaignTargetedAd", name: "Buy targeted ads", description: "", cost: 1,
+          available: false, disabledReason: "Campaign is archived and read-only.",
+        },
+      },
       activity: [],
       levers: [{
         category: "fundraising", started: false,
@@ -349,6 +370,7 @@ describe("PoliticsPanel elections", () => {
     expect(screen.getByRole("button", { name: "Set opposition target" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save campaign manager" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Canvass selected target" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Buy targeted ads for selected target" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Unlock fundraising starter" })).toBeDisabled();
     expect(onAction).not.toHaveBeenCalled();
 

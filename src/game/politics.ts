@@ -4,6 +4,7 @@ import {
   getCampaignFamilyScalar, getEffectiveBranchCost, RALLY_IMMEDIATE_SHARE,
   RALLY_SPREAD_TURNS, SUPPORT_RALLY_ACTION_COST, SUPPORT_RALLY_FULL_VALUE,
   SUPPORT_RALLY_TOUR_TICK_ACTION_COST,
+  CAMPAIGN_TARGETED_AD_CAP,
   type Campaign, type OpsBranchKey, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionView } from "./types";
@@ -100,6 +101,19 @@ export interface PoliticsCampaignCanvassingView {
   action: ActionView;
 }
 
+export interface PoliticsCampaignTargetedAdsView {
+  regionId: string | null;
+  targets: {
+    category: string;
+    categoryName: string;
+    group: string;
+    groupName: string;
+    bonus: number;
+    maxed: boolean;
+  }[];
+  action: ActionView;
+}
+
 export interface PoliticsPlayerCampaignView {
   status: string;
   funds: number; actions: number;
@@ -114,6 +128,7 @@ export interface PoliticsPlayerCampaignView {
   oppositionResearch: PoliticsCampaignOppositionView;
   manager: PoliticsCampaignManagerView;
   canvassing: PoliticsCampaignCanvassingView;
+  targetedAds: PoliticsCampaignTargetedAdsView;
   levers: PoliticsCampaignLeverView[];
 }
 
@@ -431,6 +446,50 @@ function campaignCanvassingAction(
   };
 }
 
+function campaignTargetedAdsAction(
+  world: WorldState,
+  election: WorldState["elections"][number],
+  campaign: Campaign,
+  campaignReason?: string,
+): PoliticsCampaignTargetedAdsView {
+  const regionId = election.state ?? campaign.countryId;
+  const state = world.stateDemographics[regionId];
+  const categories = world.demographicCategories[campaign.countryId] ?? [];
+  const targets = categories.flatMap((category) => category.groups
+    .filter((group) => state?.groups[group.id] != null)
+    .map((group) => {
+      const bonus = campaign.targetedAdModifiers?.[`${category._id}:${group.id}`] ?? 0;
+      return {
+        category: category._id,
+        categoryName: category.name,
+        group: group.id,
+        groupName: group.name,
+        bonus,
+        maxed: bonus >= CAMPAIGN_TARGETED_AD_CAP - 1e-10,
+      };
+    }));
+  const entry = ACTION_CATALOG.campaignTargetedAd;
+  const cost = getActionCost(entry, world.player.donorBaseLevel, world.player.politicalInfluence, world.player.favorability);
+  const reason = campaignReason
+    ?? (!state ? "No campaign region is available." : undefined)
+    ?? (targets.length === 0 ? "No eligible campaign demographic targets." : undefined)
+    ?? (targets.every((target) => target.maxed) ? "All targeted ad audiences are at the bonus cap." : undefined)
+    ?? (world.player.actions < cost ? "Not enough action points." : undefined)
+    ?? (world.player.funds < entry.fundCost ? "Not enough funds." : undefined);
+  return {
+    regionId: state ? regionId : null,
+    targets,
+    action: {
+      id: "campaignTargetedAd",
+      name: entry.name,
+      description: entry.description,
+      cost,
+      available: !reason,
+      ...(reason ? { disabledReason: reason } : {}),
+    },
+  };
+}
+
 function projectPlayerCampaign(
   world: WorldState,
   election: WorldState["elections"][number],
@@ -511,6 +570,7 @@ function projectPlayerCampaign(
     oppositionResearch: oppositionResearchAction(world, election, campaign, campaignReason),
     manager: campaignManagerAction(world, campaign, campaignReason),
     canvassing: campaignCanvassingAction(world, election, campaign, campaignReason),
+    targetedAds: campaignTargetedAdsAction(world, election, campaign, campaignReason),
     levers,
   };
 }
