@@ -27,8 +27,9 @@ import { investCampaign } from "./npcInvestment.js";
  *   - Travel-presence bonus, primary in-state bonus, rally tours,
  *     player/governor/executive endorsement campaign-action boosts beyond
  *     the plain endorsement count below: all keyed off presidential-only
- *     systems (travel state, primary delegate math, rally UI) solo does not
- *     have (no "president" election type yet).
+ *     systems (travel state, primary delegate math, rally UI) that remain
+ *     unported even though US presidential elections are scheduled
+ *     (elections/orchestration.ts schedules electionType "president").
  *   - Diminishing returns on stacked passive favorability gain
  *     (diminishPassiveFavorabilityGain, src/lib/actions.ts): solo's
  *     candidateSupports.support is a simpler single mood scalar without the

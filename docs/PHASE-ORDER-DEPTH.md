@@ -60,7 +60,7 @@ git diff --check
 |---|---|---|
 | Corporation and macro economy | `corporationTurn` precedes `macroCountryTurn` | Direct revenue snapshot edge aligned. Absolute placement still differs because Native retains its append-only tail strategy for other systems. |
 | Macro, commodity, and fiscal growth | Macro runs before commodity pricing; fiscal growth consumes settled economic factors in its documented slot | Native macro now sees corporate output first. Trade and fiscal phases remain in their existing bounded order. |
-| Campaign and election tally | `campaignTurn` precedes `voteAccumulation`; `campaignSpendReset` follows vote accumulation | Native campaign phases remain at the tail, so campaign spend and media effects still reach the tally one turn later. |
+| Campaign and election tally | `campaignTurn` precedes `voteAccumulation`; `campaignSpendReset` follows vote accumulation | Aligned by the M04 move: the campaign cluster precedes `voteAccumulation` with the reset after, same turn (see [campaign order](CAMPAIGN-ORDER-DEPTH.md)). Absolute tail placement of the block is otherwise retained. |
 | Election timers and resolution | Vote accumulation, spend reset, timers, snapshots, and resolution have a strict sequence | Native retains its existing relative election sequence, with no broad reordering in this slice. |
 
 Known gaps remain: campaign operations are still a partial port, the Native

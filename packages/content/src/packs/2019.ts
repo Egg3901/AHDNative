@@ -18,15 +18,13 @@ import { ukRegions2019 } from "./ukRegions2019.js";
  *    enumeration of every `status` field in COUNTRY_CONFIGS finds exactly
  *    six "active" countries: US, UK, JP, DE, IE, CN.
  *
- *    AHDClient SCOPE DECISION: this pack ships US and UK as playable (matching
- *    the depth already built for 1991) and keeps JP/DE/IE/CN as non-playable
- *    economy entries. Mainline marks those four player-eligible too, but
- *    giving them the same depth (parties, legislature, historical seats)
- *    this wave gives US/UK is out of scope for this pass — a country marked
- *    `playable: true` with no legislature/party data would let a player
- *    select it into a broken, depth-less world, which is worse than an
- *    honest `playable: false`. GENUINE GAP, documented, not fabricated:
- *    JP/DE/IE/CN full political depth is deferred to a future wave.
+ *    Playable flags: US, UK, JP, DE, IE, and CN ship `playable: true`
+ *    with authored budgets, roster parties (`roster2019.ts`), legislatures,
+ *    and state layers below. US/UK carry full historical seat depth; the
+ *    remaining roster depth for JP/DE/IE/CN is whatever `roster2019.ts` and
+ *    the per-country region files provide. BR/NG ship as non-playable
+ *    economy entries. Do not change these flags here; playable-set changes
+ *    belong to issue #118.
  *  - ERA_COUNTRY_CONFIG_OVERRIDES has no "2019-default" entries (as with
  *    1979/1991) — UK legislature numbers below are the same era-neutral
  *    base COUNTRY_CONFIGS values 1979/1991 use.

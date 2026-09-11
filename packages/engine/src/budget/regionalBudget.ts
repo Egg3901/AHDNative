@@ -4,9 +4,12 @@
  *         generic extraction of the shared revenue/spending pattern.
  *
  * Mainline has country-specific variants:
- *  - src/lib/turn/jpRegionalBudget.ts (Japan, deferred — JP not playable)
- *  - src/lib/turn/deRegionalBudget.ts (Germany, deferred — DE not playable)
+ *  - src/lib/turn/jpRegionalBudget.ts (Japan, unported, issue #103)
+ *  - src/lib/turn/deRegionalBudget.ts (Germany, unported, issue #103)
  *  - src/lib/turn/cnRegionalBudget.ts / ruRegionalBudget.ts etc.
+ *
+ * JP and DE are playable in the 1991 and 2019 packs and use the generic
+ * processor below until their variants land.
  *
  * Solo's generic processor handles any playable country's regions as a
  * population-share slice of the national grant pool plus a small own-revenue

@@ -14,9 +14,11 @@
  *  - src/lib/turn/corporation/earningsRollingAverage.ts (rolling earnings window)
  *  - src/lib/turn/corporation/recomputeSharePrices.ts (FALLBACK_PRIME_RATE_PERCENT)
  *
- * OUT OF SCOPE, confirmed present in mainline but not ported here (per the
- * wave brief): bonds (issuedBondDebt/bondHoldingsAnchor/bond-reliance
- * penalty — W12/W13, no bond system exists in this worktree yet), tech-tree
+ * OUT OF SCOPE, confirmed present in mainline but not ported into this
+ * formula (per the wave brief): bond-linked inputs (issuedBondDebt /
+ * bondHoldingsAnchor / bond-reliance penalty. The W13 bond cluster itself
+ * is live in bonds/phases.ts, but these share-price formula inputs are not
+ * wired), tech-tree
  * asset value (no tech tree ported), index-fund ownership premium (no index
  * funds ported), construction-in-progress / plants capex (no plants tier
  * ported — corp/constants.ts confirms this), stock splits and their

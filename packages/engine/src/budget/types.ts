@@ -108,7 +108,8 @@ export interface CountryBudget {
 /**
  * Regional (state) budget — generic version.
  * Source: src/lib/turn/regionalBudget.ts BudgetCalculationInput/Result + StateBudget shape.
- * JP/DE variants deferred (those countries not playable) — listed in regionalBudget.ts
+ * JP/DE country-specific variants are unported (issue #103); see regionalBudget.ts.
+ * JP and DE are playable in the 1991 and 2019 packs and use the generic processor.
  */
 export interface RegionalBudget {
   regionId: string;

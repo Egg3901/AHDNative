@@ -112,14 +112,16 @@ export const fiscalYearPhase: TurnPhase = {
 };
 
 // ── Regional budget processing (generic) ─────────────────────────────
-// Source: src/lib/turn/regionalBudget.ts processRegionalBudgets (generic; JP/DE variants deferred)
+// Source: src/lib/turn/regionalBudget.ts processRegionalBudgets (generic).
+// Country-specific JP/DE variants remain unported (issue #103); JP and DE
+// are playable in the 1991 and 2019 packs and use this generic processor.
 export const regionalBudgetProcessingPhase: TurnPhase = {
   name: "regionalBudgetProcessing",
   run(world) {
     // Generic processor handles all regions as population-share slices of national grant pool
     // plus own-revenue stat share of regional GDP (mirrors UK/CN/DE pattern generically).
-    // JP variant: src/lib/turn/jpRegionalBudget.ts (deferred — JP not playable)
-    // DE variant: src/lib/turn/deRegionalBudget.ts (deferred — DE not playable)
+    // JP variant: src/lib/turn/jpRegionalBudget.ts (unported, issue #103)
+    // DE variant: src/lib/turn/deRegionalBudget.ts (unported, issue #103)
     for (const [rid, region] of Object.entries(world.regions)) {
       const countryBudget = world.budgets?.[region.countryId];
       if (!countryBudget) continue;

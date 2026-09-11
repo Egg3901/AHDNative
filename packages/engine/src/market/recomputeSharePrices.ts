@@ -23,10 +23,12 @@
  * Mainline's own recomputeSharePrices exists to fix a lag: it re-prices
  * AFTER bondTurn has applied coupon cash flows, because processCorporationTurn
  * already wrote a placeholder price before bondTurn ran (see
- * turn/corporation/recomputeSharePrices.ts file doc). AHDClient has no bond
- * system (W12/W13), so there is no post-bond lag to eliminate here — this
- * phase simply IS the (only) turn repricing step, reading the same-turn
- * corporationTurn output directly.
+ * turn/corporation/recomputeSharePrices.ts file doc). The W13 bond cluster
+ * (sovereignIssuance, bondCouponMaturity, npcBondHolder in bonds/phases.ts)
+ * is live but placed at the tail AFTER this phase, so this phase still
+ * prices before this turn's coupon/maturity servicing rather than after it
+ * as in mainline. This is a tail-ordering deviation, not a missing system. It reads
+ * the same-turn corporationTurn output directly.
  *
  * PORT-STUB — order-flow / sentiment multiplier (human-liquidity gap):
  * mainline's live sharePrice = fundamentalValue x sentimentMultiplier x
