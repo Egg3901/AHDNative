@@ -12,6 +12,8 @@ export const RALLY_IMMEDIATE_SHARE = 0.6 as const;
 export const RALLY_SPREAD_TURNS = 4 as const;
 // Source: src/lib/electionEngine/electionFormulaFactors.ts
 export const SUPPORT_RALLY_ACTION_COST = 20 as const;
+// Source: src/lib/electionEngine/electionFormulaFactors.ts
+export const SUPPORT_RALLY_TOUR_TICK_ACTION_COST = 10 as const;
 
 // turnoutDecay
 // Source: src/lib/utils/turnoutDecay.ts

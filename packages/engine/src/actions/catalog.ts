@@ -70,9 +70,10 @@ export type ActionId =
   | "withdrawSavings"
   | "moveSavings"
   | "wireTransfer"
-  // P0 campaign management (#67): player campaign upgrade purchases
+  // P0 campaign management (#67): player campaign controls
   | "campaignUpgrade"
-  | "campaignRally";
+  | "campaignRally"
+  | "campaignRallyTour";
 
 // Costs mirror mainline's dynamic tier functions but collapsed to neutral
 // goldens for solo's simpler state (no per-state GDP tier). Cited.
@@ -720,6 +721,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     id: "campaignRally",
     name: "Campaign Rally",
     description: "Fire a one-shot rally for your active campaign. Spends campaign actions and applies immediate plus trailing candidate support; once per turn.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["campaign/support"],
+    status: "available",
+  },
+  campaignRallyTour: {
+    id: "campaignRallyTour",
+    name: "Campaign Rally Tour",
+    description: "Start or stop a recurring campaign rally tour. Each active turn spends the race-scaled tour tick cost and applies the standard rally support split.",
     baseCost: 0,
     cooldown: 0,
     fundCost: 0,

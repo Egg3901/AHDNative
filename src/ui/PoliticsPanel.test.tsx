@@ -205,6 +205,11 @@ describe("PoliticsPanel elections", () => {
       rally: {
         action: { id: "campaignRally", name: "Campaign Rally", description: "", cost: 6, available: true },
         immediateSupport: 1.8, pendingPerTurn: 0.3, pendingTurns: 4,
+        tour: {
+          active: false,
+          tickCost: 3,
+          action: { id: "campaignRallyTour", name: "Start campaign rally tour", description: "", cost: 0, available: true },
+        },
       },
       activity: [{
         type: "upgrade", category: "fundraising", branch: null,
@@ -229,6 +234,8 @@ describe("PoliticsPanel elections", () => {
     expect(onAction).toHaveBeenCalledWith("campaignUpgrade", { electionId: "house:US:AL:c1", category: "fundraising" });
     await user.click(screen.getByRole("button", { name: "Fire campaign rally" }));
     expect(onAction).toHaveBeenCalledWith("campaignRally", { electionId: "house:US:AL:c1" });
+    await user.click(screen.getByRole("button", { name: "Start campaign rally tour" }));
+    expect(onAction).toHaveBeenCalledWith("campaignRallyTour", { electionId: "house:US:AL:c1", rallyTour: "start" });
   });
 
   it("shows no vote figures before any tally exists", async () => {

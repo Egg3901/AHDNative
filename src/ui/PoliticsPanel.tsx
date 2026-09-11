@@ -287,6 +287,13 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
     if (busy || !campaign.rally.action.available) return;
     onAction("campaignRally", { electionId });
   };
+  const toggleRallyTour = () => {
+    if (busy || !campaign.rally.tour.action.available) return;
+    onAction("campaignRallyTour", {
+      electionId,
+      rallyTour: campaign.rally.tour.active ? "stop" : "start",
+    });
+  };
   const categoryLabel = (category: string) => category.replace(/([A-Z])/g, " $1").toLowerCase();
   const activityLabel = (entry: PoliticsPlayerCampaignView["activity"][number]) => {
     const target = entry.branch ? `branch ${entry.branch}` : "starter";
@@ -324,6 +331,21 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
           </button>
           {!campaign.rally.action.available ? (
             <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{campaign.rally.action.disabledReason ?? "Unavailable"}</span>
+          ) : null}
+        </div>
+        <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.35rem" }}>
+          <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+            Rally tour: {campaign.rally.tour.active ? "active" : "off"} ({campaign.rally.tour.tickCost} actions/turn)
+          </span>
+          <button type="button" className="ahd-btn ahd-btn-sm"
+            disabled={busy || !campaign.rally.tour.action.available}
+            aria-disabled={busy || !campaign.rally.tour.action.available}
+            aria-label={campaign.rally.tour.active ? "Stop campaign rally tour" : "Start campaign rally tour"}
+            onClick={toggleRallyTour}>
+            {campaign.rally.tour.active ? "Stop tour" : "Start tour"}
+          </button>
+          {!campaign.rally.tour.action.available ? (
+            <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{campaign.rally.tour.action.disabledReason ?? "Unavailable"}</span>
           ) : null}
         </div>
       </section>

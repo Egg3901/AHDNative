@@ -1174,6 +1174,8 @@ export interface CandidateSupport {
   supportAccrual: Array<{ amountPerTurn: number; turnsRemaining: number }>;
   /** One-shot rally throttle; absent on saves created before rally support. */
   lastRallyTurn?: number;
+  /** Source candidate-level toggle for the recurring rally-tour tick. */
+  rallyTourActive?: boolean;
   status: "active" | "withdrawn";
 }
 
