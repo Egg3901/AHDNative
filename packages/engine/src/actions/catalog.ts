@@ -436,7 +436,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   contestPartyLeadership: {
     id: "contestPartyLeadership",
     name: "Contest Party Leadership",
-    description: "Enter a state or national party leadership race (chair/viceChair/treasurer) for your current party. Ports src/lib/statePartyElections.ts and src/lib/nationalPartyElections.ts candidacy entry (24h cooldown and party tenure gates are PORT-STUB with infamy 0). Cost 2 AP. Where mainline gates on human entry, NPCs are auto-entered by phase.",
+    description: "Enter a state or national party leadership race (chair/viceChair/treasurer) for your current party. Ports the Character candidacy entry in src/lib/statePartyElections.ts and src/lib/nationalPartyElections.ts; NPPs are not auto-entered. 24h cooldown and party tenure gates remain PORT-STUB. Cost 2 AP.",
     baseCost: 2,
     cooldown: 0,
     fundCost: 0,
@@ -446,7 +446,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   votePartyLeadership: {
     id: "votePartyLeadership",
     name: "Vote in Party Leadership Election",
-    description: "Cast ballot in a state or national party leadership election for your party. Single-choice per election. Ports StatePartyVote/NationalPartyVote ballot. NPC votes use NPP ballot logic per src/lib/turn/nppVoteLogic.ts calculateBaseVote (loyalty->abstain, ideology proximity). Cost 1 AP.",
+    description: "Cast ballot in a state or national party leadership election for your party. Single-choice per election. Ports StatePartyVote/NationalPartyVote ballot. NPPs do not vote in mainline national leadership elections; Native only persists the player ballot there. Cost 1 AP.",
     baseCost: 1,
     cooldown: 0,
     fundCost: 0,

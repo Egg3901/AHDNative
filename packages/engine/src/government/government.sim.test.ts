@@ -6,7 +6,7 @@ import type { SaveFile } from "../save.js";
 import type { Politician } from "../types.js";
 import { computeFormation, selectPm } from "./formation.js";
 import { governmentFormationPhase, governmentVacancyWatcherPhase, triggerSnapElection } from "./phases.js";
-import { PM_VACANCY_DEADLINE_TURNS, majorityThreshold, minorityThreshold, noConfidenceMotionCarries } from "./constants.js";
+import { GOVERNMENT_CHAMBER_BY_COUNTRY, PM_VACANCY_DEADLINE_TURNS, majorityThreshold, minorityThreshold, noConfidenceMotionCarries } from "./constants.js";
 
 const OPTS = { seed: "gov-test", playerName: "Tester", countryId: "UK", era: "1953" } as const;
 
@@ -32,6 +32,16 @@ function makePolitician(id: string, countryId: string, partyId: string, chamberK
     personality: { loyalty: 50, ambition: 50, stubbornness: 50 },
     cash: 0,
   };
+}
+
+function setPartyChairForGovernment(world: ReturnType<typeof createWorld>, countryId: string, partyId: string): string {
+  const chamberKey = GOVERNMENT_CHAMBER_BY_COUNTRY[countryId]!;
+  const politician = world.politicians.find(
+    (p) => p.countryId === countryId && p.partyId === partyId && p.chamberKey === chamberKey,
+  );
+  if (!politician) throw new Error(`No ${countryId} ${partyId} ${chamberKey} politician in fixture`);
+  world.parties[partyId]!.chairId = politician.id;
+  return politician.id;
 }
 
 describe("computeFormation (pure seat math)", () => {
@@ -66,26 +76,38 @@ describe("computeFormation (pure seat math)", () => {
 });
 
 describe("selectPm", () => {
-  it("PORT-STUB fallback: picks the seat-holding politician with the highest partyInfluence, tie-break by id", () => {
+  it("does not select an NPP from legacy partyInfluence when the party has no chair", () => {
     const w = createWorld(OPTS);
     w.politicians.push(makePolitician("UK-senior", "UK", "UK_LAB", "commons", 80));
     w.politicians.push(makePolitician("UK-junior", "UK", "UK_LAB", "commons", 10));
-    expect(selectPm(w, "UK", "commons", "UK_LAB")).toBe("UK-senior");
+    expect(selectPm(w, "UK", "commons", "UK_LAB")).toBeNull();
   });
 
-  it("tie-break is deterministic (lowest id) when partyInfluence is equal", () => {
+  it("uses the seated party chair as the PM input", () => {
     const w = createWorld(OPTS);
-    w.politicians.push(makePolitician("UK-b", "UK", "UK_LAB", "commons", 50));
-    w.politicians.push(makePolitician("UK-a", "UK", "UK_LAB", "commons", 50));
-    expect(selectPm(w, "UK", "commons", "UK_LAB")).toBe("UK-a");
-  });
-
-  it("prefers a feature-detected chairId over the partyInfluence fallback", () => {
-    const w = createWorld(OPTS);
+    w.politicians.push(makePolitician("UK-chair", "UK", "UK_LAB", "commons", 0));
     w.politicians.push(makePolitician("UK-senior", "UK", "UK_LAB", "commons", 80));
-    w.politicians.push(makePolitician("UK-chair", "UK", "UK_LAB", "commons", 5));
-    (w.parties["UK_LAB"] as unknown as Record<string, unknown>)["chairId"] = "UK-chair";
+    w.parties["UK_LAB"]!.chairId = "UK-chair";
     expect(selectPm(w, "UK", "commons", "UK_LAB")).toBe("UK-chair");
+  });
+
+  it("uses the vice-chair only when the chair seat is vacant", () => {
+    const w = createWorld(OPTS);
+    w.politicians.push(makePolitician("UK-vice", "UK", "UK_LAB", "commons", 0));
+    w.parties["UK_LAB"]!.viceChairId = "UK-vice";
+    expect(selectPm(w, "UK", "commons", "UK_LAB")).toBe("UK-vice");
+  });
+
+  it("preserves the source leadership pointer across save and resume", () => {
+    const w = createWorld(OPTS);
+    const commons = w.legislatures["UK"]!.chambers.find((c) => c.key === "commons")!;
+    commons.composition = { seatsByParty: { UK_LAB: 400, UK_CON: 225 }, vacancies: 0 };
+    w.politicians.push(makePolitician("UK-chair", "UK", "UK_LAB", "commons"));
+    w.politicians.push(makePolitician("UK-con", "UK", "UK_CON", "commons"));
+    w.parties["UK_LAB"]!.chairId = "UK-chair";
+
+    const restored = deserializeSave(serializeSave(w, "2026-09-11T00:00:00Z"));
+    expect(selectPm(restored, "UK", "commons", "UK_LAB")).toBe("UK-chair");
   });
 
   it("returns null when the party holds no seat in the chamber (never invents a player-PM shortcut)", () => {
@@ -97,6 +119,8 @@ describe("selectPm", () => {
 describe("governmentFormationPhase (integration)", () => {
   it("RU and DD form a majority government on turn 1 from their seeded landslide composition", () => {
     const w = createWorld({ seed: "gov-ru-dd", playerName: "Tester", countryId: "US", era: "1953" });
+    setPartyChairForGovernment(w, "RU", "RU_CPSU");
+    setPartyChairForGovernment(w, "DD", "DD_SED");
     advanceTurn(w);
     const ru = w.governments["RU"]!;
     expect(ru.status).toBe("formed");
@@ -118,6 +142,7 @@ describe("governmentFormationPhase (integration)", () => {
     commons.composition = { seatsByParty: { UK_LAB: 400, UK_CON: 225 }, vacancies: 0 };
     w.politicians.push(makePolitician("UK-lab-1", "UK", "UK_LAB", "commons", 20));
     w.politicians.push(makePolitician("UK-con-1", "UK", "UK_CON", "commons", 20));
+    w.parties["UK_LAB"]!.chairId = "UK-lab-1";
 
     governmentFormationPhase.run(w, undefined as never);
 
@@ -139,6 +164,7 @@ describe("governmentFormationPhase (integration)", () => {
     w.politicians.push(makePolitician("UK-lab-1", "UK", "UK_LAB", "commons", 20));
     w.politicians.push(makePolitician("UK-con-1", "UK", "UK_CON", "commons", 20));
     w.politicians.push(makePolitician("UK-lib-1", "UK", "UK_LIB", "commons", 20));
+    w.parties["UK_LAB"]!.chairId = "UK-lab-1";
 
     governmentFormationPhase.run(w, undefined as never);
 
@@ -172,6 +198,7 @@ describe("governmentFormationPhase (integration)", () => {
     commons.composition = { seatsByParty: { UK_LAB: 400, UK_CON: 225 }, vacancies: 0 };
     w.politicians.push(makePolitician("UK-lab-1", "UK", "UK_LAB", "commons", 20));
     w.politicians.push(makePolitician("UK-con-1", "UK", "UK_CON", "commons", 20));
+    w.parties["UK_LAB"]!.chairId = "UK-lab-1";
     governmentFormationPhase.run(w, undefined as never);
     expect(w.governments["UK"]!.confidence).toBe(75);
 

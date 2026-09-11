@@ -27,6 +27,12 @@ describe("UK career initialization", () => {
       vacancies: 0,
     });
 
+    const chair = world.politicians.find(
+      (politician) => politician.countryId === "UK" && politician.partyId === "UK_LAB" && politician.chamberKey === "commons",
+    );
+    expect(chair).toBeDefined();
+    world.parties["UK_LAB"]!.chairId = chair!.id;
+
     advanceTurn(world);
 
     expect(world.governments.UK?.status).toBe("formed");

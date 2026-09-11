@@ -5,6 +5,7 @@ import { deserializeSave, serializeSave } from "../save.js";
 import { executeAction } from "../actions/execute.js";
 import { advanceCalendarPhase } from "../phases/advanceCalendar.js";
 import { rngFromSeed } from "../rng.js";
+import { resolveNationalPartyElections } from "./nationalPartyElections.js";
 import {
   STATE_PARTY_ELECTION_DURATION_TURNS,
   NATIONAL_PARTY_ELECTION_DURATION_TURNS,
@@ -34,6 +35,7 @@ describe("intraparty cycle goldens with citations", () => {
     const e = world.nationalPartyElections.find((x) => x.position === "chair");
     expect(e).toBeDefined();
     expect(e!.durationTurns).toBe(72);
+    expect(e!.candidateIds).toEqual([]);
   });
 
   it("committee election duration is 168 per src/lib/nationalCommitteeElections.ts COMMITTEE_ELECTION_DURATION_TURNS", () => {
@@ -115,12 +117,11 @@ describe("leadership changes deterministic", () => {
   it("national leadership winners get party role", () => {
     const world = createWorld(OPTS);
     for (let i = 0; i < 80; i++) advanceTurn(world);
-    // After resolution, some national party should have chairId set
+    // NPPs do not stand or vote in mainline party leadership elections.
+    // Native has no separate Character roster, so no chair is fabricated.
     const withChair = Object.values(world.parties).filter((p) => p.chairId);
-    // Depends on elections completing; at least US majors should have had chance
-    // National elections at 72 duration resolve by turn 73 (started turn 1). So by 80 should have one cycle complete.
-    expect(withChair.length).toBeGreaterThan(0);
-    // Deterministic: re-run gives same chairs
+    expect(withChair.length).toBe(0);
+    // Deterministic: re-run preserves the same vacancies
     const world2 = createWorld(OPTS);
     for (let i = 0; i < 80; i++) advanceTurn(world2);
     expect(JSON.stringify(Object.values(world.parties).map((p) => p.chairId).sort())).toBe(
@@ -136,14 +137,32 @@ describe("leadership changes deterministic", () => {
     advanceTurn(world); // creates elections
     const election = world.nationalPartyElections.find((e) => e.status === "voting" && e.partyId === "US_DEM");
     expect(election).toBeDefined();
-    const targetCandidate = election!.candidateIds[0]!;
+    const contest = executeAction(world, "player", "contestPartyLeadership", {
+      intrapartyElectionId: election!.id,
+      position: "chair",
+    });
+    expect(contest.ok).toBe(true);
     const res = executeAction(world, "player", "votePartyLeadership", {
       intrapartyElectionId: election!.id,
-      candidateId: targetCandidate,
+      candidateId: "player",
     });
     expect(res.ok).toBe(true);
-    expect(election!.votes["player"]).toBe(targetCandidate);
-    // NPC votes still auto-filled at resolution with ballot.ts logic citing nppVoteLogic
+    expect(election!.votes["player"]).toBe("player");
+  });
+
+  it("ignores legacy NPP candidates and ballots at national resolution", () => {
+    const world = createWorld(OPTS);
+    advanceTurn(world);
+    const election = world.nationalPartyElections.find((e) => e.status === "voting" && e.partyId === "US_DEM")!;
+    election.candidateIds = ["legacy-npp"];
+    election.votes = { "legacy-npp-voter": "legacy-npp" };
+    election.endTurn = world.meta.turn;
+
+    resolveNationalPartyElections(world, rngFromSeed("legacy-npp-ballot"));
+
+    expect(election.status).toBe("completed");
+    expect(election.winnerId).toBeNull();
+    expect(world.parties["US_DEM"]!.chairId).toBeNull();
   });
 
   it("committee player ballot respects max 6 picks", () => {

@@ -539,15 +539,14 @@ export interface Politician {
   ideology: PoliticianIdeology;
   age: number;
   /**
-   * Accumulated party influence (per-politician).
-   * Ports Character.partyInfluence (src/lib/turn/partyInfluenceTurn.ts).
-   * Seeded 0; updated by partyInfluenceTurn each turn.
+   * Legacy save field. Native politicians are NPP-backed and do not receive
+   * Character.partyInfluence (src/lib/turn/partyInfluenceTurn.ts). Kept at 0
+   * for save readability until a separate Character roster exists.
    */
   partyInfluence: number;
   /**
-   * Per-turn bonus actions granted by influence share.
-   * Ports the bonus-actions side effect of partyInfluenceTurn.
-   * Now consumed by actionRefresh into `actions`.
+   * Legacy save field. NPPs do not receive Character party-influence bonus AP;
+   * load and turn boundaries normalize this counter to 0.
    */
   bonusActions: number;
   /**

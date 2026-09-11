@@ -16,22 +16,10 @@ import { projectPlayerPartyInfluence } from "./playerInfluence.js";
 import {
   ORG_DECAY_RATE,
   MIN_PRESENCE_ORG,
-  PARTY_INFLUENCE_DECAY_RATE,
-  PARTY_INFLUENCE_BASE_RATE,
-  PARTY_INFLUENCE_MAX_PENALTY,
-  PARTY_INFLUENCE_POOL_MULTIPLIER,
-  PARTY_INFLUENCE_MAX_BONUS,
   NATIONAL_PASSIVE_PS_PER_TURN,
   NATIONAL_PS_CAP,
   PS_INVESTMENT_MAX_TIERS,
 } from "./constants.js";
-import {
-  computeClosenessScalar,
-  computeInfamyPenalty,
-  computeTurnGain,
-  computeNewInfluence,
-  computeBonusActions,
-} from "./partyInfluence.js";
 import {
   resolvePartyPsCap,
   resolveTierTransition,
@@ -48,12 +36,6 @@ import {
 export const partyInfluenceTurnPhase: TurnPhase = {
   name: "partyInfluenceTurn",
   run(world, _rng, context) {
-    const decayRate = PARTY_INFLUENCE_DECAY_RATE;
-    const baseRate = PARTY_INFLUENCE_BASE_RATE;
-    const maxPenalty = PARTY_INFLUENCE_MAX_PENALTY;
-    const poolMultiplier = PARTY_INFLUENCE_POOL_MULTIPLIER;
-    const maxBonus = PARTY_INFLUENCE_MAX_BONUS;
-
     const player = world.player;
     const source = context?.playerAtTurnStart ?? player;
     const projected = projectPlayerPartyInfluence(world, source);
@@ -64,42 +46,14 @@ export const partyInfluenceTurnPhase: TurnPhase = {
       }
     }
 
-    const byParty = new Map<string, typeof world.politicians>();
+    // Native's politician roster is the NPP-backed office-holder roster. The
+    // reference partyInfluenceTurn receives Characters only, so NPPs must not
+    // accumulate Character party clout or receive its bonus AP. Keep these
+    // legacy fields in the save shape for readability, but normalize them at
+    // the turn boundary until the separate Character roster exists.
     for (const pol of world.politicians) {
-      const arr = byParty.get(pol.partyId);
-      if (arr) arr.push(pol);
-      else byParty.set(pol.partyId, [pol]);
-    }
-
-    for (const [partyId, members] of byParty) {
-      const party = world.parties[partyId];
-      if (!party) continue;
-
-      const totalInfluence = members.reduce((s, p) => s + (p.partyInfluence ?? 0), 0);
-      const totalPool = poolMultiplier * members.length;
-
-      for (const pol of members) {
-        const closeness = computeClosenessScalar(
-          pol.ideology.economic,
-          pol.ideology.social,
-          party.economicPosition,
-          party.socialPosition,
-        );
-        // PORT-STUB leadership/insanity at neutral values
-        const leadershipBonus = 0;
-        const infamyPenalty = computeInfamyPenalty(0, maxPenalty);
-        const turnGain = computeTurnGain(closeness, leadershipBonus, infamyPenalty, baseRate);
-        const newInfluence = computeNewInfluence(pol.partyInfluence ?? 0, turnGain, decayRate);
-        const bonus = computeBonusActions(
-          pol.partyInfluence ?? 0,
-          totalInfluence,
-          totalPool,
-          closeness,
-          maxBonus,
-        );
-        pol.partyInfluence = newInfluence;
-        pol.bonusActions = (pol.bonusActions ?? 0) + bonus;
-      }
+      pol.partyInfluence = 0;
+      pol.bonusActions = 0;
     }
   },
 };
