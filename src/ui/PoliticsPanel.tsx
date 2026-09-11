@@ -283,6 +283,13 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
       ? { electionId, category }
       : { electionId, category, branch });
   };
+  const categoryLabel = (category: string) => category.replace(/([A-Z])/g, " $1").toLowerCase();
+  const activityLabel = (entry: PoliticsPlayerCampaignView["activity"][number]) => {
+    const target = entry.branch ? `branch ${entry.branch}` : "starter";
+    const operation = entry.type === "upgrade" ? "upgraded" : "downgraded";
+    const reason = entry.reason === "insolvency" ? " for insolvency" : "";
+    return `Turn ${entry.turnNumber} · ${operation} ${categoryLabel(entry.category)} ${target} to level ${entry.newLevel}${reason}`;
+  };
   return (
     <section aria-label="Campaign management" style={{ marginTop: "0.7rem", borderTop: "1px solid var(--ahd-border)", paddingTop: "0.55rem" }}>
       <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>
@@ -300,6 +307,21 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
       </dl>
       {campaign.generalPhase ? (
         <p className="ahd-help" role="note">General phase: upgrade costs carry the 1.5x surcharge.</p>
+      ) : null}
+      {campaign.activity.length > 0 ? (
+        <section aria-label="Campaign activity" style={{ marginTop: "0.65rem" }}>
+          <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>Recent activity</h4>
+          <ol style={{ margin: 0, paddingLeft: "1.25rem", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+            {[...campaign.activity].reverse().map((entry) => (
+              <li key={`${entry.turnNumber}-${entry.category}-${entry.branch ?? "starter"}-${entry.newLevel}-${entry.type}`} style={{ fontSize: "0.76rem" }}>
+                {activityLabel(entry)}
+                {entry.costFunds != null || entry.costActions != null ? (
+                  <span className="ahd-muted"> · {entry.costFunds != null ? `${Math.floor(entry.costFunds).toLocaleString()} funds` : ""}{entry.costFunds != null && entry.costActions != null ? " + " : ""}{entry.costActions != null ? `${entry.costActions} actions` : ""}</span>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </section>
       ) : null}
       {campaign.levers.map((lever) => (
         <details key={lever.category} style={{ marginTop: "0.45rem" }}>

@@ -437,13 +437,29 @@ export interface CampaignOpsTree {
   c: number;
 }
 
+export interface CampaignActivity {
+  type: "upgrade" | "downgrade";
+  category: "fundraising" | "oppositionResearch" | "groundGame" | "mediaSpending";
+  branch?: "a" | "b" | "c";
+  /** Level after the operation. A starter unlock is level 1; shedding it is 0. */
+  newLevel: number;
+  /** Present for automatic downgrades, which move an existing branch or starter down. */
+  fromLevel?: number;
+  /** Campaign-local currency and campaign actions paid by an upgrade. */
+  costFunds?: number;
+  costActions?: number;
+  /** Automatic maintenance downgrade. */
+  reason?: "insolvency";
+  turnNumber: number;
+}
+
 /**
  * Per-candidate campaign (W26). Ports src/lib/db/types/campaign.ts Campaign,
  * trimmed to the fields the ported turn loop and tally integration need:
  * treasury (funds/actions), the four ops-lever trees, and per-turn spend
  * accounting. Cut vs mainline: managerId (no Campaign Manager NPC-hire UI
- * this wave), donationLog/activityHistory/fogOfWar (UI-facing history, no
- * consumer in solo), oppositionTargetId (opposition-research targeting is
+ * this wave), donationLog/fogOfWar (UI-facing history, no consumer in solo),
+ * oppositionTargetId (opposition-research targeting is
  * PORT-STUB — see campaigns/opsEffects.ts), campaignStrength (player
  * contribution mechanic — PORT-STUB, see campaigns/README note in
  * campaigns/lifecycle.ts).
@@ -489,6 +505,8 @@ export interface Campaign {
   totalFundsSpent: number;
   totalActionsGenerated: number;
   totalActionsSpent: number;
+  /** Recent manager-facing operations, newest last. Missing on pre-history saves. */
+  activityHistory?: CampaignActivity[];
   createdAtTurn: number;
 }
 

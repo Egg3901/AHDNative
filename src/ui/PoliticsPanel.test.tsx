@@ -202,6 +202,11 @@ describe("PoliticsPanel elections", () => {
       totalFundsGenerated: 12000, totalFundsSpent: 0,
       incomePerTurn: 6000, maintenancePerTurn: 0,
       support: 52, generalPhase: false,
+      activity: [{
+        type: "upgrade", category: "fundraising", branch: null,
+        fromLevel: null, newLevel: 1, costFunds: 15000, costActions: 10,
+        reason: null, turnNumber: 4,
+      }],
       levers: [{
         category: "fundraising", started: false,
         starterFunds: 15000, starterActions: 10, starterEffect: "+$35k/turn base income",
@@ -214,6 +219,7 @@ describe("PoliticsPanel elections", () => {
     expect(screen.getByRole("heading", { name: "house · AL" })).toBeInTheDocument();
     expect(screen.getByText(/Your campaign \[active\]/)).toBeInTheDocument();
     expect(screen.getByText(/mood input, not a vote forecast/)).toBeInTheDocument();
+    expect(screen.getByText(/Turn 4 · upgraded fundraising starter to level 1/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Unlock fundraising starter" }));
     expect(onAction).toHaveBeenCalledWith("campaignUpgrade", { electionId: "house:US:AL:c1", category: "fundraising" });
   });
