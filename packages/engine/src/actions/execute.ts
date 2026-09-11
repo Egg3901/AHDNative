@@ -16,6 +16,7 @@ import * as Endorsement from "../endorsement.js";
 import * as Candidacy from "../elections/candidacy.js";
 import * as CampaignUpgrade from "./campaignUpgrade.js";
 import * as CampaignRally from "./campaignRally.js";
+import * as CampaignRallyTour from "./campaignRallyTour.js";
 import * as Coalition from "../intraparty/coalitions.js";
 import { getLaw, resolveCatalogPolicyOption } from "../legislation/catalog.js";
 import { calculateBudgetSpending } from "../budget/spending.js";
@@ -85,6 +86,7 @@ export type ExecuteActionParams = {
   // P0 campaign management (#67)
   category?: string;
   branch?: "a" | "b" | "c" | null;
+  rallyTour?: "start" | "stop";
 };
 
 export type ExecuteActionResult =
@@ -594,6 +596,23 @@ function executeActionInner(
   if (actionId === "campaignRally") {
     if (found.kind !== "player") return { ok: false, error: "Only player can manage a campaign" };
     const res = CampaignRally.campaignRally(world, { electionId: params.electionId });
+    if (!res.ok) {
+      actor.actions += cost;
+      actor.funds += fundCost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: res.error };
+    }
+    return { ok: true, message: res.message };
+  }
+  if (actionId === "campaignRallyTour") {
+    if (found.kind !== "player") return { ok: false, error: "Only player can manage a campaign" };
+    if (params.rallyTour !== "start" && params.rallyTour !== "stop") {
+      return { ok: false, error: "campaignRallyTour requires rallyTour start|stop" };
+    }
+    const res = CampaignRallyTour.campaignRallyTour(world, {
+      electionId: params.electionId,
+      active: params.rallyTour === "start",
+    });
     if (!res.ok) {
       actor.actions += cost;
       actor.funds += fundCost;
@@ -1432,6 +1451,7 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
     case "declareCandidacy":
     case "withdrawCandidacy":
     case "campaignRally":
+    case "campaignRallyTour":
       return params.electionId ? null : `${actionId} requires electionId`;
     case "sponsorBill":
     case "repealLaw":

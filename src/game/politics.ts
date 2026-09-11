@@ -3,6 +3,7 @@ import {
   campaignAnchorToLocal, campaignKey, canJoinParty, canLeaveParty, getActionCost,
   getCampaignFamilyScalar, getEffectiveBranchCost, RALLY_IMMEDIATE_SHARE,
   RALLY_SPREAD_TURNS, SUPPORT_RALLY_ACTION_COST, SUPPORT_RALLY_FULL_VALUE,
+  SUPPORT_RALLY_TOUR_TICK_ACTION_COST,
   type OpsBranchKey, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionView } from "./types";
@@ -65,6 +66,11 @@ export interface PoliticsCampaignRallyView {
   immediateSupport: number;
   pendingPerTurn: number;
   pendingTurns: number;
+  tour: {
+    active: boolean;
+    tickCost: number;
+    action: ActionView;
+  };
 }
 
 export interface PoliticsPlayerCampaignView {
@@ -233,6 +239,7 @@ function rallyAction(
   campaignActions: number,
   supportStatus: "active" | "withdrawn" | undefined,
   lastRallyTurn: number | undefined,
+  tourActive: boolean,
 ): PoliticsCampaignRallyView {
   const scalar = getCampaignFamilyScalar(election.electionType);
   const actionCost = Math.ceil(SUPPORT_RALLY_ACTION_COST * scalar);
@@ -249,6 +256,8 @@ function rallyAction(
       : undefined)
     ?? (campaignActions < actionCost ? `Needs ${actionCost} campaign actions.` : undefined);
   const entry = ACTION_CATALOG.campaignRally;
+  const tourReason = noRace ?? (supportStatus === "withdrawn" ? "Candidate support is inactive." : undefined);
+  const tourTickCost = Math.ceil(SUPPORT_RALLY_TOUR_TICK_ACTION_COST * scalar);
   return {
     action: {
       id: "campaignRally", name: entry.name, description: entry.description,
@@ -257,6 +266,16 @@ function rallyAction(
     immediateSupport,
     pendingPerTurn,
     pendingTurns: RALLY_SPREAD_TURNS,
+    tour: {
+      active: tourActive,
+      tickCost: tourTickCost,
+      action: {
+        id: "campaignRallyTour", name: tourActive ? "Stop campaign rally tour" : "Start campaign rally tour",
+        description: ACTION_CATALOG.campaignRallyTour.description,
+        cost: 0, available: !tourReason,
+        ...(tourReason ? { disabledReason: tourReason } : {}),
+      },
+    },
   };
 }
 
@@ -273,7 +292,10 @@ function projectPlayerCampaign(
   const supportRow = storedSupport &&
     (storedSupport.electionId === undefined || storedSupport.electionId === election.id)
     ? storedSupport : undefined;
-  const rally = rallyAction(world, election, campaign.actions, supportRow?.status, supportRow?.lastRallyTurn);
+  const rally = rallyAction(
+    world, election, campaign.actions, supportRow?.status, supportRow?.lastRallyTurn,
+    supportRow?.rallyTourActive === true,
+  );
   const levers: PoliticsCampaignLeverView[] = CAMPAIGN_LEVERS.map((category) => {
     const tree = campaign[`${category}Tree`];
     const starterCost = tree.starter ? null

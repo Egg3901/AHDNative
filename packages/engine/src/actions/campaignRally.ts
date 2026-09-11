@@ -15,7 +15,7 @@ export interface CampaignRallyParams {
 
 export type CampaignRallyResult = { ok: true; message: string } | { ok: false; error: string };
 
-function ensurePlayerSupport(
+export function ensurePlayerSupport(
   world: WorldState,
   election: WorldState["elections"][number],
   partyId: string,

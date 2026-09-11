@@ -6,6 +6,13 @@ import { computeAutoDowngrade } from "./autoDowngrade.js";
 import { getMediaFavPerTurn } from "./opsEffects.js";
 import { campaignAnchorToLocal, campaignLocalToAnchor } from "./campaignCurrency.js";
 import { rollSpendStock } from "../electionEngine/electionFormulaFactors.js";
+import { getCampaignFamilyScalar } from "./upgradeCosts.js";
+import { isCampaignEligibleElection } from "./isCampaignEligible.js";
+import {
+  SUPPORT_RALLY_FULL_VALUE,
+  SUPPORT_RALLY_TOUR_TICK_ACTION_COST,
+} from "../support/constants.js";
+import { buildRallyAccrualEntry } from "../support/support.js";
 import { applyCampaignPartySubsidies } from "./partySubsidy.js";
 import { investCampaign } from "./npcInvestment.js";
 
@@ -24,7 +31,7 @@ import { investCampaign } from "./npcInvestment.js";
  *   - Opposition-research passive drain: needs Campaign.oppositionTargetId /
  *     targeting UI (opsEffects.ts getOppoDrainPerTurn is ported and callable,
  *     just never invoked here since no campaign ever sets a target).
- *   - Travel-presence bonus, primary in-state bonus, rally tours,
+ *   - Travel-presence bonus, primary in-state bonus,
  *     player/governor/executive endorsement campaign-action boosts beyond
  *     the plain endorsement count below: all keyed off presidential-only
  *     systems (travel state, primary delegate math, rally UI) that remain
@@ -95,6 +102,7 @@ export const campaignTurnPhase: TurnPhase = {
 
       const electionType = campaign.electionType;
       const countryId = campaign.countryId;
+      const actionsBeforeTurn = campaign.actions;
       const income = calculateCampaignIncome(campaign, electionType);
       const preDowngradeMaintenance = calculateMaintenanceCosts(campaign, electionType);
       const fundsAnchor = campaignLocalToAnchor(campaign.funds, countryId);
@@ -138,6 +146,29 @@ export const campaignTurnPhase: TurnPhase = {
       const actionsGained = baseline + Math.floor(Math.sqrt(Math.max(0, endorsementCount)) * 3);
       campaign.actions += actionsGained;
       campaign.totalActionsGenerated += actionsGained;
+
+      // B1.3: an active player rally tour queues one fresh rally event per
+      // turn. Affordability is checked against the pre-income action pool,
+      // matching mainline's campaignTurn ordering; the regular action grant
+      // still lands before the tick is subtracted from the final pool.
+      const election = world.elections.find((candidateElection) => candidateElection.id === campaign.electionId);
+      const support = world.candidateSupports[campaign.candidateId];
+      if (
+        !campaign.candidateIsNPP &&
+        election?.status === "active" &&
+        isCampaignEligibleElection(election) &&
+        support?.status === "active" &&
+        support.rallyTourActive
+      ) {
+        const scalar = getCampaignFamilyScalar(electionType);
+        const tickCost = Math.ceil(SUPPORT_RALLY_TOUR_TICK_ACTION_COST * scalar);
+        if (actionsBeforeTurn >= tickCost) {
+          const { immediateBump, entry } = buildRallyAccrualEntry(SUPPORT_RALLY_FULL_VALUE * scalar);
+          support.support = clamp01to100(support.support + immediateBump);
+          support.supportAccrual = [...(support.supportAccrual ?? []), entry];
+          campaign.actions -= tickCost;
+        }
+      }
 
       // Media favorability passive -> candidateSupports.support (solo's
       // analog of mainline's Character/NPP.favorability field — tallyAdapter.ts
