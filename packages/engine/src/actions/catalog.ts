@@ -81,6 +81,9 @@ export type ActionId =
   | "campaignManager"
   | "campaignCanvass"
   | "campaignTargetedAd"
+  | "declareWar"
+  | "offerPeace"
+  | "acceptPeace"
   | "requestReferendum";
 
 // Costs mirror mainline's dynamic tier functions but collapsed to neutral
@@ -784,6 +787,39 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     fundCost: CAMPAIGN_TARGETED_AD_FUNDS,
     systems: ["campaign/targeting"],
     status: "available",
+  },
+  declareWar: {
+    id: "declareWar",
+    name: "Declare War",
+    description: "Unavailable until Native ports the source legislative authorization and unit-level combat model.",
+    baseCost: 4,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["war/declaration", "war/combat"],
+    status: "unavailable",
+    blockingSystem: "war declaration legislation and unit-level combat",
+  },
+  offerPeace: {
+    id: "offerPeace",
+    name: "Offer Peace",
+    description: "Unavailable until Native ports bilateral peace offers and source-backed term negotiation.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["war/peace"],
+    status: "unavailable",
+    blockingSystem: "peace offer and term negotiation",
+  },
+  acceptPeace: {
+    id: "acceptPeace",
+    name: "Accept Peace",
+    description: "Unavailable until Native ports peace acceptance, term application, and bilateral truce enforcement.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["war/peace", "war/truce"],
+    status: "unavailable",
+    blockingSystem: "peace acceptance, term application, and truce enforcement",
   },
   requestReferendum: {
     id: "requestReferendum",
