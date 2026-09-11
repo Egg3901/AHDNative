@@ -421,6 +421,25 @@ function assertCurrentWorldState(world: WorldState): void {
   if (avatar !== undefined && avatar !== null && !isSafeRaster(avatar)) {
     throw new Error("Not a valid save file: invalid player avatar");
   }
+  // Stored poll snapshots (#38): absent until commissioned; present values
+  // must carry the numeric topline fields (ports Character.lastPoll shape).
+  for (const field of ["lastPoll", "lastPollLarge"] as const) {
+    const snap = player[field];
+    if (snap === undefined) continue;
+    if (
+      !isRecord(snap) ||
+      typeof snap["takenAt"] !== "string" ||
+      !Number.isInteger(snap["takenAtTurn"]) ||
+      typeof snap["overallAppeal"] !== "number" ||
+      !Number.isFinite(snap["overallAppeal"]) ||
+      typeof snap["totalEstimatedVoters"] !== "number" ||
+      typeof snap["totalPotentialVoters"] !== "number" ||
+      !Array.isArray(snap["topGroups"]) ||
+      !Array.isArray(snap["bottomGroups"])
+    ) {
+      throw new Error(`Not a valid save file: invalid player ${field}`);
+    }
+  }
 
   for (const field of REQUIRED_WORLD_ARRAYS) {
     if (!Array.isArray(value[field])) {

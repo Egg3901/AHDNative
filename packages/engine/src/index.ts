@@ -29,6 +29,7 @@ export * from "./actions/fundGeneration.js";
 export { actionFundCost } from "./actions/fundCost.js";
 export type { FundCostInput } from "./actions/fundCost.js";
 export { CAMPAIGN_TARGETED_AD_CAP } from "./actions/campaignTargetedAd.js";
+export * from "./actions/polling.js";
 export { getCatalog, getLaw } from "./legislation/catalog.js";
 export type { Bill, Committee, EnactedLaw } from "./legislation/types.js";
 export * from "./membership.js";

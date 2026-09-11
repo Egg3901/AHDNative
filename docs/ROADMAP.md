@@ -825,3 +825,24 @@ Native renders the honest notice rather than an imperial form; a rendered
 AHDGame-vs-Native creation screenshot comparison and physical-device run were
 not captured; home-region lean markers stay absent because the engine records
 no per-region economic/social lean. The issue stays open with `status: partial`.
+
+## Player polling checkpoint, 2026-09-15 (#38)
+
+- `poll` and `pollLarge` are live through the public `executeAction` contract
+  with the reference 2 AP / $25,000 and 6 AP / $75,000 anchors. The shared
+  action cost path applies the player's Intellect modifier consistently to the
+  displayed quote and debit.
+- Each commission reads current home-region demographics, live turnout
+  modifiers, party organization and an active general-election opponent set.
+  Quick polls persist topline and strongest/weakest groups. Full polls also
+  persist the complete category breakdown. Competitive races include the
+  projected player and opponent vote totals.
+- Invalid demographic inputs reject atomically before any AP, funds, cooldown
+  or achievement count remains charged. Successful snapshots are deterministic
+  and survive the normal save/reload path as `lastPoll` and `lastPollLarge`.
+- The Actions page exposes both commissions under Intelligence and renders the
+  latest stored quick/full result flow. Focused evidence covers 28 engine action
+  tests, 16 session tests and 66 UI tests. Engine and app typechecks plus the
+  production build pass. The integrated polling journey was updated for the
+  current character-creation handoff and remains part of the consolidated smoke
+  gate.

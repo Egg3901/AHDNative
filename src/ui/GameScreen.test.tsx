@@ -97,6 +97,7 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
     actions: [{ id: "fundraise", name: "Fundraise", description: "Raise money", cost: 1, available: true, requires: "amount" }],
     regions: [{ id: "r1", name: "Midwest" }],
     finance: makeFinance(),
+    polls: { quick: null, full: null },
     notifications: { items: [], unread: 0 },
     nation: { countryId: "US", countryName: "United States", currency: "USD",
       economy: { gdpMillions: 100, growthRate: .04, inflationRate: .02, unemploymentRate: .05, outputGap: 0, primeRate: 3, macroHistory: [], primeRateHistory: [] },

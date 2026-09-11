@@ -116,11 +116,30 @@ describe("actions hub projection", () => {
     expect(new Set(actions.map((a) => a.category))).toEqual(new Set(["influence", "fundraising", "intelligence"]));
     expect(actions.find((a) => a.id === "fundraise")).toMatchObject({ available: false, disabledReason: "No donor base. Use Build Donor Network first." });
   });
-  it("marks unported intelligence actions unavailable with the blocking system named", () => {
+  it("offers real intelligence polls whose results project into the view and survive reload", () => {
     const session = new GameSession(); session.create(options);
-    const poll = session.view().actions.find((a) => a.id === "poll");
-    expect(poll).toMatchObject({ category: "intelligence", available: false });
-    expect(poll?.disabledReason).toContain("polling/election polling");
+    expect(session.view().actions.find((a) => a.id === "poll")).toMatchObject({ category: "intelligence", cost: 2, fundCost: 25_000 });
+    expect(session.view().actions.find((a) => a.id === "pollLarge")).toMatchObject({ category: "intelligence", cost: 6, fundCost: 75_000 });
+    expect(session.view().polls).toEqual({ quick: null, full: null });
+    // New players start broke: polls are funds-gated until money is raised.
+    expect(session.view().actions.find((a) => a.id === "poll")).toMatchObject({ available: false });
+    expect(session.act("convertCash", { amount: 10000 }).ok).toBe(true);
+    expect(session.act("buildDonorBase").ok).toBe(true);
+    expect(session.act("fundraise").ok).toBe(true);
+    expect(session.view().actions.find((a) => a.id === "poll")).toMatchObject({ available: true });
+    const result = session.act("poll");
+    expect(result.ok).toBe(true);
+    const quick = session.view().polls.quick;
+    expect(quick).toMatchObject({ kind: "quick", takenAtTurn: 0 });
+    expect(quick!.overallAppeal).toBeGreaterThan(0);
+    expect(quick!.topGroups).toHaveLength(5);
+    expect(quick!.categories).toBeUndefined();
+    expect(session.act("fundraise").ok).toBe(true);
+    expect(session.act("pollLarge").ok).toBe(true);
+    expect(session.view().polls.full?.categories?.length).toBeGreaterThan(0);
+    const loaded = new GameSession();
+    loaded.load(session.serialize("2026-09-10T00:00:00.000Z"));
+    expect(loaded.view().polls).toEqual(session.view().polls);
   });
 });
 

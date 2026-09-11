@@ -157,8 +157,7 @@ export const ACHIEVEMENT_CATALOG: AchievementCatalogEntry[] = [
     icon: "ChartNoAxesColumnIncreasing",
     category: "action",
     order: 15,
-    status: "unavailable",
-    blockingSystem: "polling/election polling (see actions/catalog.ts poll/pollLarge entries — unavailable there too)",
+    status: "available",
   },
   {
     slug: "advertiser",

@@ -127,6 +127,18 @@ export interface LegislatureScheduleView {
   dueTurn: number | null;
   overdue: boolean;
 }
+/** Slim poll group row for display; full engine rows stay in the save. */
+export interface PollGroupView { id: string; name: string; appeal: number; weightedPotential: number; turnoutPct: number; estimatedSharePct?: number; }
+export interface PollCategoryView { id: string; name: string; weight: number; totalPotentialVoters: number; groups: PollGroupView[]; }
+export interface StoredPollView {
+  kind: "quick" | "full"; takenAtTurn: number; takenAt: string; homeRegion: string;
+  overallAppeal: number; totalEstimatedVoters: number; totalPotentialVoters: number;
+  topGroups: PollGroupView[]; bottomGroups: PollGroupView[];
+  categories?: PollCategoryView[];
+  inRace?: { myVotes: number; opponents: { id: string; name: string; party: string; votes: number }[] };
+}
+/** Latest commissioned polls (ports the stored lastPoll / lastPollLarge the poll UI reads). */
+export interface PollingView { quick: StoredPollView | null; full: StoredPollView | null; }
 export interface LegislatureView {
   office: string | null;
   /** Playable country the legislature belongs to; keys persisted nav context. */
@@ -157,6 +169,7 @@ export interface GameView {
   nation: NationView;
   metrics: MetricView[]; parties: PartyView[]; elections: ElectionView[]; news: NewsView[];
   actions: ActionView[]; regions: { id: string; name: string }[];
+  polls: PollingView;
   notifications: import("./notifications").NotificationInbox;
   actionHistory?: import("./notifications").ActionHistoryEntry[];
 }

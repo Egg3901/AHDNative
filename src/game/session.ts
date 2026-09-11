@@ -17,9 +17,9 @@ import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, createWorld, deserializeSave, executeAction,
   getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCreationParties, listEras, listPlayableCountries, listRegions, rulingPartyForCountry, serializeSave,
-  type ActionId, type ExecuteActionParams, type WorldState,
+  type ActionId, type ExecuteActionParams, type StoredPollSnapshot, type WorldState,
 } from "@ahdclient/engine";
-import type { ActionCategory, ActionView, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions } from "./types";
+import type { ActionCategory, ActionView, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
 import {
   actionNotification, addNotifications, deleteNotification, diffTurnSnapshots, markAllNotificationsRead,
   markNotificationRead, parseNotifications, saveNotification, toInbox, welcomeNotification,
@@ -32,7 +32,8 @@ import {
  * (influence/money/research): campaign, advertise and canvass drive influence;
  * fundraise, donor network and self-funding raise money; polls read the
  * electorate. Party membership stays reachable here under Influence.
- * poll/pollLarge are engine PORT-STUBs surfaced as honestly unavailable.
+ * poll/pollLarge commission real engine polls (issue #38) whose stored
+ * results project into GameView.polls.
  * debatePrep (#37) sits under Intelligence per its mainline research category.
  */
 const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: ActionCategory; prerequisite?: string }[] = [
@@ -363,6 +364,7 @@ function describeAction(
     case "fundraise": case "convertCash": case "depositSavings": case "withdrawSavings":
     case "campaign": case "advertise": case "canvass":
     case "sponsorBill": case "voteOnBill": case "buildDonorBase":
+    case "poll": case "pollLarge":
       return detail;
     default:
       return detail;
@@ -457,6 +459,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
       membership: projectPartyMembership(world, party.id),
     })),
     elections: projectElections(world),
+    polls: projectPolling(world),
     news: world.news.slice(-50).reverse().map((item, index) => ({ id: `${item.turn}:${index}`, title: item.headline, body: "", date: item.date })),
     actions: (player.mode === "hos" ? HOS_ACTIONS : ACTIONS).map(({ id, requires, category, prerequisite }) => {
       const entry = ACTION_CATALOG[id];
@@ -484,6 +487,65 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
       title: item.title, message: item.body || item.title, destination: item.destination,
     }] : []),
   };
+}
+
+/** Latest commissioned polls, projected from the stored engine snapshots. */
+function projectPolling(world: WorldState): PollingView {
+  const nameFor = (id: string): { name: string; party: string } => {
+    for (const election of world.elections) {
+      const candidate = election.candidates.find((c) => c.id === id);
+      if (candidate) {
+        return {
+          name: candidate.name,
+          party: world.parties[candidate.partyId]?.abbreviation ?? candidate.partyId,
+        };
+      }
+    }
+    const politician = world.politicians.find((p) => p.id === id);
+    if (politician) {
+      return {
+        name: politician.name,
+        party: world.parties[politician.partyId]?.abbreviation ?? politician.partyId,
+      };
+    }
+    return { name: id, party: "" };
+  };
+  const project = (snapshot: StoredPollSnapshot | undefined, kind: StoredPollView["kind"]): StoredPollView | null => {
+    if (!snapshot) return null;
+    return {
+      kind,
+      takenAtTurn: snapshot.takenAtTurn,
+      takenAt: snapshot.takenAt,
+      homeRegion: world.regions[world.player.homeRegionId ?? ""]?.name ?? world.player.homeRegionId ?? "",
+      overallAppeal: snapshot.overallAppeal,
+      totalEstimatedVoters: snapshot.totalEstimatedVoters,
+      totalPotentialVoters: snapshot.totalPotentialVoters,
+      topGroups: snapshot.topGroups.map((g) => ({
+        id: g.id, name: g.name, appeal: g.appeal, weightedPotential: g.weightedPotential,
+        turnoutPct: g.turnoutPct, ...(g.estimatedSharePct !== undefined ? { estimatedSharePct: g.estimatedSharePct } : {}),
+      })),
+      bottomGroups: snapshot.bottomGroups.map((g) => ({
+        id: g.id, name: g.name, appeal: g.appeal, weightedPotential: g.weightedPotential,
+        turnoutPct: g.turnoutPct, ...(g.estimatedSharePct !== undefined ? { estimatedSharePct: g.estimatedSharePct } : {}),
+      })),
+      ...(snapshot.categories ? {
+        categories: snapshot.categories.map((c) => ({
+          id: c.id, name: c.name, weight: c.weight, totalPotentialVoters: c.totalPotentialVoters,
+          groups: c.groups.map((g) => ({
+            id: g.id, name: g.name, appeal: g.appeal, weightedPotential: g.weightedPotential,
+            turnoutPct: g.turnoutPct, ...(g.estimatedSharePct !== undefined ? { estimatedSharePct: g.estimatedSharePct } : {}),
+          })),
+        })),
+      } : {}),
+      ...(snapshot.inRaceVoteShare ? {
+        inRace: {
+          myVotes: snapshot.inRaceVoteShare.myVotes,
+          opponents: Object.entries(snapshot.inRaceVoteShare.opponentVotes).map(([id, votes]) => ({ id, ...nameFor(id), votes })),
+        },
+      } : {}),
+    };
+  };
+  return { quick: project(world.player.lastPoll, "quick"), full: project(world.player.lastPollLarge, "full") };
 }
 
 /** Display hints mirror the pinned engine; executeAction remains authoritative. */

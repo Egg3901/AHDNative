@@ -14,8 +14,8 @@ const actions: ActionView[] = [
   { id: "campaign", name: "Campaign", description: "Influence work.", cost: 1, available: true, requires: "region", category: "influence", fundCost: 20000, cooldownTurns: 0, prerequisite: "Choose a region." },
   { id: "advertise", name: "Run Advertisements", description: "Ads.", cost: 5, available: false, disabledReason: "Not enough action points.", category: "influence", fundCost: 100000, cooldownTurns: 0 },
   { id: "fundraise", name: "Fundraise", description: "Raise money.", cost: 3, available: false, disabledReason: "No donor base. Use Build Donor Network first.", category: "fundraising", fundCost: 0, cooldownTurns: 0, prerequisite: "Requires a donor network." },
-  { id: "poll", name: "Quick Poll", description: "Poll.", cost: 2, available: false, disabledReason: "Not yet available: requires the polling/election polling system.", category: "intelligence", fundCost: 25000, cooldownTurns: 0 },
-  { id: "debatePrep", name: "Debate Prep", description: "Study briefing books and rehearse.", cost: 1, available: true, category: "intelligence", fundCost: 0, cooldownTurns: 0 },
+  { id: "poll", name: "Quick Poll", description: "Poll.", cost: 2, available: true, category: "intelligence", fundCost: 25000, cooldownTurns: 0 },
+  { id: "debatePrep", name: "Debate Prep", description: "Study briefing books and rehearse.", cost: 1, available: false, disabledReason: "Needs a research briefing.", category: "intelligence", fundCost: 0, cooldownTurns: 0 },
 ];
 
 const props = {
@@ -45,7 +45,7 @@ describe("ActionsHub", () => {
     const card = screen.getByRole("article", { name: /quick poll/i });
     expect(within(card).getByText(/2 AP/i)).toBeInTheDocument();
     expect(within(card).getByText(/25,000/)).toBeInTheDocument();
-    expect(within(card).getByText(/polling\/election polling/)).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: /take action: quick poll/i })).toBeEnabled();
   });
 
   it("shows cooldown, prerequisite and funds cost from the projection", () => {
@@ -68,7 +68,7 @@ describe("ActionsHub", () => {
   it("marks each card with a compact code-native category symbol and state", () => {
     render(<ActionsHub actions={actions} {...props} category="all" onCategoryChange={() => {}} />);
     const available = screen.getByRole("article", { name: /^campaign$/i }).querySelector(".ahd-action-mark") as HTMLElement;
-    const locked = screen.getByRole("article", { name: /^quick poll$/i }).querySelector(".ahd-action-mark") as HTMLElement;
+    const locked = screen.getByRole("article", { name: /^debate prep$/i }).querySelector(".ahd-action-mark") as HTMLElement;
     expect(available).toHaveAttribute("data-category", "influence");
     expect(available).toHaveAttribute("data-state", "available");
     expect(locked).toHaveAttribute("data-category", "intelligence");
@@ -78,8 +78,8 @@ describe("ActionsHub", () => {
 
   it("keeps the disabled reason visible on a compact locked card", () => {
     render(<ActionsHub actions={actions} {...props} category="intelligence" onCategoryChange={() => {}} />);
-    const card = screen.getByRole("article", { name: /^quick poll$/i });
-    expect(within(card).getByText(/not yet available: requires the polling\/election polling system/i)).toBeInTheDocument();
+    const card = screen.getByRole("article", { name: /^debate prep$/i });
+    expect(within(card).getByText(/needs a research briefing/i)).toBeInTheDocument();
     expect(within(card).getByText("locked")).toBeInTheDocument();
   });
 
