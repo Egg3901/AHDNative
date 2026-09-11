@@ -2,10 +2,16 @@ import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
 import { advanceTurn } from "../engine.js";
 import { resolveReferendumVote, runReferendumLifecycle } from "./lifecycle.js";
+import { referendumYesShare } from "./cohort.js";
 import { seededVariance } from "./seededVariance.js";
 import type { ReferendumRecord } from "./types.js";
 
-const OPTS = { seed: "referendum-test", playerName: "Tester", countryId: "US", era: "1953" } as const;
+const OPTS = {
+  seed: "referendum-test",
+  playerName: "Tester",
+  countryId: "US",
+  era: "1953",
+} as const;
 
 describe("resolveReferendumVote (W25, verbatim port)", () => {
   it("passes above 50% and fails at/below, after variance swing", () => {
@@ -16,7 +22,10 @@ describe("resolveReferendumVote (W25, verbatim port)", () => {
     const fails = resolveReferendumVote({ yesShare: 40, varianceRoll: 0 });
     expect(fails.passed).toBe(false);
 
-    const atThreshold = resolveReferendumVote({ yesShare: 50, varianceRoll: 0 });
+    const atThreshold = resolveReferendumVote({
+      yesShare: 50,
+      varianceRoll: 0,
+    });
     expect(atThreshold.passed).toBe(false); // strictly > 50
   });
 
@@ -50,10 +59,205 @@ describe("runReferendumLifecycle (W25)", () => {
 
   it("only advances records in 'polling' status; others are untouched", () => {
     const w = createWorld(OPTS);
-    const untouched: ReferendumRecord = { ...pollingReferendum(70), status: "campaigning", id: "ref-untouched" };
+    const untouched: ReferendumRecord = {
+      ...pollingReferendum(70),
+      status: "campaigning",
+      id: "ref-untouched",
+    };
     w.referendums.push(untouched);
     runReferendumLifecycle(w);
-    expect(w.referendums.find((r) => r.id === "ref-untouched")!.status).toBe("campaigning");
+    expect(w.referendums.find((r) => r.id === "ref-untouched")!.status).toBe(
+      "campaigning",
+    );
+  });
+
+  it("opens supported UK campaigns with source-backed cohort inputs", () => {
+    const w = createWorld({
+      ...OPTS,
+      countryId: "UK",
+      homeRegionId: "SCO",
+      era: "2019",
+    });
+    w.referendums.push({
+      id: "referendum-SCO-0",
+      countryId: "UK",
+      regionId: "SCO",
+      kind: "independence",
+      status: "granted",
+      yesShare: 62,
+      campaignBaseYesShare: 62,
+      campaignOpenTurn: 0,
+      campaignCloseTurn: 48,
+      requestedTurn: 0,
+      grantedTurn: 0,
+    });
+
+    runReferendumLifecycle(w);
+
+    const ref = w.referendums[0]!;
+    expect(ref.cohortBaseline).toBeDefined();
+    expect(ref.cohortBaseline!.length).toBeGreaterThan(1);
+    expect(
+      ref.cohortBaseline!.some((cohort) => cohort.groupId === "age:young"),
+    ).toBe(true);
+    expect(
+      ref.cohortBaseline!.reduce((sum, cohort) => sum + cohort.share, 0),
+    ).toBeCloseTo(1, 8);
+    expect(referendumYesShare(ref)).toBeCloseTo(62, 8);
+  });
+
+  it("creates the Westminster consent gate when an independence vote passes", () => {
+    const w = createWorld({
+      ...OPTS,
+      countryId: "UK",
+      homeRegionId: "SCO",
+      era: "2019",
+    });
+    w.referendums.push({
+      id: "referendum-SCO-0",
+      countryId: "UK",
+      regionId: "SCO",
+      kind: "independence",
+      status: "polling",
+      yesShare: 90,
+      requestedTurn: 0,
+      grantedTurn: 0,
+    });
+
+    runReferendumLifecycle(w);
+
+    const ref = w.referendums[0]!;
+    const bill = w.bills.find(
+      (candidate) => candidate.id === ref.westminsterBillId,
+    );
+    expect(ref.status).toBe("actuating");
+    expect(ref.conversionDeadlineTurn).toBe(w.meta.turn + 24);
+    expect(ref.westminsterBillId).toBe("referendum-SCO-0-westminster-consent");
+    expect(bill).toMatchObject({
+      id: "referendum-SCO-0-westminster-consent",
+      countryId: "UK",
+      category: "independence",
+      status: "active",
+      currentChamber: "commons",
+      votingEndsOnTurn: w.meta.turn + 24,
+      adminProposed: true,
+    });
+  });
+
+  it("waits for signed consent, then completes independence idempotently", () => {
+    const w = createWorld({
+      ...OPTS,
+      countryId: "UK",
+      homeRegionId: "SCO",
+      era: "2019",
+    });
+    w.referendums.push({
+      id: "referendum-SCO-0",
+      countryId: "UK",
+      regionId: "SCO",
+      kind: "independence",
+      status: "polling",
+      yesShare: 90,
+      requestedTurn: 0,
+      grantedTurn: 0,
+    });
+
+    runReferendumLifecycle(w);
+    const ref = w.referendums[0]!;
+    expect(ref.status).toBe("actuating");
+
+    runReferendumLifecycle(w);
+    expect(ref.status).toBe("actuating");
+    w.bills.find((bill) => bill.id === ref.westminsterBillId)!.status =
+      "signed";
+
+    runReferendumLifecycle(w);
+    expect(ref.status).toBe("completed");
+    expect(w.regions.SCO!.countryId).toBe("SCO");
+    expect(w.countries.SCO).toMatchObject({
+      id: "SCO",
+      name: "Scotland",
+      playable: true,
+    });
+
+    runReferendumLifecycle(w);
+    expect(ref.status).toBe("completed");
+    expect(w.regions.SCO!.countryId).toBe("SCO");
+  });
+
+  it("requires both Westminster and Dáil consent before reunification", () => {
+    const w = createWorld({
+      ...OPTS,
+      countryId: "UK",
+      homeRegionId: "NIR",
+      era: "2019",
+    });
+    w.referendums.push({
+      id: "referendum-NIR-0",
+      countryId: "UK",
+      regionId: "NIR",
+      kind: "reunification",
+      targetCountryId: "IE",
+      status: "polling",
+      yesShare: 90,
+      requestedTurn: 0,
+      grantedTurn: 0,
+    });
+
+    runReferendumLifecycle(w);
+    const ref = w.referendums[0]!;
+    expect(ref.status).toBe("actuating");
+    expect(w.bills).toHaveLength(2);
+    expect(
+      w.bills.find((bill) => bill.id === ref.westminsterBillId)?.countryId,
+    ).toBe("UK");
+    expect(w.bills.find((bill) => bill.id === ref.dailBillId)?.countryId).toBe(
+      "IE",
+    );
+
+    w.bills.find((bill) => bill.id === ref.westminsterBillId)!.status =
+      "signed";
+    runReferendumLifecycle(w);
+    expect(ref.status).toBe("actuating");
+
+    w.bills.find((bill) => bill.id === ref.dailBillId)!.status = "signed";
+    runReferendumLifecycle(w);
+    expect(ref.status).toBe("completed");
+    expect(w.regions.NIR!.countryId).toBe("IE");
+    expect(w.regions.NIR!.name).toBe("Ulster");
+    expect(w.player.countryId).toBe("IE");
+  });
+
+  it("cancels conversion when consent fails without moving the region", () => {
+    const w = createWorld({
+      ...OPTS,
+      countryId: "UK",
+      homeRegionId: "SCO",
+      era: "2019",
+    });
+    w.referendums.push({
+      id: "referendum-SCO-0",
+      countryId: "UK",
+      regionId: "SCO",
+      kind: "independence",
+      status: "polling",
+      yesShare: 90,
+      requestedTurn: 0,
+      grantedTurn: 0,
+    });
+
+    runReferendumLifecycle(w);
+    const ref = w.referendums[0]!;
+    const bill = w.bills.find(
+      (candidate) => candidate.id === ref.westminsterBillId,
+    )!;
+    bill.status = "failed";
+
+    runReferendumLifecycle(w);
+
+    expect(ref.status).toBe("cancelled");
+    expect(ref.cooldownReadyAtTurn).toBeNull();
+    expect(w.regions.SCO!.countryId).toBe("UK");
   });
 
   it("a high-yesShare referendum resolves to 'actuating' (passed) deterministically via seeded hash", () => {
@@ -69,11 +273,14 @@ describe("runReferendumLifecycle (W25)", () => {
 
   it("a low-yesShare referendum resolves to 'settled' (failed)", () => {
     const w = createWorld(OPTS);
+    w.regions.SCO!.independenceDesire = 70;
     w.referendums.push(pollingReferendum(10));
     runReferendumLifecycle(w);
     const ref = w.referendums.find((r) => r.id === "ref-test-1")!;
     expect(ref.status).toBe("settled");
     expect(ref.passed).toBe(false);
+    expect(ref.cooldownReadyAtTurn).toBe(480);
+    expect(w.regions.SCO!.independenceDesire).toBe(25);
   });
 
   it("is wired into advanceTurn and deterministic across two identical-seed worlds", () => {

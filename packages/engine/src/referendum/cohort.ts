@@ -6,19 +6,10 @@
  * `src/lib/referendum/pollSnapshot.ts` (upsertPollPoint), and the campaign
  * tunables they read from `src/lib/constants/referendum.ts`. No I/O.
  *
- * Deliberately NOT ported: `buildReferendumCohorts`, `cohortAffinitiesFor`
- * (`src/lib/constants/referendumCohorts.ts`) and `getBucketProfileForRegion`
- * (`src/lib/demographics/bucketProfile.ts`). Those need the Layer-1 granular
- * electorate (units with `bucketWeights` in the `age/young`-style bucket
- * vocabulary). AHDNative demographics are voter archetypes
- * (`post_industrial_workers`, `green_activists`, ... ; see
- * demographics/ukDemographics*.ts), and the affinity table's own doc states
- * that projecting archetypes onto census buckets is "arithmetically faithful
- * and historically wrong". So a region with no Layer-1 substrate takes
- * mainline's own verbatim fallback from `buildCohortBaseline`
- * (processReferendumLifecycle.ts:55-66): a single synthetic cohort with
- * `yesLean` equal to the opening desire. See lifecycle.ts for where the
- * snapshot is taken.
+ * The source's `buildReferendumCohorts` algorithm is included below. Supported
+ * UK eras use the checked-in Layer-1 profile snapshot in cohortProfiles.ts;
+ * lifecycle.ts retains the source fallback only when a content pack has no
+ * corresponding profile.
  */
 
 /** Per-cohort soft caps, verbatim from `src/lib/constants/referendum.ts`. */
@@ -52,7 +43,8 @@ export interface PollPoint {
   yesShare: number;
 }
 
-const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
+const clamp = (x: number, lo: number, hi: number) =>
+  Math.max(lo, Math.min(hi, x));
 
 /** Raw accumulated units → effective modifier (soft cap via tanh). */
 export function saturate(raw: number, cap: number): number {
@@ -73,7 +65,9 @@ export function leanFromUnits(yesUnits: number, noUnits: number): number {
 export function cumulativeCampaignEffect(units: number): number {
   let total = 0;
   for (let i = 0; i < units; i++) {
-    total += CAMPAIGN_SPEND_YESSHARE_PER_UNIT / (1 + i / CAMPAIGN_SPEND_HALF_LIFE_UNITS);
+    total +=
+      CAMPAIGN_SPEND_YESSHARE_PER_UNIT /
+      (1 + i / CAMPAIGN_SPEND_HALF_LIFE_UNITS);
   }
   return total;
 }
@@ -86,12 +80,14 @@ export function cumulativeCampaignEffect(units: number): number {
 export function deriveCampaignYesShare(
   baseYesShare: number,
   yesUnits: number,
-  noUnits: number
+  noUnits: number,
 ): number {
   return clamp(
-    baseYesShare + cumulativeCampaignEffect(yesUnits) - cumulativeCampaignEffect(noUnits),
+    baseYesShare +
+      cumulativeCampaignEffect(yesUnits) -
+      cumulativeCampaignEffect(noUnits),
     0,
-    100
+    100,
   );
 }
 
@@ -103,7 +99,7 @@ export function deriveCampaignYesShare(
 export function aggregateYesShare(
   cohorts: ReferendumCohort[],
   modifiers: CohortModifier[],
-  uniformLeanShift: number
+  uniformLeanShift: number,
 ): number {
   const modById = new Map(modifiers.map((m) => [m.groupId, m]));
   let num = 0;
@@ -111,13 +107,57 @@ export function aggregateYesShare(
   for (const c of cohorts) {
     const m = modById.get(c.groupId);
     const turnout = clamp(c.turnout + effTurnout(m?.turnoutMod ?? 0), 0, 100);
-    const lean = clamp(c.yesLean + effLean(m?.leanMod ?? 0) + uniformLeanShift, 0, 100);
+    const lean = clamp(
+      c.yesLean + effLean(m?.leanMod ?? 0) + uniformLeanShift,
+      0,
+      100,
+    );
     const weight = c.share * turnout;
     num += weight * lean;
     den += weight;
   }
   if (den === 0) return clamp(uniformLeanShift, 0, 100);
   return clamp(num / den, 0, 100);
+}
+
+/**
+ * Build the source referendum cohorts from Layer-1 marginal sections.
+ *
+ * A profile gives shares that sum to 100 within each dimension, so each
+ * informative dimension contributes an equal share of the electorate. Single
+ * bucket dimensions are omitted when a more informative dimension exists.
+ * The additive re-centering preserves the region-level desire exactly at
+ * campaign open while retaining the authored coalition shape.
+ */
+export function buildReferendumCohorts(
+  sections: ReadonlyArray<{
+    dim: string;
+    buckets: ReadonlyArray<{ id: string; sharePct: number; turnout: number }>;
+  }>,
+  regionDesire: number,
+  affinities: Readonly<Record<string, number>>,
+): ReferendumCohort[] {
+  const informative = sections.filter((section) => section.buckets.length > 1);
+  const used =
+    informative.length > 0
+      ? informative
+      : sections.filter((section) => section.buckets.length > 0);
+  const dimensionCount = used.length;
+  if (dimensionCount === 0) return [];
+
+  const raw = used.flatMap((section) =>
+    section.buckets.map((bucket) => ({
+      groupId: bucket.id,
+      share: bucket.sharePct / 100 / dimensionCount,
+      turnout: clamp(bucket.turnout, 0, 100),
+      yesLean: clamp(regionDesire + (affinities[bucket.id] ?? 0), 0, 100),
+    })),
+  );
+  const shift = regionDesire - aggregateYesShare(raw, [], 0);
+  return raw.map((cohort) => ({
+    ...cohort,
+    yesLean: clamp(cohort.yesLean + shift, 0, 100),
+  }));
 }
 
 /**
@@ -137,7 +177,11 @@ export function referendumYesShare(ref: {
   const yes = ref.campaignSpendUnits?.yes ?? 0;
   const no = ref.campaignSpendUnits?.no ?? 0;
   if (ref.cohortBaseline && ref.cohortBaseline.length > 0) {
-    return aggregateYesShare(ref.cohortBaseline, ref.cohortModifiers ?? [], leanFromUnits(yes, no));
+    return aggregateYesShare(
+      ref.cohortBaseline,
+      ref.cohortModifiers ?? [],
+      leanFromUnits(yes, no),
+    );
   }
   return deriveCampaignYesShare(base, yes, no);
 }
@@ -151,7 +195,7 @@ export function upsertPollPoint(
   history: PollPoint[] | undefined,
   turn: number,
   yesShare: number,
-  cap: number = POLL_HISTORY_CAP
+  cap: number = POLL_HISTORY_CAP,
 ): PollPoint[] {
   const clamped = Math.max(0, Math.min(100, yesShare));
   const next = [

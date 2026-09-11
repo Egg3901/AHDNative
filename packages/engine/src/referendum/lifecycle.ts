@@ -1,10 +1,21 @@
 import type { WorldState } from "../types.js";
 import type { ReferendumRecord } from "./types.js";
 import {
+  buildReferendumCohorts,
   referendumYesShare,
   upsertPollPoint,
   type ReferendumCohort,
 } from "./cohort.js";
+import {
+  cohortAffinitiesFor,
+  getReferendumCohortProfile,
+} from "./cohortProfiles.js";
+import {
+  consentBillFailed,
+  consentBillPassed,
+  createReferendumConsentBills,
+} from "./consent.js";
+import { applyReferendumActuation } from "./actuation.js";
 import { seededVariance } from "./seededVariance.js";
 
 /**
@@ -18,7 +29,7 @@ import { seededVariance } from "./seededVariance.js";
  *   granted     -> campaigning              PORTED (timer + cohort snapshot + opening poll)
  *   campaigning -> polling                  PORTED (timer + canonical recompute + poll snapshot)
  *   polling     -> actuating | settled      PORTED (this file, resolves on the canonical share)
- *   actuating   -> completed | cancelled    PORT-STUB (not ported this wave)
+ *   actuating   -> completed | cancelled    PORTED (consent bills + actuation)
  *
  * The two campaign edges port mainline's status transitions (which are pure
  * timer gates: granted flips next turn unconditionally; campaigning flips when
@@ -26,10 +37,10 @@ import { seededVariance } from "./seededVariance.js";
  * data writes that make the vote resolve on computed rather than stale data:
  *  - granted->campaigning snapshots the cohort baseline and seeds the opening
  *    poll point (processReferendumLifecycle.ts:105-129). Mainline builds the
- *    baseline from the Layer-1 bucket profile; AHDNative regions have no
- *    Layer-1 substrate, so this takes mainline's own verbatim fallback for
- *    exactly that case (buildCohortBaseline: a single `{ groupId: "_all" }`
- *    cohort with yesLean = opening desire). The wire "opened" event is
+ *    baseline from the checked-in Layer-1 bucket profile for supported UK
+ *    eras. Content without a profile takes mainline's own verbatim fallback
+ *    (a single `{ groupId: "_all" }` cohort with yesLean = opening desire).
+ *    The wire "opened" event is
  *    skipped: AHDClient has no wire (mainline itself treats wire writes as
  *    best-effort `.catch(() => {})`).
  *  - campaigning recomputes the canonical Yes share every turn via
@@ -37,23 +48,21 @@ import { seededVariance } from "./seededVariance.js";
  *    the per-turn poll snapshot, folding the final reading into the
  *    campaigning->polling transition write (processReferendumLifecycle.ts:131-
  *    201). The wire "swing" event is skipped for the same reason as above.
- *    `buildReferendumCohorts` / the affinity table / the bucket profile stay
- *    unported until a Layer-1 substrate exists (see cohort.ts file doc).
+ *    `buildReferendumCohorts`, the affinity table, and the bucket profile are
+ *    ported for the shipped UK referendum regions (see cohortProfiles.ts).
  *  - polling resolves on the canonical aggregate, never the stored scalar
  *    (processReferendumLifecycle.ts:203-214).
- *  - actuating->completed|cancelled needs the Westminster/Dail consent-bill
- *    gate (processReferendumLifecycle.ts:216-333) plus the secession/
- *    reunification "actuation" engine (transfer/actuateReferendum.ts) that
- *    actually mutates country/region ownership; a materially different,
- *    large port on its own.
+ *  - actuating->completed|cancelled uses the Westminster/Dáil consent-bill
+ *    gate (processReferendumLifecycle.ts:216-333) and the in-memory region
+ *    ownership transfer in actuation.ts.
  *  - `actions/execute.ts` now exposes the bounded Native equivalent of
  *    `requestReferendum`: it applies the source eligibility gate and writes a
  *    granted record with the window the grant would have written
  *    (`campaignOpenTurn`, `campaignCloseTurn = grantTurn +
  *    CAMPAIGN_WINDOW_TURNS`, `campaignBaseYesShare`). Native still has no
  *    devolved First Minister office ledger, so the action catalog owns the
- *    source's three-point cost. Consent bills and actuation remain explicitly
- *    unported; a passed vote parks in `actuating` below.
+ *    source's three-point cost; the request helper remains the atomic
+ *    request+grant seam.
  * Each record advances at most one edge per turn, matching mainline's
  * per-record `continue` after each branch.
  *
@@ -68,6 +77,8 @@ import { seededVariance } from "./seededVariance.js";
 
 export const CAMPAIGN_VARIANCE_BAND = 4;
 export const REFERENDUM_PASS_THRESHOLD = 50;
+/** Source `SETTLED_COOLDOWN_TURNS` from referendum constants. */
+export const SETTLED_COOLDOWN_TURNS = 480;
 /** Campaign length once granted, in turns. Verbatim from
  * `src/lib/constants/referendum.ts:CAMPAIGN_WINDOW_TURNS`. */
 export const CAMPAIGN_WINDOW_TURNS = 48;
@@ -100,6 +111,21 @@ function fallbackCohortBaseline(openDesire: number): ReferendumCohort[] {
   return [{ groupId: "_all", share: 1, turnout: 60, yesLean: openDesire }];
 }
 
+function cohortBaselineForWorld(
+  world: WorldState,
+  regionId: string,
+  openDesire: number,
+): ReferendumCohort[] {
+  const profile = getReferendumCohortProfile(world.meta.era, regionId);
+  if (!profile) return fallbackCohortBaseline(openDesire);
+  const cohorts = buildReferendumCohorts(
+    profile,
+    openDesire,
+    cohortAffinitiesFor(regionId),
+  );
+  return cohorts.length > 0 ? cohorts : fallbackCohortBaseline(openDesire);
+}
+
 export function runReferendumLifecycle(world: WorldState): void {
   for (const ref of world.referendums) {
     if (ref.status === "granted") {
@@ -111,9 +137,13 @@ export function runReferendumLifecycle(world: WorldState): void {
       ref.pollHistory = upsertPollPoint(
         ref.pollHistory,
         ref.campaignOpenTurn ?? world.meta.turn,
-        openDesire
+        openDesire,
       );
-      ref.cohortBaseline = fallbackCohortBaseline(openDesire);
+      ref.cohortBaseline = cohortBaselineForWorld(
+        world,
+        ref.regionId,
+        openDesire,
+      );
       ref.status = "campaigning";
       continue;
     }
@@ -121,7 +151,11 @@ export function runReferendumLifecycle(world: WorldState): void {
       // Live-seed a baseline for a campaign that predates the cohort model,
       // mirroring mainline (processReferendumLifecycle.ts:133-139).
       if (!ref.cohortBaseline || ref.cohortBaseline.length === 0) {
-        ref.cohortBaseline = fallbackCohortBaseline(ref.campaignBaseYesShare ?? ref.yesShare);
+        ref.cohortBaseline = cohortBaselineForWorld(
+          world,
+          ref.regionId,
+          ref.campaignBaseYesShare ?? ref.yesShare,
+        );
       }
       // Canonical Yes share = cohort aggregate (PS folded in), the value the
       // vote will resolve on ; never the stale stored scalar.
@@ -133,7 +167,7 @@ export function runReferendumLifecycle(world: WorldState): void {
         pollHistory = upsertPollPoint(
           pollHistory,
           ref.campaignOpenTurn ?? world.meta.turn,
-          ref.campaignBaseYesShare ?? ref.yesShare
+          ref.campaignBaseYesShare ?? ref.yesShare,
         );
       }
       pollHistory = upsertPollPoint(pollHistory, world.meta.turn, canonical);
@@ -144,8 +178,71 @@ export function runReferendumLifecycle(world: WorldState): void {
       // The grant-set window closes the campaign (`campaignCloseTurn != null
       // && currentTurn >= campaignCloseTurn`). A null close never fires,
       // matching the source guard; the lifecycle does not invent the window.
-      if (ref.campaignCloseTurn != null && world.meta.turn >= ref.campaignCloseTurn) {
+      if (
+        ref.campaignCloseTurn != null &&
+        world.meta.turn >= ref.campaignCloseTurn
+      ) {
         ref.status = "polling";
+      }
+      continue;
+    }
+    if (ref.status === "actuating") {
+      // Legacy saves can contain an actuating record from before consent bills
+      // were persisted. Recreate the source-shaped gate before evaluating it.
+      const westminsterMissing =
+        ref.westminsterBillId == null ||
+        !world.bills.some((bill) => bill.id === ref.westminsterBillId);
+      const dailMissing =
+        ref.kind === "reunification" &&
+        (ref.dailBillId == null ||
+          !world.bills.some((bill) => bill.id === ref.dailBillId));
+      if (westminsterMissing || dailMissing) {
+        createReferendumConsentBills(world, ref);
+      }
+
+      const westminsterPassed = consentBillPassed(world, ref.westminsterBillId);
+      const dailPassed =
+        ref.kind === "reunification"
+          ? consentBillPassed(world, ref.dailBillId)
+          : true;
+      const westminsterFailed = consentBillFailed(world, ref.westminsterBillId);
+      const dailFailed =
+        ref.kind === "reunification" &&
+        consentBillFailed(world, ref.dailBillId);
+
+      if (westminsterPassed && dailPassed) {
+        const actuation = applyReferendumActuation(world, ref);
+        if (actuation.ok) {
+          ref.status = "completed";
+          world.news.push({
+            turn: world.meta.turn,
+            date: world.meta.date,
+            headline:
+              ref.kind === "independence"
+                ? `${ref.regionId} became an independent country.`
+                : `${ref.regionId} reunified with ${ref.targetCountryId ?? "IE"}.`,
+          });
+        }
+      } else if (westminsterFailed || dailFailed) {
+        ref.status = "cancelled";
+        ref.cooldownReadyAtTurn = null;
+        for (const billId of [ref.westminsterBillId, ref.dailBillId]) {
+          if (billId == null) continue;
+          const bill = world.bills.find((candidate) => candidate.id === billId);
+          if (
+            bill &&
+            bill.status !== "signed" &&
+            bill.status !== "failed" &&
+            bill.status !== "withdrawn"
+          ) {
+            bill.status = "withdrawn";
+          }
+        }
+        world.news.push({
+          turn: world.meta.turn,
+          date: world.meta.date,
+          headline: `${ref.regionId} ${ref.kind} conversion was cancelled after consent failed.`,
+        });
       }
       continue;
     }
@@ -153,20 +250,25 @@ export function runReferendumLifecycle(world: WorldState): void {
     // Authoritative Yes share = the cohort aggregate (PS + ground game folded
     // in) ; independent of any raced display updates (mainline lines 203-207).
     const canonicalYesShare = referendumYesShare(ref);
-    const outcome = resolveReferendumVote({ yesShare: canonicalYesShare, varianceRoll: seededVariance(ref.id, world.meta.turn) });
+    const outcome = resolveReferendumVote({
+      yesShare: canonicalYesShare,
+      varianceRoll: seededVariance(ref.id, world.meta.turn),
+    });
     ref.finalYesShare = outcome.finalYesShare;
     ref.turnout = outcome.turnout;
     ref.passed = outcome.passed;
     ref.resolvedTurn = world.meta.turn;
     if (outcome.passed) {
-      // actuating->completed|cancelled is PORT-STUB (see file doc): the
-      // record parks in "actuating" rather than fabricating a secession
-      // outcome AHDClient has no engine for yet.
+      createReferendumConsentBills(world, ref);
       ref.status = "actuating";
     } else {
       ref.status = "settled";
+      ref.cooldownReadyAtTurn = world.meta.turn + SETTLED_COOLDOWN_TURNS;
+      const region = world.regions[ref.regionId];
+      if (region) region.independenceDesire = 25;
     }
-    const label = ref.kind === "independence" ? "independence" : "reunification";
+    const label =
+      ref.kind === "independence" ? "independence" : "reunification";
     world.news.push({
       turn: world.meta.turn,
       date: world.meta.date,

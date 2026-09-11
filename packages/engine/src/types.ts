@@ -45,10 +45,10 @@ export interface WorldState {
   /** Live election records (W21c). Maintained by the election phases. */
   elections: import("./elections/types.js").ElectionRecord[];
   /**
-   * W25: UK independence/reunification referendum records. See
-   * referendum/lifecycle.ts file doc for exactly which lifecycle stages are
-   * live this wave. Fresh worlds remain empty; the requestReferendum action
-   * creates the first granted record when a player invokes it.
+   * W25: UK independence/reunification referendum records. Fresh worlds
+   * remain empty; the requestReferendum action creates the first granted
+   * record when a player invokes it, and the referendum turn phase advances
+   * the complete campaign, consent, and actuation lifecycle.
    */
   referendums: import("./referendum/types.js").ReferendumRecord[];
   /**
