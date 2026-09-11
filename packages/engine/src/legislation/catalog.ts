@@ -94,6 +94,37 @@ export interface CatalogEntry {
   }>;
 }
 
+/**
+ * Mainline project.ts assigns these directions to program-law levels in order.
+ * The duplicate values are why a selected option must stay an explicit id.
+ */
+export const POLICY_EFFECT_DIRECTION_LADDER = [-1, -1, 0, 1, 1] as const;
+
+export interface ResolvedCatalogPolicyOption {
+  id: string;
+  index: number;
+  level: CatalogLawLevel;
+  effectDirection: (typeof POLICY_EFFECT_DIRECTION_LADDER)[number];
+}
+
+/**
+ * Resolve a Native catalog law option using the source-generated `lN` id.
+ * Entries without authored discrete levels, including tax sliders, cannot
+ * accept a program-law option id.
+ */
+export function resolveCatalogPolicyOption(
+  entry: CatalogEntry | null | undefined,
+  policyOptionId: string,
+): ResolvedCatalogPolicyOption | null {
+  if (entry?.kind === "tax" || !entry?.levels || !/^l(?:0|[1-9][0-9]*)$/.test(policyOptionId)) return null;
+  const index = Number(policyOptionId.slice(1));
+  if (!Number.isSafeInteger(index) || index < 0 || index >= entry.levels.length) return null;
+  const level = entry.levels[index];
+  const effectDirection = POLICY_EFFECT_DIRECTION_LADDER[index];
+  if (!level || effectDirection === undefined) return null;
+  return { id: policyOptionId, index, level, effectDirection };
+}
+
 // Minimal ported catalog: select entries whose effect can be mapped to solo
 // economy/party/support. Rest are stubbed as unavailable.
 

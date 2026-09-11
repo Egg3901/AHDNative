@@ -17,7 +17,7 @@ import type { WorldRng } from "../rng.js";
 import type { Bill } from "./types.js";
 import { didPass, didPassWithFilibusterCheck, tallyVotes } from "./billVoteLogic.js";
 import { assignBillToCommittee } from "./committees.js";
-import { getLaw } from "./catalog.js";
+import { getLaw, resolveCatalogPolicyOption } from "./catalog.js";
 import { UNEMPLOYMENT_MIN, UNEMPLOYMENT_MAX } from "../economy/macroConstants.js";
 import { triggerDebtCeilingCrisis } from "../budget/debtCeiling.js";
 import { applyCurrencyUnionProvision } from "../finance/currencyUnion.js";
@@ -207,6 +207,20 @@ export function processBillLifecycle(world: WorldState, _rng: WorldRng): { bills
 
 export function applyBillEffects(world: WorldState, bill: Bill): void {
   const catalog = bill.legislationTypeId ? getLaw(bill.legislationTypeId) : null;
+  const selectedProvision = bill.provisions.find(
+    (provision) => provision.type === "policy" && provision.legislationTypeId === bill.legislationTypeId,
+  );
+  const selectedPolicyOption =
+    catalog && selectedProvision?.policyOptionId
+      ? resolveCatalogPolicyOption(catalog, selectedProvision.policyOptionId)
+      : null;
+  if (selectedPolicyOption) {
+    // The provision id is authoritative at enactment. Keep the existing
+    // numeric level representation in enacted laws and the policy ledger,
+    // while recording the source-generated direction for ongoing policy work.
+    bill.enactedLevel = selectedPolicyOption.index;
+    bill.effectDirection = selectedPolicyOption.effectDirection;
+  }
   // Budget gate (W28): read the real W2 budget (world.budgets, no cast — this
   // used to reach budgets through an `unknown` cast written before W2 landed
   // as a real WorldState field; that indirection is gone). Warn-only —
@@ -286,7 +300,10 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
     }
     return;
   }
-  applyEffectToWorld(world, bill, effect);
+  // Explicit program-law levels carry cost and policy targets in the source
+  // projection, but no legacy instantaneous economy or party-support fields.
+  // Preserve the legacy catalog descriptor only for omitted-option bills.
+  if (!selectedPolicyOption) applyEffectToWorld(world, bill, effect);
 
   // Support effects: track enacted law
   const enacted: import("./types.js").EnactedLaw = {
