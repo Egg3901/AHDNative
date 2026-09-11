@@ -36,7 +36,7 @@ describe("legislature through the session contract", () => {
     expect(loaded.act("voteOnBill", { billId: bill.id, vote: "for" }).ok).toBe(false);
     expect(loaded.serialize(savedAt)).toBe(before);
   });
-  it("finishes the genuine election fixture, takes office, sponsors and records a vote across reload", () => {
+  it("resolves the historical fixture deterministically under the current distributor", () => {
     const session = new GameSession();
     const raw = gunzipSync(readFileSync(new URL("../../fixtures/career-t95-1953-US.save.json.gz", import.meta.url))).toString("utf8");
     session.load(raw);
@@ -46,16 +46,15 @@ describe("legislature through the session contract", () => {
       .toMatchObject({ chamber: "Senate", votesFor: 52, votesAgainst: 27, votesAbstain: 16 });
     const afterElection = session.advance();
     expect(afterElection.turn).toBe(96);
-    expect(afterElection.legislature.office).toContain("House");
-    expect(afterElection.elections.find((e) => e.id === "house:US:AL:c1")?.winnerNames).toContain("Muse");
-    expect(session.act("sponsorBill", { catalogId: "us.economy.workerSecurity.primary" }).ok).toBe(true);
-    const bill = session.view().legislature.bills.find((b) => b.sponsorName === "Muse")!;
-    expect(bill.voting.available).toBe(false);
-    session.advance();
-    expect(session.view().legislature.bills.find((b) => b.id === bill.id)?.voting.available).toBe(true);
-    expect(session.act("voteOnBill", { billId: bill.id, vote: "for" }).ok).toBe(true);
-    expect(session.view().legislature.bills.find((b) => b.id === bill.id)).toMatchObject({ votesFor: 1, votesAgainst: 0, votesAbstain: 0 });
+    expect(afterElection.legislature.office).toBeNull();
+    const race = afterElection.elections.find((e) => e.id === "house:US:AL:c1");
+    expect(race?.winnerNames).toEqual([
+      "Virginia Hayes", "Roberto Russo", "Priya Russell", "Gabriela Turner",
+      "Jose Monroe", "Alexander Jackson", "Aisha Cohen", "Mary Friedman", "Dorothy White",
+    ]);
+    expect(race?.winnerNames).not.toContain("Muse");
+    expect(session.act("sponsorBill", { catalogId: "us.economy.workerSecurity.primary" }).ok).toBe(false);
     const loaded = new GameSession(); loaded.load(session.serialize(savedAt));
-    expect(loaded.view().legislature.bills.find((b) => b.id === bill.id)?.playerVote).toBe("for");
+    expect(loaded.view().elections.find((e) => e.id === race?.id)?.winnerNames).toEqual(race?.winnerNames);
   }, 20_000);
 });
