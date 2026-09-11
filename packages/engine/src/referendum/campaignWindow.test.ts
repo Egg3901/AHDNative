@@ -38,7 +38,10 @@ describe("referendum campaign window (M02, timer + cohort snapshot edges)", () =
     advanceTurn(w);
     const ref = w.referendums[0]!;
     expect(ref.status).toBe("campaigning");
-    expect(ref.cohortBaseline).toEqual([{ groupId: "_all", share: 1, turnout: 60, yesLean: 60 }]);
+    expect(ref.cohortBaseline).toEqual(expect.arrayContaining([
+      expect.objectContaining({ groupId: "age:young" }),
+    ]));
+    expect(ref.cohortBaseline!.reduce((sum, cohort) => sum + cohort.share, 0)).toBeCloseTo(1, 8);
     expect(ref.pollHistory).toEqual([{ turn: 0, yesShare: 60 }]);
   });
 
@@ -82,7 +85,10 @@ describe("referendum campaign window (M02, timer + cohort snapshot edges)", () =
       advanceTurn(w);
       const ref = w.referendums[0]!;
       expect(ref.status).toBe("campaigning");
-      expect(ref.cohortBaseline).toEqual([{ groupId: "_all", share: 1, turnout: 60, yesLean: 60 }]);
+      expect(ref.cohortBaseline).toEqual(expect.arrayContaining([
+        expect.objectContaining({ groupId: "age:young" }),
+      ]));
+      expect(ref.cohortBaseline!.reduce((sum, cohort) => sum + cohort.share, 0)).toBeCloseTo(1, 8);
       expect(ref.yesShare).toBeCloseTo(60, 10);
     }
   });

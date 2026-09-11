@@ -73,8 +73,8 @@ function nextReferendumId(world: WorldState, regionId: string): string {
  * AHDNative has no devolved First Minister office ledger yet. The action
  * catalog therefore owns the source's three-point cost, while this helper
  * ports the request eligibility and records the immediately granted state
- * needed by the already-live campaign lifecycle. It does not fabricate the
- * later Westminster/Dáil consent or secession actuation.
+ * needed by the campaign lifecycle. The later Westminster/Dáil consent and
+ * in-memory secession/reunification actuation are owned by lifecycle.ts.
  */
 export function requestReferendum(world: WorldState, requestedRegionId: string): RequestReferendumResult {
   if (world.player.countryId !== "UK") {

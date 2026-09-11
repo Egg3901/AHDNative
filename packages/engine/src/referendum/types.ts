@@ -1,14 +1,9 @@
 /**
- * W25: referendum lifecycle record. Ports the subset of mainline's
- * `Referendum` (src/lib/db/types/referendum.ts:35-60) that this wave's
- * skeleton actually drives; see lifecycle.ts file doc for exactly which
- * status edges are ported vs PORT-STUB this wave.
+ * W25: referendum lifecycle record. Ports the Native-supported fields from
+ * mainline's `Referendum` (src/lib/db/types/referendum.ts:35-60), including
+ * the consent-bill ids and conversion deadline used by the actuating edge.
  */
-import type {
-  CohortModifier,
-  PollPoint,
-  ReferendumCohort,
-} from "./cohort.js";
+import type { CohortModifier, PollPoint, ReferendumCohort } from "./cohort.js";
 
 export type ReferendumKind = "independence" | "reunification";
 
@@ -35,10 +30,9 @@ export interface ReferendumRecord {
    * for resolution ; call `referendumYesShare` instead. */
   yesShare: number;
   /** Cohort baseline snapshotted at campaign open; the canonical yesShare is
-   * the turnout-weighted aggregate of these (see cohort.ts). Mainline builds
-   * them from the Layer-1 bucket profile; AHDNative regions have no Layer-1
-   * substrate, so the lifecycle seeds mainline's verbatim single-cohort
-   * fallback (`{ groupId: "_all", ... }`, yesLean = opening desire). */
+   * the turnout-weighted aggregate of these (see cohort.ts). Supported UK
+   * eras use a snapshot of the source Layer-1 bucket profile; unsupported
+   * content uses mainline's single-cohort fallback. */
   cohortBaseline?: ReferendumCohort[];
   /** Raw accumulated ground-game units per cohort (no writers yet; read at
    * aggregate time with the soft cap, see cohort.ts). */
@@ -62,4 +56,10 @@ export interface ReferendumRecord {
   finalYesShare?: number;
   turnout?: number;
   passed?: boolean;
+  /** Deadline for the Westminster/Dáil consent bills after a passed vote. */
+  conversionDeadlineTurn?: number;
+  /** Procedural consent bill in the UK Westminster chamber. */
+  westminsterBillId?: string | null;
+  /** Procedural consent bill in the Irish Dáil for reunification. */
+  dailBillId?: string | null;
 }

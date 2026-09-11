@@ -835,7 +835,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   requestReferendum: {
     id: "requestReferendum",
     name: "Request Referendum",
-    description: "Request and grant a UK devolved-region independence or reunification referendum once desire reaches 60. Consent and actuation remain a named follow-on; passed votes park in actuating.",
+    description: "Request and grant a UK devolved-region independence or reunification referendum once desire reaches 60. Passed votes open Westminster/Dáil consent and complete through the saved actuation lifecycle.",
     baseCost: REQUEST_AP_COST,
     cooldown: 0,
     fundCost: 0,

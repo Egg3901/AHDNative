@@ -47,6 +47,29 @@ describe("requestReferendum action (issue #42)", () => {
     expect(revived.referendums[0]!.status).toBe("polling");
   });
 
+  it("replays one requested referendum through consent and completed actuation", () => {
+    const world = createWorld({ ...OPTS, era: "2019" });
+    world.regions.SCO!.independenceDesire = 90;
+    expect(executeAction(world, "player", "requestReferendum", { regionId: "SCO" }).ok).toBe(true);
+
+    while (world.referendums[0]!.status !== "polling") advanceTurn(world);
+    expect(world.referendums[0]!.cohortBaseline!.length).toBeGreaterThan(1);
+
+    advanceTurn(world);
+    const actuating = world.referendums[0]!;
+    expect(actuating.status).toBe("actuating");
+    expect(actuating.westminsterBillId).toBeDefined();
+    expect(world.bills.find((bill) => bill.id === actuating.westminsterBillId)).toBeDefined();
+
+    const revived = deserializeSave(serializeSave(world, new Date(0).toISOString()));
+    expect(revived.referendums).toEqual(world.referendums);
+    revived.bills.find((bill) => bill.id === actuating.westminsterBillId)!.status = "signed";
+
+    advanceTurn(revived);
+    expect(revived.referendums[0]!.status).toBe("completed");
+    expect(revived.regions.SCO!.countryId).toBe("SCO");
+  });
+
   it("keeps createWorld free of invented referendum records", () => {
     const world = createWorld(OPTS);
     expect(world.referendums).toEqual([]);
