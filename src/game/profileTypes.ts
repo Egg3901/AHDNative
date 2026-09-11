@@ -15,6 +15,11 @@ export interface ProfileView {
   homeRegion: { id: string; name: string } | null;
   party: { id: string; name: string; color: string } | null;
   office: string | null;
+  officeDestination: { route: "legislature" | "policy"; id?: string } | null;
+  policies: { economic: number; social: number } | null;
+  stats: { energy: number | null; debate: number | null } | null;
+  careerHistory: Array<{ id: string; office: string; result: string; turn: number }>;
+  achievements: Array<{ slug: string; name: string; description: string }>;
   standing: {
     actions: number; actionCap: number; actionGain: number;
     politicalInfluence: number; nationalInfluence: number | null;

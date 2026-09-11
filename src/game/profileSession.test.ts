@@ -75,4 +75,32 @@ describe('profile through the saved game session', () => {
     );
     expect(session.serialize(savedAt)).toBe(before);
   });
+
+  it('rebuilds the selected profile hierarchy from persisted engine state after reload', () => {
+    const session = new GameSession(); session.create(options);
+    const raw = JSON.parse(session.serialize(savedAt));
+    raw.world.player.policies = { economic: -2, social: 3 };
+    raw.world.player.stats = { energy: 8, debate: 6 };
+    raw.world.achievementsEarned = ['turn_one'];
+    const race = {
+      id: 'house:US:US-NY:c1', electionType: 'house', countryId: 'US', state: 'US-NY',
+      cycle: 1, status: 'resolved', startTurn: 1, primaryEndTurn: 3, endTurn: 5,
+      totalSeats: 1, chamberKey: 'house', candidates: [
+        { id: 'player', name: 'Alex', partyId: '1', isNPP: false, incumbent: false },
+      ], tally: { player: 100 }, winners: ['player'], resolvedTurn: 5,
+    };
+    raw.world.elections = [race];
+
+    const loaded = new GameSession(); loaded.load(JSON.stringify(raw));
+    expect(loaded.profile()).toMatchObject({
+      name: 'Alex',
+      policies: { economic: -2, social: 3 },
+      stats: { energy: 8, debate: 6 },
+      achievements: [{ slug: 'turn_one', name: 'In at the Ground Floor' }],
+      careerHistory: [{ id: race.id, result: 'Elected', turn: race.endTurn }],
+    });
+
+    const resumed = new GameSession(); resumed.load(loaded.serialize(savedAt));
+    expect(resumed.profile()).toEqual(loaded.profile());
+  });
 });

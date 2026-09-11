@@ -76,6 +76,8 @@ function profileFor(world: GameView): ProfileView {
     country: { id: world.countryId, name: world.countryName }, homeRegion: null,
     party: world.player.partyName ? { id: "p1", name: world.player.partyName, color: "#dc2626" } : null,
     office: world.legislature.office,
+    officeDestination: world.legislature.office ? { route: "legislature" } : null,
+    policies: null, stats: null, careerHistory: [], achievements: [],
     standing: { actions: world.player.actions, actionCap: 200, actionGain: 4,
       politicalInfluence: world.player.influence, nationalInfluence: null,
       favorability: world.player.favorability, infamy: 0, partyInfluence: null },

@@ -44,6 +44,8 @@ function profileFor(world: GameView): ProfileView {
     country: { id: world.countryId, name: world.countryName }, homeRegion: null,
     party: world.player.partyName ? { id: "p1", name: world.player.partyName, color: "#dc2626" } : null,
     office: world.legislature.office,
+    officeDestination: world.legislature.office ? { route: "legislature" } : null,
+    policies: null, stats: null, careerHistory: [], achievements: [],
     standing: { actions: world.player.actions, actionCap: 200, actionGain: 4,
       politicalInfluence: world.player.influence, nationalInfluence: null,
       favorability: world.player.favorability, infamy: 0, partyInfluence: null },
@@ -121,6 +123,17 @@ describe("GameScreen", () => {
     expect(profile).toHaveTextContent("Political standing");
     expect(screen.queryByText("GDP")).not.toBeInTheDocument();
     expect(screen.getAllByText(/united states/i).length).toBeGreaterThan(0);
+  });
+
+  it("keeps the own-profile context across linked destinations and return", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    const profile = screen.getByRole("region", { name: "Profile" });
+    await user.click(await within(profile).findByRole("button", { name: "Representative" }));
+    expect(screen.getByRole("region", { name: "Legislature" })).toBeInTheDocument();
+    await navigate(user, "Profile");
+    expect(await within(screen.getByRole("region", { name: "Profile" })).findByRole("heading", { name: "Ada" })).toBeInTheDocument();
   });
 
   it("switches between bottom destinations and drawer destinations", async () => {
