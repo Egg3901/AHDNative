@@ -4,10 +4,9 @@
  * Scope note (see FRAMEWORK.md determinism doctrine + docs/ROADMAP-1.0.md
  * Lane 2): this ports mainline's corporation TURN math (growth, margin,
  * costs, tax, NPC management, insolvency) at "market system off" defaults
- * (mainline's own default — see file docs in constants.ts). Share price,
- * stock exchange, IPO, order flow, M&A, subsidiaries, groups, tech tree,
- * bonds, and banking are separate future waves (W10/W12/W13/W14) and are
- * not modeled here.
+ * (mainline's own default — see file docs in constants.ts). W10 adds the
+ * offline share-price and stock-exchange subset below; IPO, M&A, subsidiaries,
+ * groups, tech tree, bonds, and banking remain separate future waves.
  *
  * Simplification (cited, not invented): mainline's `Corporation` and
  * `CorporateSector` are separate collections (one corp owns many sectors).
@@ -21,9 +20,11 @@
  *
  * Source: <mainline-checkout>/src/lib/db/types/corporation.ts (Corporation
  * lines 144-589, CorporateSector lines 622-1264) — fields kept are the subset
- * relevant to production/revenue/costs/NPC-management; market/M&A/subsidiary/
- * tech/governance fields are omitted (see constants.ts file doc for the full
- * cited scope list).
+ * relevant to production/revenue/costs/NPC-management; M&A/subsidiary/tech/
+ * governance fields are omitted (see constants.ts file doc for the full cited
+ * scope list). The W10 market record also carries the source-backed
+ * turn-window multipliers and compact price history used by the offline stock
+ * market.
  */
 
 /**
@@ -54,6 +55,11 @@ export const CORPORATION_TYPES = [
 ] as const;
 
 export type CorporationType = (typeof CORPORATION_TYPES)[number];
+
+export interface CorporationPricePoint {
+  turn: number;
+  price: number;
+}
 
 /**
  * CEO behavior archetype, derived deterministically from personality.
@@ -125,10 +131,8 @@ export interface Corporation {
   /** Live share price (local currency units). Source: db/types/corporation.ts Corporation.sharePrice. */
   sharePrice: number;
   /**
-   * Fundamental value last computed by recomputeSharePricesPhase, before any
-   * sentiment/order-flow multiplier. In W10, sharePrice === fundamentalSharePrice
-   * always (see market/recomputeSharePrices.ts file doc: order-flow/sentiment
-   * multiplier is PORT-STUB, held neutral at 1.0). Source: Corporation.fundamentalSharePrice.
+   * Fundamental value last computed by recomputeSharePricesPhase, before the
+   * sentiment/order-flow multipliers. Source: Corporation.fundamentalSharePrice.
    */
   fundamentalSharePrice: number;
   /** Shares owned by identified holders (NPC founder, player). Source: Corporation.shareholders (Shareholder[]). */
@@ -142,6 +146,16 @@ export interface Corporation {
    * Source: Corporation.earningsHistory + turn/corporation/earningsRollingAverage.ts.
    */
   earningsHistory: number[];
+  /** Source-backed investor-confidence multiplier applied to the live price. */
+  sentimentMultiplier?: number;
+  /** Source-backed public-float order-flow multiplier applied to the live price. */
+  orderFlowMultiplier?: number;
+  /** Executed buy notional waiting for the next turn's market phase. */
+  orderFlowWindowBuyValue?: number;
+  /** Executed sell notional waiting for the next turn's market phase. */
+  orderFlowWindowSellValue?: number;
+  /** Compact per-turn live-price history, oldest first. */
+  priceHistory?: CorporationPricePoint[];
 
   // ── W12 banking ──────────────────────────────────────────────────────
   /**

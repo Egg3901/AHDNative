@@ -130,7 +130,7 @@ describe("countryPolitics save migration (v43)", () => {
     raw.world.meta.schemaVersion = 42;
     const migrated = deserializeSave(JSON.stringify(raw));
     expect(migrated.meta.schemaVersion).toBe(SCHEMA_VERSION);
-    expect(migrated.meta.schemaVersion).toBe(45);
+    expect(migrated.meta.schemaVersion).toBe(SCHEMA_VERSION);
     expect(migrated.player.homeRegionId).toBeNull();
     const overview = migrated.countryPolitics["US"]!;
     expect(overview.approvalHistory).toEqual([{ turn: 0, approval: overview.approval }]);

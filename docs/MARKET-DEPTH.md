@@ -36,7 +36,7 @@ Suggested GameScreen wiring (root-owned):
 
 `MarketsView` carries player cash/currency/actions, feature-flag phase switches as status only, per-country listing counts, and one row per seeded `world.corporations` entry.
 
-Per listing, recorded fields only: id, ticker, country, sector, share price, fundamental price, total shares, public float, treasury (`liquidCapital`), revenue, growth, margins, insolvency, bank charter presence, player shares, player average cost, NPC founder shares, earnings history (last 52 recorded entries). Price history is always empty today (see gaps). Display name is the corporation id; there is no authored company name on the engine record.
+Per listing, recorded fields only: id, ticker, country, sector, share price, fundamental price, total shares, public float, treasury (`liquidCapital`), revenue, growth, margins, insolvency, bank charter presence, player shares, player average cost, NPC founder shares, earnings history (last 52 recorded entries), and the engine's per-turn live price history. Display name is the corporation id; there is no authored company name on the engine record.
 
 Money stays in the listing currency (`budgets[countryId].currencyCode`, else `exchangeRates[countryId].currencyCode`, else `XXX`). There is no USD conversion and no cross-currency market-cap total. `cashCurrencyMatches` is whether that quote currency equals the player's cash currency.
 
@@ -69,7 +69,7 @@ Identity is `countryId-sectorType` (example `US-media`) and ticker `US.MEDI`. Th
 
 ## Gaps (do not paper over)
 
-- No per-corporation share-price history series exists on `WorldState` or `WorldHistory`. The panel shows "No recorded share-price history." `earningsHistory` is the rolling earnings window, not price, trimmed to the last 52 recorded entries.
+- Price history is recorded by the engine at the end of each turn and projected into the market listing. A fresh world has no history until its first market phase; `earningsHistory` remains the separate rolling earnings window, trimmed to the last 52 recorded entries.
 - Player cash is one number in the home currency. Share price is in the corp country currency. `executeAction` subtracts notional from cash with no FX, so a cross-country buy currently mixes units. This slice does **not** change that engine formula and does **not** certify FX parity. The panel holds buy and sell when `cashCurrencyMatches` is false, keeps the listing browsable, shows quote currency and cash currency, and uses the note "Trading between different currencies is not available yet." That is a documented missing-capability gate until reference FX settlement is ported, not a conversion or rebalance.
 - Retail float only. No order book, limit orders, IPO, CEO corp-wallet buy, or player-founded corp.
 - World destinations other than this stock list (map, unions, forex, trade, crises, my corporation) are outside this slice.
@@ -77,7 +77,7 @@ Identity is `countryId-sectorType` (example `US-media`) and ticker `US.MEDI`. Th
 
 ## Tests
 
-- `src/game/markets.test.ts`: public `createWorld` + `executeAction` + save/reload, independent notional formula, feature-flag non-gating, integer parse, DTO membership equals seeded ids, unit-share `available: false` blocks any size without string parsing, earningsHistory bound 52, engine characterization that foreign `buyShares` still mixes units while the DTO holds the trade.
+- `src/game/markets.test.ts`: public `createWorld` + `executeAction` + save/reload, independent notional formula, feature-flag non-gating, integer parse, DTO membership equals seeded ids, projected live price history, unit-share `available: false` blocks any size without string parsing, earningsHistory bound 52, engine characterization that foreign `buyShares` still mixes units while the DTO holds the trade.
 - `src/ui/MarketsPanel.test.tsx`: search, country filter, detail fields, integer input, buy/sell params, busy disable, no found/IPO controls, no USD conversion copy, foreign quote cannot call `onAction`.
 
 ## Integrated behavior

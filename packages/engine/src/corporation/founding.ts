@@ -133,6 +133,11 @@ export function seedCorporations(
         shareholders: [{ holder: "npc", shares: npcShares }],
         publicFloat: publicFloatShares,
         earningsHistory: [],
+        sentimentMultiplier: 1,
+        orderFlowMultiplier: 1,
+        orderFlowWindowBuyValue: 0,
+        orderFlowWindowSellValue: 0,
+        priceHistory: [],
       };
       corporations[id] = corp;
     }
