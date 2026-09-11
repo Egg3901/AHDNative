@@ -89,6 +89,7 @@ The first private feedback preview is authorized after local behavioral tests an
 | [UI reference](docs/UI-REFERENCE.md) | Actual MP/SP baseline, tokens, parity notes |
 | [Mechanics parity](docs/MECHANICS-PARITY.md) | Audit against AHDGame at pinned revisions |
 | [Helper wiring inventory](docs/HELPER-WIRING-INVENTORY.md) | Helper, phase, action, and player reachability dispositions |
+| [Phase order depth](docs/PHASE-ORDER-DEPTH.md) | Complete base/country phase map, combined owners, gaps and RNG movement rules |
 | [Save compatibility](docs/SAVE-COMPATIBILITY.md) | v42 interchange validation |
 | [Save storage](docs/SAVE-STORAGE.md) | Native save store behavior |
 | [Career playthrough](docs/CAREER-PLAYTHROUGH.md) / [validation](docs/CAREER-VALIDATION.md) | Career flow coverage |
