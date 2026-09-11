@@ -18,7 +18,7 @@ import { realAccumulate } from "./tallyAdapter.js";
 import { ensureCampaignsForElection, archiveCampaignsForElection } from "../campaigns/lifecycle.js";
 import { applyPresidentialResolution } from "./presidentialResolution.js";
 import { declareCandidacy } from "./candidacy.js";
-import { requiresPrimaryResolution } from "./primaryResolution.js";
+import { recordPrimarySnapshots, requiresPrimaryResolution } from "./primaryResolution.js";
 import { GOVERNOR_COUNTRIES, LOWER_CHAMBER_PER_REGION, SUBNATIONAL_CHAMBER_PER_REGION, JP_SANGIIN_SEATS } from "../government/constants.js";
 
 /**
@@ -857,6 +857,10 @@ export function runAutoReelectionEntry(world: WorldState): void {
 }
 
 export function runVoteAccumulation(world: WorldState, rng: WorldRng): void {
+  // Primary snapshots and ballot accrual run before the general-only tally
+  // gate. Their ledger is deliberately separate from rec.tally, which starts
+  // accumulating general votes only after the primary nominee is stamped.
+  recordPrimarySnapshots(world);
   const inWindow = world.elections.filter(
     (rec) => rec.status === "active" && world.meta.turn > rec.primaryEndTurn && world.meta.turn <= rec.endTurn &&
       (!requiresPrimaryResolution(rec) || rec.primaryResults !== undefined),

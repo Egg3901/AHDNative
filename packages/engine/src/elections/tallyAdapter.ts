@@ -111,6 +111,11 @@ function deriveTurnout(world: WorldState, stateId: string, electionId?: string):
   return deriveTurnoutFrom(demo, vep, campaignTurnoutModifiers(world, electionId));
 }
 
+/** Resolved regional turnout pool shared by general and primary ballot paths. */
+export function turnoutPoolForElection(world: WorldState, stateId: string, electionId?: string): number | null {
+  return deriveTurnout(world, stateId, electionId)?.totalPool ?? null;
+}
+
 /**
  * Population-weighted national organization/registration per party — the
  * simple aggregate `accumulateVoteTurn` actually consumes (it only reads
