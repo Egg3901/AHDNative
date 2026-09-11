@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 
 export type DrawerRouteId =
   | "actions" | "parties" | "legislature" | "elections" | "news"
-  | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails"
+  | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "campaignDetails"
   | "politicians" | "economy" | "budget" | "policy" | "nations" | "state"
   | "help" | "settings" | "legislationDetails" | "markets" | "search"
   | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications";

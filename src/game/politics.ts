@@ -1,5 +1,7 @@
 import {
-  ACTION_CATALOG, addDaysIso, getActionCost, canJoinParty, canLeaveParty, type WorldState,
+  ACTION_CATALOG, addDaysIso, calculateCampaignIncome, calculateMaintenanceCosts,
+  campaignAnchorToLocal, campaignKey, canJoinParty, canLeaveParty, getActionCost,
+  getEffectiveBranchCost, type OpsBranchKey, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionView } from "./types";
 
@@ -28,6 +30,52 @@ export interface PoliticsCandidateView {
   votes: number | null; voteShare: number | null; winner: boolean;
 }
 
+export interface PoliticsCampaignBranchView {
+  branch: "a" | "b" | "c"; level: number; maxLevel: number;
+  nextFunds: number | null; nextActions: number | null; nextEffect: string | null;
+  affordable: boolean; maxed: boolean;
+  upgrade: ActionView;
+}
+
+export interface PoliticsCampaignLeverView {
+  category: "fundraising" | "oppositionResearch" | "groundGame" | "mediaSpending";
+  started: boolean;
+  starterFunds: number | null; starterActions: number | null; starterEffect: string | null;
+  starterAffordable: boolean;
+  starterUpgrade: ActionView | null;
+  branches: PoliticsCampaignBranchView[];
+}
+
+export interface PoliticsPlayerCampaignView {
+  status: string;
+  funds: number; actions: number;
+  spendThisTurn: number; spendStock: number;
+  totalFundsGenerated: number; totalFundsSpent: number;
+  incomePerTurn: number; maintenancePerTurn: number;
+  /** Candidate support mood input (Phase 5a), not a vote forecast. */
+  support: number | null;
+  generalPhase: boolean;
+  levers: PoliticsCampaignLeverView[];
+}
+
+export interface PoliticsProjectionDriverView {
+  kind: "campaign" | "support" | "region";
+  label: string;
+  refId: string;
+}
+
+export interface PoliticsProjectionView {
+  resolved: boolean;
+  /** Votes counted so far (cumulative tally), never a forecast. */
+  countedVotes: number | null;
+  leaderName: string | null; leaderShare: number | null;
+  runnerUpName: string | null; marginPct: number | null;
+  /** Seat projection from the saved tally seatsEstimate, null when absent. */
+  seats: { candidateId: string; name: string; seats: number }[] | null;
+  snapshotTurn: number | null;
+  drivers: PoliticsProjectionDriverView[];
+}
+
 export interface PoliticsElectionDetail {
   id: string; title: string; status: string; date: string; filingDate: string;
   playerCandidate: boolean;
@@ -35,6 +83,8 @@ export interface PoliticsElectionDetail {
   winnerNames: string[];
   totalVotes: number | null;
   candidacy: ActionView;
+  playerCampaign: PoliticsPlayerCampaignView | null;
+  projection: PoliticsProjectionView;
 }
 
 export interface PoliticsPoliticianView {
@@ -120,6 +170,152 @@ function officeLabel(world: WorldState, chamberKey: string, electedState?: strin
   return parts.join(" · ");
 }
 
+const CAMPAIGN_LEVERS: PoliticsCampaignLeverView["category"][] =
+  ["fundraising", "oppositionResearch", "groundGame", "mediaSpending"];
+const CAMPAIGN_BRANCHES: ("a" | "b" | "c")[] = ["a", "b", "c"];
+
+function isGeneralPhase(world: WorldState, election: WorldState["elections"][number]): boolean {
+  const primaryClosed = typeof election.primaryEndTurn === "number"
+    ? world.meta.turn >= election.primaryEndTurn : true;
+  const generalOpen = typeof election.endTurn === "number" ? world.meta.turn <= election.endTurn : true;
+  return primaryClosed && generalOpen;
+}
+
+function upgradeAction(
+  branch: OpsBranchKey | null,
+  fundsLocal: number | null,
+  actions: number | null,
+  maxed: boolean,
+  campaignFunds: number,
+  campaignActions: number,
+  noCampaignReason?: string,
+): ActionView {
+  const entry = ACTION_CATALOG.campaignUpgrade;
+  const reason = noCampaignReason
+    ?? (maxed ? "Max level reached."
+      : fundsLocal == null || actions == null ? "Unavailable."
+      : campaignFunds < fundsLocal ? `Needs ${Math.ceil(fundsLocal).toLocaleString()} campaign funds.`
+      : campaignActions < actions ? `Needs ${actions} campaign actions.` : undefined);
+  return {
+    id: "campaignUpgrade", name: entry.name,
+    description: branch === null ? "Unlock this lever's starter." : `Upgrade branch ${branch}.`,
+    cost: 0, available: !reason,
+    ...(reason ? { disabledReason: reason } : {}),
+  };
+}
+
+function projectPlayerCampaign(
+  world: WorldState,
+  election: WorldState["elections"][number],
+): PoliticsPlayerCampaignView | null {
+  if (!election.candidates.some((c) => c.id === "player")) return null;
+  const campaign = world.campaigns[campaignKey(election.id, "player")];
+  if (!campaign || campaign.status !== "active") return null;
+  const generalPhase = isGeneralPhase(world, election);
+  const noRace = election.status === "resolved" ? "This election has ended." : undefined;
+  const levers: PoliticsCampaignLeverView[] = CAMPAIGN_LEVERS.map((category) => {
+    const tree = campaign[`${category}Tree`];
+    const starterCost = tree.starter ? null
+      : getEffectiveBranchCost(category, null, 0, election.electionType, generalPhase);
+    const starterFunds = starterCost ? campaignAnchorToLocal(starterCost.funds, campaign.countryId) : null;
+    const starterUpgrade = tree.starter ? null : upgradeAction(
+      null, starterFunds, starterCost?.actions ?? null,
+      false, campaign.funds, campaign.actions, noRace);
+    const branches: PoliticsCampaignBranchView[] = CAMPAIGN_BRANCHES.map((branch) => {
+      const level = tree[branch];
+      const next = tree.starter
+        ? getEffectiveBranchCost(category, branch, level + 1, election.electionType, generalPhase)
+        : null;
+      const maxed = tree.starter && next === null;
+      const nextFunds = next ? campaignAnchorToLocal(next.funds, campaign.countryId) : null;
+      const affordable = !noRace && !maxed && nextFunds != null && next != null
+        && campaign.funds >= nextFunds && campaign.actions >= next.actions;
+      return {
+        branch, level, maxLevel: 3,
+        nextFunds, nextActions: next?.actions ?? null, nextEffect: next?.effect ?? null,
+        affordable, maxed,
+        upgrade: upgradeAction(branch, nextFunds,
+          next?.actions ?? null, maxed, campaign.funds, campaign.actions,
+          noRace ?? (!tree.starter ? "Unlock this lever's starter first." : undefined)),
+      };
+    });
+    return {
+      category, started: tree.starter,
+      starterFunds, starterActions: starterCost?.actions ?? null,
+      starterEffect: starterCost?.effect ?? null,
+      starterAffordable: starterUpgrade?.available ?? false,
+      starterUpgrade, branches,
+    };
+  });
+  return {
+    status: campaign.status,
+    funds: campaign.funds, actions: campaign.actions,
+    spendThisTurn: campaign.spendThisTurn, spendStock: campaign.spendStock ?? 0,
+    totalFundsGenerated: campaign.totalFundsGenerated, totalFundsSpent: campaign.totalFundsSpent,
+    incomePerTurn: campaignAnchorToLocal(
+      calculateCampaignIncome(campaign, election.electionType), campaign.countryId),
+    maintenancePerTurn: campaignAnchorToLocal(
+      calculateMaintenanceCosts(campaign, election.electionType), campaign.countryId),
+    support: world.candidateSupports?.["player"]?.support ?? null,
+    generalPhase, levers,
+  };
+}
+
+function projectProjection(
+  world: WorldState,
+  election: WorldState["elections"][number],
+  candidates: PoliticsCandidateView[],
+  totalVotes: number | null,
+): PoliticsProjectionView {
+  const resolved = election.status === "resolved";
+  const counted = [...candidates]
+    .filter((c) => c.votes != null)
+    .sort((a, b) => (b.votes ?? 0) - (a.votes ?? 0));
+  const leader = counted[0] ?? null;
+  const runnerUp = counted[1] ?? null;
+  // Seat projection rides the saved tally document (estimateSeats), never
+  // the counted totals: null until the tally has produced one.
+  const tallyDoc = election.tallyState as {
+    seatsEstimate?: Record<string, number>;
+    turnSnapshots?: { turn: number }[];
+  } | undefined;
+  const seatsRaw = !resolved ? tallyDoc?.seatsEstimate : undefined;
+  const nameOf = (id: string) => candidates.find((c) => c.id === id)?.name ?? id;
+  const seats = seatsRaw
+    ? Object.entries(seatsRaw)
+      .map(([candidateId, seats]) => ({ candidateId, name: nameOf(candidateId), seats }))
+      .sort((a, b) => b.seats - a.seats)
+    : null;
+  const snapshots = tallyDoc?.turnSnapshots;
+  const drivers: PoliticsProjectionDriverView[] = [];
+  for (const c of election.candidates) {
+    drivers.push({
+      kind: "campaign",
+      label: `${c.name} campaign spend`,
+      refId: campaignKey(election.id, c.id),
+    });
+  }
+  for (const c of election.candidates) {
+    if (world.candidateSupports?.[c.id] != null) {
+      drivers.push({ kind: "support", label: `${c.name} support`, refId: c.id });
+    }
+  }
+  if (election.state) {
+    drivers.push({ kind: "region", label: `${election.state} organization`, refId: election.state });
+  }
+  return {
+    resolved,
+    countedVotes: totalVotes,
+    leaderName: leader?.name ?? null,
+    leaderShare: leader?.voteShare ?? null,
+    runnerUpName: runnerUp?.name ?? null,
+    marginPct: leader?.voteShare != null && runnerUp?.voteShare != null
+      ? leader.voteShare - runnerUp.voteShare : null,
+    seats, snapshotTurn: snapshots?.length ? snapshots[snapshots.length - 1]!.turn : null,
+    drivers,
+  };
+}
+
 export function projectPolitics(world: WorldState): PoliticsView {
   const country = world.countries[world.player.countryId];
   if (!country || !country.playable) throw new Error("The save does not contain the player's playable country.");
@@ -155,6 +351,8 @@ export function projectPolitics(world: WorldState): PoliticsView {
         status: election.status, date: dateAt(election.endTurn), filingDate: dateAt(election.primaryEndTurn),
         playerCandidate, candidates, winnerNames, totalVotes,
         candidacy: candidacyAction(world, election, active, playerCandidate),
+        playerCampaign: projectPlayerCampaign(world, election),
+        projection: projectProjection(world, election, candidates, totalVotes),
       };
     });
 

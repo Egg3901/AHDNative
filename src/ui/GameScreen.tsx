@@ -73,7 +73,7 @@ const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
   profile: "Profile",
   portfolio: "Portfolio",
   banking: "Banking",
-  partyDetails: "Party details", electionDetails: "Election details", politicians: "Politicians",
+  partyDetails: "Party details", electionDetails: "Election details", campaignDetails: "Campaign", politicians: "Politicians",
   notifications: "Notifications",
 };
 
@@ -148,6 +148,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
 
   const openParty = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("partyDetails"); };
   const openElection = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("electionDetails"); };
+  const openCampaign = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("campaignDetails"); };
 
   const openSearchResult = (result: SearchResult) => {
     const destinations: Record<SearchResult['kind'], RouteId> = { nation: 'nations', party: 'partyDetails', company: 'markets', election: 'electionDetails', bill: 'legislationDetails', politician: 'politicians', player: 'profile' };
@@ -352,6 +353,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
                           <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{candidacyHint}</span>
                         </div>
                         <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => openElection(e.id)}>View race details</button>
+                        {e.playerCandidate && e.status !== "resolved" ? <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => openCampaign(e.id)}>Manage campaign</button> : null}
                         {!candidacy?.available && candidacy?.disabledReason ? <p className="ahd-help" role="note">{candidacy.disabledReason}</p> : null}
                       </article>
                     );
@@ -414,9 +416,10 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
             if (id) setDetailId(id);
           }} /> : null}
           {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} /> : null}
-          {(route === "partyDetails" || route === "electionDetails") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => go(route === "partyDetails" ? "parties" : "elections")}>Back to {route === "partyDetails" ? "parties" : "elections"}</button>}
+          {(route === "partyDetails" || route === "electionDetails" || route === "campaignDetails") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => route === "campaignDetails" ? setRoute("electionDetails") : go(route === "partyDetails" ? "parties" : "elections")}>Back to {route === "partyDetails" ? "parties" : route === "campaignDetails" ? "race" : "elections"}</button>}
           {route === "partyDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="parties" initialId={detailId} busy={busy} onAction={onAction} />}
-          {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} busy={busy} onAction={onAction} />}
+          {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} onOpenCampaign={openCampaign} busy={busy} onAction={onAction} />}
+          {route === "campaignDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="campaign" initialId={detailId} busy={busy} onAction={onAction} />}
           {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} />}
           {route === "banking" ? <FinancePanel finance={world.finance} section="banking" busy={busy} onAction={onAction} /> : null}
           {route === "notifications" ? (
