@@ -460,7 +460,8 @@ export interface CampaignActivity {
  * accounting. Cut vs mainline: managerId (no Campaign Manager NPC-hire UI
  * this wave), donationLog/fogOfWar (UI-facing history, no consumer in solo),
  * oppositionTargetId (opposition-research targeting is
- * PORT-STUB — see campaigns/opsEffects.ts), campaignStrength (player
+ * now wired for the player campaign; manager/surrogate targeting remains
+ * outside the solo action model), campaignStrength (player
  * contribution mechanic — PORT-STUB, see campaigns/README note in
  * campaigns/lifecycle.ts).
  */
@@ -484,6 +485,11 @@ export interface Campaign {
   oppositionResearchTree: CampaignOpsTree;
   groundGameTree: CampaignOpsTree;
   mediaSpendingTree: CampaignOpsTree;
+  /** Current opposition-research target, when the player has selected one. */
+  oppositionTargetId?: string;
+  oppositionTargetName?: string;
+  /** Turn-based retarget cooldown. Missing on saves written before targeting. */
+  oppositionResearchCooldownUntilTurn?: number;
   /**
    * Per-turn spend accumulator (local currency) — the swing-flow money
    * driver's input (electionEngine/fundsByParty.ts, tallyAdapter.ts).
