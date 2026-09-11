@@ -74,7 +74,11 @@ and [complying with encryption export regulations](https://developer.apple.com/d
 
 The Mac image does not preinstall `rustup`. The workflow bootstraps it from the official Rust installer when absent, installs the pinned toolchain and records the Cargo binary path for later steps. The first attempt failed at this prerequisite before compilation or signing; inspect a failed step before retrying.
 
-The marketing version stays `0.1.0`. The iOS bundle version has base `1`; Tauri appends Codemagic's build number, producing `1.N` instead of appending a fourth numeric component to `0.1.0`.
+The most recently processed iOS preview remains marketing version `0.1.0`, build
+`1.6`; current source metadata is `0.1.2`. For the next authorized candidate,
+set the intended marketing version deliberately and keep the iOS bundle version
+as `1.N`, where Tauri appends Codemagic's build number. Do not append a fourth
+numeric component to the marketing version.
 
 ### Generated Xcode signing settings
 
