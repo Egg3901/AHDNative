@@ -35,6 +35,27 @@ fn is_online_navigation_allowed(url: &Url) -> bool {
                 .is_some_and(|host| AUXILIARY_ONLINE_HOSTS.contains(&host)))
 }
 
+#[cfg(desktop)]
+#[derive(Debug, PartialEq, Eq)]
+enum OnlineNavigationAction {
+    InApp,
+    External,
+}
+
+#[cfg(desktop)]
+fn online_navigation_action(url: &Url) -> OnlineNavigationAction {
+    if is_online_navigation_allowed(url) {
+        OnlineNavigationAction::InApp
+    } else {
+        OnlineNavigationAction::External
+    }
+}
+
+#[cfg(desktop)]
+fn online_new_window_action(_url: &Url) -> OnlineNavigationAction {
+    OnlineNavigationAction::External
+}
+
 #[tauri::command]
 #[cfg(desktop)]
 async fn open_online_window(app: tauri::AppHandle) -> Result<(), String> {
@@ -56,10 +77,9 @@ async fn open_online_window(app: tauri::AppHandle) -> Result<(), String> {
         .inner_size(1280.0, 800.0)
         .center()
         .resizable(true)
-        .on_navigation(move |url| {
-            if is_online_navigation_allowed(url) {
-                true
-            } else {
+        .on_navigation(move |url| match online_navigation_action(url) {
+            OnlineNavigationAction::InApp => true,
+            OnlineNavigationAction::External => {
                 let _ = navigation_app
                     .opener()
                     .open_url(url.to_string(), None::<&str>);
@@ -67,9 +87,11 @@ async fn open_online_window(app: tauri::AppHandle) -> Result<(), String> {
             }
         })
         .on_new_window(move |url, _features| {
-            let _ = new_window_app
-                .opener()
-                .open_url(url.to_string(), None::<&str>);
+            if online_new_window_action(&url) == OnlineNavigationAction::External {
+                let _ = new_window_app
+                    .opener()
+                    .open_url(url.to_string(), None::<&str>);
+            }
             tauri::webview::NewWindowResponse::Deny
         })
         .build()
@@ -162,7 +184,10 @@ pub fn run() {
 
 #[cfg(all(test, desktop))]
 mod tests {
-    use super::{is_online_navigation_allowed, is_online_origin};
+    use super::{
+        is_online_navigation_allowed, is_online_origin, online_navigation_action,
+        online_new_window_action, OnlineNavigationAction,
+    };
     use tauri::Url;
 
     #[test]
@@ -203,5 +228,68 @@ mod tests {
                 &denied.parse::<Url>().unwrap()
             ));
         }
+    }
+
+    #[test]
+    fn navigation_decision_routes_only_the_allowlist_in_app() {
+        for target in [
+            "https://ahousedividedgame.com/play",
+            "https://ahousedividedgame.com:443/play",
+            "https://discord.com/oauth2/authorize",
+        ] {
+            assert_eq!(
+                online_navigation_action(&target.parse().unwrap()),
+                OnlineNavigationAction::InApp
+            );
+        }
+
+        for target in [
+            "https://example.com/",
+            "https://discord.com.evil.example/",
+            "https://ahousedividedgame.com.evil.example/",
+            "https://ahousedividedgame.com@evil.example/",
+            "http://ahousedividedgame.com/",
+            "https://ahousedividedgame.com:8443/",
+        ] {
+            assert_eq!(
+                online_navigation_action(&target.parse().unwrap()),
+                OnlineNavigationAction::External
+            );
+        }
+    }
+
+    #[test]
+    fn every_online_new_window_is_denied_and_routed_external() {
+        for target in [
+            "https://ahousedividedgame.com/play",
+            "https://discord.com/oauth2/authorize",
+            "https://example.com/",
+            "http://ahousedividedgame.com/",
+        ] {
+            let url = target.parse::<Url>().unwrap();
+            assert_eq!(
+                online_new_window_action(&url),
+                OnlineNavigationAction::External
+            );
+        }
+    }
+
+    #[test]
+    fn remote_window_has_no_native_capabilities() {
+        let online: serde_json::Value =
+            serde_json::from_str(include_str!("../capabilities/online.json")).unwrap();
+        let local: serde_json::Value =
+            serde_json::from_str(include_str!("../capabilities/default.json")).unwrap();
+
+        assert_eq!(online["windows"], serde_json::json!(["online"]));
+        assert_eq!(online["permissions"], serde_json::json!([]));
+        assert!(online.get("remote").is_none());
+        assert_eq!(local["windows"], serde_json::json!(["main"]));
+        assert!(!local["windows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|label| label == "online"));
+        assert!(local.get("remote").is_none());
     }
 }

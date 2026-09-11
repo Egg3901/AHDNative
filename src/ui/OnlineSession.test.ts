@@ -26,4 +26,15 @@ describe("openOnlineSession", () => {
       message: "Multiplayer could not open. Check your connection and try again.",
     });
   });
+
+  it("allows another launch attempt after a failure", async () => {
+    const openDedicatedWindow = vi.fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce(undefined);
+    const online = host({ openDedicatedWindow });
+
+    await expect(openOnlineSession(online)).resolves.toMatchObject({ status: "failed" });
+    await expect(openOnlineSession(online)).resolves.toEqual({ status: "opened" });
+    expect(openDedicatedWindow).toHaveBeenCalledTimes(2);
+  });
 });
