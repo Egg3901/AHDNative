@@ -9,6 +9,7 @@
  */
 import { useState } from "react";
 import type { ActionCategory, ActionView, GameScreenProps } from "../game/types";
+import type { ActionHistoryEntry } from "../game/notifications";
 import { formatFinanceMoney } from "./FinancePanel";
 
 export type ActionsCategoryFilter = "all" | ActionCategory;
@@ -155,6 +156,7 @@ export function ActionsHub({
   category,
   onCategoryChange,
   onAction,
+  outcomes = [],
 }: {
   actions: ActionView[];
   busy: boolean;
@@ -164,6 +166,7 @@ export function ActionsHub({
   category: ActionsCategoryFilter;
   onCategoryChange: (next: ActionsCategoryFilter) => void;
   onAction: GameScreenProps["onAction"];
+  outcomes?: ActionHistoryEntry[];
 }) {
   const visible = category === "all" ? actions : actions.filter((a) => a.category === category);
   const countFor = (id: ActionsCategoryFilter) => {
@@ -173,6 +176,24 @@ export function ActionsHub({
 
   return (
     <div className="ahd-stack">
+      {outcomes.length ? (
+        <section className="ahd-card ahd-card-pad" role="region" aria-label="Recent action results">
+          <h3 className="ahd-h2">Recent results</h3>
+          <div className="ahd-stack" style={{ marginTop: "0.55rem" }}>
+            {outcomes.slice(0, 5).map(outcome => (
+              <article key={outcome.id} style={{ borderTop: "1px solid var(--ahd-border)", paddingTop: "0.5rem" }}>
+                <strong>{outcome.title}</strong>
+                {outcome.target ? <div className="ahd-help">Target: <span>{outcome.target.label}</span></div> : null}
+                {outcome.changes.map(change => <div key={change.field} className="ahd-help">
+                  {change.label}: {String(change.before)} to {String(change.after)}
+                  {change.delta !== undefined ? ` (${change.delta > 0 ? "+" : ""}${Number(change.delta.toFixed(2))})` : ""}
+                </div>)}
+                {outcome.followUps.map(text => <div key={text} className="ahd-help">{text}</div>)}
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
       <div role="tablist" aria-label="Filter actions by category" style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap" }}>
         {ACTION_HUB_CATEGORIES.map((c) => {
           const { eligible, total } = countFor(c.id);

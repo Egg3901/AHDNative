@@ -233,6 +233,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
 
               <ActionsHub
                 actions={world.actions}
+                outcomes={world.actionHistory ?? []}
                 busy={busy}
                 currency={world.finance.currency}
                 regions={world.regions}

@@ -38,6 +38,7 @@ export interface NotificationItem {
   unread: boolean;
   actionRequired: boolean;
   destination: NotificationDestination;
+  actionOutcome?: ActionOutcome;
 }
 
 export interface NotificationDraft {
@@ -48,6 +49,29 @@ export interface NotificationDraft {
   title: string;
   body: string;
   actionRequired: boolean;
+  destination: NotificationDestination;
+  actionOutcome?: ActionOutcome;
+}
+
+export interface ActionChange {
+  field: string;
+  label: string;
+  before: number | string | null;
+  after: number | string | null;
+  delta?: number;
+}
+
+export interface ActionTarget { kind: string; id: string; label: string; }
+
+export interface ActionOutcome {
+  actionId: string;
+  changes: ActionChange[];
+  target?: ActionTarget;
+  followUps: string[];
+}
+
+export interface ActionHistoryEntry extends ActionOutcome {
+  id: string; turn: number; date: string; title: string; message: string;
   destination: NotificationDestination;
 }
 
@@ -136,7 +160,7 @@ export function parseNotifications(value: unknown): NotificationItem[] {
   const parsed: NotificationItem[] = [];
   for (const entry of value) {
     if (!isRecord(entry)) throw new Error("Invalid saved notifications: malformed item");
-    const { id, key, turn, date, category, title, body, unread, actionRequired, destination } = entry;
+    const { id, key, turn, date, category, title, body, unread, actionRequired, destination, actionOutcome } = entry;
     if (typeof id !== "string" || !id || typeof key !== "string" || !key) throw new Error("Invalid saved notifications: malformed item");
     if (!Number.isInteger(turn) || (turn as number) < 0) throw new Error("Invalid saved notifications: malformed item");
     if (typeof date !== "string" || typeof title !== "string" || typeof body !== "string") throw new Error("Invalid saved notifications: malformed item");
@@ -148,13 +172,43 @@ export function parseNotifications(value: unknown): NotificationItem[] {
       throw new Error("Invalid saved notifications: flags or duplicate identity");
     }
     ids.add(id); keys.add(key);
+    const parsedOutcome = actionOutcome === undefined ? undefined : parseActionOutcome(actionOutcome);
     parsed.push({
       id, key, turn: turn as number, date, category: category as NotificationCategory,
       title, body, unread, actionRequired,
       destination: { route: destination.route as NotificationRoute, ...(typeof detailId === "string" ? { detailId } : {}) },
+      ...(parsedOutcome ? { actionOutcome: parsedOutcome } : {}),
     });
   }
   return parsed;
+}
+
+function parseActionOutcome(value: unknown): ActionOutcome {
+  if (!isRecord(value) || typeof value.actionId !== "string" || !value.actionId
+    || !Array.isArray(value.changes) || !Array.isArray(value.followUps)
+    || value.followUps.some((item) => typeof item !== "string")) {
+    throw new Error("Invalid saved notifications: malformed action outcome");
+  }
+  const changes = value.changes.map((change) => {
+    if (!isRecord(change) || typeof change.field !== "string" || typeof change.label !== "string"
+      || (!(["number", "string"].includes(typeof change.before)) && change.before !== null)
+      || (!(["number", "string"].includes(typeof change.after)) && change.after !== null)
+      || (change.delta !== undefined && typeof change.delta !== "number")) {
+      throw new Error("Invalid saved notifications: malformed action outcome");
+    }
+    return { field: change.field, label: change.label, before: change.before as number | string | null,
+      after: change.after as number | string | null,
+      ...(typeof change.delta === "number" ? { delta: change.delta } : {}) };
+  });
+  let target: ActionTarget | undefined;
+  if (value.target !== undefined) {
+    if (!isRecord(value.target) || typeof value.target.kind !== "string"
+      || typeof value.target.id !== "string" || typeof value.target.label !== "string") {
+      throw new Error("Invalid saved notifications: malformed action outcome");
+    }
+    target = { kind: value.target.kind, id: value.target.id, label: value.target.label };
+  }
+  return { actionId: value.actionId, changes, ...(target ? { target } : {}), followUps: [...value.followUps] as string[] };
 }
 
 /** Reference `welcome` type: the first notice of a new game. */
@@ -373,13 +427,15 @@ export interface ActionDetail {
   amount?: number;
   fundsGain?: number;
   message?: string;
+  outcome?: ActionOutcome;
 }
 
 /** Action-result notices for successful actions only; unknown actions yield null. */
 export function actionNotification(
   actionId: string, detail: ActionDetail, turn: number, date: string,
 ): NotificationDraft | null {
-  const base = { turn, date, actionRequired: false as boolean };
+  const base = { turn, date, actionRequired: false as boolean,
+    ...(detail.outcome ? { actionOutcome: detail.outcome } : {}) };
   switch (actionId) {
     case "joinParty":
       if (!detail.partyId) return null;
@@ -470,7 +526,12 @@ export function actionNotification(
         destination: { route: "portfolio" },
       };
     default:
-      return null;
+      if (!detail.outcome) return null;
+      return {
+        ...base, key: `action:${actionId}:${turn}`, category: "system",
+        title: detail.message ?? "Action complete", body: "",
+        destination: { route: "actions" },
+      };
   }
 }
 
