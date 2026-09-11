@@ -38,6 +38,12 @@ function makePolitics(): PoliticsView {
         ],
         winnerNames: [], totalVotes: null,
         candidacy: { id: "withdrawCandidacy", name: "Withdraw candidacy", description: "", cost: 1, available: true },
+        playerCampaign: null,
+        projection: {
+          resolved: false, countedVotes: null,
+          leaderName: null, leaderShare: null, runnerUpName: null, marginPct: null,
+          seats: null, snapshotTurn: null, drivers: [],
+        },
       },
       {
         id: "senate:US:TX:c1", title: "senate · TX", status: "resolved", date: "1952-11-04", filingDate: "1952-09-01",
@@ -48,6 +54,13 @@ function makePolitics(): PoliticsView {
         ],
         winnerNames: ["Sam Winner"], totalVotes: 10000,
         candidacy: { id: "declareCandidacy", name: "Run for office", description: "", cost: 1, available: false, disabledReason: "This election has ended." },
+        playerCampaign: null,
+        projection: {
+          resolved: true, countedVotes: 10000,
+          leaderName: "Sam Winner", leaderShare: 0.6, runnerUpName: "Lou Loser", marginPct: 0.2,
+          seats: null, snapshotTurn: 90,
+          drivers: [{ kind: "support", label: "Sam Winner support", refId: "US-3" }],
+        },
       },
     ],
     politicians: [
@@ -165,12 +178,52 @@ describe("PoliticsPanel elections", () => {
     expect(onAction).toHaveBeenCalledWith("withdrawCandidacy", { electionId: "house:US:AL:c1" });
   });
 
+  it("labels counted standing and seat availability without forecasting", async () => {
+    const user = userEvent.setup();
+    const PoliticsPanel = await renderPanel();
+    render(<PoliticsPanel politics={makePolitics()} section="elections" busy={false} onAction={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText("Race status"), "resolved");
+    expect(screen.getByText(/10,000 votes counted so far/)).toBeInTheDocument();
+    expect(screen.getByText(/Counted leader: Sam Winner \(60\.0%\), margin \+20\.0pt over Lou Loser/)).toBeInTheDocument();
+    expect(screen.queryByText(/Projected seats/)).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Race status"), "active");
+    expect(screen.getByText("No votes counted yet.")).toBeInTheDocument();
+    expect(screen.getByText(/Seat projection unavailable/)).toBeInTheDocument();
+  });
+
+  it("manages the player campaign with real upgrade params", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const PoliticsPanel = await renderPanel();
+    const politics = makePolitics();
+    politics.elections[0]!.playerCampaign = {
+      status: "active", funds: 50000, actions: 20,
+      spendThisTurn: 0, spendStock: 0,
+      totalFundsGenerated: 12000, totalFundsSpent: 0,
+      incomePerTurn: 6000, maintenancePerTurn: 0,
+      support: 52, generalPhase: false,
+      levers: [{
+        category: "fundraising", started: false,
+        starterFunds: 15000, starterActions: 10, starterEffect: "+$35k/turn base income",
+        starterAffordable: true,
+        starterUpgrade: { id: "campaignUpgrade", name: "Campaign Upgrade", description: "", cost: 0, available: true },
+        branches: [],
+      }],
+    };
+    render(<PoliticsPanel politics={politics} section="campaign" initialId="house:US:AL:c1" busy={false} onAction={onAction} />);
+    expect(screen.getByRole("heading", { name: "house · AL" })).toBeInTheDocument();
+    expect(screen.getByText(/Your campaign \[active\]/)).toBeInTheDocument();
+    expect(screen.getByText(/mood input, not a vote forecast/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Unlock fundraising starter" }));
+    expect(onAction).toHaveBeenCalledWith("campaignUpgrade", { electionId: "house:US:AL:c1", category: "fundraising" });
+  });
+
   it("shows no vote figures before any tally exists", async () => {
     const user = userEvent.setup();
     const PoliticsPanel = await renderPanel();
     render(<PoliticsPanel politics={makePolitics()} section="elections" busy={false} onAction={vi.fn()} />);
     await user.selectOptions(screen.getByLabelText("Race status"), "active");
-    expect(screen.queryByText(/votes counted/)).not.toBeInTheDocument();
+    expect(screen.getByText("No votes counted yet.")).toBeInTheDocument();
     expect(screen.queryByText(/%/)).not.toBeInTheDocument();
     expect(screen.getByText("Ron Rival")).toBeInTheDocument();
     expect(screen.getByText(/incumbent/)).toBeInTheDocument();

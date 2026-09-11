@@ -67,7 +67,9 @@ export type ActionId =
   | "depositSavings"
   | "withdrawSavings"
   | "moveSavings"
-  | "wireTransfer";
+  | "wireTransfer"
+  // P0 campaign management (#67): player campaign upgrade purchases
+  | "campaignUpgrade";
 
 // Costs mirror mainline's dynamic tier functions but collapsed to neutral
 // goldens for solo's simpler state (no per-state GDP tier). Cited.
@@ -689,6 +691,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["finance/wire"],
+    status: "available",
+  },
+  campaignUpgrade: {
+    id: "campaignUpgrade",
+    name: "Campaign Upgrade",
+    description: "Buy a campaign lever starter or branch tier for your active race. Costs campaign funds and campaign actions from the exact upgrade table (general-phase surcharge applies); spend feeds the money driver. Ports upgradeCampaign.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["campaign"],
     status: "available",
   },
 };

@@ -16,15 +16,17 @@ import { formatFinanceMoney } from "./FinancePanel";
 import { useEffect, useMemo, useState } from "react";
 import type { GameScreenProps } from "../game/types";
 import type {
-  PoliticsElectionDetail, PoliticsPartyDetail, PoliticsPoliticianView, PoliticsView,
+  PoliticsElectionDetail, PoliticsPartyDetail, PoliticsPlayerCampaignView,
+  PoliticsPoliticianView, PoliticsProjectionView, PoliticsView,
 } from "../game/politics";
 
 export interface PoliticsPanelProps {
   politics: PoliticsView;
-  section: "parties" | "elections" | "politicians";
+  section: "parties" | "elections" | "campaign" | "politicians";
   busy: boolean;
   initialId?: string;
   onOpenElection?: (id: string) => void;
+  onOpenCampaign?: (id: string) => void;
   onAction: GameScreenProps["onAction"];
 }
 
@@ -222,9 +224,138 @@ function PartiesSection({ politics, busy, onAction, initialId }: Omit<PoliticsPa
   );
 }
 
+function ProjectionBlock({ projection }: { projection: PoliticsProjectionView }) {
+  return (
+    <section aria-label="Race projection" style={{ marginTop: "0.6rem" }}>
+      <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>
+        Standing
+      </h4>
+      {projection.countedVotes != null ? (
+        <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.15rem 0" }}>
+          {projection.countedVotes.toLocaleString()} votes counted so far
+          {projection.snapshotTurn != null ? ` (turn ${projection.snapshotTurn})` : ""}
+        </p>
+      ) : (
+        <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.15rem 0" }}>
+          No votes counted yet.
+        </p>
+      )}
+      {projection.leaderName && projection.leaderShare != null ? (
+        <p style={{ fontSize: "0.8rem", margin: "0.15rem 0" }}>
+          Counted leader: {projection.leaderName} ({(projection.leaderShare * 100).toFixed(1)}%)
+          {projection.runnerUpName && projection.marginPct != null
+            ? `, margin +${(projection.marginPct * 100).toFixed(1)}pt over ${projection.runnerUpName}`
+            : ""}
+        </p>
+      ) : null}
+      {projection.resolved ? null : projection.seats ? (
+        <div style={{ marginTop: "0.3rem" }}>
+          <p style={{ fontSize: "0.8rem", margin: "0.15rem 0" }}>
+            Projected seats: {projection.seats.map((s) => `${s.name} ${s.seats}`).join(" · ")}
+          </p>
+          <p className="ahd-help" role="note">
+            Projection from the saved tally estimate, not a result. Resolved winners replace it.
+          </p>
+        </div>
+      ) : (
+        <p className="ahd-help" role="note">
+          Seat projection unavailable: the tally has not produced an estimate yet.
+        </p>
+      )}
+      {projection.drivers.length > 0 ? (
+        <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: "0.3rem 0 0" }}>
+          Drivers: {projection.drivers.map((d) => d.label).join(" · ")}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function CampaignBlock({ electionId, campaign, busy, onAction }: {
+  electionId: string;
+  campaign: PoliticsPlayerCampaignView;
+  busy: boolean;
+  onAction: (id: string, params?: Record<string, string | number>) => void;
+}) {
+  const fire = (category: string, branch: "a" | "b" | "c" | null) => {
+    if (busy) return;
+    onAction("campaignUpgrade", branch === null
+      ? { electionId, category }
+      : { electionId, category, branch });
+  };
+  return (
+    <section aria-label="Campaign management" style={{ marginTop: "0.7rem", borderTop: "1px solid var(--ahd-border)", paddingTop: "0.55rem" }}>
+      <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>
+        Your campaign [{campaign.status}]
+      </h4>
+      <dl style={{ margin: 0, display: "grid", gap: "0.3rem" }}>
+        <div className="ahd-kv"><dt>Treasury</dt><dd className="ahd-mono">{Math.floor(campaign.funds).toLocaleString()}</dd></div>
+        <div className="ahd-kv"><dt>Campaign actions</dt><dd className="ahd-mono">{campaign.actions}</dd></div>
+        <div className="ahd-kv"><dt>Income</dt><dd className="ahd-mono">+{Math.floor(campaign.incomePerTurn).toLocaleString()}/turn</dd></div>
+        <div className="ahd-kv"><dt>Upkeep</dt><dd className="ahd-mono">-{Math.floor(campaign.maintenancePerTurn).toLocaleString()}/turn</dd></div>
+        <div className="ahd-kv"><dt>Recent spend</dt><dd className="ahd-mono">{Math.floor(campaign.spendStock + campaign.spendThisTurn).toLocaleString()} feeding the money driver</dd></div>
+        {campaign.support != null ? (
+          <div className="ahd-kv"><dt>Candidate support</dt><dd className="ahd-mono">{campaign.support.toFixed(1)} (mood input, not a vote forecast)</dd></div>
+        ) : null}
+      </dl>
+      {campaign.generalPhase ? (
+        <p className="ahd-help" role="note">General phase: upgrade costs carry the 1.5x surcharge.</p>
+      ) : null}
+      {campaign.levers.map((lever) => (
+        <details key={lever.category} style={{ marginTop: "0.45rem" }}>
+          <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: "0.78rem", minHeight: 44, paddingBlock: "0.65rem", boxSizing: "border-box" }}>
+            {lever.category}{lever.started ? "" : " (locked)"}
+          </summary>
+          {!lever.started && lever.starterUpgrade ? (
+            <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.3rem" }}>
+              <button type="button" className="ahd-btn ahd-btn-sm"
+                disabled={busy || !lever.starterUpgrade.available}
+                aria-disabled={busy || !lever.starterUpgrade.available}
+                aria-label={`Unlock ${lever.category} starter`}
+                onClick={() => fire(lever.category, null)}>
+                Unlock ({lever.starterFunds != null ? Math.ceil(lever.starterFunds).toLocaleString() : "?"}
+                {lever.starterActions != null ? ` + ${lever.starterActions} actions` : ""})
+              </button>
+              <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+                {!lever.starterUpgrade.available ? (lever.starterUpgrade.disabledReason ?? "Unavailable")
+                  : (lever.starterEffect ?? "")}
+              </span>
+            </div>
+          ) : null}
+          {lever.started ? (
+            <ul style={{ listStyle: "none", margin: "0.3rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+              {lever.branches.map((b) => (
+                <li key={b.branch} style={{ fontSize: "0.78rem" }}>
+                  <span style={{ fontWeight: 650 }}>Branch {b.branch}</span>
+                  <span className="ahd-muted"> · level {b.level}/{b.maxLevel}</span>
+                  {b.maxed ? <span className="ahd-muted"> · maxed</span> : (
+                    <span style={{ display: "inline-flex", gap: "0.4rem", alignItems: "center", marginLeft: "0.4rem", flexWrap: "wrap" }}>
+                      <button type="button" className="ahd-btn ahd-btn-sm"
+                        disabled={busy || !b.upgrade.available}
+                        aria-disabled={busy || !b.upgrade.available}
+                        aria-label={`Upgrade ${lever.category} branch ${b.branch}`}
+                        onClick={() => fire(lever.category, b.branch)}>
+                        Upgrade ({b.nextFunds != null ? Math.ceil(b.nextFunds).toLocaleString() : "?"}
+                        {b.nextActions != null ? ` + ${b.nextActions}` : ""})
+                      </button>
+                      <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+                        {!b.upgrade.available ? (b.upgrade.disabledReason ?? "Unavailable") : (b.nextEffect ?? "")}
+                      </span>
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </details>
+      ))}
+    </section>
+  );
+}
+
 type ElectionStatusFilter = "all" | "upcoming" | "active" | "resolved";
 
-function ElectionsSection({ politics, busy, onAction, initialId }: Omit<PoliticsPanelProps, "section">) {
+function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign }: Omit<PoliticsPanelProps, "section">) {
   const [status, setStatus] = useState<ElectionStatusFilter>("all");
   const [mineOnly, setMineOnly] = useState(false);
   const [decidedOnly, setDecidedOnly] = useState(false);
@@ -321,13 +452,18 @@ function ElectionsSection({ politics, busy, onAction, initialId }: Omit<Politics
               ))}
             </ul>
           )}
-          {selected.totalVotes != null ? (
-            <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: "0.4rem 0 0" }}>
-              {selected.totalVotes.toLocaleString()} votes counted
-            </p>
-          ) : null}
+          <ProjectionBlock projection={selected.projection} />
           {selected.winnerNames.length > 0 ? (
             <p style={{ fontSize: "0.8rem", margin: "0.35rem 0 0" }}>Winners: {selected.winnerNames.join(", ")}</p>
+          ) : null}
+          {selected.playerCampaign ? (
+            <section aria-label="Your campaign" style={{ marginTop: "0.7rem", borderTop: "1px solid var(--ahd-border)", paddingTop: "0.55rem" }}>
+              <h4 style={{ fontSize: "0.78rem", margin: "0 0 0.3rem" }}>Your campaign</h4>
+              <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0 0 0.4rem" }}>
+                {Math.floor(selected.playerCampaign.funds).toLocaleString()} funds · {selected.playerCampaign.actions} actions
+              </p>
+              {onOpenCampaign ? <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onOpenCampaign(selected.id)} disabled={busy}>Manage campaign</button> : null}
+            </section>
           ) : null}
 
           <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.55rem" }}>
@@ -347,6 +483,26 @@ function ElectionsSection({ politics, busy, onAction, initialId }: Omit<Politics
             ? <p className="ahd-help" role="note">{selected.candidacy.disabledReason}</p> : null}
         </article>
       ) : null}
+    </div>
+  );
+}
+
+function CampaignSection({ politics, busy, onAction, initialId }: Omit<PoliticsPanelProps, "section">) {
+  const election = politics.elections.find((item) => item.id === initialId)
+    ?? politics.elections.find((item) => item.playerCampaign !== null)
+    ?? null;
+  if (!election?.playerCampaign) {
+    return <div className="ahd-empty">No active player campaign is available.</div>;
+  }
+  return (
+    <div className="ahd-stack">
+      <article className="ahd-card ahd-card-pad" aria-label={`Campaign for ${election.title}`}>
+        <h2 className="ahd-h2">{election.title}</h2>
+        <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>
+          {election.status} · election day {election.date}
+        </p>
+        <CampaignBlock electionId={election.id} campaign={election.playerCampaign} busy={busy} onAction={onAction} />
+      </article>
     </div>
   );
 }
@@ -406,8 +562,9 @@ function PoliticiansSection({ politics, busy, onOpenElection, initialId }: Omit<
   );
 }
 
-export function PoliticsPanel({ politics, section, busy, onAction, initialId, onOpenElection }: PoliticsPanelProps) {
-  if (section === "elections") return <ElectionsSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} />;
+export function PoliticsPanel({ politics, section, busy, onAction, initialId, onOpenElection, onOpenCampaign }: PoliticsPanelProps) {
+  if (section === "campaign") return <CampaignSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} />;
+  if (section === "elections") return <ElectionsSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} onOpenCampaign={onOpenCampaign} />;
   if (section === "politicians") return <PoliticiansSection politics={politics} busy={busy} initialId={initialId} onOpenElection={onOpenElection} />;
   return <PartiesSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} />;
 }

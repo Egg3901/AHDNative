@@ -303,28 +303,36 @@ export function getTreeMaintenanceCost(
 }
 
 /**
+ * General-phase upgrade surcharge — verbatim
+ * GENERAL_PHASE_UPGRADE_MULTIPLIER from
+ * src/lib/campaigns/upgradeCosts.ts. Applies to funds AND actions on
+ * player-initiated purchases while the race is in its general phase
+ * (primary closed, general not ended); NPC investment always buys at the
+ * base rate.
+ */
+export const GENERAL_PHASE_UPGRADE_MULTIPLIER = 1.5 as const;
+
+/**
  * Fully-adjusted cost to buy the next tier of a branch (or the starter when
- * `branch` is null). Verbatim getEffectiveBranchCost minus the
- * general-phase surcharge (GENERAL_PHASE_UPGRADE_MULTIPLIER): that surcharge
- * gates PLAYER-initiated upgrade purchases made during a race's general
- * phase (src/lib/campaigns/commands/campaignCommands.ts upgradeCampaign) —
- * no player-facing upgrade action exists in solo this wave (PORT-STUB,
- * blocked: desktop Campaign Manager UI), and NPC investment
- * (campaigns/npcInvestment.ts) always buys at the base rate, so the surcharge
- * has no caller here. Reinstate it verbatim when a player upgrade action lands.
+ * `branch` is null). Verbatim getEffectiveBranchCost including the
+ * `isGeneralPhase` surcharge lane: pass true for player-initiated purchases
+ * during the general phase (actions/campaignUpgrade.ts does this); omit or
+ * pass false for previews and NPC investment at the base rate.
  */
 export function getEffectiveBranchCost(
   category: UpgradeCategory,
   branch: OpsBranchKey | null,
   nextLevel: number,
   electionType: string | undefined,
+  isGeneralPhase?: boolean,
 ): { funds: number; actions: number; effect: string; maintenance?: number; lumpSum?: number } | null {
   const scalar = getCampaignFamilyScalar(electionType);
+  const surge = isGeneralPhase ? GENERAL_PHASE_UPGRADE_MULTIPLIER : 1;
   if (branch === null) {
     const s = OPS_TREES[category].starter;
     return {
-      funds: Math.round(s.funds * scalar),
-      actions: s.actions,
+      funds: Math.ceil(Math.round(s.funds * scalar) * surge),
+      actions: Math.ceil(s.actions * surge),
       effect: s.effect,
       ...(s.maintenance != null ? { maintenance: Math.round(s.maintenance * scalar) } : {}),
     };
@@ -333,8 +341,8 @@ export function getEffectiveBranchCost(
   const tier = def?.tiers.find((t) => t.level === nextLevel);
   if (!tier) return null;
   return {
-    funds: Math.round(tier.funds * scalar),
-    actions: tier.actions,
+    funds: Math.ceil(Math.round(tier.funds * scalar) * surge),
+    actions: Math.ceil(tier.actions * surge),
     effect: tier.effect,
     ...(tier.maintenance != null ? { maintenance: Math.round(tier.maintenance * scalar) } : {}),
     ...(tier.lumpSum != null ? { lumpSum: Math.round(tier.lumpSum * scalar) } : {}),

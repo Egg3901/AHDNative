@@ -68,6 +68,17 @@ export * from "./governor/powers.js";
 
 // Read-only display queries use the same action refresh constants as the engine.
 export { MIN_BASE_ACTIONS_PER_TURN, ACTION_HOARD_PENALTY, ENERGY_BASE_ACTION_CAP, ENERGY_BASE_HOARD_THRESHOLD } from "./actions/constants.js";
+// P0 campaign management (#67): display + purchase previews share the exact
+// upgrade table with the engine gate (SSOT, mirroring mainline's UI/gate sharing).
+export {
+  GENERAL_PHASE_UPGRADE_MULTIPLIER, OPS_TREES, getCampaignFamilyScalar, getEffectiveBranchCost,
+  getOpsBranch, getOpsBranchMagnitude, getTreeMaintenanceCost,
+} from "./campaigns/upgradeCosts.js";
+export type { OpsBranchKey, UpgradeCategory } from "./campaigns/upgradeCosts.js";
+export { campaignAnchorToLocal } from "./campaigns/campaignCurrency.js";
+export { calculateCampaignIncome } from "./campaigns/income.js";
+export { calculateMaintenanceCosts } from "./campaigns/maintenance.js";
+export { campaignKey } from "./campaigns/lifecycle.js";
 
 // Authoritative player action refresh projection (#31), shared by the
 // actionRefresh phase and the Profile/footer resource breakdowns.
