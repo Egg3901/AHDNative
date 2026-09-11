@@ -36,6 +36,116 @@ export const WORLD_FEATURE_FLAG_DEFINITIONS = [
 export type WorldFeatureFlag = (typeof WORLD_FEATURE_FLAG_DEFINITIONS)[number]["key"];
 export type WorldFeatureFlags = Record<WorldFeatureFlag, boolean>;
 
+export type AhdGameDefault = "on" | "off" | "era-derived" | "unverified" | "v4" | "observe" | "active" | "votes";
+
+export interface AhdGameRelatedFlag {
+  key: string;
+  default: AhdGameDefault;
+}
+
+export interface AhdGameFeatureFlagAuditEntry {
+  /** Equivalent AHDGame system gate, or null when its controls are narrower. */
+  counterpart: string | null;
+  nativeDefault: "on";
+  relatedAhdGameFlags: readonly AhdGameRelatedFlag[];
+  source: string;
+}
+
+const AHDGAME_FLAG_SOURCE =
+  "AHDGame e364c04954ed628beef73a993a8e9e156650a31e: src/lib/seeds/reference/featureFlagDefaults.ts, src/app/api/admin/feature-gates/route.ts, src/simulation/phases/turnPhaseRegistry.ts";
+
+/**
+ * Audit map for issue #36. Native flags are offline phase-family kill switches.
+ * AHDGame flags are narrower rollout or policy controls, so none is accepted as
+ * an alias. Related names are documentation only and are never loaded into a
+ * Native save. "unverified" means the cited AHDGame fresh-world defaults file
+ * does not establish a default for that server key.
+ */
+const AHDGAME_RELATED_FLAGS = {
+  economy: [{ key: "macroGrowthV1", default: "unverified" }],
+  politics: [
+    { key: "nppAutonomyLevel", default: "v4" },
+    { key: "nppEntryViabilityMode", default: "observe" },
+    { key: "nppForeignPolicyMode", default: "active" },
+    { key: "nppForeignPolicyStage", default: "votes" },
+  ],
+  elections: [
+    { key: "redistrictingEnabled", default: "on" },
+    { key: "liveElectionResultsEnabled", default: "on" },
+  ],
+  campaigns: [],
+  legislation: [
+    { key: "legislationDemographicEffectsV2Enabled", default: "on" },
+    { key: "crisisAidBillsEnabled", default: "on" },
+  ],
+  governments: [],
+  demographics: [
+    { key: "demographicsLayer1PositionsEnabled", default: "on" },
+    { key: "granularElectorateEnabled", default: "on" },
+  ],
+  budgets: [],
+  centralBanks: [],
+  corporations: [
+    { key: "autoSectorSeedEnabled", default: "off" },
+    { key: "sectorTechTreesEnabled", default: "on" },
+    { key: "subsidiaryCorporationsEnabled", default: "on" },
+    { key: "corpDealsEnabled", default: "on" },
+    { key: "nppCorpStrategyEnabled", default: "on" },
+  ],
+  commodities: [],
+  markets: [{ key: "marketSystemMode", default: "unverified" }],
+  events: [
+    { key: "playerRandomEventsEnabled", default: "on" },
+    { key: "worldEventsEnabled", default: "on" },
+    { key: "crisisInteractionEnabled", default: "on" },
+    { key: "autoDisastersEnabled", default: "on" },
+  ],
+  banking: [
+    { key: "privateBankingEnabled", default: "unverified" },
+    { key: "bankPropTradingEnabled", default: "unverified" },
+    { key: "bankContagionEnabled", default: "unverified" },
+  ],
+  governors: [],
+  unions: [{ key: "labourSystemMode", default: "unverified" }],
+  bonds: [],
+  foreignExchange: [
+    { key: "forexEnabled", default: "on" },
+    { key: "eurozoneEnabled", default: "era-derived" },
+  ],
+  commandEconomy: [{ key: "commandEconomyEnabled", default: "unverified" }],
+  devolution: [],
+  metrics: [],
+  coldWar: [{ key: "coldWarEnabled", default: "on" }],
+  conflicts: [
+    { key: "conflictsEnabled", default: "on" },
+    { key: "livingConflictsEnabled", default: "on" },
+    { key: "nppOffensiveInitiationEnabled", default: "off" },
+    { key: "nppOffensiveJoinEnabled", default: "off" },
+  ],
+  policyEffects: [{ key: "legislationDemographicEffectsV2Enabled", default: "on" }],
+  extraction: [
+    { key: "extractionAutoStrategyEnabled", default: "on" },
+    { key: "prospectingEnabled", default: "unverified" },
+    { key: "contractIssuanceEnabled", default: "unverified" },
+  ],
+  achievements: [],
+} satisfies Record<WorldFeatureFlag, readonly AhdGameRelatedFlag[]>;
+
+const AHDGAME_COUNTERPARTS: Partial<Record<WorldFeatureFlag, string>> = {
+  foreignExchange: "forexEnabled",
+  commandEconomy: "commandEconomyEnabled",
+  coldWar: "coldWarEnabled",
+  conflicts: "conflictsEnabled",
+};
+
+export const AHDGAME_FEATURE_FLAG_AUDIT: Record<WorldFeatureFlag, AhdGameFeatureFlagAuditEntry> =
+  Object.fromEntries(WORLD_FEATURE_FLAG_DEFINITIONS.map(({ key }) => [key, {
+    counterpart: AHDGAME_COUNTERPARTS[key] ?? null,
+    nativeDefault: "on",
+    relatedAhdGameFlags: AHDGAME_RELATED_FLAGS[key],
+    source: AHDGAME_FLAG_SOURCE,
+  }])) as unknown as Record<WorldFeatureFlag, AhdGameFeatureFlagAuditEntry>;
+
 export const DEFAULT_WORLD_FEATURE_FLAGS: WorldFeatureFlags = Object.fromEntries(
   WORLD_FEATURE_FLAG_DEFINITIONS.map(({ key }) => [key, true]),
 ) as WorldFeatureFlags;
