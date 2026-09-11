@@ -248,6 +248,11 @@ describe("projectPolitics", () => {
       action: { id: "campaignCanvass", available: true, cost: 1 },
     });
     expect(projected.playerCampaign!.canvassing.targets.length).toBeGreaterThan(0);
+    expect(projected.playerCampaign!.targetedAds).toMatchObject({
+      regionId: election.state,
+      action: { id: "campaignTargetedAd", available: true, cost: 1 },
+    });
+    expect(projected.playerCampaign!.targetedAds.targets.length).toBeGreaterThan(0);
   });
 });
 

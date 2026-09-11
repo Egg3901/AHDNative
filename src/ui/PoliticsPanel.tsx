@@ -307,6 +307,13 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
     setCanvassTarget((current) => campaign.canvassing.targets.some((target) =>
       `${target.category}:${target.group}` === current) ? current : "");
   }, [campaign.canvassing.targets]);
+  const [targetedAdTarget, setTargetedAdTarget] = useState("");
+  useEffect(() => {
+    setTargetedAdTarget((current) => campaign.targetedAds.targets.some((target) =>
+      `${target.category}:${target.group}` === current) ? current : "");
+  }, [campaign.targetedAds.targets]);
+  const selectedTargetedAd = campaign.targetedAds.targets.find((target) =>
+    `${target.category}:${target.group}` === targetedAdTarget);
   const targetSelectionAvailable = campaign.oppositionResearch.action.available
     || campaign.oppositionResearch.action.disabledReason === "Select an opposition target.";
   const retarget = () => {
@@ -326,6 +333,15 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
       regionId: campaign.canvassing.regionId,
       demographicCategory: target.category,
       demographicGroup: target.group,
+    });
+  };
+  const buyTargetedAd = () => {
+    if (busy || !campaign.targetedAds.action.available || !selectedTargetedAd || selectedTargetedAd.maxed || !campaign.targetedAds.regionId) return;
+    onAction("campaignTargetedAd", {
+      electionId,
+      regionId: campaign.targetedAds.regionId,
+      demographicCategory: selectedTargetedAd.category,
+      demographicGroup: selectedTargetedAd.group,
     });
   };
   const categoryLabel = (category: string) => category.replace(/([A-Z])/g, " $1").toLowerCase();
@@ -509,6 +525,46 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
           {!campaign.canvassing.action.available ? (
             <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
               {campaign.canvassing.action.disabledReason ?? "Unavailable"}
+            </span>
+          ) : null}
+        </div>
+      </section>
+      <section aria-label="Targeted advertising" style={{ marginTop: "0.6rem" }}>
+        <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>Targeted advertising</h4>
+        <p className="ahd-help" style={{ margin: "0 0 0.35rem" }}>
+          Region: {campaign.targetedAds.regionId ?? "none"}. Each purchase costs one action and 100 funds; exposure decays over 24 turns and caps at 25%.
+        </p>
+        <label className="ahd-field" style={{ maxWidth: "24rem" }}>
+          <span className="ahd-label">Ad target</span>
+          <select
+            className="ahd-select"
+            aria-label="Targeted ad target"
+            value={targetedAdTarget}
+            onChange={(event) => setTargetedAdTarget(event.target.value)}
+            disabled={busy || !campaign.targetedAds.action.available}
+          >
+            <option value="">Select an ad target</option>
+            {campaign.targetedAds.targets.map((target) => (
+              <option key={`${target.category}:${target.group}`} value={`${target.category}:${target.group}`}>
+                {target.groupName} ({target.categoryName}) - {(target.bonus * 100).toFixed(1)}%{target.maxed ? " (cap)" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.35rem" }}>
+          <button
+            type="button"
+            className="ahd-btn ahd-btn-sm"
+            disabled={busy || !campaign.targetedAds.action.available || !selectedTargetedAd || selectedTargetedAd.maxed}
+            aria-disabled={busy || !campaign.targetedAds.action.available || !selectedTargetedAd || selectedTargetedAd.maxed}
+            aria-label="Buy targeted ads for selected target"
+            onClick={buyTargetedAd}
+          >
+            {campaign.targetedAds.action.name}
+          </button>
+          {!campaign.targetedAds.action.available ? (
+            <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+              {campaign.targetedAds.action.disabledReason ?? "Unavailable"}
             </span>
           ) : null}
         </div>

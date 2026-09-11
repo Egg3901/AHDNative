@@ -12,6 +12,7 @@ import { FUNDRAISE_ACTION_COST } from "@ahd/game-rules/actions";
 import { fundraiseYield } from "./fundGeneration.js";
 import { DEBATE_PREP_ACTION_COST } from "../stats/debatePrep.js";
 import { CAMPAIGN_CANVASS_ACTIONS, CAMPAIGN_CANVASS_FUNDS } from "./campaignCanvass.js";
+import { CAMPAIGN_TARGETED_AD_ACTIONS, CAMPAIGN_TARGETED_AD_FUNDS } from "./campaignTargetedAd.js";
 
 export type ActionId =
   | "buyBond"
@@ -77,7 +78,8 @@ export type ActionId =
   | "campaignRallyTour"
   | "campaignRetarget"
   | "campaignManager"
-  | "campaignCanvass";
+  | "campaignCanvass"
+  | "campaignTargetedAd";
 
 // Costs mirror mainline's dynamic tier functions but collapsed to neutral
 // goldens for solo's simpler state (no per-state GDP tier). Cited.
@@ -768,6 +770,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     baseCost: CAMPAIGN_CANVASS_ACTIONS,
     cooldown: 0,
     fundCost: CAMPAIGN_CANVASS_FUNDS,
+    systems: ["campaign/targeting"],
+    status: "available",
+  },
+  campaignTargetedAd: {
+    id: "campaignTargetedAd",
+    name: "Buy targeted ads",
+    description: "Spend one action and 100 funds to buy targeted ads for a demographic group in the campaign region.",
+    baseCost: CAMPAIGN_TARGETED_AD_ACTIONS,
+    cooldown: 0,
+    fundCost: CAMPAIGN_TARGETED_AD_FUNDS,
     systems: ["campaign/targeting"],
     status: "available",
   },

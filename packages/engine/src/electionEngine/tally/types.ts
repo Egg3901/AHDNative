@@ -62,6 +62,8 @@ export interface TallyCandidateInput {
   isNPP?: boolean;
   /** `ElectionCandidate.support` — 0..100, Phase 5a mood */
   support?: number | null;
+  /** Candidate-specific demographic ad bonuses, keyed by group id. */
+  targetedAdBonuses?: Record<string, number> | undefined;
 }
 
 // ─── Tally document (mirrors `electionVoteTallies` collection) ─────────

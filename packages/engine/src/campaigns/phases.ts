@@ -16,6 +16,7 @@ import { buildRallyAccrualEntry } from "../support/support.js";
 import { applyCampaignPartySubsidies } from "./partySubsidy.js";
 import { investCampaign } from "./npcInvestment.js";
 import { decayCampaignCanvassModifiers } from "../actions/campaignCanvass.js";
+import { decayCampaignTargetedAdModifiers } from "../actions/campaignTargetedAd.js";
 
 /**
  * Campaign turn cluster (W26). Ports src/lib/turn/campaignTurn.ts
@@ -103,6 +104,9 @@ export const campaignTurnPhase: TurnPhase = {
       const decayedCanvass = decayCampaignCanvassModifiers(campaign.canvassModifiers);
       if (decayedCanvass) campaign.canvassModifiers = decayedCanvass;
       else delete campaign.canvassModifiers;
+      const decayedTargetedAds = decayCampaignTargetedAdModifiers(campaign.targetedAdModifiers);
+      if (decayedTargetedAds) campaign.targetedAdModifiers = decayedTargetedAds;
+      else delete campaign.targetedAdModifiers;
 
       const electionType = campaign.electionType;
       const countryId = campaign.countryId;

@@ -490,6 +490,8 @@ export interface Campaign {
   managerName?: string;
   /** Race-local turnout modifiers keyed by `${category}:${group}`. */
   canvassModifiers?: Record<string, number>;
+  /** Race-local targeted-ad bonuses keyed by `${category}:${group}`. */
+  targetedAdModifiers?: Record<string, number>;
   /** Current opposition-research target, when the player has selected one. */
   oppositionTargetId?: string;
   oppositionTargetName?: string;

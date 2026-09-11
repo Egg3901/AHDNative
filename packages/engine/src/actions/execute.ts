@@ -20,6 +20,7 @@ import * as CampaignRallyTour from "./campaignRallyTour.js";
 import * as CampaignRetarget from "./campaignRetarget.js";
 import * as CampaignManager from "./campaignManager.js";
 import * as CampaignCanvass from "./campaignCanvass.js";
+import * as CampaignTargetedAd from "./campaignTargetedAd.js";
 import * as Coalition from "../intraparty/coalitions.js";
 import { getLaw, resolveCatalogPolicyOption } from "../legislation/catalog.js";
 import { calculateBudgetSpending } from "../budget/spending.js";
@@ -659,6 +660,22 @@ function executeActionInner(
   if (actionId === "campaignCanvass") {
     if (found.kind !== "player") return { ok: false, error: "Only player can manage a campaign" };
     const res = CampaignCanvass.campaignCanvass(world, {
+      electionId: params.electionId,
+      regionId: params.regionId,
+      demographicCategory: params.demographicCategory,
+      demographicGroup: params.demographicGroup,
+    });
+    if (!res.ok) {
+      actor.actions += cost;
+      actor.funds += fundCost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: res.error };
+    }
+    return { ok: true, message: res.message };
+  }
+  if (actionId === "campaignTargetedAd") {
+    if (found.kind !== "player") return { ok: false, error: "Only player can manage a campaign" };
+    const res = CampaignTargetedAd.campaignTargetedAd(world, {
       electionId: params.electionId,
       regionId: params.regionId,
       demographicCategory: params.demographicCategory,
@@ -1516,6 +1533,10 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.electionId && params.regionId && params.demographicCategory && params.demographicGroup
         ? null
         : "campaignCanvass requires electionId, regionId, demographicCategory, and demographicGroup";
+    case "campaignTargetedAd":
+      return params.electionId && params.regionId && params.demographicCategory && params.demographicGroup
+        ? null
+        : "campaignTargetedAd requires electionId, regionId, demographicCategory, and demographicGroup";
     case "sponsorBill":
     case "repealLaw":
       return params.catalogId ? null : `${actionId} requires catalogId`;

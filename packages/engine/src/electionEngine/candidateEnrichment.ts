@@ -98,6 +98,7 @@ export interface CandidateInput {
   isNPP?: boolean;
   nppId?: string | null;
   support?: number;
+  targetedAdBonuses?: Record<string, number>;
 }
 
 /** Options mirroring original `fetchEnrichedCandidates` options plus plain inputs. */
@@ -251,6 +252,7 @@ export function enrichCandidates(
     if (candidateInfamy !== undefined) out.infamy = candidateInfamy;
     if (archetypeApprovals !== undefined) out.archetypeApprovals = archetypeApprovals;
     if (typeof c.support === "number") out.support = c.support;
+    if (c.targetedAdBonuses) out.targetedAdBonuses = c.targetedAdBonuses;
     if (partyPos) {
       out.partyEcon = partyPos.econ;
       out.partySocial = partyPos.social;

@@ -25,6 +25,7 @@ export * from "./support/index.js";
 export * from "./actions/catalog.js";
 export * from "./actions/execute.js";
 export * from "./actions/fundGeneration.js";
+export { CAMPAIGN_TARGETED_AD_CAP } from "./actions/campaignTargetedAd.js";
 export { getCatalog, getLaw } from "./legislation/catalog.js";
 export type { Bill, Committee, EnactedLaw } from "./legislation/types.js";
 export * from "./membership.js";

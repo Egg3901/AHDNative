@@ -22,6 +22,7 @@ import { campaignKey } from "../campaigns/lifecycle.js";
 import { buildNationwideElectoratePreload } from "../electionEngine/nationwideElectorate.js";
 import { distributeVotesByGroupLevelAllocation } from "../electionEngine/voteDistribution.js";
 import { distributeVotesBySwingFlow } from "../electionEngine/voteDistributionSwingFlow.js";
+import { CAMPAIGN_TARGETED_AD_CAP } from "../actions/campaignTargetedAd.js";
 
 /**
  * W21c tally wiring: feeds the ported accumulateVoteTurn from WorldState.
@@ -82,6 +83,24 @@ function campaignTurnoutModifiers(world: WorldState, electionId: string | undefi
     }
   }
   return modifiers;
+}
+
+function campaignTargetedAdBonuses(
+  world: WorldState,
+  electionId: string,
+  candidateId: string,
+): Record<string, number> | undefined {
+  const campaign = world.campaigns[campaignKey(electionId, candidateId)];
+  if (!campaign || campaign.status !== "active") return undefined;
+  const bonuses: Record<string, number> = {};
+  for (const [key, value] of Object.entries(campaign.targetedAdModifiers ?? {})) {
+    const separator = key.indexOf(":");
+    if (separator < 0 || !Number.isFinite(value)) continue;
+    const groupId = key.slice(separator + 1);
+    const bonus = Math.max(0, Math.min(CAMPAIGN_TARGETED_AD_CAP, value));
+    if (bonus > 0) bonuses[groupId] = (bonuses[groupId] ?? 0) + bonus;
+  }
+  return Object.keys(bonuses).length > 0 ? bonuses : undefined;
 }
 
 function deriveTurnout(world: WorldState, stateId: string, electionId?: string): TallyTurnoutInput | null {
@@ -301,6 +320,7 @@ function runAccumulateCore(
   const player = world.player;
   const candidates: TallyCandidateInput[] = rec.candidates.map((c) => {
     const support = world.candidateSupports?.[c.id]?.support;
+    const targetedAdBonuses = campaignTargetedAdBonuses(world, rec.id, c.id);
     return {
       _id: c.id,
       electionId: rec.id,
@@ -310,6 +330,7 @@ function runAccumulateCore(
       status: "active",
       isNPP: c.isNPP,
       support: typeof support === "number" ? support : 50,
+      ...(targetedAdBonuses ? { targetedAdBonuses } : {}),
     };
   });
 
@@ -366,6 +387,7 @@ function runAccumulateCore(
       party: c.party,
       isNPP: c.isNPP ?? true,
       ...(typeof c.support === "number" ? { support: c.support } : {}),
+      ...(c.targetedAdBonuses ? { targetedAdBonuses: c.targetedAdBonuses } : {}),
     })),
     {
       parties: Object.values(world.parties)
