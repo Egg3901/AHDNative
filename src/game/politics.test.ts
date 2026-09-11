@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
+import { createWorld, declareCandidacy, resolvePrimaries } from "@ahdclient/engine";
 import { GameSession } from "./session";
+import { projectPolitics } from "./politics";
 
 const options = { era: "1953", countryId: "US", seed: "native-politics-v1", playerName: "Alex" };
 const SAVED_AT = "2026-09-10T00:00:00.000Z";
@@ -90,6 +92,64 @@ describe("projectPolitics", () => {
     expect(typeof sample.favorability).toBe("number");
     expect(typeof sample.infamy).toBe("number");
     expect(Array.isArray(sample.activeRaceIds)).toBe(true);
+  });
+
+  it("keeps a primary-loser campaign as archived read-only detail", () => {
+    const world = createWorld({ ...options, seed: "archived-campaign-detail" });
+    const opponent = world.politicians.find((politician) =>
+      politician.countryId === "US" && politician.partyId === DEM);
+    expect(opponent).toBeDefined();
+    world.player.partyId = DEM;
+    world.player.favorability = 0;
+    world.player.politicalInfluence = 0;
+    opponent!.favorability = 100;
+    opponent!.politicalInfluence = 100;
+
+    const election = {
+      id: "house:US:NY:c1",
+      electionType: "house",
+      countryId: "US",
+      state: "NY",
+      cycle: 1,
+      status: "active" as const,
+      startTurn: 0,
+      primaryEndTurn: 10,
+      endTurn: 20,
+      totalSeats: 1,
+      chamberKey: "house",
+      candidates: [{
+        id: opponent!.id,
+        name: opponent!.name,
+        partyId: DEM,
+        isNPP: true,
+        incumbent: false,
+      }],
+      tally: {},
+    };
+    world.elections = [election];
+    expect(declareCandidacy(world, election.id).ok).toBe(true);
+    const campaign = world.campaigns[`${election.id}:player`]!;
+    campaign.funds = 100_000;
+    campaign.actions = 100;
+
+    world.meta.turn = 11;
+    resolvePrimaries(world);
+
+    expect(campaign.status).toBe("archived");
+    expect(election.candidates.some((candidate) => candidate.id === "player")).toBe(false);
+    const projected = projectPolitics(world).elections.find((item) => item.id === election.id)!;
+    expect(projected.playerCampaign).toMatchObject({ status: "archived", support: null });
+    expect(projected.playerCampaign!.rally.action).toMatchObject({
+      available: false,
+      disabledReason: "Campaign is archived and read-only.",
+    });
+    expect(projected.playerCampaign!.rally.tour.action).toMatchObject({
+      available: false,
+      disabledReason: "Campaign is archived and read-only.",
+    });
+    expect(projected.playerCampaign!.levers.every((lever) =>
+      !lever.starterUpgrade?.available && lever.branches.every((branch) => !branch.upgrade.available),
+    )).toBe(true);
   });
 });
 

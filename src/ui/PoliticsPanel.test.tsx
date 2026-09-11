@@ -238,6 +238,65 @@ describe("PoliticsPanel elections", () => {
     expect(onAction).toHaveBeenCalledWith("campaignRallyTour", { electionId: "house:US:AL:c1", rallyTour: "start" });
   });
 
+  it("shows archived campaign detail without management controls", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const onOpenCampaign = vi.fn();
+    const PoliticsPanel = await renderPanel();
+    const politics = makePolitics();
+    politics.elections[0]!.playerCampaign = {
+      status: "archived", funds: 50000, actions: 20,
+      spendThisTurn: 0, spendStock: 0,
+      totalFundsGenerated: 12000, totalFundsSpent: 0,
+      incomePerTurn: 6000, maintenancePerTurn: 0,
+      support: null, generalPhase: false,
+      rally: {
+        action: {
+          id: "campaignRally", name: "Campaign Rally", description: "", cost: 6,
+          available: false, disabledReason: "Campaign is archived and read-only.",
+        },
+        immediateSupport: 1.8, pendingPerTurn: 0.3, pendingTurns: 4,
+        tour: {
+          active: false,
+          tickCost: 3,
+          action: {
+            id: "campaignRallyTour", name: "Start campaign rally tour", description: "", cost: 0,
+            available: false, disabledReason: "Campaign is archived and read-only.",
+          },
+        },
+      },
+      activity: [],
+      levers: [{
+        category: "fundraising", started: false,
+        starterFunds: 15000, starterActions: 10, starterEffect: "+$35k/turn base income",
+        starterAffordable: false,
+        starterUpgrade: {
+          id: "campaignUpgrade", name: "Campaign Upgrade", description: "", cost: 0,
+          available: false, disabledReason: "Campaign is archived and read-only.",
+        },
+        branches: [{
+          branch: "a", level: 0, maxLevel: 3, nextFunds: 10000, nextActions: 5,
+          nextEffect: "", affordable: false, maxed: false,
+          upgrade: {
+            id: "campaignUpgrade", name: "Campaign Upgrade", description: "", cost: 0,
+            available: false, disabledReason: "Campaign is archived and read-only.",
+          },
+        }],
+      }],
+    };
+
+    render(<PoliticsPanel politics={politics} section="campaign" initialId="house:US:AL:c1" busy={false} onAction={onAction} />);
+    expect(screen.getByText("Archived campaign: management is read-only.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Fire campaign rally" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Start campaign rally tour" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Unlock fundraising starter" })).toBeDisabled();
+    expect(onAction).not.toHaveBeenCalled();
+
+    render(<PoliticsPanel politics={politics} section="elections" busy={false} onAction={onAction} onOpenCampaign={onOpenCampaign} />);
+    await user.click(screen.getByRole("button", { name: "View campaign" }));
+    expect(onOpenCampaign).toHaveBeenCalledWith("house:US:AL:c1");
+  });
+
   it("shows no vote figures before any tally exists", async () => {
     const user = userEvent.setup();
     const PoliticsPanel = await renderPanel();

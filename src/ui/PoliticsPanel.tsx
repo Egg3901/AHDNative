@@ -306,6 +306,11 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
       <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>
         Your campaign [{campaign.status}]
       </h4>
+      {campaign.status === "archived" ? (
+        <p className="ahd-help" role="note" style={{ margin: "0 0 0.4rem" }}>
+          Archived campaign: management is read-only.
+        </p>
+      ) : null}
       <dl style={{ margin: 0, display: "grid", gap: "0.3rem" }}>
         <div className="ahd-kv"><dt>Treasury</dt><dd className="ahd-mono">{Math.floor(campaign.funds).toLocaleString()}</dd></div>
         <div className="ahd-kv"><dt>Campaign actions</dt><dd className="ahd-mono">{campaign.actions}</dd></div>
@@ -528,7 +533,9 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign 
               <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0 0 0.4rem" }}>
                 {Math.floor(selected.playerCampaign.funds).toLocaleString()} funds · {selected.playerCampaign.actions} actions
               </p>
-              {onOpenCampaign ? <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onOpenCampaign(selected.id)} disabled={busy}>Manage campaign</button> : null}
+              {onOpenCampaign ? <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onOpenCampaign(selected.id)} disabled={busy}>
+                {selected.playerCampaign.status === "archived" ? "View campaign" : "Manage campaign"}
+              </button> : null}
             </section>
           ) : null}
 
@@ -558,7 +565,7 @@ function CampaignSection({ politics, busy, onAction, initialId }: Omit<PoliticsP
     ?? politics.elections.find((item) => item.playerCampaign !== null)
     ?? null;
   if (!election?.playerCampaign) {
-    return <div className="ahd-empty">No active player campaign is available.</div>;
+    return <div className="ahd-empty">No player campaign is available.</div>;
   }
   return (
     <div className="ahd-stack">
