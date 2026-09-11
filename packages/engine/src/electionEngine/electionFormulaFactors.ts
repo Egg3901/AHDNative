@@ -241,6 +241,25 @@ export function personalStatTenureFatigue(consecutiveTerms: number | undefined):
   );
 }
 
+/** Fraction of a tenure-holder's personal stats that still counts at vote time. */
+export const PERSONAL_STAT_TENURE_EROSION_PER_TERM = 0.03;
+export const PERSONAL_STAT_TENURE_EROSION_MAX = 0.15;
+
+export function personalStatTenureRetention(consecutiveTerms: number | undefined): number {
+  if (consecutiveTerms == null || !Number.isFinite(consecutiveTerms)) return 1;
+  const termsBeyondFirst = Math.max(0, Math.floor(consecutiveTerms) - 1);
+  const erosion = Math.min(
+    PERSONAL_STAT_TENURE_EROSION_MAX,
+    termsBeyondFirst * PERSONAL_STAT_TENURE_EROSION_PER_TERM,
+  );
+  return 1 - erosion;
+}
+
+/** Convert the Senate sought-term count into terms already held. */
+export function legislativeTenureTermsHeld(soughtTerm: number | undefined): number | undefined {
+  return soughtTerm == null ? undefined : soughtTerm - 1;
+}
+
 /**
  * Reg as persuasion-resistance multiplier — entrenched voters defend their
  * party against peeling. Higher own-Reg → larger multiplier on this party's

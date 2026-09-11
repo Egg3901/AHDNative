@@ -180,6 +180,8 @@ export interface TallyDerivedInputs {
   };
   /** Era year for majoritarian bonus */
   currentYear?: number | null;
+  /** Runtime regime gate used by the primary spoiler path. */
+  isOnePartyState?: boolean;
 }
 
 // ─── Distribution function type (injectable) ───────────────────────────

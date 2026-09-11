@@ -118,6 +118,7 @@ export interface EnrichedCandidate {
   partyEcon?: number | undefined;
   partySocial?: number | undefined;
   archetypeApprovals?: Record<string, number> | undefined;
+  targetedAdBonuses?: Record<string, number> | undefined;
   support?: number | undefined;
   regimeStatus?: "ruling" | "approved" | "banned" | null | undefined;
   regimeMult?: number | undefined;
@@ -141,6 +142,7 @@ export interface DistributeVotesOptions {
   hasPlayerInRace?: boolean | undefined;
   spoilerRate?: number | undefined;
   useOrgAwareSpoiler?: boolean | undefined;
+  favorabilityDeltaByCandidate?: Record<string, number> | undefined;
   partyGroupFavorabilityByKey?: Map<string, number> | undefined;
   regByParty?: Map<string, number> | undefined;
   regShareByParty?: Map<string, number> | undefined;
