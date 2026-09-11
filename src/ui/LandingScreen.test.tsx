@@ -47,6 +47,18 @@ describe("LandingScreen", () => {
     expect(screen.getByText("Test build")).toBeInTheDocument();
   });
 
+  it("renders the canonical offline logo as decorative identity", () => {
+    render(<LandingScreen {...props()} />);
+    const logo = document.querySelector("img.ahd-landing-logo") as HTMLImageElement | null;
+    expect(logo).not.toBeNull();
+    expect(logo?.getAttribute("src")).toContain("ahd-logo.png");
+    // The h1 already names the game, so the logo stays decorative (reference parity).
+    expect(logo?.alt).toBe("");
+    // Square intrinsic size pins the aspect ratio before the PNG loads.
+    expect(logo?.width).toBeGreaterThan(0);
+    expect(logo?.height).toBe(logo?.width);
+  });
+
   it("blocks New game until eras load, then starts the new-game flow", async () => {
     const user = userEvent.setup();
     const onNew = vi.fn();

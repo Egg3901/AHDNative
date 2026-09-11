@@ -68,6 +68,46 @@ Provenance (read-only `git show`, no runtime/ops material copied):
 - No `.env`, credentials, signing, download URLs, server auth or marketing
   copy were read or copied. Only the files named above were inspected.
 
+## Canonical logo (issue #148)
+
+The launcher now uses the established AHD identity. The temporary letter-A
+mark (`app-icon.svg`) is removed; nothing is generated or redrawn.
+
+Provenance (public sources, byte-identical copy):
+
+- AHDGame `d4baf899fd8bd529099f03d7410807143604e2e5`, `public/ahd-logo.png`.
+- AHDClient `378126dcb6c5b3366d182b442c6395d548b5edf5`,
+  `apps/desktop/src/assets/ahd-logo.png`.
+- Both are the same 500x500 RGBA asset, SHA-256
+  `1a7fe54f33c781d6b7741277a20a9e800ca5525a0fbea790a7109c3e119f66a9`.
+- Bundled offline at `public/ahd-logo.png` (same hash); no CDN or remote fetch.
+- Rights: "A House Divided" and the logo are trademarks of Lakeside Games
+  (see LICENSE.md). Same rights holder as the bundled Fraunces face above.
+
+Launcher integration (`src/ui/LandingScreen.tsx`, `.ahd-landing-logo` in
+`src/ui/ui.css`): the mark sits above the eyebrow in the hero intro, centered
+on phones and left-aligned on desktop through the existing intro alignment.
+It is decorative (`alt=""`) because the h1 already names the game, matching
+the AHDClient launcher (`launcher-logo`, 88px desktop down to 58px at 390px
+widths). Displayed size clamps from 4.5rem up to 6rem with a locked 1:1 aspect
+ratio and a soft indigo drop shadow for contrast on the ethereal background.
+The globe, background, entry/continue flows and accessibility tree are
+unchanged. Behavioral test: decorative-identity case in
+`src/ui/LandingScreen.test.tsx`.
+
+Platform icons: generated locally with the existing Tauri workflow
+(`tauri icon ../public/ahd-logo.png` from `src-tauri/`, Tauri CLI 2.x) into
+`src-tauri/icons/` (Windows `.ico`, macOS `.icns`, PNG set, iOS set, Android
+mipmaps, Store logos); `tauri.conf.json` needed no change. iOS icons carry the
+opaque white fill the platform requires; all other outputs keep transparency.
+Crops inspected at 32px, 48px, 180px and 512px: the bell badge stays
+recognizable, with fine bell detail naturally softening at favicon sizes. The
+next authorized package confirms the installed icon; no paid build was
+triggered for this asset update.
+
+Help/Settings remain unbranded app-local surfaces; there is no separate
+identity backend and no auth surface yet (see #149, independent).
+
 Rendered browser review covers 320x568, 390x844 and 1280x800. New game stays
 in the initial viewport, there is no horizontal overflow, real geography
 rotates locally and reduced motion stops it. The final polish replaces the
