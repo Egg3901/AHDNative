@@ -1,9 +1,12 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Local application window; no plugin access",
+  "description": "Trusted local application window; may enter multiplayer through Rust",
   "windows": [
     "main"
   ],
-  "permissions": []
+  "permissions": [
+    "core:default",
+    "allow-open-online-window"
+  ]
 }

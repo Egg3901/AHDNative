@@ -12,6 +12,7 @@ import { BUILD_LABEL } from './buildIdentity';
 import { NewGameScreen } from './ui/NewGameScreen';
 import { GameScreen } from './ui/GameScreen';
 import { LandingScreen } from './ui/LandingScreen';
+import { openOnlineSession, tauriOnlineSessionHost } from './online/session';
 
 export function App() {
   const [presentation, setPresentation] = useState(loadPreferences);
@@ -27,6 +28,7 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [message, setMessage] = useState<string>();
+  const [onlineBusy, setOnlineBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<SaveMetadata | null>(null);
   const loadProfile = useCallback(() => {
     if (!client.current) return Promise.reject(new Error("Start or load a game first."));
@@ -171,6 +173,15 @@ export function App() {
     });
   }
 
+  async function enterMultiplayer() {
+    if (onlineBusy) return;
+    setOnlineBusy(true);
+    setError(undefined);
+    const result = await openOnlineSession(tauriOnlineSessionHost());
+    if (result.status === 'failed') setError(result.message);
+    setOnlineBusy(false);
+  }
+
   if (screen === 'help' || screen === 'settings') return <main className="ahd-screen"><div className="ahd-container" style={{ maxWidth: '42rem', paddingTop: 'max(1rem, env(safe-area-inset-top))', paddingBottom: '2rem' }}>
     <button className="ahd-btn" onClick={() => setScreen('home')} autoFocus>Back to home</button>
     {screen === 'help' ? <HelpPanel /> : <SettingsPanel value={presentation.value} onChange={changePreferences} error={presentation.error} />}
@@ -214,5 +225,7 @@ export function App() {
     onRequestDelete={requestDelete}
     onCancelDelete={cancelDelete}
     onConfirmDelete={confirmDelete}
+    onlineBusy={onlineBusy}
+    onEnterMultiplayer={() => { void enterMultiplayer(); }}
   />;
 }

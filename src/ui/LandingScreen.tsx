@@ -29,6 +29,8 @@ export interface LandingScreenProps {
   onRequestDelete: (saved: SaveMetadata) => void;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
+  onlineBusy: boolean;
+  onEnterMultiplayer: () => void;
 }
 
 export function LandingScreen({
@@ -51,6 +53,8 @@ export function LandingScreen({
   onRequestDelete,
   onCancelDelete,
   onConfirmDelete,
+  onlineBusy,
+  onEnterMultiplayer,
 }: LandingScreenProps) {
   return <main className="ahd-screen ahd-landing"><div className="ahd-container ahd-landing-layout">
     <section className="ahd-landing-hero" aria-label="Begin your career">
@@ -70,6 +74,10 @@ export function LandingScreen({
         {error && !eras.length && <button className="ahd-btn" onClick={onReload}>Reload app</button>}
         <div className="ahd-landing-actions">
           <button className="ahd-btn ahd-btn-primary ahd-landing-primary" disabled={busy || !eras.length} onClick={() => { onNew(); }}>New game</button>
+          <button className="ahd-btn" disabled={busy || onlineBusy} onClick={onEnterMultiplayer}>
+            {onlineBusy ? "Opening multiplayer..." : "Enter multiplayer"}
+          </button>
+          <p className="ahd-muted" style={{ margin: 0, fontSize: "0.78rem" }}>Local games do not need an account.</p>
           <div className="ahd-landing-secondary">
             <button className="ahd-btn" onClick={onHelp}>Help</button>
             <button className="ahd-btn" onClick={onSettings}>Settings</button>
