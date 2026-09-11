@@ -18,6 +18,7 @@ import { realAccumulate } from "./tallyAdapter.js";
 import { ensureCampaignsForElection, archiveCampaignsForElection } from "../campaigns/lifecycle.js";
 import { applyPresidentialResolution } from "./presidentialResolution.js";
 import { declareCandidacy } from "./candidacy.js";
+import { requiresPrimaryResolution } from "./primaryResolution.js";
 import { GOVERNOR_COUNTRIES, LOWER_CHAMBER_PER_REGION, SUBNATIONAL_CHAMBER_PER_REGION, JP_SANGIIN_SEATS } from "../government/constants.js";
 
 /**
@@ -857,7 +858,8 @@ export function runAutoReelectionEntry(world: WorldState): void {
 
 export function runVoteAccumulation(world: WorldState, rng: WorldRng): void {
   const inWindow = world.elections.filter(
-    (rec) => rec.status === "active" && world.meta.turn > rec.primaryEndTurn && world.meta.turn <= rec.endTurn,
+    (rec) => rec.status === "active" && world.meta.turn > rec.primaryEndTurn && world.meta.turn <= rec.endTurn &&
+      (!requiresPrimaryResolution(rec) || rec.primaryResults !== undefined),
   );
   if (inWindow.length === 0) return;
   // One id index per turn: the per-candidate lookup made this phase 1000x

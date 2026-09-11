@@ -16,7 +16,7 @@ test('an unelected player can inspect legislation without sponsoring a bill', as
   await page.screenshot({ path: 'artifacts/smoke/mobile-legislature.png', fullPage: true });
 });
 
-test('the historical election loss and sponsorship gate survive relaunch', async ({ page }) => {
+test('the historical primary transition and sponsorship survive relaunch', async ({ page }) => {
   const { readFileSync } = await import('node:fs');
   const { gunzipSync } = await import('node:zlib');
   const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-t95-1953-US.save.json.gz', import.meta.url)));
@@ -29,14 +29,14 @@ test('the historical election loss and sponsorship gate survive relaunch', async
   await expect(page.getByRole('contentinfo')).toContainText('Turn 96 ·');
   await gameReady(page);
   await navigateGame(page, 'Legislature');
-  await expect(page.getByText('No legislative seat', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Sponsor bill', exact: true })).toBeDisabled();
+  await expect(page.getByText('House of Representatives · United States', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sponsor bill', exact: true })).toBeEnabled();
   await page.reload();
   await page.getByRole('button', { name: 'Continue Muse', exact: true }).click();
   await gameReady(page);
   await navigateGame(page, 'Legislature');
-  await expect(page.getByText('No legislative seat', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Sponsor bill', exact: true })).toBeDisabled();
+  await expect(page.getByText('House of Representatives · United States', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sponsor bill', exact: true })).toBeEnabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
   await page.screenshot({ path: 'artifacts/smoke/mobile-election-result.png', fullPage: true });

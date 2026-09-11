@@ -200,6 +200,7 @@ const PHASE_FEATURE_FLAGS: Readonly<Record<string, WorldFeatureFlag>> = {
   coalitionDisband: "politics",
   leadershipElections: "politics",
   voteAccumulation: "elections",
+  primaryResolution: "elections",
   electionTimers: "elections",
   electionResolution: "elections",
   campaignSpendReset: "campaigns",
