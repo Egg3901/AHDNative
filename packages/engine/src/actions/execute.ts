@@ -21,6 +21,7 @@ import * as CampaignRetarget from "./campaignRetarget.js";
 import * as CampaignManager from "./campaignManager.js";
 import * as CampaignCanvass from "./campaignCanvass.js";
 import * as CampaignTargetedAd from "./campaignTargetedAd.js";
+import * as Referendum from "../referendum/request.js";
 import * as Coalition from "../intraparty/coalitions.js";
 import { getLaw, resolveCatalogPolicyOption } from "../legislation/catalog.js";
 import { calculateBudgetSpending } from "../budget/spending.js";
@@ -687,6 +688,12 @@ function executeActionInner(
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: res.error };
     }
+    return { ok: true, message: res.message };
+  }
+  if (actionId === "requestReferendum") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can request a referendum" };
+    const res = Referendum.requestReferendum(world, params.regionId!);
+    if (!res.ok) return { ok: false, error: res.error };
     return { ok: true, message: res.message };
   }
   if (actionId === "sponsorBill") {
@@ -1504,6 +1511,8 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
     case "organize":
     case "pressureBoost":
       return params.regionId ? null : `Action ${actionId} requires a regionId`;
+    case "requestReferendum":
+      return params.regionId ? null : "requestReferendum requires regionId";
     case "joinParty":
       return params.partyId ? null : "joinParty requires partyId";
     case "foundParty":

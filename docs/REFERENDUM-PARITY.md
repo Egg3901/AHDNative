@@ -12,6 +12,13 @@ Base: `b4892fe`. AHDGame reference: `e364c04954ed628beef73a993a8e9e156650a31e`. 
 The old `rng.next() * 2 - 1` draw is removed. New unit:
 `packages/engine/src/referendum/seededVariance.ts`.
 
+The request seam is now reachable through the public action boundary:
+`executeAction(world, "player", "requestReferendum", { regionId })` applies the
+source eligibility gate and writes a deterministic `granted` record with the
+48-turn campaign window. Native combines AHDGame's request and PM-grant
+commands because it has no separate devolved office ledger or PM decision
+action. This does not claim consent-bill or secession actuation.
+
 ## RNG policy (explicit, verified)
 
 The referendum lifecycle phase is now rng-free: it neither draws from nor
@@ -56,18 +63,16 @@ all passing; included in the ordinary CI suite) plus `npm run typecheck` clean i
 
 ## Remaining lifecycle gaps (not claimed)
 
-- No `requestReferendum` player action; no `granted -> campaigning` or
-  `campaigning -> polling` transitions (need the Layer-1 cohort engine and
-  poll-history tracking); no `actuating -> completed | cancelled` consent
-  gate or secession actuation. Passed votes park in `actuating`.
+- No separate grant/decline action; no `actuating -> completed | cancelled`
+  consent gate or secession actuation. Passed votes park in `actuating`.
 - `yesShare` is denormalized fixture input, not the cohort aggregate
   (`referendumYesShare`) mainline votes on.
-- End-to-end referendum playability is still not claimed.
+- End-to-end referendum consequences are still not claimed.
 
 ## Next-step judgment
 
 The remaining gaps are additive phases and actions behind the same seam,
 completable next without rebalancing: none of them change existing numbers
-because no live path creates referendum records today. The cohort port is
+because no live path previously created referendum records. The cohort port is
 the load-bearing piece and the only one that can move vote outcomes once
 `yesShare` becomes computed rather than fixture input.

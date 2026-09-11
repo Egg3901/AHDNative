@@ -47,8 +47,8 @@ export interface WorldState {
   /**
    * W25: UK independence/reunification referendum records. See
    * referendum/lifecycle.ts file doc for exactly which lifecycle stages are
-   * live this wave. Empty in every world today (no request action ported
-   * yet) except test fixtures.
+   * live this wave. Fresh worlds remain empty; the requestReferendum action
+   * creates the first granted record when a player invokes it.
    */
   referendums: import("./referendum/types.js").ReferendumRecord[];
   /**
