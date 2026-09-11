@@ -620,6 +620,23 @@ function executeActionInner(
         if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
         return { ok: false, error: `Catalog entry ${catalogId} belongs to ${leg.countryId}, not ${countryId}` };
       }
+      if (params.regionId) {
+        const region = world.regions[params.regionId];
+        if (!region || region.countryId !== countryId) {
+          actor.actions += cost;
+          if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+          return { ok: false, error: `Unknown region ${params.regionId} for ${countryId}` };
+        }
+        if (leg.allowedScope === "national") {
+          actor.actions += cost;
+          if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+          return { ok: false, error: `${catalogId} is national-scope and cannot target a region` };
+        }
+      } else if (leg.allowedScope === "regional") {
+        actor.actions += cost;
+        if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+        return { ok: false, error: `${catalogId} requires a regionId` };
+      }
       const selectedPolicyOption =
         params.policyOptionId === undefined ? null : resolveCatalogPolicyOption(leg, params.policyOptionId);
       if (params.policyOptionId !== undefined && !selectedPolicyOption) {
@@ -654,6 +671,7 @@ function executeActionInner(
         countryId,
         category,
         legislationTypeId: catalogId,
+        ...(params.regionId ? { regionId: params.regionId } : {}),
         effectDirection: selectedPolicyOption?.effectDirection ?? 1,
         // Tax bills: selected rate from the catalog ladder (params.taxRate, snapped
         // to step and clamped to [minRate, maxRate]; defaults to baselineRate).
@@ -730,17 +748,40 @@ function executeActionInner(
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "Must hold a legislative seat to repeal" };
     }
-    const law = world.enactedLaws.find((l) => l.id === catalogId && l.repealedAtTurn === undefined);
-    if (!law) {
+    if (params.regionId) {
+      const region = world.regions[params.regionId];
+      if (!region || region.countryId !== world.player.countryId) {
+        actor.actions += cost;
+        if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+        return { ok: false, error: `Unknown region ${params.regionId} for ${world.player.countryId}` };
+      }
+    }
+    const leg = awaitImportCatalog(catalogId);
+    const law = world.enactedLaws.find(
+      (l) => l.id === catalogId && l.repealedAtTurn === undefined && (!params.regionId || l.regionId === params.regionId),
+    );
+    const hasActiveLedger = Object.values(world.policyLedger).some(
+      (entry) =>
+        entry.legislationTypeId === catalogId &&
+        entry.repealedAtTurn === undefined &&
+        !entry.isRepeal &&
+        (!params.regionId || entry.regionId === params.regionId),
+    );
+    const hasAuthoredBaseline =
+      !params.regionId &&
+      leg?.status === "available" &&
+      leg.kind !== "tax" &&
+      leg.allowedScope !== "regional" &&
+      (leg.baselineLevel ?? 0) > 0;
+    if (!law && !hasActiveLedger && !hasAuthoredBaseline) {
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: `No active enacted law ${catalogId} to repeal` };
     }
     // Create a repeal bill (negative effectDirection)
-    const leg = awaitImportCatalog(catalogId);
     const title = `Repeal ${leg?.title ?? catalogId}`;
     const id = `bill-repeal-${world.meta.turn}-${world.bills.length + 1}-${catalogId}`;
-    const countryId = law.countryId;
+    const countryId = law?.countryId ?? leg?.countryId ?? world.player.countryId;
     const legConfig = world.legislatures[countryId];
     const originChamber = legConfig?.chambers.find((c) => c.elected)?.key ?? "house";
     const bill: import("../legislation/types.js").Bill = {
@@ -751,6 +792,8 @@ function executeActionInner(
       category: leg?.category ?? "economy",
       legislationTypeId: catalogId,
       effectDirection: -1,
+      ...(params.regionId ? { regionId: params.regionId } : {}),
+      repealsLawId: catalogId,
       provisions: [{ type: "policy", legislationTypeId: catalogId, effectDirection: -1 }],
       originChamber,
       currentChamber: originChamber,

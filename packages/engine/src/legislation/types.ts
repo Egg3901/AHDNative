@@ -38,6 +38,8 @@ export interface Bill {
   category: string;
   legislationTypeId?: string;
   effectDirection?: number;
+  /** Region targeted by a regional law; absent for national laws. */
+  regionId?: string;
   /** Tax bills: the target rate (%) the sponsor selected from the catalog's taxPolicy ladder. Schema v41. */
   selectedRate?: number;
   provisions: BillProvision[];
@@ -82,6 +84,8 @@ export interface Bill {
   updatedAtTurn: number;
   // Effect tracking
   enactedLevel?: number;
+  /** Catalog law id whose current posture this bill repeals. */
+  repealsLawId?: string;
   repealedAtTurn?: number;
   expiresAtTurn?: number | null;
 }

@@ -50,7 +50,7 @@ export interface CatalogEntry {
    * B03: per-metric direction authoring), so entries needing the opposite
    * sign must set it explicitly. Consumed by policyEffects/phases.ts.
    */
-  targets: Array<{ metricId: string; weight: number; higherBetter?: boolean }>;
+  targets: Array<{ metricId: string; weight: number; higherBetter?: boolean; adjustmentHalfLife?: number }>;
   status: CatalogStatus;
   blockingSystem?: string;
   /** Solo effect descriptor for available entries */
@@ -123,6 +123,32 @@ export function resolveCatalogPolicyOption(
   const effectDirection = POLICY_EFFECT_DIRECTION_LADDER[index];
   if (!level || effectDirection === undefined) return null;
   return { id: policyOptionId, index, level, effectDirection };
+}
+
+/**
+ * Resolve the source ladder's graded intensity for a policy option. The
+ * AHDGame five-level ladder uses the signed distance from its center, so l1
+ * and l3 are half strength while l0 and l4 are full strength.
+ *
+ * Numeric ids remain accepted for old saves that predate the explicit lN
+ * option id. Unknown ids fall back to the legacy sign-only behavior.
+ */
+export function policyOptionIntensity(
+  entry: CatalogEntry | null | undefined,
+  policyOptionId: string | undefined,
+  fallbackEffectDirection: number,
+): number {
+  if (!entry?.levels || policyOptionId === undefined) return Math.sign(fallbackEffectDirection);
+  // Numeric ids are the legacy Native representation and do not prove that a
+  // caller selected a source ladder option. Keep their historical sign-only
+  // behavior; explicit source ids always use the lN form.
+  if (!/^l\d+$/.test(policyOptionId)) return Math.sign(fallbackEffectDirection);
+  const resolved = resolveCatalogPolicyOption(entry, policyOptionId);
+  if (!resolved) return Math.sign(fallbackEffectDirection);
+  const center = (entry.levels.length - 1) / 2;
+  const maxDistance = Math.max(center, entry.levels.length - 1 - center) || 1;
+  const magnitude = Math.abs(resolved.index - center) / maxDistance;
+  return resolved.effectDirection * magnitude;
 }
 
 // Minimal ported catalog: select entries whose effect can be mapped to solo
