@@ -486,3 +486,22 @@ checks, career fixture validation and integrated production-browser flows.
 Release evidence records the final source revision and private delivery outside
 GitHub. No Codemagic build is part of this batch. Windows execution, device
 performance, broader imagery #143 and unresolved mechanics remain open.
+
+
+### Verified Windows review checkpoint, 2026-09-11
+
+PR [#146](https://github.com/Egg3901/AHDNative/pull/146) merged as `a9bbd05b`.
+Its source `79c0fd6` passed the complete verify gate, including all 42
+production-browser scenarios and Rust fmt/clippy/tests. #56, #85 and #142 are
+closed with source and test evidence. Five of the original ten P0 issues are
+now complete: #30/#31/#32/#56/#85. The globe request #142 is additional.
+
+Windows 0.1.1 was cross-compiled locally from `79c0fd6` and delivered privately
+outside GitHub. No Codemagic minutes or iOS/Android rebuild were used. Actual
+Windows launch and named-device acceptance remain #124. This remains a
+feedback preview, with broader imagery #143 and mechanics still open.
+
+GitHub scope after closure: 92 open and 15 closed issues. Open does not mean
+untouched. The Hub board remains blocked by LakesideHub #4; no Hub sync is
+claimed. The remaining original five (#39/#40/#67/#68/#92) and the related live
+election distributor #141 continue under source-backed review.
