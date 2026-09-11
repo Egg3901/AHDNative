@@ -634,6 +634,10 @@ export interface PlayerCharacter {
   bio?: string;
   /** Offline raster data URL in Native. Unknown optional fields survive JSON saves. */
   avatarUrl?: string | null;
+  /** Reference-compatible YouTube video id for optional profile playback. */
+  campaignSongUrl?: string;
+  /** Whether the profile owner requests playback on entry. */
+  campaignSongAutoplay?: boolean;
   countryId: string;
   /** Home state or region for the State navigation cluster. Null on migrated saves that never chose one. */
   homeRegionId?: string | null;

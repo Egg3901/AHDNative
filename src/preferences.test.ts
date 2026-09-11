@@ -32,8 +32,8 @@ describe("preferences", () => {
     const storage = new MemoryStorage();
     expect(loadPreferences(storage)).toEqual({ value: DEFAULT_PREFERENCES, error: null });
 
-    const saved = savePreferences({ textSize: "large", reducedMotion: "on" }, storage);
-    expect(saved).toEqual({ value: { textSize: "large", reducedMotion: "on" }, error: null });
+    const saved = savePreferences({ textSize: "large", reducedMotion: "on", disableAutoplayOnOtherProfiles: true }, storage);
+    expect(saved).toEqual({ value: { textSize: "large", reducedMotion: "on", disableAutoplayOnOtherProfiles: true }, error: null });
     expect(storage.getItem(PREFERENCES_STORAGE_KEY)).toBe(JSON.stringify(saved.value));
     expect(loadPreferences(storage)).toEqual(saved);
   });
@@ -47,8 +47,8 @@ describe("preferences", () => {
       value: DEFAULT_PREFERENCES,
       error: "Device preferences could not be loaded. Default settings are in use.",
     });
-    expect(savePreferences({ textSize: "large", reducedMotion: "off" }, broken)).toEqual({
-      value: { textSize: "large", reducedMotion: "off" },
+    expect(savePreferences({ textSize: "large", reducedMotion: "off", disableAutoplayOnOtherProfiles: true }, broken)).toEqual({
+      value: { textSize: "large", reducedMotion: "off", disableAutoplayOnOtherProfiles: true },
       error: "Device preferences could not be saved. Your choice is active for this session.",
     });
     expect(loadPreferences(null)).toEqual({
@@ -59,7 +59,7 @@ describe("preferences", () => {
 
   it("applies presentation attributes without requiring storage", () => {
     const target = { documentElement: { dataset: {} as DOMStringMap } };
-    applyPreferencesToDocument({ textSize: "large", reducedMotion: "system" }, target);
+    applyPreferencesToDocument({ textSize: "large", reducedMotion: "system", disableAutoplayOnOtherProfiles: false }, target);
     expect(target.documentElement.dataset.textSize).toBe("large");
     expect(target.documentElement.dataset.reducedMotion).toBe("system");
   });

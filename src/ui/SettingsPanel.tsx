@@ -134,6 +134,24 @@ export function SettingsPanel({ value, onChange, error }: SettingsPanelProps) {
           <ReducedMotionChoices value={value.reducedMotion} onChange={(reducedMotion) => update({ reducedMotion })} />
         </div>
       </section>
+
+      <section className="ahd-card ahd-card-pad" aria-labelledby="settings-media">
+        <h2 id="settings-media" className="ahd-h2">Profile media</h2>
+        <label style={{ display: "flex", alignItems: "flex-start", gap: "0.65rem", marginTop: "0.75rem" }}>
+          <input
+            type="checkbox"
+            checked={value.disableAutoplayOnOtherProfiles}
+            onChange={(event) => update({ disableAutoplayOnOtherProfiles: event.target.checked })}
+            aria-label="Disable autoplay on other profiles"
+          />
+          <span>
+            <span style={{ display: "block", fontSize: "0.82rem", fontWeight: 700 }}>Disable autoplay on other profiles</span>
+            <span className="ahd-muted" style={{ fontSize: "0.74rem", lineHeight: 1.45 }}>
+              Campaign songs stay paused until you start them. This preference is stored on this device.
+            </span>
+          </span>
+        </label>
+      </section>
     </div>
   );
 }

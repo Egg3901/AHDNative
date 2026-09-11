@@ -52,4 +52,27 @@ describe('profile through the saved game session', () => {
       finances: { donorBaseLevel: 0 },
     });
   });
+
+  it('normalizes, persists and clears the reference campaign song settings', () => {
+    const session = new GameSession(); session.create(options);
+    session.updateProfile({
+      campaignSongUrl: ' https://www.youtube.com/watch?v=dQw4w9WgXcQ&feature=share ',
+      campaignSongAutoplay: true,
+    });
+    expect(session.profile()).toMatchObject({ campaignSongUrl: 'dQw4w9WgXcQ', campaignSongAutoplay: true });
+    const loaded = new GameSession(); loaded.load(session.serialize(savedAt));
+    expect(loaded.profile()).toMatchObject({ campaignSongUrl: 'dQw4w9WgXcQ', campaignSongAutoplay: true });
+
+    loaded.updateProfile({ campaignSongUrl: '', campaignSongAutoplay: false });
+    expect(loaded.profile()).toMatchObject({ campaignSongUrl: '', campaignSongAutoplay: false });
+  });
+
+  it('rejects invalid campaign song input atomically', () => {
+    const session = new GameSession(); session.create(options);
+    const before = session.serialize(savedAt);
+    expect(() => session.updateProfile({ campaignSongUrl: 'https://example.com/not-youtube' })).toThrow(
+      'Enter a valid YouTube URL or 11-character video ID.',
+    );
+    expect(session.serialize(savedAt)).toBe(before);
+  });
 });

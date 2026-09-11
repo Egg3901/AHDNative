@@ -89,3 +89,36 @@ test('bad images are rejected and a failed biography save retains the draft for 
   await gameReady(page);
   await expect(profile.getByText('Keep this unsaved draft.', { exact: true })).toBeVisible();
 });
+
+test('campaign song validation, preferences, offline fallback and save lifecycle', async ({ page }) => {
+  await startProfile(page, 'Song Player');
+  const profile = page.getByRole('region', { name: 'Profile', exact: true });
+  const song = profile.getByRole('region', { name: 'Campaign song' });
+  const input = song.getByRole('textbox', { name: 'YouTube URL or video ID' });
+
+  await input.fill('not a youtube video');
+  await song.getByRole('button', { name: 'Save campaign song' }).click();
+  await expect(song.getByRole('alert')).toContainText('valid YouTube');
+  await input.fill('https://www.youtube.com/watch?feature=share&v=dQw4w9WgXcQ');
+  await song.getByRole('checkbox', { name: 'Play automatically on my profile' }).check();
+  await song.getByRole('button', { name: 'Save campaign song' }).click();
+  const player = song.getByTitle("Song Player's campaign song");
+  await expect(player).toHaveAttribute('src', /dQw4w9WgXcQ.*autoplay=1.*playsinline=1/);
+
+  await page.context().setOffline(true);
+  await expect(song.getByRole('status')).toContainText('available when this device is online');
+  await expect(player).toHaveCount(0);
+  await page.context().setOffline(false);
+  await expect(player).toBeVisible();
+
+  await page.reload();
+  await page.getByRole('button', { name: 'Continue Song Player' }).click();
+  await gameReady(page);
+  await expect(player).toHaveAttribute('src', /dQw4w9WgXcQ.*autoplay=1/);
+  await song.getByRole('button', { name: 'Clear campaign song' }).click();
+  await expect(player).toHaveCount(0);
+  await page.reload();
+  await page.getByRole('button', { name: 'Continue Song Player' }).click();
+  await gameReady(page);
+  await expect(song).toContainText('No campaign song configured');
+});

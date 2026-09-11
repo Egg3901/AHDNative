@@ -8,6 +8,8 @@ const BASE: ProfileView = {
   name: "Ada Crane",
   bio: "Organizer from the north ward.",
   avatarUrl: null,
+  campaignSongUrl: "",
+  campaignSongAutoplay: false,
   country: { id: "US", name: "United States" },
   homeRegion: { id: "US-NY", name: "New York" },
   party: { id: "7", name: "Labor Caucus", color: "#2563eb" },
@@ -211,5 +213,31 @@ describe("ProfilePanel", () => {
     expect(screen.getByText("Independent")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit biography" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Upload picture" })).toBeDisabled();
+  });
+
+  it("saves a normalized campaign song, owner autoplay and supports clearing", async () => {
+    const user = userEvent.setup();
+    const onUpdateProfile = vi.fn(async () => true);
+    const first = renderPanel({}, { onUpdateProfile });
+    await user.type(screen.getByRole("textbox", { name: "YouTube URL or video ID" }), "https://youtu.be/dQw4w9WgXcQ");
+    await user.click(screen.getByRole("checkbox", { name: "Play automatically on my profile" }));
+    await user.click(screen.getByRole("button", { name: "Save campaign song" }));
+    await waitFor(() => expect(onUpdateProfile).toHaveBeenCalledWith({
+      campaignSongUrl: "https://youtu.be/dQw4w9WgXcQ", campaignSongAutoplay: true,
+    }));
+    first.unmount();
+    renderPanel({ campaignSongUrl: "dQw4w9WgXcQ", campaignSongAutoplay: true }, { onUpdateProfile });
+    await user.click(screen.getByRole("button", { name: "Clear campaign song" }));
+    await waitFor(() => expect(onUpdateProfile).toHaveBeenCalledWith({ campaignSongUrl: "", campaignSongAutoplay: false }));
+  });
+
+  it("reports invalid campaign song input without calling the session", async () => {
+    const user = userEvent.setup();
+    const onUpdateProfile = vi.fn(async () => true);
+    renderPanel({}, { onUpdateProfile });
+    await user.type(screen.getByRole("textbox", { name: "YouTube URL or video ID" }), "not a video");
+    await user.click(screen.getByRole("button", { name: "Save campaign song" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("valid YouTube");
+    expect(onUpdateProfile).not.toHaveBeenCalled();
   });
 });
