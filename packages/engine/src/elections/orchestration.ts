@@ -819,37 +819,67 @@ export function runElectionTimers(world: WorldState, rng: WorldRng): void {
  * and only files while the primary filing window is still open
  * (`primaryEndTurn`, mainline lines 179-183).
  *
- * PORT-STUB: mainline also has a non-incumbent fallback — for a character who
- * currently holds no seat, it looks up the most recent *resolved* race they
- * contested in their home country/state and re-enters that seat's next cycle
- * (mainline lines 76-143). Solo only auto-enters a seat the player currently
- * HOLDS; a player who lost their last race and wants to run again must still
- * declare by hand. Re-entering the held seat is the behavior every mainline
- * incumbent actually exercises this flag for; the lost-race fallback is a
- * secondary convenience left for a future pass if solo ever tracks "races
- * previously contested" the way mainline's electionCandidates history does.
- *
- * KNOWN IMPRECISION: `player.legislativeSeat` carries only `{chamberKey,
- * countryId}`, no per-state identity (see types.ts) — this is a pre-existing
- * gap, not introduced here: `declareCandidacy` itself has no state-of-
- * residence check either, so a player can already manually file in any
- * same-country/same-chamber race regardless of which state they actually
- * won. This function inherits that same looseness: for a state-scoped
- * chamber (house/senate/stateSenate/etc) it files the player into the
- * FIRST matching unresolved race in id-sorted order within the primary
- * window, which is not guaranteed to be the same state the player's held
- * seat is in. Tightening this would mean adding state identity to
- * `legislativeSeat` and to `declareCandidacy`'s own eligibility check — a
- * data-model change beyond this wave's scope.
+ * The non-incumbent fallback also follows mainline's most recent resolved
+ * candidacy record. Native uses the player's persisted homeRegionId as the
+ * state key when the prior race is state-scoped; a future richer seat model
+ * can remove that singleplayer approximation.
  */
+interface AutoReelectionTarget {
+  countryId: string;
+  chamberKey: string;
+  electionType?: string;
+  state?: string;
+  senateClass?: 1 | 2 | 3;
+}
+
+function playerContestedElection(rec: ElectionRecord): boolean {
+  if (rec.candidates.some((candidate) => candidate.id === "player")) return true;
+  return Object.values(rec.primaryResults?.byParty ?? {}).some((entries) =>
+    entries.some((entry) => entry.candidateId === "player"),
+  );
+}
+
+function latestLostRaceTarget(world: WorldState): AutoReelectionTarget | null {
+  const homeRegionId = world.player.homeRegionId;
+  if (!homeRegionId) return null;
+  const prior = world.elections
+    .filter(
+      (rec) =>
+        rec.status === "resolved" &&
+        rec.countryId === world.player.countryId &&
+        rec.state === homeRegionId &&
+        rec.electionType !== "president" &&
+        rec.electionType !== "uachtaran" &&
+        playerContestedElection(rec),
+    )
+    .sort(
+      (a, b) =>
+        (b.resolvedTurn ?? b.endTurn) - (a.resolvedTurn ?? a.endTurn) || b.id.localeCompare(a.id),
+    )[0];
+  if (!prior) return null;
+  return {
+    countryId: prior.countryId,
+    chamberKey: prior.chamberKey,
+    electionType: prior.electionType,
+    ...(prior.state !== undefined ? { state: prior.state } : {}),
+    ...(prior.senateClass !== undefined ? { senateClass: prior.senateClass } : {}),
+  };
+}
+
 export function runAutoReelectionEntry(world: WorldState): void {
   if (!world.player.autoRunForReelection) return;
   const seat = world.player.legislativeSeat;
-  if (!seat) return;
+  const target: AutoReelectionTarget = seat
+    ? { countryId: seat.countryId, chamberKey: seat.chamberKey }
+    : (latestLostRaceTarget(world) ?? { countryId: "", chamberKey: "" });
+  if (!target.countryId) return;
   for (const rec of [...world.elections].sort((a, b) => a.id.localeCompare(b.id))) {
     if (rec.status === "resolved") continue;
     if (rec.electionType === "president" || rec.electionType === "uachtaran") continue;
-    if (rec.countryId !== seat.countryId || rec.chamberKey !== seat.chamberKey) continue;
+    if (rec.countryId !== target.countryId || rec.chamberKey !== target.chamberKey) continue;
+    if (target.electionType !== undefined && rec.electionType !== target.electionType) continue;
+    if (target.state !== undefined && rec.state !== target.state) continue;
+    if (target.senateClass !== undefined && rec.senateClass !== target.senateClass) continue;
     if (world.meta.turn > rec.primaryEndTurn) continue;
     if (rec.candidates.some((c) => c.id === "player")) continue;
     declareCandidacy(world, rec.id);
