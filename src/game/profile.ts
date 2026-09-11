@@ -1,6 +1,6 @@
 import type { WorldState } from "@ahdclient/engine";
 import { projectResources } from "./resources";
-import { safeAvatarUrl } from "./profileValidation";
+import { campaignSongId, safeAvatarUrl } from "./profileValidation";
 import type { ProfileView } from "./profileTypes";
 
 function homeCurrency(world: WorldState, countryId: string): string {
@@ -37,11 +37,14 @@ export function projectProfile(world: WorldState): ProfileView {
   const party = partyRecord && partyRecord.countryId === country.id
     ? { id: partyRecord.id, name: partyRecord.name, color: partyRecord.color }
     : null;
+  const savedSong = typeof player.campaignSongUrl === 'string' ? campaignSongId(player.campaignSongUrl) : '';
 
   return {
     name: player.name,
     bio: typeof player.bio === "string" ? player.bio : "",
     avatarUrl: safeAvatarUrl(player.avatarUrl),
+    campaignSongUrl: savedSong ?? '',
+    campaignSongAutoplay: player.campaignSongAutoplay === true,
     country: { id: country.id, name: country.name },
     homeRegion,
     party,

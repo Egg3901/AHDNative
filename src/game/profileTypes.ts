@@ -1,12 +1,16 @@
 export interface ProfileUpdate {
   bio?: string;
   avatarUrl?: string | null;
+  campaignSongUrl?: string;
+  campaignSongAutoplay?: boolean;
 }
 
 export interface ProfileView {
   name: string;
   bio: string;
   avatarUrl: string | null;
+  campaignSongUrl: string;
+  campaignSongAutoplay: boolean;
   country: { id: string; name: string };
   homeRegion: { id: string; name: string } | null;
   party: { id: string; name: string; color: string } | null;

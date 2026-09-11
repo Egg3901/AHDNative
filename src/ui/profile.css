@@ -3,6 +3,16 @@
   min-width: 0;
 }
 
+.ahd-campaign-song {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 180px;
+  border: 0;
+  border-radius: var(--ahd-radius-sm);
+  background: #000;
+}
+
 .ahd-profile-header {
   display: flex;
   flex-direction: column;

@@ -12,6 +12,7 @@ test('offline help and presentation preferences remain usable and survive relaun
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('radio', { name: 'Large', exact: true }).check();
   await page.getByRole('radio', { name: 'Reduce motion', exact: true }).check();
+  await page.getByRole('checkbox', { name: 'Disable autoplay on other profiles' }).check();
   await expect(page.locator('html')).toHaveCSS('font-size', '20px');
   await expect(page.getByRole('button', { name: 'Back to home' })).toHaveCSS('transition-duration', '0s');
   await page.context().setOffline(false);
@@ -19,6 +20,7 @@ test('offline help and presentation preferences remain usable and survive relaun
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByRole('radio', { name: 'Large', exact: true })).toBeChecked();
   await expect(page.getByRole('radio', { name: 'Reduce motion', exact: true })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Disable autoplay on other profiles' })).toBeChecked();
   await page.getByRole('button', { name: 'Back to home' }).click();
   await page.getByRole('button', { name: 'New game', exact: true }).click();
   await page.getByLabel('Your name').fill('Reading Player');

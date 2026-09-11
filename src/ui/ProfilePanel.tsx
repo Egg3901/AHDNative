@@ -19,6 +19,8 @@
 import { useRef, useState } from "react";
 import type { ProfileUpdate, ProfileView } from "../game/profileTypes";
 import type { DrawerRouteId } from "./MobileNavigation";
+import { campaignSongId } from "../game/profileValidation";
+import { CampaignSongPlayer } from "./CampaignSongPlayer";
 import "./profile.css";
 
 export interface ProfilePanelProps {
@@ -26,6 +28,7 @@ export interface ProfilePanelProps {
   busy: boolean;
   onNavigate: (route: DrawerRouteId, id?: string) => void;
   onUpdateProfile: (update: ProfileUpdate) => Promise<boolean>;
+  viewerDisablesAutoplay?: boolean;
 }
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -90,7 +93,7 @@ function validatePicture(file: File): string | null {
   return null;
 }
 
-export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile }: ProfilePanelProps) {
+export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewerDisablesAutoplay = false }: ProfilePanelProps) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoSaving, setPhotoSaving] = useState(false);
@@ -98,11 +101,41 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile }: Pro
   const [bioDraft, setBioDraft] = useState(profile.bio);
   const [bioError, setBioError] = useState<string | null>(null);
   const [bioSaving, setBioSaving] = useState(false);
+  const [songDraft, setSongDraft] = useState(profile.campaignSongUrl);
+  const [songAutoplay, setSongAutoplay] = useState(profile.campaignSongAutoplay);
+  const [songError, setSongError] = useState<string | null>(null);
+  const [songSaving, setSongSaving] = useState(false);
 
   const photoBusy = busy || photoSaving;
   const formBusy = busy || bioSaving;
   const standing = profile.standing;
   const finances = profile.finances;
+
+  const saveSong = async () => {
+    if (busy || songSaving) return;
+    if (campaignSongId(songDraft) === null) {
+      setSongError("Enter a valid YouTube URL or 11-character video ID.");
+      return;
+    }
+    setSongError(null); setSongSaving(true);
+    try {
+      if (!await onUpdateProfile({ campaignSongUrl: songDraft, campaignSongAutoplay: songAutoplay })) {
+        setSongError("Campaign song could not be saved. Your entry is kept.");
+      }
+    } catch { setSongError("Campaign song could not be saved. Your entry is kept."); }
+    finally { setSongSaving(false); }
+  };
+
+  const clearSong = async () => {
+    if (busy || songSaving) return;
+    setSongError(null); setSongSaving(true);
+    try {
+      if (await onUpdateProfile({ campaignSongUrl: "", campaignSongAutoplay: false })) {
+        setSongDraft(""); setSongAutoplay(false);
+      } else setSongError("Campaign song could not be cleared.");
+    } catch { setSongError("Campaign song could not be cleared."); }
+    finally { setSongSaving(false); }
+  };
 
   const startBioEdit = () => {
     setBioDraft(profile.bio);
@@ -272,6 +305,34 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile }: Pro
             {photoError}
           </p>
         ) : null}
+      </section>
+
+      <section aria-label="Campaign song" className="ahd-card ahd-card-pad">
+        <h2 className="ahd-h2">Campaign song</h2>
+        {profile.campaignSongUrl ? (
+          <CampaignSongPlayer videoId={profile.campaignSongUrl} ownerAutoplay={profile.campaignSongAutoplay}
+            viewerDisablesAutoplay={viewerDisablesAutoplay} characterName={profile.name} />
+        ) : <p className="ahd-muted">No campaign song configured. Offline play never requires one.</p>}
+        <div className="ahd-profile-editor" style={{ marginTop: "0.75rem" }}>
+          <label className="ahd-field" htmlFor="ahd-profile-song">
+            <span className="ahd-label">YouTube URL or video ID</span>
+            <input id="ahd-profile-song" className="ahd-input" value={songDraft} maxLength={300}
+              disabled={busy || songSaving} onChange={(event) => setSongDraft(event.target.value)} />
+          </label>
+          <label style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <input type="checkbox" checked={songAutoplay} disabled={busy || songSaving}
+              onChange={(event) => setSongAutoplay(event.target.checked)} />
+            <span>Play automatically on my profile</span>
+          </label>
+          <p className="ahd-help">Optional network media. The saved game stores only the YouTube video ID and autoplay choice.</p>
+          {songError ? <p className="ahd-alert" role="alert">{songError}</p> : null}
+          <div className="ahd-profile-actions">
+            <button type="button" className="ahd-btn ahd-btn-primary ahd-btn-sm" disabled={busy || songSaving}
+              onClick={() => void saveSong()}>Save campaign song</button>
+            <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" disabled={busy || songSaving || !profile.campaignSongUrl}
+              onClick={() => void clearSong()}>Clear campaign song</button>
+          </div>
+        </div>
       </section>
 
       <section aria-label="Biography" className="ahd-card ahd-card-pad">

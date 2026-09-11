@@ -6,6 +6,7 @@ export type ReducedMotion = "system" | "on" | "off";
 export interface Preferences {
   textSize: TextSize;
   reducedMotion: ReducedMotion;
+  disableAutoplayOnOtherProfiles: boolean;
 }
 
 export interface PreferenceStorage {
@@ -27,6 +28,7 @@ export interface PreferencesDocument {
 export const DEFAULT_PREFERENCES: Preferences = {
   textSize: "standard",
   reducedMotion: "system",
+  disableAutoplayOnOtherProfiles: false,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -53,6 +55,9 @@ export function parsePreferences(value: unknown): Preferences {
     reducedMotion: parsed.reducedMotion === "system" || parsed.reducedMotion === "on" || parsed.reducedMotion === "off"
       ? parsed.reducedMotion
       : DEFAULT_PREFERENCES.reducedMotion,
+    disableAutoplayOnOtherProfiles: typeof parsed.disableAutoplayOnOtherProfiles === "boolean"
+      ? parsed.disableAutoplayOnOtherProfiles
+      : DEFAULT_PREFERENCES.disableAutoplayOnOtherProfiles,
   };
 }
 

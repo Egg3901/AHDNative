@@ -40,7 +40,7 @@ const preferencesProps = { preferences: DEFAULT_PREFERENCES, onPreferencesChange
   onMarkNotificationRead: vi.fn(), onDeleteNotification: vi.fn(), onMarkAllNotificationsRead: vi.fn() };
 function profileFor(world: GameView): ProfileView {
   return {
-    name: world.player.name, bio: "", avatarUrl: null,
+    name: world.player.name, bio: "", avatarUrl: null, campaignSongUrl: "", campaignSongAutoplay: false,
     country: { id: world.countryId, name: world.countryName }, homeRegion: null,
     party: world.player.partyName ? { id: "p1", name: world.player.partyName, color: "#dc2626" } : null,
     office: world.legislature.office,
