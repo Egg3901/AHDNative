@@ -48,7 +48,29 @@ Private delivery keeps signing identities out of GitHub artifacts; it does not m
 
 Codemagic is iOS only. Its workflow installs locked dependencies, validates the bundled rules and builds the frontend once through Tauri. Run the app, engine, UI and browser checks locally or in ordinary verification CI before starting it; do not repeat that suite on the paid Mac. Xcode is pinned to 26.6. The preview targets iOS 16.4 or newer, matching its explicit Safari build target and modern web APIs such as structured cloning. Windows and Android review builds use separate local routes.
 
-The offline preview implements no non-exempt encryption. `Info.ios.plist` records that fact for App Store Connect; re-evaluate it when adding networking, authentication or encrypted saves. See [Apple export-compliance keys](https://help.apple.com/xcode/mac/current/en.lproj/dev0dc15d044.html).
+## Export compliance decision
+
+Decision recorded 2026-09-11 against reviewed application source
+`4dcad5776d9344ce9e24a0595b370355404ff6ce`. AHDNative loads AHDGame and its
+Discord and Google OAuth routes over HTTPS using the platform WKWebView. The
+web application and WKWebView own authentication and cookies. Native does not
+implement cryptography, encrypted storage, a token store, a TLS stack, VPN
+features or end-to-end encryption. The dependency review found hashing
+infrastructure but no bundled transport cryptography.
+
+The current app therefore uses only operating-system-provided, exempt
+encryption. Keeping `ITSAppUsesNonExemptEncryption` set to `false` in
+`Info.ios.plist` is intentional. This is an engineering determination, not a
+legal certification. The Apple Account Holder or Admin must confirm the App
+Store Connect answers and any applicable self-classification obligations.
+Repeat this review whenever networking, authentication, dependencies,
+encrypted storage or distribution territories change.
+
+After a private build, inspect the processed IPA's final `Info.plist` and
+record only that this Boolean remains `false`. Do not publish the IPA, full
+plist, signing output or identifiers. See Apple's documentation for
+[`ITSAppUsesNonExemptEncryption`](https://developer.apple.com/documentation/bundleresources/information-property-list/itsappusesnonexemptencryption)
+and [complying with encryption export regulations](https://developer.apple.com/documentation/security/complying-with-encryption-export-regulations).
 
 The Mac image does not preinstall `rustup`. The workflow bootstraps it from the official Rust installer when absent, installs the pinned toolchain and records the Cargo binary path for later steps. The first attempt failed at this prerequisite before compilation or signing; inspect a failed step before retrying.
 
