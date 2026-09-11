@@ -240,6 +240,7 @@ function rallyAction(
   supportStatus: "active" | "withdrawn" | undefined,
   lastRallyTurn: number | undefined,
   tourActive: boolean,
+  campaignReason?: string,
 ): PoliticsCampaignRallyView {
   const scalar = getCampaignFamilyScalar(election.electionType);
   const actionCost = Math.ceil(SUPPORT_RALLY_ACTION_COST * scalar);
@@ -249,14 +250,15 @@ function rallyAction(
   const noRace = election.status === "resolved"
     ? "This election has ended."
     : election.status !== "active" ? "Election is not active" : undefined;
-  const reason = noRace
+  const reason = campaignReason ?? noRace
     ?? (supportStatus === "withdrawn" ? "Candidate support is inactive." : undefined)
     ?? (typeof lastRallyTurn === "number" && lastRallyTurn >= world.meta.turn
       ? "Rally already fired this turn"
       : undefined)
     ?? (campaignActions < actionCost ? `Needs ${actionCost} campaign actions.` : undefined);
   const entry = ACTION_CATALOG.campaignRally;
-  const tourReason = noRace ?? (supportStatus === "withdrawn" ? "Candidate support is inactive." : undefined);
+  const tourReason = campaignReason ?? noRace
+    ?? (supportStatus === "withdrawn" ? "Candidate support is inactive." : undefined);
   const tourTickCost = Math.ceil(SUPPORT_RALLY_TOUR_TICK_ACTION_COST * scalar);
   return {
     action: {
@@ -283,11 +285,13 @@ function projectPlayerCampaign(
   world: WorldState,
   election: WorldState["elections"][number],
 ): PoliticsPlayerCampaignView | null {
-  if (!election.candidates.some((c) => c.id === "player")) return null;
   const campaign = world.campaigns[campaignKey(election.id, "player")];
-  if (!campaign || campaign.status !== "active") return null;
-  const generalPhase = isGeneralPhase(world, election);
+  if (!campaign) return null;
+  const archived = campaign.status === "archived";
+  if (!election.candidates.some((c) => c.id === "player") && !archived) return null;
+  const generalPhase = !archived && isGeneralPhase(world, election);
   const noRace = election.status === "resolved" ? "This election has ended." : undefined;
+  const campaignReason = archived ? "Campaign is archived and read-only." : noRace;
   const storedSupport = world.candidateSupports?.["player"];
   const supportRow = storedSupport &&
     (storedSupport.electionId === undefined || storedSupport.electionId === election.id)
@@ -295,6 +299,7 @@ function projectPlayerCampaign(
   const rally = rallyAction(
     world, election, campaign.actions, supportRow?.status, supportRow?.lastRallyTurn,
     supportRow?.rallyTourActive === true,
+    campaignReason,
   );
   const levers: PoliticsCampaignLeverView[] = CAMPAIGN_LEVERS.map((category) => {
     const tree = campaign[`${category}Tree`];
@@ -303,7 +308,7 @@ function projectPlayerCampaign(
     const starterFunds = starterCost ? campaignAnchorToLocal(starterCost.funds, campaign.countryId) : null;
     const starterUpgrade = tree.starter ? null : upgradeAction(
       null, starterFunds, starterCost?.actions ?? null,
-      false, campaign.funds, campaign.actions, noRace);
+      false, campaign.funds, campaign.actions, campaignReason);
     const branches: PoliticsCampaignBranchView[] = CAMPAIGN_BRANCHES.map((branch) => {
       const level = tree[branch];
       const next = tree.starter
@@ -311,7 +316,7 @@ function projectPlayerCampaign(
         : null;
       const maxed = tree.starter && next === null;
       const nextFunds = next ? campaignAnchorToLocal(next.funds, campaign.countryId) : null;
-      const affordable = !noRace && !maxed && nextFunds != null && next != null
+      const affordable = !campaignReason && !maxed && nextFunds != null && next != null
         && campaign.funds >= nextFunds && campaign.actions >= next.actions;
       return {
         branch, level, maxLevel: 3,
@@ -319,7 +324,7 @@ function projectPlayerCampaign(
         affordable, maxed,
         upgrade: upgradeAction(branch, nextFunds,
           next?.actions ?? null, maxed, campaign.funds, campaign.actions,
-          noRace ?? (!tree.starter ? "Unlock this lever's starter first." : undefined)),
+          campaignReason ?? (!tree.starter ? "Unlock this lever's starter first." : undefined)),
       };
     });
     return {
@@ -339,7 +344,7 @@ function projectPlayerCampaign(
       calculateCampaignIncome(campaign, election.electionType), campaign.countryId),
     maintenancePerTurn: campaignAnchorToLocal(
       calculateMaintenanceCosts(campaign, election.electionType), campaign.countryId),
-    support: supportRow?.support ?? 50,
+    support: archived ? null : supportRow?.support ?? 50,
     generalPhase,
     activity: (campaign.activityHistory ?? []).map((entry) => ({
       type: entry.type,
