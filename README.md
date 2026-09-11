@@ -30,7 +30,7 @@ Actions and a persistent local notification inbox. What holds today:
 
 The imported engine is incomplete. Working turns, save round-trips and deterministic replays do not establish AHDGame parity. Whole-game findings are tracked in [issue #28](https://github.com/Egg3901/AHDNative/issues/28).
 
-Known acceptance gates before any release claim: differences from current AHDGame ([mechanics audit](docs/MECHANICS-PARITY.md)), v42/v43 save compatibility ([save compatibility](docs/SAVE-COMPATIBILITY.md)), native lifecycle and physical-device performance. A Rust engine rewrite stays profile gated: it ships only if device measurements justify it. Not every era, country, or mechanic is available yet; supported content is whatever the docs above and the [roadmap](docs/ROADMAP.md) show as validated.
+Known acceptance gates before any release claim: differences from current AHDGame ([mechanics audit](docs/MECHANICS-PARITY.md) and [helper wiring inventory](docs/HELPER-WIRING-INVENTORY.md)), v42/v44 save compatibility ([save compatibility](docs/SAVE-COMPATIBILITY.md)), native lifecycle and physical-device performance. A Rust engine rewrite stays profile gated: it ships only if device measurements justify it. Not every era, country, or mechanic is available yet; supported content is whatever the docs above and the [roadmap](docs/ROADMAP.md) show as validated.
 
 ## Top priority now
 
@@ -88,6 +88,7 @@ The first private feedback preview is authorized after local behavioral tests an
 | [Navigation and footer parity](docs/NAVIGATION-PARITY.md) | Destination inventory, resource controls and remaining feature gaps |
 | [UI reference](docs/UI-REFERENCE.md) | Actual MP/SP baseline, tokens, parity notes |
 | [Mechanics parity](docs/MECHANICS-PARITY.md) | Audit against AHDGame at pinned revisions |
+| [Helper wiring inventory](docs/HELPER-WIRING-INVENTORY.md) | Helper, phase, action, and player reachability dispositions |
 | [Save compatibility](docs/SAVE-COMPATIBILITY.md) | v42 interchange validation |
 | [Save storage](docs/SAVE-STORAGE.md) | Native save store behavior |
 | [Career playthrough](docs/CAREER-PLAYTHROUGH.md) / [validation](docs/CAREER-VALIDATION.md) | Career flow coverage |
