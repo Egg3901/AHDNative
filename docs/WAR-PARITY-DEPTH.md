@@ -41,7 +41,7 @@ playthrough or proof of authentic combat.
 Native `packages/engine/src/wars/types.ts` explicitly marks unit combat as
 unported. `wars/settlement.ts` still derives margin from coalition GDP and
 uses a Native retreat threshold. Worlds start with no conflicts, and the
-public action catalog has no declaration, deployment or peace controls.
+public action catalog has no available declaration, deployment or peace controls.
 The mobilization correction does not make that proxy authoritative combat.
 
 The current phase advances this control track, then applies simplified pole
@@ -49,6 +49,22 @@ and terms-window rules. It records a 240-turn truce date, but there is no
 public declaration path enforcing that date. The current lapse result is a
 `dictated` winner settlement; the reference peace-window fallback stamps
 white peace as a zero-indemnity term using a `dictated` path. Negotiated terms and their downstream effects remain absent.
+
+## Current action boundary
+
+The catalog now names the three source-backed player verbs as unavailable:
+`declareWar`, `offerPeace`, and `acceptPeace`. `executeAction` rejects each
+before action-point, fund, cooldown, or save-state mutation, with a named
+blocker for the missing source system. The public boundary is covered by
+`packages/engine/src/actions/warActions.test.ts`.
+
+This is deliberate. A declaration that immediately creates a war over the
+GDP-margin proxy would present a player-facing shortcut as if it were the
+reference's executive and legislative declaration flow. The same would be true
+of accepting peace without the source offer, term-application, and truce
+collections. The verbs can become available only after those source-backed
+systems and the unit combat slice are ported. Until then, `advanceTurn` keeps
+the existing GDP-margin behavior and does not claim combat parity.
 
 Reference dependencies include:
 
