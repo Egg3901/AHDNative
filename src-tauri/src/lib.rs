@@ -43,7 +43,6 @@ async fn open_online_window(app: tauri::AppHandle) -> Result<(), String> {
         .map_err(|error| format!("bad online URL: {error}"))?;
 
     if let Some(existing) = app.get_webview_window("online") {
-        existing.navigate(url).map_err(|error| error.to_string())?;
         existing.set_focus().map_err(|error| error.to_string())?;
         return Ok(());
     }
@@ -203,6 +202,19 @@ mod tests {
                 &denied.parse::<Url>().unwrap()
             ));
         }
+    }
+
+    #[test]
+    fn reopening_the_online_window_preserves_the_existing_session_view() {
+        let source = include_str!("lib.rs");
+        let existing_window_branch = source
+            .split_once("if let Some(existing) = app.get_webview_window(\"online\") {")
+            .and_then(|(_, rest)| rest.split_once("return Ok(())"))
+            .map(|(branch, _)| branch)
+            .expect("online window reuse branch should exist");
+
+        assert!(existing_window_branch.contains("existing.set_focus()"));
+        assert!(!existing_window_branch.contains("existing.navigate("));
     }
 }
 
