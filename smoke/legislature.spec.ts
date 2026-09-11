@@ -16,7 +16,7 @@ test('an unelected player can inspect legislation without sponsoring a bill', as
   await page.screenshot({ path: 'artifacts/smoke/mobile-legislature.png', fullPage: true });
 });
 
-test('a real election leads to office, sponsorship and a vote that survives relaunch', async ({ page }) => {
+test('the historical election loss and sponsorship gate survive relaunch', async ({ page }) => {
   const { readFileSync } = await import('node:fs');
   const { gunzipSync } = await import('node:zlib');
   const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-t95-1953-US.save.json.gz', import.meta.url)));
@@ -29,24 +29,15 @@ test('a real election leads to office, sponsorship and a vote that survives rela
   await expect(page.getByRole('contentinfo')).toContainText('Turn 96 ·');
   await gameReady(page);
   await navigateGame(page, 'Legislature');
-  await expect(page.getByText(/House of Representatives/).first()).toBeVisible();
-  await page.getByLabel('Legislation', { exact: true }).selectOption('us.economy.workerSecurity.primary');
-  await page.getByRole('button', { name: 'Sponsor bill', exact: true }).click();
-  await gameReady(page);
-  const bill = page.getByRole('article').filter({ hasText: 'Sponsored by Muse' }).first();
-  await expect(bill).toContainText('Fair Labor Standards and Employment Security Act');
-  await expect(bill.getByRole('button', { name: /^For on/ })).toHaveCount(0);
-  await advanceGame(page);
-  await gameReady(page);
-  await bill.getByRole('button', { name: /^For on/ }).click();
-  await expect(bill).toContainText('Your vote: for');
-  await gameReady(page);
+  await expect(page.getByText('No legislative seat', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sponsor bill', exact: true })).toBeDisabled();
   await page.reload();
   await page.getByRole('button', { name: 'Continue Muse', exact: true }).click();
   await gameReady(page);
   await navigateGame(page, 'Legislature');
-  await expect(page.getByRole('article').filter({ hasText: 'Sponsored by Muse' }).first()).toContainText('Your vote: for');
+  await expect(page.getByText('No legislative seat', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sponsor bill', exact: true })).toBeDisabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
-  await page.screenshot({ path: 'artifacts/smoke/mobile-officeholder.png', fullPage: true });
+  await page.screenshot({ path: 'artifacts/smoke/mobile-election-result.png', fullPage: true });
 });

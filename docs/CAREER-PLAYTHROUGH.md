@@ -1,5 +1,10 @@
 # Career playthrough: election to office (1953 US)
 
+> Historical evidence only. The source-backed election distributor merged in
+> PR #154 changes this fixture's turn-96 result: the player now loses and does
+> not take office. A new current-distributor career win is required before this
+> document can satisfy the 1.0.0 candidate gate.
+
 Genuine seeded run through a full election with the pinned historical engine
 oracle. No state cheats, no outcome injection, no engine formula changes.
 The player won; success was measured, not manufactured.
