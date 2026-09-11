@@ -231,6 +231,19 @@ button.ahd-profile-chip:disabled {
   margin-top: 0.15rem;
 }
 
+.ahd-profile-history {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ahd-profile-history li {
+  display: grid;
+  gap: 0.15rem;
+}
+
 .ahd-profile-sub .ahd-profile-link {
   display: inline;
   padding: 0.5rem 0.1rem;

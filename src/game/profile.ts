@@ -1,4 +1,4 @@
-import type { WorldState } from "@ahdclient/engine";
+import { ACHIEVEMENT_CATALOG, type WorldState } from "@ahdclient/engine";
 import { projectResources } from "./resources";
 import { campaignSongId, safeAvatarUrl } from "./profileValidation";
 import type { ProfileView } from "./profileTypes";
@@ -16,6 +16,11 @@ function projectOffice(world: WorldState): string | null {
     (chamber) => chamber.key === seat.chamberKey,
   )?.name ?? seat.chamberKey;
   return `${chamberName} · ${world.countries[seat.countryId]?.name ?? seat.countryId}`;
+}
+
+function electionOffice(world: WorldState, countryId: string, chamberKey: string): string {
+  return world.legislatures[countryId]?.chambers.find((entry) => entry.key === chamberKey)?.name
+    ?? chamberKey;
 }
 
 export function projectProfile(world: WorldState): ProfileView {
@@ -38,6 +43,10 @@ export function projectProfile(world: WorldState): ProfileView {
     ? { id: partyRecord.id, name: partyRecord.name, color: partyRecord.color }
     : null;
   const savedSong = typeof player.campaignSongUrl === 'string' ? campaignSongId(player.campaignSongUrl) : '';
+  const stats = player.stats && (player.stats.energy != null || player.stats.debate != null)
+    ? { energy: player.stats.energy ?? null, debate: player.stats.debate ?? null }
+    : null;
+  const achievementBySlug = new Map(ACHIEVEMENT_CATALOG.map((entry) => [entry.slug, entry]));
 
   return {
     name: player.name,
@@ -49,6 +58,26 @@ export function projectProfile(world: WorldState): ProfileView {
     homeRegion,
     party,
     office: projectOffice(world),
+    officeDestination: player.legislativeSeat
+      ? { route: "legislature", id: player.legislativeSeat.chamberKey }
+      : player.mode === "hos" ? { route: "policy" } : null,
+    policies: player.policies
+      ? { economic: player.policies.economic, social: player.policies.social }
+      : null,
+    stats,
+    careerHistory: world.elections
+      .filter((election) => election.status === "resolved" && election.winners?.includes("player"))
+      .sort((a, b) => (b.resolvedTurn ?? b.endTurn) - (a.resolvedTurn ?? a.endTurn))
+      .map((election) => ({
+        id: election.id,
+        office: electionOffice(world, election.countryId, election.chamberKey),
+        result: "Elected",
+        turn: election.resolvedTurn ?? election.endTurn,
+      })),
+    achievements: world.achievementsEarned.flatMap((slug) => {
+      const entry = achievementBySlug.get(slug);
+      return entry ? [{ slug, name: entry.name, description: entry.description }] : [];
+    }),
     standing: {
       actions: player.actions,
       actionCap: resources.actions.cap,

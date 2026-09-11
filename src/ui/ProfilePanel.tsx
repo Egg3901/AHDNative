@@ -234,9 +234,20 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
               ) : (
                 <span className="ahd-profile-chip ahd-profile-chip-static">Independent</span>
               )}
-              <span className="ahd-profile-chip ahd-profile-chip-static">
-                {profile.office ?? "No office"}
-              </span>
+              {profile.office && profile.officeDestination ? (
+                <button
+                  type="button"
+                  className="ahd-profile-chip"
+                  onClick={() => onNavigate(profile.officeDestination!.route, profile.officeDestination!.id)}
+                  disabled={busy}
+                >
+                  {profile.office}
+                </button>
+              ) : (
+                <span className="ahd-profile-chip ahd-profile-chip-static">
+                  {profile.office ?? "No office"}
+                </span>
+              )}
             </div>
 
           </div>
@@ -455,6 +466,31 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
         </dl>
       </section>
 
+      {profile.stats ? (
+        <section aria-label="Character stats" className="ahd-card ahd-card-pad">
+          <h2 className="ahd-h2">Character stats</h2>
+          <dl className="ahd-profile-rows">
+            {profile.stats.energy != null ? <div className="ahd-profile-row"><dt>Energy</dt><dd className="ahd-mono">{profile.stats.energy}</dd></div> : null}
+            {profile.stats.debate != null ? <div className="ahd-profile-row"><dt>Debate</dt><dd className="ahd-mono">{profile.stats.debate}</dd></div> : null}
+          </dl>
+        </section>
+      ) : null}
+
+      {profile.policies ? (
+        <section aria-label="Policy" className="ahd-card ahd-card-pad">
+          <h2 className="ahd-h2">Policy</h2>
+          <dl className="ahd-profile-rows">
+            <div className="ahd-profile-row"><dt>Economic</dt><dd className="ahd-mono">{profile.policies.economic.toFixed(1)}</dd></div>
+            <div className="ahd-profile-row"><dt>Social</dt><dd className="ahd-mono">{profile.policies.social.toFixed(1)}</dd></div>
+          </dl>
+          <div className="ahd-profile-actions">
+            <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onNavigate("policy")} disabled={busy}>
+              View national policy
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       <section aria-label="Finances" className="ahd-card ahd-card-pad">
         <h2 className="ahd-h2">Finances</h2>
         <dl className="ahd-profile-rows">
@@ -505,6 +541,34 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
             View portfolio
           </button>
         </div>
+      </section>
+
+      <section aria-label="Career history" className="ahd-card ahd-card-pad">
+        <h2 className="ahd-h2">Career history</h2>
+        {profile.careerHistory.length > 0 ? (
+          <ul className="ahd-profile-history">
+            {profile.careerHistory.map((entry) => (
+              <li key={entry.id}>
+                <strong>{entry.office}</strong>
+                <span className="ahd-profile-sub">{entry.result}, turn {entry.turn}</span>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="ahd-muted">No election wins recorded yet.</p>}
+      </section>
+
+      <section aria-label="Achievements" className="ahd-card ahd-card-pad">
+        <h2 className="ahd-h2">Achievements</h2>
+        {profile.achievements.length > 0 ? (
+          <ul className="ahd-profile-history">
+            {profile.achievements.map((achievement) => (
+              <li key={achievement.slug}>
+                <strong>{achievement.name}</strong>
+                <span className="ahd-profile-sub">{achievement.description}</span>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="ahd-muted">No achievements earned yet.</p>}
       </section>
 
 

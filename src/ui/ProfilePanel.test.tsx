@@ -14,6 +14,11 @@ const BASE: ProfileView = {
   homeRegion: { id: "US-NY", name: "New York" },
   party: { id: "7", name: "Labor Caucus", color: "#2563eb" },
   office: "Councilor",
+  officeDestination: { route: "legislature", id: "lower" },
+  policies: { economic: -1.5, social: 2 },
+  stats: { energy: 7, debate: 4 },
+  careerHistory: [{ id: "race-1", office: "House", result: "Elected", turn: 12 }],
+  achievements: [{ slug: "turn_one", name: "In at the Ground Floor", description: "Took an action in turn one" }],
   standing: {
     actions: 5,
     actionCap: 12,
@@ -94,7 +99,7 @@ describe("ProfilePanel", () => {
     expect(screen.getByAltText("Ada Crane profile picture")).toBeInTheDocument();
   });
 
-  it("navigates to actions and portfolio through the section links", async () => {
+  it("resolves every profile destination through the Native route map", async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
     renderPanel({}, { onNavigate });
@@ -104,6 +109,34 @@ describe("ProfilePanel", () => {
     expect(onNavigate).toHaveBeenCalledWith("portfolio");
     await user.click(screen.getByRole("button", { name: "New York" }));
     expect(onNavigate).toHaveBeenCalledWith("state", "US-NY");
+    await user.click(screen.getByRole("button", { name: "Labor Caucus" }));
+    expect(onNavigate).toHaveBeenCalledWith("partyDetails", "7");
+    await user.click(screen.getByRole("button", { name: "Councilor" }));
+    expect(onNavigate).toHaveBeenCalledWith("legislature", "lower");
+    await user.click(screen.getByRole("button", { name: "United States" }));
+    expect(onNavigate).toHaveBeenCalledWith("nations", "US");
+    await user.click(screen.getByRole("button", { name: "Fundraising actions" }));
+    expect(onNavigate).toHaveBeenCalledWith("actions", "fundraising");
+    await user.click(screen.getByRole("button", { name: "View national policy" }));
+    expect(onNavigate).toHaveBeenCalledWith("policy");
+  });
+
+  it("renders the political hierarchy in reference order from real projected state", () => {
+    renderPanel();
+    const sections = Array.from(document.querySelectorAll(".ahd-profile > section"))
+      .map((node) => node.getAttribute("aria-label"));
+    expect(sections).toEqual([
+      "Character", "Campaign song", "Biography", "Political standing", "Character stats",
+      "Policy", "Finances", "Career history", "Achievements",
+    ]);
+    expect(screen.getByText("In at the Ground Floor")).toBeInTheDocument();
+    expect(screen.getByText("House")).toBeInTheDocument();
+  });
+
+  it("omits conditional political sections when local state is absent", () => {
+    renderPanel({ stats: null, policies: null });
+    expect(screen.queryByRole("region", { name: "Character stats" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Economic")).not.toBeInTheDocument();
   });
 
   it("saves an edited biography and closes the editor on success", async () => {

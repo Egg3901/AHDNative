@@ -91,3 +91,4 @@ export { canJoinParty, canLeaveParty } from "./membership.js";
 export type { WorldInitialization } from "./initialization/ukHistorical.js";
 
 export { projectPlayerPartyInfluence } from "./party/playerInfluence.js";
+export { ACHIEVEMENT_CATALOG } from "./achievements/catalog.js";
