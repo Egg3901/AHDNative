@@ -39,10 +39,10 @@ Fixed inputs match the fixture. Action: `convertCash` 2000.
 |---|---|
 | Authentic v42 mint | Passed. Pinned engine SCHEMA_VERSION 42. Envelope and `world.meta.schemaVersion` are 42. `countryPolitics` absent. `player.homeRegionId` absent. |
 | Fixture matches live mint | Passed. Gzip gunzips to the mint SHA above. |
-| Native loads authentic v42 | Passed. `deserializeSave` migrates to schema 43, seeds `countryPolitics` (DD/RU/UK/US), sets `player.homeRegionId` to `null`. |
+| Native loads authentic v42 | Passed. `deserializeSave` migrates to schema 44, seeds `countryPolitics` (DD/RU/UK/US), sets `player.homeRegionId` to `null`, and initializes empty `subsidies`. |
 | Repeated Native loads are deterministic | Passed. Two independent loads of the same v42 bytes serialize identically, then stay identical through `convertCash`, two turns, reload one twin, and a third turn. |
 | v42 reader continuation is deterministic | Passed. Same action/turn/reload sequence on the v42 engine: twin saves match at every step. |
-| Honest v43 writer is rejected by the v42 reader | Passed. Exact error: `Save is from a newer version (schema 43 > 42); update the game to load it`. Also true for a Native re-export of a migrated v42 world (now schema 43). |
+| Historical honest v43 writer is rejected by the v42 reader | Passed in the recorded v43 run. Current v44 saves are likewise newer than v42 and require the compatibility projector. |
 
 SHA-256 of `serializeSave` at create and after the third turn:
 
@@ -131,7 +131,7 @@ A [local v42 export tool](SAVE-EXPORT-TOOL.md) calls the engine `projectSaveToV4
 - Native-fresh pre-turn 1953 US: written as a schema 42 **extension** document that keeps `homeRegionId` `"AL"` and drops reconstructable `countryPolitics`. That is not the authentic mint. Old-reader SHA-256 of that extension: `f141e9a919d8a6626c53a1ca6c4c9856ec5ccc97410b0a4c2ba8d61ba3aaa320`.
 - Progressed `countryPolitics` after a Native turn, relabeled v43, and corrupt input are refused. Exclusive-create CLI rules are unchanged.
 
-This is not full interchange of progressed worlds. Native `serializeSave` still emits schema 43. Native file export remains unresolved. Field policy: [interchange depth](V42-INTERCHANGE-DEPTH.md). Investigation evidence: [the investigation](SAVE-WRITER-INVESTIGATION.md).
+This is not full interchange of progressed worlds. Native `serializeSave` still emits schema 44. Native file export remains unresolved. Field policy: [interchange depth](V42-INTERCHANGE-DEPTH.md). Investigation evidence: [the investigation](SAVE-WRITER-INVESTIGATION.md).
 
 
 ## Native notification metadata

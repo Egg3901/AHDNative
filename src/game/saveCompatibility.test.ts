@@ -28,13 +28,13 @@ function loadAuthenticV42(): string {
 }
 
 describe("schema 42 projection of public save envelopes", () => {
-  it("reproduces the authentic v42 fixture from a Native-migrated schema 43 reload", () => {
-    expect(SCHEMA_VERSION).toBe(43);
+  it("reproduces the authentic v42 fixture from a Native-migrated current-schema reload", () => {
+    expect(SCHEMA_VERSION).toBe(44);
     const authentic = loadAuthenticV42();
     expect(sha256(authentic)).toBe(FIXTURE_SHA);
     const migrated = serializeSave(deserializeSave(authentic), SAVED_AT);
     const parsed = JSON.parse(migrated) as { schemaVersion: number; world: { countryPolitics?: unknown; player: { homeRegionId?: unknown } } };
-    expect(parsed.schemaVersion).toBe(43);
+    expect(parsed.schemaVersion).toBe(44);
     expect(parsed.world.countryPolitics).toBeTypeOf("object");
     expect(parsed.world.player.homeRegionId).toBeNull();
     const projected = projectSaveToV42(migrated);

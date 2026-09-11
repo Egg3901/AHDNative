@@ -16,7 +16,7 @@ import { calculateBudgetRevenue } from "./revenue.js";
 import { calculateBudgetSpending } from "./spending.js";
 import { applyPerTurnGrowthToFederalBases } from "./fiscalBaseGrowth.js";
 import { calculateGenericRegionalRevenue } from "./regionalBudget.js";
-import { SECTOR_SUBSIDIES_SPENDING_KEY } from "./subsidyBudget.js";
+import { calculateSubsidyCostForCountry, SECTOR_SUBSIDIES_SPENDING_KEY } from "./subsidyBudget.js";
 import { getTurnInYear, FISCAL_YEAR_START_TURN_IN_YEAR, TURNS_PER_YEAR } from "./fiscalYear.js";
 import { advanceTaxRatePhaseIn } from "./taxRatePhaseIn.js";
 
@@ -55,13 +55,15 @@ export const fiscalBaseGrowthPhase: TurnPhase = {
 };
 
 // ── Subsidy budget ──────────────────────────────────────────────────
-// Source: src/lib/turn/subsidyBudgetTurn.ts — writes sectorSubsidies line each turn.
-// Solo has no sector/corporation system, so cost is PORT-STUB 0 (deferred).
+// Source: src/lib/turn/subsidyBudgetTurn.ts processSubsidyBudget. Corporation
+// revenue is current because the corporation phase runs before this phase.
 export const subsidyBudgetPhase: TurnPhase = {
   name: "subsidyBudget",
   run(world) {
+    const corps = Object.values(world.corporations ?? {});
+    const subsidies = Array.isArray(world.subsidies) ? world.subsidies : [];
     for (const budget of Object.values(world.budgets ?? {})) {
-      const cost = 0; // PORT-STUB: no sectors/corporations (deferred: sector/corporation system)
+      const cost = calculateSubsidyCostForCountry(corps, subsidies, budget.countryId);
       const current = budget.spending.byCategory[SECTOR_SUBSIDIES_SPENDING_KEY] ?? 0;
       if (current !== cost) {
         budget.spending.byCategory[SECTOR_SUBSIDIES_SPENDING_KEY] = cost;

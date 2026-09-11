@@ -145,6 +145,8 @@ export interface WorldState {
    * macroCountryTurn growth signal. Maintained by corporationTurn.ts. Schema v19.
    */
   corpRevenueSnapshots: Record<string, CorpRevenueSnapshot>;
+  /** Active subsidy records used by the annualized budget cost phase. Schema v44. */
+  subsidies: import("./budget/subsidyBudget.js").Subsidy[];
   /**
    * Per-candidate campaign state for campaign-eligible elections (W26).
    * Ports src/lib/db/types/campaign.ts Campaign, restricted to the live

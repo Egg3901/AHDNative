@@ -11,7 +11,7 @@ it("scans regional registrations at most once per region, preserving the pre-cac
   world.partyRegions = new Proxy(world.partyRegions, { ownKeys(target) { scans++; return Reflect.ownKeys(target); } });
   expect(processNppStanceDrift(world, rngFromSeed("unused"))).toEqual({ drifted: 1498 });
   // Captured from the real unoptimized phase, before introducing any cache.
-  expect(createHash("sha256").update(JSON.stringify(world)).digest("hex")).toBe("2ad34e1b306ab80f05a7d3daecee13ab1c5d68e8ca4490aae3b7a05acabef27e");
+  expect(createHash("sha256").update(JSON.stringify(world)).digest("hex")).toBe("8232e7faa9db784666ce9478cad50ed2baf95a0f5a761e1117b40ad049055d83");
   // JSON hashing above performs one additional enumeration of the proxied map.
   expect(scans - 1).toBeLessThanOrEqual(Object.keys(world.regions).length);
   for (const party of Object.values(world.parties)) {
@@ -20,5 +20,5 @@ it("scans regional registrations at most once per region, preserving the pre-cac
   }
   world.meta.turn = 12;
   expect(processNppStanceDrift(world, rngFromSeed("unused"))).toEqual({ drifted: 1500 });
-  expect(createHash("sha256").update(JSON.stringify(world)).digest("hex")).toBe("a7276a3c0eaf6076ab7d14b37f4585bbabc3e75394a7ea8f23a43ce67d2c9868");
+  expect(createHash("sha256").update(JSON.stringify(world)).digest("hex")).toBe("4f57f8cefd206a13b5ea6f02f5d71d78a7bc90459b236fb15434c8fc291e3d89");
 });

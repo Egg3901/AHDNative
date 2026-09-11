@@ -22,7 +22,7 @@ are written as the keep-home extension document. Writes the projected
 bytes verbatim on success only, never overwrites an existing file, and
 never overwrites the input.
 
-  --input <path>   save file to read (authentic schema 42, or projectable schema 43 including Native-fresh pre-turn)
+  --input <path>   save file to read (authentic schema 42, or projectable current Native schema)
   --output <path>  new file to create; refused when it already exists
   --help, -h       print this usage
 `;

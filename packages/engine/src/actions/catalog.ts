@@ -591,22 +591,20 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     systems: ["budget"],
     status: "available",
   },
-  // PORT-STUB: subsidyBudget.ts calculateSubsidyCost is wired to sector
-  // revenues that do not exist yet in this branch (corporation/sector
-  // subsidy costing is still 0 by construction — see that file's doc).
+  // The subsidy cost line is live from corporation revenue every turn.
   // Listed (not omitted) so the HoS Economic Direction console can render
   // an honest grayed-out row naming the real blocker instead of hiding the
   // lever the roadmap promises.
   setSubsidyRate: {
     id: "setSubsidyRate",
     name: "Set Subsidy Rate",
-    description: "Sector subsidy dial. Blocked: subsidyBudget.ts calculateSubsidyCost has no live sector/corporation revenue input yet (PORT-STUB, always resolves to 0).",
+    description: "Sector subsidy dial. Blocked: no action writes world.subsidies records yet (subsidy cost itself is live from corporation revenue).",
     baseCost: 3,
     cooldown: 0,
     fundCost: 0,
     systems: ["budget/subsidies"],
     status: "unavailable",
-    blockingSystem: "corporation/sector subsidies (subsidyBudget.ts PORT-STUB)",
+    blockingSystem: "player subsidy enactment (world.subsidies writer)",
   },
   // PORT-STUB: the command-economy turn model is live, but it currently
   // derives policy stance from the ruling party and has no player-authored

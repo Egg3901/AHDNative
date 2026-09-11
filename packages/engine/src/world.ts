@@ -131,7 +131,8 @@ import type { WorldFeatureFlags } from "./featureFlags.js";
 // v42: player-owned singleplayer simulation controls (featureFlags); see save.ts.
 // v43: country political overview (countryPolitics); see save.ts migration
 // and countryPolitics/overview.ts.
-export const SCHEMA_VERSION = 43;
+// v44: active industry subsidy records (world.subsidies); see save.ts.
+export const SCHEMA_VERSION = 44;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -751,6 +752,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
     centralBanks,
     corporations,
     corpRevenueSnapshots,
+    subsidies: [],
     campaigns: {},
     statePartyElections: [],
     nationalPartyElections: [],
