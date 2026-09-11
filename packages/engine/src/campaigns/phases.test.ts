@@ -90,6 +90,8 @@ describe("campaignTurnPhase (src/lib/turn/campaignTurn.ts port — see phases.ts
     // trace here: real downgrades happened, and the campaign is solvent.
     expect(c.mediaSpendingTree.a + c.mediaSpendingTree.b + c.mediaSpendingTree.c).toBeLessThan(9); // was 3+3+3=9
     expect(calculateMaintenanceCosts(c, "president")).toBeLessThanOrEqual(20_000);
+    expect(c.activityHistory?.length).toBeGreaterThan(0);
+    expect(c.activityHistory?.every((entry) => entry.type === "downgrade" && entry.reason === "insolvency")).toBe(true);
   });
 });
 

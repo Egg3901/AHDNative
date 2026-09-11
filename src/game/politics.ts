@@ -46,6 +46,18 @@ export interface PoliticsCampaignLeverView {
   branches: PoliticsCampaignBranchView[];
 }
 
+export interface PoliticsCampaignActivityView {
+  type: "upgrade" | "downgrade";
+  category: "fundraising" | "oppositionResearch" | "groundGame" | "mediaSpending";
+  branch: "a" | "b" | "c" | null;
+  fromLevel: number | null;
+  newLevel: number;
+  costFunds: number | null;
+  costActions: number | null;
+  reason: "insolvency" | null;
+  turnNumber: number;
+}
+
 export interface PoliticsPlayerCampaignView {
   status: string;
   funds: number; actions: number;
@@ -55,6 +67,7 @@ export interface PoliticsPlayerCampaignView {
   /** Candidate support mood input (Phase 5a), not a vote forecast. */
   support: number | null;
   generalPhase: boolean;
+  activity: PoliticsCampaignActivityView[];
   levers: PoliticsCampaignLeverView[];
 }
 
@@ -257,7 +270,19 @@ function projectPlayerCampaign(
     maintenancePerTurn: campaignAnchorToLocal(
       calculateMaintenanceCosts(campaign, election.electionType), campaign.countryId),
     support: world.candidateSupports?.["player"]?.support ?? null,
-    generalPhase, levers,
+    generalPhase,
+    activity: (campaign.activityHistory ?? []).map((entry) => ({
+      type: entry.type,
+      category: entry.category,
+      branch: entry.branch ?? null,
+      fromLevel: entry.fromLevel ?? null,
+      newLevel: entry.newLevel,
+      costFunds: entry.costFunds ?? null,
+      costActions: entry.costActions ?? null,
+      reason: entry.reason ?? null,
+      turnNumber: entry.turnNumber,
+    })),
+    levers,
   };
 }
 

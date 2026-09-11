@@ -2338,6 +2338,7 @@ export function deserializeSave(raw: string): WorldState {
   // saves too, so no version renumber is needed.
   for (const campaign of Object.values(save.world.campaigns)) {
     if (typeof campaign.spendStock !== "number") campaign.spendStock = 0;
+    if (!Array.isArray(campaign.activityHistory)) campaign.activityHistory = [];
   }
   assertCurrentWorldState(save.world);
   return save.world;

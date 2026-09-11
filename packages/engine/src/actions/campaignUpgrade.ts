@@ -121,6 +121,17 @@ export function campaignUpgrade(
     tree[track] = nextLevel;
   }
 
+  const activity: NonNullable<Campaign["activityHistory"]>[number] = {
+    type: "upgrade",
+    category: lane,
+    ...(track === null ? {} : { branch: track }),
+    newLevel: track === null ? 1 : nextLevel,
+    costFunds: costLocal,
+    costActions: cost.actions,
+    turnNumber: world.meta.turn,
+  };
+  campaign.activityHistory = [...(campaign.activityHistory ?? []), activity].slice(-10);
+
   const what = track === null ? `starter (${cost.effect})` : `branch ${track} level ${nextLevel} (${cost.effect})`;
   return { ok: true, message: `Upgraded ${lane} ${what} for ${costLocal} funds and ${cost.actions} actions.` };
 }

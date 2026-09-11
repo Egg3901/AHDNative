@@ -78,6 +78,16 @@ describe("campaignUpgrade", () => {
     expect(campaign.fundraisingTree.starter).toBe(true);
     expect(campaign.spendThisTurn).toBeGreaterThan(0);
     expect(campaign.totalFundsSpent).toBeGreaterThan(0);
+    expect(campaign.activityHistory).toEqual([
+      expect.objectContaining({
+        type: "upgrade",
+        category: "fundraising",
+        newLevel: 1,
+        costFunds: campaign.totalFundsSpent,
+        costActions: 10,
+        turnNumber: world.meta.turn,
+      }),
+    ]);
     // Fundraising starter raises the exact-table income above the unstarted base.
     const income = calculateCampaignIncome(campaign, "house");
     expect(income).toBeGreaterThan(Math.round(20_000 * 0.3));
@@ -85,6 +95,14 @@ describe("campaignUpgrade", () => {
     const reloaded = deserializeSave(serializeSave(world, new Date().toISOString()));
     expect(reloaded.campaigns[key]!.fundraisingTree.starter).toBe(true);
     expect(reloaded.campaigns[key]!.funds).toBe(campaign.funds);
+    expect(reloaded.campaigns[key]!.activityHistory).toEqual(campaign.activityHistory);
+
+    const legacySave = JSON.parse(serializeSave(world, new Date().toISOString())) as {
+      world: { campaigns: Record<string, Record<string, unknown>> };
+    };
+    delete legacySave.world.campaigns[key]!.activityHistory;
+    const legacyReloaded = deserializeSave(JSON.stringify(legacySave));
+    expect(legacyReloaded.campaigns[key]!.activityHistory).toEqual([]);
 
     // One more real turn: income lands in the treasury (net of upkeep).
     const before = reloaded.campaigns[key]!.funds;

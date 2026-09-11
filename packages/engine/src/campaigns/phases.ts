@@ -101,6 +101,18 @@ export const campaignTurnPhase: TurnPhase = {
       const downgrade = computeAutoDowngrade(campaign, { funds: fundsAnchor, income, electionType });
       const effectiveMaintenance =
         downgrade.downgrades.length > 0 ? downgrade.newMaintenance : preDowngradeMaintenance;
+      if (downgrade.downgrades.length > 0) {
+        const entries = downgrade.downgrades.map((item): NonNullable<typeof campaign.activityHistory>[number] => ({
+          type: "downgrade",
+          category: item.category,
+          ...(item.branch ? { branch: item.branch } : {}),
+          fromLevel: item.fromLevel,
+          newLevel: item.toLevel,
+          reason: "insolvency",
+          turnNumber: world.meta.turn,
+        }));
+        campaign.activityHistory = [...(campaign.activityHistory ?? []), ...entries].slice(-10);
+      }
       if (downgrade.patches.fundraising) campaign.fundraisingTree = downgrade.patches.fundraising;
       if (downgrade.patches.oppositionResearch) campaign.oppositionResearchTree = downgrade.patches.oppositionResearch;
       if (downgrade.patches.groundGame) campaign.groundGameTree = downgrade.patches.groundGame;

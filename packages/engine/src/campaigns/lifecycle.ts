@@ -65,6 +65,7 @@ export function ensureCampaign(world: WorldState, args: CreateCampaignArgs): voi
     totalFundsSpent: 0,
     totalActionsGenerated: 0,
     totalActionsSpent: 0,
+    activityHistory: [],
     createdAtTurn: args.turn,
   };
   world.campaigns[key] = campaign;
