@@ -30,6 +30,7 @@ import {
  * fundraise, donor network and self-funding raise money; polls read the
  * electorate. Party membership stays reachable here under Influence.
  * poll/pollLarge are engine PORT-STUBs surfaced as honestly unavailable.
+ * debatePrep (#37) sits under Intelligence per its mainline research category.
  */
 const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: ActionCategory; prerequisite?: string }[] = [
   { id: "campaign", requires: "region", category: "influence", prerequisite: "Choose a region." },
@@ -42,6 +43,7 @@ const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: Acti
   { id: "convertCash", requires: "amount", category: "fundraising", prerequisite: "Requires personal cash." },
   { id: "poll", category: "intelligence" },
   { id: "pollLarge", category: "intelligence" },
+  { id: "debatePrep", category: "intelligence" },
 ];
 
 /**

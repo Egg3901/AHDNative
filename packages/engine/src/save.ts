@@ -316,6 +316,11 @@ function assertCurrentWorldState(world: WorldState): void {
     if (energy !== undefined && (typeof energy !== "number" || !Number.isFinite(energy) || energy < 1 || energy > 10)) {
       throw new Error("Not a valid save file: invalid player Energy");
     }
+    // #37: Debate shares the mainline stat range (statsConstants STAT_MIN/MAX = 1/10).
+    const debate = stats["debate"];
+    if (debate !== undefined && (typeof debate !== "number" || !Number.isFinite(debate) || debate < 1 || debate > 10)) {
+      throw new Error("Not a valid save file: invalid player Debate");
+    }
   }
 
   for (const field of REQUIRED_WORLD_ARRAYS) {
