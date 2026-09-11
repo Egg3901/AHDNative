@@ -41,6 +41,29 @@ describe("singleplayer session", () => {
 });
 
 
+describe("actions hub projection", () => {
+  it("groups every hub action under Influence, Fundraising or Intelligence with engine-backed costs", () => {
+    const session = new GameSession(); session.create(options);
+    const actions = session.view().actions;
+    expect(actions.length).toBeGreaterThan(0);
+    for (const action of actions) {
+      expect(["influence", "fundraising", "intelligence"]).toContain(action.category);
+      expect(action.cost).toBeGreaterThanOrEqual(0);
+      expect(action.fundCost).toBeGreaterThanOrEqual(0);
+      expect(action.cooldownTurns).toBeGreaterThanOrEqual(0);
+      if (!action.available) expect(action.disabledReason).toBeTruthy();
+    }
+    expect(new Set(actions.map((a) => a.category))).toEqual(new Set(["influence", "fundraising", "intelligence"]));
+    expect(actions.find((a) => a.id === "fundraise")).toMatchObject({ available: false, disabledReason: "No donor base. Use Build Donor Network first." });
+  });
+  it("marks unported intelligence actions unavailable with the blocking system named", () => {
+    const session = new GameSession(); session.create(options);
+    const poll = session.view().actions.find((a) => a.id === "poll");
+    expect(poll).toMatchObject({ category: "intelligence", available: false });
+    expect(poll?.disabledReason).toContain("polling/election polling");
+  });
+});
+
 describe("player candidacy through the session contract", () => {
   it("exposes filing choices and preserves candidacy through reload and withdrawal", () => {
     const session = new GameSession();

@@ -407,7 +407,19 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile }: Pro
           </div>
           <div className="ahd-profile-row">
             <dt>Campaign funds</dt>
-            <dd className="ahd-mono">{money(finances.funds, finances.currency)}</dd>
+            <dd className="ahd-mono">
+              {money(finances.funds, finances.currency)}
+              <span className="ahd-profile-sub">
+                <button
+                  type="button"
+                  className="ahd-profile-link"
+                  onClick={() => onNavigate("actions", "fundraising")}
+                  disabled={busy}
+                >
+                  Fundraising actions
+                </button>
+              </span>
+            </dd>
           </div>
           <div className="ahd-profile-row">
             <dt>Savings</dt>

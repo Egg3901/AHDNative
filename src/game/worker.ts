@@ -24,8 +24,12 @@ self.addEventListener("message", (event: MessageEvent<GameRequest>) => {
       case "view": value = session.view(); break;
       case "advance": value = session.advance(); break;
       case "action": value = { result: session.act(command.actionId, command.params), view: session.view() }; break;
-      case "serialize": value = session.serialize(command.savedAt); break;
+      case "serialize": value = session.serialize(command.savedAt, command.includeSaveNotice); break;
       case "load": value = session.load(command.contents); break;
+      case "notificationsRead": value = session.markNotificationRead(command.id); break;
+      case "notificationsDelete": value = session.deleteNotification(command.id); break;
+      case "notificationsReadAll": value = session.markAllNotificationsRead(); break;
+      case "notificationsSaved": value = session.recordSave(); break;
       default: throw new Error("Unknown game command.");
     }
     self.postMessage({ id, ok: true, value } satisfies GameResponse);

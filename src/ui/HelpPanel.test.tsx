@@ -20,7 +20,7 @@ describe("HelpPanel", () => {
 
     expect(screen.getByRole("heading", { name: "Available here" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Still unavailable here" })).toBeInTheDocument();
-    expect(screen.getByText(/multiplayer accounts and live server play are not part of this offline app/i)).toBeInTheDocument();
+    expect(screen.getByText(/multiplayer accounts, live server play, and player mail are not part of this offline app/i)).toBeInTheDocument();
     expect(screen.getByText(/does not expose the full AHDGame world destinations/i)).toBeInTheDocument();
     expect(screen.queryAllByRole("link")).toHaveLength(0);
   });

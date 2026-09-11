@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "AHDNative",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "net.lakesidegames.ahdnative",
   "build": {
     "frontendDist": "../dist",
@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "A House Divided",
-        "width": 800,
-        "height": 600,
+        "width": 1100,
+        "height": 760,
         "resizable": true,
         "fullscreen": false,
         "label": "main",

@@ -454,8 +454,7 @@ part of completion, as required by AGENTS.md and the PR template.
 ### Active player resources and visual follow-through
 
 The #30/#31/#32 implementation and its validation are documented in
-[Player resource parity](PLAYER-RESOURCE-PARITY.md). Issue closure follows the
-verified PR merge. The active P0 batch remains tracked in
+[Player resource parity](PLAYER-RESOURCE-PARITY.md). All three are verified complete in PR #145 (`f9b1a9e`); their issues are closed. The active P0 batch remains tracked in
 [milestone 1](https://github.com/Egg3901/AHDNative/milestone/1).
 
 Owner visual feedback adds [the globe landing page](https://github.com/Egg3901/AHDNative/issues/142)
@@ -463,3 +462,27 @@ and [reference imagery across screens](https://github.com/Egg3901/AHDNative/issu
 These require rendered comparison with AHDGame/AHDClient, beyond matching colors
 and functional controls. The shared React/Tauri app and TypeScript engine remain;
 Rust implementation stays conditional on representative device profiling.
+
+
+## Windows 0.1.1 visual review candidate
+
+The owner requested a more ethereal space landing, a minimal globe and an
+alignment pass, followed by another private Windows preview. Muse implemented
+the globe and refined its lighting; root integrated the Actions and inbox
+slices and reviewed rendered phone/desktop layouts. This candidate includes:
+
+- #142: offline spinning geography, Fraunces title, restrained starfield and
+  nebula backdrop, responsive entry controls and reduced-motion handling.
+- #56: Influence/Fundraising/Intelligence categories with eligibility counts,
+  projected costs/reasons, and category-preserving Profile/footer links.
+- #85: generated local notifications, five-item preview, inbox/read/delete,
+  safe local links and persisted app-owned metadata. Native history is retained;
+  old AHDClient writers may discard the inbox metadata.
+- The merged #30/#31/#32 player-resource corrections from PR #145.
+
+Local validation: shared-rules checks, frontend typecheck/build, 153 app/CLI
+checks (one error-contract regression corrected with a focused rerun), 187 UI
+checks, career fixture validation and integrated production-browser flows.
+Release evidence records the final source revision and private delivery outside
+GitHub. No Codemagic build is part of this batch. Windows execution, device
+performance, broader imagery #143 and unresolved mechanics remain open.
