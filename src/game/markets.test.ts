@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  advanceTurn,
   createWorld,
   deserializeSave,
   executeAction,
@@ -428,5 +429,110 @@ describe("recorded ownership projection", () => {
     const empty = projectMarkets(world).listings.find((l) => l.id === "US-media")!;
     expect(empty.controllingHolder).toBeNull();
     expect(empty.shareholders).toEqual([]);
+  });
+});
+
+describe("sector metrics and ownership", () => {
+  it("aggregates recorded revenue per currency and the mean margin/growth across member corporations", () => {
+    const view = projectMarkets(createWorld(US));
+    expect(view.sectors.length).toBeGreaterThan(0);
+
+    for (const sector of view.sectors) {
+      const members = view.listings.filter((l) => l.sectorType === sector.sectorType);
+      expect(sector.countryIds).toEqual(
+        [...new Set(members.map((l) => l.countryId))].sort((a, b) => a.localeCompare(b)),
+      );
+
+      // Revenue is summed PER CURRENCY — never a cross-currency total.
+      const currencies = [...new Set(members.map((l) => l.currency))].sort((a, b) => a.localeCompare(b));
+      expect(sector.values.map((v) => v.currency)).toEqual(currencies);
+      for (const value of sector.values) {
+        const inCurrency = members.filter((l) => l.currency === value.currency);
+        const expectedRevenue = Math.round(inCurrency.reduce((sum, l) => sum + l.revenue, 0) * 100) / 100;
+        expect(value.revenue).toBeCloseTo(expectedRevenue, 1);
+      }
+
+      // Margin and growth are unitless percentages: a plain mean over members.
+      const margin = members.reduce((sum, l) => sum + l.effectiveProfitMargin, 0) / members.length;
+      const growth = members.reduce((sum, l) => sum + l.currentGrowthRate, 0) / members.length;
+      expect(sector.marginPct).toBeCloseTo(margin, 6);
+      expect(sector.growthPct).toBeCloseTo(growth, 6);
+    }
+  });
+
+  it("never invents worker/employee or for-sale state that world state does not record", () => {
+    const view = projectMarkets(createWorld(US));
+    expect(view.sectors.every((sector) => sector.forSale === null)).toBe(true);
+    expect(JSON.stringify(view)).not.toMatch(/worker|employee|staff|headcount/i);
+    expect(JSON.stringify(view)).not.toMatch(/"forSale":\s*(?!null)/i);
+  });
+
+  it("derives unowned vs owned from the recorded shareholders (player holds >=1 share)", () => {
+    const world = createWorld(US);
+    const before = projectMarkets(world).sectors.find((s) => s.sectorType === "media")!;
+    expect(before.owned).toBe(false);
+    expect(before.playerShares).toBe(0);
+    expect(before.ownedCompanyCount).toBe(0);
+
+    expect(executeAction(world, "player", "buyShares", { corpId: "US-media", shares: 4 }).ok).toBe(true);
+
+    const after = projectMarkets(world);
+    const media = after.sectors.find((s) => s.sectorType === "media")!;
+    expect(media.owned).toBe(true);
+    expect(media.playerShares).toBe(4);
+    expect(media.ownedCompanyCount).toBe(1);
+
+    // Every other sector stays unowned.
+    for (const sector of after.sectors) {
+      if (sector.sectorType === "media") continue;
+      expect(sector.owned).toBe(false);
+      expect(sector.playerShares).toBe(0);
+    }
+  });
+
+  it("keeps sector metrics and ownership identical through serializeSave / deserializeSave", () => {
+    const world = createWorld(US);
+    expect(executeAction(world, "player", "buyShares", { corpId: "US-media", shares: 4 }).ok).toBe(true);
+
+    const original = projectMarkets(world);
+    const loaded = projectMarkets(deserializeSave(serializeSave(world, SAVED_AT)));
+
+    const media = loaded.sectors.find((s) => s.sectorType === "media")!;
+    expect(media).toEqual(original.sectors.find((s) => s.sectorType === "media")!);
+    expect(loaded.turn).toBe(original.turn);
+    expect(media.owned).toBe(true);
+    expect(media.playerShares).toBe(4);
+    expect(loaded.listings.find((l) => l.id === "US-media")!.playerShares).toBe(4);
+  });
+
+  it("projects the post-turn corporation state after advanceTurn", () => {
+    const world = createWorld(US);
+    const before = projectMarkets(world);
+    expect(before.turn).toBe(0);
+    const wasUnowned = before.sectors.find((s) => s.sectorType === "media")!;
+    expect(wasUnowned.owned).toBe(false);
+
+    advanceTurn(world);
+
+    const after = projectMarkets(world);
+    expect(after.turn).toBeGreaterThan(before.turn);
+
+    const corp = world.corporations["US-media"]!;
+    const listing = after.listings.find((l) => l.id === "US-media")!;
+    // The projection reads the corporation the turn actually advanced.
+    expect(listing.revenue).toBe(corp.revenue);
+    expect(listing.currentGrowthRate).toBe(corp.currentGrowthRate);
+    expect(listing.effectiveProfitMargin).toBe(corp.effectiveProfitMargin);
+
+    const media = after.sectors.find((s) => s.sectorType === "media")!;
+    const members = after.listings.filter((l) => l.sectorType === "media");
+    expect(media.growthPct).toBeCloseTo(
+      members.reduce((sum, l) => sum + l.currentGrowthRate, 0) / members.length,
+      6,
+    );
+    expect(media.marginPct).toBeCloseTo(
+      members.reduce((sum, l) => sum + l.effectiveProfitMargin, 0) / members.length,
+      6,
+    );
   });
 });

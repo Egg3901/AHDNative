@@ -87,8 +87,15 @@ function makeSector(overrides: Partial<SectorSummary> = {}): SectorSummary {
     sectorType: "media",
     sectorLabel: "media",
     companyCount: 1,
-    values: [{ currency: "USD", companyCount: 1, marketValue: 7_740_000_000 }],
+    values: [{ currency: "USD", companyCount: 1, marketValue: 7_740_000_000, revenue: 1_000 }],
     companyIds: ["US-media"],
+    countryIds: ["US"],
+    owned: false,
+    ownedCompanyCount: 0,
+    playerShares: 0,
+    marginPct: 8,
+    growthPct: 3,
+    forSale: null,
     ...overrides,
   };
 }
@@ -96,8 +103,9 @@ function makeSector(overrides: Partial<SectorSummary> = {}): SectorSummary {
 const manufacturingSector = makeSector({
   sectorType: "manufacturing",
   sectorLabel: "manufacturing",
-  values: [{ currency: "GBP", companyCount: 1, marketValue: 1_200 }],
+  values: [{ currency: "GBP", companyCount: 1, marketValue: 1_200, revenue: 500 }],
   companyIds: ["UK-manufacturing"],
+  countryIds: ["UK"],
 });
 
 describe("MarketsPanel list", () => {
@@ -105,6 +113,8 @@ describe("MarketsPanel list", () => {
     const MarketsPanel = await loadPanel();
     const user = userEvent.setup();
     render(<MarketsPanel markets={makeMarkets()} busy={false} onAction={vi.fn()} />);
+    // The default context is the player's country (US), so browse the world first.
+    await user.selectOptions(screen.getByLabelText("Country"), "all");
     expect(screen.getByText("US.MEDI")).toBeInTheDocument();
     expect(screen.getByText("UK.MANU")).toBeInTheDocument();
     expect(screen.queryByText(/total market cap/i)).not.toBeInTheDocument();
@@ -115,13 +125,17 @@ describe("MarketsPanel list", () => {
     expect(screen.queryByText("US.MEDI")).not.toBeInTheDocument();
   });
 
-  it("filters by country", async () => {
+  it("defaults the country filter to the player's country and switches it", async () => {
     const MarketsPanel = await loadPanel();
     const user = userEvent.setup();
     render(<MarketsPanel markets={makeMarkets()} busy={false} onAction={vi.fn()} />);
-    await user.selectOptions(screen.getByLabelText("Country"), "US");
+    // Default context: the player's country (US) is preselected.
+    expect(screen.getByLabelText("Country")).toHaveValue("US");
     expect(screen.getByText("US.MEDI")).toBeInTheDocument();
     expect(screen.queryByText("UK.MANU")).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Country"), "UK");
+    expect(screen.getByText("UK.MANU")).toBeInTheDocument();
+    expect(screen.queryByText("US.MEDI")).not.toBeInTheDocument();
   });
 
   it("shows an empty state when the DTO has no listings", async () => {
@@ -206,6 +220,7 @@ describe("MarketsPanel detail and actions", () => {
     const MarketsPanel = await loadPanel();
     const user = userEvent.setup();
     render(<MarketsPanel markets={makeMarkets()} busy={false} onAction={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText("Country"), "all");
     await user.click(screen.getByRole("button", { name: /UK\.MANU UK-manufacturing/i }));
     expect(screen.getByText(/quote GBP/i)).toBeInTheDocument();
     expect(screen.getByText(/\(USD\)/)).toBeInTheDocument();
@@ -231,6 +246,7 @@ describe("MarketsPanel detail and actions", () => {
       sell: { id: "sellShares", name: "Sell Shares", cost: 0, available: true },
     });
     render(<MarketsPanel markets={makeMarkets({ listings: [foreign] })} busy={false} onAction={onAction} />);
+    await user.selectOptions(screen.getByLabelText("Country"), "all");
     await user.click(screen.getByRole("button", { name: /UK\.MANU UK-manufacturing/i }));
     expect(screen.getByText(/quote GBP/i)).toBeInTheDocument();
     expect(screen.getByText(/\(USD\)/)).toBeInTheDocument();
@@ -251,7 +267,7 @@ describe("MarketsPanel detail and actions", () => {
 });
 
 describe("MarketsPanel sector directory", () => {
-  it("lists sectors with recorded company counts and values, and filters them by search", async () => {
+  it("lists sectors with recorded company counts, per-currency value/revenue and metrics, and filters by search", async () => {
     const MarketsPanel = await loadPanel();
     const user = userEvent.setup();
     render(
@@ -261,11 +277,16 @@ describe("MarketsPanel sector directory", () => {
         onAction={vi.fn()}
       />,
     );
+    await user.selectOptions(screen.getByLabelText("Country"), "all");
 
     expect(screen.getByText("Sector directory")).toBeInTheDocument();
     const media = screen.getByRole("button", { name: /media sector, 1 company/i });
     expect(within(media).getByText(/1 company/)).toBeInTheDocument();
     expect(within(media).getByText(/7,740,000,000/)).toBeInTheDocument();
+    // Source-backed sector metrics from the recorded corporation fields.
+    expect(within(media).getByText(/Revenue:/)).toBeInTheDocument();
+    expect(within(media).getByText(/Margin:/)).toBeInTheDocument();
+    expect(within(media).getByText(/Growth:/)).toBeInTheDocument();
     const manufacturing = screen.getByRole("button", { name: /manufacturing sector, 1 company/i });
     expect(within(manufacturing).getByText(/1,200/)).toBeInTheDocument();
 
@@ -274,10 +295,25 @@ describe("MarketsPanel sector directory", () => {
     expect(screen.queryByRole("button", { name: /media sector/i })).not.toBeInTheDocument();
   });
 
-  it("shows an empty directory when no sectors match", async () => {
+  it("shows an explicit reason instead of a silent empty screen when the filtered country has no sectors", async () => {
     const MarketsPanel = await loadPanel();
     render(<MarketsPanel markets={makeMarkets()} busy={false} onAction={vi.fn()} />);
+    // Default context is US, and the DTO records no sectors.
     expect(screen.getByText("Sector directory")).toBeInTheDocument();
+    expect(screen.getByText(/No sectors are recorded in United States/i)).toBeInTheDocument();
+  });
+
+  it("shows a no-match empty state when the search excludes every sector", async () => {
+    const MarketsPanel = await loadPanel();
+    const user = userEvent.setup();
+    render(
+      <MarketsPanel
+        markets={makeMarkets({ sectors: [makeSector(), manufacturingSector] })}
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+    await user.type(screen.getByLabelText("Search sectors"), "zzzz");
     expect(screen.getByText(/no sectors match/i)).toBeInTheDocument();
   });
 
@@ -291,6 +327,7 @@ describe("MarketsPanel sector directory", () => {
         onAction={vi.fn()}
       />,
     );
+    await user.selectOptions(screen.getByLabelText("Country"), "all");
 
     expect(screen.getByText("US.MEDI")).toBeInTheDocument();
     expect(screen.getByText("UK.MANU")).toBeInTheDocument();
@@ -300,10 +337,12 @@ describe("MarketsPanel sector directory", () => {
     expect(screen.getByText("US.MEDI")).toBeInTheDocument();
     expect(screen.queryByText("UK.MANU")).not.toBeInTheDocument();
 
-    // Each company entry opens the existing detail with the market list's Back control.
+    // Each company entry opens the existing detail with the reachable trade actions.
     await user.click(screen.getByRole("button", { name: /US\.MEDI US-media/i }));
     expect(screen.getByText(/share price/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /back to market list/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /buy shares/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sell shares/i })).toBeInTheDocument();
   });
 
   it("clears the active sector from the All sectors control", async () => {
@@ -316,11 +355,118 @@ describe("MarketsPanel sector directory", () => {
         onAction={vi.fn()}
       />,
     );
+    await user.selectOptions(screen.getByLabelText("Country"), "all");
 
     await user.click(screen.getByRole("button", { name: /media sector/i }));
     expect(screen.queryByText("UK.MANU")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /show all sectors/i }));
     expect(screen.getByText("UK.MANU")).toBeInTheDocument();
+  });
+
+  it("has no For Sale tab because no sale signal is recorded, and states that plainly", async () => {
+    const MarketsPanel = await loadPanel();
+    render(<MarketsPanel markets={makeMarkets({ sectors: [makeSector()] })} busy={false} onAction={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /for sale/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/no For Sale tab/i)).toBeInTheDocument();
+  });
+});
+
+describe("MarketsPanel sector ownership tabs and sorting", () => {
+  const ownedSector = makeSector({
+    sectorType: "energy",
+    sectorLabel: "energy",
+    owned: true,
+    ownedCompanyCount: 1,
+    playerShares: 40,
+    companyIds: ["US-energy"],
+    values: [{ currency: "USD", companyCount: 1, marketValue: 2_000, revenue: 2_000 }],
+    marginPct: 20,
+    growthPct: 5,
+  });
+
+  it("shows tab counts derived from the recorded shareholders and filters by them", async () => {
+    const MarketsPanel = await loadPanel();
+    const user = userEvent.setup();
+    render(
+      <MarketsPanel
+        markets={makeMarkets({ sectors: [makeSector(), ownedSector] })}
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /All sectors, 2/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Unowned sectors, 1/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Owned sectors, 1/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Owned sectors, 1/ }));
+    expect(screen.getByRole("button", { name: /energy sector/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /media sector/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Unowned sectors, 1/ }));
+    expect(screen.getByRole("button", { name: /media sector/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /energy sector/i })).not.toBeInTheDocument();
+  });
+
+  it("sorts sectors by revenue, margin and growth with a direction toggle", async () => {
+    const MarketsPanel = await loadPanel();
+    const user = userEvent.setup();
+    render(
+      <MarketsPanel
+        markets={makeMarkets({ sectors: [makeSector(), ownedSector] })}
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+
+    const labels = () => screen.getAllByRole("button", { name: / sector, / }).map((b) => b.getAttribute("aria-label"));
+
+    // Default label sort (asc): energy before media.
+    expect(labels()[0]).toMatch(/energy sector/);
+
+    // Revenue ascending (default direction): media revenue 1000 < energy revenue 2000.
+    await user.selectOptions(screen.getByLabelText("Sort sectors"), "revenue");
+    expect(labels()[0]).toMatch(/media sector/);
+    await user.click(screen.getByRole("button", { name: /sort direction: ascending/i }));
+    expect(labels()[0]).toMatch(/energy sector/);
+
+    // Margin ascending (back to asc): media margin 8 < energy margin 20.
+    await user.click(screen.getByRole("button", { name: /sort direction: descending/i }));
+    await user.selectOptions(screen.getByLabelText("Sort sectors"), "margin");
+    expect(labels()[0]).toMatch(/media sector/);
+    await user.click(screen.getByRole("button", { name: /sort direction: ascending/i }));
+    expect(labels()[0]).toMatch(/energy sector/);
+  });
+
+  it("pages the sector directory on small screens", async () => {
+    const MarketsPanel = await loadPanel();
+    const user = userEvent.setup();
+    const many = Array.from({ length: 10 }, (_, i) =>
+      makeSector({
+        sectorType: `sector_${i}`,
+        sectorLabel: `sector ${i}`,
+        companyIds: [`US-sector_${i}`],
+      }),
+    );
+    render(<MarketsPanel markets={makeMarkets({ sectors: many })} busy={false} onAction={vi.fn()} />);
+
+    // Page size is 8, so 10 sectors span two pages.
+    expect(screen.getByText(/Page 1 \/ 2/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /next sector page/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /sector 9 sector/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /next sector page/i }));
+    expect(screen.getByText(/Page 2 \/ 2/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sector 9 sector/i })).toBeInTheDocument();
+  });
+
+  it("renders no region link because a corporation records only its country", async () => {
+    const MarketsPanel = await loadPanel();
+    render(<MarketsPanel markets={makeMarkets({ sectors: [makeSector()] })} busy={false} onAction={vi.fn()} />);
+    // Reference sector rows link regionUrl(countryId, stateId); Native's
+    // Corporation has no region/state field, so there is no region link to render.
+    expect(screen.queryByRole("button", { name: /region/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /region/i })).not.toBeInTheDocument();
   });
 });
 

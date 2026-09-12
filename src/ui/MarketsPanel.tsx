@@ -51,6 +51,47 @@ function matchesSector(sector: SectorSummary, query: string): boolean {
   return sector.sectorLabel.toLowerCase().includes(q) || sector.sectorType.toLowerCase().includes(q);
 }
 
+/** Sector directory page size. Small enough to page comfortably on a phone. */
+const SECTOR_PAGE_SIZE = 8;
+
+type SectorOwnership = "all" | "unowned" | "owned";
+type SectorSort = "name" | "revenue" | "margin" | "growth";
+type SortDirection = "asc" | "desc";
+
+/**
+ * Ordering key for the Revenue sort. Sums the sector's recorded per-currency
+ * revenues so sectors can be ranked; it is never displayed and performs no
+ * currency conversion (Native has no FX/anchor system, so a sector that spans
+ * currencies keeps its revenue split per currency in `values`).
+ */
+function sectorRevenueRank(sector: SectorSummary): number {
+  return sector.values.reduce((sum, value) => sum + value.revenue, 0);
+}
+
+/** Reference-shaped sector sort: revenue / margin / growth / label, with a direction toggle. */
+function sortSectors(sectors: SectorSummary[], sort: SectorSort, dir: SortDirection): SectorSummary[] {
+  const sign = dir === "asc" ? 1 : -1;
+  return [...sectors].sort((a, b) => {
+    switch (sort) {
+      case "revenue":
+        return (sectorRevenueRank(a) - sectorRevenueRank(b)) * sign || a.sectorLabel.localeCompare(b.sectorLabel);
+      case "margin":
+        return ((a.marginPct ?? 0) - (b.marginPct ?? 0)) * sign || a.sectorLabel.localeCompare(b.sectorLabel);
+      case "growth":
+        return ((a.growthPct ?? 0) - (b.growthPct ?? 0)) * sign || a.sectorLabel.localeCompare(b.sectorLabel);
+      default:
+        return a.sectorLabel.localeCompare(b.sectorLabel) * sign || a.sectorType.localeCompare(b.sectorType);
+    }
+  });
+}
+
+/** Percent cell shared by the sector metric rows; em dash when the engine records no value. */
+function formatSectorPercent(value: number | null, signed: boolean): string {
+  if (value == null) return "—";
+  const rounded = Math.round(value * 10) / 10;
+  return `${signed && rounded > 0 ? "+" : ""}${rounded.toFixed(1)}%`;
+}
+
 /**
  * Recorded holder kinds are the only owner identity in world state, so these
  * labels describe the recorded kind verbatim — no owner name is invented.
@@ -66,12 +107,14 @@ function controllingLabel(holder: ShareholderKind | null): string {
 function ListingList({
   listings,
   onSelect,
+  emptyMessage = "No corporations match.",
 }: {
   listings: MarketListing[];
   onSelect: (id: string) => void;
+  emptyMessage?: string;
 }) {
   if (listings.length === 0) {
-    return <div className="ahd-empty">No corporations match.</div>;
+    return <div className="ahd-empty">{emptyMessage}</div>;
   }
   return (
     <ul aria-label="Companies" style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
@@ -98,66 +141,193 @@ function ListingList({
   );
 }
 
+function SectorMetricRow({ sector }: { sector: SectorSummary }) {
+  return (
+    <span style={{ display: "flex", gap: "0.65rem", flexWrap: "wrap", fontSize: "0.74rem" }}>
+      <span>
+        Revenue:{" "}
+        <span className="ahd-mono">
+          {sector.values.map((value) => formatFinanceMoney(value.revenue, value.currency)).join(" · ")}
+        </span>
+      </span>
+      <span>
+        Margin: <span className="ahd-mono">{formatSectorPercent(sector.marginPct, false)}</span>
+      </span>
+      <span>
+        Growth: <span className="ahd-mono">{formatSectorPercent(sector.growthPct, true)}</span>
+      </span>
+    </span>
+  );
+}
+
 /**
- * Sector directory: sectors with recorded company counts and per-currency
- * values, sorted by label, searchable. Selecting a sector narrows the company
- * list below to that sector, and each company entry opens the existing
- * company detail (the same onSelect the market list already uses).
+ * Sector directory: recorded company counts, per-currency market value and
+ * revenue, sector revenue/margin/growth metrics, ownership tabs (derived from
+ * the recorded shareholders), search, reference-shaped sorting and mobile
+ * paging. Selecting a sector narrows the company list below to that sector, and
+ * each company entry opens the existing company detail (the same onSelect the
+ * market list already uses).
+ *
+ * There is deliberately no "For Sale" tab: AHDGame's sectors page reads
+ * CorporateSector.forSale (src/app/sectors/page.tsx, /api/sectors route.ts),
+ * but Native's merged Corporation record has no for-sale field, so there is no
+ * sale signal to filter on. `sector.forSale` is null for every row.
  */
 function SectorDirectory({
   sectors,
-  query,
-  onQueryChange,
   activeSectorType,
-  onSelect,
+  onSelectSector,
+  emptyReason,
+  resetKey,
 }: {
   sectors: SectorSummary[];
-  query: string;
-  onQueryChange: (query: string) => void;
   activeSectorType: string | null;
-  onSelect: (sectorType: string | null) => void;
+  onSelectSector: (sectorType: string | null) => void;
+  /** Explicit reason to show instead of a silent empty list, e.g. a country with no records. */
+  emptyReason: string | null;
+  /** Changing this value (the country filter) resets paging. */
+  resetKey: string;
 }) {
-  const visible = sectors.filter((sector) => matchesSector(sector, query));
+  const [query, setQuery] = useState("");
+  const [ownership, setOwnership] = useState<SectorOwnership>("all");
+  const [sort, setSort] = useState<SectorSort>("name");
+  const [dir, setDir] = useState<SortDirection>("asc");
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [ownership, sort, dir, query, resetKey]);
+
+  const counts = useMemo(
+    () => ({
+      all: sectors.length,
+      unowned: sectors.filter((sector) => !sector.owned).length,
+      owned: sectors.filter((sector) => sector.owned).length,
+    }),
+    [sectors],
+  );
+
+  const visible = useMemo(() => {
+    const filtered = sectors.filter((sector) => {
+      if (ownership === "owned" && !sector.owned) return false;
+      if (ownership === "unowned" && sector.owned) return false;
+      return matchesSector(sector, query);
+    });
+    return sortSectors(filtered, sort, dir);
+  }, [sectors, ownership, query, sort, dir]);
+
+  const tabs: { key: SectorOwnership; label: string }[] = [
+    { key: "all", label: "All" },
+    { key: "unowned", label: "Unowned" },
+    { key: "owned", label: "Owned" },
+  ];
+
+  const pageCount = Math.max(1, Math.ceil(visible.length / SECTOR_PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const start = (currentPage - 1) * SECTOR_PAGE_SIZE;
+  const pageItems = visible.slice(start, start + SECTOR_PAGE_SIZE);
+
+  const emptyMessage =
+    sectors.length === 0 && emptyReason
+      ? emptyReason
+      : ownership === "owned"
+        ? "No owned sectors match."
+        : ownership === "unowned"
+          ? "No unowned sectors match."
+          : "No sectors match.";
+
   return (
     <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
       <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Sector directory</h3>
       <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: 0 }}>
         {sectors.length} {sectors.length === 1 ? "sector" : "sectors"} with listed companies.
       </p>
+
+      {/* Ownership tabs. Counts come from the same projection, so they can't drift. */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+        {tabs.map((tab) => {
+          const active = ownership === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              className="ahd-btn ahd-btn-sm"
+              aria-pressed={active}
+              aria-label={`${tab.label} sectors, ${counts[tab.key]}`}
+              onClick={() => setOwnership(tab.key)}
+            >
+              {tab.label} <span className="ahd-muted">({counts[tab.key]})</span>
+            </button>
+          );
+        })}
+      </div>
+
       <label className="ahd-field">
         <span className="ahd-label">Search sectors</span>
         <input
           className="ahd-input"
           type="search"
           value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
+          onChange={(e) => setQuery(e.target.value)}
           placeholder="Search sectors..."
           aria-label="Search sectors"
         />
       </label>
+
+      <div style={{ display: "flex", gap: "0.4rem", alignItems: "flex-end", flexWrap: "wrap" }}>
+        <label className="ahd-field" style={{ flex: "1 1 8rem" }}>
+          <span className="ahd-label">Sort sectors</span>
+          <select
+            className="ahd-select"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SectorSort)}
+            aria-label="Sort sectors"
+          >
+            <option value="name">Name</option>
+            <option value="revenue">Revenue</option>
+            <option value="margin">Margin</option>
+            <option value="growth">Growth</option>
+          </select>
+        </label>
+        <button
+          type="button"
+          className="ahd-btn ahd-btn-sm"
+          onClick={() => setDir(dir === "asc" ? "desc" : "asc")}
+          aria-label={`Sort direction: ${dir === "asc" ? "ascending" : "descending"}`}
+        >
+          {dir === "asc" ? "↑" : "↓"}
+        </button>
+      </div>
+
       {visible.length === 0 ? (
-        <div className="ahd-empty">No sectors match.</div>
+        <div className="ahd-empty">{emptyMessage}</div>
       ) : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-          {visible.map((sector) => {
+          {pageItems.map((sector) => {
             const active = sector.sectorType === activeSectorType;
             return (
               <li key={sector.sectorType}>
                 <button
                   type="button"
                   className="ahd-btn ahd-btn-sm"
-                  style={{ width: "100%", justifyContent: "space-between", textAlign: "left", minHeight: 44 }}
+                  style={{ width: "100%", flexDirection: "column", alignItems: "stretch", textAlign: "left", minHeight: 44, gap: "0.2rem" }}
                   aria-pressed={active}
-                  aria-label={`${sector.sectorLabel} sector, ${sector.companyCount} ${sector.companyCount === 1 ? "company" : "companies"}`}
-                  onClick={() => onSelect(active ? null : sector.sectorType)}
+                  aria-label={`${sector.sectorLabel} sector, ${sector.companyCount} ${sector.companyCount === 1 ? "company" : "companies"}${sector.owned ? ", owned by you" : ", unowned"}`}
+                  onClick={() => onSelectSector(active ? null : sector.sectorType)}
                 >
-                  <span style={{ overflowWrap: "anywhere" }}>
-                    <strong>{sector.sectorLabel}</strong>{" "}
-                    <span className="ahd-muted">
-                      {sector.companyCount} {sector.companyCount === 1 ? "company" : "companies"}
+                  <span style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+                    <span style={{ overflowWrap: "anywhere" }}>
+                      <strong>{sector.sectorLabel}</strong>{" "}
+                      <span className="ahd-muted">
+                        {sector.companyCount} {sector.companyCount === 1 ? "company" : "companies"}
+                      </span>
+                    </span>
+                    <span className="ahd-muted" style={{ fontSize: "0.74rem", whiteSpace: "nowrap" }}>
+                      {sector.owned ? `Owned · ${sector.playerShares.toLocaleString()} shares` : "Unowned"}
                     </span>
                   </span>
-                  <span className="ahd-mono" style={{ fontSize: "0.78rem" }}>
+                  <SectorMetricRow sector={sector} />
+                  <span className="ahd-mono" style={{ fontSize: "0.74rem" }}>
                     {sector.values.map((value) => formatFinanceMoney(value.marketValue, value.currency)).join(" · ")}
                   </span>
                 </button>
@@ -166,6 +336,37 @@ function SectorDirectory({
           })}
         </ul>
       )}
+
+      {pageCount > 1 ? (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+          <button
+            type="button"
+            className="ahd-btn ahd-btn-sm"
+            onClick={() => setPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage <= 1}
+            aria-label="Previous sector page"
+          >
+            ← Prev
+          </button>
+          <span className="ahd-muted" style={{ fontSize: "0.74rem" }}>
+            Page {currentPage} / {pageCount}
+          </span>
+          <button
+            type="button"
+            className="ahd-btn ahd-btn-sm"
+            onClick={() => setPage(Math.min(pageCount, currentPage + 1))}
+            disabled={currentPage >= pageCount}
+            aria-label="Next sector page"
+          >
+            Next →
+          </button>
+        </div>
+      ) : null}
+
+      <p className="ahd-muted" style={{ fontSize: "0.72rem", margin: 0 }}>
+        Ownership reflects only the shareholders recorded in world state. No corporation records a
+        for-sale sector listing, so there is no For Sale tab.
+      </p>
     </div>
   );
 }
@@ -417,9 +618,15 @@ function CompanyDetail({
 
 export function MarketsPanel({ markets, busy, onAction, initialId = null, onSelect }: MarketsPanelProps) {
   const [query, setQuery] = useState("");
-  const [countryId, setCountryId] = useState("all");
+  // Default context: the player's own country, mirroring AHDGame's sectors page
+  // (src/app/sectors/page.tsx), which preselects the corporation/character
+  // country. Native has no player corporation, so the player's country is the
+  // only available context. Falls back to "All countries" when the player's
+  // country holds no listed corporations.
+  const [countryId, setCountryId] = useState(() =>
+    markets.countries.some((country) => country.id === markets.playerCountryId) ? markets.playerCountryId : "all",
+  );
   const [sectorType, setSectorType] = useState<string | null>(null);
-  const [sectorQuery, setSectorQuery] = useState("");
   const [selectedId, updateSelectedId] = useState<string | null>(initialId);
   const setSelectedId = (id: string | null) => { updateSelectedId(id); onSelect?.(id); };
 
@@ -429,11 +636,42 @@ export function MarketsPanel({ markets, busy, onAction, initialId = null, onSele
     if (selectedId && !markets.listings.some((l) => l.id === selectedId)) setSelectedId(null);
   }, [markets.listings, selectedId]);
 
-  // Country and sector are mutually exclusive filters over the same list.
-  const selectSector = (next: string | null) => {
-    setSectorType(next);
-    if (next) setCountryId("all");
-  };
+  // A country that has been removed or absorbed no longer appears in the filter
+  // list, so a preselected id would render with no matching option and silently
+  // empty the list. Clear it so the player lands on the unfiltered world instead
+  // (ticket #1271 in AHDGame's sectors page).
+  useEffect(() => {
+    if (countryId !== "all" && !markets.countries.some((country) => country.id === countryId)) {
+      setCountryId("all");
+    }
+  }, [markets.countries, countryId]);
+
+  const countryName =
+    countryId === "all" ? null : markets.countries.find((country) => country.id === countryId)?.name ?? countryId;
+
+  // Sectors whose recorded members include this country. Kept per-currency for
+  // revenue/value; the country filter only narrows membership.
+  const countrySectors = useMemo(
+    () =>
+      countryId === "all"
+        ? markets.sectors
+        : markets.sectors.filter((sector) => sector.countryIds.includes(countryId)),
+    [markets.sectors, countryId],
+  );
+
+  // Explicit reason when a country filter has no records — never a silent empty screen.
+  const directoryEmptyReason =
+    countryId !== "all" && countrySectors.length === 0
+      ? `No sectors are recorded in ${countryName}. Choose "All countries" to browse the rest of the world.`
+      : null;
+
+  const countryHasListings = countryId === "all" || markets.listings.some((listing) => listing.countryId === countryId);
+  const listingEmptyMessage =
+    countryId !== "all" && !countryHasListings
+      ? `No corporations are recorded in ${countryName}.`
+      : sectorType
+        ? "No corporations match this sector filter."
+        : "No corporations match.";
 
   const visible = useMemo(() => {
     return markets.listings.filter((listing) => {
@@ -495,7 +733,7 @@ export function MarketsPanel({ markets, busy, onAction, initialId = null, onSele
               <select
                 className="ahd-select"
                 value={countryId}
-                onChange={(e) => { setCountryId(e.target.value); setSectorType(null); }}
+                onChange={(e) => setCountryId(e.target.value)}
                 aria-label="Country"
               >
                 <option value="all">All countries</option>
@@ -509,11 +747,11 @@ export function MarketsPanel({ markets, busy, onAction, initialId = null, onSele
           </div>
 
           <SectorDirectory
-            sectors={markets.sectors}
-            query={sectorQuery}
-            onQueryChange={setSectorQuery}
+            sectors={countrySectors}
             activeSectorType={sectorType}
-            onSelect={selectSector}
+            onSelectSector={setSectorType}
+            emptyReason={directoryEmptyReason}
+            resetKey={countryId}
           />
 
           <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
@@ -532,7 +770,7 @@ export function MarketsPanel({ markets, busy, onAction, initialId = null, onSele
                 </button>
               </div>
             ) : null}
-            <ListingList listings={visible} onSelect={setSelectedId} />
+            <ListingList listings={visible} onSelect={setSelectedId} emptyMessage={listingEmptyMessage} />
           </div>
         </>
       )}
