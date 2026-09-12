@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { advanceTurn } from "./engine.js";
 import { deserializeSave, serializeSave } from "./save.js";
-import { createWorld, listEras, listParties, listPlayableCountries, listRegions, SCHEMA_VERSION } from "./world.js";
+import { createWorld, listCountries, listEras, listParties, listPlayableCountries, listRegions, SCHEMA_VERSION } from "./world.js";
 import { rngFromSeed, rngFromState } from "./rng.js";
 import { dateForTurn, eraForDate } from "./calendar.js";
 import { PACKS } from "@ahdclient/content";
@@ -404,6 +404,22 @@ describe("seed packs integration", () => {
       expect(list.some((c) => c.id === "US")).toBe(true);
       expect(list.some((c) => c.id === "UK")).toBe(true);
     }
+  });
+
+  it("keeps JP and DE economy-preview when their regional budget variants are unavailable", () => {
+    for (const era of ["1953", "1979", "1991", "2019"]) {
+      const countries = listCountries(era);
+      expect(countries.find((country) => country.id === "JP")?.playable, `${era}/JP`).toBe(false);
+      expect(countries.find((country) => country.id === "DE")?.playable, `${era}/DE`).toBe(false);
+      expect(listPlayableCountries(era).map((country) => country.id)).not.toEqual(
+        expect.arrayContaining(["JP", "DE"]),
+      );
+    }
+
+    expect(() => createWorld({ seed: "regional-budget", playerName: "P", countryId: "JP", era: "1991" }))
+      .toThrow(/not playable/i);
+    expect(() => createWorld({ seed: "regional-budget", playerName: "P", countryId: "DE", era: "2019" }))
+      .toThrow(/not playable/i);
   });
 
   it("listParties returns the country's parties per era", () => {

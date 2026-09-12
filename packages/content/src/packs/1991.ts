@@ -21,6 +21,9 @@ import { ukRegions1991 } from "./ukRegions1991.js";
  *    1953-default decolonization events) — mainline just starts a
  *    1991-default world with RU/DD already gone. This pack does the same:
  *    RU and DD are not present at all, not even as non-playable entries.
+ *    JP and DE remain economy-preview entries in the AHDGame manifest; Native
+ *    keeps them unavailable until their country-specific regional budget and
+ *    political surfaces are ported.
  *  - src/lib/constants/countries.ts COUNTRY_CONFIGS (base legislature seat
  *    counts — ERA_COUNTRY_CONFIG_OVERRIDES has no "1991-default" entries
  *    either, so these are the same era-neutral base numbers 1979 uses)
@@ -64,13 +67,13 @@ export const pack1991: SeedPack = {
     {
       id: "JP",
       name: "Japan",
-      playable: true,
+      playable: false,
       economy: { gdp: 3_494_424, growthRate: 0.034, inflationRate: 0.033, unemploymentRate: 0.021 },
     },
     {
       id: "DE",
       name: "Germany",
-      playable: true,
+      playable: false,
       economy: { gdp: 1_882_353, growthRate: 0.051, inflationRate: 0.035, unemploymentRate: 0.063 },
     },
     {
