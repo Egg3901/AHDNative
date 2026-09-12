@@ -18,6 +18,7 @@ import { BottomNav, GameDrawer } from "./MobileNavigation";
 import type { DrawerRouteId } from "./MobileNavigation";
 import { ActionsHub, type ActionsCategoryFilter } from "./ActionsHub";
 import { NotificationBellButton, NotificationPreview, NotificationsInbox, type NotificationTarget } from "./Notifications";
+import { RACE_PHASE_LABELS } from "../game/racePhase";
 /**
  * GameScreen: AHDNative primary game shell.
  *
@@ -149,6 +150,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
   const openParty = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("partyDetails"); };
   const openElection = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("electionDetails"); };
   const openCampaign = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("campaignDetails"); };
+  const openPolitician = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("politicians"); };
 
   const openSearchResult = (result: SearchResult) => {
     const destinations: Record<SearchResult['kind'], RouteId> = { nation: 'nations', party: 'partyDetails', company: 'markets', election: 'electionDetails', bill: 'legislationDetails', politician: 'politicians', player: 'profile' };
@@ -337,6 +339,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
                       <article key={e.id} aria-label={e.title} className="ahd-card ahd-card-pad">
                         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
                           <div style={{ fontWeight: 700, fontSize: "0.86rem" }}>{e.title}</div>
+                          <span className="ahd-pill">{RACE_PHASE_LABELS[e.phase]}</span>
                           {e.playerCandidate ? <span className="ahd-pill" style={{ background: "var(--ahd-primary)", color: "white" }}>Candidate</span> : null}
                         </div>
                         <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>{e.status} · {e.date}</div>
@@ -419,7 +422,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
           {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} /> : null}
           {(route === "partyDetails" || route === "electionDetails" || route === "campaignDetails") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => route === "campaignDetails" ? setRoute("electionDetails") : go(route === "partyDetails" ? "parties" : "elections")}>Back to {route === "partyDetails" ? "parties" : route === "campaignDetails" ? "race" : "elections"}</button>}
           {route === "partyDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="parties" initialId={detailId} busy={busy} onAction={onAction} />}
-          {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} onOpenCampaign={openCampaign} busy={busy} onAction={onAction} />}
+          {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} onOpenCampaign={openCampaign} onOpenPolitician={openPolitician} busy={busy} onAction={onAction} />}
           {route === "campaignDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="campaign" initialId={detailId} busy={busy} onAction={onAction} />}
           {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} />}
           {route === "banking" ? <FinancePanel finance={world.finance} section="banking" busy={busy} onAction={onAction} /> : null}

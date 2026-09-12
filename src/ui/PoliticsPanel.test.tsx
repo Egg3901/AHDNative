@@ -3,6 +3,32 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PoliticsView } from "../game/politics";
 
+type RaceDetail = PoliticsView["elections"][number];
+
+const raceStages = (current: string): RaceDetail["stages"] => [
+  { key: "filing", label: "Filing", state: "done", when: "1954-09-01", detail: "Filing has closed." },
+  { key: "primary", label: "Primary", state: current === "primary" ? "current" : "done", when: "1954-09-01", detail: "Primary detail." },
+  { key: "general", label: "General", state: current === "general" ? "current" : "upcoming", when: "1954-11-02", detail: "General detail." },
+  { key: "results", label: "Results", state: current === "resolved" ? "current" : "upcoming", when: "1954-11-02", detail: "Results detail." },
+];
+
+const primaryOpen = (): RaceDetail["primary"] => ({
+  applicable: true, open: true, resolved: false, endTurn: 10, endDate: "1954-09-01",
+  snapshotTurn: null, totalBallots: null, parties: [],
+});
+
+const primaryResolved = (): RaceDetail["primary"] => ({
+  applicable: true, open: false, resolved: true, endTurn: 10, endDate: "1952-09-01",
+  snapshotTurn: 8, totalBallots: 1200,
+  parties: [{
+    partyId: "US_DEM", partyName: "Democratic Party",
+    entries: [
+      { candidateId: "US-3", name: "Sam Winner", ballots: 800, sharePct: 66.7, won: true },
+      { candidateId: "US-4", name: "Lou Loser", ballots: 400, sharePct: 33.3, won: false },
+    ],
+  }],
+});
+
 function makePolitics(): PoliticsView {
   return {
     countryId: "US",
@@ -31,12 +57,15 @@ function makePolitics(): PoliticsView {
     elections: [
       {
         id: "house:US:AL:c1", title: "house · AL", status: "active", date: "1954-11-02", filingDate: "1954-09-01",
+        phase: "primary",
         playerCandidate: true,
         candidates: [
           { id: "player", name: "Alex", partyId: "US_DEM", partyName: "Democratic Party", incumbent: false, isPlayer: true, votes: null, voteShare: null, winner: false },
           { id: "US-9", name: "Ron Rival", partyId: "US_REP", partyName: "Republican Party", incumbent: true, isPlayer: false, votes: null, voteShare: null, winner: false },
         ],
-        winnerNames: [], totalVotes: null,
+        winnerNames: [], winnerIds: [], totalVotes: null,
+        stages: raceStages("primary"),
+        primary: primaryOpen(),
         candidacy: { id: "withdrawCandidacy", name: "Withdraw candidacy", description: "", cost: 1, available: true },
         playerCampaign: null,
         projection: {
@@ -47,12 +76,15 @@ function makePolitics(): PoliticsView {
       },
       {
         id: "senate:US:TX:c1", title: "senate · TX", status: "resolved", date: "1952-11-04", filingDate: "1952-09-01",
+        phase: "resolved",
         playerCandidate: false,
         candidates: [
           { id: "US-3", name: "Sam Winner", partyId: "US_DEM", partyName: "Democratic Party", incumbent: false, isPlayer: false, votes: 6000, voteShare: 0.6, winner: true },
           { id: "US-4", name: "Lou Loser", partyId: "US_REP", partyName: "Republican Party", incumbent: true, isPlayer: false, votes: 4000, voteShare: 0.4, winner: false },
         ],
-        winnerNames: ["Sam Winner"], totalVotes: 10000,
+        winnerNames: ["Sam Winner"], winnerIds: ["US-3"], totalVotes: 10000,
+        stages: raceStages("resolved"),
+        primary: primaryResolved(),
         candidacy: { id: "declareCandidacy", name: "Run for office", description: "", cost: 1, available: false, disabledReason: "This election has ended." },
         playerCampaign: null,
         projection: {
@@ -176,6 +208,27 @@ describe("PoliticsPanel elections", () => {
     expect(screen.getByText(/1 of 2 races/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Withdraw candidacy" }));
     expect(onAction).toHaveBeenCalledWith("withdrawCandidacy", { electionId: "house:US:AL:c1" });
+  });
+
+  it("groups races by stage, shows the primary ledger, and links winners to profiles", async () => {
+    const user = userEvent.setup();
+    const onOpenPolitician = vi.fn();
+    const PoliticsPanel = await renderPanel();
+    render(<PoliticsPanel politics={makePolitics()} section="elections" busy={false} onAction={vi.fn()} onOpenPolitician={onOpenPolitician} />);
+
+    const raceSelect = screen.getByLabelText("Race");
+    const groupLabels = Array.from(raceSelect.querySelectorAll("optgroup")).map((group) => group.getAttribute("label"));
+    expect(groupLabels).toEqual(["Primary", "Resolved"]);
+
+    expect(screen.getByText("Race stages")).toBeInTheDocument();
+    expect(screen.getByText("Primary is open; no ballots counted yet.")).toBeInTheDocument();
+
+    await user.selectOptions(raceSelect, "senate:US:TX:c1");
+    expect(screen.getByText("Nominees recorded.")).toBeInTheDocument();
+    expect(screen.getByText("1,200 party ballots counted (turn 8)")).toBeInTheDocument();
+    expect(screen.getByText(/66\.7% · nominee/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Sam Winner" }));
+    expect(onOpenPolitician).toHaveBeenCalledWith("US-3");
   });
 
   it("labels counted standing and seat availability without forecasting", async () => {

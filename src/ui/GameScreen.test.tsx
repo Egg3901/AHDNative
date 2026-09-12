@@ -28,6 +28,7 @@ function makeElection(overrides: Partial<ElectionView> = {}): ElectionView {
     status: "upcoming",
     date: "1954-11-02",
     filingDate: "1954-09-01",
+    phase: "upcoming",
     playerCandidate: false,
     candidateNames: ["Ada", "Bob"],
     winnerNames: [],
@@ -336,6 +337,7 @@ describe("GameScreen", () => {
     await navigate(user, "Elections");
     const card = screen.getByRole("article", { name: "General Election" });
     expect(within(card).getByText(/1954-09-01/)).toBeInTheDocument();
+    expect(within(card).getByText("Upcoming")).toBeInTheDocument();
     expect(within(card).getByText("Candidate")).toBeInTheDocument();
     expect(within(card).getByText(/Ada/)).toBeInTheDocument();
     const run = within(card).getByRole("button", { name: /run for office/i });

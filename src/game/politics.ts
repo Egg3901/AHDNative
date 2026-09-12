@@ -5,9 +5,11 @@ import {
   RALLY_SPREAD_TURNS, SUPPORT_RALLY_ACTION_COST, SUPPORT_RALLY_FULL_VALUE,
   SUPPORT_RALLY_TOUR_TICK_ACTION_COST,
   CAMPAIGN_TARGETED_AD_CAP,
+  requiresPrimaryResolution,
   type Campaign, type OpsBranchKey, type WorldState,
 } from "@ahdclient/engine";
-import type { ActionView } from "./types";
+import type { ActionView, RacePhase } from "./types";
+import { racePhase } from "./racePhase";
 
 /**
  * Politics projection: per party detail, per election detail with its real
@@ -150,12 +152,47 @@ export interface PoliticsProjectionView {
   drivers: PoliticsProjectionDriverView[];
 }
 
+export type PoliticsRaceStageKey = "filing" | "primary" | "general" | "results";
+export type PoliticsRaceStageState = "upcoming" | "current" | "done";
+
+export interface PoliticsRaceStageView {
+  key: PoliticsRaceStageKey;
+  label: string;
+  state: PoliticsRaceStageState;
+  when: string;
+  detail: string;
+}
+
+export interface PoliticsPrimaryCandidateView {
+  candidateId: string; name: string;
+  ballots: number | null; sharePct: number; won: boolean;
+}
+
+export interface PoliticsPrimaryPartyView {
+  partyId: string; partyName: string;
+  entries: PoliticsPrimaryCandidateView[];
+}
+
+export interface PoliticsPrimaryView {
+  applicable: boolean;
+  open: boolean;
+  resolved: boolean;
+  endTurn: number; endDate: string;
+  snapshotTurn: number | null;
+  totalBallots: number | null;
+  parties: PoliticsPrimaryPartyView[];
+}
+
 export interface PoliticsElectionDetail {
   id: string; title: string; status: string; date: string; filingDate: string;
+  phase: RacePhase;
   playerCandidate: boolean;
   candidates: PoliticsCandidateView[];
   winnerNames: string[];
+  winnerIds: string[];
   totalVotes: number | null;
+  stages: PoliticsRaceStageView[];
+  primary: PoliticsPrimaryView;
   candidacy: ActionView;
   playerCampaign: PoliticsPlayerCampaignView | null;
   projection: PoliticsProjectionView;
@@ -630,11 +667,104 @@ function projectProjection(
   };
 }
 
+function dateAtTurn(world: WorldState, turn: number): string {
+  return addDaysIso(world.meta.date, (turn - world.meta.turn) * 7);
+}
+
+/** Live primary standings or the persisted nominees, kept out of the general tally. */
+function projectPrimary(world: WorldState, election: WorldState["elections"][number]): PoliticsPrimaryView {
+  const applicable = requiresPrimaryResolution(election);
+  const resolved = election.primaryResults != null;
+  const snapshots = election.primarySnapshots ?? [];
+  const latest = snapshots.length > 0 ? snapshots[snapshots.length - 1] : undefined;
+  const byParty = election.primaryResults?.byParty ?? latest?.byParty;
+  const parties: PoliticsPrimaryPartyView[] = [];
+  if (applicable && byParty) {
+    for (const [partyId, entries] of Object.entries(byParty)) {
+      parties.push({
+        partyId,
+        partyName: world.parties[partyId]?.name ?? partyId,
+        entries: entries.map((entry) => ({
+          candidateId: entry.candidateId,
+          name: entry.candidateName,
+          ballots: election.primaryVotes?.[entry.candidateId] ?? null,
+          sharePct: entry.sharePct,
+          won: (entry as { won?: boolean }).won === true,
+        })),
+      });
+    }
+    parties.sort((a, b) => a.partyName.localeCompare(b.partyName));
+  }
+  return {
+    applicable,
+    resolved,
+    open: applicable && !resolved
+      && world.meta.turn >= election.startTurn && world.meta.turn < election.primaryEndTurn,
+    endTurn: election.primaryEndTurn,
+    endDate: dateAtTurn(world, election.primaryEndTurn),
+    snapshotTurn: latest?.turn ?? null,
+    totalBallots: election.primaryVotes
+      ? Object.values(election.primaryVotes).reduce((sum, votes) => sum + votes, 0)
+      : null,
+    parties,
+  };
+}
+
+/** Reference lifecycle stages with their persisted state; no stage is invented. */
+function projectRaceStages(
+  world: WorldState,
+  election: WorldState["elections"][number],
+  primary: PoliticsPrimaryView,
+  phase: RacePhase,
+): PoliticsRaceStageView[] {
+  const turn = world.meta.turn;
+  const stages: PoliticsRaceStageView[] = [];
+  const filingState: PoliticsRaceStageState =
+    phase === "resolved" || turn > election.primaryEndTurn || primary.resolved ? "done"
+      : turn >= election.startTurn ? "current" : "upcoming";
+  stages.push({
+    key: "filing", label: "Filing",
+    state: filingState,
+    when: `${dateAtTurn(world, election.startTurn)} to ${dateAtTurn(world, election.primaryEndTurn)}`,
+    detail: filingState === "done" ? "Filing has closed." : "Candidates can declare for this race.",
+  });
+  if (primary.applicable) {
+    const primaryState: PoliticsRaceStageState = primary.resolved ? "done"
+      : phase === "primary" ? "current"
+      : phase === "upcoming" ? "upcoming" : "done";
+    stages.push({
+      key: "primary", label: "Primary",
+      state: primaryState,
+      when: primary.endDate,
+      detail: primary.resolved ? "Nominees recorded from counted party ballots."
+        : primaryState === "current" ? "Party ballots count in the closing window."
+        : "Resolves at the filing deadline.",
+    });
+  }
+  const generalState: PoliticsRaceStageState =
+    phase === "resolved" ? "done" : phase === "general" ? "current" : "upcoming";
+  stages.push({
+    key: "general", label: "General",
+    state: generalState,
+    when: `${dateAtTurn(world, election.primaryEndTurn)} to ${dateAtTurn(world, election.endTurn)}`,
+    detail: generalState === "current"
+      ? "Votes accumulate each turn; counting stays separate from any forecast."
+      : generalState === "done" ? "Voting and counting closed." : "Opens after the primary.",
+  });
+  const resultsState: PoliticsRaceStageState = phase === "resolved" ? "current" : "upcoming";
+  stages.push({
+    key: "results", label: "Results",
+    state: resultsState,
+    when: dateAtTurn(world, election.endTurn),
+    detail: resultsState === "current" ? "Resolved winners are recorded." : "Recorded when the race resolves.",
+  });
+  return stages;
+}
+
 export function projectPolitics(world: WorldState): PoliticsView {
   const country = world.countries[world.player.countryId];
   if (!country || !country.playable) throw new Error("The save does not contain the player's playable country.");
   const player = world.player;
-  const dateAt = (turn: number) => addDaysIso(world.meta.date, (turn - world.meta.turn) * 7);
   const partyName = (partyId: string) => world.parties[partyId]?.name ?? partyId;
 
   const active = world.elections.find((e) => e.status !== "resolved" && e.candidates.some((c) => c.id === "player"));
@@ -644,7 +774,7 @@ export function projectPolitics(world: WorldState): PoliticsView {
       || (a.status === "resolved" ? b.endTurn - a.endTurn : a.primaryEndTurn - b.primaryEndTurn))
     .map((election) => {
       const playerCandidate = election.candidates.some((c) => c.id === "player");
-      const winnerIds = new Set(election.winners ?? []);
+      const winnerIdSet = new Set(election.winners ?? []);
       const tallyEntries = Object.entries(election.tally ?? {});
       const hasVotes = tallyEntries.some(([, v]) => v > 0);
       const totalVotes = hasVotes ? tallyEntries.reduce((sum, [, v]) => sum + v, 0) : null;
@@ -654,16 +784,21 @@ export function projectPolitics(world: WorldState): PoliticsView {
           id: c.id, name: c.name, partyId: c.partyId, partyName: partyName(c.partyId),
           incumbent: c.incumbent, isPlayer: c.id === "player",
           votes, voteShare: votes == null || !totalVotes ? null : votes / totalVotes,
-          winner: winnerIds.has(c.id),
+          winner: winnerIdSet.has(c.id),
         };
       });
-      const winnerNames = (election.winners ?? []).map((id) =>
+      const winnerIds = election.winners ?? [];
+      const winnerNames = winnerIds.map((id) =>
         election.candidates.find((c) => c.id === id)?.name ?? politicianName(world, id) ?? id);
+      const phase = racePhase(world, election);
+      const primary = projectPrimary(world, election);
       return {
         id: election.id,
         title: election.electionType.replaceAll("_", " ") + (election.state ? ` · ${election.state}` : ""),
-        status: election.status, date: dateAt(election.endTurn), filingDate: dateAt(election.primaryEndTurn),
-        playerCandidate, candidates, winnerNames, totalVotes,
+        status: election.status, date: dateAtTurn(world, election.endTurn), filingDate: dateAtTurn(world, election.primaryEndTurn),
+        phase, playerCandidate, candidates, winnerNames, winnerIds, totalVotes,
+        stages: projectRaceStages(world, election, primary, phase),
+        primary,
         candidacy: candidacyAction(world, election, active, playerCandidate),
         playerCampaign: projectPlayerCampaign(world, election),
         projection: projectProjection(world, election, candidates, totalVotes),

@@ -540,3 +540,23 @@ and AHDGame owns login and the cookie session. Preserve persistent WebView
 storage, auth navigation handling and isolation from native/local-save powers.
 SP has no network or account requirement. Native currently has no auth path;
 #149 needs runtime validation of the existing flow, not a second identity store.
+
+
+## Election race hub and primary views checkpoint
+
+N04/N05: the election detail now carries a derived race phase and a Filing,
+Primary, General and Results stage ledger whose states come from the persisted
+record, not a stored flag. The Elections race list groups by phase, active
+primaries render their counted party ballots and standings from
+`primarySnapshots`/`primaryVotes` (or the recorded `primaryResults` nominees),
+and resolved winners link to the politician directory. Profile career-history
+rows link back to the resolved race. No election formula changed.
+
+Evidence: `src/game/politics.test.ts` derives phases across the lifecycle and
+advances a live US primary through `advanceTurn` into recorded nominees;
+`src/ui/PoliticsPanel.test.tsx`, `GameScreen.test.tsx` and `ProfilePanel.test.tsx`
+cover the stage grouping, primary ledgers, phase label and winner/profile links;
+`smoke/elections-stages.spec.ts` opens a race detail, saves, reloads and reopens
+the same race with its stage ledger intact. Non-US primaries stay out of scope
+under #96 and the reference campaign projection stays open under #68.
+

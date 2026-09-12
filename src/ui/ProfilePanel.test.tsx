@@ -119,6 +119,8 @@ describe("ProfilePanel", () => {
     expect(onNavigate).toHaveBeenCalledWith("actions", "fundraising");
     await user.click(screen.getByRole("button", { name: "View national policy" }));
     expect(onNavigate).toHaveBeenCalledWith("policy");
+    await user.click(screen.getByRole("button", { name: "View race: House" }));
+    expect(onNavigate).toHaveBeenCalledWith("electionDetails", "race-1");
   });
 
   it("renders the political hierarchy in reference order from real projected state", () => {
