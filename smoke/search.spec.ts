@@ -38,6 +38,25 @@ test('offline search opens the matching party, foreign nation and company withou
   await page.screenshot({ path: 'artifacts/smoke/mobile-local-search.png', fullPage: true });
 });
 
+test('search filters narrow the result set and a region result opens the regions route', async ({ page }) => {
+  const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-elected-1953-US.save.json.gz', import.meta.url)));
+  await page.goto('/');
+  await page.getByLabel('Import saved game', { exact: true }).setInputFiles({ name: 'elected.json', mimeType: 'application/json', buffer: fixture });
+  await gameReady(page);
+  // A region result opens the existing regions route on the exact region.
+  const alabama = await search(page, 'Alabama');
+  await alabama.getByRole('button', { name: /^Alabama Region/ }).click();
+  await expect(page.getByRole('region', { name: 'Regions', exact: true })).toBeFocused();
+  await expect(page.getByRole('article', { name: 'Alabama', exact: true })).toBeVisible();
+  // Facet-driven filters narrow the results inside the worker, past the 30-result cap.
+  const all = await search(page, 'a');
+  await expect(page.getByLabel('Result kind', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Country or region', { exact: true })).toBeVisible();
+  await expect(all).toContainText('Showing 30 of');
+  await page.getByLabel('Result kind', { exact: true }).selectOption('company');
+  await expect(all).toContainText('of 55 matches for a.');
+});
+
 test('search opens the actual saved bill and election details', async ({ page }) => {
   const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-elected-1953-US.save.json.gz', import.meta.url)));
   await page.goto('/');

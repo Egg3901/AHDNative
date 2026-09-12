@@ -1,4 +1,5 @@
 import type { RegionsQuery } from "./game/regions";
+import type { SearchFilter } from "./game/search";
 import type { LegislationSelection } from "./game/legislationDetails";
 import { loadPreferences, savePreferences, applyPreferencesToDocument, type Preferences } from "./preferences";
 import { SettingsPanel } from "./ui/SettingsPanel";
@@ -34,9 +35,9 @@ export function App() {
     if (!client.current) return Promise.reject(new Error("Start or load a game first."));
     return client.current.profile();
   }, []);
-  const search = useCallback((query: string) => {
+  const search = useCallback((query: string, filter?: SearchFilter) => {
     if (!client.current) return Promise.reject(new Error("Start or load a game first."));
-    return client.current.search(query);
+    return client.current.search(query, filter);
   }, []);
   const loadBondMarket = useCallback(() => {
     if (!client.current) return Promise.reject(new Error("Start or load a game first."));

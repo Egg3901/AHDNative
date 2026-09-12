@@ -1,6 +1,7 @@
 import type { ProfileUpdate } from "./profileTypes";
 import type { RegionsQuery } from "./regions";
 import type { LegislationSelection } from "./legislationDetails";
+import type { SearchFilter } from "./search";
 import type { NewGameOptions } from "./types";
 
 export type GameCommand =
@@ -15,7 +16,7 @@ export type GameCommand =
   | { type: "caucusManagement" }
   | { type: "partyManagement" }
   | { type: "bondMarket" }
-  | { type: "search"; query: string }
+  | { type: "search"; query: string; filter?: SearchFilter }
   | { type: "worldOverview" }
   | { type: "legislation"; selection?: LegislationSelection }
   | { type: "advance" }

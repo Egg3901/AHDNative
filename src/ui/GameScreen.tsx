@@ -154,7 +154,8 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
   const openPolitician = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("politicians"); };
 
   const openSearchResult = (result: SearchResult) => {
-    const destinations: Record<SearchResult['kind'], RouteId> = { nation: 'nations', party: 'partyDetails', company: 'markets', election: 'electionDetails', bill: 'legislationDetails', politician: 'politicians', player: 'profile' };
+    // Every kind maps to a route that can render that specific entity by id.
+    const destinations: Record<SearchResult['kind'], RouteId> = { nation: 'nations', party: 'partyDetails', company: 'markets', election: 'electionDetails', bill: 'legislationDetails', politician: 'politicians', player: 'profile', region: 'regions', bond: 'bonds' };
     setDetailId(result.id); focusPage.current = true; setRoute(destinations[result.kind]);
   };
 
@@ -400,9 +401,9 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
         >
           {(route === "economy" || route === "budget" || route === "policy") && <NationPanel nation={world.nation} section={route} />}
           {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={detailId} />}</DetailQuery>}
-          {route === "regions" && <RegionsRoute load={loadRegions} revision={world} busy={busy} />}
+          {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} revision={world} busy={busy} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
-          {route === "bonds" && <BondMarketRoute load={loadBondMarket} revision={world} busy={busy} onAction={onAction} />}
+          {route === "bonds" && <BondMarketRoute initialId={detailId} load={loadBondMarket} revision={world} busy={busy} onAction={onAction} />}
           {route === "partyManagement" && <DetailQuery load={loadPartyManagement} revision={world} label="Party management">{management => <PartyManagementPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "search" && <SearchPanel load={search} revision={world} onOpen={openSearchResult} />}
           {route === "markets" && <MarketsRoute initialId={detailId} load={loadMarkets} revision={world} busy={busy} onAction={onAction} />}
