@@ -32,6 +32,7 @@ function makeElection(overrides: Partial<ElectionView> = {}): ElectionView {
     playerCandidate: false,
     candidateNames: ["Ada", "Bob"],
     winnerNames: [],
+    countedVotes: null, leaderName: null, leaderShare: null, marginPct: null, seatProjection: null,
     candidacy: { id: "declareCandidacy", name: "Declare candidacy", description: "Run", cost: 1, available: true },
     ...overrides,
   };
@@ -347,6 +348,29 @@ describe("GameScreen", () => {
     expect(run).toBeEnabled();
     await user.click(run);
     expect(onAction).toHaveBeenCalledWith("declareCandidacy", { electionId: "e1" });
+  });
+
+  it("shows counted tally, margin and seat chips when the tally has data", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld({
+      elections: [makeElection({
+        countedVotes: 10000, leaderName: "Ada", leaderShare: 0.6, marginPct: 0.2,
+        seatProjection: [{ name: "Ada", seats: 6 }],
+      })],
+    });
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    await navigate(user, "Elections");
+    const card = screen.getByRole("article", { name: "General Election" });
+    expect(within(card).getByText(/10,000 counted · Ada 60\.0% \(\+20\.0pt\) · seats Ada 6/)).toBeInTheDocument();
+  });
+
+  it("shows a corporation holdings strip in the footer when the player holds shares", async () => {
+    const world = makeWorld();
+    world.finance.holdings = [{ id: "c1", name: "Acme", ticker: "ACM", shares: 3, price: 100, currency: "USD" }];
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    const strip = screen.getByLabelText("Corporation holdings");
+    expect(within(strip).getByText(/Holdings: 1 position · \$300\.00/)).toBeInTheDocument();
+    expect(within(strip).getByRole("button", { name: "Portfolio" })).toBeEnabled();
   });
 
   it("withdraw candidacy dispatches with electionId and shows reason when unavailable", async () => {

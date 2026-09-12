@@ -124,6 +124,18 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
   const resourceButtonRefs = useRef<Partial<Record<ResourceId, HTMLButtonElement | null>>>({});
 
   const saveNotice = message === "Game saved." || message === "Saved game imported.";
+  // #83 corporation strip: the player's recorded holdings, never summed across
+  // currencies (the codebase has no FX settlement).
+  const holdings = world.finance.holdings;
+  const holdingsCurrencies = [...new Set(holdings.map((holding) => holding.currency))];
+  const holdingsSummary = holdings.length > 0
+    ? {
+      count: holdings.length,
+      total: holdingsCurrencies.length === 1
+        ? formatFinanceMoney(holdings.reduce((sum, holding) => sum + holding.shares * holding.price, 0), holdingsCurrencies[0]!)
+        : null,
+    }
+    : null;
 
   const tabPanelId = useMemo(() => `ahd-panel-${route}`, [route]);
 
@@ -346,6 +358,15 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
                         </div>
                         <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>{e.status} · {e.date}</div>
                         <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>Filing deadline: {e.filingDate ?? "Unknown"}</div>
+                        {e.countedVotes != null ? (
+                          <div className="ahd-muted" style={{ fontSize: "0.74rem" }} aria-label={`${e.title} counted tally`}>
+                            {`${e.countedVotes.toLocaleString()} counted`}
+                            {e.leaderName && e.leaderShare != null
+                              ? ` · ${e.leaderName} ${(e.leaderShare * 100).toFixed(1)}%${e.marginPct != null ? ` (+${(e.marginPct * 100).toFixed(1)}pt)` : ""}`
+                              : ""}
+                            {e.seatProjection ? ` · seats ${e.seatProjection.map((seat) => `${seat.name} ${seat.seats}`).join(", ")}` : ""}
+                          </div>
+                        ) : null}
                         {(e.candidateNames ?? []).length > 0 ? (
                           <div style={{ fontSize: "0.78rem", marginTop: "0.25rem" }}>Candidates: {(e.candidateNames ?? []).join(", ")}</div>
                         ) : null}
@@ -472,6 +493,15 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
               : <span className="ahd-muted">{busy ? (message ? `Processing: ${message}` : "Processing...") : "Player paced"}</span>}
 
           </div>
+          {holdingsSummary ? (
+            <div className="ahd-muted" aria-label="Corporation holdings" style={{ fontSize: "0.72rem", display: "flex", gap: "0.4rem", alignItems: "center", flexWrap: "wrap" }}>
+              <span>
+                {`Holdings: ${holdingsSummary.count} position${holdingsSummary.count === 1 ? "" : "s"}`}
+                {holdingsSummary.total ? ` · ${holdingsSummary.total}` : " · multiple currencies"}
+              </span>
+              <button type="button" className="ahd-profile-link" onClick={() => go("portfolio")} disabled={busy}>Portfolio</button>
+            </div>
+          ) : null}
           <div className="ahd-status-resources" role="group" aria-label="Resources">
             {RESOURCES.map((r) => {
               const value = r.id === "ap" ? formatCount(world.player.actions)
