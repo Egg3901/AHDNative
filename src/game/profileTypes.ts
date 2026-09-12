@@ -7,6 +7,30 @@ export interface ProfileUpdate {
   campaignSongAutoplay?: boolean;
 }
 
+/** One catalog achievement surfaced as a profile record (earned or locked). */
+export interface ProfileAchievement {
+  slug: string;
+  name: string;
+  description: string;
+}
+
+/**
+ * Earned-versus-evaluable achievement count.
+ *
+ * The engine only evaluates catalog entries whose `status` is "available"
+ * (achievements/evaluate.ts); the rest are PORT-STUB entries blocked on
+ * unported systems. `available` is therefore the honest denominator — the
+ * save tracks no lifetime target total and no partial per-achievement
+ * progress, so an earned-of-available count is reported instead of a
+ * percentage.
+ */
+export interface ProfileAchievementProgress {
+  /** Earned achievements among the catalog entries the save can evaluate. */
+  earned: number;
+  /** Catalog entries the save can evaluate (status "available"). */
+  available: number;
+}
+
 export interface ProfileView {
   name: string;
   bio: string;
@@ -21,7 +45,12 @@ export interface ProfileView {
   policies: { economic: number; social: number } | null;
   stats: { energy: number | null; debate: number | null } | null;
   careerHistory: Array<{ id: string; office: string; result: string; turn: number }>;
-  achievements: Array<{ slug: string; name: string; description: string }>;
+  /** Earned catalog records only: slugs persisted in world.achievementsEarned. */
+  achievements: ProfileAchievement[];
+  /** Honest earned-of-evaluable count; never a percentage the engine cannot back. */
+  achievementProgress: ProfileAchievementProgress;
+  /** Evaluable (status "available") catalog entries not yet earned, catalog order. */
+  lockedAchievements: ProfileAchievement[];
   /** Same projection the footer breakdown uses, so Profile never diverges. */
   resourceDetails: ResourceDetailsView;
   standing: {

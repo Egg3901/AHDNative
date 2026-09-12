@@ -19,6 +19,11 @@ const BASE: ProfileView = {
   stats: { energy: 7, debate: 4 },
   careerHistory: [{ id: "race-1", office: "House", result: "Elected", turn: 12 }],
   achievements: [{ slug: "turn_one", name: "In at the Ground Floor", description: "Took an action in turn one" }],
+  achievementProgress: { earned: 1, available: 3 },
+  lockedAchievements: [
+    { slug: "first_fundraise", name: "Passing the Hat", description: "Completed your first fundraise" },
+    { slug: "rested", name: "Executive Time", description: "Rested to recover actions" },
+  ],
   resourceDetails: {
     actions: { base: 4, seat: 2, cabinet: 0, chair: 0, office: 2, party: 0, penalty: 0, threshold: 100, cap: 200, next: 9, refresh: 6 },
     funds: { enabled: true, base: 10000, donor: 500, office: 0, tax: 500, regularNet: 10000 },
@@ -142,6 +147,39 @@ describe("ProfilePanel", () => {
     ]);
     expect(screen.getByText("In at the Ground Floor")).toBeInTheDocument();
     expect(screen.getByText("House")).toBeInTheDocument();
+  });
+
+  it("shows earned-of-evaluable progress and the locked achievements from the catalog", () => {
+    renderPanel();
+    expect(screen.getByText("1 of 3 evaluable achievements earned")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Locked achievements (2)" })).toBeInTheDocument();
+    expect(screen.getByText("Passing the Hat")).toBeInTheDocument();
+    expect(screen.getByText("Executive Time")).toBeInTheDocument();
+    // The retained earned record is untouched.
+    expect(screen.getByText("In at the Ground Floor")).toBeInTheDocument();
+  });
+
+  it("reports zero earned without inventing completions when nothing is earned yet", () => {
+    renderPanel({
+      achievements: [],
+      achievementProgress: { earned: 0, available: 2 },
+      lockedAchievements: [
+        { slug: "turn_one", name: "In at the Ground Floor", description: "Took an action in turn one" },
+        { slug: "rested", name: "Executive Time", description: "Rested to recover actions" },
+      ],
+    });
+    expect(screen.getByText("0 of 2 evaluable achievements earned")).toBeInTheDocument();
+    expect(screen.getByText("No achievements earned yet.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Locked achievements (2)" })).toBeInTheDocument();
+  });
+
+  it("omits the locked block once every evaluable achievement is earned", () => {
+    renderPanel({
+      achievementProgress: { earned: 3, available: 3 },
+      lockedAchievements: [],
+    });
+    expect(screen.getByText("3 of 3 evaluable achievements earned")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /Locked achievements/ })).not.toBeInTheDocument();
   });
 
   it("exposes action, party-influence and income breakdowns from the shared projection", async () => {

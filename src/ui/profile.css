@@ -249,6 +249,28 @@ button.ahd-profile-chip:disabled {
   padding: 0.5rem 0.1rem;
 }
 
+.ahd-profile-locked {
+  margin-top: 0.85rem;
+  min-width: 0;
+}
+
+.ahd-profile-locked-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ahd-muted);
+}
+
+.ahd-profile-locked-list {
+  overflow-wrap: anywhere;
+}
+
+.ahd-profile-locked-list strong {
+  color: var(--ahd-muted);
+}
+
 @media (min-width: 640px) {
   .ahd-profile-photo {
     width: 7rem;

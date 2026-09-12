@@ -590,6 +590,9 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
 
       <section aria-label="Achievements" className="ahd-card ahd-card-pad">
         <h2 className="ahd-h2">Achievements</h2>
+        <p className="ahd-profile-sub">
+          {`${profile.achievementProgress.earned} of ${profile.achievementProgress.available} evaluable achievements earned`}
+        </p>
         {profile.achievements.length > 0 ? (
           <ul className="ahd-profile-history">
             {profile.achievements.map((achievement) => (
@@ -600,6 +603,25 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
             ))}
           </ul>
         ) : <p className="ahd-muted">No achievements earned yet.</p>}
+        {profile.lockedAchievements.length > 0 ? (
+          <div className="ahd-profile-locked">
+            <h3 className="ahd-profile-locked-title">
+              {`Locked achievements (${profile.lockedAchievements.length})`}
+            </h3>
+            <ul className="ahd-profile-history ahd-profile-locked-list">
+              {profile.lockedAchievements.map((achievement) => (
+                <li key={achievement.slug}>
+                  <strong>{achievement.name}</strong>
+                  <span className="ahd-profile-sub">{achievement.description}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        <p className="ahd-help">
+          The count and locked list cover the achievements this solo save can evaluate; the rest stay
+          locked on systems the local engine has not ported yet.
+        </p>
       </section>
 
 
