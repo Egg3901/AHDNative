@@ -8,6 +8,7 @@ export function ResourceBreakdown({ details, resource, currency }: {
   const signedMoney = (amount: number) => `${amount >= 0 ? '+' : '-'}${money(Math.abs(amount))}`;
   const a = details.actions;
   const f = details.funds;
+  const fav = details.favorability;
   const rows: [string, string][] = resource === 'ap' ? [
     ['Base refresh', String(a.base)], ['Elected seat office', String(a.seat)],
     ['Cabinet office', String(a.cabinet)], ['Chair bonus', String(a.chair)],
@@ -17,6 +18,10 @@ export function ResourceBreakdown({ details, resource, currency }: {
   ] : resource === 'funds' ? [
     ['Base generation', money(f.base)], ['Donor bonus', money(f.donor)], ['Office bonus', money(f.office)],
     ['Party tax', money(f.tax)], ['Regular net generation', money(f.regularNet)],
+  ] : resource === 'favorability' ? [
+    ['Current tier floor', `${fav.tierFloor}%`], ['Advertise cost at this tier', `${fav.tierCost} AP`],
+    ['Natural-decay threshold', `${fav.decayThreshold}%`],
+    ['Decay at current favorability', `${fav.aboveThresholdDecay.toFixed(2)}/turn`],
   ] : [];
   const history = details.history.map((point, index) => {
     const previous = index === 0 ? null : details.history[index - 1]!;
@@ -36,7 +41,7 @@ export function ResourceBreakdown({ details, resource, currency }: {
     {resource === 'funds' && !f.enabled && <p className="ahd-help">Regular fund generation is disabled in this world.</p>}
     {resource === 'funds' && f.enabled && <p className="ahd-help">At current influence. Other activity, taxes and changes during the turn can affect your final balance.</p>}
     {resource === 'influence' && <p className="ahd-help">Political influence affects action costs and fundraising strength. It can change through political activity and decays each turn.</p>}
-    {resource === 'favorability' && <p className="ahd-help">Favorability reflects your public standing and affects political actions. Campaign activity and infamy can change it.</p>}
+    {resource === 'favorability' && <p className="ahd-help">Favorability reflects your public standing and affects political actions. It is stable at or below {fav.decayThreshold}%; above that it drifts down each turn, faster the higher it is. Campaign activity and infamy can change it.</p>}
     {(resource === 'funds' || resource === 'cash') && <details>
       <summary style={{ minHeight: 44, cursor: 'pointer', padding: '.6rem 0' }}>Recent recorded balances</summary>
       {history.length === 0 ? <p className="ahd-help">History appears after completing a turn.</p> :

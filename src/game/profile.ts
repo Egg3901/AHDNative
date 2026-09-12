@@ -1,7 +1,7 @@
-import { ACHIEVEMENT_CATALOG, type WorldState } from "@ahdclient/engine";
+import { ACHIEVEMENT_CATALOG, ACHIEVEMENT_COUNT_TRIGGERS, achievementCountProgress, type WorldState } from "@ahdclient/engine";
 import { projectResources } from "./resources";
 import { campaignSongId, safeAvatarUrl } from "./profileValidation";
-import type { ProfileView } from "./profileTypes";
+import type { ProfileAchievement, ProfileView } from "./profileTypes";
 
 function homeCurrency(world: WorldState, countryId: string): string {
   return world.budgets[countryId]?.currencyCode ?? world.exchangeRates[countryId]?.currencyCode ?? "XXX";
@@ -54,15 +54,35 @@ export function projectProfile(world: WorldState): ProfileView {
   const evaluableAchievements = ACHIEVEMENT_CATALOG
     .filter((entry) => entry.status === "available")
     .sort((a, b) => a.order - b.order);
+  // Countable `current / target` progress, from persisted actionCounts only and
+  // read from the same triggers evaluate.ts grants on. Boolean/current-state
+  // triggers get no progress — never a fabricated target.
+  const achievementRecord = (slug: string, name: string, description: string): ProfileAchievement => {
+    const trigger = ACHIEVEMENT_COUNT_TRIGGERS[slug];
+    if (!trigger) return { slug, name, description };
+    const { current, target } = achievementCountProgress(world, trigger);
+    return { slug, name, description, progress: { current, target } };
+  };
   const earnedAchievements = world.achievementsEarned.flatMap((slug) => {
     const entry = achievementBySlug.get(slug);
-    return entry ? [{ slug, name: entry.name, description: entry.description }] : [];
+    return entry ? [achievementRecord(slug, entry.name, entry.description)] : [];
   });
   // Only catalog entries persist into the earned list, and only the evaluable
   // subset counts toward progress — never fabricate a completion or a target.
   const lockedAchievements = evaluableAchievements
     .filter((entry) => !earnedSlugs.has(entry.slug))
-    .map((entry) => ({ slug: entry.slug, name: entry.name, description: entry.description }));
+    .map((entry) => achievementRecord(entry.slug, entry.name, entry.description));
+  // The remaining catalog entries are PORT-STUBs blocked on unported systems;
+  // surface the whole unreachable set with the catalog's own blocker note.
+  const unavailableAchievements = ACHIEVEMENT_CATALOG
+    .filter((entry) => entry.status === "unavailable")
+    .sort((a, b) => a.order - b.order)
+    .map((entry) => ({
+      slug: entry.slug,
+      name: entry.name,
+      description: entry.description,
+      ...(entry.blockingSystem ? { blockingSystem: entry.blockingSystem } : {}),
+    }));
 
   return {
     name: player.name,
@@ -96,6 +116,7 @@ export function projectProfile(world: WorldState): ProfileView {
       available: evaluableAchievements.length,
     },
     lockedAchievements,
+    unavailableAchievements,
     resourceDetails: resources,
     standing: {
       actions: player.actions,

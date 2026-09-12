@@ -5,6 +5,8 @@ const details = {
   actions: { base: 4, seat: 0, cabinet: 0, chair: 0, office: 0, penalty: 4, threshold: 100, cap: 200, next: 105, refresh: 4 },
   funds: { enabled: true, base: 10000, donor: 0, office: 0, tax: 500, regularNet: 9500 },
   partyInfluence: null,
+  nationalInfluence: { current: 0, gain: 1.5 },
+  favorability: { current: 72, decayThreshold: 60, aboveThresholdDecay: 0.6, tierFloor: 70, tierCost: 8 },
   history: [],
 };
 it('explains the action penalty threshold and next refresh balance', () => {
@@ -28,6 +30,14 @@ it('breaks the action refresh into office sources with an honest chair note', ()
   expect(screen.getByText('Cabinet office')).toBeInTheDocument();
   expect(screen.getByText('Chair bonus')).toBeInTheDocument();
   expect(screen.getByText(/no central-bank chair/)).toBeInTheDocument();
+});
+it('shows the favorability tier boundary and above-threshold decay in the footer detail', () => {
+  render(<ResourceBreakdown details={details} resource="favorability" currency="USD" />);
+  expect(screen.getByText('Current tier floor')).toBeInTheDocument();
+  expect(screen.getByText('70%')).toBeInTheDocument();
+  expect(screen.getByText('8 AP')).toBeInTheDocument();
+  expect(screen.getByText('0.60/turn')).toBeInTheDocument();
+  expect(screen.getByText(/stable at or below 60%/)).toBeInTheDocument();
 });
 it('records turn-over-turn fund and cash deltas in the balance history', () => {
   render(<ResourceBreakdown details={{

@@ -12,6 +12,26 @@ export interface ProfileAchievement {
   slug: string;
   name: string;
   description: string;
+  /**
+   * Present only when the engine counts this achievement's trigger from
+   * `actionCounts` (ACHIEVEMENT_COUNT_TRIGGERS) — current persisted count and the
+   * target that fires it. Absent for boolean/current-state triggers, which have
+   * no honest numeric progress to show.
+   */
+  progress?: { current: number; target: number };
+}
+
+/**
+ * A catalog entry solo cannot evaluate yet (status "unavailable"). Carries the
+ * named blocking system so the Profile can show why it is unreachable without
+ * pretending there is progress to track.
+ */
+export interface ProfileUnavailableAchievement {
+  slug: string;
+  name: string;
+  description: string;
+  /** The unported system the catalog names; absent only if the catalog omitted one. */
+  blockingSystem?: string;
 }
 
 /**
@@ -51,6 +71,12 @@ export interface ProfileView {
   achievementProgress: ProfileAchievementProgress;
   /** Evaluable (status "available") catalog entries not yet earned, catalog order. */
   lockedAchievements: ProfileAchievement[];
+  /**
+   * The catalog entries solo cannot evaluate yet (status "unavailable"), with
+   * the blocking system named. The whole unreachable set, kept separate from the
+   * earned/locked/available lists so the player can see why each is out of reach.
+   */
+  unavailableAchievements: ProfileUnavailableAchievement[];
   /** Same projection the footer breakdown uses, so Profile never diverges. */
   resourceDetails: ResourceDetailsView;
   standing: {

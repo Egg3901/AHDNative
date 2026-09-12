@@ -24,14 +24,7 @@
  */
 import type { WorldState } from "../types.js";
 import { ACHIEVEMENT_CATALOG } from "./catalog.js";
-
-function actionCount(world: WorldState, actionId: string): number {
-  return world.player.actionCounts[actionId] ?? 0;
-}
-
-function totalActionCount(world: WorldState): number {
-  return Object.values(world.player.actionCounts).reduce((sum, n) => sum + n, 0);
-}
+import { ACHIEVEMENT_COUNT_TRIGGERS, achievementCountProgress } from "./progress.js";
 
 function hasElectedOffice(world: WorldState): boolean {
   return world.player.legislativeSeat != null;
@@ -70,20 +63,24 @@ function isLawmaker(world: WorldState): boolean {
   });
 }
 
+/** Count-trigger checks derived from ACHIEVEMENT_COUNT_TRIGGERS (the Profile's map). */
+function countTriggerChecks(): Record<string, (world: WorldState) => boolean> {
+  return Object.fromEntries(
+    Object.entries(ACHIEVEMENT_COUNT_TRIGGERS).map(([slug, trigger]) => [
+      slug,
+      (world: WorldState) => achievementCountProgress(world, trigger).current >= trigger.target,
+    ]),
+  );
+}
+
 /**
  * Each check is keyed by slug and only invoked for catalog entries marked
  * "available" (see the filter in evaluateAchievements below) — an entry here
- * for a slug the catalog marks "unavailable" would simply never run.
+ * for a slug the catalog marks "unavailable" would simply never run. The
+ * countable action triggers are spread in from the shared map above.
  */
 const CHECKS: Record<string, (world: WorldState) => boolean> = {
-  first_fundraise: (w) => actionCount(w, "fundraise") >= 1,
-  fundraiser: (w) => actionCount(w, "fundraise") >= 10,
-  big_fundraiser: (w) => actionCount(w, "fundraise") >= 50,
-  campaigner: (w) => actionCount(w, "campaign") >= 10,
-  grassroots: (w) => actionCount(w, "buildDonorBase") >= 5,
-  advertiser: (w) => actionCount(w, "advertise") >= 3,
-  rested: (w) => actionCount(w, "rest") >= 1,
-  century_club: (w) => totalActionCount(w) >= 100,
+  ...countTriggerChecks(),
   turn_one: (w) => w.meta.turn <= 1,
   first_candidate: (w) => enteredElection(w),
   house_candidate: (w) => enteredElection(w, "house"),
@@ -96,7 +93,6 @@ const CHECKS: Record<string, (world: WorldState) => boolean> = {
   first_bill: (w) => w.bills.some((b) => b.sponsorId === "player"),
   lawmaker: (w) => isLawmaker(w),
   millionaire: (w) => w.player.funds >= 1_000_000,
-  donor: (w) => actionCount(w, "wireTransfer") >= 1,
   cabinet_seat: (w) => hasCabinetSeat(w),
   party_leader: (w) => isPartyChair(w),
   bondholder: (w) => isBondholder(w),

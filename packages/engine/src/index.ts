@@ -110,6 +110,27 @@ export type {
 export { projectPlayerActionRefresh, resolvePlayerSeat } from "./actions/officeBonus.js";
 export type { PlayerActionProjection, PlayerSeat } from "./actions/officeBonus.js";
 
+// #49: the national-influence per-turn gain is projected from the exact function
+// the actionRefresh phase applies, so the Profile never quotes a different rate.
+export { playerNationalInfluenceGain } from "./actions/playerInfluence.js";
+
+// #49: favorability tier table + natural-decay helpers (reference
+// shared/constants/formulas.ts and src/lib/actions.ts getAdvertiseActionCost),
+// shared by the advertise cost gate and the Profile/footer breakdowns.
+export {
+  FAVORABILITY_NATURAL_DECAY_THRESHOLD,
+  FAVORABILITY_TIERS,
+  favorabilityTierFor,
+  calculateFavorabilityAboveThresholdPenalty,
+  advertiseActionCost,
+} from "./actions/favorability.js";
+export type { FavorabilityTier } from "./actions/favorability.js";
+
+// #52: countable achievement triggers shared with achievements/evaluate.ts, so
+// the Profile's `current / target` progress uses the exact grant thresholds.
+export { ACHIEVEMENT_COUNT_TRIGGERS, achievementCountProgress } from "./achievements/progress.js";
+export type { AchievementCountTrigger } from "./achievements/progress.js";
+
 // Read-only membership eligibility for display adapters.
 export { canJoinParty, canLeaveParty } from "./membership.js";
 
