@@ -18,13 +18,11 @@ import { ukRegions2019 } from "./ukRegions2019.js";
  *    enumeration of every `status` field in COUNTRY_CONFIGS finds exactly
  *    six "active" countries: US, UK, JP, DE, IE, CN.
  *
- *    Playable flags: US, UK, JP, DE, IE, and CN ship `playable: true`
- *    with authored budgets, roster parties (`roster2019.ts`), legislatures,
- *    and state layers below. US/UK carry full historical seat depth; the
- *    remaining roster depth for JP/DE/IE/CN is whatever `roster2019.ts` and
- *    the per-country region files provide. BR/NG ship as non-playable
- *    economy entries. Do not change these flags here; playable-set changes
- *    belong to issue #118.
+ *    Native's supported player matrix keeps US, UK, IE, and CN playable here.
+ *    JP and DE remain economy-preview entries because their country-specific
+ *    regional budget and political surfaces are not ported; BR/NG are also
+ *    non-playable economy entries. This is the explicit inapplicable path for
+ *    issue #103, not a claim that the generic regional processor ports JP/DE.
  *  - ERA_COUNTRY_CONFIG_OVERRIDES has no "2019-default" entries (as with
  *    1979/1991) — UK legislature numbers below are the same era-neutral
  *    base COUNTRY_CONFIGS values 1979/1991 use.
@@ -74,13 +72,13 @@ export const pack2019: SeedPack = {
     {
       id: "JP",
       name: "Japan",
-      playable: true,
+      playable: false,
       economy: { gdp: 5_188_679, growthRate: 0.006, inflationRate: 0.005, unemploymentRate: 0.024 },
     },
     {
       id: "DE",
       name: "Germany",
-      playable: true,
+      playable: false,
       economy: { gdp: 4_891_304, growthRate: 0.011, inflationRate: 0.018, unemploymentRate: 0.031 },
     },
     {

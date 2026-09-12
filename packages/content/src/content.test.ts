@@ -78,13 +78,14 @@ describe("validatePack", () => {
     expect(playable).toEqual(["DD", "RU", "UK", "US"]);
   });
 
-  it("1991 and 2019 packs open the roster mainline's presets seed (RESET_PRESETS[...].countries) and carry no RU/DD entities", async () => {
-    // The manifest's POST_COLD_WAR_PLAYER (US/UK) is a narrower access gate than
-    // the seeded worlds; the seeded roster is authoritative (W61).
+  it("1991 and 2019 keep JP and DE as economy-preview entries and carry no RU/DD entities", async () => {
+    // The pinned world manifest keeps JP and DE outside the post-Cold-War
+    // player roster. Native retains their economic records but does not expose
+    // unsupported country-specific regional-budget starts.
     const { pack1991, pack2019 } = await import("./packs/index.js");
     const playable = (p: SeedPack) => p.countries.filter((c) => c.playable).map((c) => c.id).sort();
-    expect(playable(pack1991)).toEqual(["BR", "CN", "DE", "IE", "JP", "UK", "US"]);
-    expect(playable(pack2019)).toEqual(["CN", "DE", "IE", "JP", "UK", "US"]);
+    expect(playable(pack1991)).toEqual(["BR", "CN", "IE", "UK", "US"]);
+    expect(playable(pack2019)).toEqual(["CN", "IE", "UK", "US"]);
     for (const p of [pack1991, pack2019]) {
       expect(p.countries.some((c) => c.id === "RU" || c.id === "DD"), `${p.era.id} RU/DD`).toBe(false);
     }
@@ -322,8 +323,9 @@ describe("state layer (regions, apportionment) per pack", () => {
   it("RU/DD/JP/DE/CN/BR/IE (where present): region apportionment sums to the lower and subnational chambers", () => {
     for (const pack of PACKS) {
       // Lower/subnational chamber pairs contested per region for every non-US/UK
-      // playable country (W61 adds JP/DE/CN/BR/IE; see elections/orchestration.ts
-      // LOWER_PER_REGION + SUBNATIONAL_CHAMBERS). BR's upper house is its Senado.
+      // playable country with an authored region layer (see
+      // elections/orchestration.ts LOWER_PER_REGION + SUBNATIONAL_CHAMBERS).
+      // BR's upper house is its Senado.
       for (const [cid, lower, upper] of [["RU", "sovietOfTheUnion", "republicSupremeSoviet"], ["DD", "volkskammer", "landAssembly"], ["JP", "shugiin", "regionalCouncil"], ["DE", "bundestag", "landtag"], ["CN", "npc", "peoplesCongress"], ["BR", "chamber", "senate"], ["IE", "dail", "localCouncil"]] as const) {
         // Only playable entries carry a region layer (economy-only entries do not).
         if (!pack.countries.some((c) => c.id === cid && c.playable)) continue;
@@ -336,11 +338,11 @@ describe("state layer (regions, apportionment) per pack", () => {
   });
 });
 
-describe("W61 post-Cold-War rosters", () => {
-  it("1991 opens US/UK/JP/DE/CN/BR/IE and 2019 opens US/UK/JP/DE/CN/IE (mainline RESET_PRESETS[...].countries)", () => {
+describe("post-Cold-War rosters", () => {
+  it("1991 and 2019 keep JP and DE as economy-preview entries", () => {
     const playable = (era: string) => PACKS.find((p) => p.era.id === era)!.countries.filter((c) => c.playable).map((c) => c.id).sort();
-    expect(playable("1991")).toEqual(["BR", "CN", "DE", "IE", "JP", "UK", "US"]);
-    expect(playable("2019")).toEqual(["CN", "DE", "IE", "JP", "UK", "US"]);
+    expect(playable("1991")).toEqual(["BR", "CN", "IE", "UK", "US"]);
+    expect(playable("2019")).toEqual(["CN", "IE", "UK", "US"]);
     expect(playable("1953")).toEqual(["DD", "RU", "UK", "US"]);
     expect(playable("1979")).toEqual(["DD", "RU", "UK", "US"]);
   });
