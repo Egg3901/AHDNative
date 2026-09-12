@@ -221,6 +221,68 @@ describe("projectPolitics", () => {
     expect(loaded.politics().referendums.map((record) => record.id)).toEqual(politics.referendums.map((record) => record.id));
   });
 
+  it("projects the referendum campaign writers and reflects their spend (#70)", () => {
+    const session = new GameSession();
+    session.create({ era: "1953", countryId: "UK", seed: "referendum-campaign-view", playerName: "Alex" });
+    const saved = JSON.parse(session.serialize(SAVED_AT));
+    saved.world.regions.SCO.independenceDesire = 61;
+    saved.world.player.actions = 40;
+    saved.world.player.funds = 2_000_000;
+    saved.world.player.partyId = "UK_SNP";
+    saved.world.parties.UK_SNP.politicalStrength = 50;
+    session.load(JSON.stringify(saved));
+
+    expect(session.act("requestReferendum", { regionId: "SCO" }).ok).toBe(true);
+    session.advance(); // granted -> campaigning snapshots the cohort baseline
+
+    const before = session.politics().referendums[0]!;
+    expect(before.campaign).toMatchObject({ active: true, playerSide: "yes", yesUnits: 0, noUnits: 0 });
+    expect(before.campaign.groundGame.cohorts.length).toBeGreaterThan(1);
+    expect(before.campaign.groundGame.presets.map((p) => p.id)).toEqual([
+      "press_conference", "doorstep_canvass", "gotv_drive", "broadcast_ads", "mass_rally",
+    ]);
+    expect(before.campaign.spend).toMatchObject({ side: "yes", psPerUnit: 1, available: true });
+    const psBefore = before.campaign.spend.psAvailable;
+    expect(psBefore).toBeGreaterThan(0);
+
+    // Ground game across the whole electorate raises the canonical share.
+    expect(session.act("referendumGroundGame", {
+      referendumId: before.id, referendumSide: "yes", presetId: "broadcast_ads",
+    }).ok).toBe(true);
+    const afterGround = session.politics().referendums[0]!;
+    expect(afterGround.yesShare).toBeGreaterThan(before.yesShare);
+    expect(afterGround.campaign.groundGame.cohorts.some((c) => c.leanMod !== 0)).toBe(true);
+
+    // Campaign spend debits the party PS and records on the side ledger.
+    expect(session.act("referendumCampaignSpend", {
+      referendumId: before.id, referendumSide: "yes", units: 5,
+    }).ok).toBe(true);
+    const afterSpend = session.politics().referendums[0]!;
+    expect(afterSpend.campaign.yesUnits).toBe(5);
+    expect(afterSpend.campaign.spend.psAvailable).toBe(psBefore - 5);
+    expect(afterSpend.yesShare).toBeGreaterThan(afterGround.yesShare);
+
+    // The spend survives reload unchanged.
+    const reloaded = new GameSession();
+    reloaded.load(session.serialize(SAVED_AT));
+    expect(reloaded.politics().referendums[0]!.campaign.yesUnits).toBe(5);
+    expect(reloaded.politics().referendums[0]!.yesShare).toBe(afterSpend.yesShare);
+  });
+
+  it("disables the referendum campaign spend for an independent player", () => {
+    const session = new GameSession();
+    session.create({ era: "1953", countryId: "UK", seed: "referendum-campaign-noparty", playerName: "Alex" });
+    const saved = JSON.parse(session.serialize(SAVED_AT));
+    saved.world.regions.SCO.independenceDesire = 61;
+    session.load(JSON.stringify(saved));
+    expect(session.act("requestReferendum", { regionId: "SCO" }).ok).toBe(true);
+    session.advance();
+    const campaign = session.politics().referendums[0]!.campaign;
+    expect(campaign.playerSide).toBeNull();
+    expect(campaign.spend.available).toBe(false);
+    expect(campaign.spend.disabledReason).toMatch(/belong to a party/i);
+  });
+
   it("projects strength-adjusted vote share for presidential generals only", () => {
     const world = createWorld({ ...options, seed: "strength-projection" });
     world.player.partyId = DEM;

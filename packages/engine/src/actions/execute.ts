@@ -23,6 +23,8 @@ import * as CampaignCanvass from "./campaignCanvass.js";
 import * as CampaignTargetedAd from "./campaignTargetedAd.js";
 import * as CampaignContribute from "./campaignContribute.js";
 import * as Referendum from "../referendum/request.js";
+import * as ReferendumCampaign from "../referendum/campaign.js";
+import * as ReferendumGroundGame from "../referendum/groundGame.js";
 import * as Coalition from "../intraparty/coalitions.js";
 import {
   getPlayerPartyLeadershipGate,
@@ -107,6 +109,14 @@ export type ExecuteActionParams = {
   demographicGroup?: string;
   // #68 campaign strength
   strengthAdded?: number;
+  // #70 referendum campaign writers
+  referendumId?: string;
+  referendumSide?: "yes" | "no";
+  /** Ground-game preset id (referendumGroundGame). `units` (above) is reused as
+   *  the campaign-spend unit count for referendumCampaignSpend. */
+  presetId?: string;
+  /** Ground-game target cohort groupId; empty/absent = whole electorate. */
+  cohortGroupId?: string;
 };
 
 export type ExecuteActionResult =
@@ -718,6 +728,32 @@ function executeActionInner(
   if (actionId === "requestReferendum") {
     if (found.kind !== "player") return { ok: false, error: "Only the player can request a referendum" };
     const res = Referendum.requestReferendum(world, params.regionId!);
+    if (!res.ok) return { ok: false, error: res.error };
+    return { ok: true, message: res.message };
+  }
+  if (actionId === "referendumCampaignSpend") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can campaign in a referendum" };
+    // Catalog baseCost/fundCost are 0; the campaign spend debits the player
+    // party's Political Strength itself AFTER validating every gate, so a
+    // rejection leaves the party's PS and the record untouched.
+    const res = ReferendumCampaign.spendReferendumCampaign(world, {
+      referendumId: params.referendumId,
+      side: params.referendumSide,
+      units: params.units,
+    });
+    if (!res.ok) return { ok: false, error: res.error };
+    return { ok: true, message: res.message };
+  }
+  if (actionId === "referendumGroundGame") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can campaign in a referendum" };
+    // Catalog baseCost/fundCost are 0; the ground game debits Actions + Campaign
+    // Funds itself AFTER validating every gate (see referendum/groundGame.ts).
+    const res = ReferendumGroundGame.spendReferendumGroundGame(world, {
+      referendumId: params.referendumId,
+      side: params.referendumSide,
+      presetId: params.presetId,
+      cohortGroupId: params.cohortGroupId,
+    });
     if (!res.ok) return { ok: false, error: res.error };
     return { ok: true, message: res.message };
   }
@@ -1686,6 +1722,14 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.regionId ? null : `Action ${actionId} requires a regionId`;
     case "requestReferendum":
       return params.regionId ? null : "requestReferendum requires regionId";
+    case "referendumCampaignSpend":
+      return params.referendumId && params.units !== undefined
+        ? null
+        : "referendumCampaignSpend requires referendumId and units";
+    case "referendumGroundGame":
+      return params.referendumId && params.presetId
+        ? null
+        : "referendumGroundGame requires referendumId and presetId";
     case "joinParty":
       return params.partyId ? null : "joinParty requires partyId";
     case "foundParty":

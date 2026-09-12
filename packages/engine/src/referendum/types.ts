@@ -34,10 +34,19 @@ export interface ReferendumRecord {
    * eras use a snapshot of the source Layer-1 bucket profile; unsupported
    * content uses mainline's single-cohort fallback. */
   cohortBaseline?: ReferendumCohort[];
-  /** Raw accumulated ground-game units per cohort (no writers yet; read at
-   * aggregate time with the soft cap, see cohort.ts). */
+  /** Raw accumulated ground-game units per cohort (written by the ground-game
+   * action; read at aggregate time with the soft cap, see cohort.ts). */
   cohortModifiers?: CohortModifier[];
-  /** Atomic PS spend counters per side (no writers yet). */
+  /** Ground-game spend ledger per cohort (audit + UI); mirrors AHDGame's
+   * `groundGameUnits`, with whole-electorate pushes attributed to `_whole`. */
+  groundGameUnits?: {
+    groupId: string;
+    mobilizeUnits: number;
+    persuadeYes: number;
+    persuadeNo: number;
+  }[];
+  /** Atomic campaign spend counters per side (written by the campaign-spend
+   * action; folded into the canonical share as a uniform lean shift). */
   campaignSpendUnits?: { yes: number; no: number } | null;
   /** Per-turn Yes-share series, seeded at campaign open (see cohort.ts). */
   pollHistory?: PollPoint[];

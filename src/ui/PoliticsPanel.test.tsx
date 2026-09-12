@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PoliticsView } from "../game/politics";
 
@@ -510,6 +510,33 @@ it("opens an active race from a politician's details", async () => {
 });
 
 describe("PoliticsPanel referendums", () => {
+  const makeReferendum = (
+    overrides: Partial<PoliticsView["referendums"][number]> = {},
+  ): PoliticsView["referendums"][number] => ({
+    id: "referendum-SCO-10", kind: "independence", regionId: "SCO", regionName: "Scotland",
+    question: "Should Scotland become an independent country?",
+    status: "campaigning", phase: "Campaigning", scope: "Scotland · devolved region",
+    yesShare: 55.1, finalYesShare: null, passed: null, turnout: null,
+    requestedTurn: 10, campaignOpenTurn: 10, campaignCloseTurn: 58,
+    conversionDeadlineTurn: null, cooldownReadyAtTurn: null, latestPollTurn: 12,
+    campaign: {
+      active: true, yesUnits: 0, noUnits: 0, playerSide: "yes",
+      spend: { side: "yes", step: 1, psPerUnit: 1, psAvailable: 30, cost: 1, available: true },
+      groundGame: {
+        presets: [
+          { id: "broadcast_ads", label: "Broadcast & digital ads", effect: "persuade", funds: 380000, actions: 2, nominalSwing: 1.5, affordable: true },
+          { id: "mass_rally", label: "Mass rally", effect: "mobilize", funds: 620000, actions: 3, nominalSwing: 3.1, affordable: true },
+        ],
+        cohorts: [
+          { groupId: "age:young", name: "Young (age)", turnoutMod: 0, leanMod: 0 },
+          { groupId: "age:senior", name: "Senior (age)", turnoutMod: 0, leanMod: 0 },
+        ],
+        available: true,
+      },
+    },
+    ...overrides,
+  });
+
   it("requests an eligible region and shows every ineligible reason", async () => {
     const user = userEvent.setup();
     const onAction = vi.fn();
@@ -526,18 +553,92 @@ describe("PoliticsPanel referendums", () => {
   it("shows a recorded referendum result from persisted state", async () => {
     const PoliticsPanel = await renderPanel();
     const view = makePolitics();
-    view.referendums = [{
-      id: "referendum-SCO-10", kind: "independence", regionId: "SCO", regionName: "Scotland",
-      question: "Should Scotland become an independent country?",
-      status: "completed", phase: "Completed", scope: "Scotland · devolved region",
+    view.referendums = [makeReferendum({
+      id: "referendum-SCO-10",
+      status: "completed", phase: "Completed",
       yesShare: 55.1, finalYesShare: 55.1, passed: true, turnout: 68.1,
-      requestedTurn: 10, campaignOpenTurn: 10, campaignCloseTurn: 58,
       conversionDeadlineTurn: 70, cooldownReadyAtTurn: 130, latestPollTurn: 57,
-    }];
+      campaign: { ...makeReferendum().campaign, active: false },
+    })];
     render(<PoliticsPanel politics={view} section="referendums" busy={false} onAction={vi.fn()} />);
     expect(screen.getByText("Should Scotland become an independent country?")).toBeInTheDocument();
     expect(screen.getByText("Passed")).toBeInTheDocument();
     expect(screen.getAllByText("55.1%").length).toBe(2);
     expect(screen.getByText("Turn 58")).toBeInTheDocument();
+  });
+
+  it("spends Political Strength on the player's side and blocks the other side", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const PoliticsPanel = await renderPanel();
+    const view = makePolitics();
+    const record = makeReferendum({ campaign: { ...makeReferendum().campaign, yesUnits: 4, playerSide: "yes" } });
+    view.referendums = [record];
+    render(<PoliticsPanel politics={view} section="referendums" busy={false} onAction={onAction} />);
+    const card = within(screen.getByLabelText(record.question));
+
+    expect(card.getByText(/Your position: Yes/)).toBeInTheDocument();
+    expect(card.getByText(/Yes spend 4/)).toBeInTheDocument();
+
+    await user.selectOptions(card.getByLabelText(`Campaign side (${record.question})`), "yes");
+    fireEvent.change(card.getByLabelText(`Campaign spend units (${record.question})`), { target: { value: "3" } });
+    await user.click(card.getByRole("button", { name: `Spend on campaign (${record.question})` }));
+    expect(onAction).toHaveBeenCalledWith("referendumCampaignSpend", {
+      referendumId: record.id, referendumSide: "yes", units: 3,
+    });
+
+    // Selecting the party's non-mapped side disables the button with a reason.
+    await user.selectOptions(card.getByLabelText(`Campaign side (${record.question})`), "no");
+    expect(card.getByRole("button", { name: `Spend on campaign (${record.question})` })).toBeDisabled();
+    expect(card.getByText(/Your party campaigns for the Yes side/)).toBeInTheDocument();
+  });
+
+  it("runs a ground game from the real cohort list onto a targeted cohort", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const PoliticsPanel = await renderPanel();
+    const view = makePolitics();
+    const record = makeReferendum();
+    view.referendums = [record];
+    render(<PoliticsPanel politics={view} section="referendums" busy={false} onAction={onAction} />);
+    const card = within(screen.getByLabelText(record.question));
+
+    // The target list is the record's real cohorts, not an invented set.
+    expect(card.getByRole("option", { name: "Young (age)" })).toBeInTheDocument();
+    expect(card.getByRole("option", { name: "Senior (age)" })).toBeInTheDocument();
+
+    await user.selectOptions(card.getByLabelText(`Ground-game action (${record.question})`), "mass_rally");
+    await user.selectOptions(card.getByLabelText(`Ground-game side (${record.question})`), "no");
+    await user.selectOptions(card.getByLabelText(`Ground-game target (${record.question})`), "age:young");
+    await user.click(card.getByRole("button", { name: `Run ground game (${record.question})` }));
+    expect(onAction).toHaveBeenCalledWith("referendumGroundGame", {
+      referendumId: record.id, referendumSide: "no", presetId: "mass_rally", cohortGroupId: "age:young",
+    });
+  });
+
+  it("shows campaign disabled reasons and unaffordable presets", async () => {
+    const PoliticsPanel = await renderPanel();
+    const view = makePolitics();
+    const record = makeReferendum({
+      campaign: {
+        ...makeReferendum().campaign,
+        playerSide: null,
+        spend: { side: "yes", step: 1, psPerUnit: 1, psAvailable: 0, cost: 1, available: false, disabledReason: "You must belong to a party to campaign." },
+        groundGame: {
+          presets: [
+            { id: "mass_rally", label: "Mass rally", effect: "mobilize", funds: 620000, actions: 3, nominalSwing: 3.1, affordable: false },
+          ],
+          cohorts: [{ groupId: "age:young", name: "Young (age)", turnoutMod: 0, leanMod: 0 }],
+          available: true,
+        },
+      },
+    });
+    view.referendums = [record];
+    render(<PoliticsPanel politics={view} section="referendums" busy={false} onAction={vi.fn()} />);
+    const card = within(screen.getByLabelText(record.question));
+    expect(card.getByText("You must belong to a party to campaign.")).toBeInTheDocument();
+    expect(card.getByRole("button", { name: `Spend on campaign (${record.question})` })).toBeDisabled();
+    expect(card.getByText("Not enough funds or actions for this action.")).toBeInTheDocument();
+    expect(card.getByRole("button", { name: `Run ground game (${record.question})` })).toBeDisabled();
   });
 });

@@ -143,4 +143,23 @@ export { ACHIEVEMENT_CATALOG } from "./achievements/catalog.js";
 // devolution region set and eligibility rules instead of duplicating them.
 export { UK_DEVOLUTION_REGIONS } from "./devolution/independenceDesireDrift.js";
 export { referendumRequestEligibility, referendumRegionStatus, REQUEST_THRESHOLD, REQUEST_AP_COST } from "./referendum/request.js";
+export {
+  spendReferendumCampaign,
+  campaignSideForParty,
+  campaignSideForPartyInRegion,
+  REGION_PRO_INDY_PARTY,
+  CAMPAIGN_PS_COST_PER_UNIT,
+} from "./referendum/campaign.js";
+export {
+  GROUND_GAME_PRESETS,
+  findGroundGamePreset,
+  applyPresetToModifiers,
+  spendReferendumGroundGame,
+  GG_PERSUADE_TARGET_CONC,
+  GG_MOBILIZE_TARGET_CONC,
+  GG_MOBILIZE_LEAN_FRACTION,
+} from "./referendum/groundGame.js";
+export type { GroundGamePreset, PresetEffect } from "./referendum/groundGame.js";
+export { referendumYesShare, aggregateYesShare, leanFromUnits, cumulativeCampaignEffect } from "./referendum/cohort.js";
+export type { ReferendumCohort, CohortModifier } from "./referendum/cohort.js";
 export type { ReferendumRecord, ReferendumKind, ReferendumStatus } from "./referendum/types.js";
