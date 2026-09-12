@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { createWorld, declareCandidacy, resolvePrimaries, advanceTurn, campaignKey, campaignStrengthContributionCost, campaignStrengthVoteMultiplier, ensureCampaign } from "@ahdclient/engine";
+import { createWorld, declareCandidacy, resolvePrimaries, advanceTurn, campaignKey, campaignStrengthContributionCost, campaignStrengthVoteMultiplier, describeOpsCurrentEffect, ensureCampaign, serializeSave } from "@ahdclient/engine";
 import { GameSession } from "./session";
 import { projectPolitics } from "./politics";
 
@@ -613,6 +613,93 @@ describe("projectPolitics", () => {
       action: { id: "campaignTargetedAd", available: true, cost: 1 },
     });
     expect(projected.playerCampaign!.targetedAds.targets.length).toBeGreaterThan(0);
+  });
+
+  it("projects the operations blend: per-lever current effects plus the strength boost", () => {
+    const world = createWorld({ ...options, seed: "blend-projection" });
+    world.player.partyId = DEM;
+    world.player.funds = 10_000_000;
+    world.player.actions = 100;
+    world.player.nationalInfluence = 100;
+    const rival = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === REP)!;
+    const id = "president:US:-:c1";
+    world.elections = [{
+      id, electionType: "president", countryId: "US", cycle: 1,
+      status: "active", startTurn: 0, primaryEndTurn: 20, endTurn: 60, totalSeats: 1, chamberKey: "president",
+      candidates: [{ id: rival.id, name: rival.name, partyId: REP, isNPP: true, incumbent: false }],
+      tally: {},
+    }];
+    expect(declareCandidacy(world, id).ok).toBe(true);
+    world.meta.turn = 40;
+    const campaign = world.campaigns[campaignKey(id, "player")]!;
+    // Fundraising starter + Grassroots L1, with Direct Mail L1 multiplying income.
+    campaign.fundraisingTree = { starter: true, a: 1, b: 0, c: 1 };
+    campaign.campaignStrength = 50_000;
+
+    const detail = projectPolitics(world).elections[0]!;
+    const pc = detail.playerCampaign!;
+    const blend = pc.blend;
+    expect(blend.currencySymbol).toBe("$");
+    const effects = Object.fromEntries(blend.levers.map((lever) => [lever.category, lever.effect]));
+    // The per-lever line is exactly the ported engine derivation.
+    expect(effects.fundraising).toBe(
+      describeOpsCurrentEffect("fundraising", { starter: true, a: 1, b: 0, c: 1 }, "$"),
+    );
+    // 35k starter + 200k Grassroots L1 = 235k, then +15% Direct Mail = 270,250.
+    expect(effects.fundraising).toContain("270,250");
+    // Untouched levers report honest locked text, never a broken "+$0".
+    expect(effects.oppositionResearch).toBe("Not yet unlocked");
+    expect(effects.groundGame).toBe("Not yet unlocked");
+    expect(effects.mediaSpending).toBe("Not yet unlocked");
+    expect(blend.levers.find((lever) => lever.category === "fundraising")!.started).toBe(true);
+    // The boost reuses the #68 curve the strength control already quotes.
+    expect(blend.voteBoostPct).toBe(pc.strength.voteBoostPct);
+
+    // Existing campaign behaviour is unchanged: the blend is purely additive.
+    expect(pc.strength.value).toBe(50_000);
+    expect(pc.strength.voteBoostPct).toBeCloseTo((campaignStrengthVoteMultiplier(50_000) - 1) * 100, 10);
+    expect(pc.levers).toHaveLength(4);
+    const fundraising = pc.levers.find((lever) => lever.category === "fundraising")!;
+    expect(fundraising.started).toBe(true);
+    expect(fundraising.branches.find((branch) => branch.branch === "a")!.level).toBe(1);
+  });
+
+  it("keeps the operations blend across save, reload, and a turn", () => {
+    const world = createWorld({ ...options, seed: "blend-persistence" });
+    world.player.partyId = DEM;
+    world.player.funds = 10_000_000;
+    world.player.actions = 100;
+    world.player.nationalInfluence = 100;
+    const rival = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === REP)!;
+    const id = "president:US:-:c1";
+    world.elections = [{
+      id, electionType: "president", countryId: "US", cycle: 1,
+      status: "active", startTurn: 0, primaryEndTurn: 20, endTurn: 60, totalSeats: 1, chamberKey: "president",
+      candidates: [{ id: rival.id, name: rival.name, partyId: REP, isNPP: true, incumbent: false }],
+      tally: {},
+    }];
+    expect(declareCandidacy(world, id).ok).toBe(true);
+    world.meta.turn = 40;
+    const campaign = world.campaigns[campaignKey(id, "player")]!;
+    campaign.fundraisingTree = { starter: true, a: 1, b: 0, c: 1 };
+    campaign.campaignStrength = 50_000;
+
+    const session = new GameSession();
+    session.load(serializeSave(world, SAVED_AT));
+    const before = session.politics().elections.find((election) => election.id === id)!.playerCampaign!;
+    expect(before.blend.levers.find((lever) => lever.category === "fundraising")!.effect).toContain("270,250");
+
+    // A turn advances the live campaign without losing the ops tree.
+    session.advance();
+    const afterTurn = session.politics().elections.find((election) => election.id === id)!.playerCampaign!;
+    expect(afterTurn.blend.levers).toEqual(before.blend.levers);
+    expect(afterTurn.blend.voteBoostPct).toBe(afterTurn.strength.voteBoostPct);
+
+    // Reloading the serialized session reproduces the blend unchanged.
+    const reloaded = new GameSession();
+    reloaded.load(session.serialize(SAVED_AT));
+    const afterReload = reloaded.politics().elections.find((election) => election.id === id)!.playerCampaign!;
+    expect(afterReload.blend).toEqual(afterTurn.blend);
   });
 });
 

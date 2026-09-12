@@ -294,6 +294,16 @@ describe("PoliticsPanel elections", () => {
         ],
         contribute: { id: "campaignContribute", name: "Contribute Campaign Strength", description: "", cost: 1, available: true },
       },
+      blend: {
+        levers: [
+          { category: "fundraising", started: true, effect: "+$35,000/turn income" },
+          { category: "oppositionResearch", started: false, effect: "Not yet unlocked" },
+          { category: "groundGame", started: false, effect: "Not yet unlocked" },
+          { category: "mediaSpending", started: false, effect: "Not yet unlocked" },
+        ],
+        voteBoostPct: 2.96,
+        currencySymbol: "$",
+      },
       rally: {
         action: { id: "campaignRally", name: "Campaign Rally", description: "", cost: 6, available: true },
         immediateSupport: 1.8, pendingPerTurn: 0.3, pendingTurns: 4,
@@ -373,6 +383,12 @@ describe("PoliticsPanel elections", () => {
     });
     expect(screen.getByText(/1,500 strength · \+3\.0% vote boost/)).toBeInTheDocument();
     expect(screen.getByText(/Contribute x1/)).toBeInTheDocument();
+    // The operations blend renders each lever's CURRENT standing effect plus the
+    // strength boost, clearly labelled as the blend and not a vote forecast.
+    expect(screen.getByRole("heading", { name: "Operations blend" })).toBeInTheDocument();
+    expect(screen.getByText(/35,000\/turn income/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Not yet unlocked/)).toHaveLength(3);
+    expect(screen.getByText(/Strength vote boost: \+3\.0% · operations blend, not a vote forecast/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Contribute x1" }));
     expect(onAction).toHaveBeenCalledWith("campaignContribute", { electionId: "house:US:AL:c1", clicks: 1 });
     await user.click(screen.getByRole("button", { name: "Contribute x5" }));
@@ -410,6 +426,16 @@ describe("PoliticsPanel elections", () => {
         max: { clicks: 0, strengthAdded: 0, costFunds: 0, costActions: 0, affordable: false },
         targets: [],
         contribute: { id: "campaignContribute", name: "Contribute Campaign Strength", description: "", cost: 1, available: false, disabledReason: "Campaign is archived and read-only." },
+      },
+      blend: {
+        levers: [
+          { category: "fundraising", started: false, effect: "Not yet unlocked" },
+          { category: "oppositionResearch", started: false, effect: "Not yet unlocked" },
+          { category: "groundGame", started: false, effect: "Not yet unlocked" },
+          { category: "mediaSpending", started: false, effect: "Not yet unlocked" },
+        ],
+        voteBoostPct: 0,
+        currencySymbol: "$",
       },
       rally: {
         action: {
@@ -483,6 +509,9 @@ describe("PoliticsPanel elections", () => {
 
     render(<PoliticsPanel politics={politics} section="campaign" initialId="house:US:AL:c1" busy={false} onAction={onAction} />);
     expect(screen.getByText("Archived campaign: management is read-only.")).toBeInTheDocument();
+    // The operations blend is a read-only summary, so it still renders archived.
+    expect(screen.getByRole("heading", { name: "Operations blend" })).toBeInTheDocument();
+    expect(screen.getAllByText(/Not yet unlocked/)).toHaveLength(4);
     expect(screen.getByRole("button", { name: "Fire campaign rally" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Start campaign rally tour" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Set opposition target" })).toBeDisabled();

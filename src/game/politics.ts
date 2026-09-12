@@ -1,6 +1,7 @@
 import {
   ACTION_CATALOG, addDaysIso, calculateCampaignIncome, calculateMaintenanceCosts,
-  campaignAnchorToLocal, campaignKey, canJoinParty, canLeaveParty, getActionCost,
+  campaignAnchorToLocal, campaignKey, canJoinParty, canLeaveParty, describeOpsCurrentEffect,
+  getActionCost,
   getCampaignFamilyScalar, getEffectiveBranchCost, RALLY_IMMEDIATE_SHARE,
   RALLY_SPREAD_TURNS, SUPPORT_RALLY_ACTION_COST, SUPPORT_RALLY_FULL_VALUE,
   SUPPORT_RALLY_TOUR_TICK_ACTION_COST,
@@ -167,6 +168,29 @@ export interface PoliticsCampaignStrengthView {
   contribute: ActionView;
 }
 
+/** One lever's CURRENT standing effect, as the Blend board's summary line. */
+export interface PoliticsCampaignBlendLeverView {
+  category: PoliticsCampaignLeverView["category"];
+  /** Whether the lever's starter is unlocked (a locked lever has no effect). */
+  started: boolean;
+  /** e.g. "+$270,250/turn income", or "Not yet unlocked" for a locked lever. */
+  effect: string;
+}
+
+/**
+ * The operations blend: what each campaign operations lever is doing RIGHT NOW
+ * plus the campaign-strength vote boost. This is the reference Blend board's
+ * composition of the ops levers' current standing effects, not a vote forecast.
+ */
+export interface PoliticsCampaignBlendView {
+  /** One line per operations lever describing its current standing effect. */
+  levers: PoliticsCampaignBlendLeverView[];
+  /** Campaign-strength vote boost from the ported saturation curve (#68). */
+  voteBoostPct: number;
+  /** Currency symbol used by the per-lever lines (e.g. "$"). */
+  currencySymbol: string;
+}
+
 export interface PoliticsPlayerCampaignView {
   status: string;
   funds: number; actions: number;
@@ -185,6 +209,8 @@ export interface PoliticsPlayerCampaignView {
   levers: PoliticsCampaignLeverView[];
   /** #68 campaign strength: the ported saturation curve plus click-based quotes. */
   strength: PoliticsCampaignStrengthView;
+  /** #67 operations blend: current per-lever effects plus the strength boost. */
+  blend: PoliticsCampaignBlendView;
 }
 
 export interface PoliticsProjectionDriverView {
@@ -413,6 +439,25 @@ function officeLabel(world: WorldState, chamberKey: string, electedState?: strin
   if (electedState) parts.push(electedState);
   if (senateClass) parts.push(`class ${senateClass}`);
   return parts.join(" · ");
+}
+
+/**
+ * Currency symbol per code, ported from the reference
+ * CURRENCY_SYMBOLS (src/lib/constants/currencies.ts). Only the symbol is needed
+ * here: the operations-blend lines format money the way the reference
+ * describeOpsCurrentEffect does (`$270,250`), which uses the bare symbol rather
+ * than a locale-formatted currency. Falls back to "$" like the reference's
+ * symbolFor.
+ */
+const CURRENCY_SYMBOLS: Readonly<Record<string, string>> = {
+  USD: "$", GBP: "£", JPY: "¥", CAD: "C$", EUR: "€", IEP: "IR£", BRL: "R$",
+  CNY: "¥", NGN: "₦", HUF: "Ft", PLZ: "zł", ROL: "lei", YUD: "din",
+  BGL: "лв", CSK: "Kčs", SUR: "руб", FRF: "₣", ITL: "₤", ESP: "₧",
+  SEK: "kr", TRL: "₺", GRD: "₯", ATS: "öS", FIM: "mk", DDM: "M",
+};
+
+function campaignCurrencySymbol(currencyCode: string | undefined): string {
+  return (currencyCode && CURRENCY_SYMBOLS[currencyCode]) || "$";
 }
 
 const CAMPAIGN_LEVERS: PoliticsCampaignLeverView["category"][] =
@@ -791,6 +836,26 @@ function projectPlayerCampaign(
       ...(strengthReason ? { disabledReason: strengthReason } : {}),
     },
   };
+  // #67 operations blend: the reference Blend board's composition of each ops
+  // lever's CURRENT standing effect plus the campaign-strength vote boost. The
+  // per-lever line is derived (display only) from the same OPS_TREES magnitudes
+  // the engine consumes; it does not feed resolution. The strength boost is the
+  // same #68 curve already quoted above, never a vote forecast.
+  const currencyCode = world.budgets[campaign.countryId]?.currencyCode
+    ?? world.exchangeRates[campaign.countryId]?.currencyCode;
+  const currencySymbol = campaignCurrencySymbol(currencyCode);
+  const blend: PoliticsCampaignBlendView = {
+    levers: CAMPAIGN_LEVERS.map((category) => {
+      const tree = campaign[`${category}Tree`];
+      return {
+        category,
+        started: tree.starter,
+        effect: describeOpsCurrentEffect(category, tree, currencySymbol),
+      };
+    }),
+    voteBoostPct: strength.voteBoostPct,
+    currencySymbol,
+  };
   return {
     status: campaign.status,
     funds: campaign.funds, actions: campaign.actions,
@@ -820,6 +885,7 @@ function projectPlayerCampaign(
     targetedAds: campaignTargetedAdsAction(world, election, campaign, campaignReason),
     levers,
     strength,
+    blend,
   };
 }
 
