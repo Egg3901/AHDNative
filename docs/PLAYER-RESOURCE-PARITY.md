@@ -93,3 +93,30 @@ Full device performance and native lifecycle remain separate acceptance gates.
   algorithms. Its source correction is #144; it never enters the player pool.
 - Broader membership/charter costs and lifecycle remain #61/#95. This slice
   corrects clout resets and supported holder cleanup only.
+
+## Action, funds and cash breakdown depth, 2026-09-12
+
+Issues #49 and #83. The footer and Profile now render one breakdown from the
+same `projectResources` projection, so the two surfaces cannot diverge:
+
+- Action rows split the office bonus into elected-seat, cabinet and chair
+  sources (`projectPlayerActionRefresh`), keep the party-influence bonus, the
+  hoarding penalty above the Energy threshold, the cap and the balance after
+  the next refresh. Solo worlds hold no central-bank chair, so the chair row is
+  an explicit `0` with a note rather than an invented value (#119).
+- Funds rows keep base generation, donor bonus, office, party tax and regular
+  net. `ResourceDetailsView.partyInfluence` now carries the party-influence
+  projection (closeness, leadership posts, infamy penalty, turn gain, balance
+  after decay, bonus actions) and Profile shows it in the standing breakdown.
+- Recorded balance history shows turn-over-turn fund and cash deltas.
+- Honest gaps stay explicit: national-influence turn gain and favorability
+  decay/tier thresholds are not projected in the local engine, and the Profile
+  note says so. Corporation values (#80) and election vote/margin/seat chips
+  (#68) remain open, so #83 stays partial.
+
+Evidence: `src/game/resources.test.ts` asserts the seat/cabinet/chair split,
+the office total and the round-tripped `partyInfluence`; `ResourceBreakdown` and
+`ProfilePanel` UI tests cover the rows, the chair note and the deltas;
+`smoke/resource-breakdown.spec.ts` opens and closes the action and funds panels
+at 320px and 390px and confirms the footer keeps the turn.
+

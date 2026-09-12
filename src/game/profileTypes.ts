@@ -1,3 +1,5 @@
+import type { ResourceDetailsView } from "./resources";
+
 export interface ProfileUpdate {
   bio?: string;
   avatarUrl?: string | null;
@@ -20,6 +22,8 @@ export interface ProfileView {
   stats: { energy: number | null; debate: number | null } | null;
   careerHistory: Array<{ id: string; office: string; result: string; turn: number }>;
   achievements: Array<{ slug: string; name: string; description: string }>;
+  /** Same projection the footer breakdown uses, so Profile never diverges. */
+  resourceDetails: ResourceDetailsView;
   standing: {
     actions: number; actionCap: number; actionGain: number;
     politicalInfluence: number; nationalInfluence: number | null;

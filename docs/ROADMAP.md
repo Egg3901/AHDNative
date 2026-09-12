@@ -560,3 +560,22 @@ cover the stage grouping, primary ledgers, phase label and winner/profile links;
 the same race with its stage ledger intact. Non-US primaries stay out of scope
 under #96 and the reference campaign projection stays open under #68.
 
+
+
+## Resource and finance breakdown depth checkpoint
+
+N08/#49/#83: Profile and the footer now render one breakdown built from the same
+`projectResources` projection, so they cannot diverge. Action rows split the
+office bonus into elected-seat, cabinet and chair sources and keep the party
+bonus, hoarding penalty, cap and next balance; funds rows keep base, donor,
+office, party tax and net; the history shows turn-over-turn fund and cash
+deltas; and Profile shows the party-influence projection (closeness, leadership,
+infamy penalty, gain, balance after decay). The chair row is an explicit 0 with
+a note because solo worlds have no central-bank chair (#119).
+
+Honest gaps: national-influence turn gain and favorability decay/tier
+thresholds are not projected locally, and corporation values (#80) and election
+vote/margin/seat chips (#68) remain open, so #83 stays partial. Evidence:
+`src/game/resources.test.ts`, `ResourceBreakdown`/`ProfilePanel` UI tests and
+`smoke/resource-breakdown.spec.ts` at 320px and 390px. No mechanics formula
+changed.
