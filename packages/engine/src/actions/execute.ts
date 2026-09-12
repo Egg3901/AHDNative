@@ -21,6 +21,7 @@ import * as CampaignRetarget from "./campaignRetarget.js";
 import * as CampaignManager from "./campaignManager.js";
 import * as CampaignCanvass from "./campaignCanvass.js";
 import * as CampaignTargetedAd from "./campaignTargetedAd.js";
+import * as CampaignContribute from "./campaignContribute.js";
 import * as Referendum from "../referendum/request.js";
 import * as Coalition from "../intraparty/coalitions.js";
 import {
@@ -104,6 +105,8 @@ export type ExecuteActionParams = {
   managerId?: string;
   demographicCategory?: string;
   demographicGroup?: string;
+  // #68 campaign strength
+  strengthAdded?: number;
 };
 
 export type ExecuteActionResult =
@@ -697,6 +700,19 @@ function executeActionInner(
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: res.error };
     }
+    return { ok: true, message: res.message };
+  }
+  if (actionId === "campaignContribute") {
+    if (found.kind !== "player") return { ok: false, error: "Only player can manage a campaign" };
+    // Catalog baseCost/fundCost are 0; campaignContribute charges the dynamic
+    // funds/actions itself AFTER validating every gate, so a rejection leaves
+    // both the player's balances and the campaign's strength untouched (and the
+    // executeAction wrapper restores accounting on any failure result anyway).
+    const res = CampaignContribute.campaignContribute(world, {
+      electionId: params.electionId,
+      strengthAdded: params.strengthAdded,
+    });
+    if (!res.ok) return { ok: false, error: res.error };
     return { ok: true, message: res.message };
   }
   if (actionId === "requestReferendum") {
@@ -1703,6 +1719,10 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.electionId && params.regionId && params.demographicCategory && params.demographicGroup
         ? null
         : "campaignTargetedAd requires electionId, regionId, demographicCategory, and demographicGroup";
+    case "campaignContribute":
+      return params.electionId && params.strengthAdded !== undefined
+        ? null
+        : "campaignContribute requires electionId and strengthAdded";
     case "sponsorBill":
     case "repealLaw":
       return params.catalogId ? null : `${actionId} requires catalogId`;

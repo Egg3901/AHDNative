@@ -9,13 +9,15 @@ import { isCampaignEligibleElection } from "./isCampaignEligible.js";
  * entry) and elections/candidacy.ts declareCandidacy/withdrawCandidacy
  * (player entry/exit).
  *
- * PORT-STUB (not ported): Campaign.campaignStrength / the player
- * contribution-to-vote-multiplier mechanic (src/lib/campaigns/campaignStrength.ts).
- * That is a standalone player-spend-on-votes UI feature layered on top of the
- * Campaign doc, not part of the income/maintenance/spend loop this wave
- * wires into candidateSupports + fundsByParty — no consumer exists in solo's
- * tally (electionEngine/persuasionDrivers.ts never reads a strength
- * multiplier). Port when a player campaign-contribution action lands.
+ * PORT-STUB (not ported): the CROSS-CAMPAIGN contribution / national-influence
+ * paths of the campaign-strength mechanic (AHDGame
+ * src/lib/campaigns/commands/campaignCommands.ts contributeCampaignStrength
+ * derives `strengthAdded` from nationalInfluence * 0.75 per click and can
+ * contribute to a RIVAL campaign). Native's `campaignContribute` action
+ * (actions/campaignContribute.ts) takes an explicit strengthAdded and only
+ * targets the player's OWN campaign; the strength→vote curve itself
+ * (campaigns/campaignStrength.ts) is fully ported and applied at vote
+ * accumulation in elections/tallyAdapter.ts for presidential generals only.
  */
 
 export function campaignKey(electionId: string, candidateId: string): string {
@@ -61,6 +63,7 @@ export function ensureCampaign(world: WorldState, args: CreateCampaignArgs): voi
     mediaSpendingTree: freshOpsTree(),
     spendThisTurn: 0,
     spendStock: 0,
+    campaignStrength: 0,
     totalFundsGenerated: 0,
     totalFundsSpent: 0,
     totalActionsGenerated: 0,

@@ -2417,6 +2417,13 @@ export function deserializeSave(raw: string): WorldState {
   for (const campaign of Object.values(save.world.campaigns)) {
     if (typeof campaign.spendStock !== "number") campaign.spendStock = 0;
     if (!Array.isArray(campaign.activityHistory)) campaign.activityHistory = [];
+    // #68: campaignStrength default. Saves written before the campaign-strength
+    // port carry campaigns without the field; missing degrades to 0 at every
+    // read site (strength 0 ⇒ vote multiplier 1, a no-op), but the backfill
+    // keeps every loaded row explicit — same additive shape as the spendStock
+    // backfill above, and tolerant of absent values for old saves. No version
+    // renumber is needed.
+    if (typeof campaign.campaignStrength !== "number") campaign.campaignStrength = 0;
   }
   assertCurrentWorldState(save.world);
   return save.world;

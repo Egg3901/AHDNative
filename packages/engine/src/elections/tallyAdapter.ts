@@ -19,6 +19,7 @@ import type {
 } from "../electionEngine/types.js";
 import { aggregateFundsByParty } from "../electionEngine/fundsByParty.js";
 import { campaignKey } from "../campaigns/lifecycle.js";
+import { campaignStrengthVoteMultiplier } from "../campaigns/campaignStrength.js";
 import { buildNationwideElectoratePreload } from "../electionEngine/nationwideElectorate.js";
 import { distributeVotesByGroupLevelAllocation } from "../electionEngine/voteDistribution.js";
 import { distributeVotesBySwingFlow } from "../electionEngine/voteDistributionSwingFlow.js";
@@ -101,6 +102,39 @@ function campaignTargetedAdBonuses(
     if (bonus > 0) bonuses[groupId] = (bonuses[groupId] ?? 0) + bonus;
   }
   return Object.keys(bonuses).length > 0 ? bonuses : undefined;
+}
+
+/**
+ * #68: per-candidate campaign-strength vote multiplier, keyed by the
+ * ElectionRecord candidate id.
+ *
+ * WHERE the reference applies it: ONLY in AHDGame's presidential engine
+ * (src/lib/presidentialElectionEngine.ts, ~line 976) — it multiplies each
+ * unit's current-turn votes by `campaignStrengthVoteMultiplier(cs, …)`. A grep
+ * of the whole AHDGame src/lib found no other engine reading
+ * `campaignStrengthVoteMultiplier`: the general/down-ballot tower
+ * (electionEngine/tallyManagement.ts, ported here as
+ * electionEngine/tally/accumulateVoteTurn.ts) never touches campaign strength.
+ * Native routes BOTH the president's per-state tallies and down-ballot races
+ * through that same `accumulateVoteTurn`, so the presidential-only gate lives
+ * HERE: the caller passes this map for president races only, down-ballot races
+ * pass nothing, and the accumulator stays a generic multiplier consumer.
+ *
+ * WHY strength<=0 is skipped: the multiplier is exactly 1 at strength 0, so an
+ * empty/absent map leaves every existing save and fixture byte-identical.
+ */
+function buildCampaignStrengthVoteMultipliers(
+  world: WorldState,
+  electionId: string,
+): Record<string, number> | undefined {
+  const multipliers: Record<string, number> = {};
+  for (const campaign of Object.values(world.campaigns)) {
+    if (campaign.electionId !== electionId) continue;
+    const strength = campaign.campaignStrength ?? 0;
+    if (strength <= 0) continue;
+    multipliers[campaign.candidateId] = campaignStrengthVoteMultiplier(strength);
+  }
+  return Object.keys(multipliers).length > 0 ? multipliers : undefined;
 }
 
 function deriveTurnout(world: WorldState, stateId: string, electionId?: string): TallyTurnoutInput | null {
@@ -413,6 +447,13 @@ function runAccumulateCore(
   );
 
   const isGeneralElection = world.meta.turn >= rec.primaryEndTurn;
+  // #68: campaign strength only multiplies presidential GENERAL votes (see
+  // buildCampaignStrengthVoteMultipliers). Down-ballot races and primary-phase
+  // president tallies pass nothing, so the accumulator is byte-identical.
+  const voteMultiplierByCandidateId =
+    rec.electionType === "president" && isGeneralElection
+      ? buildCampaignStrengthVoteMultipliers(world, rec.id)
+      : undefined;
   const input: AccumulateVoteTurnInput = {
     election: {
       _id: rec.id,
@@ -449,6 +490,7 @@ function runAccumulateCore(
       : distributeVotesByGroupLevelAllocation,
     rng,
     isGeneralElection,
+    ...(voteMultiplierByCandidateId ? { voteMultiplierByCandidateId } : {}),
   };
 
   const result = accumulateVoteTurn(input);

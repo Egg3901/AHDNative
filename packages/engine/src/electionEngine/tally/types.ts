@@ -221,6 +221,16 @@ export interface AccumulateVoteTurnInput {
   rng?: WorldRng;
   /** Whether this is general election phase — if null, derived from election bounds */
   isGeneralElection?: boolean | null;
+  /**
+   * Optional per-candidate vote multiplier applied to THIS turn's votes before
+   * they are added to the cumulative tally, keyed by candidate id (#68). The
+   * caller supplies it only where the AHDGame reference applies campaign
+   * strength — US presidential GENERALS, see
+   * elections/tallyAdapter.ts buildCampaignStrengthVoteMultipliers. Absent ⇒
+   * identity, so down-ballot races and zero-strength campaigns accumulate
+   * byte-identically to before.
+   */
+  voteMultiplierByCandidateId?: Record<string, number>;
 }
 
 export interface AccumulateVoteTurnResult {

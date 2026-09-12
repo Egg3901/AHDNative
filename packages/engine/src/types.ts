@@ -458,14 +458,12 @@ export interface CampaignActivity {
 /**
  * Per-candidate campaign (W26). Ports src/lib/db/types/campaign.ts Campaign,
  * trimmed to the fields the ported turn loop and tally integration need:
- * treasury (funds/actions), the four ops-lever trees, and per-turn spend
- * accounting. Cut vs mainline: donationLog/fogOfWar (UI-facing history, no
- * consumer in solo), manager permissions/effects (the player campaign has a
- * single native manager state, but managers do not yet act independently),
- * oppositionTargetId (opposition-research targeting is wired for the player
- * campaign), campaignStrength (player
- * contribution mechanic — PORT-STUB, see campaigns/README note in
- * campaigns/lifecycle.ts).
+ * treasury (funds/actions), the four ops-lever trees, per-turn spend
+ * accounting, and campaign strength. Cut vs mainline: donationLog/fogOfWar
+ * (UI-facing history, no consumer in solo), manager permissions/effects (the
+ * player campaign has a single native manager state, but managers do not yet
+ * act independently), oppositionTargetId (opposition-research targeting is
+ * wired for the player campaign).
  */
 export interface Campaign {
   /** `${electionId}:${candidateId}` — see campaigns/lifecycle.ts campaignKey. */
@@ -497,6 +495,16 @@ export interface Campaign {
   /** Current opposition-research target, when the player has selected one. */
   oppositionTargetId?: string;
   oppositionTargetName?: string;
+  /**
+   * Accumulated campaign strength from player contributions (#68). Drives the
+   * presidential-general vote multiplier (campaigns/campaignStrength.ts,
+   * applied at vote accumulation in elections/tallyAdapter.ts). Ports
+   * Campaign.campaignStrength (src/lib/db/types/campaign.ts). Optional and
+   * treated as 0 when absent, so every pre-#68 save and fixture is unchanged
+   * (strength 0 ⇒ multiplier 1). ensureCampaign seeds 0 for new rows;
+   * deserializeSave backfills 0 for old saves.
+   */
+  campaignStrength?: number;
   /** Turn-based retarget cooldown. Missing on saves written before targeting. */
   oppositionResearchCooldownUntilTurn?: number;
   /**

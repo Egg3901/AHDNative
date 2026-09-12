@@ -384,11 +384,21 @@ export function accumulateVoteTurn(
   const endorsedIds = derived.executiveEndorsedCandidateIds ?? new Set<string>();
 
   const activeCandidateIds = new Set(effEnriched.map((ec) => ec.candidateId));
+  const voteMultiplierByCandidateId = input.voteMultiplierByCandidateId;
   const newTotals: Record<string, number> = {};
   for (const ec of effEnriched) {
     const raw = votesPerCandidate[ec.candidateId] ?? 0;
-    const multiplier = endorsedIds.has(ec.candidateId) ? EXECUTIVE_ENDORSEMENT_VOTE_BONUS : 1.0;
-    newTotals[ec.candidateId] = (tally.totalVotes[ec.candidateId] ?? 0) + Math.round(raw * multiplier);
+    const endorsementMultiplier = endorsedIds.has(ec.candidateId) ? EXECUTIVE_ENDORSEMENT_VOTE_BONUS : 1.0;
+    let turnVotes = Math.round(raw * endorsementMultiplier);
+    // #68: campaign-strength vote multiplier (AHDGame presidentialElectionEngine
+    // applies it here, on the current unit's per-turn votes, after the other
+    // passive multipliers and before the cumulative write). Sequential rounding
+    // matches the reference's per-stage `Math.round`; a multiplier of exactly 1
+    // (every non-presidential race and every zero-strength campaign) leaves
+    // `turnVotes` untouched, so this is a strict no-op for existing saves.
+    const strengthMultiplier = voteMultiplierByCandidateId?.[ec.candidateId] ?? 1;
+    if (strengthMultiplier !== 1) turnVotes = Math.round(turnVotes * strengthMultiplier);
+    newTotals[ec.candidateId] = (tally.totalVotes[ec.candidateId] ?? 0) + turnVotes;
   }
 
   // Seat estimation (Hamilton)
