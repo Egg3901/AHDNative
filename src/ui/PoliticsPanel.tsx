@@ -1241,8 +1241,8 @@ function ReferendumsSection({ politics, busy, onAction, initialId }: Omit<Politi
             {selected.conversionDeadlineTurn != null ? <div className="ahd-kv"><dt>Consent deadline</dt><dd className="ahd-mono">Turn {selected.conversionDeadlineTurn}</dd></div> : null}
             {selected.latestPollTurn != null ? <div className="ahd-kv"><dt>Latest poll</dt><dd className="ahd-mono">Turn {selected.latestPollTurn}</dd></div> : null}
           </dl>
-          {record.campaign.active ? (
-            <ReferendumCampaignControls record={record} busy={busy} currency={politics.currency} onAction={onAction} />
+          {selected.campaign.active ? (
+            <ReferendumCampaignControls record={selected} busy={busy} currency={politics.currency} onAction={onAction} />
           ) : null}
         </article>
       ) : null}
