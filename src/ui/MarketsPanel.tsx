@@ -74,7 +74,7 @@ function ListingList({
     return <div className="ahd-empty">No corporations match.</div>;
   }
   return (
-    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+    <ul aria-label="Companies" style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
       {listings.map((listing) => (
         <li key={listing.id}>
           <button

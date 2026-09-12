@@ -15,7 +15,7 @@ test('domestic shares can be bought, partly sold and retained across relaunch', 
     await page.getByRole('region', { name: 'Stock market', exact: true }).getByLabel('Country', { exact: true }).selectOption('US');
   };
   await openMarket();
-  const listing = page.getByRole('region', { name: 'Stock market', exact: true }).getByRole('list').getByRole('button').first();
+  const listing = page.getByRole('region', { name: 'Stock market', exact: true }).getByRole('list', { name: 'Companies' }).getByRole('button').first();
   const company = await listing.getAttribute('aria-label');
   await listing.click();
   await page.getByLabel('Shares', { exact: true }).fill('2');
