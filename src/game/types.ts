@@ -59,7 +59,7 @@ export interface GameScreenProps {
   preferences: Preferences;
   onPreferencesChange: (value: Preferences) => void;
   preferencesError?: string | null;
-  search: (query: string) => Promise<import("./search").SearchResults>;
+  search: (query: string, filter?: import("./search").SearchFilter) => Promise<import("./search").SearchResults>;
   loadBondMarket: () => Promise<import("./bondMarket").BondMarketView>;
   loadRegions: (query?: import("./regions").RegionsQuery) => Promise<import("./regions").RegionsView>;
   loadCaucusManagement: () => Promise<import("./caucusManagement").CaucusManagementView>;

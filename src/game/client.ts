@@ -3,7 +3,7 @@ import type { RegionsQuery, RegionsView } from "./regions";
 import type { CaucusManagementView } from "./caucusManagement";
 import type { BondMarketView } from "./bondMarket";
 import type { PartyManagementView } from "./partyManagement";
-import type { SearchResults } from "./search";
+import type { SearchFilter, SearchResults } from "./search";
 import type { MarketsView } from "./markets";
 import type { LegislationDetailsQuery, LegislationSelection } from "./legislationDetails";
 import type { WorldOverviewView } from "./worldOverview";
@@ -44,7 +44,7 @@ export class GameClient {
   create(options: NewGameOptions) { return this.send<GameView>({ type: "create", options }); }
   legislation(selection: LegislationSelection = {}) { return this.send<LegislationDetailsQuery>({ type: "legislation", selection }); }
   worldOverview() { return this.send<WorldOverviewView>({ type: "worldOverview" }); }
-  search(query: string) { return this.send<SearchResults>({ type: "search", query }); }
+  search(query: string, filter?: SearchFilter) { return this.send<SearchResults>({ type: "search", query, filter }); }
   bondMarket() { return this.send<BondMarketView>({ type: "bondMarket" }); }
   regions(query: RegionsQuery = {}) { return this.send<RegionsView>({ type: "regions", query }); }
 

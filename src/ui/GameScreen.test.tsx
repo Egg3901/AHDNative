@@ -55,7 +55,7 @@ function profileFor(world: GameView): ProfileView {
       funds: world.player.funds, donorBaseLevel: 0, regularIncome: 9500, donorIncome: 0 },
   };
 }
-const search = async (query: string) => ({ query, results: [], total: 0 });
+const search = async (query: string) => ({ query, results: [], total: 0, facets: { kinds: [], countries: [], regions: [] } });
 const loadBondMarket = vi.fn();
 const loadRegions = vi.fn();
 const loadCaucusManagement = vi.fn();

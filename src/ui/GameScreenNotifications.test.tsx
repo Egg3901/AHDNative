@@ -61,7 +61,7 @@ const baseProps = {
   onDeleteNotification: vi.fn(),
   onMarkAllNotificationsRead: vi.fn(),
 };
-const search = async (query: string) => ({ query, results: [], total: 0 });
+const search = async (query: string) => ({ query, results: [], total: 0, facets: { kinds: [], countries: [], regions: [] } });
 const loadBondMarket = vi.fn();
 const loadRegions = vi.fn();
 const loadCaucusManagement = vi.fn();

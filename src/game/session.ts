@@ -5,7 +5,7 @@ import { projectRegions, type RegionsQuery } from "./regions";
 import { projectCaucusManagement } from "./caucusManagement";
 import { projectBondMarket } from "./bondMarket";
 import { projectPartyManagement } from "./partyManagement";
-import { searchWorld } from "./search";
+import { searchWorld, type SearchFilter } from "./search";
 import { projectMarkets } from "./markets";
 import { buildLegislationDetails, type LegislationSelection } from "./legislationDetails";
 import { projectWorldOverview } from "./worldOverview";
@@ -176,7 +176,7 @@ export class GameSession {
 
   worldOverview() { return projectWorldOverview(this.requireWorld()); }
 
-  search(query: string) { return searchWorld(this.requireWorld(), query); }
+  search(query: string, filter?: SearchFilter) { return searchWorld(this.requireWorld(), query, filter); }
 
   bondMarket() { return projectBondMarket(this.requireWorld()); }
 
