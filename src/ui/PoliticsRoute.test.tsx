@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
 import type { PoliticsView } from '../game/politics';
 import { PoliticsRoute } from './PoliticsRoute';
-const politics: PoliticsView = { countryId: 'US', countryName: 'United States', currency: 'USD', playerPartyId: null, parties: [], elections: [], politicians: [] };
+const politics: PoliticsView = { countryId: 'US', countryName: 'United States', currency: 'USD', playerPartyId: null, parties: [], elections: [], referendums: [], referendumRequest: { applicable: false, note: 'Referendums are only available in the UK in this local slice.', regions: [], action: { id: 'requestReferendum', name: 'Request Referendum', description: '', cost: 0, available: false, disabledReason: 'Referendums are UK-only.' } }, politicians: [] };
 
 it('recovers an on-demand query failure through the visible retry control', async () => {
   const load = vi.fn<() => Promise<PoliticsView>>()

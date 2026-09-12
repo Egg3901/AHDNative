@@ -68,6 +68,37 @@ function nextReferendumId(world: WorldState, regionId: string): string {
 }
 
 /**
+ * Display-facing eligibility for one devolution region: the same active and
+ * cooldown precedence the request action enforces. Read-only; no state change.
+ */
+export function referendumRegionStatus(world: WorldState, regionId: string): {
+  desire: number; eligible: boolean; reason?: string; active: boolean;
+  lastTerminal: ReferendumRecord | null;
+} {
+  const region = world.regions[regionId];
+  const active = world.referendums.some(
+    (record) => record.regionId === regionId && ACTIVE_STATUSES.has(record.status),
+  );
+  const lastTerminal = [...world.referendums]
+    .reverse()
+    .find((record) => record.regionId === regionId && TERMINAL_STATUSES.has(record.status)) ?? null;
+  const desire = region?.independenceDesire ?? 0;
+  const eligibility = referendumRequestEligibility({
+    desire,
+    hasActiveReferendum: active,
+    cooldownReadyAtTurn: lastTerminal?.cooldownReadyAtTurn ?? null,
+    currentTurn: world.meta.turn,
+  });
+  return {
+    desire,
+    active,
+    lastTerminal,
+    eligible: eligibility.eligible,
+    ...(eligibility.reason ? { reason: eligibility.reason } : {}),
+  };
+}
+
+/**
  * Player-facing Native equivalent of AHDGame's request + PM grant seam.
  *
  * AHDNative has no devolved First Minister office ledger yet. The action

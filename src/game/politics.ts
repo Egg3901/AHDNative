@@ -6,7 +6,10 @@ import {
   SUPPORT_RALLY_TOUR_TICK_ACTION_COST,
   CAMPAIGN_TARGETED_AD_CAP,
   requiresPrimaryResolution,
-  type Campaign, type OpsBranchKey, type WorldState,
+  UK_DEVOLUTION_REGIONS,
+  referendumRegionStatus,
+  REQUEST_THRESHOLD,
+  type Campaign, type OpsBranchKey, type ReferendumRecord, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionView, RacePhase } from "./types";
 import { racePhase } from "./racePhase";
@@ -206,10 +209,35 @@ export interface PoliticsPoliticianView {
   activeRaceIds: string[];
 }
 
+export interface PoliticsReferendumView {
+  id: string;
+  kind: "independence" | "reunification";
+  regionId: string; regionName: string;
+  question: string;
+  status: string; phase: string; scope: string;
+  yesShare: number; finalYesShare: number | null; passed: boolean | null; turnout: number | null;
+  requestedTurn: number;
+  campaignOpenTurn: number | null; campaignCloseTurn: number | null;
+  conversionDeadlineTurn: number | null; cooldownReadyAtTurn: number | null;
+  latestPollTurn: number | null;
+}
+
+export interface PoliticsReferendumRegionView {
+  regionId: string; regionName: string; desire: number; eligible: boolean; reason?: string;
+}
+
+export interface PoliticsReferendumRequestView {
+  applicable: boolean; note: string;
+  regions: PoliticsReferendumRegionView[];
+  action: ActionView;
+}
+
 export interface PoliticsView {
   countryId: string; countryName: string; currency: string; playerPartyId: string | null;
   parties: PoliticsPartyDetail[];
   elections: PoliticsElectionDetail[];
+  referendums: PoliticsReferendumView[];
+  referendumRequest: PoliticsReferendumRequestView;
   politicians: PoliticsPoliticianView[];
 }
 
@@ -761,6 +789,83 @@ function projectRaceStages(
   return stages;
 }
 
+const REFERENDUM_STATUS_LABELS: Record<string, string> = {
+  granted: "Granted",
+  campaigning: "Campaigning",
+  polling: "Polling",
+  actuating: "Consent and actuation",
+  completed: "Completed",
+  settled: "Settled",
+  cancelled: "Cancelled",
+};
+
+const REFERENDUM_TERMINAL = new Set(["completed", "settled", "cancelled"]);
+
+/** Read-only view of a persisted W25 referendum record; no new state is invented. */
+function projectReferendum(world: WorldState, record: ReferendumRecord): PoliticsReferendumView {
+  const regionName = world.regions[record.regionId]?.name ?? record.regionId;
+  const targetName = record.targetCountryId
+    ? world.countries[record.targetCountryId]?.name ?? record.targetCountryId
+    : null;
+  const polls = record.pollHistory ?? [];
+  return {
+    id: record.id,
+    kind: record.kind,
+    regionId: record.regionId,
+    regionName,
+    question: record.kind === "reunification" && targetName
+      ? `Should ${regionName} reunify with ${targetName}?`
+      : `Should ${regionName} become an independent country?`,
+    status: record.status,
+    phase: REFERENDUM_STATUS_LABELS[record.status] ?? record.status,
+    scope: `${regionName} · devolved region`,
+    yesShare: record.yesShare,
+    finalYesShare: record.finalYesShare ?? null,
+    passed: record.passed ?? null,
+    turnout: record.turnout ?? null,
+    requestedTurn: record.requestedTurn,
+    campaignOpenTurn: record.campaignOpenTurn ?? null,
+    campaignCloseTurn: record.campaignCloseTurn ?? null,
+    conversionDeadlineTurn: record.conversionDeadlineTurn ?? null,
+    cooldownReadyAtTurn: record.cooldownReadyAtTurn ?? null,
+    latestPollTurn: polls.length > 0 ? polls[polls.length - 1]!.turn : null,
+  };
+}
+
+/** UK-only request seam; every reason comes from the engine's own eligibility. */
+function projectReferendumRequest(world: WorldState): PoliticsReferendumRequestView {
+  const entry = ACTION_CATALOG.requestReferendum;
+  const base = { id: "requestReferendum", name: entry.name, description: entry.description };
+  if (world.player.countryId !== "UK") {
+    return {
+      applicable: false,
+      note: "Referendums are only available in the UK in this local slice.",
+      regions: [],
+      action: { ...base, cost: 0, available: false, disabledReason: "Referendums are UK-only." },
+    };
+  }
+  const regions = [...UK_DEVOLUTION_REGIONS].sort().map((regionId) => {
+    const status = referendumRegionStatus(world, regionId);
+    return {
+      regionId,
+      regionName: world.regions[regionId]?.name ?? regionId,
+      desire: status.desire,
+      eligible: status.eligible,
+      ...(status.reason ? { reason: status.reason } : {}),
+    };
+  });
+  const cost = getActionCost(entry, world.player.donorBaseLevel, world.player.politicalInfluence, world.player.favorability);
+  const anyEligible = regions.some((region) => region.eligible);
+  const reason = !anyEligible ? `No devolved region has reached ${REQUEST_THRESHOLD} independence desire.`
+    : world.player.actions < cost ? "Not enough action points." : undefined;
+  return {
+    applicable: true,
+    note: `A request needs ${REQUEST_THRESHOLD} independence desire and costs ${cost} action points.`,
+    regions,
+    action: { ...base, cost, available: !reason, ...(reason ? { disabledReason: reason } : {}) },
+  };
+}
+
 export function projectPolitics(world: WorldState): PoliticsView {
   const country = world.countries[world.player.countryId];
   if (!country || !country.playable) throw new Error("The save does not contain the player's playable country.");
@@ -848,5 +953,12 @@ export function projectPolitics(world: WorldState): PoliticsView {
     })
     .sort((a, b) => Number(b.isPlayerParty) - Number(a.isPlayerParty) || b.members - a.members);
 
-  return { countryId: country.id, countryName: country.name, currency: world.budgets[country.id]?.currencyCode ?? world.exchangeRates[country.id]?.currencyCode ?? "XXX", playerPartyId: player.partyId, parties, elections, politicians };
+  const referendums = world.referendums
+    .filter((record) => record.countryId === player.countryId)
+    .sort((a, b) =>
+      Number(REFERENDUM_TERMINAL.has(a.status)) - Number(REFERENDUM_TERMINAL.has(b.status))
+      || b.requestedTurn - a.requestedTurn)
+    .map((record) => projectReferendum(world, record));
+
+  return { countryId: country.id, countryName: country.name, currency: world.budgets[country.id]?.currencyCode ?? world.exchangeRates[country.id]?.currencyCode ?? "XXX", playerPartyId: player.partyId, parties, elections, referendums, referendumRequest: projectReferendumRequest(world), politicians };
 }
