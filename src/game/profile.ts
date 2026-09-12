@@ -47,6 +47,22 @@ export function projectProfile(world: WorldState): ProfileView {
     ? { energy: player.stats.energy ?? null, debate: player.stats.debate ?? null }
     : null;
   const achievementBySlug = new Map(ACHIEVEMENT_CATALOG.map((entry) => [entry.slug, entry]));
+  const earnedSlugs = new Set(world.achievementsEarned);
+  // Solo can only evaluate catalog entries marked "available"
+  // (achievements/evaluate.ts); the rest are PORT-STUB entries blocked on
+  // unported systems. That subset is the honest denominator for progress.
+  const evaluableAchievements = ACHIEVEMENT_CATALOG
+    .filter((entry) => entry.status === "available")
+    .sort((a, b) => a.order - b.order);
+  const earnedAchievements = world.achievementsEarned.flatMap((slug) => {
+    const entry = achievementBySlug.get(slug);
+    return entry ? [{ slug, name: entry.name, description: entry.description }] : [];
+  });
+  // Only catalog entries persist into the earned list, and only the evaluable
+  // subset counts toward progress — never fabricate a completion or a target.
+  const lockedAchievements = evaluableAchievements
+    .filter((entry) => !earnedSlugs.has(entry.slug))
+    .map((entry) => ({ slug: entry.slug, name: entry.name, description: entry.description }));
 
   return {
     name: player.name,
@@ -74,10 +90,12 @@ export function projectProfile(world: WorldState): ProfileView {
         result: "Elected",
         turn: election.resolvedTurn ?? election.endTurn,
       })),
-    achievements: world.achievementsEarned.flatMap((slug) => {
-      const entry = achievementBySlug.get(slug);
-      return entry ? [{ slug, name: entry.name, description: entry.description }] : [];
-    }),
+    achievements: earnedAchievements,
+    achievementProgress: {
+      earned: evaluableAchievements.filter((entry) => earnedSlugs.has(entry.slug)).length,
+      available: evaluableAchievements.length,
+    },
+    lockedAchievements,
     resourceDetails: resources,
     standing: {
       actions: player.actions,
