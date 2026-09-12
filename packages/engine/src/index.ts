@@ -77,10 +77,33 @@ export {
   getOpsBranch, getOpsBranchMagnitude, getTreeMaintenanceCost,
 } from "./campaigns/upgradeCosts.js";
 export type { OpsBranchKey, UpgradeCategory } from "./campaigns/upgradeCosts.js";
-export { campaignAnchorToLocal } from "./campaigns/campaignCurrency.js";
+export { campaignAnchorToLocal, campaignLocalRate } from "./campaigns/campaignCurrency.js";
 export { calculateCampaignIncome } from "./campaigns/income.js";
 export { calculateMaintenanceCosts } from "./campaigns/maintenance.js";
 export { campaignKey } from "./campaigns/lifecycle.js";
+// #68 campaign strength: the display layer shares the exact contribution
+// cost/action formulas and the vote-boost curve with the engine (SSOT).
+export {
+  CAMPAIGN_STRENGTH_MAX_BONUS,
+  CAMPAIGN_STRENGTH_TAU,
+  CAMPAIGN_STRENGTH_CONTRIBUTION_NPI_MULTIPLIER,
+  CAMPAIGN_STRENGTH_LEADER_PULLBACK_MAX_PER_TURN,
+  CAMPAIGN_STRENGTH_PRICE_PER_POINT,
+  CAMPAIGN_STRENGTH_POINTS_PER_ACTION,
+  CAMPAIGN_STRENGTH_MAX_BATCH_CLICKS,
+  CAMPAIGN_STRENGTH_BATCH_STEPS,
+  campaignStrengthContributionCost,
+  campaignStrengthContributionActions,
+  campaignStrengthVoteMultiplier,
+  campaignStrengthBoostPercent,
+  calculateCampaignStrengthLeaderPullbacks,
+  campaignStrengthBatchQuote,
+  maxAffordableCampaignStrengthClicks,
+} from "./campaigns/campaignStrength.js";
+export type {
+  CampaignStrengthPullbackCandidate,
+  CampaignStrengthBatchQuote,
+} from "./campaigns/campaignStrength.js";
 
 // Authoritative player action refresh projection (#31), shared by the
 // actionRefresh phase and the Profile/footer resource breakdowns.

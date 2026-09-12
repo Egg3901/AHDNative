@@ -82,6 +82,7 @@ export type ActionId =
   | "campaignManager"
   | "campaignCanvass"
   | "campaignTargetedAd"
+  | "campaignContribute"
   | "declareWar"
   | "offerPeace"
   | "acceptPeace"
@@ -797,6 +798,21 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: CAMPAIGN_TARGETED_AD_FUNDS,
     systems: ["campaign/targeting"],
+    status: "available",
+  },
+  // #68: campaign-strength contribution. baseCost/fundCost are 0 in the
+  // catalog because the real cost is DYNAMIC — it depends on `strengthAdded`
+  // and the campaign's current strength (campaigns/campaignStrength.ts), and
+  // is charged directly in actions/campaignContribute.ts after its own
+  // validation (same pattern as campaignUpgrade). Presidential races only.
+  campaignContribute: {
+    id: "campaignContribute",
+    name: "Contribute Campaign Strength",
+    description: "Spend campaign funds and actions to add campaign strength to your own presidential campaign. Strength raises your vote tally through the shared saturation curve (soft-capped at +100%). Cost scales with strength bought and with the strength you already hold. Ports the contribution formulas from campaignStrength.ts.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["campaign/strength"],
     status: "available",
   },
   declareWar: {

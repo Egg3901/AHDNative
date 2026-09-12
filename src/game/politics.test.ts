@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { createWorld, declareCandidacy, resolvePrimaries, advanceTurn } from "@ahdclient/engine";
+import { createWorld, declareCandidacy, resolvePrimaries, advanceTurn, campaignKey, campaignStrengthVoteMultiplier } from "@ahdclient/engine";
 import { GameSession } from "./session";
 import { projectPolitics } from "./politics";
 
@@ -219,6 +219,74 @@ describe("projectPolitics", () => {
     const loaded = new GameSession();
     loaded.load(session.serialize(SAVED_AT));
     expect(loaded.politics().referendums.map((record) => record.id)).toEqual(politics.referendums.map((record) => record.id));
+  });
+
+  it("projects strength-adjusted vote share for presidential generals only", () => {
+    const world = createWorld({ ...options, seed: "strength-projection" });
+    world.player.partyId = DEM;
+    world.player.funds = 10_000_000;
+    world.player.actions = 100;
+    const rival = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === REP)!;
+    const id = "president:US:-:c1";
+    world.elections = [{
+      id, electionType: "president", countryId: "US", cycle: 1,
+      status: "active", startTurn: 0, primaryEndTurn: 20, endTurn: 60, totalSeats: 1, chamberKey: "president",
+      candidates: [{ id: rival.id, name: rival.name, partyId: REP, isNPP: true, incumbent: false }],
+      tally: {},
+    }];
+    expect(declareCandidacy(world, id).ok).toBe(true);
+    world.meta.turn = 40;
+    world.elections[0]!.tally = { player: 4000, [rival.id]: 6000 };
+    const campaign = world.campaigns[campaignKey(id, "player")]!;
+    campaign.campaignStrength = 50_000;
+
+    const detail = projectPolitics(world).elections[0]!;
+    // Counted totals stay counted and lead with the rival.
+    expect(detail.projection.leaderName).toBe(rival.name);
+    expect(detail.projection.leaderShare).toBeCloseTo(0.6, 6);
+    // The projection applies the ported curve to the player's counted votes.
+    const playerVotes = 4000 * campaignStrengthVoteMultiplier(50_000);
+    const total = playerVotes + 6000;
+    expect(detail.projection.projected).toMatchObject({ leaderName: world.player.name });
+    expect(detail.projection.projected!.leaderShare).toBeCloseTo(playerVotes / total, 6);
+    expect(detail.projection.projected!.marginPct).toBeCloseTo((playerVotes - 6000) / total, 6);
+    expect(detail.projection.projected!.note).toMatch(/not a result/i);
+    expect(detail.projection.drivers.some((driver) => /campaign strength/i.test(driver.label))).toBe(true);
+
+    // The campaign view quotes the contribution from the same formulas.
+    expect(detail.playerCampaign!.strength.value).toBe(50_000);
+    expect(detail.playerCampaign!.strength.voteBoostPct).toBeCloseTo(63.21205588285577, 6);
+    expect(detail.playerCampaign!.strength.eligible).toBe(true);
+    expect(detail.playerCampaign!.strength.contribute).toMatchObject({ id: "campaignContribute", available: true, cost: 1 });
+  });
+
+  it("reports why no strength projection is available and never substitutes the tally", () => {
+    const world = createWorld({ ...options, seed: "strength-projection-gaps" });
+    world.player.partyId = DEM;
+    world.player.funds = 10_000_000;
+    world.player.actions = 100;
+    const rival = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === REP)!;
+    const id = "president:US:-:c1";
+    world.elections = [{
+      id, electionType: "president", countryId: "US", cycle: 1,
+      status: "active", startTurn: 0, primaryEndTurn: 20, endTurn: 60, totalSeats: 1, chamberKey: "president",
+      candidates: [{ id: rival.id, name: rival.name, partyId: REP, isNPP: true, incumbent: false }],
+      tally: {},
+    }];
+    expect(declareCandidacy(world, id).ok).toBe(true);
+    world.meta.turn = 40;
+    world.elections[0]!.tally = { player: 4000, [rival.id]: 6000 };
+
+    // No strength recorded: explicit unavailable note, no projected numbers.
+    const noStrength = projectPolitics(world).elections[0]!;
+    expect(noStrength.projection.projected).toMatchObject({ leaderName: null, leaderShare: null, marginPct: null });
+    expect(noStrength.projection.projected!.note).toMatch(/no campaign strength recorded/i);
+    expect(noStrength.playerCampaign!.strength.contribute.available).toBe(true);
+
+    // Down-ballot races never project strength, even with strength recorded.
+    world.campaigns[campaignKey(id, "player")]!.campaignStrength = 20_000;
+    world.elections[0] = { ...world.elections[0]!, electionType: "house", chamberKey: "house" };
+    expect(projectPolitics(world).elections[0]!.projection.projected).toBeNull();
   });
 
   it("lists country politicians with actual engine fields", () => {

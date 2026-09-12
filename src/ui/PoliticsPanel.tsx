@@ -278,6 +278,18 @@ function ProjectionBlock({ projection }: { projection: PoliticsProjectionView })
           Drivers: {projection.drivers.map((d) => d.label).join(" · ")}
         </p>
       ) : null}
+      {projection.projected ? (
+        <div style={{ marginTop: "0.3rem" }}>
+          {projection.projected.leaderName && projection.projected.leaderShare != null ? (
+            <p style={{ fontSize: "0.8rem", margin: "0.15rem 0" }}>
+              Projected leader: {projection.projected.leaderName} ({(projection.projected.leaderShare * 100).toFixed(1)}%)
+              {projection.projected.marginPct != null
+                ? `, margin +${(projection.projected.marginPct * 100).toFixed(1)}pt` : ""}
+            </p>
+          ) : null}
+          <p className="ahd-help" role="note">{projection.projected.note}</p>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -345,10 +357,11 @@ function PrimaryBlock({ primary }: { primary: PoliticsPrimaryView }) {
   );
 }
 
-function CampaignBlock({ electionId, campaign, busy, onAction }: {
+function CampaignBlock({ electionId, campaign, busy, onAction, currency }: {
   electionId: string;
   campaign: PoliticsPlayerCampaignView;
   busy: boolean;
+  currency: string;
   onAction: (id: string, params?: Record<string, string | number>) => void;
 }) {
   const fire = (category: string, branch: "a" | "b" | "c" | null) => {
@@ -418,6 +431,10 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
       demographicGroup: selectedTargetedAd.group,
     });
   };
+  const contributeStrength = () => {
+    if (busy || !campaign.strength.contribute.available) return;
+    onAction("campaignContribute", { electionId, strengthAdded: campaign.strength.step });
+  };
   const categoryLabel = (category: string) => category.replace(/([A-Z])/g, " $1").toLowerCase();
   const activityLabel = (entry: PoliticsPlayerCampaignView["activity"][number]) => {
     const target = entry.branch ? `branch ${entry.branch}` : "starter";
@@ -445,6 +462,34 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
           <div className="ahd-kv"><dt>Candidate support</dt><dd className="ahd-mono">{campaign.support.toFixed(1)} (mood input, not a vote forecast)</dd></div>
         ) : null}
       </dl>
+      <section aria-label="Campaign strength" style={{ marginTop: "0.6rem" }}>
+        <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>Campaign strength</h4>
+        <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.15rem 0" }}>
+          {campaign.strength.value.toLocaleString(undefined, { maximumFractionDigits: 1 })} strength
+          {` · +${campaign.strength.voteBoostPct.toFixed(1)}% vote boost`}
+        </p>
+        <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="ahd-btn ahd-btn-primary ahd-btn-sm"
+            disabled={busy || !campaign.strength.contribute.available}
+            aria-disabled={busy || !campaign.strength.contribute.available}
+            onClick={contributeStrength}
+          >
+            {`Contribute ${campaign.strength.step.toLocaleString()} strength`}
+          </button>
+          <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+            {campaign.strength.contribute.available
+              ? `${campaign.strength.costActions} action${campaign.strength.costActions === 1 ? "" : "s"} · ${formatFinanceMoney(campaign.strength.costFunds, currency)}`
+              : (campaign.strength.contribute.disabledReason ?? "Unavailable")}
+          </span>
+        </div>
+        {!campaign.strength.contribute.available && campaign.strength.contribute.disabledReason
+          ? <p className="ahd-help" role="note">{campaign.strength.contribute.disabledReason}</p> : null}
+        <p className="ahd-help" role="note">
+          Strength raises your presidential-general vote tally through the reference saturation curve. It is an estimate applied to counted votes, not a result.
+        </p>
+      </section>
       <section aria-label="Campaign rally" style={{ marginTop: "0.6rem" }}>
         <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>Campaign rally</h4>
         <p className="ahd-help" style={{ margin: "0 0 0.35rem" }}>
@@ -885,7 +930,7 @@ function CampaignSection({ politics, busy, onAction, initialId }: Omit<PoliticsP
         <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>
           {election.status} · election day {election.date}
         </p>
-        <CampaignBlock electionId={election.id} campaign={election.playerCampaign} busy={busy} onAction={onAction} />
+        <CampaignBlock electionId={election.id} campaign={election.playerCampaign} busy={busy} onAction={onAction} currency={politics.currency} />
       </article>
     </div>
   );
