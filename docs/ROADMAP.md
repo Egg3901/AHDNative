@@ -595,3 +595,28 @@ Remaining: player referendum campaign writers (spending, ground game, positions)
 do not exist in the engine, so #70 stays open for those. Evidence:
 `src/game/politics.test.ts`, `PoliticsPanel.test.tsx`,
 `smoke/referendums.spec.ts`. No mechanics formula changed.
+
+
+## Campaign strength and strength projection checkpoint
+
+#68: the campaign-strength mechanic is ported from AHDGame (contribution cost
+and action formulas, the saturation vote curve, leader pullbacks, batch quote,
+max-affordable clicks) with hand-derived reference vectors. `campaignStrength`
+is a real campaign field defaulting to 0 with an additive save backfill, and the
+multiplier is applied at vote accumulation exactly where the reference applies
+it: presidential generals only. At strength 0 it is a strict no-op, so no
+existing save, fixture or golden moved.
+
+The player can contribute strength to their own presidential campaign through
+the reference funds/action cost (validated before any debit), and the campaign
+panel shows the recorded `+X% vote boost`. The race projection block now
+separates counted totals from a strength-adjusted projected leader and margin,
+with explicit unavailable states and a note that it is an estimate.
+
+Remaining: leader pullbacks are ported but not yet attached to a turn phase, and
+the national-influence coupling / cross-campaign transfer paths of the reference
+command remain omitted (named in `docs/CAMPAIGN-STRENGTH.md`). #68 stays open
+for those. Evidence: `packages/engine/src/campaigns/campaignStrength.test.ts`
+and `campaignContribute.test.ts` (27 tests, including the no-op-at-0 and
+presidential-only invariants), `src/game/politics.test.ts`, and
+`src/ui/PoliticsPanel.test.tsx`.

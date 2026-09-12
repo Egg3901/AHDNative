@@ -71,7 +71,7 @@ function makePolitics(): PoliticsView {
         projection: {
           resolved: false, countedVotes: null,
           leaderName: null, leaderShare: null, runnerUpName: null, marginPct: null,
-          seats: null, snapshotTurn: null, drivers: [],
+          seats: null, snapshotTurn: null, drivers: [], projected: null,
         },
       },
       {
@@ -92,6 +92,7 @@ function makePolitics(): PoliticsView {
           leaderName: "Sam Winner", leaderShare: 0.6, runnerUpName: "Lou Loser", marginPct: 0.2,
           seats: null, snapshotTurn: 90,
           drivers: [{ kind: "support", label: "Sam Winner support", refId: "US-3" }],
+          projected: null,
         },
       },
     ],
@@ -221,6 +222,21 @@ describe("PoliticsPanel elections", () => {
     expect(onAction).toHaveBeenCalledWith("withdrawCandidacy", { electionId: "house:US:AL:c1" });
   });
 
+  it("labels the strength projection separately from counted results", async () => {
+    const PoliticsPanel = await renderPanel();
+    const politics = makePolitics();
+    politics.elections[0]!.projection = {
+      ...politics.elections[0]!.projection,
+      projected: {
+        note: "Projection applies each campaign's current strength to the counted votes. It is an estimate from saved state, not a result.",
+        leaderName: "Alex", leaderShare: 0.52, marginPct: 0.04,
+      },
+    };
+    render(<PoliticsPanel politics={politics} section="elections" busy={false} onAction={vi.fn()} />);
+    expect(screen.getByText(/Projected leader: Alex \(52\.0%\), margin \+4\.0pt/)).toBeInTheDocument();
+    expect(screen.getByText(/not a result/i)).toBeInTheDocument();
+  });
+
   it("groups races by stage, shows the primary ledger, and links winners to profiles", async () => {
     const user = userEvent.setup();
     const onOpenPolitician = vi.fn();
@@ -266,6 +282,10 @@ describe("PoliticsPanel elections", () => {
       totalFundsGenerated: 12000, totalFundsSpent: 0,
       incomePerTurn: 6000, maintenancePerTurn: 0,
       support: 52, generalPhase: false,
+      strength: {
+        value: 1500, voteBoostPct: 2.96, eligible: true, step: 300, costFunds: 24900.3, costActions: 1,
+        contribute: { id: "campaignContribute", name: "Contribute Campaign Strength", description: "", cost: 1, available: true },
+      },
       rally: {
         action: { id: "campaignRally", name: "Campaign Rally", description: "", cost: 6, available: true },
         immediateSupport: 1.8, pendingPerTurn: 0.3, pendingTurns: 4,
@@ -343,6 +363,9 @@ describe("PoliticsPanel elections", () => {
       demographicCategory: "voterGroups",
       demographicGroup: "young_renters",
     });
+    expect(screen.getByText(/1,500 strength · \+3\.0% vote boost/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Contribute 300 strength" }));
+    expect(onAction).toHaveBeenCalledWith("campaignContribute", { electionId: "house:US:AL:c1", strengthAdded: 300 });
   });
 
   it("shows archived campaign detail without management controls", async () => {
@@ -357,6 +380,11 @@ describe("PoliticsPanel elections", () => {
       totalFundsGenerated: 12000, totalFundsSpent: 0,
       incomePerTurn: 6000, maintenancePerTurn: 0,
       support: null, generalPhase: false,
+      strength: {
+        value: 0, voteBoostPct: 0, eligible: false, reason: "Campaign is archived and read-only.",
+        step: 300, costFunds: 24900.3, costActions: 1,
+        contribute: { id: "campaignContribute", name: "Contribute Campaign Strength", description: "", cost: 1, available: false, disabledReason: "Campaign is archived and read-only." },
+      },
       rally: {
         action: {
           id: "campaignRally", name: "Campaign Rally", description: "", cost: 6,
@@ -436,6 +464,7 @@ describe("PoliticsPanel elections", () => {
     expect(screen.getByRole("button", { name: "Canvass selected target" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Buy targeted ads for selected target" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Unlock fundraising starter" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Contribute 300 strength" })).toBeDisabled();
     expect(onAction).not.toHaveBeenCalled();
 
     render(<PoliticsPanel politics={politics} section="elections" busy={false} onAction={onAction} onOpenCampaign={onOpenCampaign} />);

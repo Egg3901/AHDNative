@@ -77,7 +77,7 @@ export {
   getOpsBranch, getOpsBranchMagnitude, getTreeMaintenanceCost,
 } from "./campaigns/upgradeCosts.js";
 export type { OpsBranchKey, UpgradeCategory } from "./campaigns/upgradeCosts.js";
-export { campaignAnchorToLocal } from "./campaigns/campaignCurrency.js";
+export { campaignAnchorToLocal, campaignLocalRate } from "./campaigns/campaignCurrency.js";
 export { calculateCampaignIncome } from "./campaigns/income.js";
 export { calculateMaintenanceCosts } from "./campaigns/maintenance.js";
 export { campaignKey } from "./campaigns/lifecycle.js";

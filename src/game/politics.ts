@@ -9,6 +9,12 @@ import {
   UK_DEVOLUTION_REGIONS,
   referendumRegionStatus,
   REQUEST_THRESHOLD,
+  campaignLocalRate,
+  CAMPAIGN_STRENGTH_POINTS_PER_ACTION,
+  campaignStrengthBoostPercent,
+  campaignStrengthContributionActions,
+  campaignStrengthContributionCost,
+  campaignStrengthVoteMultiplier,
   type Campaign, type OpsBranchKey, type ReferendumRecord, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionView, RacePhase } from "./types";
@@ -135,6 +141,17 @@ export interface PoliticsPlayerCampaignView {
   canvassing: PoliticsCampaignCanvassingView;
   targetedAds: PoliticsCampaignTargetedAdsView;
   levers: PoliticsCampaignLeverView[];
+  /** #68 campaign strength: the ported saturation curve plus the contribution quote. */
+  strength: {
+    value: number;
+    voteBoostPct: number;
+    eligible: boolean;
+    reason?: string;
+    step: number;
+    costFunds: number;
+    costActions: number;
+    contribute: ActionView;
+  };
 }
 
 export interface PoliticsProjectionDriverView {
@@ -153,6 +170,20 @@ export interface PoliticsProjectionView {
   seats: { candidateId: string; name: string; seats: number }[] | null;
   snapshotTurn: number | null;
   drivers: PoliticsProjectionDriverView[];
+  /**
+   * Strength-adjusted projection (#68). Null when no projection applies
+   * (resolved races, non-presidential races); when it applies but cannot be
+   * computed yet the note explains why and the values stay null. Counted
+   * totals are never relabelled as projections.
+   */
+  projected: PoliticsProjectedView | null;
+}
+
+export interface PoliticsProjectedView {
+  note: string;
+  leaderName: string | null;
+  leaderShare: number | null;
+  marginPct: number | null;
 }
 
 export type PoliticsRaceStageKey = "filing" | "primary" | "general" | "results";
@@ -609,6 +640,39 @@ function projectPlayerCampaign(
       starterUpgrade, branches,
     };
   });
+  // #68: campaign strength. The contribution action is presidential-general
+  // only because that is the only place the engine applies the multiplier
+  // (elections/tallyAdapter.ts); charging elsewhere would buy a stat with no
+  // effect. Cost comes from the ported reference formulas and is charged
+  // against the PLAYER's funds/actions, matching actions/campaignContribute.ts.
+  const strengthValue = campaign.campaignStrength ?? 0;
+  const strengthStep = CAMPAIGN_STRENGTH_POINTS_PER_ACTION;
+  const strengthEligible = !archived && campaign.status === "active"
+    && election.status === "active" && election.electionType === "president" && generalPhase;
+  const strengthCostFunds = campaignStrengthContributionCost(strengthValue, strengthStep)
+    * campaignLocalRate(campaign.countryId);
+  const strengthCostActions = campaignStrengthContributionActions(strengthStep);
+  const strengthReason = campaignReason
+    ?? (!strengthEligible ? "Campaign strength currently changes votes in presidential general races only." : undefined)
+    ?? (world.player.actions < strengthCostActions ? `Needs ${strengthCostActions} action points.` : undefined)
+    ?? (world.player.funds < strengthCostFunds ? `Needs ${Math.ceil(strengthCostFunds).toLocaleString()} cash.` : undefined);
+  const strength: PoliticsPlayerCampaignView["strength"] = {
+    value: strengthValue,
+    voteBoostPct: archived ? 0 : campaignStrengthBoostPercent(strengthValue),
+    eligible: strengthEligible,
+    ...(strengthReason ? { reason: strengthReason } : {}),
+    step: strengthStep,
+    costFunds: strengthCostFunds,
+    costActions: strengthCostActions,
+    contribute: {
+      id: "campaignContribute",
+      name: ACTION_CATALOG.campaignContribute.name,
+      description: ACTION_CATALOG.campaignContribute.description,
+      cost: strengthCostActions,
+      available: !strengthReason,
+      ...(strengthReason ? { disabledReason: strengthReason } : {}),
+    },
+  };
   return {
     status: campaign.status,
     funds: campaign.funds, actions: campaign.actions,
@@ -637,6 +701,7 @@ function projectPlayerCampaign(
     canvassing: campaignCanvassingAction(world, election, campaign, campaignReason),
     targetedAds: campaignTargetedAdsAction(world, election, campaign, campaignReason),
     levers,
+    strength,
   };
 }
 
@@ -673,6 +738,9 @@ function projectProjection(
       label: `${c.name} campaign spend`,
       refId: campaignKey(election.id, c.id),
     });
+    if ((world.campaigns[campaignKey(election.id, c.id)]?.campaignStrength ?? 0) > 0) {
+      drivers.push({ kind: "campaign", label: `${c.name} campaign strength`, refId: campaignKey(election.id, c.id) });
+    }
   }
   for (const c of election.candidates) {
     if (world.candidateSupports?.[c.id] != null) {
@@ -681,6 +749,44 @@ function projectProjection(
   }
   if (election.state) {
     drivers.push({ kind: "region", label: `${election.state} organization`, refId: election.state });
+  }
+  // #68 strength-adjusted projection. The multiplier is applied by the engine
+  // only in presidential generals, so this is the only race kind it applies to.
+  // It projects the COUNTED votes forward under each campaign's current
+  // strength; a resolved race keeps its counted result, and a race with no
+  // strength or no counted votes reports why instead of showing numbers.
+  let projected: PoliticsProjectedView | null = null;
+  if (!resolved && election.electionType === "president") {
+    const strengthOf = (candidateId: string) =>
+      world.campaigns[campaignKey(election.id, candidateId)]?.campaignStrength ?? 0;
+    const anyStrength = election.candidates.some((candidate) => strengthOf(candidate.id) > 0);
+    if (!anyStrength) {
+      projected = {
+        note: "No campaign strength recorded in this race yet, so no projection is available. Counted votes above are the tally, not a forecast.",
+        leaderName: null, leaderShare: null, marginPct: null,
+      };
+    } else if (counted.length === 0) {
+      projected = {
+        note: "Campaign strength is recorded, but no votes are counted yet, so there is nothing to project from.",
+        leaderName: null, leaderShare: null, marginPct: null,
+      };
+    } else {
+      const weighted = candidates.map((candidate) => ({
+        name: candidate.name,
+        votes: (candidate.votes ?? 0) * campaignStrengthVoteMultiplier(strengthOf(candidate.id)),
+      }));
+      const weightedTotal = weighted.reduce((sum, candidate) => sum + candidate.votes, 0);
+      const ranked = [...weighted].sort((a, b) => b.votes - a.votes);
+      const projectedLeader = ranked[0] ?? null;
+      const projectedRunnerUp = ranked[1] ?? null;
+      projected = {
+        note: "Projection applies each campaign's current strength to the counted votes. It is an estimate from saved state, not a result.",
+        leaderName: projectedLeader?.name ?? null,
+        leaderShare: weightedTotal > 0 && projectedLeader ? projectedLeader.votes / weightedTotal : null,
+        marginPct: weightedTotal > 0 && projectedLeader && projectedRunnerUp
+          ? (projectedLeader.votes - projectedRunnerUp.votes) / weightedTotal : null,
+      };
+    }
   }
   return {
     resolved,
@@ -692,6 +798,7 @@ function projectProjection(
       ? leader.voteShare - runnerUp.voteShare : null,
     seats, snapshotTurn: snapshots?.length ? snapshots[snapshots.length - 1]!.turn : null,
     drivers,
+    projected,
   };
 }
 
