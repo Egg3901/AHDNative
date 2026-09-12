@@ -1,20 +1,43 @@
 import { useEffect, useState } from 'react';
 import type { SearchFilter, SearchKind, SearchResult, SearchResults } from '../game/search';
 
-export function SearchPanel({ load, revision, onOpen }: {
+/**
+ * Search state the shell keeps alive across route changes. The panel is
+ * unmounted whenever the player opens a result, so the shell owns this
+ * snapshot and feeds it back in when Search is reached again.
+ */
+export interface SearchPanelSnapshot {
+  query: string;
+  submitted: string | null;
+  kind: string;
+  location: string;
+  results?: SearchResults;
+  /** `${kind}:${id}` of the last opened result, so it stays marked/selected. */
+  opened: string | null;
+}
+
+export const EMPTY_SEARCH_SNAPSHOT: SearchPanelSnapshot = {
+  query: '', submitted: null, kind: '', location: '', results: undefined, opened: null,
+};
+
+export function SearchPanel({ load, revision, onOpen, snapshot, onSnapshot }: {
   load: (query: string, filter?: SearchFilter) => Promise<SearchResults>;
   revision: object;
   onOpen: (result: SearchResult) => void;
+  /** Persisted state from a previous visit; only read when the panel mounts. */
+  snapshot?: SearchPanelSnapshot;
+  onSnapshot?: (snapshot: SearchPanelSnapshot) => void;
 }) {
-  const [query, setQuery] = useState('');
-  const [submitted, setSubmitted] = useState<string | null>(null);
+  const [query, setQuery] = useState(snapshot?.query ?? '');
+  const [submitted, setSubmitted] = useState<string | null>(snapshot?.submitted ?? null);
   const [attempt, setAttempt] = useState(0);
-  const [results, setResults] = useState<SearchResults>();
+  const [results, setResults] = useState<SearchResults | undefined>(snapshot?.results);
   const [error, setError] = useState<string>();
   // Filter selections are kept as plain strings so the effect dependency list
   // stays primitive and the worker call is only rebuilt when a choice changes.
-  const [kind, setKind] = useState('');
-  const [location, setLocation] = useState('');
+  const [kind, setKind] = useState(snapshot?.kind ?? '');
+  const [location, setLocation] = useState(snapshot?.location ?? '');
+  const [opened, setOpened] = useState<string | null>(snapshot?.opened ?? null);
   useEffect(() => {
     let active = true;
     setResults(undefined); setError(undefined);
@@ -31,11 +54,23 @@ export function SearchPanel({ load, revision, onOpen }: {
     }
     return () => { active = false; };
   }, [load, revision, submitted, attempt, kind, location]);
+  // Report every change so the shell can restore the exact search on return.
+  useEffect(() => {
+    onSnapshot?.({ query, submitted, kind, location, results, opened });
+  }, [query, submitted, kind, location, results, opened, onSnapshot]);
+  // Persist the opened/selected result synchronously: opening one navigates away
+  // immediately, so the snapshot must be reported before the panel unmounts.
+  const open = (result: SearchResult) => {
+    const key = `${result.kind}:${result.id}`;
+    setOpened(key);
+    onSnapshot?.({ query, submitted, kind, location, results, opened: key });
+    onOpen(result);
+  };
   const filtering = Boolean(kind || location);
   return <div className="ahd-stack">
     <div className="ahd-card ahd-card-pad">
       <h1 className="ahd-h1">Search</h1>
-      <p className="ahd-muted">Find your profile, nations, regions, companies, bonds, and your country's politicians, parties, elections and bills in this saved world.</p>
+      <p className="ahd-muted">Find your profile, nations, regions, companies, bonds, and your country's politicians, parties, elections, bills and referendums in this saved world.</p>
       <form onSubmit={event => { event.preventDefault(); setSubmitted(query.trim()); setAttempt(value => value + 1); }}>
         <label className="ahd-field">
           <span className="ahd-label">Search your world</span>
@@ -72,9 +107,14 @@ export function SearchPanel({ load, revision, onOpen }: {
       <p role="status" style={{ marginTop: '.6rem' }}>{results.total ? `Showing ${results.results.length} of ${results.total} matches for ${results.query}.` : 'No matches.'}</p>
       {results.total > results.results.length ? <p className="ahd-muted">Use a more specific phrase or a filter to narrow the results.</p> : null}
       <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: '.5rem' }}>
-        {results.results.map(result => <li key={`${result.kind}:${result.id}`}><button className="ahd-btn" style={{ width: '100%', textAlign: 'left', justifyContent: 'start', display: 'grid', whiteSpace: 'normal', overflowWrap: 'anywhere' }} onClick={() => onOpen(result)}>
-          <strong>{result.title}</strong><span className="ahd-muted">{result.description}</span>
-        </button></li>)}
+        {results.results.map(result => {
+          const key = `${result.kind}:${result.id}`;
+          const selected = key === opened;
+          return <li key={key}><button className="ahd-btn" aria-current={selected ? 'true' : undefined} style={{ width: '100%', textAlign: 'left', justifyContent: 'start', display: 'grid', whiteSpace: 'normal', overflowWrap: 'anywhere', ...(selected ? { borderColor: 'var(--ahd-primary)' } : {}) }} onClick={() => open(result)}>
+            <strong>{result.title}</strong>
+            <span className="ahd-muted">{result.description}{selected ? ' · Selected' : ''}</span>
+          </button></li>;
+        })}
       </ul>
     </section> : null}
   </div>;

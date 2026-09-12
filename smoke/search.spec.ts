@@ -57,6 +57,37 @@ test('search filters narrow the result set and a region result opens the regions
   await expect(all).toContainText('of 55 matches for a.');
 });
 
+test('search opens the saved bond issue on the bond market', async ({ page }) => {
+  const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-elected-1953-US.save.json.gz', import.meta.url)));
+  await page.goto('/');
+  await page.getByLabel('Import saved game', { exact: true }).setInputFiles({ name: 'elected.json', mimeType: 'application/json', buffer: fixture });
+  await gameReady(page);
+  await (await search(page, 'bond-60-US')).getByRole('button').first().click();
+  await expect(page.getByRole('region', { name: 'Bond market', exact: true })).toBeFocused();
+  await expect(page.getByLabel('Bond issue', { exact: true })).toHaveValue('bond-60-US');
+});
+
+test('search keeps the query and opened result when the player returns', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New game', exact: true }).click();
+  await page.getByLabel('Your name').fill('Search Player');
+  await page.getByLabel('Country', { exact: true }).selectOption('UK');
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await gameReady(page);
+  const results = await search(page, 'Labour');
+  await page.getByLabel('Result kind', { exact: true }).selectOption('party');
+  await results.getByRole('button', { name: /Labour Party/ }).click();
+  await expect(page.getByRole('region', { name: 'Party details', exact: true })).toBeFocused();
+  // Returning to Search restores the query, the filter, the result list and the selection mark.
+  await openGameMenu(page);
+  await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Search', exact: true }).click();
+  await expect(page.getByLabel('Search your world')).toHaveValue('Labour');
+  const restored = page.getByRole('region', { name: 'Search results', exact: true }).getByRole('button', { name: /Labour Party/ });
+  await expect(restored).toHaveAttribute('aria-current', 'true');
+  await expect(restored).toContainText('Selected');
+  await expect(page.getByLabel('Result kind', { exact: true })).toHaveValue('party');
+});
+
 test('search opens the actual saved bill and election details', async ({ page }) => {
   const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-elected-1953-US.save.json.gz', import.meta.url)));
   await page.goto('/');

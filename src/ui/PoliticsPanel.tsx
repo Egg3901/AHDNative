@@ -1162,14 +1162,20 @@ function ReferendumCampaignControls({ record, busy, currency, onAction }: {
   );
 }
 
-function ReferendumsSection({ politics, busy, onAction }: Omit<PoliticsPanelProps, "section">) {
+function ReferendumsSection({ politics, busy, onAction, initialId }: Omit<PoliticsPanelProps, "section">) {
   const request = politics.referendumRequest;
+  const records = politics.referendums;
+  const [selectedId, setSelectedId] = useState(initialId ?? "");
+  useEffect(() => {
+    if (!records.some((record) => record.id === selectedId)) setSelectedId(records[0]?.id ?? "");
+  }, [records, selectedId]);
+  const selected = records.find((record) => record.id === selectedId) ?? null;
   return (
     <div className="ahd-stack">
       <div className="ahd-card ahd-card-pad">
         <h2 className="ahd-h2">Referendums</h2>
         <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>
-          {politics.referendums.length} recorded referendum {politics.referendums.length === 1 ? "record" : "records"}
+          {records.length} recorded referendum {records.length === 1 ? "record" : "records"}
         </p>
         <p className="ahd-help" role="note">{request.note}</p>
       </div>
@@ -1202,31 +1208,44 @@ function ReferendumsSection({ politics, busy, onAction }: Omit<PoliticsPanelProp
           ) : null}
         </article>
       ) : null}
-      {politics.referendums.length === 0 ? (
+      {records.length === 0 ? (
         <div className="ahd-empty">No referendums have been requested.</div>
-      ) : politics.referendums.map((record) => (
-        <article key={record.id} aria-label={record.question} className="ahd-card ahd-card-pad">
+      ) : (
+        <label className="ahd-field" style={{ maxWidth: "28rem" }}>
+          <span className="ahd-label">Referendum</span>
+          <select className="ahd-select" aria-label="Referendum" value={selected?.id ?? ""}
+            onChange={(e) => setSelectedId(e.target.value)} disabled={busy}>
+            {records.map((record) => (
+              <option key={record.id} value={record.id}>
+                {record.question} [{record.phase}]
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {selected ? (
+        <article key={selected.id} aria-label={selected.question} className="ahd-card ahd-card-pad">
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
-            <strong style={{ fontSize: "0.86rem" }}>{record.question}</strong>
-            <span className="ahd-pill">{record.phase}</span>
+            <strong style={{ fontSize: "0.86rem" }}>{selected.question}</strong>
+            <span className="ahd-pill">{selected.phase}</span>
           </div>
           <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.2rem" }}>
-            {record.scope} · requested turn {record.requestedTurn}
+            {selected.scope} · requested turn {selected.requestedTurn}
           </div>
           <dl style={{ marginTop: "0.5rem", display: "grid", gap: "0.3rem" }}>
-            <div className="ahd-kv"><dt>Yes share</dt><dd className="ahd-mono">{record.yesShare.toFixed(1)}%</dd></div>
-            {record.campaignCloseTurn != null ? <div className="ahd-kv"><dt>Campaign closes</dt><dd className="ahd-mono">Turn {record.campaignCloseTurn}</dd></div> : null}
-            {record.finalYesShare != null ? <div className="ahd-kv"><dt>Final yes share</dt><dd className="ahd-mono">{record.finalYesShare.toFixed(1)}%</dd></div> : null}
-            {record.turnout != null ? <div className="ahd-kv"><dt>Turnout</dt><dd className="ahd-mono">{record.turnout.toFixed(1)}%</dd></div> : null}
-            {record.passed != null ? <div className="ahd-kv"><dt>Result</dt><dd>{record.passed ? "Passed" : "Rejected"}</dd></div> : null}
-            {record.conversionDeadlineTurn != null ? <div className="ahd-kv"><dt>Consent deadline</dt><dd className="ahd-mono">Turn {record.conversionDeadlineTurn}</dd></div> : null}
-            {record.latestPollTurn != null ? <div className="ahd-kv"><dt>Latest poll</dt><dd className="ahd-mono">Turn {record.latestPollTurn}</dd></div> : null}
+            <div className="ahd-kv"><dt>Yes share</dt><dd className="ahd-mono">{selected.yesShare.toFixed(1)}%</dd></div>
+            {selected.campaignCloseTurn != null ? <div className="ahd-kv"><dt>Campaign closes</dt><dd className="ahd-mono">Turn {selected.campaignCloseTurn}</dd></div> : null}
+            {selected.finalYesShare != null ? <div className="ahd-kv"><dt>Final yes share</dt><dd className="ahd-mono">{selected.finalYesShare.toFixed(1)}%</dd></div> : null}
+            {selected.turnout != null ? <div className="ahd-kv"><dt>Turnout</dt><dd className="ahd-mono">{selected.turnout.toFixed(1)}%</dd></div> : null}
+            {selected.passed != null ? <div className="ahd-kv"><dt>Result</dt><dd>{selected.passed ? "Passed" : "Rejected"}</dd></div> : null}
+            {selected.conversionDeadlineTurn != null ? <div className="ahd-kv"><dt>Consent deadline</dt><dd className="ahd-mono">Turn {selected.conversionDeadlineTurn}</dd></div> : null}
+            {selected.latestPollTurn != null ? <div className="ahd-kv"><dt>Latest poll</dt><dd className="ahd-mono">Turn {selected.latestPollTurn}</dd></div> : null}
           </dl>
-          {record.campaign.active ? (
-            <ReferendumCampaignControls record={record} busy={busy} currency={politics.currency} onAction={onAction} />
+          {selected.campaign.active ? (
+            <ReferendumCampaignControls record={selected} busy={busy} currency={politics.currency} onAction={onAction} />
           ) : null}
         </article>
-      ))}
+      ) : null}
     </div>
   );
 }
