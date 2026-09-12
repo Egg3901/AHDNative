@@ -30,34 +30,26 @@
  * as in mainline. This is a tail-ordering deviation, not a missing system. It reads
  * the same-turn corporationTurn output directly.
  *
- * PORT-STUB — order-flow / sentiment multiplier (human-liquidity gap):
- * mainline's live sharePrice = fundamentalValue x sentimentMultiplier x
- * orderFlowMultiplier, where orderFlowMultiplier is driven by a 15-minute
- * cron windowing REAL buy/sell notional from other actors' trades
- * (src/lib/corporations/orderFlowEngine.ts computeOrderFlowMultiplier), with
- * a wash-trade guard (src/lib/corporations/orderFlowWashGuard.ts) added
- * 2026-08-20 after an actor round-tripped a $10.6bn buy+sell within 10
- * seconds to pin the multiplier. None of that has a solo equivalent: a
- * single-player world has no other human or NPP CEO placing trades to
- * generate order flow, and there is no wall-clock cron in a turn-based
- * engine to window against. Porting the machinery honestly would produce a
- * multiplier that is *always* neutral (no trades ever accumulate in the
- * window), so W10 takes the mainline-neutral value directly:
- * orderFlowMultiplier = sentimentMultiplier = 1.0, i.e. sharePrice IS
- * fundamentalValue. The gap this leaves: a player's own buy/sell actions
- * (market/actions below) do NOT move the price the way a real trade would in
- * mainline (no order-flow pressure signal) — price only moves via the next
- * turn's fundamentals (financials, growth, cost of capital). A future wave
- * could reintroduce a bounded per-turn pressure term keyed off the player's
- * own net trade notional (the one actor W10 actually has), but that is a new
- * design, not a port, so it is left as the named gap rather than invented
- * here.
+ * The live price is the source-shaped fundamental value multiplied by the
+ * available sentiment and order-flow inputs. Native replaces the source's
+ * wall-clock 15-minute window with a deterministic turn window: successful
+ * player trades accumulate executed notional, this phase consumes it once,
+ * and the windows reset. Event pulses remain absent because they have no
+ * representation in the offline save contract; old saves without investor
+ * confidence stay neutral.
  */
 import type { TurnPhase } from "../phases/types.js";
 import { computeEffectivePrimeRate } from "../centralBank/constants.js";
 import { normalizedEarningsFromHistory } from "./earnings.js";
 import { computeSharePrices, type SharePriceInput } from "./sharePriceFormula.js";
-import { SECTOR_RISK_PREMIUM, FALLBACK_PRIME_RATE_PERCENT } from "./constants.js";
+import {
+  SECTOR_RISK_PREMIUM,
+  FALLBACK_PRIME_RATE_PERCENT,
+  MARKET_PRICE_HISTORY_TURNS,
+  MIN_SHARE_PRICE,
+} from "./constants.js";
+import { computeOrderFlowMultiplier } from "./orderFlow.js";
+import { getInvestorConfidenceSentiment } from "./sentiment.js";
 
 export const recomputeSharePricesPhase: TurnPhase = {
   name: "recomputeSharePrices",
@@ -94,10 +86,28 @@ export const recomputeSharePricesPhase: TurnPhase = {
     for (const corp of corps) {
       const price = newPrices.get(corp.id);
       if (price == null) continue;
+      const sentimentMultiplier = getInvestorConfidenceSentiment(world.budgets[corp.countryId]?.investorConfidence);
+      const orderFlowMultiplier = computeOrderFlowMultiplier(
+        corp.orderFlowWindowBuyValue ?? 0,
+        corp.orderFlowWindowSellValue ?? 0,
+        corp.publicFloat,
+        corp.sharePrice,
+        corp.totalShares,
+        corp.orderFlowMultiplier ?? 1,
+      );
+      const livePrice = Math.max(
+        MIN_SHARE_PRICE,
+        Math.round(price * sentimentMultiplier * orderFlowMultiplier * 100) / 100,
+      );
+
       corp.fundamentalSharePrice = price;
-      // No order-flow/sentiment multiplier ported (see file doc PORT-STUB) —
-      // the live price IS the fundamental this wave.
-      corp.sharePrice = price;
+      corp.sentimentMultiplier = sentimentMultiplier;
+      corp.orderFlowMultiplier = orderFlowMultiplier;
+      corp.sharePrice = livePrice;
+      corp.orderFlowWindowBuyValue = 0;
+      corp.orderFlowWindowSellValue = 0;
+      const history = corp.priceHistory ?? [];
+      corp.priceHistory = [...history, { turn: world.meta.turn, price: livePrice }].slice(-MARKET_PRICE_HISTORY_TURNS);
     }
   },
 };

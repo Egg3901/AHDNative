@@ -133,7 +133,9 @@ import type { WorldFeatureFlags } from "./featureFlags.js";
 // and countryPolitics/overview.ts.
 // v44: active industry subsidy records (world.subsidies); see save.ts.
 // v45: regional policy metric values (world.regionalMetrics); see save.ts.
-export const SCHEMA_VERSION = 45;
+// v46: market pressure multipliers, trade windows, and compact price history;
+// see save.ts.
+export const SCHEMA_VERSION = 46;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {

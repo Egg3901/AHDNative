@@ -30,8 +30,10 @@
  * added nothing and is skipped, not silently dropped).
  *
  * The order-flow/sentiment multiplier (sharePrice = fundamentalValue ×
- * sentimentMultiplier × orderFlowMultiplier in mainline) is PORT-STUB — see
- * recomputeSharePrices.ts file doc for the human-liquidity gap this leaves.
+ * sentimentMultiplier × orderFlowMultiplier in mainline) is applied by the
+ * turn market phase. Native uses saved public-float trade windows and the
+ * available country investor-confidence input; wall-clock event pulses remain
+ * outside the offline save contract.
  */
 
 // ── Fundamental share-price formula weights ────────────────────────────
@@ -107,6 +109,9 @@ export const FALLBACK_PRIME_RATE_PERCENT = 5;
 /** Source: constants/corporations.ts:900 FUNDAMENTAL_ROLLING_AVG_TURNS. */
 export const FUNDAMENTAL_ROLLING_AVG_TURNS = 3;
 
+/** Retained live share prices shown by offline market consumers. */
+export const MARKET_PRICE_HISTORY_TURNS = 52;
+
 // ── Founding share allocation ──────────────────────────────────────────
 /** Source: constants/corporations.ts:144 CEO_INITIAL_SHARES. */
 export const CEO_INITIAL_SHARES = 10_000_000;
@@ -123,6 +128,5 @@ export const NPC_FOUNDER_SHARE_FRACTION = 0.51;
 // reading both route handlers — the only "fee" in that code is an FX
 // conversion spread, which does not apply here since AHDClient has no
 // cross-currency corp/character wallet system). "mainline's pricing/fees"
-// for W10 is therefore: price = corp.sharePrice (order-flow execution-price
-// banding is part of the PORT-STUB gap, see market/recomputeSharePrices.ts),
-// fee = 0.
+// for W10 is therefore: price = corp.sharePrice, fee = 0. The next-turn
+// order-flow multiplier is applied by recomputeSharePrices.ts.

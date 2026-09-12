@@ -3,13 +3,9 @@
  *
  * Mainline: sharePrice = fundamentalValue x sentimentMultiplier x
  * orderFlowMultiplier (src/lib/corporations/sharePriceFormula.ts file doc).
- * This module ports fundamentalValue only — the sentiment and order-flow
- * multipliers require real buy/sell notional accumulated from OTHER actors'
- * trades within a rolling window (src/lib/corporations/orderFlowEngine.ts),
- * which a single-player world has none of. See recomputeSharePrices.ts file
- * doc for the full PORT-STUB rationale; the net effect is sharePrice ===
- * fundamentalSharePrice always in this wave (multiplier held at the
- * formula's own documented "no signal" value of 1.0).
+ * This module intentionally computes fundamentalValue only. The turn market
+ * phase applies the source-backed sentiment and order-flow multipliers after
+ * this pure formula returns.
  *
  * Ported terms, verbatim formula shape (see constants.ts for the full
  * component-by-component citation of what's cut and why — no bonds, no tech

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { advanceTurn } from "../engine.js";
 import { deserializeSave, projectSaveToV42, serializeSave } from "../save.js";
-import { createWorld } from "../world.js";
+import { createWorld, SCHEMA_VERSION } from "../world.js";
 import { SECTOR_SUBSIDIES_SPENDING_KEY, type Subsidy } from "./subsidyBudget.js";
 
 const OPTS = { seed: "subsidy-cost-test", playerName: "Tester", countryId: "US", era: "1953" } as const;
@@ -67,7 +67,7 @@ describe("subsidy cost from live corporations (#39)", () => {
     legacy.world.meta.schemaVersion = 43;
     delete legacy.world.subsidies;
     const restored = deserializeSave(JSON.stringify(legacy));
-    expect(restored.meta.schemaVersion).toBe(45);
+    expect(restored.meta.schemaVersion).toBe(SCHEMA_VERSION);
     expect(restored.subsidies).toEqual([]);
   });
 

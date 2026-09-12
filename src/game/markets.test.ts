@@ -91,13 +91,27 @@ describe("projectMarkets", () => {
     expect(uk?.sell.disabledReason).toBe(CROSS_CURRENCY_UNAVAILABLE);
   });
 
-  it("trims recorded earningsHistory to the last 52 entries and leaves priceHistory empty", () => {
+  it("trims recorded earningsHistory to the last 52 entries and keeps price history separate", () => {
     const world = createWorld(US);
     const corp = world.corporations["US-media"]!;
     corp.earningsHistory = Array.from({ length: 60 }, (_, i) => i + 1);
     const listing = projectMarkets(world).listings.find((l) => l.id === "US-media");
     expect(listing?.earningsHistory).toEqual(Array.from({ length: 52 }, (_, i) => i + 9));
     expect(listing?.priceHistory).toEqual([]);
+  });
+
+  it("projects the engine's recorded live price history", () => {
+    const world = createWorld(US);
+    world.corporations["US-media"]!.priceHistory = [
+      { turn: 1, price: 12.34 },
+      { turn: 2, price: 13.45 },
+    ];
+
+    const listing = projectMarkets(world).listings.find((l) => l.id === "US-media");
+    expect(listing?.priceHistory).toEqual([
+      { turn: 1, price: 12.34 },
+      { turn: 2, price: 13.45 },
+    ]);
   });
 
   it("uses GBP cash and prices in a UK world", () => {

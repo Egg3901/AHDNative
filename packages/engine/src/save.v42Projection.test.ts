@@ -57,7 +57,7 @@ function parseProjected(contents: string): {
 
 describe("projectSaveToV42 public envelope", () => {
   it("returns the authentic v42 fixture unchanged", () => {
-    expect(SCHEMA_VERSION).toBe(45);
+    expect(SCHEMA_VERSION).toBe(46);
     const authentic = loadAuthenticV42();
     expect(sha256(authentic)).toBe(FIXTURE_SHA);
     expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });
@@ -77,7 +77,7 @@ describe("projectSaveToV42 public envelope", () => {
     expect(parsed.homeRegionId).toBe("AL");
     expect(sha256(projected.contents)).toBe(NATIVE_FRESH_KEEP_HOME_SHA);
     const restored = deserializeSave(projected.contents);
-    expect(restored.meta.schemaVersion).toBe(45);
+    expect(restored.meta.schemaVersion).toBe(SCHEMA_VERSION);
     expect(restored.player.homeRegionId).toBe("AL");
     expect(restored.countryPolitics).toEqual(world.countryPolitics);
   });
@@ -113,8 +113,17 @@ describe("projectSaveToV42 public envelope", () => {
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projected.ok).toBe(false);
     if (projected.ok) throw new Error("expected countryPolitics refusal");
-    expect(projected.error).toMatch(/countryPolitics/);
+    expect(projected.error).toMatch(/countryPolitics|market pressure|price history/);
     expect(projected.error).not.toMatch(/schemaVersion rewritten|relabel/i);
+  });
+
+  it("refuses a Native world with live market pressure state", () => {
+    const world = createWorld(WORLD_OPTS);
+    world.corporations["US-manufacturing"]!.orderFlowWindowBuyValue = 1;
+    const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
+    expect(projected.ok).toBe(false);
+    if (projected.ok) throw new Error("expected market pressure refusal");
+    expect(projected.error).toMatch(/market pressure/);
   });
 
   it("projects a Native-fresh envelope whose record keys are reversed", () => {

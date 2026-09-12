@@ -67,7 +67,7 @@ export interface MarketListing {
   playerAvgCostPerShare: number | null;
   npcShares: number;
   earningsHistory: number[];
-  /** Empty until the engine records a per-corp share-price series. */
+  /** Per-turn live share-price series recorded by the engine. */
   priceHistory: MarketPricePoint[];
   buy: MarketActionHint;
   sell: MarketActionHint;
@@ -168,7 +168,7 @@ export function projectMarkets(world: WorldState): MarketsView {
       playerShares,
       cashCurrencyMatches: currency === playerCurrency,
     };
-    const priceHistory: MarketPricePoint[] = [];
+    const priceHistory: MarketPricePoint[] = (corp.priceHistory ?? []).map(({ turn, price }) => ({ turn, price }));
     return {
       id: corp.id,
       ticker,

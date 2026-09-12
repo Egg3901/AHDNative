@@ -38,6 +38,7 @@ import { depositToSavings, withdrawFromSavings, moveSavingsHolder } from "../fin
 import { wireTransfer as wireTransferFn } from "../finance/wireTransfer.js";
 import { rollDebatePrep } from "../stats/debatePrep.js";
 import { rngFromState } from "../rng.js";
+import { isOrderFlowPriceEligible } from "../market/orderFlow.js";
 
 export type ExecuteActionParams = {
   regionId?: string;
@@ -1285,9 +1286,9 @@ function executeActionInner(
     // Simplified market order: ports mainline's buyPublicShares/sellPublicShares
     // "instant" retail path only (price = corp.sharePrice, no brokerage fee —
     // see market/constants.ts), NOT the human-liquidity order book
-    // (placeShareOrder/fillShareOrder/acceptShareOffer) — see
-    // market/recomputeSharePrices.ts file doc PORT-STUB for why that gap
-    // exists in a single-player world.
+    // (placeShareOrder/fillShareOrder/acceptShareOffer). Successful trades also
+    // accumulate their executed notional for the next turn's source-backed
+    // order-flow multiplier.
     if (found.kind !== "player") return { ok: false, error: "Only the player trades shares" };
     const corpId = params.corpId;
     const shares = params.shares;
@@ -1302,8 +1303,10 @@ function executeActionInner(
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: `Unknown corporation: ${corpId}` };
     }
-    // Notional at the live (== fundamental, see PORT-STUB above) price, cash-rounded.
+    // Notional at the live price, cash-rounded. Eligibility is captured before
+    // the trade changes publicFloat, matching the source command path.
     const notional = Math.round(shares * corp.sharePrice * 100) / 100;
+    const orderFlowEligible = isOrderFlowPriceEligible(corp.publicFloat, corp.totalShares);
     const player = world.player as unknown as { cash: number };
 
     if (actionId === "buyShares") {
@@ -1333,6 +1336,9 @@ function executeActionInner(
       holding.avgCostPerShare =
         priorShares > 0 ? (priorShares * priorAvg + shares * corp.sharePrice) / (priorShares + shares) : corp.sharePrice;
       holding.shares += shares;
+      if (orderFlowEligible) {
+        corp.orderFlowWindowBuyValue = (corp.orderFlowWindowBuyValue ?? 0) + notional;
+      }
       return { ok: true, message: `Bought ${shares} shares of ${corp.tickerSymbol} for ${notional}` };
     }
 
@@ -1358,6 +1364,9 @@ function executeActionInner(
       corp.shareholders = corp.shareholders.filter((sh) => sh !== holding);
     }
     player.cash = (player.cash ?? 0) + notional;
+    if (orderFlowEligible) {
+      corp.orderFlowWindowSellValue = (corp.orderFlowWindowSellValue ?? 0) + notional;
+    }
     return { ok: true, message: `Sold ${shares} shares of ${corp.tickerSymbol} for ${notional}` };
   }
 

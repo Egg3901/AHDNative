@@ -103,6 +103,11 @@ function structurallyEqual(left: unknown, right: unknown): boolean {
  * serializeSave. Progressed countryPolitics is refused; the old engine
  * does not run that phase, so easing and approval history cannot be
  * reconstructed from schema 42 fields.
+ *
+ * v46 market pressure fields are dropped only while neutral and empty. A
+ * current save with an executed-trade window, non-neutral multiplier, or
+ * price history is refused because schema 42 has no representation for that
+ * state.
  */
 export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (typeof contents !== "string" || contents.length === 0) {
@@ -185,6 +190,36 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (isRecord(regionalMetrics) && Object.keys(regionalMetrics).length > 0) {
     return { ok: false, error: `Regional metric records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
+  const corporations = world["corporations"];
+  if (!isRecord(corporations)) {
+    return { ok: false, error: "Schema 42 projection cannot validate corporation market state" };
+  }
+  for (const [corpId, value] of Object.entries(corporations)) {
+    if (!isRecord(value)) {
+      return { ok: false, error: `Corporation ${corpId} cannot be projected to schema 42` };
+    }
+    for (const [field, neutral] of [
+      ["sentimentMultiplier", 1],
+      ["orderFlowMultiplier", 1],
+      ["orderFlowWindowBuyValue", 0],
+      ["orderFlowWindowSellValue", 0],
+    ] as const) {
+      const current = value[field];
+      if (current !== undefined && (typeof current !== "number" || !Number.isFinite(current) || current !== neutral)) {
+        return {
+          ok: false,
+          error: `Corporation ${corpId} has active market pressure state and cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}`,
+        };
+      }
+    }
+    const priceHistory = value["priceHistory"];
+    if (priceHistory !== undefined && (!Array.isArray(priceHistory) || priceHistory.length > 0)) {
+      return {
+        ok: false,
+        error: `Corporation ${corpId} has price history that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}`,
+      };
+    }
+  }
 
   const candidateSave = structuredClone(save);
   const candidateWorld = candidateSave["world"] as Record<string, unknown>;
@@ -195,6 +230,14 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   delete candidateWorld["countryPolitics"];
   delete candidateWorld["subsidies"];
   delete candidateWorld["regionalMetrics"];
+  const candidateCorporations = candidateWorld["corporations"] as Record<string, Record<string, unknown>>;
+  for (const corp of Object.values(candidateCorporations)) {
+    delete corp["sentimentMultiplier"];
+    delete corp["orderFlowMultiplier"];
+    delete corp["orderFlowWindowBuyValue"];
+    delete corp["orderFlowWindowSellValue"];
+    delete corp["priceHistory"];
+  }
   if (typeof candidatePlayer["homeRegionId"] !== "string") {
     delete candidatePlayer["homeRegionId"];
   }
@@ -2325,6 +2368,34 @@ export function deserializeSave(raw: string): WorldState {
       w["regionalMetrics"] = {};
     }
     save.world.meta.schemaVersion = 45;
+  }
+  // v45 -> v46: source-backed market pressure state. Existing saves have no
+  // executed-trade windows, multipliers, or live-price history, so they load
+  // with neutral pressure and begin recording history on the next market
+  // phase. No RNG is consumed and no historical signal is invented.
+  if (save.schemaVersion < 46) {
+    const w = save.world as unknown as Record<string, unknown>;
+    const corporations = w["corporations"] as Record<string, Record<string, unknown>> | undefined;
+    if (corporations) {
+      for (const corp of Object.values(corporations)) {
+        if (typeof corp["sentimentMultiplier"] !== "number" || !Number.isFinite(corp["sentimentMultiplier"] as number)) {
+          corp["sentimentMultiplier"] = 1;
+        }
+        if (typeof corp["orderFlowMultiplier"] !== "number" || !Number.isFinite(corp["orderFlowMultiplier"] as number)) {
+          corp["orderFlowMultiplier"] = 1;
+        }
+        if (typeof corp["orderFlowWindowBuyValue"] !== "number" || !Number.isFinite(corp["orderFlowWindowBuyValue"] as number)) {
+          corp["orderFlowWindowBuyValue"] = 0;
+        }
+        if (typeof corp["orderFlowWindowSellValue"] !== "number" || !Number.isFinite(corp["orderFlowWindowSellValue"] as number)) {
+          corp["orderFlowWindowSellValue"] = 0;
+        }
+        if (!Array.isArray(corp["priceHistory"])) {
+          corp["priceHistory"] = [];
+        }
+      }
+    }
+    save.world.meta.schemaVersion = 46;
   }
   // NPP-backed politicians used to carry Character-only party clout and
   // bonus-action counters. Keep the fields readable for older save shapes, but

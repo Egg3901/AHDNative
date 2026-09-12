@@ -1,12 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { createWorld, SCHEMA_VERSION } from "../world.js";
 import { advanceTurn } from "../engine.js";
-import { deserializeSave } from "../save.js";
+import { deserializeSave, serializeSave } from "../save.js";
 import { executeAction } from "../actions/execute.js";
 import { seedCorporations, tickerForSector } from "../corporation/founding.js";
 import { rngFromSeed } from "../rng.js";
 import { computeSharePrices, rateLimitPrice, type SharePriceInput } from "./sharePriceFormula.js";
 import { pushEarningsHistory, normalizedEarningsFromHistory } from "./earnings.js";
+import { computeOrderFlowMultiplier } from "./orderFlow.js";
+import { getInvestorConfidenceSentiment } from "./sentiment.js";
 import {
   FUNDAMENTAL_TANGIBLE_BOOK_WEIGHT,
   FUNDAMENTAL_EARNINGS_POWER_WEIGHT,
@@ -122,6 +124,22 @@ describe("rateLimitPrice — per-turn move cap (mainline #2888)", () => {
   });
 });
 
+describe("source-backed market multipliers", () => {
+  it("applies bounded order-flow pressure from the public float", () => {
+    expect(computeOrderFlowMultiplier(500_000, 0, 4_900_000, 100, 10_000_000, 1)).toBeGreaterThan(1);
+    expect(computeOrderFlowMultiplier(0, 500_000, 4_900_000, 100, 10_000_000, 1)).toBeLessThan(1);
+    expect(computeOrderFlowMultiplier(1_000_000_000, 0, 4_900_000, 100, 10_000_000, 1)).toBeCloseTo(1.15, 6);
+  });
+
+  it("maps source investor-confidence sentiment to a bounded multiplier", () => {
+    expect(getInvestorConfidenceSentiment(undefined)).toBe(1);
+    expect(getInvestorConfidenceSentiment(null)).toBe(1);
+    expect(getInvestorConfidenceSentiment(60)).toBe(1);
+    expect(getInvestorConfidenceSentiment(100)).toBeCloseTo(1.12, 6);
+    expect(getInvestorConfidenceSentiment(20)).toBeCloseTo(0.88, 6);
+  });
+});
+
 // ── Earnings rolling window ──────────────────────────────────────────────
 describe("earnings rolling window", () => {
   it("normalizedEarningsFromHistory is the arithmetic mean, 0 for empty", () => {
@@ -163,7 +181,7 @@ describe("recomputeSharePricesPhase (advanceTurn integration)", () => {
     const before = world.corporations["US-manufacturing"]!.sharePrice;
     advanceTurn(world);
     const corp = world.corporations["US-manufacturing"]!;
-    // sharePrice === fundamentalSharePrice always in W10 (order-flow/sentiment PORT-STUB, see file doc).
+    // No trade or investor-confidence signal leaves both source multipliers neutral.
     expect(corp.sharePrice).toBe(corp.fundamentalSharePrice);
     expect(Number.isFinite(corp.sharePrice)).toBe(true);
     expect(corp.sharePrice).toBeGreaterThanOrEqual(MIN_SHARE_PRICE);
@@ -270,6 +288,78 @@ describe("buyShares / sellShares actions", () => {
     const res = executeAction(world, "player", "buyShares", { corpId: "NOPE-nothing", shares: 1 });
     expect(res.ok).toBe(false);
   });
+
+  it("carries a successful buy through save/reload into next-turn price and history", () => {
+    const world = createWorld(OPTS);
+    const corp = world.corporations["US-manufacturing"]!;
+    world.player.cash = 1_000_000_000_000;
+    const shares = 400_000;
+    const notional = Math.round(shares * corp.sharePrice * 100) / 100;
+
+    expect(executeAction(world, "player", "buyShares", { corpId: corp.id, shares }).ok).toBe(true);
+    expect(corp.orderFlowWindowBuyValue).toBe(notional);
+    expect(corp.orderFlowWindowSellValue).toBe(0);
+
+    const reloaded = deserializeSave(serializeSave(world, "2026-09-11T00:00:00.000Z"));
+    const reloadedCorp = reloaded.corporations[corp.id]!;
+    expect(reloadedCorp.orderFlowWindowBuyValue).toBe(notional);
+
+    advanceTurn(reloaded);
+
+    const repriced = reloaded.corporations[corp.id]!;
+    expect(repriced.orderFlowMultiplier).toBeGreaterThan(1);
+    expect(repriced.sharePrice).toBeGreaterThan(repriced.fundamentalSharePrice);
+    expect(repriced.orderFlowWindowBuyValue).toBe(0);
+    expect(repriced.orderFlowWindowSellValue).toBe(0);
+    expect(repriced.priceHistory?.at(-1)).toEqual({ turn: reloaded.meta.turn, price: repriced.sharePrice });
+  });
+
+  it("carries a successful sell through save/reload into downward order flow", () => {
+    const world = createWorld(OPTS);
+    const corp = world.corporations["US-manufacturing"]!;
+    const shares = 400_000;
+    corp.shareholders.push({ holder: "player", shares, avgCostPerShare: corp.sharePrice });
+    corp.publicFloat -= shares;
+
+    expect(executeAction(world, "player", "sellShares", { corpId: corp.id, shares }).ok).toBe(true);
+    expect(corp.orderFlowWindowSellValue).toBeGreaterThan(0);
+
+    const reloaded = deserializeSave(serializeSave(world, "2026-09-11T00:00:00.000Z"));
+    advanceTurn(reloaded);
+
+    const repriced = reloaded.corporations[corp.id]!;
+    expect(repriced.orderFlowMultiplier).toBeLessThan(1);
+    expect(repriced.sharePrice).toBeLessThan(repriced.fundamentalSharePrice);
+    expect(repriced.priceHistory?.at(-1)?.price).toBe(repriced.sharePrice);
+  });
+
+  it("keeps an untouched market neutral while recording its next-turn price", () => {
+    const world = createWorld(OPTS);
+    advanceTurn(world);
+    const corp = world.corporations["US-manufacturing"]!;
+
+    expect(corp.orderFlowMultiplier).toBe(1);
+    expect(corp.sentimentMultiplier).toBe(1);
+    expect(corp.sharePrice).toBe(corp.fundamentalSharePrice);
+    expect(corp.priceHistory).toHaveLength(1);
+    expect(corp.priceHistory?.[0]).toEqual({ turn: world.meta.turn, price: corp.sharePrice });
+  });
+
+  it("applies source investor-confidence sentiment without inventing a pulse", () => {
+    const high = createWorld(OPTS);
+    high.budgets.US!.investorConfidence = 100;
+    advanceTurn(high);
+    const highCorp = high.corporations["US-manufacturing"]!;
+    expect(highCorp.sentimentMultiplier).toBeCloseTo(1.12, 6);
+    expect(highCorp.sharePrice).toBeGreaterThan(highCorp.fundamentalSharePrice);
+
+    const low = createWorld(OPTS);
+    low.budgets.US!.investorConfidence = 20;
+    advanceTurn(low);
+    const lowCorp = low.corporations["US-manufacturing"]!;
+    expect(lowCorp.sentimentMultiplier).toBeLessThan(1);
+    expect(lowCorp.sharePrice).toBeLessThan(lowCorp.fundamentalSharePrice);
+  });
 });
 
 // ── Long-run sanity ────────────────────────────────────────────────────
@@ -307,6 +397,11 @@ describe("save migration v25 -> v26", () => {
       delete c["shareholders"];
       delete c["publicFloat"];
       delete c["earningsHistory"];
+      delete c["sentimentMultiplier"];
+      delete c["orderFlowMultiplier"];
+      delete c["orderFlowWindowBuyValue"];
+      delete c["orderFlowWindowSellValue"];
+      delete c["priceHistory"];
       strippedCorporations[id] = c;
     }
     const v25World = { ...w, corporations: strippedCorporations, meta: { ...w.meta, schemaVersion: 25 } };
@@ -360,5 +455,28 @@ describe("save migration v25 -> v26", () => {
     const a = deserializeSave(raw);
     const b = deserializeSave(raw);
     expect(JSON.stringify(a.corporations)).toBe(JSON.stringify(b.corporations));
+  });
+});
+
+describe("save migration v45 -> v46 market pressure fields", () => {
+  it("backfills neutral multipliers, empty windows, and price history", () => {
+    const world = createWorld(OPTS);
+    const corporation = world.corporations["US-manufacturing"]! as unknown as Record<string, unknown>;
+    delete corporation["orderFlowMultiplier"];
+    delete corporation["orderFlowWindowBuyValue"];
+    delete corporation["orderFlowWindowSellValue"];
+    delete corporation["sentimentMultiplier"];
+    delete corporation["priceHistory"];
+    const v45World = { ...world, meta: { ...world.meta, schemaVersion: 45 } };
+    const raw = JSON.stringify({ format: "ahdsolo-save", schemaVersion: 45, savedAt: "2026-01-01T00:00:00Z", world: v45World });
+
+    const migrated = deserializeSave(raw);
+    const migratedCorp = migrated.corporations["US-manufacturing"]!;
+    expect(migrated.meta.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(migratedCorp.orderFlowMultiplier).toBe(1);
+    expect(migratedCorp.orderFlowWindowBuyValue).toBe(0);
+    expect(migratedCorp.orderFlowWindowSellValue).toBe(0);
+    expect(migratedCorp.sentimentMultiplier).toBe(1);
+    expect(migratedCorp.priceHistory).toEqual([]);
   });
 });
