@@ -1,6 +1,6 @@
 [package]
 name = "ahdnative"
-version = "0.1.2"
+version = "0.1.3"
 description = "A House Divided native application shell"
 authors = ["Lakeside Games"]
 repository = "https://github.com/Egg3901/AHDNative"
