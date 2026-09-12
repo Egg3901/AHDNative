@@ -25,7 +25,7 @@ import { RACE_PHASE_LABELS } from "../game/racePhase";
 
 export interface PoliticsPanelProps {
   politics: PoliticsView;
-  section: "parties" | "elections" | "campaign" | "politicians";
+  section: "parties" | "elections" | "campaign" | "politicians" | "referendums";
   busy: boolean;
   initialId?: string;
   onOpenElection?: (id: string) => void;
@@ -946,9 +946,76 @@ function PoliticiansSection({ politics, busy, onOpenElection, initialId }: Omit<
   );
 }
 
+function ReferendumsSection({ politics, busy, onAction }: Omit<PoliticsPanelProps, "section">) {
+  const request = politics.referendumRequest;
+  return (
+    <div className="ahd-stack">
+      <div className="ahd-card ahd-card-pad">
+        <h2 className="ahd-h2">Referendums</h2>
+        <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>
+          {politics.referendums.length} recorded referendum {politics.referendums.length === 1 ? "record" : "records"}
+        </p>
+        <p className="ahd-help" role="note">{request.note}</p>
+      </div>
+      {request.applicable ? (
+        <article className="ahd-card ahd-card-pad" aria-label="Referendum requests">
+          <h3 style={{ fontSize: "0.86rem", margin: 0, fontWeight: 750 }}>Request a referendum</h3>
+          <ul style={{ listStyle: "none", margin: "0.5rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            {request.regions.map((region) => (
+              <li key={region.regionId} style={{ borderTop: "1px solid var(--ahd-border)", paddingTop: "0.45rem" }}>
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                  <strong style={{ fontSize: "0.82rem" }}>{region.regionName}</strong>
+                  <span className="ahd-muted" style={{ fontSize: "0.74rem" }}>desire {region.desire.toFixed(1)}</span>
+                  <button
+                    type="button"
+                    className="ahd-btn ahd-btn-primary ahd-btn-sm"
+                    disabled={busy || !region.eligible}
+                    aria-disabled={busy || !region.eligible}
+                    aria-label={`Request referendum in ${region.regionName}`}
+                    onClick={() => onAction("requestReferendum", { regionId: region.regionId })}
+                  >
+                    Request referendum
+                  </button>
+                </div>
+                {!region.eligible && region.reason ? <p className="ahd-help" role="note">{region.reason}</p> : null}
+              </li>
+            ))}
+          </ul>
+          {!request.action.available && request.action.disabledReason ? (
+            <p className="ahd-help" role="note">{request.action.disabledReason}</p>
+          ) : null}
+        </article>
+      ) : null}
+      {politics.referendums.length === 0 ? (
+        <div className="ahd-empty">No referendums have been requested.</div>
+      ) : politics.referendums.map((record) => (
+        <article key={record.id} aria-label={record.question} className="ahd-card ahd-card-pad">
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+            <strong style={{ fontSize: "0.86rem" }}>{record.question}</strong>
+            <span className="ahd-pill">{record.phase}</span>
+          </div>
+          <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.2rem" }}>
+            {record.scope} · requested turn {record.requestedTurn}
+          </div>
+          <dl style={{ marginTop: "0.5rem", display: "grid", gap: "0.3rem" }}>
+            <div className="ahd-kv"><dt>Yes share</dt><dd className="ahd-mono">{record.yesShare.toFixed(1)}%</dd></div>
+            {record.campaignCloseTurn != null ? <div className="ahd-kv"><dt>Campaign closes</dt><dd className="ahd-mono">Turn {record.campaignCloseTurn}</dd></div> : null}
+            {record.finalYesShare != null ? <div className="ahd-kv"><dt>Final yes share</dt><dd className="ahd-mono">{record.finalYesShare.toFixed(1)}%</dd></div> : null}
+            {record.turnout != null ? <div className="ahd-kv"><dt>Turnout</dt><dd className="ahd-mono">{record.turnout.toFixed(1)}%</dd></div> : null}
+            {record.passed != null ? <div className="ahd-kv"><dt>Result</dt><dd>{record.passed ? "Passed" : "Rejected"}</dd></div> : null}
+            {record.conversionDeadlineTurn != null ? <div className="ahd-kv"><dt>Consent deadline</dt><dd className="ahd-mono">Turn {record.conversionDeadlineTurn}</dd></div> : null}
+            {record.latestPollTurn != null ? <div className="ahd-kv"><dt>Latest poll</dt><dd className="ahd-mono">Turn {record.latestPollTurn}</dd></div> : null}
+          </dl>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 export function PoliticsPanel({ politics, section, busy, onAction, initialId, onOpenElection, onOpenCampaign, onOpenPolitician }: PoliticsPanelProps) {
   if (section === "campaign") return <CampaignSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} />;
   if (section === "elections") return <ElectionsSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} onOpenCampaign={onOpenCampaign} onOpenPolitician={onOpenPolitician} />;
+  if (section === "referendums") return <ReferendumsSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} />;
   if (section === "politicians") return <PoliticiansSection politics={politics} busy={busy} initialId={initialId} onOpenElection={onOpenElection} />;
   return <PartiesSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} />;
 }

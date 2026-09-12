@@ -76,3 +76,33 @@ completable next without rebalancing: none of them change existing numbers
 because no live path previously created referendum records. The cohort port is
 the load-bearing piece and the only one that can move vote outcomes once
 `yesShare` becomes computed rather than fixture input.
+
+## Player surface (#70), 2026-09-12
+
+The persisted W25 referendum records are now reachable from the Nation drawer's
+Referendums destination, backed by the existing `politics()` query:
+
+- The politics DTO projects every `world.referendums` record for the player's
+  country: kind, region, question, status label, scope, current yes share,
+  campaign window, final share, turnout, result, consent deadline and cooldown.
+  Records sort active-first by request turn. Nothing is invented; absent result
+  fields stay null and are simply not rendered.
+- `referendumRequest` shares the engine's own seam instead of duplicating it:
+  `UK_DEVOLUTION_REGIONS`, `referendumRegionStatus` and the 60-desire threshold
+  are exported from the engine and used for the SCO/WAL/NIR rows, so the
+  surfaced reason is exactly the gate the `requestReferendum` action enforces.
+  Outside the UK the section renders an explicit not-applicable note.
+- The request button dispatches the real `requestReferendum` action with the
+  region id. A region already in progress or on cooldown is disabled with the
+  engine reason.
+
+Honest limits: there is still no player action for referendum campaign spending,
+ground-game/cohort modifiers or positions, so those persisted fields have no
+writers and the panel does not offer controls for them; the consent/actuation
+result is displayed but not steered from this surface.
+
+Evidence: `src/game/politics.test.ts` covers the non-UK not-applicable state and
+a UK request through the session boundary (eligible region, engine reason,
+persisted record, reload); `PoliticsPanel.test.tsx` covers the request dispatch,
+the ineligible reasons and a recorded result; `smoke/referendums.spec.ts` opens
+the destination in a real UK world and finds all three devolved regions.

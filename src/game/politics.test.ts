@@ -179,6 +179,48 @@ describe("projectPolitics", () => {
     expect(detail.candidates.map((candidate) => candidate.name)).toEqual([nominees[0]!.name]);
   });
 
+  it("marks referendums inapplicable outside the UK", () => {
+    const politics = freshPolitics();
+    expect(politics.referendumRequest.applicable).toBe(false);
+    expect(politics.referendumRequest.regions).toEqual([]);
+    expect(politics.referendumRequest.action.available).toBe(false);
+    expect(politics.referendumRequest.action.disabledReason).toMatch(/UK-only/i);
+    expect(politics.referendums).toEqual([]);
+  });
+
+  it("projects the UK referendum request seam, records a request and survives reload", () => {
+    const session = new GameSession();
+    session.create({ era: "1953", countryId: "UK", seed: "referendum-view", playerName: "Alex" });
+    const saved = JSON.parse(session.serialize(SAVED_AT));
+    saved.world.regions.SCO.independenceDesire = 61;
+    saved.world.player.actions = 20;
+    session.load(JSON.stringify(saved));
+
+    const request = session.politics().referendumRequest;
+    expect(request.applicable).toBe(true);
+    expect(request.regions.map((region) => region.regionId)).toEqual(["NIR", "SCO", "WAL"]);
+    expect(request.regions.find((region) => region.regionId === "SCO")).toMatchObject({ eligible: true, desire: 61 });
+    const wales = request.regions.find((region) => region.regionId === "WAL")!;
+    expect(wales.eligible).toBe(false);
+    expect(wales.reason).toMatch(/desire must reach 60/i);
+
+    expect(session.act("requestReferendum", { regionId: "SCO" }).ok).toBe(true);
+    const politics = session.politics();
+    expect(politics.referendums).toHaveLength(1);
+    expect(politics.referendums[0]).toMatchObject({
+      kind: "independence", regionId: "SCO", regionName: "Scotland", status: "granted",
+      passed: null, finalYesShare: null, scope: "Scotland · devolved region",
+    });
+    expect(politics.referendums[0]!.question).toMatch(/Scotland become an independent country/);
+    expect(politics.referendumRequest.regions.find((region) => region.regionId === "SCO")!.eligible).toBe(false);
+    expect(politics.referendumRequest.regions.find((region) => region.regionId === "SCO")!.reason)
+      .toMatch(/already in progress/i);
+
+    const loaded = new GameSession();
+    loaded.load(session.serialize(SAVED_AT));
+    expect(loaded.politics().referendums.map((record) => record.id)).toEqual(politics.referendums.map((record) => record.id));
+  });
+
   it("lists country politicians with actual engine fields", () => {
     const politics = freshPolitics();
     expect(politics.politicians.length).toBeGreaterThan(0);

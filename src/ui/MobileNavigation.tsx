@@ -5,7 +5,7 @@ export type DrawerRouteId =
   | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "campaignDetails"
   | "politicians" | "economy" | "budget" | "policy" | "nations" | "state"
   | "help" | "settings" | "legislationDetails" | "markets" | "search"
-  | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications";
+  | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications" | "referendums";
 
 export type BottomTabId = "profile" | "actions" | "parties";
 
@@ -32,6 +32,7 @@ export const MENU_GROUPS: { label: string; items: { id: DrawerRouteId; label: st
       { id: "legislature", label: "Legislature" },
       { id: "legislationDetails", label: "Bills and proposals" },
       { id: "elections", label: "Elections" },
+      { id: "referendums", label: "Referendums" },
       { id: "politicians", label: "Politicians" },
       { id: "economy", label: "Economy" },
       { id: "budget", label: "Budget" },

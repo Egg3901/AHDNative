@@ -62,6 +62,7 @@ test('mobile politics, national accounts and resource explanations use a real UK
   await gameReady(page);
   await page.reload();
   await page.getByRole('button', { name: 'Continue Detail Player' }).click();
+  await gameReady(page);
   await openMenu(page, 'Economy');
   await expect(page.getByRole('columnheader', { name: 'Turn', exact: true })).toBeVisible();
   expect(errors).toEqual([]);

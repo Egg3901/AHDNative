@@ -94,3 +94,9 @@ export type { WorldInitialization } from "./initialization/ukHistorical.js";
 
 export { projectPlayerPartyInfluence } from "./party/playerInfluence.js";
 export { ACHIEVEMENT_CATALOG } from "./achievements/catalog.js";
+
+// W25 referendum request seam (#70): the display adapter shares the engine's
+// devolution region set and eligibility rules instead of duplicating them.
+export { UK_DEVOLUTION_REGIONS } from "./devolution/independenceDesireDrift.js";
+export { referendumRequestEligibility, referendumRegionStatus, REQUEST_THRESHOLD, REQUEST_AP_COST } from "./referendum/request.js";
+export type { ReferendumRecord, ReferendumKind, ReferendumStatus } from "./referendum/types.js";

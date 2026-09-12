@@ -75,6 +75,7 @@ const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
   portfolio: "Portfolio",
   banking: "Banking",
   partyDetails: "Party details", electionDetails: "Election details", campaignDetails: "Campaign", politicians: "Politicians",
+  referendums: "Referendums",
   notifications: "Notifications",
 };
 
@@ -425,6 +426,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
           {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} onOpenCampaign={openCampaign} onOpenPolitician={openPolitician} busy={busy} onAction={onAction} />}
           {route === "campaignDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="campaign" initialId={detailId} busy={busy} onAction={onAction} />}
           {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} />}
+          {route === "referendums" && <PoliticsRoute load={loadPolitics} revision={world} section="referendums" busy={busy} onAction={onAction} />}
           {route === "banking" ? <FinancePanel finance={world.finance} section="banking" busy={busy} onAction={onAction} /> : null}
           {route === "notifications" ? (
             <NotificationsInbox

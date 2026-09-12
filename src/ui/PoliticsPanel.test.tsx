@@ -95,6 +95,17 @@ function makePolitics(): PoliticsView {
         },
       },
     ],
+    referendums: [],
+    referendumRequest: {
+      applicable: true,
+      note: "A request needs 60 independence desire and costs 3 action points.",
+      regions: [
+        { regionId: "SCO", regionName: "Scotland", desire: 61, eligible: true },
+        { regionId: "WAL", regionName: "Wales", desire: 20, eligible: false, reason: "Independence desire must reach 60 to request a referendum." },
+        { regionId: "NIR", regionName: "Northern Ireland", desire: 12, eligible: false, reason: "Independence desire must reach 60 to request a referendum." },
+      ],
+      action: { id: "requestReferendum", name: "Request Referendum", description: "", cost: 3, available: true },
+    },
     politicians: [
       { id: "US-3", name: "Sam Winner", partyId: "US_DEM", partyName: "Democratic Party", office: "Senate · TX", age: 55, economic: -2, social: -1, influence: 40, favorability: 60, infamy: 0, activeRaceIds: [] },
       { id: "US-4", name: "Lou Loser", partyId: "US_REP", partyName: "Republican Party", office: null, age: 61, economic: 2, social: 3, influence: 20, favorability: 45, infamy: 5, activeRaceIds: ["house:US:AL:c1"] },
@@ -467,4 +478,37 @@ it("opens an active race from a politician's details", async () => {
   await user.selectOptions(screen.getByLabelText('Politician'), 'US-4');
   await user.click(screen.getByRole('button', { name: 'View house · AL' }));
   expect(onOpenElection).toHaveBeenCalledWith('house:US:AL:c1');
+});
+
+describe("PoliticsPanel referendums", () => {
+  it("requests an eligible region and shows every ineligible reason", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const PoliticsPanel = await renderPanel();
+    render(<PoliticsPanel politics={makePolitics()} section="referendums" busy={false} onAction={onAction} />);
+    expect(screen.getByRole("heading", { name: "Referendums" })).toBeInTheDocument();
+    expect(screen.getByText("No referendums have been requested.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Request referendum in Scotland" }));
+    expect(onAction).toHaveBeenCalledWith("requestReferendum", { regionId: "SCO" });
+    expect(screen.getByRole("button", { name: "Request referendum in Wales" })).toBeDisabled();
+    expect(screen.getAllByText(/must reach 60/i).length).toBeGreaterThan(0);
+  });
+
+  it("shows a recorded referendum result from persisted state", async () => {
+    const PoliticsPanel = await renderPanel();
+    const view = makePolitics();
+    view.referendums = [{
+      id: "referendum-SCO-10", kind: "independence", regionId: "SCO", regionName: "Scotland",
+      question: "Should Scotland become an independent country?",
+      status: "completed", phase: "Completed", scope: "Scotland · devolved region",
+      yesShare: 55.1, finalYesShare: 55.1, passed: true, turnout: 68.1,
+      requestedTurn: 10, campaignOpenTurn: 10, campaignCloseTurn: 58,
+      conversionDeadlineTurn: 70, cooldownReadyAtTurn: 130, latestPollTurn: 57,
+    }];
+    render(<PoliticsPanel politics={view} section="referendums" busy={false} onAction={vi.fn()} />);
+    expect(screen.getByText("Should Scotland become an independent country?")).toBeInTheDocument();
+    expect(screen.getByText("Passed")).toBeInTheDocument();
+    expect(screen.getAllByText("55.1%").length).toBe(2);
+    expect(screen.getByText("Turn 58")).toBeInTheDocument();
+  });
 });

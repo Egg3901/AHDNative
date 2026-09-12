@@ -43,6 +43,7 @@ test('profile picture, biography and standing survive a real save and resume', a
   await page.reload();
   await page.getByRole('button', { name: 'Continue Profile Player' }).click();
   await gameReady(page);
+  await expect(profile.getByRole('heading', { name: 'Profile Player', exact: true })).toBeVisible();
   await expect(profile.getByText('Representing my community.', { exact: true })).toBeVisible();
   await expect(picture).toHaveAttribute('src', savedPicture!);
   await expect(profile.getByRole('region', { name: 'Political standing' })).toContainText('25 / 200');
@@ -53,6 +54,7 @@ test('profile picture, biography and standing survive a real save and resume', a
   await page.reload();
   await page.getByRole('button', { name: 'Continue Profile Player' }).click();
   await gameReady(page);
+  await expect(profile.getByRole('heading', { name: 'Profile Player', exact: true })).toBeVisible();
   await expect(profile.getByRole('button', { name: 'Upload picture' })).toBeVisible();
   await expect(profile.getByText('Representing my community.', { exact: true })).toBeVisible();
 });

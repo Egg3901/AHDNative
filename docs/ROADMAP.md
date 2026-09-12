@@ -579,3 +579,19 @@ vote/margin/seat chips (#68) remain open, so #83 stays partial. Evidence:
 `src/game/resources.test.ts`, `ResourceBreakdown`/`ProfilePanel` UI tests and
 `smoke/resource-breakdown.spec.ts` at 320px and 390px. No mechanics formula
 changed.
+
+
+## Referendum player surface checkpoint
+
+#70: the Nation drawer's Referendums destination now renders the persisted W25
+records (question, status, scope, yes share, campaign window, final share,
+turnout, result, consent deadline) and the UK-only request seam. The request
+rows reuse the engine's `UK_DEVOLUTION_REGIONS`, `referendumRegionStatus` and
+60-desire threshold, so every surfaced reason matches the `requestReferendum`
+gate, and the button dispatches the real action. Non-UK worlds get an explicit
+not-applicable note.
+
+Remaining: player referendum campaign writers (spending, ground game, positions)
+do not exist in the engine, so #70 stays open for those. Evidence:
+`src/game/politics.test.ts`, `PoliticsPanel.test.tsx`,
+`smoke/referendums.spec.ts`. No mechanics formula changed.
