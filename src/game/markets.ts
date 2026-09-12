@@ -71,6 +71,50 @@ export interface MarketListing {
   priceHistory: MarketPricePoint[];
   buy: MarketActionHint;
   sell: MarketActionHint;
+  /**
+   * Recorded shareholder blocks, mapped 1:1 from Corporation.shareholders.
+   * The engine stores only a holder KIND plus a raw share count — there is no
+   * per-owner id, name, or character/CEO reference in world state, so no owner
+   * page can be linked. Nothing here is derived beyond copying recorded fields.
+   */
+  shareholders: MarketShareholder[];
+  /** Recorded holder with the largest block, or null when none is recorded or the top is tied. */
+  controllingHolder: ShareholderKind | null;
+}
+
+/**
+ * Recorded holder kind. Mirrors the engine's Corporation ShareholderKind —
+ * the only owner identity AHDClient actually stores ("npc" founder block, or
+ * the single "player"). cross-corp / fund / state owner kinds are not ported,
+ * so they are deliberately absent rather than invented.
+ */
+export type ShareholderKind = "npc" | "player";
+
+/** One recorded shareholder block (holder kind + raw share count). */
+export interface MarketShareholder {
+  holder: ShareholderKind;
+  shares: number;
+  /** Recorded weighted-average cost per share; null for the founding NPC block (no purchase event). */
+  avgCostPerShare: number | null;
+}
+
+/** One sector's recorded value in a single currency — never summed across currencies. */
+export interface SectorValue {
+  currency: string;
+  companyCount: number;
+  /** Σ recorded (sharePrice × totalShares) for this sector's companies in this currency. */
+  marketValue: number;
+}
+
+/** Sector directory entry, grouped from the same listings projection the route uses. */
+export interface SectorSummary {
+  sectorType: string;
+  sectorLabel: string;
+  companyCount: number;
+  /** Per-currency values, one entry per currency present in the sector. */
+  values: SectorValue[];
+  /** Listing ids in this sector, for opening the existing company detail from the directory. */
+  companyIds: string[];
 }
 
 export interface MarketsView {
@@ -85,6 +129,8 @@ export interface MarketsView {
   corporationsPhaseEnabled: boolean;
   countries: MarketCountry[];
   listings: MarketListing[];
+  /** Sector directory derived from the same listings projection (sorted by label). */
+  sectors: SectorSummary[];
 }
 
 function homeCurrency(world: WorldState, countryId: string): string {
@@ -93,6 +139,21 @@ function homeCurrency(world: WorldState, countryId: string): string {
 
 function sectorLabel(sectorType: string): string {
   return sectorType.replaceAll("_", " ");
+}
+
+/**
+ * Recorded holder with the largest number of shares, or null when no positive
+ * block is recorded or the largest block is tied. Control is read straight
+ * from the recorded share counts — no threshold or percentage is invented.
+ */
+function controllingHolder(
+  shareholders: readonly { holder: ShareholderKind; shares: number }[],
+): ShareholderKind | null {
+  const positive = shareholders.filter((shareholder) => shareholder.shares > 0);
+  if (positive.length === 0) return null;
+  const largest = Math.max(...positive.map((shareholder) => shareholder.shares));
+  const top = positive.filter((shareholder) => shareholder.shares === largest);
+  return top.length === 1 ? top[0]!.holder : null;
 }
 
 
@@ -198,6 +259,12 @@ export function projectMarkets(world: WorldState): MarketsView {
       priceHistory,
       buy: listingTrade("buyShares", world, trade),
       sell: listingTrade("sellShares", world, trade),
+      shareholders: corp.shareholders.map((shareholder) => ({
+        holder: shareholder.holder,
+        shares: shareholder.shares,
+        avgCostPerShare: shareholder.avgCostPerShare ?? null,
+      })),
+      controllingHolder: controllingHolder(corp.shareholders),
     };
   });
 
@@ -226,6 +293,40 @@ export function projectMarkets(world: WorldState): MarketsView {
     return bHome - aHome || a.id.localeCompare(b.id);
   });
 
+  // Sector directory: grouped from the SAME listings projection above, so it
+  // can never drift from what the company list/detail shows. Values are kept
+  // per currency (each corp is priced in its own home currency) and never
+  // summed across currencies — matching the no-FX rule the listings follow.
+  const sectorMap = new Map<
+    string,
+    { sectorType: string; sectorLabel: string; companyIds: string[]; values: Map<string, SectorValue> }
+  >();
+  for (const listing of listings) {
+    let sector = sectorMap.get(listing.sectorType);
+    if (!sector) {
+      sector = { sectorType: listing.sectorType, sectorLabel: listing.sectorLabel, companyIds: [], values: new Map() };
+      sectorMap.set(listing.sectorType, sector);
+    }
+    sector.companyIds.push(listing.id);
+    const marketValue = Math.round(listing.sharePrice * listing.totalShares * 100) / 100;
+    const value = sector.values.get(listing.currency);
+    if (value) {
+      value.companyCount += 1;
+      value.marketValue = Math.round((value.marketValue + marketValue) * 100) / 100;
+    } else {
+      sector.values.set(listing.currency, { currency: listing.currency, companyCount: 1, marketValue });
+    }
+  }
+  const sectors: SectorSummary[] = [...sectorMap.values()]
+    .map((sector) => ({
+      sectorType: sector.sectorType,
+      sectorLabel: sector.sectorLabel,
+      companyCount: sector.companyIds.length,
+      values: [...sector.values.values()].sort((a, b) => a.currency.localeCompare(b.currency)),
+      companyIds: sector.companyIds,
+    }))
+    .sort((a, b) => a.sectorLabel.localeCompare(b.sectorLabel) || a.sectorType.localeCompare(b.sectorType));
+
   return {
     playerCountryId: player.countryId,
     playerCash: player.cash,
@@ -237,5 +338,6 @@ export function projectMarkets(world: WorldState): MarketsView {
     corporationsPhaseEnabled: world.featureFlags.corporations,
     countries,
     listings,
+    sectors,
   };
 }

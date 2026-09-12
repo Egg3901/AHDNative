@@ -15,7 +15,7 @@ import {
   evaluateShareTrade,
   parseShareCount,
 } from "../game/shareTrade";
-import type { MarketListing, MarketsView } from "../game/markets";
+import type { MarketListing, MarketsView, SectorSummary, ShareholderKind } from "../game/markets";
 import type { GameScreenProps } from "../game/types";
 import { formatFinanceMoney } from "./FinancePanel";
 
@@ -45,6 +45,24 @@ function matchesQuery(listing: MarketListing, query: string): boolean {
   );
 }
 
+function matchesSector(sector: SectorSummary, query: string): boolean {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  return sector.sectorLabel.toLowerCase().includes(q) || sector.sectorType.toLowerCase().includes(q);
+}
+
+/**
+ * Recorded holder kinds are the only owner identity in world state, so these
+ * labels describe the recorded kind verbatim — no owner name is invented.
+ */
+function holderLabel(holder: ShareholderKind): string {
+  return holder === "player" ? "You (player)" : "NPC founder";
+}
+
+function controllingLabel(holder: ShareholderKind | null): string {
+  return holder ? holderLabel(holder) : "No recorded controlling holder";
+}
+
 function ListingList({
   listings,
   onSelect,
@@ -56,7 +74,7 @@ function ListingList({
     return <div className="ahd-empty">No corporations match.</div>;
   }
   return (
-    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+    <ul aria-label="Companies" style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
       {listings.map((listing) => (
         <li key={listing.id}>
           <button
@@ -77,6 +95,78 @@ function ListingList({
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * Sector directory: sectors with recorded company counts and per-currency
+ * values, sorted by label, searchable. Selecting a sector narrows the company
+ * list below to that sector, and each company entry opens the existing
+ * company detail (the same onSelect the market list already uses).
+ */
+function SectorDirectory({
+  sectors,
+  query,
+  onQueryChange,
+  activeSectorType,
+  onSelect,
+}: {
+  sectors: SectorSummary[];
+  query: string;
+  onQueryChange: (query: string) => void;
+  activeSectorType: string | null;
+  onSelect: (sectorType: string | null) => void;
+}) {
+  const visible = sectors.filter((sector) => matchesSector(sector, query));
+  return (
+    <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+      <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Sector directory</h3>
+      <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: 0 }}>
+        {sectors.length} {sectors.length === 1 ? "sector" : "sectors"} with listed companies.
+      </p>
+      <label className="ahd-field">
+        <span className="ahd-label">Search sectors</span>
+        <input
+          className="ahd-input"
+          type="search"
+          value={query}
+          onChange={(e) => onQueryChange(e.target.value)}
+          placeholder="Search sectors..."
+          aria-label="Search sectors"
+        />
+      </label>
+      {visible.length === 0 ? (
+        <div className="ahd-empty">No sectors match.</div>
+      ) : (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+          {visible.map((sector) => {
+            const active = sector.sectorType === activeSectorType;
+            return (
+              <li key={sector.sectorType}>
+                <button
+                  type="button"
+                  className="ahd-btn ahd-btn-sm"
+                  style={{ width: "100%", justifyContent: "space-between", textAlign: "left", minHeight: 44 }}
+                  aria-pressed={active}
+                  aria-label={`${sector.sectorLabel} sector, ${sector.companyCount} ${sector.companyCount === 1 ? "company" : "companies"}`}
+                  onClick={() => onSelect(active ? null : sector.sectorType)}
+                >
+                  <span style={{ overflowWrap: "anywhere" }}>
+                    <strong>{sector.sectorLabel}</strong>{" "}
+                    <span className="ahd-muted">
+                      {sector.companyCount} {sector.companyCount === 1 ? "company" : "companies"}
+                    </span>
+                  </span>
+                  <span className="ahd-mono" style={{ fontSize: "0.78rem" }}>
+                    {sector.values.map((value) => formatFinanceMoney(value.marketValue, value.currency)).join(" · ")}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -198,6 +288,36 @@ function CompanyDetail({
       </div>
 
       <div className="ahd-card ahd-card-pad">
+        <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Ownership</h3>
+        <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.35rem 0 0" }}>
+          Controlling holder: {controllingLabel(listing.controllingHolder)}
+        </p>
+        {listing.shareholders.length === 0 ? (
+          <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.35rem 0 0" }}>No shareholders recorded.</p>
+        ) : (
+          <ul style={{ listStyle: "none", margin: "0.35rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+            {listing.shareholders.map((shareholder) => (
+              <li
+                key={shareholder.holder}
+                style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", fontSize: "0.78rem" }}
+              >
+                <span>{holderLabel(shareholder.holder)}</span>
+                <span className="ahd-mono">
+                  {shareholder.shares.toLocaleString()} shares
+                  {shareholder.avgCostPerShare != null
+                    ? ` · avg ${formatFinanceMoney(shareholder.avgCostPerShare, listing.currency)}`
+                    : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: "0.35rem 0 0" }}>
+          Public float: {listing.publicFloat.toLocaleString()} shares. Ownership reflects only the holders recorded in world state.
+        </p>
+      </div>
+
+      <div className="ahd-card ahd-card-pad">
         <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Earnings history</h3>
         {listing.earningsHistory.length === 0 ? (
           <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.35rem 0 0" }}>No earnings recorded yet.</p>
@@ -298,6 +418,8 @@ function CompanyDetail({
 export function MarketsPanel({ markets, busy, onAction, initialId = null, onSelect }: MarketsPanelProps) {
   const [query, setQuery] = useState("");
   const [countryId, setCountryId] = useState("all");
+  const [sectorType, setSectorType] = useState<string | null>(null);
+  const [sectorQuery, setSectorQuery] = useState("");
   const [selectedId, updateSelectedId] = useState<string | null>(initialId);
   const setSelectedId = (id: string | null) => { updateSelectedId(id); onSelect?.(id); };
 
@@ -307,12 +429,19 @@ export function MarketsPanel({ markets, busy, onAction, initialId = null, onSele
     if (selectedId && !markets.listings.some((l) => l.id === selectedId)) setSelectedId(null);
   }, [markets.listings, selectedId]);
 
+  // Country and sector are mutually exclusive filters over the same list.
+  const selectSector = (next: string | null) => {
+    setSectorType(next);
+    if (next) setCountryId("all");
+  };
+
   const visible = useMemo(() => {
     return markets.listings.filter((listing) => {
+      if (sectorType && listing.sectorType !== sectorType) return false;
       if (countryId !== "all" && listing.countryId !== countryId) return false;
       return matchesQuery(listing, query);
     });
-  }, [markets.listings, countryId, query]);
+  }, [markets.listings, countryId, sectorType, query]);
 
   if (selected) {
     return (
@@ -348,36 +477,64 @@ export function MarketsPanel({ markets, busy, onAction, initialId = null, onSele
       {markets.listings.length === 0 ? (
         <div className="ahd-empty">No listed corporations.</div>
       ) : (
-        <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
-          <label className="ahd-field">
-            <span className="ahd-label">Search</span>
-            <input
-              className="ahd-input"
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search corporations..."
-              aria-label="Search corporations"
-            />
-          </label>
-          <label className="ahd-field" style={{ maxWidth: "16rem" }}>
-            <span className="ahd-label">Country</span>
-            <select
-              className="ahd-select"
-              value={countryId}
-              onChange={(e) => setCountryId(e.target.value)}
-              aria-label="Country"
-            >
-              <option value="all">All countries</option>
-              {markets.countries.map((country) => (
-                <option key={country.id} value={country.id}>
-                  {country.name} ({country.currency})
-                </option>
-              ))}
-            </select>
-          </label>
-          <ListingList listings={visible} onSelect={setSelectedId} />
-        </div>
+        <>
+          <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+            <label className="ahd-field">
+              <span className="ahd-label">Search</span>
+              <input
+                className="ahd-input"
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search corporations..."
+                aria-label="Search corporations"
+              />
+            </label>
+            <label className="ahd-field" style={{ maxWidth: "16rem" }}>
+              <span className="ahd-label">Country</span>
+              <select
+                className="ahd-select"
+                value={countryId}
+                onChange={(e) => { setCountryId(e.target.value); setSectorType(null); }}
+                aria-label="Country"
+              >
+                <option value="all">All countries</option>
+                {markets.countries.map((country) => (
+                  <option key={country.id} value={country.id}>
+                    {country.name} ({country.currency})
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <SectorDirectory
+            sectors={markets.sectors}
+            query={sectorQuery}
+            onQueryChange={setSectorQuery}
+            activeSectorType={sectorType}
+            onSelect={selectSector}
+          />
+
+          <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+            {sectorType ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+                <span className="ahd-muted" style={{ fontSize: "0.78rem" }}>
+                  Sector: {markets.sectors.find((s) => s.sectorType === sectorType)?.sectorLabel ?? sectorType}
+                </span>
+                <button
+                  type="button"
+                  className="ahd-btn ahd-btn-ghost ahd-btn-sm"
+                  onClick={() => setSectorType(null)}
+                  aria-label="Show all sectors"
+                >
+                  All sectors
+                </button>
+              </div>
+            ) : null}
+            <ListingList listings={visible} onSelect={setSelectedId} />
+          </div>
+        </>
       )}
     </div>
   );

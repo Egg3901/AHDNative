@@ -329,3 +329,104 @@ describe("DTO size", () => {
     );
   });
 });
+
+describe("sector directory projection", () => {
+  it("groups every listed corporation into its recorded sector with per-currency values", () => {
+    const view = projectMarkets(createWorld(US));
+    expect(view.sectors.length).toBeGreaterThan(0);
+
+    expect(new Set(view.sectors.map((s) => s.sectorType))).toEqual(new Set(view.listings.map((l) => l.sectorType)));
+    expect(view.sectors.reduce((sum, sector) => sum + sector.companyCount, 0)).toBe(view.listings.length);
+
+    for (const sector of view.sectors) {
+      const members = view.listings.filter((l) => l.sectorType === sector.sectorType);
+      expect(sector.companyCount).toBe(members.length);
+      expect(new Set(sector.companyIds)).toEqual(new Set(members.map((l) => l.id)));
+
+      const currencies = [...new Set(members.map((l) => l.currency))].sort((a, b) => a.localeCompare(b));
+      expect(sector.values.map((v) => v.currency)).toEqual(currencies);
+      for (const value of sector.values) {
+        const inCurrency = members.filter((l) => l.currency === value.currency);
+        expect(value.companyCount).toBe(inCurrency.length);
+        const expected = Math.round(inCurrency.reduce((sum, l) => sum + l.sharePrice * l.totalShares, 0) * 100) / 100;
+        expect(value.marketValue).toBeCloseTo(expected, 2);
+      }
+    }
+  });
+
+  it("sorts sectors by label and keeps values split per currency, never a cross-currency total", () => {
+    const view = projectMarkets(createWorld(US));
+    const labels = view.sectors.map((s) => s.sectorLabel);
+    expect(labels).toEqual([...labels].sort((a, b) => a.localeCompare(b)));
+    expect(JSON.stringify(view)).not.toMatch(/marketCapUsd|totalMarketCap|usdEquivalent|totalMarketValue/i);
+
+    // A US-world still seeds foreign corporations, so some sectors span currencies.
+    const multi = view.sectors.find((s) => s.values.length > 1);
+    expect(multi).toBeDefined();
+    for (const sector of view.sectors) {
+      expect(sector.values.length).toBeLessThanOrEqual(new Set(sector.companyIds).size);
+    }
+  });
+
+  it("points each sector entry at listings present in the same projection", () => {
+    const view = projectMarkets(createWorld(US));
+    const ids = new Set(view.listings.map((l) => l.id));
+    for (const sector of view.sectors) {
+      for (const id of sector.companyIds) expect(ids.has(id)).toBe(true);
+    }
+
+    const media = view.sectors.find((s) => s.sectorType === "media");
+    expect(media?.sectorLabel).toBe("media");
+    expect(media!.companyCount).toBeGreaterThan(0);
+    const mediaListingIds = view.listings.filter((l) => l.sectorType === "media").map((l) => l.id);
+    expect(new Set(media!.companyIds)).toEqual(new Set(mediaListingIds));
+    for (const value of media!.values) expect(value.marketValue).toBeGreaterThan(0);
+  });
+});
+
+describe("recorded ownership projection", () => {
+  it("surfaces each corporation's recorded shareholders and controlling holder verbatim", () => {
+    const world = createWorld(US);
+    const corp = world.corporations["US-media"]!;
+    const media = projectMarkets(world).listings.find((l) => l.id === "US-media")!;
+    expect(media.shareholders).toEqual([{ holder: "npc", shares: corp.shareholders[0]!.shares, avgCostPerShare: null }]);
+    expect(media.controllingHolder).toBe("npc");
+    for (const shareholder of media.shareholders) {
+      // Only recorded fields are projected — no owner name or id is fabricated.
+      expect(Object.keys(shareholder).sort()).toEqual(["avgCostPerShare", "holder", "shares"]);
+    }
+  });
+
+  it("follows the player into ownership once shares are bought, without inventing a name", () => {
+    const world = createWorld(US);
+    executeAction(world, "player", "buyShares", { corpId: "US-media", shares: 10 });
+    const media = projectMarkets(world).listings.find((l) => l.id === "US-media")!;
+    const player = media.shareholders.find((s) => s.holder === "player")!;
+    expect(player.shares).toBe(10);
+    expect(player.avgCostPerShare).toBe(world.corporations["US-media"]!.sharePrice);
+    expect(media.shareholders.every((s) => s.holder === "npc" || s.holder === "player")).toBe(true);
+    expect(media.controllingHolder).toBe("npc");
+  });
+
+  it("reads the controlling holder from recorded shares and returns null on a tie or no holders", () => {
+    const world = createWorld(US);
+    const corp = world.corporations["US-media"]!;
+
+    corp.shareholders = [
+      { holder: "npc", shares: 4 },
+      { holder: "player", shares: 6, avgCostPerShare: 3 },
+    ];
+    expect(projectMarkets(world).listings.find((l) => l.id === "US-media")!.controllingHolder).toBe("player");
+
+    corp.shareholders = [
+      { holder: "npc", shares: 5 },
+      { holder: "player", shares: 5, avgCostPerShare: 3 },
+    ];
+    expect(projectMarkets(world).listings.find((l) => l.id === "US-media")!.controllingHolder).toBeNull();
+
+    corp.shareholders = [];
+    const empty = projectMarkets(world).listings.find((l) => l.id === "US-media")!;
+    expect(empty.controllingHolder).toBeNull();
+    expect(empty.shareholders).toEqual([]);
+  });
+});
