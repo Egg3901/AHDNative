@@ -6,6 +6,55 @@ import type { SearchFilter, SearchResults } from '../game/search';
 
 const EMPTY_FACETS = { kinds: [], countries: [], regions: [] };
 
+it('restores a persisted query, filters and marks the opened result', async () => {
+  const results: SearchResults = {
+    query: 'Labour',
+    results: [
+      { kind: 'party', id: 'UK_LAB', title: 'Labour Party', description: 'Party · LAB', countryId: 'UK' },
+      { kind: 'nation', id: 'US', title: 'United States', description: 'Nation', countryId: 'US' },
+    ],
+    total: 2,
+    facets: {
+      kinds: [{ id: 'party', label: 'Parties', count: 1 }, { id: 'nation', label: 'Nations', count: 1 }],
+      countries: [{ id: 'UK', label: 'United Kingdom', count: 1 }, { id: 'US', label: 'United States', count: 1 }],
+      regions: [],
+    },
+  };
+  const load = vi.fn(async () => results);
+  render(<SearchPanel load={load} revision={{}} onOpen={vi.fn()} snapshot={{
+    query: 'Labour', submitted: 'Labour', kind: 'party', location: 'country:UK', results, opened: 'party:UK_LAB',
+  }} />);
+  // The shell-supplied snapshot seeds the input immediately; the filters and
+  // result list come back after the local re-query resolves.
+  expect(screen.getByLabelText('Search your world')).toHaveValue('Labour');
+  const opened = await screen.findByRole('button', { name: /Labour Party/ });
+  expect(screen.getByLabelText('Result kind')).toHaveValue('party');
+  expect(screen.getByLabelText('Country or region')).toHaveValue('country:UK');
+  expect(opened).toHaveAttribute('aria-current', 'true');
+  expect(opened).toHaveTextContent('Selected');
+  const other = screen.getByRole('button', { name: /United States/ });
+  expect(other).not.toHaveAttribute('aria-current');
+});
+
+it('reports its query, filters and opened result so the shell can restore them', async () => {
+  const user = userEvent.setup();
+  const result = { kind: 'party' as const, id: 'UK_LAB', title: 'Labour Party', description: 'Party · LAB', countryId: 'UK' };
+  const load = vi.fn(async () => ({
+    query: 'Labour', results: [result], total: 1,
+    facets: { kinds: [{ id: 'party', label: 'Parties', count: 1 }], countries: [{ id: 'UK', label: 'United Kingdom', count: 1 }], regions: [] },
+  }));
+  const onSnapshot = vi.fn();
+  const onOpen = vi.fn();
+  render(<SearchPanel load={load} revision={{}} onOpen={onOpen} onSnapshot={onSnapshot} />);
+  await user.type(screen.getByLabelText('Search your world'), 'Labour{Enter}');
+  await screen.findByRole('button', { name: /Labour Party/ });
+  expect(onSnapshot).toHaveBeenLastCalledWith(expect.objectContaining({ query: 'Labour', submitted: 'Labour' }));
+  // Opening a result persists the selection synchronously, before the panel unmounts.
+  await user.click(screen.getByRole('button', { name: /Labour Party/ }));
+  expect(onSnapshot).toHaveBeenLastCalledWith(expect.objectContaining({ opened: 'party:UK_LAB' }));
+  expect(onOpen).toHaveBeenCalledWith(result);
+});
+
 it('submits a local query and opens the exact returned destination', async () => {
   const user = userEvent.setup();
   const result = { kind: 'party' as const, id: 'UK_LAB', title: 'Labour Party', description: 'Party · LAB', countryId: 'UK' };

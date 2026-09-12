@@ -9,7 +9,7 @@ import { HelpPanel } from "./HelpPanel";
 import { WorldPanel } from "./WorldPanel";
 import { DetailQuery } from "./DetailQuery";
 import { NationPanel } from "./NationPanel";
-import { SearchPanel } from "./SearchPanel";
+import { EMPTY_SEARCH_SNAPSHOT, SearchPanel, type SearchPanelSnapshot } from "./SearchPanel";
 import type { SearchResult } from "../game/search";
 import { MarketsRoute } from "./MarketsRoute";
 import { PoliticsRoute } from "./PoliticsRoute";
@@ -27,7 +27,7 @@ import { RACE_PHASE_LABELS } from "../game/racePhase";
  *   (compact cards, primary #dc2626, bg #14141c, border #2a2a3d).
  * Public source Egg3901/AHDGame. Layout is original, responsive for Tauri web.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GameScreenProps } from "../game/types";
 import { FinancePanel, formatFinanceMoney } from "./FinancePanel";
 import { LegislaturePanel } from "./LegislaturePanel";
@@ -106,6 +106,10 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
   const [openResource, setOpenResource] = useState<ResourceId | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [electionPage, setElectionPage] = useState(0);
+  // The Search panel unmounts when a result opens, so its query, filters and
+  // last result list live here and are fed back on the next visit.
+  const [searchSnapshot, setSearchSnapshot] = useState<SearchPanelSnapshot>(EMPTY_SEARCH_SNAPSHOT);
+  const updateSearchSnapshot = useCallback((next: SearchPanelSnapshot) => setSearchSnapshot(next), []);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const screenRef = useRef<HTMLDivElement | null>(null);
   const footerRef = useRef<HTMLElement | null>(null);
@@ -167,7 +171,9 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
 
   const openSearchResult = (result: SearchResult) => {
     // Every kind maps to a route that can render that specific entity by id.
-    const destinations: Record<SearchResult['kind'], RouteId> = { nation: 'nations', party: 'partyDetails', company: 'markets', election: 'electionDetails', bill: 'legislationDetails', politician: 'politicians', player: 'profile', region: 'regions', bond: 'bonds' };
+    const destinations: Record<SearchResult['kind'], RouteId> = { nation: 'nations', party: 'partyDetails', company: 'markets', election: 'electionDetails', bill: 'legislationDetails', politician: 'politicians', player: 'profile', region: 'regions', bond: 'bonds', referendum: 'referendums' };
+    // Remember which result was opened so returning to Search keeps it marked.
+    setSearchSnapshot(prev => ({ ...prev, opened: `${result.kind}:${result.id}` }));
     setDetailId(result.id); focusPage.current = true; setRoute(destinations[result.kind]);
   };
 
@@ -426,7 +432,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "bonds" && <BondMarketRoute initialId={detailId} load={loadBondMarket} revision={world} busy={busy} onAction={onAction} />}
           {route === "partyManagement" && <DetailQuery load={loadPartyManagement} revision={world} label="Party management">{management => <PartyManagementPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
-          {route === "search" && <SearchPanel load={search} revision={world} onOpen={openSearchResult} />}
+          {route === "search" && <SearchPanel load={search} revision={world} onOpen={openSearchResult} snapshot={searchSnapshot} onSnapshot={updateSearchSnapshot} />}
           {route === "markets" && <MarketsRoute initialId={detailId} load={loadMarkets} revision={world} busy={busy} onAction={onAction} />}
           {route === "legislationDetails" && <LegislationRoute initialId={detailId} load={loadLegislation} revision={world} busy={busy} onAction={onAction} />}
           {route === "help" && <HelpPanel />}
@@ -448,7 +454,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
           {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} onOpenCampaign={openCampaign} onOpenPolitician={openPolitician} busy={busy} onAction={onAction} />}
           {route === "campaignDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="campaign" initialId={detailId} busy={busy} onAction={onAction} />}
           {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} />}
-          {route === "referendums" && <PoliticsRoute load={loadPolitics} revision={world} section="referendums" busy={busy} onAction={onAction} />}
+          {route === "referendums" && <PoliticsRoute load={loadPolitics} revision={world} section="referendums" initialId={detailId} busy={busy} onAction={onAction} />}
           {route === "banking" ? <FinancePanel finance={world.finance} section="banking" busy={busy} onAction={onAction} /> : null}
           {route === "notifications" ? (
             <NotificationsInbox

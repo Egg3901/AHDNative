@@ -623,6 +623,72 @@ describe("GameScreen navigation menu", () => {
   });
 });
 
+describe("GameScreen search", () => {
+  it("restores the last query and results, and keeps the opened result selected across route changes", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    const results = {
+      query: "France",
+      results: [
+        { kind: "nation" as const, id: "FR", title: "France", description: "Nation", countryId: "FR" },
+        { kind: "nation" as const, id: "US", title: "United States", description: "Nation", countryId: "US" },
+      ],
+      total: 2,
+      facets: {
+        kinds: [{ id: "nation", label: "Nations", count: 2 }],
+        countries: [{ id: "FR", label: "France", count: 1 }, { id: "US", label: "United States", count: 1 }],
+        regions: [],
+      },
+    };
+    const searchWithResults = vi.fn(async () => results);
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={searchWithResults} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    await navigate(user, "Search");
+    await user.type(screen.getByLabelText("Search your world"), "France{Enter}");
+    await screen.findByRole("button", { name: /France Nation/ });
+    await user.selectOptions(screen.getByLabelText("Result kind"), "nation");
+    const france = await screen.findByRole("button", { name: /France Nation/ });
+    // Opening a result routes to the searched entity.
+    await user.click(france);
+    expect(screen.getByRole("region", { name: "Nations" })).toBeInTheDocument();
+    // Returning to Search restores the query, the filter, the result list and the selection mark.
+    await navigate(user, "Search");
+    expect(screen.getByLabelText("Search your world")).toHaveValue("France");
+    const restored = await screen.findByRole("button", { name: /France Nation/ });
+    expect(screen.getByLabelText("Result kind")).toHaveValue("nation");
+    expect(restored).toHaveAttribute("aria-current", "true");
+    expect(restored).toHaveTextContent("Selected");
+    expect(screen.getByRole("button", { name: "United States Nation" })).toBeInTheDocument();
+  });
+
+  it("opens the exact referendum record a result points at", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld({ countryId: "UK", countryName: "United Kingdom" });
+    const base = await loadPolitics();
+    const loadReferendums = async () => ({
+      ...base,
+      countryId: "UK", countryName: "United Kingdom",
+      referendums: [
+        { id: "referendum-SCO-1", kind: "independence" as const, regionId: "SCO", regionName: "Scotland", question: "Should Scotland become an independent country?", status: "completed", phase: "Completed", scope: "Scotland · devolved region", yesShare: 55.1, finalYesShare: 55.1, passed: true, turnout: 68.1, requestedTurn: 10, campaignOpenTurn: 10, campaignCloseTurn: 58, conversionDeadlineTurn: 70, cooldownReadyAtTurn: 130, latestPollTurn: 57 },
+        { id: "referendum-WAL-1", kind: "independence" as const, regionId: "WAL", regionName: "Wales", question: "Should Wales become an independent country?", status: "polling", phase: "Polling", scope: "Wales · devolved region", yesShare: 30, finalYesShare: null, passed: null, turnout: null, requestedTurn: 20, campaignOpenTurn: 20, campaignCloseTurn: 78, conversionDeadlineTurn: null, cooldownReadyAtTurn: null, latestPollTurn: 30 },
+      ],
+    });
+    const searchReferendum = vi.fn(async () => ({
+      query: "Scotland",
+      results: [{ kind: "referendum" as const, id: "referendum-SCO-1", title: "Should Scotland become an independent country?", description: "Referendum · Scotland", countryId: "UK", regionId: "SCO" }],
+      total: 1,
+      facets: { kinds: [{ id: "referendum", label: "Referendums", count: 1 }], countries: [{ id: "UK", label: "United Kingdom", count: 1 }], regions: [{ id: "SCO", label: "Scotland", count: 1 }] },
+    }));
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadReferendums} search={searchReferendum} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    await navigate(user, "Search");
+    await user.type(screen.getByLabelText("Search your world"), "Scotland{Enter}");
+    await user.click(await screen.findByRole("button", { name: /Should Scotland/ }));
+    expect(screen.getByRole("region", { name: "Referendums" })).toBeInTheDocument();
+    // The section selects the record the result pointed at, not the first record.
+    expect(screen.getByLabelText("Referendum")).toHaveValue("referendum-SCO-1");
+    expect(screen.getByRole("article", { name: "Should Scotland become an independent country?" })).toBeInTheDocument();
+  });
+});
+
 describe("GameScreen status footer", () => {
   it("persists turn, date, player-paced status and five resource buttons", () => {
     const world = makeWorld();

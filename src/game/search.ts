@@ -5,7 +5,7 @@ import type { WorldState } from '@ahdclient/engine';
  * route in this app; each result carries the country (and, when region-scoped,
  * the region) so the panel can filter without re-projecting whole directories.
  */
-export type SearchKind = 'nation' | 'party' | 'company' | 'election' | 'bill' | 'politician' | 'player' | 'region' | 'bond';
+export type SearchKind = 'nation' | 'party' | 'company' | 'election' | 'bill' | 'politician' | 'player' | 'region' | 'bond' | 'referendum';
 
 export interface SearchResult {
   kind: SearchKind;
@@ -47,6 +47,7 @@ const LIMIT = 30;
 const KIND_LABELS: Record<SearchKind, string> = {
   nation: 'Nations', party: 'Parties', company: 'Companies', election: 'Elections',
   bill: 'Bills', politician: 'Politicians', player: 'You', region: 'Regions', bond: 'Bonds',
+  referendum: 'Referendums',
 };
 
 const normalize = (text: string) => text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -121,6 +122,17 @@ export function searchWorld(world: WorldState, text: string, filter: SearchFilte
   for (const bill of world.bills) {
     if (bill.countryId !== world.player.countryId) continue;
     offer({ kind: 'bill', id: bill.id, title: bill.title, description: `Bill · ${bill.status.replaceAll('_', ' ')}`, countryId: bill.countryId });
+  }
+  // Referendum records mirror projectPolitics: home-country records only, with the
+  // question built from the region (and reunification target) so results stay legible.
+  for (const record of world.referendums) {
+    if (record.countryId !== world.player.countryId) continue;
+    const regionName = world.regions[record.regionId]?.name ?? record.regionId;
+    const targetName = record.targetCountryId ? world.countries[record.targetCountryId]?.name ?? record.targetCountryId : null;
+    const question = record.kind === 'reunification' && targetName
+      ? `Should ${regionName} reunify with ${targetName}?`
+      : `Should ${regionName} become an independent country?`;
+    offer({ kind: 'referendum', id: record.id, title: question, description: `Referendum · ${regionName}`, countryId: record.countryId, regionId: record.regionId }, record.id);
   }
   const filtered = matched.filter(({ result }) =>
     (!filter.kind || result.kind === filter.kind)

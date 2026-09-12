@@ -1,7 +1,9 @@
 import { expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
+import { createWorld, type ReferendumRecord } from '@ahdclient/engine';
 import { GameSession } from './session';
+import { searchWorld } from './search';
 
 const options = { playerName: 'Search Player', countryId: 'UK', era: '1953', seed: 'native-search-v1' };
 const ELECTED_FIXTURE = new URL('../../fixtures/career-elected-1953-US.save.json.gz', import.meta.url);
@@ -74,6 +76,37 @@ it('applies the country and region filters from real result metadata', () => {
   const inRegion = session.search('a', { regionId: regionFacet!.id });
   expect(inRegion.total).toBe(regionFacet!.count);
   expect(inRegion.results.every(result => result.regionId === regionFacet!.id)).toBe(true);
+});
+it('indexes referendum records with their country, region and question', () => {
+  const world = createWorld({ playerName: 'Referendum Player', countryId: 'UK', era: '1953', seed: 'native-search-referendum' });
+  const independence: ReferendumRecord = {
+    id: 'referendum-SCO-1', countryId: 'UK', regionId: 'SCO', kind: 'independence',
+    status: 'completed', yesShare: 55.1, finalYesShare: 55.1, passed: true, turnout: 68.1,
+    requestedTurn: 10, grantedTurn: 10, campaignOpenTurn: 10, campaignCloseTurn: 58,
+    conversionDeadlineTurn: 70, cooldownReadyAtTurn: 130,
+  };
+  const reunification: ReferendumRecord = {
+    id: 'referendum-NIR-1', countryId: 'UK', regionId: 'NIR', kind: 'reunification', targetCountryId: 'IE',
+    status: 'polling', yesShare: 44.2, requestedTurn: 11, grantedTurn: 11, campaignOpenTurn: 11, campaignCloseTurn: 59,
+  };
+  // A foreign record must never surface in the home-country search.
+  const abroad: ReferendumRecord = { ...independence, id: 'referendum-TX-1', countryId: 'US', regionId: 'TX' };
+  world.referendums.push(independence, reunification, abroad);
+  const found = searchWorld(world, 'Scotland');
+  expect(found.results).toContainEqual(expect.objectContaining({
+    kind: 'referendum', id: 'referendum-SCO-1',
+    title: 'Should Scotland become an independent country?', countryId: 'UK', regionId: 'SCO',
+  }));
+  expect(found.facets.kinds).toContainEqual(expect.objectContaining({ id: 'referendum', label: 'Referendums' }));
+  expect(found.facets.regions).toContainEqual(expect.objectContaining({ id: 'SCO' }));
+  // Reunification records build the question from the target country.
+  expect(searchWorld(world, 'reunify').results).toContainEqual(expect.objectContaining({
+    kind: 'referendum', id: 'referendum-NIR-1', title: 'Should Northern Ireland reunify with Ireland?',
+  }));
+  // The kind filter narrows to referendums, and the foreign record stays invisible.
+  const only = searchWorld(world, 'a', { kind: 'referendum' });
+  expect(only.results.every(result => result.kind === 'referendum')).toBe(true);
+  expect(only.results.map(result => result.id)).not.toContain('referendum-TX-1');
 });
 it('offers the remaining entity kinds from a loaded save', () => {
   const session = loadElected();
