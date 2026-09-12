@@ -86,7 +86,11 @@ export type ActionId =
   | "declareWar"
   | "offerPeace"
   | "acceptPeace"
-  | "requestReferendum";
+  | "requestReferendum"
+  // W25 referendum campaign writers (#70): the engine already reads
+  // `campaignSpendUnits` + `cohortModifiers`; these are the missing writers.
+  | "referendumCampaignSpend"
+  | "referendumGroundGame";
 
 // Costs mirror mainline's dynamic tier functions but collapsed to neutral
 // goldens for solo's simpler state (no per-state GDP tier). Cited.
@@ -856,6 +860,31 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["devolution/referendum"],
+    status: "available",
+  },
+  // #70 campaign writers. baseCost/fundCost are 0: the real cost is charged
+  // inside the action after its own validation — the campaign spend debits the
+  // player party's Political Strength (@see referendum/campaign.ts), the ground
+  // game debits the player's Actions + Campaign Funds (the source preset card
+  // cost, @see referendum/groundGame.ts). Same pattern as campaignContribute.
+  referendumCampaignSpend: {
+    id: "referendumCampaignSpend",
+    name: "Spend on Referendum Campaign",
+    description: "Spend Political Strength on your party's side of an open referendum campaign. Each unit nudges the Yes share with diminishing returns. A party may only fund its mapped side.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["devolution/referendum/campaign"],
+    status: "available",
+  },
+  referendumGroundGame: {
+    id: "referendumGroundGame",
+    name: "Run Referendum Ground Game",
+    description: "Run a preset campaign action (rally, canvass, ads, GOTV) for one side of an open referendum, across the whole electorate or one targeted cohort. Costs the preset's Campaign Funds and Actions and moves the cohort model the vote resolves on.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["devolution/referendum/ground-game"],
     status: "available",
   },
 };

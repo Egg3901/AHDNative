@@ -15,6 +15,9 @@ import {
   campaignStrengthContributionActions,
   campaignStrengthContributionCost,
   campaignStrengthVoteMultiplier,
+  GROUND_GAME_PRESETS,
+  campaignSideForPartyInRegion,
+  CAMPAIGN_PS_COST_PER_UNIT,
   type Campaign, type OpsBranchKey, type ReferendumRecord, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionView, RacePhase } from "./types";
@@ -251,6 +254,48 @@ export interface PoliticsReferendumView {
   campaignOpenTurn: number | null; campaignCloseTurn: number | null;
   conversionDeadlineTurn: number | null; cooldownReadyAtTurn: number | null;
   latestPollTurn: number | null;
+  /** Campaign controls/state while the record is open (#70). */
+  campaign: PoliticsReferendumCampaignView;
+}
+
+/** One ground-game preset card as shown in the referendum campaign control. */
+export interface PoliticsReferendumPresetView {
+  id: string; label: string; effect: "mobilize" | "persuade";
+  funds: number; actions: number; nominalSwing: number;
+  /** Whether the player currently holds the funds + actions to run it. */
+  affordable: boolean;
+}
+
+/** One real cohort the ground game can target (from the record's baseline). */
+export interface PoliticsReferendumCohortView {
+  groupId: string; name: string;
+  /** Raw accumulated ground-game units (before the read-time soft cap). */
+  turnoutMod: number; leanMod: number;
+}
+
+/**
+ * Player referendum campaign controls/state (#70): the current per-side spend,
+ * the player party's mapped side, and the cost/eligibility for the two campaign
+ * writers. Everything comes from the engine's own readers — no invented state.
+ */
+export interface PoliticsReferendumCampaignView {
+  /** Campaign phase is open (the record is `campaigning`). */
+  active: boolean;
+  yesUnits: number; noUnits: number;
+  /** The side the player's party campaigns for; null when independent/unknown. */
+  playerSide: "yes" | "no" | null;
+  spend: {
+    side: "yes" | "no";
+    step: number; psPerUnit: number; psAvailable: number;
+    /** Political Strength cost of one `step` of spend. */
+    cost: number;
+    available: boolean; disabledReason?: string;
+  };
+  groundGame: {
+    presets: PoliticsReferendumPresetView[];
+    cohorts: PoliticsReferendumCohortView[];
+    available: boolean; disabledReason?: string;
+  };
 }
 
 export interface PoliticsReferendumRegionView {
@@ -908,6 +953,72 @@ const REFERENDUM_STATUS_LABELS: Record<string, string> = {
 
 const REFERENDUM_TERMINAL = new Set(["completed", "settled", "cancelled"]);
 
+/** Display name for a cohort bucket id ("age:young" → "Young (age)"). */
+function cohortLabel(groupId: string): string {
+  if (groupId === "_all") return "All voters";
+  if (groupId === "_whole") return "Whole electorate";
+  const [dim, raw] = groupId.includes(":") ? groupId.split(":") : [null, groupId];
+  const human = raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return dim ? `${human} (${dim})` : human;
+}
+
+/**
+ * Player campaign controls/state for one referendum record (#70). Every field is
+ * read from the engine: the current `campaignSpendUnits`, the party→side mapping
+ * (`campaignSideForPartyInRegion`), the party's Political Strength, the preset
+ * catalog, and the record's own cohort baseline/modifiers. No new state.
+ */
+function projectReferendumCampaign(world: WorldState, record: ReferendumRecord): PoliticsReferendumCampaignView {
+  const active = record.status === "campaigning";
+  const spendUnits = record.campaignSpendUnits ?? { yes: 0, no: 0 };
+  const partyId = world.player.partyId;
+  const playerSide = campaignSideForPartyInRegion(partyId, record.regionId);
+  const party = partyId ? world.parties[partyId] : undefined;
+  const psAvailable = Math.floor(party?.politicalStrength ?? 0);
+  const step = 1;
+  const cost = step * CAMPAIGN_PS_COST_PER_UNIT;
+
+  const spendReason = !active
+    ? "The campaign is not open."
+    : playerSide === null
+      ? "You must belong to a party to campaign."
+      : psAvailable < cost
+        ? `Insufficient Political Strength (need ${cost}, have ${psAvailable}).`
+        : undefined;
+
+  const cohorts = (record.cohortBaseline ?? []).map((c) => {
+    const mod = (record.cohortModifiers ?? []).find((m) => m.groupId === c.groupId);
+    return { groupId: c.groupId, name: cohortLabel(c.groupId), turnoutMod: mod?.turnoutMod ?? 0, leanMod: mod?.leanMod ?? 0 };
+  });
+  const presets = GROUND_GAME_PRESETS.map((preset) => ({
+    id: preset.id, label: preset.label, effect: preset.effect,
+    funds: preset.funds, actions: preset.actions, nominalSwing: preset.nominalSwing,
+    affordable: world.player.funds >= preset.funds && world.player.actions >= preset.actions,
+  }));
+  const groundGameReason = !active
+    ? "The campaign is not open."
+    : cohorts.length === 0
+      ? "The campaign has no cohort baseline to target yet."
+      : undefined;
+
+  return {
+    active,
+    yesUnits: spendUnits.yes,
+    noUnits: spendUnits.no,
+    playerSide,
+    spend: {
+      side: playerSide ?? "yes", step, psPerUnit: CAMPAIGN_PS_COST_PER_UNIT, psAvailable, cost,
+      available: spendReason === undefined,
+      ...(spendReason ? { disabledReason: spendReason } : {}),
+    },
+    groundGame: {
+      presets, cohorts,
+      available: groundGameReason === undefined,
+      ...(groundGameReason ? { disabledReason: groundGameReason } : {}),
+    },
+  };
+}
+
 /** Read-only view of a persisted W25 referendum record; no new state is invented. */
 function projectReferendum(world: WorldState, record: ReferendumRecord): PoliticsReferendumView {
   const regionName = world.regions[record.regionId]?.name ?? record.regionId;
@@ -936,6 +1047,7 @@ function projectReferendum(world: WorldState, record: ReferendumRecord): Politic
     conversionDeadlineTurn: record.conversionDeadlineTurn ?? null,
     cooldownReadyAtTurn: record.cooldownReadyAtTurn ?? null,
     latestPollTurn: polls.length > 0 ? polls[polls.length - 1]!.turn : null,
+    campaign: projectReferendumCampaign(world, record),
   };
 }
 

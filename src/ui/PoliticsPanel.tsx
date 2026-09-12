@@ -18,7 +18,7 @@ import type { GameScreenProps } from "../game/types";
 import type {
   PoliticsElectionDetail, PoliticsPartyDetail, PoliticsPlayerCampaignView,
   PoliticsPoliticianView, PoliticsPrimaryView, PoliticsProjectionView,
-  PoliticsRaceStageView, PoliticsView,
+  PoliticsRaceStageView, PoliticsReferendumView, PoliticsView,
 } from "../game/politics";
 import type { RacePhase } from "../game/types";
 import { RACE_PHASE_LABELS } from "../game/racePhase";
@@ -991,6 +991,130 @@ function PoliticiansSection({ politics, busy, onOpenElection, initialId }: Omit<
   );
 }
 
+function ReferendumCampaignControls({ record, busy, currency, onAction }: {
+  record: PoliticsReferendumView;
+  busy: boolean;
+  currency: string;
+  onAction: (id: string, params?: Record<string, string | number>) => void;
+}) {
+  const campaign = record.campaign;
+  const [side, setSide] = useState<"yes" | "no">(campaign.spend.side);
+  useEffect(() => { setSide(campaign.spend.side); }, [campaign.spend.side, record.id]);
+  const [units, setUnits] = useState(campaign.spend.step);
+  useEffect(() => { setUnits(campaign.spend.step); }, [campaign.spend.step, record.id]);
+  const [presetId, setPresetId] = useState(campaign.groundGame.presets[0]?.id ?? "");
+  useEffect(() => {
+    setPresetId((current) => campaign.groundGame.presets.some((p) => p.id === current)
+      ? current : campaign.groundGame.presets[0]?.id ?? "");
+  }, [campaign.groundGame.presets]);
+  const [ggSide, setGgSide] = useState<"yes" | "no">(campaign.playerSide ?? "yes");
+  useEffect(() => { setGgSide(campaign.playerSide ?? "yes"); }, [campaign.playerSide, record.id]);
+  const [cohortId, setCohortId] = useState("");
+  useEffect(() => {
+    setCohortId((current) => current !== "" && !campaign.groundGame.cohorts.some((c) => c.groupId === current)
+      ? "" : current);
+  }, [campaign.groundGame.cohorts]);
+
+  const spendCost = units * campaign.spend.psPerUnit;
+  const preset = campaign.groundGame.presets.find((p) => p.id === presetId) ?? null;
+  const sideMismatch = campaign.playerSide !== null && side !== campaign.playerSide;
+  const spendDisabled = busy || !campaign.spend.available || sideMismatch;
+  const spendReason = campaign.spend.disabledReason
+    ?? (sideMismatch ? `Your party campaigns for the ${campaign.playerSide === "yes" ? "Yes" : "No"} side.` : undefined);
+  const ggDisabled = busy || !campaign.groundGame.available || !preset || !preset.affordable;
+
+  const fireSpend = () => {
+    if (spendDisabled) return;
+    onAction("referendumCampaignSpend", { referendumId: record.id, referendumSide: side, units });
+  };
+  const fireGroundGame = () => {
+    if (ggDisabled) return;
+    onAction("referendumGroundGame", {
+      referendumId: record.id, referendumSide: ggSide, presetId, cohortGroupId: cohortId,
+    });
+  };
+
+  return (
+    <section aria-label={`Campaign (${record.question})`} style={{ marginTop: "0.6rem", borderTop: "1px solid var(--ahd-border)", paddingTop: "0.55rem" }}>
+      <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>Campaign</h4>
+      <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>
+        Your position: {campaign.playerSide === "yes" ? "Yes" : campaign.playerSide === "no" ? "No" : "No party"}
+        {" · "}Yes spend {campaign.yesUnits} · No spend {campaign.noUnits}
+      </div>
+
+      <div style={{ marginTop: "0.45rem" }}>
+        <strong style={{ fontSize: "0.78rem" }}>Spend Political Strength</strong>
+        <div style={{ display: "flex", gap: "0.4rem", alignItems: "flex-end", flexWrap: "wrap", marginTop: "0.25rem" }}>
+          <label className="ahd-field">
+            <span className="ahd-label">Side</span>
+            <select className="ahd-select" aria-label={`Campaign side (${record.question})`} value={side}
+              onChange={(e) => setSide(e.target.value as "yes" | "no")} disabled={busy}>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </label>
+          <label className="ahd-field">
+            <span className="ahd-label">Units</span>
+            <input className="ahd-input" type="number" min={1} step={1}
+              aria-label={`Campaign spend units (${record.question})`} value={units}
+              onChange={(e) => setUnits(Math.max(1, Math.floor(Number(e.target.value) || 1)))} disabled={busy} />
+          </label>
+          <button type="button" className="ahd-btn ahd-btn-primary ahd-btn-sm"
+            aria-label={`Spend on campaign (${record.question})`} disabled={spendDisabled}
+            aria-disabled={spendDisabled} onClick={fireSpend}>
+            Spend {spendCost} PS
+          </button>
+        </div>
+        <p className="ahd-muted" style={{ fontSize: "0.72rem", marginTop: "0.2rem" }}>
+          Cost {spendCost} PS · available {campaign.spend.psAvailable} PS
+        </p>
+        {spendReason ? <p className="ahd-help" role="note">{spendReason}</p> : null}
+      </div>
+
+      <div style={{ marginTop: "0.5rem" }}>
+        <strong style={{ fontSize: "0.78rem" }}>Ground game</strong>
+        <div style={{ display: "flex", gap: "0.4rem", alignItems: "flex-end", flexWrap: "wrap", marginTop: "0.25rem" }}>
+          <label className="ahd-field">
+            <span className="ahd-label">Action</span>
+            <select className="ahd-select" aria-label={`Ground-game action (${record.question})`} value={presetId}
+              onChange={(e) => setPresetId(e.target.value)} disabled={busy}>
+              {campaign.groundGame.presets.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+            </select>
+          </label>
+          <label className="ahd-field">
+            <span className="ahd-label">Side</span>
+            <select className="ahd-select" aria-label={`Ground-game side (${record.question})`} value={ggSide}
+              onChange={(e) => setGgSide(e.target.value as "yes" | "no")} disabled={busy}>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </label>
+          <label className="ahd-field">
+            <span className="ahd-label">Target</span>
+            <select className="ahd-select" aria-label={`Ground-game target (${record.question})`} value={cohortId}
+              onChange={(e) => setCohortId(e.target.value)} disabled={busy}>
+              <option value="">Whole electorate</option>
+              {campaign.groundGame.cohorts.map((c) => <option key={c.groupId} value={c.groupId}>{c.name}</option>)}
+            </select>
+          </label>
+          <button type="button" className="ahd-btn ahd-btn-primary ahd-btn-sm"
+            aria-label={`Run ground game (${record.question})`} disabled={ggDisabled}
+            aria-disabled={ggDisabled} onClick={fireGroundGame}>
+            Run action
+          </button>
+        </div>
+        {preset ? (
+          <p className="ahd-muted" style={{ fontSize: "0.72rem", marginTop: "0.2rem" }}>
+            Cost {formatFinanceMoney(preset.funds, currency)} · {preset.actions} action{preset.actions === 1 ? "" : "s"} · ~{preset.nominalSwing} pts
+          </p>
+        ) : null}
+        {preset && !preset.affordable ? <p className="ahd-help" role="note">Not enough funds or actions for this action.</p> : null}
+        {campaign.groundGame.disabledReason ? <p className="ahd-help" role="note">{campaign.groundGame.disabledReason}</p> : null}
+      </div>
+    </section>
+  );
+}
+
 function ReferendumsSection({ politics, busy, onAction }: Omit<PoliticsPanelProps, "section">) {
   const request = politics.referendumRequest;
   return (
@@ -1051,6 +1175,9 @@ function ReferendumsSection({ politics, busy, onAction }: Omit<PoliticsPanelProp
             {record.conversionDeadlineTurn != null ? <div className="ahd-kv"><dt>Consent deadline</dt><dd className="ahd-mono">Turn {record.conversionDeadlineTurn}</dd></div> : null}
             {record.latestPollTurn != null ? <div className="ahd-kv"><dt>Latest poll</dt><dd className="ahd-mono">Turn {record.latestPollTurn}</dd></div> : null}
           </dl>
+          {record.campaign.active ? (
+            <ReferendumCampaignControls record={record} busy={busy} currency={politics.currency} onAction={onAction} />
+          ) : null}
         </article>
       ))}
     </div>
