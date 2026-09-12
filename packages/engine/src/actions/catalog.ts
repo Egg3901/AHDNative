@@ -9,6 +9,7 @@
  */
 
 import { FUNDRAISE_ACTION_COST } from "@ahd/game-rules/actions";
+import { advertiseActionCost } from "./favorability.js";
 import { fundraiseYield } from "./fundGeneration.js";
 import { DEBATE_PREP_ACTION_COST } from "../stats/debatePrep.js";
 import { CAMPAIGN_CANVASS_ACTIONS, CAMPAIGN_CANVASS_FUNDS } from "./campaignCanvass.js";
@@ -120,15 +121,6 @@ function campaignActionCost(politicalInfluence: number): number {
   if (v >= 40) return 3;
   if (v >= 20) return 2;
   return 1;
-}
-
-function advertiseActionCost(favorability: number): number {
-  const v = Math.max(0, Math.min(100, favorability));
-  if (v >= 85) return 9;
-  if (v >= 70) return 8;
-  if (v >= 50) return 7;
-  if (v >= 30) return 6;
-  return 5;
 }
 
 function donorActionCost(donorBaseLevel: number, action: "fundraise" | "buildDonorBase"): number {

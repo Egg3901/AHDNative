@@ -21,13 +21,19 @@ const BASE: ProfileView = {
   achievements: [{ slug: "turn_one", name: "In at the Ground Floor", description: "Took an action in turn one" }],
   achievementProgress: { earned: 1, available: 3 },
   lockedAchievements: [
-    { slug: "first_fundraise", name: "Passing the Hat", description: "Completed your first fundraise" },
+    { slug: "first_fundraise", name: "Passing the Hat", description: "Completed your first fundraise", progress: { current: 4, target: 10 } },
     { slug: "rested", name: "Executive Time", description: "Rested to recover actions" },
+  ],
+  unavailableAchievements: [
+    { slug: "pollster", name: "Gallup's Ghost", description: "Commissioned 5 polls", blockingSystem: "polling/election polling" },
+    { slug: "three_terms", name: "The Incumbent", description: "Won 3 elections", blockingSystem: "historical term count" },
   ],
   resourceDetails: {
     actions: { base: 4, seat: 2, cabinet: 0, chair: 0, office: 2, party: 0, penalty: 0, threshold: 100, cap: 200, next: 9, refresh: 6 },
     funds: { enabled: true, base: 10000, donor: 500, office: 0, tax: 500, regularNet: 10000 },
     partyInfluence: null,
+    nationalInfluence: { current: 0, gain: 0 },
+    favorability: { current: 61, decayThreshold: 60, aboveThresholdDecay: 0.05, tierFloor: 50, tierCost: 7 },
     history: [
       { turn: 11, cash: 1000, savings: 300, funds: 5000 },
       { turn: 12, cash: 1200, savings: 300, funds: 5400 },
@@ -180,6 +186,57 @@ describe("ProfilePanel", () => {
     });
     expect(screen.getByText("3 of 3 evaluable achievements earned")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /Locked achievements/ })).not.toBeInTheDocument();
+  });
+
+  it("renders countable n / target progress only where the engine counts a trigger", () => {
+    renderPanel();
+    // first_fundraise carries progress; rested has no countable trigger.
+    expect(screen.getByText("4 / 10")).toBeInTheDocument();
+    expect(screen.queryByText("0 / 1")).not.toBeInTheDocument();
+  });
+
+  it("lists the full unavailable catalog with each blocking system, separate from locked", () => {
+    renderPanel();
+    expect(screen.getByRole("heading", { name: "Unavailable achievements (2)" })).toBeInTheDocument();
+    expect(screen.getByText("Gallup's Ghost")).toBeInTheDocument();
+    expect(screen.getByText("The Incumbent")).toBeInTheDocument();
+    expect(screen.getByText("Not reachable yet: polling/election polling.")).toBeInTheDocument();
+    expect(screen.getByText("Not reachable yet: historical term count.")).toBeInTheDocument();
+    // The reachable locked set stays distinct from the unavailable set.
+    expect(screen.getByRole("heading", { name: "Locked achievements (2)" })).toBeInTheDocument();
+  });
+
+  it("shows the national-influence gain and favorability tier/decay as mechanical, not a forecast", () => {
+    renderPanel({
+      standing: { ...BASE.standing, nationalInfluence: 12.5 },
+      resourceDetails: { ...BASE.resourceDetails, nationalInfluence: { current: 12.5, gain: 1.5 } },
+    });
+    expect(screen.getByText("12.5")).toBeInTheDocument();
+    expect(screen.getByText("+1.5 per turn at current standing (not a forecast)")).toBeInTheDocument();
+    expect(screen.getByText("Tier floor 50% · advertise 7 AP")).toBeInTheDocument();
+    expect(screen.getByText("Decay 0.05/turn above 60%")).toBeInTheDocument();
+  });
+
+  it("reports favorability as stable at or below the natural threshold", () => {
+    renderPanel({
+      resourceDetails: {
+        ...BASE.resourceDetails,
+        favorability: { current: 40, decayThreshold: 60, aboveThresholdDecay: 0, tierFloor: 30, tierCost: 6 },
+      },
+    });
+    expect(screen.getByText("Stable at or below 60%")).toBeInTheDocument();
+  });
+
+  it("keeps the lower career and achievement sections reachable in order for narrow screens", () => {
+    renderPanel();
+    const sections = Array.from(document.querySelectorAll(".ahd-profile > section"))
+      .map((node) => node.getAttribute("aria-label"));
+    // The last two sections are rendered unconditionally (never display:none),
+    // so a narrow viewport scrolls to them like the rest of the profile.
+    expect(sections.slice(-2)).toEqual(["Career history", "Achievements"]);
+    expect(screen.getByRole("heading", { name: "Career history" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Achievements" })).toBeInTheDocument();
+    expect(screen.getByText("Not reachable yet: polling/election polling.")).toBeInTheDocument();
   });
 
   it("exposes action, party-influence and income breakdowns from the shared projection", async () => {

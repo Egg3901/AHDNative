@@ -242,6 +242,24 @@ button.ahd-profile-chip:disabled {
 .ahd-profile-history li {
   display: grid;
   gap: 0.15rem;
+  min-width: 0;
+}
+
+/* Lower profile sections must stay readable and reachable at narrow widths:
+   long achievement names, blockers and n / target counters wrap instead of
+   forcing the whole panel to scroll sideways. */
+.ahd-profile-history strong,
+.ahd-profile-history .ahd-profile-sub {
+  overflow-wrap: anywhere;
+}
+
+.ahd-profile-unavailable {
+  margin-top: 0.85rem;
+}
+
+.ahd-profile-blocker {
+  color: var(--ahd-muted);
+  font-style: italic;
 }
 
 .ahd-profile-sub .ahd-profile-link {

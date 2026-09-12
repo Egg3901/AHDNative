@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ACHIEVEMENT_CATALOG } from '@ahdclient/engine';
+import { ACHIEVEMENT_CATALOG, ACHIEVEMENT_COUNT_TRIGGERS } from '@ahdclient/engine';
 import { GameSession } from './session';
 
 const options = { era: '1953', countryId: 'US', seed: 'native-profile-achievements', playerName: 'Alex' };
@@ -19,6 +19,17 @@ function profileWith(earned: string[]) {
   const loaded = new GameSession();
   loaded.load(JSON.stringify(raw));
   return loaded.profile();
+}
+
+/** Loads a save with the persisted per-action counts overridden. */
+function sessionWithCounts(counts: Record<string, number>) {
+  const session = new GameSession();
+  session.create(options);
+  const raw = JSON.parse(session.serialize(savedAt));
+  raw.world.player.actionCounts = counts;
+  const loaded = new GameSession();
+  loaded.load(JSON.stringify(raw));
+  return loaded;
 }
 
 describe('profile achievement progress', () => {
@@ -99,5 +110,103 @@ describe('profile achievement progress', () => {
     expect(careerHistory[0]).toMatchObject({ id: race.id, result: 'Elected', turn: race.resolvedTurn });
     expect(typeof careerHistory[0].office).toBe('string');
     expect(careerHistory[0].office.length).toBeGreaterThan(0);
+  });
+
+  it('orders persisted career wins newest-first and never fabricates a race', () => {
+    const session = new GameSession();
+    session.create(options);
+    const raw = JSON.parse(session.serialize(savedAt)) as { world: { elections: unknown[] } };
+    const mkRace = (id: string, resolvedTurn: number, winners: string[]) => ({
+      id, electionType: 'house', countryId: 'US', state: 'US-NY',
+      cycle: 1, status: 'resolved', startTurn: 1, primaryEndTurn: 3, endTurn: resolvedTurn,
+      totalSeats: 1, chamberKey: 'house', candidates: [
+        { id: 'player', name: 'Alex', partyId: '1', isNPP: false, incumbent: false },
+      ], tally: { player: winners.includes('player') ? 100 : 0 }, winners, resolvedTurn,
+    });
+    raw.world.elections = [mkRace('race-old', 4, ['player']), mkRace('race-lost', 8, ['npp']), mkRace('race-new', 12, ['player'])];
+    const loaded = new GameSession();
+    loaded.load(JSON.stringify(raw));
+    // Newest resolved win first; the loss is never converted into a career event.
+    expect(loaded.profile().careerHistory.map((entry) => entry.id)).toEqual(['race-new', 'race-old']);
+  });
+});
+
+describe('#52 countable achievement progress', () => {
+  it('shows current / target only for count-trigger achievements, from persisted counts', () => {
+    const profile = sessionWithCounts({
+      fundraise: 12, campaign: 4, buildDonorBase: 5, advertise: 3, rest: 1, wireTransfer: 2,
+    }).profile();
+    const bySlug = new Map(profile.lockedAchievements.map((entry) => [entry.slug, entry]));
+    expect(bySlug.get('first_fundraise')!.progress).toEqual({ current: 12, target: 1 });
+    expect(bySlug.get('fundraiser')!.progress).toEqual({ current: 12, target: 10 });
+    expect(bySlug.get('big_fundraiser')!.progress).toEqual({ current: 12, target: 50 });
+    expect(bySlug.get('campaigner')!.progress).toEqual({ current: 4, target: 10 });
+    expect(bySlug.get('grassroots')!.progress).toEqual({ current: 5, target: 5 });
+    expect(bySlug.get('advertiser')!.progress).toEqual({ current: 3, target: 3 });
+    expect(bySlug.get('rested')!.progress).toEqual({ current: 1, target: 1 });
+    expect(bySlug.get('donor')!.progress).toEqual({ current: 2, target: 1 });
+    // century_club counts every action: 12 + 4 + 5 + 3 + 1 + 2 = 27.
+    expect(bySlug.get('century_club')!.progress).toEqual({ current: 27, target: 100 });
+    // Boolean / current-state triggers have no honest numeric target.
+    expect(bySlug.get('turn_one')!.progress).toBeUndefined();
+    expect(bySlug.get('house_member')!.progress).toBeUndefined();
+    expect(bySlug.get('iron_triangle')!.progress).toBeUndefined();
+    expect(bySlug.get('millionaire')!.progress).toBeUndefined();
+  });
+
+  it('keeps the projected target identical to the exported grant threshold', () => {
+    const profile = sessionWithCounts({ fundraise: 7 }).profile();
+    const fundraiser = profile.lockedAchievements.find((entry) => entry.slug === 'fundraiser')!;
+    expect(fundraiser.progress!.target).toBe(ACHIEVEMENT_COUNT_TRIGGERS['fundraiser']!.target);
+    expect(ACHIEVEMENT_COUNT_TRIGGERS['fundraiser']).toEqual({ actionId: 'fundraise', target: 10 });
+  });
+
+  it('moves a countable achievement to earned after a turn without losing its recorded progress', () => {
+    const session = sessionWithCounts({ rest: 1 });
+    expect(session.profile().lockedAchievements.some((entry) => entry.slug === 'rested')).toBe(true);
+    session.advance();
+    const earned = session.profile().achievements.find((entry) => entry.slug === 'rested')!;
+    expect(earned.progress).toEqual({ current: 1, target: 1 });
+    expect(session.profile().lockedAchievements.some((entry) => entry.slug === 'rested')).toBe(false);
+  });
+
+  it('surfaces identical progress and the unavailable set after a save/reload', () => {
+    const session = sessionWithCounts({ fundraise: 6, rest: 1 });
+    const before = session.profile();
+    const resumed = new GameSession();
+    resumed.load(session.serialize(savedAt));
+    const after = resumed.profile();
+    expect(after.achievementProgress).toEqual(before.achievementProgress);
+    expect(after.lockedAchievements).toEqual(before.lockedAchievements);
+    expect(after.unavailableAchievements).toEqual(before.unavailableAchievements);
+    // Reload never invents earned records the save did not persist.
+    expect(after.achievements).toEqual(before.achievements);
+  });
+});
+
+describe('#52 full achievement catalog', () => {
+  it('lists every unavailable catalog entry with its blocking system, separate from earned/locked', () => {
+    const profile = profileWith([]);
+    const unavailable = ACHIEVEMENT_CATALOG
+      .filter((entry) => entry.status === 'unavailable')
+      .sort((a, b) => a.order - b.order);
+    expect(unavailable.length).toBeGreaterThan(0);
+    expect(profile.unavailableAchievements.map((entry) => entry.slug)).toEqual(unavailable.map((entry) => entry.slug));
+    for (const entry of unavailable) {
+      const view = profile.unavailableAchievements.find((item) => item.slug === entry.slug)!;
+      // The blocker is the catalog's own named reason, never a generic fallback.
+      expect(view.blockingSystem).toBe(entry.blockingSystem);
+      expect(view.blockingSystem).toBeTruthy();
+      // Unavailable entries never leak into the reachable/locked set.
+      expect(profile.lockedAchievements.some((locked) => locked.slug === entry.slug)).toBe(false);
+    }
+  });
+
+  it('leaves the earned count and locked list untouched by the unavailable catalog view', () => {
+    const profile = profileWith(['turn_one']);
+    expect(profile.achievementProgress.earned).toBe(1);
+    expect(profile.unavailableAchievements.length).toBe(
+      ACHIEVEMENT_CATALOG.filter((entry) => entry.status === 'unavailable').length,
+    );
   });
 });

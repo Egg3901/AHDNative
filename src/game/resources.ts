@@ -1,6 +1,7 @@
 import {
   isTurnPhaseEnabled, calculateTaxAmount, getDonorBaseBonus, getFundGenerationRate,
-  projectPlayerActionRefresh, projectPlayerPartyInfluence,
+  projectPlayerActionRefresh, projectPlayerPartyInfluence, playerNationalInfluenceGain,
+  FAVORABILITY_NATURAL_DECAY_THRESHOLD, calculateFavorabilityAboveThresholdPenalty, favorabilityTierFor,
   type WorldState,
 } from '@ahdclient/engine';
 
@@ -26,6 +27,28 @@ export interface ResourceDetailsView {
     current: number; closeness: number; leadership: number;
     infamyPenalty: number; gain: number; next: number; bonusActions: number;
   } | null;
+  /**
+   * National-influence standing. `gain` is the exact per-turn amount the
+   * actionRefresh phase records at the current state (playerNationalInfluenceGain),
+   * not a whole-turn forecast.
+   */
+  nationalInfluence: {
+    current: number;
+    gain: number;
+  };
+  /**
+   * Favorability tier + natural decay, from the reference tier table
+   * (getAdvertiseActionCost) and FAVORABILITY_NATURAL_DECAY_THRESHOLD. `tierFloor`
+   * is the inclusive favorability floor of the current tier; `aboveThresholdDecay`
+   * is the per-turn drop the formula yields at the recorded value.
+   */
+  favorability: {
+    current: number;
+    decayThreshold: number;
+    aboveThresholdDecay: number;
+    tierFloor: number;
+    tierCost: number;
+  };
   history: { turn: number; cash: number; savings: number; funds: number }[];
 }
 
@@ -47,6 +70,10 @@ export function projectResources(world: WorldState): ResourceDetailsView {
   const base = enabled ? getFundGenerationRate(population) : 0;
   const donor = enabled ? getDonorBaseBonus(player.donorBaseLevel, population, player.politicalInfluence) : 0;
   const tax = player.partyId && world.parties[player.partyId] ? calculateTaxAmount(base + donor, 5) : 0;
+  // Same function the actionRefresh phase applies; the gain is at current
+  // standing, so a later influence/office change re-quotes it.
+  const nationalGain = playerNationalInfluenceGain(world);
+  const favorabilityTier = favorabilityTierFor(player.favorability);
   return {
     actions: {
       base: refresh.base,
@@ -69,6 +96,14 @@ export function projectResources(world: WorldState): ResourceDetailsView {
         bonusActions: partyDetail.bonusActions,
       }
       : null,
+    nationalInfluence: { current: player.nationalInfluence ?? 0, gain: nationalGain },
+    favorability: {
+      current: player.favorability,
+      decayThreshold: FAVORABILITY_NATURAL_DECAY_THRESHOLD,
+      aboveThresholdDecay: calculateFavorabilityAboveThresholdPenalty(player.favorability),
+      tierFloor: favorabilityTier.min,
+      tierCost: favorabilityTier.cost,
+    },
     history: world.history.playerWealth.slice(-12).map(({ turn, cash, savings, funds }) => ({ turn, cash, savings, funds })),
   };
 }

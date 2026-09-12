@@ -11,6 +11,7 @@ import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import { playerNationalInfluenceGain } from "./playerInfluence.js";
 import { projectPlayerActionRefresh } from "./officeBonus.js";
+import { calculateFavorabilityAboveThresholdPenalty } from "./favorability.js";
 import { MIN_BASE_ACTIONS_PER_TURN, ACTION_HOARD_PENALTY, ENERGY_BASE_ACTION_CAP, ENERGY_BASE_HOARD_THRESHOLD, OFFICE_ACTION_BONUS } from "./constants.js";
 
 function officeActionBonus(chamberKey: string): number {
@@ -20,11 +21,6 @@ function officeActionBonus(chamberKey: string): number {
 function applyPoliticalInfluenceDecay(value: number): number {
   // 0.75% decay per turn per mainline's applyPoliticalInfluenceDecay default
   return Math.max(0, value * (1 - 0.0075));
-}
-
-function favorabilityPenalty(favorability: number): number {
-  if (favorability <= 60) return 0;
-  return (favorability - 60) * 0.05;
 }
 
 function infamyDrain(infamy: number): number {
@@ -57,7 +53,7 @@ export const actionRefreshPhase: TurnPhase = {
       }
       if (typeof pol.infamy === "number" && typeof pol.favorability === "number") {
         const drain = infamyDrain(pol.infamy);
-        const fp = favorabilityPenalty(pol.favorability);
+        const fp = calculateFavorabilityAboveThresholdPenalty(pol.favorability);
         pol.favorability = Math.min(100, Math.max(0, pol.favorability - fp - drain));
         pol.infamy = Math.max(0, pol.infamy * 0.95);
       }
@@ -79,7 +75,7 @@ export const actionRefreshPhase: TurnPhase = {
       }
       if (typeof player.infamy === "number" && typeof player.favorability === "number") {
         const drain = infamyDrain(player.infamy);
-        const fp = favorabilityPenalty(player.favorability);
+        const fp = calculateFavorabilityAboveThresholdPenalty(player.favorability);
         player.favorability = Math.min(100, Math.max(0, player.favorability - fp - drain));
         player.infamy = Math.max(0, player.infamy * 0.95);
       }

@@ -111,6 +111,8 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
   const formBusy = busy || bioSaving;
   const standing = profile.standing;
   const finances = profile.finances;
+  const favorabilityDetail = profile.resourceDetails.favorability;
+  const nationalInfluenceGain = profile.resourceDetails.nationalInfluence.gain;
 
   const saveSong = async () => {
     if (busy || songSaving) return;
@@ -441,14 +443,31 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
           <div className="ahd-profile-row">
             <dt>National influence</dt>
             <dd className="ahd-mono">
-              {standing.nationalInfluence == null
-                ? "Not available yet"
-                : standing.nationalInfluence.toFixed(1)}
+              {standing.nationalInfluence == null ? (
+                "Not available yet"
+              ) : (
+                <>
+                  {standing.nationalInfluence.toFixed(1)}
+                  <span className="ahd-profile-sub">
+                    {`+${nationalInfluenceGain.toFixed(1)} per turn at current standing (not a forecast)`}
+                  </span>
+                </>
+              )}
             </dd>
           </div>
           <div className="ahd-profile-row">
             <dt>Favorability</dt>
-            <dd className="ahd-mono">{standing.favorability.toFixed(1)}%</dd>
+            <dd className="ahd-mono">
+              {standing.favorability.toFixed(1)}%
+              <span className="ahd-profile-sub">
+                {`Tier floor ${favorabilityDetail.tierFloor}% · advertise ${favorabilityDetail.tierCost} AP`}
+              </span>
+              <span className="ahd-profile-sub">
+                {favorabilityDetail.aboveThresholdDecay > 0
+                  ? `Decay ${favorabilityDetail.aboveThresholdDecay.toFixed(2)}/turn above ${favorabilityDetail.decayThreshold}%`
+                  : `Stable at or below ${favorabilityDetail.decayThreshold}%`}
+              </span>
+            </dd>
           </div>
           <div className="ahd-profile-row">
             <dt>Infamy</dt>
@@ -479,7 +498,9 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
           ) : null}
         </details>
         <p className="ahd-help">
-          National influence and favorability tier thresholds are not projected in this local slice; values above are the recorded current state.
+          National-influence gain and the favorability tier and decay are read from the same
+          action-refresh and tier tables the turn applies, at your current standing — mechanical
+          inputs, not a forecast.
         </p>
       </section>
 
@@ -599,6 +620,11 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
               <li key={achievement.slug}>
                 <strong>{achievement.name}</strong>
                 <span className="ahd-profile-sub">{achievement.description}</span>
+                {achievement.progress ? (
+                  <span className="ahd-profile-sub ahd-mono">
+                    {`${achievement.progress.current} / ${achievement.progress.target}`}
+                  </span>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -613,14 +639,41 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
                 <li key={achievement.slug}>
                   <strong>{achievement.name}</strong>
                   <span className="ahd-profile-sub">{achievement.description}</span>
+                  {achievement.progress ? (
+                    <span className="ahd-profile-sub ahd-mono">
+                      {`${achievement.progress.current} / ${achievement.progress.target}`}
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {profile.unavailableAchievements.length > 0 ? (
+          <div className="ahd-profile-locked ahd-profile-unavailable">
+            <h3 className="ahd-profile-locked-title">
+              {`Unavailable achievements (${profile.unavailableAchievements.length})`}
+            </h3>
+            <ul className="ahd-profile-history ahd-profile-locked-list">
+              {profile.unavailableAchievements.map((achievement) => (
+                <li key={achievement.slug}>
+                  <strong>{achievement.name}</strong>
+                  <span className="ahd-profile-sub">{achievement.description}</span>
+                  {achievement.blockingSystem ? (
+                    <span className="ahd-profile-sub ahd-profile-blocker">
+                      {`Not reachable yet: ${achievement.blockingSystem}.`}
+                    </span>
+                  ) : null}
                 </li>
               ))}
             </ul>
           </div>
         ) : null}
         <p className="ahd-help">
-          The count and locked list cover the achievements this solo save can evaluate; the rest stay
-          locked on systems the local engine has not ported yet.
+          The count, locked list and per-achievement progress cover the achievements this solo save can
+          evaluate; progress is shown only where the trigger is a countable action, never fabricated.
+          Unavailable achievements need systems the local engine has not ported yet — the blocking
+          system is named for each.
         </p>
       </section>
 
