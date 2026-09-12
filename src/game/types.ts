@@ -25,6 +25,11 @@ export interface ElectionView {
   id: string; title: string; status: string; date: string; filingDate: string;
   phase: RacePhase;
   playerCandidate: boolean; candidateNames: string[]; winnerNames: string[];
+  /** Counted tally evidence for the footer/race chips; null until votes exist. */
+  countedVotes: number | null;
+  leaderName: string | null; leaderShare: number | null; marginPct: number | null;
+  /** Saved tally seat estimate; null when absent or already resolved. */
+  seatProjection: { name: string; seats: number }[] | null;
   candidacy: ActionView;
 }
 export interface NewsView { id: string; title: string; body: string; date: string; }

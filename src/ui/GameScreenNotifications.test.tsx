@@ -35,6 +35,7 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
     elections: [{ id: "e1", title: "Senate Race", status: "primary", date: "1954-11-02", filingDate: "1954-09-01",
       phase: "primary",
       playerCandidate: false, candidateNames: ["Ada"], winnerNames: [],
+      countedVotes: null, leaderName: null, leaderShare: null, marginPct: null, seatProjection: null,
       candidacy: { id: "declareCandidacy", name: "Run", description: "Run", cost: 1, available: true } }],
     news: [],
     actions: [],

@@ -289,6 +289,34 @@ describe("projectPolitics", () => {
     expect(projectPolitics(world).elections[0]!.projection.projected).toBeNull();
   });
 
+  it("carries counted tally and seat chips on the routine election view", () => {
+    const session = new GameSession();
+    session.create(options);
+    const saved = JSON.parse(session.serialize(SAVED_AT));
+    saved.world.elections = [{
+      id: "house:US:NY:c1", electionType: "house", countryId: "US", state: "NY", cycle: 1,
+      status: "active", startTurn: 0, primaryEndTurn: 10, endTurn: 20, totalSeats: 1, chamberKey: "house",
+      candidates: [
+        { id: "player", name: "Alex", partyId: "US_DEM", isNPP: false, incumbent: false },
+        { id: "US-9", name: "Rival", partyId: "US_REP", isNPP: true, incumbent: false },
+      ],
+      tally: { player: 6000, "US-9": 4000 },
+      tallyState: { seatsEstimate: { player: 0.6, "US-9": 0.4 } },
+    }];
+    session.load(JSON.stringify(saved));
+
+    const race = session.view().elections.find((election) => election.id === "house:US:NY:c1")!;
+    expect(race).toMatchObject({ countedVotes: 10000, leaderName: "Alex" });
+    expect(race.leaderShare).toBeCloseTo(0.6, 6);
+    expect(race.marginPct).toBeCloseTo(0.2, 6);
+    expect(race.seatProjection).toEqual([{ name: "Alex", seats: 0.6 }, { name: "Rival", seats: 0.4 }]);
+
+    // A race with no votes reports nulls, never zeros.
+    const noVotes = new GameSession();
+    noVotes.create(options);
+    expect(noVotes.view().elections).toEqual([]);
+  });
+
   it("lists country politicians with actual engine fields", () => {
     const politics = freshPolitics();
     expect(politics.politicians.length).toBeGreaterThan(0);

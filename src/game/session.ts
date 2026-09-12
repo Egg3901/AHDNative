@@ -429,6 +429,22 @@ function projectElections(world: WorldState): ElectionView[] {
         : (player.actionCooldowns[id] ?? 0) > world.meta.turn ? "Available after its cooldown."
         : player.actions < cost ? "Not enough action points." : undefined;
       const dateAt = (turn: number) => addDaysIso(world.meta.date, (turn - world.meta.turn) * 7);
+      // Counted tally + saved seat estimate for the footer/race chips. Only
+      // recorded engine data; a race with no votes stays null, not zero.
+      const tallyEntries = Object.entries(election.tally ?? {});
+      const hasVotes = tallyEntries.some(([, votes]) => votes > 0);
+      const countedVotes = hasVotes ? tallyEntries.reduce((sum, [, votes]) => sum + votes, 0) : null;
+      const ranked = [...election.candidates]
+        .map((candidate) => ({ name: candidate.name, votes: election.tally[candidate.id] ?? 0 }))
+        .sort((a, b) => b.votes - a.votes);
+      const leader = countedVotes != null ? ranked[0] : undefined;
+      const runnerUp = countedVotes != null ? ranked[1] : undefined;
+      const seatsEstimate = (election.tallyState as { seatsEstimate?: Record<string, number> } | undefined)?.seatsEstimate;
+      const seatProjection = election.status !== "resolved" && seatsEstimate
+        ? Object.entries(seatsEstimate)
+          .map(([candidateId, seats]) => ({ name: election.candidates.find((c) => c.id === candidateId)?.name ?? candidateId, seats }))
+          .sort((a, b) => b.seats - a.seats)
+        : null;
       return {
         id: election.id,
         title: election.electionType.replaceAll("_", " ") + (election.state ? ` · ${election.state}` : ""),
@@ -436,6 +452,11 @@ function projectElections(world: WorldState): ElectionView[] {
         phase: racePhase(world, election),
         playerCandidate, candidateNames: election.candidates.map((c) => c.name),
         winnerNames: (election.winners ?? []).map((id) => election.candidates.find((c) => c.id === id)?.name ?? world.politicians.find((p) => p.id === id)?.name ?? id),
+        countedVotes,
+        leaderName: leader?.name ?? null,
+        leaderShare: leader && countedVotes ? leader.votes / countedVotes : null,
+        marginPct: leader && runnerUp && countedVotes ? (leader.votes - runnerUp.votes) / countedVotes : null,
+        seatProjection,
         candidacy: { id, name: playerCandidate ? "Withdraw candidacy" : "Run for office", description: "", cost,
           available: !reason, ...(reason ? { disabledReason: reason } : {}) },
       };
