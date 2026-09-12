@@ -551,6 +551,15 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
               <li key={entry.id}>
                 <strong>{entry.office}</strong>
                 <span className="ahd-profile-sub">{entry.result}, turn {entry.turn}</span>
+                <button
+                  type="button"
+                  className="ahd-btn ahd-btn-sm"
+                  aria-label={`View race: ${entry.office}`}
+                  onClick={() => onNavigate("electionDetails", entry.id)}
+                  disabled={busy}
+                >
+                  View race
+                </button>
               </li>
             ))}
           </ul>

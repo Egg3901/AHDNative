@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { createWorld, declareCandidacy, resolvePrimaries } from "@ahdclient/engine";
+import { createWorld, declareCandidacy, resolvePrimaries, advanceTurn } from "@ahdclient/engine";
 import { GameSession } from "./session";
 import { projectPolitics } from "./politics";
 
@@ -61,6 +61,7 @@ describe("projectPolitics", () => {
       expect(election.candidacy).toEqual(old.candidacy);
       expect(election.playerCandidate).toBe(old.playerCandidate);
       expect(election.winnerNames).toEqual(old.winnerNames);
+      expect(["upcoming", "primary", "general", "resolved"]).toContain(old.phase);
     }
   });
 
@@ -77,6 +78,105 @@ describe("projectPolitics", () => {
         expect(election.candidates.reduce((n, c) => n + (c.votes ?? 0), 0)).toBe(election.totalVotes);
       }
     }
+  });
+
+  it("derives the race phase and lifecycle stages from the persisted record", () => {
+    const world = createWorld({ ...options, seed: "race-phase" });
+    const base = {
+      electionType: "house", countryId: "US", state: "NY", cycle: 1,
+      startTurn: 5, primaryEndTurn: 10, endTurn: 20, totalSeats: 1, chamberKey: "house",
+      candidates: [], tally: {},
+    };
+    world.elections = [{ ...base, id: "house:US:NY:c1", status: "active" }];
+
+    world.meta.turn = 7;
+    let detail = projectPolitics(world).elections.find((e) => e.id === "house:US:NY:c1")!;
+    expect(detail.phase).toBe("primary");
+    expect(detail.stages.map((stage) => stage.key)).toEqual(["filing", "primary", "general", "results"]);
+    expect(detail.stages.find((stage) => stage.key === "filing")?.state).toBe("current");
+    expect(detail.stages.find((stage) => stage.key === "primary")?.state).toBe("current");
+    expect(detail.stages.find((stage) => stage.key === "general")?.state).toBe("upcoming");
+    expect(detail.primary).toMatchObject({ applicable: true, open: true, resolved: false, endTurn: 10 });
+
+    world.meta.turn = 15;
+    detail = projectPolitics(world).elections[0]!;
+    expect(detail.phase).toBe("general");
+    expect(detail.stages.find((stage) => stage.key === "general")?.state).toBe("current");
+
+    world.meta.turn = 21;
+    detail = projectPolitics(world).elections[0]!;
+    expect(detail.phase).toBe("resolved");
+    expect(detail.stages.find((stage) => stage.key === "results")?.state).toBe("current");
+  });
+
+  it("surfaces persisted primary nominees and winner ids without general votes", () => {
+    const world = createWorld({ ...options, seed: "race-primary-view" });
+    world.meta.turn = 11;
+    world.elections = [{
+      id: "house:US:NY:c1", electionType: "house", countryId: "US", state: "NY", cycle: 1,
+      status: "active", startTurn: 0, primaryEndTurn: 10, endTurn: 20, totalSeats: 1, chamberKey: "house",
+      candidates: [{ id: "player", name: "Alex", partyId: DEM, isNPP: false, incumbent: false }],
+      tally: {},
+      primaryResults: {
+        byParty: {
+          [DEM]: [{ candidateId: "player", candidateName: "Alex", score: 60, sharePct: 100, won: true }],
+        },
+        recordedAt: "1953-01-01T00:00:00.000Z",
+      },
+      primaryVotes: { player: 1200 },
+      winners: ["player"],
+    }];
+
+    const detail = projectPolitics(world).elections[0]!;
+    expect(detail.primary.resolved).toBe(true);
+    expect(detail.primary.totalBallots).toBe(1200);
+    expect(detail.primary.parties).toEqual([{
+      partyId: DEM, partyName: "Democratic Party",
+      entries: [{ candidateId: "player", name: "Alex", sharePct: 100, won: true, ballots: 1200 }],
+    }]);
+    expect(detail.winnerIds).toEqual(["player"]);
+    expect(detail.winnerNames).toEqual(["Alex"]);
+    expect(detail.candidates[0]).toMatchObject({ votes: null, voteShare: null, winner: true });
+  });
+
+  it("advances a live US primary through the real turn loop into visible nominees", () => {
+    const world = createWorld({ ...options, seed: "primary-lifecycle-view" });
+    world.player.partyId = DEM;
+    world.player.policies = { economic: 0, social: 0 };
+    world.player.favorability = 80;
+    world.player.politicalInfluence = 80;
+    const opponent = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === DEM)!;
+    opponent.favorability = 40;
+    opponent.politicalInfluence = 40;
+
+    world.elections = [{
+      id: "house:US:CA:c1", electionType: "house", countryId: "US", state: "CA", cycle: 1,
+      status: "active", startTurn: 0, primaryEndTurn: 12, endTurn: 20, totalSeats: 1, chamberKey: "house",
+      candidates: [
+        { id: "player", name: world.player.name, partyId: DEM, isNPP: false, incumbent: false },
+        { id: opponent.id, name: opponent.name, partyId: DEM, isNPP: false, incumbent: false },
+      ],
+      tally: {},
+    }];
+    const registration = Object.values(world.partyRegions).find((entry) => entry.regionId === "CA" && entry.partyId === DEM);
+    if (!registration) throw new Error("US_DEM registration for CA was not seeded");
+    registration.registration = 60;
+
+    for (let turn = 0; turn < 3; turn += 1) advanceTurn(world);
+    let detail = projectPolitics(world).elections[0]!;
+    expect(detail.phase).toBe("primary");
+    expect(detail.primary.open).toBe(true);
+    expect(detail.primary.parties.map((party) => party.partyId)).toEqual([DEM]);
+
+    for (let turn = 3; turn <= 13; turn += 1) advanceTurn(world);
+    detail = projectPolitics(world).elections[0]!;
+    expect(detail.primary.resolved).toBe(true);
+    expect(detail.primary.open).toBe(false);
+    expect(detail.phase).toBe("general");
+    const nominees = detail.primary.parties[0]!.entries;
+    expect(nominees.length).toBeGreaterThan(0);
+    expect(nominees.filter((entry) => entry.won)).toHaveLength(1);
+    expect(detail.candidates.map((candidate) => candidate.name)).toEqual([nominees[0]!.name]);
   });
 
   it("lists country politicians with actual engine fields", () => {

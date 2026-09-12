@@ -17,8 +17,11 @@ import { useEffect, useMemo, useState } from "react";
 import type { GameScreenProps } from "../game/types";
 import type {
   PoliticsElectionDetail, PoliticsPartyDetail, PoliticsPlayerCampaignView,
-  PoliticsPoliticianView, PoliticsProjectionView, PoliticsView,
+  PoliticsPoliticianView, PoliticsPrimaryView, PoliticsProjectionView,
+  PoliticsRaceStageView, PoliticsView,
 } from "../game/politics";
+import type { RacePhase } from "../game/types";
+import { RACE_PHASE_LABELS } from "../game/racePhase";
 
 export interface PoliticsPanelProps {
   politics: PoliticsView;
@@ -27,8 +30,16 @@ export interface PoliticsPanelProps {
   initialId?: string;
   onOpenElection?: (id: string) => void;
   onOpenCampaign?: (id: string) => void;
+  onOpenPolitician?: (id: string) => void;
   onAction: GameScreenProps["onAction"];
 }
+
+const RACE_PHASE_ORDER: RacePhase[] = ["upcoming", "primary", "general", "resolved"];
+const STAGE_STATE_LABELS: Record<PoliticsRaceStageView["state"], string> = {
+  upcoming: "Upcoming",
+  current: "Current",
+  done: "Done",
+};
 
 const score = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 1 });
 const ROSTER_PAGE_SIZE = 12;
@@ -267,6 +278,69 @@ function ProjectionBlock({ projection }: { projection: PoliticsProjectionView })
           Drivers: {projection.drivers.map((d) => d.label).join(" · ")}
         </p>
       ) : null}
+    </section>
+  );
+}
+
+function RaceStages({ stages }: { stages: PoliticsRaceStageView[] }) {
+  return (
+    <section aria-label="Race stages" style={{ marginTop: "0.6rem" }}>
+      <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>Race stages</h4>
+      <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+        {stages.map((stage) => (
+          <li key={stage.key} style={{ fontSize: "0.76rem", borderTop: "1px solid var(--ahd-border)", paddingTop: "0.3rem" }}>
+            <span style={{ fontWeight: 700 }}>{stage.label}</span>
+            <span className="ahd-pill" style={{ fontSize: "0.66rem", marginLeft: "0.35rem" }}>{STAGE_STATE_LABELS[stage.state]}</span>
+            <span className="ahd-muted">{` · ${stage.when}`}</span>
+            <span className="ahd-muted" style={{ display: "block" }}>{stage.detail}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function PrimaryBlock({ primary }: { primary: PoliticsPrimaryView }) {
+  return (
+    <section aria-label="Primary" style={{ marginTop: "0.6rem" }}>
+      <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>Primary</h4>
+      {!primary.applicable ? (
+        <p className="ahd-help" role="note">No primary phase applies to this race.</p>
+      ) : (
+        <>
+          {primary.resolved ? (
+            <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.15rem 0" }}>
+              Nominees recorded.
+            </p>
+          ) : null}
+          <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.15rem 0" }}>
+            {primary.totalBallots != null
+              ? `${primary.totalBallots.toLocaleString()} party ballots counted${primary.snapshotTurn != null ? ` (turn ${primary.snapshotTurn})` : ""}`
+              : primary.open ? "Primary is open; no ballots counted yet." : "Primary has not opened yet."}
+          </p>
+          {primary.parties.length === 0 ? (
+            <p className="ahd-help" role="note">No primary standings recorded yet.</p>
+          ) : primary.parties.map((party) => (
+            <div key={party.partyId} style={{ marginTop: "0.3rem" }}>
+              <div style={{ fontSize: "0.78rem", fontWeight: 650 }}>{party.partyName}</div>
+              <ul style={{ listStyle: "none", margin: "0.15rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                {party.entries.map((entry) => (
+                  <li key={entry.candidateId} style={{ fontSize: "0.78rem" }}>
+                    <span style={{ fontWeight: entry.won ? 700 : 400 }}>{entry.name}</span>
+                    <span className="ahd-muted">{` · ${entry.sharePct.toFixed(1)}%`}{entry.won ? " · nominee" : ""}</span>
+                    {entry.ballots != null ? (
+                      <span className="ahd-mono ahd-muted">{` · ${entry.ballots.toLocaleString()} ballots`}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          <p className="ahd-help" role="note">
+            Primary ballots are counted separately from general votes and are not a forecast.
+          </p>
+        </>
+      )}
     </section>
   );
 }
@@ -641,7 +715,7 @@ function CampaignBlock({ electionId, campaign, busy, onAction }: {
 
 type ElectionStatusFilter = "all" | "upcoming" | "active" | "resolved";
 
-function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign }: Omit<PoliticsPanelProps, "section">) {
+function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign, onOpenPolitician }: Omit<PoliticsPanelProps, "section">) {
   const [status, setStatus] = useState<ElectionStatusFilter>("all");
   const [mineOnly, setMineOnly] = useState(false);
   const [decidedOnly, setDecidedOnly] = useState(false);
@@ -697,11 +771,19 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign 
           <span className="ahd-label">Race</span>
           <select className="ahd-select" aria-label="Race" value={selected?.id ?? ""}
             onChange={(e) => setSelectedId(e.target.value)} disabled={busy}>
-            {filtered.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.title} [{e.status}]{e.playerCandidate ? " [filed]" : ""}
-              </option>
-            ))}
+            {RACE_PHASE_ORDER.map((phase) => {
+              const group = filtered.filter((e) => e.phase === phase);
+              if (group.length === 0) return null;
+              return (
+                <optgroup key={phase} label={RACE_PHASE_LABELS[phase]}>
+                  {group.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.title} [{e.status}]{e.playerCandidate ? " [filed]" : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            })}
           </select>
         </label>
       )}
@@ -710,12 +792,14 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign 
         <article aria-label={selected.title} className="ahd-card ahd-card-pad">
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
             <strong style={{ fontSize: "0.9rem" }}>{selected.title}</strong>
+            <span className="ahd-pill">{RACE_PHASE_LABELS[selected.phase]}</span>
             {selected.playerCandidate ? <span className="ahd-pill" style={{ background: "var(--ahd-primary)", color: "white" }}>Filed</span> : null}
           </div>
           <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.2rem" }}>
             {selected.status} · {selected.date}
           </div>
           <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>Filing deadline: {selected.filingDate}</div>
+          <RaceStages stages={selected.stages} />
 
           <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0.6rem 0 0.25rem" }}>
             Candidates ({selected.candidates.length})
@@ -738,9 +822,21 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign 
               ))}
             </ul>
           )}
+          <PrimaryBlock primary={selected.primary} />
           <ProjectionBlock projection={selected.projection} />
-          {selected.winnerNames.length > 0 ? (
-            <p style={{ fontSize: "0.8rem", margin: "0.35rem 0 0" }}>Winners: {selected.winnerNames.join(", ")}</p>
+          {selected.winnerIds.length > 0 ? (
+            onOpenPolitician ? (
+              <p style={{ fontSize: "0.8rem", margin: "0.35rem 0 0", display: "flex", gap: "0.35rem", alignItems: "center", flexWrap: "wrap" }}>
+                <span>Winners:</span>
+                {selected.winnerIds.map((id, index) => (
+                  <button key={id} type="button" className="ahd-btn ahd-btn-sm" onClick={() => onOpenPolitician(id)} disabled={busy}>
+                    {selected.winnerNames[index] ?? id}
+                  </button>
+                ))}
+              </p>
+            ) : (
+              <p style={{ fontSize: "0.8rem", margin: "0.35rem 0 0" }}>Winners: {selected.winnerNames.join(", ")}</p>
+            )
           ) : null}
           {selected.playerCampaign ? (
             <section aria-label="Your campaign" style={{ marginTop: "0.7rem", borderTop: "1px solid var(--ahd-border)", paddingTop: "0.55rem" }}>
@@ -850,9 +946,9 @@ function PoliticiansSection({ politics, busy, onOpenElection, initialId }: Omit<
   );
 }
 
-export function PoliticsPanel({ politics, section, busy, onAction, initialId, onOpenElection, onOpenCampaign }: PoliticsPanelProps) {
+export function PoliticsPanel({ politics, section, busy, onAction, initialId, onOpenElection, onOpenCampaign, onOpenPolitician }: PoliticsPanelProps) {
   if (section === "campaign") return <CampaignSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} />;
-  if (section === "elections") return <ElectionsSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} onOpenCampaign={onOpenCampaign} />;
+  if (section === "elections") return <ElectionsSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} onOpenCampaign={onOpenCampaign} onOpenPolitician={onOpenPolitician} />;
   if (section === "politicians") return <PoliticiansSection politics={politics} busy={busy} initialId={initialId} onOpenElection={onOpenElection} />;
   return <PartiesSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} />;
 }

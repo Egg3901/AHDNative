@@ -19,8 +19,11 @@ export interface ActionView { id: string; name: string; description: string; cos
   prerequisite?: string;
 }
 export interface PartyView { id: string; name: string; abbreviation: string; color: string; members: number; treasury: number; isPlayerParty: boolean; membership?: { join: ActionView; leave: ActionView }; }
+/** Derived race lifecycle stage; see game/racePhase.ts. */
+export type RacePhase = "upcoming" | "primary" | "general" | "resolved";
 export interface ElectionView {
   id: string; title: string; status: string; date: string; filingDate: string;
+  phase: RacePhase;
   playerCandidate: boolean; candidateNames: string[]; winnerNames: string[];
   candidacy: ActionView;
 }
