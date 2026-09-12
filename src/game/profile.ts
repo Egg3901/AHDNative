@@ -78,6 +78,7 @@ export function projectProfile(world: WorldState): ProfileView {
       const entry = achievementBySlug.get(slug);
       return entry ? [{ slug, name: entry.name, description: entry.description }] : [];
     }),
+    resourceDetails: resources,
     standing: {
       actions: player.actions,
       actionCap: resources.actions.cap,

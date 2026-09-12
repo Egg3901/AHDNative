@@ -47,7 +47,7 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
       economy: { gdpMillions: 100, growthRate: .04, inflationRate: .02, unemploymentRate: .05, outputGap: 0, primeRate: 3, macroHistory: [], primeRateHistory: [] },
       budget: { fiscalYear: 1953, gdpAbsolute: 100000000, population: 1000000, currency: "USD", taxRates: [], revenue: { components: [], total: 1000 }, spending: { categories: [], stateGrants: 0, debtInterest: 0, total: 800 }, surplus: 200, treasuryBalance: 4000, debt: { principal: 0, ceiling: 10000, interestRate: .02, debtToGdpRatio: 0, creditRating: "AA" } },
       policy: { taxRates: [], enacted: [] } },
-    resources: { actions: { base: 4, office: 0, penalty: 0, threshold: 100, cap: 200, next: 7 }, funds: { enabled: true, base: 10000, donor: 0, office: 0, tax: 500, regularNet: 9500 }, history: [] },
+    resources: { actions: { base: 4, seat: 0, cabinet: 0, chair: 0, office: 0, penalty: 0, threshold: 100, cap: 200, next: 7, refresh: 4 }, funds: { enabled: true, base: 10000, donor: 0, office: 0, tax: 500, regularNet: 9500 }, partyInfluence: null, history: [] },
     notifications: { items: [], unread: 0 },
     ...overrides,
   };
@@ -79,6 +79,7 @@ function profileFor(world: GameView): ProfileView {
     office: world.legislature.office,
     officeDestination: world.legislature.office ? { route: "legislature" } : null,
     policies: null, stats: null, careerHistory: [], achievements: [],
+    resourceDetails: world.resources,
     standing: { actions: world.player.actions, actionCap: 200, actionGain: 4,
       politicalInfluence: world.player.influence, nationalInfluence: null,
       favorability: world.player.favorability, infamy: 0, partyInfluence: null },

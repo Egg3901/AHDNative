@@ -19,6 +19,15 @@ const BASE: ProfileView = {
   stats: { energy: 7, debate: 4 },
   careerHistory: [{ id: "race-1", office: "House", result: "Elected", turn: 12 }],
   achievements: [{ slug: "turn_one", name: "In at the Ground Floor", description: "Took an action in turn one" }],
+  resourceDetails: {
+    actions: { base: 4, seat: 2, cabinet: 0, chair: 0, office: 2, party: 0, penalty: 0, threshold: 100, cap: 200, next: 9, refresh: 6 },
+    funds: { enabled: true, base: 10000, donor: 500, office: 0, tax: 500, regularNet: 10000 },
+    partyInfluence: null,
+    history: [
+      { turn: 11, cash: 1000, savings: 300, funds: 5000 },
+      { turn: 12, cash: 1200, savings: 300, funds: 5400 },
+    ],
+  },
   standing: {
     actions: 5,
     actionCap: 12,
@@ -133,6 +142,23 @@ describe("ProfilePanel", () => {
     ]);
     expect(screen.getByText("In at the Ground Floor")).toBeInTheDocument();
     expect(screen.getByText("House")).toBeInTheDocument();
+  });
+
+  it("exposes action, party-influence and income breakdowns from the shared projection", async () => {
+    const user = userEvent.setup();
+    renderPanel({
+      resourceDetails: {
+        ...BASE.resourceDetails,
+        partyInfluence: { current: 10, closeness: 1.25, leadership: 2, infamyPenalty: 0.5, gain: 0.75, next: 10.25, bonusActions: 1 },
+      },
+    });
+    await user.click(screen.getByText("Action breakdown"));
+    expect(screen.getByText("Elected seat office")).toBeInTheDocument();
+    expect(screen.getByText("Party influence bonus")).toBeInTheDocument();
+    expect(screen.getByText("Platform closeness")).toBeInTheDocument();
+    expect(screen.getByText(/Party influence gain/)).toBeInTheDocument();
+    await user.click(screen.getByText("Income and cash breakdown"));
+    expect(screen.getByText("Regular net generation")).toBeInTheDocument();
   });
 
   it("omits conditional political sections when local state is absent", () => {

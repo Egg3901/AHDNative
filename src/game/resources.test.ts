@@ -6,10 +6,15 @@ describe('resource details through the session contract', () => {
   it('explains the actual local action and campaign income rules', () => {
     const session = new GameSession();
     session.create(options);
-    expect(session.view().resources.actions).toMatchObject({ base: 4, office: 0, penalty: 0, threshold: 100, cap: 200, next: 29 });
+    expect(session.view().resources.actions).toMatchObject({ base: 4, seat: 0, cabinet: 0, chair: 0, office: 0, penalty: 0, threshold: 100, cap: 200, next: 29, refresh: 4 });
+    expect(session.view().resources.partyInfluence).toBeNull();
     expect(session.view().resources.funds).toMatchObject({ base: 10000, donor: 0, office: 0, tax: 0, regularNet: 10000 });
     expect(session.act('joinParty', { partyId: 'US_DEM' }).ok).toBe(true);
     expect(session.view().resources.funds).toMatchObject({ tax: 500, regularNet: 9500 });
+    const partyInfluence = session.view().resources.partyInfluence;
+    expect(partyInfluence).not.toBeNull();
+    expect(typeof partyInfluence!.gain).toBe('number');
+    expect(typeof partyInfluence!.closeness).toBe('number');
     const loaded = new GameSession();
     loaded.load(session.serialize('2026-09-10T00:00:00.000Z'));
     expect(loaded.view().resources).toEqual(session.view().resources);
@@ -24,7 +29,7 @@ it('keeps Profile, footer breakdown and granted actions consistent for an office
   save.world.player.actions = 5;
   session.load(JSON.stringify(save));
   // Footer breakdown (world.resources) previews the same refresh the phase grants.
-  expect(session.view().resources.actions).toMatchObject({ base: 4, office: 2, penalty: 0, threshold: 100, cap: 200, next: 11 });
+  expect(session.view().resources.actions).toMatchObject({ base: 4, seat: 2, cabinet: 0, chair: 0, office: 2, penalty: 0, threshold: 100, cap: 200, next: 11, refresh: 6 });
   expect(session.profile().standing).toMatchObject({ actions: 5, actionCap: 200, actionGain: 6 });
   session.advance();
   expect(session.view().player.actions).toBe(11);

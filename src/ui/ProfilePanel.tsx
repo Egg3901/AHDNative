@@ -21,6 +21,7 @@ import type { ProfileUpdate, ProfileView } from "../game/profileTypes";
 import type { DrawerRouteId } from "./MobileNavigation";
 import { campaignSongId } from "../game/profileValidation";
 import { CampaignSongPlayer } from "./CampaignSongPlayer";
+import { ResourceBreakdown } from "./ResourceBreakdown";
 import "./profile.css";
 
 export interface ProfilePanelProps {
@@ -464,6 +465,22 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
             </div>
           ) : null}
         </dl>
+        <details>
+          <summary style={{ minHeight: 44, cursor: "pointer", padding: ".6rem 0" }}>Action breakdown</summary>
+          <ResourceBreakdown details={profile.resourceDetails} resource="ap" currency={finances.currency} />
+          {profile.resourceDetails.partyInfluence ? (
+            <dl className="ahd-profile-rows">
+              <div className="ahd-profile-row"><dt>Platform closeness</dt><dd className="ahd-mono">{profile.resourceDetails.partyInfluence.closeness.toFixed(2)}</dd></div>
+              <div className="ahd-profile-row"><dt>Leadership posts</dt><dd className="ahd-mono">{profile.resourceDetails.partyInfluence.leadership}</dd></div>
+              <div className="ahd-profile-row"><dt>Infamy penalty</dt><dd className="ahd-mono">{profile.resourceDetails.partyInfluence.infamyPenalty.toFixed(1)}</dd></div>
+              <div className="ahd-profile-row"><dt>Party influence gain</dt><dd className="ahd-mono">{profile.resourceDetails.partyInfluence.gain.toFixed(2)} per turn</dd></div>
+              <div className="ahd-profile-row"><dt>Influence after decay</dt><dd className="ahd-mono">{profile.resourceDetails.partyInfluence.next.toFixed(1)}</dd></div>
+            </dl>
+          ) : null}
+        </details>
+        <p className="ahd-help">
+          National influence and favorability tier thresholds are not projected in this local slice; values above are the recorded current state.
+        </p>
       </section>
 
       {profile.stats ? (
@@ -531,6 +548,11 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
             <dd className="ahd-mono">{money(finances.donorIncome, finances.currency)} per turn</dd>
           </div>
         </dl>
+        <details>
+          <summary style={{ minHeight: 44, cursor: "pointer", padding: ".6rem 0" }}>Income and cash breakdown</summary>
+          <ResourceBreakdown details={profile.resourceDetails} resource="funds" currency={finances.currency} />
+          <ResourceBreakdown details={profile.resourceDetails} resource="cash" currency={finances.currency} />
+        </details>
         <div className="ahd-profile-actions">
           <button
             type="button"
