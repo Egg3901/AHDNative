@@ -797,14 +797,15 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     status: "available",
   },
   // #68: campaign-strength contribution. baseCost/fundCost are 0 in the
-  // catalog because the real cost is DYNAMIC — it depends on `strengthAdded`
-  // and the campaign's current strength (campaigns/campaignStrength.ts), and
-  // is charged directly in actions/campaignContribute.ts after its own
-  // validation (same pattern as campaignUpgrade). Presidential races only.
+  // catalog because the real cost is DYNAMIC — it depends on the natural-
+  // influence-derived click yield (`nationalInfluence * 0.75`) and the
+  // campaign's current strength (campaigns/campaignStrength.ts), and is charged
+  // directly in actions/campaignContribute.ts after its own validation (same
+  // pattern as campaignUpgrade). Presidential races only.
   campaignContribute: {
     id: "campaignContribute",
     name: "Contribute Campaign Strength",
-    description: "Spend campaign funds and actions to add campaign strength to your own presidential campaign. Strength raises your vote tally through the shared saturation curve (soft-capped at +100%). Cost scales with strength bought and with the strength you already hold. Ports the contribution formulas from campaignStrength.ts.",
+    description: "Spend campaign funds and actions to add campaign strength to your own or a rival's presidential campaign. Each click buys nationalInfluence × 0.75 strength; x1 / x5 / Max quotes come from the reference formulas. Strength raises the recipient's vote tally through the shared saturation curve (soft-capped at +100%), and the cost scales with the strength bought and already held. Ports the contribution formulas from campaignStrength.ts.",
     baseCost: 0,
     cooldown: 0,
     fundCost: 0,

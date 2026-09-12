@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { createWorld, declareCandidacy, resolvePrimaries, advanceTurn, campaignKey, campaignStrengthVoteMultiplier } from "@ahdclient/engine";
+import { createWorld, declareCandidacy, resolvePrimaries, advanceTurn, campaignKey, campaignStrengthContributionCost, campaignStrengthVoteMultiplier, ensureCampaign } from "@ahdclient/engine";
 import { GameSession } from "./session";
 import { projectPolitics } from "./politics";
 
@@ -288,6 +288,7 @@ describe("projectPolitics", () => {
     world.player.partyId = DEM;
     world.player.funds = 10_000_000;
     world.player.actions = 100;
+    world.player.nationalInfluence = 100;
     const rival = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === REP)!;
     const id = "president:US:-:c1";
     world.elections = [{
@@ -315,11 +316,69 @@ describe("projectPolitics", () => {
     expect(detail.projection.projected!.note).toMatch(/not a result/i);
     expect(detail.projection.drivers.some((driver) => /campaign strength/i.test(driver.label))).toBe(true);
 
-    // The campaign view quotes the contribution from the same formulas.
-    expect(detail.playerCampaign!.strength.value).toBe(50_000);
-    expect(detail.playerCampaign!.strength.voteBoostPct).toBeCloseTo(63.21205588285577, 6);
-    expect(detail.playerCampaign!.strength.eligible).toBe(true);
-    expect(detail.playerCampaign!.strength.contribute).toMatchObject({ id: "campaignContribute", available: true, cost: 1 });
+    // The campaign view quotes the click-based contribution from the same
+    // formulas: each click buys nationalInfluence * 0.75 strength.
+    const strength = detail.playerCampaign!.strength;
+    expect(strength.value).toBe(50_000);
+    expect(strength.voteBoostPct).toBeCloseTo(63.21205588285577, 6);
+    expect(strength.eligible).toBe(true);
+    expect(strength.nationalInfluence).toBe(100);
+    expect(strength.strengthPerClick).toBeCloseTo(75, 6);
+    expect(strength.single).toMatchObject({ clicks: 1, strengthAdded: 75, costActions: 1, affordable: true });
+    expect(strength.batch).toMatchObject({ clicks: 5, strengthAdded: 375, costActions: 5, affordable: true });
+    expect(strength.single.costFunds).toBeCloseTo(campaignStrengthContributionCost(50_000, 75), 6);
+    expect(strength.max.clicks).toBeGreaterThan(1);
+    expect(strength.targets).toContainEqual(expect.objectContaining({ candidateId: "player", isPlayer: true }));
+    expect(strength.contribute).toMatchObject({ id: "campaignContribute", available: true, cost: 1 });
+  });
+
+  it("offers cross-campaign targets and gates contribution without national influence", () => {
+    const world = createWorld({ ...options, seed: "strength-targets" });
+    world.player.partyId = DEM;
+    world.player.funds = 10_000_000;
+    world.player.actions = 100;
+    const rival = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === REP)!;
+    const id = "president:US:-:c1";
+    world.elections = [{
+      id, electionType: "president", countryId: "US", cycle: 1,
+      status: "active", startTurn: 0, primaryEndTurn: 20, endTurn: 60, totalSeats: 1, chamberKey: "president",
+      candidates: [{ id: rival.id, name: rival.name, partyId: REP, isNPP: true, incumbent: false }],
+      tally: {},
+    }];
+    expect(declareCandidacy(world, id).ok).toBe(true);
+    world.meta.turn = 40;
+
+    // A rival campaign in the same election is offered as a target.
+    ensureCampaign(world, {
+      electionId: id,
+      candidateId: rival.id,
+      candidateIsNPP: true,
+      partyId: REP,
+      countryId: "US",
+      electionType: "president",
+      turn: world.meta.turn,
+    });
+    world.campaigns[campaignKey(id, rival.id)]!.campaignStrength = 2000;
+    world.player.nationalInfluence = 0;
+
+    const noInfluence = projectPolitics(world).elections[0]!.playerCampaign!.strength;
+    expect(noInfluence.targets.map((target) => target.candidateId).sort()).toEqual(["player", rival.id].sort());
+    expect(noInfluence.targets.find((target) => target.candidateId === rival.id)).toMatchObject({
+      isPlayer: false,
+      strength: 2000,
+      partyName: expect.any(String),
+    });
+    // No national influence -> explicitly unavailable with a named reason.
+    expect(noInfluence.contribute.available).toBe(false);
+    expect(noInfluence.contribute.disabledReason).toMatch(/no national influence/i);
+    expect(noInfluence.single.affordable).toBe(false);
+
+    // With influence, all three quotes become affordable from the formulas.
+    world.player.nationalInfluence = 100;
+    const withInfluence = projectPolitics(world).elections[0]!.playerCampaign!.strength;
+    expect(withInfluence.contribute.available).toBe(true);
+    expect(withInfluence.single.affordable).toBe(true);
+    expect(withInfluence.max.clicks).toBeGreaterThanOrEqual(withInfluence.batch.clicks);
   });
 
   it("reports why no strength projection is available and never substitutes the tally", () => {
@@ -327,6 +386,7 @@ describe("projectPolitics", () => {
     world.player.partyId = DEM;
     world.player.funds = 10_000_000;
     world.player.actions = 100;
+    world.player.nationalInfluence = 100;
     const rival = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === REP)!;
     const id = "president:US:-:c1";
     world.elections = [{

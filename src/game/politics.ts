@@ -10,14 +10,15 @@ import {
   referendumRegionStatus,
   REQUEST_THRESHOLD,
   campaignLocalRate,
-  CAMPAIGN_STRENGTH_POINTS_PER_ACTION,
+  CAMPAIGN_STRENGTH_CONTRIBUTION_NPI_MULTIPLIER,
+  CAMPAIGN_STRENGTH_BATCH_STEPS,
+  campaignStrengthBatchQuote,
   campaignStrengthBoostPercent,
-  campaignStrengthContributionActions,
-  campaignStrengthContributionCost,
   campaignStrengthVoteMultiplier,
   GROUND_GAME_PRESETS,
   campaignSideForPartyInRegion,
   CAMPAIGN_PS_COST_PER_UNIT,
+  maxAffordableCampaignStrengthClicks,
   type Campaign, type OpsBranchKey, type ReferendumRecord, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionView, RacePhase } from "./types";
@@ -128,6 +129,44 @@ export interface PoliticsCampaignTargetedAdsView {
   action: ActionView;
 }
 
+/** One click-batch quote for the campaign-strength control (funds are local). */
+export interface PoliticsStrengthQuoteView {
+  /** Clicks this quote bundles (0 for an unaffordable Max). */
+  clicks: number;
+  strengthAdded: number;
+  costFunds: number;
+  costActions: number;
+  affordable: boolean;
+}
+
+/** A campaign in this race that a contribution can be aimed at. */
+export interface PoliticsStrengthTargetView {
+  candidateId: string;
+  name: string;
+  partyName: string;
+  /** Current campaign strength on that campaign. */
+  strength: number;
+  isPlayer: boolean;
+}
+
+export interface PoliticsCampaignStrengthView {
+  value: number;
+  voteBoostPct: number;
+  eligible: boolean;
+  reason?: string;
+  /** Player's national influence, which sets each click's yield. */
+  nationalInfluence: number;
+  /** Strength bought by ONE click: nationalInfluence * NPI multiplier. */
+  strengthPerClick: number;
+  /** x1 / x5 / Max quotes from the reference formulas, in local currency. */
+  single: PoliticsStrengthQuoteView;
+  batch: PoliticsStrengthQuoteView;
+  max: PoliticsStrengthQuoteView;
+  /** Player + rival campaigns in this election, for target selection. */
+  targets: PoliticsStrengthTargetView[];
+  contribute: ActionView;
+}
+
 export interface PoliticsPlayerCampaignView {
   status: string;
   funds: number; actions: number;
@@ -144,17 +183,8 @@ export interface PoliticsPlayerCampaignView {
   canvassing: PoliticsCampaignCanvassingView;
   targetedAds: PoliticsCampaignTargetedAdsView;
   levers: PoliticsCampaignLeverView[];
-  /** #68 campaign strength: the ported saturation curve plus the contribution quote. */
-  strength: {
-    value: number;
-    voteBoostPct: number;
-    eligible: boolean;
-    reason?: string;
-    step: number;
-    costFunds: number;
-    costActions: number;
-    contribute: ActionView;
-  };
+  /** #68 campaign strength: the ported saturation curve plus click-based quotes. */
+  strength: PoliticsCampaignStrengthView;
 }
 
 export interface PoliticsProjectionDriverView {
@@ -688,32 +718,75 @@ function projectPlayerCampaign(
   // #68: campaign strength. The contribution action is presidential-general
   // only because that is the only place the engine applies the multiplier
   // (elections/tallyAdapter.ts); charging elsewhere would buy a stat with no
-  // effect. Cost comes from the ported reference formulas and is charged
-  // against the PLAYER's funds/actions, matching actions/campaignContribute.ts.
+  // effect. Each click buys nationalInfluence * 0.75 strength (the reference
+  // derivation); funds/actions come from the ported batch-quote formulas and are
+  // charged against the PLAYER's funds/actions, matching
+  // actions/campaignContribute.ts. Rival campaigns in this election are offered
+  // as targets (the reference's cross-campaign contribution).
   const strengthValue = campaign.campaignStrength ?? 0;
-  const strengthStep = CAMPAIGN_STRENGTH_POINTS_PER_ACTION;
+  const nationalInfluence = world.player.nationalInfluence ?? 0;
+  const strengthPerClick = nationalInfluence * CAMPAIGN_STRENGTH_CONTRIBUTION_NPI_MULTIPLIER;
+  const fundsRate = campaignLocalRate(campaign.countryId);
   const strengthEligible = !archived && campaign.status === "active"
     && election.status === "active" && election.electionType === "president" && generalPhase;
-  const strengthCostFunds = campaignStrengthContributionCost(strengthValue, strengthStep)
-    * campaignLocalRate(campaign.countryId);
-  const strengthCostActions = campaignStrengthContributionActions(strengthStep);
+  const strengthQuote = (clicks: number): PoliticsStrengthQuoteView => {
+    const quote = campaignStrengthBatchQuote(strengthValue, strengthPerClick, clicks);
+    const costFunds = quote.costFunds * fundsRate;
+    return {
+      clicks: quote.clicks,
+      strengthAdded: quote.strengthAdded,
+      costFunds,
+      costActions: quote.costActions,
+      affordable: strengthEligible && strengthPerClick > 0 && quote.clicks >= 1
+        && world.player.actions >= quote.costActions && world.player.funds >= costFunds,
+    };
+  };
+  const maxStrengthClicks = strengthPerClick > 0
+    ? maxAffordableCampaignStrengthClicks({
+        currentStrength: strengthValue,
+        strengthPerClick,
+        availableFunds: world.player.funds,
+        availableActions: world.player.actions,
+        fundsRate,
+      })
+    : 0;
+  const strengthSingle = strengthQuote(1);
+  const strengthBatch = strengthQuote(CAMPAIGN_STRENGTH_BATCH_STEPS[0] ?? 5);
+  const strengthMax = strengthQuote(maxStrengthClicks);
+  const strengthTargets: PoliticsStrengthTargetView[] = election.candidates
+    .map((candidate) => {
+      const targetCampaign = world.campaigns[campaignKey(election.id, candidate.id)];
+      if (!targetCampaign || targetCampaign.status !== "active") return null;
+      return {
+        candidateId: candidate.id,
+        name: candidate.id === "player" ? world.player.name : candidate.name,
+        partyName: world.parties[candidate.partyId]?.name ?? candidate.partyId,
+        strength: targetCampaign.campaignStrength ?? 0,
+        isPlayer: candidate.id === "player",
+      };
+    })
+    .filter((target): target is PoliticsStrengthTargetView => target !== null);
   const strengthReason = campaignReason
     ?? (!strengthEligible ? "Campaign strength currently changes votes in presidential general races only." : undefined)
-    ?? (world.player.actions < strengthCostActions ? `Needs ${strengthCostActions} action points.` : undefined)
-    ?? (world.player.funds < strengthCostFunds ? `Needs ${Math.ceil(strengthCostFunds).toLocaleString()} cash.` : undefined);
-  const strength: PoliticsPlayerCampaignView["strength"] = {
+    ?? (strengthPerClick <= 0 ? "You have no national influence to contribute." : undefined)
+    ?? (world.player.actions < strengthSingle.costActions ? `Needs ${strengthSingle.costActions} action points.` : undefined)
+    ?? (world.player.funds < strengthSingle.costFunds ? `Needs ${Math.ceil(strengthSingle.costFunds).toLocaleString()} cash.` : undefined);
+  const strength: PoliticsCampaignStrengthView = {
     value: strengthValue,
     voteBoostPct: archived ? 0 : campaignStrengthBoostPercent(strengthValue),
     eligible: strengthEligible,
     ...(strengthReason ? { reason: strengthReason } : {}),
-    step: strengthStep,
-    costFunds: strengthCostFunds,
-    costActions: strengthCostActions,
+    nationalInfluence,
+    strengthPerClick,
+    single: strengthSingle,
+    batch: strengthBatch,
+    max: strengthMax,
+    targets: strengthTargets,
     contribute: {
       id: "campaignContribute",
       name: ACTION_CATALOG.campaignContribute.name,
       description: ACTION_CATALOG.campaignContribute.description,
-      cost: strengthCostActions,
+      cost: strengthSingle.costActions,
       available: !strengthReason,
       ...(strengthReason ? { disabledReason: strengthReason } : {}),
     },

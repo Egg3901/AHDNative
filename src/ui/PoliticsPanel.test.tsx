@@ -283,7 +283,15 @@ describe("PoliticsPanel elections", () => {
       incomePerTurn: 6000, maintenancePerTurn: 0,
       support: 52, generalPhase: false,
       strength: {
-        value: 1500, voteBoostPct: 2.96, eligible: true, step: 300, costFunds: 24900.3, costActions: 1,
+        value: 1500, voteBoostPct: 2.96, eligible: true,
+        nationalInfluence: 400, strengthPerClick: 300,
+        single: { clicks: 1, strengthAdded: 300, costFunds: 24900.3, costActions: 1, affordable: true },
+        batch: { clicks: 5, strengthAdded: 1500, costFunds: 124500, costActions: 5, affordable: true },
+        max: { clicks: 6, strengthAdded: 1800, costFunds: 149400, costActions: 6, affordable: true },
+        targets: [
+          { candidateId: "player", name: "Alex", partyName: "Democratic Party", strength: 1500, isPlayer: true },
+          { candidateId: "US-9", name: "Ron Rival", partyName: "Republican Party", strength: 0, isPlayer: false },
+        ],
         contribute: { id: "campaignContribute", name: "Contribute Campaign Strength", description: "", cost: 1, available: true },
       },
       rally: {
@@ -364,8 +372,22 @@ describe("PoliticsPanel elections", () => {
       demographicGroup: "young_renters",
     });
     expect(screen.getByText(/1,500 strength · \+3\.0% vote boost/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Contribute 300 strength" }));
-    expect(onAction).toHaveBeenCalledWith("campaignContribute", { electionId: "house:US:AL:c1", strengthAdded: 300 });
+    expect(screen.getByText(/Contribute x1/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Contribute x1" }));
+    expect(onAction).toHaveBeenCalledWith("campaignContribute", { electionId: "house:US:AL:c1", clicks: 1 });
+    await user.click(screen.getByRole("button", { name: "Contribute x5" }));
+    expect(onAction).toHaveBeenCalledWith("campaignContribute", { electionId: "house:US:AL:c1", clicks: 5 });
+    await user.click(screen.getByRole("button", { name: "Contribute Max" }));
+    expect(onAction).toHaveBeenCalledWith("campaignContribute", { electionId: "house:US:AL:c1", clicks: "max" });
+    // The x1/x5/Max quotes surface their strength and cost from the DTO.
+    expect(screen.getByText(/x1: \+300 strength for 1 action and/)).toBeInTheDocument();
+    expect(screen.getByText(/x5: \+1,500 strength for 5 actions and/)).toBeInTheDocument();
+    // Selecting a rival target aims the contribution at their campaign.
+    await user.selectOptions(screen.getByLabelText("Contribution target"), "US-9");
+    await user.click(screen.getByRole("button", { name: "Contribute x1" }));
+    expect(onAction).toHaveBeenCalledWith("campaignContribute", {
+      electionId: "house:US:AL:c1", clicks: 1, targetCandidateId: "US-9",
+    });
   });
 
   it("shows archived campaign detail without management controls", async () => {
@@ -382,7 +404,11 @@ describe("PoliticsPanel elections", () => {
       support: null, generalPhase: false,
       strength: {
         value: 0, voteBoostPct: 0, eligible: false, reason: "Campaign is archived and read-only.",
-        step: 300, costFunds: 24900.3, costActions: 1,
+        nationalInfluence: 400, strengthPerClick: 300,
+        single: { clicks: 1, strengthAdded: 300, costFunds: 24900.3, costActions: 1, affordable: false },
+        batch: { clicks: 5, strengthAdded: 1500, costFunds: 124500, costActions: 5, affordable: false },
+        max: { clicks: 0, strengthAdded: 0, costFunds: 0, costActions: 0, affordable: false },
+        targets: [],
         contribute: { id: "campaignContribute", name: "Contribute Campaign Strength", description: "", cost: 1, available: false, disabledReason: "Campaign is archived and read-only." },
       },
       rally: {
@@ -464,7 +490,8 @@ describe("PoliticsPanel elections", () => {
     expect(screen.getByRole("button", { name: "Canvass selected target" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Buy targeted ads for selected target" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Unlock fundraising starter" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Contribute 300 strength" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Contribute x1" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Contribute Max" })).toBeDisabled();
     expect(onAction).not.toHaveBeenCalled();
 
     render(<PoliticsPanel politics={politics} section="elections" busy={false} onAction={onAction} onOpenCampaign={onOpenCampaign} />);

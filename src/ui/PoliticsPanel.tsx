@@ -399,6 +399,14 @@ function CampaignBlock({ electionId, campaign, busy, onAction, currency }: {
     setTargetedAdTarget((current) => campaign.targetedAds.targets.some((target) =>
       `${target.category}:${target.group}` === current) ? current : "");
   }, [campaign.targetedAds.targets]);
+  const [strengthTargetId, setStrengthTargetId] = useState("player");
+  useEffect(() => {
+    setStrengthTargetId((current) =>
+      campaign.strength.targets.some((target) => target.candidateId === current)
+        ? current
+        : campaign.strength.targets.find((target) => target.isPlayer)?.candidateId
+          ?? campaign.strength.targets[0]?.candidateId ?? "player");
+  }, [campaign.strength.targets]);
   const selectedTargetedAd = campaign.targetedAds.targets.find((target) =>
     `${target.category}:${target.group}` === targetedAdTarget);
   const targetSelectionAvailable = campaign.oppositionResearch.action.available
@@ -431,11 +439,19 @@ function CampaignBlock({ electionId, campaign, busy, onAction, currency }: {
       demographicGroup: selectedTargetedAd.group,
     });
   };
-  const contributeStrength = () => {
-    if (busy || !campaign.strength.contribute.available) return;
-    onAction("campaignContribute", { electionId, strengthAdded: campaign.strength.step });
+  const contributeStrength = (
+    quote: PoliticsPlayerCampaignView["strength"]["single"],
+    clicks: number | "max",
+  ) => {
+    if (busy || !quote.affordable) return;
+    const params: Record<string, string | number> = { electionId, clicks };
+    if (strengthTargetId && strengthTargetId !== "player") params.targetCandidateId = strengthTargetId;
+    onAction("campaignContribute", params);
   };
   const categoryLabel = (category: string) => category.replace(/([A-Z])/g, " $1").toLowerCase();
+  const strengthQuoteText = (quote: PoliticsPlayerCampaignView["strength"]["single"]) =>
+    `+${quote.strengthAdded.toLocaleString(undefined, { maximumFractionDigits: 1 })} strength for `
+    + `${quote.costActions} action${quote.costActions === 1 ? "" : "s"} and ${formatFinanceMoney(quote.costFunds, currency)}`;
   const activityLabel = (entry: PoliticsPlayerCampaignView["activity"][number]) => {
     const target = entry.branch ? `branch ${entry.branch}` : "starter";
     const operation = entry.type === "upgrade" ? "upgraded" : "downgraded";
@@ -468,26 +484,57 @@ function CampaignBlock({ electionId, campaign, busy, onAction, currency }: {
           {campaign.strength.value.toLocaleString(undefined, { maximumFractionDigits: 1 })} strength
           {` · +${campaign.strength.voteBoostPct.toFixed(1)}% vote boost`}
         </p>
+        <p className="ahd-muted" style={{ fontSize: "0.72rem", margin: "0.1rem 0 0.3rem" }}>
+          Each click adds {campaign.strength.strengthPerClick.toLocaleString(undefined, { maximumFractionDigits: 2 })} strength
+          {` from ${campaign.strength.nationalInfluence.toLocaleString()} national influence.`}
+        </p>
+        {campaign.strength.targets.length > 1 ? (
+          <label className="ahd-field" style={{ maxWidth: "26rem", marginBottom: "0.3rem" }}>
+            <span className="ahd-label">Contribution target</span>
+            <select
+              className="ahd-select"
+              aria-label="Contribution target"
+              value={strengthTargetId}
+              onChange={(event) => setStrengthTargetId(event.target.value)}
+              disabled={busy || !campaign.strength.eligible}
+            >
+              {campaign.strength.targets.map((target) => (
+                <option key={target.candidateId} value={target.candidateId}>
+                  {target.name}{target.isPlayer ? " (you)" : ` (${target.partyName})`}
+                  {` · ${target.strength.toLocaleString(undefined, { maximumFractionDigits: 1 })} strength`}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap" }}>
-          <button
-            type="button"
-            className="ahd-btn ahd-btn-primary ahd-btn-sm"
-            disabled={busy || !campaign.strength.contribute.available}
-            aria-disabled={busy || !campaign.strength.contribute.available}
-            onClick={contributeStrength}
-          >
-            {`Contribute ${campaign.strength.step.toLocaleString()} strength`}
-          </button>
-          <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
-            {campaign.strength.contribute.available
-              ? `${campaign.strength.costActions} action${campaign.strength.costActions === 1 ? "" : "s"} · ${formatFinanceMoney(campaign.strength.costFunds, currency)}`
-              : (campaign.strength.contribute.disabledReason ?? "Unavailable")}
-          </span>
+          {([
+            { key: "single", label: `Contribute x${campaign.strength.single.clicks}`, quote: campaign.strength.single, clicks: campaign.strength.single.clicks as number | "max" },
+            { key: "batch", label: `Contribute x${campaign.strength.batch.clicks}`, quote: campaign.strength.batch, clicks: campaign.strength.batch.clicks as number | "max" },
+            { key: "max", label: "Contribute Max", quote: campaign.strength.max, clicks: "max" as number | "max" },
+          ]).map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              className="ahd-btn ahd-btn-primary ahd-btn-sm"
+              disabled={busy || !option.quote.affordable}
+              aria-disabled={busy || !option.quote.affordable}
+              aria-label={option.label}
+              onClick={() => contributeStrength(option.quote, option.clicks)}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
+        <p className="ahd-muted" style={{ fontSize: "0.72rem", margin: "0.3rem 0 0" }}>
+          {`x${campaign.strength.single.clicks}: ${strengthQuoteText(campaign.strength.single)}`}
+          {` · x${campaign.strength.batch.clicks}: ${strengthQuoteText(campaign.strength.batch)}`}
+          {` · Max: ${strengthQuoteText(campaign.strength.max)}`}
+        </p>
         {!campaign.strength.contribute.available && campaign.strength.contribute.disabledReason
           ? <p className="ahd-help" role="note">{campaign.strength.contribute.disabledReason}</p> : null}
         <p className="ahd-help" role="note">
-          Strength raises your presidential-general vote tally through the reference saturation curve. It is an estimate applied to counted votes, not a result.
+          Strength raises the target's presidential-general vote tally through the reference saturation curve. It is an estimate applied to counted votes, not a result.
         </p>
       </section>
       <section aria-label="Campaign rally" style={{ marginTop: "0.6rem" }}>
