@@ -104,17 +104,58 @@ export interface SectorValue {
   companyCount: number;
   /** Σ recorded (sharePrice × totalShares) for this sector's companies in this currency. */
   marketValue: number;
+  /** Σ recorded per-turn revenue (Corporation.revenue) for this sector's companies in this currency. */
+  revenue: number;
 }
 
-/** Sector directory entry, grouped from the same listings projection the route uses. */
+/**
+ * Sector directory entry, grouped from the same listings projection the route
+ * uses. Reference shape: AHDGame src/app/sectors/page.tsx SectorRow (revenue,
+ * margin, growthRate, owned) and the tab counts in /api/sectors.
+ *
+ * Money stays split per currency (`values`) because each member corporation
+ * records revenue in its own home currency and Native has no FX/anchor system
+ * (matches the listing no-US-conversion rule). Margin and growth are unitless
+ * percentages, so their sector aggregate is a plain mean across the members.
+ */
 export interface SectorSummary {
   sectorType: string;
   sectorLabel: string;
   companyCount: number;
-  /** Per-currency values, one entry per currency present in the sector. */
+  /** Per-currency recorded values, one entry per currency present in the sector. */
   values: SectorValue[];
   /** Listing ids in this sector, for opening the existing company detail from the directory. */
   companyIds: string[];
+  /** Every country with a member corporation in this sector, sorted. */
+  countryIds: string[];
+  /**
+   * Player holds at least one recorded share in a member corporation. Derived
+   * ONLY from Corporation.shareholders. AHDGame splits its tabs from a separate
+   * UnownedSector roster; Native's merged Corporation is one record per
+   * (country, sectorType) and carries no ownership roster, and the
+   * `unownedSectors` map it does seed is a provisional per-corp revenue pool
+   * (economy/types.ts), not an owner list — so recorded shares are the only
+   * ownership signal to filter on.
+   */
+  owned: boolean;
+  /** Member corporations the player holds ≥1 recorded share in. */
+  ownedCompanyCount: number;
+  /** Player-recorded shares across the sector's member corporations. */
+  playerShares: number;
+  /**
+   * Mean of member `effectiveProfitMargin` (%), or null when no member records a
+   * finite margin. A plain mean — no currency weighting, because members record
+   * revenue in different currencies and Native has no FX.
+   */
+  marginPct: number | null;
+  /** Mean of member `currentGrowthRate` (annual %), or null when none is finite. */
+  growthPct: number | null;
+  /**
+   * AHDGame marks sellable sectors with CorporateSector.forSale (+priceAnchor).
+   * Native's merged Corporation record has no for-sale field, so there is no
+   * sale state to project and no "For Sale" tab. See markets.test.ts.
+   */
+  forSale: null;
 }
 
 export interface MarketsView {
@@ -299,22 +340,65 @@ export function projectMarkets(world: WorldState): MarketsView {
   // summed across currencies — matching the no-FX rule the listings follow.
   const sectorMap = new Map<
     string,
-    { sectorType: string; sectorLabel: string; companyIds: string[]; values: Map<string, SectorValue> }
+    {
+      sectorType: string;
+      sectorLabel: string;
+      companyIds: string[];
+      countryIds: string[];
+      values: Map<string, SectorValue>;
+      playerShares: number;
+      ownedCompanyCount: number;
+      marginSum: number;
+      marginCount: number;
+      growthSum: number;
+      growthCount: number;
+    }
   >();
   for (const listing of listings) {
     let sector = sectorMap.get(listing.sectorType);
     if (!sector) {
-      sector = { sectorType: listing.sectorType, sectorLabel: listing.sectorLabel, companyIds: [], values: new Map() };
+      sector = {
+        sectorType: listing.sectorType,
+        sectorLabel: listing.sectorLabel,
+        companyIds: [],
+        countryIds: [],
+        values: new Map(),
+        playerShares: 0,
+        ownedCompanyCount: 0,
+        marginSum: 0,
+        marginCount: 0,
+        growthSum: 0,
+        growthCount: 0,
+      };
       sectorMap.set(listing.sectorType, sector);
     }
     sector.companyIds.push(listing.id);
+    if (!sector.countryIds.includes(listing.countryId)) sector.countryIds.push(listing.countryId);
+    if (listing.playerShares > 0) {
+      sector.playerShares += listing.playerShares;
+      sector.ownedCompanyCount += 1;
+    }
+    if (Number.isFinite(listing.effectiveProfitMargin)) {
+      sector.marginSum += listing.effectiveProfitMargin;
+      sector.marginCount += 1;
+    }
+    if (Number.isFinite(listing.currentGrowthRate)) {
+      sector.growthSum += listing.currentGrowthRate;
+      sector.growthCount += 1;
+    }
     const marketValue = Math.round(listing.sharePrice * listing.totalShares * 100) / 100;
     const value = sector.values.get(listing.currency);
     if (value) {
       value.companyCount += 1;
       value.marketValue = Math.round((value.marketValue + marketValue) * 100) / 100;
+      value.revenue = Math.round((value.revenue + listing.revenue) * 100) / 100;
     } else {
-      sector.values.set(listing.currency, { currency: listing.currency, companyCount: 1, marketValue });
+      sector.values.set(listing.currency, {
+        currency: listing.currency,
+        companyCount: 1,
+        marketValue,
+        revenue: Math.round(listing.revenue * 100) / 100,
+      });
     }
   }
   const sectors: SectorSummary[] = [...sectorMap.values()]
@@ -324,6 +408,13 @@ export function projectMarkets(world: WorldState): MarketsView {
       companyCount: sector.companyIds.length,
       values: [...sector.values.values()].sort((a, b) => a.currency.localeCompare(b.currency)),
       companyIds: sector.companyIds,
+      countryIds: [...sector.countryIds].sort((a, b) => a.localeCompare(b)),
+      owned: sector.playerShares > 0,
+      ownedCompanyCount: sector.ownedCompanyCount,
+      playerShares: sector.playerShares,
+      marginPct: sector.marginCount > 0 ? sector.marginSum / sector.marginCount : null,
+      growthPct: sector.growthCount > 0 ? sector.growthSum / sector.growthCount : null,
+      forSale: null,
     }))
     .sort((a, b) => a.sectorLabel.localeCompare(b.sectorLabel) || a.sectorType.localeCompare(b.sectorType));
 
