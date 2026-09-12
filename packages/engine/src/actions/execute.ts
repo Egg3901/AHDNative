@@ -108,6 +108,11 @@ export type ExecuteActionParams = {
   demographicCategory?: string;
   demographicGroup?: string;
   // #68 campaign strength
+  /** Batched single-click count for campaignContribute; "max" resolves server-side. */
+  clicks?: number | "max";
+  /** Rival campaign in the same election to receive contributed strength. */
+  targetCandidateId?: string;
+  /** Internal raw-amount override (see actions/campaignContribute.ts). */
   strengthAdded?: number;
   // #70 referendum campaign writers
   referendumId?: string;
@@ -716,10 +721,15 @@ function executeActionInner(
     if (found.kind !== "player") return { ok: false, error: "Only player can manage a campaign" };
     // Catalog baseCost/fundCost are 0; campaignContribute charges the dynamic
     // funds/actions itself AFTER validating every gate, so a rejection leaves
-    // both the player's balances and the campaign's strength untouched (and the
-    // executeAction wrapper restores accounting on any failure result anyway).
+    // both the player's balances and the target campaign's strength untouched
+    // (and the executeAction wrapper restores accounting on any failure result
+    // anyway). The reference-shaped entry is click-based (clicks: number|"max",
+    // strength derived from national influence); strengthAdded remains an
+    // internal raw-amount override.
     const res = CampaignContribute.campaignContribute(world, {
       electionId: params.electionId,
+      clicks: params.clicks,
+      targetCandidateId: params.targetCandidateId,
       strengthAdded: params.strengthAdded,
     });
     if (!res.ok) return { ok: false, error: res.error };
@@ -1764,9 +1774,7 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
         ? null
         : "campaignTargetedAd requires electionId, regionId, demographicCategory, and demographicGroup";
     case "campaignContribute":
-      return params.electionId && params.strengthAdded !== undefined
-        ? null
-        : "campaignContribute requires electionId and strengthAdded";
+      return params.electionId ? null : "campaignContribute requires electionId";
     case "sponsorBill":
     case "repealLaw":
       return params.catalogId ? null : `${actionId} requires catalogId`;

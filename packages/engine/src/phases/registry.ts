@@ -74,6 +74,7 @@ import {
   campaignTurnPhase,
   campaignPartySubsidyPhase,
   campaignNpcInvestmentPhase,
+  campaignStrengthPullbackPhase,
 } from "../campaigns/phases.js";
 import {
   statePartyElectionsPhase,
@@ -188,6 +189,12 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // relative order. Later state-dependent RNG use can still change with
   // election outcomes; this is not a whole-world RNG equivalence claim.
   campaignTurnPhase,
+  // #68: leader pullback runs immediately after campaignTurn (which never
+  // writes campaignStrength) and before voteAccumulation, matching mainline's
+  // same-turn edge (campaignTurn.ts computes the pullback and applies it inside
+  // this turn's campaign update). RNG-free, so it consumes no shared RNG draws
+  // and shifts no downstream phase's stream. Strict no-op at strength 0.
+  campaignStrengthPullbackPhase,
   campaignPartySubsidyPhase,
   campaignNpcInvestmentPhase,
   primaryResolutionPhase,

@@ -12,6 +12,13 @@ import {
   campaignStrengthVoteMultiplier,
   maxAffordableCampaignStrengthClicks,
 } from "./campaignStrength.js";
+import { createWorld } from "../world.js";
+import { advanceTurn } from "../engine.js";
+import { deserializeSave, serializeSave } from "../save.js";
+import { rngFromState } from "../rng.js";
+import { executeAction } from "../actions/execute.js";
+import { campaignKey, ensureCampaign } from "./lifecycle.js";
+import { campaignStrengthPullbackPhase } from "./phases.js";
 
 /**
  * #68: hand-derived reference vectors for the campaign-strength port. Values
@@ -202,5 +209,89 @@ describe("calculateCampaignStrengthLeaderPullbacks", () => {
       { id: "b", electionId: "e1", campaignStrength: 0, status: "active" },
     ]);
     expect(pb.size).toBe(0);
+  });
+});
+
+const WORLD_OPTS = { seed: "campaign-strength-pullback", playerName: "Tester", countryId: "US", era: "1953" } as const;
+
+/** File in an open US president race with enough runway to advance a turn. */
+function setupFiledPresidentRace() {
+  const world = createWorld(WORLD_OPTS);
+  expect(executeAction(world, "player", "joinParty", { partyId: "US_DEM" }).ok).toBe(true);
+  for (let i = 0; i < 300; i += 1) {
+    const race = world.elections.find(
+      (e) =>
+        e.status !== "resolved" &&
+        e.countryId === "US" &&
+        e.electionType === "president" &&
+        world.meta.turn + 5 < e.primaryEndTurn &&
+        !e.candidates.some((c) => c.id === "player"),
+    );
+    if (race) {
+      expect(executeAction(world, "player", "declareCandidacy", { electionId: race.id }).ok).toBe(true);
+      return { world, race };
+    }
+    advanceTurn(world);
+  }
+  throw new Error("no open US president race within 300 turns");
+}
+
+/** Ensure a rival campaign exists in the race so a pullback has someone to compare against. */
+function ensureRivalCampaign(world: ReturnType<typeof createWorld>, race: ReturnType<typeof createWorld>["elections"][number]) {
+  const rival = race.candidates.find((candidate) => candidate.id !== "player");
+  if (!rival) throw new Error("expected a rival candidate");
+  ensureCampaign(world, {
+    electionId: race.id,
+    candidateId: rival.id,
+    candidateIsNPP: rival.isNPP,
+    partyId: rival.partyId,
+    countryId: race.countryId,
+    electionType: race.electionType,
+    turn: world.meta.turn,
+  });
+  return rival;
+}
+
+describe("campaignStrengthPullback phase (#68)", () => {
+  it("pulls a runaway leader back over a real turn by the capped amount", () => {
+    const { world, race } = setupFiledPresidentRace();
+    ensureRivalCampaign(world, race);
+    const key = campaignKey(race.id, "player");
+    world.campaigns[key]!.campaignStrength = 100_000;
+
+    advanceTurn(world);
+
+    // Leader far above the election average -> pullback is the per-turn cap.
+    expect(world.campaigns[key]!.campaignStrength).toBe(100_000 - 175);
+  });
+
+  it("is a strict no-op when every campaign sits at 0 strength", () => {
+    const { world, race } = setupFiledPresidentRace();
+    ensureRivalCampaign(world, race);
+
+    // Direct phase run leaves the campaign state byte-identical at zero.
+    const before = JSON.stringify(world.campaigns);
+    campaignStrengthPullbackPhase.run(world, rngFromState(world.meta.rng));
+    expect(JSON.stringify(world.campaigns)).toBe(before);
+
+    // A full turn likewise never moves a zero-strength campaign negative.
+    advanceTurn(world);
+    for (const campaign of Object.values(world.campaigns)) {
+      expect(campaign.campaignStrength ?? 0).toBe(0);
+    }
+  });
+
+  it("applies the pullback from persisted state deterministically across save/reload", () => {
+    const { world, race } = setupFiledPresidentRace();
+    ensureRivalCampaign(world, race);
+    const key = campaignKey(race.id, "player");
+    world.campaigns[key]!.campaignStrength = 5000;
+
+    const reloaded = deserializeSave(serializeSave(world, "2026-09-11T00:00:00.000Z"));
+    advanceTurn(world);
+    advanceTurn(reloaded);
+
+    expect(JSON.stringify(reloaded.campaigns)).toBe(JSON.stringify(world.campaigns));
+    expect(reloaded.campaigns[key]!.campaignStrength).toBe(5000 - 175);
   });
 });

@@ -12,6 +12,11 @@ const OPTS = { seed: "campaign-integration", playerName: "Tester", countryId: "U
 const NEW_CAMPAIGN_PHASE_NAMES = new Set([
   "campaignSpendReset",
   "campaignTurn",
+  // #68 leader pullback is part of the campaign cluster and RNG-free: excluding
+  // it with the rest keeps the counterfactual's "every other phase runs
+  // identically" claim true. It is also a strict no-op at strength 0, which is
+  // the only strength this world ever reaches (no contributions are made here).
+  "campaignStrengthPullback",
   "campaignPartySubsidy",
   "campaignNpcInvestment",
 ]);

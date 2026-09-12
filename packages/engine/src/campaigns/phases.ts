@@ -17,6 +17,7 @@ import { applyCampaignPartySubsidies } from "./partySubsidy.js";
 import { investCampaign } from "./npcInvestment.js";
 import { decayCampaignCanvassModifiers } from "../actions/campaignCanvass.js";
 import { decayCampaignTargetedAdModifiers } from "../actions/campaignTargetedAd.js";
+import { calculateCampaignStrengthLeaderPullbacks } from "./campaignStrength.js";
 
 /**
  * Campaign turn cluster (W26). Ports src/lib/turn/campaignTurn.ts
@@ -217,6 +218,48 @@ export const campaignNpcInvestmentPhase: TurnPhase = {
   run(world: WorldState) {
     for (const campaign of Object.values(world.campaigns)) {
       investCampaign(campaign);
+    }
+  },
+};
+
+/**
+ * Campaign-strength leader pullback (#68). Ports the per-turn pullback half of
+ * AHDGame src/lib/turn/campaignTurn.ts: `calculateCampaignStrengthLeaderPullbacks`
+ * is computed once over the active campaigns (AHDGame campaignTurn.ts ~line 228)
+ * and applied as a `campaignStrength: -pullback` increment in the same
+ * per-campaign update (~line 577). Each turn the single strongest campaign in a
+ * multi-campaign election is pulled back toward that election's average strength,
+ * capped at CAMPAIGN_STRENGTH_LEADER_PULLBACK_MAX_PER_TURN, so one runaway leader
+ * cannot permanently lock in an old overpowered lead.
+ *
+ * Registry placement: immediately after campaignTurn (which never writes
+ * campaignStrength) and before voteAccumulation, matching mainline's same-turn
+ * edge so the tally reads the pulled-back value this turn. RNG-free.
+ *
+ * Strict no-op invariant: when every campaign sits at 0 strength the pullback
+ * map is empty (a leader at <= 0 is skipped), so no existing save, fixture or
+ * golden gains a strength delta and the shared RNG stream is untouched. The
+ * phase also short-circuits before building the candidate list when no campaign
+ * carries any strength.
+ */
+export const campaignStrengthPullbackPhase: TurnPhase = {
+  name: "campaignStrengthPullback",
+  run(world: WorldState) {
+    const campaigns = Object.values(world.campaigns);
+    if (!campaigns.some((campaign) => (campaign.campaignStrength ?? 0) > 0)) return;
+    const pullbacks = calculateCampaignStrengthLeaderPullbacks(
+      campaigns.map((campaign) => ({
+        id: campaign.id,
+        electionId: campaign.electionId,
+        campaignStrength: campaign.campaignStrength ?? 0,
+        status: campaign.status,
+      })),
+    );
+    if (pullbacks.size === 0) return;
+    for (const campaign of campaigns) {
+      const pullback = pullbacks.get(campaign.id) ?? 0;
+      if (pullback <= 0) continue;
+      campaign.campaignStrength = Math.max(0, (campaign.campaignStrength ?? 0) - pullback);
     }
   },
 };

@@ -9,15 +9,17 @@ import { isCampaignEligibleElection } from "./isCampaignEligible.js";
  * entry) and elections/candidacy.ts declareCandidacy/withdrawCandidacy
  * (player entry/exit).
  *
- * PORT-STUB (not ported): the CROSS-CAMPAIGN contribution / national-influence
- * paths of the campaign-strength mechanic (AHDGame
- * src/lib/campaigns/commands/campaignCommands.ts contributeCampaignStrength
- * derives `strengthAdded` from nationalInfluence * 0.75 per click and can
- * contribute to a RIVAL campaign). Native's `campaignContribute` action
- * (actions/campaignContribute.ts) takes an explicit strengthAdded and only
- * targets the player's OWN campaign; the strength→vote curve itself
- * (campaigns/campaignStrength.ts) is fully ported and applied at vote
- * accumulation in elections/tallyAdapter.ts for presidential generals only.
+ * PORTED (W? #68, from AHDGame
+ * src/lib/campaigns/commands/campaignCommands.ts contributeCampaignStrength):
+ * Native's `campaignContribute` action (actions/campaignContribute.ts) is now
+ * reference-shaped — `strengthPerClick = nationalInfluence * 0.75` with batched
+ * x1 / x5 / Max clicks and the reference eligibility/message semantics, and it
+ * can target another candidate's campaign in the same election. The
+ * strength→vote curve itself (campaigns/campaignStrength.ts) is fully ported
+ * and applied at vote accumulation in elections/tallyAdapter.ts for
+ * presidential generals only. `strengthAdded` remains an internal raw-amount
+ * helper override; there is no persisted activityLog audit row (solo has no
+ * activity ledger).
  */
 
 export function campaignKey(electionId: string, candidateId: string): string {

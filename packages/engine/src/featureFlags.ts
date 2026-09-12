@@ -205,6 +205,7 @@ const PHASE_FEATURE_FLAGS: Readonly<Record<string, WorldFeatureFlag>> = {
   electionResolution: "elections",
   campaignSpendReset: "campaigns",
   campaignTurn: "campaigns",
+  campaignStrengthPullback: "campaigns",
   campaignPartySubsidy: "campaigns",
   campaignNpcInvestment: "campaigns",
   billLifecycle: "legislation",

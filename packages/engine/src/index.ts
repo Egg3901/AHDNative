@@ -80,7 +80,7 @@ export type { OpsBranchKey, UpgradeCategory } from "./campaigns/upgradeCosts.js"
 export { campaignAnchorToLocal, campaignLocalRate } from "./campaigns/campaignCurrency.js";
 export { calculateCampaignIncome } from "./campaigns/income.js";
 export { calculateMaintenanceCosts } from "./campaigns/maintenance.js";
-export { campaignKey } from "./campaigns/lifecycle.js";
+export { campaignKey, ensureCampaign } from "./campaigns/lifecycle.js";
 // #68 campaign strength: the display layer shares the exact contribution
 // cost/action formulas and the vote-boost curve with the engine (SSOT).
 export {
