@@ -156,6 +156,8 @@ describe("advanceTurn", () => {
       "fiscalYear",
       "regionalBudgetProcessing",
       "centralBankChairTurn",
+      "fomcMeetings",
+      "fomcNominations",
       "centralBankChairSelection",
       "statePartyElections",
       "nationalPartyElections",

@@ -190,6 +190,14 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (isRecord(regionalMetrics) && Object.keys(regionalMetrics).length > 0) {
     return { ok: false, error: `Regional metric records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
+  // Issue #119 (v47): FOMC nomination records. An empty collection is dropped so
+  // the projected bytes stay identical to an authentic schema 42 document; any
+  // live nomination cannot round-trip through schema 42 and is refused (same
+  // class as subsidies/regionalMetrics above).
+  const fomcNominations = world["fomcNominations"];
+  if (Array.isArray(fomcNominations) && fomcNominations.length > 0) {
+    return { ok: false, error: `FOMC nomination records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
   const corporations = world["corporations"];
   if (!isRecord(corporations)) {
     return { ok: false, error: "Schema 42 projection cannot validate corporation market state" };
@@ -230,6 +238,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   delete candidateWorld["countryPolitics"];
   delete candidateWorld["subsidies"];
   delete candidateWorld["regionalMetrics"];
+  delete candidateWorld["fomcNominations"];
   const candidateCorporations = candidateWorld["corporations"] as Record<string, Record<string, unknown>>;
   for (const corp of Object.values(candidateCorporations)) {
     delete corp["sentimentMultiplier"];

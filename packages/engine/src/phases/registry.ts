@@ -66,7 +66,12 @@ import {
   fiscalYearPhase,
   regionalBudgetProcessingPhase,
 } from "../budget/phases.js";
-import { centralBankChairTurnPhase, centralBankChairSelectionPhase } from "../centralBank/phases.js";
+import {
+  centralBankChairTurnPhase,
+  centralBankChairSelectionPhase,
+  fomcMeetingsPhase,
+  fomcNominationsPhase,
+} from "../centralBank/phases.js";
 import { corporationTurnPhase } from "../corporation/corporationTurn.js";
 import { recomputeSharePricesPhase } from "../market/recomputeSharePrices.js";
 import {
@@ -235,6 +240,14 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // for existing goldens). centralBankChairTurn before centralBankChairSelection
   // mirrors mainline's relative order.
   centralBankChairTurnPhase,
+  // Issue #119: fomcMeetings → fomcNominations between centralBankChairTurn and
+  // centralBankChairSelection, the reference's relative order (turnPhaseNames.ts
+  // 116 centralBankChairTurn → fomcMeetings → fomcNominations → 121
+  // centralBankChairSelection). Both are strict no-ops for banks without an
+  // fomcBoard (legacy single-chair banks), so appending this pair does not shift
+  // any other phase's rng draws and every existing golden is unaffected.
+  fomcMeetingsPhase,
+  fomcNominationsPhase,
   centralBankChairSelectionPhase,
   // W20 intra-party democracy cluster at END before newsMaintenance.
   // Ordering deviation: mainline runs statePartyElections/nationalPartyElections/

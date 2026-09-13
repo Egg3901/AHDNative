@@ -135,6 +135,16 @@ export interface WorldState {
    */
   centralBanks: Record<string, CentralBank>;
   /**
+   * Issue #119: FOMC seat nominations (US committee, one active per seat at a
+   * time). Ports mainline's `fomcNominations` collection
+   * (src/lib/db/types/centralBank.ts FomcNomination,
+   * src/lib/fomcNominationLifecycle.ts). Confirmed nominees are installed into
+   * `centralBanks[countryId].fomcBoard`; rejected ones leave the seat untouched.
+   * Optional and materialized on the first nomination, so a fresh world and
+   * every pre-#119 save keep their existing serialized shape (no schema bump).
+   */
+  fomcNominations?: import("./centralBank/types.js").FomcNomination[];
+  /**
    * NPC corporations, one national corp per (playable country, nonzero-weight
    * 1953 sector) pair. Ports mainline's Corporation+CorporateSector (merged,
    * single-sector — see corporation/types.ts file doc). Schema v19.

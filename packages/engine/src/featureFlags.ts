@@ -234,6 +234,8 @@ const PHASE_FEATURE_FLAGS: Readonly<Record<string, WorldFeatureFlag>> = {
   regionalBudgetProcessing: "budgets",
   centralBankChairTurn: "centralBanks",
   centralBankChairSelection: "centralBanks",
+  fomcMeetings: "centralBanks",
+  fomcNominations: "centralBanks",
   corporationTurn: "corporations",
   commodityPrices: "commodities",
   contractSettlement: "commodities",
