@@ -99,7 +99,11 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
     notifications: { items: [], unread: 0 },
     nation: { countryId: "US", countryName: "United States", currency: "USD",
       economy: { gdpMillions: 100, growthRate: .04, inflationRate: .02, unemploymentRate: .05, outputGap: 0, primeRate: 3, macroHistory: [], primeRateHistory: [] },
-      budget: { fiscalYear: 1953, gdpAbsolute: 100000000, population: 1000000, currency: "USD", taxRates: [], revenue: { components: [], total: 1000 }, spending: { categories: [], stateGrants: 0, debtInterest: 0, total: 800 }, surplus: 200, treasuryBalance: 4000, debt: { principal: 0, ceiling: 10000, interestRate: .02, debtToGdpRatio: 0, creditRating: "AA" } },
+      budget: { fiscalYear: 1953, gdpAbsolute: 100000000, population: 1000000, currency: "USD",
+        labels: { title: "Federal Budget", revenueTitle: "Revenue Sources", spendingTitle: "Spending by Category", debtTitle: "National Debt", ceilingLabel: "Debt Ceiling", debtServiceLabel: "Debt Service", transferLabel: "State grants", revenue: {}, spending: {} },
+        links: [{ label: "Policy", route: "policy" as const }, { label: "Legislature", route: "legislature" as const }],
+        taxRates: [], revenue: { components: [], total: 1000 }, spending: { categories: [], stateGrants: 0, debtInterest: 0, total: 800, transfers: [] }, surplus: 200, treasuryBalance: 4000, debt: { principal: 0, ceiling: 10000, interestRate: .02, debtToGdpRatio: 0, creditRating: "AA" } },
+      metrics: { total: 1, categories: [{ id: "economic", label: "Economic", metrics: [{ id: "economic.gdpGrowth", category: "economic", label: "GDP growth", value: 4, format: "percent" as const, history: [], modifiers: [], links: [{ label: "Economy", route: "economy" as const }] }] }] },
       policy: { taxRates: [], enacted: [] } },
     resources: { actions: { base: 4, seat: 0, cabinet: 0, chair: 0, office: 0, penalty: 0, threshold: 100, cap: 200, next: 7, refresh: 4 }, funds: { enabled: true, base: 10000, donor: 0, office: 0, tax: 500, regularNet: 9500 }, partyInfluence: null, nationalInfluence: { current: 0, gain: 0 }, favorability: { current: 48, decayThreshold: 60, aboveThresholdDecay: 0, tierFloor: 30, tierCost: 6 }, history: [] },
     ...overrides,
@@ -329,6 +333,22 @@ describe("GameScreen", () => {
     expect(screen.getByRole("region", { name: "Economy" })).toHaveTextContent("GDP");
     expect(screen.getByText("3.1%")).toBeInTheDocument();
     expect(screen.getByText("4.6%")).toBeInTheDocument();
+  });
+
+  it("opens the national metrics registry and follows its linked destinations", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+
+    await navigate(user, "National metrics");
+    const metrics = screen.getByRole("region", { name: "National metrics" });
+    expect(within(metrics).getByText("National metrics registry")).toBeInTheDocument();
+    expect(within(metrics).getByText("GDP growth")).toBeInTheDocument();
+
+    await navigate(user, "Budget");
+    const budget = screen.getByRole("region", { name: "Budget" });
+    await user.click(within(budget).getByRole("button", { name: "Policy" }));
+    expect(screen.getByRole("region", { name: "Policy" })).toBeInTheDocument();
   });
 
   it("election card shows filing deadline, badge, candidates and runs for office", async () => {

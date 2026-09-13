@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createWorld } from "@ahdclient/engine";
 import { projectNation } from "../game/nation";
 import { NationPanel } from "./NationPanel";
@@ -34,14 +35,31 @@ function makeNation(overrides: Partial<NationView> = {}): NationView {
       gdpAbsolute: 387_000_000_000,
       population: 160_000_000,
       currency: "USD",
+      labels: {
+        title: "Federal Budget",
+        revenueTitle: "Revenue Sources",
+        spendingTitle: "Spending by Category",
+        debtTitle: "National Debt",
+        ceilingLabel: "Debt Ceiling",
+        debtServiceLabel: "Debt Service",
+        transferLabel: "State grants",
+        revenue: { incomeTax: "Income Tax", other: "Other Revenue" },
+        spending: { defense: "Defense" },
+      },
+      links: [
+        { label: "Policy", route: "policy" },
+        { label: "Government & executive", route: "nations" },
+        { label: "Legislature", route: "legislature" },
+        { label: "Elections", route: "elections" },
+      ],
       taxRates: [
         { id: "incomeTax", label: "Income tax", ratePercent: 35 },
         { id: "salesTax", label: "Sales tax", ratePercent: 10 },
       ],
       revenue: {
         components: [
-          { id: "incomeTax", label: "Income tax", amount: 50_000_000_000, taxRatePercent: 35, taxBase: 142_857_142_857 },
-          { id: "other", label: "Other", amount: 5_000_000_000 },
+          { id: "incomeTax", label: "Income Tax", amount: 50_000_000_000, taxRatePercent: 35, taxBase: 142_857_142_857 },
+          { id: "other", label: "Other Revenue", amount: 5_000_000_000 },
         ],
         total: 55_000_000_000,
       },
@@ -50,6 +68,7 @@ function makeNation(overrides: Partial<NationView> = {}): NationView {
         stateGrants: 3_000_000_000,
         debtInterest: 1_000_000_000,
         total: 56_800_000_000,
+        transfers: [{ id: "ca", name: "California", amount: 2_000_000_000 }],
       },
       debt: {
         principal: 100_000_000_000,
@@ -60,6 +79,53 @@ function makeNation(overrides: Partial<NationView> = {}): NationView {
       },
       surplus: -1_800_000_000,
       treasuryBalance: -100_000_000_000,
+    },
+    metrics: {
+      total: 3,
+      categories: [
+        {
+          id: "economic",
+          label: "Economic",
+          metrics: [
+            {
+              id: "economic.gdpGrowth",
+              category: "economic",
+              label: "GDP growth",
+              value: 4.6,
+              format: "percent",
+              history: [{ turn: 1, value: 4.2 }],
+              modifiers: [],
+              links: [{ label: "Economy", route: "economy" }, { label: "Budget", route: "budget" }],
+            },
+            {
+              id: "economic.inflationRate",
+              category: "economic",
+              label: "Inflation",
+              value: 2.32,
+              format: "percent",
+              history: [],
+              modifiers: [],
+              links: [{ label: "Economy", route: "economy" }],
+            },
+          ],
+        },
+        {
+          id: "governance",
+          label: "Governance",
+          metrics: [
+            {
+              id: "governance.approval",
+              category: "governance",
+              label: "Government approval",
+              value: 55.5,
+              format: "percent",
+              history: [{ turn: 0, value: 56.3 }, { turn: 1, value: 54.8 }],
+              modifiers: [{ id: "c1:approval", label: "Recession", effect: -4, effectType: "tick", source: "crisis" }],
+              links: [{ label: "Policy", route: "policy" }, { label: "Elections", route: "elections" }],
+            },
+          ],
+        },
+      ],
     },
     policy: {
       taxRates: [
@@ -111,6 +177,60 @@ describe("NationPanel", () => {
     expect(screen.getByText("AA")).toBeInTheDocument();
   });
 
+  it("renders country-specific budget vocabulary and consequence links", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    render(<NationPanel nation={makeNation()} section="budget" onNavigate={onNavigate} />);
+
+    expect(screen.getByText("Federal Budget")).toBeInTheDocument();
+    expect(screen.getByText("Revenue Sources")).toBeInTheDocument();
+    expect(screen.getByText("Spending by Category")).toBeInTheDocument();
+    expect(screen.getByText("National Debt")).toBeInTheDocument();
+    expect(screen.getByText("Defense")).toBeInTheDocument();
+    expect(screen.getByText("State grants")).toBeInTheDocument();
+    expect(screen.getByText("Debt Service")).toBeInTheDocument();
+    expect(screen.getByText("Recorded transfer recipients")).toBeInTheDocument();
+    expect(screen.getByText("California")).toBeInTheDocument();
+    expect(screen.getByText("$2,000,000,000")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Legislature" }));
+    expect(onNavigate).toHaveBeenCalledWith("legislature");
+  });
+
+  it("renders the metric registry with formats, history, modifiers, and destinations", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    render(<NationPanel nation={makeNation()} section="metrics" onNavigate={onNavigate} />);
+
+    expect(screen.getByRole("heading", { name: "Metrics" })).toBeInTheDocument();
+    expect(screen.getByText("National metrics registry")).toBeInTheDocument();
+    expect(screen.getByText("3 recorded")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Economic" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Governance" })).toBeInTheDocument();
+    expect(screen.getByText("GDP growth")).toBeInTheDocument();
+    expect(screen.getByText("4.60%")).toBeInTheDocument();
+
+    const approval = screen.getByRole("article", { name: "Government approval" });
+    expect(within(approval).getByText("55.50%")).toBeInTheDocument();
+    await user.click(within(approval).getByText("Details"));
+    expect(within(approval).getByText("Recession")).toBeInTheDocument();
+    expect(within(approval).getByText("-4")).toBeInTheDocument();
+    expect(within(approval).getByText(/Turn 1/)).toBeInTheDocument();
+
+    const inflation = screen.getByRole("article", { name: "Inflation" });
+    await user.click(within(inflation).getByText("Details"));
+    expect(within(inflation).getByText("No history recorded.")).toBeInTheDocument();
+
+    const growth = screen.getByRole("article", { name: "GDP growth" });
+    await user.click(within(growth).getByText("Details"));
+    expect(within(growth).getByText(/Turn 1/)).toBeInTheDocument();
+    expect(within(growth).getByText("4.20%")).toBeInTheDocument();
+    expect(within(growth).getByText("No modifiers recorded.")).toBeInTheDocument();
+
+    await user.click(within(approval).getByRole("button", { name: "Elections" }));
+    expect(onNavigate).toHaveBeenCalledWith("elections");
+  });
+
   it("shows current tax settings and enacted policy option details", () => {
     render(<NationPanel nation={makeNation()} section="policy" />);
 
@@ -130,10 +250,14 @@ describe("NationPanel", () => {
     const nation = makeNation({
       economy: { ...makeNation().economy, macroHistory: [], primeRateHistory: [], primeRate: null },
       policy: { taxRates: [], enacted: [] },
+      metrics: { total: 0, categories: [] },
     });
     const { rerender } = render(<NationPanel nation={nation} section="economy" />);
     expect(screen.getByText("No macro history recorded.")).toBeInTheDocument();
     expect(screen.getByText("No prime-rate history recorded.")).toBeInTheDocument();
+
+    rerender(<NationPanel nation={nation} section="metrics" />);
+    expect(screen.getByText("No national metrics recorded.")).toBeInTheDocument();
 
     rerender(<NationPanel nation={nation} section="policy" />);
     expect(screen.getByText("No current tax settings recorded.")).toBeInTheDocument();
@@ -150,5 +274,16 @@ describe("NationPanel", () => {
     expect(nation.budget.debt.debtToGdpRatio).toBeNull();
     expect(nation.policy.enacted).toEqual([]);
     expect(nation.policy.taxRates.find((tax) => tax.id === "incomeTax")?.ratePercent).toBe(35);
+  });
+
+  it("renders the projected country budget labels through the real session data", () => {
+    const world = createWorld({ era: "1953", countryId: "UK", playerName: "Ada", seed: "nation-uk" });
+    const nation = projectNation(world);
+    render(<NationPanel nation={nation} section="budget" />);
+
+    expect(screen.getByText("HM Treasury Budget")).toBeInTheDocument();
+    expect(screen.getByText("Receipts")).toBeInTheDocument();
+    expect(screen.getByText("Health / NHS")).toBeInTheDocument();
+    expect(screen.getByText("National Insurance")).toBeInTheDocument();
   });
 });

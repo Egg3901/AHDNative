@@ -1,8 +1,17 @@
-import type { NationMoneyLine, NationPolicySetting, NationView } from "../game/nation";
+import type {
+  NationDestination,
+  NationLinkView,
+  NationMetricView,
+  NationMoneyLine,
+  NationPolicySetting,
+  NationView,
+} from "../game/nation";
 
 export interface NationPanelProps {
   nation: NationView;
-  section: "economy" | "budget" | "policy";
+  section: "economy" | "budget" | "policy" | "metrics";
+  /** Opens a linked consequence destination. Omitted in read-only renders. */
+  onNavigate?: (route: NationDestination, detailId?: string) => void;
 }
 
 function number(value: number, maximumFractionDigits = 0): string {
@@ -62,6 +71,33 @@ function KeyValue({ label, value, note }: { label: string; value: string; note?:
   );
 }
 
+/** Deep links out of a nation surface to the destination that realizes it. */
+function Links({
+  links,
+  onNavigate,
+  ariaLabel,
+}: {
+  links: NationLinkView[];
+  onNavigate?: NationPanelProps["onNavigate"];
+  ariaLabel: string;
+}) {
+  if (links.length === 0) return null;
+  return (
+    <div role="group" aria-label={ariaLabel} style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap", marginTop: "0.7rem" }}>
+      {links.map((link) => (
+        <button
+          key={`${link.route}:${link.label}`}
+          type="button"
+          className="ahd-btn ahd-btn-ghost ahd-btn-sm"
+          onClick={() => onNavigate?.(link.route)}
+        >
+          {link.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function MoneyLine({ line, currency }: { line: NationMoneyLine; currency: string }) {
   return (
     <li className="ahd-kv" style={{ alignItems: "flex-start", borderTop: "1px solid var(--ahd-border)", paddingTop: "0.5rem" }}>
@@ -77,6 +113,65 @@ function MoneyLine({ line, currency }: { line: NationMoneyLine; currency: string
       </div>
       <span className="ahd-mono" style={{ fontWeight: 650, textAlign: "right" }}>{money(line.amount, currency)}</span>
     </li>
+  );
+}
+
+function metricValue(metric: NationMetricView): string {
+  return metric.format === "percent" ? pointsPercent(metric.value, 2) : number(metric.value, 1);
+}
+
+const METRIC_HISTORY_SHOWN = 12;
+
+function MetricCard({ metric, onNavigate }: { metric: NationMetricView; onNavigate?: NationPanelProps["onNavigate"] }) {
+  const history = metric.history.slice(-METRIC_HISTORY_SHOWN);
+  return (
+    <article className="ahd-card ahd-card-pad" aria-label={metric.label}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "baseline" }}>
+        <h3 style={{ margin: 0, fontSize: "0.86rem" }}>{metric.label}</h3>
+        <span className="ahd-mono" style={{ fontWeight: 650 }}>{metricValue(metric)}</span>
+      </div>
+      <div className="ahd-muted" style={{ fontSize: "0.68rem", marginTop: "0.2rem" }}>{metric.id} · {metric.category}</div>
+      <details style={{ marginTop: "0.5rem" }}>
+        <summary style={{ cursor: "pointer", fontSize: "0.74rem" }}>Details</summary>
+        <dl className="ahd-stack" style={{ marginTop: "0.45rem", gap: "0.35rem" }}>
+          <KeyValue label="Registry key" value={metric.id} />
+          <KeyValue label="Format" value={metric.format === "percent" ? "percent" : "index (0–100)"} />
+        </dl>
+        <div style={{ marginTop: "0.55rem" }}>
+          <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+            Recorded history{metric.history.length > history.length ? ` (last ${history.length} of ${metric.history.length})` : ""}
+          </span>
+          {history.length === 0 ? (
+            <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.25rem" }}>No history recorded.</div>
+          ) : (
+            <ul style={{ listStyle: "none", margin: "0.3rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+              {history.map((point) => (
+                <li key={point.turn} className="ahd-kv">
+                  <span>Turn {point.turn}</span>
+                  <span className="ahd-mono">{metric.format === "percent" ? pointsPercent(point.value, 2) : number(point.value, 1)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div style={{ marginTop: "0.55rem" }}>
+          <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>Recorded modifiers</span>
+          {metric.modifiers.length === 0 ? (
+            <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.25rem" }}>No modifiers recorded.</div>
+          ) : (
+            <ul style={{ listStyle: "none", margin: "0.3rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+              {metric.modifiers.map((modifier) => (
+                <li key={modifier.id} className="ahd-kv">
+                  <span>{modifier.label}<span className="ahd-muted" style={{ display: "block", fontSize: "0.68rem" }}>{modifier.source} · {modifier.effectType}</span></span>
+                  <span className="ahd-mono">{modifier.effect > 0 ? `+${modifier.effect}` : modifier.effect}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <Links links={metric.links} onNavigate={onNavigate} ariaLabel={`${metric.label} destinations`} />
+      </details>
+    </article>
   );
 }
 
@@ -161,14 +256,15 @@ function EconomySection({ nation }: { nation: NationView }) {
   );
 }
 
-function BudgetSection({ nation }: { nation: NationView }) {
+function BudgetSection({ nation, onNavigate }: { nation: NationView; onNavigate?: NationPanelProps["onNavigate"] }) {
   const { budget } = nation;
+  const { labels } = budget;
   const budgetMoney = (value: number) => money(value, budget.currency);
   return (
     <Layout nation={nation} title="Budget">
       <div className="ahd-card ahd-card-pad">
         <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "baseline" }}>
-          <h2 className="ahd-h2">Fiscal position</h2>
+          <h2 className="ahd-h2">{labels.title}</h2>
           <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>Fiscal year {budget.fiscalYear}</span>
         </div>
         <p className="ahd-muted" style={{ fontSize: "0.7rem", margin: "0.5rem 0 0" }}>
@@ -180,11 +276,12 @@ function BudgetSection({ nation }: { nation: NationView }) {
           <KeyValue label="Surplus / deficit" value={budgetMoney(budget.surplus)} />
           <KeyValue label="Treasury balance" value={budgetMoney(budget.treasuryBalance)} />
         </dl>
+        <Links links={budget.links} onNavigate={onNavigate} ariaLabel="Budget destinations" />
       </div>
 
       <div className="ahd-grid ahd-grid-2">
         <div className="ahd-card ahd-card-pad">
-          <h2 className="ahd-h2">Revenue</h2>
+          <h2 className="ahd-h2">{labels.revenueTitle}</h2>
           {budget.revenue.components.length === 0 ? (
             <div className="ahd-empty" style={{ marginTop: "0.65rem" }}>No revenue components recorded.</div>
           ) : (
@@ -197,7 +294,7 @@ function BudgetSection({ nation }: { nation: NationView }) {
         </div>
 
         <div className="ahd-card ahd-card-pad">
-          <h2 className="ahd-h2">Spending</h2>
+          <h2 className="ahd-h2">{labels.spendingTitle}</h2>
           {budget.spending.categories.length === 0 ? (
             <div className="ahd-empty" style={{ marginTop: "0.65rem" }}>No spending categories recorded.</div>
           ) : (
@@ -206,25 +303,72 @@ function BudgetSection({ nation }: { nation: NationView }) {
             </ul>
           )}
           <dl className="ahd-stack" style={{ marginTop: "0.65rem", gap: "0.42rem" }}>
-            <KeyValue label="State grants" value={budgetMoney(budget.spending.stateGrants)} />
-            <KeyValue label="Debt interest" value={budgetMoney(budget.spending.debtInterest)} />
+            <KeyValue label={labels.transferLabel} value={budgetMoney(budget.spending.stateGrants)} note="intergovernmental transfers" />
+            <KeyValue label={labels.debtServiceLabel} value={budgetMoney(budget.spending.debtInterest)} note="debt interest" />
             <KeyValue label="Total spending" value={budgetMoney(budget.spending.total)} />
           </dl>
+          {budget.spending.transfers.length > 0 ? (
+            <div style={{ marginTop: "0.6rem" }}>
+              <span className="ahd-muted" style={{ fontSize: "0.7rem" }}>Recorded transfer recipients</span>
+              <ul style={{ listStyle: "none", margin: "0.3rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                {budget.spending.transfers.map((transfer) => (
+                  <li key={transfer.id} className="ahd-kv">
+                    <span>{transfer.name}</span>
+                    <span className="ahd-mono">{budgetMoney(transfer.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       </div>
 
       <div className="ahd-card ahd-card-pad">
         <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "baseline" }}>
-          <h2 className="ahd-h2">Debt and credit</h2>
+          <h2 className="ahd-h2">{labels.debtTitle}</h2>
           <span className="ahd-badge">{budget.debt.creditRating}</span>
         </div>
         <dl className="ahd-stack" style={{ marginTop: "0.65rem", gap: "0.42rem" }}>
           <KeyValue label="Debt principal" value={budgetMoney(budget.debt.principal)} />
           <KeyValue label="Debt-to-GDP" value={budget.debt.debtToGdpRatio === null ? "Not recorded" : fractionPercent(budget.debt.debtToGdpRatio)} note="share of annual GDP" />
           <KeyValue label="Interest rate" value={fractionPercent(budget.debt.interestRate, 2)} />
-          <KeyValue label="Debt ceiling" value={budgetMoney(budget.debt.ceiling)} />
+          <KeyValue label={labels.ceilingLabel} value={budgetMoney(budget.debt.ceiling)} />
         </dl>
       </div>
+    </Layout>
+  );
+}
+
+function MetricsSection({ nation, onNavigate }: { nation: NationView; onNavigate?: NationPanelProps["onNavigate"] }) {
+  const { metrics } = nation;
+  return (
+    <Layout nation={nation} title="Metrics">
+      <div className="ahd-card ahd-card-pad">
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "baseline" }}>
+          <h2 className="ahd-h2">National metrics registry</h2>
+          <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{metrics.total} recorded</span>
+        </div>
+        <p className="ahd-muted" style={{ fontSize: "0.7rem", margin: "0.5rem 0 0" }}>
+          Every metric row the save records, with its recorded history and modifiers. Empty families are not shown.
+        </p>
+      </div>
+      {metrics.categories.length === 0 ? (
+        <div className="ahd-empty">No national metrics recorded.</div>
+      ) : (
+        metrics.categories.map((category) => (
+          <div className="ahd-stack" key={category.id}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "baseline" }}>
+              <h2 className="ahd-h2">{category.label}</h2>
+              <span className="ahd-muted" style={{ fontSize: "0.68rem" }}>{category.metrics.length} metric{category.metrics.length === 1 ? "" : "s"}</span>
+            </div>
+            <div className="ahd-grid ahd-grid-2">
+              {category.metrics.map((metric) => (
+                <MetricCard key={metric.id} metric={metric} onNavigate={onNavigate} />
+              ))}
+            </div>
+          </div>
+        ))
+      )}
     </Layout>
   );
 }
@@ -281,8 +425,9 @@ function PolicySection({ nation }: { nation: NationView }) {
   );
 }
 
-export function NationPanel({ nation, section }: NationPanelProps) {
+export function NationPanel({ nation, section, onNavigate }: NationPanelProps) {
   if (section === "economy") return <EconomySection nation={nation} />;
-  if (section === "budget") return <BudgetSection nation={nation} />;
+  if (section === "budget") return <BudgetSection nation={nation} onNavigate={onNavigate} />;
+  if (section === "metrics") return <MetricsSection nation={nation} onNavigate={onNavigate} />;
   return <PolicySection nation={nation} />;
 }
