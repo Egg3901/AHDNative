@@ -423,9 +423,15 @@ function projectElections(world: WorldState): ElectionView[] {
       const id = playerCandidate ? "withdrawCandidacy" : "declareCandidacy";
       const entry = ACTION_CATALOG[id];
       const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
+      // Nationwide directly-elected executive races carry no `state` and are
+      // exempt from the home-state gate; mirrors elections/candidacy.ts and the
+      // reference isNationwideDirectExecutiveElection guard.
+      const nationwideExecutive = election.electionType === "president" || election.electionType === "uachtaran";
       const reason = election.status === "resolved" ? "This election has ended."
-        : !playerCandidate && world.meta.turn > election.primaryEndTurn ? "Filing has closed."
+        : !playerCandidate && world.meta.turn >= election.primaryEndTurn ? "Filing has closed."
         : !playerCandidate && !player.partyId ? "Join a party before filing."
+        : !playerCandidate && !nationwideExecutive && election.state && player.homeRegionId && player.homeRegionId !== election.state
+          ? `You can only run for office in your home state (${player.homeRegionId}).`
         : !playerCandidate && active ? "Withdraw from your current race before filing for another."
         : (player.actionCooldowns[id] ?? 0) > world.meta.turn ? "Available after its cooldown."
         : player.actions < cost ? "Not enough action points." : undefined;
