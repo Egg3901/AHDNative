@@ -537,6 +537,23 @@ function CampaignBlock({ electionId, campaign, busy, onAction, currency }: {
           Strength raises the target's presidential-general vote tally through the reference saturation curve. It is an estimate applied to counted votes, not a result.
         </p>
       </section>
+      <section aria-label="Operations blend" style={{ marginTop: "0.6rem" }}>
+        <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>Operations blend</h4>
+        <p className="ahd-help" role="note" style={{ margin: "0 0 0.35rem" }}>
+          What each operations lever is doing right now, plus the campaign-strength boost. This is the operations blend of current standing effects, not a vote forecast.
+        </p>
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+          {campaign.blend.levers.map((lever) => (
+            <li key={lever.category} style={{ fontSize: "0.78rem" }}>
+              <span style={{ fontWeight: 650 }}>{categoryLabel(lever.category)}</span>
+              <span className="ahd-muted"> · {lever.effect}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: "0.3rem 0 0" }}>
+          {`Strength vote boost: +${campaign.blend.voteBoostPct.toFixed(1)}% · operations blend, not a vote forecast`}
+        </p>
+      </section>
       <section aria-label="Campaign rally" style={{ marginTop: "0.6rem" }}>
         <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>Campaign rally</h4>
         <p className="ahd-help" style={{ margin: "0 0 0.35rem" }}>

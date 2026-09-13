@@ -104,6 +104,10 @@ export type {
   CampaignStrengthPullbackCandidate,
   CampaignStrengthBatchQuote,
 } from "./campaigns/campaignStrength.js";
+// #67 campaign blend: the display layer derives each operations lever's CURRENT
+// standing effect from the same OPS_TREES magnitudes the engine consumes (SSOT).
+export { opsChannelTotals, describeOpsCurrentEffect } from "./campaigns/opsCurrentEffect.js";
+export type { OpsTreeState, OpsChannelTotals } from "./campaigns/opsCurrentEffect.js";
 
 // Authoritative player action refresh projection (#31), shared by the
 // actionRefresh phase and the Profile/footer resource breakdowns.
