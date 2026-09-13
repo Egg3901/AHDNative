@@ -10,28 +10,93 @@ export interface CandidacyResult {
 }
 
 /**
- * Player candidacy (W21c). Mainline: declare during the filing window
- * (before primaryEndTurn), one active candidacy at a time
- * (activeCandidacy.findBlockingActiveCandidacy). Party membership is required
- * for the party ballot line; independent runs are a later port
- * (PORT-STUB: mainline independent candidacies not yet wired).
+ * Nationwide directly-elected executive races carry no `state` and are exempt
+ * from the home-state/constituency gate. Mirrors the reference
+ * `isNationwideDirectExecutiveElection(...)` guard in
+ * src/app/api/elections/[id]/enter/route.ts:109-119,211 (US president, IE
+ * uachtarán are the two nationwide direct executive types sole ships).
+ */
+const NATIONWIDE_EXECUTIVE = new Set(["president", "uachtaran"]);
+
+/** Human-readable race label used by the actionable per-prerequisite errors. */
+function describeRace(rec: ElectionRecord): string {
+  return `the ${rec.state ? `${rec.state} ` : ""}${rec.electionType} race`;
+}
+
+/**
+ * Player candidacy (W21c). Mainline reference: the national candidacy command
+ * `POST /api/elections/[id]/enter`
+ * (AHDGame src/app/api/elections/[id]/enter/route.ts) and its withdrawal
+ * counterpart `POST /api/elections/[id]/withdraw` (same tree).
+ *
+ * Reference -> Native gate mapping (#99 "Align player candidacy fees and
+ * eligibility"), evidence line numbers from AHDGame e364c049:
+ *
+ *   gate                          | enter route.ts | withdraw route.ts | Native
+ *   ------------------------------|----------------|-------------------|-------
+ *   status open (upcoming/active) | L78            | L67-95            | reject "resolved"
+ *   filing window (turn >= end)   | L100-128       | n/a               | meta.turn >= primaryEndTurn
+ *   country match                 | L135-158       | n/a               | rec.countryId === player.countryId
+ *   party ballot line             | L163-200       | n/a               | player.partyId required
+ *   home-state / constituency     | L211-217       | n/a               | player.homeRegionId === rec.state
+ *   duplicate in-race candidacy   | L245-272       | L80-89            | rec.candidates has "player"
+ *   blocking candidacy elsewhere  | L276-287       | n/a               | findBlockingActiveCandidacy
+ *
+ * FILING FEE: the reference charges NONE. A case-insensitive scan of both
+ * routes for fee/funds/cost/balance/deduct/debit matches nothing; the enter
+ * route's only write is `electionCandidates.insertOne` (L328) and the withdraw
+ * route's writes are the status flip + tally cleanup. The issue's "zero-cost
+ * PORT-STUB filing fee" is therefore NOT a gap — Native's `fundCost: 0` in
+ * actions/catalog.ts already mirrors the reference. Native additionally charges
+ * its own action-economy AP (baseCost) as every solo action does; that is not
+ * a reference filing fee. Independent candidacies remain a later port (see
+ * PORT-STUB note in withdrawCandidacy).
+ *
+ * Declaration is atomic: it either appends exactly one candidate row (plus an
+ * optional campaign) or mutates nothing, so the AP/fund pre-charge in
+ * actions/execute.ts can safely refund on any rejection.
  */
 export function declareCandidacy(world: WorldState, electionId: string): CandidacyResult {
   const rec = world.elections.find((e) => e.id === electionId);
   if (!rec) return { ok: false, error: "Unknown election" };
-  if (rec.status === "resolved") return { ok: false, error: "Election already resolved" };
-  if (world.meta.turn > rec.primaryEndTurn) return { ok: false, error: "Filing window closed (primary ended)" };
-  if (rec.countryId !== world.player.countryId) return { ok: false, error: "Wrong country" };
+  if (rec.status === "resolved") return { ok: false, error: "This election has ended." };
+  if (world.meta.turn >= rec.primaryEndTurn) {
+    return {
+      ok: false,
+      error: `The filing window for ${describeRace(rec)} closed at the end of turn ${rec.primaryEndTurn}.`,
+    };
+  }
+  if (rec.countryId !== world.player.countryId) {
+    return {
+      ok: false,
+      error: `${describeRace(rec)} is a ${rec.countryId} race; you can only file in your own country (${world.player.countryId}).`,
+    };
+  }
   const partyId = world.player.partyId;
-  if (!partyId) return { ok: false, error: "Party membership required for the ballot line" };
-  if (rec.candidates.some((c) => c.id === "player")) return { ok: false, error: "Already a candidate here" };
+  if (!partyId) return { ok: false, error: "Join a party before filing — candidacy needs a party ballot line." };
+  const home = world.player.homeRegionId;
+  if (!NATIONWIDE_EXECUTIVE.has(rec.electionType) && rec.state && home && home !== rec.state) {
+    return {
+      ok: false,
+      error: `You can only run for office in your home state (${home}); ${describeRace(rec)} is outside your constituency.`,
+    };
+  }
+  if (rec.candidates.some((c) => c.id === "player")) {
+    return { ok: false, error: `You are already a candidate in ${describeRace(rec)}.` };
+  }
 
   const candidateRows = world.elections
     .filter((e) => e.candidates.some((c) => c.id === "player"))
     .map((e) => ({ _id: `player:${e.id}`, electionId: e.id, characterId: "player", status: "active" as const }));
   const electionRows = world.elections.map((e) => ({ _id: e.id, status: e.status, countryId: e.countryId }));
   const blocking = findBlockingActiveCandidacy(candidateRows, electionRows, "player", rec.id);
-  if (blocking) return { ok: false, error: `Active candidacy in ${blocking.election._id}` };
+  if (blocking) {
+    const conflict = world.elections.find((e) => e.id === blocking.election._id);
+    return {
+      ok: false,
+      error: `You are already running in ${conflict ? describeRace(conflict) : `election ${blocking.election._id}`}; withdraw before filing for another race.`,
+    };
+  }
 
   rec.candidates.push({
     id: "player",
@@ -86,11 +151,26 @@ function removePlayerCandidacy(world: WorldState, rec: ElectionRecord): void {
   archiveCampaign(world, rec.id, "player");
 }
 
+/**
+ * Withdraw the player's active candidacy. Reference
+ * `POST /api/elections/[id]/withdraw` blocks only completed/resolved/cancelled
+ * elections (route.ts L67-95) and requires an active candidacy; Native has no
+ * separate candidate-status field (see removePlayerCandidacy) so "resolved" is
+ * the sole terminal block. No fee, matching the reference.
+ *
+ * PORT-STUB: the reference pairs withdrawal with a party-leadership re-enter
+ * path (state party elections); the national path here is the only player
+ * candidacy surface wired today.
+ */
 export function withdrawCandidacy(world: WorldState, electionId: string): CandidacyResult {
   const rec = world.elections.find((e) => e.id === electionId);
   if (!rec) return { ok: false, error: "Unknown election" };
-  if (rec.status === "resolved") return { ok: false, error: "Election already resolved" };
-  if (!rec.candidates.some((c) => c.id === "player")) return { ok: false, error: "Not a candidate here" };
+  if (rec.status === "resolved") {
+    return { ok: false, error: "This election has ended; you can no longer withdraw." };
+  }
+  if (!rec.candidates.some((c) => c.id === "player")) {
+    return { ok: false, error: `You are not entered in ${describeRace(rec)}.` };
+  }
   removePlayerCandidacy(world, rec);
   return { ok: true };
 }

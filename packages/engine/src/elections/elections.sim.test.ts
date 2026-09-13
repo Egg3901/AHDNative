@@ -75,11 +75,13 @@ describe("election orchestration (W21c)", () => {
     for (let i = 0; i < 200 && !target; i++) {
       advanceTurn(w);
       const rec = w.elections.find(
-        (e) => e.electionType === "house" && e.status === "active" && w.meta.turn <= e.primaryEndTurn,
+        (e) => e.electionType === "house" && e.status === "active" && w.meta.turn < e.primaryEndTurn,
       );
       if (rec) target = rec.id;
     }
     expect(target).not.toBeNull();
+    // #99: the home-state gate requires filing inside the player's home state.
+    w.player.homeRegionId = w.elections.find((e) => e.id === target)!.state ?? null;
     const declare = executeAction(w, "player", "declareCandidacy", { electionId: target! });
     expect(declare.ok).toBe(true);
     const rec = w.elections.find((e) => e.id === target)!;
@@ -103,11 +105,12 @@ describe("election orchestration (W21c)", () => {
     for (let i = 0; i < 200 && !target; i++) {
       advanceTurn(w);
       const rec = w.elections.find(
-        (e) => e.electionType === "house" && e.status === "active" && w.meta.turn <= e.primaryEndTurn,
+        (e) => e.electionType === "house" && e.status === "active" && w.meta.turn < e.primaryEndTurn,
       );
       if (rec) target = rec.id;
     }
     expect(target).not.toBeNull();
+    w.player.homeRegionId = w.elections.find((e) => e.id === target)!.state ?? null; // #99 home-state gate
     expect(executeAction(w, "player", "declareCandidacy", { electionId: target! }).ok).toBe(true);
     expect(w.elections.find((e) => e.id === target)!.candidates.some((c) => c.id === "player")).toBe(true);
     expect(executeAction(w, "player", "leaveParty", {}).ok).toBe(true);
@@ -123,11 +126,12 @@ describe("election orchestration (W21c)", () => {
     for (let i = 0; i < 200 && !target; i++) {
       advanceTurn(w);
       const rec = w.elections.find(
-        (e) => e.electionType === "house" && e.status === "active" && w.meta.turn <= e.primaryEndTurn,
+        (e) => e.electionType === "house" && e.status === "active" && w.meta.turn < e.primaryEndTurn,
       );
       if (rec) target = rec.id;
     }
     expect(target).not.toBeNull();
+    w.player.homeRegionId = w.elections.find((e) => e.id === target)!.state ?? null; // #99 home-state gate
     executeAction(w, "player", "declareCandidacy", { electionId: target! });
     // Cooldown blocks an immediate switch in practice, but the sweep itself
     // is what's under test here — force the switch through directly.
@@ -146,11 +150,12 @@ describe("election orchestration (W21c)", () => {
     for (let i = 0; i < 200 && !target; i++) {
       advanceTurn(w);
       const rec = w.elections.find(
-        (e) => e.electionType === "house" && e.status === "active" && w.meta.turn <= e.primaryEndTurn,
+        (e) => e.electionType === "house" && e.status === "active" && w.meta.turn < e.primaryEndTurn,
       );
       if (rec) target = rec.id;
     }
     expect(target).not.toBeNull();
+    w.player.homeRegionId = w.elections.find((e) => e.id === target)!.state ?? null; // #99 home-state gate
     executeAction(w, "player", "declareCandidacy", { electionId: target! });
     w.player.autoRunForReelection = true;
     while (w.elections.find((e) => e.id === target)!.status !== "resolved") advanceTurn(w);

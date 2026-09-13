@@ -487,6 +487,7 @@ describe("projectPolitics", () => {
       tally: {},
     };
     world.elections = [election];
+    world.player.homeRegionId = election.state; // NY house race: file in-home (#99 gate)
     expect(declareCandidacy(world, election.id).ok).toBe(true);
     const campaign = world.campaigns[`${election.id}:player`]!;
     campaign.funds = 100_000;
@@ -540,6 +541,7 @@ describe("projectPolitics", () => {
       tally: {},
     };
     world.elections = [election];
+    world.player.homeRegionId = election.state; // NY house race: file in-home (#99 gate)
     expect(declareCandidacy(world, election.id).ok).toBe(true);
     const campaign = world.campaigns[`${election.id}:player`]!;
     campaign.oppositionResearchTree.starter = true;
@@ -586,6 +588,7 @@ describe("projectPolitics", () => {
       tally: {},
     };
     world.elections = [election];
+    world.player.homeRegionId = election.state; // NY house race: file in-home (#99 gate)
     expect(declareCandidacy(world, election.id).ok).toBe(true);
     const campaign = world.campaigns[`${election.id}:player`]!;
     campaign.managerId = manager!.id;

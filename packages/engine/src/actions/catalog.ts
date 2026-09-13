@@ -428,10 +428,18 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   declareCandidacy: {
     id: "declareCandidacy",
     name: "Declare Candidacy",
-    description: "File for an open or upcoming race in your country. Party ballot line; one active candidacy at a time.",
+    description: "File for an open or upcoming race in your home state and country. Party ballot line; one active candidacy at a time.",
     baseCost: 2,
     cooldown: 0,
-    fundCost: 0, // PORT-STUB: mainline filing fee not yet ported
+    // NO reference filing fee. #99 claimed a "zero-cost PORT-STUB filing fee",
+    // but the reference national candidacy command
+    // (AHDGame src/app/api/elections/[id]/enter/route.ts) charges none: a
+    // case-insensitive scan for fee/funds/cost/balance/deduct/debit matches
+    // nothing and its only write is electionCandidates.insertOne (L328).
+    // fundCost 0 is therefore exact parity, not a stub. baseCost 2 is solo's
+    // own action-economy AP charge (the reference route is not AP-priced).
+    // Gate mapping and evidence live in elections/candidacy.ts.
+    fundCost: 0,
     systems: ["elections"],
     status: "available",
   },
@@ -441,6 +449,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     description: "Withdraw from a race before it resolves.",
     baseCost: 0,
     cooldown: 0,
+    // Reference POST /api/elections/[id]/withdraw also charges no fee.
     fundCost: 0,
     systems: ["elections"],
     status: "available",
