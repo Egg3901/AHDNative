@@ -62,7 +62,7 @@ function pageTitle(route: RouteId): string {
 
 const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
   nations: "Nations", state: "Home region",
-  economy: "Economy", budget: "Budget", policy: "Policy",
+  economy: "Economy", budget: "Budget", metrics: "National metrics", policy: "Policy",
   legislationDetails: "Legislation details",
   markets: "Stock market",
   bonds: "Bond market",
@@ -426,7 +426,13 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
           tabIndex={0}
           style={{ outline: "none" }}
         >
-          {(route === "economy" || route === "budget" || route === "policy") && <NationPanel nation={world.nation} section={route} />}
+          {(route === "economy" || route === "budget" || route === "policy" || route === "metrics") && (
+            <NationPanel
+              nation={world.nation}
+              section={route}
+              onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }}
+            />
+          )}
           {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={detailId} onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }} />}</DetailQuery>}
           {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} revision={world} busy={busy} onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}

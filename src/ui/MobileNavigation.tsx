@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 export type DrawerRouteId =
   | "actions" | "parties" | "legislature" | "elections" | "news"
   | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "campaignDetails"
-  | "politicians" | "economy" | "budget" | "policy" | "nations" | "state"
+  | "politicians" | "economy" | "budget" | "policy" | "metrics" | "nations" | "state"
   | "help" | "settings" | "legislationDetails" | "markets" | "search"
   | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications" | "referendums";
 
@@ -36,6 +36,7 @@ export const MENU_GROUPS: { label: string; items: { id: DrawerRouteId; label: st
       { id: "politicians", label: "Politicians" },
       { id: "economy", label: "Economy" },
       { id: "budget", label: "Budget" },
+      { id: "metrics", label: "National metrics" },
       { id: "policy", label: "Policy" },
     ],
   },
