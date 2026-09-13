@@ -22,11 +22,14 @@ import type {
 } from "../game/politics";
 import type { RacePhase } from "../game/types";
 import { RACE_PHASE_LABELS } from "../game/racePhase";
+import { formatGameDate, formatGameTurn, type GameClock } from "../game/gameDate";
 
 export interface PoliticsPanelProps {
   politics: PoliticsView;
   section: "parties" | "elections" | "campaign" | "politicians" | "referendums";
   busy: boolean;
+  /** World clock used to render every in-game date on the reference calendar (#226). */
+  clock: GameClock;
   initialId?: string;
   onOpenElection?: (id: string) => void;
   onOpenCampaign?: (id: string) => void;
@@ -824,7 +827,7 @@ function CampaignBlock({ electionId, campaign, busy, onAction, currency }: {
 
 type ElectionStatusFilter = "all" | "upcoming" | "active" | "resolved";
 
-function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign, onOpenPolitician }: Omit<PoliticsPanelProps, "section">) {
+function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign, onOpenPolitician, clock }: Omit<PoliticsPanelProps, "section">) {
   const [status, setStatus] = useState<ElectionStatusFilter>("all");
   const [mineOnly, setMineOnly] = useState(false);
   const [decidedOnly, setDecidedOnly] = useState(false);
@@ -905,9 +908,9 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign,
             {selected.playerCandidate ? <span className="ahd-pill" style={{ background: "var(--ahd-primary)", color: "white" }}>Filed</span> : null}
           </div>
           <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.2rem" }}>
-            {selected.status} · {selected.date}
+            {selected.status} · {formatGameDate(selected.date, clock)}
           </div>
-          <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>Filing deadline: {selected.filingDate}</div>
+          <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>Filing deadline: {formatGameDate(selected.filingDate, clock) || "Unknown"}</div>
           <RaceStages stages={selected.stages} />
 
           <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0.6rem 0 0.25rem" }}>
@@ -980,7 +983,7 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign,
   );
 }
 
-function CampaignSection({ politics, busy, onAction, initialId }: Omit<PoliticsPanelProps, "section">) {
+function CampaignSection({ politics, busy, onAction, initialId, clock }: Omit<PoliticsPanelProps, "section">) {
   const election = politics.elections.find((item) => item.id === initialId)
     ?? politics.elections.find((item) => item.playerCampaign !== null)
     ?? null;
@@ -992,7 +995,7 @@ function CampaignSection({ politics, busy, onAction, initialId }: Omit<PoliticsP
       <article className="ahd-card ahd-card-pad" aria-label={`Campaign for ${election.title}`}>
         <h2 className="ahd-h2">{election.title}</h2>
         <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>
-          {election.status} · election day {election.date}
+          {election.status} · election day {formatGameDate(election.date, clock)}
         </p>
         <CampaignBlock electionId={election.id} campaign={election.playerCampaign} busy={busy} onAction={onAction} currency={politics.currency} />
       </article>
@@ -1179,7 +1182,7 @@ function ReferendumCampaignControls({ record, busy, currency, onAction }: {
   );
 }
 
-function ReferendumsSection({ politics, busy, onAction, initialId }: Omit<PoliticsPanelProps, "section">) {
+function ReferendumsSection({ politics, busy, onAction, initialId, clock }: Omit<PoliticsPanelProps, "section">) {
   const request = politics.referendumRequest;
   const records = politics.referendums;
   const [selectedId, setSelectedId] = useState(initialId ?? "");
@@ -1247,16 +1250,16 @@ function ReferendumsSection({ politics, busy, onAction, initialId }: Omit<Politi
             <span className="ahd-pill">{selected.phase}</span>
           </div>
           <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.2rem" }}>
-            {selected.scope} · requested turn {selected.requestedTurn}
+            {selected.scope} · requested {formatGameTurn(selected.requestedTurn, clock)}
           </div>
           <dl style={{ marginTop: "0.5rem", display: "grid", gap: "0.3rem" }}>
             <div className="ahd-kv"><dt>Yes share</dt><dd className="ahd-mono">{selected.yesShare.toFixed(1)}%</dd></div>
-            {selected.campaignCloseTurn != null ? <div className="ahd-kv"><dt>Campaign closes</dt><dd className="ahd-mono">Turn {selected.campaignCloseTurn}</dd></div> : null}
+            {selected.campaignCloseTurn != null ? <div className="ahd-kv"><dt>Campaign closes</dt><dd className="ahd-mono">{formatGameTurn(selected.campaignCloseTurn, clock)}</dd></div> : null}
             {selected.finalYesShare != null ? <div className="ahd-kv"><dt>Final yes share</dt><dd className="ahd-mono">{selected.finalYesShare.toFixed(1)}%</dd></div> : null}
             {selected.turnout != null ? <div className="ahd-kv"><dt>Turnout</dt><dd className="ahd-mono">{selected.turnout.toFixed(1)}%</dd></div> : null}
             {selected.passed != null ? <div className="ahd-kv"><dt>Result</dt><dd>{selected.passed ? "Passed" : "Rejected"}</dd></div> : null}
-            {selected.conversionDeadlineTurn != null ? <div className="ahd-kv"><dt>Consent deadline</dt><dd className="ahd-mono">Turn {selected.conversionDeadlineTurn}</dd></div> : null}
-            {selected.latestPollTurn != null ? <div className="ahd-kv"><dt>Latest poll</dt><dd className="ahd-mono">Turn {selected.latestPollTurn}</dd></div> : null}
+            {selected.conversionDeadlineTurn != null ? <div className="ahd-kv"><dt>Consent deadline</dt><dd className="ahd-mono">{formatGameTurn(selected.conversionDeadlineTurn, clock)}</dd></div> : null}
+            {selected.latestPollTurn != null ? <div className="ahd-kv"><dt>Latest poll</dt><dd className="ahd-mono">{formatGameTurn(selected.latestPollTurn, clock)}</dd></div> : null}
           </dl>
           {selected.campaign.active ? (
             <ReferendumCampaignControls record={selected} busy={busy} currency={politics.currency} onAction={onAction} />
@@ -1267,12 +1270,12 @@ function ReferendumsSection({ politics, busy, onAction, initialId }: Omit<Politi
   );
 }
 
-export function PoliticsPanel({ politics, section, busy, onAction, initialId, onOpenElection, onOpenCampaign, onOpenPolitician }: PoliticsPanelProps) {
-  if (section === "campaign") return <CampaignSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} />;
-  if (section === "elections") return <ElectionsSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} onOpenCampaign={onOpenCampaign} onOpenPolitician={onOpenPolitician} />;
-  if (section === "referendums") return <ReferendumsSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} />;
-  if (section === "politicians") return <PoliticiansSection politics={politics} busy={busy} initialId={initialId} onOpenElection={onOpenElection} />;
-  return <PartiesSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} />;
+export function PoliticsPanel({ politics, section, busy, onAction, initialId, onOpenElection, onOpenCampaign, onOpenPolitician, clock }: PoliticsPanelProps) {
+  if (section === "campaign") return <CampaignSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} clock={clock} />;
+  if (section === "elections") return <ElectionsSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} onOpenCampaign={onOpenCampaign} onOpenPolitician={onOpenPolitician} clock={clock} />;
+  if (section === "referendums") return <ReferendumsSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} clock={clock} />;
+  if (section === "politicians") return <PoliticiansSection politics={politics} busy={busy} initialId={initialId} onOpenElection={onOpenElection} clock={clock} />;
+  return <PartiesSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} clock={clock} />;
 }
 
 export default PoliticsPanel;

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { formatGameDate } from "../game/gameDate";
 
 export type DrawerRouteId =
   | "actions" | "parties" | "legislature" | "elections" | "news"
@@ -382,7 +383,7 @@ export function GameDrawer({
         <div className="ahd-drawer-identity">
           <strong>{playerName}</strong>
           <span className="ahd-muted">{playerParty} · {countryName}</span>
-          <span className="ahd-muted">Turn {turn} · {date}</span>
+          <span className="ahd-muted">Turn {turn} · {formatGameDate(date, { turn, date })}</span>
         </div>
 
         <div className="ahd-drawer-turn">

@@ -12,6 +12,7 @@ import type {
 import { RegionViewerCard } from "./RegionViewerCard";
 import { RegionBudgetCard, RegionMacroCard, RegionSectorsCard } from "./RegionEconomyCards";
 import type { DrawerRouteId } from "./MobileNavigation";
+import { formatGameDate, formatGameTurn, type GameClock } from "../game/gameDate";
 
 export interface WorldPanelProps {
   overview: WorldOverviewView;
@@ -48,6 +49,11 @@ function humanize(value: string): string {
     .replace(/^\w/, (char) => char.toUpperCase());
 }
 
+/** Format an absolute turn (or record a missing one) on the reference calendar. */
+function gameTurn(turn: number | null, clock: GameClock, fallback = "Not recorded"): string {
+  return turn === null ? fallback : formatGameTurn(turn, clock);
+}
+
 function WorldLayout({ overview, title, children }: { overview: WorldOverviewView; title: string; children: React.ReactNode }) {
   return (
     <div className="ahd-stack" aria-label={`World ${title}`}>
@@ -55,7 +61,7 @@ function WorldLayout({ overview, title, children }: { overview: WorldOverviewVie
         <div className="ahd-eyebrow">World</div>
         <h1 className="ahd-h1" style={{ marginTop: "0.22rem" }}>{title}</h1>
         <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.32rem 0 0" }}>
-          {overview.era} · Turn {overview.turn} · {overview.date}
+          {overview.era} · Turn {overview.turn} · {formatGameDate(overview.date, { turn: overview.turn, date: overview.date })}
         </p>
       </div>
       {children}
@@ -129,7 +135,7 @@ function Official({ label, official }: { label: string; official: WorldOfficialV
   );
 }
 
-function GovernmentSummary({ nation }: { nation: WorldNationView }) {
+function GovernmentSummary({ nation, clock }: { nation: WorldNationView; clock: GameClock }) {
   const { government } = nation;
   const hasGovernmentRecord = government.status !== null || government.governingParty !== null || government.headOfGovernment !== null;
   const regimeLabel = government.regime ? humanize(government.regime) : null;
@@ -157,7 +163,7 @@ function GovernmentSummary({ nation }: { nation: WorldNationView }) {
           <dl className="ahd-stack" style={{ gap: "0.42rem" }}>
             <Official label="President" official={government.executive.president} />
             <Official label="Vice president" official={government.executive.vicePresident} />
-            <KeyValue label="Term began" value={number(government.executive.termStartTurn)} note="turn" />
+            <KeyValue label="Term began" value={gameTurn(government.executive.termStartTurn, clock)} note="game date" />
           </dl>
         </div>
       ) : null}
@@ -173,7 +179,7 @@ function GovernmentSummary({ nation }: { nation: WorldNationView }) {
   );
 }
 
-function NationDetail({ nation, current }: { nation: WorldNationView; current: boolean }) {
+function NationDetail({ nation, current, clock }: { nation: WorldNationView; current: boolean; clock: GameClock }) {
   return (
     <article className="ahd-card ahd-card-pad" aria-label={nation.name}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "flex-start" }}>
@@ -193,7 +199,7 @@ function NationDetail({ nation, current }: { nation: WorldNationView; current: b
           <h3 style={{ margin: 0, fontSize: "0.78rem" }}>Economy</h3>
           <EconomyMetrics economy={nation.economy} />
         </div>
-        <GovernmentSummary nation={nation} />
+        <GovernmentSummary nation={nation} clock={clock} />
       </div>
     </article>
   );
@@ -203,6 +209,7 @@ function NationsSection({ overview, initialId }: { overview: WorldOverviewView; 
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(initialId ?? overview.playerCountryId);
   const [directoryOpen, setDirectoryOpen] = useState(false);
+  const clock: GameClock = { turn: overview.turn, date: overview.date };
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const filteredNations = overview.nations.filter((nation) => {
     if (normalizedQuery.length === 0) return true;
@@ -266,7 +273,7 @@ function NationsSection({ overview, initialId }: { overview: WorldOverviewView; 
           </div>
         ) : <div className="ahd-empty" style={{ marginTop: "0.55rem" }}>No nations match this search.</div>}
       </details>
-      {selectedNation ? <NationDetail nation={selectedNation} current={selectedNation.id === overview.playerCountryId} /> : <div className="ahd-empty">No nations recorded.</div>}
+      {selectedNation ? <NationDetail nation={selectedNation} current={selectedNation.id === overview.playerCountryId} clock={clock} /> : <div className="ahd-empty">No nations recorded.</div>}
     </WorldLayout>
   );
 }
@@ -298,7 +305,7 @@ function PartySupport({ region }: { region: WorldRegionView }) {
   );
 }
 
-function RegionElections({ elections }: { elections: WorldRegionElectionView[] }) {
+function RegionElections({ elections, clock }: { elections: WorldRegionElectionView[]; clock: GameClock }) {
   return (
     <div className="ahd-card ahd-card-pad">
       <h2 className="ahd-h2">Elections</h2>
@@ -316,7 +323,7 @@ function RegionElections({ elections }: { elections: WorldRegionElectionView[] }
                 Cycle {number(election.cycle)} · {number(election.totalSeats)} seat{election.totalSeats === 1 ? "" : "s"} · {election.chamberKey}
               </div>
               <div className="ahd-muted" style={{ fontSize: "0.7rem", marginTop: "0.2rem" }}>
-                Starts turn {number(election.startTurn)} · primary ends turn {number(election.primaryEndTurn)} · ends turn {number(election.endTurn)}
+                Starts {formatGameTurn(election.startTurn, clock)} · primary ends {formatGameTurn(election.primaryEndTurn, clock)} · ends {formatGameTurn(election.endTurn, clock)}
               </div>
               {election.candidates.length > 0 ? (
                 <ul style={{ listStyle: "none", margin: "0.45rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.2rem" }}>
@@ -339,7 +346,7 @@ function RegionElections({ elections }: { elections: WorldRegionElectionView[] }
   );
 }
 
-function RegionOffice({ region }: { region: WorldRegionView }) {
+function RegionOffice({ region, clock }: { region: WorldRegionView; clock: GameClock }) {
   const office = region.office;
   return (
     <div className="ahd-card ahd-card-pad">
@@ -350,9 +357,9 @@ function RegionOffice({ region }: { region: WorldRegionView }) {
         <dl className="ahd-stack" style={{ marginTop: "0.65rem", gap: "0.42rem" }}>
           <KeyValue label="Office" value={humanize(office.kind)} />
           <KeyValue label="Holder" value={office.holder?.name ?? "Vacant"} note={office.holder?.party?.abbreviation} />
-          <RegionMetric label="Term began" value={number(office.termStartTurn)} note="turn" />
+          <RegionMetric label="Term began" value={gameTurn(office.termStartTurn, clock)} note="game date" />
           <RegionMetric label="Office actions" value={office.availableActions === null ? "Not recorded" : `${number(office.availableActions)} actions available`} />
-          <RegionMetric label="Last address" value={office.lastAddressTurn === null ? "Not recorded" : `Turn ${number(office.lastAddressTurn)}`} />
+          <RegionMetric label="Last address" value={gameTurn(office.lastAddressTurn, clock)} />
         </dl>
       )}
     </div>
@@ -374,6 +381,7 @@ function StateSection({ overview, onNavigate }: { overview: WorldOverviewView; o
   }
 
   const currency = overview.nations.find((nation) => nation.id === region.countryId)?.currency ?? null;
+  const clock: GameClock = { turn: overview.turn, date: overview.date };
 
   return (
     <WorldLayout overview={overview} title={region.name}>
@@ -394,7 +402,7 @@ function StateSection({ overview, onNavigate }: { overview: WorldOverviewView; o
           {region.countryId === "US" && <RegionMetric label="Senate classes" value={region.senateClasses ? region.senateClasses.join(", ") : "Not recorded"} />}
         </dl>
       </div>
-      <RegionViewerCard rows={region.viewer} onNavigate={onNavigate} />
+      <RegionViewerCard rows={region.viewer} onNavigate={onNavigate} clock={clock} />
       <div className="ahd-grid ahd-grid-2">
         <PartySupport region={region} />
         <div className="ahd-card ahd-card-pad">
@@ -415,8 +423,8 @@ function StateSection({ overview, onNavigate }: { overview: WorldOverviewView; o
       </div>
       <RegionSectorsCard sectors={region.sectors} currency={currency} />
       <div className="ahd-grid ahd-grid-2">
-        <RegionElections elections={region.elections} />
-        <RegionOffice region={region} />
+        <RegionElections elections={region.elections} clock={clock} />
+        <RegionOffice region={region} clock={clock} />
       </div>
     </WorldLayout>
   );

@@ -5,7 +5,7 @@ import { BondMarketPanel } from './BondMarketPanel';
 import type { BondMarketView } from '../game/bondMarket';
 
 const market: BondMarketView = {
-  turn: 98, playerCountryId: 'US', playerCash: 10000, currency: 'USD', buy: { cost: 1 }, sell: { cost: 1 },
+  turn: 98, date: '1954-11-23', playerCountryId: 'US', playerCash: 10000, currency: 'USD', buy: { cost: 1 }, sell: { cost: 1 },
   bonds: [{ id: 'bond-60-US', countryId: 'US', issuerName: 'United States', currency: 'USD', faceValue: 1000,
     marketPrice: 1, couponRate: 3.75, maturityTurn: 108, publicFloat: 20, playerUnits: 1,
     matured: false, defaulted: false, domestic: true }],

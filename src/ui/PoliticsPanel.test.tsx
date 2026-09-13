@@ -3,6 +3,9 @@ import { render, screen, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PoliticsView } from "../game/politics";
 
+// World clock anchoring the reference calendar for in-game dates (#226).
+const CLOCK = { turn: 1, date: "1953-01-13" };
+
 type RaceDetail = PoliticsView["elections"][number];
 
 const raceStages = (current: string): RaceDetail["stages"] => [
@@ -124,7 +127,7 @@ describe("PoliticsPanel parties", () => {
     const user = userEvent.setup();
     const onAction = vi.fn();
     const PoliticsPanel = await renderPanel();
-    render(<PoliticsPanel politics={makePolitics()} section="parties" busy={false} onAction={onAction} />);
+    render(<PoliticsPanel politics={makePolitics()} section="parties" clock={CLOCK} busy={false} onAction={onAction} />);
     expect(screen.getByText("Democratic Party")).toBeInTheDocument();
     expect(screen.getAllByText(/Jane Chair/).length).toBeGreaterThan(0);
     expect(screen.getByText(/Left/)).toBeInTheDocument();
@@ -139,9 +142,9 @@ describe("PoliticsPanel parties", () => {
 
   it("disables join when busy and shows the reason", async () => {
     const PoliticsPanel = await renderPanel();
-    const { rerender } = render(<PoliticsPanel politics={makePolitics()} section="parties" busy={true} onAction={vi.fn()} />);
+    const { rerender } = render(<PoliticsPanel politics={makePolitics()} section="parties" clock={CLOCK} busy={true} onAction={vi.fn()} />);
     expect(screen.getByRole("button", { name: /leave democratic party/i })).toBeDisabled();
-    rerender(<PoliticsPanel politics={{ ...makePolitics(), playerPartyId: null }} section="parties" busy={false} onAction={vi.fn()} />);
+    rerender(<PoliticsPanel politics={{ ...makePolitics(), playerPartyId: null }} section="parties" clock={CLOCK} busy={false} onAction={vi.fn()} />);
   });
 
   it("reaches every saved roster name through paging and search, and resets those on party change", async () => {
@@ -152,7 +155,7 @@ describe("PoliticsPanel parties", () => {
     const dem = { ...base.parties[0], memberNames: names };
     const rep = { ...base.parties[1], memberNames: ["Ron Member", "Unique Rival"] };
     const view = { ...base, parties: [dem, rep] };
-    const { rerender } = render(<PoliticsPanel politics={view} section="parties" busy={false} onAction={vi.fn()} />);
+    const { rerender } = render(<PoliticsPanel politics={view} section="parties" clock={CLOCK} busy={false} onAction={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: "Leave Democratic Party" })).toBeInTheDocument();
     expect(screen.getByText(/Left/)).toBeInTheDocument();
@@ -193,7 +196,7 @@ describe("PoliticsPanel parties", () => {
     await user.click(screen.getByText("Roster (25)"));
     await user.click(screen.getByRole("button", { name: "Next roster page" }));
     expect(screen.getByText("Member 13")).toBeInTheDocument();
-    rerender(<PoliticsPanel politics={{ ...view, parties: [{ ...dem, memberNames: names.slice(0, 5) }, rep] }} section="parties" busy={false} onAction={vi.fn()} />);
+    rerender(<PoliticsPanel politics={{ ...view, parties: [{ ...dem, memberNames: names.slice(0, 5) }, rep] }} section="parties" clock={CLOCK} busy={false} onAction={vi.fn()} />);
     expect(screen.getByText("Roster (5)")).toBeInTheDocument();
     expect(screen.getByText("Member 01")).toBeInTheDocument();
     expect(screen.getByText("Member 05")).toBeInTheDocument();
@@ -207,7 +210,7 @@ describe("PoliticsPanel elections", () => {
     const user = userEvent.setup();
     const onAction = vi.fn();
     const PoliticsPanel = await renderPanel();
-    render(<PoliticsPanel politics={makePolitics()} section="elections" busy={false} onAction={onAction} />);
+    render(<PoliticsPanel politics={makePolitics()} section="elections" clock={CLOCK} busy={false} onAction={onAction} />);
     expect(screen.getByText(/2 of 2 races/)).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("Race status"), "resolved");
     expect(screen.getByText(/1 of 2 races/)).toBeInTheDocument();
@@ -232,7 +235,7 @@ describe("PoliticsPanel elections", () => {
         leaderName: "Alex", leaderShare: 0.52, marginPct: 0.04,
       },
     };
-    render(<PoliticsPanel politics={politics} section="elections" busy={false} onAction={vi.fn()} />);
+    render(<PoliticsPanel politics={politics} section="elections" clock={CLOCK} busy={false} onAction={vi.fn()} />);
     expect(screen.getByText(/Projected leader: Alex \(52\.0%\), margin \+4\.0pt/)).toBeInTheDocument();
     expect(screen.getByText(/not a result/i)).toBeInTheDocument();
   });
@@ -241,7 +244,7 @@ describe("PoliticsPanel elections", () => {
     const user = userEvent.setup();
     const onOpenPolitician = vi.fn();
     const PoliticsPanel = await renderPanel();
-    render(<PoliticsPanel politics={makePolitics()} section="elections" busy={false} onAction={vi.fn()} onOpenPolitician={onOpenPolitician} />);
+    render(<PoliticsPanel politics={makePolitics()} section="elections" clock={CLOCK} busy={false} onAction={vi.fn()} onOpenPolitician={onOpenPolitician} />);
 
     const raceSelect = screen.getByLabelText("Race");
     const groupLabels = Array.from(raceSelect.querySelectorAll("optgroup")).map((group) => group.getAttribute("label"));
@@ -261,7 +264,7 @@ describe("PoliticsPanel elections", () => {
   it("labels counted standing and seat availability without forecasting", async () => {
     const user = userEvent.setup();
     const PoliticsPanel = await renderPanel();
-    render(<PoliticsPanel politics={makePolitics()} section="elections" busy={false} onAction={vi.fn()} />);
+    render(<PoliticsPanel politics={makePolitics()} section="elections" clock={CLOCK} busy={false} onAction={vi.fn()} />);
     await user.selectOptions(screen.getByLabelText("Race status"), "resolved");
     expect(screen.getByText(/10,000 votes counted so far/)).toBeInTheDocument();
     expect(screen.getByText(/Counted leader: Sam Winner \(60\.0%\), margin \+20\.0pt over Lou Loser/)).toBeInTheDocument();
@@ -349,7 +352,7 @@ describe("PoliticsPanel elections", () => {
         branches: [],
       }],
     };
-    render(<PoliticsPanel politics={politics} section="campaign" initialId="house:US:AL:c1" busy={false} onAction={onAction} />);
+    render(<PoliticsPanel politics={politics} section="campaign" initialId="house:US:AL:c1" clock={CLOCK} busy={false} onAction={onAction} />);
     expect(screen.getByRole("heading", { name: "house · AL" })).toBeInTheDocument();
     expect(screen.getByText(/Your campaign \[active\]/)).toBeInTheDocument();
     expect(screen.getByText(/mood input, not a vote forecast/)).toBeInTheDocument();
@@ -507,7 +510,7 @@ describe("PoliticsPanel elections", () => {
       }],
     };
 
-    render(<PoliticsPanel politics={politics} section="campaign" initialId="house:US:AL:c1" busy={false} onAction={onAction} />);
+    render(<PoliticsPanel politics={politics} section="campaign" initialId="house:US:AL:c1" clock={CLOCK} busy={false} onAction={onAction} />);
     expect(screen.getByText("Archived campaign: management is read-only.")).toBeInTheDocument();
     // The operations blend is a read-only summary, so it still renders archived.
     expect(screen.getByRole("heading", { name: "Operations blend" })).toBeInTheDocument();
@@ -523,7 +526,7 @@ describe("PoliticsPanel elections", () => {
     expect(screen.getByRole("button", { name: "Contribute Max" })).toBeDisabled();
     expect(onAction).not.toHaveBeenCalled();
 
-    render(<PoliticsPanel politics={politics} section="elections" busy={false} onAction={onAction} onOpenCampaign={onOpenCampaign} />);
+    render(<PoliticsPanel politics={politics} section="elections" clock={CLOCK} busy={false} onAction={onAction} onOpenCampaign={onOpenCampaign} />);
     await user.click(screen.getByRole("button", { name: "View campaign" }));
     expect(onOpenCampaign).toHaveBeenCalledWith("house:US:AL:c1");
   });
@@ -531,7 +534,7 @@ describe("PoliticsPanel elections", () => {
   it("shows no vote figures before any tally exists", async () => {
     const user = userEvent.setup();
     const PoliticsPanel = await renderPanel();
-    render(<PoliticsPanel politics={makePolitics()} section="elections" busy={false} onAction={vi.fn()} />);
+    render(<PoliticsPanel politics={makePolitics()} section="elections" clock={CLOCK} busy={false} onAction={vi.fn()} />);
     await user.selectOptions(screen.getByLabelText("Race status"), "active");
     expect(screen.getByText("No votes counted yet.")).toBeInTheDocument();
     expect(screen.queryByText(/%/)).not.toBeInTheDocument();
@@ -544,7 +547,7 @@ describe("PoliticsPanel politicians", () => {
   it("filters by party and shows actual fields with active races", async () => {
     const user = userEvent.setup();
     const PoliticsPanel = await renderPanel();
-    render(<PoliticsPanel politics={makePolitics()} section="politicians" busy={false} onAction={vi.fn()} />);
+    render(<PoliticsPanel politics={makePolitics()} section="politicians" clock={CLOCK} busy={false} onAction={vi.fn()} />);
     expect(screen.getByText(/2 of 2/)).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("Politician party"), "US_REP");
     expect(screen.getByText(/1 of 2/)).toBeInTheDocument();
@@ -559,7 +562,7 @@ it("opens an active race from a politician's details", async () => {
   const user = userEvent.setup();
   const PoliticsPanel = await renderPanel();
   const onOpenElection = vi.fn();
-  render(<PoliticsPanel politics={makePolitics()} section="politicians" busy={false} onAction={vi.fn()} onOpenElection={onOpenElection} />);
+  render(<PoliticsPanel politics={makePolitics()} section="politicians" clock={CLOCK} busy={false} onAction={vi.fn()} onOpenElection={onOpenElection} />);
   await user.selectOptions(screen.getByLabelText('Politician'), 'US-4');
   await user.click(screen.getByRole('button', { name: 'View house · AL' }));
   expect(onOpenElection).toHaveBeenCalledWith('house:US:AL:c1');
@@ -597,7 +600,7 @@ describe("PoliticsPanel referendums", () => {
     const user = userEvent.setup();
     const onAction = vi.fn();
     const PoliticsPanel = await renderPanel();
-    render(<PoliticsPanel politics={makePolitics()} section="referendums" busy={false} onAction={onAction} />);
+    render(<PoliticsPanel politics={makePolitics()} section="referendums" clock={CLOCK} busy={false} onAction={onAction} />);
     expect(screen.getByRole("heading", { name: "Referendums" })).toBeInTheDocument();
     expect(screen.getByText("No referendums have been requested.")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Request referendum in Scotland" }));
@@ -616,11 +619,11 @@ describe("PoliticsPanel referendums", () => {
       conversionDeadlineTurn: 70, cooldownReadyAtTurn: 130, latestPollTurn: 57,
       campaign: { ...makeReferendum().campaign, active: false },
     })];
-    render(<PoliticsPanel politics={view} section="referendums" busy={false} onAction={vi.fn()} />);
+    render(<PoliticsPanel politics={view} section="referendums" clock={CLOCK} busy={false} onAction={vi.fn()} />);
     expect(screen.getByText("Should Scotland become an independent country?")).toBeInTheDocument();
     expect(screen.getByText("Passed")).toBeInTheDocument();
     expect(screen.getAllByText("55.1%").length).toBe(2);
-    expect(screen.getByText("Turn 58")).toBeInTheDocument();
+    expect(screen.getByText("March, Week 3, 1954")).toBeInTheDocument();
   });
 
   it("spends Political Strength on the player's side and blocks the other side", async () => {
@@ -630,7 +633,7 @@ describe("PoliticsPanel referendums", () => {
     const view = makePolitics();
     const record = makeReferendum({ campaign: { ...makeReferendum().campaign, yesUnits: 4, playerSide: "yes" } });
     view.referendums = [record];
-    render(<PoliticsPanel politics={view} section="referendums" busy={false} onAction={onAction} />);
+    render(<PoliticsPanel politics={view} section="referendums" clock={CLOCK} busy={false} onAction={onAction} />);
     const card = within(screen.getByLabelText(record.question));
 
     expect(card.getByText(/Your position: Yes/)).toBeInTheDocument();
@@ -656,7 +659,7 @@ describe("PoliticsPanel referendums", () => {
     const view = makePolitics();
     const record = makeReferendum();
     view.referendums = [record];
-    render(<PoliticsPanel politics={view} section="referendums" busy={false} onAction={onAction} />);
+    render(<PoliticsPanel politics={view} section="referendums" clock={CLOCK} busy={false} onAction={onAction} />);
     const card = within(screen.getByLabelText(record.question));
 
     // The target list is the record's real cohorts, not an invented set.
@@ -690,7 +693,7 @@ describe("PoliticsPanel referendums", () => {
       },
     });
     view.referendums = [record];
-    render(<PoliticsPanel politics={view} section="referendums" busy={false} onAction={vi.fn()} />);
+    render(<PoliticsPanel politics={view} section="referendums" clock={CLOCK} busy={false} onAction={vi.fn()} />);
     const card = within(screen.getByLabelText(record.question));
     expect(card.getByText("You must belong to a party to campaign.")).toBeInTheDocument();
     expect(card.getByRole("button", { name: `Spend on campaign (${record.question})` })).toBeDisabled();

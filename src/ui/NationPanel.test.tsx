@@ -6,6 +6,9 @@ import { projectNation } from "../game/nation";
 import { NationPanel } from "./NationPanel";
 import type { NationView } from "../game/nation";
 
+// World clock anchoring the reference calendar for in-game dates (#226).
+const CLOCK = { turn: 1, date: "1953-01-13" };
+
 function makeNation(overrides: Partial<NationView> = {}): NationView {
   return {
     countryId: "US",
@@ -151,7 +154,7 @@ function makeNation(overrides: Partial<NationView> = {}): NationView {
 
 describe("NationPanel", () => {
   it("renders economy metrics with their source units and recorded history", () => {
-    render(<NationPanel nation={makeNation()} section="economy" />);
+    render(<NationPanel nation={makeNation()} section="economy" clock={CLOCK} />);
 
     expect(screen.getByRole("heading", { name: "Economy" })).toBeInTheDocument();
     expect(screen.getByText("387,000 million USD")).toBeInTheDocument();
@@ -164,7 +167,7 @@ describe("NationPanel", () => {
   });
 
   it("renders budget flows and debt in absolute local currency", () => {
-    render(<NationPanel nation={makeNation()} section="budget" />);
+    render(<NationPanel nation={makeNation()} section="budget" clock={CLOCK} />);
 
     expect(screen.getByRole("heading", { name: "Budget" })).toBeInTheDocument();
     expect(screen.getByText("Fiscal year 1953")).toBeInTheDocument();
@@ -180,7 +183,7 @@ describe("NationPanel", () => {
   it("renders country-specific budget vocabulary and consequence links", async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
-    render(<NationPanel nation={makeNation()} section="budget" onNavigate={onNavigate} />);
+    render(<NationPanel nation={makeNation()} section="budget" clock={CLOCK} onNavigate={onNavigate} />);
 
     expect(screen.getByText("Federal Budget")).toBeInTheDocument();
     expect(screen.getByText("Revenue Sources")).toBeInTheDocument();
@@ -200,7 +203,7 @@ describe("NationPanel", () => {
   it("renders the metric registry with formats, history, modifiers, and destinations", async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
-    render(<NationPanel nation={makeNation()} section="metrics" onNavigate={onNavigate} />);
+    render(<NationPanel nation={makeNation()} section="metrics" clock={CLOCK} onNavigate={onNavigate} />);
 
     expect(screen.getByRole("heading", { name: "Metrics" })).toBeInTheDocument();
     expect(screen.getByText("National metrics registry")).toBeInTheDocument();
@@ -232,7 +235,7 @@ describe("NationPanel", () => {
   });
 
   it("shows current tax settings and enacted policy option details", () => {
-    render(<NationPanel nation={makeNation()} section="policy" />);
+    render(<NationPanel nation={makeNation()} section="policy" clock={CLOCK} />);
 
     expect(screen.getByRole("heading", { name: "Policy" })).toBeInTheDocument();
     expect(screen.getByText("Income tax")).toBeInTheDocument();
@@ -252,14 +255,14 @@ describe("NationPanel", () => {
       policy: { taxRates: [], enacted: [] },
       metrics: { total: 0, categories: [] },
     });
-    const { rerender } = render(<NationPanel nation={nation} section="economy" />);
+    const { rerender } = render(<NationPanel nation={nation} section="economy" clock={CLOCK} />);
     expect(screen.getByText("No macro history recorded.")).toBeInTheDocument();
     expect(screen.getByText("No prime-rate history recorded.")).toBeInTheDocument();
 
-    rerender(<NationPanel nation={nation} section="metrics" />);
+    rerender(<NationPanel nation={nation} section="metrics" clock={CLOCK} />);
     expect(screen.getByText("No national metrics recorded.")).toBeInTheDocument();
 
-    rerender(<NationPanel nation={nation} section="policy" />);
+    rerender(<NationPanel nation={nation} section="policy" clock={CLOCK} />);
     expect(screen.getByText("No current tax settings recorded.")).toBeInTheDocument();
     expect(screen.getByText("No enacted national policies recorded.")).toBeInTheDocument();
   });
@@ -279,7 +282,7 @@ describe("NationPanel", () => {
   it("renders the projected country budget labels through the real session data", () => {
     const world = createWorld({ era: "1953", countryId: "UK", playerName: "Ada", seed: "nation-uk" });
     const nation = projectNation(world);
-    render(<NationPanel nation={nation} section="budget" />);
+    render(<NationPanel nation={nation} section="budget" clock={CLOCK} />);
 
     expect(screen.getByText("HM Treasury Budget")).toBeInTheDocument();
     expect(screen.getByText("Receipts")).toBeInTheDocument();

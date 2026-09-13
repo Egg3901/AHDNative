@@ -360,7 +360,7 @@ describe("GameScreen", () => {
     render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
     await navigate(user, "Elections");
     const card = screen.getByRole("article", { name: "General Election" });
-    expect(within(card).getByText(/1954-09-01/)).toBeInTheDocument();
+    expect(within(card).getByText(/November, Week 1, 1953/)).toBeInTheDocument();
     expect(within(card).getByText("Upcoming")).toBeInTheDocument();
     expect(within(card).getByText("Candidate")).toBeInTheDocument();
     expect(within(card).getByText(/Ada/)).toBeInTheDocument();
@@ -728,7 +728,7 @@ describe("GameScreen status footer", () => {
     render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
     const footer = screen.getByRole("contentinfo", { name: "Status and primary navigation" });
     expect(within(footer).getByText(/turn 1/i)).toBeInTheDocument();
-    expect(within(footer).getByText(/1953-01-01/)).toBeInTheDocument();
+    expect(within(footer).getByText(/January, Week 2, 1952/)).toBeInTheDocument();
     expect(within(footer).getByText(/player paced/i)).toBeInTheDocument();
     expect(within(footer).getByRole("button", { name: /action points/i })).toBeInTheDocument();
     expect(within(footer).getByRole("button", { name: /campaign funds/i })).toBeInTheDocument();
