@@ -38,7 +38,8 @@ describe("MobileNavigation", () => {
     const nation = MENU_GROUPS.find((g) => g.label === "Nation")!;
     expect(nation.sections?.map((s) => s.label)).toEqual(["Politics", "Government", "Economy"]);
     expect(nation.sections?.[0]!.items.map((i) => i.label)).toEqual([
-      "Elections", "Parties", "Start a party", "Caucuses", "Politicians", "Referendums",
+      "Elections", "Parties", "Start a party", "Caucuses", "Politicians",
+      "Presidential election", "Political metrics", "Referendums",
     ]);
     expect(nation.sections?.[1]!.items.map((i) => i.label)).toEqual(["Legislature", "Bills and proposals", "Policy"]);
     expect(nation.sections?.[2]!.items.map((i) => i.label)).toEqual(["Economy", "National Budget", "National Metrics"]);
@@ -58,7 +59,7 @@ describe("MobileNavigation", () => {
       "actions", "parties", "legislature", "elections", "news", "profile", "portfolio", "banking",
       "politicians", "economy", "budget", "policy", "nations", "state", "help", "settings",
       "legislationDetails", "markets", "search", "partyManagement", "bonds", "caucuses",
-      "referendums", "notifications", "regions",
+      "referendums", "notifications", "regions", "presidentialDetails", "politicalMetrics",
     ]) {
       expect(ids).toContain(id);
     }
@@ -107,6 +108,10 @@ describe("MobileNavigation", () => {
     expect(within(world).getByRole("button", { name: "Banking" })).toBeInTheDocument();
     expect(within(nation).getByRole("button", { name: "National Budget" })).toBeInTheDocument();
     expect(within(nation).getByRole("button", { name: "National Metrics" })).toBeInTheDocument();
+    // #69: the reference Politics group also carries the presidential race page
+    // and the political-metrics registry.
+    expect(within(nation).getByRole("button", { name: "Presidential election" })).toBeInTheDocument();
+    expect(within(nation).getByRole("button", { name: "Political metrics" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "End turn" }));
     expect(onAdvanceTurn).toHaveBeenCalledTimes(1);

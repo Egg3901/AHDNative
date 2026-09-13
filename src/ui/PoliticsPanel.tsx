@@ -17,16 +17,18 @@ import { useEffect, useMemo, useState } from "react";
 import type { GameScreenProps } from "../game/types";
 import type {
   PoliticsElectionDetail, PoliticsPartyDetail, PoliticsPlayerCampaignView,
-  PoliticsPoliticianView, PoliticsPrimaryView, PoliticsProjectionView,
+  PoliticsPoliticianView, PoliticsPresidentialView, PoliticsPrimaryView, PoliticsProjectionView,
   PoliticsRaceStageView, PoliticsReferendumView, PoliticsView,
 } from "../game/politics";
+import type { NationDestination, NationView } from "../game/nation";
 import type { RacePhase } from "../game/types";
 import { RACE_PHASE_LABELS } from "../game/racePhase";
 import { formatGameDate, formatGameTurn, type GameClock } from "../game/gameDate";
+import { MetricsSection } from "./NationPanel";
 
 export interface PoliticsPanelProps {
   politics: PoliticsView;
-  section: "parties" | "elections" | "campaign" | "politicians" | "referendums";
+  section: "parties" | "elections" | "campaign" | "politicians" | "referendums" | "presidential" | "metrics";
   busy: boolean;
   /** World clock used to render every in-game date on the reference calendar (#226). */
   clock: GameClock;
@@ -34,6 +36,12 @@ export interface PoliticsPanelProps {
   onOpenElection?: (id: string) => void;
   onOpenCampaign?: (id: string) => void;
   onOpenPolitician?: (id: string) => void;
+  /** Opens the dedicated presidential race destination (#69) from the Elections surface. */
+  onOpenPresidential?: (id: string) => void;
+  /** The already-projected nation registry, reused by the political-metrics view (#69). */
+  nation?: NationView;
+  /** Navigation for registry consequence links, reused from the nation metrics view. */
+  onNavigate?: (route: NationDestination, detailId?: string) => void;
   onAction: GameScreenProps["onAction"];
 }
 
@@ -827,7 +835,34 @@ function CampaignBlock({ electionId, campaign, busy, onAction, currency }: {
 
 type ElectionStatusFilter = "all" | "upcoming" | "active" | "resolved";
 
-function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign, onOpenPolitician, clock }: Omit<PoliticsPanelProps, "section">) {
+/**
+ * Candidate roster shared by the Elections detail and the presidential race
+ * view (#69). Renders only recorded fields; votes appear only when the
+ * projection carries tally-backed totals.
+ */
+function CandidateRoster({ candidates }: { candidates: PoliticsElectionDetail["candidates"] }) {
+  if (candidates.length === 0) return <div className="ahd-empty">No filed candidates.</div>;
+  return (
+    <ul className="ahd-grid ahd-grid-2" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+      {candidates.map((c) => (
+        <li key={c.id} style={{ borderTop: "1px solid var(--ahd-border)", paddingTop: "0.4rem", fontSize: "0.8rem" }}>
+          <span style={{ fontWeight: 650 }}>{c.name}</span>
+          <span className="ahd-muted"> · {c.partyName}</span>
+          {c.incumbent ? <span className="ahd-muted"> · incumbent</span> : null}
+          {c.isPlayer ? <span className="ahd-muted"> · you</span> : null}
+          {c.winner ? <span style={{ fontWeight: 750 }}> · winner</span> : null}
+          {c.votes != null ? (
+            <span className="ahd-mono ahd-muted" style={{ display: "block", fontSize: "0.76rem" }}>
+              {c.votes.toLocaleString()} votes{c.voteShare != null ? ` (${(c.voteShare * 100).toFixed(1)}%)` : null}
+            </span>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign, onOpenPolitician, onOpenPresidential, clock }: Omit<PoliticsPanelProps, "section">) {
   const [status, setStatus] = useState<ElectionStatusFilter>("all");
   const [mineOnly, setMineOnly] = useState(false);
   const [decidedOnly, setDecidedOnly] = useState(false);
@@ -844,6 +879,9 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign,
   }, [filtered, selectedId]);
 
   const selected = filtered.find((e) => e.id === selectedId) ?? null;
+  // #69: the Elections surface links into the dedicated presidential race view
+  // whenever this country actually records a presidential race.
+  const presidentialRace = politics.elections.find((e) => e.presidential !== null) ?? null;
   const fire = (election: PoliticsElectionDetail) => {
     if (busy || !election.candidacy.available) return;
     onAction(election.candidacy.id, { electionId: election.id });
@@ -876,6 +914,13 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign,
             Only decided
           </label>
         </div>
+        {presidentialRace && onOpenPresidential ? (
+          <div style={{ marginTop: "0.55rem" }}>
+            <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onOpenPresidential(presidentialRace.id)} disabled={busy}>
+              Presidential race
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {filtered.length === 0 ? <div className="ahd-empty">No races match these filters.</div> : (
@@ -911,29 +956,17 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign,
             {selected.status} · {formatGameDate(selected.date, clock)}
           </div>
           <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>Filing deadline: {formatGameDate(selected.filingDate, clock) || "Unknown"}</div>
+          {selected.presidential && onOpenPresidential ? (
+            <button type="button" className="ahd-btn ahd-btn-sm" style={{ marginTop: "0.4rem" }} onClick={() => onOpenPresidential(selected.id)} disabled={busy}>
+              View presidential race
+            </button>
+          ) : null}
           <RaceStages stages={selected.stages} />
 
           <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0.6rem 0 0.25rem" }}>
             Candidates ({selected.candidates.length})
           </h4>
-          {selected.candidates.length === 0 ? <div className="ahd-empty">No filed candidates.</div> : (
-            <ul className="ahd-grid ahd-grid-2" style={{ listStyle: "none", margin: 0, padding: 0 }}>
-              {selected.candidates.map((c) => (
-                <li key={c.id} style={{ borderTop: "1px solid var(--ahd-border)", paddingTop: "0.4rem", fontSize: "0.8rem" }}>
-                  <span style={{ fontWeight: 650 }}>{c.name}</span>
-                  <span className="ahd-muted"> · {c.partyName}</span>
-                  {c.incumbent ? <span className="ahd-muted"> · incumbent</span> : null}
-                  {c.isPlayer ? <span className="ahd-muted"> · you</span> : null}
-                  {c.winner ? <span style={{ fontWeight: 750 }}> · winner</span> : null}
-                  {c.votes != null ? (
-                    <span className="ahd-mono ahd-muted" style={{ display: "block", fontSize: "0.76rem" }}>
-                      {c.votes.toLocaleString()} votes{c.voteShare != null ? ` (${(c.voteShare * 100).toFixed(1)}%)` : ""}
-                    </span>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
+          <CandidateRoster candidates={selected.candidates} />
           <PrimaryBlock primary={selected.primary} />
           <ProjectionBlock projection={selected.projection} />
           {selected.winnerIds.length > 0 ? (
@@ -1270,9 +1303,202 @@ function ReferendumsSection({ politics, busy, onAction, initialId, clock }: Omit
   );
 }
 
-export function PoliticsPanel({ politics, section, busy, onAction, initialId, onOpenElection, onOpenCampaign, onOpenPolitician, clock }: PoliticsPanelProps) {
+/** The recorded Electoral College state of one presidential race (#69). */
+function PresidentialElectoralCollege({ presidential }: { presidential: PoliticsPresidentialView }) {
+  return (
+    <section aria-label="Electoral College" style={{ marginTop: "0.6rem" }}>
+      <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.25rem" }}>Electoral College</h4>
+      {presidential.hasStateTallies ? (
+        <>
+          <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.15rem 0" }}>
+            {presidential.totalElectoralVotes.toLocaleString()} electoral votes recorded · {presidential.majorityThreshold.toLocaleString()} needed to win
+          </p>
+          <ul aria-label="Electoral votes by candidate" style={{ listStyle: "none", margin: "0.3rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+            {presidential.electors.map((elector) => (
+              <li key={elector.candidateId} style={{ fontSize: "0.8rem" }}>
+                <span style={{ fontWeight: 650 }}>{elector.name}</span>
+                <span className="ahd-muted"> · {elector.partyName}</span>
+                <span className="ahd-mono"> · {elector.electoralVotes.toLocaleString()} EV</span>
+                {elector.popularVotes != null ? (
+                  <span className="ahd-mono ahd-muted"> · {elector.popularVotes.toLocaleString()} votes</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          <details style={{ marginTop: "0.35rem" }}>
+            <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: "0.76rem", minHeight: 44, paddingBlock: "0.65rem", boxSizing: "border-box" }}>
+              {`Per-state tally (${presidential.states.length})`}
+            </summary>
+            <ul aria-label="Per-state presidential tallies" style={{ listStyle: "none", margin: "0.3rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              {presidential.states.map((state) => (
+                <li key={state.stateId} style={{ borderTop: "1px solid var(--ahd-border)", paddingTop: "0.3rem", fontSize: "0.76rem" }}>
+                  <span style={{ fontWeight: 650 }}>{state.stateName}</span>
+                  <span className="ahd-muted"> · {state.electoralVotes} EV</span>
+                  <span> · {state.winnerName ?? "No votes recorded"}</span>
+                  {state.votes.length > 0 ? (
+                    <span className="ahd-mono ahd-muted" style={{ display: "block" }}>
+                      {state.votes.map((vote) => `${vote.name} ${vote.votes.toLocaleString()}`).join(" · ")}
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </details>
+        </>
+      ) : null}
+      <p className="ahd-help" role="note">{presidential.note}</p>
+      {presidential.resolved && presidential.winnerName ? (
+        <p style={{ fontSize: "0.8rem", fontWeight: 750, margin: "0.35rem 0 0" }}>
+          {`Result: ${presidential.winnerName} won the presidency.`}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+/**
+ * Dedicated presidential race destination (#69). Reachable from the Elections
+ * surface and the reference Nation > Politics menu. It shows the real recorded
+ * race: candidates, the per-state / Electoral College accumulation (only where
+ * the engine recorded `stateTallyStates`), the rules and stage timers, the
+ * campaign link, and the recorded result after resolution.
+ */
+function PresidentialRaceSection({ politics, busy, onAction, initialId, onOpenCampaign, onOpenPolitician, clock }: Omit<PoliticsPanelProps, "section">) {
+  const races = useMemo(() => politics.elections.filter((e) => e.presidential !== null), [politics.elections]);
+  const [selectedId, setSelectedId] = useState(initialId ?? "");
+  useEffect(() => {
+    if (!races.some((e) => e.id === selectedId)) setSelectedId(races[0]?.id ?? "");
+  }, [races, selectedId]);
+  const selected = races.find((e) => e.id === selectedId) ?? null;
+  const fire = (election: PoliticsElectionDetail) => {
+    if (busy || !election.candidacy.available) return;
+    onAction(election.candidacy.id, { electionId: election.id });
+  };
+  return (
+    <div className="ahd-stack">
+      <div className="ahd-card ahd-card-pad ahd-hero">
+        <h2 className="ahd-h2">Presidential election</h2>
+        <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>
+          {races.length} recorded presidential {races.length === 1 ? "race" : "races"} in {politics.countryName}
+        </p>
+        <p className="ahd-help" role="note" style={{ marginTop: "0.3rem" }}>
+          Electoral votes are allocated winner-take-all from recorded per-state tallies; counted figures are never a forecast.
+        </p>
+      </div>
+      {races.length === 0 ? (
+        <div className="ahd-empty">No presidential race is recorded for {politics.countryName}.</div>
+      ) : (
+        <label className="ahd-field" style={{ maxWidth: "28rem" }}>
+          <span className="ahd-label">Presidential race</span>
+          <select className="ahd-select" aria-label="Presidential race" value={selected?.id ?? ""}
+            onChange={(e) => setSelectedId(e.target.value)} disabled={busy}>
+            {races.map((race) => (
+              <option key={race.id} value={race.id}>
+                {race.title} [{race.status}]{race.playerCandidate ? " [filed]" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {selected ? (
+        <article aria-label={selected.title} className="ahd-card ahd-card-pad">
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+            <strong style={{ fontSize: "0.9rem" }}>{selected.title}</strong>
+            <span className="ahd-pill">{RACE_PHASE_LABELS[selected.phase]}</span>
+            {selected.playerCandidate ? <span className="ahd-pill" style={{ background: "var(--ahd-primary)", color: "white" }}>Filed</span> : null}
+          </div>
+          <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.2rem" }}>
+            {selected.status} · election day {formatGameDate(selected.date, clock)}
+          </div>
+          <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>Filing deadline: {formatGameDate(selected.filingDate, clock) || "Unknown"}</div>
+          <RaceStages stages={selected.stages} />
+
+          <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0.6rem 0 0.25rem" }}>
+            Candidates ({selected.candidates.length})
+          </h4>
+          <CandidateRoster candidates={selected.candidates} />
+
+          {selected.presidential ? <PresidentialElectoralCollege presidential={selected.presidential} /> : null}
+
+          {selected.winnerIds.length > 0 ? (
+            onOpenPolitician ? (
+              <p style={{ fontSize: "0.8rem", margin: "0.35rem 0 0", display: "flex", gap: "0.35rem", alignItems: "center", flexWrap: "wrap" }}>
+                <span>Winners:</span>
+                {selected.winnerIds.map((id, index) => (
+                  <button key={id} type="button" className="ahd-btn ahd-btn-sm" onClick={() => onOpenPolitician(id)} disabled={busy}>
+                    {selected.winnerNames[index] ?? id}
+                  </button>
+                ))}
+              </p>
+            ) : (
+              <p style={{ fontSize: "0.8rem", margin: "0.35rem 0 0" }}>Winners: {selected.winnerNames.join(", ")}</p>
+            )
+          ) : null}
+
+          {selected.playerCampaign ? (
+            <section aria-label="Your campaign" style={{ marginTop: "0.7rem", borderTop: "1px solid var(--ahd-border)", paddingTop: "0.55rem" }}>
+              <h4 style={{ fontSize: "0.78rem", margin: "0 0 0.3rem" }}>Your campaign</h4>
+              <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0 0 0.4rem" }}>
+                {`${Math.floor(selected.playerCampaign.funds).toLocaleString()} funds · ${selected.playerCampaign.actions} actions · `}
+                {`${selected.playerCampaign.strength.nationalInfluence.toLocaleString()} national influence feeds campaign strength`}
+              </p>
+              {onOpenCampaign ? <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onOpenCampaign(selected.id)} disabled={busy}>
+                {selected.playerCampaign.status === "archived" ? "View campaign" : "Manage campaign"}
+              </button> : null}
+            </section>
+          ) : null}
+
+          <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap", marginTop: "0.55rem" }}>
+            <button type="button" className="ahd-btn ahd-btn-primary ahd-btn-sm"
+              disabled={busy || !selected.candidacy.available}
+              aria-disabled={busy || !selected.candidacy.available}
+              aria-label={selected.candidacy.id === "withdrawCandidacy" ? "Withdraw candidacy" : "Run for office"}
+              onClick={() => fire(selected)}>
+              {selected.candidacy.id === "withdrawCandidacy" ? "Withdraw candidacy" : "Run for office"}
+            </button>
+            <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+              {!selected.candidacy.available ? (selected.candidacy.disabledReason ?? "Unavailable")
+                : selected.candidacy.cost > 0 ? `Cost ${selected.candidacy.cost} actions` : "Free"}
+            </span>
+          </div>
+          {!selected.candidacy.available && selected.candidacy.disabledReason
+            ? <p className="ahd-help" role="note">{selected.candidacy.disabledReason}</p> : null}
+        </article>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Political-metrics view (#69). It renders the EXACT registry Native already
+ * projects (`projectNation().metrics`) by reusing NationPanel's `MetricsSection`
+ * — no second projection and no re-derived metric. Categories, recorded history
+ * and recorded modifier rows all come from the shared `NationMetricsView` DTO.
+ */
+function PoliticalMetricsSection({ politics, nation, onNavigate }: {
+  politics: PoliticsView;
+  nation?: NationView;
+  onNavigate?: PoliticsPanelProps["onNavigate"];
+}) {
+  if (!nation) {
+    return (
+      <div className="ahd-stack">
+        <div className="ahd-card ahd-card-pad ahd-hero">
+          <h2 className="ahd-h2">Political metrics</h2>
+          <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>{politics.countryName}</p>
+        </div>
+        <div className="ahd-empty">No national metrics are recorded for this country.</div>
+      </div>
+    );
+  }
+  return <MetricsSection nation={nation} onNavigate={onNavigate} />;
+}
+
+export function PoliticsPanel({ politics, section, busy, onAction, initialId, onOpenElection, onOpenCampaign, onOpenPolitician, onOpenPresidential, nation, onNavigate, clock }: PoliticsPanelProps) {
   if (section === "campaign") return <CampaignSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} clock={clock} />;
-  if (section === "elections") return <ElectionsSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} onOpenCampaign={onOpenCampaign} onOpenPolitician={onOpenPolitician} clock={clock} />;
+  if (section === "elections") return <ElectionsSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} onOpenCampaign={onOpenCampaign} onOpenPolitician={onOpenPolitician} onOpenPresidential={onOpenPresidential} clock={clock} />;
+  if (section === "presidential") return <PresidentialRaceSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} onOpenCampaign={onOpenCampaign} onOpenPolitician={onOpenPolitician} clock={clock} />;
+  if (section === "metrics") return <PoliticalMetricsSection politics={politics} nation={nation} onNavigate={onNavigate} />;
   if (section === "referendums") return <ReferendumsSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} clock={clock} />;
   if (section === "politicians") return <PoliticiansSection politics={politics} busy={busy} initialId={initialId} onOpenElection={onOpenElection} clock={clock} />;
   return <PartiesSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} clock={clock} />;

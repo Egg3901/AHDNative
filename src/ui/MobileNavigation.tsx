@@ -4,7 +4,8 @@ import { formatGameDate } from "../game/gameDate";
 export type DrawerRouteId =
   | "actions" | "parties" | "legislature" | "elections" | "news"
   | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "campaignDetails"
-  | "politicians" | "economy" | "budget" | "policy" | "metrics" | "nations" | "state"
+  | "politicians" | "presidentialDetails" | "politicalMetrics"
+  | "economy" | "budget" | "policy" | "metrics" | "nations" | "state"
   | "help" | "settings" | "legislationDetails" | "markets" | "search"
   | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications" | "referendums";
 
@@ -92,6 +93,10 @@ export const MENU_GROUPS: DrawerNavGroup[] = [
           { id: "partyManagement", label: "Start a party" },
           { id: "caucuses", label: "Caucuses" },
           { id: "politicians", label: "Politicians" },
+          // #69: the reference nationDetailsSections Politics group lists the
+          // Presidential Election race page and the Political Metrics registry.
+          { id: "presidentialDetails", label: "Presidential election" },
+          { id: "politicalMetrics", label: "Political metrics" },
           { id: "referendums", label: "Referendums" },
         ],
       },

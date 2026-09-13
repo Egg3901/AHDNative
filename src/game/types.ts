@@ -29,6 +29,8 @@ export interface PartyView { id: string; name: string; abbreviation: string; col
 export type RacePhase = "upcoming" | "primary" | "general" | "resolved";
 export interface ElectionView {
   id: string; title: string; status: string; date: string; filingDate: string;
+  /** Recorded engine race kind (e.g. "president", "house"); drives destination routing. */
+  electionType: string;
   phase: RacePhase;
   playerCandidate: boolean; candidateNames: string[]; winnerNames: string[];
   /** Counted tally evidence for the footer/race chips; null until votes exist. */

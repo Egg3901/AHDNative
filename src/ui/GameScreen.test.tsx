@@ -28,6 +28,7 @@ function makeElection(overrides: Partial<ElectionView> = {}): ElectionView {
     status: "upcoming",
     date: "1954-11-02",
     filingDate: "1954-09-01",
+    electionType: "house",
     phase: "upcoming",
     playerCandidate: false,
     candidateNames: ["Ada", "Bob"],

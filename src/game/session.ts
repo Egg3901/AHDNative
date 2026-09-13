@@ -456,6 +456,7 @@ function projectElections(world: WorldState): ElectionView[] {
         id: election.id,
         title: election.electionType.replaceAll("_", " ") + (election.state ? ` · ${election.state}` : ""),
         status: election.status, date: dateAt(election.endTurn), filingDate: dateAt(election.primaryEndTurn),
+        electionType: election.electionType,
         phase: racePhase(world, election),
         playerCandidate, candidateNames: election.candidates.map((c) => c.name),
         winnerNames: (election.winners ?? []).map((id) => election.candidates.find((c) => c.id === id)?.name ?? world.politicians.find((p) => p.id === id)?.name ?? id),

@@ -55,6 +55,16 @@ export { declareCandidacy, withdrawCandidacy } from "./elections/candidacy.js";
 export { electionSeriesForWorld, recomputeComposition, seatHolders } from "./elections/orchestration.js";
 export { resolvePrimaries, requiresPrimaryResolution } from "./elections/primaryResolution.js";
 export type { ElectionRecord, ElectionCandidate, ElectionStatus, PrimaryResults, PrimaryResultEntry } from "./elections/types.js";
+// W24b real Electoral College (#69): the read-only display adapter shares the
+// SAME per-state winner-take-all allocation, live EV apportionment, and
+// majority threshold the resolution phase seats presidents with, so a rendered
+// electoral count can never disagree with `applyPresidentialResolution`.
+export {
+  allocateElectoralVotes,
+  electoralVotesByState,
+  electoralMajorityFor,
+} from "./elections/presidentialElectoralCollege.js";
+export type { ElectoralCollegeResult } from "./elections/presidentialElectoralCollege.js";
 export * from "./cabinet/types.js";
 export * from "./cabinet/constants.js";
 export * from "./cabinet/nominationLifecycle.js";

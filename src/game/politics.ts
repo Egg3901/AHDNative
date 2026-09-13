@@ -20,6 +20,7 @@ import {
   campaignSideForPartyInRegion,
   CAMPAIGN_PS_COST_PER_UNIT,
   maxAffordableCampaignStrengthClicks,
+  allocateElectoralVotes, electoralVotesByState, electoralMajorityFor,
   type Campaign, type OpsBranchKey, type ReferendumRecord, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionView, RacePhase } from "./types";
@@ -278,6 +279,55 @@ export interface PoliticsPrimaryView {
   parties: PoliticsPrimaryPartyView[];
 }
 
+/** One candidate's recorded Electoral College standing in a presidential race. */
+export interface PoliticsPresidentialElectorView {
+  candidateId: string; name: string; partyId: string; partyName: string;
+  /** Winner-take-all electoral votes recorded for this candidate (0 when none). */
+  electoralVotes: number;
+  /** National popular votes from the counted tally, null until votes are counted. */
+  popularVotes: number | null;
+}
+
+/** One state's recorded presidential result; only present when per-state tallies exist. */
+export interface PoliticsPresidentialStateView {
+  stateId: string; stateName: string;
+  /** That state's live electoral-vote block (house seats + 2 senators). */
+  electoralVotes: number;
+  /** Plurality winner of the state's counted votes, null when none were cast. */
+  winnerId: string | null;
+  winnerName: string | null;
+  /** Counted votes in this state, largest first; empty when the state recorded none. */
+  votes: { candidateId: string; name: string; votes: number }[];
+}
+
+/**
+ * Presidential race view (#69): the real recorded Electoral College state the
+ * engine maintains. Everything is read from the persisted record — the
+ * per-state cumulative tallies (`ElectionRecord.stateTallyStates`) and the
+ * national tally — through the engine's own allocation helpers
+ * (`allocateElectoralVotes` / `electoralVotesByState` / `electoralMajorityFor`),
+ * so the rendered count cannot disagree with `applyPresidentialResolution`.
+ * No projection or forecast is invented here.
+ */
+export interface PoliticsPresidentialView {
+  /** Always true: this block only exists on a presidential race. */
+  applicable: boolean;
+  /** True when the engine recorded per-state EC tallies (`stateTallyStates`). */
+  hasStateTallies: boolean;
+  /** Electoral votes actually allocated this cycle (the era's real college size). */
+  totalElectoralVotes: number;
+  /** Majority of the actual college (`electoralMajorityFor`), never a hardcoded 270. */
+  majorityThreshold: number;
+  electors: PoliticsPresidentialElectorView[];
+  /** Per-state accumulation, sorted by state id; empty when no per-state tallies. */
+  states: PoliticsPresidentialStateView[];
+  resolved: boolean;
+  winnerId: string | null;
+  winnerName: string | null;
+  /** Recorded-state note: the winner-take-all rule, or the documented fallback gap. */
+  note: string;
+}
+
 export interface PoliticsElectionDetail {
   id: string; title: string; status: string; date: string; filingDate: string;
   phase: RacePhase;
@@ -291,6 +341,8 @@ export interface PoliticsElectionDetail {
   candidacy: ActionView;
   playerCampaign: PoliticsPlayerCampaignView | null;
   projection: PoliticsProjectionView;
+  /** Presidential race state (#69); null for every non-presidential race. */
+  presidential: PoliticsPresidentialView | null;
 }
 
 export interface PoliticsPoliticianView {
@@ -1006,6 +1058,84 @@ function dateAtTurn(world: WorldState, turn: number): string {
   return addDaysIso(world.meta.date, (turn - world.meta.turn) * 7);
 }
 
+/**
+ * Presidential race state (#69): the real recorded Electoral College, read
+ * through the engine's own allocation helpers so the display can never drift
+ * from `applyPresidentialResolution`.
+ *
+ * `stateTallyStates` is the per-state accumulation the engine writes during a
+ * presidential general (`tallyAdapter.ts` realAccumulatePresident); when it is
+ * absent, `allocateElectoralVotes` returns null and the race resolved on the
+ * documented nationwide-aggregate fallback. This projection reports exactly
+ * that: no per-state or electoral-vote accumulation is invented when the
+ * engine recorded none.
+ */
+function projectPresidential(
+  world: WorldState,
+  election: WorldState["elections"][number],
+  candidates: PoliticsCandidateView[],
+  totalVotes: number | null,
+): PoliticsPresidentialView | null {
+  if (election.electionType !== "president") return null;
+  const ec = allocateElectoralVotes(world, election);
+  const evByCandidate = ec?.evByCandidate ?? {};
+  const evByState = electoralVotesByState(world, election.countryId);
+  const nameOf = (id: string) =>
+    candidates.find((candidate) => candidate.id === id)?.name
+    ?? politicianName(world, id) ?? id;
+  const electors: PoliticsPresidentialElectorView[] = election.candidates
+    .map((candidate) => ({
+      candidateId: candidate.id,
+      name: candidate.id === "player" ? world.player.name : candidate.name,
+      partyId: candidate.partyId,
+      partyName: world.parties[candidate.partyId]?.name ?? candidate.partyId,
+      electoralVotes: evByCandidate[candidate.id] ?? 0,
+      popularVotes: totalVotes == null ? null : election.tally[candidate.id] ?? 0,
+    }))
+    .sort((a, b) => b.electoralVotes - a.electoralVotes
+      || (b.popularVotes ?? 0) - (a.popularVotes ?? 0)
+      || a.name.localeCompare(b.name));
+  const statesRaw = election.stateTallyStates as
+    Record<string, { totalVotes?: Record<string, number> }> | undefined;
+  const states: PoliticsPresidentialStateView[] = statesRaw
+    ? Object.keys(statesRaw).sort((a, b) => a.localeCompare(b)).map((stateId) => {
+      const votes = statesRaw[stateId]?.totalVotes ?? {};
+      const entries = Object.entries(votes)
+        .filter(([, count]) => count > 0)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+      const winnerId = entries[0]?.[0] ?? null;
+      return {
+        stateId,
+        stateName: world.regions[stateId]?.name ?? stateId,
+        electoralVotes: evByState[stateId] ?? 0,
+        winnerId,
+        winnerName: winnerId ? nameOf(winnerId) : null,
+        votes: entries.map(([candidateId, count]) => ({
+          candidateId, name: nameOf(candidateId), votes: count,
+        })),
+      };
+    })
+    : [];
+  const hasStateTallies = ec !== null;
+  const winnerId = election.status === "resolved" ? election.winners?.[0] ?? null : null;
+  const winnerName = winnerId ? nameOf(winnerId) : null;
+  const note = hasStateTallies
+    ? `Electoral votes are allocated winner-take-all: each state awards its whole electoral-vote block to its plurality winner. A candidate needs ${electoralMajorityFor(ec!.totalEv)} of ${ec!.totalEv} electoral votes to win the presidency.`
+    : "This race has no recorded per-state tallies, so no state-by-state or electoral-vote accumulation is available; only the counted national tally is shown. The engine writes per-state tallies during a presidential general and otherwise resolves on its nationwide fallback.";
+  return {
+    applicable: true,
+    hasStateTallies,
+    totalElectoralVotes: ec?.totalEv ?? 0,
+    majorityThreshold: ec ? electoralMajorityFor(ec.totalEv) : 0,
+    electors,
+    states,
+    resolved: election.status === "resolved",
+    winnerId,
+    winnerName,
+    note,
+  };
+}
+
 /** Live primary standings or the persisted nominees, kept out of the general tally. */
 function projectPrimary(world: WorldState, election: WorldState["elections"][number]): PoliticsPrimaryView {
   const applicable = requiresPrimaryResolution(election);
@@ -1284,6 +1414,7 @@ export function projectPolitics(world: WorldState): PoliticsView {
         candidacy: candidacyAction(world, election, active, playerCandidate),
         playerCampaign: projectPlayerCampaign(world, election),
         projection: projectProjection(world, election, candidates, totalVotes),
+        presidential: projectPresidential(world, election, candidates, totalVotes),
       };
     });
 

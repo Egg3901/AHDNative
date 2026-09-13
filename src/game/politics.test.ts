@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { createWorld, declareCandidacy, resolvePrimaries, advanceTurn, campaignKey, campaignStrengthContributionCost, campaignStrengthVoteMultiplier, describeOpsCurrentEffect, ensureCampaign, serializeSave } from "@ahdclient/engine";
+import { createWorld, declareCandidacy, resolvePrimaries, advanceTurn, campaignKey, campaignStrengthContributionCost, campaignStrengthVoteMultiplier, describeOpsCurrentEffect, ensureCampaign, serializeSave, electoralMajorityFor } from "@ahdclient/engine";
 import { GameSession } from "./session";
 import { projectPolitics } from "./politics";
 
@@ -754,4 +754,118 @@ it("includes the player's current party membership in the recorded roster across
   expect(resumed.politics().parties.find(party => party.id === DEM)!.memberNames).toContain("Roster Player");
   expect(resumed.act("leaveParty").ok).toBe(true);
   expect(resumed.politics().parties.find(party => party.id === DEM)!.memberNames).not.toContain("Roster Player");
+});
+
+describe("projectPolitics presidential race (#69)", () => {
+  it("projects the recorded per-state Electoral College and counted popular tally", () => {
+    const world = createWorld({ ...options, seed: "presidential-ec-view" });
+    const a = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === DEM)!;
+    const b = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === REP)!;
+    const id = "president:US:-:c1";
+    world.elections = [{
+      id, electionType: "president", countryId: "US", cycle: 1,
+      status: "active", startTurn: 0, primaryEndTurn: 20, endTurn: 60, totalSeats: 1, chamberKey: "president",
+      candidates: [
+        { id: a.id, name: a.name, partyId: DEM, isNPP: true, incumbent: false },
+        { id: b.id, name: b.name, partyId: REP, isNPP: true, incumbent: false },
+      ],
+      tally: { [a.id]: 3000, [b.id]: 2000 },
+      stateTallyStates: {
+        CA: { totalVotes: { [a.id]: 1000, [b.id]: 400 } },
+        TX: { totalVotes: { [a.id]: 300, [b.id]: 700 } },
+        WY: { totalVotes: { [a.id]: 50, [b.id]: 40 } },
+      },
+    }];
+
+    const detail = projectPolitics(world).elections.find((election) => election.id === id)!;
+    const presidential = detail.presidential!;
+    expect(presidential.applicable).toBe(true);
+    expect(presidential.hasStateTallies).toBe(true);
+    // 1953 apportionment (house seats + 2): CA = 30+2, TX = 22+2, WY = 1+2.
+    expect(presidential.totalElectoralVotes).toBe(32 + 24 + 3);
+    expect(presidential.majorityThreshold).toBe(electoralMajorityFor(32 + 24 + 3));
+
+    const aElector = presidential.electors.find((elector) => elector.candidateId === a.id)!;
+    const bElector = presidential.electors.find((elector) => elector.candidateId === b.id)!;
+    // Winner-take-all: A wins CA + WY (35), B wins TX (24); popular tally is the counted national total.
+    expect(aElector).toMatchObject({ electoralVotes: 35, popularVotes: 3000, partyId: DEM, partyName: "Democratic Party" });
+    expect(bElector).toMatchObject({ electoralVotes: 24, popularVotes: 2000 });
+    expect(presidential.electors[0]!.candidateId).toBe(a.id);
+
+    expect(presidential.states.map((state) => state.stateId)).toEqual(["CA", "TX", "WY"]);
+    const ca = presidential.states.find((state) => state.stateId === "CA")!;
+    expect(ca).toMatchObject({ electoralVotes: 32, winnerId: a.id, winnerName: a.name });
+    expect(ca.stateName.length).toBeGreaterThan(0);
+    expect(presidential.states.find((state) => state.stateId === "TX")).toMatchObject({ electoralVotes: 24, winnerId: b.id });
+    expect(ca.votes[0]).toMatchObject({ candidateId: a.id, name: a.name, votes: 1000 });
+    expect(presidential.resolved).toBe(false);
+    expect(presidential.note).toMatch(/winner-take-all/i);
+  });
+
+  it("reports the national-only fallback with no state accumulation when no per-state tallies exist", () => {
+    const world = createWorld({ ...options, seed: "presidential-fallback" });
+    const a = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === DEM)!;
+    const b = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === REP)!;
+    const id = "president:US:-:c1";
+    world.elections = [{
+      id, electionType: "president", countryId: "US", cycle: 1,
+      status: "active", startTurn: 0, primaryEndTurn: 20, endTurn: 60, totalSeats: 1, chamberKey: "president",
+      candidates: [
+        { id: a.id, name: a.name, partyId: DEM, isNPP: true, incumbent: false },
+        { id: b.id, name: b.name, partyId: REP, isNPP: true, incumbent: false },
+      ],
+      tally: { [a.id]: 4000, [b.id]: 3500 },
+    }];
+
+    const presidential = projectPolitics(world).elections.find((election) => election.id === id)!.presidential!;
+    expect(presidential.hasStateTallies).toBe(false);
+    expect(presidential.states).toEqual([]);
+    expect(presidential.totalElectoralVotes).toBe(0);
+    expect(presidential.majorityThreshold).toBe(0);
+    expect(presidential.note).toMatch(/no recorded per-state tallies/i);
+    // The counted national tally is still shown, with zero electoral votes.
+    expect(presidential.electors.find((elector) => elector.candidateId === a.id))
+      .toMatchObject({ electoralVotes: 0, popularVotes: 4000 });
+  });
+
+  it("does not attach a presidential block to a non-presidential race", () => {
+    const world = createWorld({ ...options, seed: "presidential-scope" });
+    world.elections = [{
+      id: "house:US:NY:c1", electionType: "house", countryId: "US", state: "NY", cycle: 1,
+      status: "active", startTurn: 0, primaryEndTurn: 10, endTurn: 20, totalSeats: 1, chamberKey: "house",
+      candidates: [], tally: {},
+    }];
+    expect(projectPolitics(world).elections[0]!.presidential).toBeNull();
+  });
+
+  it("accumulates a live presidential general into per-state EC tallies and survives reload", () => {
+    const world = createWorld({ ...options, seed: "presidential-live" });
+    const a = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === DEM)!;
+    const b = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === REP)!;
+    const id = "president:US:-:c1";
+    world.elections = [{
+      id, electionType: "president", countryId: "US", cycle: 1,
+      status: "active", startTurn: 0, primaryEndTurn: 0, endTurn: 20, totalSeats: 1, chamberKey: "president",
+      candidates: [
+        { id: a.id, name: a.name, partyId: DEM, isNPP: true, incumbent: false },
+        { id: b.id, name: b.name, partyId: REP, isNPP: true, incumbent: false },
+      ],
+      tally: {},
+    }];
+
+    for (let turn = 0; turn < 3; turn += 1) advanceTurn(world);
+    // The engine's real per-state accumulation ran (not the nationwide stub).
+    expect(world.elections.find((election) => election.id === id)!.stateTallyStates).toBeDefined();
+    const before = projectPolitics(world).elections.find((election) => election.id === id)!.presidential!;
+    expect(before.hasStateTallies).toBe(true);
+    expect(before.totalElectoralVotes).toBeGreaterThan(0);
+    expect(before.states.length).toBeGreaterThan(0);
+    expect(before.electors.some((elector) => elector.electoralVotes > 0)).toBe(true);
+    expect(before.electors.reduce((sum, elector) => sum + elector.electoralVotes, 0)).toBe(before.totalElectoralVotes);
+
+    // The same recorded accumulation is served after save + reload (no re-derivation).
+    const session = new GameSession();
+    session.load(serializeSave(world, SAVED_AT));
+    expect(session.politics().elections.find((election) => election.id === id)!.presidential).toEqual(before);
+  });
 });
