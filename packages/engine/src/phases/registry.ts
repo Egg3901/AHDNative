@@ -125,6 +125,7 @@ import {
 } from "../economy/phases.js";
 import { recordWorldHistoryPhase } from "../history/phases.js";
 import { nuclearProductionPhase, coldWarTensionPhase } from "../coldWar/phases.js";
+import { internationalOrganizationsPhase } from "../internationalOrgs/phases.js";
 import { warsTurnPhase } from "../wars/phases.js";
 import { ministerialOrdersPhase } from "../ministerialOrders/phases.js";
 import { policyEffectsPhase } from "../policyEffects/phases.js";
@@ -516,14 +517,32 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // nuclearProductionPhase first (a warhead built this turn is already
   // counted in this SAME turn's arsenal-pressure term), then warsTurnPhase
   // (a conflict resolved this turn stops contributing war pressure this same
-  // turn), then coldWarTensionPhase (reads both). wars/alignment/settlement/
-  // internationalOrgs are ported "to the depth mainline models 1953
-  // playables" per the wave brief — see wars/types.ts, alignment/*.ts,
-  // internationalOrgs/types.ts file docs for the named PORT-STUB blockers
-  // (B13-B16) on everything beyond that (multipolar poles, org resolutions/
-  // dues/leadership, full unit-level combat). alignment/internationalOrgs
-  // have no per-turn mechanic left un-blocked this wave, so neither gets a
-  // registered phase — see their file docs.
+  // turn), then coldWarTensionPhase (reads both). wars/settlement are ported
+  // "to the depth mainline models 1953 playables" per the wave brief — see
+  // wars/types.ts, alignment/*.ts file docs for the named PORT-STUB blockers
+  // (B13-B15) on everything beyond that (multipolar poles, full unit-level
+  // combat). internationalOrgs now HAS a registered phase (W42 / #113) — see
+  // its own note below; alignment and settlement still have no standalone
+  // phase this wave.
+  // W42 (issue #113) international organizations, at END of the ported subset
+  // in the W32 cold-war/world-politics cluster — same rng-stream-stability
+  // rule as every other tail cluster above (this phase is rng-free regardless:
+  // it resolves ballots, charges dues/tribute and expires sanctions purely from
+  // world state, matching the reference's own deterministic resolver).
+  //
+  // ORDERING (reference-faithful). Mainline registers `internationalOrganizations`
+  // at BASE_TURN_PHASE_NAMES index 81, immediately before `alignment` (82) and
+  // `settlement` (83) — the resolver comment requires alignment to read the org
+  // memberships this phase writes, and settlement to read the live bloc
+  // membership alignment writes. Solo registers neither a standalone alignment
+  // nor a standalone settlement phase: settlement is folded into warsTurnPhase
+  // and alignment is not registered this wave. So the phase is inserted at the
+  // START of the W32 cluster — before nuclearProductionPhase (mainline runs it
+  // inside ministerialOrderProcessing, index ~106, i.e. after intlOrgs 81) and
+  // before warsTurnPhase (solo's settlement analogue) — preserving mainline's
+  // relative order intlOrgs < nuclearProduction/settlement. See
+  // internationalOrgs/phases.ts file doc for the named port gaps.
+  internationalOrganizationsPhase,
   nuclearProductionPhase,
   warsTurnPhase,
   coldWarTensionPhase,

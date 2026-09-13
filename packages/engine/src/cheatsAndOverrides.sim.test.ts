@@ -121,7 +121,17 @@ describe("overrides application", () => {
 // -- cheats --
 describe("applyCheat", () => {
   it("explicitly classifies every turn phase as switchable or core", () => {
-    const core = new Set(["advanceCalendar", "actionRefresh", "eraCrossing", "recordWorldHistory", "newsMaintenance"]);
+    const core = new Set([
+      "advanceCalendar",
+      "actionRefresh",
+      "eraCrossing",
+      "recordWorldHistory",
+      "newsMaintenance",
+      // #113: international organizations is core diplomacy with no single
+      // feature-family kill switch (mainline runs it unconditionally), so it is
+      // classified core rather than mapped to a phase-family flag.
+      "internationalOrganizations",
+    ]);
     const unclassified = TURN_PHASES
       .map((phase) => phase.name)
       .filter((name) => featureFlagForPhase(name) === null && !core.has(name));
