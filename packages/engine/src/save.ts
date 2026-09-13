@@ -190,6 +190,14 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (isRecord(regionalMetrics) && Object.keys(regionalMetrics).length > 0) {
     return { ok: false, error: `Regional metric records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
+  // Issue #119 (v47): FOMC nomination records. An empty collection is dropped so
+  // the projected bytes stay identical to an authentic schema 42 document; any
+  // live nomination cannot round-trip through schema 42 and is refused (same
+  // class as subsidies/regionalMetrics above).
+  const fomcNominations = world["fomcNominations"];
+  if (Array.isArray(fomcNominations) && fomcNominations.length > 0) {
+    return { ok: false, error: `FOMC nomination records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
   const corporations = world["corporations"];
   if (!isRecord(corporations)) {
     return { ok: false, error: "Schema 42 projection cannot validate corporation market state" };
@@ -230,6 +238,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   delete candidateWorld["countryPolitics"];
   delete candidateWorld["subsidies"];
   delete candidateWorld["regionalMetrics"];
+  delete candidateWorld["fomcNominations"];
   const candidateCorporations = candidateWorld["corporations"] as Record<string, Record<string, unknown>>;
   for (const corp of Object.values(candidateCorporations)) {
     delete corp["sentimentMultiplier"];
@@ -299,6 +308,7 @@ const REQUIRED_WORLD_ARRAYS = [
   "ukJudicialReviewCases", "activeWorldModifiers", "crises", "playerEventLog", "governorAddresses",
   "governorOrders", "bills", "committees", "enactedLaws", "stateBills", "news", "bankLoans",
   "vitalSignsHistory", "ministerialOrders", "conflicts", "settlements", "subsidies",
+  "fomcNominations",
 ] as const;
 
 const REQUIRED_WORLD_RECORDS = [
@@ -2396,6 +2406,25 @@ export function deserializeSave(raw: string): WorldState {
       }
     }
     save.world.meta.schemaVersion = 46;
+  }
+  // v46 -> v47: FOMC nominations (issue #119). Pre-v47 saves cannot carry an
+  // FOMC board or nomination (both fields are new and optional), so the
+  // compatible backfill is an empty collection. No RNG is consumed and no
+  // board/meeting state is invented — both FOMC phases stay strict no-ops until
+  // a board is seated (see centralBank/fomcMeeting.ts file doc). Inserted after
+  // `centralBanks` to keep the serialized key order identical to a fresh world.
+  if (save.schemaVersion < 47) {
+    const w = save.world as unknown as Record<string, unknown>;
+    if (!Array.isArray(w["fomcNominations"])) {
+      const entries = Object.entries(w);
+      for (const key of Object.keys(w)) delete w[key];
+      for (const [key, value] of entries) {
+        w[key] = value;
+        if (key === "centralBanks") w["fomcNominations"] = [];
+      }
+      if (!Array.isArray(w["fomcNominations"])) w["fomcNominations"] = [];
+    }
+    save.world.meta.schemaVersion = 47;
   }
   // NPP-backed politicians used to carry Character-only party clout and
   // bonus-action counters. Keep the fields readable for older save shapes, but

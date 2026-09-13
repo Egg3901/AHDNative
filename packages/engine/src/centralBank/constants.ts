@@ -42,6 +42,36 @@ export function snapToPrimeRateGrid(rate: number): number {
   return Math.round(rate / PRIME_RATE_STEP) * PRIME_RATE_STEP;
 }
 
+// ── FOMC committee (issue #119) ──────────────────────────────────────────────
+// Source: src/lib/db/types/centralBank.ts (FOMC_* constants), all verbatim.
+
+/** Voting seats on the committee (chair included). Source: db/types/centralBank.ts FOMC_BOARD_SIZE. */
+export const FOMC_BOARD_SIZE = 7;
+/**
+ * Countries whose central bank runs on the FOMC committee model. The committee
+ * is the US Federal Reserve's institution; other central banks run the
+ * single-governor / government-controlled model instead. Source:
+ * db/types/centralBank.ts FOMC_COMMITTEE_COUNTRY_IDS.
+ */
+export const FOMC_COMMITTEE_COUNTRY_IDS: ReadonlySet<string> = new Set(["US"]);
+/** Hard cap on executed rate changes (hikes + cuts) per term. Source: db/types/centralBank.ts RATE_CHANGES_PER_TERM. */
+export const RATE_CHANGES_PER_TERM = 16;
+/** Turns in a full board/chair term (4 game years × 48 turns/year). Source: db/types/centralBank.ts FOMC_TERM_TURNS. */
+export const FOMC_TERM_TURNS = 192;
+/** Turns between scheduled FOMC meetings (48 turns/year ⇒ 6 meetings/game-year). Source: db/types/centralBank.ts FOMC_MEETING_INTERVAL_TURNS. */
+export const FOMC_MEETING_INTERVAL_TURNS = 8;
+/** Game-clock window (turns) a nomination/meeting has before it resolves. Source: db/types/centralBank.ts FOMC_VOTE_WINDOW_TURNS. */
+export const FOMC_VOTE_WINDOW_TURNS = 24;
+/**
+ * Turns between repeats of the "board seats are vacant" notice to the
+ * executive. Source: db/types/centralBank.ts FOMC_VACANCY_REMINDER_INTERVAL_TURNS.
+ */
+export const FOMC_VACANCY_REMINDER_INTERVAL_TURNS = 48;
+/** Ring-buffer size for resolved-meeting history. Source: monetaryGovernance/governanceShell.ts FOMC_MEETING_HISTORY_MAX. */
+export const FOMC_MEETING_HISTORY_MAX = 24;
+/** Absolute rate step (pp) below which a seat prefers a hold. Source: centralBank/fomc.ts FOMC_MOVE_THRESHOLD. */
+export const FOMC_MOVE_THRESHOLD = 0.125;
+
 // ── Hawk/dove alignment policy ───────────────────────────────────────────────
 // Source: src/lib/centralBank/chairAlignment.ts
 

@@ -135,7 +135,10 @@ import type { WorldFeatureFlags } from "./featureFlags.js";
 // v45: regional policy metric values (world.regionalMetrics); see save.ts.
 // v46: market pressure multipliers, trade windows, and compact price history;
 // see save.ts.
-export const SCHEMA_VERSION = 46;
+// v47: issue #119 FOMC nominations collection (world.fomcNominations); the
+// per-bank fomcBoard/meeting fields are optional and default-absent (strict
+// no-op). See save.ts v46->v47 migration.
+export const SCHEMA_VERSION = 47;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -753,6 +756,10 @@ export function createWorld(options: NewWorldOptions): WorldState {
     nppRelationships: {},
     nppSponsorLastTurn: {},
     centralBanks,
+    // Issue #119: FOMC nominations. Empty on a fresh world — no US board is
+    // seeded (see centralBank/types.ts fomcBoard doc + centralBank/fomcMeeting.ts),
+    // so both FOMC phases are strict no-ops until a board is seated.
+    fomcNominations: [],
     corporations,
     corpRevenueSnapshots,
     subsidies: [],

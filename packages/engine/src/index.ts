@@ -59,6 +59,47 @@ export * from "./cabinet/types.js";
 export * from "./cabinet/constants.js";
 export * from "./cabinet/nominationLifecycle.js";
 export * from "./cabinet/transition.js";
+// Issue #119: FOMC committee + nomination lifecycle. Types come through
+// `export type * from "./types.js"`; these are the pure rules, the meeting
+// lifecycle, and the executive nomination/ballot entry points, all shared with
+// the engine phases so a display adapter can never disagree with the engine.
+export * from "./centralBank/fomc.js";
+export {
+  FOMC_BOARD_SIZE,
+  FOMC_COMMITTEE_COUNTRY_IDS,
+  FOMC_TERM_TURNS,
+  FOMC_MEETING_INTERVAL_TURNS,
+  FOMC_VOTE_WINDOW_TURNS,
+  FOMC_VACANCY_REMINDER_INTERVAL_TURNS,
+  RATE_CHANGES_PER_TERM,
+} from "./centralBank/constants.js";
+export {
+  createFomcBoard,
+  seedFomcBoard,
+  processFomcMeetings,
+  castFomcBallot,
+  committeeRateExecutionRefusal,
+  resolveMeetingInto,
+} from "./centralBank/fomcMeeting.js";
+export type { CastFomcBallotResult, ResolveMeetingOutcome } from "./centralBank/fomcMeeting.js";
+export {
+  proposeFomcNomination,
+  processFomcNominationLifecycle,
+} from "./centralBank/fomcNominationLifecycle.js";
+export type {
+  ProposeFomcNominationOptions,
+  FomcNominationLifecycleResult,
+} from "./centralBank/fomcNominationLifecycle.js";
+export type {
+  FomcVote,
+  FomcOccupantType,
+  FomcSeat,
+  FomcBallot,
+  FomcMeeting,
+  FomcMeetingStatus,
+  FomcNomination,
+  FomcNominationStatus,
+} from "./centralBank/types.js";
 export * from "./judiciary/types.js";
 export * from "./judiciary/divergence.js";
 export * from "./judiciary/scotusTurn.js";
