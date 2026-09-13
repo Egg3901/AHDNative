@@ -9,11 +9,16 @@ import type {
   WorldRegionElectionView,
   WorldRegionView,
 } from "../game/worldOverview";
+import { RegionViewerCard } from "./RegionViewerCard";
+import { RegionBudgetCard, RegionMacroCard, RegionSectorsCard } from "./RegionEconomyCards";
+import type { DrawerRouteId } from "./MobileNavigation";
 
 export interface WorldPanelProps {
   overview: WorldOverviewView;
   initialId?: string;
   section: "nations" | "state";
+  /** Opens a linked destination (election, office, profile) from the role rows. */
+  onNavigate?: (route: DrawerRouteId, id?: string) => void;
 }
 
 function number(value: number | null, maximumFractionDigits = 0): string {
@@ -354,7 +359,7 @@ function RegionOffice({ region }: { region: WorldRegionView }) {
   );
 }
 
-function StateSection({ overview }: { overview: WorldOverviewView }) {
+function StateSection({ overview, onNavigate }: { overview: WorldOverviewView; onNavigate?: (route: DrawerRouteId, id?: string) => void }) {
   const region = overview.homeRegion;
   if (region === null) {
     return (
@@ -368,6 +373,8 @@ function StateSection({ overview }: { overview: WorldOverviewView }) {
     );
   }
 
+  const currency = overview.nations.find((nation) => nation.id === region.countryId)?.currency ?? null;
+
   return (
     <WorldLayout overview={overview} title={region.name}>
       <div className="ahd-card ahd-card-pad">
@@ -376,15 +383,18 @@ function StateSection({ overview }: { overview: WorldOverviewView }) {
         <dl className="ahd-stack" style={{ marginTop: "0.65rem", gap: "0.42rem" }}>
           <RegionMetric label="Population" value={number(region.population)} />
           <RegionMetric label="GDP" value={millions(region.gdpMillions)} note="millions of in-game dollars" />
+          <RegionMetric label="Capital stock" value={millions(region.capitalStockMillions)} note="millions, per-region K" />
           {region.countryId === "US" && <RegionMetric label="House seats" value={number(region.houseSeats)} />}
           {region.countryId === "US" && <RegionMetric label="Senate seats" value={number(region.senateSeats)} />}
           <RegionMetric label="Census region" value={region.censusRegion ?? "Not recorded"} />
           <RegionMetric label="Voting-eligible population" value={number(region.votingEligiblePopulation)} />
           <RegionMetric label="Working-age population" value={number(region.workingAgePopulation)} />
           <RegionMetric label="Military service population" value={number(region.militaryServicePopulation)} />
+          <RegionMetric label="Labor force" value={number(region.laborForce)} />
           {region.countryId === "US" && <RegionMetric label="Senate classes" value={region.senateClasses ? region.senateClasses.join(", ") : "Not recorded"} />}
         </dl>
       </div>
+      <RegionViewerCard rows={region.viewer} onNavigate={onNavigate} />
       <div className="ahd-grid ahd-grid-2">
         <PartySupport region={region} />
         <div className="ahd-card ahd-card-pad">
@@ -400,6 +410,11 @@ function StateSection({ overview }: { overview: WorldOverviewView }) {
         </div>
       </div>
       <div className="ahd-grid ahd-grid-2">
+        <RegionBudgetCard budget={region.budget} currency={currency} />
+        <RegionMacroCard macro={region.macro} currency={currency} />
+      </div>
+      <RegionSectorsCard sectors={region.sectors} currency={currency} />
+      <div className="ahd-grid ahd-grid-2">
         <RegionElections elections={region.elections} />
         <RegionOffice region={region} />
       </div>
@@ -407,6 +422,8 @@ function StateSection({ overview }: { overview: WorldOverviewView }) {
   );
 }
 
-export function WorldPanel({ overview, section, initialId }: WorldPanelProps) {
-  return section === "nations" ? <NationsSection overview={overview} initialId={initialId} /> : <StateSection overview={overview} />;
+export function WorldPanel({ overview, section, initialId, onNavigate }: WorldPanelProps) {
+  return section === "nations"
+    ? <NationsSection overview={overview} initialId={initialId} />
+    : <StateSection overview={overview} onNavigate={onNavigate} />;
 }

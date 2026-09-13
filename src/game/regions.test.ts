@@ -240,4 +240,140 @@ describe("projectRegions", () => {
     expect(view.selected?.id).toBe("AL");
     expect(view.selected?.isHome).toBe(false);
   });
+
+  it("shows the Governor Office row only when the player holds that region's office", () => {
+    const world = electedWorld();
+    // Fixture: AL governor is the NPC Janet Rodriguez, so no player office row.
+    expect(projectRegions(world, { regionId: "AL" }).selected?.viewer.governorOffice).toBeNull();
+    // CA has no governor record at all on a fresh 1953 save.
+    expect(projectRegions(createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "gov-row" }), { regionId: "CA" }).selected?.viewer.governorOffice).toBeNull();
+
+    const held = structuredClone(world);
+    held.governors.AL.governorId = "player";
+    held.governors.AL.governorName = "Muse";
+    held.governors.AL.governorParty = "US_DEM";
+    const view = projectRegions(held, { regionId: "AL" });
+    expect(view.selected?.viewer.governorOffice).toEqual({
+      kind: "governor",
+      label: "Governor",
+      termStartTurn: 96,
+      availableActions: 3,
+      lastAddressTurn: null,
+      destination: { route: "regions", id: "AL" },
+    });
+    // Browsing another region never claims the office.
+    expect(projectRegions(held, { regionId: "CA" }).selected?.viewer.governorOffice).toBeNull();
+  });
+
+  it("shows My Election only for an eligible active race and clears once it resolves", () => {
+    const world = electedWorld();
+    expect(projectRegions(world, { regionId: "AL" }).selected?.viewer.myElection).toBeNull();
+
+    const entered = structuredClone(world);
+    const race = entered.elections.find((election) => election.id === "house:US:AL:c2")!;
+    race.candidates.push({ id: "player", name: "Muse", partyId: "US_DEM", isNPP: false, incumbent: false });
+
+    const view = projectRegions(entered, { regionId: "AL" });
+    expect(view.selected?.viewer.myElection).toEqual({
+      id: "house:US:AL:c2",
+      electionType: "house",
+      chamberKey: "house",
+      chamberName: "House of Representatives",
+      status: "active",
+      phase: "primary",
+      scope: "region",
+      destination: { route: "electionDetails", id: "house:US:AL:c2" },
+    });
+
+    const resolved = structuredClone(entered);
+    resolved.elections.find((election) => election.id === "house:US:AL:c2")!.status = "resolved";
+    expect(projectRegions(resolved, { regionId: "AL" }).selected?.viewer.myElection).toBeNull();
+
+    const reloaded = deserializeSave(serializeSave(entered, SAVED_AT));
+    expect(projectRegions(reloaded, { regionId: "AL" }).selected?.viewer.myElection?.id).toBe("house:US:AL:c2");
+  });
+
+  it("shows My Office for the current holder and follows a cabinet appointment", () => {
+    const world = electedWorld();
+    // Player holds a US house seat won in AL: the office row follows the region.
+    expect(projectRegions(world, { regionId: "AL" }).selected?.viewer.myOffice).toEqual({
+      kind: "legislature",
+      label: "House of Representatives",
+      detail: "United States",
+      destination: { route: "legislature", id: "house" },
+    });
+    // A region the player was not elected in keeps the row hidden.
+    expect(projectRegions(world, { regionId: "CA" }).selected?.viewer.myOffice).toBeNull();
+
+    const cabinet = structuredClone(world);
+    cabinet.cabinetMembers.push({
+      countryId: "US",
+      positionId: "secretaryOfState",
+      characterId: "player",
+      characterName: "Muse",
+      partyId: "US_DEM",
+      appointedBy: "US-1",
+      appointedAtTurn: 90,
+      confirmedAtTurn: 95,
+    });
+    const view = projectRegions(cabinet, { regionId: "CA" });
+    expect(view.selected?.viewer.myOffice).toEqual({
+      kind: "cabinet",
+      label: "Secretary Of State",
+      detail: "United States",
+      destination: { route: "profile" },
+    });
+
+    // Head-of-state mode with no seat/cabinet is the other recorded office.
+    const hos = createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "my-office-hos" });
+    hos.player.mode = "hos";
+    expect(projectRegions(hos).selected?.viewer.myOffice).toEqual({
+      kind: "headOfState",
+      label: "Head of state",
+      detail: "United States",
+      destination: { route: "policy" },
+    });
+  });
+
+  it("projects per-region capital stock, national macro, and country sectors without inventing values", () => {
+    const world = electedWorld();
+    const view = projectRegions(world, { regionId: "AL" });
+    const economy = view.selected!.economy;
+    expect(economy.capitalStockMillions).toBeCloseTo(13371.22, 1);
+    expect(economy.macro).toEqual({
+      gdpMillions: 406994.1,
+      growthRate: 0.0224,
+      inflationRate: 0.0228,
+      unemploymentRate: 0.0103,
+      outputGap: 1.737,
+    });
+    expect(economy.sectors.length).toBeGreaterThan(0);
+    expect(economy.sectors.every((sector) => Number.isFinite(sector.revenue))).toBe(true);
+    expect(economy.sectors.map((sector) => sector.sectorType)).toEqual(
+      expect.arrayContaining(["financial", "manufacturing"]),
+    );
+    for (let i = 1; i < economy.sectors.length; i += 1) {
+      expect(economy.sectors[i - 1]!.revenue).toBeGreaterThanOrEqual(economy.sectors[i]!.revenue);
+    }
+
+    // A save without the macro/region series stays honestly null/empty, not zero.
+    const bare = createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "economy-empty" });
+    bare.capitalStock = {};
+    bare.corporations = {};
+    const bareView = projectRegions(bare);
+    expect(bareView.selected?.economy.capitalStockMillions).toBeNull();
+    expect(bareView.selected?.economy.sectors).toEqual([]);
+  });
+
+  it("keeps the projected role rows detached from the world", () => {
+    const world = electedWorld();
+    const held = structuredClone(world);
+    held.governors.AL.governorId = "player";
+    const before = JSON.stringify(held);
+    const view = projectRegions(held, { regionId: "AL" });
+    view.selected!.viewer.governorOffice = null;
+    view.selected!.viewer = { governorOffice: null, myElection: null, myOffice: null };
+    view.selected!.economy.sectors.length = 0;
+    expect(JSON.stringify(held)).toBe(before);
+  });
 });

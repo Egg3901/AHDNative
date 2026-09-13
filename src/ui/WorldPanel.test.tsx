@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { createWorld } from "@ahdclient/engine";
 import { projectWorldOverview } from "../game/worldOverview";
@@ -116,6 +116,25 @@ function makeOverview(overrides: Partial<WorldOverviewView> = {}): WorldOverview
       votingEligiblePopulation: 7_410_356,
       workingAgePopulation: 6_139_009,
       militaryServicePopulation: 0,
+      laborForce: 5_000_000,
+      capitalStockMillions: 95_000,
+      budget: {
+        revenue: { councilTax: 1_200, businessRates: 800, grant: 600, total: 2_600 },
+        spending: [{ id: "education", label: "Education", amount: 1_500 }],
+        spendingTotal: 2_400,
+        balance: 200,
+        consecutiveDeficits: 0,
+      },
+      macro: {
+        gdpMillions: 387_000,
+        growthRate: 0.046,
+        inflationRate: 0.0075,
+        unemploymentRate: 0.029,
+        outputGap: -1.25,
+      },
+      sectors: [
+        { sectorType: "manufacturing", label: "Manufacturing", companyCount: 1, revenue: 12_000, marginPct: 12.5, growthPct: 3.2 },
+      ],
       partySupport: [
         { party: dem, organization: 28, registration: 42 },
         { party: rep, organization: 31, registration: 44 },
@@ -145,6 +164,7 @@ function makeOverview(overrides: Partial<WorldOverviewView> = {}): WorldOverview
         availableActions: 3,
         lastAddressTurn: null,
       },
+      viewer: { governorOffice: null, myElection: null, myOffice: null },
     },
     ...overrides,
   };
@@ -255,6 +275,67 @@ describe("WorldPanel", () => {
     render(<WorldPanel overview={overview} section="state" />);
     expect(screen.getByText("No home region is recorded for this save.")).toBeInTheDocument();
     expect(screen.getByText("No region detail is available.")).toBeInTheDocument();
+  });
+
+  it("shows an honest empty role row and the regional economy surface", () => {
+    render(<WorldPanel overview={makeOverview()} section="state" />);
+
+    expect(screen.getByText("You hold no office and have no active race recorded for this region.")).toBeInTheDocument();
+    expect(screen.queryByText("Governor Office")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "National macro" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Regional budget" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sectors" })).toBeInTheDocument();
+    expect(screen.getByText("Manufacturing")).toBeInTheDocument();
+    expect(screen.getByText("5,000,000")).toBeInTheDocument();
+  });
+
+  it("renders the role-gated home-region rows and links their destinations", () => {
+    const base = makeOverview();
+    const overview = makeOverview({
+      homeRegion: {
+        ...base.homeRegion!,
+        viewer: {
+          governorOffice: {
+            kind: "governor",
+            label: "Governor",
+            termStartTurn: 96,
+            availableActions: 3,
+            lastAddressTurn: null,
+            destination: { route: "regions", id: "CA" },
+          },
+          myElection: {
+            id: "house:US:CA:c1",
+            electionType: "house",
+            chamberKey: "house",
+            chamberName: "House of Representatives",
+            status: "active",
+            phase: "primary",
+            scope: "region",
+            destination: { route: "electionDetails", id: "house:US:CA:c1" },
+          },
+          myOffice: {
+            kind: "legislature",
+            label: "House of Representatives",
+            detail: "United States",
+            destination: { route: "legislature", id: "house" },
+          },
+        },
+      },
+    });
+    const onNavigate = vi.fn();
+    render(<WorldPanel overview={overview} section="state" onNavigate={onNavigate} />);
+
+    expect(screen.getByText("Governor Office")).toBeInTheDocument();
+    expect(screen.getByText("My Election")).toBeInTheDocument();
+    expect(screen.getByText("My Office")).toBeInTheDocument();
+    expect(screen.queryByText("You hold no office and have no active race recorded for this region.")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open my active race" }));
+    expect(onNavigate).toHaveBeenCalledWith("electionDetails", "house:US:CA:c1");
+    fireEvent.click(screen.getByRole("button", { name: "Open my office" }));
+    expect(onNavigate).toHaveBeenCalledWith("legislature", "house");
+    fireEvent.click(screen.getByRole("button", { name: "Open governor office region" }));
+    expect(onNavigate).toHaveBeenCalledWith("regions", "CA");
   });
 });
 

@@ -1,4 +1,14 @@
 import type { RegimeClassification, WorldState } from "@ahdclient/engine";
+import {
+  projectRegionBudget,
+  projectRegionMacro,
+  projectRegionSectors,
+  projectRegionViewer,
+  type RegionBudgetView,
+  type RegionMacroView,
+  type RegionSectorView,
+  type RegionViewerRows,
+} from "./regionProfile";
 
 export interface WorldPartyRef {
   id: string;
@@ -131,10 +141,22 @@ export interface WorldRegionView {
   votingEligiblePopulation: number | null;
   workingAgePopulation: number | null;
   militaryServicePopulation: number | null;
+  /** Per-region labor force headcount, WorldState.laborForces[regionId]. */
+  laborForce: number | null;
+  /** Per-region Solow capital stock K (millions), WorldState.capitalStock[regionId]. */
+  capitalStockMillions: number | null;
+  /** Regional budget (WorldState.regionalBudgets[regionId]), or null when none is recorded. */
+  budget: RegionBudgetView | null;
+  /** Country.economy — national macro indicators; the engine records no per-region series. */
+  macro: RegionMacroView | null;
+  /** Country sector output from WorldState.corporations (no per-region sector record). */
+  sectors: RegionSectorView[];
   partySupport: WorldRegionPartySupport[];
   electoratePool: { independent: number; unregistered: number } | null;
   elections: WorldRegionElectionView[];
   office: WorldRegionOfficeView | null;
+  /** Role/race-gated rows: Governor Office, My Election, My Office (null when not applicable). */
+  viewer: RegionViewerRows;
 }
 
 export interface WorldOverviewView {
@@ -313,6 +335,11 @@ function projectHomeRegion(world: WorldState, countryId: string): WorldRegionVie
     votingEligiblePopulation: finiteOrNull(region.votingEligiblePopulation),
     workingAgePopulation: finiteOrNull(region.workingAgePopulation),
     militaryServicePopulation: finiteOrNull(region.militaryServicePopulation),
+    laborForce: finiteOrNull(world.laborForces?.[region.id]),
+    capitalStockMillions: finiteOrNull(world.capitalStock?.[region.id]),
+    budget: projectRegionBudget(world, region.id),
+    macro: projectRegionMacro(world, region),
+    sectors: projectRegionSectors(world, region),
     partySupport,
     electoratePool: independent !== null && unregistered !== null ? { independent, unregistered } : null,
     elections: world.elections
@@ -320,6 +347,7 @@ function projectHomeRegion(world: WorldState, countryId: string): WorldRegionVie
       .map((election) => projectElection(world, election))
       .sort((left, right) => left.startTurn - right.startTurn || left.id.localeCompare(right.id)),
     office: projectRegionOffice(world, region.id),
+    viewer: projectRegionViewer(world, region),
   };
 }
 

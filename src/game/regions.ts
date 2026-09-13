@@ -12,6 +12,18 @@
  * and UK commons constituency counts stored on region.houseSeats.
  */
 import type { WorldState } from "@ahdclient/engine";
+import {
+  projectRegionBudget,
+  projectRegionMacro,
+  projectRegionSectors,
+  projectRegionViewer,
+  type RegionBudgetView,
+  type RegionMacroView,
+  type RegionSectorView,
+  type RegionViewerRows,
+} from "./regionProfile";
+
+export type { RegionBudgetLine, RegionBudgetView } from "./regionProfile";
 
 export const REGION_DIRECTORY_PAGE_SIZE = 20;
 export const REGION_ELECTION_PAGE_SIZE = 20;
@@ -119,24 +131,16 @@ export interface RegionChamberView {
   members: RegionChamberMember[];
 }
 
-export interface RegionBudgetLine {
-  id: string;
-  label: string;
-  amount: number;
-}
-
-export interface RegionBudgetView {
-  revenue: { councilTax: number; businessRates: number; grant: number; total: number };
-  spending: RegionBudgetLine[];
-  spendingTotal: number;
-  balance: number;
-  consecutiveDeficits: number;
-}
-
 export interface RegionEconomyView {
   gdpMillions: number | null;
   currency: string | null;
+  /** Per-region Solow capital stock K (millions), WorldState.capitalStock[regionId]. */
+  capitalStockMillions: number | null;
   budget: RegionBudgetView | null;
+  /** Country.economy — national macro indicators; the engine records no per-region series. */
+  macro: RegionMacroView | null;
+  /** Country sector output from WorldState.corporations (the engine stores no per-region sectors). */
+  sectors: RegionSectorView[];
 }
 
 export interface RegionDemographicGroup {
@@ -174,6 +178,8 @@ export interface RegionDetailView {
   partySupport: RegionPartySupport[];
   electoratePool: { independent: number; unregistered: number } | null;
   office: RegionOfficeView | null;
+  /** Role/race-gated rows: Governor Office, My Election, My Office (null when not applicable). */
+  viewer: RegionViewerRows;
   chambers: RegionChamberView[];
   elections: RegionElectionView[];
   electionQuery: string;
@@ -287,27 +293,6 @@ function projectOffice(world: WorldState, regionId: string): RegionOfficeView | 
     termStartTurn: finiteOrNull(office.termStartTurn),
     availableActions: finiteOrNull(office.gubernatorialActions),
     lastAddressTurn: finiteOrNull(office.lastAddressTurn),
-  };
-}
-
-function projectBudget(world: WorldState, regionId: string): RegionBudgetView | null {
-  const budget = world.regionalBudgets?.[regionId];
-  if (!budget) return null;
-  const spending = Object.entries(budget.spending.byCategory)
-    .filter(([, amount]) => Number.isFinite(amount))
-    .map(([id, amount]) => ({ id, label: humanize(id), amount }))
-    .sort((left, right) => right.amount - left.amount || left.id.localeCompare(right.id));
-  return {
-    revenue: {
-      councilTax: budget.revenue.councilTax,
-      businessRates: budget.revenue.businessRates,
-      grant: budget.revenue.grant,
-      total: budget.revenue.total,
-    },
-    spending,
-    spendingTotal: budget.spending.total,
-    balance: budget.balance,
-    consecutiveDeficits: budget.consecutiveDeficits,
   };
 }
 
@@ -540,12 +525,16 @@ function projectDetail(
     economy: {
       gdpMillions: finiteOrNull(region.gdp),
       currency,
-      budget: projectBudget(world, region.id),
+      capitalStockMillions: finiteOrNull(world.capitalStock?.[region.id]),
+      budget: projectRegionBudget(world, region.id),
+      macro: projectRegionMacro(world, region),
+      sectors: projectRegionSectors(world, region),
     },
     demographics: projectDemographics(world, region),
     partySupport: projectPartySupport(world, countryId, region.id),
     electoratePool: independent !== null && unregistered !== null ? { independent, unregistered } : null,
     office: projectOffice(world, region.id),
+    viewer: projectRegionViewer(world, region),
     chambers: projectChambers(world, region),
     elections: matched.slice(page * size, page * size + size).map((election) => projectElection(world, election)),
     electionQuery,
