@@ -33,13 +33,55 @@ export interface ElectionView {
   candidacy: ActionView;
 }
 export interface NewsView { id: string; title: string; body: string; date: string; }
+/** Chamber destination/label from the legislature configuration. */
+export interface LegislatureChamberView {
+  key: string;
+  name: string;
+  shortName: string;
+  seats: number;
+  elected: boolean;
+  description: string | null;
+  activeCount: number;
+  completedCount: number;
+}
+/** Chamber committee plus the active bills referred to it. */
+export interface LegislatureCommitteeView {
+  id: string;
+  name: string;
+  chamberKey: string;
+  chamberName: string;
+  jurisdiction: string[];
+  chairName: string | null;
+  memberCount: number;
+  activeBillIds: string[];
+}
+/** Open bill with its status and next procedural action. */
+export interface LegislatureScheduleView {
+  billId: string;
+  title: string;
+  chamberKey: string;
+  chamberName: string;
+  status: string;
+  statusLabel: string;
+  nextAction: string;
+  dueTurn: number | null;
+  overdue: boolean;
+}
 export interface LegislatureView {
   office: string | null;
+  /** Playable country the legislature belongs to; keys persisted nav context. */
+  countryId?: string;
   proposals: { id: string; title: string; description: string }[];
   sponsor: ActionView;
-  bills: { id: string; title: string; status: string; chamber: string; sponsorName: string;
+  bills: { id: string; title: string; status: string; chamber: string; chamberKey?: string; sponsorName: string;
     votesFor: number; votesAgainst: number; votesAbstain: number;
     playerVote: "for" | "against" | "abstain" | null; voting: ActionView; }[];
+  /** Configured chambers for this country (index.ts projection). */
+  chambers?: LegislatureChamberView[];
+  /** Committees for this country with their active bill queues. */
+  committees?: LegislatureCommitteeView[];
+  /** Floor schedule of open bills (status + next action). */
+  schedule?: LegislatureScheduleView[];
 }
 export interface FinanceView {
   cash: number; savings: number; currency: string; savingsHolder: string;

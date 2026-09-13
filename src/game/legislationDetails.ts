@@ -21,23 +21,14 @@ import {
   getLaw,
   type WorldState,
 } from "@ahdclient/engine";
+import {
+  ACTIVE_BILL_STATUSES,
+  buildChamberNavigation,
+  buildCommitteeNavigation,
+  buildFloorSchedule,
+} from "./legislature";
 
-export const ACTIVE_BILL_STATUSES: ReadonlySet<string> = new Set([
-  "proposed",
-  "active",
-  "active_other",
-  "active_both",
-  "veto_override",
-]);
-
-export const COMPLETED_BILL_STATUSES: ReadonlySet<string> = new Set([
-  "enrolled",
-  "vetoed",
-  "override_failed",
-  "signed",
-  "failed",
-  "withdrawn",
-]);
+export { ACTIVE_BILL_STATUSES, COMPLETED_BILL_STATUSES } from "./legislature";
 
 const VOTING_OPEN_STATUSES: ReadonlySet<string> = new Set(["active", "active_other", "veto_override"]);
 
@@ -61,8 +52,39 @@ export interface LegislationBillMeta {
 export interface LegislationChamberGroup {
   chamberKey: string;
   chamberName: string;
+  /** Config labels read from world.legislatures[countryId].chambers. */
+  shortName: string;
+  seats: number;
+  elected: boolean;
+  description: string | null;
   active: LegislationBillMeta[];
   completed: LegislationBillMeta[];
+}
+
+export interface LegislationCommitteeGroup {
+  id: string;
+  name: string;
+  chamberKey: string;
+  chamberName: string;
+  jurisdiction: string[];
+  chairName: string | null;
+  memberCount: number;
+  /** Bills currently referred to this committee and still on the floor. */
+  active: LegislationBillMeta[];
+  completed: LegislationBillMeta[];
+}
+
+export interface LegislationFloorScheduleEntry {
+  billId: string;
+  title: string;
+  chamberKey: string;
+  chamberName: string;
+  status: string;
+  statusLabel: string;
+  /** Next procedural action the engine's timer will apply. */
+  nextAction: string;
+  dueTurn: number | null;
+  overdue: boolean;
 }
 
 export interface LegislationLevelView {
@@ -123,7 +145,12 @@ export interface LegislationBillDetails extends LegislationBillMeta {
 export interface LegislationDetailsQuery {
   office: string | null;
   playerChamberKey: string | null;
+  countryId: string;
   chambers: LegislationChamberGroup[];
+  /** Chamber committees and their active bill queues (engine referrals). */
+  committees: LegislationCommitteeGroup[];
+  /** Open bills with status + next procedural action. */
+  schedule: LegislationFloorScheduleEntry[];
   proposals: LegislationProposalDetails[];
   selectedBill: LegislationBillDetails | null;
   selectedProposal: LegislationProposalDetails | null;
@@ -150,13 +177,17 @@ export { snapTaxRate } from "./taxRate";
 /**
  * Build sponsorBill params for a catalog entry. Attaches taxRate only for
  * tax-kind entries (the one option param the engine supports); legal levels
- * are never attached because the engine accepts no such param.
+ * are never attached because the engine accepts no such param. originChamber
+ * is the one routing param the engine accepts (execute.ts:829) so sponsorship
+ * follows the chamber the player has selected. Source of supported params:
+ * packages/engine/src/actions/execute.ts:770-888.
  */
 export function sponsorParamsForLegislation(
   catalogId: string,
-  opts: { taxRate?: number } = {},
-): { catalogId: string; taxRate?: number } {
+  opts: { taxRate?: number; originChamber?: string } = {},
+): { catalogId: string; taxRate?: number; originChamber?: string } {
   const entry = getLaw(catalogId);
+  const chamber = opts.originChamber ? { originChamber: opts.originChamber } : {};
   if (entry?.kind === "tax" && entry.taxPolicy) {
     return {
       catalogId,
@@ -171,9 +202,10 @@ export function sponsorParamsForLegislation(
         },
         opts.taxRate,
       ),
+      ...chamber,
     };
   }
-  return { catalogId };
+  return { catalogId, ...chamber };
 }
 
 export function buildLegislationDetails(
@@ -302,18 +334,59 @@ export function buildLegislationDetails(
   const metas = countryBills.map(toMeta);
 
   const groups = new Map<string, LegislationChamberGroup>();
-  for (const chamber of legConfig?.chambers ?? []) {
-    groups.set(chamber.key, { chamberKey: chamber.key, chamberName: chamber.name, active: [], completed: [] });
+  for (const chamber of buildChamberNavigation(world, countryId)) {
+    groups.set(chamber.key, {
+      chamberKey: chamber.key,
+      chamberName: chamber.name,
+      shortName: chamber.shortName,
+      seats: chamber.seats,
+      elected: chamber.elected,
+      description: chamber.description,
+      active: [],
+      completed: [],
+    });
   }
   for (const meta of metas) {
     let group = groups.get(meta.chamberKey);
     if (!group) {
-      group = { chamberKey: meta.chamberKey, chamberName: meta.chamberName, active: [], completed: [] };
+      group = {
+        chamberKey: meta.chamberKey,
+        chamberName: meta.chamberName,
+        shortName: meta.chamberName,
+        seats: 0,
+        elected: false,
+        description: null,
+        active: [],
+        completed: [],
+      };
       groups.set(meta.chamberKey, group);
     }
     if (ACTIVE_BILL_STATUSES.has(meta.status)) group.active.push(meta);
     else group.completed.push(meta);
   }
+
+  const metaById = new Map(metas.map((meta) => [meta.id, meta]));
+  const committees: LegislationCommitteeGroup[] = buildCommitteeNavigation(world, countryId).map((committee) => {
+    const active = committee.activeBillIds
+      .map((id) => metaById.get(id))
+      .filter((meta): meta is LegislationBillMeta => meta !== undefined);
+    const completed = countryBills
+      .filter((bill) => bill.committeeId === committee.id && !ACTIVE_BILL_STATUSES.has(bill.status))
+      .map(toMeta);
+    return {
+      id: committee.id,
+      name: committee.name,
+      chamberKey: committee.chamberKey,
+      chamberName: committee.chamberName,
+      jurisdiction: committee.jurisdiction,
+      chairName: committee.chairName,
+      memberCount: committee.memberCount,
+      active,
+      completed,
+    };
+  });
+
+  const schedule: LegislationFloorScheduleEntry[] = buildFloorSchedule(world, countryId);
 
   const selectedBillSource = selection.billId
     ? countryBills.find((bill) => bill.id === selection.billId) ?? null
@@ -362,7 +435,10 @@ export function buildLegislationDetails(
         ? "Head of state"
         : null,
     playerChamberKey: seat?.countryId === countryId ? seat.chamberKey : null,
+    countryId,
     chambers: [...groups.values()],
+    committees,
+    schedule,
     proposals,
     selectedBill,
     selectedProposal,

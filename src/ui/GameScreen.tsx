@@ -434,7 +434,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
           {route === "partyManagement" && <DetailQuery load={loadPartyManagement} revision={world} label="Party management">{management => <PartyManagementPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "search" && <SearchPanel load={search} revision={world} onOpen={openSearchResult} snapshot={searchSnapshot} onSnapshot={updateSearchSnapshot} />}
           {route === "markets" && <MarketsRoute initialId={detailId} load={loadMarkets} revision={world} busy={busy} onAction={onAction} />}
-          {route === "legislationDetails" && <LegislationRoute initialId={detailId} load={loadLegislation} revision={world} busy={busy} onAction={onAction} />}
+          {route === "legislationDetails" && <LegislationRoute initialId={detailId} countryId={world.countryId} load={loadLegislation} revision={world} busy={busy} onAction={onAction} />}
           {route === "help" && <HelpPanel />}
           {route === "settings" && <SettingsPanel value={preferences} onChange={onPreferencesChange} error={preferencesError} />}
           {route === "profile" ? <ProfileRoute load={loadProfile} revision={world} busy={busy} onUpdateProfile={onUpdateProfile} viewerDisablesAutoplay={preferences.disableAutoplayOnOtherProfiles} onNavigate={(next, id) => {
