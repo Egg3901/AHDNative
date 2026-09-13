@@ -1,7 +1,12 @@
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { LegislatureView } from "../game/types";
+import { LEGISLATURE_NAV_STORAGE_KEY } from "../game/legislature";
+
+beforeEach(() => {
+  window.localStorage.clear();
+});
 
 function makeLegislature(overrides: Partial<LegislatureView> = {}): LegislatureView {
   return {
@@ -155,5 +160,96 @@ describe("LegislaturePanel", () => {
     await user.click(screen.getByRole("button", { name: /next page/i }));
     expect(screen.getByRole("article", { name: "Bill 24" })).toBeInTheDocument();
     expect(screen.queryByRole("article", { name: "Bill 0" })).not.toBeInTheDocument();
+  });
+
+  const houseChamber = {
+    key: "house", name: "House of Representatives", shortName: "House", seats: 435, elected: true,
+    description: "435 representatives, two-year terms.", activeCount: 1, completedCount: 0,
+  };
+  const senateChamber = {
+    key: "senate", name: "Senate", shortName: "Senate", seats: 100, elected: true,
+    description: null, activeCount: 0, completedCount: 0,
+  };
+  const chamberBill = (id: string, title: string, chamberKey: string, chamber: string) => ({
+    id, title, status: "active", chamber, chamberKey, sponsorName: "Ada",
+    votesFor: 1, votesAgainst: 0, votesAbstain: 0, playerVote: null as null,
+    voting: { id: "voteOnBill", name: "Vote", description: "Vote", cost: 0, available: true },
+  });
+
+  it("renders chamber destinations from config and filters bills to the selection", async () => {
+    const user = userEvent.setup();
+    const LegislaturePanel = await renderPanel();
+    render(<LegislaturePanel
+      legislature={makeLegislature({
+        countryId: "US",
+        chambers: [houseChamber, senateChamber],
+        bills: [chamberBill("h1", "House Bill", "house", "House of Representatives"), chamberBill("s1", "Senate Bill", "senate", "Senate")],
+      })}
+      busy={false}
+      onAction={vi.fn()}
+    />);
+    expect(screen.getByRole("button", { name: "Show House of Representatives bills" })).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "House Bill" })).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "Senate Bill" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Show Senate bills" }));
+    expect(screen.getByRole("article", { name: "Senate Bill" })).toBeInTheDocument();
+    expect(screen.queryByRole("article", { name: "House Bill" })).not.toBeInTheDocument();
+    expect(screen.getByText(/100 seats/)).toBeInTheDocument();
+  });
+
+  it("shows chamber committees with their queues and the floor schedule", async () => {
+    const LegislaturePanel = await renderPanel();
+    render(<LegislaturePanel
+      legislature={makeLegislature({
+        countryId: "US",
+        chambers: [houseChamber],
+        committees: [{
+          id: "com-US-house-finance", name: "House of Representatives Finance", chamberKey: "house",
+          chamberName: "House of Representatives", jurisdiction: ["economy", "infrastructure"],
+          chairName: "Ada", memberCount: 217, activeBillIds: ["b1"],
+        }],
+        schedule: [{
+          billId: "b1", title: "Wage Bill", chamberKey: "house", chamberName: "House of Representatives",
+          status: "active", statusLabel: "Voting Open", nextAction: "Origin-chamber vote closes", dueTurn: 12, overdue: false,
+        }],
+      })}
+      busy={false}
+      onAction={vi.fn()}
+    />);
+    expect(screen.getByLabelText("Committee House of Representatives Finance")).toBeInTheDocument();
+    expect(screen.getByText(/Queue: Wage Bill/)).toBeInTheDocument();
+    expect(screen.getByText("Floor schedule")).toBeInTheDocument();
+    expect(screen.getByText(/Origin-chamber vote closes \(turn 12\)/)).toBeInTheDocument();
+  });
+
+  it("sponsors a bill in the selected chamber", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const LegislaturePanel = await renderPanel();
+    render(<LegislaturePanel
+      legislature={makeLegislature({ countryId: "US", chambers: [houseChamber, senateChamber] })}
+      busy={false}
+      onAction={onAction}
+    />);
+    await user.click(screen.getByRole("button", { name: "Show Senate bills" }));
+    await user.click(screen.getByRole("button", { name: /sponsor bill/i }));
+    expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "cat-a", originChamber: "senate" });
+  });
+
+  it("restores the persisted chamber context across a reload", async () => {
+    window.localStorage.setItem(LEGISLATURE_NAV_STORAGE_KEY, JSON.stringify({ US: { chamberKey: "senate", billId: null } }));
+    const LegislaturePanel = await renderPanel();
+    render(<LegislaturePanel
+      legislature={makeLegislature({
+        countryId: "US",
+        chambers: [houseChamber, senateChamber],
+        bills: [chamberBill("h1", "House Bill", "house", "House of Representatives"), chamberBill("s1", "Senate Bill", "senate", "Senate")],
+      })}
+      busy={false}
+      onAction={vi.fn()}
+    />);
+    expect(screen.getByRole("button", { name: "Show Senate bills" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("article", { name: "Senate Bill" })).toBeInTheDocument();
+    expect(screen.queryByRole("article", { name: "House Bill" })).not.toBeInTheDocument();
   });
 });

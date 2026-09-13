@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import {
+  advanceTurn,
   createWorld,
   deserializeSave,
   executeAction,
@@ -133,5 +134,66 @@ describe("legislationDetails query (detached, bounded)", () => {
     const query = buildLegislationDetails(hosWorld());
     expect("world" in query).toBe(false);
     expect(JSON.stringify(query).length).toBeLessThan(256 * 1024);
+  });
+
+  it("labels chambers from the legislature configuration and exposes seeded committees", () => {
+    const query = buildLegislationDetails(hosWorld());
+    expect(query.countryId).toBe("US");
+    const house = query.chambers.find((c) => c.chamberKey === "house")!;
+    expect(house).toMatchObject({ chamberName: "House of Representatives", shortName: "House", seats: 435, elected: true });
+    expect(house.description).toMatch(/two-year terms/i);
+    // Committees are seeded two per elected chamber (world.ts:538-572).
+    expect(query.committees.map((c) => c.id)).toContain("com-US-house-finance");
+    expect(query.committees.map((c) => c.id)).toContain("com-US-senate-judiciary");
+    const finance = query.committees.find((c) => c.id === "com-US-house-finance")!;
+    expect(finance).toMatchObject({ chamberKey: "house", chamberName: "House of Representatives", jurisdiction: ["economy", "infrastructure"] });
+    expect(finance.memberCount).toBeGreaterThan(0);
+    expect(finance.chairName).toBeTruthy();
+    // A fresh world has no open bills, so the floor is empty.
+    expect(query.schedule).toEqual([]);
+  });
+
+  it("schedules the origin-chamber vote and committee referral for a sponsored bill", () => {
+    const world = hosWorld();
+    expect(executeAction(world, "player", "sponsorBill", {
+      catalogId: "us.economy.workerSecurity.primary",
+      originChamber: "house",
+    }).ok).toBe(true);
+    const bill = world.bills[world.bills.length - 1]!;
+
+    const proposed = buildLegislationDetails(world, { billId: bill.id });
+    expect(proposed.schedule.find((s) => s.billId === bill.id)).toMatchObject({
+      status: "proposed",
+      statusLabel: "Proposed",
+      chamberKey: "house",
+      chamberName: "House of Representatives",
+      dueTurn: null,
+    });
+    expect(proposed.schedule.find((s) => s.billId === bill.id)?.nextAction).toMatch(/committee/i);
+
+    // One turn activates the bill (billLifecycle.ts:64-79) and refers it to the
+    // House Finance committee (category "economy").
+    advanceTurn(world);
+    const active = buildLegislationDetails(world, { billId: bill.id });
+    const entry = active.schedule.find((s) => s.billId === bill.id)!;
+    expect(entry).toMatchObject({ status: "active", statusLabel: "Voting Open" });
+    expect(entry.nextAction).toMatch(/vote closes/i);
+    expect(entry.dueTurn).toBe(bill.votingEndsOnTurn);
+    const finance = active.committees.find((c) => c.id === "com-US-house-finance")!;
+    expect(finance.active.map((b) => b.id)).toContain(bill.id);
+  });
+
+  it("reads the opener committee queue and completed bill assignment from the fixture", () => {
+    const raw = gunzipSync(readFileSync(new URL("../../fixtures/career-t95-1953-US.save.json.gz", import.meta.url))).toString("utf8");
+    const query = buildLegislationDetails(deserializeSave(raw));
+    const finance = query.committees.find((c) => c.id === "com-US-senate-finance")!;
+    expect(finance.completed.map((b) => b.id)).toContain("bill-79-6-us.economy.stability.primary");
+  });
+
+  it("sponsor params carry the selected origin chamber for routing", () => {
+    expect(sponsorParamsForLegislation("us.economy.workerSecurity.primary", { originChamber: "house" }))
+      .toEqual({ catalogId: "us.economy.workerSecurity.primary", originChamber: "house" });
+    expect(sponsorParamsForLegislation("us.tax.incomeTax", { taxRate: 42, originChamber: "senate" }))
+      .toEqual({ catalogId: "us.tax.incomeTax", taxRate: 42, originChamber: "senate" });
   });
 });

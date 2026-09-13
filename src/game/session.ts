@@ -8,6 +8,7 @@ import { projectPartyManagement } from "./partyManagement";
 import { searchWorld, type SearchFilter } from "./search";
 import { projectMarkets } from "./markets";
 import { buildLegislationDetails, type LegislationSelection } from "./legislationDetails";
+import { buildChamberNavigation, buildCommitteeNavigation, buildFloorSchedule } from "./legislature";
 import { projectWorldOverview } from "./worldOverview";
 import { projectNation } from "./nation";
 import { projectPolitics, projectPartyMembership } from "./politics";
@@ -511,6 +512,10 @@ function projectLegislature(world: WorldState): LegislatureView {
   return {
     office: seat ? `${chamberName(seat.countryId, seat.chamberKey)} · ${world.countries[seat.countryId]?.name ?? seat.countryId}`
       : player.mode === "hos" ? "Head of state" : null,
+    countryId: player.countryId,
+    chambers: buildChamberNavigation(world, player.countryId),
+    committees: buildCommitteeNavigation(world, player.countryId),
+    schedule: buildFloorSchedule(world, player.countryId),
     proposals: getCatalog(player.countryId, Number(world.meta.date.slice(0, 4)))
       .filter((entry) => entry.status === "available" && entry.kind !== "tax")
       .map(({ id, title, description }) => ({ id, title, description })),
@@ -527,7 +532,7 @@ function projectLegislature(world: WorldState): LegislatureView {
         const reason = !seat ? "Win a legislative seat before voting."
           : seat.countryId !== bill.countryId || seat.chamberKey !== bill.currentChamber ? "This bill is in another chamber."
           : !votingOpen ? "Voting is not open on this bill." : undefined;
-        return { id: bill.id, title: bill.title, status: bill.status, chamber: chamberName(bill.countryId, bill.currentChamber), sponsorName: bill.sponsorName,
+        return { id: bill.id, title: bill.title, status: bill.status, chamber: chamberName(bill.countryId, bill.currentChamber), chamberKey: bill.currentChamber, sponsorName: bill.sponsorName,
           votesFor: votingOpen ? liveTally.for : (other ? bill.otherChamberVotesFor : override ? bill.vetoOverrideVotesFor : bill.votesFor) ?? 0,
           votesAgainst: votingOpen ? liveTally.against : (other ? bill.otherChamberVotesAgainst : override ? bill.vetoOverrideVotesAgainst : bill.votesAgainst) ?? 0,
           votesAbstain: votingOpen ? liveTally.abstain : (other ? bill.otherChamberVotesAbstain : override ? 0 : bill.votesAbstain) ?? 0,

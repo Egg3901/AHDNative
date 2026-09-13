@@ -7,10 +7,15 @@ function makeQuery(): LegislationDetailsQuery {
   return {
     office: "House of Representatives · United States",
     playerChamberKey: "house",
+    countryId: "US",
     chambers: [
       {
         chamberKey: "house",
         chamberName: "House of Representatives",
+        shortName: "House",
+        seats: 435,
+        elected: true,
+        description: "435 representatives, two-year terms.",
         active: [
           {
             id: "bill-1", title: "Wage Bill", status: "active",
@@ -34,10 +39,16 @@ function makeQuery(): LegislationDetailsQuery {
       {
         chamberKey: "senate",
         chamberName: "Senate",
+        shortName: "Senate",
+        seats: 100,
+        elected: true,
+        description: "100 senators, six-year terms.",
         active: [],
         completed: [],
       },
     ],
+    committees: [],
+    schedule: [],
     proposals: [
       {
         id: "us.economy.workerSecurity.primary",
@@ -218,7 +229,7 @@ describe("LegislationDetailsPanel", () => {
     query.selectedProposal = query.proposals[0];
     render(<LegislationDetailsPanel query={query} busy={false} onAction={onAction} />);
     await user.click(screen.getByRole("button", { name: /sponsor bill/i }));
-    expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "us.economy.workerSecurity.primary" });
+    expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "us.economy.workerSecurity.primary", originChamber: "house" });
   });
 
   it("sponsors a tax proposal with the supported rate param", async () => {
@@ -232,7 +243,7 @@ describe("LegislationDetailsPanel", () => {
     await user.clear(rate);
     await user.type(rate, "42");
     await user.click(screen.getByRole("button", { name: /sponsor bill/i }));
-    expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "us.tax.incomeTax", taxRate: 42 });
+    expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "us.tax.incomeTax", taxRate: 42, originChamber: "house" });
   });
 
   it("votes on an open bill through the supported vote action", async () => {
@@ -253,5 +264,47 @@ describe("LegislationDetailsPanel", () => {
     for (const button of screen.getAllByRole("button")) {
       expect(button).toBeDisabled();
     }
+  });
+
+  it("labels chambers from config and shows committees with queues plus the floor schedule", async () => {
+    const LegislationDetailsPanel = await renderPanel();
+    const query = makeQuery();
+    query.committees = [{
+      id: "com-US-house-finance", name: "House of Representatives Finance", chamberKey: "house",
+      chamberName: "House of Representatives", jurisdiction: ["economy", "infrastructure"],
+      chairName: "Ada", memberCount: 217,
+      active: [{
+        id: "bill-1", title: "Wage Bill", status: "active", chamberKey: "house", chamberName: "House of Representatives",
+        sponsorName: "Ada", votesFor: 12, votesAgainst: 7, votesAbstain: 3, playerVote: null,
+        votingOpen: true, votingAvailable: true, voteCost: 1,
+      }],
+      completed: [],
+    }];
+    query.schedule = [{
+      billId: "bill-1", title: "Wage Bill", chamberKey: "house", chamberName: "House of Representatives",
+      status: "active", statusLabel: "Voting Open", nextAction: "Origin-chamber vote closes", dueTurn: 7, overdue: false,
+    }];
+    render(<LegislationDetailsPanel query={query} busy={false} onAction={vi.fn()} />);
+    expect(screen.getByText(/435 seats/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Committee House of Representatives Finance")).toBeInTheDocument();
+    expect(screen.getByText(/Queue: Wage Bill/)).toBeInTheDocument();
+    expect(screen.getByText("Floor schedule")).toBeInTheDocument();
+    expect(screen.getByText(/Origin-chamber vote closes \(turn 7\)/)).toBeInTheDocument();
+  });
+
+  it("restores the persisted chamber selection and reports chamber changes", async () => {
+    const user = userEvent.setup();
+    const onSelectChamber = vi.fn();
+    const LegislationDetailsPanel = await renderPanel();
+    render(<LegislationDetailsPanel
+      query={makeQuery()}
+      busy={false}
+      onAction={vi.fn()}
+      initialChamberKey="senate"
+      onSelectChamber={onSelectChamber}
+    />);
+    expect(screen.getByRole("button", { name: "Show Senate bills" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "Show House of Representatives bills" }));
+    expect(onSelectChamber).toHaveBeenCalledWith("house");
   });
 });

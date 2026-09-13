@@ -86,11 +86,13 @@ function levelCostParts(level: {
 export function sponsorParamsForProposal(
   proposal: LegislationProposalDetails,
   rate?: number,
-): { catalogId: string; taxRate?: number } {
+  originChamber?: string,
+): { catalogId: string; taxRate?: number; originChamber?: string } {
+  const chamber = originChamber ? { originChamber } : {};
   if (proposal.taxPolicy) {
-    return { catalogId: proposal.id, taxRate: snapTaxRate(proposal.taxPolicy, rate) };
+    return { catalogId: proposal.id, taxRate: snapTaxRate(proposal.taxPolicy, rate), ...chamber };
   }
-  return { catalogId: proposal.id };
+  return { catalogId: proposal.id, ...chamber };
 }
 
 export interface LegislationDetailsPanelProps {
@@ -98,6 +100,10 @@ export interface LegislationDetailsPanelProps {
   busy: boolean;
   onAction: (id: string, params?: Record<string, string | number>) => void;
   onSelectBill?: (id: string | null) => void;
+  /** Restored chamber selection (persisted navigation context). */
+  initialChamberKey?: string;
+  /** Reports chamber changes so the caller can persist them. */
+  onSelectChamber?: (key: string) => void;
 }
 
 function BillCard({
@@ -170,8 +176,10 @@ function BillCard({
   );
 }
 
-export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill }: LegislationDetailsPanelProps) {
-  const [chamberKey, setChamberKey] = useState(query.selectedBill?.chamberKey ?? query.playerChamberKey ?? query.chambers[0]?.chamberKey ?? "");
+export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, initialChamberKey, onSelectChamber }: LegislationDetailsPanelProps) {
+  const [chamberKey, setChamberKey] = useState(
+    query.selectedBill?.chamberKey ?? initialChamberKey ?? query.playerChamberKey ?? query.chambers[0]?.chamberKey ?? "",
+  );
   const [expandedBillId, setExpandedBillId] = useState<string | null>(query.selectedBill?.id ?? null);
   const [catalogId, setCatalogId] = useState(
     query.selectedProposal?.id ?? query.proposals[0]?.id ?? "",
@@ -218,6 +226,12 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill }:
   };
 
   const chamber = query.chambers.find((c) => c.chamberKey === chamberKey) ?? query.chambers[0] ?? null;
+  const selectChamber = (key: string) => {
+    setChamberKey(key);
+    onSelectChamber?.(key);
+  };
+  const committees = query.committees.filter((committee) => !chamber || committee.chamberKey === chamber.chamberKey);
+  const schedule = query.schedule.filter((entry) => !chamber || entry.chamberKey === chamber.chamberKey);
   const proposal = query.proposals.find((p) => p.id === catalogId) ?? query.selectedProposal ?? null;
   const sponsorDisabled = busy || !proposal || !proposal.sponsorAvailable;
   const selected = query.selectedBill && expandedBillId === query.selectedBill.id ? query.selectedBill : null;
@@ -245,7 +259,7 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill }:
               key={c.chamberKey}
               type="button"
               className="ahd-btn ahd-btn-sm"
-              onClick={() => setChamberKey(c.chamberKey)}
+              onClick={() => selectChamber(c.chamberKey)}
               disabled={busy}
               aria-pressed={c.chamberKey === chamber?.chamberKey}
               aria-label={`Show ${c.chamberName} bills`}
@@ -254,7 +268,54 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill }:
             </button>
           ))}
         </div>
+        {chamber ? (
+          <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.4rem 0 0" }}>
+            {chamber.shortName} · {chamber.seats} seats · {chamber.elected ? "elected" : "appointed"}
+            {chamber.description ? ` · ${chamber.description}` : ""}
+          </p>
+        ) : null}
       </div>
+
+      {committees.length > 0 ? (
+        <div className="ahd-card ahd-card-pad">
+          <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Committees</h3>
+          <div style={{ display: "grid", gap: "0.4rem", marginTop: "0.45rem" }}>
+            {committees.map((committee) => (
+              <div key={committee.id} aria-label={`Committee ${committee.name}`} style={{ fontSize: "0.78rem" }}>
+                <div style={{ fontWeight: 700 }}>{committee.name}</div>
+                <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>
+                  {committee.chamberName} · {committee.jurisdiction.join(", ")} · {committee.memberCount} members
+                  {committee.chairName ? ` · Chair ${committee.chairName}` : ""}
+                </div>
+                <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>
+                  {committee.active.length === 0
+                    ? "No bills in queue."
+                    : `Queue: ${committee.active.map((bill) => bill.title).join(", ")}`}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {schedule.length > 0 ? (
+        <div className="ahd-card ahd-card-pad">
+          <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Floor schedule</h3>
+          <ul style={{ listStyle: "none", margin: "0.45rem 0 0", padding: 0, display: "grid", gap: "0.35rem" }}>
+            {schedule.map((entry) => (
+              <li key={entry.billId} style={{ fontSize: "0.78rem" }}>
+                <span style={{ fontWeight: 700 }}>{entry.title}</span>
+                {` · ${entry.chamberName} · ${entry.statusLabel}`}
+                <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>
+                  {entry.nextAction}
+                  {entry.dueTurn !== null ? ` (turn ${entry.dueTurn})` : ""}
+                  {entry.overdue ? " · overdue" : ""}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {selected ? (
         <div className="ahd-card ahd-card-pad">
@@ -420,7 +481,11 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill }:
                   const rate = taxRate.trim() === "" ? undefined : Number(taxRate);
                   onAction(
                     "sponsorBill",
-                    sponsorParamsForProposal(proposal, rate === undefined || Number.isNaN(rate) ? undefined : rate),
+                    sponsorParamsForProposal(
+                      proposal,
+                      rate === undefined || Number.isNaN(rate) ? undefined : rate,
+                      chamber?.chamberKey,
+                    ),
                   );
                 }}
                 disabled={sponsorDisabled}
