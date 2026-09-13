@@ -205,6 +205,10 @@ describe("advanceTurn", () => {
       "inflationRecalc",
       "economicVitalSigns",
       "recordWorldHistory",
+      // #113 international organizations, at the reference ordering: mainline
+      // runs internationalOrganizations (81) before settlement (83) and before
+      // nuclearProduction (inside ministerialOrderProcessing, ~106).
+      "internationalOrganizations",
       "nuclearProduction",
       "warsTurn",
       "coldWarTension",
