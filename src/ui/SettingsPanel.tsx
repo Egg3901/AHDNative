@@ -115,7 +115,7 @@ export function SettingsPanel({ value, onChange, error }: SettingsPanelProps) {
   const update = (changes: Partial<Preferences>) => onChange({ ...value, ...changes });
   return (
     <div className="ahd-stack" aria-label="Settings">
-      <header className="ahd-card ahd-card-pad">
+      <header className="ahd-card ahd-card-pad ahd-hero">
         <div className="ahd-eyebrow">Device settings</div>
         <h1 className="ahd-h1" style={{ marginTop: "0.22rem" }}>Settings</h1>
         <p className="ahd-muted" style={{ fontSize: "0.8rem", lineHeight: 1.5, margin: "0.4rem 0 0" }}>

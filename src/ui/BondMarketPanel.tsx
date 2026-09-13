@@ -14,7 +14,7 @@ export function BondMarketPanel({ market, busy, onAction, selectedId, onSelect }
   const bond = market.bonds.find(item => item.id === selectedId) ?? market.bonds[0];
   const units = /^[1-9]\d*$/.test(quantity.trim()) ? Number(quantity) : NaN;
   return <div className="ahd-stack">
-    <div className="ahd-card ahd-card-pad">
+    <div className="ahd-card ahd-card-pad ahd-hero">
       <h2 className="ahd-h2">Sovereign bonds</h2>
       <p className="ahd-help">Government debt issues, annual coupons and your holdings. Trade domestic issues using personal cash.</p>
       <p>Available cash: {formatFinanceMoney(market.playerCash, market.currency)}</p>

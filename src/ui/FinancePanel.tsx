@@ -42,7 +42,7 @@ function AvailabilityHint({ cost, available, disabledReason }: { cost: number; a
 function PortfolioSection({ finance }: { finance: FinanceView }) {
   return (
     <div className="ahd-stack">
-      <div className="ahd-card ahd-card-pad">
+      <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">Portfolio</h2>
         <dl style={{ display: "flex", flexDirection: "column", gap: "0.35rem", margin: "0.5rem 0 0" }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
@@ -65,7 +65,7 @@ function PortfolioSection({ finance }: { finance: FinanceView }) {
         {finance.holdings.length === 0 ? (
           <div className="ahd-empty">No holdings.</div>
         ) : (
-          <ul style={{ listStyle: "none", margin: "0.55rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <ul className="ahd-grid ahd-grid-2" style={{ listStyle: "none", margin: "0.55rem 0 0", padding: 0 }}>
             {finance.holdings.map((h) => (
               <li
                 key={h.id}
@@ -124,7 +124,7 @@ function BankingSection({ finance, busy, onAction }: { finance: FinanceView; bus
 
   return (
     <div className="ahd-stack">
-      <div className="ahd-card ahd-card-pad">
+      <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">Banking</h2>
         <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", marginTop: "0.5rem" }}>
           <div style={{ fontSize: "0.82rem" }}>Cash</div>

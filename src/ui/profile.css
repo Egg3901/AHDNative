@@ -398,3 +398,27 @@ button.ahd-profile-chip:disabled {
   color: var(--ahd-muted);
   font-weight: 500;
 }
+
+/* Wide viewports (issue #224): the reference profile is a full-width hero
+   header over a multi-column body. Native keeps the exact same section order
+   in the DOM (so the approved phone column and its tests are untouched) and
+   flows the sections into two balanced reading columns from 1024px; the
+   character header spans both. Scoped through .ahd-screen so it wins over the
+   shared .ahd-stack flex rule regardless of bundle order. */
+@media (min-width: 1024px) {
+  .ahd-screen .ahd-profile {
+    display: block;
+    column-count: 2;
+    column-gap: 1rem;
+  }
+
+  .ahd-screen .ahd-profile > section {
+    break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+
+  .ahd-screen .ahd-profile > .ahd-profile-header {
+    column-span: all;
+    margin-bottom: 1rem;
+  }
+}

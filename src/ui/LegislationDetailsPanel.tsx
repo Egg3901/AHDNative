@@ -242,7 +242,7 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
 
   return (
     <div className="ahd-stack">
-      <div className="ahd-card ahd-card-pad">
+      <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">Legislature detail</h2>
         {query.office ? (
           <p style={{ fontSize: "0.82rem", margin: "0.35rem 0 0" }}>{query.office}</p>
@@ -353,7 +353,7 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
           {chamber.active.length === 0 ? (
             <div className="ahd-empty">No active bills in this chamber.</div>
           ) : (
-            <div className="ahd-stack">
+            <div className="ahd-grid ahd-grid-2">
               {chamber.active.map((bill) => (
                 <BillCard
                   key={bill.id}
@@ -374,7 +374,7 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
           {chamber.completed.length === 0 ? (
             <div className="ahd-empty">No completed bills in this chamber.</div>
           ) : (
-            <div className="ahd-stack">
+            <div className="ahd-grid ahd-grid-2">
               {chamber.completed.map((bill) => (
                 <BillCard
                   key={bill.id}

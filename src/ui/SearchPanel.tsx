@@ -68,7 +68,7 @@ export function SearchPanel({ load, revision, onOpen, snapshot, onSnapshot }: {
   };
   const filtering = Boolean(kind || location);
   return <div className="ahd-stack">
-    <div className="ahd-card ahd-card-pad">
+    <div className="ahd-card ahd-card-pad ahd-hero">
       <h1 className="ahd-h1">Search</h1>
       <p className="ahd-muted">Find your profile, nations, regions, companies, bonds, and your country's politicians, parties, elections, bills and referendums in this saved world.</p>
       <form onSubmit={event => { event.preventDefault(); setSubmitted(query.trim()); setAttempt(value => value + 1); }}>

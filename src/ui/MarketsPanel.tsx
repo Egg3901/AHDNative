@@ -117,7 +117,7 @@ function ListingList({
     return <div className="ahd-empty">{emptyMessage}</div>;
   }
   return (
-    <ul aria-label="Companies" style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+    <ul aria-label="Companies" className="ahd-grid ahd-grid-2" style={{ listStyle: "none", margin: 0, padding: 0 }}>
       {listings.map((listing) => (
         <li key={listing.id}>
           <button
@@ -695,7 +695,7 @@ export function MarketsPanel({ markets, busy, onAction, initialId = null, onSele
 
   return (
     <div className="ahd-stack">
-      <div className="ahd-card ahd-card-pad">
+      <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">Stock market</h2>
         <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.35rem 0 0" }}>
           {markets.listings.length} listed companies. Cash {formatFinanceMoney(markets.playerCash, markets.playerCurrency)}.

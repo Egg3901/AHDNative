@@ -14,7 +14,7 @@ function HelpSection({ title, children }: { title: string; children: React.React
 export function HelpPanel() {
   return (
     <div className="ahd-stack" aria-label="Help">
-      <header className="ahd-card ahd-card-pad">
+      <header className="ahd-card ahd-card-pad ahd-hero">
         <div className="ahd-eyebrow">Offline help</div>
         <h1 className="ahd-h1" style={{ marginTop: "0.22rem" }}>Help</h1>
         <p className="ahd-muted" style={{ fontSize: "0.8rem", lineHeight: 1.5, margin: "0.4rem 0 0" }}>

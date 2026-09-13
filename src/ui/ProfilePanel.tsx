@@ -234,7 +234,7 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
 
   return (
     <div className="ahd-stack ahd-profile">
-      <section aria-label="Character" className="ahd-card ahd-card-pad ahd-profile-header">
+      <section aria-label="Character" className="ahd-card ahd-card-pad ahd-profile-header ahd-hero">
         <div className="ahd-profile-idrow">
           <div className="ahd-profile-photo">
             {profile.avatarUrl ? (
