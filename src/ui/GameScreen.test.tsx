@@ -184,6 +184,52 @@ describe("GameScreen", () => {
     expect(buttons.every(button => button.tabIndex === 0)).toBe(true);
   });
 
+  it("preserves the viewed nation and player state across a Nations browse round trip", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    const onSave = vi.fn();
+    const onAction = vi.fn();
+    const onAdvanceTurn = vi.fn();
+    const emptyGovernment = {
+      governmentType: null, regime: null, approval: null, legitimacy: null, unrest: null,
+      status: null, formationType: null, confidence: null, governingParty: null,
+      headOfGovernment: null, executive: null, legislature: null,
+    };
+    // Real nation data reaches the Nations surface through loadWorldOverview.
+    const loadNations = async () => ({
+      era: "1953", turn: 1, date: "1953-01-01", playerCountryId: "US", playerHomeRegionId: "CA",
+      nations: [
+        { id: "US", name: "United States", playable: true, currency: "USD",
+          economy: { gdpMillions: 387_000, growthRate: 0.046, inflationRate: 0.0075, unemploymentRate: 0.029, outputGap: -1.25 },
+          government: emptyGovernment },
+        { id: "FR", name: "France", playable: false, currency: "FRF",
+          economy: { gdpMillions: 47_000, growthRate: 0.035, inflationRate: 0.025, unemploymentRate: 0.02, outputGap: 0 },
+          government: emptyGovernment },
+      ],
+      homeRegion: null,
+    });
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadNations} world={world} busy={false} onAdvanceTurn={onAdvanceTurn} onSave={onSave} onExit={vi.fn()} onAction={onAction} />);
+
+    await navigate(user, "Nations");
+    // The reference "switch nation view": changes only the viewed nation.
+    const view = await screen.findByRole("combobox", { name: "Nation view" });
+    await user.selectOptions(view, "FR");
+    expect(await screen.findByRole("heading", { name: "France" })).toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "Nation context" })).getByRole("note")).toHaveTextContent("Your country is United States (US)");
+
+    // Leaving and returning keeps the original nation browse context...
+    await navigate(user, "Profile");
+    await navigate(user, "Nations");
+    expect(await screen.findByRole("heading", { name: "France" })).toBeInTheDocument();
+
+    // ...and switching the nation view never touched save, actions or the turn.
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onAction).not.toHaveBeenCalled();
+    expect(onAdvanceTurn).not.toHaveBeenCalled();
+    expect(world.turn).toBe(1);
+    expect(world.countryId).toBe("US");
+  });
+
   it("shows empty states explicitly for each collection", async () => {
     const user = userEvent.setup();
     const world = makeWorld({ metrics: [], parties: [], elections: [], news: [], actions: [] });
@@ -615,6 +661,41 @@ describe("GameScreen navigation menu", () => {
     expect(within(region).getByText(/ACME/)).toBeInTheDocument();
     expect(screen.queryByRole("tabpanel")).not.toBeInTheDocument();
     within(screen.getByRole("navigation", { name: "Primary" })).getAllByRole("button").forEach(t => expect(t).not.toHaveAttribute("aria-current", "page"));
+  });
+
+  it("maps the reference Wallet destination to the Portfolio/Finance surface", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    const menu = await openMenu(user);
+    // Reference ExperimentalMobileMenu.tsx:191-197: Wallet -> /portfolio?tab=currency.
+    // Native has no forex tab; the wallet surface is Portfolio + Banking.
+    await user.click(within(menu).getByRole("button", { name: "Portfolio" }));
+    const portfolio = screen.getByRole("region", { name: "Portfolio" });
+    expect(within(portfolio).getByText("Cash")).toBeInTheDocument();
+    expect(within(portfolio).getByText("Savings")).toBeInTheDocument();
+    expect(within(portfolio).getByText("Stock holdings")).toBeInTheDocument();
+  });
+
+  it("exposes the avatar/profile identity flow and keeps unreachable reference rows absent", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    // Actions stays reachable from the identity flow: bottom nav + drawer group.
+    expect(within(screen.getByRole("navigation", { name: "Primary" })).getByRole("button", { name: "Actions" })).toBeInTheDocument();
+    const menu = await openMenu(user);
+    // The avatar/profile menu entry is Native's Profile group (reference profile
+    // card links at ExperimentalMobileMenu.tsx:169-197), with Wallet -> Portfolio.
+    const identity = within(menu).getByRole("group", { name: "Profile" });
+    for (const label of ["Profile", "Notifications", "Settings", "Portfolio"]) {
+      expect(within(identity).getByRole("button", { name: label })).toBeInTheDocument();
+    }
+    expect(within(menu).getByRole("group", { name: "Actions" })).toBeInTheDocument();
+    // Reference destinations with no Native surface (Map, Hall of Fame, My
+    // Corporation, Unions, Crises, Sectors) must not appear as placeholder rows.
+    for (const label of ["Map", "Hall of Fame", "My Corporation", "Unions", "Crises", "Sectors", "Currency Exchange", "Trade", "IMF"]) {
+      expect(within(menu).queryByRole("button", { name: label })).not.toBeInTheDocument();
+    }
   });
 
   it("renders Banking from world.finance and deposits through the real action", async () => {

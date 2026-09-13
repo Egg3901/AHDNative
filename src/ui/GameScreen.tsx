@@ -103,6 +103,10 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
   // Selected hub category survives route changes so Profile/footer deep-links
   // and returns never lose the player's filter selection.
   const [actionsCategory, setActionsCategory] = useState<ActionsCategoryFilter>("all");
+  // Nations browse context (the reference's "Switch nation view") survives route
+  // changes the same way, so returning to Nations lands on the viewed nation.
+  // It only changes whose details are shown — never the player's country.
+  const [nationContext, setNationContext] = useState<string>();
   const [menuOpen, setMenuOpen] = useState(false);
   const [openResource, setOpenResource] = useState<ResourceId | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -437,7 +441,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
               onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }}
             />
           )}
-          {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={detailId} onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }} />}</DetailQuery>}
+          {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={route === "nations" ? (detailId ?? nationContext) : detailId} onSelectNation={route === "nations" ? (id) => { setDetailId(undefined); setNationContext(id); } : undefined} onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }} />}</DetailQuery>}
           {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} revision={world} busy={busy} onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "bonds" && <BondMarketRoute initialId={detailId} load={loadBondMarket} revision={world} busy={busy} onAction={onAction} />}
