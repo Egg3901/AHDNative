@@ -17,6 +17,9 @@ import type {
   RegionsQuery,
   RegionsView,
 } from "../game/regions";
+import { RegionViewerCard } from "./RegionViewerCard";
+import { RegionMacroCard, RegionSectorsCard } from "./RegionEconomyCards";
+import type { DrawerRouteId } from "./MobileNavigation";
 
 const CHAMBER_MEMBER_PAGE_SIZE = 12;
 
@@ -26,6 +29,8 @@ export interface RegionsPanelProps {
   busy?: boolean;
   directoryOpen: boolean;
   onDirectoryOpenChange: (open: boolean) => void;
+  /** Opens a linked destination (election, office, profile) from the role rows. */
+  onNavigate?: (route: DrawerRouteId, id?: string) => void;
 }
 
 function number(value: number | null, maximumFractionDigits = 0): string {
@@ -426,11 +431,13 @@ function SelectedRegion({
   selected,
   busy,
   onQueryChange,
+  onNavigate,
 }: {
   view: RegionsView;
   selected: RegionDetailView;
   busy: boolean;
   onQueryChange: (query: RegionsQuery) => void;
+  onNavigate?: (route: DrawerRouteId, id?: string) => void;
 }) {
   const [electionDraft, setElectionDraft] = useState(selected.electionQuery);
   const [memberPages, setMemberPages] = useState<Record<string, number>>({});
@@ -466,10 +473,13 @@ function SelectedRegion({
         <dl className="ahd-stack" style={{ marginTop: "0.65rem", gap: "0.42rem" }}>
           <KeyValue label="Population" value={number(selected.population)} />
           <KeyValue label="GDP" value={millions(selected.economy.gdpMillions, currency)} note="millions" />
+          <KeyValue label="Capital stock" value={millions(selected.economy.capitalStockMillions, currency)} note="millions, per-region K" />
           {selected.senateClasses ? <KeyValue label="Senate classes" value={selected.senateClasses.join(", ")} /> : null}
           {selected.demographics.censusRegion ? <KeyValue label="Census region" value={selected.demographics.censusRegion} /> : null}
         </dl>
       </div>
+
+      <RegionViewerCard rows={selected.viewer} busy={busy} onNavigate={onNavigate} />
 
       <div className="ahd-grid ahd-grid-2">
         <OfficeCard office={selected.office} />
@@ -644,6 +654,11 @@ function SelectedRegion({
         </div>
       </div>
 
+      <div className="ahd-grid ahd-grid-2">
+        <RegionMacroCard macro={selected.economy.macro} currency={currency} />
+        <RegionSectorsCard sectors={selected.economy.sectors} currency={currency} />
+      </div>
+
       {hasDemographicData ? (
         <div className="ahd-card ahd-card-pad">
           <h2 className="ahd-h2">Demographics</h2>
@@ -691,7 +706,7 @@ function SelectedRegion({
   );
 }
 
-export function RegionsPanel({ query, onQueryChange, busy = false, directoryOpen, onDirectoryOpenChange }: RegionsPanelProps) {
+export function RegionsPanel({ query, onQueryChange, busy = false, directoryOpen, onDirectoryOpenChange, onNavigate }: RegionsPanelProps) {
   return (
     <div className="ahd-stack" aria-label={`${query.playerCountryName} regions`}>
       <div className="ahd-card ahd-card-pad">
@@ -710,7 +725,7 @@ export function RegionsPanel({ query, onQueryChange, busy = false, directoryOpen
         onQueryChange={onQueryChange}
       />
       {query.selected ? (
-        <SelectedRegion key={query.selected.id} view={query} selected={query.selected} busy={busy} onQueryChange={onQueryChange} />
+        <SelectedRegion key={query.selected.id} view={query} selected={query.selected} busy={busy} onQueryChange={onQueryChange} onNavigate={onNavigate} />
       ) : (
         <div className="ahd-empty">No region selected.</div>
       )}

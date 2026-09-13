@@ -121,4 +121,60 @@ describe("RegionsPanel", () => {
     expect(screen.getByText("No elections recorded for this region.")).toBeInTheDocument();
     expect(screen.queryByText("House of Representatives")).not.toBeInTheDocument();
   });
+
+  it("renders the role-gated Governor Office, My Election, and My Office rows with linked destinations", () => {
+    const world = electedWorld();
+    world.governors.AL.governorId = "player";
+    world.governors.AL.governorName = "Muse";
+    world.governors.AL.governorParty = "US_DEM";
+    world.elections.find((election) => election.id === "house:US:AL:c2")!.candidates.push({
+      id: "player",
+      name: "Muse",
+      partyId: "US_DEM",
+      isNPP: false,
+      incumbent: false,
+    });
+    const onNavigate = vi.fn();
+    render(
+      <RegionsPanel
+        query={projectRegions(world, { regionId: "AL" })}
+        onQueryChange={vi.fn()}
+        directoryOpen={false}
+        onDirectoryOpenChange={vi.fn()}
+        onNavigate={onNavigate}
+      />,
+    );
+
+    expect(screen.getByText("Governor Office")).toBeInTheDocument();
+    expect(screen.getByText("My Election")).toBeInTheDocument();
+    expect(screen.getByText("My Office")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open my active race" }));
+    expect(onNavigate).toHaveBeenCalledWith("electionDetails", "house:US:AL:c2");
+    fireEvent.click(screen.getByRole("button", { name: "Open my office" }));
+    expect(onNavigate).toHaveBeenCalledWith("legislature", "house");
+    fireEvent.click(screen.getByRole("button", { name: "Open governor office region" }));
+    expect(onNavigate).toHaveBeenCalledWith("regions", "AL");
+  });
+
+  it("shows an honest empty role state and hides the rows the engine cannot support", () => {
+    const world = createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "regions-panel-role-empty" });
+    render(<RegionsPanel query={projectRegions(world)} onQueryChange={vi.fn()} directoryOpen={false} onDirectoryOpenChange={vi.fn()} />);
+
+    expect(screen.getByText("You hold no office and have no active race recorded for this region.")).toBeInTheDocument();
+    expect(screen.queryByText("Governor Office")).not.toBeInTheDocument();
+    expect(screen.queryByText("My Election")).not.toBeInTheDocument();
+    expect(screen.queryByText("My Office")).not.toBeInTheDocument();
+  });
+
+  it("renders the regional economy macro, budget, and sector rows", () => {
+    const world = electedWorld();
+    render(<RegionsPanel query={projectRegions(world, { regionId: "AL" })} onQueryChange={vi.fn()} directoryOpen={false} onDirectoryOpenChange={vi.fn()} />);
+
+    expect(screen.getByRole("heading", { name: "National macro" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Regional budget" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sectors" })).toBeInTheDocument();
+    expect(screen.getAllByText(/revenue/).length).toBeGreaterThan(0);
+    expect(screen.getByText("National macro")).toBeInTheDocument();
+  });
 });
