@@ -16,6 +16,7 @@ import {
   type NotificationRoute,
   type ResolvedDestination,
 } from "../game/notifications";
+import { formatGameDate, type GameClock } from "../game/gameDate";
 
 export interface NotificationTarget {
   route: NotificationRoute;
@@ -113,13 +114,15 @@ function ActionMarker() {
   );
 }
 
-export function NotificationPreview({ items, unread, busy, onRead, onDelete, onOpenInbox }: {
+export function NotificationPreview({ items, unread, busy, onRead, onDelete, onOpenInbox, clock }: {
   items: NotificationItem[];
   unread: number;
   busy: boolean;
   onRead: (id: string) => void;
   onDelete: (id: string) => void;
   onOpenInbox: () => void;
+  /** World clock used to render each notice's game date on the reference calendar (#226). */
+  clock: GameClock;
 }) {
   const preview = previewItems(items);
   return (
@@ -138,7 +141,7 @@ export function NotificationPreview({ items, unread, busy, onRead, onDelete, onO
             <li key={item.id} className="ahd-card ahd-card-pad" style={{ borderLeft: item.unread ? "3px solid var(--ahd-primary)" : undefined }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "baseline" }}>
                 <span className="ahd-muted" style={{ fontSize: "0.66rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  {categoryLabel(item)} · Turn {item.turn}
+                  {categoryLabel(item)} · {formatGameDate(item.date, clock)}
                 </span>
                 {item.unread && item.actionRequired ? <ActionMarker /> : null}
               </div>
@@ -164,7 +167,7 @@ export function NotificationPreview({ items, unread, busy, onRead, onDelete, onO
   );
 }
 
-export function NotificationsInbox({ items, turn, busy, onRead, onDelete, onReadAll, onOpen, index, resolve }: {
+export function NotificationsInbox({ items, turn, busy, onRead, onDelete, onReadAll, onOpen, index, resolve, clock }: {
   items: NotificationItem[];
   turn: number;
   busy: boolean;
@@ -174,6 +177,8 @@ export function NotificationsInbox({ items, turn, busy, onRead, onDelete, onRead
   onOpen: (target: NotificationTarget) => void;
   index?: DestinationIndex;
   resolve?: (item: NotificationItem) => ResolvedDestination;
+  /** World clock used to render each notice's game date on the reference calendar (#226). */
+  clock: GameClock;
 }) {
   const [segment, setSegment] = useState<"all" | "action">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -250,7 +255,7 @@ export function NotificationsInbox({ items, turn, busy, onRead, onDelete, onRead
           aria-current={selected?.id === item.id ? "true" : undefined}
         >
           <span className="ahd-muted" style={{ fontSize: "0.66rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-            {categoryLabel(item)} · Turn {item.turn}
+            {categoryLabel(item)} · {formatGameDate(item.date, clock)}
           </span>
           <span style={{ display: "flex", gap: "0.4rem", alignItems: "center", fontWeight: item.unread ? 750 : 500, fontSize: "0.84rem" }}>
             {item.unread ? <span style={{ width: "0.45rem", height: "0.45rem", borderRadius: 999, background: "var(--ahd-primary)", flexShrink: 0 }} aria-label="Unread" /> : null}
@@ -329,7 +334,7 @@ export function NotificationsInbox({ items, turn, busy, onRead, onDelete, onRead
                 <span aria-hidden="true">←</span> Back to inbox
               </button>
               <span className="ahd-muted" style={{ fontSize: "0.66rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                {categoryLabel(selected)} · Turn {selected.turn}
+                {categoryLabel(selected)} · {formatGameDate(selected.date, clock)}
               </span>
               <h3 ref={detailHeadingRef} tabIndex={-1} style={{ margin: "0.2rem 0 0", fontSize: "0.95rem", fontWeight: 750, outline: "none" }}>{selected.title}</h3>
               {selected.body ? <p style={{ fontSize: "0.82rem", lineHeight: 1.55 }}>{selected.body}</p> : null}

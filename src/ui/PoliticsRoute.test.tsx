@@ -3,13 +3,16 @@ import userEvent from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
 import type { PoliticsView } from '../game/politics';
 import { PoliticsRoute } from './PoliticsRoute';
+
+// World clock anchoring the reference calendar for in-game dates (#226).
+const CLOCK = { turn: 1, date: '1953-01-13' };
 const politics: PoliticsView = { countryId: 'US', countryName: 'United States', currency: 'USD', playerPartyId: null, parties: [], elections: [], referendums: [], referendumRequest: { applicable: false, note: 'Referendums are only available in the UK in this local slice.', regions: [], action: { id: 'requestReferendum', name: 'Request Referendum', description: '', cost: 0, available: false, disabledReason: 'Referendums are UK-only.' } }, politicians: [] };
 
 it('recovers an on-demand query failure through the visible retry control', async () => {
   const load = vi.fn<() => Promise<PoliticsView>>()
     .mockRejectedValueOnce(new Error('Details unavailable'))
     .mockResolvedValueOnce(politics);
-  render(<PoliticsRoute load={load} revision={{}} section="parties" busy={false} onAction={vi.fn()} />);
+  render(<PoliticsRoute load={load} revision={{}} section="parties" clock={CLOCK} busy={false} onAction={vi.fn()} />);
   expect(await screen.findByRole('alert')).toHaveTextContent('Details unavailable');
   await userEvent.setup().click(screen.getByRole('button', { name: 'Retry details' }));
   expect(await screen.findByText(/No parties/)).toBeVisible();
@@ -21,7 +24,7 @@ it('ignores a stale response after an action replaces the world', async () => {
   const load = vi.fn<() => Promise<PoliticsView>>()
     .mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve; }))
     .mockResolvedValueOnce(politics);
-  const props = { load, section: 'parties' as const, busy: false, onAction: vi.fn() };
+  const props = { load, section: 'parties' as const, busy: false, onAction: vi.fn(), clock: CLOCK };
   const { rerender } = render(<PoliticsRoute {...props} revision={{ turn: 1 }} />);
   rerender(<PoliticsRoute {...props} revision={{ turn: 2 }} />);
   expect(await screen.findByText(/No parties/)).toBeVisible();

@@ -5,6 +5,9 @@ import userEvent from "@testing-library/user-event";
 import { NotificationBellButton, NotificationPreview, NotificationsInbox, type NotificationTarget } from "./Notifications";
 import type { NotificationItem } from "../game/notifications";
 
+// World clock anchoring the reference calendar for in-game dates (#226).
+const CLOCK = { turn: 1, date: "1953-01-13" };
+
 function item(overrides: Partial<NotificationItem> = {}): NotificationItem {
   return {
     id: "t1-a", key: "a", turn: 1, date: "1953-01-08", category: "election",
@@ -22,7 +25,7 @@ describe("notification preview controls", () => {
     const items = Array.from({ length: 7 }, (_, n) =>
       item({ id: `t1-n${n}`, key: `n${n}`, title: `Notice ${n}`, actionRequired: n === 0 }));
     const onOpenInbox = vi.fn();
-    render(<NotificationPreview items={items} unread={6} busy={false} onRead={props.onRead} onDelete={props.onDelete} onOpenInbox={onOpenInbox} />);
+    render(<NotificationPreview items={items} unread={6} clock={CLOCK} busy={false} onRead={props.onRead} onDelete={props.onDelete} onOpenInbox={onOpenInbox} />);
     expect(screen.getByText("6 unread")).toBeInTheDocument();
     expect(screen.getByText("Notice 0")).toBeInTheDocument();
     expect(screen.getByText("Notice 4")).toBeInTheDocument();
@@ -36,7 +39,7 @@ describe("notification preview controls", () => {
     const user = userEvent.setup();
     const onRead = vi.fn();
     const onDelete = vi.fn();
-    render(<NotificationPreview items={[item()]} unread={1} busy={false} onRead={onRead} onDelete={onDelete} onOpenInbox={props.onOpenInbox} />);
+    render(<NotificationPreview items={[item()]} unread={1} clock={CLOCK} busy={false} onRead={onRead} onDelete={onDelete} onOpenInbox={props.onOpenInbox} />);
     await user.click(screen.getByRole("button", { name: /mark read.*filing open/i }));
     expect(onRead).toHaveBeenCalledWith("t1-a");
     await user.click(screen.getByRole("button", { name: /delete.*filing open/i }));
@@ -44,7 +47,7 @@ describe("notification preview controls", () => {
   });
 
   it("shows an explicit empty preview", () => {
-    render(<NotificationPreview items={[]} unread={0} busy={false} onRead={props.onRead} onDelete={props.onDelete} onOpenInbox={props.onOpenInbox} />);
+    render(<NotificationPreview items={[]} unread={0} clock={CLOCK} busy={false} onRead={props.onRead} onDelete={props.onDelete} onOpenInbox={props.onOpenInbox} />);
     expect(screen.getByText(/no notifications/i)).toBeInTheDocument();
   });
 });
@@ -67,7 +70,7 @@ describe("notification inbox", () => {
   ];
 
   function renderInbox(overrides = {}) {
-    return render(<NotificationsInbox items={inbox} turn={3} busy={false}
+    return render(<NotificationsInbox items={inbox} turn={3} clock={CLOCK} busy={false}
       onRead={props.onRead} onDelete={props.onDelete} onReadAll={vi.fn()} onOpen={props.onOpen}
       index={{ elections: [{ id: "e7" }], parties: [], bills: [] }} {...overrides} />);
   }
@@ -99,7 +102,7 @@ describe("notification inbox", () => {
     const user = userEvent.setup();
     const onOpen = vi.fn();
     render(<NotificationsInbox items={[item({ destination: { route: "electionDetails", detailId: "gone" } })]}
-      turn={1} busy={false} onRead={props.onRead} onDelete={props.onDelete} onReadAll={vi.fn()} onOpen={onOpen}
+      turn={1} clock={CLOCK} busy={false} onRead={props.onRead} onDelete={props.onDelete} onReadAll={vi.fn()} onOpen={onOpen}
       resolve={ () => ({ route: "elections", detailId: undefined, fallbackUsed: true })} />);
     await user.click(screen.getByRole("button", { name: /open notification: filing open/i }));
     expect(screen.getByText(/no longer available/i)).toBeInTheDocument();
@@ -135,7 +138,7 @@ describe("review findings", () => {
     const [items, setItems] = useState(initial);
     const handleOpen = onOpen ?? (() => {});
     return (
-      <NotificationsInbox items={items} turn={3} busy={false}
+      <NotificationsInbox items={items} turn={3} clock={CLOCK} busy={false}
         onRead={(id) => setItems((prev) => prev.map((n) => (n.id === id ? { ...n, unread: false } : n)))}
         onDelete={(id) => setItems((prev) => prev.filter((n) => n.id !== id))}
         onReadAll={() => setItems((prev) => prev.map((n) => ({ ...n, unread: false })))}
@@ -161,7 +164,7 @@ describe("review findings", () => {
     const many = Array.from({ length: 120 }, (_, n) =>
       item({ id: `t1-n${n}`, key: `n${n}`, turn: 1, title: `Notice ${n}`,
         unread: n % 3 === 0, actionRequired: false }));
-    render(<NotificationsInbox items={many} turn={9} busy={false}
+    render(<NotificationsInbox items={many} turn={9} clock={CLOCK} busy={false}
       onRead={props.onRead} onDelete={props.onDelete} onReadAll={vi.fn()} onOpen={props.onOpen}
       index={{ elections: [], parties: [], bills: [] }} />);
     const rows = screen.getAllByRole("button", { name: /open notification:/i });
@@ -180,7 +183,7 @@ describe("review findings", () => {
     const many = Array.from({ length: 60 }, (_, n) =>
       item({ id: `t1-n${n}`, key: `n${n}`, turn: 1, title: `Notice ${n}`, actionRequired: false }));
     const onDelete = vi.fn();
-    render(<NotificationsInbox items={many} turn={9} busy={false}
+    render(<NotificationsInbox items={many} turn={9} clock={CLOCK} busy={false}
       onRead={props.onRead} onDelete={onDelete} onReadAll={vi.fn()} onOpen={props.onOpen}
       index={{ elections: [], parties: [], bills: [] }} />);
     expect(screen.getByRole("button", { name: /show more/i })).toBeInTheDocument();
@@ -190,7 +193,7 @@ describe("review findings", () => {
   });
 
   it("finding 3: busy disables read, delete, and row-open controls", async () => {
-    render(<NotificationsInbox items={reviewInbox} turn={3} busy={true}
+    render(<NotificationsInbox items={reviewInbox} turn={3} clock={CLOCK} busy={true}
       onRead={props.onRead} onDelete={props.onDelete} onReadAll={vi.fn()} onOpen={props.onOpen}
       index={{ elections: [{ id: "e7" }], parties: [{ id: "p9" }], bills: [] }} />);
     for (const button of screen.getAllByRole("button")) {
@@ -199,7 +202,7 @@ describe("review findings", () => {
         expect(button).toBeDisabled();
       }
     }
-    render(<NotificationPreview items={[item()]} unread={1} busy={true}
+    render(<NotificationPreview items={[item()]} unread={1} clock={CLOCK} busy={true}
       onRead={props.onRead} onDelete={props.onDelete} onOpenInbox={props.onOpenInbox} />);
     expect(screen.getByRole("button", { name: "Mark read: Filing open: Senate Race" })).toBeDisabled();
     for (const button of screen.getAllByRole("button", { name: "Delete: Filing open: Senate Race" })) {
@@ -234,7 +237,7 @@ describe("review findings", () => {
     const onOpen = vi.fn();
     const Wrapper = () => {
       const [items, setItems] = useState(reviewInbox);
-      return (<NotificationsInbox items={items} turn={3} busy={false}
+      return (<NotificationsInbox items={items} turn={3} clock={CLOCK} busy={false}
         onRead={props.onRead}
         onDelete={(id) => setItems((prev) => prev.filter((n) => n.id !== id))}
         onReadAll={vi.fn()} onOpen={onOpen}

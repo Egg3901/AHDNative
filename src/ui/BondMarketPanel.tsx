@@ -3,12 +3,14 @@ import type { BondMarketView } from '../game/bondMarket';
 import type { GameScreenProps } from '../game/types';
 import { quoteBondTrade } from '../game/bondTrade';
 import { formatFinanceMoney } from './FinancePanel';
+import { formatGameTurn, type GameClock } from '../game/gameDate';
 
 export function BondMarketPanel({ market, busy, onAction, selectedId, onSelect }: {
   market: BondMarketView; busy: boolean; onAction: GameScreenProps['onAction'];
   selectedId?: string | null; onSelect: (id: string) => void;
 }) {
   const [quantity, setQuantity] = useState('1');
+  const clock: GameClock = { turn: market.turn, date: market.date };
   const bond = market.bonds.find(item => item.id === selectedId) ?? market.bonds[0];
   const units = /^[1-9]\d*$/.test(quantity.trim()) ? Number(quantity) : NaN;
   return <div className="ahd-stack">
@@ -20,7 +22,7 @@ export function BondMarketPanel({ market, busy, onAction, selectedId, onSelect }
         <label className="ahd-field"><span className="ahd-label">Bond issue</span>
           <select className="ahd-input" aria-label="Bond issue" value={bond?.id} disabled={busy}
             onChange={event => { setQuantity('1'); onSelect(event.target.value); }}>
-            {market.bonds.map(item => <option key={item.id} value={item.id}>{item.issuerName} · {item.couponRate}% · matures turn {item.maturityTurn}</option>)}
+            {market.bonds.map(item => <option key={item.id} value={item.id}>{item.issuerName} · {item.couponRate}% · matures {formatGameTurn(item.maturityTurn, clock)}</option>)}
           </select>
         </label>}
     </div>
@@ -30,7 +32,7 @@ export function BondMarketPanel({ market, busy, onAction, selectedId, onSelect }
         <div className="ahd-kv"><dt>Price per unit</dt><dd style={{ margin: 0, textAlign: "right" }}>{formatFinanceMoney(Math.round(bond.faceValue * bond.marketPrice * 100) / 100, bond.currency)}</dd></div>
         <div className="ahd-kv"><dt>Face value per unit</dt><dd style={{ margin: 0, textAlign: "right" }}>{formatFinanceMoney(bond.faceValue, bond.currency)}</dd></div>
         <div className="ahd-kv"><dt>Annual coupon</dt><dd style={{ margin: 0, textAlign: "right" }}>{bond.couponRate}%</dd></div>
-        <div className="ahd-kv"><dt>Maturity</dt><dd style={{ margin: 0, textAlign: "right" }}>Turn {bond.maturityTurn} ({Math.max(0, bond.maturityTurn - market.turn)} turns remaining)</dd></div>
+        <div className="ahd-kv"><dt>Maturity</dt><dd style={{ margin: 0, textAlign: "right" }}>{formatGameTurn(bond.maturityTurn, clock)} ({Math.max(0, bond.maturityTurn - market.turn)} turns remaining)</dd></div>
         <div className="ahd-kv"><dt>Available units</dt><dd style={{ margin: 0, textAlign: "right" }}>{bond.publicFloat.toLocaleString()}</dd></div>
         <div className="ahd-kv"><dt>Your units</dt><dd style={{ margin: 0, textAlign: "right" }} aria-label="Your bond units">{bond.playerUnits.toLocaleString()}</dd></div>
         <div className="ahd-kv"><dt>Status</dt><dd style={{ margin: 0, textAlign: "right" }}>{bond.defaulted ? 'Defaulted' : bond.matured ? 'Matured' : 'Outstanding'}</dd></div>

@@ -4,6 +4,9 @@ import userEvent from "@testing-library/user-event";
 import type { LegislatureView } from "../game/types";
 import { LEGISLATURE_NAV_STORAGE_KEY } from "../game/legislature";
 
+// World clock anchoring the reference calendar for in-game dates (#226).
+const CLOCK = { turn: 1, date: "1953-01-13" };
+
 beforeEach(() => {
   window.localStorage.clear();
 });
@@ -37,10 +40,10 @@ describe("LegislaturePanel", () => {
   it("shows the player office, or No legislative seat without one", async () => {
     const LegislaturePanel = await renderPanel();
     const { rerender } = render(
-      <LegislaturePanel legislature={makeLegislature()} busy={false} onAction={vi.fn()} />,
+      <LegislaturePanel legislature={makeLegislature()} clock={CLOCK} busy={false} onAction={vi.fn()} />,
     );
     expect(screen.getByText("Representative")).toBeInTheDocument();
-    rerender(<LegislaturePanel legislature={makeLegislature({ office: null })} busy={false} onAction={vi.fn()} />);
+    rerender(<LegislaturePanel legislature={makeLegislature({ office: null })} clock={CLOCK} busy={false} onAction={vi.fn()} />);
     expect(screen.getByText("No legislative seat")).toBeInTheDocument();
   });
 
@@ -48,7 +51,7 @@ describe("LegislaturePanel", () => {
     const user = userEvent.setup();
     const onAction = vi.fn();
     const LegislaturePanel = await renderPanel();
-    render(<LegislaturePanel legislature={makeLegislature()} busy={false} onAction={onAction} />);
+    render(<LegislaturePanel legislature={makeLegislature()} clock={CLOCK} busy={false} onAction={onAction} />);
     const select = screen.getByLabelText("Legislation") as HTMLSelectElement;
     expect(screen.getByText("Workplace rules.")).toBeInTheDocument();
     await user.selectOptions(select, "cat-b");
@@ -60,7 +63,7 @@ describe("LegislaturePanel", () => {
   it("disables Sponsor bill when busy, sponsor unavailable, or nothing valid to sponsor", async () => {
     const LegislaturePanel = await renderPanel();
     const { rerender } = render(
-      <LegislaturePanel legislature={makeLegislature()} busy={true} onAction={vi.fn()} />,
+      <LegislaturePanel legislature={makeLegislature()} clock={CLOCK} busy={true} onAction={vi.fn()} />,
     );
     expect(screen.getByRole("button", { name: /sponsor bill/i })).toBeDisabled();
     rerender(
@@ -68,13 +71,13 @@ describe("LegislaturePanel", () => {
         legislature={makeLegislature({
           sponsor: { id: "sponsorBill", name: "Sponsor bill", description: "Sponsor", cost: 2, available: false, disabledReason: "Need a seat" },
         })}
-        busy={false}
+        clock={CLOCK} busy={false}
         onAction={vi.fn()}
       />,
     );
     expect(screen.getByRole("button", { name: /sponsor bill/i })).toBeDisabled();
     expect(screen.getAllByText(/need a seat/i).length).toBeGreaterThan(0);
-    rerender(<LegislaturePanel legislature={makeLegislature({ proposals: [] })} busy={false} onAction={vi.fn()} />);
+    rerender(<LegislaturePanel legislature={makeLegislature({ proposals: [] })} clock={CLOCK} busy={false} onAction={vi.fn()} />);
     expect(screen.getByRole("button", { name: /sponsor bill/i })).toBeDisabled();
   });
 
@@ -94,7 +97,7 @@ describe("LegislaturePanel", () => {
             },
           ],
         })}
-        busy={false}
+        clock={CLOCK} busy={false}
         onAction={onAction}
       />,
     );
@@ -125,7 +128,7 @@ describe("LegislaturePanel", () => {
             },
           ],
         })}
-        busy={false}
+        clock={CLOCK} busy={false}
         onAction={onAction}
       />,
     );
@@ -133,14 +136,14 @@ describe("LegislaturePanel", () => {
     expect(within(card).getByRole("button", { name: /for on wage bill/i })).toBeDisabled();
     expect(within(card).getAllByText(/another chamber/i).length).toBeGreaterThan(0);
     rerender(
-      <LegislaturePanel legislature={makeLegislature()} busy={true} onAction={onAction} />,
+      <LegislaturePanel legislature={makeLegislature()} clock={CLOCK} busy={true} onAction={onAction} />,
     );
     expect(screen.getByRole("article", { name: "Wage Bill" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /for on wage bill/i })).toBeDisabled();
     const signed = makeLegislature();
     signed.bills[0].status = "signed";
     signed.bills[0].playerVote = "for";
-    rerender(<LegislaturePanel legislature={signed} busy={false} onAction={onAction} />);
+    rerender(<LegislaturePanel legislature={signed} clock={CLOCK} busy={false} onAction={onAction} />);
     expect(screen.queryByRole("button", { name: /for on wage bill/i })).not.toBeInTheDocument();
     expect(screen.getByText("Your vote: for")).toBeInTheDocument();
   });
@@ -154,7 +157,7 @@ describe("LegislaturePanel", () => {
       playerVote: null as null,
       voting: { id: "voteOnBill", name: "Vote", description: "Vote", cost: 0, available: true },
     }));
-    render(<LegislaturePanel legislature={makeLegislature({ bills })} busy={false} onAction={vi.fn()} />);
+    render(<LegislaturePanel legislature={makeLegislature({ bills })} clock={CLOCK} busy={false} onAction={vi.fn()} />);
     expect(screen.getByRole("article", { name: "Bill 0" })).toBeInTheDocument();
     expect(screen.queryByRole("article", { name: "Bill 24" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /next page/i }));
@@ -185,7 +188,7 @@ describe("LegislaturePanel", () => {
         chambers: [houseChamber, senateChamber],
         bills: [chamberBill("h1", "House Bill", "house", "House of Representatives"), chamberBill("s1", "Senate Bill", "senate", "Senate")],
       })}
-      busy={false}
+      clock={CLOCK} busy={false}
       onAction={vi.fn()}
     />);
     expect(screen.getByRole("button", { name: "Show House of Representatives bills" })).toBeInTheDocument();
@@ -213,13 +216,13 @@ describe("LegislaturePanel", () => {
           status: "active", statusLabel: "Voting Open", nextAction: "Origin-chamber vote closes", dueTurn: 12, overdue: false,
         }],
       })}
-      busy={false}
+      clock={CLOCK} busy={false}
       onAction={vi.fn()}
     />);
     expect(screen.getByLabelText("Committee House of Representatives Finance")).toBeInTheDocument();
     expect(screen.getByText(/Queue: Wage Bill/)).toBeInTheDocument();
     expect(screen.getByText("Floor schedule")).toBeInTheDocument();
-    expect(screen.getByText(/Origin-chamber vote closes \(turn 12\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Origin-chamber vote closes \(April, Week 1, 1953\)/)).toBeInTheDocument();
   });
 
   it("sponsors a bill in the selected chamber", async () => {
@@ -228,7 +231,7 @@ describe("LegislaturePanel", () => {
     const LegislaturePanel = await renderPanel();
     render(<LegislaturePanel
       legislature={makeLegislature({ countryId: "US", chambers: [houseChamber, senateChamber] })}
-      busy={false}
+      clock={CLOCK} busy={false}
       onAction={onAction}
     />);
     await user.click(screen.getByRole("button", { name: "Show Senate bills" }));
@@ -245,7 +248,7 @@ describe("LegislaturePanel", () => {
         chambers: [houseChamber, senateChamber],
         bills: [chamberBill("h1", "House Bill", "house", "House of Representatives"), chamberBill("s1", "Senate Bill", "senate", "Senate")],
       })}
-      busy={false}
+      clock={CLOCK} busy={false}
       onAction={vi.fn()}
     />);
     expect(screen.getByRole("button", { name: "Show Senate bills" })).toHaveAttribute("aria-pressed", "true");

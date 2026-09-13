@@ -19,6 +19,7 @@ import type { DrawerRouteId } from "./MobileNavigation";
 import { ActionsHub, type ActionsCategoryFilter } from "./ActionsHub";
 import { NotificationBellButton, NotificationPreview, NotificationsInbox, type NotificationTarget } from "./Notifications";
 import { RACE_PHASE_LABELS } from "../game/racePhase";
+import { formatGameDate, type GameClock } from "../game/gameDate";
 /**
  * GameScreen: AHDNative primary game shell.
  *
@@ -128,6 +129,8 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
   const resourceButtonRefs = useRef<Partial<Record<ResourceId, HTMLButtonElement | null>>>({});
 
   const saveNotice = message === "Game saved." || message === "Saved game imported.";
+  // One world clock for every in-game date surface on this screen (#226).
+  const clock: GameClock = { turn: world.turn, date: world.date };
   // #83 corporation strip: the player's recorded holdings, never summed across
   // currencies (the codebase has no FX settlement).
   const holdings = world.finance.holdings;
@@ -319,7 +322,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
           ) : null}
 
           {route === "legislature" ? (
-            <div className="ahd-stack"><button className="ahd-btn" onClick={() => go("legislationDetails")}>Browse bills and proposals</button><LegislaturePanel legislature={world.legislature} busy={busy} onAction={onAction} /></div>
+            <div className="ahd-stack"><button className="ahd-btn" onClick={() => go("legislationDetails")}>Browse bills and proposals</button><LegislaturePanel legislature={world.legislature} busy={busy} onAction={onAction} clock={clock} /></div>
           ) : null}
 
           {route === "elections" ? (
@@ -362,8 +365,8 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
                           <span className="ahd-pill">{RACE_PHASE_LABELS[e.phase]}</span>
                           {e.playerCandidate ? <span className="ahd-pill" style={{ background: "var(--ahd-primary)", color: "white" }}>Candidate</span> : null}
                         </div>
-                        <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>{e.status} · {e.date}</div>
-                        <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>Filing deadline: {e.filingDate ?? "Unknown"}</div>
+                        <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>{e.status} · {formatGameDate(e.date, clock)}</div>
+                        <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>Filing deadline: {formatGameDate(e.filingDate, clock) || "Unknown"}</div>
                         {e.countedVotes != null ? (
                           <div className="ahd-muted" style={{ fontSize: "0.74rem" }} aria-label={`${e.title} counted tally`}>
                             {`${e.countedVotes.toLocaleString()} counted`}
@@ -409,7 +412,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
                   {world.news.map((n) => (
                     <article key={n.id} className="ahd-card ahd-card-pad">
                       <h3 style={{ margin: 0, fontSize: "0.86rem", fontWeight: 750 }}>{n.title}</h3>
-                      <p className="ahd-muted" style={{ fontSize: "0.72rem", margin: "0.15rem 0 0" }}>{n.date}</p>
+                      <p className="ahd-muted" style={{ fontSize: "0.72rem", margin: "0.15rem 0 0" }}>{formatGameDate(n.date, clock)}</p>
                       <p style={{ fontSize: "0.82rem", lineHeight: 1.55, margin: "0.4rem 0 0" }}>{n.body}</p>
                     </article>
                   ))}
@@ -430,6 +433,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
             <NationPanel
               nation={world.nation}
               section={route}
+              clock={clock}
               onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }}
             />
           )}
@@ -456,16 +460,17 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
           }} /> : null}
           {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} /> : null}
           {(route === "partyDetails" || route === "electionDetails" || route === "campaignDetails") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => route === "campaignDetails" ? setRoute("electionDetails") : go(route === "partyDetails" ? "parties" : "elections")}>Back to {route === "partyDetails" ? "parties" : route === "campaignDetails" ? "race" : "elections"}</button>}
-          {route === "partyDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="parties" initialId={detailId} busy={busy} onAction={onAction} />}
-          {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} onOpenCampaign={openCampaign} onOpenPolitician={openPolitician} busy={busy} onAction={onAction} />}
-          {route === "campaignDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="campaign" initialId={detailId} busy={busy} onAction={onAction} />}
-          {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} />}
-          {route === "referendums" && <PoliticsRoute load={loadPolitics} revision={world} section="referendums" initialId={detailId} busy={busy} onAction={onAction} />}
+          {route === "partyDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="parties" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
+          {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} onOpenCampaign={openCampaign} onOpenPolitician={openPolitician} busy={busy} onAction={onAction} clock={clock} />}
+          {route === "campaignDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="campaign" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
+          {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} clock={clock} />}
+          {route === "referendums" && <PoliticsRoute load={loadPolitics} revision={world} section="referendums" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
           {route === "banking" ? <FinancePanel finance={world.finance} section="banking" busy={busy} onAction={onAction} /> : null}
           {route === "notifications" ? (
             <NotificationsInbox
               items={world.notifications.items}
               turn={world.turn}
+              clock={clock}
               busy={busy}
               onRead={onMarkNotificationRead}
               onDelete={onDeleteNotification}
@@ -500,7 +505,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
       <footer aria-hidden={menuOpen || undefined} inert={menuOpen} ref={footerRef} className="ahd-footer" aria-label="Status and primary navigation">
         <div className="ahd-container ahd-footer-inner">
           <div className="ahd-statusline">
-            <span className="ahd-mono">Turn {world.turn} · {world.date}</span>
+            <span className="ahd-mono">Turn {world.turn} · {formatGameDate(world.date, clock)}</span>
             {saveNotice && !busy && !error ? <span className="ahd-muted" role="status">{message}</span>
               : <span className="ahd-muted">{busy ? (message ? `Processing: ${message}` : "Processing...") : "Player paced"}</span>}
 
@@ -573,6 +578,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
               items={world.notifications.items}
               unread={world.notifications.unread}
               busy={busy}
+              clock={clock}
               onRead={onMarkNotificationRead}
               onDelete={onDeleteNotification}
               onOpenInbox={() => openNotificationTarget({ route: "notifications" })}

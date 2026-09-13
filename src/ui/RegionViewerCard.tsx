@@ -11,13 +11,21 @@
  */
 import type { RegionViewerDestination, RegionViewerRows } from "../game/regionProfile";
 import { RACE_PHASE_LABELS } from "../game/racePhase";
+import { formatGameTurn, type GameClock } from "../game/gameDate";
 import type { DrawerRouteId } from "./MobileNavigation";
 
 export interface RegionViewerCardProps {
   rows: RegionViewerRows;
+  /** World clock; office dates render on the reference calendar (#226). */
+  clock: GameClock;
   /** Navigation callback; when absent the rows render as read-only facts. */
   onNavigate?: (route: DrawerRouteId, id?: string) => void;
   busy?: boolean;
+}
+
+/** Format an absolute turn (or record a missing one) on the reference calendar. */
+function gameTurn(turn: number | null, clock: GameClock): string {
+  return turn === null ? "Not recorded" : formatGameTurn(turn, clock);
 }
 
 function KeyValue({ label, value, note }: { label: string; value: string; note?: string }) {
@@ -59,7 +67,7 @@ function DestinationButton({
 }
 
 /** Role/race-gated rows: Governor Office, My Election, My Office. */
-export function RegionViewerCard({ rows, onNavigate, busy = false }: RegionViewerCardProps) {
+export function RegionViewerCard({ rows, clock, onNavigate, busy = false }: RegionViewerCardProps) {
   const { governorOffice, myElection, myOffice } = rows;
   const empty = governorOffice === null && myElection === null && myOffice === null;
 
@@ -86,12 +94,12 @@ export function RegionViewerCard({ rows, onNavigate, busy = false }: RegionViewe
               </div>
               <dl className="ahd-stack" style={{ marginTop: "0.4rem", gap: "0.42rem" }}>
                 <KeyValue label="Office" value={governorOffice.label} />
-                <KeyValue label="Term began" value={governorOffice.termStartTurn === null ? "Not recorded" : `Turn ${governorOffice.termStartTurn}`} />
+                <KeyValue label="Term began" value={gameTurn(governorOffice.termStartTurn, clock)} />
                 <KeyValue
                   label="Office actions"
                   value={governorOffice.availableActions === null ? "Not recorded" : `${governorOffice.availableActions} actions available`}
                 />
-                <KeyValue label="Last address" value={governorOffice.lastAddressTurn === null ? "Not recorded" : `Turn ${governorOffice.lastAddressTurn}`} />
+                <KeyValue label="Last address" value={gameTurn(governorOffice.lastAddressTurn, clock)} />
               </dl>
             </section>
           ) : null}

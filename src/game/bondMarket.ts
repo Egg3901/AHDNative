@@ -8,7 +8,7 @@ export interface BondListing {
   matured: boolean; defaulted: boolean; domestic: boolean;
 }
 export interface BondMarketView {
-  turn: number; playerCountryId: string; playerCash: number;
+  turn: number; date: string; playerCountryId: string; playerCash: number;
   currency: string; buy: BondTradeHint; sell: BondTradeHint; bonds: BondListing[];
 }
 
@@ -25,7 +25,7 @@ export function projectBondMarket(world: WorldState): BondMarketView {
     return { cost, ...(disabledReason ? { disabledReason } : {}) };
   };
   return {
-    turn: world.meta.turn, playerCountryId: player.countryId, playerCash: player.cash,
+    turn: world.meta.turn, date: world.meta.date, playerCountryId: player.countryId, playerCash: player.cash,
     currency: world.budgets[player.countryId]?.currencyCode ?? world.exchangeRates[player.countryId]?.currencyCode ?? 'XXX',
     buy: hint('buyBond'), sell: hint('sellBond'),
     bonds: Object.values(world.bonds).flatMap(bond => {

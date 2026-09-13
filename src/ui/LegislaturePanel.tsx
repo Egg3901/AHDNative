@@ -13,6 +13,7 @@
 import { useEffect, useState } from "react";
 import type { GameScreenProps, LegislatureView } from "../game/types";
 import { loadLegislatureNav, saveLegislatureNav } from "../game/legislature";
+import { formatGameTurn, type GameClock } from "../game/gameDate";
 
 const BILLS_PAGE_SIZE = 20;
 
@@ -28,9 +29,11 @@ export interface LegislaturePanelProps {
   legislature: LegislatureView;
   busy: boolean;
   onAction: GameScreenProps["onAction"];
+  /** World clock used to render floor-schedule deadlines on the reference calendar (#226). */
+  clock: GameClock;
 }
 
-export function LegislaturePanel({ legislature, busy, onAction }: LegislaturePanelProps) {
+export function LegislaturePanel({ legislature, busy, onAction, clock }: LegislaturePanelProps) {
   const [selectedId, setSelectedId] = useState(legislature.proposals[0]?.id ?? "");
   const [billPage, setBillPage] = useState(0);
   const [chamberKey, setChamberKey] = useState<string>(() => {
@@ -215,7 +218,7 @@ export function LegislaturePanel({ legislature, busy, onAction }: LegislaturePan
                 {` · ${entry.chamberName} · ${entry.statusLabel}`}
                 <div className="ahd-muted" style={{ fontSize: "0.74rem" }}>
                   {entry.nextAction}
-                  {entry.dueTurn !== null ? ` (turn ${entry.dueTurn})` : ""}
+                  {entry.dueTurn !== null ? ` (${formatGameTurn(entry.dueTurn, clock)})` : ""}
                   {entry.overdue ? " · overdue" : ""}
                 </div>
               </li>

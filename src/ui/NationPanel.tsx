@@ -6,10 +6,13 @@ import type {
   NationPolicySetting,
   NationView,
 } from "../game/nation";
+import { formatGameDate, type GameClock } from "../game/gameDate";
 
 export interface NationPanelProps {
   nation: NationView;
   section: "economy" | "budget" | "policy" | "metrics";
+  /** World clock used to render enacted-policy dates on the reference calendar (#226). */
+  clock: GameClock;
   /** Opens a linked consequence destination. Omitted in read-only renders. */
   onNavigate?: (route: NationDestination, detailId?: string) => void;
 }
@@ -373,7 +376,7 @@ function MetricsSection({ nation, onNavigate }: { nation: NationView; onNavigate
   );
 }
 
-function PolicyCard({ policy }: { policy: NationPolicySetting }) {
+function PolicyCard({ policy, clock }: { policy: NationPolicySetting; clock: GameClock }) {
   return (
     <article className="ahd-card ahd-card-pad" aria-label={policy.title}>
       <div style={{ display: "flex", gap: "0.55rem", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -389,13 +392,13 @@ function PolicyCard({ policy }: { policy: NationPolicySetting }) {
         <KeyValue label="Option" value={policy.optionName ?? (policy.level === null ? "Not recorded" : `Level ${policy.level}`)} />
         {policy.optionDescription ? <div className="ahd-muted" style={{ fontSize: "0.74rem", lineHeight: 1.4 }}>{policy.optionDescription}</div> : null}
         <KeyValue label="Enacted turn" value={number(policy.enactedTurn)} />
-        {policy.enactedAt ? <KeyValue label="Enacted at" value={policy.enactedAt} /> : null}
+        {policy.enactedAt ? <KeyValue label="Enacted at" value={formatGameDate(policy.enactedAt, clock) || "Not recorded"} /> : null}
       </dl>
     </article>
   );
 }
 
-function PolicySection({ nation }: { nation: NationView }) {
+function PolicySection({ nation, clock }: { nation: NationView; clock: GameClock }) {
   const { policy } = nation;
   return (
     <Layout nation={nation} title="Policy">
@@ -418,16 +421,16 @@ function PolicySection({ nation }: { nation: NationView }) {
         {policy.enacted.length === 0 ? (
           <div className="ahd-empty">No enacted national policies recorded.</div>
         ) : (
-          policy.enacted.map((entry) => <PolicyCard key={entry.id} policy={entry} />)
+          policy.enacted.map((entry) => <PolicyCard key={entry.id} policy={entry} clock={clock} />)
         )}
       </div>
     </Layout>
   );
 }
 
-export function NationPanel({ nation, section, onNavigate }: NationPanelProps) {
+export function NationPanel({ nation, section, clock, onNavigate }: NationPanelProps) {
   if (section === "economy") return <EconomySection nation={nation} />;
   if (section === "budget") return <BudgetSection nation={nation} onNavigate={onNavigate} />;
   if (section === "metrics") return <MetricsSection nation={nation} onNavigate={onNavigate} />;
-  return <PolicySection nation={nation} />;
+  return <PolicySection nation={nation} clock={clock} />;
 }

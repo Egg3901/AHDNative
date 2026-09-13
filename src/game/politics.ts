@@ -25,6 +25,7 @@ import {
 import type { ActionView, RacePhase } from "./types";
 import { racePhase } from "./racePhase";
 import { describePartyCaucusEffect } from "./partyCaucusConsequences";
+import { formatGameDate, formatGameTurn } from "./gameDate";
 
 /**
  * Politics projection: per party detail, per election detail with its real
@@ -1052,6 +1053,9 @@ function projectRaceStages(
   phase: RacePhase,
 ): PoliticsRaceStageView[] {
   const turn = world.meta.turn;
+  // Stage "when" strings are display-only (never sorted/compared), so they are
+  // rendered on the reference calendar here rather than leaking ISO (#226).
+  const clock = { turn, date: world.meta.date };
   const stages: PoliticsRaceStageView[] = [];
   const filingState: PoliticsRaceStageState =
     phase === "resolved" || turn > election.primaryEndTurn || primary.resolved ? "done"
@@ -1059,7 +1063,7 @@ function projectRaceStages(
   stages.push({
     key: "filing", label: "Filing",
     state: filingState,
-    when: `${dateAtTurn(world, election.startTurn)} to ${dateAtTurn(world, election.primaryEndTurn)}`,
+    when: `${formatGameTurn(election.startTurn, clock)} to ${formatGameTurn(election.primaryEndTurn, clock)}`,
     detail: filingState === "done" ? "Filing has closed." : "Candidates can declare for this race.",
   });
   if (primary.applicable) {
@@ -1069,7 +1073,7 @@ function projectRaceStages(
     stages.push({
       key: "primary", label: "Primary",
       state: primaryState,
-      when: primary.endDate,
+      when: formatGameDate(primary.endDate, clock),
       detail: primary.resolved ? "Nominees recorded from counted party ballots."
         : primaryState === "current" ? "Party ballots count in the closing window."
         : "Resolves at the filing deadline.",
@@ -1080,7 +1084,7 @@ function projectRaceStages(
   stages.push({
     key: "general", label: "General",
     state: generalState,
-    when: `${dateAtTurn(world, election.primaryEndTurn)} to ${dateAtTurn(world, election.endTurn)}`,
+    when: `${formatGameTurn(election.primaryEndTurn, clock)} to ${formatGameTurn(election.endTurn, clock)}`,
     detail: generalState === "current"
       ? "Votes accumulate each turn; counting stays separate from any forecast."
       : generalState === "done" ? "Voting and counting closed." : "Opens after the primary.",
@@ -1089,7 +1093,7 @@ function projectRaceStages(
   stages.push({
     key: "results", label: "Results",
     state: resultsState,
-    when: dateAtTurn(world, election.endTurn),
+    when: formatGameTurn(election.endTurn, clock),
     detail: resultsState === "current" ? "Resolved winners are recorded." : "Recorded when the race resolves.",
   });
   return stages;

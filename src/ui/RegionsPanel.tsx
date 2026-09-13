@@ -20,6 +20,7 @@ import type {
 import { RegionViewerCard } from "./RegionViewerCard";
 import { RegionMacroCard, RegionSectorsCard } from "./RegionEconomyCards";
 import type { DrawerRouteId } from "./MobileNavigation";
+import { formatGameDate, formatGameTurn, type GameClock } from "../game/gameDate";
 
 const CHAMBER_MEMBER_PAGE_SIZE = 12;
 
@@ -304,7 +305,7 @@ function Directory({
   );
 }
 
-function OfficeCard({ office }: { office: RegionOfficeView | null }) {
+function OfficeCard({ office, clock }: { office: RegionOfficeView | null; clock: GameClock }) {
   return (
     <div className="ahd-card ahd-card-pad">
       <h2 className="ahd-h2">Regional office</h2>
@@ -314,14 +315,14 @@ function OfficeCard({ office }: { office: RegionOfficeView | null }) {
         <dl className="ahd-stack" style={{ marginTop: "0.65rem", gap: "0.42rem" }}>
           <KeyValue label="Office" value={humanize(office.kind)} />
           <KeyValue label="Holder" value={office.holder?.name ?? "Vacant"} note={partyLabel(office.holder?.party ?? null)} />
-          <KeyValue label="Term began" value={office.termStartTurn === null ? "Not recorded" : `Turn ${number(office.termStartTurn)}`} />
+          <KeyValue label="Term began" value={office.termStartTurn === null ? "Not recorded" : formatGameTurn(office.termStartTurn, clock)} />
           <KeyValue
             label="Office actions"
             value={office.availableActions === null ? "Not recorded" : `${number(office.availableActions)} actions available`}
           />
           <KeyValue
             label="Last address"
-            value={office.lastAddressTurn === null ? "Not recorded" : `Turn ${number(office.lastAddressTurn)}`}
+            value={office.lastAddressTurn === null ? "Not recorded" : formatGameTurn(office.lastAddressTurn, clock)}
           />
         </dl>
       )}
@@ -398,7 +399,7 @@ function ChamberCard({
   );
 }
 
-function ElectionCard({ election }: { election: RegionElectionView }) {
+function ElectionCard({ election, clock }: { election: RegionElectionView; clock: GameClock }) {
   return (
     <li style={{ borderTop: "1px solid var(--ahd-border)", paddingTop: "0.55rem" }} aria-label={election.id}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
@@ -409,7 +410,7 @@ function ElectionCard({ election }: { election: RegionElectionView }) {
         {humanize(election.electionType)} · cycle {number(election.cycle)} · {number(election.totalSeats)} seat{election.totalSeats === 1 ? "" : "s"}
       </div>
       <div className="ahd-muted" style={{ fontSize: "0.7rem", marginTop: "0.2rem" }}>
-        Starts turn {number(election.startTurn)} · primary ends turn {number(election.primaryEndTurn)} · ends turn {number(election.endTurn)}
+        Starts {formatGameTurn(election.startTurn, clock)} · primary ends {formatGameTurn(election.primaryEndTurn, clock)} · ends {formatGameTurn(election.endTurn, clock)}
       </div>
       {election.previewNames.length > 0 ? (
         <div style={{ fontSize: "0.74rem", marginTop: "0.35rem" }}>
@@ -449,6 +450,7 @@ function SelectedRegion({
   }, [selected.id]);
 
   const currency = selected.currency ?? selected.economy.currency;
+  const clock: GameClock = { turn: view.turn, date: view.date };
   const demographics = selected.demographics;
   const demographicMetricCount = [
     demographics.votingEligiblePopulation,
@@ -479,10 +481,10 @@ function SelectedRegion({
         </dl>
       </div>
 
-      <RegionViewerCard rows={selected.viewer} busy={busy} onNavigate={onNavigate} />
+      <RegionViewerCard rows={selected.viewer} clock={clock} busy={busy} onNavigate={onNavigate} />
 
       <div className="ahd-grid ahd-grid-2">
-        <OfficeCard office={selected.office} />
+        <OfficeCard office={selected.office} clock={clock} />
         <div className="ahd-card ahd-card-pad">
           <h2 className="ahd-h2">Party support</h2>
           {selected.partySupport.length === 0 ? (
@@ -593,7 +595,7 @@ function SelectedRegion({
           <div className="ahd-empty" style={{ marginTop: "0.55rem" }}>No elections recorded for this region.</div>
         ) : (
           <ul style={{ listStyle: "none", margin: "0.6rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.7rem" }}>
-            {selected.elections.map((election) => <ElectionCard key={election.id} election={election} />)}
+            {selected.elections.map((election) => <ElectionCard key={election.id} election={election} clock={clock} />)}
           </ul>
         )}
       </div>
@@ -716,7 +718,7 @@ export function RegionsPanel({ query, onQueryChange, busy = false, directoryOpen
         <div className="ahd-eyebrow">{query.playerCountryName}</div>
         <h1 className="ahd-h1" style={{ marginTop: "0.22rem" }}>Regions</h1>
         <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.32rem 0 0" }}>
-          {query.era} · Turn {query.turn} · {query.date}
+          {query.era} · Turn {query.turn} · {formatGameDate(query.date, { turn: query.turn, date: query.date })}
           {query.playerHomeRegionId ? ` · Home ${query.playerHomeRegionId}` : ""}
         </p>
       </div>
