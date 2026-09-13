@@ -30,6 +30,24 @@ export { getCatalog, getLaw } from "./legislation/catalog.js";
 export type { Bill, Committee, EnactedLaw } from "./legislation/types.js";
 export * from "./membership.js";
 export * from "./caucus.js";
+// #61: party/caucus action charge + consequence projection. executeAction
+// charges from `partyCaucusCharge` and the party/caucus display adapters quote
+// the same function, so a displayed cost cannot disagree with the debit.
+export {
+  PARTY_CAUCUS_ACTION_IDS,
+  isPartyCaucusActionId,
+  partyCaucusCharge,
+  partyCaucusEffect,
+  quotePartyCaucusAction,
+  partySwitchCooldownRemaining,
+} from "./actions/partyCaucus.js";
+export type {
+  PartyCaucusActionId,
+  PartyCaucusActorStats,
+  PartyCaucusCharge,
+  PartyCaucusEffect,
+  PartyCaucusQuote,
+} from "./actions/partyCaucus.js";
 export * from "./endorsement.js";
 export type * from "./types.js";
 export * as electionEngine from "./electionEngine/index.js";

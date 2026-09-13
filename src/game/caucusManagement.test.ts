@@ -15,6 +15,7 @@ import {
   CAUCUS_CREATE_FUNDS_REQUIRED,
   projectCaucusCreate,
   projectCaucusManagement,
+  projectCaucusRoster,
   validateCaucusFounding,
 } from "./caucusManagement";
 
@@ -34,14 +35,30 @@ function readyWorld(): WorldState {
 }
 
 describe("projectCaucusCreate", () => {
-  it("blocks a fresh independent player on party membership", () => {
+  it("mirrors the engine's first rejection reason for a fresh independent player (#61)", () => {
     const world = createWorld({ ...FRESH });
     const create = projectCaucusCreate(world);
     expect(create.fundCost).toBe(25_000);
     expect(create.fundsRequired).toBe(25_000);
     expect(create.actionCost).toBe(4);
     expect(create.available).toBe(false);
-    expect(create.disabledReason).toMatch(/party member/i);
+    // The dispatcher's generic funds gate runs before the caucus preflight, so
+    // the hint must name funds first, not party membership (the mismatch #61
+    // fixes). The engine's own rejection must agree.
+    expect(create.disabledReason).toMatch(/funds/i);
+    const broke = executeAction(world, "player", "createCaucus", { caucusName: "Blue Dog Caucus" });
+    expect(broke.ok).toBe(false);
+    expect(broke.ok ? "" : broke.error).toMatch(/funds/i);
+    // Once the entry gate is funded, the next blocker is party membership in
+    // both the hint and the engine.
+    world.player.funds = 25_000;
+    world.player.actions = 9;
+    const funded = projectCaucusCreate(world);
+    expect(funded.available).toBe(false);
+    expect(funded.disabledReason).toMatch(/party member/i);
+    const notMember = executeAction(world, "player", "createCaucus", { caucusName: "Blue Dog Caucus" });
+    expect(notMember.ok).toBe(false);
+    expect(notMember.ok ? "" : notMember.error).toMatch(/party/i);
     expect(projectCaucusManagement(world).caucusCount).toBe(0);
   });
 
@@ -62,6 +79,27 @@ describe("projectCaucusCreate", () => {
     expect(result.ok).toBe(false);
     expect(result.ok ? "" : result.error).toMatch(/party/i);
     expect(projectCaucusManagement(world).caucusCount).toBe(0);
+  });
+
+  it("states the caucus consequences from the engine projection before confirmation", () => {
+    const world = readyWorld();
+    const create = projectCaucusCreate(world);
+    expect(create.effect).toMatchObject({
+      partyFundsDelta: -25_000,
+      partyMembership: "none",
+      caucusMembership: "create",
+      startsPartySwitchCooldown: false,
+    });
+    expect(create.consequences).toEqual([
+      "Charges 25,000 campaign funds",
+      "Creates the caucus and makes you its first member",
+    ]);
+    expect(create.action.consequences).toEqual(create.consequences);
+
+    expect(executeAction(world, "player", "createCaucus", { caucusName: "Blue Dog Caucus", caucusTaxRate: 2 }).ok).toBe(true);
+    expect(projectCaucusRoster(world)[0]!.leave.consequences).toEqual(["Removes you from this caucus"]);
+    expect(executeAction(world, "player", "leaveCaucus", {}).ok).toBe(true);
+    expect(projectCaucusRoster(world)[0]!.join.consequences).toEqual(["Joins you to this caucus"]);
   });
 
   it("rejects short names, out-of-range tax and taken slugs", () => {
@@ -206,6 +244,7 @@ it("creates, leaves, joins and resumes through the session act/save boundary wit
   const created = session.caucusManagement();
   expect(created.playerCaucusName).toBe("Blue Dog Caucus");
   expect(created.create.funds).toBe(before.create.funds - 25_000);
+  expect(created.create.consequences).toContain("Creates the caucus and makes you its first member");
   const id = created.caucuses[0]!.id;
   expect(session.act("leaveCaucus", {}).ok).toBe(true);
   expect(session.act("joinCaucus", { caucusId: id }).ok).toBe(true);

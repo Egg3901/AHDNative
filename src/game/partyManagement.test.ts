@@ -134,6 +134,26 @@ describe("foundParty through the public action", () => {
     expect(second.ok ? "" : second.error).toMatch(/cooldown/i);
   });
 
+  it("states the founding consequences from the engine projection before confirmation", () => {
+    const world = readyWorld();
+    const founding = projectPartyFounding(world);
+    expect(founding.effect).toMatchObject({
+      partyFundsDelta: -100_000,
+      partyMembership: "found",
+      caucusMembership: "none",
+      clearsCaucusMembership: true,
+      startsPartySwitchCooldown: true,
+    });
+    expect(founding.consequences).toEqual([
+      "Charges 100,000 campaign funds",
+      "Creates the party and joins you to it immediately",
+      "Ends any caucus membership you hold",
+      "Starts the 24-turn party-switch cooldown",
+    ]);
+    expect(founding.action.cost).toBe(founding.actionCost);
+    expect(founding.action.consequences).toEqual(founding.consequences);
+  });
+
   it("starts founded parties at neutral positions: the public action sets no platform", () => {
     const world = readyWorld();
     expect(
@@ -160,6 +180,7 @@ it("queries, founds and resumes through the session boundary without leaking sta
   const after = session.partyManagement();
   expect(after.playerPartyName).toBe("New Frontier");
   expect(after.founding.funds).toBe(before.founding.funds - 100_000);
+  expect(after.founding.consequences).toContain("Starts the 24-turn party-switch cooldown");
   after.parties[0]!.name = "Detached query";
   expect(session.partyManagement().parties[0]!.name).toBe("New Frontier");
   const resumed = new GameSession();

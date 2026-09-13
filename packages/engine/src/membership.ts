@@ -12,12 +12,16 @@
 
 import type { WorldState, Party, PartyCharter, PurgeRejoinBlock } from "./types.js";
 import { sweepCandidaciesOnPartyChange } from "./elections/candidacy.js";
+import { PARTY_FOUND_ACTION_COST, PARTY_FOUND_FUND_COST } from "./actions/partyCaucusCosts.js";
 
 export const PARTY_SWITCH_COOLDOWN_TURNS = 24; // cites PARTY_SWITCH_COOLDOWN_MS 24*60*60*1000
 export const PURGE_REJOIN_COOLDOWN_TURNS = 24; // cites src/lib/constants/partyActions.ts
 export const CHARTER_DEADLINE_TURNS = 14; // cites src/lib/charters/charterDeadlines.ts
-export const FOUND_PARTY_FUND_COST = 100_000; // cited as mainline-neutral founder cost (corp founding 1M; party cheaper)
-export const FOUND_PARTY_ACTION_COST = 8;
+// Re-published from the single source of truth (#61): the action catalog and
+// this helper charge the same constant, so the founding quote cannot drift from
+// what foundParty actually debits.
+export const FOUND_PARTY_FUND_COST = PARTY_FOUND_FUND_COST;
+export const FOUND_PARTY_ACTION_COST = PARTY_FOUND_ACTION_COST;
 
 export function isPartyMember(player: WorldState["player"]): boolean {
   return player.partyId != null;

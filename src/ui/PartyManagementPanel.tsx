@@ -51,7 +51,7 @@ export function PartyManagementPanel({ management, busy, onAction }: PartyManage
         </p>
         <p className="ahd-help" role="note" style={{ marginTop: "0.3rem" }}>
           Founding costs {founding.actionCost} actions and {formatFinanceMoney(founding.fundCost, management.currency)}.
-          You join the new party at once and must wait before switching again.
+          {founding.consequences.length > 0 ? ` Effects: ${founding.consequences.join(" · ")}.` : ""}
         </p>
       </div>
 

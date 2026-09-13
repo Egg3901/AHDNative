@@ -1,8 +1,9 @@
 import {
   ACTION_CATALOG, CHARTER_DEADLINE_TURNS, FOUND_PARTY_FUND_COST,
-  getActionCost, getSwitchCooldownRemaining,
-  type WorldState,
+  partySwitchCooldownRemaining, quotePartyCaucusAction,
+  type PartyCaucusEffect, type WorldState,
 } from "@ahdclient/engine";
+import { describePartyCaucusEffect } from "./partyCaucusConsequences";
 import type { ActionView } from "./types";
 
 /**
@@ -33,6 +34,10 @@ export interface PartyFoundingStatus {
   charterDeadlineTurns: number;
   available: boolean;
   disabledReason?: string;
+  /** Consequence the engine projection reports (treasury/membership/cooldown). */
+  effect: PartyCaucusEffect;
+  /** Consequence lines for the panel, from the same projection. */
+  consequences: string[];
   action: ActionView;
 }
 
@@ -57,28 +62,29 @@ export interface PartyManagementView {
   charters: PartyCharterView[];
 }
 
-function foundingCost(world: WorldState): number {
-  const player = world.player;
-  return getActionCost(ACTION_CATALOG.foundParty, player.donorBaseLevel, player.politicalInfluence, player.favorability);
-}
-
 export function projectPartyFounding(world: WorldState): PartyFoundingStatus {
   const player = world.player;
   const entry = ACTION_CATALOG.foundParty;
-  const cost = foundingCost(world);
-  // Both gates block founding: the catalog action cooldown (currently zero,
-  // read live so a nonzero future value applies) and the party switch
-  // cooldown stamped by joins, leaves and foundings.
+  // The AP price and single 100k fund charge come from the shared party/caucus
+  // projection the dispatcher charges (#61), so this quote cannot disagree with
+  // what foundParty debits.
+  const quote = quotePartyCaucusAction(player, "foundParty");
+  const cost = quote.actionCost;
+  // Gate order mirrors executeActionInner exactly: catalog cooldown, then the
+  // AP gate, then the funds gate, then the domain preflight (canFoundParty's
+  // party-switch cooldown). Names/uniqueness are validated per input.
   const catalogRemaining = Math.max(0, (player.actionCooldowns["foundParty"] ?? 0) - world.meta.turn);
-  const switchRemaining = getSwitchCooldownRemaining(player, world.meta.turn);
+  const switchRemaining = partySwitchCooldownRemaining(world);
   const cooldownRemaining = Math.max(catalogRemaining, switchRemaining);
-  const reason = cooldownRemaining > 0 ? `Party switch cooldown: ${cooldownRemaining} turn(s) remaining`
-    : player.funds < FOUND_PARTY_FUNDS_REQUIRED ? `Not enough funds. Founding needs ${FOUND_PARTY_FUNDS_REQUIRED} funds available.`
+  const reason = catalogRemaining > 0 ? `Available in ${catalogRemaining} ${catalogRemaining === 1 ? "turn" : "turns"}.`
     : player.actions < cost ? "Not enough action points."
+    : player.funds < quote.fundCost ? `Not enough funds. Founding needs ${quote.fundCost} funds available.`
+    : switchRemaining > 0 ? `Party switch cooldown: ${switchRemaining} turn(s) remaining`
     : undefined;
+  const consequences = describePartyCaucusEffect(quote.effect);
   return {
     actionCost: cost,
-    fundCost: FOUND_PARTY_FUND_COST,
+    fundCost: quote.fundCost,
     fundsRequired: FOUND_PARTY_FUNDS_REQUIRED,
     funds: player.funds,
     actions: player.actions,
@@ -86,8 +92,11 @@ export function projectPartyFounding(world: WorldState): PartyFoundingStatus {
     charterDeadlineTurns: CHARTER_DEADLINE_TURNS,
     available: !reason,
     ...(reason ? { disabledReason: reason } : {}),
+    effect: quote.effect,
+    consequences,
     action: { id: "foundParty", name: entry.name, description: entry.description,
-      cost, available: !reason, ...(reason ? { disabledReason: reason } : {}) },
+      cost, available: !reason, consequences,
+      ...(reason ? { disabledReason: reason } : {}) },
   };
 }
 

@@ -4,9 +4,11 @@ import {
   CAUCUS_TAX_MAX,
   canJoinCaucus,
   canLeaveCaucus,
-  getActionCost,
+  quotePartyCaucusAction,
+  type PartyCaucusEffect,
   type WorldState,
 } from "@ahdclient/engine";
+import { describePartyCaucusEffect } from "./partyCaucusConsequences";
 import type { ActionView } from "./types";
 
 /**
@@ -36,6 +38,10 @@ export interface CaucusCreateStatus {
   nameMinLength: number;
   available: boolean;
   disabledReason?: string;
+  /** Consequence the engine projection reports (treasury/membership/state). */
+  effect: PartyCaucusEffect;
+  /** Consequence lines for the panel, from the same projection. */
+  consequences: string[];
   action: ActionView;
 }
 
@@ -64,20 +70,23 @@ export interface CaucusManagementView {
   caucuses: CaucusRosterEntry[];
 }
 
-function actionCost(world: WorldState, id: "createCaucus" | "joinCaucus" | "leaveCaucus"): number {
-  const player = world.player;
-  return getActionCost(ACTION_CATALOG[id], player.donorBaseLevel, player.politicalInfluence, player.favorability);
+type CaucusActionId = "createCaucus" | "joinCaucus" | "leaveCaucus";
+
+/** Quote the AP price from the shared party/caucus projection (#61). */
+function actionCost(world: WorldState, id: CaucusActionId): number {
+  return quotePartyCaucusAction(world.player, id).actionCost;
 }
 
-function cooldownRemaining(world: WorldState, id: "createCaucus" | "joinCaucus" | "leaveCaucus"): number {
+function cooldownRemaining(world: WorldState, id: CaucusActionId): number {
   return Math.max(0, (world.player.actionCooldowns[id] ?? 0) - world.meta.turn);
 }
 
-function actionView(world: WorldState, id: "createCaucus" | "joinCaucus" | "leaveCaucus", reason: string | undefined): ActionView {
+function actionView(world: WorldState, id: CaucusActionId, reason: string | undefined): ActionView {
   const entry = ACTION_CATALOG[id];
-  const cost = actionCost(world, id);
+  const quote = quotePartyCaucusAction(world.player, id);
   return {
-    id, name: entry.name, description: entry.description, cost,
+    id, name: entry.name, description: entry.description, cost: quote.actionCost,
+    consequences: describePartyCaucusEffect(quote.effect),
     available: !reason, ...(reason ? { disabledReason: reason } : {}),
   };
 }
@@ -93,19 +102,27 @@ export function slugifyCaucusName(name: string): string {
 
 export function projectCaucusCreate(world: WorldState): CaucusCreateStatus {
   const player = world.player;
-  const cost = actionCost(world, "createCaucus");
+  // AP price and single 25k fund charge come from the shared party/caucus
+  // projection the dispatcher charges (#61), so this quote cannot disagree with
+  // what createCaucus debits.
+  const quote = quotePartyCaucusAction(player, "createCaucus");
+  const cost = quote.actionCost;
   const remaining = cooldownRemaining(world, "createCaucus");
-  const reason = !player.partyId ? "Must be a party member to create a caucus"
-    : player.caucusId ? "Already in a caucus; leave it first"
-    : remaining > 0 ? `Available in ${remaining} ${remaining === 1 ? "turn" : "turns"}.`
-    : player.funds < CAUCUS_CREATE_FUNDS_REQUIRED
-      ? `Not enough funds. Creating a caucus needs ${CAUCUS_CREATE_FUNDS_REQUIRED} funds available.`
+  // Gate order mirrors executeActionInner exactly: catalog cooldown, then the
+  // AP gate, then the funds gate, then the domain preflight (party membership,
+  // already in a caucus, then the per-input name/slug checks).
+  const reason = remaining > 0 ? `Available in ${remaining} ${remaining === 1 ? "turn" : "turns"}.`
     : player.actions < cost ? "Not enough action points."
+    : player.funds < quote.fundCost
+      ? `Not enough funds. Creating a caucus needs ${quote.fundCost} funds available.`
+    : !player.partyId ? "Must be a party member to create a caucus"
+    : player.caucusId ? "Already in a caucus; leave it first"
     : undefined;
+  const consequences = describePartyCaucusEffect(quote.effect);
   return {
     actionCost: cost,
-    fundCost: CAUCUS_CREATE_COST,
-    fundsRequired: CAUCUS_CREATE_FUNDS_REQUIRED,
+    fundCost: quote.fundCost,
+    fundsRequired: quote.fundCost,
     funds: player.funds,
     actions: player.actions,
     cooldownRemaining: remaining,
@@ -114,6 +131,8 @@ export function projectCaucusCreate(world: WorldState): CaucusCreateStatus {
     nameMinLength: CAUCUS_NAME_MIN_LENGTH,
     available: !reason,
     ...(reason ? { disabledReason: reason } : {}),
+    effect: quote.effect,
+    consequences,
     action: actionView(world, "createCaucus", reason),
   };
 }

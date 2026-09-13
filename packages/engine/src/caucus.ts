@@ -9,12 +9,19 @@
  */
 
 import type { WorldState, Caucus } from "./types.js";
+import { CAUCUS_CREATE_FUND_COST } from "./actions/partyCaucusCosts.js";
 
 export const CAUCUS_TAX_MAX = 5; // cites Caucus.taxRate 0–5
-export const CAUCUS_CREATE_FUND_COST = 25_000;
-export const CAUCUS_CREATE_ACTION_COST = 4;
-export const CAUCUS_JOIN_ACTION_COST = 2;
-export const CAUCUS_LEAVE_ACTION_COST = 1;
+// Re-published from the single source of truth (#61). The action cost and fund
+// charge now live in actions/partyCaucusCosts.ts, which the action catalog and
+// this helper both read, so the displayed price and the charged price cannot
+// drift.
+export {
+  CAUCUS_CREATE_ACTION_COST,
+  CAUCUS_CREATE_FUND_COST,
+  CAUCUS_JOIN_ACTION_COST,
+  CAUCUS_LEAVE_ACTION_COST,
+} from "./actions/partyCaucusCosts.js";
 
 export type CaucusResult = { ok: true; caucusId?: string } | { ok: false; error: string };
 

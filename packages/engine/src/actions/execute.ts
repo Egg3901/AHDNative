@@ -6,6 +6,7 @@
 
 import type { WorldState } from "../types.js";
 import { ACTION_CATALOG, getActionCost, type ActionId } from "./catalog.js";
+import { isPartyCaucusActionId, partyCaucusCharge } from "./partyCaucus.js";
 import { fundraiseYield, isFundraiseEligible } from "./fundGeneration.js";
 import { DOLLARS_PER_TURNOUT_POINT } from "../support/constants.js";
 import { applyBoost, calculateAlignmentMultiplier, getVoterGroups, DEFAULT_GOTV_CATEGORY } from "../support/turnout.js";
@@ -297,13 +298,19 @@ function executeActionInner(
   const readyAt = actor.actionCooldowns[actionId] ?? 0;
   if (turn < readyAt) return { ok: false, error: `Action ${actionId} on cooldown until turn ${readyAt}` };
 
-  // Cost check (dynamic)
-  const cost = getActionCost(catalog, actor.donorBaseLevel ?? 0, actor.politicalInfluence ?? 0, actor.favorability ?? 50);
+  // Cost check (dynamic). Party/caucus actions charge from the shared
+  // partyCaucusCharge projection (#61) so the displayed quote and this charge
+  // read one source (actions/partyCaucus.ts); every other action uses its
+  // catalog entry directly.
+  const partyCaucus = isPartyCaucusActionId(actionId) ? partyCaucusCharge(actor, actionId) : null;
+  const cost = partyCaucus
+    ? partyCaucus.actionCost
+    : getActionCost(catalog, actor.donorBaseLevel ?? 0, actor.politicalInfluence ?? 0, actor.favorability ?? 50);
   if ((actor.actions ?? 0) < cost) return { ok: false, error: `Not enough action points. Required: ${cost}, Available: ${actor.actions}` };
 
   // Fund cost check (fundCost is flat for solo-neutral; campaign uses tier scaling simplified)
   // For campaign/advertise we scale fund cost by tier neutral 1.0
-  let fundCost = catalog.fundCost;
+  let fundCost = partyCaucus ? partyCaucus.fundCost : catalog.fundCost;
   if (actionId === "campaign") {
     // Port getCampaignFundCost tier scaling at neutral gdpScalar 1.0: tier 1-5 => (1 + (tier-1)*0.2)
     const tier = cost; // campaign cost equals tier (1-5)

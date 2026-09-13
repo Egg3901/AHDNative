@@ -17,6 +17,12 @@ export interface ActionView { id: string; name: string; description: string; cos
   cooldownTurns?: number;
   /** Static non-cost gate (membership, donor network, cash, target selection). */
   prerequisite?: string;
+  /**
+   * What the action does on success (membership/treasury/cooldown/state),
+   * built from the engine's party/caucus effect projection (#61) so the panel
+   * states the consequence before confirmation.
+   */
+  consequences?: string[];
 }
 export interface PartyView { id: string; name: string; abbreviation: string; color: string; members: number; treasury: number; isPlayerParty: boolean; membership?: { join: ActionView; leave: ActionView }; }
 /** Derived race lifecycle stage; see game/racePhase.ts. */

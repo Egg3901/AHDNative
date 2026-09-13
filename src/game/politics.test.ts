@@ -720,6 +720,27 @@ it('shows the engine party-switch cooldown after leaving a party', () => {
   expect(party.join.disabledReason).toMatch(/switch cooldown/i);
 });
 
+it("quotes join/leave AP and consequences that match what the session charges (#61)", () => {
+  const session = new GameSession();
+  session.create({ ...options, seed: "party-caucus-quote" });
+  const independent = session.politics().parties.find((p) => p.id === DEM)!;
+  expect(independent.join.cost).toBe(2);
+  const apBefore = session.view().player.actions;
+  expect(session.act("joinParty", { partyId: DEM }).ok).toBe(true);
+  expect(session.view().player.actions).toBe(apBefore - independent.join.cost);
+
+  const member = session.politics().parties.find((p) => p.id === DEM)!;
+  expect(member.leave.cost).toBe(1);
+  expect(member.leave.consequences).toEqual(["Makes you independent", "Ends any caucus membership you hold"]);
+  // A different party still states the join consequence plus the switch cooldown.
+  const rep = session.politics().parties.find((p) => p.id === REP)!;
+  expect(rep.join.consequences).toEqual([
+    "Joins you to this party",
+    "Ends any caucus membership you hold",
+    "Starts the 24-turn party-switch cooldown",
+  ]);
+});
+
 it("includes the player's current party membership in the recorded roster across save and leave", () => {
   const session = new GameSession();
   session.create({ ...options, playerName: "Roster Player" });
