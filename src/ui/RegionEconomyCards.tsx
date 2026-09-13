@@ -78,6 +78,9 @@ export function RegionBudgetCard({ budget, currency }: { budget: RegionBudgetVie
                 <KeyValue label="Council tax" value={money(budget.revenue.councilTax, currency)} />
                 <KeyValue label="Business rates" value={money(budget.revenue.businessRates, currency)} />
                 <KeyValue label="Grant" value={money(budget.revenue.grant, currency)} />
+                {budget.revenue.stateTax !== undefined ? (
+                  <KeyValue label="State tax" value={money(budget.revenue.stateTax, currency)} />
+                ) : null}
               </dl>
               {budget.spending.length > 0 ? (
                 <div style={{ marginTop: "0.7rem", borderTop: "1px solid var(--ahd-border)", paddingTop: "0.6rem" }}>

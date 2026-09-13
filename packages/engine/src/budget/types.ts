@@ -120,6 +120,14 @@ export interface RegionalBudget {
     councilTax: number;
     businessRates: number;
     grant: number;
+    /**
+     * Issue #100: regional (state-scope) tax revenue = Σ (phased rate% × the
+     * region's GDP-derived tax base) for each enacted state tax. Source:
+     * src/lib/utils/budgetCalculations.ts calculateStateRevenue + the
+     * src/lib/budget/revenue.ts GDP base factors. 0 until a state-scope tax
+     * bill enacts; folded into `total`.
+     */
+    stateTax?: number;
     total: number;
   };
   spending: {
@@ -128,4 +136,20 @@ export interface RegionalBudget {
   };
   balance: number; // revenue.total - spending.total
   consecutiveDeficits: number;
+  /**
+   * Issue #100: enacted state-scope tax rates (%) by tax type, keyed like the
+   * national BudgetTaxRates (e.g. "incomeTax"). Source: src/lib/db/types/budget.ts
+   * StateTaxRates (subset) written by applyTaxRateChange scope "state".
+   * Written by legislation/billLifecycle.ts applyBillEffects and walked by
+   * budget/phases.ts regionalBudgetProcessingPhase. Absent/empty until a
+   * state-scope tax bill enacts.
+   */
+  taxRates?: Record<string, number>;
+  /**
+   * Issue #100: pending state tax-rate ramps: taxType -> target rate (%).
+   * Ticket #1102 one-point-per-turn phase-in, walked by
+   * regionalBudgetProcessingPhase via advanceTaxRatePhaseIn (see
+   * budget/taxRatePhaseIn.ts). Absent/empty when no ramp is running.
+   */
+  taxRatePhaseIn?: Record<string, number>;
 }

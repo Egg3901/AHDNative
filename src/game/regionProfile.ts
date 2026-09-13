@@ -82,7 +82,8 @@ export interface RegionBudgetLine {
 }
 
 export interface RegionBudgetView {
-  revenue: { councilTax: number; businessRates: number; grant: number; total: number };
+  /** Issue #100: state-scope tax revenue line, present once a regional tax bill enacts. */
+  revenue: { councilTax: number; businessRates: number; grant: number; stateTax?: number; total: number };
   spending: RegionBudgetLine[];
   spendingTotal: number;
   balance: number;
@@ -265,6 +266,7 @@ export function projectRegionBudget(world: WorldState, regionId: string): Region
       councilTax: budget.revenue.councilTax,
       businessRates: budget.revenue.businessRates,
       grant: budget.revenue.grant,
+      ...(typeof budget.revenue.stateTax === "number" ? { stateTax: budget.revenue.stateTax } : {}),
       total: budget.revenue.total,
     },
     spending,

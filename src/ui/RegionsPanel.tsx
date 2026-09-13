@@ -620,6 +620,9 @@ function SelectedRegion({
                     <KeyValue label="Council tax" value={money(selected.economy.budget.revenue.councilTax, currency)} />
                     <KeyValue label="Business rates" value={money(selected.economy.budget.revenue.businessRates, currency)} />
                     <KeyValue label="Grant" value={money(selected.economy.budget.revenue.grant, currency)} />
+                    {selected.economy.budget.revenue.stateTax !== undefined ? (
+                      <KeyValue label="State tax" value={money(selected.economy.budget.revenue.stateTax, currency)} />
+                    ) : null}
                   </dl>
                   {selected.economy.budget.spending.length > 0 ? (
                     <div style={{ marginTop: "0.7rem", borderTop: "1px solid var(--ahd-border)", paddingTop: "0.6rem" }}>

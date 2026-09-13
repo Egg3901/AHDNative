@@ -15,7 +15,11 @@ import type { TurnPhase } from "../phases/types.js";
 import { calculateBudgetRevenue } from "./revenue.js";
 import { calculateBudgetSpending } from "./spending.js";
 import { applyPerTurnGrowthToFederalBases } from "./fiscalBaseGrowth.js";
-import { calculateGenericRegionalRevenue } from "./regionalBudget.js";
+import {
+  calculateGenericRegionalRevenue,
+  regionalGdpAbsolute,
+  applyStateTaxToRegionalRevenue,
+} from "./regionalBudget.js";
 import { calculateSubsidyCostForCountry, SECTOR_SUBSIDIES_SPENDING_KEY } from "./subsidyBudget.js";
 import { getTurnInYear, FISCAL_YEAR_START_TURN_IN_YEAR, TURNS_PER_YEAR } from "./fiscalYear.js";
 import { advanceTaxRatePhaseIn } from "./taxRatePhaseIn.js";
@@ -127,11 +131,22 @@ export const regionalBudgetProcessingPhase: TurnPhase = {
       if (!countryBudget) continue;
       const rb = world.regionalBudgets?.[rid];
       if (!rb) continue;
+      // Issue #100: walk any enacted state tax-rate ramp one step toward its
+      // target this turn, mirroring fiscalBaseGrowthPhase's federal handling
+      // (ticket #1102). Reached targets drop out of the pending map on their own.
+      if (rb.taxRatePhaseIn && Object.keys(rb.taxRatePhaseIn).length > 0) {
+        const ramp = advanceTaxRatePhaseIn(
+          rb.taxRates ?? {},
+          rb.taxRatePhaseIn as Record<string, number>,
+        );
+        if (ramp.changed) {
+          rb.taxRates = { ...(rb.taxRates ?? {}), ...ramp.rates };
+          rb.taxRatePhaseIn = ramp.pending;
+        }
+      }
       const pop = region.population ?? 0;
       const nationalPop = countryBudget.population;
-      const regionGdpAbs = (region as unknown as { gdp?: number }).gdp != null
-        ? ((region as unknown as { gdp?: number }).gdp as number) * 1_000_000
-        : (nationalPop > 0 ? (countryBudget.gdp * pop) / nationalPop : 0);
+      const regionGdpAbs = regionalGdpAbsolute(region, countryBudget);
       const calc = calculateGenericRegionalRevenue({
         regionId: rid,
         countryId: region.countryId,
@@ -143,7 +158,9 @@ export const regionalBudgetProcessingPhase: TurnPhase = {
       rb.revenue.councilTax = Math.round(calc.councilTax);
       rb.revenue.businessRates = Math.round(calc.businessRates);
       rb.revenue.grant = Math.round(calc.grant);
-      rb.revenue.total = Math.round(calc.total);
+      // Issue #100: state-scope taxes feed the region's revenue off the phased
+      // rate (revenue.total and balance are recomputed inside the helper).
+      applyStateTaxToRegionalRevenue(rb, regionGdpAbs);
       // Simple spending: distribute national byCategory proportionally + 50% of grant as local spend
       const byCat: Record<string, number> = {};
       for (const [k, v] of Object.entries(countryBudget.spending.byCategory)) {

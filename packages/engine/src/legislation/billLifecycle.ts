@@ -17,13 +17,14 @@ import type { WorldRng } from "../rng.js";
 import type { Bill } from "./types.js";
 import { didPass, didPassWithFilibusterCheck, tallyVotes } from "./billVoteLogic.js";
 import { assignBillToCommittee } from "./committees.js";
-import { getLaw, resolveCatalogPolicyOption } from "./catalog.js";
+import { getLaw, resolveCatalogPolicyOption, type CatalogEntry } from "./catalog.js";
 import { UNEMPLOYMENT_MIN, UNEMPLOYMENT_MAX } from "../economy/macroConstants.js";
 import { triggerDebtCeilingCrisis } from "../budget/debtCeiling.js";
 import { applyCurrencyUnionProvision } from "../finance/currencyUnion.js";
 import type { PolicyLedgerEntry } from "../policyEffects/types.js";
 import { stepTaxRate, needsPhaseIn } from "../budget/taxRatePhaseIn.js";
 import { calculateBudgetRevenue } from "../budget/revenue.js";
+import { regionalGdpAbsolute, applyStateTaxToRegionalRevenue } from "../budget/regionalBudget.js";
 import { rebuildPolicyBudgets } from "../policyEffects/budget.js";
 
 const VOTING_TURNS = 2;
@@ -206,6 +207,59 @@ export function processBillLifecycle(world: WorldState, _rng: WorldRng): { bills
  * active_both as active (sequential) to keep lifecycle stage goldens simple.
  */
 
+/**
+ * Issue #100: apply a state-scope tax law to its target region's budget.
+ *
+ * Ported from src/lib/billEnactment.ts applyTaxRateChange scope "state"
+ * (lines 229-287). Scope rules, exactly:
+ *  - Only a real regional state row is a valid target. A bill with no regionId
+ *    (or a regionId that is not a real region of the bill's country) is skipped
+ *    — the reference's national pseudo-stateIds ("federal", "uk_national", …)
+ *    are not real state budgets (billEnactment.ts:230-232).
+ *  - DE and CN write no direct budget row: their per-turn regional processors
+ *    re-derive revenue, so a direct write would target the wrong model
+ *    (billEnactment.ts:234-249). Both are unported here (issue #103).
+ *  - The reference then reads the region's budget, applies the rate and
+ *    recomputes revenue + surplus immediately (billEnactment.ts:251-286).
+ *
+ * Native applies the same one-point-per-turn phase-in as its own federal path
+ * (ticket #1102, budget/taxRatePhaseIn.ts) per issue #100 acceptance: the
+ * selected rate becomes the target, the region's rate moves by stepTaxRate and
+ * the remainder is queued on `rb.taxRatePhaseIn` for regionalBudgetProcessingPhase
+ * to walk each turn. A fresh enactment on the same tax replaces any running ramp.
+ *
+ * Repeal and replacement fall out of the same rule: a repeal bill carries no
+ * `selectedRate` (actions/execute.ts repealLaw), so the catalog `baselineRate`
+ * becomes the target — the same path Native's federal branch already takes for
+ * a repealed tax — and a re-enactment simply replaces the pending target.
+ */
+function applyStateTaxChange(
+  world: WorldState,
+  bill: Bill,
+  catalog: CatalogEntry,
+  targetRate: number | undefined,
+): void {
+  const taxPolicy = catalog.taxPolicy;
+  if (!taxPolicy) return;
+  // DE/CN budgets recompute per turn from policy, not a direct write.
+  if (bill.countryId === "DE" || bill.countryId === "CN") return;
+  const regionId = bill.regionId;
+  if (!regionId) return; // national pseudo-state target: not a real regional budget
+  const region = world.regions[regionId];
+  const rb = world.regionalBudgets?.[regionId];
+  if (!region || region.countryId !== bill.countryId || !rb) return;
+  const taxType = taxPolicy.taxType;
+  const target = typeof targetRate === "number" ? targetRate : taxPolicy.baselineRate;
+  const current = rb.taxRates?.[taxType] ?? 0;
+  const stepped = stepTaxRate(current, target);
+  rb.taxRates = { ...(rb.taxRates ?? {}), [taxType]: stepped };
+  const pending = { ...(rb.taxRatePhaseIn ?? {}) };
+  if (needsPhaseIn(current, target)) pending[taxType] = target;
+  else delete pending[taxType];
+  rb.taxRatePhaseIn = pending;
+  applyStateTaxToRegionalRevenue(rb, regionalGdpAbsolute(region, world.budgets?.[bill.countryId]));
+}
+
 export function applyBillEffects(world: WorldState, bill: Bill): void {
   const catalog = bill.legislationTypeId ? getLaw(bill.legislationTypeId) : null;
   const selectedProvision = bill.provisions.find(
@@ -246,7 +300,6 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
   // on budget.taxRatePhaseIn for fiscalBaseGrowthPhase to walk each turn. A
   // fresh enactment on the same tax replaces any running ramp. Revenue and
   // surplus are recomputed immediately, as mainline does.
-  // State-scope tax laws (regional budgets) remain PORT-STUB: budget/stateTaxRates.
   if (catalog?.kind === "tax" && catalog.taxPolicy && budget && catalog.taxPolicy.scope === "federal") {
     const taxType = catalog.taxPolicy.taxType as keyof typeof budget.taxRates;
     if (taxType in budget.taxRates) {
@@ -261,6 +314,10 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
       budget.revenue = calculateBudgetRevenue(budget.taxRates, budget.taxBases, budget.revenue.other);
       budget.surplus = budget.revenue.total - budget.spending.total;
     }
+  }
+  // State-scope tax laws target a region's budget (issue #100).
+  if (catalog?.kind === "tax" && catalog.taxPolicy && catalog.taxPolicy.scope === "state") {
+    applyStateTaxChange(world, bill, catalog, bill.selectedRate);
   }
 
   // W28: currency union accession provisions (finance/currencyUnion.ts).

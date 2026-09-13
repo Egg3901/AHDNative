@@ -1356,6 +1356,11 @@ function seedBudgets(
       byCat[k] = Math.round((v * pop) / countryBudget.population);
     }
     const spendTotal = Object.values(byCat).reduce((s, v) => s + v, 0) + Math.round(grant * 0.5); // mimic local spend
+    // Issue #100: no state-scope tax is enacted at world creation, so the
+    // optional state tax lines (revenue.stateTax, taxRates, taxRatePhaseIn) are
+    // created lazily when a regional tax bill enacts / the regional budget phase
+    // runs. Keeping the fresh budget shape unchanged preserves the frozen
+    // fresh-world save hashes (save.v42Projection.test.ts, stanceDriftPerformance).
     regionalBudgets[rid] = {
       regionId: rid,
       countryId: region.countryId,
