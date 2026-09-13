@@ -9,44 +9,129 @@ export type DrawerRouteId =
 
 export type BottomTabId = "profile" | "actions" | "parties";
 
-export const MENU_GROUPS: { label: string; items: { id: DrawerRouteId; label: string }[] }[] = [
+export interface DrawerNavLink {
+  id: DrawerRouteId;
+  label: string;
+}
+
+/** A named sub-section inside a drawer group (the reference's collapsible categories). */
+export interface DrawerNavSection {
+  label: string;
+  items: DrawerNavLink[];
+}
+
+/**
+ * One drawer section. `items` are the group's loose/pinned links; `sections`
+ * are the reference's collapsible sub-categories (Nation: Politics /
+ * Government / Economy; World: Economy / Diplomacy / Other / Leaderboards).
+ */
+export interface DrawerNavGroup {
+  label: string;
+  items: DrawerNavLink[];
+  sections?: DrawerNavSection[];
+}
+
+/**
+ * Drawer hierarchy, aligned to the reference game menu:
+ *
+ *   Profile header links (Profile / Notifications / Settings / Wallet)
+ *     — ExperimentalMobileMenu.tsx:169-197 (profile-card links)
+ *   Actions                 — ExperimentalNavbar.tsx:279 top-level tab
+ *   State                   — reference State section
+ *   Nation                  — Politics / Government / Economy groups
+ *     — nationDetailsSections.ts:88-237 (order: Politics, Government, Economy)
+ *   World                   — Economy / Diplomacy / Other groups
+ *     — worldNavItems.ts:234-262 (order: Economy, Diplomacy, Other, Leaderboards)
+ *   Help
+ *
+ * Intentional Native deviations, recorded here per the standing rule:
+ *  - Reference groups include Nation's "Other" (Map) and World's
+ *    "Leaderboards" (Hall of Fame) / "Diplomacy" extras; Native has no
+ *    reachable destination for those, so the empty groups are omitted rather
+ *    than shown as placeholders.
+ *  - Search is a routed destination in Native, so it sits under Help (the
+ *    reference renders an inline search field above the profile card).
+ *  - The reference profile-card link labelled Wallet maps to Native's
+ *    Portfolio route/label.
+ *  - Nation's unreferenced "Other" (Map) group and the reference's Executive /
+ *    Supreme Court entries are Native Nation-detail gaps tracked in
+ *    docs/NAVIGATION-PARITY.md, not drawer structure.
+ */
+export const MENU_GROUPS: DrawerNavGroup[] = [
   {
-    label: "Character",
+    label: "Profile",
     items: [
       { id: "profile", label: "Profile" },
-      { id: "actions", label: "Actions" },
+      { id: "notifications", label: "Notifications" },
+      { id: "settings", label: "Settings" },
       { id: "portfolio", label: "Portfolio" },
-      { id: "markets", label: "Stock market" },
-      { id: "bonds", label: "Bonds" },
     ],
   },
   {
-    label: "State", items: [{ id: "state", label: "Home region" }, { id: "regions", label: "Regions" }],
+    // Actions is a top-level tab in the reference menu, not a "Character" group.
+    label: "Actions",
+    items: [{ id: "actions", label: "Actions" }],
+  },
+  {
+    label: "State",
+    items: [
+      { id: "state", label: "Home region" },
+      { id: "regions", label: "Regions" },
+    ],
   },
   {
     label: "Nation",
-    items: [
-      { id: "parties", label: "Parties" },
-      { id: "partyManagement", label: "Start a party" },
-      { id: "caucuses", label: "Caucuses" },
-      { id: "legislature", label: "Legislature" },
-      { id: "legislationDetails", label: "Bills and proposals" },
-      { id: "elections", label: "Elections" },
-      { id: "referendums", label: "Referendums" },
-      { id: "politicians", label: "Politicians" },
-      { id: "economy", label: "Economy" },
-      { id: "budget", label: "Budget" },
-      { id: "metrics", label: "National metrics" },
-      { id: "policy", label: "Policy" },
+    items: [],
+    sections: [
+      {
+        label: "Politics",
+        items: [
+          { id: "elections", label: "Elections" },
+          { id: "parties", label: "Parties" },
+          { id: "partyManagement", label: "Start a party" },
+          { id: "caucuses", label: "Caucuses" },
+          { id: "politicians", label: "Politicians" },
+          { id: "referendums", label: "Referendums" },
+        ],
+      },
+      {
+        label: "Government",
+        items: [
+          { id: "legislature", label: "Legislature" },
+          { id: "legislationDetails", label: "Bills and proposals" },
+          { id: "policy", label: "Policy" },
+        ],
+      },
+      {
+        label: "Economy",
+        items: [
+          { id: "economy", label: "Economy" },
+          { id: "budget", label: "National Budget" },
+          { id: "metrics", label: "National Metrics" },
+        ],
+      },
     ],
   },
   {
     label: "World",
-    items: [
-      { id: "notifications", label: "Notifications" },
-      { id: "nations", label: "Nations" },
-      { id: "banking", label: "Banking" },
-      { id: "news", label: "News" },
+    items: [],
+    sections: [
+      {
+        label: "Economy",
+        items: [
+          { id: "markets", label: "Stock market" },
+          { id: "bonds", label: "Bonds" },
+          { id: "banking", label: "Banking" },
+        ],
+      },
+      {
+        label: "Diplomacy",
+        items: [{ id: "nations", label: "Nations" }],
+      },
+      {
+        label: "Other",
+        items: [{ id: "news", label: "News" }],
+      },
     ],
   },
   {
@@ -54,10 +139,17 @@ export const MENU_GROUPS: { label: string; items: { id: DrawerRouteId; label: st
     items: [
       { id: "search", label: "Search" },
       { id: "help", label: "Help" },
-      { id: "settings", label: "Settings" },
     ],
   },
 ];
+
+/** Every destination the drawer exposes, in render order (groups + sub-sections). */
+export function drawerRouteIds(): DrawerRouteId[] {
+  return MENU_GROUPS.flatMap((group) => [
+    ...group.items.map((item) => item.id),
+    ...(group.sections ?? []).flatMap((section) => section.items.map((item) => item.id)),
+  ]);
+}
 
 export const BOTTOM_TABS: { id: BottomTabId; label: string; path: string }[] = [
   {
@@ -77,6 +169,10 @@ export const BOTTOM_TABS: { id: BottomTabId; label: string; path: string }[] = [
   },
 ];
 
+// Parent-section indicator for the bottom bar. Retained from the owner-approved
+// mobile correction (docs/MOBILE-NAVIGATION.md): the personal-finance cluster
+// (Profile/Portfolio/Stock market/Bonds) marks Profile even though the drawer
+// now files Stock market and Bonds under the reference World group.
 function bottomDestination(route: DrawerRouteId): BottomTabId | "menu" {
   if (route === "actions") return "actions";
   if (["profile", "portfolio", "markets", "bonds"].includes(route)) return "profile";
@@ -164,6 +260,35 @@ export function BottomNav({
         <span>Menu</span>
       </button>
     </nav>
+  );
+}
+
+function DrawerNavButton({
+  item,
+  route,
+  unreadCount,
+  onNavigate,
+}: {
+  item: DrawerNavLink;
+  route: DrawerRouteId;
+  unreadCount?: number;
+  onNavigate: (next: DrawerRouteId) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="ahd-drawer-item"
+      aria-current={route === item.id ? "page" : undefined}
+      data-active={route === item.id ? "true" : undefined}
+      onClick={() => onNavigate(item.id)}
+    >
+      {item.label}
+      {item.id === "notifications" && (unreadCount ?? 0) > 0 ? (
+        <span className="ahd-badge" aria-hidden="true" style={{ marginLeft: "0.4rem", background: "var(--ahd-primary)", color: "white" }}>
+          {unreadCount! > 99 ? "99+" : unreadCount}
+        </span>
+      ) : null}
+    </button>
   );
 }
 
@@ -293,21 +418,15 @@ export function GameDrawer({
             <div key={group.label} role="group" aria-label={group.label} className="ahd-drawer-group">
               <div className="ahd-drawer-heading" aria-hidden="true">{group.label}</div>
               {group.items.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className="ahd-drawer-item"
-                  aria-current={route === item.id ? "page" : undefined}
-                  data-active={route === item.id ? "true" : undefined}
-                  onClick={() => onNavigate(item.id)}
-                >
-                  {item.label}
-                  {item.id === "notifications" && (unreadCount ?? 0) > 0 ? (
-                    <span className="ahd-badge" aria-hidden="true" style={{ marginLeft: "0.4rem", background: "var(--ahd-primary)", color: "white" }}>
-                      {unreadCount! > 99 ? "99+" : unreadCount}
-                    </span>
-                  ) : null}
-                </button>
+                <DrawerNavButton key={item.id} item={item} route={route} unreadCount={unreadCount} onNavigate={onNavigate} />
+              ))}
+              {group.sections?.map((section) => (
+                <div key={section.label} role="group" aria-label={section.label} className="ahd-drawer-section">
+                  <div className="ahd-drawer-subheading" aria-hidden="true">{section.label}</div>
+                  {section.items.map((item) => (
+                    <DrawerNavButton key={item.id} item={item} route={route} unreadCount={unreadCount} onNavigate={onNavigate} />
+                  ))}
+                </div>
               ))}
             </div>
           ))}
