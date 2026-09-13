@@ -36,6 +36,7 @@ import {
   NEUTRAL_LABOR_PARTICIPATION,
   potentialGrowth,
   tfpBasket,
+  TFP_METRIC_PATHS,
   type TfpBasketInputs,
 } from "../demographics/laborForce.js";
 import { CENTRAL_BANK_COUNTRY_ANCHORS, computeMonetaryTerm } from "../centralBank/constants.js";
@@ -165,23 +166,17 @@ function finiteMetricValue(
   return typeof v === "number" && Number.isFinite(v) ? v : undefined;
 }
 
-/** Only exact AHDGame tfpBasket paths. Omit missing keys; do not invent aliases. */
+/** Only exact AHDGame tfpBasket paths (laborForce.ts TFP_METRIC_PATHS). Omit missing keys; do not invent aliases. */
 function tfpInputsFromNationalMetrics(
   metrics: Record<string, { value: number }> | undefined,
 ): TfpBasketInputs {
   const out: TfpBasketInputs = {};
-  const rdIntensity = finiteMetricValue(metrics, "economic.rdIntensity");
-  const workforceSkill = finiteMetricValue(metrics, "education.workforceSkill");
-  const transportEfficiency = finiteMetricValue(metrics, "infrastructure.transportEfficiency");
-  const broadbandAccess = finiteMetricValue(metrics, "infrastructure.broadbandAccess");
-  const powerGridReliability = finiteMetricValue(metrics, "infrastructure.powerGridReliability");
-  const urbanizationRate = finiteMetricValue(metrics, "population.urbanizationRate");
-  if (rdIntensity !== undefined) out.rdIntensity = rdIntensity;
-  if (workforceSkill !== undefined) out.workforceSkill = workforceSkill;
-  if (transportEfficiency !== undefined) out.transportEfficiency = transportEfficiency;
-  if (broadbandAccess !== undefined) out.broadbandAccess = broadbandAccess;
-  if (powerGridReliability !== undefined) out.powerGridReliability = powerGridReliability;
-  if (urbanizationRate !== undefined) out.urbanizationRate = urbanizationRate;
+  for (const [field, path] of Object.entries(TFP_METRIC_PATHS) as Array<
+    [keyof TfpBasketInputs, string]
+  >) {
+    const value = finiteMetricValue(metrics, path);
+    if (value !== undefined) out[field] = value;
+  }
   return out;
 }
 
@@ -228,11 +223,19 @@ export const macroCountryTurnPhase: TurnPhase = {
       // (AHDGame potentialGrowth.ts at e364c0495) with prev-turn nationalMetrics
       // at the exact phase.ts paths. nationalMetricsPhase runs later in the
       // registry, so this read is last turn's row (C3 lag). Missing keys fall
-      // back to TFP_REFERENCE_INPUTS. The six basket metrics are not seeded by
-      // computeNationalMetrics (E01_PER_STATE_METRICS), so default worlds stay
-      // at TFP_BASELINE. That missing-input gate is unresolved: the helper
-      // alone does not create education/infrastructure/urbanization growth
-      // effects.
+      // back to TFP_REFERENCE_INPUTS (TFP_BASELINE 1.2).
+      //
+      // #40 input gate: nationalMetricsPhase now aggregates the six leaves from
+      // the recorded per-region rows in WorldState.regionalMetrics (the real
+      // regional-scope policy store, schema v45) so a recorded input reaches
+      // this basket instead of being dropped. It is STILL not closed for a
+      // default world: there is no seed-time per-region source for these six
+      // leaves (E01_PER_STATE_METRICS; types.ts Region carries population/GDP/
+      // labor only), and no available law/order targets them, so a default
+      // 1953/1979/1991/2019 world records no rows and stays at TFP_BASELINE.
+      // Education/infrastructure/urbanization therefore still do NOT move
+      // growth on a default world. Do not substitute synthetic seeds or a
+      // national stand-in for the missing regional input.
       const regionIds = Object.values(world.regions)
         .filter((r) => r.countryId === id)
         .map((r) => r.id);

@@ -63,6 +63,22 @@ export interface TfpBasketInputs {
 }
 
 /**
+ * Exact `nationalMetrics` leaf path for each TFP basket field. These are the
+ * only six paths AHDGame phase.ts reads into `tfpBasket` at e364c0495; the
+ * macro read (phases/macroCountryTurn.ts) and the national aggregation
+ * (metrics/nationalMetrics.ts) both source this one map so the wiring cannot
+ * drift. Do NOT add aliases: only these exact keys are TFP inputs.
+ */
+export const TFP_METRIC_PATHS: Record<keyof Required<TfpBasketInputs>, string> = {
+  rdIntensity: "economic.rdIntensity",
+  workforceSkill: "education.workforceSkill",
+  transportEfficiency: "infrastructure.transportEfficiency",
+  broadbandAccess: "infrastructure.broadbandAccess",
+  powerGridReliability: "infrastructure.powerGridReliability",
+  urbanizationRate: "population.urbanizationRate",
+};
+
+/**
  * Typical mid-tier world-start levels. The basket is authored in
  * deviation-from-reference form, so at these inputs TFP = TFP_BASELINE exactly.
  */
