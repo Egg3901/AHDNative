@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProfilePanel } from "./ProfilePanel";
 import type { ProfileUpdate, ProfileView } from "../game/profileTypes";
@@ -12,7 +12,7 @@ const BASE: ProfileView = {
   campaignSongAutoplay: false,
   country: { id: "US", name: "United States" },
   homeRegion: { id: "US-NY", name: "New York" },
-  party: { id: "7", name: "Labor Caucus", color: "#2563eb" },
+  party: { id: "7", name: "Labor Caucus", color: "#2563eb", economicPosition: -2, socialPosition: 1 },
   office: "Councilor",
   officeDestination: { route: "legislature", id: "lower" },
   policies: { economic: -1.5, social: 2 },
@@ -143,13 +143,70 @@ describe("ProfilePanel", () => {
     expect(onNavigate).toHaveBeenCalledWith("electionDetails", "race-1");
   });
 
+  it("renders the policy compass with the player axes and the party marker from projected state", () => {
+    renderPanel();
+    const compass = screen.getByRole("img", { name: /Political compass/ });
+    // The accessible description carries both the player point and the party marker.
+    expect(compass).toHaveAccessibleName(/Your position: economic -1\.5, social 2\.0\./);
+    expect(compass).toHaveAccessibleName(/Labor Caucus: economic -2\.0, social 1\.0\./);
+    // The legend repeats the same values as readable text.
+    expect(screen.getByText("You · economic -1.5, social 2.0")).toBeInTheDocument();
+    expect(screen.getByText("Labor Caucus · economic -2.0, social 1.0")).toBeInTheDocument();
+    // Each axis row names the value qualitatively from the projected number.
+    expect(screen.getByText("-1.5 · Left")).toBeInTheDocument();
+    expect(screen.getByText("2.0 · Conservative")).toBeInTheDocument();
+    // The party platform is read from the party record, not invented.
+    expect(screen.getByText("-2.0 / 1.0")).toBeInTheDocument();
+  });
+
+  it("links the policy card to the party and home-region destinations", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    renderPanel({}, { onNavigate });
+    await user.click(screen.getByRole("button", { name: "View party" }));
+    expect(onNavigate).toHaveBeenCalledWith("partyDetails", "7");
+    await user.click(screen.getByRole("button", { name: "View home region" }));
+    expect(onNavigate).toHaveBeenCalledWith("state", "US-NY");
+  });
+
+  it("omits the region marker and names the missing region lean honestly", () => {
+    renderPanel();
+    expect(screen.getByText("Home-region lean")).toBeInTheDocument();
+    expect(screen.getByText("Not recorded by the engine")).toBeInTheDocument();
+    expect(screen.getByText(/does not record a per-region economic\/social lean/)).toBeInTheDocument();
+    expect(screen.getByText(/Per-character demographics \(race, gender, education, wealth\) are not modelled/)).toBeInTheDocument();
+    // The legend carries the player plus the party marker only — no invented region point.
+    const card = screen.getByRole("region", { name: "Policy and demographics" });
+    const legendItems = within(card).getAllByRole("listitem");
+    expect(legendItems).toHaveLength(2);
+    expect(within(card).queryByText(/state lean/i)).not.toBeInTheDocument();
+    expect(within(card).queryByText(/region ·/i)).not.toBeInTheDocument();
+  });
+
+  it("draws no party marker for independents and never fabricates a position", () => {
+    renderPanel({ party: null });
+    expect(screen.queryByText("Party position")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "View party" })).not.toBeInTheDocument();
+    const compass = screen.getByRole("img", { name: /Political compass/ });
+    expect(compass).not.toHaveAccessibleName(/party/i);
+    const card = screen.getByRole("region", { name: "Policy and demographics" });
+    expect(within(card).getAllByRole("listitem")).toHaveLength(1);
+  });
+
+  it("draws no party marker when a party record carries no authored position", () => {
+    renderPanel({ party: { id: "7", name: "Labor Caucus", color: "#2563eb" } });
+    expect(screen.queryByText("Party position")).not.toBeInTheDocument();
+    const card = screen.getByRole("region", { name: "Policy and demographics" });
+    expect(within(card).getAllByRole("listitem")).toHaveLength(1);
+  });
+
   it("renders the political hierarchy in reference order from real projected state", () => {
     renderPanel();
     const sections = Array.from(document.querySelectorAll(".ahd-profile > section"))
       .map((node) => node.getAttribute("aria-label"));
     expect(sections).toEqual([
       "Character", "Campaign song", "Biography", "Political standing", "Character stats",
-      "Policy", "Finances", "Career history", "Achievements",
+      "Policy and demographics", "Finances", "Career history", "Achievements",
     ]);
     expect(screen.getByText("In at the Ground Floor")).toBeInTheDocument();
     expect(screen.getByText("House")).toBeInTheDocument();
@@ -256,10 +313,14 @@ describe("ProfilePanel", () => {
     expect(screen.getByText("Regular net generation")).toBeInTheDocument();
   });
 
-  it("omits conditional political sections when local state is absent", () => {
+  it("keeps the compass card but names unrecorded axes instead of zero when local state is absent", () => {
     renderPanel({ stats: null, policies: null });
+    // The stats section stays conditional on projected state.
     expect(screen.queryByRole("region", { name: "Character stats" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Economic")).not.toBeInTheDocument();
+    // The policy card is always present, but the axes are named unrecorded — never a fabricated 0.
+    expect(screen.getByRole("region", { name: "Policy and demographics" })).toBeInTheDocument();
+    expect(screen.getAllByText("Not recorded yet")).toHaveLength(2);
+    expect(screen.queryByText(/0\.0 ·/)).not.toBeInTheDocument();
   });
 
   it("saves an edited biography and closes the editor on success", async () => {

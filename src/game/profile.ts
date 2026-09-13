@@ -39,8 +39,21 @@ export function projectProfile(world: WorldState): ProfileView {
     ? { id: homeRegionRecord.id, name: homeRegionRecord.name }
     : null;
   const partyRecord = player.partyId ? world.parties[player.partyId] : undefined;
+  // Party position (-5..+5) is the authored marker the compass plots alongside
+  // the player's own axes. Only pass through finite authored numbers; a party
+  // record missing them yields no marker rather than a fabricated point.
+  const partyPosition = (value: unknown): number | undefined =>
+    typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  const partyEconomic = partyRecord ? partyPosition(partyRecord.economicPosition) : undefined;
+  const partySocial = partyRecord ? partyPosition(partyRecord.socialPosition) : undefined;
   const party = partyRecord && partyRecord.countryId === country.id
-    ? { id: partyRecord.id, name: partyRecord.name, color: partyRecord.color }
+    ? {
+        id: partyRecord.id,
+        name: partyRecord.name,
+        color: partyRecord.color,
+        ...(partyEconomic !== undefined ? { economicPosition: partyEconomic } : {}),
+        ...(partySocial !== undefined ? { socialPosition: partySocial } : {}),
+      }
     : null;
   const savedSong = typeof player.campaignSongUrl === 'string' ? campaignSongId(player.campaignSongUrl) : '';
   const stats = player.stats && (player.stats.energy != null || player.stats.debate != null)

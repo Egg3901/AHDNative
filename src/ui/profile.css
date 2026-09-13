@@ -307,3 +307,93 @@ button.ahd-profile-chip:disabled {
 @media (max-width: 400px) {
   .ahd-profile-photo { width: 4rem; height: 4rem; }
 }
+
+/* ── Policy compass ────────────────────────────────────────────────────────
+   Plain-SVG political compass. Kept mobile-first: it fills the card width up to
+   a comfortable square and never relies on canvas. */
+.ahd-compass {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+  min-width: 0;
+}
+
+.ahd-compass-plot {
+  display: block;
+  width: 100%;
+  max-width: 20rem;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--ahd-border);
+  border-radius: var(--ahd-radius);
+  background: var(--ahd-card-elevated);
+}
+
+.ahd-compass-q {
+  stroke: none;
+}
+
+.ahd-compass-q-lt { fill: rgba(239, 68, 68, 0.16); }
+.ahd-compass-q-rt { fill: rgba(59, 130, 246, 0.16); }
+.ahd-compass-q-lb { fill: rgba(34, 197, 94, 0.16); }
+.ahd-compass-q-rb { fill: rgba(168, 85, 247, 0.16); }
+
+.ahd-compass-axis {
+  stroke: var(--ahd-border);
+  stroke-width: 0.6;
+}
+
+.ahd-compass-corner {
+  fill: var(--ahd-muted);
+  font-size: 3.1px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.ahd-compass-glyph {
+  fill: #fff;
+  font-size: 5px;
+  font-weight: 800;
+}
+
+.ahd-compass-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.72rem;
+  color: var(--ahd-muted);
+}
+
+.ahd-compass-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.ahd-compass-key {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.ahd-compass-key-glyph {
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 800;
+}
+
+.ahd-profile-unavailable-note {
+  color: var(--ahd-muted);
+  font-weight: 500;
+}

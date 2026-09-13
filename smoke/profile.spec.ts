@@ -64,7 +64,7 @@ test('bad images are rejected and a failed biography save retains the draft for 
   const profile = page.getByRole('region', { name: 'Profile', exact: true });
   await profile.getByLabel('Choose profile picture').setInputFiles({ name: 'bad.png', mimeType: 'image/png', buffer: Buffer.from('not an image') });
   await expect(profile.getByRole('alert')).toContainText('could not be read');
-  await expect(profile.getByRole('img')).toHaveCount(0);
+  await expect(profile.getByRole('img', { name: /profile picture/i })).toHaveCount(0);
   await profile.getByRole('button', { name: 'Edit biography' }).click();
   const bio = profile.getByRole('textbox', { name: 'Biography', exact: true });
   await bio.fill('Keep this unsaved draft.');

@@ -210,3 +210,78 @@ describe('#52 full achievement catalog', () => {
     );
   });
 });
+
+/** The save slice these projection tests patch before reload. */
+type MutableSave = {
+  world: {
+    player: { partyId: string | null; policies?: { economic: number; social: number } };
+    parties: Record<string, { economicPosition?: number; socialPosition?: number }>;
+  };
+};
+
+/** Loads a save whose world is patched in place before projection. */
+function profileFrom(mutate: (raw: MutableSave) => void) {
+  const session = new GameSession();
+  session.create(options);
+  const raw = JSON.parse(session.serialize(savedAt)) as MutableSave;
+  mutate(raw);
+  const loaded = new GameSession();
+  loaded.load(JSON.stringify(raw));
+  return loaded.profile();
+}
+
+describe('#50 policy compass projection', () => {
+  it('projects the party authored positions and the player axes from real state', () => {
+    const profile = profileFrom((raw) => {
+      raw.world.player.partyId = 'US_DEM';
+      raw.world.player.policies = { economic: -3, social: 1 };
+    });
+    // The party's economicPosition/socialPosition are read straight from world.parties.
+    expect(profile.party).toEqual({
+      id: 'US_DEM', name: 'Democratic Party', color: '#3B82F6',
+      economicPosition: -2, socialPosition: -2,
+    });
+    expect(profile.policies).toEqual({ economic: -3, social: 1 });
+  });
+
+  it('reports a null policy axis on a fresh save instead of a fabricated 0/0', () => {
+    const session = new GameSession();
+    session.create(options);
+    const profile = session.profile();
+    // Nothing in the engine writes world.player.policies, so there is no honest axis to show.
+    expect(profile.policies).toBeNull();
+    expect(profile.party).toBeNull();
+  });
+
+  it('never fabricates a party position when the party record omits it', () => {
+    const profile = profileFrom((raw) => {
+      raw.world.player.partyId = 'US_DEM';
+      delete raw.world.parties.US_DEM.economicPosition;
+      delete raw.world.parties.US_DEM.socialPosition;
+    });
+    const party = profile.party!;
+    expect(party).toEqual({ id: 'US_DEM', name: 'Democratic Party', color: '#3B82F6' });
+    expect('economicPosition' in party).toBe(false);
+    expect('socialPosition' in party).toBe(false);
+  });
+
+  it('keeps the party position and axes through a save/reload', () => {
+    const session = new GameSession();
+    session.create(options);
+    const raw = JSON.parse(session.serialize(savedAt));
+    raw.world.player.partyId = 'US_REP';
+    raw.world.player.policies = { economic: 4, social: -1 };
+    const loaded = new GameSession();
+    loaded.load(JSON.stringify(raw));
+    const before = loaded.profile();
+    const resumed = new GameSession();
+    resumed.load(loaded.serialize(savedAt));
+    const after = resumed.profile();
+    expect(after.party).toEqual(before.party);
+    expect(after.party).toEqual({
+      id: 'US_REP', name: 'Republican Party', color: '#EF4444',
+      economicPosition: 2, socialPosition: 2,
+    });
+    expect(after.policies).toEqual({ economic: 4, social: -1 });
+  });
+});
