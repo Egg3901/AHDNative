@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { createWorld } from "@ahdclient/engine";
 import { projectWorldOverview } from "../game/worldOverview";
 import { WorldPanel } from "./WorldPanel";
@@ -178,7 +178,7 @@ describe("WorldPanel", () => {
     expect(screen.getByRole("heading", { name: "United States" })).toBeInTheDocument();
     expect(screen.getByText("Browse nations")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Browse nations"));
-    expect(screen.getByText("France")).toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "Nation directory" })).getByText("France")).toBeInTheDocument();
     expect(screen.getByText("387,000 million")).toBeInTheDocument();
     expect(screen.getByText("Presidential republic")).toBeInTheDocument();
     expect(screen.getByText("President Person")).toBeInTheDocument();
@@ -229,6 +229,63 @@ describe("WorldPanel", () => {
     expect(directory).not.toHaveAttribute("open");
     expect(screen.getByRole("heading", { name: "France" })).toBeVisible();
     expect(screen.getByText("No government record.")).toBeInTheDocument();
+  });
+
+  it("renders the nation-context switcher and clearly preserves the player country", () => {
+    render(<WorldPanel overview={makeOverview()} section="nations" />);
+
+    const switcher = screen.getByRole("group", { name: "Nation context" });
+    const select = within(switcher).getByRole("combobox", { name: "Nation view" });
+    expect(select).toHaveValue("US");
+    // Every recorded nation is selectable; the player's own country is labelled.
+    expect(within(select).getByRole("option", { name: "United States (your country)" })).toBeInTheDocument();
+    expect(within(select).getByRole("option", { name: "France" })).toBeInTheDocument();
+    // The preservation note names the viewed nation and the player's country.
+    const note = within(switcher).getByRole("note");
+    expect(note).toHaveTextContent("Viewing United States (US)");
+    expect(note).toHaveTextContent("Your country is United States (US)");
+    expect(note).toHaveTextContent("currently viewing your own country");
+  });
+
+  it("switches only the viewed nation and reports the browse context", () => {
+    const onSelectNation = vi.fn();
+    render(<WorldPanel overview={makeOverview()} section="nations" onSelectNation={onSelectNation} />);
+
+    const select = screen.getByRole("combobox", { name: "Nation view" });
+    fireEvent.change(select, { target: { value: "FR" } });
+
+    // Only the browse context changes: the report fires, the viewed details
+    // switch, and the player country is still stated and untouched.
+    expect(onSelectNation).toHaveBeenCalledWith("FR");
+    expect(screen.getByRole("heading", { name: "France" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "United States" })).not.toBeInTheDocument();
+    const note = within(screen.getByRole("group", { name: "Nation context" })).getByRole("note");
+    expect(note).toHaveTextContent("Viewing France (FR)");
+    expect(note).toHaveTextContent("Your country is United States (US)");
+    expect(note).not.toHaveTextContent("currently viewing your own country");
+  });
+
+  it("deep-links the viewed nation and flags the player's country in the directory", () => {
+    render(<WorldPanel overview={makeOverview()} section="nations" initialId="FR" />);
+
+    expect(within(screen.getByRole("group", { name: "Nation context" })).getByRole("note")).toHaveTextContent("Viewing France (FR)");
+    const directory = within(screen.getByRole("group", { name: "Nation directory" }));
+    const france = directory.getByRole("button", { name: "View France details" });
+    expect(within(france).getByText("Viewing")).toBeInTheDocument();
+    expect(within(france).getByText("Not playable")).toBeInTheDocument();
+    const usa = directory.getByRole("button", { name: "View United States details" });
+    expect(within(usa).getByText("Your country")).toBeInTheDocument();
+  });
+
+  it("never mutates the player country when the nation view is switched", () => {
+    const overview = makeOverview();
+    render(<WorldPanel overview={overview} section="nations" />);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Nation view" }), { target: { value: "FR" } });
+
+    expect(overview.playerCountryId).toBe("US");
+    expect(overview.nations.find((nation) => nation.id === "US")?.name).toBe("United States");
+    expect(within(screen.getByRole("group", { name: "Nation context" })).getByRole("note")).toHaveTextContent("Your country is United States (US)");
   });
 
   it("renders home region population, party support, election, and office data", () => {

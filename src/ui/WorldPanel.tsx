@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   WorldChamberView,
   WorldEconomyView,
@@ -20,6 +20,12 @@ export interface WorldPanelProps {
   section: "nations" | "state";
   /** Opens a linked destination (election, office, profile) from the role rows. */
   onNavigate?: (route: DrawerRouteId, id?: string) => void;
+  /**
+   * Reports a nation-context switch from the Nations switcher. The selection is
+   * a browse context only — it never changes the player's country — and the
+   * owner keeps it across route changes so returning lands on the viewed nation.
+   */
+  onSelectNation?: (id: string) => void;
 }
 
 function number(value: number | null, maximumFractionDigits = 0): string {
@@ -190,7 +196,7 @@ function NationDetail({ nation, current, clock }: { nation: WorldNationView; cur
           </div>
         </div>
         <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
-          {current ? <span className="ahd-badge">Current country</span> : null}
+          {current ? <span className="ahd-badge">Your country</span> : <span className="ahd-badge">Viewing</span>}
           <span className="ahd-badge">{nation.playable ? "Playable" : "Not playable"}</span>
         </div>
       </div>
@@ -205,11 +211,73 @@ function NationDetail({ nation, current, clock }: { nation: WorldNationView; cur
   );
 }
 
-function NationsSection({ overview, initialId }: { overview: WorldOverviewView; initialId?: string }) {
+/**
+ * Nation-context switcher — the reference's "Switch nation view" control.
+ *
+ * Reference: ExperimentalMobileMenu.tsx:464-516 renders a collapsible list of
+ * switchable countries (ExperimentalNavbar.tsx:826-892 is the desktop menu) with
+ * the viewer's own country flagged by `countrySwitcher.homeBadge` ("★ Home") and
+ * the current view ticked (messages/en/nav.json:130-133:
+ * switchNationView / switchNationViewCurrent / homeBadge). It changes only the
+ * viewed country, never the account's player country.
+ *
+ * Native is a single-country save (NAVIGATION-PARITY.md section 1: "Country
+ * switcher … MISSING. One loaded world at a time"), so this selects which
+ * recorded nation's details are shown. It is a browse context: selecting a
+ * nation triggers no action, save or turn change, and the player country is
+ * stated next to the viewed nation at all times.
+ */
+function NationContextSwitcher({
+  overview,
+  selectedId,
+  onSelect,
+}: {
+  overview: WorldOverviewView;
+  selectedId: string;
+  onSelect: (id: string) => void;
+}) {
+  const playerId = overview.playerCountryId;
+  const playerNation = overview.nations.find((nation) => nation.id === playerId) ?? null;
+  const playerName = playerNation?.name ?? playerId;
+  const viewedNation = overview.nations.find((nation) => nation.id === selectedId) ?? null;
+  const viewedName = viewedNation?.name ?? selectedId;
+  const viewingPlayer = selectedId === playerId;
+  return (
+    <div className="ahd-card ahd-card-pad" role="group" aria-label="Nation context">
+      <div className="ahd-eyebrow">Nation context</div>
+      <label className="ahd-field" style={{ marginTop: "0.35rem", maxWidth: "22rem" }}>
+        <span className="ahd-label">Nation view</span>
+        <select
+          className="ahd-select"
+          value={selectedId}
+          onChange={(event) => onSelect(event.target.value)}
+          aria-label="Nation view"
+          aria-describedby="ahd-nation-context-note"
+        >
+          {overview.nations.map((nation) => (
+            <option key={nation.id} value={nation.id}>
+              {nation.id === playerId ? `${nation.name} (your country)` : nation.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p id="ahd-nation-context-note" role="note" aria-live="polite" className="ahd-muted" style={{ margin: "0.4rem 0 0", fontSize: "0.76rem" }}>
+        {`Viewing ${viewedName} (${selectedId}). Your country is ${playerName} (${playerId})${viewingPlayer ? " — currently viewing your own country" : ""}. Switching the view never changes your country, save, or turn.`}
+      </p>
+    </div>
+  );
+}
+
+function NationsSection({ overview, initialId, onSelectNation }: { overview: WorldOverviewView; initialId?: string; onSelectNation?: (id: string) => void }) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(initialId ?? overview.playerCountryId);
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const clock: GameClock = { turn: overview.turn, date: overview.date };
+  // A deep-link (search result) or the owner's stored browse context re-points
+  // the viewed nation without remounting the page.
+  useEffect(() => {
+    if (initialId) setSelectedId(initialId);
+  }, [initialId]);
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const filteredNations = overview.nations.filter((nation) => {
     if (normalizedQuery.length === 0) return true;
@@ -219,10 +287,17 @@ function NationsSection({ overview, initialId }: { overview: WorldOverviewView; 
     ?? overview.nations.find((nation) => nation.id === overview.playerCountryId)
     ?? overview.nations[0]
     ?? null;
+  // Browse context only: re-points the viewed nation and reports it upward. No
+  // engine action, save or turn change is triggered.
+  const selectNation = (id: string) => {
+    setSelectedId(id);
+    setDirectoryOpen(false);
+    onSelectNation?.(id);
+  };
   return (
     <WorldLayout overview={overview} title="Nations">
       <p className="ahd-muted" style={{ margin: 0, fontSize: "0.76rem" }}>
-        Browse the nations present in this save. Choosing a row only opens its details and does not change your country.
+        Browse the nations present in this save. Choosing a row only opens its details in this browse context and does not change your country.
       </p>
       <details className="ahd-card ahd-card-pad" open={directoryOpen ? true : undefined} onToggle={(event) => setDirectoryOpen(event.currentTarget.open)}>
         <summary
@@ -249,13 +324,14 @@ function NationsSection({ overview, initialId }: { overview: WorldOverviewView; 
           <div role="group" aria-label="Nation directory" style={{ display: "flex", flexDirection: "column", gap: "0.35rem", marginTop: "0.55rem", maxHeight: "18rem", overflowY: "auto" }}>
             {filteredNations.map((nation) => {
               const selected = selectedNation?.id === nation.id;
+              const isPlayer = nation.id === overview.playerCountryId;
               return (
                 <button
                   key={nation.id}
                   type="button"
                   aria-pressed={selected}
                   className="ahd-btn"
-                  onClick={() => { setSelectedId(nation.id); setDirectoryOpen(false); }}
+                  onClick={() => selectNation(nation.id)}
                   style={{ width: "100%", minHeight: "3.1rem", borderRadius: "var(--ahd-radius-sm)", justifyContent: "space-between", textAlign: "left", background: selected ? "color-mix(in srgb, var(--ahd-primary) 10%, var(--ahd-card-elevated))" : undefined }}
                   aria-label={`View ${nation.name} details`}
                 >
@@ -264,7 +340,7 @@ function NationsSection({ overview, initialId }: { overview: WorldOverviewView; 
                     <span className="ahd-muted" style={{ fontSize: "0.68rem", fontWeight: 400 }}>{nation.id} · {nation.currency ?? "Currency not recorded"}</span>
                   </span>
                   <span style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                    {nation.id === overview.playerCountryId ? <span className="ahd-badge">Current country</span> : null}
+                    {isPlayer ? <span className="ahd-badge">Your country</span> : selected ? <span className="ahd-badge">Viewing</span> : null}
                     <span className="ahd-badge">{nation.playable ? "Playable" : "Not playable"}</span>
                   </span>
                 </button>
@@ -273,6 +349,7 @@ function NationsSection({ overview, initialId }: { overview: WorldOverviewView; 
           </div>
         ) : <div className="ahd-empty" style={{ marginTop: "0.55rem" }}>No nations match this search.</div>}
       </details>
+      <NationContextSwitcher overview={overview} selectedId={selectedNation?.id ?? selectedId} onSelect={selectNation} />
       {selectedNation ? <NationDetail nation={selectedNation} current={selectedNation.id === overview.playerCountryId} clock={clock} /> : <div className="ahd-empty">No nations recorded.</div>}
     </WorldLayout>
   );
@@ -430,8 +507,8 @@ function StateSection({ overview, onNavigate }: { overview: WorldOverviewView; o
   );
 }
 
-export function WorldPanel({ overview, section, initialId, onNavigate }: WorldPanelProps) {
+export function WorldPanel({ overview, section, initialId, onNavigate, onSelectNation }: WorldPanelProps) {
   return section === "nations"
-    ? <NationsSection overview={overview} initialId={initialId} />
+    ? <NationsSection overview={overview} initialId={initialId} onSelectNation={onSelectNation} />
     : <StateSection overview={overview} onNavigate={onNavigate} />;
 }

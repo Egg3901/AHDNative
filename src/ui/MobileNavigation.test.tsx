@@ -148,4 +148,37 @@ describe("MobileNavigation", () => {
     expect(screen.getByRole("button", { name: "End turn" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save game" })).toBeDisabled();
   });
+
+  it("exposes the reference avatar/profile identity flow and the wallet destination", () => {
+    const groups = new Map(MENU_GROUPS.map((g) => [g.label, g]));
+    // Avatar/profile menu entry: the reference profile-card links
+    // (ExperimentalMobileMenu.tsx:169-197) map to Native's Profile group, and the
+    // reference "Wallet" entry (nav.json:10) maps to Native's Portfolio route.
+    expect(groups.get("Profile")!.items.map((i) => i.id)).toEqual([
+      "profile", "notifications", "settings", "portfolio",
+    ]);
+    // Actions is a top-level destination (reference's top-level tab), reachable
+    // without a desktop avatar menu.
+    expect(groups.get("Actions")!.items.map((i) => i.id)).toEqual(["actions"]);
+    // World > Diplomacy carries the Nations browse destination (browse context).
+    const diplomacy = groups.get("World")!.sections?.find((s) => s.label === "Diplomacy");
+    expect(diplomacy?.items.map((i) => i.id)).toEqual(["nations"]);
+  });
+
+  it("omits reference-only destinations Native cannot reach instead of adding placeholders", () => {
+    // Reference worldNavItems.ts / nationDetailsSections.ts expose Map, Crises,
+    // Hall of Fame, International Orgs, Sectors, Currency Exchange, Trade, IMF,
+    // Unions and My Corporation. Native has no route or data surface for them, so
+    // they must not appear as drawer rows (NAVIGATION-PARITY.md sections 2-3).
+    const ids = drawerRouteIds() as string[];
+    for (const id of ["map", "crises", "hallOfFame", "myCorporation", "unions", "sectors", "forex", "trade", "imf", "internationalOrgs"]) {
+      expect(ids).not.toContain(id);
+    }
+    const labels = MENU_GROUPS
+      .flatMap((group) => [...group.items, ...(group.sections ?? []).flatMap((section) => section.items)])
+      .map((item) => item.label);
+    for (const label of ["Map", "Hall of Fame", "My Corporation", "Unions", "Crises", "Sectors", "Currency Exchange", "Trade", "IMF", "International Orgs"]) {
+      expect(labels).not.toContain(label);
+    }
+  });
 });
