@@ -127,7 +127,9 @@ describe("#119 FOMC meeting lifecycle (turn boundary)", () => {
       expect(bank.fomcBoard).toBeUndefined();
       expect(bank.activeFomcMeeting ?? null).toBeNull();
     }
-    expect(world.fomcNominations).toEqual([]);
+    // Lazy: the optional collection stays absent until a nomination is proposed,
+    // so a fresh world and every pre-#119 save keep their serialized shape.
+    expect(world.fomcNominations).toBeUndefined();
     // The committee is the US Fed's institution; a non-committee bank cannot seed one.
     expect(seedFomcBoard(world, "UK")).toBe(false);
   });
@@ -241,7 +243,7 @@ describe("#119 FOMC nomination lifecycle (turn boundary)", () => {
 
     advanceTurn(world); // turn 2: catch-up NPP senator votes
     advanceTurn(world); // turn 3: expires -> confirmed
-    const nom = world.fomcNominations.find((n) => n.id === id)!;
+    const nom = world.fomcNominations?.find((n) => n.id === id)!;
     expect(nom.votesFor).toBeGreaterThan(nom.votesAgainst);
     expect(nom.status).toBe("confirmed");
     expect(nom.confirmedAtTurn).toBe(3);
@@ -274,7 +276,7 @@ describe("#119 FOMC nomination lifecycle (turn boundary)", () => {
 
     advanceTurn(world); // turn 2: votes
     advanceTurn(world); // turn 3: resolved -> rejected
-    const nom = world.fomcNominations.find((n) => n.id === id)!;
+    const nom = world.fomcNominations?.find((n) => n.id === id)!;
     expect(nom.status).toBe("rejected");
     expect(nom.rejectedAtTurn).toBe(3);
     expect(world.centralBanks["US"]!.fomcBoard!.find((s) => s.seatId === "seat-2")!.occupantType).toBe(
@@ -354,10 +356,10 @@ describe("#119 save/reload determinism + migration", () => {
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
     // Sanity: the cluster actually did something (not a silent no-op).
     expect((a.centralBanks["US"]!.fomcMeetingHistory ?? []).length).toBeGreaterThan(0);
-    expect(a.fomcNominations.some((n) => n.status !== "active")).toBe(true);
+    expect(a.fomcNominations?.some((n) => n.status !== "active")).toBe(true);
   });
 
-  it("backfills an empty fomcNominations on an old save and invents no board", () => {
+  it("leaves the optional fomcNominations absent on an old save and invents no board", () => {
     const world = createWorld(OPTS);
     const raw = JSON.parse(serializeSave(world, SAVED_AT)) as SaveFile;
     raw.schemaVersion = 46;
@@ -366,7 +368,7 @@ describe("#119 save/reload determinism + migration", () => {
 
     const migrated = deserializeSave(JSON.stringify(raw));
     expect(migrated.meta.schemaVersion).toBe(SCHEMA_VERSION);
-    expect(migrated.fomcNominations).toEqual([]);
+    expect(migrated.fomcNominations).toBeUndefined();
     // No board is fabricated: the FOMC phases remain strict no-ops for old saves.
     expect(migrated.centralBanks["US"]!.fomcBoard).toBeUndefined();
   });

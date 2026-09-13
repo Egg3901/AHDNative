@@ -308,7 +308,6 @@ const REQUIRED_WORLD_ARRAYS = [
   "ukJudicialReviewCases", "activeWorldModifiers", "crises", "playerEventLog", "governorAddresses",
   "governorOrders", "bills", "committees", "enactedLaws", "stateBills", "news", "bankLoans",
   "vitalSignsHistory", "ministerialOrders", "conflicts", "settlements", "subsidies",
-  "fomcNominations",
 ] as const;
 
 const REQUIRED_WORLD_RECORDS = [
@@ -2406,25 +2405,6 @@ export function deserializeSave(raw: string): WorldState {
       }
     }
     save.world.meta.schemaVersion = 46;
-  }
-  // v46 -> v47: FOMC nominations (issue #119). Pre-v47 saves cannot carry an
-  // FOMC board or nomination (both fields are new and optional), so the
-  // compatible backfill is an empty collection. No RNG is consumed and no
-  // board/meeting state is invented — both FOMC phases stay strict no-ops until
-  // a board is seated (see centralBank/fomcMeeting.ts file doc). Inserted after
-  // `centralBanks` to keep the serialized key order identical to a fresh world.
-  if (save.schemaVersion < 47) {
-    const w = save.world as unknown as Record<string, unknown>;
-    if (!Array.isArray(w["fomcNominations"])) {
-      const entries = Object.entries(w);
-      for (const key of Object.keys(w)) delete w[key];
-      for (const [key, value] of entries) {
-        w[key] = value;
-        if (key === "centralBanks") w["fomcNominations"] = [];
-      }
-      if (!Array.isArray(w["fomcNominations"])) w["fomcNominations"] = [];
-    }
-    save.world.meta.schemaVersion = 47;
   }
   // NPP-backed politicians used to carry Character-only party clout and
   // bonus-action counters. Keep the fields readable for older save shapes, but

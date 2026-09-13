@@ -243,7 +243,7 @@ function maybeVacancyNotice(
   const due =
     seatsExpired || typeof last !== "number" || turn - last >= FOMC_VACANCY_REMINDER_INTERVAL_TURNS;
   if (!due) return;
-  const hasActiveNomination = world.fomcNominations.some(
+  const hasActiveNomination = world.fomcNominations?.some(
     (n) => n.bankId === bank.countryId && n.status === "active",
   );
   if (hasActiveNomination) return;

@@ -138,7 +138,7 @@ export function processFomcNominationLifecycle(world: WorldState): FomcNominatio
     return v;
   };
 
-  for (const nom of world.fomcNominations) {
+  for (const nom of world.fomcNominations ?? []) {
     if (nom.status !== "active") continue;
 
     // A. Catch-up NPP senator votes while the voting window is open.
@@ -207,7 +207,7 @@ export function proposeFomcNomination(world: WorldState, opts: ProposeFomcNomina
   const bank = world.centralBanks[opts.countryId];
   if (!bank?.fomcBoard) throw new Error("Committee not found");
   if (!bank.fomcBoard.some((s) => s.seatId === opts.seatId)) throw new Error("Unknown seat");
-  const existing = world.fomcNominations.find(
+  const existing = (world.fomcNominations ?? []).find(
     (n) => n.bankId === opts.countryId && n.seatId === opts.seatId && n.status === "active",
   );
   if (existing) throw new Error("A nomination for this seat is already before the Senate");
@@ -225,6 +225,7 @@ export function proposeFomcNomination(world: WorldState, opts: ProposeFomcNomina
   }
 
   const turn = world.meta.turn;
+  world.fomcNominations ??= [];
   const id = `fomc_nom_${opts.countryId}_${turn}_${world.fomcNominations.length + 1}`;
   const nom: FomcNomination = {
     id,
