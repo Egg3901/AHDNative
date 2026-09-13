@@ -340,12 +340,12 @@ describe("GameScreen", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
 
-    await navigate(user, "National metrics");
+    await navigate(user, "National Metrics");
     const metrics = screen.getByRole("region", { name: "National metrics" });
     expect(within(metrics).getByText("National metrics registry")).toBeInTheDocument();
     expect(within(metrics).getByText("GDP growth")).toBeInTheDocument();
 
-    await navigate(user, "Budget");
+    await navigate(user, "National Budget");
     const budget = screen.getByRole("region", { name: "Budget" });
     await user.click(within(budget).getByRole("button", { name: "Policy" }));
     expect(screen.getByRole("region", { name: "Policy" })).toBeInTheDocument();
@@ -547,19 +547,32 @@ describe("GameScreen navigation menu", () => {
     expect(screen.queryByRole("dialog", { name: "Game menu" })).not.toBeInTheDocument();
     const menu = await openMenu(user);
     expect(menuButton).toHaveAttribute("aria-expanded", "true");
-    expect(within(menu).getByRole("group", { name: "Character" })).toBeInTheDocument();
-    expect(within(menu).getByRole("group", { name: "Nation" })).toBeInTheDocument();
-    expect(within(menu).getByRole("group", { name: "World" })).toBeInTheDocument();
-    const character = within(menu).getByRole("group", { name: "Character" });
-    expect(within(character).getByRole("button", { name: "Profile" })).toBeInTheDocument();
-    expect(within(character).getByRole("button", { name: "Actions" })).toBeInTheDocument();
-    expect(within(character).getByRole("button", { name: "Portfolio" })).toBeInTheDocument();
+    // Reference hierarchy: Profile header links, Actions (top-level tab), State,
+    // Nation and World (with their sub-groups), Help. No "Character" group.
+    expect(within(menu).queryByRole("group", { name: "Character" })).not.toBeInTheDocument();
+    for (const label of ["Profile", "Actions", "State", "Nation", "World", "Help"]) {
+      expect(within(menu).getByRole("group", { name: label })).toBeInTheDocument();
+    }
+    const profile = within(menu).getByRole("group", { name: "Profile" });
+    expect(within(profile).getByRole("button", { name: "Profile" })).toBeInTheDocument();
+    expect(within(profile).getByRole("button", { name: "Notifications" })).toBeInTheDocument();
+    expect(within(profile).getByRole("button", { name: "Settings" })).toBeInTheDocument();
+    expect(within(profile).getByRole("button", { name: "Portfolio" })).toBeInTheDocument();
+    // Actions is its own top-level group, not a member of a "Character" group.
+    const actions = within(menu).getByRole("group", { name: "Actions" });
+    expect(within(actions).getByRole("button", { name: "Actions" })).toBeInTheDocument();
     const nation = within(menu).getByRole("group", { name: "Nation" });
-    expect(within(nation).getByRole("button", { name: "Economy" })).toBeInTheDocument();
+    expect(within(nation).getByRole("group", { name: "Politics" })).toBeInTheDocument();
+    expect(within(nation).getByRole("group", { name: "Government" })).toBeInTheDocument();
+    expect(within(nation).getByRole("group", { name: "Economy" })).toBeInTheDocument();
     expect(within(nation).getByRole("button", { name: "Parties" })).toBeInTheDocument();
     expect(within(nation).getByRole("button", { name: "Legislature" })).toBeInTheDocument();
     expect(within(nation).getByRole("button", { name: "Elections" })).toBeInTheDocument();
+    expect(within(nation).getByRole("button", { name: "National Budget" })).toBeInTheDocument();
     const worldGroup = within(menu).getByRole("group", { name: "World" });
+    expect(within(worldGroup).getByRole("group", { name: "Economy" })).toBeInTheDocument();
+    expect(within(worldGroup).getByRole("button", { name: "Stock market" })).toBeInTheDocument();
+    expect(within(worldGroup).getByRole("button", { name: "Bonds" })).toBeInTheDocument();
     expect(within(worldGroup).getByRole("button", { name: "Banking" })).toBeInTheDocument();
     expect(within(worldGroup).getByRole("button", { name: "News" })).toBeInTheDocument();
     await user.click(within(menu).getByRole("button", { name: "News" }));
@@ -790,8 +803,9 @@ describe("GameScreen menu keyboard flow", () => {
     render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(makeWorld())} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={makeWorld()} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
     await user.click(screen.getByRole("button", { name: "Menu" }));
     const drawer = screen.getByRole("dialog", { name: "Game menu" });
+    // Profile group order is Profile, Notifications, Settings, Portfolio.
     within(drawer).getByRole("button", { name: "Profile" }).focus();
-    await user.keyboard("{Tab}{Tab}{Enter}");
+    await user.keyboard("{Tab}{Tab}{Tab}{Enter}");
     expect(screen.getByRole("region", { name: "Portfolio" })).toHaveFocus();
     expect(screen.queryByRole("dialog", { name: "Game menu" })).not.toBeInTheDocument();
   });

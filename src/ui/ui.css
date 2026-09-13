@@ -276,6 +276,15 @@ html, body { overflow-x: hidden; }
   text-transform: uppercase; color: var(--ahd-muted);
   padding: 0.45rem 0.55rem 0.2rem;
 }
+/* Reference sub-categories (Nation Politics/Government/Economy, World
+   Economy/Diplomacy/Other) nest under their parent group heading. */
+.ahd-drawer-section { display: flex; flex-direction: column; gap: 0.05rem; }
+.ahd-drawer-subheading {
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--ahd-muted);
+  padding: 0.4rem 0.55rem 0.15rem 0.95rem;
+}
+.ahd-drawer-section .ahd-drawer-item { padding-left: 0.95rem; }
 .ahd-drawer-item {
   appearance: none; border: none; border-left: 2px solid transparent;
   background: transparent; color: var(--ahd-fg);
