@@ -338,27 +338,49 @@ html, body { overflow-x: hidden; }
   background: color-mix(in srgb, var(--ahd-bg) 94%, transparent);
   backdrop-filter: blur(10px);
   border-top: 1px solid var(--ahd-border);
-  padding-top: 0.45rem;
-  padding-bottom: max(0.55rem, env(safe-area-inset-bottom));
+  padding-top: 0.25rem;
+  padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
   overflow: visible;
 }
 .ahd-footer-inner {
   display: flex; flex-direction: column; gap: 0.15rem;
   min-width: 0;
 }
-/* Compact status strip above the bottom nav */
+/* Compact status strip above the bottom nav. The #223 identity makes this wrap
+   to two lines on phones, so the row-gap + line-height are tightened to keep the
+   whole footer inside its 160px budget (smoke/mobile-navigation.spec.ts). */
 .ahd-statusline {
-  display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem;
-  font-size: 0.72rem; align-items: baseline;
+  display: flex; flex-wrap: wrap; gap: 0.1rem 0.6rem;
+  font-size: 0.72rem; line-height: 1.2; align-items: baseline;
   overflow-wrap: anywhere;
 }
+/* Reference status-bar identity (#223): the character name links to Profile,
+   followed by the party · country context. Inline (no 44px touch box) so the
+   compact footer keeps its height budget on 320px. */
+.ahd-status-identity {
+  display: inline-flex; align-items: baseline; flex-wrap: nowrap; gap: 0.15rem 0.35rem;
+  min-width: 0; max-width: 100%; overflow: hidden;
+}
+.ahd-status-identity-name {
+  appearance: none; border: none; background: transparent; padding: 0; margin: 0;
+  font: inherit; font-weight: 650; color: var(--ahd-fg);
+  cursor: pointer; touch-action: manipulation; text-align: left;
+  border-radius: var(--ahd-radius-sm);
+  min-width: 0; max-width: 9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Party · country context; truncates after the name on very narrow screens. */
+.ahd-status-identity-context {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ahd-status-identity-name:hover { color: var(--ahd-primary); }
+.ahd-status-identity-name:focus-visible { outline: none; box-shadow: var(--ahd-focus); }
 .ahd-status-resources {
   display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.2rem;
   min-width: 0;
 }
 .ahd-status-btn {
   appearance: none; border: none; background: transparent; color: var(--ahd-fg);
-  padding: 0.35rem 0.15rem; margin: 0;
+  padding: 0.2rem 0.15rem; margin: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1rem;
   font-size: 0.74rem; font-weight: 650;
   cursor: pointer; touch-action: manipulation;

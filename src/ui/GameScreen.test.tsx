@@ -737,6 +737,25 @@ describe("GameScreen status footer", () => {
     expect(within(footer).getByRole("button", { name: /favorability/i })).toBeInTheDocument();
   });
 
+  it("leads the footer with the character identity linking to Profile, with the reference-calendar date", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
+    const footer = screen.getByRole("contentinfo", { name: "Status and primary navigation" });
+    const identity = within(footer).getByRole("button", { name: "Profile: Ada" });
+    expect(identity).toHaveTextContent("Ada");
+    expect(within(footer).getByText(/Labor · United States/)).toBeInTheDocument();
+    // In-game date on the reference calendar, never the raw ISO clock (#226).
+    expect(within(footer).getByText(/January, Week 2, 1952/)).toBeInTheDocument();
+    expect(within(footer).queryByText("1953-01-01")).not.toBeInTheDocument();
+    // The identity links to Profile from every game route.
+    await navigate(user, "Actions");
+    expect(screen.getByRole("region", { name: "Actions" })).toBeInTheDocument();
+    await user.click(within(footer).getByRole("button", { name: "Profile: Ada" }));
+    expect(screen.getByRole("region", { name: "Profile" })).toBeInTheDocument();
+    expect(within(screen.getByRole("navigation", { name: "Primary" })).getByRole("button", { name: "Profile" })).toHaveAttribute("aria-current", "page");
+  });
+
   it("shows processing status while busy", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={true} message="Advancing" onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} />);
