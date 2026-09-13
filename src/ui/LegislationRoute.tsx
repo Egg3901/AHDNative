@@ -11,9 +11,16 @@ export function LegislationRoute({ load, revision, busy, onAction, initialId, co
   load: GameScreenProps['loadLegislation']; revision: object;
   busy: boolean; onAction: GameScreenProps['onAction'];
 }) {
-  // Restore the last chamber/bill from device storage so navigation context
-  // survives a reload, then keep it current as the player moves.
-  const [billId, setBillId] = useState<string | null>(() => initialId ?? loadLegislatureNav(countryId).billId);
+  // Restore the last chamber from device storage so chamber navigation survives
+  // a reload, then keep it current as the player moves.
+  //
+  // The expanded bill is deliberately session-scoped: only an explicit deep
+  // link (initialId) or the player's own toggle opens a card. Restoring the
+  // persisted bill id would re-expand that card on the next visit and replace
+  // its "Show details" control with "Hide details", which is the pre-existing
+  // bill flow this route must keep working. The chamber-scoped list still
+  // renders the player's bill because it opens on the player's own chamber.
+  const [billId, setBillId] = useState<string | null>(initialId ?? null);
   const [chamberKey, setChamberKey] = useState<string | null>(() => loadLegislatureNav(countryId).chamberKey);
   useEffect(() => {
     saveLegislatureNav(countryId, { chamberKey, billId });
