@@ -505,6 +505,30 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
       <footer aria-hidden={menuOpen || undefined} inert={menuOpen} ref={footerRef} className="ahd-footer" aria-label="Status and primary navigation">
         <div className="ahd-container ahd-footer-inner">
           <div className="ahd-statusline">
+            {/* Reference status bar leads with the character identity (#223):
+                the name links to Profile, followed by the party · country
+                context (AHDGame StatusBar.tsx:345-350 renders the name as a
+                Link to /profile; Native routes through `go` instead of href).
+                NB: the reference's "Founding" pre-iteration badge
+                (StatusBar.tsx:371-379, gated on preIterationActive) is
+                intentionally NOT rendered here — Native's solo engine records
+                no pre-iteration/founding state: WorldMeta has no such field
+                (packages/engine/src/types.ts:616-644) and cycleContextForWorld
+                hardcodes preIterationActive:false ("Solo has no
+                pre-iteration/founding phase concept", elections/
+                orchestration.ts:45-53). Inventing the flag would misreport it. */}
+            <span className="ahd-status-identity">
+              <button
+                type="button"
+                className="ahd-status-identity-name"
+                aria-label={`Profile: ${world.player.name}`}
+                title="View profile"
+                onClick={() => go("profile")}
+              >
+                {world.player.name}
+              </button>
+              <span className="ahd-muted ahd-status-identity-context">{world.player.partyName || "Independent"} · {world.countryName}</span>
+            </span>
             <span className="ahd-mono">Turn {world.turn} · {formatGameDate(world.date, clock)}</span>
             {saveNotice && !busy && !error ? <span className="ahd-muted" role="status">{message}</span>
               : <span className="ahd-muted">{busy ? (message ? `Processing: ${message}` : "Processing...") : "Player paced"}</span>}
