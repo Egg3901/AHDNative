@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { PoliticsView } from "../game/politics";
+import { createWorld } from "@ahdclient/engine";
+import type { PoliticsPresidentialView, PoliticsView } from "../game/politics";
+import { projectNation } from "../game/nation";
 
 // World clock anchoring the reference calendar for in-game dates (#226).
 const CLOCK = { turn: 1, date: "1953-01-13" };
@@ -71,6 +73,7 @@ function makePolitics(): PoliticsView {
         primary: primaryOpen(),
         candidacy: { id: "withdrawCandidacy", name: "Withdraw candidacy", description: "", cost: 1, available: true },
         playerCampaign: null,
+        presidential: null,
         projection: {
           resolved: false, countedVotes: null,
           leaderName: null, leaderShare: null, runnerUpName: null, marginPct: null,
@@ -90,6 +93,7 @@ function makePolitics(): PoliticsView {
         primary: primaryResolved(),
         candidacy: { id: "declareCandidacy", name: "Run for office", description: "", cost: 1, available: false, disabledReason: "This election has ended." },
         playerCampaign: null,
+        presidential: null,
         projection: {
           resolved: true, countedVotes: 10000,
           leaderName: "Sam Winner", leaderShare: 0.6, runnerUpName: "Lou Loser", marginPct: 0.2,
@@ -699,5 +703,173 @@ describe("PoliticsPanel referendums", () => {
     expect(card.getByRole("button", { name: `Spend on campaign (${record.question})` })).toBeDisabled();
     expect(card.getByText("Not enough funds or actions for this action.")).toBeInTheDocument();
     expect(card.getByRole("button", { name: `Run ground game (${record.question})` })).toBeDisabled();
+  });
+});
+
+function makeCampaignView(): NonNullable<RaceDetail["playerCampaign"]> {
+  return {
+    status: "active", funds: 50000, actions: 20,
+    spendThisTurn: 0, spendStock: 0,
+    totalFundsGenerated: 12000, totalFundsSpent: 0,
+    incomePerTurn: 6000, maintenancePerTurn: 0,
+    support: 52, generalPhase: true,
+    strength: {
+      value: 1500, voteBoostPct: 2.96, eligible: true,
+      nationalInfluence: 400, strengthPerClick: 300,
+      single: { clicks: 1, strengthAdded: 300, costFunds: 24900.3, costActions: 1, affordable: true },
+      batch: { clicks: 5, strengthAdded: 1500, costFunds: 124500, costActions: 5, affordable: true },
+      max: { clicks: 6, strengthAdded: 1800, costFunds: 149400, costActions: 6, affordable: true },
+      targets: [],
+      contribute: { id: "campaignContribute", name: "Contribute", description: "", cost: 1, available: true },
+    },
+    blend: { levers: [{ category: "fundraising", started: true, effect: "+$35,000/turn income" }], voteBoostPct: 2.96, currencySymbol: "$" },
+    rally: {
+      action: { id: "campaignRally", name: "Campaign Rally", description: "", cost: 6, available: true },
+      immediateSupport: 1.8, pendingPerTurn: 0.3, pendingTurns: 4,
+      tour: { active: false, tickCost: 3, action: { id: "campaignRallyTour", name: "Start tour", description: "", cost: 0, available: true } },
+    },
+    oppositionResearch: { targetId: null, targetName: null, cooldownTurns: 0, targets: [], action: { id: "campaignRetarget", name: "Set opposition target", description: "", cost: 0, available: true } },
+    manager: { managerId: null, managerName: null, managers: [], action: { id: "campaignManager", name: "Set campaign manager", description: "", cost: 0, available: true } },
+    canvassing: { regionId: null, targets: [], action: { id: "campaignCanvass", name: "Canvass", description: "", cost: 1, available: true } },
+    targetedAds: { regionId: null, targets: [], action: { id: "campaignTargetedAd", name: "Buy targeted ads", description: "", cost: 1, available: true } },
+    activity: [],
+    levers: [],
+  };
+}
+
+const makePresidentialView = (overrides: Partial<PoliticsPresidentialView> = {}): PoliticsPresidentialView => ({
+  applicable: true, hasStateTallies: true,
+  totalElectoralVotes: 59, majorityThreshold: 30,
+  electors: [
+    { candidateId: "US-3", name: "Sam Winner", partyId: "US_DEM", partyName: "Democratic Party", electoralVotes: 35, popularVotes: 3000 },
+    { candidateId: "US-4", name: "Lou Loser", partyId: "US_REP", partyName: "Republican Party", electoralVotes: 24, popularVotes: 2000 },
+  ],
+  states: [
+    { stateId: "CA", stateName: "California", electoralVotes: 32, winnerId: "US-3", winnerName: "Sam Winner", votes: [{ candidateId: "US-3", name: "Sam Winner", votes: 1000 }, { candidateId: "US-4", name: "Lou Loser", votes: 400 }] },
+    { stateId: "TX", stateName: "Texas", electoralVotes: 24, winnerId: "US-4", winnerName: "Lou Loser", votes: [{ candidateId: "US-4", name: "Lou Loser", votes: 700 }] },
+    { stateId: "WY", stateName: "Wyoming", electoralVotes: 3, winnerId: "US-3", winnerName: "Sam Winner", votes: [{ candidateId: "US-3", name: "Sam Winner", votes: 50 }] },
+  ],
+  resolved: false, winnerId: null, winnerName: null,
+  note: "Each state awards its whole electoral-vote block to its plurality winner. A candidate needs 30 of 59 electoral votes to win the presidency.",
+  ...overrides,
+});
+
+const makePresidentialRace = (overrides: Partial<RaceDetail> = {}): RaceDetail => ({
+  id: "president:US:-:c1", title: "president", status: "active", date: "1956-11-06", filingDate: "1956-09-01",
+  phase: "general",
+  playerCandidate: true,
+  candidates: [
+    { id: "US-3", name: "Sam Winner", partyId: "US_DEM", partyName: "Democratic Party", incumbent: false, isPlayer: false, votes: 3000, voteShare: 0.6, winner: false },
+    { id: "US-4", name: "Lou Loser", partyId: "US_REP", partyName: "Republican Party", incumbent: false, isPlayer: false, votes: 2000, voteShare: 0.4, winner: false },
+  ],
+  winnerNames: [], winnerIds: [], totalVotes: 5000,
+  stages: raceStages("general"),
+  primary: { applicable: false, open: false, resolved: false, endTurn: 20, endDate: "1956-09-01", snapshotTurn: null, totalBallots: null, parties: [] },
+  candidacy: { id: "withdrawCandidacy", name: "Withdraw candidacy", description: "", cost: 1, available: true },
+  playerCampaign: makeCampaignView(),
+  presidential: makePresidentialView(),
+  projection: { resolved: false, countedVotes: 5000, leaderName: "Sam Winner", leaderShare: 0.6, runnerUpName: "Lou Loser", marginPct: 0.2, seats: null, snapshotTurn: null, drivers: [], projected: null },
+  ...overrides,
+});
+
+describe("PoliticsPanel presidential race", () => {
+  it("renders the recorded Electoral College, per-state accumulation, timers and campaign link", async () => {
+    const user = userEvent.setup();
+    const onOpenCampaign = vi.fn();
+    const PoliticsPanel = await renderPanel();
+    const view = makePolitics();
+    view.elections = [makePresidentialRace()];
+    render(<PoliticsPanel politics={view} section="presidential" clock={CLOCK} busy={false} onAction={vi.fn()} onOpenCampaign={onOpenCampaign} />);
+
+    expect(screen.getByRole("heading", { name: "Presidential election" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Electoral College" })).toBeInTheDocument();
+    expect(screen.getByText(/59 electoral votes recorded · 30 needed to win/)).toBeInTheDocument();
+    expect(screen.getByText(/35 EV/)).toBeInTheDocument();
+    expect(screen.getByText(/Each state awards its whole electoral-vote block/)).toBeInTheDocument();
+    expect(screen.getByText("Race stages")).toBeInTheDocument();
+
+    // Per-state accumulation is behind the recorded state names and votes.
+    await user.click(screen.getByText("Per-state tally (3)"));
+    expect(screen.getByText("California")).toBeInTheDocument();
+    expect(screen.getByText("Texas")).toBeInTheDocument();
+    expect(screen.getByText("Sam Winner 1,000 · Lou Loser 400")).toBeInTheDocument();
+
+    // Campaign link carries the recorded Profile influence that feeds strength.
+    expect(screen.getByText(/400 national influence feeds campaign strength/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Manage campaign" }));
+    expect(onOpenCampaign).toHaveBeenCalledWith("president:US:-:c1");
+  });
+
+  it("shows the recorded result after resolution", () => {
+    const PoliticsPanel = renderPanel();
+    const view = makePolitics();
+    view.elections = [makePresidentialRace({
+      status: "resolved", phase: "resolved",
+      stages: raceStages("resolved"),
+      winnerNames: ["Sam Winner"], winnerIds: ["US-3"],
+      candidates: [
+        { id: "US-3", name: "Sam Winner", partyId: "US_DEM", partyName: "Democratic Party", incumbent: false, isPlayer: false, votes: 3000, voteShare: 0.6, winner: true },
+        { id: "US-4", name: "Lou Loser", partyId: "US_REP", partyName: "Republican Party", incumbent: false, isPlayer: false, votes: 2000, voteShare: 0.4, winner: false },
+      ],
+      presidential: makePresidentialView({ resolved: true, winnerId: "US-3", winnerName: "Sam Winner" }),
+    })];
+    return PoliticsPanel.then((Panel) => {
+      render(<Panel politics={view} section="presidential" clock={CLOCK} busy={false} onAction={vi.fn()} />);
+      expect(screen.getByText("Result: Sam Winner won the presidency.")).toBeInTheDocument();
+      expect(screen.getByText("Winners: Sam Winner")).toBeInTheDocument();
+    });
+  });
+
+  it("reports the fallback when the engine recorded no per-state tallies", () => {
+    const PoliticsPanel = renderPanel();
+    const view = makePolitics();
+    view.elections = [makePresidentialRace({
+      presidential: makePresidentialView({
+        hasStateTallies: false, totalElectoralVotes: 0, majorityThreshold: 0, states: [],
+        electors: [{ candidateId: "US-3", name: "Sam Winner", partyId: "US_DEM", partyName: "Democratic Party", electoralVotes: 0, popularVotes: 3000 }],
+        note: "This race has no recorded per-state tallies, so no state-by-state or electoral-vote accumulation is available; only the counted national tally is shown.",
+      }),
+    })];
+    return PoliticsPanel.then((Panel) => {
+      render(<Panel politics={view} section="presidential" clock={CLOCK} busy={false} onAction={vi.fn()} />);
+      expect(screen.queryByText(/needed to win/)).not.toBeInTheDocument();
+      expect(screen.getByText(/no recorded per-state tallies/)).toBeInTheDocument();
+      expect(screen.queryByText(/Per-state tally/)).not.toBeInTheDocument();
+    });
+  });
+
+  it("links from the Elections surface to the presidential race destination", async () => {
+    const user = userEvent.setup();
+    const onOpenPresidential = vi.fn();
+    const PoliticsPanel = await renderPanel();
+    const view = makePolitics();
+    view.elections = [makePresidentialRace()];
+    render(<PoliticsPanel politics={view} section="elections" clock={CLOCK} busy={false} onAction={vi.fn()} onOpenPresidential={onOpenPresidential} />);
+    await user.click(screen.getByRole("button", { name: "Presidential race" }));
+    expect(onOpenPresidential).toHaveBeenCalledWith("president:US:-:c1");
+    await user.click(screen.getByRole("button", { name: "View presidential race" }));
+    expect(onOpenPresidential).toHaveBeenCalledWith("president:US:-:c1");
+  });
+});
+
+describe("PoliticsPanel political metrics", () => {
+  it("renders the registry Native already projects through the reused nation view", () => {
+    const PoliticsPanel = renderPanel();
+    const nation = projectNation(createWorld({ era: "1953", countryId: "US", playerName: "Ada", seed: "politics-metrics-view" }));
+    return PoliticsPanel.then((Panel) => {
+      render(<Panel politics={makePolitics()} section="metrics" clock={CLOCK} busy={false} onAction={vi.fn()} nation={nation} />);
+      expect(screen.getByRole("heading", { name: "Metrics" })).toBeInTheDocument();
+      expect(screen.getByText("National metrics registry")).toBeInTheDocument();
+      expect(screen.getByText(`${nation.metrics.total} recorded`)).toBeInTheDocument();
+    });
+  });
+
+  it("shows an honest empty state when no nation registry is available", () => {
+    const PoliticsPanel = renderPanel();
+    return PoliticsPanel.then((Panel) => {
+      render(<Panel politics={makePolitics()} section="metrics" clock={CLOCK} busy={false} onAction={vi.fn()} />);
+      expect(screen.getByRole("heading", { name: "Political metrics" })).toBeInTheDocument();
+      expect(screen.getByText(/No national metrics are recorded/)).toBeInTheDocument();
+    });
   });
 });

@@ -378,7 +378,8 @@ function BudgetSection({ nation, onNavigate }: { nation: NationView; onNavigate?
   );
 }
 
-function MetricsSection({ nation, onNavigate }: { nation: NationView; onNavigate?: NationPanelProps["onNavigate"] }) {
+/** Exported so the political-metrics view (#69) renders the same registry Native already projects. */
+export function MetricsSection({ nation, onNavigate }: { nation: NationView; onNavigate?: NationPanelProps["onNavigate"] }) {
   const { metrics } = nation;
   return (
     <Layout nation={nation} title="Metrics">
