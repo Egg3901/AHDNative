@@ -1,7 +1,7 @@
 import {
   ACTION_CATALOG, addDaysIso, calculateCampaignIncome, calculateMaintenanceCosts,
   campaignAnchorToLocal, campaignKey, canJoinParty, canLeaveParty, describeOpsCurrentEffect,
-  getActionCost,
+  getActionCost, quotePartyCaucusAction,
   getCampaignFamilyScalar, getEffectiveBranchCost, RALLY_IMMEDIATE_SHARE,
   RALLY_SPREAD_TURNS, SUPPORT_RALLY_ACTION_COST, SUPPORT_RALLY_FULL_VALUE,
   SUPPORT_RALLY_TOUR_TICK_ACTION_COST,
@@ -24,6 +24,7 @@ import {
 } from "@ahdclient/engine";
 import type { ActionView, RacePhase } from "./types";
 import { racePhase } from "./racePhase";
+import { describePartyCaucusEffect } from "./partyCaucusConsequences";
 
 /**
  * Politics projection: per party detail, per election detail with its real
@@ -386,7 +387,11 @@ function actionGate(world: WorldState, id: "joinParty" | "leaveParty" | "declare
   return undefined;
 }
 
-/** Join/leave hints mirror session.ts; executeAction remains authoritative. */
+/**
+ * Join/leave hints mirror session.ts; executeAction remains authoritative.
+ * AP costs and consequences come from the shared party/caucus projection (#61),
+ * so the quote is the same numbers the dispatcher charges.
+ */
 export function projectPartyMembership(world: WorldState, partyId: string): { join: ActionView; leave: ActionView } {
   const isPlayerParty = world.player.partyId === partyId;
   const join = canJoinParty(world, partyId);
@@ -397,12 +402,16 @@ export function projectPartyMembership(world: WorldState, partyId: string): { jo
     : actionGate(world, "leaveParty") ?? (!leave.ok ? leave.error : undefined);
   const joinEntry = ACTION_CATALOG.joinParty;
   const leaveEntry = ACTION_CATALOG.leaveParty;
+  const joinQuote = quotePartyCaucusAction(world.player, "joinParty");
+  const leaveQuote = quotePartyCaucusAction(world.player, "leaveParty");
   return {
     join: { id: "joinParty", name: joinEntry.name, description: joinEntry.description,
-      cost: actionCost(world, "joinParty"), available: !joinReason,
+      cost: joinQuote.actionCost, consequences: describePartyCaucusEffect(joinQuote.effect),
+      available: !joinReason,
       ...(joinReason ? { disabledReason: joinReason } : {}) },
     leave: { id: "leaveParty", name: leaveEntry.name, description: leaveEntry.description,
-      cost: actionCost(world, "leaveParty"), available: !leaveReason,
+      cost: leaveQuote.actionCost, consequences: describePartyCaucusEffect(leaveQuote.effect),
+      available: !leaveReason,
       ...(leaveReason ? { disabledReason: leaveReason } : {}) },
   };
 }

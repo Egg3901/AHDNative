@@ -59,6 +59,7 @@ export function CaucusPanel({ management, busy, onAction }: CaucusPanelProps) {
           Caucuses are opt-in sub-groups inside your party. Founding costs {create.actionCost} actions
           and {formatFinanceMoney(create.fundCost, management.currency)}. Tax ({create.taxMin}-{create.taxMax}%)
           is set when the caucus is created.
+          {create.consequences.length > 0 ? ` Effects: ${create.consequences.join(" · ")}.` : ""}
         </p>
       </div>
 
@@ -132,6 +133,8 @@ export function CaucusPanel({ management, busy, onAction }: CaucusPanelProps) {
                     <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
                       {!membership.available ? (membership.disabledReason ?? "Unavailable")
                         : membership.cost > 0 ? `Cost ${membership.cost} actions` : "Free"}
+                      {membership.available && membership.consequences && membership.consequences.length > 0
+                        ? ` · ${membership.consequences.join(" · ")}` : ""}
                     </span>
                   </div>
                 </li>

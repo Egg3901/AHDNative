@@ -12,6 +12,16 @@ function makeManagement(): PartyManagementView {
       actionCost: 8, fundCost: 100_000, fundsRequired: 100_000,
       funds: 152_000, actions: 9, cooldownRemaining: 0, charterDeadlineTurns: 14,
       available: true,
+      effect: {
+        partyFundsDelta: -100_000, partyMembership: "found", caucusMembership: "none",
+        clearsCaucusMembership: true, startsPartySwitchCooldown: true,
+      },
+      consequences: [
+        "Charges 100,000 campaign funds",
+        "Creates the party and joins you to it immediately",
+        "Ends any caucus membership you hold",
+        "Starts the 24-turn party-switch cooldown",
+      ],
       action: { id: "foundParty", name: "Found Party", description: "", cost: 8, available: true },
     },
     parties: [
@@ -38,6 +48,13 @@ describe("PartyManagementPanel", () => {
     await user.type(screen.getByLabelText("Abbreviation"), "SWP");
     await user.click(screen.getByRole("button", { name: "Found party" }));
     expect(onAction).toHaveBeenCalledWith("foundParty", { foundPartyName: "Second Wave", foundPartyAbbr: "SWP" });
+  });
+
+  it("states the engine consequences of founding before confirmation", () => {
+    render(<PartyManagementPanel management={makeManagement()} busy={false} onAction={vi.fn()} />);
+    expect(screen.getByText(/Charges 100,000 campaign funds/)).toBeTruthy();
+    expect(screen.getByText(/Starts the 24-turn party-switch cooldown/)).toBeTruthy();
+    expect(screen.getByText(/Creates the party and joins you to it immediately/)).toBeTruthy();
   });
 
   it("disables founding with the validation message when the name is invalid", async () => {

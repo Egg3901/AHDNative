@@ -15,6 +15,20 @@ import { DEBATE_PREP_ACTION_COST } from "../stats/debatePrep.js";
 import { CAMPAIGN_CANVASS_ACTIONS, CAMPAIGN_CANVASS_FUNDS } from "./campaignCanvass.js";
 import { CAMPAIGN_TARGETED_AD_ACTIONS, CAMPAIGN_TARGETED_AD_FUNDS } from "./campaignTargetedAd.js";
 import { REQUEST_AP_COST } from "../referendum/request.js";
+// Party/caucus price constants (#61): one source shared with the domain
+// helpers (membership.ts, caucus.ts) and the partyCaucus.ts projection, so the
+// displayed quote, the dispatcher's charge and the catalog contract cannot
+// drift apart.
+import {
+  CAUCUS_CREATE_ACTION_COST,
+  CAUCUS_CREATE_FUND_COST,
+  CAUCUS_JOIN_ACTION_COST,
+  CAUCUS_LEAVE_ACTION_COST,
+  PARTY_FOUND_ACTION_COST,
+  PARTY_FOUND_FUND_COST,
+  PARTY_JOIN_ACTION_COST,
+  PARTY_LEAVE_ACTION_COST,
+} from "./partyCaucusCosts.js";
 
 export type ActionId =
   | "buyBond"
@@ -305,7 +319,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     id: "joinParty",
     name: "Join Party",
     description: "Join a political party. Switching parties has a 24-turn cooldown.",
-    baseCost: 2,
+    baseCost: PARTY_JOIN_ACTION_COST,
     cooldown: 0,
     fundCost: 0,
     systems: ["party/membership"],
@@ -315,7 +329,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     id: "leaveParty",
     name: "Leave Party",
     description: "Leave your party and become independent. This also ends caucus membership and withdraws conflicting endorsements.",
-    baseCost: 1,
+    baseCost: PARTY_LEAVE_ACTION_COST,
     cooldown: 0,
     fundCost: 0,
     systems: ["party/membership"],
@@ -325,9 +339,9 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     id: "foundParty",
     name: "Found Party",
     description: "Found a new party via charter machinery (W18). Creates a Party row + ratified Charter, auto-joins founder. Cost 8 AP + 100k funds. Cites src/lib/charters/draftCharter.ts + ratifyCharter.ts and CHARTER_DEADLINE_TURNS=14.",
-    baseCost: 8,
+    baseCost: PARTY_FOUND_ACTION_COST,
     cooldown: 0,
-    fundCost: 100_000,
+    fundCost: PARTY_FOUND_FUND_COST,
     systems: ["party/charter"],
     status: "available",
   },
@@ -335,9 +349,9 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     id: "createCaucus",
     name: "Create Caucus",
     description: "Create a caucus inside your current party. Requires party membership, caucusId null. Cost 4 AP + 25k funds, taxRate 0-5% per src/lib/db/types/caucus.ts.",
-    baseCost: 4,
+    baseCost: CAUCUS_CREATE_ACTION_COST,
     cooldown: 0,
-    fundCost: 25_000,
+    fundCost: CAUCUS_CREATE_FUND_COST,
     systems: ["caucus"],
     status: "available",
   },
@@ -345,7 +359,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     id: "joinCaucus",
     name: "Join Caucus",
     description: "Join an existing caucus in your party. Requires same party, not already in a caucus. Cost 2 AP per src/app/api/country/[code]/parties/[id]/caucuses/[slug]/members/route.ts.",
-    baseCost: 2,
+    baseCost: CAUCUS_JOIN_ACTION_COST,
     cooldown: 0,
     fundCost: 0,
     systems: ["caucus"],
@@ -355,7 +369,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     id: "leaveCaucus",
     name: "Leave Caucus",
     description: "Leave current caucus. Cost 1 AP.",
-    baseCost: 1,
+    baseCost: CAUCUS_LEAVE_ACTION_COST,
     cooldown: 0,
     fundCost: 0,
     systems: ["caucus"],

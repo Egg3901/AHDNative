@@ -5,8 +5,10 @@ import { CaucusPanel } from "./CaucusPanel";
 import type { CaucusManagementView } from "../game/caucusManagement";
 import type { ActionView } from "../game/types";
 
-function action(id: string, available: boolean, cost: number, disabledReason?: string): ActionView {
-  return { id, name: id, description: "", cost, available, ...(disabledReason ? { disabledReason } : {}) };
+function action(id: string, available: boolean, cost: number, disabledReason?: string, consequences?: string[]): ActionView {
+  return { id, name: id, description: "", cost, available,
+    ...(disabledReason ? { disabledReason } : {}),
+    ...(consequences ? { consequences } : {}) };
 }
 
 function makeManagement(): CaucusManagementView {
@@ -24,6 +26,11 @@ function makeManagement(): CaucusManagementView {
       funds: 152_000, actions: 9, cooldownRemaining: 0,
       taxMin: 0, taxMax: 5, nameMinLength: 3,
       available: true,
+      effect: {
+        partyFundsDelta: -25_000, partyMembership: "none", caucusMembership: "create",
+        clearsCaucusMembership: false, startsPartySwitchCooldown: false,
+      },
+      consequences: ["Charges 25,000 campaign funds", "Creates the caucus and makes you its first member"],
       action: action("createCaucus", true, 4),
     },
     caucuses: [
@@ -35,7 +42,7 @@ function makeManagement(): CaucusManagementView {
         memberCount: 1,
         memberNames: ["Pat"],
         isPlayerCaucus: false,
-        join: action("joinCaucus", true, 2),
+        join: action("joinCaucus", true, 2, undefined, ["Joins you to this caucus"]),
         leave: action("leaveCaucus", false, 1, "You are not a member of this caucus."),
       },
     ],
@@ -82,6 +89,13 @@ describe("CaucusPanel", () => {
     rerender(<CaucusPanel management={member} busy={false} onAction={onAction} />);
     await user.click(screen.getByRole("button", { name: "Leave Blue Dog Caucus" }));
     expect(onAction).toHaveBeenCalledWith("leaveCaucus");
+  });
+
+  it("states the engine consequences of founding and joining before confirmation", () => {
+    render(<CaucusPanel management={makeManagement()} busy={false} onAction={vi.fn()} />);
+    expect(screen.getByText(/Charges 25,000 campaign funds/)).toBeTruthy();
+    expect(screen.getByText(/Creates the caucus and makes you its first member/)).toBeTruthy();
+    expect(screen.getByText(/Joins you to this caucus/)).toBeTruthy();
   });
 
   it("disables founding with the validation message when the name is invalid", async () => {
