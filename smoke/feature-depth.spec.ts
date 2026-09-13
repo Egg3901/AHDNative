@@ -32,7 +32,7 @@ test('mobile politics, national accounts and resource explanations use a real UK
   await expect(page.getByRole('heading', { name: 'Economy', exact: true })).toBeVisible();
   await expect(page.getByText(/million USD/)).toBeVisible();
   await openMenu(page, 'Budget');
-  await expect(page.getByRole('heading', { name: 'Revenue', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Receipts', exact: true })).toBeVisible();
   await expect(page.getByText('Budget amounts are absolute GBP units.')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: 'artifacts/smoke/mobile-budget.png', fullPage: true });
