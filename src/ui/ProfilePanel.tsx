@@ -9,7 +9,13 @@
  *   per turn rate plus Campaign Office link, state influence, national
  *   influence, favorability, infamy, conditional party influence),
  *   src/app/profile/components/FinancialStrip.tsx (donor network level, cash,
- *   campaign funds, savings, income details, portfolio link).
+ *   campaign funds, savings, income details, portfolio link),
+ *   src/app/profile/components/PolicyDemographicsCard.tsx and
+ *   src/components/PoliticalCompass.tsx (the "Policy and demographics" card: the
+ *   player's projected policy axes on a plain-SVG compass, a party marker from
+ *   world.parties[].economicPosition/socialPosition, and the honest unavailable
+ *   state for the home-region lean the engine does not record — so no region
+ *   marker is ever fabricated).
  * No server or Next.js imports; data arrives through the ProfileView DTO and
  * section navigation and profile persistence cross the session boundary. Metrics the local
  * engine does not simulate yet arrive as null and render as unavailable, never
@@ -21,6 +27,7 @@ import type { ProfileUpdate, ProfileView } from "../game/profileTypes";
 import type { DrawerRouteId } from "./MobileNavigation";
 import { campaignSongId } from "../game/profileValidation";
 import { CampaignSongPlayer } from "./CampaignSongPlayer";
+import { PolicyCompass, policyAxisLabel, type CompassMarker } from "./PolicyCompass";
 import { ResourceBreakdown } from "./ResourceBreakdown";
 import "./profile.css";
 
@@ -113,6 +120,27 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
   const finances = profile.finances;
   const favorabilityDetail = profile.resourceDetails.favorability;
   const nationalInfluenceGain = profile.resourceDetails.nationalInfluence.gain;
+
+  // Policy compass sources. The player dot comes from the projected policy axes;
+  // the only secondary marker the engine can back is the party's authored
+  // position (world.parties[].economicPosition/socialPosition). No home-region
+  // marker is added: the engine's Region carries no economic/social lean and no
+  // code writes one (see the card's honest note), so none is fabricated.
+  const party = profile.party;
+  const compassMarkers: CompassMarker[] = [];
+  if (
+    party &&
+    party.economicPosition != null && Number.isFinite(party.economicPosition) &&
+    party.socialPosition != null && Number.isFinite(party.socialPosition)
+  ) {
+    compassMarkers.push({
+      economic: party.economicPosition,
+      social: party.socialPosition,
+      glyph: "P",
+      name: party.name,
+      color: party.color,
+    });
+  }
 
   const saveSong = async () => {
     if (busy || songSaving) return;
@@ -514,20 +542,78 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
         </section>
       ) : null}
 
-      {profile.policies ? (
-        <section aria-label="Policy" className="ahd-card ahd-card-pad">
-          <h2 className="ahd-h2">Policy</h2>
-          <dl className="ahd-profile-rows">
-            <div className="ahd-profile-row"><dt>Economic</dt><dd className="ahd-mono">{profile.policies.economic.toFixed(1)}</dd></div>
-            <div className="ahd-profile-row"><dt>Social</dt><dd className="ahd-mono">{profile.policies.social.toFixed(1)}</dd></div>
-          </dl>
-          <div className="ahd-profile-actions">
-            <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onNavigate("policy")} disabled={busy}>
-              View national policy
-            </button>
+      <section aria-label="Policy and demographics" className="ahd-card ahd-card-pad">
+        <h2 className="ahd-h2">Policy and demographics</h2>
+        <PolicyCompass
+          economic={profile.policies ? profile.policies.economic : null}
+          social={profile.policies ? profile.policies.social : null}
+          dotColor={profile.party?.color}
+          markers={compassMarkers}
+        />
+        <dl className="ahd-profile-rows">
+          <div className="ahd-profile-row">
+            <dt>Economic</dt>
+            <dd className="ahd-mono">
+              {profile.policies
+                ? `${profile.policies.economic.toFixed(1)} · ${policyAxisLabel(profile.policies.economic, "economic")}`
+                : "Not recorded yet"}
+            </dd>
           </div>
-        </section>
-      ) : null}
+          <div className="ahd-profile-row">
+            <dt>Social</dt>
+            <dd className="ahd-mono">
+              {profile.policies
+                ? `${profile.policies.social.toFixed(1)} · ${policyAxisLabel(profile.policies.social, "social")}`
+                : "Not recorded yet"}
+            </dd>
+          </div>
+          {compassMarkers.map((marker) => (
+            <div className="ahd-profile-row" key={marker.name}>
+              <dt>Party position</dt>
+              <dd className="ahd-mono">{`${marker.economic.toFixed(1)} / ${marker.social.toFixed(1)}`}</dd>
+            </div>
+          ))}
+          <div className="ahd-profile-row">
+            <dt>Home-region lean</dt>
+            <dd className="ahd-mono ahd-profile-unavailable-note">Not recorded by the engine</dd>
+          </div>
+        </dl>
+        <div className="ahd-profile-actions">
+          {profile.party ? (
+            <button
+              type="button"
+              className="ahd-btn ahd-btn-sm"
+              onClick={() => onNavigate("partyDetails", profile.party?.id)}
+              disabled={busy}
+            >
+              View party
+            </button>
+          ) : null}
+          {profile.homeRegion ? (
+            <button
+              type="button"
+              className="ahd-btn ahd-btn-sm"
+              onClick={() => onNavigate("state", profile.homeRegion?.id)}
+              disabled={busy}
+            >
+              View home region
+            </button>
+          ) : null}
+          <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onNavigate("policy")} disabled={busy}>
+            View national policy
+          </button>
+        </div>
+        <p className="ahd-help">
+          {profile.policies
+            ? "Your axes are read straight from the save on the engine's -5 to +5 scale."
+            : "Your policy axes are not recorded in this save yet, so the compass shows no position for you — the local engine holds no action or command that writes player policy values."}
+        </p>
+        <p className="ahd-help">
+          A home-region lean marker is not shown: the engine does not record a per-region economic/social lean yet.
+          Per-character demographics (race, gender, education, wealth) are not modelled yet either.
+          Where present, the party marker is that party's authored platform.
+        </p>
+      </section>
 
       <section aria-label="Finances" className="ahd-card ahd-card-pad">
         <h2 className="ahd-h2">Finances</h2>

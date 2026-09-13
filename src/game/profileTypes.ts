@@ -59,9 +59,28 @@ export interface ProfileView {
   campaignSongAutoplay: boolean;
   country: { id: string; name: string };
   homeRegion: { id: string; name: string } | null;
-  party: { id: string; name: string; color: string } | null;
+  /**
+   * Player party, or null when independent. Carries the party's authored
+   * economic/social position (world.parties[].economicPosition/socialPosition,
+   * -5..+5) so the Profile policy compass can plot a party marker. The positions
+   * stay optional so a party record that somehow omits them renders no marker
+   * instead of a fabricated point.
+   */
+  party: {
+    id: string;
+    name: string;
+    color: string;
+    economicPosition?: number;
+    socialPosition?: number;
+  } | null;
   office: string | null;
   officeDestination: { route: "legislature" | "policy"; id?: string } | null;
+  /**
+   * Player policy axes (-5..+5) read straight from world.player.policies. Null
+   * when the save records none — which is the standing case, since no engine
+   * action, command or cheat writes player policies (only save-load validates the
+   * shape). Never defaulted to a fabricated 0/0.
+   */
   policies: { economic: number; social: number } | null;
   stats: { energy: number | null; debate: number | null } | null;
   careerHistory: Array<{ id: string; office: string; result: string; turn: number }>;
