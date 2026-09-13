@@ -97,7 +97,7 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
 
   return (
     <div className="ahd-stack">
-      <div className="ahd-card ahd-card-pad">
+      <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">Legislature</h2>
         {legislature.office ? (
           <p style={{ fontSize: "0.82rem", margin: "0.35rem 0 0" }}>{legislature.office}</p>
@@ -248,7 +248,7 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
       {visibleBills.length === 0 ? (
         <div className="ahd-empty">No bills before the legislature.</div>
       ) : (
-        <div className="ahd-stack">
+        <div className="ahd-grid ahd-grid-2">
           {pagedBills.map((bill) => {
             const votingOpen = ["active", "active_other", "veto_override"].includes(bill.status);
             const voteDisabled = busy || !bill.voting.available;

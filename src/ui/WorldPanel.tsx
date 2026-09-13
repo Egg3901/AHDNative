@@ -57,7 +57,7 @@ function gameTurn(turn: number | null, clock: GameClock, fallback = "Not recorde
 function WorldLayout({ overview, title, children }: { overview: WorldOverviewView; title: string; children: React.ReactNode }) {
   return (
     <div className="ahd-stack" aria-label={`World ${title}`}>
-      <div className="ahd-card ahd-card-pad">
+      <div className="ahd-card ahd-card-pad ahd-hero">
         <div className="ahd-eyebrow">World</div>
         <h1 className="ahd-h1" style={{ marginTop: "0.22rem" }}>{title}</h1>
         <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.32rem 0 0" }}>

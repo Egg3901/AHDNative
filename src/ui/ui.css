@@ -215,6 +215,24 @@ html, body { overflow-x: hidden; }
   padding-right: max(0.85rem, env(safe-area-inset-right));
   min-width: 0;
 }
+/* Wide-viewport reading width (issue #224). The reference lays its game
+   screens out on max-w-7xl (80rem); Native matched only the max-w-5xl-ish
+   64rem phone column and left a large empty right margin at 1440px. The
+   approved mobile chrome (drawer + bottom nav + compact footer) is unchanged;
+   only the content/footer width widens from 1024px, where the surfaces switch
+   to the reference's card grids and hero bands. */
+@media (min-width: 1024px) {
+  .ahd-main {
+    max-width: 80rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+  .ahd-footer-inner {
+    max-width: 80rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
 .ahd-stack { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; }
 .ahd-card {
   background: var(--ahd-card);
@@ -281,12 +299,50 @@ html, body { overflow-x: hidden; }
 .ahd-error-text { color: var(--ahd-error); font-size: 0.76rem; }
 .ahd-help { color: var(--ahd-muted); font-size: 0.74rem; }
 
-/* Grid helpers - no overflow on narrow phones */
+/* Grid helpers - no overflow on narrow phones. Steps follow the reference
+   (1 col → 2 up at 640px → 3 up at 1024px), so the same markup holds the
+   approved phone column and the wide 3-up card grid. */
 .ahd-grid { display: grid; gap: 0.65rem; min-width: 0; }
 .ahd-grid-2 { grid-template-columns: minmax(0,1fr); }
 @media (min-width: 640px) { .ahd-grid-2 { grid-template-columns: repeat(2, minmax(0,1fr)); } }
 .ahd-grid-3 { grid-template-columns: minmax(0,1fr); }
-@media (min-width: 640px) { .ahd-grid-3 { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+@media (min-width: 640px) { .ahd-grid-3 { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (min-width: 1024px) { .ahd-grid-3 { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+
+/* Definition-list metric rows. Mobile keeps them stacked; at 640px+ they tile
+   into the reference's metric-card grid with a card surface per figure. */
+.ahd-kv-grid { display: grid; gap: 0.45rem; min-width: 0; }
+@media (min-width: 640px) { .ahd-kv-grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 0.6rem; } }
+@media (min-width: 1024px) {
+  .ahd-kv-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .ahd-kv-grid > * {
+    background: var(--ahd-card-muted);
+    border: 1px solid var(--ahd-border);
+    border-radius: var(--ahd-radius-sm);
+    padding: 0.55rem 0.65rem;
+  }
+}
+
+/* Full-width reference hero band for a screen's title/summary card. */
+.ahd-hero { min-width: 0; }
+@media (min-width: 1024px) {
+  .ahd-hero { padding: 1.3rem 1.5rem; }
+  .ahd-hero .ahd-h1 { font-size: clamp(var(--ahd-text-heading-lg), 2.6vw, var(--ahd-text-display)); }
+}
+
+/* Recorded-trend treatment for metric cards: a signed delta against the last
+   recorded point plus an inline sparkline of the recorded history. Both come
+   straight from the projected history; nothing is interpolated. */
+.ahd-trend { font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
+.ahd-trend-up { color: var(--ahd-success); }
+.ahd-trend-down { color: var(--ahd-error); }
+.ahd-trend-flat { color: var(--ahd-muted); }
+.ahd-spark { display: flex; align-items: flex-end; gap: 2px; height: 1.7rem; margin-top: 0.5rem; }
+.ahd-spark-bar {
+  flex: 1 1 0; min-width: 2px; min-height: 2px;
+  background: color-mix(in srgb, var(--ahd-primary) 65%, transparent);
+  border-radius: 2px 2px 0 0;
+}
 
 /* Metric, party, list rows */
 .ahd-kv { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; overflow-wrap: anywhere; }

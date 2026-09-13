@@ -714,7 +714,7 @@ function SelectedRegion({
 export function RegionsPanel({ query, onQueryChange, busy = false, directoryOpen, onDirectoryOpenChange, onNavigate }: RegionsPanelProps) {
   return (
     <div className="ahd-stack" aria-label={`${query.playerCountryName} regions`}>
-      <div className="ahd-card ahd-card-pad">
+      <div className="ahd-card ahd-card-pad ahd-hero">
         <div className="ahd-eyebrow">{query.playerCountryName}</div>
         <h1 className="ahd-h1" style={{ marginTop: "0.22rem" }}>Regions</h1>
         <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.32rem 0 0" }}>

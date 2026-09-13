@@ -247,7 +247,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
         >
           {route === "actions" ? (
             <div className="ahd-stack">
-              <div className="ahd-card ahd-card-pad">
+              <div className="ahd-card ahd-card-pad ahd-hero">
                 <h2 className="ahd-h2">Actions</h2>
                 <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", marginTop: "0.4rem", fontSize: "0.78rem" }}>
                   <span><strong>{world.player.name}</strong> · {world.player.partyName || "Independent"}</span>
@@ -272,7 +272,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
 
           {route === "parties" ? (
             <div className="ahd-stack">
-              <div className="ahd-card ahd-card-pad">
+              <div className="ahd-card ahd-card-pad ahd-hero">
                 <h2 className="ahd-h2">Parties</h2>
                 <button className="ahd-btn ahd-btn-sm" onClick={() => go("partyManagement")}>Start a party</button>
                 <button className="ahd-btn ahd-btn-sm" onClick={() => go("caucuses")}>Caucuses</button>
@@ -282,7 +282,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
               {world.parties.length === 0 ? (
                 <div className="ahd-empty">No parties in this world.</div>
               ) : (
-                <div className="ahd-grid ahd-grid-2">
+                <div className="ahd-grid ahd-grid-3">
                   {world.parties.map((p) => {
                     const membershipAction = p.isPlayerParty ? (p.membership?.leave ?? leavePartyAction) : (p.membership?.join ?? joinPartyAction);
                     const label = p.isPlayerParty ? `Leave ${p.name}` : `Join ${p.name}`;
@@ -327,7 +327,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
 
           {route === "elections" ? (
             <div className="ahd-stack">
-              <div className="ahd-card ahd-card-pad">
+              <div className="ahd-card ahd-card-pad ahd-hero">
                 <h2 className="ahd-h2">Elections</h2>
                 <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>{world.elections.length} elections</p>
                 {electionPageCount > 1 ? (
@@ -345,7 +345,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
               {world.elections.length === 0 ? (
                 <div className="ahd-empty">No elections scheduled.</div>
               ) : (
-                <div className="ahd-stack">
+                <div className="ahd-grid ahd-grid-2">
                   {pagedElections.map((e) => {
                     const candidacy = e.candidacy;
                     const isWithdraw = candidacy?.id === "withdrawCandidacy";
@@ -401,14 +401,14 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
 
           {route === "news" ? (
             <div className="ahd-stack">
-              <div className="ahd-card ahd-card-pad">
+              <div className="ahd-card ahd-card-pad ahd-hero">
                 <h2 className="ahd-h2">News</h2>
                 <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>{world.news.length} items</p>
               </div>
               {world.news.length === 0 ? (
                 <div className="ahd-empty">No news yet.</div>
               ) : (
-                <div className="ahd-stack">
+                <div className="ahd-grid ahd-grid-3">
                   {world.news.map((n) => (
                     <article key={n.id} className="ahd-card ahd-card-pad">
                       <h3 style={{ margin: 0, fontSize: "0.86rem", fontWeight: 750 }}>{n.title}</h3>

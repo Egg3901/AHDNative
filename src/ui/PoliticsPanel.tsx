@@ -156,7 +156,7 @@ function PartiesSection({ politics, busy, onAction, initialId }: Omit<PoliticsPa
 
   return (
     <div className="ahd-stack">
-      <div className="ahd-card ahd-card-pad">
+      <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">Parties</h2>
         <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>
           {politics.parties.length} parties in {politics.countryName}
@@ -185,7 +185,7 @@ function PartiesSection({ politics, busy, onAction, initialId }: Omit<PoliticsPa
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>({selected.abbreviation})</span>
             {selected.isPlayerParty ? <span className="ahd-pill" style={{ background: "var(--ahd-primary)", color: "white" }}>Yours</span> : null}
           </div>
-          <dl style={{ marginTop: "0.6rem", display: "grid", gap: "0.35rem" }}>
+          <dl className="ahd-kv-grid" style={{ marginTop: "0.6rem" }}>
             <div className="ahd-kv"><dt>Platform</dt><dd>{ideologyLabel(selected.economicPosition, "econ")} ({selected.economicPosition}) · {ideologyLabel(selected.socialPosition, "social")} ({selected.socialPosition})</dd></div>
             <div className="ahd-kv"><dt>Tier</dt><dd>{selected.tier}</dd></div>
             <div className="ahd-kv"><dt>Organization</dt><dd className="ahd-mono">{score(selected.organization)}</dd></div>
@@ -851,7 +851,7 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign,
 
   return (
     <div className="ahd-stack">
-      <div className="ahd-card ahd-card-pad">
+      <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">Elections</h2>
         <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>
           {filtered.length} of {politics.elections.length} races
@@ -917,7 +917,7 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign,
             Candidates ({selected.candidates.length})
           </h4>
           {selected.candidates.length === 0 ? <div className="ahd-empty">No filed candidates.</div> : (
-            <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+            <ul className="ahd-grid ahd-grid-2" style={{ listStyle: "none", margin: 0, padding: 0 }}>
               {selected.candidates.map((c) => (
                 <li key={c.id} style={{ borderTop: "1px solid var(--ahd-border)", paddingTop: "0.4rem", fontSize: "0.8rem" }}>
                   <span style={{ fontWeight: 650 }}>{c.name}</span>
@@ -1016,7 +1016,7 @@ function PoliticiansSection({ politics, busy, onOpenElection, initialId }: Omit<
 
   return (
     <div className="ahd-stack">
-      <div className="ahd-card ahd-card-pad">
+      <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">Politicians</h2>
         <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>
           {filtered.length} of {politics.politicians.length} in {politics.countryName}
@@ -1043,7 +1043,7 @@ function PoliticiansSection({ politics, busy, onOpenElection, initialId }: Omit<
         <article aria-label={selected.name} className="ahd-card ahd-card-pad">
           <strong style={{ fontSize: "0.9rem" }}>{selected.name}</strong>
           <span className="ahd-muted" style={{ fontSize: "0.76rem" }}> · {selected.partyName}</span>
-          <dl style={{ marginTop: "0.6rem", display: "grid", gap: "0.35rem" }}>
+          <dl className="ahd-kv-grid" style={{ marginTop: "0.6rem" }}>
             <div className="ahd-kv"><dt>Office</dt><dd>{selected.office ?? "No seat"}</dd></div>
             <div className="ahd-kv"><dt>Age</dt><dd className="ahd-mono">{selected.age}</dd></div>
             <div className="ahd-kv"><dt>Outlook</dt><dd>{ideologyLabel(selected.economic, "econ")} · {ideologyLabel(selected.social, "social")}</dd></div>
@@ -1192,7 +1192,7 @@ function ReferendumsSection({ politics, busy, onAction, initialId, clock }: Omit
   const selected = records.find((record) => record.id === selectedId) ?? null;
   return (
     <div className="ahd-stack">
-      <div className="ahd-card ahd-card-pad">
+      <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">Referendums</h2>
         <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>
           {records.length} recorded referendum {records.length === 1 ? "record" : "records"}
@@ -1252,7 +1252,7 @@ function ReferendumsSection({ politics, busy, onAction, initialId, clock }: Omit
           <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.2rem" }}>
             {selected.scope} · requested {formatGameTurn(selected.requestedTurn, clock)}
           </div>
-          <dl style={{ marginTop: "0.5rem", display: "grid", gap: "0.3rem" }}>
+          <dl className="ahd-kv-grid" style={{ marginTop: "0.5rem" }}>
             <div className="ahd-kv"><dt>Yes share</dt><dd className="ahd-mono">{selected.yesShare.toFixed(1)}%</dd></div>
             {selected.campaignCloseTurn != null ? <div className="ahd-kv"><dt>Campaign closes</dt><dd className="ahd-mono">{formatGameTurn(selected.campaignCloseTurn, clock)}</dd></div> : null}
             {selected.finalYesShare != null ? <div className="ahd-kv"><dt>Final yes share</dt><dd className="ahd-mono">{selected.finalYesShare.toFixed(1)}%</dd></div> : null}

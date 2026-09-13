@@ -40,7 +40,7 @@ export function PartyManagementPanel({ management, busy, onAction }: PartyManage
 
   return (
     <div className="ahd-stack">
-      <div className="ahd-card ahd-card-pad">
+      <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">Start a party</h2>
         <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>
           {management.partyCount} {management.partyCount === 1 ? "party" : "parties"} in {management.countryName}

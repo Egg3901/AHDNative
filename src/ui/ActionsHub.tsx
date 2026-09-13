@@ -218,7 +218,7 @@ export function ActionsHub({
       {visible.length === 0 ? (
         <div className="ahd-empty">No actions available.</div>
       ) : (
-        <div className="ahd-stack">
+        <div className="ahd-grid ahd-grid-3">
           {visible.map((a) => (
             <ActionCard key={a.id} action={a} busy={busy} currency={currency} regions={regions} parties={parties} onAction={onAction} />
           ))}
