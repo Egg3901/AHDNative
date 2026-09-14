@@ -76,7 +76,7 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
     era: "1953",
     countryId: "US",
     countryName: "United States",
-    player: { name: "Ada", cash: 1200, funds: 5000, actions: 3, influence: 12, favorability: 48, partyName: "Labor" },
+    player: { name: "Ada", cash: 1200, funds: 5000, actions: 3, influence: 12, favorability: 48, partyName: "Labor", mode: "career", hosPartyId: null, homeRegionId: null },
     legislature: {
       office: "Representative",
       proposals: [{ id: "cat-a", title: "Labor Standards", description: "Workplace rules." }],

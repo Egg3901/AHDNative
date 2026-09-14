@@ -8,17 +8,29 @@
  * responsive Tauri web (touch targets, safe-area insets). No proprietary assets copied.
  */
 import { useEffect, useMemo, useState } from "react";
-import type { EraChoice, NewGameOptions, NewGameScreenProps } from "../game/types";
+import type { EraChoice, NewGameOptions, NewGameScreenProps, WorldInitialization } from "../game/types";
 import "./ui.css";
 
 function validate(opts: NewGameOptions, eras: EraChoice[]): Record<string, string> {
   const errs: Record<string, string> = {};
   if (!opts.era) errs.era = "Choose an era.";
   if (!opts.countryId) errs.countryId = "Choose a country.";
-  else {
-    const era = eras.find((e) => e.id === opts.era);
-    if (era && !era.countries.some((c) => c.id === opts.countryId)) {
-      errs.countryId = "Country not available in this era.";
+  const era = eras.find((e) => e.id === opts.era);
+  const country = era?.countries.find((c) => c.id === opts.countryId) ?? null;
+  if (opts.countryId && era && !era.countries.some((c) => c.id === opts.countryId)) {
+    errs.countryId = "Country not available in this era.";
+  }
+  if (country && country.regions.length > 0) {
+    if (!opts.homeRegionId || !country.regions.some((r) => r.id === opts.homeRegionId)) {
+      errs.homeRegionId = "Choose a home region.";
+    }
+  }
+  if (opts.mode === "hos" && country) {
+    const initialization = opts.initialization ?? "founding";
+    if (!country.headOfStateOffice) {
+      errs.mode = "No executive office for this country; Head of State is unavailable.";
+    } else if (!country.rulingPartyByInitialization[initialization]) {
+      errs.mode = "No governing party for this initialization; Head of State is unavailable.";
     }
   }
   const trimmedName = opts.playerName.trim();
@@ -34,12 +46,26 @@ function validate(opts: NewGameOptions, eras: EraChoice[]): Record<string, strin
 export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScreenProps) {
   const [era, setEra] = useState(() => eras[0]?.id ?? "");
   const [countryId, setCountryId] = useState(() => eras[0]?.countries[0]?.id ?? "");
+  const [mode, setMode] = useState<"career" | "hos">("career");
+  const [initialization, setInitialization] = useState<WorldInitialization>("founding");
+  const [homeRegionId, setHomeRegionId] = useState(() => eras[0]?.countries[0]?.regions[0]?.id ?? "");
   const [playerName, setPlayerName] = useState("");
   const [seed, setSeed] = useState("");
   const [touched, setTouched] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const activeEra = useMemo(() => eras.find((e) => e.id === era) ?? null, [eras, era]);
+  const activeCountry = useMemo(() => activeEra?.countries.find((c) => c.id === countryId) ?? null, [activeEra, countryId]);
+  const previewParty = activeCountry?.rulingPartyByInitialization[initialization] ?? null;
+  const hasExecutiveOffice = !!activeCountry?.headOfStateOffice;
+  const hosUnavailableReason = !activeCountry
+    ? "Select a country."
+    : !hasExecutiveOffice
+      ? `No executive office is set for ${activeCountry.name}; Head of State is unavailable.`
+      : !previewParty
+        ? `No governing party exists for the ${initialization} start in ${activeCountry.name}; Head of State is unavailable.`
+        : null;
+  const hosEligible = !hosUnavailableReason;
 
   useEffect(() => {
     if (!activeEra) {
@@ -48,9 +74,25 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
     }
     const ids = new Set(activeEra.countries.map((c) => c.id));
     if (!ids.has(countryId)) {
-      setCountryId(activeEra.countries[0]?.id ?? "");
+      const next = activeEra.countries[0] ?? null;
+      setCountryId(next?.id ?? "");
+      setHomeRegionId(next?.regions[0]?.id ?? "");
     }
   }, [activeEra, countryId]);
+
+  useEffect(() => {
+    if (!activeCountry) {
+      if (homeRegionId) setHomeRegionId("");
+      return;
+    }
+    if (!activeCountry.regions.some((r) => r.id === homeRegionId)) {
+      setHomeRegionId(activeCountry.regions[0]?.id ?? "");
+    }
+  }, [activeCountry, homeRegionId]);
+
+  useEffect(() => {
+    if (mode === "hos" && !hosEligible) setMode("career");
+  }, [mode, hosEligible]);
 
   useEffect(() => {
     if (!era && eras[0]) {
@@ -59,7 +101,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
     }
   }, [eras, era]);
 
-  const options: NewGameOptions = { era, countryId, playerName, seed: seed.trim() };
+  const options: NewGameOptions = { era, countryId, playerName, seed: seed.trim(), mode, homeRegionId, initialization };
   const fieldErrors = useMemo(() => (touched ? validate(options, eras) : {}), [touched, options, eras]);
   const canSubmit = useMemo(() => Object.keys(validate(options, eras)).length === 0, [options, eras]);
 
@@ -73,7 +115,10 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
       setLocalError(first);
       return;
     }
-    onStart({ era, countryId, playerName: playerName.trim(), seed: seed.trim() });
+    // Never submit HoS with a null governing party; the engine would bind a
+    // career-equivalent player while the UI claimed HoS.
+    const finalMode = mode === "hos" && !previewParty ? "career" : mode;
+    onStart({ era, countryId, playerName: playerName.trim(), seed: seed.trim(), mode: finalMode, homeRegionId, initialization });
   };
 
   return (
@@ -125,6 +170,101 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
                 })}
               </div>
               {fieldErrors.era ? <p className="ahd-error-text" role="alert">{fieldErrors.era}</p> : null}
+            </div>
+
+            <div>
+              <p className="ahd-label" id="mode-label" style={{ marginBottom: "0.4rem" }}>Play as</p>
+              <div role="radiogroup" aria-labelledby="mode-label" style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                <label style={{ display: "flex", gap: "0.4rem", alignItems: "center", cursor: busy ? "not-allowed" : "pointer" }}>
+                  <input
+                    type="radio"
+                    name="mode"
+                    value="career"
+                    checked={mode === "career"}
+                    onChange={() => setMode("career")}
+                    aria-label="Career"
+                  />
+                  <span style={{ fontSize: "0.86rem" }}>Career</span>
+                </label>
+                <label style={{ display: "flex", gap: "0.4rem", alignItems: "center", cursor: busy || !hosEligible ? "not-allowed" : "pointer" }}>
+                  <input
+                    type="radio"
+                    name="mode"
+                    value="hos"
+                    checked={mode === "hos"}
+                    onChange={() => setMode("hos")}
+                    disabled={!hosEligible}
+                    aria-label="Head of State"
+                  />
+                  <span style={{ fontSize: "0.86rem" }}>Head of State</span>
+                </label>
+              </div>
+              {activeCountry ? (
+                <p className="ahd-help" style={{ marginTop: "0.3rem" }}>
+                  {activeCountry.headOfStateOffice
+                    ? `Executive office: ${activeCountry.headOfStateOffice}`
+                    : "No executive office is set for this country."}
+                </p>
+              ) : null}
+              {previewParty ? (
+                mode === "hos" ? (
+                  <p className="ahd-help" style={{ marginTop: "0.3rem" }}>
+                    Govern as {previewParty.name} ({previewParty.abbreviation}) in {activeCountry?.name ?? "this country"}
+                  </p>
+                ) : null
+              ) : (
+                <p className="ahd-help" style={{ marginTop: "0.3rem" }}>
+                  {hosUnavailableReason}
+                </p>
+              )}
+              {fieldErrors.mode ? <span className="ahd-error-text" role="alert">{fieldErrors.mode}</span> : null}
+            </div>
+
+            <div className="ahd-field">
+              <label className="ahd-label" htmlFor="ng-region">Home region</label>
+              <select
+                id="ng-region"
+                className="ahd-select"
+                value={homeRegionId}
+                onChange={(e) => setHomeRegionId(e.target.value)}
+                disabled={!activeCountry || activeCountry.regions.length === 0}
+                aria-describedby={fieldErrors.homeRegionId ? "ng-region-error" : undefined}
+                aria-invalid={!!fieldErrors.homeRegionId}
+              >
+                {activeCountry?.regions.map((r) => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+                {!activeCountry || activeCountry.regions.length === 0 ? <option value="">No regions</option> : null}
+              </select>
+              {fieldErrors.homeRegionId ? <span id="ng-region-error" className="ahd-error-text" role="alert">{fieldErrors.homeRegionId}</span> : null}
+            </div>
+
+            <div>
+              <p className="ahd-label" id="init-label" style={{ marginBottom: "0.4rem" }}>World initialization</p>
+              <div role="radiogroup" aria-labelledby="init-label" style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                <label style={{ display: "flex", gap: "0.4rem", alignItems: "center", cursor: busy ? "not-allowed" : "pointer" }}>
+                  <input
+                    type="radio"
+                    name="initialization"
+                    value="founding"
+                    checked={initialization === "founding"}
+                    onChange={() => setInitialization("founding")}
+                    aria-label="Founding"
+                  />
+                  <span style={{ fontSize: "0.86rem" }}>Founding</span>
+                </label>
+                <label style={{ display: "flex", gap: "0.4rem", alignItems: "center", cursor: busy ? "not-allowed" : "pointer" }}>
+                  <input
+                    type="radio"
+                    name="initialization"
+                    value="historical"
+                    checked={initialization === "historical"}
+                    onChange={() => setInitialization("historical")}
+                    aria-label="Historical"
+                  />
+                  <span style={{ fontSize: "0.86rem" }}>Historical</span>
+                </label>
+              </div>
             </div>
 
             <div className="ahd-grid ahd-grid-2">

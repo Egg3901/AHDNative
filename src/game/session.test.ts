@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { rulingPartyIdForCountry } from "@ahdclient/engine";
 import { GameSession } from "./session";
 
 const options = { era: "1953", countryId: "US", seed: "native-session-v1", playerName: "Alex" };
@@ -40,6 +41,62 @@ describe("singleplayer session", () => {
   });
 });
 
+
+describe("world setup through the session contract (#241)", () => {
+  const stamp = "2026-09-10T00:00:00.000Z";
+  const setup = { era: "1953", countryId: "US", seed: "native-session-setup", playerName: "Alex" };
+  const commonsComposition = (session: GameSession) => {
+    const raw = JSON.parse(session.serialize(stamp)) as {
+      world: { legislatures: Record<string, { chambers: { key: string; composition: { seatsByParty: Record<string, number> } }[] }> };
+    };
+    return raw.world.legislatures.UK.chambers.find((chamber) => chamber.key === "commons")!.composition.seatsByParty;
+  };
+
+  it("defaults to Career with the selected home region and no governing party", () => {
+    const session = new GameSession();
+    const view = session.create({ ...setup, homeRegionId: "NY" });
+    expect(view.player.mode).toBe("career");
+    expect(view.player.homeRegionId).toBe("NY");
+    expect(view.player.hosPartyId).toBe(null);
+  });
+
+  it("binds the Head of State governing party and retains mode/homeRegion/hosPartyId through save/load", () => {
+    const session = new GameSession();
+    const view = session.create({ ...setup, mode: "hos", homeRegionId: "NY" });
+    expect(view.player.mode).toBe("hos");
+    expect(view.player.hosPartyId).toBe("US_REP");
+    const loaded = new GameSession();
+    loaded.load(session.serialize(stamp));
+    expect(loaded.view().player).toMatchObject({ mode: "hos", hosPartyId: "US_REP", homeRegionId: "NY" });
+  });
+
+  it("applies Historical initialization as a real 1953 UK consequence versus Founding", () => {
+    const historical = new GameSession();
+    const historicalView = historical.create({ ...setup, countryId: "UK", mode: "hos", initialization: "historical" });
+    expect(Object.values(commonsComposition(historical)).some((seats) => seats > 0)).toBe(true);
+    // The post-initialization composition yields Labour, and the binding agrees
+    // with the pre-world preview the picker showed.
+    expect(historicalView.player.hosPartyId).toBe("UK_LAB");
+    expect(historicalView.player.hosPartyId).toBe(rulingPartyIdForCountry("1953", "UK", "historical"));
+
+    const founding = new GameSession();
+    const foundingView = founding.create({ ...setup, countryId: "UK", mode: "hos", initialization: "founding" });
+    expect(Object.values(commonsComposition(founding)).some((seats) => seats > 0)).toBe(false);
+    // Founding stays null: no authored commons composition to form a government.
+    expect(foundingView.player.hosPartyId).toBe(null);
+  });
+
+  it("resolves and binds 1979 UK historical while founding stays null", () => {
+    const historical = new GameSession();
+    const view = historical.create({ ...setup, era: "1979", countryId: "UK", mode: "hos", initialization: "historical" });
+    expect(view.player.hosPartyId).toBe("UK_LAB");
+    expect(view.player.hosPartyId).toBe(rulingPartyIdForCountry("1979", "UK", "historical"));
+
+    const founding = new GameSession();
+    const foundingView = founding.create({ ...setup, era: "1979", countryId: "UK", mode: "hos", initialization: "founding" });
+    expect(foundingView.player.hosPartyId).toBe(null);
+  });
+});
 
 describe("actions hub projection", () => {
   it("groups every hub action under Influence, Fundraising or Intelligence with engine-backed costs", () => {

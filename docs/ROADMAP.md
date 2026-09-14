@@ -641,3 +641,53 @@ shared-rules gates, engine and root typecheck and production build all pass.
 Still open on #60: chair/vice-chair elections, whip modes, health, color,
 description, motto, NPP recruitment and rename. This closes only the tax-edit
 and disband substeps; the issue stays open with `status: partial`.
+
+## World and new-game setup checkpoint, 2026-09-14 (#241)
+
+#241 partial. `NewGameScreen` now captures the reference world-setup fields and
+carries them through `NewGameOptions` into the engine `NewWorldOptions`:
+`mode` (`career` | `hos`), `homeRegionId`, and `initialization`
+(`founding` | `historical`). Era/country choices expose the country's regions,
+its `headOfStateOffice` from the generated `EXECUTIVE_OFFICE_BY_COUNTRY`
+registry, and a per-initialization `rulingPartyByInitialization` preview.
+Head of State eligibility is the conjunction of an executive office existing
+and the selected initialization having a bindable party; the two failure modes
+report distinct reasons (no executive office versus no governing-party content
+for that start), and the preview updates when Founding/Historical changes. UI
+never submits `mode: "hos"` with a null party. `rulingPartyIdForCountry` and
+`rulingPartyForCountry` take an optional `initialization` (default founding)
+and, under Historical, run `projectUkHistoricalCommonsComposition` before
+`computeFormation` so the pre-world preview and `createWorld`'s bound
+`player.hosPartyId` agree. `GameView.player` surfaces `mode`, `hosPartyId` and
+`homeRegionId`, and the session save/load path retains them.
+
+Reference source: AHDGame `singleplayer/page.tsx`,
+`src/app/singleplayer/SingleplayerHome.tsx`,
+`src/app/singleplayer/admin/SingleplayerAdmin.tsx`,
+`src/app/api/singleplayer/new-game/route.ts` (`mode` enum and preset
+derivation) and `src/app/page.tsx:39`; Native engine contract
+`packages/engine/src/world.ts` (`NewWorldOptions.mode`/`homeRegionId`/
+`initialization`, `rulingPartyForCountry`).
+
+Evidence: RED/GREEN `packages/engine/src/hos.test.ts` (1953 and 1979 UK
+Historical resolve `UK_LAB` and `createWorld` binds it into `hosPartyId`;
+Founding and the era-only call stay null; `headOfStateOfficeForCountry` reads
+the generated registry and returns null for an unlisted country),
+`src/game/session.test.ts` world-setup contract (default Career/home region/no
+governing party; HoS binding and mode/homeRegion/hosPartyId retention through
+save/load; Historical 1953/1979 UK Commons consequence and binding versus
+Founding), and `src/ui/NewGameScreen.test.tsx` world-setup suite (mode radios,
+region reset on era/country change, initialization pass-through, 1953 UK
+Founding HoS disabled with the missing-governing-party reason, switching to
+Historical enabling HoS and previewing Labour, the distinct no-executive-office
+reason, and never submitting `hos` when the party is null).
+GREEN: focused engine/session/UI suites, app `tsc` and engine typecheck pass.
+Earlier slice: production build, `npm run verify` and all 55
+`SMOKE_PRODUCTION=1` Playwright scenarios passed against the installed
+Chromium build, including the singleplayer create/advance/save/relaunch flow.
+
+Remaining #241 acceptance gaps: the reference start-over confirmation for an
+existing overworld, and the separate character-creation hand-off
+(`page.tsx:39` redirect to `/create-character`) are not implemented in this
+slice; the Native app still starts the world directly. The issue stays open
+with `status: partial`.

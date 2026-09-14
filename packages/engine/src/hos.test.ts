@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createWorld, rulingPartyIdForCountry, rulingPartyForCountry, SCHEMA_VERSION } from "./world.js";
+import { createWorld, rulingPartyIdForCountry, rulingPartyForCountry, headOfStateOfficeForCountry, SCHEMA_VERSION } from "./world.js";
 import { executeAction } from "./actions/execute.js";
 import { deserializeSave } from "./save.js";
 
@@ -37,20 +37,54 @@ describe("M1: player.mode and hosPartyId binding at creation", () => {
     expect(rp).toEqual({ id: "US_REP", name: "Republican Party", abbreviation: "REP" });
   });
 
-  it("documents the UK content gap: no seeded commons composition means no bindable ruling party", () => {
+  it("founding UK has no authored commons composition, so the ruling party stays null", () => {
     // packages/content/src/packs/1953.ts seeds UK "commons" composition.seatsByParty
-    // as {} (all-vacancy placeholder, Lane 10 W39 territory). Recorded here so a
-    // future content wave that fills this in gets a failing test pointing at it,
-    // not a silent behavior change.
+    // as {} (all-vacancy placeholder) and 1979 matches. Founding is the default,
+    // so both the era-only call and an explicit "founding" resolve to null.
     expect(rulingPartyIdForCountry("1953", "UK")).toBe(null);
+    expect(rulingPartyIdForCountry("1953", "UK", "founding")).toBe(null);
+    expect(rulingPartyIdForCountry("1979", "UK", "founding")).toBe(null);
     const world = createWorld({ ...CAREER_OPTS, countryId: "UK", mode: "hos" });
     expect(world.player.mode).toBe("hos");
     expect(world.player.hosPartyId).toBe(null);
   });
 
+  it("1953 UK historical resolves Labour and createWorld binds it into hosPartyId", () => {
+    expect(rulingPartyIdForCountry("1953", "UK", "historical")).toBe("UK_LAB");
+    expect(rulingPartyForCountry("1953", "UK", "historical")).toMatchObject({ id: "UK_LAB", abbreviation: "LAB" });
+    const world = createWorld({ ...CAREER_OPTS, countryId: "UK", mode: "hos", initialization: "historical" });
+    expect(world.player.mode).toBe("hos");
+    expect(world.player.hosPartyId).toBe("UK_LAB");
+    expect(world.player.hosPartyId).toBe(rulingPartyIdForCountry("1953", "UK", "historical"));
+  });
+
+  it("1979 UK historical resolves Labour and createWorld binds it into hosPartyId", () => {
+    expect(rulingPartyIdForCountry("1979", "UK", "historical")).toBe("UK_LAB");
+    const world = createWorld({ ...CAREER_OPTS, era: "1979", countryId: "UK", mode: "hos", initialization: "historical" });
+    expect(world.player.hosPartyId).toBe("UK_LAB");
+  });
+
+  it("the era-only call stays founding-compatible: passing no initialization matches passing founding", () => {
+    expect(rulingPartyIdForCountry("1953", "US")).toBe(rulingPartyIdForCountry("1953", "US", "founding"));
+    expect(rulingPartyIdForCountry("1953", "UK")).toBe(rulingPartyIdForCountry("1953", "UK", "founding"));
+  });
+
   it("career mode never sets hosPartyId even for a country with a resolvable ruling party", () => {
     const world = createWorld(CAREER_OPTS);
     expect(world.player.hosPartyId).toBe(null);
+  });
+});
+
+describe("HoS office eligibility helper", () => {
+  it("reads the executive office from the generated registry, not a duplicated list", () => {
+    expect(headOfStateOfficeForCountry("UK")).toBe("primeMinister");
+    expect(headOfStateOfficeForCountry("US")).toBe("president");
+    expect(headOfStateOfficeForCountry("DD")).toBe("generalSecretary");
+  });
+
+  it("returns null for a country with no executive office entry", () => {
+    expect(headOfStateOfficeForCountry("XX")).toBe(null);
+    expect(headOfStateOfficeForCountry("US-CA")).toBe(null);
   });
 });
 
