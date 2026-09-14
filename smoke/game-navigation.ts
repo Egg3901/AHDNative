@@ -2,9 +2,10 @@ import { expect, type Page } from '@playwright/test';
 
 /**
  * Completes the reference character-creation file (#242) after world setup.
- * Fills the background option chips, picks a party (or Independent), and spends
- * all stat points, then submits. The character name was prefilled from the
- * world-setup name, so existing flows keep their identity.
+ * Fills the background option chips, answers the compass deliberately, picks a
+ * party (or Independent), and spends all stat points, then submits. The
+ * character name was prefilled from the world-setup name, so existing flows
+ * keep their identity.
  *
  * The stat allocation deliberately leaves Energy at its floor so the action
  * cap stays at the baseline 200 the standing assertions expect; Energy is a real
@@ -16,6 +17,10 @@ export async function completeCharacterCreation(page: Page, options: { party?: s
   await page.getByRole('button', { name: 'White', exact: true }).click();
   await page.getByRole('button', { name: 'College', exact: true }).click();
   await page.getByRole('button', { name: 'Middle Income', exact: true }).click();
+  // The compass is a deliberate answer independent of party choice now; move
+  // Economics off centre so the step registers as answered, then leave it there.
+  const economic = page.getByLabel('Economic position', { exact: true });
+  await economic.fill('1');
   if (options.party) {
     await page.getByRole('button', { name: options.party, exact: false }).click();
   } else {

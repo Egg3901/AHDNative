@@ -11,7 +11,9 @@ it("scans regional registrations at most once per region, preserving the pre-cac
   world.partyRegions = new Proxy(world.partyRegions, { ownKeys(target) { scans++; return Reflect.ownKeys(target); } });
   expect(processNppStanceDrift(world, rngFromSeed("unused"))).toEqual({ drifted: 1498 });
   // Captured from the real unoptimized phase, before introducing any cache.
-  expect(createHash("sha256").update(JSON.stringify(world)).digest("hex")).toBe("27dcd17744cc2f8a9cb8d52c8d98a5e2b204b7c3dc46b4214284e5515ab02c30");
+  // Re-pinned #242: one-party packs now carry the authored `regimeStatus`
+  // marker (ruling/approved), which is part of every seeded party record.
+  expect(createHash("sha256").update(JSON.stringify(world)).digest("hex")).toBe("e8abc141f0f36fbc434367603b4f05ee8118fe50cd462d5d665823203a50938f");
   // JSON hashing above performs one additional enumeration of the proxied map.
   expect(scans - 1).toBeLessThanOrEqual(Object.keys(world.regions).length);
   for (const party of Object.values(world.parties)) {
@@ -20,5 +22,5 @@ it("scans regional registrations at most once per region, preserving the pre-cac
   }
   world.meta.turn = 12;
   expect(processNppStanceDrift(world, rngFromSeed("unused"))).toEqual({ drifted: 1500 });
-  expect(createHash("sha256").update(JSON.stringify(world)).digest("hex")).toBe("167b2360aa060c239083fa437ffbb83e05e9c963de1af9d2a17a685e70181fb7");
+  expect(createHash("sha256").update(JSON.stringify(world)).digest("hex")).toBe("b06316520a563ada2033888614e17de2115aa471433cb4cdddf3300ef71db7f7");
 });

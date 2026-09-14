@@ -81,4 +81,26 @@ describe("character creation fields persist through createWorld and save/load (#
     expect(world.player.partyId).toBe(null);
     expect(world.player.partyJoinedTurn).toBe(null);
   });
+
+  it("rejects a corrupt avatarUrl in the save loader, not just the header", () => {
+    const world = createWorld({ ...base, avatarUrl: "https://example.com/face.png" });
+    const save = JSON.parse(serializeSave(world, "2026-09-14T00:00:00.000Z")) as { world: { player: Record<string, unknown> } };
+    expect(() => deserializeSave(JSON.stringify(save))).toThrow(/avatar/i);
+  });
+
+  it("accepts a valid raster avatarUrl through the save loader", () => {
+    const avatar = "data:image/png;base64,iVBORw0KGgo=";
+    const world = createWorld({ ...base, avatarUrl: avatar });
+    const restored = deserializeSave(serializeSave(world, "2026-09-14T00:00:00.000Z"));
+    expect(restored.player.avatarUrl).toBe(avatar);
+  });
+
+  it("does not mutate the caller's demographics object when a wealth tier is folded in", () => {
+    const demographics = { race: "white", gender: "male", education: "college", wealth: "low" } as const;
+    const caller = { ...demographics } as Record<string, unknown>;
+    const world = createWorld({ ...base, demographics: caller as never, wealth: "high" });
+    // The caller's object is untouched; the world records the supplied tier.
+    expect(caller["wealth"]).toBe("low");
+    expect(world.player.demographics).toEqual({ race: "white", gender: "male", education: "college", wealth: "high" });
+  });
 });

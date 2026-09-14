@@ -21,6 +21,19 @@ export interface CharacterDemographics {
  * a persisted engine field; nothing is UI-only.
  */
 export interface CharacterCreation {
+  /**
+   * Character name captured on the creation screen. World setup also collects a
+   * player name; the creation screen may change it, and the changed value is
+   * what persists and shows on the profile. Undefined falls back to the
+   * world-setup player name.
+   */
+  name?: string;
+  /**
+   * Home region/state chosen on the creation screen. World setup also collects
+   * one; a changed value here is what persists and drives the home-state race
+   * gate. Undefined falls back to the world-setup home region.
+   */
+  homeRegionId?: string;
   /** Null = Independent (a deliberate reference choice, not a default). */
   partyId: string | null;
   policies: { economic: number; social: number };
@@ -179,14 +192,27 @@ export interface CreationParty {
   color: string;
   economicPosition: number;
   socialPosition: number;
+  /**
+   * One-party regime standing (reference PartyPicker regime badge), grounded in
+   * the authored content pack (dd/ru/cn *Parties.ts). Undefined in a
+   * competitive democracy.
+   */
+  regimeStatus?: "ruling" | "approved" | "banned";
 }
 
 /** Runtime conditions + options for the character-creation screen of one country. */
 export interface CreationChoices {
   parties: CreationParty[];
+  /**
+   * The actual ruling party of the selected country/era, resolved from authored
+   * seat composition (`rulingPartyForCountry`) or the `regimeStatus: "ruling"`
+   * marker. Null when no ruling party is recorded; the briefing then says so
+   * rather than naming a first-array party.
+   */
+  rulingParty: { id: string; name: string; abbreviation: string } | null;
   /** True for the reference one-party states (RU/DD/CN); the screen shows the briefing. */
   isOnePartyState: boolean;
-  /** True for the reference imperial-eligible countries (UK/JP); shows the imperial notice. */
+  /** True for the reference imperial-eligible countries (UK/JP/ES/SE); shows the imperial notice. */
   imperialEligible: boolean;
   /** "state" or "region", matching the reference regionNounFor. */
   regionNoun: "state" | "region";

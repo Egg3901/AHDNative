@@ -299,7 +299,7 @@ export function listRegions(
 export function listCreationParties(
   era: string,
   countryId: string,
-): Array<{ id: string; name: string; abbreviation: string; color: string; economicPosition: number; socialPosition: number; isDefault: boolean }> {
+): Array<{ id: string; name: string; abbreviation: string; color: string; economicPosition: number; socialPosition: number; isDefault: boolean; regimeStatus?: "ruling" | "approved" | "banned" }> {
   const pack = getPackByEra(era);
   if (!pack) throw new Error(`Unknown era: ${era}`);
   return (pack.parties ?? [])
@@ -312,6 +312,7 @@ export function listCreationParties(
       economicPosition: party.economicPosition,
       socialPosition: party.socialPosition,
       isDefault: true,
+      ...(party.regimeStatus ? { regimeStatus: party.regimeStatus } : {}),
     }))
     .sort((left, right) => left.name.localeCompare(right.name));
 }
@@ -447,7 +448,9 @@ function validatePlayerDemographics(
   wealth?: NewWorldOptions["wealth"],
 ): import("./types.js").PlayerDemographics | undefined {
   if (value === undefined && wealth === undefined) return undefined;
-  const record = (value ?? {}) as Record<string, unknown>;
+  // Clone before folding the standalone wealth tier in; the caller's object is
+  // never mutated.
+  const record = { ...(value ?? {}) } as Record<string, unknown>;
   if (wealth !== undefined) record["wealth"] = wealth;
   const race = record["race"];
   const gender = record["gender"];

@@ -15,11 +15,11 @@ import { projectPolitics, projectPartyMembership } from "./politics";
 import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
-  ACTION_CATALOG, addDaysIso, advanceTurn, createWorld, deserializeSave, executeAction,
+  ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, createWorld, deserializeSave, executeAction,
   getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCreationParties, listEras, listPlayableCountries, listRegions, rulingPartyForCountry, serializeSave,
   type ActionId, type ExecuteActionParams, type WorldState,
 } from "@ahdclient/engine";
-import type { ActionCategory, ActionView, CharacterCreation, CreationChoices, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions } from "./types";
+import type { ActionCategory, ActionView, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions } from "./types";
 import {
   actionNotification, addNotifications, deleteNotification, diffTurnSnapshots, markAllNotificationsRead,
   markNotificationRead, parseNotifications, saveNotification, toInbox, welcomeNotification,
@@ -50,26 +50,20 @@ const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: Acti
 ];
 
 /**
- * Fund-cost quote mirroring executeAction's tier scaling
- * (packages/engine/src/actions/execute.ts); executeAction stays authoritative.
+ * Action fund-cost quote. Delegates to the engine's single stat-scaled source
+ * (`actionFundCost`) that executeAction itself charges, so the displayed quote
+ * and the debit cannot drift. executeAction stays authoritative.
  */
-function quoteFundCost(id: ActionId, flat: number, donorBaseLevel: number, apCost: number): number {
-  if (id === "campaign") {
-    const mult = 1 + (apCost - 1) * 0.2;
-    return Math.round((20_000 * apCost * mult) / 1_000) * 1_000;
-  }
-  if (id === "advertise") {
-    const mult = 1 + (apCost - 5) * 0.2;
-    return Math.round((100_000 * mult) / 1_000) * 1_000;
-  }
-  if (id === "buildDonorBase") return Math.round((3_000 + donorBaseLevel * 1_500) / 1_000) * 1_000;
-  return flat;
+function quoteFundCost(id: ActionId, flat: number, donorBaseLevel: number, apCost: number, stats?: WorldState["player"]["stats"]): number {
+  return actionFundCost({ actionId: id, actionCost: apCost, donorBaseLevel, catalogFundCost: flat, ...(stats ? { stats } : {}) });
 }
 
 /**
  * Translate the UI creation file into engine createWorld options. The engine
  * owns validation and the wealth-driven cash grant, so this is a pure shape map
- * with no defaults invented.
+ * with no defaults invented. The creation-screen name and home region are
+ * forwarded only when the screen captured them; otherwise createWorld keeps the
+ * world-setup values.
  */
 function creationToWorldOptions(creation: CharacterCreation) {
   return {
@@ -80,6 +74,8 @@ function creationToWorldOptions(creation: CharacterCreation) {
     partyId: creation.partyId,
     avatarUrl: creation.avatarUrl ?? null,
     profileHeaderUrl: creation.profileHeaderUrl ?? null,
+    ...(creation.name !== undefined ? { playerName: creation.name } : {}),
+    ...(creation.homeRegionId !== undefined ? { homeRegionId: creation.homeRegionId } : {}),
   };
 }
 
@@ -87,20 +83,30 @@ function creationToWorldOptions(creation: CharacterCreation) {
  * #242: the world-free options the character-creation screen needs for one
  * country. Parties and their authored compass positions come straight from the
  * engine pack; the one-party and imperial flags use the same engine predicates
- * the reference conditionals do. Region noun reproduces the reference
- * regionNounFor (UK/JP say "region", everyone else "state").
+ * the reference conditionals do. The ruling party is resolved from the authored
+ * seat composition (with the `regimeStatus: "ruling"` marker as the pack
+ * fallback), never the first array entry, so the one-party briefing names the
+ * party that actually governs (DD's SED, not the alphabetically first CDU).
+ * Region noun reproduces the reference regionNounFor (UK/JP say "region",
+ * everyone else "state").
  */
 export function creationChoices(era: string, countryId: string): CreationChoices {
   const normalized = countryId.toUpperCase();
+  const parties: CreationParty[] = listCreationParties(era, normalized).map((party) => ({
+    id: party.id,
+    name: party.name,
+    abbreviation: party.abbreviation,
+    color: party.color,
+    economicPosition: party.economicPosition,
+    socialPosition: party.socialPosition,
+    ...(party.regimeStatus ? { regimeStatus: party.regimeStatus } : {}),
+  }));
+  const markedRuling = parties.find((party) => party.regimeStatus === "ruling") ?? null;
+  const rulingParty = rulingPartyForCountry(era, normalized)
+    ?? (markedRuling ? { id: markedRuling.id, name: markedRuling.name, abbreviation: markedRuling.abbreviation } : null);
   return {
-    parties: listCreationParties(era, normalized).map((party) => ({
-      id: party.id,
-      name: party.name,
-      abbreviation: party.abbreviation,
-      color: party.color,
-      economicPosition: party.economicPosition,
-      socialPosition: party.socialPosition,
-    })),
+    parties,
+    rulingParty,
     isOnePartyState: isOnePartyCountry(normalized),
     imperialEligible: isImperialEligibleCountry(normalized),
     regionNoun: normalized === "UK" || normalized === "JP" ? "region" : "state",
@@ -132,13 +138,19 @@ export class GameSession {
     if (typeof options.seed !== "string" || !options.seed.trim() || options.seed.length > 256) {
       throw new Error("Enter a world seed between 1 and 256 characters.");
     }
+    // #242: the creation screen may override the world-setup name; validate the
+    // effective value the same way before anything is created.
+    const creationName = options.creation?.name !== undefined ? options.creation.name.trim() : undefined;
+    if (creationName !== undefined && (!creationName || creationName.length > 80)) {
+      throw new Error("Enter a character name between 1 and 80 characters.");
+    }
     const era = gameChoices().find((choice) => choice.id === options.era);
     if (!era?.countries.some((country) => country.id === options.countryId)) {
       throw new Error("Choose a playable country in the selected era.");
     }
     const world = createWorld({
       ...options,
-      playerName: options.playerName.trim(),
+      playerName: creationName ?? options.playerName.trim(),
       // #242: the creation file is validated inside createWorld, which owns the
       // persistence and the wealth-driven cash grant. The session passes it
       // through untouched; there is no UI-only value.
@@ -443,7 +455,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     actions: ACTIONS.map(({ id, requires, category, prerequisite }) => {
       const entry = ACTION_CATALOG[id];
       const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
-      const fundCost = quoteFundCost(id, entry.fundCost, player.donorBaseLevel, cost);
+      const fundCost = quoteFundCost(id, entry.fundCost, player.donorBaseLevel, cost, player.stats);
       const cooldownTurns = Math.max(0, (player.actionCooldowns[id] ?? 0) - world.meta.turn);
       // Gate order mirrors executeAction validation; executeAction stays authoritative.
       const reason = entry.status === "unavailable" ? `Not yet available: requires the ${entry.blockingSystem ?? "unported system"} system.`

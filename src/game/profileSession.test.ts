@@ -53,6 +53,23 @@ describe('profile through the saved game session', () => {
     });
   });
 
+  it('projects a 2-4 MB profile header with the 4 MB header guard, not the 2 MB avatar guard', () => {
+    // A syntactically valid PNG whose decoded size is 3 MB, inside the header
+    // cap but over the avatar cap.
+    const header = (() => {
+      const bytes = new Uint8Array(3 * 1024 * 1024);
+      bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      let binary = '';
+      for (const b of bytes) binary += String.fromCharCode(b);
+      return `data:image/png;base64,${btoa(binary)}`;
+    })();
+    const session = new GameSession(); session.create(options);
+    session.updateProfile({ profileHeaderUrl: header });
+    expect(session.profile().profileHeaderUrl).toBe(header);
+    const loaded = new GameSession(); loaded.load(session.serialize(savedAt));
+    expect(loaded.profile().profileHeaderUrl).toBe(header);
+  });
+
   it('normalizes, persists and clears the reference campaign song settings', () => {
     const session = new GameSession(); session.create(options);
     session.updateProfile({

@@ -940,6 +940,13 @@ export interface Party {
   /** True for seeded default parties; custom parties are non-default. */
   isDefault: boolean;
   /**
+   * One-party regime standing (reference PoliticalParty.regimeStatus),
+   * "ruling"/"approved"/"banned"; undefined in a competitive democracy. Seeds
+   * from the content pack (dd/ru/cn *Parties.ts) and drives the creation
+   * briefing's ruling party and the party step badge.
+   */
+  regimeStatus?: "ruling" | "approved" | "banned";
+  /**
    * Priority region cluster (W19). Ports PoliticalParty.priorityRegion.
    * Opaque region ids; evicted by priorityRegionDecay when org drops to 0.
    * W38 will migrate to real state ids.

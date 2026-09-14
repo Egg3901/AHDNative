@@ -9,7 +9,7 @@ import { gameReady, completeCharacterCreation, openGameMenu, saveGame, exitGame 
 test('character creation fields survive action, turn, save, relaunch and resume', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'New game', exact: true }).click();
-  await page.getByLabel('Your name').fill('Creation Player');
+  await page.getByLabel('Your name').fill('World Setup Player');
   await page.getByLabel('Seed', { exact: false }).fill('native-character-creation-smoke');
   await page.getByLabel('Country', { exact: true }).selectOption('US');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
@@ -24,9 +24,13 @@ test('character creation fields survive action, turn, save, relaunch and resume'
 
   // Background + deliberate party choice + a full stat allocation.
   await page.getByRole('button', { name: 'Female', exact: true }).click();
+  await page.getByLabel('Name *').fill('Creation Player');
   await page.getByRole('button', { name: 'Black', exact: true }).click();
   await page.getByRole('button', { name: 'Graduate', exact: true }).click();
   await page.getByRole('button', { name: 'High Income', exact: true }).click();
+  await page.getByLabel('Home state', { exact: true }).selectOption('CA');
+  await page.getByLabel('Economic position').fill('-1');
+  await page.getByLabel('Social position').fill('-1');
   await page.getByRole('button', { name: 'DEM Democratic Party', exact: true }).click();
   await page.getByRole('button', { name: 'Increase Charisma', exact: true }).click();
   await page.getByRole('button', { name: 'Spread evenly', exact: true }).click();

@@ -5,7 +5,7 @@
  * `getCompassPositionLabel` archetype table in `src/lib/utils/politics.ts` at
  * e364c04954ed628beef73a993a8e9e156650a31e. Everything works in the shared
  * −5..+5 policy space: `economic` runs left(−) → right(+), `social` runs
- * liberal(−) → traditional(+) — the same ruler as party `economicPosition` /
+ * liberal(−) → traditional(+): the same ruler as party `economicPosition` /
  * `socialPosition`, so candidate and platform are directly comparable.
  */
 

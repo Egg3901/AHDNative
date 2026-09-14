@@ -102,28 +102,24 @@ function decode(dataUrl: string): Promise<HTMLImageElement> {
 
 async function resizeLocal(file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> {
   const dataUrl = await readDataUrl(file);
-  try {
-    const img = await decode(dataUrl);
-    const width = img.naturalWidth || img.width || 0;
-    const height = img.naturalHeight || img.height || 0;
-    if (!width || !height) return dataUrl;
-    const scale = Math.min(1, maxWidth / width, maxHeight / height);
-    if (scale >= 1 && file.size <= PORTRAIT_MAX_BYTES) return dataUrl;
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(width * scale));
-    canvas.height = Math.max(1, Math.round(height * scale));
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return dataUrl;
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    // Prefer WebP (the reference upload presets), falling back to JPEG where the
-    // canvas encoder does not support it. Never PNG here: lossless PNG would
-    // blow past the 2 MB envelope on a photo.
-    const webp = canvas.toDataURL("image/webp", quality);
-    if (webp.startsWith("data:image/webp")) return webp;
-    return canvas.toDataURL("image/jpeg", quality);
-  } catch {
-    return dataUrl;
-  }
+  const img = await decode(dataUrl);
+  const width = img.naturalWidth || img.width || 0;
+  const height = img.naturalHeight || img.height || 0;
+  if (!width || !height) throw new Error("decode");
+  const scale = Math.min(1, maxWidth / width, maxHeight / height);
+  if (scale >= 1 && file.size <= PORTRAIT_MAX_BYTES) return dataUrl;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("canvas");
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  // Prefer WebP (the reference upload presets), falling back to JPEG where the
+  // canvas encoder does not support it. Never PNG here: lossless PNG would
+  // blow past the 2 MB envelope on a photo.
+  const webp = canvas.toDataURL("image/webp", quality);
+  if (webp.startsWith("data:image/webp")) return webp;
+  return canvas.toDataURL("image/jpeg", quality);
 }
 
 function spentPoints(stats: CharacterStats): number {
@@ -243,6 +239,8 @@ export function CharacterCreationScreen({
   const remaining = STAT_FREE_POINTS - spentPoints(stats);
   const regionNoun = choices?.regionNoun ?? selection.regionNoun;
   const parties = choices?.parties ?? [];
+  const rulingParty = choices?.rulingParty ?? null;
+  const regimeLabel: Record<string, string> = { ruling: "Ruling", approved: "Approved", banned: "Banned" };
 
   const position = useMemo(() => ({ economic, social }), [economic, social]);
   // nearestParty compares on the compass plane; each candidate carries the party
@@ -265,14 +263,9 @@ export function CharacterCreationScreen({
   const selectParty = (id: string | null) => {
     setPartyTouched(true);
     setPartyId(id);
-    // Selecting a party snaps the compass to that platform, matching the
-    // reference where the party step carries the authored platform.
-    const party = parties.find((entry) => entry.id === id);
-    if (party) {
-      setCompassTouched(true);
-      setEconomic(Math.round(party.economicPosition));
-      setSocial(Math.round(party.socialPosition));
-    }
+    // Choosing a party records the affiliation only. The compass (step 4) stays
+    // the player's own independent answer; the reference does not snap the pin
+    // to a platform on party selection, and the party step follows the compass.
   };
 
   const adjustStat = (key: StatKey, delta: number) => {
@@ -326,9 +319,12 @@ export function CharacterCreationScreen({
     if (!nameComplete) return setLocalError("Enter a character name of at least two characters.");
     if (!backgroundComplete) return setLocalError("Choose all background options for your character.");
     if (!homeRegionId) return setLocalError(`Choose a home ${regionNoun}.`);
+    if (!compassTouched) return setLocalError("Set your position on the compass.");
     if (!partyTouched) return setLocalError("Pick a party, or choose Independent on purpose.");
     if (!statsComplete) return setLocalError(`Allocate all ${remaining} remaining stat point${remaining === 1 ? "" : "s"}.`);
     onSubmit({
+      name: name.trim(),
+      homeRegionId,
       partyId,
       policies: { economic, social },
       demographics: {
@@ -477,7 +473,7 @@ export function CharacterCreationScreen({
               <div className="ahd-alert" role="note">
                 <p style={{ fontWeight: 700 }}>{selection.countryName} is a one-party state.</p>
                 <p style={{ marginTop: "0.35rem" }}>
-                  Join {parties[0]?.name ?? "the ruling party"}. Outside it the electoral maths does
+                  Join {rulingParty ? `${rulingParty.name} (${rulingParty.abbreviation})` : "the ruling party"}. Outside it the electoral maths does
                   not work: independents take no seats and cannot be fielded. Reform belongs to the
                   ruling party's leadership, so take the party, then take it somewhere.
                 </p>
@@ -497,6 +493,11 @@ export function CharacterCreationScreen({
                   >
                     <span aria-hidden className="ahd-creation-party-dot" style={{ background: party.color }} />
                     {party.abbreviation}
+                    {party.regimeStatus ? (
+                      <span className="ahd-muted" style={{ marginLeft: "0.3rem", fontSize: "0.66rem" }}>
+                        {regimeLabel[party.regimeStatus]}
+                      </span>
+                    ) : null}
                   </button>
                 );
               })}

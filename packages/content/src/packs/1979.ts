@@ -198,12 +198,12 @@ export const pack1979: SeedPack = {
     { id: "UK_GRN", name: "Green Party", countryId: "UK", abbreviation: "GRN", color: "#02A95B", economicPosition: -4, socialPosition: -4 },
     { id: "UK_DUP", name: "Democratic Unionist Party", countryId: "UK", abbreviation: "DUP", color: "#D46A4C", economicPosition: 2, socialPosition: 4 },
     { id: "UK_SF", name: "Sinn Fein", countryId: "UK", abbreviation: "SF", color: "#326760", economicPosition: -3, socialPosition: -2 },
-    { id: "RU_CPSU", name: "Communist Party of the Soviet Union", countryId: "RU", abbreviation: "CPSU", color: "#CC0000", economicPosition: -4, socialPosition: 2 },
-    { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", countryId: "DD", abbreviation: "SED", color: "#C00000", economicPosition: -4, socialPosition: 2 },
-    { id: "DD_CDU", name: "Christlich-Demokratische Union (Ost)", countryId: "DD", abbreviation: "CDU", color: "#33508C", economicPosition: -3, socialPosition: 3 },
-    { id: "DD_LDPD", name: "Liberal-Demokratische Partei Deutschlands", countryId: "DD", abbreviation: "LDPD", color: "#D6A300", economicPosition: -2, socialPosition: 0 },
-    { id: "DD_NDPD", name: "National-Demokratische Partei Deutschlands", countryId: "DD", abbreviation: "NDPD", color: "#6E4B8B", economicPosition: -3, socialPosition: 3 },
-    { id: "DD_DBD", name: "Demokratische Bauernpartei Deutschlands", countryId: "DD", abbreviation: "DBD", color: "#2E7D32", economicPosition: -3, socialPosition: 1 },
+    { id: "RU_CPSU", name: "Communist Party of the Soviet Union", countryId: "RU", abbreviation: "CPSU", color: "#CC0000", economicPosition: -4, socialPosition: 2, regimeStatus: "ruling" },
+    { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", countryId: "DD", abbreviation: "SED", color: "#C00000", economicPosition: -4, socialPosition: 2, regimeStatus: "ruling" },
+    { id: "DD_CDU", name: "Christlich-Demokratische Union (Ost)", countryId: "DD", abbreviation: "CDU", color: "#33508C", economicPosition: -3, socialPosition: 3, regimeStatus: "approved" },
+    { id: "DD_LDPD", name: "Liberal-Demokratische Partei Deutschlands", countryId: "DD", abbreviation: "LDPD", color: "#D6A300", economicPosition: -2, socialPosition: 0, regimeStatus: "approved" },
+    { id: "DD_NDPD", name: "National-Demokratische Partei Deutschlands", countryId: "DD", abbreviation: "NDPD", color: "#6E4B8B", economicPosition: -3, socialPosition: 3, regimeStatus: "approved" },
+    { id: "DD_DBD", name: "Demokratische Bauernpartei Deutschlands", countryId: "DD", abbreviation: "DBD", color: "#2E7D32", economicPosition: -3, socialPosition: 1, regimeStatus: "approved" },
   ],
   legislatures: [
     {

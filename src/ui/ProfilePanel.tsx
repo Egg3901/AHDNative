@@ -108,23 +108,22 @@ function toAvatarDataUrl(file: File, dataUrl: string): Promise<string> {
 }
 
 async function toResizedDataUrl(file: File, dataUrl: string, maxWidth: number, maxHeight: number): Promise<string> {
+  // decodeImage rejects on a corrupt raster, so raw bytes are never persisted.
   const img = await decodeImage(dataUrl);
   const width = img.naturalWidth || img.width || 0;
   const height = img.naturalHeight || img.height || 0;
+  // A decoder that yields no intrinsic size (e.g. a test double) cannot be
+  // resized; the already-decoded data URL is what the browser accepted.
   if (!width || !height) return dataUrl;
   const scale = Math.min(1, maxWidth / width, maxHeight / height);
   if (scale >= 1) return dataUrl;
-  try {
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(width * scale));
-    canvas.height = Math.max(1, Math.round(height * scale));
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return dataUrl;
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL(file.type === "image/png" ? "image/png" : "image/jpeg", 0.85);
-  } catch {
-    return dataUrl;
-  }
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return dataUrl;
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL(file.type === "image/png" ? "image/png" : "image/jpeg", 0.85);
 }
 
 /** Header uses the wider reference preset; the caller resizes to <=1400x400. */
@@ -146,8 +145,11 @@ function validateHeader(file: File): string | null {
 
 export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewerDisablesAutoplay = false }: ProfilePanelProps) {
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const headerRef = useRef<HTMLInputElement | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoSaving, setPhotoSaving] = useState(false);
+  const [headerError, setHeaderError] = useState<string | null>(null);
+  const [headerSaving, setHeaderSaving] = useState(false);
   const [bioEditing, setBioEditing] = useState(false);
   const [bioDraft, setBioDraft] = useState(profile.bio);
   const [bioError, setBioError] = useState<string | null>(null);
@@ -158,6 +160,7 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
   const [songSaving, setSongSaving] = useState(false);
 
   const photoBusy = busy || photoSaving;
+  const headerBusy = busy || headerSaving;
   const formBusy = busy || bioSaving;
   const standing = profile.standing;
   const finances = profile.finances;
@@ -272,6 +275,42 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
       setPhotoError("Picture could not be removed.");
     } finally {
       setPhotoSaving(false);
+    }
+  };
+
+  const saveHeaderFile = async (file: File) => {
+    if (headerBusy) return;
+    const invalid = validateHeader(file);
+    if (invalid) {
+      setHeaderError(invalid);
+      return;
+    }
+    setHeaderError(null);
+    setHeaderSaving(true);
+    try {
+      const dataUrl = await readAsDataUrl(file);
+      const profileHeaderUrl = await toHeaderDataUrl(file, dataUrl);
+      const ok = await onUpdateProfile({ profileHeaderUrl });
+      if (!ok) setHeaderError("Header could not be saved.");
+    } catch {
+      setHeaderError("That file could not be read as a header image.");
+    } finally {
+      setHeaderSaving(false);
+      if (headerRef.current) headerRef.current.value = "";
+    }
+  };
+
+  const removeHeader = async () => {
+    if (headerBusy) return;
+    setHeaderError(null);
+    setHeaderSaving(true);
+    try {
+      const ok = await onUpdateProfile({ profileHeaderUrl: null });
+      if (!ok) setHeaderError("Header could not be removed.");
+    } catch {
+      setHeaderError("Header could not be removed.");
+    } finally {
+      setHeaderSaving(false);
     }
   };
 
@@ -395,6 +434,47 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
         {photoError ? (
           <p className="ahd-alert" role="alert">
             {photoError}
+          </p>
+        ) : null}
+        <div className="ahd-profile-photoactions" style={{ marginTop: "0.5rem" }}>
+          <input
+            ref={headerRef}
+            type="file"
+            accept={ACCEPTED_TYPES.join(",")}
+            className="ahd-profile-file"
+            aria-label="Choose profile header"
+            aria-describedby="ahd-profile-header-hint"
+            disabled={headerBusy}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void saveHeaderFile(file);
+            }}
+          />
+          <button
+            type="button"
+            className="ahd-btn ahd-btn-sm"
+            onClick={() => headerRef.current?.click()}
+            disabled={headerBusy}
+          >
+            {profile.profileHeaderUrl ? "Change header" : "Upload header"}
+          </button>
+          {profile.profileHeaderUrl ? (
+            <button
+              type="button"
+              className="ahd-btn ahd-btn-ghost ahd-btn-sm"
+              onClick={() => void removeHeader()}
+              disabled={headerBusy}
+            >
+              Remove header
+            </button>
+          ) : null}
+        </div>
+        <p id="ahd-profile-header-hint" className="ahd-help">
+          JPEG, PNG or WebP, under 4 MB.
+        </p>
+        {headerError ? (
+          <p className="ahd-alert" role="alert">
+            {headerError}
           </p>
         ) : null}
       </section>

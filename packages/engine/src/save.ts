@@ -415,6 +415,12 @@ function assertCurrentWorldState(world: WorldState): void {
   if (profileHeader !== undefined && profileHeader !== null && !isSafeRaster(profileHeader)) {
     throw new Error("Not a valid save file: invalid player profile header");
   }
+  // #242: the portrait shares the header raster envelope; a corrupt or
+  // non-raster value must be rejected here, not persisted and rendered.
+  const avatar = player["avatarUrl"];
+  if (avatar !== undefined && avatar !== null && !isSafeRaster(avatar)) {
+    throw new Error("Not a valid save file: invalid player avatar");
+  }
 
   for (const field of REQUIRED_WORLD_ARRAYS) {
     if (!Array.isArray(value[field])) {

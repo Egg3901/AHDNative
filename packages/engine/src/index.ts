@@ -25,6 +25,9 @@ export * from "./support/index.js";
 export * from "./actions/catalog.js";
 export * from "./actions/execute.js";
 export * from "./actions/fundGeneration.js";
+// #242: one stat-scaled fund-cost source shared by executeAction and the quote.
+export { actionFundCost } from "./actions/fundCost.js";
+export type { FundCostInput } from "./actions/fundCost.js";
 export { CAMPAIGN_TARGETED_AD_CAP } from "./actions/campaignTargetedAd.js";
 export { getCatalog, getLaw } from "./legislation/catalog.js";
 export type { Bill, Committee, EnactedLaw } from "./legislation/types.js";
@@ -169,9 +172,10 @@ export {
 } from "./alignment/policyAlignment.js";
 export type { CompassPoint, AlignmentBand, NearestParty } from "./alignment/policyAlignment.js";
 export {
-  IMPERIAL_ELIGIBLE_COUNTRIES,
   isOnePartyCountry,
   isImperialEligibleCountry,
+  onePartyCountries,
+  imperialEligibleCountries,
 } from "./creationCountryRules.js";
 export * from "./countryPolitics/index.js";
 export * from "./governor/constants.js";

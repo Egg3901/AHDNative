@@ -1,5 +1,5 @@
 /**
- * Character starting wealth — ports AHDGame `src/lib/constants/characterWealth.ts`
+ * Character starting wealth: ports AHDGame `src/lib/constants/characterWealth.ts`
  * at e364c04954ed628beef73a993a8e9e156650a31e.
  *
  * A wealth background grants a starting personal cash balance in internal anchor

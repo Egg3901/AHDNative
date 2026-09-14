@@ -3,7 +3,7 @@ import { GameSession } from "./session";
 import { STAT_KEYS, type CharacterStats } from "@ahdclient/engine";
 import type { CharacterCreation } from "./types";
 
-const setup = { era: "1953", countryId: "US", seed: "native-session-creation", playerName: "Alex" } as const;
+const setup = { era: "1953", countryId: "US", seed: "native-session-creation", playerName: "Alex", homeRegionId: "NY" } as const;
 const stamp = "2026-09-14T00:00:00.000Z";
 
 function evenStats(): CharacterStats {
@@ -27,6 +27,47 @@ describe("character-creation session contract (#242)", () => {
     expect(profile.policies).toEqual({ economic: -2, social: 3 });
     expect(profile.demographics).toEqual(creation.demographics);
     expect(profile.stats && STAT_KEYS.every((key) => profile.stats![key] != null)).toBe(true);
+  });
+
+  it("uses the creation-screen name and home region when they differ from world setup", () => {
+    const session = new GameSession();
+    const view = session.create({
+      ...setup,
+      homeRegionId: "NY",
+      creation: { ...creation, name: "Eleanor Vance", homeRegionId: "CA" },
+    });
+    expect(view.player.name).toBe("Eleanor Vance");
+    expect(view.player.homeRegionId).toBe("CA");
+    expect(session.profile().name).toBe("Eleanor Vance");
+    expect(session.profile().homeRegion?.id).toBe("CA");
+  });
+
+  it("persists the changed name and home region through save, close and relaunch", () => {
+    const session = new GameSession();
+    session.create({
+      ...setup,
+      homeRegionId: "NY",
+      creation: { ...creation, name: "Eleanor Vance", homeRegionId: "CA" },
+    });
+    const loaded = new GameSession();
+    loaded.load(session.serialize(stamp));
+    const profile = loaded.profile();
+    expect(profile.name).toBe("Eleanor Vance");
+    expect(profile.homeRegion?.id).toBe("CA");
+    // The profile is the same display boundary after reload.
+    expect(profile.demographics).toEqual(creation.demographics);
+  });
+
+  it("falls back to the world-setup name and home region when creation omits them", () => {
+    const session = new GameSession();
+    const view = session.create({ ...setup, homeRegionId: "NY", creation });
+    expect(view.player.name).toBe("Alex");
+    expect(view.player.homeRegionId).toBe("NY");
+  });
+
+  it("rejects a blank creation-screen name atomically", () => {
+    const session = new GameSession();
+    expect(() => session.create({ ...setup, creation: { ...creation, name: "   " } })).toThrow(/name/i);
   });
 
   it("persists every creation field through save, close and relaunch", () => {

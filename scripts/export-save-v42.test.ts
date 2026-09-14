@@ -23,7 +23,7 @@ const REPO_ROOT = resolve(SCRIPT_DIR, "..");
 const CLI = join(REPO_ROOT, "scripts", "export-save-v42.ts");
 const FIXTURE_GZ = join(REPO_ROOT, "fixtures", "v42-1953-US.save.json.gz");
 const FIXTURE_SHA = "471352be87c8887dcc6ae02f465b898272f62843b5e0861a45138c2de7f58cdc";
-const NATIVE_FRESH_KEEP_HOME_SHA = "f141e9a919d8a6626c53a1ca6c4c9856ec5ccc97410b0a4c2ba8d61ba3aaa320";
+const NATIVE_FRESH_KEEP_HOME_SHA = "1dd3ba84ec3d8fde2220a61f087b2b143f038bef3f0c4e9a52456313ac077d1d";
 const SAVED_AT = "2026-09-10T00:00:00.000Z";
 
 function sha256(text: string): string {

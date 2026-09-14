@@ -1,6 +1,6 @@
 import { ACHIEVEMENT_CATALOG, ACHIEVEMENT_COUNT_TRIGGERS, achievementCountProgress, type WorldState } from "@ahdclient/engine";
 import { projectResources } from "./resources";
-import { campaignSongId, safeAvatarUrl } from "./profileValidation";
+import { campaignSongId, safeAvatarUrl, safeHeaderUrl } from "./profileValidation";
 import type { ProfileAchievement, ProfileView } from "./profileTypes";
 
 function homeCurrency(world: WorldState, countryId: string): string {
@@ -62,7 +62,7 @@ export function projectProfile(world: WorldState): ProfileView {
     ? { ...player.stats }
     : null;
   const demographics = player.demographics ?? null;
-  const profileHeaderUrl = typeof player.profileHeaderUrl === "string" ? safeAvatarUrl(player.profileHeaderUrl) : null;
+  const profileHeaderUrl = safeHeaderUrl(player.profileHeaderUrl);
   const achievementBySlug = new Map(ACHIEVEMENT_CATALOG.map((entry) => [entry.slug, entry]));
   const earnedSlugs = new Set(world.achievementsEarned);
   // Solo can only evaluate catalog entries marked "available"
