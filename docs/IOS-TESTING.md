@@ -1,6 +1,6 @@
 # Private iPhone testing
 
-The app has an integrated local SP loop. Private preview 0.1.0, build 1.6, has passed signed IPA export and Apple processing as Internal Only. It is attached to the internal Owner review group. Actual phone validation and the remaining mechanics/save gates are still open. See [candidate evidence](https://github.com/Egg3901/AHDNative/issues/124).
+The app has an integrated local SP loop. The first private preview, 0.1.0, build 1.6, passed signed IPA export and Apple processing as Internal Only. It is attached to the internal Owner review group. Actual phone validation and the remaining mechanics/save gates are still open. See [candidate evidence](https://github.com/Egg3901/AHDNative/issues/124).
 
 ## Private feedback preview
 
@@ -74,11 +74,12 @@ and [complying with encryption export regulations](https://developer.apple.com/d
 
 The Mac image does not preinstall `rustup`. The workflow bootstraps it from the official Rust installer when absent, installs the pinned toolchain and records the Cargo binary path for later steps. The first attempt failed at this prerequisite before compilation or signing; inspect a failed step before retrying.
 
-The most recently processed iOS preview remains marketing version `0.1.0`, build
-`1.6`; current source metadata is `0.1.2`. For the next authorized candidate,
-set the intended marketing version deliberately and keep the iOS bundle version
-as `1.N`, where Tauri appends Codemagic's build number. Do not append a fourth
-numeric component to the marketing version.
+The most recently delivered and processed internal iOS preview is marketing
+version `0.1.4`, Apple build `1.8`; current release-candidate source metadata is
+`0.1.5`. For the next authorized candidate, set the intended marketing version
+deliberately and keep the iOS bundle version as `1.N`, where Tauri appends
+Codemagic's build number. Do not append a fourth numeric component to the
+marketing version.
 
 ### Generated Xcode signing settings
 
