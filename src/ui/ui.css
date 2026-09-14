@@ -362,6 +362,47 @@ html, body { overflow-x: hidden; }
   background: var(--ahd-card-elevated); color: var(--ahd-muted);
 }
 .ahd-pill { display:inline-flex; padding:0.14rem 0.4rem; border-radius:999px; font-size:0.68rem; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; }
+
+/* Party identity mark (#244). Image path mirrors the reference PartyLogo;
+   initials/color fallback is deterministic from the DTO identity. Shrinks
+   (never grows) so it cannot push content into horizontal overflow. */
+.ahd-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 auto; border-radius: 999px; overflow: hidden;
+  border: 1px solid var(--ahd-border);
+  font-family: var(--ahd-font-mono); font-weight: 700; letter-spacing: 0.02em;
+  text-transform: uppercase; line-height: 1; user-select: none;
+  min-width: 0;
+}
+.ahd-mark img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.ahd-mark-initials { display: block; padding: 0 2px; }
+
+/* Compact code-native action category mark (#244): a small glyph tile that
+   carries both category and locked/available state at 320px. */
+.ahd-action-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 2rem; height: 2rem; flex: 0 0 auto;
+  border-radius: var(--ahd-radius-sm);
+  border: 1px solid var(--ahd-border);
+  background: var(--ahd-card-elevated);
+  font-size: 0.95rem; line-height: 1;
+}
+.ahd-action-mark[data-state="available"] { color: var(--ahd-primary); border-color: color-mix(in srgb, var(--ahd-primary) 45%, var(--ahd-border)); }
+.ahd-action-mark[data-state="locked"] { color: var(--ahd-muted); opacity: 0.75; }
+.ahd-action-card { display: flex; flex-direction: column; gap: 0.55rem; min-width: 0; }
+.ahd-action-head { display: flex; gap: 0.55rem; align-items: flex-start; min-width: 0; }
+.ahd-action-head .ahd-action-body { min-width: 0; flex: 1 1 auto; }
+.ahd-action-state { flex: 0 0 auto; white-space: nowrap; }
+.ahd-action-reason { margin: 0; }
+
+/* New-game screen: keep the hero and stacked fields inside a 320px column. */
+.ahd-newgame { min-width: 0; }
+.ahd-newgame .ahd-eyebrow { margin: 0; }
+.ahd-newgame-hero { margin-bottom: 1rem; min-width: 0; }
+.ahd-newgame-form { min-width: 0; }
+.ahd-mode-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+.ahd-preview-row { display: flex; gap: 0.4rem; align-items: center; min-width: 0; margin-top: 0.3rem; flex-wrap: wrap; }
+.ahd-preview-row .ahd-help { min-width: 0; }
 .ahd-spinner {
   width: 0.9rem; height: 0.9rem; border: 2px solid currentColor; border-top-color: transparent;
   border-radius: 50%; animation: ahd-spin 0.7s linear infinite; flex-shrink: 0;

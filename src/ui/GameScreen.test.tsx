@@ -507,6 +507,10 @@ describe("GameScreen", () => {
     render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={onAction} />);
     await navigate(user, "Parties");
     expect(screen.getByText(/withdraws your candidacy/i)).toBeInTheDocument();
+    for (const p of world.parties) {
+      const card = screen.getByText(p.name).closest(".ahd-card") as HTMLElement;
+      expect(card.querySelector(`.ahd-mark[data-party-mark="${p.abbreviation}"]`)).not.toBeNull();
+    }
     await user.click(screen.getByRole("button", { name: /join tories/i }));
     expect(onAction).toHaveBeenCalledWith("joinParty", { partyId: "p2" });
     await user.click(screen.getByRole("button", { name: /leave labor/i }));

@@ -39,11 +39,12 @@ describe("PartyManagementPanel", () => {
   it("renders the founding form, cost and charter roster without raw ids", async () => {
     const user = userEvent.setup();
     const onAction = vi.fn();
-    render(<PartyManagementPanel management={makeManagement()} busy={false} onAction={onAction} />);
+    const { container } = render(<PartyManagementPanel management={makeManagement()} busy={false} onAction={onAction} />);
     expect(screen.getByText("Start a party")).toBeTruthy();
     expect(screen.queryByText("US_DEM")).toBeNull();
     expect(screen.queryByText("charter-x")).toBeNull();
     expect(screen.getByText("New Frontier")).toBeTruthy();
+    expect(container.querySelector('.ahd-mark[data-party-mark="DEM"]')).not.toBeNull();
     await user.type(screen.getByLabelText("Party name"), "Second Wave");
     await user.type(screen.getByLabelText("Abbreviation"), "SWP");
     await user.click(screen.getByRole("button", { name: "Found party" }));

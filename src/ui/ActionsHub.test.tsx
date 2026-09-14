@@ -65,6 +65,24 @@ describe("ActionsHub", () => {
     }
   });
 
+  it("marks each card with a compact code-native category symbol and state", () => {
+    render(<ActionsHub actions={actions} {...props} category="all" onCategoryChange={() => {}} />);
+    const available = screen.getByRole("article", { name: /^campaign$/i }).querySelector(".ahd-action-mark") as HTMLElement;
+    const locked = screen.getByRole("article", { name: /^quick poll$/i }).querySelector(".ahd-action-mark") as HTMLElement;
+    expect(available).toHaveAttribute("data-category", "influence");
+    expect(available).toHaveAttribute("data-state", "available");
+    expect(locked).toHaveAttribute("data-category", "intelligence");
+    expect(locked).toHaveAttribute("data-state", "locked");
+    expect(locked.textContent?.length).toBeGreaterThan(0);
+  });
+
+  it("keeps the disabled reason visible on a compact locked card", () => {
+    render(<ActionsHub actions={actions} {...props} category="intelligence" onCategoryChange={() => {}} />);
+    const card = screen.getByRole("article", { name: /^quick poll$/i });
+    expect(within(card).getByText(/not yet available: requires the polling\/election polling system/i)).toBeInTheDocument();
+    expect(within(card).getByText("locked")).toBeInTheDocument();
+  });
+
   it("renders structured recent outcomes with targets, changes and follow-ups", () => {
     render(<ActionsHub actions={actions} {...props} category="all" onCategoryChange={() => {}} outcomes={[{
       id: "t0-action:campaign:1", actionId: "campaign", title: "Campaign complete", message: "Campaigned successfully.",

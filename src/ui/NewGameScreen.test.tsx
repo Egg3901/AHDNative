@@ -237,6 +237,37 @@ describe("NewGameScreen world setup (#241)", () => {
     expect(screen.queryByText(/no governing party exists/i)).not.toBeInTheDocument();
   });
 
+  it("renders the HoS availability reason as an accessible note beside the mode radios", async () => {
+    const user = userEvent.setup();
+    render(<NewGameScreen eras={ERAS} busy={false} onStart={vi.fn()} onBack={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText(/country/i), "UK");
+    const note = screen.getByRole("note");
+    expect(note).toHaveTextContent(/no governing party exists for the founding start/i);
+  });
+
+  it("renders a party identity mark in the governing-party preview", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<NewGameScreen eras={ERAS} busy={false} onStart={vi.fn()} onBack={vi.fn()} />);
+    await user.click(screen.getByLabelText(/head of state/i));
+    const mark = container.querySelector(".ahd-preview-row [data-party-mark]") as HTMLElement;
+    expect(mark).not.toBeNull();
+    expect(mark).toHaveAttribute("data-party-mark", "REP");
+    expect(mark).toHaveAttribute("aria-hidden", "true");
+    expect(mark.querySelector(".ahd-mark-initials")?.textContent).toBe("REP");
+  });
+
+  it("keeps the country/name pair in the compact responsive grid at phone width", () => {
+    const { container } = render(<NewGameScreen eras={ERAS} busy={false} onStart={vi.fn()} onBack={vi.fn()} />);
+    const screenRoot = container.querySelector(".ahd-newgame");
+    expect(screenRoot).not.toBeNull();
+    const country = screen.getByLabelText(/country/i);
+    const name = screen.getByLabelText(/your name/i);
+    const pair = country.closest(".ahd-grid-2");
+    expect(pair).not.toBeNull();
+    expect(pair).toContainElement(name);
+    expect(pair?.querySelectorAll(".ahd-field")).toHaveLength(2);
+  });
+
   it("never submits mode hos when the selected initialization has no bindable party", async () => {
     const user = userEvent.setup();
     const onStart = vi.fn();

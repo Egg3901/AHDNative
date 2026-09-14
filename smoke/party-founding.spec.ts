@@ -23,7 +23,7 @@ test('a funded career founds a party once and resumes with its membership and ch
   await found.click();
   await expect(page.getByText('You belong to New Frontier.', { exact: true })).toBeVisible();
   await expect(found).toBeDisabled();
-  await expect(page.getByRole('listitem').filter({ hasText: 'New Frontier' })).toContainText('ratified');
+  await expect(page.getByRole('list', { name: 'Charters' }).getByRole('listitem').filter({ hasText: 'New Frontier' })).toContainText('ratified');
   await gameReady(page);
   await expect(page.getByRole('contentinfo')).toContainText('Turn 99');
   await page.reload();
@@ -31,7 +31,7 @@ test('a funded career founds a party once and resumes with its membership and ch
   await gameReady(page);
   await openFounding();
   await expect(page.getByText('You belong to New Frontier.', { exact: true })).toBeVisible();
-  await expect(page.getByRole('listitem').filter({ hasText: 'New Frontier' })).toContainText('ratified');
+  await expect(page.getByRole('list', { name: 'Charters' }).getByRole('listitem').filter({ hasText: 'New Frontier' })).toContainText('ratified');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: 'artifacts/smoke/mobile-party-founding.png', fullPage: true });
 });
