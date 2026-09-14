@@ -1,5 +1,40 @@
 import { expect, type Page } from '@playwright/test';
 
+/**
+ * Completes the reference character-creation file (#242) after world setup.
+ * Fills the background option chips, answers the compass deliberately, picks a
+ * party (or Independent), and spends all stat points, then submits. The
+ * character name was prefilled from the world-setup name, so existing flows
+ * keep their identity.
+ *
+ * The stat allocation deliberately leaves Energy at its floor so the action
+ * cap stays at the baseline 200 the standing assertions expect; Energy is a real
+ * consequence but this helper keeps unrelated flows stable.
+ */
+export async function completeCharacterCreation(page: Page, options: { party?: string } = {}) {
+  await expect(page.getByRole('heading', { name: /Create your politician/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Female', exact: true }).click();
+  await page.getByRole('button', { name: 'White', exact: true }).click();
+  await page.getByRole('button', { name: 'College', exact: true }).click();
+  await page.getByRole('button', { name: 'Middle Income', exact: true }).click();
+  // The compass is a deliberate answer independent of party choice now; move
+  // Economics off centre so the step registers as answered, then leave it there.
+  const economic = page.getByLabel('Economic position', { exact: true });
+  await economic.fill('1');
+  if (options.party) {
+    await page.getByRole('button', { name: options.party, exact: false }).click();
+  } else {
+    await page.getByRole('button', { name: 'Independent', exact: true }).click();
+  }
+  // Spend all 21 free points without touching Energy (9 + 9 + 3 = 21), so the
+  // baseline action cap 200 the standing assertions expect is preserved. The
+  // resulting fundraising stat is 1, so fundraise yield is 0.82x neutral.
+  for (let i = 0; i < 9; i++) await page.getByRole('button', { name: 'Increase Debate', exact: true }).click();
+  for (let i = 0; i < 9; i++) await page.getByRole('button', { name: 'Increase Statecraft', exact: true }).click();
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Increase Business Acumen', exact: true }).click();
+  await page.getByRole('button', { name: 'Create character', exact: true }).click();
+}
+
 export async function openGameMenu(page: Page) {
   const menu = page.locator('button[aria-controls="ahd-drawer"]');
   if (await menu.getAttribute('aria-expanded') !== 'true') await menu.click();

@@ -1,4 +1,5 @@
 import { EXTERNAL_BROAD_MONEY_GDP_SHARE, SCHEMA_VERSION } from "./world.js";
+import { STAT_KEYS } from "./stats/characterStats.js";
 import { isWorldFeatureFlag, resolveWorldFeatureFlags, WORLD_FEATURE_FLAG_DEFINITIONS } from "./featureFlags.js";
 import { TENSION_BASELINE } from "./coldWar/constants.js";
 import { NUCLEAR_CAPABLE } from "./coldWar/nuclear.js";
@@ -46,6 +47,28 @@ export function serializeSave(world: WorldState, savedAt: string): string {
 }
 
 const V42_SCHEMA = 42;
+
+/** Reference demographic option sets (creatorOptions.ts / characterWealth.ts). */
+const DEMOGRAPHIC_RACE_VALUES = new Set(["white", "black", "hispanic", "asian", "other"]);
+const DEMOGRAPHIC_GENDER_VALUES = new Set(["male", "female", "nonbinary"]);
+const DEMOGRAPHIC_EDUCATION_VALUES = new Set(["no_college", "college", "graduate"]);
+const DEMOGRAPHIC_WEALTH_VALUES = new Set(["low", "middle", "high"]);
+
+/** A complete, legal demographics record. All four fields required together. */
+function isValidDemographics(value: Record<string, unknown>): boolean {
+  return (
+    typeof value["race"] === "string" && DEMOGRAPHIC_RACE_VALUES.has(value["race"] as string) &&
+    typeof value["gender"] === "string" && DEMOGRAPHIC_GENDER_VALUES.has(value["gender"] as string) &&
+    typeof value["education"] === "string" && DEMOGRAPHIC_EDUCATION_VALUES.has(value["education"] as string) &&
+    typeof value["wealth"] === "string" && DEMOGRAPHIC_WEALTH_VALUES.has(value["wealth"] as string)
+  );
+}
+
+/** Offline raster data URL guard for creation images (mirrors app profileValidation). */
+function isSafeRaster(value: unknown): boolean {
+  if (typeof value !== "string" || value.length > Math.ceil(4 * 1024 * 1024 / 3) * 4 + 32) return false;
+  return /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
+}
 
 export type ProjectSaveToV42Result =
   | { ok: true; contents: string }
@@ -369,15 +392,34 @@ function assertCurrentWorldState(world: WorldState): void {
   const stats = player["stats"];
   if (stats !== undefined) {
     if (!isRecord(stats)) throw new Error("Not a valid save file: invalid player Energy stats");
-    const energy = stats["energy"];
-    if (energy !== undefined && (typeof energy !== "number" || !Number.isFinite(energy) || energy < 1 || energy > 10)) {
-      throw new Error("Not a valid save file: invalid player Energy");
+    // #242: the full seven-key stat block shares the reference [1,10] band;
+    // legacy saves carry only energy/debate. Every present key must be legal.
+    for (const [key, raw] of Object.entries(stats)) {
+      if (!STAT_KEYS.includes(key as (typeof STAT_KEYS)[number])) {
+        throw new Error(`Not a valid save file: unknown player stat ${key}`);
+      }
+      if (typeof raw !== "number" || !Number.isFinite(raw) || raw < 1 || raw > 10) {
+        throw new Error(`Not a valid save file: invalid player stat ${key}`);
+      }
     }
-    // #37: Debate shares the mainline stat range (statsConstants STAT_MIN/MAX = 1/10).
-    const debate = stats["debate"];
-    if (debate !== undefined && (typeof debate !== "number" || !Number.isFinite(debate) || debate < 1 || debate > 10)) {
-      throw new Error("Not a valid save file: invalid player Debate");
+  }
+  // #242: demographics and the optional header are player-identity extras. They
+  // are optional, but a present value must match the reference option sets.
+  const demographics = player["demographics"];
+  if (demographics !== undefined) {
+    if (!isRecord(demographics) || !isValidDemographics(demographics)) {
+      throw new Error("Not a valid save file: invalid player demographics");
     }
+  }
+  const profileHeader = player["profileHeaderUrl"];
+  if (profileHeader !== undefined && profileHeader !== null && !isSafeRaster(profileHeader)) {
+    throw new Error("Not a valid save file: invalid player profile header");
+  }
+  // #242: the portrait shares the header raster envelope; a corrupt or
+  // non-raster value must be rejected here, not persisted and rendered.
+  const avatar = player["avatarUrl"];
+  if (avatar !== undefined && avatar !== null && !isSafeRaster(avatar)) {
+    throw new Error("Not a valid save file: invalid player avatar");
   }
 
   for (const field of REQUIRED_WORLD_ARRAYS) {

@@ -1,4 +1,4 @@
-import { gameReady, navigateGame, advanceGame } from './game-navigation';
+import { gameReady, navigateGame, advanceGame, completeCharacterCreation } from './game-navigation';
 import { expect, test } from '@playwright/test';
 
 test('an unelected player can inspect legislation without sponsoring a bill', async ({ page }) => {
@@ -7,6 +7,7 @@ test('an unelected player can inspect legislation without sponsoring a bill', as
   await page.getByLabel('Your name').fill('Legislature Player');
   await page.getByLabel('Seed', { exact: false }).fill('native-legislature-v1');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await gameReady(page);
   await navigateGame(page, 'Legislature');
   await expect(page.getByText('No legislative seat', { exact: true })).toBeVisible();

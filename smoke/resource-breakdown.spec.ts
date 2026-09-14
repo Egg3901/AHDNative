@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gameReady, advanceGame } from './game-navigation';
+import { gameReady, advanceGame, completeCharacterCreation } from './game-navigation';
 
 for (const width of [320, 390]) {
   test(`resource detail panels open and close without losing the footer at ${width}px`, async ({ page }) => {
@@ -9,6 +9,7 @@ for (const width of [320, 390]) {
     await page.getByLabel('Your name').fill('Breakdown Player');
     await page.getByLabel('Seed', { exact: false }).fill('resource-breakdown');
     await page.getByRole('button', { name: 'Start', exact: true }).click();
+    await completeCharacterCreation(page);
     await gameReady(page);
 
     const resources = page.getByRole('group', { name: 'Resources' });

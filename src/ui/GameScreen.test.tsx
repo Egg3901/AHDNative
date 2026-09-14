@@ -48,7 +48,7 @@ function profileFor(world: GameView): ProfileView {
     party: world.player.partyName ? { id: "p1", name: world.player.partyName, color: "#dc2626" } : null,
     office: world.legislature.office,
     officeDestination: world.legislature.office ? { route: "legislature" } : null,
-    policies: null, stats: null, careerHistory: [], achievements: [],
+    policies: null, stats: null, demographics: null, profileHeaderUrl: null, careerHistory: [], achievements: [],
     achievementProgress: { earned: 0, available: 0 }, lockedAchievements: [],
     unavailableAchievements: [],
     resourceDetails: world.resources,

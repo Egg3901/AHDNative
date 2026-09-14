@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gameReady } from './game-navigation';
+import { gameReady, completeCharacterCreation } from './game-navigation';
 
 test('notification read state survives closing the app without a manual save', async ({ page }) => {
   await page.goto('/');
@@ -7,6 +7,7 @@ test('notification read state survives closing the app without a manual save', a
   await page.getByLabel('Your name').fill('Inbox Reader');
   await page.getByLabel('Seed', { exact: false }).fill('inbox-browser-review');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await gameReady(page);
   await page.getByRole('button', { name: /Notifications, .* unread/ }).click();
   await page.getByRole('button', { name: 'Delete: Game saved · Turn 0', exact: true }).click();

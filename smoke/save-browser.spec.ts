@@ -1,4 +1,4 @@
-import { gameReady, exitGame } from './game-navigation';
+import { gameReady, exitGame, completeCharacterCreation } from './game-navigation';
 import { test, expect } from '@playwright/test';
 
 async function createWorldAndExit(page: import('@playwright/test').Page, name: string, seed: string) {
@@ -7,6 +7,7 @@ async function createWorldAndExit(page: import('@playwright/test').Page, name: s
   await page.getByLabel('Seed', { exact: false }).fill(seed);
   await page.getByLabel('Country', { exact: true }).selectOption('US');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await gameReady(page);
   await exitGame(page);
   await expect(page.getByRole('button', { name: `Continue ${name}` })).toBeVisible();

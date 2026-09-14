@@ -90,11 +90,21 @@ export function calculateTaxAmount(baseAmount: number, taxRate: number): number 
 export { calculateFundraisingAmount, isFundraiseEligible } from "@ahd/game-rules/actions";
 
 /**
- * Native currently has no RPG stats or campaign currency conversion. Pass the
- * legacy neutral-stat configuration explicitly; those parity gaps remain open.
+ * Per-use fundraise yield in anchor units. When a stat block is supplied, the
+ * fundraising stat scales the yield (port of the reference fundraiseYieldAnchor
+ * stat multiplier); a missing block or missing key keeps the neutral 1.0x, so
+ * legacy save/replay behavior is byte-identical.
  */
-export function fundraiseYield(donorBaseLevel: number, politicalInfluence?: number): number {
-  return fundraiseYieldAnchor({ donorBaseLevel, politicalInfluence: politicalInfluence ?? 0 });
+export function fundraiseYield(
+  donorBaseLevel: number,
+  politicalInfluence?: number,
+  stats?: { fundraising?: number },
+): number {
+  return fundraiseYieldAnchor({
+    donorBaseLevel,
+    politicalInfluence: politicalInfluence ?? 0,
+    ...(stats ? { stats } : {}),
+  });
 }
 
 // ─── Logarithmic variant for NPC comparison (kept for parity) ─────────────────

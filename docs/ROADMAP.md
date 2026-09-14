@@ -735,3 +735,58 @@ across the eight named specs (`singleplayer`, `actions-hub`, `party-founding`,
 `mobile-navigation`, `ui-rosters`, `candidacy`, `feature-depth`,
 `ui-navigation-depth`), all 17 passing against the installed Chromium build.
 
+
+## Character-creation player flow checkpoint, 2026-09-14 (#242)
+
+#242 partial. The reference six-step creation hand-off now runs after world
+setup, and every captured field persists through the engine, save and session.
+
+- Engine (`packages/engine/src/`): new `stats/characterStats.ts`
+  (seven keys, `STAT_MIN`/`STAT_MAX`/`STAT_POINT_BUDGET` 28/`STAT_FREE_POINTS`
+  21, `statMultiplier`/`statBonus`), `stats/characterWealth.ts`
+  (`WEALTH_BONUS` 1M/2.5M/5M anchor, deflated by `getEraNominalScale` and
+  converted at the frozen base rate), `alignment/policyAlignment.ts`
+  (`compassDistance`, `alignmentBand` thresholds 1.5/3/5.5, `nearestParty`,
+  `ideologyLabel` archetypes) and `creationCountryRules.ts`
+  (one-party RU/DD/CN; imperial-eligible UK/JP). Exact ports of
+  `src/lib/stats/statsConstants.ts`, `statMultiplier.ts`, `statMeta.ts`,
+  `constants/characterWealth.ts`, `registration/alignment.ts` and
+  `lib/imperial.ts`.
+- `createWorld` accepts and validates `policies`, `demographics`, `stats`,
+  `wealth`, `partyId`, `avatarUrl` and `profileHeaderUrl`, writes them to
+  `world.player`, and grants wealth-tier starting cash. `PlayerCharacter` gains
+  `demographics`, `profileHeaderUrl` and the full `stats` block; `save.ts`
+  validates every present stat key, demographic value and raster data URL.
+- Consequences are observable through existing public boundaries: campaign
+  influence and advertise favorability scale by Charisma, fundraise yield and
+  the quoted yield scale by Fundraising, campaign/advertise fund cost scales by
+  Intellect, and Energy scales the action cap via `energyActionLimits`. Compass
+  position drives `nearestParty`/`alignmentBand`; the creation party binds
+  directly (no joinParty charge) and drives party closeness.
+- Session/UI: `GameSession.create` passes the creation file through;
+  `session.creationChoices` exposes parties/one-party/imperial/region-noun;
+  new `src/ui/CharacterCreationScreen.tsx` renders Country, The politician,
+  Home region, Where you stand, Party, Stats in reference order with the
+  reference option labels, one-party briefing and imperial notice, and local
+  portrait (2 MB) / header (4 MB) pickers resized to the reference presets.
+  `ProfilePanel` shows the full stat block, demographics and header.
+
+Evidence: `packages/engine/src/characterCreation.test.ts` (persist/reject/
+round-trip/wealth/party), `characterConsequences.test.ts` (charisma,
+fundraising, energy, compass), `creationCountryRules.test.ts`,
+`creationParties.test.ts`, `src/game/characterCreationSession.test.ts`
+(session + save/relaunch incl. portrait/header) and
+`src/ui/CharacterCreationScreen.test.tsx` (six-step order, deliberate party,
+stat gating, one-party, imperial). `npm run verify` (268 root + 313 UI tests,
+build, career fixtures), engine `tsc` and the engine CI suite (116 files /
+1051 tests) pass. Production smoke runs 58 scenarios, all passing, including
+the new `smoke/character-creation.spec.ts` create/act/turn/save/relaunch flow
+and one-party briefing; existing creation-sensitive smoke expectations
+(wealth cash, fundraising yield) were updated to the real consequence values.
+
+Remaining #242 acceptance gaps: the imperial *creation input* remains
+admin-only per the reference (`/create-imperial-character` is admin-gated), so
+Native renders the honest notice rather than an imperial form; a rendered
+AHDGame-vs-Native creation screenshot comparison and physical-device run were
+not captured; home-region lean markers stay absent because the engine records
+no per-region economic/social lean. The issue stays open with `status: partial`.

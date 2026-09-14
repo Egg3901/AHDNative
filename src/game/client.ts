@@ -10,7 +10,7 @@ import type { WorldOverviewView } from "./worldOverview";
 import type { PoliticsView } from "./politics";
 import type { GameCommand, GameResponse } from "./protocol";
 import type { ActionOutcome } from "./notifications";
-import type { EraChoice, GameView, NewGameOptions } from "./types";
+import type { EraChoice, CreationChoices, GameView, NewGameOptions } from "./types";
 
 export interface WorkerPort {
   postMessage(message: unknown): void;
@@ -41,6 +41,7 @@ export class GameClient {
   get isClosed(): boolean { return this.closed; }
 
   choices() { return this.send<EraChoice[]>({ type: "choices" }); }
+  creationChoices(era: string, countryId: string) { return this.send<CreationChoices>({ type: "creationChoices", era, countryId }); }
   create(options: NewGameOptions) { return this.send<GameView>({ type: "create", options }); }
   legislation(selection: LegislationSelection = {}) { return this.send<LegislationDetailsQuery>({ type: "legislation", selection }); }
   worldOverview() { return this.send<WorldOverviewView>({ type: "worldOverview" }); }

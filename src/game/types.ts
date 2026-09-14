@@ -5,7 +5,46 @@ import type { NationView } from "./nation";
 import type { PoliticsView } from "./politics";
 import type { ResourceDetailsView } from "./resources";
 export type WorldInitialization = "historical" | "founding";
-export interface NewGameOptions { era: string; countryId: string; playerName: string; seed: string; mode?: "career" | "hos"; homeRegionId?: string; initialization?: WorldInitialization; }
+export type CharacterRace = "white" | "black" | "hispanic" | "asian" | "other";
+export type CharacterGender = "male" | "female" | "nonbinary";
+export type CharacterEducation = "no_college" | "college" | "graduate";
+export type CharacterWealth = "low" | "middle" | "high";
+export interface CharacterDemographics {
+  race: CharacterRace;
+  gender: CharacterGender;
+  education: CharacterEducation;
+  wealth: CharacterWealth;
+}
+/**
+ * #242 character-creation file. Captured by the CharacterCreationScreen after
+ * world setup and handed to the engine through createWorld. Every field maps to
+ * a persisted engine field; nothing is UI-only.
+ */
+export interface CharacterCreation {
+  /**
+   * Character name captured on the creation screen. World setup also collects a
+   * player name; the creation screen may change it, and the changed value is
+   * what persists and shows on the profile. Undefined falls back to the
+   * world-setup player name.
+   */
+  name?: string;
+  /**
+   * Home region/state chosen on the creation screen. World setup also collects
+   * one; a changed value here is what persists and drives the home-state race
+   * gate. Undefined falls back to the world-setup home region.
+   */
+  homeRegionId?: string;
+  /** Null = Independent (a deliberate reference choice, not a default). */
+  partyId: string | null;
+  policies: { economic: number; social: number };
+  demographics: CharacterDemographics;
+  /** Full seven-key RPG stat allocation (28-point budget). */
+  stats: Record<string, number>;
+  /** Optional offline portrait/header raster data URLs. */
+  avatarUrl?: string | null;
+  profileHeaderUrl?: string | null;
+}
+export interface NewGameOptions { era: string; countryId: string; playerName: string; seed: string; mode?: "career" | "hos"; homeRegionId?: string; initialization?: WorldInitialization; creation?: CharacterCreation; }
 export interface EraChoice {
   id: string;
   label: string;
@@ -144,3 +183,52 @@ export interface GameScreenProps {
   onMarkAllNotificationsRead: () => void;
 }
 export interface NewGameScreenProps { eras: EraChoice[]; busy: boolean; error?: string; onStart: (options: NewGameOptions) => void; onBack: () => void; }
+
+/** Party row for the creation party/compass steps (reference PartyPicker/CompassPicker). */
+export interface CreationParty {
+  id: string;
+  name: string;
+  abbreviation: string;
+  color: string;
+  economicPosition: number;
+  socialPosition: number;
+  /**
+   * One-party regime standing (reference PartyPicker regime badge), grounded in
+   * the authored content pack (dd/ru/cn *Parties.ts). Undefined in a
+   * competitive democracy.
+   */
+  regimeStatus?: "ruling" | "approved" | "banned";
+}
+
+/** Runtime conditions + options for the character-creation screen of one country. */
+export interface CreationChoices {
+  parties: CreationParty[];
+  /**
+   * The actual ruling party of the selected country/era, resolved from authored
+   * seat composition (`rulingPartyForCountry`) or the `regimeStatus: "ruling"`
+   * marker. Null when no ruling party is recorded; the briefing then says so
+   * rather than naming a first-array party.
+   */
+  rulingParty: { id: string; name: string; abbreviation: string } | null;
+  /** True for the reference one-party states (RU/DD/CN); the screen shows the briefing. */
+  isOnePartyState: boolean;
+  /** True for the reference imperial-eligible countries (UK/JP/ES/SE); shows the imperial notice. */
+  imperialEligible: boolean;
+  /** "state" or "region", matching the reference regionNounFor. */
+  regionNoun: "state" | "region";
+}
+
+export interface CharacterCreationScreenProps {
+  /** The world-setup selection made in NewGameScreen. */
+  selection: { era: string; countryId: string; countryName: string; regionNoun: "state" | "region" };
+  /** World-setup player name, prefilled as the character name (same person). */
+  initialName: string;
+  regions: { id: string; name: string }[];
+  initialHomeRegionId?: string;
+  choices: CreationChoices | null;
+  loading: boolean;
+  busy: boolean;
+  error?: string;
+  onSubmit: (creation: CharacterCreation) => void;
+  onBack: () => void;
+}

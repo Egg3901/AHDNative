@@ -8,6 +8,8 @@ import type { WorldState } from "../types.js";
 import { ACTION_CATALOG, getActionCost, type ActionId } from "./catalog.js";
 import { isPartyCaucusActionId, partyCaucusCharge } from "./partyCaucus.js";
 import { fundraiseYield, isFundraiseEligible } from "./fundGeneration.js";
+import { NEUTRAL_STAT, statMultiplier } from "../stats/characterStats.js";
+import { actionFundCost } from "./fundCost.js";
 import { DOLLARS_PER_TURNOUT_POINT } from "../support/constants.js";
 import { applyBoost, calculateAlignmentMultiplier, getVoterGroups, DEFAULT_GOTV_CATEGORY } from "../support/turnout.js";
 import { decayPressure } from "../support/pressure.js";
@@ -290,6 +292,7 @@ function executeActionInner(
     cash?: number;
     actionCooldowns: Record<string, number>;
     actionCounts?: Record<string, number>;
+    stats?: { charisma?: number; intellect?: number; fundraising?: number };
   };
 
   const turn = world.meta.turn;
@@ -308,23 +311,17 @@ function executeActionInner(
     : getActionCost(catalog, actor.donorBaseLevel ?? 0, actor.politicalInfluence ?? 0, actor.favorability ?? 50);
   if ((actor.actions ?? 0) < cost) return { ok: false, error: `Not enough action points. Required: ${cost}, Available: ${actor.actions}` };
 
-  // Fund cost check (fundCost is flat for solo-neutral; campaign uses tier scaling simplified)
-  // For campaign/advertise we scale fund cost by tier neutral 1.0
-  let fundCost = partyCaucus ? partyCaucus.fundCost : catalog.fundCost;
-  if (actionId === "campaign") {
-    // Port getCampaignFundCost tier scaling at neutral gdpScalar 1.0: tier 1-5 => (1 + (tier-1)*0.2)
-    const tier = cost; // campaign cost equals tier (1-5)
-    const mult = 1 + (tier - 1) * 0.2;
-    fundCost = Math.round((20_000 * tier * mult) / 1_000) * 1_000;
-  }
-  if (actionId === "advertise") {
-    const tierIdx = cost - 5; // 0-4
-    const mult = 1 + tierIdx * 0.2;
-    fundCost = Math.round((100_000 * mult) / 1_000) * 1_000;
-  }
-  if (actionId === "buildDonorBase") {
-    fundCost = Math.round((3_000 + (actor.donorBaseLevel ?? 0) * 1_500) / 1_000) * 1_000;
-  }
+  // Fund cost check: one stat-scaled source shared with the session quote
+  // (actions/fundCost.ts). Intellect softens campaign (never advertise), and
+  // Fundraising softens buildDonorBase, exactly as the reference effects do.
+  // NPP politicians carry no stat block, so their quote is the neutral curve.
+  const fundCost = partyCaucus ? partyCaucus.fundCost : actionFundCost({
+    actionId,
+    actionCost: cost,
+    donorBaseLevel: actor.donorBaseLevel ?? 0,
+    catalogFundCost: catalog.fundCost,
+    ...(found.kind === "player" && actor.stats ? { stats: actor.stats } : {}),
+  });
   if (fundCost > 0) {
     // Prefer campaign funds; allow actor.funds only (player funds field)
     const available = actor.funds ?? 0;
@@ -415,18 +412,22 @@ function executeActionInner(
   const actorCountry = actor.countryId;
 
   if (actionId === "fundraise") {
-    const yieldAmt = fundraiseYield(actor.donorBaseLevel ?? 0, actor.politicalInfluence ?? 0);
+    const yieldAmt = fundraiseYield(actor.donorBaseLevel ?? 0, actor.politicalInfluence ?? 0, actor.stats);
     actor.funds = (actor.funds ?? 0) + yieldAmt;
     return { ok: true, message: `Raised ${yieldAmt} from donors.` };
   }
   if (actionId === "campaign") {
-    // Increase politicalInfluence with diminishing returns above 50, mirroring campaignInfluenceGain
+    // Increase politicalInfluence with diminishing returns above 50, mirroring
+    // the reference campaignInfluenceGain curve, then scale by the charisma
+    // efficacy multiplier (port of the reference effect). A missing charisma
+    // stat resolves at the neutral 1.0x, preserving legacy behavior.
     const cur = actor.politicalInfluence ?? 0;
     const baseGain = 1;
     const threshold = 50;
     const rate = 1 / 75;
     const penalty = cur > threshold ? (cur - threshold) * rate : 0;
-    const gain = Math.max(0.1, baseGain - penalty);
+    const mult = statMultiplier(found.kind === "player" ? (actor as { stats?: { charisma?: number } }).stats?.charisma ?? NEUTRAL_STAT : NEUTRAL_STAT);
+    const gain = Math.max(0.1, (baseGain - penalty) * mult);
     actor.politicalInfluence = Math.min(100, cur + gain);
     // Also queue support accrual for candidateSupport entry if politician
     if (found.kind === "politician") {
@@ -439,10 +440,14 @@ function executeActionInner(
     return { ok: true, message: `Campaigned: +${gain.toFixed(2)} influence.` };
   }
   if (actionId === "advertise") {
+    // Port of advertiseFavorabilityGain: base +3, diminishing returns above 70,
+    // floored at 1, then scaled by the charisma efficacy multiplier. A missing
+    // charisma stat resolves at the neutral 1.0x, preserving legacy behavior.
     const cur = actor.favorability ?? 50;
     const baseGain = 3;
     const penalty = cur > 70 ? (cur - 70) * 0.1 : 0;
-    const gain = Math.max(1, Math.floor(baseGain - penalty));
+    const mult = statMultiplier(found.kind === "player" ? (actor as { stats?: { charisma?: number } }).stats?.charisma ?? NEUTRAL_STAT : NEUTRAL_STAT);
+    const gain = Math.max(1, Math.floor((baseGain - penalty) * mult));
     actor.favorability = Math.min(100, cur + gain);
     return { ok: true, message: `Advertised: +${gain} favorability.` };
   }

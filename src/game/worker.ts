@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { GameSession, gameChoices } from "./session";
+import { GameSession, gameChoices, creationChoices } from "./session";
 import type { GameRequest, GameResponse } from "./protocol";
 
 const session = new GameSession();
@@ -9,6 +9,7 @@ self.addEventListener("message", (event: MessageEvent<GameRequest>) => {
     let value: unknown;
     switch (command.type) {
       case "choices": value = gameChoices(); break;
+      case "creationChoices": value = creationChoices(command.era, command.countryId); break;
       case "create": value = session.create(command.options); break;
       case "legislation": value = session.legislation(command.selection); break;
       case "worldOverview": value = session.worldOverview(); break;

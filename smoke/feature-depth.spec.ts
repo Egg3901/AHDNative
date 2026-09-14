@@ -1,4 +1,4 @@
-import { openGameMenu, gameReady, navigateGame, advanceGame } from './game-navigation';
+import { openGameMenu, gameReady, navigateGame, advanceGame, completeCharacterCreation } from './game-navigation';
 import { test, expect, type Page } from '@playwright/test';
 
 async function openMenu(page: Page, destination: string) {
@@ -15,6 +15,7 @@ test('mobile politics, national accounts and resource explanations use a real UK
   await page.getByLabel('Country', { exact: true }).selectOption('UK');
   await page.getByLabel('Seed', { exact: false }).fill('mobile-feature-depth');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await gameReady(page);
 
   await navigateGame(page, 'Parties');

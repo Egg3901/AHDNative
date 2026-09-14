@@ -29,7 +29,31 @@ import { campaignSongId } from "../game/profileValidation";
 import { CampaignSongPlayer } from "./CampaignSongPlayer";
 import { PolicyCompass, policyAxisLabel, type CompassMarker } from "./PolicyCompass";
 import { ResourceBreakdown } from "./ResourceBreakdown";
+import { STAT_KEYS } from "@ahdclient/engine";
 import "./profile.css";
+
+/** Canonical stat display order and labels (reference statsConstants.ts / statMeta.ts). */
+const STAT_META_ORDER = STAT_KEYS;
+const STAT_LABELS: Record<string, string> = {
+  charisma: "Charisma",
+  debate: "Debate",
+  energy: "Energy",
+  fundraising: "Fundraising",
+  businessAcumen: "Business Acumen",
+  statecraft: "Statecraft",
+  intellect: "Intellect",
+};
+
+/** Reference demographic option labels (creatorOptions.ts labelFor). */
+const DEMOGRAPHIC_LABELS: Record<string, string> = {
+  white: "White", black: "Black", hispanic: "Hispanic", asian: "Asian", other: "Other",
+  male: "Male", female: "Female", nonbinary: "Non-binary",
+  no_college: "No degree", college: "College", graduate: "Graduate",
+  low: "Low Income", middle: "Middle Income", high: "High Income",
+};
+function demographicLabel(value: string): string {
+  return DEMOGRAPHIC_LABELS[value] ?? value;
+}
 
 export interface ProfilePanelProps {
   profile: ProfileView;
@@ -42,6 +66,10 @@ export interface ProfilePanelProps {
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 2 * 1024 * 1024;
 const AVATAR_EDGE = 256;
+// Reference profile-header preset (imageOptimize.ts profileHeader: 1400x400 @ 80).
+const HEADER_MAX_BYTES = 4 * 1024 * 1024;
+const HEADER_WIDTH = 1400;
+const HEADER_HEIGHT = 400;
 const BIO_MAX = 500;
 
 function initials(name: string): string {
@@ -75,24 +103,32 @@ function decodeImage(dataUrl: string): Promise<HTMLImageElement> {
   });
 }
 
-async function toAvatarDataUrl(file: File, dataUrl: string): Promise<string> {
+function toAvatarDataUrl(file: File, dataUrl: string): Promise<string> {
+  return toResizedDataUrl(file, dataUrl, AVATAR_EDGE, AVATAR_EDGE);
+}
+
+async function toResizedDataUrl(file: File, dataUrl: string, maxWidth: number, maxHeight: number): Promise<string> {
+  // decodeImage rejects on a corrupt raster, so raw bytes are never persisted.
   const img = await decodeImage(dataUrl);
   const width = img.naturalWidth || img.width || 0;
   const height = img.naturalHeight || img.height || 0;
+  // A decoder that yields no intrinsic size (e.g. a test double) cannot be
+  // resized; the already-decoded data URL is what the browser accepted.
   if (!width || !height) return dataUrl;
-  const scale = Math.min(1, AVATAR_EDGE / Math.max(width, height));
+  const scale = Math.min(1, maxWidth / width, maxHeight / height);
   if (scale >= 1) return dataUrl;
-  try {
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(width * scale));
-    canvas.height = Math.max(1, Math.round(height * scale));
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return dataUrl;
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL(file.type === "image/png" ? "image/png" : "image/jpeg", 0.85);
-  } catch {
-    return dataUrl;
-  }
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return dataUrl;
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL(file.type === "image/png" ? "image/png" : "image/jpeg", 0.85);
+}
+
+/** Header uses the wider reference preset; the caller resizes to <=1400x400. */
+function toHeaderDataUrl(file: File, dataUrl: string): Promise<string> {
+  return toResizedDataUrl(file, dataUrl, HEADER_WIDTH, HEADER_HEIGHT);
 }
 
 function validatePicture(file: File): string | null {
@@ -101,10 +137,19 @@ function validatePicture(file: File): string | null {
   return null;
 }
 
+function validateHeader(file: File): string | null {
+  if (!ACCEPTED_TYPES.includes(file.type)) return "Only JPEG, PNG or WebP headers are allowed.";
+  if (file.size > HEADER_MAX_BYTES) return "Header must be under 4 MB.";
+  return null;
+}
+
 export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewerDisablesAutoplay = false }: ProfilePanelProps) {
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const headerRef = useRef<HTMLInputElement | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoSaving, setPhotoSaving] = useState(false);
+  const [headerError, setHeaderError] = useState<string | null>(null);
+  const [headerSaving, setHeaderSaving] = useState(false);
   const [bioEditing, setBioEditing] = useState(false);
   const [bioDraft, setBioDraft] = useState(profile.bio);
   const [bioError, setBioError] = useState<string | null>(null);
@@ -115,6 +160,7 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
   const [songSaving, setSongSaving] = useState(false);
 
   const photoBusy = busy || photoSaving;
+  const headerBusy = busy || headerSaving;
   const formBusy = busy || bioSaving;
   const standing = profile.standing;
   const finances = profile.finances;
@@ -232,9 +278,52 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
     }
   };
 
+  const saveHeaderFile = async (file: File) => {
+    if (headerBusy) return;
+    const invalid = validateHeader(file);
+    if (invalid) {
+      setHeaderError(invalid);
+      return;
+    }
+    setHeaderError(null);
+    setHeaderSaving(true);
+    try {
+      const dataUrl = await readAsDataUrl(file);
+      const profileHeaderUrl = await toHeaderDataUrl(file, dataUrl);
+      const ok = await onUpdateProfile({ profileHeaderUrl });
+      if (!ok) setHeaderError("Header could not be saved.");
+    } catch {
+      setHeaderError("That file could not be read as a header image.");
+    } finally {
+      setHeaderSaving(false);
+      if (headerRef.current) headerRef.current.value = "";
+    }
+  };
+
+  const removeHeader = async () => {
+    if (headerBusy) return;
+    setHeaderError(null);
+    setHeaderSaving(true);
+    try {
+      const ok = await onUpdateProfile({ profileHeaderUrl: null });
+      if (!ok) setHeaderError("Header could not be removed.");
+    } catch {
+      setHeaderError("Header could not be removed.");
+    } finally {
+      setHeaderSaving(false);
+    }
+  };
+
   return (
     <div className="ahd-stack ahd-profile">
       <section aria-label="Character" className="ahd-card ahd-card-pad ahd-profile-header ahd-hero">
+        {profile.profileHeaderUrl ? (
+          <img
+            src={profile.profileHeaderUrl}
+            alt={`${profile.name} profile header`}
+            className="ahd-profile-banner"
+          />
+        ) : null}
         <div className="ahd-profile-idrow">
           <div className="ahd-profile-photo">
             {profile.avatarUrl ? (
@@ -345,6 +434,47 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
         {photoError ? (
           <p className="ahd-alert" role="alert">
             {photoError}
+          </p>
+        ) : null}
+        <div className="ahd-profile-photoactions" style={{ marginTop: "0.5rem" }}>
+          <input
+            ref={headerRef}
+            type="file"
+            accept={ACCEPTED_TYPES.join(",")}
+            className="ahd-profile-file"
+            aria-label="Choose profile header"
+            aria-describedby="ahd-profile-header-hint"
+            disabled={headerBusy}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void saveHeaderFile(file);
+            }}
+          />
+          <button
+            type="button"
+            className="ahd-btn ahd-btn-sm"
+            onClick={() => headerRef.current?.click()}
+            disabled={headerBusy}
+          >
+            {profile.profileHeaderUrl ? "Change header" : "Upload header"}
+          </button>
+          {profile.profileHeaderUrl ? (
+            <button
+              type="button"
+              className="ahd-btn ahd-btn-ghost ahd-btn-sm"
+              onClick={() => void removeHeader()}
+              disabled={headerBusy}
+            >
+              Remove header
+            </button>
+          ) : null}
+        </div>
+        <p id="ahd-profile-header-hint" className="ahd-help">
+          JPEG, PNG or WebP, under 4 MB.
+        </p>
+        {headerError ? (
+          <p className="ahd-alert" role="alert">
+            {headerError}
           </p>
         ) : null}
       </section>
@@ -536,9 +666,19 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
         <section aria-label="Character stats" className="ahd-card ahd-card-pad">
           <h2 className="ahd-h2">Character stats</h2>
           <dl className="ahd-profile-rows">
-            {profile.stats.energy != null ? <div className="ahd-profile-row"><dt>Energy</dt><dd className="ahd-mono">{profile.stats.energy}</dd></div> : null}
-            {profile.stats.debate != null ? <div className="ahd-profile-row"><dt>Debate</dt><dd className="ahd-mono">{profile.stats.debate}</dd></div> : null}
+            {STAT_META_ORDER.map((key) =>
+              profile.stats![key] != null ? (
+                <div className="ahd-profile-row" key={key}>
+                  <dt>{STAT_LABELS[key] ?? key}</dt>
+                  <dd className="ahd-mono">{profile.stats![key]}</dd>
+                </div>
+              ) : null,
+            )}
           </dl>
+          <p className="ahd-help">
+            Every stat ranges 1 to 10 on the engine's own scale. A higher stat shifts the
+            corresponding action outcome by a gentle multiplier (see Actions for quoted costs).
+          </p>
         </section>
       ) : null}
 
@@ -567,6 +707,19 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
                 : "Not recorded yet"}
             </dd>
           </div>
+          {profile.demographics ? (
+            <>
+              <div className="ahd-profile-row"><dt>Gender</dt><dd className="ahd-mono">{demographicLabel(profile.demographics.gender)}</dd></div>
+              <div className="ahd-profile-row"><dt>Race</dt><dd className="ahd-mono">{demographicLabel(profile.demographics.race)}</dd></div>
+              <div className="ahd-profile-row"><dt>Education</dt><dd className="ahd-mono">{demographicLabel(profile.demographics.education)}</dd></div>
+              <div className="ahd-profile-row"><dt>Background</dt><dd className="ahd-mono">{demographicLabel(profile.demographics.wealth)}</dd></div>
+            </>
+          ) : (
+            <div className="ahd-profile-row">
+              <dt>Demographics</dt>
+              <dd className="ahd-mono ahd-profile-unavailable-note">Not recorded by this save</dd>
+            </div>
+          )}
           {compassMarkers.map((marker) => (
             <div className="ahd-profile-row" key={marker.name}>
               <dt>Party position</dt>
@@ -605,12 +758,11 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
         </div>
         <p className="ahd-help">
           {profile.policies
-            ? "Your axes are read straight from the save on the engine's -5 to +5 scale."
-            : "Your policy axes are not recorded in this save yet, so the compass shows no position for you — the local engine holds no action or command that writes player policy values."}
+            ? "Your axes are read straight from the save on the engine's -5 to +5 scale; distance to a platform is what primaries and general elections measure."
+            : "Your policy axes are not recorded in this save yet, so the compass shows no position for you."}
         </p>
         <p className="ahd-help">
           A home-region lean marker is not shown: the engine does not record a per-region economic/social lean yet.
-          Per-character demographics (race, gender, education, wealth) are not modelled yet either.
           Where present, the party marker is that party's authored platform.
         </p>
       </section>

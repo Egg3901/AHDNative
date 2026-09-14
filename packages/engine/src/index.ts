@@ -1,6 +1,6 @@
 export { advanceTurn } from "./engine.js";
 export type { AdvanceTurnOptions } from "./engine.js";
-export { createWorld, listEras, listPlayableCountries, listParties, listRegions, listCountries, rulingPartyIdForCountry, rulingPartyForCountry, headOfStateOfficeForCountry, SCHEMA_VERSION } from "./world.js";
+export { createWorld, listEras, listPlayableCountries, listParties, listRegions, listCreationParties, listCountries, rulingPartyIdForCountry, rulingPartyForCountry, headOfStateOfficeForCountry, SCHEMA_VERSION } from "./world.js";
 export type { NewWorldOptions, EraInfo, PlayableCountryInfo, WorldOverrides, CountryEconomyOverride } from "./world.js";
 export { applyCheat } from "./cheats.js";
 export type { CheatOp, PartyNumericField, PlayerNumericField, PoliticianNumericField } from "./cheats.js";
@@ -25,6 +25,9 @@ export * from "./support/index.js";
 export * from "./actions/catalog.js";
 export * from "./actions/execute.js";
 export * from "./actions/fundGeneration.js";
+// #242: one stat-scaled fund-cost source shared by executeAction and the quote.
+export { actionFundCost } from "./actions/fundCost.js";
+export type { FundCostInput } from "./actions/fundCost.js";
 export { CAMPAIGN_TARGETED_AD_CAP } from "./actions/campaignTargetedAd.js";
 export { getCatalog, getLaw } from "./legislation/catalog.js";
 export type { Bill, Committee, EnactedLaw } from "./legislation/types.js";
@@ -133,6 +136,47 @@ export {
 export { GOVERNMENT_CHAMBER_BY_COUNTRY } from "./government/constants.js";
 export { EXTRACTABLE_RESOURCES } from "./commodity/constants.js";
 export type { ExtractableResource } from "./commodity/constants.js";
+// #242 character-creation stats/wealth/alignment. Pure rules shared by the
+// engine gate and the creation/profile display adapters (SSOT).
+export {
+  STAT_KEYS,
+  STAT_MIN,
+  STAT_MAX,
+  STAT_POINT_BUDGET,
+  STAT_FREE_POINTS,
+  EFFICACY_PIVOT,
+  NEUTRAL_STAT,
+  clampStat,
+  defaultStatBuild,
+  statMultiplier,
+  statBonus,
+  validateStatAllocation,
+} from "./stats/characterStats.js";
+export type { StatKey, CharacterStats, StatAllocationResult } from "./stats/characterStats.js";
+export {
+  WEALTH_BONUS,
+  WEALTH_LEVELS,
+  getWealthBonus,
+  convertStartingAnchorToLocal,
+  startingCashFor,
+} from "./stats/characterWealth.js";
+export type { WealthLevel } from "./stats/characterWealth.js";
+export {
+  POLICY_INTEGER_AXIS_RANGE,
+  MAX_COMPASS_DISTANCE,
+  compassDistance,
+  alignmentBand,
+  ALIGNMENT_META,
+  ideologyLabel,
+  nearestParty,
+} from "./alignment/policyAlignment.js";
+export type { CompassPoint, AlignmentBand, NearestParty } from "./alignment/policyAlignment.js";
+export {
+  isOnePartyCountry,
+  isImperialEligibleCountry,
+  onePartyCountries,
+  imperialEligibleCountries,
+} from "./creationCountryRules.js";
 export * from "./countryPolitics/index.js";
 export * from "./governor/constants.js";
 export * from "./governor/powers.js";

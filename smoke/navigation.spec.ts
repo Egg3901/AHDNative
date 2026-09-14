@@ -1,4 +1,4 @@
-import { openGameMenu, gameReady } from './game-navigation';
+import { openGameMenu, gameReady, completeCharacterCreation } from './game-navigation';
 import { test, expect } from '@playwright/test';
 
 test('mobile navigation and resource footer connect real savings actions through relaunch', async ({ page }) => {
@@ -10,6 +10,7 @@ test('mobile navigation and resource footer connect real savings actions through
   await page.getByLabel('Seed', { exact: false }).fill('navigation-savings-1953');
   await page.getByLabel('Country', { exact: true }).selectOption('US');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await gameReady(page);
 
   await openGameMenu(page);
@@ -41,7 +42,10 @@ test('mobile navigation and resource footer connect real savings actions through
   await page.getByRole('button', { name: /^Withdraw:/ }).click();
   await expect(page.getByRole('status')).toContainText('Withdrew 400 from savings');
   await expect(page.getByRole('region', { name: 'Banking', exact: true })).toContainText('$600.00');
-  await expect(page.getByRole('region', { name: 'Banking', exact: true })).toContainText('$9,400.00');
+  // Middle Income (creation wealth) grants 2,500,000 anchor, deflated by the
+  // 1953 nominal scale (~0.01433) to $35,833; minus the $1,000 deposit and
+  // plus the $400 withdrawal the test drives = $35,233.
+  await expect(page.getByRole('region', { name: 'Banking', exact: true })).toContainText('$35,233.00');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: /^Withdraw:/ }).scrollIntoViewIfNeeded();
   const controls = await page.getByRole('button', { name: /^Withdraw:/ }).boundingBox();

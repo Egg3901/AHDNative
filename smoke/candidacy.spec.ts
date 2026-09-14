@@ -1,4 +1,4 @@
-import { openGameMenu, closeGameMenu, gameReady, navigateGame, advanceGame, saveGame } from './game-navigation';
+import { openGameMenu, closeGameMenu, gameReady, navigateGame, advanceGame, saveGame, completeCharacterCreation } from './game-navigation';
 import { test, expect, type Locator, type Page } from '@playwright/test';
 
 async function idle(page: Page) {
@@ -52,6 +52,7 @@ test('a real career files, reloads, and withdraws through Worker UI buttons', as
   await page.getByLabel('Seed', { exact: false }).fill('career-smoke');
   await page.getByLabel('Country', { exact: true }).selectOption('US');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await idle(page);
 
   await navigateGame(page, 'Parties');

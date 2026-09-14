@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gameReady, navigateGame } from './game-navigation';
+import { gameReady, navigateGame, completeCharacterCreation } from './game-navigation';
 
 test('referendum requests surface every devolved region from the engine', async ({ page }) => {
   const errors: string[] = [];
@@ -10,6 +10,7 @@ test('referendum requests surface every devolved region from the engine', async 
   await page.getByLabel('Country', { exact: true }).selectOption('UK');
   await page.getByLabel('Seed', { exact: false }).fill('referendum-smoke');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await gameReady(page);
 
   await navigateGame(page, 'Referendums');

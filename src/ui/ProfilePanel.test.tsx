@@ -16,7 +16,9 @@ const BASE: ProfileView = {
   office: "Councilor",
   officeDestination: { route: "legislature", id: "lower" },
   policies: { economic: -1.5, social: 2 },
-  stats: { energy: 7, debate: 4 },
+  stats: { charisma: 7, debate: 4, energy: 6, fundraising: 5, businessAcumen: 4, statecraft: 5, intellect: 5 },
+  demographics: { race: "white", gender: "female", education: "college", wealth: "middle" },
+  profileHeaderUrl: null,
   careerHistory: [{ id: "race-1", office: "House", result: "Elected", turn: 12 }],
   achievements: [{ slug: "turn_one", name: "In at the Ground Floor", description: "Took an action in turn one" }],
   achievementProgress: { earned: 1, available: 3 },
@@ -81,10 +83,10 @@ function renderPanel(overrides: Partial<ProfileView> = {}, props = {}) {
 class LoadImage {
   onload: (() => void) | null = null;
   onerror: (() => void) | null = null;
-  naturalWidth = 0;
-  naturalHeight = 0;
-  width = 0;
-  height = 0;
+  naturalWidth = 512;
+  naturalHeight = 512;
+  width = 512;
+  height = 512;
   set src(_value: string) {
     queueMicrotask(() => this.onload?.());
   }
@@ -174,7 +176,6 @@ describe("ProfilePanel", () => {
     expect(screen.getByText("Home-region lean")).toBeInTheDocument();
     expect(screen.getByText("Not recorded by the engine")).toBeInTheDocument();
     expect(screen.getByText(/does not record a per-region economic\/social lean/)).toBeInTheDocument();
-    expect(screen.getByText(/Per-character demographics \(race, gender, education, wealth\) are not modelled/)).toBeInTheDocument();
     // The legend carries the player plus the party marker only — no invented region point.
     const card = screen.getByRole("region", { name: "Policy and demographics" });
     const legendItems = within(card).getAllByRole("listitem");
@@ -406,6 +407,36 @@ describe("ProfilePanel", () => {
     fireEvent.change(input, { target: { files: [file] } });
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
     expect(onUpdateProfile).not.toHaveBeenCalled();
+  });
+
+  it("uploads a header through a real control using the 4 MB guard", async () => {
+    vi.stubGlobal("Image", LoadImage);
+    const onUpdateProfile = vi.fn(async () => true);
+    renderPanel({ profileHeaderUrl: null }, { onUpdateProfile });
+    const headerInput = screen.getByLabelText("Choose profile header") as HTMLInputElement;
+    const bytes = new Uint8Array([137, 80, 78, 71]);
+    fireEvent.change(headerInput, { target: { files: [new File([bytes], "banner.png", { type: "image/png" })] } });
+    await waitFor(() => expect(onUpdateProfile).toHaveBeenCalledTimes(1));
+    const update = (onUpdateProfile.mock.calls[0] as unknown as [ProfileUpdate])[0];
+    expect(update.profileHeaderUrl?.startsWith("data:image/png")).toBe(true);
+  });
+
+  it("rejects a header that cannot be decoded instead of persisting raw bytes", async () => {
+    vi.stubGlobal("Image", BrokenImage);
+    const onUpdateProfile = vi.fn(async () => true);
+    renderPanel({ profileHeaderUrl: null }, { onUpdateProfile });
+    const headerInput = screen.getByLabelText("Choose profile header") as HTMLInputElement;
+    fireEvent.change(headerInput, { target: { files: [new File([new Uint8Array([1, 2, 3])], "banner.png", { type: "image/png" })] } });
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    expect(onUpdateProfile).not.toHaveBeenCalled();
+  });
+
+  it("removes the header through a null update", async () => {
+    const user = userEvent.setup();
+    const onUpdateProfile = vi.fn(async () => true);
+    renderPanel({ profileHeaderUrl: "data:image/png;base64,iVBORw0KGgo=" }, { onUpdateProfile });
+    await user.click(screen.getByRole("button", { name: "Remove header" }));
+    await waitFor(() => expect(onUpdateProfile).toHaveBeenCalledWith({ profileHeaderUrl: null }));
   });
 
   it("removes the picture through a null update and reports a false result", async () => {

@@ -98,6 +98,14 @@ export interface PartySeed {
   color: string;
   economicPosition: number;
   socialPosition: number;
+  /**
+   * One-party regime standing (reference PoliticalParty.regimeStatus) or
+   * undefined for a competitive democracy. Ports AHDGame dd/ru/cn *Parties.ts:
+   * "ruling" for the governing party, "approved" for a legal bloc/coalition
+   * party, "banned" for an outlawed one. Drives the creation briefing ruling
+   * party and the party step badge.
+   */
+  regimeStatus?: "ruling" | "approved" | "banned";
 }
 
 /** Legislature seed — one per country per era. */

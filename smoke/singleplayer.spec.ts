@@ -1,4 +1,4 @@
-import { openGameMenu, closeGameMenu, gameReady, navigateGame, advanceGame, saveGame, exitGame } from './game-navigation';
+import { openGameMenu, closeGameMenu, gameReady, navigateGame, advanceGame, saveGame, exitGame, completeCharacterCreation } from './game-navigation';
 import { test, expect } from '@playwright/test';
 test('a real singleplayer world survives save and relaunch on a phone sized screen', async ({ page }) => {
   const errors: string[] = [];
@@ -9,6 +9,7 @@ test('a real singleplayer world survives save and relaunch on a phone sized scre
   await page.getByLabel('Seed', { exact: false }).fill('native-smoke-1953');
   await page.getByLabel('Country', { exact: true }).selectOption('US');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await gameReady(page);
   await expect(page.getByRole('region', { name: 'Profile', exact: true })).toContainText('Smoke Player');
   await expect(page.getByText('GDP', { exact: true })).toHaveCount(0);
@@ -41,6 +42,7 @@ test('a corrupt import leaves the saved world available', async ({ page }) => {
   await page.getByLabel('Your name').fill('Recovery Player');
   await page.getByLabel('Seed', { exact: false }).fill('recovery-smoke');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await exitGame(page);
   await expect(page.getByRole('button', { name: 'Continue Recovery Player' })).toBeVisible();
   await page.getByLabel('Import saved game', { exact: true }).setInputFiles({ name: 'broken.json', mimeType: 'application/json', buffer: Buffer.from('{broken') }, { timeout: 10_000 });
@@ -54,6 +56,7 @@ test('a completed turn is saved before the app is closed', async ({ page }) => {
   await page.getByRole('button', { name: 'New game', exact: true }).click();
   await page.getByLabel('Your name').fill('Autosave Player');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   const endTurn = page.getByRole('button', { name: 'End turn', exact: true });
   await gameReady(page);
   await openGameMenu(page);
@@ -71,6 +74,7 @@ test('a failed save reports failure and preserves the last completed save', asyn
   await page.getByRole('button', { name: 'New game', exact: true }).click();
   await page.getByLabel('Your name').fill('Storage Recovery');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await gameReady(page);
   // Inject an external storage failure. The real worker and IDB transaction still run.
   await page.evaluate(() => {

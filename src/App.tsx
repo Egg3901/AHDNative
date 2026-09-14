@@ -7,10 +7,11 @@ import { HelpPanel } from "./ui/HelpPanel";
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createGameClient, type GameClient } from './game/client';
 import { saveRepository, type SaveMetadata } from './game/storage';
-import type { EraChoice, GameView, NewGameOptions } from './game/types';
+import type { CharacterCreation, CreationChoices, EraChoice, GameView, NewGameOptions } from './game/types';
 import { newId } from './game/ids';
 import { BUILD_LABEL } from './buildIdentity';
 import { NewGameScreen } from './ui/NewGameScreen';
+import { CharacterCreationScreen } from './ui/CharacterCreationScreen';
 import { GameScreen } from './ui/GameScreen';
 import { LandingScreen } from './ui/LandingScreen';
 import { openOnlineSession, tauriOnlineSessionHost } from './online/session';
@@ -23,7 +24,12 @@ export function App() {
   const locked = useRef(false);
   const [eras, setEras] = useState<EraChoice[]>([]);
   const [saves, setSaves] = useState<SaveMetadata[]>([]);
-  const [screen, setScreen] = useState<'home' | 'new' | 'game' | 'help' | 'settings'>('home');
+  const [screen, setScreen] = useState<'home' | 'new' | 'creation' | 'game' | 'help' | 'settings'>('home');
+  // #242: world-setup selection held while the player completes the character
+  // creation file; the world is not created until both steps are done.
+  const [pendingSetup, setPendingSetup] = useState<NewGameOptions | null>(null);
+  const [creationChoices, setCreationChoices] = useState<CreationChoices | null>(null);
+  const [creationLoading, setCreationLoading] = useState(false);
   const [world, setWorld] = useState<GameView>();
   const slot = useRef<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
@@ -108,9 +114,25 @@ export function App() {
     } catch (reason) { next.dispose(); throw reason; }
   }
   function start(options: NewGameOptions) {
+    // #242: world setup is step one; the character file is captured next, then
+    // the world is created once with both. No world exists until creation ends.
+    setError(undefined);
+    setPendingSetup(options);
+    setCreationChoices(null);
+    setCreationLoading(true);
+    setScreen('creation');
     void run(async () => {
+      const choices = await client.current!.creationChoices(options.era, options.countryId);
+      setCreationChoices(choices);
+    }).finally(() => setCreationLoading(false));
+  }
+  function completeCreation(creation: CharacterCreation) {
+    if (!pendingSetup) return;
+    void run(async () => {
+      const options: NewGameOptions = { ...pendingSetup, creation };
       await replaceWorld(worker => worker.create({ ...options, seed: options.seed || newId() }), newId());
       await save();
+      setPendingSetup(null);
     });
   }
   function load(saved: SaveMetadata) {
@@ -188,6 +210,27 @@ export function App() {
     {screen === 'help' ? <HelpPanel /> : <SettingsPanel value={presentation.value} onChange={changePreferences} error={presentation.error} />}
   </div></main>;
   if (screen === 'new') return <NewGameScreen eras={eras} busy={busy} error={error} onStart={start} onBack={() => setScreen('home')} />;
+  if (screen === 'creation' && pendingSetup) {
+    const era = eras.find((entry) => entry.id === pendingSetup.era);
+    const country = era?.countries.find((entry) => entry.id === pendingSetup.countryId);
+    return <CharacterCreationScreen
+      selection={{
+        era: pendingSetup.era,
+        countryId: pendingSetup.countryId,
+        countryName: country?.name ?? pendingSetup.countryId,
+        regionNoun: creationChoices?.regionNoun ?? (pendingSetup.countryId === 'UK' || pendingSetup.countryId === 'JP' ? 'region' : 'state'),
+      }}
+      regions={country?.regions ?? []}
+      initialName={pendingSetup.playerName}
+      initialHomeRegionId={pendingSetup.homeRegionId}
+      choices={creationChoices}
+      loading={creationLoading}
+      busy={busy}
+      error={error}
+      onSubmit={completeCreation}
+      onBack={() => { setScreen('new'); setPendingSetup(null); setCreationChoices(null); }}
+    />;
+  }
   if (screen === 'game' && world) return <GameScreen loadProfile={loadProfile} onUpdateProfile={update => run(async () => {
     setWorld(await client.current!.updateProfile(update));
     await save();
