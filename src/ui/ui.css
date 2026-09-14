@@ -763,3 +763,46 @@ html, body { overflow-x: hidden; }
   }
   .ahd-inbox-back { display: none; }
 }
+
+/* ── Character creation (#242) ───────────────────────────────────────────── */
+.ahd-creation-step {
+  flex-shrink: 0;
+  width: 1.5rem; height: 1.5rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 0.25rem; border: 1px solid var(--ahd-border);
+  background: var(--ahd-card-muted, rgba(255,255,255,0.04));
+  font-family: var(--ahd-font-mono, monospace); font-size: 0.72rem; font-weight: 700;
+}
+.ahd-creation-step-done {
+  border-color: rgba(34,197,94,0.5);
+  background: rgba(34,197,94,0.12);
+  color: #22c55e;
+}
+.ahd-creation-done {
+  margin-left: 0.4rem; padding: 0 0.35rem;
+  border-radius: 0.25rem; border: 1px solid rgba(34,197,94,0.4);
+  background: rgba(34,197,94,0.1); color: #22c55e;
+  font-family: var(--ahd-font-mono, monospace); font-size: 0.62rem;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.ahd-chip {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  min-height: 44px;
+  padding: 0.35rem 0.7rem;
+  border-radius: 0.4rem; border: 1px solid var(--ahd-border);
+  background: var(--ahd-card-muted, transparent);
+  color: var(--ahd-muted); font-size: 0.82rem; cursor: pointer;
+}
+.ahd-chip-selected {
+  border-color: var(--ahd-primary);
+  background: color-mix(in srgb, var(--ahd-primary) 14%, transparent);
+  color: var(--ahd-fg);
+  font-weight: 650;
+}
+.ahd-creation-party-dot {
+  display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 999px;
+}
+.ahd-profile-banner {
+  display: block; width: 100%; height: 5.5rem; object-fit: cover;
+  border-radius: 0.4rem; margin-bottom: 0.6rem;
+}

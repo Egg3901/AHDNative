@@ -1,4 +1,4 @@
-import { openGameMenu, gameReady } from './game-navigation';
+import { openGameMenu, gameReady, completeCharacterCreation } from './game-navigation';
 import { test, expect } from '@playwright/test';
 
 test('offline help and presentation preferences remain usable and survive relaunch', async ({ page }) => {
@@ -25,6 +25,7 @@ test('offline help and presentation preferences remain usable and survive relaun
   await page.getByRole('button', { name: 'New game', exact: true }).click();
   await page.getByLabel('Your name').fill('Reading Player');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await gameReady(page);
   await openGameMenu(page);
   await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Settings', exact: true }).click();

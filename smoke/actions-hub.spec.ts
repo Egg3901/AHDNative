@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gameReady, navigateGame } from './game-navigation';
+import { gameReady, navigateGame, completeCharacterCreation } from './game-navigation';
 
 test('footer Actions links select the relevant category and preserve it on return', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 844 });
@@ -7,6 +7,7 @@ test('footer Actions links select the relevant category and preserve it on retur
   await page.getByRole('button', { name: 'New game', exact: true }).click();
   await page.getByLabel('Your name').fill('Action Reader');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await gameReady(page);
   await page.getByRole('button', { name: /^Campaign funds:/ }).click();
   await page.getByRole('button', { name: 'Go to Actions', exact: true }).click();
@@ -27,6 +28,7 @@ test('structured action results survive a turn and save reload', async ({ page }
   await page.getByRole('button', { name: 'New game', exact: true }).click();
   await page.getByLabel('Your name').fill('Outcome Reader');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await gameReady(page);
   await navigateGame(page, 'Actions');
   await page.getByRole('tab', { name: /^Fundraising,/ }).click();

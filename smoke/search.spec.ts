@@ -1,4 +1,4 @@
-import { openGameMenu, gameReady } from './game-navigation';
+import { openGameMenu, gameReady, completeCharacterCreation } from './game-navigation';
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -17,6 +17,7 @@ test('offline search opens the matching party, foreign nation and company withou
   await page.getByLabel('Your name').fill('Search Player');
   await page.getByLabel('Country', { exact: true }).selectOption('UK');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await gameReady(page);
   await page.context().setOffline(true);
   await (await search(page, 'Labour')).getByRole('button', { name: /Labour/ }).click();
@@ -73,6 +74,7 @@ test('search keeps the query and opened result when the player returns', async (
   await page.getByLabel('Your name').fill('Search Player');
   await page.getByLabel('Country', { exact: true }).selectOption('UK');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await gameReady(page);
   const results = await search(page, 'Labour');
   await page.getByLabel('Result kind', { exact: true }).selectOption('party');

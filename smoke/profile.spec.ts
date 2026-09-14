@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { gameReady } from './game-navigation';
+import { gameReady, completeCharacterCreation } from './game-navigation';
 
 async function startProfile(page: import('@playwright/test').Page, name: string) {
   await page.goto('/');
   await page.getByRole('button', { name: 'New game', exact: true }).click();
   await page.getByLabel('Your name').fill(name);
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await gameReady(page);
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
 }

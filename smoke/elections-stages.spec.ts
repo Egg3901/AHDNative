@@ -1,4 +1,4 @@
-import { gameReady, navigateGame, advanceGame, saveGame, openGameMenu, closeGameMenu } from './game-navigation';
+import { gameReady, navigateGame, advanceGame, saveGame, openGameMenu, closeGameMenu, completeCharacterCreation } from './game-navigation';
 import { test, expect, type Locator, type Page } from '@playwright/test';
 
 async function idle(page: Page) {
@@ -31,6 +31,7 @@ test('race details expose lifecycle stages and survive save and reload', async (
   await page.getByLabel('Seed', { exact: false }).fill('race-stage-smoke');
   await page.getByLabel('Country', { exact: true }).selectOption('US');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await idle(page);
 
   await navigateGame(page, 'Parties');

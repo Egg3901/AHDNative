@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { gameReady, navigateGame, saveGame, openGameMenu, closeGameMenu } from './game-navigation';
+import { gameReady, navigateGame, saveGame, openGameMenu, closeGameMenu, completeCharacterCreation } from './game-navigation';
 
 for (const country of ['US', 'UK']) {
   test(`${country} region browsing stays offline and does not move the player`, async ({ page }) => {
@@ -9,6 +9,7 @@ for (const country of ['US', 'UK']) {
     await page.getByLabel('Your name').fill('Region Player');
     await page.getByLabel('Country', { exact: true }).selectOption(country);
     await page.getByRole('button', { name: 'Start', exact: true }).click();
+    await completeCharacterCreation(page);
     await gameReady(page);
     await page.context().setOffline(true);
     await navigateGame(page, 'Regions');

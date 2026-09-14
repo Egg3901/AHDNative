@@ -680,12 +680,41 @@ export interface PurgeRejoinBlock {
   purgedAtTurn: number;
 }
 
+/**
+ * Character-creation demographics. Ports the `demographics` block the reference
+ * `POST /api/auth/character` accepts (src/app/create-character/page.tsx
+ * formData.demographics; creatorOptions.ts option sets). Values are the exact
+ * reference option strings so a Native-created character records the same
+ * identity the reference measures. Optional end-to-end: legacy saves omit it
+ * and loaders never backfill, so no existing save changes shape.
+ */
+export interface PlayerDemographics {
+  race: "white" | "black" | "hispanic" | "asian" | "other";
+  gender: "male" | "female" | "nonbinary";
+  education: "no_college" | "college" | "graduate";
+  /** Starting-wealth tier; drives the creation cash grant (characterWealth.ts). */
+  wealth: "low" | "middle" | "high";
+}
+
+/** Full RPG stat block. Ports src/lib/stats/statsConstants.ts CharacterStats. */
+export type PlayerStats = Partial<import("./stats/characterStats.js").CharacterStats>;
+
 export interface PlayerCharacter {
   name: string;
   /** Optional profile metadata. Older saves omit it; no simulation effect. */
   bio?: string;
   /** Offline raster data URL in Native. Unknown optional fields survive JSON saves. */
   avatarUrl?: string | null;
+  /**
+   * Optional wide profile header raster data URL, chosen at character creation
+   * (#242). Held locally like avatarUrl; never a remote fetch.
+   */
+  profileHeaderUrl?: string | null;
+  /**
+   * Character-creation demographics (#242). Optional; legacy saves omit it and
+   * no phase writes it. Ports the reference creation `demographics` block.
+   */
+  demographics?: PlayerDemographics;
   /** Reference-compatible YouTube video id for optional profile playback. */
   campaignSongUrl?: string;
   /** Whether the profile owner requests playback on entry. */
@@ -708,16 +737,20 @@ export interface PlayerCharacter {
   nationalInfluence?: number;
   /** Party clout, uncapped. Legacy Native saves start at zero. */
   partyInfluence?: number;
-  /** Character policy axes (-5..5). Legacy Native saves use neutral 0/0. */
+  /**
+   * Character policy axes (-5..5) on the shared compass ruler (#242). Set at
+   * creation and read by primaries/general elections and party closeness.
+   * Legacy Native saves omit it; readers fall back to neutral 0/0.
+   */
   policies?: { economic: number; social: number };
   /**
-   * Optional imported Energy plus the Debate skill (#37). Debate ports
-   * Character.stats.debate (src/lib/stats/statsConstants.ts, range 1-10).
-   * A missing Debate stat means unallocated: debatePrep rejects before any
-   * AP charge or RNG draw. Allocation and the remaining RPG stats are
-   * #48/#91.
+   * RPG stat block (#242). Ports Character.stats
+   * (src/lib/stats/statsConstants.ts, each value 1-10). A missing stat means
+   * unallocated: debatePrep rejects before any AP charge or RNG draw; Energy
+   * falls back to STAT_MIN. Legacy saves carry only energy/debate; the full
+   * seven-key allocation is written at creation (#48/#91 own later reallocation).
    */
-  stats?: { energy?: number; debate?: number };
+  stats?: PlayerStats;
   favorability: number;
   infamy: number;
   /** Action cooldowns: actionId -> turn when next available. */

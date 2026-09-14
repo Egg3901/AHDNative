@@ -16,10 +16,10 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, addDaysIso, advanceTurn, createWorld, deserializeSave, executeAction,
-  getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, listEras, listPlayableCountries, listRegions, rulingPartyForCountry, serializeSave,
+  getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCreationParties, listEras, listPlayableCountries, listRegions, rulingPartyForCountry, serializeSave,
   type ActionId, type ExecuteActionParams, type WorldState,
 } from "@ahdclient/engine";
-import type { ActionCategory, ActionView, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions } from "./types";
+import type { ActionCategory, ActionView, CharacterCreation, CreationChoices, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions } from "./types";
 import {
   actionNotification, addNotifications, deleteNotification, diffTurnSnapshots, markAllNotificationsRead,
   markNotificationRead, parseNotifications, saveNotification, toInbox, welcomeNotification,
@@ -66,6 +66,47 @@ function quoteFundCost(id: ActionId, flat: number, donorBaseLevel: number, apCos
   return flat;
 }
 
+/**
+ * Translate the UI creation file into engine createWorld options. The engine
+ * owns validation and the wealth-driven cash grant, so this is a pure shape map
+ * with no defaults invented.
+ */
+function creationToWorldOptions(creation: CharacterCreation) {
+  return {
+    policies: creation.policies,
+    demographics: creation.demographics,
+    stats: creation.stats,
+    wealth: creation.demographics.wealth,
+    partyId: creation.partyId,
+    avatarUrl: creation.avatarUrl ?? null,
+    profileHeaderUrl: creation.profileHeaderUrl ?? null,
+  };
+}
+
+/**
+ * #242: the world-free options the character-creation screen needs for one
+ * country. Parties and their authored compass positions come straight from the
+ * engine pack; the one-party and imperial flags use the same engine predicates
+ * the reference conditionals do. Region noun reproduces the reference
+ * regionNounFor (UK/JP say "region", everyone else "state").
+ */
+export function creationChoices(era: string, countryId: string): CreationChoices {
+  const normalized = countryId.toUpperCase();
+  return {
+    parties: listCreationParties(era, normalized).map((party) => ({
+      id: party.id,
+      name: party.name,
+      abbreviation: party.abbreviation,
+      color: party.color,
+      economicPosition: party.economicPosition,
+      socialPosition: party.socialPosition,
+    })),
+    isOnePartyState: isOnePartyCountry(normalized),
+    imperialEligible: isImperialEligibleCountry(normalized),
+    regionNoun: normalized === "UK" || normalized === "JP" ? "region" : "state",
+  };
+}
+
 export function gameChoices(): EraChoice[] {
   return listEras().map((era) => ({ id: era.id, label: era.label,
     countries: listPlayableCountries(era.id).map((country) => ({
@@ -95,7 +136,14 @@ export class GameSession {
     if (!era?.countries.some((country) => country.id === options.countryId)) {
       throw new Error("Choose a playable country in the selected era.");
     }
-    const world = createWorld({ ...options, playerName: options.playerName.trim() });
+    const world = createWorld({
+      ...options,
+      playerName: options.playerName.trim(),
+      // #242: the creation file is validated inside createWorld, which owns the
+      // persistence and the wealth-driven cash grant. The session passes it
+      // through untouched; there is no UI-only value.
+      ...(options.creation ? creationToWorldOptions(options.creation) : {}),
+    });
     return this.commit(world, addNotifications([], [welcomeNotification(world.player.name, world.meta.turn, world.meta.date)]));
   }
 
@@ -407,7 +455,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
         : id === "leaveParty" && !player.partyId ? "You are independent." : undefined;
       return { id, name: entry.name, description: entry.description, cost, available: !reason,
         category, fundCost, cooldownTurns,
-        ...(id === "fundraise" && isFundraiseEligible(player.donorBaseLevel) ? { fundsGain: fundraiseQuote(player.donorBaseLevel, player.politicalInfluence) } : {}),
+        ...(id === "fundraise" && isFundraiseEligible(player.donorBaseLevel) ? { fundsGain: fundraiseQuote(player.donorBaseLevel, player.politicalInfluence, player.stats) } : {}),
         ...(requires ? { requires } : {}), ...(prerequisite ? { prerequisite } : {}),
         ...(reason ? { disabledReason: reason } : {}) };
     }),

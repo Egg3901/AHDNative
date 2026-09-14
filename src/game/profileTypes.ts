@@ -1,8 +1,10 @@
 import type { ResourceDetailsView } from "./resources";
+import type { CharacterDemographics } from "./types";
 
 export interface ProfileUpdate {
   bio?: string;
   avatarUrl?: string | null;
+  profileHeaderUrl?: string | null;
   campaignSongUrl?: string;
   campaignSongAutoplay?: boolean;
 }
@@ -82,7 +84,15 @@ export interface ProfileView {
    * shape). Never defaulted to a fabricated 0/0.
    */
   policies: { economic: number; social: number } | null;
-  stats: { energy: number | null; debate: number | null } | null;
+  /**
+   * Full seven-key RPG stat block (#242), read from world.player.stats. Null
+   * when the save records none (legacy saves carry at most Energy/Debate).
+   */
+  stats: Record<string, number> | null;
+  /** Character-creation demographics (#242). Null on legacy saves that predate creation. */
+  demographics: CharacterDemographics | null;
+  /** Optional wide profile header raster data URL (#242). Null when unset. */
+  profileHeaderUrl: string | null;
   careerHistory: Array<{ id: string; office: string; result: string; turn: number }>;
   /** Earned catalog records only: slugs persisted in world.achievementsEarned. */
   achievements: ProfileAchievement[];

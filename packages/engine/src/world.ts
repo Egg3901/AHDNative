@@ -105,6 +105,8 @@ import { seedStateResourceCapacities } from "./extraction/founding.js";
 import { seedCountryPolitics } from "./countryPolitics/overview.js";
 import { resolveWorldFeatureFlags } from "./featureFlags.js";
 import type { WorldFeatureFlags } from "./featureFlags.js";
+import { validateStatAllocation } from "./stats/characterStats.js";
+import { startingCashFor } from "./stats/characterWealth.js";
 
 // Pre-allocated v36 for the W11 (extraction/prospecting) + W35 (player wealth,
 // international wires, achievements) batch. Main is v33 as of this wave's
@@ -221,6 +223,32 @@ export interface NewWorldOptions {
    * deliberate founding election.
    */
   initialization?: WorldInitialization;
+  /**
+   * #242 character-creation inputs. All optional: a world can still be created
+   * without a character file (tests, fixtures), in which case the player carries
+   * only the legacy identity. Every supplied field is validated here and written
+   * to `world.player`, never held UI-only.
+   */
+  /** Character policy axes on the shared -5..+5 compass ruler. */
+  policies?: { economic: number; social: number };
+  /** Reference creation demographics block. */
+  demographics?: import("./types.js").PlayerDemographics;
+  /** Full seven-key RPG stat allocation (28-point budget, each 1-10). */
+  stats?: import("./types.js").PlayerStats;
+  /**
+   * Party chosen at creation. Null/absent = Independent. A non-null id must be
+   * a party of the selected country; createWorld binds it without charge (the
+   * reference character route sets `party` directly, it does not run joinParty).
+   */
+  partyId?: string | null;
+  /**
+   * Starting wealth tier. When supplied, the creation cash grant replaces the
+   * default 10_000 and the tier is recorded in demographics.wealth.
+   */
+  wealth?: import("./stats/characterWealth.js").WealthLevel;
+  /** Optional offline portrait / header data URLs (held locally, never fetched). */
+  avatarUrl?: string | null;
+  profileHeaderUrl?: string | null;
 }
 
 export function listEras(): EraInfo[] {
@@ -258,6 +286,33 @@ export function listRegions(
   return (pack.states ?? [])
     .filter((state) => state.countryId === countryId)
     .map((state) => ({ id: state.id, name: state.name }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+/**
+ * #242: parties for the character-creation party step, with authored compass
+ * positions. World-free so the creation screen can render the platform marker
+ * and nearest-party highlight before the world exists. `isDefault` mirrors the
+ * reference major/community split (every authored pack party is a default one
+ * here; player-founded parties do not exist at creation).
+ */
+export function listCreationParties(
+  era: string,
+  countryId: string,
+): Array<{ id: string; name: string; abbreviation: string; color: string; economicPosition: number; socialPosition: number; isDefault: boolean }> {
+  const pack = getPackByEra(era);
+  if (!pack) throw new Error(`Unknown era: ${era}`);
+  return (pack.parties ?? [])
+    .filter((party) => party.countryId === countryId)
+    .map((party) => ({
+      id: party.id,
+      name: party.name,
+      abbreviation: party.abbreviation,
+      color: party.color,
+      economicPosition: party.economicPosition,
+      socialPosition: party.socialPosition,
+      isDefault: true,
+    }))
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
@@ -359,6 +414,76 @@ export function rulingPartyForCountry(
  */
 export function headOfStateOfficeForCountry(countryId: string): string | null {
   return EXECUTIVE_OFFICE_BY_COUNTRY[countryId] ?? null;
+}
+
+const DEMOGRAPHIC_RACES = new Set(["white", "black", "hispanic", "asian", "other"]);
+const DEMOGRAPHIC_GENDERS = new Set(["male", "female", "nonbinary"]);
+const DEMOGRAPHIC_EDUCATION = new Set(["no_college", "college", "graduate"]);
+const DEMOGRAPHIC_WEALTH = new Set(["low", "middle", "high"]);
+
+/** Validate a supplied -5..+5 compass pair. Source: reference character route/Zod bounds. */
+function validatePlayerPolicies(
+  value: NewWorldOptions["policies"],
+): { economic: number; social: number } | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || typeof value !== "object") throw new Error("Invalid player policies: must be an object");
+  const axes = value as Record<string, unknown>;
+  for (const axis of ["economic", "social"] as const) {
+    const n = axes[axis];
+    if (typeof n !== "number" || !Number.isFinite(n) || n < -5 || n > 5) {
+      throw new Error(`Invalid player policy ${axis}: must be a finite number in [-5,5]`);
+    }
+  }
+  return { economic: axes["economic"] as number, social: axes["social"] as number };
+}
+
+/**
+ * Validate a supplied demographics block. `wealth` may also arrive standalone
+ * (the picker records the tier on the player's cash grant), in which case it is
+ * folded into the demographics record so the stored shape is always complete.
+ */
+function validatePlayerDemographics(
+  value: NewWorldOptions["demographics"],
+  wealth?: NewWorldOptions["wealth"],
+): import("./types.js").PlayerDemographics | undefined {
+  if (value === undefined && wealth === undefined) return undefined;
+  const record = (value ?? {}) as Record<string, unknown>;
+  if (wealth !== undefined) record["wealth"] = wealth;
+  const race = record["race"];
+  const gender = record["gender"];
+  const education = record["education"];
+  const wealthValue = record["wealth"];
+  // The wealth tier can be supplied standalone (the creation picker records the
+  // cash grant); the other three fields only need to be legal when present.
+  if (race !== undefined && (typeof race !== "string" || !DEMOGRAPHIC_RACES.has(race))) {
+    throw new Error("Invalid player demographics race");
+  }
+  if (gender !== undefined && (typeof gender !== "string" || !DEMOGRAPHIC_GENDERS.has(gender))) {
+    throw new Error("Invalid player demographics gender");
+  }
+  if (education !== undefined && (typeof education !== "string" || !DEMOGRAPHIC_EDUCATION.has(education))) {
+    throw new Error("Invalid player demographics education");
+  }
+  if (typeof wealthValue !== "string" || !DEMOGRAPHIC_WEALTH.has(wealthValue)) {
+    throw new Error("Invalid player demographics wealth");
+  }
+  // Only return a complete demographics record; a wealth-only grant is captured
+  // in cash, not as a half-record, so old readers see no partial block.
+  if (race === undefined || gender === undefined || education === undefined) return undefined;
+  return {
+    race: race as import("./types.js").PlayerDemographics["race"],
+    gender: gender as import("./types.js").PlayerDemographics["gender"],
+    education: education as import("./types.js").PlayerDemographics["education"],
+    wealth: wealthValue as import("./types.js").PlayerDemographics["wealth"],
+  };
+}
+
+/** Validate a supplied stat allocation against the reference 28-point contract. */
+function validatePlayerStats(value: NewWorldOptions["stats"]): import("./types.js").PlayerStats | undefined {
+  if (value === undefined) return undefined;
+  const result = validateStatAllocation(value);
+  if (!result.ok) throw new Error(`Invalid player stats: ${result.error}`);
+  return result.stats;
 }
 
 export function createWorld(options: NewWorldOptions): WorldState {
@@ -558,6 +683,22 @@ export function createWorld(options: NewWorldOptions): WorldState {
   const homeRegionId = options.homeRegionId ?? homeRegions[0]?.id ?? null;
   if (homeRegionId !== null && regions[homeRegionId]?.countryId !== options.countryId) {
     throw new Error(`Unknown home region: ${homeRegionId} for country ${options.countryId}`);
+  }
+
+  // #242: validate the character-creation file before any world construction
+  // work that depends on it. Every supplied value is written to player below.
+  const playerPolicies = validatePlayerPolicies(options.policies);
+  const playerDemographics = validatePlayerDemographics(options.demographics, options.wealth);
+  const playerStats = validatePlayerStats(options.stats);
+  // The cash grant keys off the wealth tier whether it arrived in the full
+  // demographics block or standalone; a wealth-only grant still credits cash.
+  const wealthTier = playerDemographics?.wealth ?? options.wealth;
+  const startingCash = startingCashFor(wealthTier, options.countryId, era);
+  // #242: bind the creation party directly (reference character route sets it
+  // without a joinParty action/charge). Independent (null) is a real choice.
+  const creationPartyId = options.partyId ?? null;
+  if (creationPartyId !== null && parties[creationPartyId]?.countryId !== options.countryId) {
+    throw new Error(`Unknown creation party: ${creationPartyId} for country ${options.countryId}`);
   }
 
   // Seed committees to the depth billLifecycle requires (not live gating)
@@ -815,7 +956,12 @@ export function createWorld(options: NewWorldOptions): WorldState {
       name: options.playerName,
       countryId: options.countryId,
       homeRegionId,
-      cash: playerCashOverride !== undefined ? playerCashOverride : 10_000,
+      cash: startingCash ?? (playerCashOverride !== undefined ? playerCashOverride : 10_000),
+      ...(playerPolicies !== undefined ? { policies: playerPolicies } : {}),
+      ...(playerDemographics !== undefined ? { demographics: playerDemographics } : {}),
+      ...(playerStats !== undefined ? { stats: playerStats } : {}),
+      ...(options.avatarUrl !== undefined ? { avatarUrl: options.avatarUrl } : {}),
+      ...(options.profileHeaderUrl !== undefined ? { profileHeaderUrl: options.profileHeaderUrl } : {}),
       actions: 25,
       funds: 0,
       donorBaseLevel: 0,
@@ -823,8 +969,8 @@ export function createWorld(options: NewWorldOptions): WorldState {
       favorability: 50,
       infamy: 0,
       actionCooldowns: {},
-      partyId: null,
-      partyJoinedTurn: null,
+      partyId: creationPartyId,
+      partyJoinedTurn: creationPartyId !== null ? 0 : null,
       lastPartySwitchTurn: null,
       purgeRejoinBlocks: [],
       caucusId: null,

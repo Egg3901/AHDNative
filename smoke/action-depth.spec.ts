@@ -1,4 +1,4 @@
-import { openGameMenu, gameReady, advanceGame } from './game-navigation';
+import { openGameMenu, gameReady, advanceGame, completeCharacterCreation } from './game-navigation';
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -8,6 +8,7 @@ test('domestic shares can be bought, partly sold and retained across relaunch', 
   await page.getByRole('button', { name: 'New game', exact: true }).click();
   await page.getByLabel('Your name').fill('Market Player');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await gameReady(page);
   const openMarket = async () => {
     await openGameMenu(page);

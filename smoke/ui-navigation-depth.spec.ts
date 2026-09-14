@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { gameReady, navigateGame } from './game-navigation';
+import { gameReady, navigateGame, completeCharacterCreation } from './game-navigation';
 
 test('bottom destinations reset reading position and retain their section highlight', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
@@ -7,6 +7,7 @@ test('bottom destinations reset reading position and retain their section highli
   await page.getByRole('button', { name: 'New game', exact: true }).click();
   await page.getByLabel('Your name').fill('UI Player');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await gameReady(page);
   const primary = page.getByRole('navigation', { name: 'Primary', exact: true });
   await primary.getByRole('button', { name: 'Actions', exact: true }).click();
@@ -42,6 +43,7 @@ for (const width of [320, 390]) {
     await page.getByLabel('Your name').fill('Mobile Player');
     await page.getByLabel('Country', { exact: true }).selectOption('UK');
     await page.getByRole('button', { name: 'Start', exact: true }).click();
+    await completeCharacterCreation(page);
     await gameReady(page);
     const profile = page.getByRole('region', { name: 'Profile', exact: true });
     await expect(profile).toContainText('Mobile Player');
@@ -72,6 +74,7 @@ test('nation directory opens near the top and closes onto the chosen country', a
   await page.getByRole('button', { name: 'New game', exact: true }).click();
   await page.getByLabel('Your name').fill('World Browser');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await gameReady(page);
   await navigateGame(page, 'Nations');
   const browse = page.getByText('Browse nations', { exact: true });

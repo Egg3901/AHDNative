@@ -56,9 +56,13 @@ export function projectProfile(world: WorldState): ProfileView {
       }
     : null;
   const savedSong = typeof player.campaignSongUrl === 'string' ? campaignSongId(player.campaignSongUrl) : '';
-  const stats = player.stats && (player.stats.energy != null || player.stats.debate != null)
-    ? { energy: player.stats.energy ?? null, debate: player.stats.debate ?? null }
+  // #242: the full stat block is surfaced when any stat is recorded. Legacy
+  // saves with only energy/debate still report those keys.
+  const stats = player.stats && Object.keys(player.stats).length > 0
+    ? { ...player.stats }
     : null;
+  const demographics = player.demographics ?? null;
+  const profileHeaderUrl = typeof player.profileHeaderUrl === "string" ? safeAvatarUrl(player.profileHeaderUrl) : null;
   const achievementBySlug = new Map(ACHIEVEMENT_CATALOG.map((entry) => [entry.slug, entry]));
   const earnedSlugs = new Set(world.achievementsEarned);
   // Solo can only evaluate catalog entries marked "available"
@@ -114,6 +118,8 @@ export function projectProfile(world: WorldState): ProfileView {
       ? { economic: player.policies.economic, social: player.policies.social }
       : null,
     stats,
+    demographics,
+    profileHeaderUrl,
     careerHistory: world.elections
       .filter((election) => election.status === "resolved" && election.winners?.includes("player"))
       .sort((a, b) => (b.resolvedTurn ?? b.endTurn) - (a.resolvedTurn ?? a.endTurn))

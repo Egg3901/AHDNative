@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
-import { exitGame, gameReady } from './game-navigation';
+import { exitGame, gameReady, completeCharacterCreation } from './game-navigation';
 
 test('new game and import remain usable when a webview has no randomUUID', async ({ page }) => {
   await page.addInitScript(() => {
@@ -11,6 +11,7 @@ test('new game and import remain usable when a webview has no randomUUID', async
   await page.getByRole('button', { name: 'New game', exact: true }).click();
   await page.getByLabel('Your name').fill('Webview Player');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
   await expect(page.getByRole('region', { name: 'Profile', exact: true })).toContainText('Webview Player', { timeout: 8000 });
   await gameReady(page);
   await page.reload();

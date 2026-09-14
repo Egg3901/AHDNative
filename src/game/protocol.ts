@@ -6,6 +6,7 @@ import type { NewGameOptions } from "./types";
 
 export type GameCommand =
   | { type: "choices" }
+  | { type: "creationChoices"; era: string; countryId: string }
   | { type: "create"; options: NewGameOptions }
   | { type: "view" }
   | { type: "profile" }

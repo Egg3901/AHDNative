@@ -932,7 +932,9 @@ export function getActionCost(entry: ActionCatalogEntry, donorBaseLevel: number,
   return entry.baseCost;
 }
 
-// For tests: actions.fundraiseQuote
-export function fundraiseQuote(donorBaseLevel: number, politicalInfluence: number): number {
-  return fundraiseYield(donorBaseLevel, politicalInfluence);
+// For tests: actions.fundraiseQuote. An optional stat block scales the quote by
+// the fundraising efficacy multiplier so the displayed quote and the granted
+// amount read one source (executeAction passes the actor's stats).
+export function fundraiseQuote(donorBaseLevel: number, politicalInfluence: number, stats?: { fundraising?: number }): number {
+  return fundraiseYield(donorBaseLevel, politicalInfluence, stats);
 }

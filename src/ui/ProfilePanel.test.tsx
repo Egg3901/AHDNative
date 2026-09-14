@@ -16,7 +16,9 @@ const BASE: ProfileView = {
   office: "Councilor",
   officeDestination: { route: "legislature", id: "lower" },
   policies: { economic: -1.5, social: 2 },
-  stats: { energy: 7, debate: 4 },
+  stats: { charisma: 7, debate: 4, energy: 6, fundraising: 5, businessAcumen: 4, statecraft: 5, intellect: 5 },
+  demographics: { race: "white", gender: "female", education: "college", wealth: "middle" },
+  profileHeaderUrl: null,
   careerHistory: [{ id: "race-1", office: "House", result: "Elected", turn: 12 }],
   achievements: [{ slug: "turn_one", name: "In at the Ground Floor", description: "Took an action in turn one" }],
   achievementProgress: { earned: 1, available: 3 },
@@ -174,7 +176,6 @@ describe("ProfilePanel", () => {
     expect(screen.getByText("Home-region lean")).toBeInTheDocument();
     expect(screen.getByText("Not recorded by the engine")).toBeInTheDocument();
     expect(screen.getByText(/does not record a per-region economic\/social lean/)).toBeInTheDocument();
-    expect(screen.getByText(/Per-character demographics \(race, gender, education, wealth\) are not modelled/)).toBeInTheDocument();
     // The legend carries the player plus the party marker only — no invented region point.
     const card = screen.getByRole("region", { name: "Policy and demographics" });
     const legendItems = within(card).getAllByRole("listitem");

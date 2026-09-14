@@ -29,7 +29,31 @@ import { campaignSongId } from "../game/profileValidation";
 import { CampaignSongPlayer } from "./CampaignSongPlayer";
 import { PolicyCompass, policyAxisLabel, type CompassMarker } from "./PolicyCompass";
 import { ResourceBreakdown } from "./ResourceBreakdown";
+import { STAT_KEYS } from "@ahdclient/engine";
 import "./profile.css";
+
+/** Canonical stat display order and labels (reference statsConstants.ts / statMeta.ts). */
+const STAT_META_ORDER = STAT_KEYS;
+const STAT_LABELS: Record<string, string> = {
+  charisma: "Charisma",
+  debate: "Debate",
+  energy: "Energy",
+  fundraising: "Fundraising",
+  businessAcumen: "Business Acumen",
+  statecraft: "Statecraft",
+  intellect: "Intellect",
+};
+
+/** Reference demographic option labels (creatorOptions.ts labelFor). */
+const DEMOGRAPHIC_LABELS: Record<string, string> = {
+  white: "White", black: "Black", hispanic: "Hispanic", asian: "Asian", other: "Other",
+  male: "Male", female: "Female", nonbinary: "Non-binary",
+  no_college: "No degree", college: "College", graduate: "Graduate",
+  low: "Low Income", middle: "Middle Income", high: "High Income",
+};
+function demographicLabel(value: string): string {
+  return DEMOGRAPHIC_LABELS[value] ?? value;
+}
 
 export interface ProfilePanelProps {
   profile: ProfileView;
@@ -42,6 +66,10 @@ export interface ProfilePanelProps {
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 2 * 1024 * 1024;
 const AVATAR_EDGE = 256;
+// Reference profile-header preset (imageOptimize.ts profileHeader: 1400x400 @ 80).
+const HEADER_MAX_BYTES = 4 * 1024 * 1024;
+const HEADER_WIDTH = 1400;
+const HEADER_HEIGHT = 400;
 const BIO_MAX = 500;
 
 function initials(name: string): string {
@@ -75,12 +103,16 @@ function decodeImage(dataUrl: string): Promise<HTMLImageElement> {
   });
 }
 
-async function toAvatarDataUrl(file: File, dataUrl: string): Promise<string> {
+function toAvatarDataUrl(file: File, dataUrl: string): Promise<string> {
+  return toResizedDataUrl(file, dataUrl, AVATAR_EDGE, AVATAR_EDGE);
+}
+
+async function toResizedDataUrl(file: File, dataUrl: string, maxWidth: number, maxHeight: number): Promise<string> {
   const img = await decodeImage(dataUrl);
   const width = img.naturalWidth || img.width || 0;
   const height = img.naturalHeight || img.height || 0;
   if (!width || !height) return dataUrl;
-  const scale = Math.min(1, AVATAR_EDGE / Math.max(width, height));
+  const scale = Math.min(1, maxWidth / width, maxHeight / height);
   if (scale >= 1) return dataUrl;
   try {
     const canvas = document.createElement("canvas");
@@ -95,9 +127,20 @@ async function toAvatarDataUrl(file: File, dataUrl: string): Promise<string> {
   }
 }
 
+/** Header uses the wider reference preset; the caller resizes to <=1400x400. */
+function toHeaderDataUrl(file: File, dataUrl: string): Promise<string> {
+  return toResizedDataUrl(file, dataUrl, HEADER_WIDTH, HEADER_HEIGHT);
+}
+
 function validatePicture(file: File): string | null {
   if (!ACCEPTED_TYPES.includes(file.type)) return "Only JPEG, PNG or WebP pictures are allowed.";
   if (file.size > MAX_BYTES) return "Picture must be under 2 MB.";
+  return null;
+}
+
+function validateHeader(file: File): string | null {
+  if (!ACCEPTED_TYPES.includes(file.type)) return "Only JPEG, PNG or WebP headers are allowed.";
+  if (file.size > HEADER_MAX_BYTES) return "Header must be under 4 MB.";
   return null;
 }
 
@@ -235,6 +278,13 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
   return (
     <div className="ahd-stack ahd-profile">
       <section aria-label="Character" className="ahd-card ahd-card-pad ahd-profile-header ahd-hero">
+        {profile.profileHeaderUrl ? (
+          <img
+            src={profile.profileHeaderUrl}
+            alt={`${profile.name} profile header`}
+            className="ahd-profile-banner"
+          />
+        ) : null}
         <div className="ahd-profile-idrow">
           <div className="ahd-profile-photo">
             {profile.avatarUrl ? (
@@ -536,9 +586,19 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
         <section aria-label="Character stats" className="ahd-card ahd-card-pad">
           <h2 className="ahd-h2">Character stats</h2>
           <dl className="ahd-profile-rows">
-            {profile.stats.energy != null ? <div className="ahd-profile-row"><dt>Energy</dt><dd className="ahd-mono">{profile.stats.energy}</dd></div> : null}
-            {profile.stats.debate != null ? <div className="ahd-profile-row"><dt>Debate</dt><dd className="ahd-mono">{profile.stats.debate}</dd></div> : null}
+            {STAT_META_ORDER.map((key) =>
+              profile.stats![key] != null ? (
+                <div className="ahd-profile-row" key={key}>
+                  <dt>{STAT_LABELS[key] ?? key}</dt>
+                  <dd className="ahd-mono">{profile.stats![key]}</dd>
+                </div>
+              ) : null,
+            )}
           </dl>
+          <p className="ahd-help">
+            Every stat ranges 1 to 10 on the engine's own scale. A higher stat shifts the
+            corresponding action outcome by a gentle multiplier (see Actions for quoted costs).
+          </p>
         </section>
       ) : null}
 
@@ -567,6 +627,19 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
                 : "Not recorded yet"}
             </dd>
           </div>
+          {profile.demographics ? (
+            <>
+              <div className="ahd-profile-row"><dt>Gender</dt><dd className="ahd-mono">{demographicLabel(profile.demographics.gender)}</dd></div>
+              <div className="ahd-profile-row"><dt>Race</dt><dd className="ahd-mono">{demographicLabel(profile.demographics.race)}</dd></div>
+              <div className="ahd-profile-row"><dt>Education</dt><dd className="ahd-mono">{demographicLabel(profile.demographics.education)}</dd></div>
+              <div className="ahd-profile-row"><dt>Background</dt><dd className="ahd-mono">{demographicLabel(profile.demographics.wealth)}</dd></div>
+            </>
+          ) : (
+            <div className="ahd-profile-row">
+              <dt>Demographics</dt>
+              <dd className="ahd-mono ahd-profile-unavailable-note">Not recorded by this save</dd>
+            </div>
+          )}
           {compassMarkers.map((marker) => (
             <div className="ahd-profile-row" key={marker.name}>
               <dt>Party position</dt>
@@ -605,12 +678,11 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
         </div>
         <p className="ahd-help">
           {profile.policies
-            ? "Your axes are read straight from the save on the engine's -5 to +5 scale."
-            : "Your policy axes are not recorded in this save yet, so the compass shows no position for you — the local engine holds no action or command that writes player policy values."}
+            ? "Your axes are read straight from the save on the engine's -5 to +5 scale; distance to a platform is what primaries and general elections measure."
+            : "Your policy axes are not recorded in this save yet, so the compass shows no position for you."}
         </p>
         <p className="ahd-help">
           A home-region lean marker is not shown: the engine does not record a per-region economic/social lean yet.
-          Per-character demographics (race, gender, education, wealth) are not modelled yet either.
           Where present, the party marker is that party's authored platform.
         </p>
       </section>

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gameReady, openGameMenu, closeGameMenu, navigateGame, advanceGame } from './game-navigation';
+import { gameReady, openGameMenu, closeGameMenu, navigateGame, advanceGame, completeCharacterCreation } from './game-navigation';
 
 for (const width of [320, 390]) {
   test(`mobile navigation uses a side drawer and bottom bar at ${width}px`, async ({ page }) => {
@@ -9,6 +9,7 @@ for (const width of [320, 390]) {
     await page.getByLabel('Your name').fill('Mobile Player');
     await page.getByLabel('Seed', { exact: false }).fill('mobile-navigation');
     await page.getByRole('button', { name: 'Start', exact: true }).click();
+    await completeCharacterCreation(page);
     await gameReady(page);
     await expect(page.getByRole('banner')).toHaveCount(0);
     await expect(page.getByRole('tablist')).toHaveCount(0);
