@@ -17,6 +17,7 @@ import { ResourceBreakdown } from "./ResourceBreakdown";
 import { BottomNav, GameDrawer } from "./MobileNavigation";
 import type { DrawerRouteId } from "./MobileNavigation";
 import { ActionsHub, type ActionsCategoryFilter } from "./ActionsHub";
+import { PartyMark } from "./PartyMark";
 import { NotificationBellButton, NotificationPreview, NotificationsInbox, type NotificationTarget } from "./Notifications";
 import { RACE_PHASE_LABELS } from "../game/racePhase";
 import { formatGameDate, type GameClock } from "../game/gameDate";
@@ -308,7 +309,10 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
                     return (
                       <div key={p.id} className="ahd-card ahd-card-pad" style={{ borderLeft: `3px solid ${p.color}` }}>
                         <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "center" }}>
-                          <strong style={{ fontSize: "0.86rem" }}>{p.name} <span className="ahd-muted" style={{ fontWeight: 600 }}>({p.abbreviation})</span></strong>
+                          <span style={{ display: "inline-flex", gap: "0.4rem", alignItems: "center", minWidth: 0 }}>
+                            <PartyMark name={p.name} abbreviation={p.abbreviation} color={p.color} id={p.id} size={24} />
+                            <strong style={{ fontSize: "0.86rem" }}>{p.name} <span className="ahd-muted" style={{ fontWeight: 600 }}>({p.abbreviation})</span></strong>
+                          </span>
                           {p.isPlayerParty ? <span className="ahd-pill" style={{ background: "var(--ahd-primary)", color: "white" }}>Yours</span> : null}
                         </div>
                         <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.2rem" }}>{p.members.toLocaleString()} members · {formatFinanceMoney(p.treasury, world.finance.currency)} treasury</div>

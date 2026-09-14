@@ -9,6 +9,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import type { EraChoice, NewGameOptions, NewGameScreenProps, WorldInitialization } from "../game/types";
+import { PartyMark } from "./PartyMark";
 import "./ui.css";
 
 function validate(opts: NewGameOptions, eras: EraChoice[]): Record<string, string> {
@@ -123,8 +124,8 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
 
   return (
     <div className="ahd-screen">
-      <div className="ahd-container" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))", maxWidth: "42rem" }}>
-        <header style={{ marginBottom: "1rem" }}>
+      <div className="ahd-container ahd-newgame" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))", maxWidth: "42rem" }}>
+        <header className="ahd-newgame-hero">
           <p className="ahd-eyebrow">Singleplayer</p>
           <h1 className="ahd-h1">A House Divided</h1>
           <p className="ahd-muted" style={{ fontSize: "0.84rem", marginTop: "0.3rem", lineHeight: 1.5 }}>
@@ -136,7 +137,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
           <div className="ahd-empty" role="status">No eras available. Engine content not loaded.</div>
         ) : null}
 
-        <form onSubmit={handleSubmit} noValidate>
+        <form className="ahd-newgame-form" onSubmit={handleSubmit} noValidate>
         <div className="ahd-card ahd-card-pad">
           <h2 className="ahd-h2">New game</h2>
 
@@ -174,8 +175,8 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
 
             <div>
               <p className="ahd-label" id="mode-label" style={{ marginBottom: "0.4rem" }}>Play as</p>
-              <div role="radiogroup" aria-labelledby="mode-label" style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-                <label style={{ display: "flex", gap: "0.4rem", alignItems: "center", cursor: busy ? "not-allowed" : "pointer" }}>
+              <div role="radiogroup" aria-labelledby="mode-label" className="ahd-mode-row">
+                <label style={{ display: "flex", gap: "0.4rem", alignItems: "center", minHeight: 44, cursor: busy ? "not-allowed" : "pointer" }}>
                   <input
                     type="radio"
                     name="mode"
@@ -186,7 +187,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
                   />
                   <span style={{ fontSize: "0.86rem" }}>Career</span>
                 </label>
-                <label style={{ display: "flex", gap: "0.4rem", alignItems: "center", cursor: busy || !hosEligible ? "not-allowed" : "pointer" }}>
+                <label style={{ display: "flex", gap: "0.4rem", alignItems: "center", minHeight: 44, cursor: busy || !hosEligible ? "not-allowed" : "pointer" }}>
                   <input
                     type="radio"
                     name="mode"
@@ -208,12 +209,15 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
               ) : null}
               {previewParty ? (
                 mode === "hos" ? (
-                  <p className="ahd-help" style={{ marginTop: "0.3rem" }}>
-                    Govern as {previewParty.name} ({previewParty.abbreviation}) in {activeCountry?.name ?? "this country"}
-                  </p>
+                  <div className="ahd-preview-row">
+                    <PartyMark name={previewParty.name} abbreviation={previewParty.abbreviation} id={previewParty.id} size={24} />
+                    <p className="ahd-help" style={{ margin: 0 }}>
+                      Govern as {previewParty.name} ({previewParty.abbreviation}) in {activeCountry?.name ?? "this country"}
+                    </p>
+                  </div>
                 ) : null
               ) : (
-                <p className="ahd-help" style={{ marginTop: "0.3rem" }}>
+                <p className="ahd-help" role="note" style={{ marginTop: "0.3rem" }}>
                   {hosUnavailableReason}
                 </p>
               )}

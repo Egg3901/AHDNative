@@ -17,6 +17,7 @@ import type { GameScreenProps } from "../game/types";
 import type { PartyManagementView } from "../game/partyManagement";
 import { validatePartyDraft } from "../game/partyDraft";
 import { formatFinanceMoney } from "./FinancePanel";
+import { PartyMark } from "./PartyMark";
 
 export interface PartyManagementPanelProps {
   management: PartyManagementView;
@@ -82,11 +83,33 @@ export function PartyManagementPanel({ management, busy, onAction }: PartyManage
       </div>
 
       <div className="ahd-card ahd-card-pad">
+        <h2 className="ahd-h2">Parties ({management.parties.length})</h2>
+        {management.parties.length === 0 ? (
+          <div className="ahd-empty">No parties recorded in {management.countryName} yet.</div>
+        ) : (
+          <ul aria-label="Parties" style={{ listStyle: "none", margin: "0.5rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+            {management.parties.map((party) => (
+              <li key={party.id} style={{ display: "flex", gap: "0.5rem", alignItems: "center", borderTop: "1px solid var(--ahd-border)", paddingTop: "0.45rem" }}>
+                <PartyMark name={party.name} abbreviation={party.abbreviation} color={party.color} id={party.id} size={24} />
+                <span style={{ minWidth: 0, flex: "1 1 auto", fontSize: "0.8rem" }}>
+                  <span style={{ fontWeight: 650 }}>{party.name}</span>
+                  <span className="ahd-muted"> ({party.abbreviation})</span>
+                </span>
+                <span className="ahd-muted" style={{ flex: "0 0 auto", fontSize: "0.72rem" }}>
+                  {party.members.toLocaleString()} members{party.isPlayerParty ? " · yours" : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="ahd-card ahd-card-pad">
         <h2 className="ahd-h2">Charters ({management.charters.length})</h2>
         {management.charters.length === 0 ? (
           <div className="ahd-empty">No charters recorded in {management.countryName} yet.</div>
         ) : (
-          <ul style={{ listStyle: "none", margin: "0.5rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+          <ul aria-label="Charters" style={{ listStyle: "none", margin: "0.5rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.4rem" }}>
             {management.charters.map((charter) => (
               <li key={charter.id} style={{ borderTop: "1px solid var(--ahd-border)", paddingTop: "0.4rem", fontSize: "0.8rem" }}>
                 <span style={{ fontWeight: 650 }}>{charter.partyName ?? "Unnamed party"}</span>

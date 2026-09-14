@@ -691,3 +691,47 @@ existing overworld, and the separate character-creation hand-off
 (`page.tsx:39` redirect to `/create-character`) are not implemented in this
 slice; the Native app still starts the world directly. The issue stays open
 with `status: partial`.
+
+## Page-coverage UI polish checkpoint, 2026-09-14 (#244)
+
+#244 partial. Bounded UI/CSS slice for three of the four owner-named surfaces;
+no engine, session, DTO, signing, version or release file changed.
+
+- `NewGameScreen` (320px/390px): the country/name pair stays in the shared
+  `.ahd-grid-2` (one column under 640px), the mode radios share a `.ahd-mode-row`
+  with 44px rows, and the HoS-unavailable reason is now an accessible
+  `role="note"` beside the radios instead of an unattributed paragraph. The
+  governing-party preview carries a `PartyMark` initials/color mark. Class-only
+  hierarchy changes; form labels, order and submit behavior are unchanged.
+- New `src/ui/PartyMark.tsx`: reusable identity mark that renders a
+  party-authored image when the DTO supplies a real `logoUrl`, drops to an
+  initials/color mark on `onError`, and otherwise derives deterministic
+  initials plus a stable fallback color from the party id/color already in the
+  DTO. No URL is invented and no proprietary art is bundled. Integrated into
+  the visible Parties list (`GameScreen`), the Parties list/detail
+  (`PoliticsPanel`), and party management rows (`PartyManagementPanel`).
+- `ActionsHub` cards gain a compact code-native `.ahd-action-mark` glyph tile
+  carrying `data-category` and `data-state` (available/locked); the locked
+  state and `disabledReason` stay visible at 320px with no blank image chrome.
+
+Honest gaps: this is not image parity. The Native DTOs carry no party
+`logoUrl`, so every mark renders the initials/color fallback; the reference
+hero art, portraits/flags, coalition marks and creation/HoS imagery remain
+unported under #143/#244. No rendered AHDGame-vs-Native comparison screenshot
+was captured for this slice, and no physical-device run was performed. The
+issue stays open with `status: partial`, acceptance checklist unchanged.
+
+Evidence: `src/ui/PartyMark.test.tsx` (image success, error fallback, initials,
+deterministic color, decorative behavior), `src/ui/ActionsHub.test.tsx`
+(category mark + locked reason visible), `src/ui/NewGameScreen.test.tsx`
+(accessible HoS reason, preview mark, compact country/name grid),
+`GameScreen.test.tsx`/`PartyManagementPanel.test.tsx` (marks render in the
+visible party lists). Validation: focused UI suites and `npm run build`
+(tsc + vite) all pass; the original slice result was full `test:ui` at 28 files
+/ 307 tests. This review pass adds a `PartyMark` regression test (a second logo
+URL is attempted after the first fails), so current head is 28 files / 308
+tests. Production smoke is 17 scenarios
+across the eight named specs (`singleplayer`, `actions-hub`, `party-founding`,
+`mobile-navigation`, `ui-rosters`, `candidacy`, `feature-depth`,
+`ui-navigation-depth`), all 17 passing against the installed Chromium build.
+

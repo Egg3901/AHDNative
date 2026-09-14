@@ -21,6 +21,17 @@ export const ACTION_HUB_CATEGORIES: { id: ActionsCategoryFilter; label: string }
   { id: "intelligence", label: "Intelligence" },
 ];
 
+/** Code-native category glyphs; no generated raster art and no asset bundle. */
+const CATEGORY_GLYPH: Record<ActionCategory, string> = {
+  influence: "◆",
+  fundraising: "$",
+  intelligence: "◎",
+};
+
+function actionCategoryGlyph(category?: ActionCategory): string {
+  return category ? CATEGORY_GLYPH[category] : "•";
+}
+
 function formatFunds(amount: number, currency: string): string {
   if (!Number.isFinite(amount)) return "-";
   try {
@@ -86,11 +97,19 @@ function ActionCard({
   return (
     <article
       aria-label={action.name}
-      className="ahd-card ahd-card-pad"
-      style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}
+      className="ahd-card ahd-card-pad ahd-action-card"
     >
-      <div style={{ display: "flex", gap: "0.6rem", alignItems: "flex-start", justifyContent: "space-between" }}>
-        <div style={{ minWidth: 0 }}>
+      <div className="ahd-action-head">
+        <span
+          className="ahd-action-mark"
+          data-category={action.category ?? "none"}
+          data-state={action.available ? "available" : "locked"}
+          aria-hidden="true"
+          title={categoryLabel ?? "Action"}
+        >
+          {actionCategoryGlyph(action.category)}
+        </span>
+        <div className="ahd-action-body">
           <div style={{ fontWeight: 750, fontSize: "0.86rem" }}>{action.name}</div>
           <div className="ahd-muted" style={{ fontSize: "0.76rem", lineHeight: 1.45 }}>{action.description}</div>
           {categoryLabel ? (
@@ -106,7 +125,7 @@ function ActionCard({
           ) : null}
           {action.prerequisite ? <div className="ahd-help">{action.prerequisite}</div> : null}
         </div>
-        <span className="ahd-badge" style={{ flexShrink: 0, whiteSpace: "nowrap" }} aria-label={hint}>{action.available ? `${action.cost}` : "locked"}</span>
+        <span className="ahd-badge ahd-action-state" aria-label={hint}>{action.available ? `${action.cost}` : "locked"}</span>
       </div>
 
       {action.requires === "amount" ? (
@@ -142,7 +161,7 @@ function ActionCard({
         </button>
         {action.available && <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{hint}{action.requires ? ` · requires ${action.requires}` : ""}</span>}
       </div>
-      {!action.available && action.disabledReason ? <p className="ahd-help" role="note">{action.disabledReason}</p> : null}
+      {!action.available && action.disabledReason ? <p className="ahd-help ahd-action-reason" role="note">{action.disabledReason}</p> : null}
     </article>
   );
 }
