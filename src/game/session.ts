@@ -16,7 +16,7 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, addDaysIso, advanceTurn, createWorld, deserializeSave, executeAction,
-  getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, listEras, listPlayableCountries, listRegions, rulingPartyForCountry, serializeSave,
+  getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, listEras, listPlayableCountries, listRegions, rulingPartyForCountry, serializeSave,
   type ActionId, type ExecuteActionParams, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionCategory, ActionView, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions } from "./types";
@@ -71,7 +71,11 @@ export function gameChoices(): EraChoice[] {
     countries: listPlayableCountries(era.id).map((country) => ({
       id: country.id, name: country.name,
       regions: listRegions(era.id, country.id).map((region) => ({ id: region.id, name: region.name })),
-      rulingParty: rulingPartyForCountry(era.id, country.id),
+      headOfStateOffice: headOfStateOfficeForCountry(country.id),
+      rulingPartyByInitialization: {
+        founding: rulingPartyForCountry(era.id, country.id, "founding"),
+        historical: rulingPartyForCountry(era.id, country.id, "historical"),
+      },
     })) }));
 }
 

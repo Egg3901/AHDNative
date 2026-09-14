@@ -6,7 +6,19 @@ import type { PoliticsView } from "./politics";
 import type { ResourceDetailsView } from "./resources";
 export type WorldInitialization = "historical" | "founding";
 export interface NewGameOptions { era: string; countryId: string; playerName: string; seed: string; mode?: "career" | "hos"; homeRegionId?: string; initialization?: WorldInitialization; }
-export interface EraChoice { id: string; label: string; countries: { id: string; name: string; regions: { id: string; name: string }[]; rulingParty: { id: string; name: string; abbreviation: string } | null }[]; }
+export interface EraChoice {
+  id: string;
+  label: string;
+  countries: {
+    id: string;
+    name: string;
+    regions: { id: string; name: string }[];
+    /** National executive office key from the engine registry; null when none exists. */
+    headOfStateOffice: string | null;
+    /** Governing-party preview per initialization; null when that start has no bindable party. */
+    rulingPartyByInitialization: Record<WorldInitialization, { id: string; name: string; abbreviation: string } | null>;
+  }[];
+}
 export interface MetricView { id: string; label: string; value: number; format: "money" | "percent" | "number"; }
 export type ActionCategory = "influence" | "fundraising" | "intelligence";
 export interface ActionView { id: string; name: string; description: string; cost: number; fundsGain?: number; available: boolean; disabledReason?: string; requires?: "amount" | "party" | "region";

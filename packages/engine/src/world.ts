@@ -89,6 +89,7 @@ import {
 // prior multi-wave resolver note in save.ts (see v16->v17, v27->v28, etc.).
 import { computeFormation } from "./government/formation.js";
 import { GOVERNMENT_CHAMBER_BY_COUNTRY, GOVERNOR_COUNTRIES } from "./government/constants.js";
+import { EXECUTIVE_OFFICE_BY_COUNTRY } from "./actions/officeRegistry.js";
 
 // Pre-allocated v39 for M1 (Lane 12 Head of State mode). This branch point
 // is v33 (W6 metrics); v34-v38 are reserved for other in-flight batches
@@ -293,14 +294,19 @@ export function listCountries(era: string): { id: string; name: string; playable
  * (deterministic tie-break by id) when the resolved chamber is hung
  * (computeFormation returns no governingPartyId).
  *
- * Known content gap (not an M1 bug): the 1953/1960 packs seed UK's "commons"
- * composition.seatsByParty as {} (all-vacancy placeholder — Lane 10 W39
- * territory, not ported yet), so this returns null for countryId "UK" today.
- * A null hosPartyId degrades HoS mode to career-equivalent gating (the
- * action-layer bypass in execute.ts requires a truthy hosPartyId) rather
- * than inventing seat data this codebase has not authored anywhere else.
+ * `initialization` selects the composition source. Founding (default, and the
+ * only source for non-UK countries) reads the authored pack. Historical runs
+ * projectUkHistoricalCommonsComposition first, matching the post-initialization
+ * composition createWorld writes, so the pre-world picker preview and the bound
+ * player.hosPartyId agree. The 1953/1979 UK packs seed "commons" as {} and only
+ * gain a governing party under Historical; a null result under Founding is the
+ * authored all-vacancy start, not a bug.
  */
-export function rulingPartyIdForCountry(era: string, countryId: string): string | null {
+export function rulingPartyIdForCountry(
+  era: string,
+  countryId: string,
+  initialization: WorldInitialization = DEFAULT_WORLD_INITIALIZATION,
+): string | null {
   const pack = getPackByEra(era);
   if (!pack) throw new Error(`Unknown era: ${era}`);
   const leg = (pack.legislatures ?? []).find((l) => l.countryId === countryId);
@@ -309,9 +315,12 @@ export function rulingPartyIdForCountry(era: string, countryId: string): string 
   const chamber = leg.chambers.find((c) => c.key === preferredKey && c.elected)
     ?? leg.chambers.find((c) => c.elected)
     ?? leg.chambers[0]!;
-  const outcome = computeFormation(chamber.composition.seatsByParty, chamber.seats);
+  const composition = initialization === "historical" && countryId === "UK"
+    ? projectUkHistoricalCommonsComposition(pack) ?? chamber.composition.seatsByParty
+    : chamber.composition.seatsByParty;
+  const outcome = computeFormation(composition, chamber.seats);
   if (outcome.governingPartyId) return outcome.governingPartyId;
-  const entries = Object.entries(chamber.composition.seatsByParty).filter(([, seats]) => seats > 0);
+  const entries = Object.entries(composition).filter(([, seats]) => seats > 0);
   if (entries.length === 0) return null;
   entries.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   return entries[0]![0];
@@ -326,14 +335,30 @@ export function rulingPartyIdForCountry(era: string, countryId: string): string 
  * party id has no matching PartySeed (should not happen for authored packs;
  * defensive only).
  */
-export function rulingPartyForCountry(era: string, countryId: string): { id: string; name: string; abbreviation: string } | null {
-  const partyId = rulingPartyIdForCountry(era, countryId);
+export function rulingPartyForCountry(
+  era: string,
+  countryId: string,
+  initialization: WorldInitialization = DEFAULT_WORLD_INITIALIZATION,
+): { id: string; name: string; abbreviation: string } | null {
+  const partyId = rulingPartyIdForCountry(era, countryId, initialization);
   if (!partyId) return null;
   const pack = getPackByEra(era);
   if (!pack) throw new Error(`Unknown era: ${era}`);
   const party = (pack.parties ?? []).find((p) => p.id === partyId);
   if (!party) return null;
   return { id: party.id, name: party.name, abbreviation: party.abbreviation };
+}
+
+/**
+ * Head-of-State office eligibility for a country: the national executive office
+ * from the generated EXECUTIVE_OFFICE_BY_COUNTRY registry (the single country
+ * list; do not fork a second one), or null when the country has no national
+ * executive (e.g. subnational regions the registry omits). This says only that
+ * an office exists, not that the selected initialization has a governing party
+ * to bind it — see rulingPartyForCountry for the party half of HoS eligibility.
+ */
+export function headOfStateOfficeForCountry(countryId: string): string | null {
+  return EXECUTIVE_OFFICE_BY_COUNTRY[countryId] ?? null;
 }
 
 export function createWorld(options: NewWorldOptions): WorldState {
@@ -806,7 +831,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
       legislativeSeat: null,
       mode: options.mode === "hos" ? "hos" : "career",
       // M1: bound once, here, at creation — never recomputed by a phase.
-      hosPartyId: options.mode === "hos" ? rulingPartyIdForCountry(era, options.countryId) : null,
+      hosPartyId: options.mode === "hos" ? rulingPartyIdForCountry(era, options.countryId, initialization) : null,
       savings: 0,
       savingsHolder: "centralBank",
       actionCounts: {},

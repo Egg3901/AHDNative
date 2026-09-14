@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { rulingPartyIdForCountry } from "@ahdclient/engine";
 import { GameSession } from "./session";
 
 const options = { era: "1953", countryId: "US", seed: "native-session-v1", playerName: "Alex" };
@@ -71,12 +72,29 @@ describe("world setup through the session contract (#241)", () => {
 
   it("applies Historical initialization as a real 1953 UK consequence versus Founding", () => {
     const historical = new GameSession();
-    historical.create({ ...setup, countryId: "UK", mode: "hos", initialization: "historical" });
+    const historicalView = historical.create({ ...setup, countryId: "UK", mode: "hos", initialization: "historical" });
     expect(Object.values(commonsComposition(historical)).some((seats) => seats > 0)).toBe(true);
+    // The post-initialization composition yields Labour, and the binding agrees
+    // with the pre-world preview the picker showed.
+    expect(historicalView.player.hosPartyId).toBe("UK_LAB");
+    expect(historicalView.player.hosPartyId).toBe(rulingPartyIdForCountry("1953", "UK", "historical"));
 
     const founding = new GameSession();
-    founding.create({ ...setup, countryId: "UK", mode: "hos", initialization: "founding" });
+    const foundingView = founding.create({ ...setup, countryId: "UK", mode: "hos", initialization: "founding" });
     expect(Object.values(commonsComposition(founding)).some((seats) => seats > 0)).toBe(false);
+    // Founding stays null: no authored commons composition to form a government.
+    expect(foundingView.player.hosPartyId).toBe(null);
+  });
+
+  it("resolves and binds 1979 UK historical while founding stays null", () => {
+    const historical = new GameSession();
+    const view = historical.create({ ...setup, era: "1979", countryId: "UK", mode: "hos", initialization: "historical" });
+    expect(view.player.hosPartyId).toBe("UK_LAB");
+    expect(view.player.hosPartyId).toBe(rulingPartyIdForCountry("1979", "UK", "historical"));
+
+    const founding = new GameSession();
+    const foundingView = founding.create({ ...setup, era: "1979", countryId: "UK", mode: "hos", initialization: "founding" });
+    expect(foundingView.player.hosPartyId).toBe(null);
   });
 });
 

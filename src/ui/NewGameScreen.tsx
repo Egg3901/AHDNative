@@ -25,8 +25,13 @@ function validate(opts: NewGameOptions, eras: EraChoice[]): Record<string, strin
       errs.homeRegionId = "Choose a home region.";
     }
   }
-  if (opts.mode === "hos" && country && !country.rulingParty) {
-    errs.mode = "Head of State needs a governing party.";
+  if (opts.mode === "hos" && country) {
+    const initialization = opts.initialization ?? "founding";
+    if (!country.headOfStateOffice) {
+      errs.mode = "No executive office for this country; Head of State is unavailable.";
+    } else if (!country.rulingPartyByInitialization[initialization]) {
+      errs.mode = "No governing party for this initialization; Head of State is unavailable.";
+    }
   }
   const trimmedName = opts.playerName.trim();
   const nameLen = trimmedName.length;
@@ -51,6 +56,16 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
 
   const activeEra = useMemo(() => eras.find((e) => e.id === era) ?? null, [eras, era]);
   const activeCountry = useMemo(() => activeEra?.countries.find((c) => c.id === countryId) ?? null, [activeEra, countryId]);
+  const previewParty = activeCountry?.rulingPartyByInitialization[initialization] ?? null;
+  const hasExecutiveOffice = !!activeCountry?.headOfStateOffice;
+  const hosUnavailableReason = !activeCountry
+    ? "Select a country."
+    : !hasExecutiveOffice
+      ? `No executive office is set for ${activeCountry.name}; Head of State is unavailable.`
+      : !previewParty
+        ? `No governing party exists for the ${initialization} start in ${activeCountry.name}; Head of State is unavailable.`
+        : null;
+  const hosEligible = !hosUnavailableReason;
 
   useEffect(() => {
     if (!activeEra) {
@@ -76,8 +91,8 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
   }, [activeCountry, homeRegionId]);
 
   useEffect(() => {
-    if (mode === "hos" && !activeCountry?.rulingParty) setMode("career");
-  }, [mode, activeCountry]);
+    if (mode === "hos" && !hosEligible) setMode("career");
+  }, [mode, hosEligible]);
 
   useEffect(() => {
     if (!era && eras[0]) {
@@ -100,7 +115,10 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
       setLocalError(first);
       return;
     }
-    onStart({ era, countryId, playerName: playerName.trim(), seed: seed.trim(), mode, homeRegionId, initialization });
+    // Never submit HoS with a null governing party; the engine would bind a
+    // career-equivalent player while the UI claimed HoS.
+    const finalMode = mode === "hos" && !previewParty ? "career" : mode;
+    onStart({ era, countryId, playerName: playerName.trim(), seed: seed.trim(), mode: finalMode, homeRegionId, initialization });
   };
 
   return (
@@ -168,28 +186,35 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
                   />
                   <span style={{ fontSize: "0.86rem" }}>Career</span>
                 </label>
-                <label style={{ display: "flex", gap: "0.4rem", alignItems: "center", cursor: busy || !activeCountry?.rulingParty ? "not-allowed" : "pointer" }}>
+                <label style={{ display: "flex", gap: "0.4rem", alignItems: "center", cursor: busy || !hosEligible ? "not-allowed" : "pointer" }}>
                   <input
                     type="radio"
                     name="mode"
                     value="hos"
                     checked={mode === "hos"}
                     onChange={() => setMode("hos")}
-                    disabled={!activeCountry?.rulingParty}
+                    disabled={!hosEligible}
                     aria-label="Head of State"
                   />
                   <span style={{ fontSize: "0.86rem" }}>Head of State</span>
                 </label>
               </div>
-              {activeCountry?.rulingParty ? (
+              {activeCountry ? (
+                <p className="ahd-help" style={{ marginTop: "0.3rem" }}>
+                  {activeCountry.headOfStateOffice
+                    ? `Executive office: ${activeCountry.headOfStateOffice}`
+                    : "No executive office is set for this country."}
+                </p>
+              ) : null}
+              {previewParty ? (
                 mode === "hos" ? (
                   <p className="ahd-help" style={{ marginTop: "0.3rem" }}>
-                    Govern as {activeCountry.rulingParty.name} ({activeCountry.rulingParty.abbreviation}) in {activeCountry.name}
+                    Govern as {previewParty.name} ({previewParty.abbreviation}) in {activeCountry?.name ?? "this country"}
                   </p>
                 ) : null
               ) : (
                 <p className="ahd-help" style={{ marginTop: "0.3rem" }}>
-                  No governing party is set for {activeCountry?.name ?? "this country"}; Head of State is unavailable.
+                  {hosUnavailableReason}
                 </p>
               )}
               {fieldErrors.mode ? <span className="ahd-error-text" role="alert">{fieldErrors.mode}</span> : null}

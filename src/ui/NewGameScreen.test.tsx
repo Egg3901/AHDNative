@@ -8,15 +8,20 @@ type SetupCountry = EraChoice["countries"][number] & { regions: { id: string; na
 type SetupEra = Omit<EraChoice, "countries"> & { countries: SetupCountry[] };
 
 const REP = { id: "US_REP", name: "Republican Party", abbreviation: "REP" };
+const LAB = { id: "UK_LAB", name: "Labour Party", abbreviation: "LAB" };
 
 const ERAS: SetupEra[] = [
   { id: "1953", label: "1953", countries: [
-    { id: "US", name: "United States", regions: [{ id: "US-CA", name: "California" }, { id: "US-NY", name: "New York" }], rulingParty: REP },
-    { id: "UK", name: "United Kingdom", regions: [{ id: "UK-LON", name: "London" }], rulingParty: null },
+    { id: "US", name: "United States", regions: [{ id: "US-CA", name: "California" }, { id: "US-NY", name: "New York" }], headOfStateOffice: "president", rulingPartyByInitialization: { founding: REP, historical: REP } },
+    // Matches the real 1953 UK pack: Founding commons is all-vacancy so no
+    // governing party; Historical projects the synthetic winner roster (Labour).
+    { id: "UK", name: "United Kingdom", regions: [{ id: "UK-LON", name: "London" }], headOfStateOffice: "primeMinister", rulingPartyByInitialization: { founding: null, historical: LAB } },
   ] },
   { id: "1991", label: "1991", countries: [
-    { id: "US", name: "United States", regions: [{ id: "US-CA", name: "California" }, { id: "US-TX", name: "Texas" }], rulingParty: REP },
-    { id: "DE", name: "Germany", regions: [{ id: "DE-BE", name: "Berlin" }], rulingParty: null },
+    { id: "US", name: "United States", regions: [{ id: "US-CA", name: "California" }, { id: "US-TX", name: "Texas" }], headOfStateOffice: "president", rulingPartyByInitialization: { founding: REP, historical: REP } },
+    // Simulates a country absent from EXECUTIVE_OFFICE_BY_COUNTRY: no executive
+    // office even though it carries party content.
+    { id: "DE", name: "Germany", regions: [{ id: "DE-BE", name: "Berlin" }], headOfStateOffice: null, rulingPartyByInitialization: { founding: null, historical: null } },
   ] },
 ];
 
@@ -187,19 +192,64 @@ describe("NewGameScreen world setup (#241)", () => {
     expect(onStart).toHaveBeenCalledWith(expect.objectContaining({ initialization: "historical" }));
   });
 
-  it("shows the governing-party preview in Head of State mode and disables it with an explicit reason when null", async () => {
+  it("previews a country with an office and a bindable party, and disables HoS when the founding party is missing", async () => {
     const user = userEvent.setup();
     const onStart = vi.fn();
-    const ukOnly: SetupEra[] = [{ id: "1953", label: "1953", countries: [ERAS[0].countries[1]] }];
     const { unmount } = render(<NewGameScreen eras={ERAS} busy={false} onStart={onStart} onBack={vi.fn()} />);
-    await user.click(screen.getByLabelText(/head of state/i));
+    const hos = screen.getByLabelText(/head of state/i) as HTMLInputElement;
+    expect(hos).toBeEnabled();
+    await user.click(hos);
+    expect(hos.checked).toBe(true);
     expect(screen.getByText(/Republican Party/)).toBeInTheDocument();
-    expect(screen.queryByText(/no governing party/i)).not.toBeInTheDocument();
     unmount();
 
-    render(<NewGameScreen eras={ukOnly} busy={false} onStart={onStart} onBack={vi.fn()} />);
-    await user.click(screen.getByLabelText(/head of state/i));
-    expect(screen.getByText(/no governing party/i)).toBeInTheDocument();
+    // 1953 UK under the default Founding start: office exists but no governing
+    // party, so HoS is disabled with the missing-party reason, not a generic one.
+    render(<NewGameScreen eras={ERAS} busy={false} onStart={onStart} onBack={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText(/country/i), "UK");
     expect(screen.getByLabelText(/head of state/i)).toBeDisabled();
+    expect(screen.getByText(/no governing party exists for the founding start/i)).toBeInTheDocument();
+  });
+
+  it("switching 1953 UK Founding to Historical enables Head of State and previews Labour", async () => {
+    const user = userEvent.setup();
+    const onStart = vi.fn();
+    render(<NewGameScreen eras={ERAS} busy={false} onStart={onStart} onBack={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText(/country/i), "UK");
+    const hos = screen.getByLabelText(/head of state/i) as HTMLInputElement;
+    expect(hos).toBeDisabled();
+    await user.click(screen.getByLabelText(/historical/i));
+    expect(hos).toBeEnabled();
+    await user.click(hos);
+    expect(screen.getByText(/Labour Party/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/your name/i), "Ada");
+    await user.click(screen.getByRole("button", { name: /^start$/i }));
+    expect(onStart).toHaveBeenCalledWith(expect.objectContaining({ countryId: "UK", mode: "hos", initialization: "historical" }));
+  });
+
+  it("reports the distinct no-executive-office reason for a country with no office but party content", async () => {
+    const onStart = vi.fn();
+    render(<NewGameScreen eras={ERAS} busy={false} onStart={onStart} onBack={vi.fn()} />);
+    await userEvent.setup().click(screen.getByLabelText("1991"));
+    await userEvent.setup().selectOptions(screen.getByLabelText(/country/i), "DE");
+    expect(screen.getByText(/no executive office is set for this country/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/head of state/i)).toBeDisabled();
+    expect(screen.queryByText(/no governing party exists/i)).not.toBeInTheDocument();
+  });
+
+  it("never submits mode hos when the selected initialization has no bindable party", async () => {
+    const user = userEvent.setup();
+    const onStart = vi.fn();
+    render(<NewGameScreen eras={ERAS} busy={false} onStart={onStart} onBack={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText(/country/i), "UK");
+    // Choose Historical, select HoS, then revert to Founding: availability
+    // updates and the stale HoS selection must not be submitted.
+    await user.click(screen.getByLabelText(/historical/i));
+    await user.click(screen.getByLabelText(/head of state/i));
+    await user.click(screen.getByLabelText(/founding/i));
+    await user.type(screen.getByLabelText(/your name/i), "Ada");
+    await user.click(screen.getByRole("button", { name: /^start$/i }));
+    expect(onStart).toHaveBeenCalledWith(expect.objectContaining({ countryId: "UK", mode: "career", initialization: "founding" }));
+    expect(onStart).not.toHaveBeenCalledWith(expect.objectContaining({ mode: "hos" }));
   });
 });
