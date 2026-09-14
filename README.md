@@ -18,7 +18,7 @@ Fundraise now consumes [Game-owned shared rules](docs/SHARED-RULES.md) through a
 
 ## Status
 
-Development preview 0.1.4 is the current source candidate. Windows delivery is a private unsigned x64 owner-review build. iOS delivery is a private internal TestFlight build through manual Codemagic. These are not public store releases or a 1.0.0 claim; owner feedback and physical-device validation remain open in [issue #124](https://github.com/Egg3901/AHDNative/issues/124). What holds today:
+Development preview 0.1.5 is the current source candidate. Windows delivery is a private unsigned x64 owner-review build. iOS delivery is a private internal TestFlight build through manual Codemagic. These are not public store releases or a 1.0.0 claim; owner feedback and physical-device validation remain open in [issue #124](https://github.com/Egg3901/AHDNative/issues/124). What holds today:
 
 - Main runs a local singleplayer world through React game screens and a dedicated simulation worker. New game, actions, turns, save, app reload and resume have passed a real browser smoke test at phone screen size.
 - Bottom navigation and a side drawer reach politics, national economy/budget/policy, home region, nations, portfolio and banking. Turn, save and exit controls live in the drawer. The compact footer opens full resource details. Full feature parity is still in progress.
@@ -85,7 +85,8 @@ The first private feedback preview is authorized after local behavioral tests an
 |---|---|
 | [Roadmap](docs/ROADMAP.md) | Delivery sequence and completion evidence |
 | [0.1.3 development preview](docs/RELEASE-0.1.3.md) | Candidate scope, validation and private delivery rules |
-| [0.1.4 development preview](docs/RELEASE-0.1.4.md) | Current candidate: UI parity and mechanics increments, validation and private delivery rules |
+| [0.1.4 development preview](docs/RELEASE-0.1.4.md) | UI parity and mechanics increments, validation and private delivery rules |
+| [0.1.5 development preview](docs/RELEASE-0.1.5.md) | Current candidate: presidential race, nation context, responsive logo, caucus chair controls |
 | [Navigation and footer parity](docs/NAVIGATION-PARITY.md) | Destination inventory, resource controls and remaining feature gaps |
 | [UI reference](docs/UI-REFERENCE.md) | Actual MP/SP baseline, tokens, parity notes |
 | [Mechanics parity](docs/MECHANICS-PARITY.md) | Audit against AHDGame at pinned revisions |
