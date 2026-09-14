@@ -169,6 +169,9 @@ export function CaucusPanel({ management, busy, onAction }: CaucusPanelProps) {
                         title={caucus.disband.disabledReason}
                         onClick={() => {
                           if (!caucus.disband.available) return;
+                          const membersLabel = `${caucus.memberCount} ${caucus.memberCount === 1 ? "membership" : "memberships"}`;
+                          const warning = `Disband ${caucus.name}? All ${membersLabel} will be cleared and the chair seats vacated.`;
+                          if (!window.confirm(warning)) return;
                           onAction("disbandCaucus", { caucusId: caucus.id });
                         }}>
                         Disband

@@ -64,6 +64,7 @@ test('the caucus chair edits the tax rate and disbands through the reference con
   await openGameMenu(page);
   await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Caucuses', exact: true }).click();
   await expect(page.getByRole('listitem').filter({ hasText: 'Blue Dog Caucus' })).toContainText('Tax 4.5%');
+  page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Disband Blue Dog Caucus', exact: true }).click();
   await expect(page.getByText('You are not in a caucus.', { exact: true })).toBeVisible();
   await expect(page.getByRole('listitem').filter({ hasText: 'Blue Dog Caucus' })).toHaveCount(0);

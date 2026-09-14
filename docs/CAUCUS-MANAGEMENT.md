@@ -68,8 +68,11 @@ membership-removal sweep.
 `disband`, each quoting the engine's own `canSetCaucusTaxRate` /
 `canDisbandCaucus` verdict so a disabled reason matches the dispatcher's
 rejection. `CaucusPanel` shows the tax input and Disband button only for a
-caucus the player chairs. Color, description, motto, whip and chair elections
-remain open.
+caucus the player chairs. Disband mirrors the reference confirmation guard:
+`SelectedCaucus.tsx` calls `confirm` with the caucus name and total membership
+count before issuing DELETE, so the panel warns with the caucus name and
+projected member count and only dispatches on acceptance. Color, description,
+motto, whip and chair elections remain open.
 
 ## Evidence
 
@@ -87,8 +90,10 @@ remain open.
   edit, disband, non-chair rejection, out-of-range/invalid tax, missing
   caucusId, no AP/fund charge, save/reload and a turn after disband. Three
   game-layer scenarios in `src/game/caucusManagement.test.ts` cover the DTO
-  chair flags and the session act/save boundary; three panel scenarios in
-  `src/ui/CaucusPanel.test.tsx` cover chair dispatch and non-chair hiding.
+  chair flags and the session act/save boundary; six panel scenarios in
+  `src/ui/CaucusPanel.test.tsx` cover chair dispatch, non-chair hiding, the
+  disband warning text, cancellation not dispatching and acceptance
+  dispatching exactly once.
 - The integrated browser scenario `smoke/caucuses.spec.ts` now also founds a
   caucus, edits the tax to 4.5%, reloads to confirm it persisted, disbands, and
   relaunches to confirm the disbanded state survives. The genuine elected 1953
