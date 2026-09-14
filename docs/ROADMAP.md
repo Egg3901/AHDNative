@@ -641,3 +641,39 @@ shared-rules gates, engine and root typecheck and production build all pass.
 Still open on #60: chair/vice-chair elections, whip modes, health, color,
 description, motto, NPP recruitment and rename. This closes only the tax-edit
 and disband substeps; the issue stays open with `status: partial`.
+
+## World and new-game setup checkpoint, 2026-09-14 (#241)
+
+#241 partial. `NewGameScreen` now captures the reference world-setup fields and
+carries them through `NewGameOptions` into the engine `NewWorldOptions`:
+`mode` (`career` | `hos`), `homeRegionId`, and `initialization`
+(`founding` | `historical`). Era/country choices expose the country's regions
+and its `rulingPartyForCountry` preview, so Head of State shows the governed
+party before the world exists and is disabled with an explicit reason when the
+reference has no governing party. `GameView.player` surfaces `mode`,
+`hosPartyId` and `homeRegionId`, and the session save/load path retains them.
+
+Reference source: AHDGame `singleplayer/page.tsx`,
+`src/app/singleplayer/SingleplayerHome.tsx`,
+`src/app/singleplayer/admin/SingleplayerAdmin.tsx`,
+`src/app/api/singleplayer/new-game/route.ts` (`mode` enum and preset
+derivation) and `src/app/page.tsx:39`; Native engine contract
+`packages/engine/src/world.ts` (`NewWorldOptions.mode`/`homeRegionId`/
+`initialization`, `rulingPartyForCountry`).
+
+Evidence: RED `src/game/session.test.ts` world-setup contract
+(default Career/home region/no governing party; HoS binding and
+mode/homeRegion/hosPartyId retention through save/load; Historical 1953 UK
+Commons consequence versus Founding) and `src/ui/NewGameScreen.test.tsx`
+world-setup suite (mode radios, region reset on era/country change,
+initialization pass-through, governing-party preview and null disable).
+GREEN: production build, focused session/UI suites, `npm run verify`, app
+`tsc` and engine typecheck pass, and all 55 `SMOKE_PRODUCTION=1` Playwright
+scenarios pass against the installed Chromium build, including the
+singleplayer create/advance/save/relaunch flow.
+
+Remaining #241 acceptance gaps: the reference start-over confirmation for an
+existing overworld, and the separate character-creation hand-off
+(`page.tsx:39` redirect to `/create-character`) are not implemented in this
+slice; the Native app still starts the world directly. The issue stays open
+with `status: partial`.

@@ -6,8 +6,8 @@ import type { EraChoice } from "../game/types";
 import type { SaveMetadata } from "../game/storage";
 
 const ERAS: EraChoice[] = [
-  { id: "1953", label: "1953", countries: [{ id: "US", name: "United States" }] },
-  { id: "1979", label: "1979", countries: [{ id: "UK", name: "United Kingdom" }] },
+  { id: "1953", label: "1953", countries: [{ id: "US", name: "United States", regions: [], rulingParty: null }] },
+  { id: "1979", label: "1979", countries: [{ id: "UK", name: "United Kingdom", regions: [], rulingParty: null }] },
 ];
 
 const SAVES: SaveMetadata[] = [

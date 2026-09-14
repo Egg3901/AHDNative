@@ -41,6 +41,45 @@ describe("singleplayer session", () => {
 });
 
 
+describe("world setup through the session contract (#241)", () => {
+  const stamp = "2026-09-10T00:00:00.000Z";
+  const setup = { era: "1953", countryId: "US", seed: "native-session-setup", playerName: "Alex" };
+  const commonsComposition = (session: GameSession) => {
+    const raw = JSON.parse(session.serialize(stamp)) as {
+      world: { legislatures: Record<string, { chambers: { key: string; composition: { seatsByParty: Record<string, number> } }[] }> };
+    };
+    return raw.world.legislatures.UK.chambers.find((chamber) => chamber.key === "commons")!.composition.seatsByParty;
+  };
+
+  it("defaults to Career with the selected home region and no governing party", () => {
+    const session = new GameSession();
+    const view = session.create({ ...setup, homeRegionId: "NY" });
+    expect(view.player.mode).toBe("career");
+    expect(view.player.homeRegionId).toBe("NY");
+    expect(view.player.hosPartyId).toBe(null);
+  });
+
+  it("binds the Head of State governing party and retains mode/homeRegion/hosPartyId through save/load", () => {
+    const session = new GameSession();
+    const view = session.create({ ...setup, mode: "hos", homeRegionId: "NY" });
+    expect(view.player.mode).toBe("hos");
+    expect(view.player.hosPartyId).toBe("US_REP");
+    const loaded = new GameSession();
+    loaded.load(session.serialize(stamp));
+    expect(loaded.view().player).toMatchObject({ mode: "hos", hosPartyId: "US_REP", homeRegionId: "NY" });
+  });
+
+  it("applies Historical initialization as a real 1953 UK consequence versus Founding", () => {
+    const historical = new GameSession();
+    historical.create({ ...setup, countryId: "UK", mode: "hos", initialization: "historical" });
+    expect(Object.values(commonsComposition(historical)).some((seats) => seats > 0)).toBe(true);
+
+    const founding = new GameSession();
+    founding.create({ ...setup, countryId: "UK", mode: "hos", initialization: "founding" });
+    expect(Object.values(commonsComposition(founding)).some((seats) => seats > 0)).toBe(false);
+  });
+});
+
 describe("actions hub projection", () => {
   it("groups every hub action under Influence, Fundraising or Intelligence with engine-backed costs", () => {
     const session = new GameSession(); session.create(options);

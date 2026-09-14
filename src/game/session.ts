@@ -16,7 +16,7 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, addDaysIso, advanceTurn, createWorld, deserializeSave, executeAction,
-  getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, listEras, listPlayableCountries, serializeSave,
+  getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, listEras, listPlayableCountries, listRegions, rulingPartyForCountry, serializeSave,
   type ActionId, type ExecuteActionParams, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionCategory, ActionView, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions } from "./types";
@@ -67,7 +67,12 @@ function quoteFundCost(id: ActionId, flat: number, donorBaseLevel: number, apCos
 }
 
 export function gameChoices(): EraChoice[] {
-  return listEras().map((era) => ({ id: era.id, label: era.label, countries: listPlayableCountries(era.id) }));
+  return listEras().map((era) => ({ id: era.id, label: era.label,
+    countries: listPlayableCountries(era.id).map((country) => ({
+      id: country.id, name: country.name,
+      regions: listRegions(era.id, country.id).map((region) => ({ id: region.id, name: region.name })),
+      rulingParty: rulingPartyForCountry(era.id, country.id),
+    })) }));
 }
 
 /** Owns mutable engine state; only detached display data and save strings cross the boundary. */
@@ -364,7 +369,8 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     countryId: country.id, countryName: country.name,
     player: { name: player.name, cash: player.cash, funds: player.funds, actions: player.actions,
       influence: player.politicalInfluence, favorability: player.favorability,
-      partyName: player.partyId ? world.parties[player.partyId]?.name ?? "Independent" : "Independent" },
+      partyName: player.partyId ? world.parties[player.partyId]?.name ?? "Independent" : "Independent",
+      mode: player.mode, hosPartyId: player.hosPartyId, homeRegionId: player.homeRegionId ?? null },
     legislature: projectLegislature(world),
     finance: projectFinance(world),
     resources: projectResources(world),
