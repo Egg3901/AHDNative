@@ -726,10 +726,11 @@ deterministic color, decorative behavior), `src/ui/ActionsHub.test.tsx`
 (category mark + locked reason visible), `src/ui/NewGameScreen.test.tsx`
 (accessible HoS reason, preview mark, compact country/name grid),
 `GameScreen.test.tsx`/`PartyManagementPanel.test.tsx` (marks render in the
-visible party lists). Validation: focused UI suites, full `test:ui` (28 files,
-307 tests), `npm run build` (tsc + vite) all pass. This review pass adds a
-`PartyMark` regression test (a second logo URL is attempted after the first
-fails), bringing `test:ui` to 308 tests. Production smoke is 17 scenarios
+visible party lists). Validation: focused UI suites and `npm run build`
+(tsc + vite) all pass; the original slice result was full `test:ui` at 28 files
+/ 307 tests. This review pass adds a `PartyMark` regression test (a second logo
+URL is attempted after the first fails), so current head is 28 files / 308
+tests. Production smoke is 17 scenarios
 across the eight named specs (`singleplayer`, `actions-hub`, `party-founding`,
 `mobile-navigation`, `ui-rosters`, `candidacy`, `feature-depth`,
 `ui-navigation-depth`), all 17 passing against the installed Chromium build.
