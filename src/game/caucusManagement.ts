@@ -2,8 +2,11 @@ import {
   ACTION_CATALOG,
   CAUCUS_CREATE_FUND_COST,
   CAUCUS_TAX_MAX,
+  canDisbandCaucus,
   canJoinCaucus,
   canLeaveCaucus,
+  canSetCaucusTaxRate,
+  getActionCost,
   quotePartyCaucusAction,
   type PartyCaucusEffect,
   type WorldState,
@@ -15,11 +18,13 @@ import type { ActionView } from "./types";
  * Party-scoped caucus projection. Display hints mirror the pinned engine;
  * executeAction remains authoritative.
  *
- * Public actions only: createCaucus (caucusName plus optional caucusTaxRate
- * 0-5), joinCaucus (caucusId), leaveCaucus (no params). setCaucusTaxRate,
- * disband, whip, chair and NPP recruit are not catalog actions.
+ * Public actions: createCaucus (caucusName plus optional caucusTaxRate 0-5),
+ * joinCaucus (caucusId), leaveCaucus (no params), plus the chair-only
+ * setCaucusTaxRate (caucusId + caucusTaxRate) and disbandCaucus (caucusId)
+ * from #60. Whip, chair elections and NPP recruit are not catalog actions.
  *
- * Founding costs one 25k charge, owned by the engine caucus helper.
+ * Founding costs one 25k charge, owned by the engine caucus helper. The
+ * chair-only edits charge no AP or funds, matching the reference PATCH/DELETE.
  */
 
 export const CAUCUS_CREATE_COST = CAUCUS_CREATE_FUND_COST;
@@ -53,8 +58,15 @@ export interface CaucusRosterEntry {
   memberCount: number;
   memberNames: string[];
   isPlayerCaucus: boolean;
+  /** True when the player holds this caucus's chair seat (chair-only controls). */
+  isPlayerChair: boolean;
+  chairName: string | null;
   join: ActionView;
   leave: ActionView;
+  /** Chair-only tax edit (#60), no AP/fund charge. */
+  setTax: ActionView;
+  /** Chair-only soft-disband (#60), no AP/fund charge. */
+  disband: ActionView;
 }
 
 export interface CaucusManagementView {
@@ -70,23 +82,40 @@ export interface CaucusManagementView {
   caucuses: CaucusRosterEntry[];
 }
 
-type CaucusActionId = "createCaucus" | "joinCaucus" | "leaveCaucus";
+type CaucusMembershipActionId = "createCaucus" | "joinCaucus" | "leaveCaucus";
+type CaucusChairActionId = "setCaucusTaxRate" | "disbandCaucus";
 
 /** Quote the AP price from the shared party/caucus projection (#61). */
-function actionCost(world: WorldState, id: CaucusActionId): number {
+function actionCost(world: WorldState, id: CaucusMembershipActionId): number {
   return quotePartyCaucusAction(world.player, id).actionCost;
 }
 
-function cooldownRemaining(world: WorldState, id: CaucusActionId): number {
+function cooldownRemaining(world: WorldState, id: CaucusMembershipActionId): number {
   return Math.max(0, (world.player.actionCooldowns[id] ?? 0) - world.meta.turn);
 }
 
-function actionView(world: WorldState, id: CaucusActionId, reason: string | undefined): ActionView {
+function actionView(world: WorldState, id: CaucusMembershipActionId, reason: string | undefined): ActionView {
   const entry = ACTION_CATALOG[id];
   const quote = quotePartyCaucusAction(world.player, id);
   return {
     id, name: entry.name, description: entry.description, cost: quote.actionCost,
     consequences: describePartyCaucusEffect(quote.effect),
+    available: !reason, ...(reason ? { disabledReason: reason } : {}),
+  };
+}
+
+/**
+ * Chair-only action view (#60). The reference PATCH/DELETE routes charge no
+ * action points or funds, so the catalog entry is the source (baseCost 0,
+ * fundCost 0). The panel shows the engine disabled reason when the player does
+ * not chair the caucus or the caucus is disbanded.
+ */
+function chairActionView(id: CaucusChairActionId, reason: string | undefined): ActionView {
+  const entry = ACTION_CATALOG[id];
+  const cost = getActionCost(entry, 0, 0, 50);
+  return {
+    id, name: entry.name, description: entry.description, cost,
+    consequences: id === "disbandCaucus" ? ["Clears all members and vacates the chair seats"] : [],
     available: !reason, ...(reason ? { disabledReason: reason } : {}),
   };
 }
@@ -181,6 +210,7 @@ export function projectCaucusRoster(world: WorldState): CaucusRosterEntry[] {
       && caucus.partyId === player.partyId)
     .map((caucus) => {
       const isPlayerCaucus = player.caucusId === caucus.id;
+      const isPlayerChair = caucus.chairId === "player";
       const joinCheck = canJoinCaucus(world, caucus.id);
       const leaveCheck = canLeaveCaucus(world);
       const joinReason = joinCool > 0 ? `Available in ${joinCool} ${joinCool === 1 ? "turn" : "turns"}.`
@@ -192,6 +222,11 @@ export function projectCaucusRoster(world: WorldState): CaucusRosterEntry[] {
         : player.actions < leaveCost ? "Not enough action points."
         : leaveCheck.ok ? undefined
         : leaveCheck.error;
+      // Chair-only controls (#60): the projection runs the same engine checks
+      // the dispatcher enforces, so the panel's disabled reason matches the
+      // action's rejection.
+      const taxCheck = canSetCaucusTaxRate(world, caucus.id);
+      const disbandCheck = canDisbandCaucus(world, caucus.id);
       const names = caucus.memberIds
         .map((id) => memberName(world, id))
         .filter((name): name is string => name != null)
@@ -204,8 +239,12 @@ export function projectCaucusRoster(world: WorldState): CaucusRosterEntry[] {
         memberCount: caucus.memberIds.length,
         memberNames: names,
         isPlayerCaucus,
+        isPlayerChair,
+        chairName: caucus.chairId != null ? memberName(world, caucus.chairId) : null,
         join: actionView(world, "joinCaucus", joinReason),
         leave: actionView(world, "leaveCaucus", leaveReason),
+        setTax: chairActionView("setCaucusTaxRate", taxCheck.ok ? undefined : taxCheck.error),
+        disband: chairActionView("disbandCaucus", disbandCheck.ok ? undefined : disbandCheck.error),
       };
     })
     .sort((a, b) => Number(b.isPlayerCaucus) - Number(a.isPlayerCaucus) || b.memberCount - a.memberCount || a.name.localeCompare(b.name));

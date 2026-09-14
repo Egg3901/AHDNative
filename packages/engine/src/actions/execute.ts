@@ -594,6 +594,26 @@ function executeActionInner(
     }
     return { ok: true, message: "Left caucus" };
   }
+  if (actionId === "setCaucusTaxRate") {
+    if (found.kind !== "player") return { ok: false, error: "Only player can edit caucus settings" };
+    const res = Caucus.setCaucusTaxRate(world, params.caucusId!, params.caucusTaxRate!);
+    if (!res.ok) {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: res.error };
+    }
+    return { ok: true, message: `Set caucus tax rate to ${params.caucusTaxRate}%` };
+  }
+  if (actionId === "disbandCaucus") {
+    if (found.kind !== "player") return { ok: false, error: "Only player can disband caucuses" };
+    const res = Caucus.disbandCaucus(world, params.caucusId!);
+    if (!res.ok) {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: res.error };
+    }
+    return { ok: true, message: "Disbanded caucus" };
+  }
   if (actionId === "endorse") {
     if (found.kind !== "player") return { ok: false, error: "Only player can endorse" };
     const endorsedType = params.endorsedType ?? "politician";
@@ -1757,6 +1777,12 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.caucusName ? null : "createCaucus requires caucusName";
     case "joinCaucus":
       return params.caucusId ? null : "joinCaucus requires caucusId";
+    case "disbandCaucus":
+      return params.caucusId ? null : "disbandCaucus requires caucusId";
+    case "setCaucusTaxRate":
+      return params.caucusId && params.caucusTaxRate !== undefined
+        ? null
+        : "setCaucusTaxRate requires caucusId and caucusTaxRate";
     case "endorse":
       return params.endorsedId ? null : "endorse requires endorsedId";
     case "declareCandidacy":

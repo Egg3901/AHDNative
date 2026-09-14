@@ -114,12 +114,61 @@ export function leaveCaucus(world: WorldState): CaucusResult {
   return { ok: true };
 }
 
-export function setCaucusTaxRate(world: WorldState, caucusId: string, taxRate: number): CaucusResult {
+/** True when the player holds this caucus's chair seat (see Caucus.chairId). */
+function playerChairsCaucus(world: WorldState, caucus: Caucus): boolean {
+  return caucus.chairId === "player";
+}
+
+/**
+ * Chair-only tax edit. Ports the reference PATCH
+ * src/app/api/country/[code]/parties/[id]/caucuses/[slug]/route.ts: the chair
+ * sets a 0-5 rate, and the route charges neither action points nor funds. A
+ * non-chair member cannot edit the rate (the helper previously allowed any
+ * member, which the reference route rejects).
+ */
+export function canSetCaucusTaxRate(world: WorldState, caucusId: string): CaucusResult {
   const caucus = world.caucuses.find((c) => c.id === caucusId);
   if (!caucus) return { ok: false, error: `Caucus not found: ${caucusId}` };
   if (caucus.disbandedAt !== null) return { ok: false, error: "Caucus is disbanded" };
-  if (world.player.caucusId !== caucusId) return { ok: false, error: "Only members can set caucus tax rate" };
-  if (taxRate < 0 || taxRate > CAUCUS_TAX_MAX) return { ok: false, error: `taxRate must be 0-${CAUCUS_TAX_MAX}` };
+  if (!playerChairsCaucus(world, caucus)) return { ok: false, error: "Only the caucus chair can set the tax rate" };
+  return { ok: true };
+}
+
+export function setCaucusTaxRate(world: WorldState, caucusId: string, taxRate: number): CaucusResult {
+  const check = canSetCaucusTaxRate(world, caucusId);
+  if (!check.ok) return check;
+  if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > CAUCUS_TAX_MAX) {
+    return { ok: false, error: `taxRate must be 0-${CAUCUS_TAX_MAX}` };
+  }
+  const caucus = world.caucuses.find((c) => c.id === caucusId)!;
   caucus.taxRate = taxRate;
   return { ok: true };
+}
+
+/**
+ * Chair-only soft-disband. Ports the reference DELETE
+ * src/app/api/country/[code]/parties/[id]/caucuses/[slug]/route.ts: the chair
+ * soft-deletes the caucus, every membership is marked removed, and the
+ * disbanded row is retained for historical references. Native's minimal caucus
+ * stores members inline, so this empties memberIds, vacates the chair seats and
+ * clears the disbanding player's caucusId. The route charges no AP or funds.
+ */
+export function canDisbandCaucus(world: WorldState, caucusId: string): CaucusResult {
+  const caucus = world.caucuses.find((c) => c.id === caucusId);
+  if (!caucus) return { ok: false, error: `Caucus not found: ${caucusId}` };
+  if (caucus.disbandedAt !== null) return { ok: false, error: "Caucus is already disbanded" };
+  if (!playerChairsCaucus(world, caucus)) return { ok: false, error: "Only the caucus chair can disband the caucus" };
+  return { ok: true };
+}
+
+export function disbandCaucus(world: WorldState, caucusId: string): CaucusResult {
+  const check = canDisbandCaucus(world, caucusId);
+  if (!check.ok) return check;
+  const caucus = world.caucuses.find((c) => c.id === caucusId)!;
+  caucus.disbandedAt = world.meta.date;
+  caucus.memberIds = [];
+  caucus.chairId = null;
+  caucus.viceChairId = null;
+  if (world.player.caucusId === caucusId) world.player.caucusId = null;
+  return { ok: true, caucusId };
 }

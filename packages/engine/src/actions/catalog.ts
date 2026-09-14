@@ -52,6 +52,8 @@ export type ActionId =
   | "createCaucus"
   | "joinCaucus"
   | "leaveCaucus"
+  | "setCaucusTaxRate"
+  | "disbandCaucus"
   | "endorse"
   | "sponsorBill"
   | "voteOnBill"
@@ -370,6 +372,26 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     name: "Leave Caucus",
     description: "Leave current caucus. Cost 1 AP.",
     baseCost: CAUCUS_LEAVE_ACTION_COST,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["caucus"],
+    status: "available",
+  },
+  setCaucusTaxRate: {
+    id: "setCaucusTaxRate",
+    name: "Set Caucus Tax Rate",
+    description: "Chair-only edit of the caucus campaign-fund levy (0-5%). Ports PATCH src/app/api/country/[code]/parties/[id]/caucuses/[slug]/route.ts, which charges no action points or funds.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["caucus"],
+    status: "available",
+  },
+  disbandCaucus: {
+    id: "disbandCaucus",
+    name: "Disband Caucus",
+    description: "Chair-only soft-disband: marks the caucus disbanded, clears its members and vacates the chair seats. Ports DELETE src/app/api/country/[code]/parties/[id]/caucuses/[slug]/route.ts, which charges no action points or funds.",
+    baseCost: 0,
     cooldown: 0,
     fundCost: 0,
     systems: ["caucus"],

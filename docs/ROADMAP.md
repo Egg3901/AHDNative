@@ -620,3 +620,24 @@ for those. Evidence: `packages/engine/src/campaigns/campaignStrength.test.ts`
 and `campaignContribute.test.ts` (27 tests, including the no-op-at-0 and
 presidential-only invariants), `src/game/politics.test.ts`, and
 `src/ui/PoliticsPanel.test.tsx`.
+
+## Caucus chair controls checkpoint (#60)
+
+#60 partial: `setCaucusTaxRate` and `disbandCaucus` are now public, chair-only
+catalog actions porting the reference PATCH and DELETE routes. Both charge no
+action points or funds, matching the source. The disband path stamps
+`disbandedAt`, clears membership and vacates the chair, and the disbanded
+caucus is excluded from the tax phase and roster. The earlier member-level tax
+helper now requires the chair seat.
+
+`CaucusPanel` shows the tax input and Disband button only for a chaired caucus,
+quoting the engine's own eligibility verdict. Evidence: nine engine scenarios
+(`src/actions/caucusChairActions.test.ts`), three game-layer scenarios, three
+panel scenarios, and an extended `smoke/caucuses.spec.ts` that edits the tax,
+reloads, disbands and relaunches on the genuine elected fixture. Validation:
+engine non-sim suite 1020 tests, root suite 260, UI suite 285, content 41,
+shared-rules gates, engine and root typecheck and production build all pass.
+
+Still open on #60: chair/vice-chair elections, whip modes, health, color,
+description, motto, NPP recruitment and rename. This closes only the tax-edit
+and disband substeps; the issue stays open with `status: partial`.
