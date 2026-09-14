@@ -12,7 +12,9 @@ test('a player builds donors, receives the quoted Fundraise yield and continues 
   await navigateGame(page, 'Actions');
   await expect(page.getByRole('button', { name: 'Unavailable: Fundraise', exact: true })).toBeDisabled();
   await expect(page.getByRole('note').filter({ hasText: 'No donor base. Use Build Donor Network first.' })).toBeVisible();
-  await page.getByRole('spinbutton', { name: /Amount for/ }).fill('6000');
+  // Fundraising 1 makes Build Donor Network cost 3,659. Personal Campaign
+  // Donation converts cash at 50%, so 7,318 funds that exact quoted charge.
+  await page.getByRole('spinbutton', { name: /Amount for/ }).fill('7318');
   await page.getByRole('button', { name: 'Take action: Personal Campaign Donation', exact: true }).click();
   await gameReady(page);
   await page.getByRole('button', { name: 'Take action: Build Donor Network', exact: true }).click();

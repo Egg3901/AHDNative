@@ -39,7 +39,7 @@ test('structured action results survive a turn and save reload', async ({ page }
   await gameReady(page);
   const history = page.getByRole('region', { name: 'Recent action results' });
   await expect(history).toContainText('Donor network expanded');
-  await expect(history).toContainText('Campaign funds: 5000 to 2000 (-3000)');
+  await expect(history).toContainText('Campaign funds: 5000 to 1341 (-3659)');
   await expect(history).toContainText('Donor network: 0 to 1 (+1)');
 
   await page.reload();
