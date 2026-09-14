@@ -1,9 +1,13 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CaucusPanel } from "./CaucusPanel";
 import type { CaucusManagementView } from "../game/caucusManagement";
 import type { ActionView } from "../game/types";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function action(id: string, available: boolean, cost: number, disabledReason?: string, consequences?: string[]): ActionView {
   return { id, name: id, description: "", cost, available,
@@ -42,10 +46,32 @@ function makeManagement(): CaucusManagementView {
         memberCount: 1,
         memberNames: ["Pat"],
         isPlayerCaucus: false,
+        isPlayerChair: false,
+        chairName: "Pat",
         join: action("joinCaucus", true, 2, undefined, ["Joins you to this caucus"]),
         leave: action("leaveCaucus", false, 1, "You are not a member of this caucus."),
+        setTax: action("setCaucusTaxRate", false, 0, "Only the caucus chair can set the tax rate"),
+        disband: action("disbandCaucus", false, 0, "Only the caucus chair can disband the caucus"),
       },
     ],
+  };
+}
+
+function makeChairManagement(): CaucusManagementView {
+  const management = makeManagement();
+  return {
+    ...management,
+    playerCaucusId: "caucus-blue-dog-caucus-99-0",
+    playerCaucusName: "Blue Dog Caucus",
+    caucuses: [{
+      ...management.caucuses[0]!,
+      isPlayerCaucus: true,
+      isPlayerChair: true,
+      join: action("joinCaucus", false, 2, "Already in a caucus; leave it first"),
+      leave: action("leaveCaucus", true, 1),
+      setTax: action("setCaucusTaxRate", true, 0),
+      disband: action("disbandCaucus", true, 0, undefined, ["Clears all members and vacates the chair seats"]),
+    }],
   };
 }
 
@@ -106,6 +132,63 @@ describe("CaucusPanel", () => {
     expect(screen.getByText("Caucus name too short")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Found caucus" }).hasAttribute("disabled")).toBe(true);
     expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it("offers the chair tax edit and disband only to the chair and dispatches real ids", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<CaucusPanel management={makeChairManagement()} busy={false} onAction={onAction} />);
+    expect(screen.getByLabelText("Caucus tax for Blue Dog Caucus")).toBeTruthy();
+    await user.clear(screen.getByLabelText("Caucus tax for Blue Dog Caucus"));
+    await user.type(screen.getByLabelText("Caucus tax for Blue Dog Caucus"), "4.5");
+    await user.click(screen.getByRole("button", { name: "Save Blue Dog Caucus tax" }));
+    expect(onAction).toHaveBeenCalledWith("setCaucusTaxRate", {
+      caucusId: "caucus-blue-dog-caucus-99-0",
+      caucusTaxRate: 4.5,
+    });
+    onAction.mockClear();
+    await user.click(screen.getByRole("button", { name: "Disband Blue Dog Caucus" }));
+    expect(onAction).toHaveBeenCalledWith("disbandCaucus", { caucusId: "caucus-blue-dog-caucus-99-0" });
+  });
+
+  it("warns with the caucus and member impact before disbanding", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<CaucusPanel management={makeChairManagement()} busy={false} onAction={onAction} />);
+    await user.click(screen.getByRole("button", { name: "Disband Blue Dog Caucus" }));
+    expect(confirm).toHaveBeenCalledTimes(1);
+    const message = confirm.mock.calls[0]?.[0] ?? "";
+    expect(message).toContain("Blue Dog Caucus");
+    expect(message).toContain("1");
+    expect(message.toLowerCase()).toContain("member");
+    expect(onAction).toHaveBeenCalledWith("disbandCaucus", { caucusId: "caucus-blue-dog-caucus-99-0" });
+  });
+
+  it("does not dispatch disband when the chair cancels the confirmation", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<CaucusPanel management={makeChairManagement()} busy={false} onAction={onAction} />);
+    await user.click(screen.getByRole("button", { name: "Disband Blue Dog Caucus" }));
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it("dispatches disband exactly once when the chair accepts the confirmation", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<CaucusPanel management={makeChairManagement()} busy={false} onAction={onAction} />);
+    await user.click(screen.getByRole("button", { name: "Disband Blue Dog Caucus" }));
+    expect(onAction).toHaveBeenCalledTimes(1);
+    expect(onAction).toHaveBeenCalledWith("disbandCaucus", { caucusId: "caucus-blue-dog-caucus-99-0" });
+  });
+
+  it("hides the chair controls from a non-chair member", () => {
+    render(<CaucusPanel management={makeManagement()} busy={false} onAction={vi.fn()} />);
+    expect(screen.queryByLabelText("Caucus tax for Blue Dog Caucus")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Disband Blue Dog Caucus" })).toBeNull();
   });
 
   it("shows the engine disabled reason when founding is unavailable", () => {

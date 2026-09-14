@@ -233,6 +233,62 @@ describe("joinCaucus and leaveCaucus through the public action", () => {
   });
 });
 
+describe("chair-only caucus controls (#60)", () => {
+  it("exposes tax edit and disband to the chair, with no AP or fund charge", () => {
+    const world = readyWorld();
+    expect(
+      executeAction(world, "player", "createCaucus", { caucusName: "Blue Dog Caucus", caucusTaxRate: 2 }).ok,
+    ).toBe(true);
+    const entry = projectCaucusRoster(world)[0]!;
+    expect(entry.isPlayerChair).toBe(true);
+    expect(entry.chairName).toBe(world.player.name);
+    expect(entry.setTax.available).toBe(true);
+    expect(entry.setTax.cost).toBe(0);
+    expect(entry.disband.available).toBe(true);
+    expect(entry.disband.cost).toBe(0);
+
+    const fundsBefore = world.player.funds;
+    const actionsBefore = world.player.actions;
+    expect(executeAction(world, "player", "setCaucusTaxRate", { caucusId: entry.id, caucusTaxRate: 4 }).ok).toBe(true);
+    expect(projectCaucusRoster(world)[0]!.taxRate).toBe(4);
+    expect(executeAction(world, "player", "disbandCaucus", { caucusId: entry.id }).ok).toBe(true);
+    expect(world.player.funds).toBe(fundsBefore);
+    expect(world.player.actions).toBe(actionsBefore);
+    expect(projectCaucusRoster(world)).toHaveLength(0);
+  });
+
+  it("marks a non-member's caucus controls unavailable with a chair reason", () => {
+    const world = readyWorld();
+    expect(
+      executeAction(world, "player", "createCaucus", { caucusName: "Blue Dog Caucus", caucusTaxRate: 2 }).ok,
+    ).toBe(true);
+    executeAction(world, "player", "leaveCaucus", {});
+    const entry = projectCaucusRoster(world)[0]!;
+    expect(entry.isPlayerChair).toBe(false);
+    expect(entry.setTax.available).toBe(false);
+    expect(entry.setTax.disabledReason).toMatch(/chair/i);
+    expect(entry.disband.available).toBe(false);
+    expect(entry.disband.disabledReason).toMatch(/chair/i);
+  });
+
+  it("keeps the chair rate and disband across save/reload through the session", () => {
+    const session = new GameSession();
+    session.load(gunzipSync(readFileSync(ELECTED_FIXTURE)).toString("utf8"));
+    session.advance();
+    expect(session.act("createCaucus", { caucusName: "Blue Dog Caucus", caucusTaxRate: 2 }).ok).toBe(true);
+    const id = session.caucusManagement().caucuses[0]!.id;
+    expect(session.act("setCaucusTaxRate", { caucusId: id, caucusTaxRate: 3.5 }).ok).toBe(true);
+    const saved = session.serialize(SAVED_AT);
+    const revived = new GameSession();
+    revived.load(saved);
+    const after = revived.caucusManagement();
+    expect(after.caucuses[0]!.taxRate).toBe(3.5);
+    expect(after.caucuses[0]!.isPlayerChair).toBe(true);
+    expect(revived.act("disbandCaucus", { caucusId: id }).ok).toBe(true);
+    expect(revived.caucusManagement().caucusCount).toBe(0);
+  });
+});
+
 it("creates, leaves, joins and resumes through the session act/save boundary without leaking state", () => {
   const session = new GameSession();
   session.load(gunzipSync(readFileSync(ELECTED_FIXTURE)).toString("utf8"));

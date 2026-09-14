@@ -1,18 +1,20 @@
 /**
- * CaucusPanel: party-scoped caucus roster plus founding, join and leave.
+ * CaucusPanel: party-scoped caucus roster plus founding, join, leave and the
+ * chair-only tax edit/disband.
  *
  * Layout hierarchy adapted from the public AHDGame reference at e364c0495:
  *   src/app/country/[code]/parties/[id]/components/CaucusesTab.tsx (party
  *   list, tax, founding) and
  *   src/app/country/[code]/parties/[id]/components/caucus/FoundCaucusForm.tsx
- *   (name plus 0-5 tax) plus SelectedCaucus.tsx join/leave. No server or
- *   Next.js imports; props arrive through the CaucusManagementView DTO, so
- *   the engine package never enters the React bundle (type-only import
- *   below). Inline draft checks run synchronously from the DTO via
- *   caucusDraft, so typing never issues worker queries. Color, description,
- *   whip, chair, disband and NPP recruit are omitted: those are not public
- *   engine actions. Section navigation, the management query and action
- *   dispatch are owned by root.
+ *   (name plus 0-5 tax) plus SelectedCaucus.tsx join/leave/disband and
+ *   caucus/ChairSubtab.tsx (chair tax + settings). No server or Next.js
+ *   imports; props arrive through the CaucusManagementView DTO, so the engine
+ *   package never enters the React bundle (type-only import below). Inline
+ *   draft checks run synchronously from the DTO via caucusDraft, so typing
+ *   never issues worker queries. Color, description, whip, chair elections and
+ *   NPP recruit remain omitted: those are not public engine actions yet.
+ *   Section navigation, the management query and action dispatch are owned by
+ *   root.
  */
 import { useState } from "react";
 import type { GameScreenProps } from "../game/types";
@@ -29,6 +31,9 @@ export interface CaucusPanelProps {
 export function CaucusPanel({ management, busy, onAction }: CaucusPanelProps) {
   const [name, setName] = useState("");
   const [taxText, setTaxText] = useState("0");
+  // Per-caucus chair tax draft, keyed by caucus id. A caucus the player chairs
+  // seeds its input from the saved rate; unrelated caucuses are never shown one.
+  const [chairTaxText, setChairTaxText] = useState<Record<string, string>>({});
   const create = management.create;
   const trimmedName = name.trim();
   const taxRate = Number(taxText);
@@ -137,6 +142,46 @@ export function CaucusPanel({ management, busy, onAction }: CaucusPanelProps) {
                         ? ` · ${membership.consequences.join(" · ")}` : ""}
                     </span>
                   </div>
+                  {caucus.isPlayerChair ? (
+                    <div style={{ display: "flex", gap: "0.45rem", alignItems: "flex-end", flexWrap: "wrap", marginTop: "0.5rem", borderTop: "1px dashed var(--ahd-border)", paddingTop: "0.45rem" }}>
+                      <label className="ahd-field" style={{ maxWidth: "10rem" }}>
+                        <span className="ahd-label">Tax rate ({create.taxMin}-{create.taxMax}%)</span>
+                        <input className="ahd-input" type="number" min={create.taxMin} max={create.taxMax} step={0.5}
+                          aria-label={`Caucus tax for ${caucus.name}`}
+                          value={chairTaxText[caucus.id] ?? String(caucus.taxRate)}
+                          onChange={(e) => setChairTaxText((prev) => ({ ...prev, [caucus.id]: e.target.value }))}
+                          disabled={busy}
+                          title={caucus.setTax.disabledReason} />
+                      </label>
+                      <button type="button" className="ahd-btn ahd-btn-sm"
+                        disabled={busy || !caucus.setTax.available} aria-disabled={busy || !caucus.setTax.available}
+                        aria-label={`Save ${caucus.name} tax`}
+                        onClick={() => {
+                          const rate = Number(chairTaxText[caucus.id] ?? caucus.taxRate);
+                          if (!Number.isFinite(rate)) return;
+                          onAction("setCaucusTaxRate", { caucusId: caucus.id, caucusTaxRate: rate });
+                        }}>
+                        Save tax
+                      </button>
+                      <button type="button" className="ahd-btn ahd-btn-sm"
+                        disabled={busy || !caucus.disband.available} aria-disabled={busy || !caucus.disband.available}
+                        aria-label={`Disband ${caucus.name}`}
+                        title={caucus.disband.disabledReason}
+                        onClick={() => {
+                          if (!caucus.disband.available) return;
+                          const membersLabel = `${caucus.memberCount} ${caucus.memberCount === 1 ? "membership" : "memberships"}`;
+                          const warning = `Disband ${caucus.name}? All ${membersLabel} will be cleared and the chair seats vacated.`;
+                          if (!window.confirm(warning)) return;
+                          onAction("disbandCaucus", { caucusId: caucus.id });
+                        }}>
+                        Disband
+                      </button>
+                      <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+                        {!caucus.setTax.available ? (caucus.setTax.disabledReason ?? "Unavailable")
+                          : caucus.disband.consequences?.[0] ?? "Chair controls"}
+                      </span>
+                    </div>
+                  ) : null}
                 </li>
               );
             })}

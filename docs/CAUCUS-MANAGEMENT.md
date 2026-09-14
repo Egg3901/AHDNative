@@ -46,10 +46,33 @@ AHDGame `e364c04954ed628beef73a993a8e9e156650a31e` references:
 The pinned source founding route does not debit funds or AP. Native retains
 its existing catalog charges in this bounded repair. Source names allow two
 characters; Native still requires three. Source chair/vice-chair elections,
-whips, color, description, motto, health, disbanding, NPP recruitment and
-post-create tax editing are absent from the public Native action catalog.
-The helper-only tax setter is not exposed as an invented action. Native's
-full caucus mechanics and source cost parity remain open.
+whips, color, description, motto, health and NPP recruitment remain absent
+from the public Native action catalog. Native's full caucus mechanics and
+source cost parity remain open.
+
+## Chair controls (#60)
+
+`setCaucusTaxRate` (`{ caucusId, caucusTaxRate }`) and `disbandCaucus`
+(`{ caucusId }`) are now public, chair-only catalog actions. Both port
+`src/app/api/country/[code]/parties/[id]/caucuses/[slug]/route.ts`: the PATCH
+handles the 0-5 tax edit and the DELETE soft-disbands, and neither charges
+action points or funds, so both catalog entries are `baseCost: 0`,
+`fundCost: 0`. The engine helper now checks the chair seat (`caucus.chairId ===
+"player"`), where the earlier helper allowed any member. Disband stamps
+`caucus.disbandedAt`, empties the inline `memberIds`, vacates the chair seats
+and clears the player's `caucusId`; the disbanded row is excluded from the tax
+phase and from the roster, mirroring the reference's soft-delete and
+membership-removal sweep.
+
+`projectCaucusRoster` exposes `isPlayerChair`, `chairName`, `setTax` and
+`disband`, each quoting the engine's own `canSetCaucusTaxRate` /
+`canDisbandCaucus` verdict so a disabled reason matches the dispatcher's
+rejection. `CaucusPanel` shows the tax input and Disband button only for a
+caucus the player chairs. Disband mirrors the reference confirmation guard:
+`SelectedCaucus.tsx` calls `confirm` with the caucus name and total membership
+count before issuing DELETE, so the panel warns with the caucus name and
+projected member count and only dispatches on acceptance. Color, description,
+motto, whip and chair elections remain open.
 
 ## Evidence
 
@@ -62,7 +85,19 @@ full caucus mechanics and source cost parity remain open.
   Dog Caucus, leaves, rejoins and reloads with membership and tax intact.
   That fixture is not rewritten. Exact-balance tests are separate accounting
   fixtures and are not presented as career-playthrough evidence.
+- Chair controls (#60): nine engine scenarios in
+  `packages/engine/src/actions/caucusChairActions.test.ts` cover chair-only tax
+  edit, disband, non-chair rejection, out-of-range/invalid tax, missing
+  caucusId, no AP/fund charge, save/reload and a turn after disband. Three
+  game-layer scenarios in `src/game/caucusManagement.test.ts` cover the DTO
+  chair flags and the session act/save boundary; six panel scenarios in
+  `src/ui/CaucusPanel.test.tsx` cover chair dispatch, non-chair hiding, the
+  disband warning text, cancellation not dispatching and acceptance
+  dispatching exactly once.
+- The integrated browser scenario `smoke/caucuses.spec.ts` now also founds a
+  caucus, edits the tax to 4.5%, reloads to confirm it persisted, disbands, and
+  relaunches to confirm the disbanded state survives. The genuine elected 1953
+  US fixture is not rewritten.
 - Commands: `npm test -- src/game/caucusManagement.test.ts`,
   `npm run test:ui -- src/ui/CaucusPanel.test.tsx`, and
-  `npm exec --workspace @ahdclient/engine -- vitest run src/actions/createCaucus.test.ts --maxWorkers 1`.
-  The integrated browser scenario is `smoke/caucuses.spec.ts`.
+  `npm exec --workspace @ahdclient/engine -- vitest run src/actions/caucusChairActions.test.ts --maxWorkers 1`.

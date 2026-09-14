@@ -36,3 +36,45 @@ test('a real career founds, leaves and rejoins a caucus, then resumes its member
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: 'artifacts/smoke/mobile-caucuses.png', fullPage: true });
 });
+
+test('the caucus chair edits the tax rate and disbands through the reference controls, then resumes disbanded', async ({ page }) => {
+  const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-elected-1953-US.save.json.gz', import.meta.url)));
+  await page.goto('/');
+  await page.getByLabel('Import saved game', { exact: true }).setInputFiles({ name: 'elected.json', mimeType: 'application/json', buffer: fixture });
+  await gameReady(page);
+  await advanceGame(page);
+  await gameReady(page);
+  await openGameMenu(page);
+  await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Caucuses', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Caucuses', exact: true, level: 2 })).toBeVisible();
+  await page.getByLabel('Caucus name', { exact: true }).fill('Blue Dog Caucus');
+  await page.getByLabel('Caucus tax', { exact: true }).fill('2');
+  await page.getByRole('button', { name: 'Found caucus', exact: true }).click();
+  // The founder is the chair, so the chair-only controls are present.
+  const taxInput = page.getByLabel('Caucus tax for Blue Dog Caucus', { exact: true });
+  await expect(taxInput).toBeVisible();
+  await taxInput.fill('4.5');
+  await page.getByRole('button', { name: 'Save Blue Dog Caucus tax', exact: true }).click();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Blue Dog Caucus' })).toContainText('Tax 4.5%');
+  // Reload proves the edited rate persisted before disbanding.
+  await gameReady(page);
+  await page.reload();
+  await page.getByRole('button', { name: 'Continue Muse', exact: true }).click();
+  await gameReady(page);
+  await openGameMenu(page);
+  await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Caucuses', exact: true }).click();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Blue Dog Caucus' })).toContainText('Tax 4.5%');
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Disband Blue Dog Caucus', exact: true }).click();
+  await expect(page.getByText('You are not in a caucus.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Blue Dog Caucus' })).toHaveCount(0);
+  // Disbanding persists across a full relaunch.
+  await page.reload();
+  await page.getByRole('button', { name: 'Continue Muse', exact: true }).click();
+  await gameReady(page);
+  await openGameMenu(page);
+  await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Caucuses', exact: true }).click();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Blue Dog Caucus' })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: 'artifacts/smoke/mobile-caucus-chair-controls.png', fullPage: true });
+});
