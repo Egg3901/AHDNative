@@ -63,9 +63,9 @@ export interface PartyMarkProps {
 }
 
 export function PartyMark({ name, abbreviation, color, id, logoUrl, label, size = 32, className }: PartyMarkProps) {
-  const [failed, setFailed] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const initials = useMemo(() => partyInitials(name, abbreviation), [name, abbreviation]);
-  const showImage = !!logoUrl && !failed;
+  const showImage = !!logoUrl && failedSrc !== logoUrl;
   const decorative = !label;
   const classes = ["ahd-mark", className].filter(Boolean).join(" ");
   const sizing = { width: `${size}px`, height: `${size}px` };
@@ -81,7 +81,14 @@ export function PartyMark({ name, abbreviation, color, id, logoUrl, label, size 
       aria-hidden={decorative ? true : undefined}
     >
       {showImage ? (
-        <img src={logoUrl ?? undefined} alt="" width={size} height={size} decoding="async" onError={() => setFailed(true)} />
+        <img
+          src={logoUrl ?? undefined}
+          alt=""
+          width={size}
+          height={size}
+          decoding="async"
+          onError={() => setFailedSrc(logoUrl ?? null)}
+        />
       ) : (
         <span className="ahd-mark-initials">{initials}</span>
       )}

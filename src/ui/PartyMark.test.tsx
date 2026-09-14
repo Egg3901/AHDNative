@@ -42,6 +42,20 @@ describe("PartyMark", () => {
     expect(container.querySelector(".ahd-mark-initials")?.textContent).toBe("LAB");
   });
 
+  it("retries a new logo URL after a previous URL failed", () => {
+    const { container, rerender } = render(
+      <PartyMark name="Labour Party" abbreviation="LAB" color="#dc2626" logoUrl="/party-logos/gb-lab-1.png" label="Labour Party" />,
+    );
+    fireEvent.error(container.querySelector("img")!);
+    expect(container.querySelector("img")).toBeNull();
+    rerender(
+      <PartyMark name="Labour Party" abbreviation="LAB" color="#dc2626" logoUrl="/party-logos/gb-lab-2.png" label="Labour Party" />,
+    );
+    const img = container.querySelector("img");
+    expect(img).not.toBeNull();
+    expect(img).toHaveAttribute("src", "/party-logos/gb-lab-2.png");
+  });
+
   it("renders an initials mark in the party color when the DTO carries no URL", () => {
     render(<PartyMark name="Democratic Party" abbreviation="DEM" color="#3333ff" label="Democratic Party" />);
     const mark = screen.getByRole("img", { name: "Democratic Party" });
