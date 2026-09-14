@@ -1023,6 +1023,23 @@ export function createWorld(options: NewWorldOptions): WorldState {
     settlements: [],
     internationalOrgs,
   };
+  if (world.player.mode === "hos") {
+    const officeType = headOfStateOfficeForCountry(world.player.countryId);
+    if (officeType) {
+      world.player.permanentHeadOfState = true;
+      world.player.currentOffice = { type: officeType, countryId: world.player.countryId };
+      if (officeType === "president") {
+        world.executives[world.player.countryId] = {
+          countryId: world.player.countryId,
+          presidentId: "player",
+          presidentParty: world.player.hosPartyId,
+          termStartTurn: 0,
+          vicePresidentId: null,
+          vicePresidentParty: null,
+        };
+      }
+    }
+  }
   assignUsSeatGeography(world);
   assignRegionalSeatGeography(world);
   // W12: charter the financial-sector NPC corp of every playable country as

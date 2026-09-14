@@ -4,7 +4,7 @@ import { join, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createWorld, rulingPartyIdForCountry, rulingPartyForCountry, headOfStateOfficeForCountry, SCHEMA_VERSION } from "./world.js";
 import { executeAction } from "./actions/execute.js";
-import { deserializeSave } from "./save.js";
+import { deserializeSave, serializeSave } from "./save.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -88,6 +88,35 @@ describe("HoS office eligibility helper", () => {
   });
 });
 
+describe("#243 permanent Head of State seating", () => {
+  it("seats a presidential HoS through the executive record and save boundary", () => {
+    const world = createWorld(HOS_OPTS);
+    expect(world.player).toMatchObject({
+      permanentHeadOfState: true,
+      currentOffice: { type: "president", countryId: "US" },
+    });
+    expect(world.executives.US).toMatchObject({
+      countryId: "US",
+      presidentId: "player",
+      presidentParty: "US_REP",
+      termStartTurn: 0,
+    });
+
+    const loaded = deserializeSave(serializeSave(world, "2026-09-14T00:00:00.000Z"));
+    expect(loaded.player).toMatchObject({
+      permanentHeadOfState: true,
+      currentOffice: { type: "president", countryId: "US" },
+    });
+    expect(loaded.executives.US?.presidentId).toBe("player");
+  });
+
+  it("uses the authored parliamentary executive office instead of president", () => {
+    const world = createWorld({ ...CAREER_OPTS, countryId: "UK", mode: "hos", initialization: "historical" });
+    expect(world.player.currentOffice).toEqual({ type: "primeMinister", countryId: "UK" });
+    expect(world.executives.UK).toBeUndefined();
+  });
+});
+
 describe("M1: determinism across both modes", () => {
   it("same seed + mode produces byte-identical worlds", () => {
     const a = createWorld(HOS_OPTS);
@@ -98,12 +127,17 @@ describe("M1: determinism across both modes", () => {
     expect(JSON.stringify(c)).toBe(JSON.stringify(d));
   });
 
-  it("HoS and career worlds from the same seed differ only in player.mode/hosPartyId", () => {
+  it("HoS seating changes the consumed executive state and its public legitimacy projection", () => {
     const hos = createWorld(HOS_OPTS);
     const career = createWorld(CAREER_OPTS);
-    const hosPlayer = { ...hos.player, mode: "career" as const, hosPartyId: null };
+    const { permanentHeadOfState: _permanent, currentOffice: _office, ...hosWithoutOffice } = hos.player;
+    const hosPlayer = { ...hosWithoutOffice, mode: "career" as const, hosPartyId: null };
     expect(JSON.stringify(hosPlayer)).toBe(JSON.stringify(career.player));
-    expect(JSON.stringify({ ...hos, player: null })).toBe(JSON.stringify({ ...career, player: null }));
+    expect(hos.executives.US?.presidentId).toBe("player");
+    expect(career.executives.US?.presidentId).toBeUndefined();
+    expect(hos.countryPolitics.US?.legitimacy).toBeGreaterThan(
+      career.countryPolitics.US?.legitimacy ?? 0,
+    );
   });
 });
 

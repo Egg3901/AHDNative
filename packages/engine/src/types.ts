@@ -806,6 +806,18 @@ export interface PlayerCharacter {
    */
   mode: "career" | "hos";
   /**
+   * Reference singleplayer config binding. Present and true only for a world
+   * created in Head of State mode; elections cannot silently demote this local
+   * player from the selected permanent role.
+   */
+  permanentHeadOfState?: true;
+  /**
+   * Executive office consumed by profile and HoS surfaces. Presidential
+   * systems also mirror this through `WorldState.executives`; parliamentary
+   * and one-party systems use their authored executive office key here.
+   */
+  currentOffice?: { type: string; countryId: string } | null;
+  /**
    * M1 (Lane 12 Head of State mode): the country's ruling party, bound at
    * world creation when mode is "hos". Null in career mode always; null in
    * HoS mode only if the chosen country's t0 legislature is hung (see
