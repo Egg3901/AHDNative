@@ -122,8 +122,10 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
   and field. Numeric tolerance requires a measured, justified per-field rule;
   missing branches, RNG, status, and identity fields cannot be tolerated.
 - This contract is infrastructure only. It does not compare Native with itself
-  or claim AHDGame parity. #280 must emit authoritative pinned AHDGame traces,
-  then #281 must capture Native and run representative cross-engine gates.
+  or claim AHDGame parity. #280 adds source-owned AHDGame exporter PR #1901
+  and pins real 1953 US and 1979 UK Mongo phase traces. Their RNG state remains
+  explicitly unobservable and fail-closed. #281 must capture Native and run
+  representative cross-engine gates after the upstream exporter lands.
 
 ## Integration checkpoint, 2026-09-10 06:18 UTC
 
