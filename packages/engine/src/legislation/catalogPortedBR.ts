@@ -1,7 +1,7 @@
 import type { CatalogEntry } from "./catalog.js";
 /**
  * BR legislation catalog. Generated from mainline AHDGame — DO NOT HAND-EDIT.
- * Generated: 2026-09-02 by packages/content/scripts/generateCatalogs.ts
+ * Generator: packages/content/scripts/generateCatalogs.ts
  * Source: src/lib/seeds/br/brLegislationTypes.ts (14 types),
  * src/lib/politicalLegislation/marginAdapter.ts ADAPTER_TIER1 (target mapping),
  * src/lib/seeds/reference/budgets.ts policyDefaults (tax baselines). See the

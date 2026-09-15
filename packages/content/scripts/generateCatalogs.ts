@@ -46,11 +46,31 @@ import { cnLegislationTypes } from "@/lib/seeds/cn/cnLegislationTypes";
 import { brLegislationTypes } from "@/lib/seeds/br/brLegislationTypes";
 import { ADAPTER_TIER1 } from "@/lib/politicalLegislation/marginAdapter";
 import { getNationalBudgetSeedConfigsForPreset } from "@/lib/seeds/reference/budgets";
+import { US_LAWS } from "@/lib/politicalLegislation/laws/usLaws";
+import { UK_LAWS } from "@/lib/politicalLegislation/laws/ukLaws";
+import { RU_LAWS } from "@/lib/politicalLegislation/laws/ruLaws";
+import { DD_LAWS } from "@/lib/politicalLegislation/laws/ddLaws";
 
 const OUT = path.resolve(import.meta.dirname, "../../engine/src/legislation");
 
 type Opt = { id: string; name: string; rate?: number; economic?: number; social?: number; effectDirection?: number };
-type LT = { _id: string; name: string; description?: string; policyDomain?: string; nationalOnly?: boolean; effectTargetsWeighted?: Array<{ metricCategoryId: string; metricId: string; weight: number }>; taxRateChange?: { scope: string; taxType: string }; policyOptions?: Opt[]; isPermanent?: boolean; source?: string };
+type LT = { _id: string; name: string; description?: string; policyDomain?: string; nationalOnly?: boolean; effectTargetsWeighted?: Array<{ metricCategoryId: string; metricId: string; weight: number }>; positions?: Array<{ positionId: string; name: string; chamber: string }>; taxRateChange?: { scope: string; taxType: string }; policyOptions?: Opt[]; isPermanent?: boolean; source?: string };
+
+const SOURCE_REVISION = "e364c04954ed628beef73a993a8e9e156650a31e";
+const CHECK = process.argv.includes("--check");
+type InventoryRow = { id: string; countryId: string; scope: string; prerequisites: string[]; targets: string[]; blockingSystem: string; sourcePath: string };
+const inventory: InventoryRow[] = [];
+
+function writeGenerated(file: string, content: string): void {
+  const output = path.join(OUT, file);
+  if (CHECK) {
+    if (!fs.existsSync(output) || fs.readFileSync(output, "utf8") !== content) {
+      throw new Error(`${file} is stale; run the catalog generator`);
+    }
+    return;
+  }
+  fs.writeFileSync(output, content);
+}
 
 const adapter = ADAPTER_TIER1 as Record<string, string>;
 const q = (s: string) => JSON.stringify(s);
@@ -114,6 +134,15 @@ function emit(c: string, types: LT[]): void {
     if (mapped) available++;
     const isAvailable = false;
     const blocker = mapped ? "legislation/effectDescriptor" : "politicalMetrics/" + unmapped.join(",");
+    inventory.push({
+      id: t._id,
+      countryId: c,
+      scope: t.nationalOnly ? "national" : "both",
+      prerequisites: t.positions?.length ? t.positions.map((p) => `${p.chamber}:${p.positionId}`) : ["positions:none-authored"],
+      targets: (t.effectTargetsWeighted ?? []).map((e) => `${e.metricCategoryId}.${e.metricId}`),
+      blockingSystem: blocker,
+      sourcePath: `src/lib/seeds/${c.toLowerCase()}/${c.toLowerCase()}LegislationTypes.ts`,
+    });
     lines.push(
       "  {",
       `    // source: ${t.source ?? `${c.toLowerCase()}LegislationTypes.ts ${t._id}`}${taxNote ? `; ${taxNote}` : ""}`,
@@ -132,7 +161,7 @@ function emit(c: string, types: LT[]): void {
     );
   }
   lines.push("];", "");
-  fs.writeFileSync(path.join(OUT, `catalogPorted${c}.ts`), lines.join("\n"));
+  writeGenerated(`catalogPorted${c}.ts`, lines.join("\n"));
   console.log(`wrote catalogPorted${c}.ts: ${seen.size} entries (all PORT-STUB; ${available} with fully mapped targets, ${tax} tax)`);
 }
 
@@ -141,4 +170,56 @@ emit("DE", deLegislationTypes as unknown as LT[]);
 emit("IE", ieLegislationTypes as unknown as LT[]);
 emit("CN", cnLegislationTypes as unknown as LT[]);
 emit("BR", brLegislationTypes as unknown as LT[]);
+
+const nativeStubs: Record<string, string> = {
+  "us.economy.mobility.primary": "budget/grants",
+  "us.defense.diplomacy.primary": "military/alliance",
+  "us.defense.armedForces.primary": "military/conflict",
+  "us.environment.conservation.primary": "politicalMetrics/environment",
+  "uk.defense.security.primary": "military",
+  "ru.economy.stability.primary": "plannedEconomy",
+  "dd.economy.workerSecurity.primary": "politicalMetrics",
+  "us.tariff.primary": "tariff/customs",
+  "us.subsidy.industry.primary": "subsidy/corporation",
+  "us.union.law.primary": "labour/union",
+  "us.electoral.law.primary": "elections/electoralLaw",
+  "us.centralBank.independence.primary": "centralBank/governance",
+};
+for (const [country, laws, file] of [
+  ["US", US_LAWS, "usLaws.ts"], ["UK", UK_LAWS, "ukLaws.ts"],
+  ["RU", RU_LAWS, "ruLaws.ts"], ["DD", DD_LAWS, "ddLaws.ts"],
+] as const) {
+  for (const law of laws) {
+    const blockingSystem = nativeStubs[law.id];
+    if (!blockingSystem) continue;
+    inventory.push({ id: law.id, countryId: country, scope: "national",
+      prerequisites: law.window ? [`active:${law.window.from}-${law.window.to ?? "open"}`] : ["active:any-year"],
+      targets: law.targets.map((target) => target.metricId), blockingSystem,
+      sourcePath: `src/lib/politicalLegislation/laws/${file}` });
+  }
+}
+for (const [id, blockingSystem] of Object.entries(nativeStubs)) {
+  if (inventory.some((row) => row.id === id)) continue;
+  inventory.push({
+    id,
+    countryId: "US",
+    scope: "national",
+    prerequisites: ["source-row:missing"],
+    targets: [blockingSystem],
+    blockingSystem,
+    sourcePath: "NO_AHDGAME_SOURCE_MATCH",
+  });
+}
+inventory.sort((a, b) => a.id.localeCompare(b.id));
+const inventoryOut = [
+  "/** Generated by packages/content/scripts/generateCatalogs.ts. DO NOT EDIT.",
+  ` * AHDGame revision: ${SOURCE_REVISION}`,
+  " * Regenerate: cd /root/projects/AHDGame && npx tsx ../AHDNative/packages/content/scripts/generateCatalogs.ts",
+  " */",
+  `export const UNAVAILABLE_LAW_SOURCE_REVISION = ${q(SOURCE_REVISION)};`,
+  `export const UNAVAILABLE_LAW_INVENTORY = ${JSON.stringify(inventory, null, 2)} as const;`,
+  "",
+].join("\n");
+writeGenerated("catalogUnavailableInventory.ts", inventoryOut);
+console.log(`wrote catalogUnavailableInventory.ts: ${inventory.length} unavailable entries`);
 console.log("done");
