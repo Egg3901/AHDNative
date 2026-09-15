@@ -22,6 +22,17 @@ function electedWorld(): WorldState {
 }
 
 describe("projectRegions", () => {
+  it("projects recorded regional metrics without attaching mutable engine state", () => {
+    const world = createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "regional-order-projection" });
+    (world.regionalMetrics ??= {}).AL = { "economic.unemploymentRate": { value: 9.92 } };
+
+    const view = projectRegions(world, { regionId: "AL" });
+
+    expect(view.selected?.metrics).toEqual({ "economic.unemploymentRate": 9.92 });
+    view.selected!.metrics["economic.unemploymentRate"] = 99;
+    expect(world.regionalMetrics.AL["economic.unemploymentRate"]?.value).toBe(9.92);
+  });
+
   it("keeps country-scoped browsing detached from home after one turn and save/reload", () => {
     const session = new GameSession();
     session.create({ era: "1953", countryId: "US", playerName: "Alex", seed: "region-depth" });
