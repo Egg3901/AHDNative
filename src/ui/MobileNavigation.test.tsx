@@ -50,7 +50,7 @@ describe("MobileNavigation", () => {
     const world = MENU_GROUPS.find((g) => g.label === "World")!;
     expect(world.sections?.map((s) => s.label)).toEqual(["Economy", "Diplomacy", "Other"]);
     expect(world.sections?.[0]!.items.map((i) => i.id)).toEqual(["markets", "bonds", "banking"]);
-    expect(world.sections?.[1]!.items.map((i) => i.id)).toEqual(["nations"]);
+    expect(world.sections?.[1]!.items.map((i) => i.id)).toEqual(["nations", "worldMap"]);
     expect(world.sections?.[2]!.items.map((i) => i.id)).toEqual(["news", "worldSettings"]);
   });
 
@@ -252,8 +252,8 @@ describe("MobileNavigation", () => {
     // app navigates by ("Nation"/"World") are unchanged.
     const nation = screen.getByRole("button", { name: "Nation" });
     const world = screen.getByRole("button", { name: "World" });
-    expect(within(nation).getByText("14")).toBeInTheDocument();
-    expect(within(world).getByText("6")).toBeInTheDocument();
+    expect(within(nation).getByText("15")).toBeInTheDocument();
+    expect(within(world).getByText("7")).toBeInTheDocument();
     expect(nation).toHaveAttribute("aria-controls", "ahd-drawer-section-nation");
     expect(world).toHaveAttribute("aria-controls", "ahd-drawer-section-world");
     // Collapsed sections render no controlled region; expanding reveals it.
@@ -265,7 +265,7 @@ describe("MobileNavigation", () => {
     // No destination added or removed by the composition pass.
     const ids = drawerRouteIds();
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(30);
+    expect(ids).toHaveLength(32);
     expect(css).toMatch(/\.ahd-drawer-group\s*\+\s*\.ahd-drawer-group\s*\{[^}]*border-top:/);
   });
 
@@ -377,23 +377,24 @@ describe("MobileNavigation", () => {
     expect(groups.get("Actions")!.items.map((i) => i.id)).toEqual(["actions"]);
     // World > Diplomacy carries the Nations browse destination (browse context).
     const diplomacy = groups.get("World")!.sections?.find((s) => s.label === "Diplomacy");
-    expect(diplomacy?.items.map((i) => i.id)).toEqual(["nations"]);
+    expect(diplomacy?.items.map((i) => i.id)).toEqual(["nations", "worldMap"]);
   });
 
   it("omits reference-only destinations Native cannot reach instead of adding placeholders", () => {
-    // Reference worldNavItems.ts / nationDetailsSections.ts expose Map, Crises,
+    // Reference worldNavItems.ts / nationDetailsSections.ts expose Crises,
     // Hall of Fame, International Orgs, Sectors, Currency Exchange, Trade, IMF,
     // Unions and My Corporation. Native has no route or data surface for them, so
     // they must not appear as drawer rows (NAVIGATION-PARITY.md sections 2-3).
     const ids = drawerRouteIds() as string[];
-    for (const id of ["map", "crises", "hallOfFame", "myCorporation", "unions", "sectors", "forex", "trade", "imf", "internationalOrgs"]) {
+    for (const id of ["crises", "hallOfFame", "myCorporation", "unions", "sectors", "forex", "trade", "imf", "internationalOrgs"]) {
       expect(ids).not.toContain(id);
     }
     const labels = MENU_GROUPS
       .flatMap((group) => [...group.items, ...(group.sections ?? []).flatMap((section) => section.items)])
       .map((item) => item.label);
-    for (const label of ["Map", "Hall of Fame", "My Corporation", "Unions", "Crises", "Sectors", "Currency Exchange", "Trade", "IMF", "International Orgs"]) {
+    for (const label of ["Hall of Fame", "My Corporation", "Unions", "Crises", "Sectors", "Currency Exchange", "Trade", "IMF", "International Orgs"]) {
       expect(labels).not.toContain(label);
     }
+    expect(ids).toContain("worldMap");
   });
 });
