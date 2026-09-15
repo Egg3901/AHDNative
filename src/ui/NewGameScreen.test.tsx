@@ -280,7 +280,7 @@ describe("NewGameScreen world setup (#241)", () => {
     expect(mark).toHaveAttribute("data-party-mark", "REP");
     expect(mark).toHaveAttribute("aria-hidden", "true");
     expect(mark.querySelector(".ahd-mark-initials")?.textContent).toBe("REP");
-    expect(mark).toHaveStyle({ background: partyMarkColor("us-US_REP") });
+    expect(mark).toHaveStyle({ backgroundColor: partyMarkColor("us-US_REP") });
   });
 
   it("keeps the country/name pair in the compact responsive grid at phone width", () => {
