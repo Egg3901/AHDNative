@@ -20,7 +20,7 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder,
-  getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, unlistCorporateSectorForSale, updateCorporateSectorListing,
+  getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing,
   type ActionId, type ExecuteActionParams, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionCategory, ActionView, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
@@ -195,7 +195,7 @@ export class GameSession {
     // cloned world. actions/catalog.ts and actions/execute.ts are untouched
     // (serialized after #261); the engine stays authoritative and failures
     // discard the clone so state is unchanged.
-    if (actionId === "sponsorCabinetNomination" || actionId === "voteCabinetNomination" || actionId === "voteScotusNomination") {
+    if (actionId === "sponsorCabinetNomination" || actionId === "sponsorScotusNomination" || actionId === "voteCabinetNomination" || actionId === "voteScotusNomination") {
       return this.actNomination(actionId, params);
     }
     const source = this.requireWorld();
@@ -224,8 +224,8 @@ export class GameSession {
    * the player; the projection in nominations.ts quotes the same reasons
    * before the player acts.
    */
-  private actNomination(actionId: "sponsorCabinetNomination" | "voteCabinetNomination" | "voteScotusNomination", params: ExecuteActionParams) {
-    const extra = params as ExecuteActionParams & { positionId?: unknown; nomineeId?: unknown; nominationId?: unknown };
+  private actNomination(actionId: "sponsorCabinetNomination" | "sponsorScotusNomination" | "voteCabinetNomination" | "voteScotusNomination", params: ExecuteActionParams) {
+    const extra = params as ExecuteActionParams & { positionId?: unknown; seatNumber?: unknown; nomineeId?: unknown; nominationId?: unknown };
     const text = (value: unknown): string | undefined =>
       typeof value === "string" && value.length > 0 ? value : undefined;
     const before = snapshotNotifications(this.requireWorld());
@@ -240,6 +240,17 @@ export class GameSession {
         if (!countryId || !positionId || !nomineeId) throw new Error("Choose a country, office, and nominee.");
         const nomination = sponsorCabinetNomination(candidate, { countryId, positionId, nomineeId });
         message = `Nominated ${nomination.nomineeName} for ${getCabinetPositionName(nomination.positionId)}. The Senate votes by turn ${nomination.votingEndsOnTurn}.`;
+      } else if (actionId === "sponsorScotusNomination") {
+        const countryId = text(extra.countryId);
+        const nomineeId = text(extra.nomineeId);
+        const seatNumber = typeof extra.seatNumber === "number" && Number.isInteger(extra.seatNumber)
+          ? extra.seatNumber
+          : typeof extra.seatNumber === "string" && extra.seatNumber.trim() !== "" && Number.isInteger(Number(extra.seatNumber))
+            ? Number(extra.seatNumber)
+            : undefined;
+        if (!countryId || seatNumber === undefined || !nomineeId) throw new Error("Choose a country, seat, and nominee.");
+        const nomination = sponsorScotusNomination(candidate, { countryId, seatNumber, nomineeId });
+        message = `Nominated ${nomination.nomineeName} for Supreme Court Seat #${nomination.seatNumber}. The Senate votes by turn ${nomination.votingEndsOnTurn}.`;
       } else {
         const nominationId = text(extra.nominationId);
         const vote = text(params.vote);
@@ -902,7 +913,7 @@ function projectLegislature(world: WorldState): LegislatureView {
     schedule: buildFloorSchedule(world, player.countryId),
     nominations: projectNominationList(world, player.countryId),
     cabinetSponsor: projectCabinetSponsor(world, player.countryId),
-    scotusSponsor: projectScotusSponsor(),
+    scotusSponsor: projectScotusSponsor(world, player.countryId),
     proposals: getCatalog(player.countryId, Number(world.meta.date.slice(0, 4)))
       .filter((entry) => entry.status === "available" && entry.kind !== "tax")
       .map(({ id, title, description }) => ({ id, title, description })),
