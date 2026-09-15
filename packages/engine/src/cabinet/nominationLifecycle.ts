@@ -200,7 +200,7 @@ export function processCabinetNominationLifecycle(world: WorldState): CabinetNom
       // Vote logic: each politician seated in senate (plus NPP-like) votes once.
       // We model NPP senators as politicians whose chamberKey is senate and whose id is not already voted.
       const senateHolders = world.politicians.filter(
-        (p) => p.countryId === (nom.countryId ?? "US") && (p.chamberKey === "senate" || p.chamberKey === "upper")
+        (p) => p.countryId === (nom.countryId ?? "US") && isSenateChamber(p.chamberKey)
       );
       let newVotes = 0;
       for (const holder of senateHolders) {
@@ -218,7 +218,7 @@ export function processCabinetNominationLifecycle(world: WorldState): CabinetNom
       // VP nominations also need House votes
       if (nom.positionId === "vicePresident") {
         const houseHolders = world.politicians.filter(
-          (p) => p.countryId === (nom.countryId ?? "US") && p.chamberKey === "house"
+          (p) => p.countryId === (nom.countryId ?? "US") && isHouseChamber(p.chamberKey)
         );
         for (const holder of houseHolders) {
           const key = `pol_${holder.id}`;

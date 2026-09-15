@@ -56,6 +56,17 @@ describe("#267 cabinet nomination ballots", () => {
     });
   });
 
+  it("uses the shared Senate aliases when lifecycle catch-up voting sees senate_us", () => {
+    const world = createWorld(OPTIONS);
+    const senator = world.politicians.find((politician) => politician.countryId === "US" && politician.chamberKey === "senate")!;
+    senator.chamberKey = "senate_us";
+    world.cabinetNominations = [nomination()];
+
+    processCabinetNominationLifecycle(world);
+
+    expect(world.cabinetNominations[0]?.votes[`pol_${senator.id}`]).toBeDefined();
+  });
+
   it("accepts and replaces an eligible player ballot, but rejects the wrong chamber atomically", () => {
     const world = createWorld(OPTIONS);
     world.player.legislativeSeat = { countryId: "US", chamberKey: "senate" };
