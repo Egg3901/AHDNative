@@ -3,6 +3,7 @@ import { advanceTurn } from "../engine.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { createWorld } from "../world.js";
 import { computeMinisterialOrderExpiresTurn, isMinisterialOrderActive } from "./lifecycle.js";
+import type { MinisterialOrder } from "./types.js";
 
 const OPTIONS = { era: "1953", countryId: "US", seed: "issue-258", playerName: "Alex" } as const;
 
@@ -44,5 +45,24 @@ describe("#258 ministerial order lifecycle", () => {
     const restored = deserializeSave(serializeSave(world, "2026-09-15T00:00:00.000Z"));
     advanceTurn(restored);
     expect(restored.ministerialOrders[0]).toMatchObject({ status: "active", duration: 24, expiresTurn: 24 });
+  });
+
+  it("coerces a legacy numeric-string expiry before applying the exclusive boundary", () => {
+    const legacy = {
+      id: "string-expiry", countryId: "US", characterId: "player", active: true,
+      effects: [], issuedAtTurn: 0, expiresTurn: "5",
+    } as unknown as MinisterialOrder;
+
+    expect(isMinisterialOrderActive(legacy, 4)).toBe(true);
+    expect(isMinisterialOrderActive(legacy, 5)).toBe(false);
+  });
+
+  it("honors any finite persisted duration, including zero, ahead of expiresTurn", () => {
+    const zeroDuration = {
+      id: "zero-duration", countryId: "US", characterId: "player", active: true,
+      effects: [], issuedAtTurn: 7, duration: 0, expiresTurn: 99,
+    } satisfies MinisterialOrder;
+
+    expect(isMinisterialOrderActive(zeroDuration, 7)).toBe(false);
   });
 });

@@ -13,10 +13,11 @@ export function computeMinisterialOrderExpiresTurn(
 export function resolveMinisterialOrderExpiresTurn(
   order: Pick<MinisterialOrder, "issuedAtTurn" | "duration" | "expiresTurn">,
 ): number {
-  if (Number.isFinite(order.duration) && (order.duration ?? 0) > 0) {
+  if (order.duration != null && Number.isFinite(order.duration)) {
     return computeMinisterialOrderExpiresTurn(order.issuedAtTurn, order.duration);
   }
-  if (Number.isFinite(order.expiresTurn)) return order.expiresTurn as number;
+  const coerced = Number(order.expiresTurn);
+  if (Number.isFinite(coerced)) return coerced;
   return computeMinisterialOrderExpiresTurn(order.issuedAtTurn);
 }
 
@@ -30,9 +31,9 @@ export function isMinisterialOrderActive(
 /** Fill lifecycle fields on pre-#258 saves and expire at the exclusive boundary. */
 export function normalizeMinisterialOrderLifecycle(order: MinisterialOrder, currentTurn: number): void {
   const expiresTurn = resolveMinisterialOrderExpiresTurn(order);
-  order.duration = Number.isFinite(order.duration) && (order.duration ?? 0) > 0
+  order.duration = order.duration != null && Number.isFinite(order.duration)
     ? order.duration
-    : Math.max(1, expiresTurn - order.issuedAtTurn);
+    : expiresTurn - order.issuedAtTurn;
   order.expiresTurn = expiresTurn;
 
   if (!isMinisterialOrderActive(order, currentTurn)) {
