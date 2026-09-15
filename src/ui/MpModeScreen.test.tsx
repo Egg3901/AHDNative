@@ -10,6 +10,7 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MpModeScreen } from "./MpModeScreen";
+import { NAV_ICON_PATHS } from "./NavIcon";
 import type { MpBridgeHost } from "../mp/bridge";
 
 const USER = "507f1f77bcf86cd799439011";
@@ -255,19 +256,80 @@ describe("MpModeScreen on desktop", () => {
     expect(onExit).toHaveBeenCalledTimes(1);
     expect(setItem).not.toHaveBeenCalled();
   });
+});
 
-  it("keeps Multiplayer, Ask, and Menu reachable in the persistent mobile navigation", async () => {
+describe("MpModeScreen navigation icons at 320px (#369)", () => {
+  it("renders the shared SVG icon language instead of ad hoc glyphs", async () => {
+    setViewport(320);
+    render(<MpModeScreen host={fakeHost(readyScript()).host} onExit={() => {}} />);
+    await screen.findByRole("heading", { name: "Ada" });
+    const navigation = within(screen.getByRole("navigation", { name: "Primary" }));
+    const expected: Array<readonly [string, string]> = [
+      ["Multiplayer", NAV_ICON_PATHS.multiplayer],
+      ["Ask", NAV_ICON_PATHS.ask],
+      ["Menu", NAV_ICON_PATHS.menu],
+    ];
+    for (const [label, path] of expected) {
+      const button = navigation.getByRole("button", { name: label });
+      const svg = button.querySelector("svg");
+      expect(svg).not.toBeNull();
+      expect(svg?.getAttribute("viewBox")).toBe("0 0 24 24");
+      expect(button.querySelector("path")?.getAttribute("d")).toBe(path);
+      expect(button.textContent).not.toMatch(/[●?☰]/);
+    }
+  });
+
+  it("preserves active semantics, callbacks, and the shared touch-target/safe-area/focus contract", async () => {
     setViewport(320);
     const user = userEvent.setup();
     const onAsk = vi.fn();
     const onExit = vi.fn();
-    render(<MpModeScreen host={fakeHost(readyScript()).host} onAsk={onAsk} onExit={onExit} />);
+    const { container } = render(
+      <MpModeScreen host={fakeHost(readyScript()).host} onAsk={onAsk} onExit={onExit} />,
+    );
     await screen.findByRole("heading", { name: "Ada" });
-    const navigation = within(screen.getByRole("navigation", { name: "Primary" }));
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    const navigation = within(nav);
     expect(navigation.getByRole("button", { name: "Multiplayer" })).toHaveAttribute("aria-current", "page");
     await user.click(navigation.getByRole("button", { name: "Ask" }));
     expect(onAsk).toHaveBeenCalledTimes(1);
     await user.click(navigation.getByRole("button", { name: "Menu" }));
     expect(onExit).toHaveBeenCalledTimes(1);
+    // Shared visual language: the MP footer reuses the bottom-nav classes so
+    // touch targets, safe-area padding, and the focus-visible ring match SP.
+    expect(container.querySelector("footer")?.className).toMatch(/ahd-footer/);
+    expect(nav.className).toMatch(/ahd-bottomnav/);
+    for (const label of ["Multiplayer", "Ask", "Menu"]) {
+      expect(navigation.getByRole("button", { name: label }).className).toMatch(/ahd-bottomnav-item/);
+    }
+    const css = readFileSync("src/ui/ui.css", "utf8");
+    expect(css).toMatch(/\.ahd-bottomnav-item[^{]*\{[^}]*min-height:\s*56px/);
+    expect(css).toMatch(/\.ahd-footer[^{]*\{[^}]*env\(safe-area-inset-bottom\)/);
+    expect(css).toMatch(/\.ahd-bottomnav-item:focus-visible/);
+    // Fully bundled native assets: icons are inline SVG, never remote.
+    expect(nav.querySelector("svg use")).toBeNull();
+    expect(nav.querySelector("svg image")).toBeNull();
+  });
+});
+
+describe("MpModeScreen navigation icons at 390px (#369)", () => {
+  it("uses the same shared SVG icons at 390px", async () => {
+    setViewport(390);
+    render(<MpModeScreen host={fakeHost(readyScript()).host} onExit={() => {}} />);
+    await screen.findByRole("heading", { name: "Ada" });
+    const navigation = within(screen.getByRole("navigation", { name: "Primary" }));
+    const expected: Array<readonly [string, string]> = [
+      ["Multiplayer", NAV_ICON_PATHS.multiplayer],
+      ["Ask", NAV_ICON_PATHS.ask],
+      ["Menu", NAV_ICON_PATHS.menu],
+    ];
+    for (const [label, path] of expected) {
+      const button = navigation.getByRole("button", { name: label });
+      expect(button.querySelector("svg")).not.toBeNull();
+      expect(button.querySelector("path")?.getAttribute("d")).toBe(path);
+      expect(button.textContent).not.toMatch(/[●?☰]/);
+      expect(navigation.getByRole("button", { name: label }).className).toMatch(/ahd-bottomnav-item/);
+    }
+    expect(navigation.getByRole("button", { name: "Multiplayer" })).toHaveAttribute("aria-current", "page");
   });
 });

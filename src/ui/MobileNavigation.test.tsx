@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BottomNav, GameDrawer, MENU_GROUPS, drawerRouteIds } from "./MobileNavigation";
+import { NAV_ICON_PATHS } from "./NavIcon";
 
 describe("MobileNavigation", () => {
   it("bottom nav has exactly four labeled items", () => {
@@ -26,6 +27,27 @@ describe("MobileNavigation", () => {
     render(<BottomNav route={route} menuOpen={false} menuButtonRef={createRef()} onNavigate={vi.fn()} onOpenMenu={vi.fn()} />);
     expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-current", route === label.toLowerCase() ? "page" : "location");
     expect(screen.getByRole("button", { name: "Menu" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("bottom nav icons come from the shared NavIcon primitive (#369)", () => {
+    const ref = createRef<HTMLButtonElement | null>();
+    render(
+      <BottomNav route="profile" menuOpen={false} menuButtonRef={ref} onNavigate={vi.fn()} onOpenMenu={vi.fn()} />,
+    );
+    const nav = within(screen.getByRole("navigation", { name: "Primary" }));
+    const expected: Array<readonly [string, string]> = [
+      ["Profile", NAV_ICON_PATHS.profile],
+      ["Actions", NAV_ICON_PATHS.actions],
+      ["Ask", NAV_ICON_PATHS.ask],
+      ["Menu", NAV_ICON_PATHS.menu],
+    ];
+    for (const [label, path] of expected) {
+      const button = nav.getByRole("button", { name: label });
+      const svg = button.querySelector("svg");
+      expect(svg).not.toBeNull();
+      expect(svg?.getAttribute("viewBox")).toBe("0 0 24 24");
+      expect(button.querySelector("path")?.getAttribute("d")).toBe(path);
+    }
   });
 
   it("mirrors the reference menu hierarchy: no Character group, Actions top-level, Nation/World sub-groups", () => {

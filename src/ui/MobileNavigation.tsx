@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { formatGameDate } from "../game/gameDate";
+import { NAV_ICON_PATHS, NavIcon } from "./NavIcon";
 
 export type DrawerRouteId =
   | "actions" | "parties" | "legislature" | "elections" | "news"
@@ -177,17 +178,17 @@ export const BOTTOM_TABS: { id: BottomTabId; label: string; path: string }[] = [
   {
     id: "profile",
     label: "Profile",
-    path: "M3 10.5 12 3l9 7.5M5 9.5V21h5v-6h4v6h5V9.5",
+    path: NAV_ICON_PATHS.profile,
   },
   {
     id: "actions",
     label: "Actions",
-    path: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0",
+    path: NAV_ICON_PATHS.actions,
   },
   {
     id: "ask",
     label: "Ask",
-    path: "M5 5h14v10H9l-4 4V5Zm4 4h6M9 12h4",
+    path: NAV_ICON_PATHS.ask,
   },
 ];
 
@@ -202,16 +203,7 @@ function bottomDestination(route: DrawerRouteId): BottomTabId | "menu" {
   return "menu";
 }
 
-const MENU_ICON_PATH = "M4 7h16M4 12h16M4 17h16";
-
-function NavIcon({ path, label }: { path: string; label: string }) {
-  return (
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-      <title>{label}</title>
-      <path d={path} />
-    </svg>
-  );
-}
+const MENU_ICON_PATH = NAV_ICON_PATHS.menu;
 
 export function BottomNav({
   route,
@@ -261,7 +253,7 @@ export function BottomNav({
             data-active={active ? "true" : undefined}
             onClick={() => onNavigate(t.id)}
           >
-            <NavIcon path={t.path} label="" />
+            <NavIcon path={t.path} />
             <span>{t.label}</span>
           </button>
         );
@@ -278,7 +270,7 @@ export function BottomNav({
         aria-current={destination === "menu" ? "location" : undefined}
         onClick={onOpenMenu}
       >
-        <NavIcon path={MENU_ICON_PATH} label="" />
+        <NavIcon path={MENU_ICON_PATH} />
         <span>Menu</span>
       </button>
     </nav>

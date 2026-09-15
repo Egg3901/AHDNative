@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { MpModeSession, type MpSnapshot } from "../mp/adapter";
 import { tauriMpBridgeHost, type MpBridgeHost } from "../mp/bridge";
 import { MP_EXECUTE_ACTIONS } from "../mp/endpoints";
+import { NAV_ICON_PATHS, NavIcon } from "./NavIcon";
 import "./ui.css";
 
 /* Native multiplayer mode screen (#359). Renders authoritative server state
@@ -275,13 +276,13 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
         <div className="ahd-container ahd-footer-inner">
           <nav className="ahd-bottomnav ahd-mp-bottomnav" aria-label="Primary">
             <button type="button" className="ahd-bottomnav-item" data-active="true" aria-current="page" aria-label="Multiplayer">
-              <span aria-hidden="true">●</span><span>Multiplayer</span>
+              <NavIcon path={NAV_ICON_PATHS.multiplayer} /><span>Multiplayer</span>
             </button>
             <button type="button" className="ahd-bottomnav-item" aria-label="Ask" onClick={onAsk}>
-              <span aria-hidden="true">?</span><span>Ask</span>
+              <NavIcon path={NAV_ICON_PATHS.ask} /><span>Ask</span>
             </button>
             <button type="button" className="ahd-bottomnav-item" aria-label="Menu" onClick={onExit}>
-              <span aria-hidden="true">☰</span><span>Menu</span>
+              <NavIcon path={NAV_ICON_PATHS.menu} /><span>Menu</span>
             </button>
           </nav>
         </div>
