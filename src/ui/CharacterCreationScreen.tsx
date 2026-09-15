@@ -111,14 +111,17 @@ function decode(dataUrl: string): Promise<HTMLImageElement> {
   });
 }
 
-async function resizeLocal(file: File, maxWidth: number, maxHeight: number, quality: number): Promise<string> {
+async function resizeLocal(file: File, maxWidth: number, maxHeight: number, quality: number, passthroughMaxBytes: number): Promise<string> {
   const dataUrl = await readDataUrl(file);
   const img = await decode(dataUrl);
   const width = img.naturalWidth || img.width || 0;
   const height = img.naturalHeight || img.height || 0;
   if (!width || !height) throw new Error("decode");
   const scale = Math.min(1, maxWidth / width, maxHeight / height);
-  if (scale >= 1 && file.size <= PORTRAIT_MAX_BYTES) return dataUrl;
+  // Passthrough keeps an already-small PNG/JPEG/WebP untouched. GIF is never
+  // passed through: the save/profile envelope only persists PNG, JPEG and
+  // WebP rasters, so a GIF data URL would be rejected on save reload.
+  if (scale >= 1 && file.type !== "image/gif" && file.size <= passthroughMaxBytes) return dataUrl;
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(width * scale));
   canvas.height = Math.max(1, Math.round(height * scale));
@@ -470,7 +473,7 @@ export function CharacterCreationScreen({
     setPortraitError(null);
     if (!IMAGE_TYPES.includes(file.type)) return setPortraitError(IMAGE_TYPE_MESSAGE);
     if (file.size > PORTRAIT_MAX_BYTES) return setPortraitError("Portrait must be under 2 MB.");
-    try { setPortraitUrl(await resizeLocal(file, 256, 256, 0.85)); }
+    try { setPortraitUrl(await resizeLocal(file, 256, 256, 0.85, PORTRAIT_MAX_BYTES)); }
     catch { setPortraitError("That file could not be read as an image."); }
   };
 
@@ -479,7 +482,7 @@ export function CharacterCreationScreen({
     setHeaderError(null);
     if (!IMAGE_TYPES.includes(file.type)) return setHeaderError(IMAGE_TYPE_MESSAGE);
     if (file.size > HEADER_MAX_BYTES) return setHeaderError("Header must be under 4 MB.");
-    try { setHeaderUrl(await resizeLocal(file, 1400, 400, 0.80)); }
+    try { setHeaderUrl(await resizeLocal(file, 1400, 400, 0.80, HEADER_MAX_BYTES)); }
     catch { setHeaderError("That file could not be read as an image."); }
   };
 

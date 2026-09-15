@@ -263,4 +263,47 @@ describe("CharacterCreationScreen portrait/header identity (#348)", () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it("flattens a GIF pick to the persisted raster envelope on submit", async () => {
+    stubDecodableImage();
+    // jsdom ships no canvas encoder; stand in for the browser re-encode.
+    const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ drawImage() { } } as unknown as CanvasRenderingContext2D);
+    const toDataURLSpy = vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockReturnValue("data:image/webp;base64,ZmFrZQ==");
+    try {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(<CharacterCreationScreen {...props({ onSubmit })} />);
+      const gif = new File(["gif-bytes"], "anim.gif", { type: "image/gif" });
+      fireEvent.change(screen.getByTestId("candidate-identity").querySelector("#creation-portrait")!, { target: { files: [gif] } });
+      await screen.findByTestId("candidate-portrait-photo");
+      await completeBackground(user);
+      fireEvent.change(screen.getByLabelText(/Economic position/), { target: { value: "-3" } });
+      fireEvent.change(screen.getByLabelText(/Social position/), { target: { value: "-2" } });
+      await user.click(screen.getByRole("button", { name: "DEM Democratic Party" }));
+      await user.click(screen.getByRole("button", { name: /Spread evenly/i }));
+      await user.click(screen.getByRole("button", { name: /Create character/ }));
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      const creation = onSubmit.mock.calls[0]![0];
+      // The save/profile envelope only persists PNG, JPEG and WebP rasters;
+      // a GIF pick must never ride the submit contract as data:image/gif.
+      expect(creation.avatarUrl).toMatch(/^data:image\/(png|jpeg|webp);base64,/);
+    } finally {
+      getContextSpy.mockRestore();
+      toDataURLSpy.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("passes a header under the 4 MB cap through without re-encoding", async () => {
+    stubDecodableImage();
+    try {
+      render(<CharacterCreationScreen {...props()} />);
+      const header = new File([new Uint8Array(3 * 1024 * 1024)], "wide.png", { type: "image/png" });
+      fireEvent.change(screen.getByTestId("candidate-identity").querySelector("#creation-header")!, { target: { files: [header] } });
+      expect(await screen.findByTestId("candidate-header-photo")).toHaveAttribute("src", expect.stringMatching(/^data:image\/png/));
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
