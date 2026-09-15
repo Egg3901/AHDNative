@@ -26,6 +26,7 @@ import type { RacePhase } from "../game/types";
 import { RACE_PHASE_LABELS } from "../game/racePhase";
 import { formatGameDate, formatGameTurn, type GameClock } from "../game/gameDate";
 import { MetricsSection } from "./NationPanel";
+import { RouteHero, electionsHero } from "./RouteHero";
 
 export interface PoliticsPanelProps {
   politics: PoliticsView;
@@ -864,6 +865,41 @@ function CandidateRoster({ candidates }: { candidates: PoliticsElectionDetail["c
   );
 }
 
+/**
+ * Elections hub summary (#377). Pure composition over the already-projected
+ * race list, mirroring the reference `summarize` in AHDGame
+ * `src/app/country/[code]/elections/electionsSelectors.ts`:
+ * `total` races in scope, `contested` races with at least one declared
+ * candidate, and the soonest filing deadline among unresolved races (ISO days
+ * sort lexicographically, so the minimum is the soonest). Null when no
+ * unresolved race carries a usable date. No tally, projection, or forecast is
+ * read or invented here.
+ */
+export interface ElectionRaceSummary {
+  total: number;
+  contested: number;
+  nextDeadline: string | null;
+}
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+export function summarizeElectionRaces(
+  races: Pick<PoliticsElectionDetail, "status" | "candidates" | "filingDate" | "date">[],
+): ElectionRaceSummary {
+  let contested = 0;
+  let nextDeadline: string | null = null;
+  for (const race of races) {
+    if (race.candidates.length > 0) contested += 1;
+    if (race.status === "resolved") continue;
+    const deadline = ISO_DAY.test(race.filingDate) ? race.filingDate
+      : ISO_DAY.test(race.date) ? race.date : null;
+    if (deadline !== null && (nextDeadline === null || deadline < nextDeadline)) {
+      nextDeadline = deadline;
+    }
+  }
+  return { total: races.length, contested, nextDeadline };
+}
+
 function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign, onOpenPolitician, onOpenPresidential, clock }: Omit<PoliticsPanelProps, "section">) {
   const [status, setStatus] = useState<ElectionStatusFilter>("all");
   const [mineOnly, setMineOnly] = useState(false);
@@ -889,8 +925,46 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign,
     onAction(election.candidacy.id, { electionId: election.id });
   };
 
+  // Hub framing (#377): hero band plus stat strip above the unchanged race
+  // lists. Composition follows the reference `ElectionsHero` (image band,
+  // title, tagline, Races/Contested/Next-to-close strip with Contested
+  // prominent so zero candidates reads as open ground). The art is the
+  // offline `electionsHero()` bundle, never the reference remote photo.
+  const summary = useMemo(() => summarizeElectionRaces(politics.elections), [politics.elections]);
+
   return (
     <div className="ahd-stack">
+      <div>
+        <RouteHero
+          image={electionsHero()}
+          alt={`${politics.countryName} elections`}
+          eyebrow={politics.countryName}
+          title={`${politics.countryName} Elections`}
+        >
+          <p style={{ fontSize: "0.76rem", margin: "0.32rem 0 0", opacity: 0.85 }}>
+            Pick an office, find your seat, and file to stand.
+          </p>
+        </RouteHero>
+        <dl className="ahd-hero-stats ahd-card" aria-label="Election overview">
+          <div>
+            <dt>Races</dt>
+            <dd className="ahd-mono">{summary.total}</dd>
+          </div>
+          <div>
+            <dt>Contested</dt>
+            <dd className="ahd-mono">{summary.contested} of {summary.total}</dd>
+          </div>
+          <div>
+            <dt>Next to close</dt>
+            <dd className="ahd-mono">{summary.nextDeadline !== null ? formatGameDate(summary.nextDeadline, clock) : "No deadline"}</dd>
+          </div>
+        </dl>
+        {summary.total > 0 && summary.contested === 0 ? (
+          <p className="ahd-help" role="note" style={{ marginTop: "0.45rem" }}>
+            Open ground: no candidates have filed yet, so every seat is there for the taking.
+          </p>
+        ) : null}
+      </div>
       <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">Elections</h2>
         <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>
