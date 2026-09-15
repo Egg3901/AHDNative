@@ -12,6 +12,16 @@ export {
   isWorldFeatureFlag,
 } from "./featureFlags.js";
 export type { WorldFeatureFlag, WorldFeatureFlags } from "./featureFlags.js";
+export {
+  DEFAULT_SINGLEPLAYER_DIFFICULTY,
+  NPP_ACTION_CAP,
+  NPP_ACTIONS_PER_TURN,
+  SINGLEPLAYER_DIFFICULTIES,
+  isSingleplayerDifficulty,
+  resolveSingleplayerDifficulty,
+  singleplayerNppTuning,
+} from "./singleplayerDifficulty.js";
+export type { SingleplayerDifficulty, SingleplayerNppTuning } from "./singleplayerDifficulty.js";
 export { serializeSave, deserializeSave, projectSaveToV42 } from "./save.js";
 export type { SaveFile, ProjectSaveToV42Result } from "./save.js";
 export { rngFromSeed, rngFromState } from "./rng.js";

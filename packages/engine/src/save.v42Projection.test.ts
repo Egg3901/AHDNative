@@ -117,6 +117,14 @@ describe("projectSaveToV42 public envelope", () => {
     expect(projected.error).not.toMatch(/schemaVersion rewritten|relabel/i);
   });
 
+  it("refuses a Native world with a non-default difficulty axis", () => {
+    const world = createWorld({ ...WORLD_OPTS, difficulty: "hard" });
+    const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
+    expect(projected.ok).toBe(false);
+    if (projected.ok) throw new Error("expected difficulty refusal");
+    expect(projected.error).toMatch(/difficulty/);
+  });
+
   it("refuses a Native world with live market pressure state", () => {
     const world = createWorld(WORLD_OPTS);
     world.corporations["US-manufacturing"]!.orderFlowWindowBuyValue = 1;

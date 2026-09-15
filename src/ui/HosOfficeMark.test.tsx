@@ -56,6 +56,7 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
     era: "1953",
     countryId: "US",
     countryName: "United States",
+    difficulty: "normal",
     player: { name: "Ada", cash: 1200, funds: 5000, actions: 3, influence: 12, favorability: 48, partyName: "Labor", mode: "hos", hosPartyId: "US_REP", homeRegionId: null, permanentHeadOfState: true, currentOffice: "president" },
     legislature: {
       office: "President",
