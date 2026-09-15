@@ -25,4 +25,16 @@ describe("canonical bank balance sheet", () => {
     expect(totalBorrowings({ discountWindowDebt: Number.NaN, interbankDebt: -50 })).toBe(0);
     expect(bankEquity({ cashReserves: 100, totalLoans: 25, npcDeposits: 40 })).toBe(85);
   });
+
+  it("preserves finite negative cash as a loss in equity and regulatory capital", () => {
+    const charter = {
+      cashReserves: -50,
+      totalLoans: 100,
+      npcDeposits: 25,
+      interbankDebt: 10,
+    };
+
+    expect(bankEquity(charter)).toBe(15);
+    expect(regulatoryCapital(charter)).toBe(-60);
+  });
 });
