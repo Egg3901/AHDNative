@@ -93,6 +93,8 @@ pub enum MpFetchOp {
     GameTime,
     /// Paginated inbox; requires the session, 401 otherwise.
     Notifications,
+    /// Read-only site maintenance status; requireAdmin, 403 for non-admins.
+    AdminMaintenance,
 }
 
 impl MpFetchOp {
@@ -104,6 +106,7 @@ impl MpFetchOp {
             "turn-status" => Some(Self::TurnStatus),
             "game-time" => Some(Self::GameTime),
             "notifications" => Some(Self::Notifications),
+            "admin-maintenance" => Some(Self::AdminMaintenance),
             _ => None,
         }
     }
@@ -116,6 +119,8 @@ impl MpFetchOp {
             Self::TurnStatus => "/api/game/turn/status",
             Self::GameTime => "/api/game-time",
             Self::Notifications => "/api/notifications",
+            Self::AdminMaintenance => "/api/admin/maintenance",
+            Self::AdminMaintenance => "/api/admin/maintenance",
         }
     }
 }
@@ -543,6 +548,7 @@ fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
         | ("GET", "/api/character/me")
         | ("GET", "/api/client-nav")
         | ("GET", "/api/game/turn/status")
+        | ("GET", "/api/admin/maintenance")
         | ("GET", "/api/game-time") => query.is_none(),
         ("GET", "/api/notifications") => match query {
             Some(query) => {
