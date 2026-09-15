@@ -41,7 +41,7 @@ describe("MobileNavigation", () => {
       "Elections", "Parties", "Start a party", "Caucuses", "Politicians",
       "Presidential election", "Political metrics", "Referendums",
     ]);
-    expect(nation.sections?.[1]!.items.map((i) => i.label)).toEqual(["Legislature", "Bills and proposals", "Policy"]);
+    expect(nation.sections?.[1]!.items.map((i) => i.label)).toEqual(["Legislature", "Bills and proposals", "Policy", "Cabinet office"]);
     expect(nation.sections?.[2]!.items.map((i) => i.label)).toEqual(["Economy", "National Budget", "National Metrics"]);
 
     // World sections and their in-section order match worldNavItems groupings;
@@ -60,7 +60,7 @@ describe("MobileNavigation", () => {
       "politicians", "economy", "budget", "policy", "nations", "state", "help", "settings",
       "legislationDetails", "markets", "search", "partyManagement", "bonds", "caucuses",
       "referendums", "notifications", "regions", "presidentialDetails", "politicalMetrics",
-      "ask",
+      "ask", "government",
     ]) {
       expect(ids).toContain(id);
     }
