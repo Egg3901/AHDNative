@@ -16,9 +16,18 @@ export interface MinisterialOrderDefinition {
   effects: readonly MinisterialOrderEffectDefinition[];
 }
 
+export interface UnavailableMinisterialOrderEffect {
+  metric: string;
+  missingConsumer: string;
+}
+
 export type ClassifiedMinisterialOrder = MinisterialOrderDefinition & (
   | { availability: "supported"; resolvedEffects: MinisterialOrderEffectDefinition[] }
-  | { availability: "blocked"; blocker: `regionalTargetRequired:${string}` | `defensePipeline:${string}` | `unsupportedMetric:${string}` }
+  | {
+      availability: "blocked";
+      blocker: `regionalTargetRequired:${string}` | `defenseUnavailable:${string}` | `unsupportedMetric:${string}`;
+      unavailableEffects?: UnavailableMinisterialOrderEffect[];
+    }
 );
 
 type CatalogCountry = keyof typeof AUTHORED_MINISTERIAL_ORDERS;
@@ -32,8 +41,28 @@ export function getMinisterialOrders(countryId: string, positionId: string): rea
   return country?.[positionId] ?? [];
 }
 
-function isDefensePosition(positionId: string): boolean {
+export function isDefensePosition(positionId: string): boolean {
   return /defen[cs]e|military|armed_forces/.test(positionId);
+}
+
+function missingDefenseConsumer(sourceMetric: string): string {
+  return sourceMetric === "governmentApproval"
+    ? "governmentApprovals"
+    : `nationalMetrics.${sourceMetric}`;
+}
+
+export function unavailableDefenseOrderEffects(
+  countryId: string,
+  positionId: string,
+  orderId: string,
+): UnavailableMinisterialOrderEffect[] | null {
+  if (!isDefensePosition(positionId)) return null;
+  const order = getMinisterialOrders(countryId, positionId).find((candidate) => candidate.id === orderId);
+  if (!order) return null;
+  const unavailable = order.effects
+    .filter((effect) => effect.scope === "national")
+    .map((effect) => ({ metric: effect.metric, missingConsumer: missingDefenseConsumer(effect.metric) }));
+  return unavailable.length > 0 ? unavailable : null;
 }
 
 const NATIVE_NATIONAL_METRIC_PATHS = new Set([
@@ -59,11 +88,17 @@ function resolveNationalMetric(world: WorldState, countryId: string, sourceMetri
  */
 export function classifyMinisterialOrders(world: WorldState, countryId: string, positionId: string): ClassifiedMinisterialOrder[] {
   return getMinisterialOrders(countryId, positionId).map((order) => {
-    if (isDefensePosition(positionId)) {
-      return { ...order, availability: "blocked", blocker: `defensePipeline:${positionId}` };
-    }
     const regional = order.effects.find((effect) => effect.scope === "regional");
     if (regional) return { ...order, availability: "blocked", blocker: `regionalTargetRequired:${regional.metric}` };
+    const unavailableEffects = unavailableDefenseOrderEffects(countryId, positionId, order.id);
+    if (unavailableEffects) {
+      return {
+        ...order,
+        availability: "blocked",
+        blocker: `defenseUnavailable:${order.id}`,
+        unavailableEffects,
+      };
+    }
     const resolvedEffects: MinisterialOrderEffectDefinition[] = [];
     for (const effect of order.effects) {
       const metric = resolveNationalMetric(world, countryId, effect.metric);

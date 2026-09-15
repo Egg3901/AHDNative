@@ -3,15 +3,12 @@
  * logic from src/lib/turn/ministerialOrderProcessing.ts, plus the per-metric
  * span table from src/lib/utils/metricScoring.ts THRESHOLDS.
  *
- * Mainline's ministerialOrderProcessing.ts also runs a large defense/military
- * turn sub-pipeline (appropriation, deliveries, refit, nuclear production,
- * covert nuclear, battle resolution, cold-war holds, peace windows,
- * reinforcement) bundled in the same phase function. AHDClient has no unit-
- * level military system, so only the metric-modifier accumulation/cap logic
- * (ministerialOrderProcessing.ts lines ~77-108, 556-564) is ported here —
- * PORT-STUB, named blocker: military/unitCombat (the defense sub-pipeline
- * has no AHDClient equivalent; see coldWar/nuclear.ts for the pure nuclear-math
- * slice that IS ported).
+ * Mainline's ministerialOrderProcessing.ts also runs a separate military turn
+ * pipeline for appropriations, deliveries, refit, nuclear production, combat,
+ * and reinforcement. That broader pipeline is not implied by these modifier
+ * constants. Every authored defense-position order is independently classified
+ * against a real Native consumer in ministerialOrders/catalog.ts; unsupported
+ * consumers remain named and cannot create substitute metric state.
  */
 
 /** Source: ministerialOrderProcessing.ts:77 — raised 0.05->0.08 in mainline #0800. */
