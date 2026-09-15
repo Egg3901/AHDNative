@@ -24,15 +24,14 @@
  *  - targets: effectTargetsWeighted mapped through ADAPTER_TIER1 to political
  *    families (the DECAY channel policyEffects/phases.ts consumes). Unmapped
  *    legacy ids are kept verbatim so the intent is visible.
- *  - status: every generated entry is "unavailable" (PORT-STUB). The catalog
- *    contract (legislation.test.ts) is that an available bill carries a
- *    hand-authored immediate `effect` (economy / partySupport); deriving one
- *    mechanically would invent numbers. Entries whose every target maps
+ *  - status: generated entries remain "unavailable" (PORT-STUB) unless their
+ *    id is in the reviewed executable allowlist below. Deriving an immediate
+ *    `effect` mechanically would invent numbers. Entries whose every target maps
  *    through ADAPTER_TIER1 name blockingSystem "legislation/effectDescriptor"
  *    (targets ready for the DECAY channel, effect pending); the rest name
- *    "politicalMetrics/<unmapped ids>". Tax entries carry their taxPolicy ladder but the
- *    rate write itself is PORT-STUB in billLifecycle.ts, so their named blocker
- *    is "budget/taxRateLadder". No immediate `effect` descriptor is derived (those
+ *    "politicalMetrics/<unmapped ids>". Tax entries carry their taxPolicy ladder
+ *    and name "budget/taxRateLadder" until individually reviewed for executable
+ *    release. No immediate `effect` descriptor is derived (those
  *    were hand-authored for US; deriving them mechanically would invent
  *    numbers).
  */
@@ -64,6 +63,7 @@ const sourceRootArg = process.argv.indexOf("--source-root");
 const sourceRoot = path.resolve(sourceRootArg >= 0 ? process.argv[sourceRootArg + 1] ?? "" : process.cwd());
 type InventoryRow = { id: string; countryId: string; nativeScope: string; sourceScope: string | null; prerequisites: string[]; authoredTargets: string[]; taxRateChange: { scope: string; taxType: string } | null; authoredRateOptions: Array<{ id: string; rate: number }>; blockingSystem: string; sourcePath: string; sourceMatch: "matched" | "unmatched" };
 const inventory: InventoryRow[] = [];
+const EXECUTABLE_LAW_IDS = new Set(["jp_consumption_tax"]);
 
 assertPinnedSourceCheckout(sourceRoot, SOURCE_REVISION);
 
@@ -108,6 +108,7 @@ function emit(c: string, types: LT[]): void {
   for (const t of types) {
     if (seen.has(t._id)) continue;
     seen.add(t._id);
+    const isAvailable = EXECUTABLE_LAW_IDS.has(t._id);
     const targets: Array<{ metricId: string; weight: number }> = [];
     const unmapped: string[] = [];
     const acc = new Map<string, number>();
@@ -133,16 +134,18 @@ function emit(c: string, types: LT[]): void {
         if (opt) { base = opt.rate; taxNote = `baselineRate from budget policyDefaults option ${opt.id}`; }
       }
       if (base === undefined) { base = rates[Math.floor(rates.length / 2)] ?? 0; taxNote = "baselineRate = median authored option (no policyDefaults entry for this preset; PORT-STUB)"; }
-      taxPolicy = `    taxPolicy: { scope: ${q(t.taxRateChange!.scope)}, taxType: ${q(t.taxRateChange!.taxType)}, minRate: ${min}, maxRate: ${max}, step: ${step || 1}, baselineRate: ${base} },\n`;
+      const options = isAvailable
+        ? `, options: ${JSON.stringify((t.policyOptions ?? []).flatMap((option) => typeof option.rate === "number" ? [{ id: option.id, rate: option.rate, economic: option.economic ?? 0, social: option.social ?? 0 }] : []))}`
+        : "";
+      taxPolicy = `    taxPolicy: { scope: ${q(t.taxRateChange!.scope)}, taxType: ${q(t.taxRateChange!.taxType)}, minRate: ${min}, maxRate: ${max}, step: ${step || 1}, baselineRate: ${base}${options} },\n`;
       tax++;
     }
     const mapped = targets.length > 0 && unmapped.length === 0;
     if (mapped) available++;
-    const isAvailable = false;
     const blocker = isTax ? "budget/taxRateLadder" : mapped ? "legislation/effectDescriptor" : "politicalMetrics/" + unmapped.join(",");
     const sourceScope = t.allowedScope ?? (t.taxRateChange?.scope === "state" ? "state" : t.nationalOnly ? "national" : "both");
     const nativeScope = sourceScope === "state" ? "regional" : sourceScope;
-    inventory.push({
+    if (!isAvailable) inventory.push({
       id: t._id,
       countryId: c,
       nativeScope,
@@ -174,7 +177,7 @@ function emit(c: string, types: LT[]): void {
   }
   lines.push("];", "");
   writeGenerated(`catalogPorted${c}.ts`, lines.join("\n"));
-  console.log(`wrote catalogPorted${c}.ts: ${seen.size} entries (all PORT-STUB; ${available} with fully mapped targets, ${tax} tax)`);
+  console.log(`wrote catalogPorted${c}.ts: ${seen.size} entries (${available} mapped targets, ${tax} tax, ${types.filter((type) => EXECUTABLE_LAW_IDS.has(type._id)).length} executable)`);
 }
 
 emit("JP", jpLegislationTypes as unknown as LT[]);

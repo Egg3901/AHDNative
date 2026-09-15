@@ -759,6 +759,17 @@ have no matching row at the pinned AHDGame revision and say so explicitly.
 `generateCatalogs.ts --check` detects drift without changing availability, and
 the focused inventory contract proves exact coverage against the public catalog.
 
+#283 complete. Japan's Consumption Tax Act is the first bounded executable row
+from that inventory. Its national scope, exact 11 authored rate options,
+economic values, sales-tax destination, and weighted political targets come
+from the pinned Japan seed. Sponsorship rejects unauthored rates and records
+the source option plus the direction of the move from the current budget rate.
+The public legislation flow covers proposal, both Diet chamber votes,
+pocket-sign enactment, gradual tax-rate effect, replacement, repeal, and save
+reload. The generator now owns the one-row availability allowlist and leaves
+the other 268 catalog rows unavailable with named blockers. This is not a claim
+of full Japan catalog parity.
+
 #241 complete. `NewGameScreen` captures the reference world-setup fields and
 carries them through `NewGameOptions` into the engine `NewWorldOptions`:
 `mode` (`career` | `hos`), `homeRegionId`, and `initialization`
