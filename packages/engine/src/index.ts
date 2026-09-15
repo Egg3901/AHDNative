@@ -215,6 +215,12 @@ export {
   onePartyCountries,
   imperialEligibleCountries,
 } from "./creationCountryRules.js";
+export {
+  IMPERIAL_STARTING_CAPITAL,
+  getImperialRole,
+  getImperialTitle,
+} from "./imperialRole.js";
+export type { ImperialGender, ImperialRole, ImperialTitles } from "./imperialRole.js";
 export * from "./countryPolitics/index.js";
 export * from "./governor/constants.js";
 export * from "./governor/powers.js";
