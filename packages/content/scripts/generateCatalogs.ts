@@ -38,7 +38,6 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { execFileSync } from "node:child_process";
 
 import { jpLegislationTypes } from "@/lib/seeds/jp/jpLegislationTypes";
 import { deLegislationTypes } from "@/lib/seeds/de/deLegislationTypes";
@@ -52,6 +51,7 @@ import { UK_LAWS } from "@/lib/politicalLegislation/laws/ukLaws";
 import { RU_LAWS } from "@/lib/politicalLegislation/laws/ruLaws";
 import { DD_LAWS } from "@/lib/politicalLegislation/laws/ddLaws";
 import { STUBBED_CATALOG } from "../../engine/src/legislation/catalog.js";
+import { assertPinnedSourceCheckout } from "./catalogSourceCheckout.js";
 
 const OUT = path.resolve(import.meta.dirname, "../../engine/src/legislation");
 
@@ -65,21 +65,7 @@ const sourceRoot = path.resolve(sourceRootArg >= 0 ? process.argv[sourceRootArg 
 type InventoryRow = { id: string; countryId: string; nativeScope: string; sourceScope: string | null; prerequisites: string[]; authoredTargets: string[]; taxRateChange: { scope: string; taxType: string } | null; authoredRateOptions: Array<{ id: string; rate: number }>; blockingSystem: string; sourcePath: string; sourceMatch: "matched" | "unmatched" };
 const inventory: InventoryRow[] = [];
 
-if (fs.realpathSync(process.cwd()) !== fs.realpathSync(sourceRoot)) {
-  throw new Error("Run the generator from --source-root so AHDGame module aliases resolve from the audited checkout");
-}
-const actualSourceRevision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: sourceRoot, encoding: "utf8" }).trim();
-if (actualSourceRevision !== SOURCE_REVISION) {
-  throw new Error(`AHDGame source revision ${actualSourceRevision} does not match pinned ${SOURCE_REVISION}`);
-}
-const relevantSourcePaths = [
-  "src/lib/seeds/jp/jpLegislationTypes.ts", "src/lib/seeds/de/deLegislationTypes.ts",
-  "src/lib/seeds/ie/ieLegislationTypes.ts", "src/lib/seeds/cn/cnLegislationTypes.ts",
-  "src/lib/seeds/br/brLegislationTypes.ts", "src/lib/politicalLegislation/laws",
-  "src/lib/politicalLegislation/marginAdapter.ts", "src/lib/seeds/reference/budgets.ts",
-];
-const dirtyRelevantSources = execFileSync("git", ["status", "--porcelain", "--", ...relevantSourcePaths], { cwd: sourceRoot, encoding: "utf8" }).trim();
-if (dirtyRelevantSources) throw new Error(`AHDGame source inputs are dirty:\n${dirtyRelevantSources}`);
+assertPinnedSourceCheckout(sourceRoot, SOURCE_REVISION);
 
 function writeGenerated(file: string, content: string): void {
   const output = path.join(OUT, file);
