@@ -38,6 +38,7 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { execFileSync } from "node:child_process";
 
 import { jpLegislationTypes } from "@/lib/seeds/jp/jpLegislationTypes";
 import { deLegislationTypes } from "@/lib/seeds/de/deLegislationTypes";
@@ -50,6 +51,7 @@ import { US_LAWS } from "@/lib/politicalLegislation/laws/usLaws";
 import { UK_LAWS } from "@/lib/politicalLegislation/laws/ukLaws";
 import { RU_LAWS } from "@/lib/politicalLegislation/laws/ruLaws";
 import { DD_LAWS } from "@/lib/politicalLegislation/laws/ddLaws";
+import { STUBBED_CATALOG } from "../../engine/src/legislation/catalog.js";
 
 const OUT = path.resolve(import.meta.dirname, "../../engine/src/legislation");
 
@@ -58,8 +60,13 @@ type LT = { _id: string; name: string; description?: string; policyDomain?: stri
 
 const SOURCE_REVISION = "e364c04954ed628beef73a993a8e9e156650a31e";
 const CHECK = process.argv.includes("--check");
-type InventoryRow = { id: string; countryId: string; scope: string; prerequisites: string[]; targets: string[]; blockingSystem: string; sourcePath: string };
+type InventoryRow = { id: string; countryId: string; nativeScope: string; sourceScope: string | null; prerequisites: string[]; authoredTargets: string[]; blockingSystem: string; sourcePath: string; sourceMatch: "matched" | "unmatched" };
 const inventory: InventoryRow[] = [];
+
+const actualSourceRevision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: process.cwd(), encoding: "utf8" }).trim();
+if (actualSourceRevision !== SOURCE_REVISION) {
+  throw new Error(`AHDGame source revision ${actualSourceRevision} does not match pinned ${SOURCE_REVISION}`);
+}
 
 function writeGenerated(file: string, content: string): void {
   const output = path.join(OUT, file);
@@ -137,11 +144,13 @@ function emit(c: string, types: LT[]): void {
     inventory.push({
       id: t._id,
       countryId: c,
-      scope: t.nationalOnly ? "national" : "both",
+      nativeScope: t.nationalOnly ? "national" : "both",
+      sourceScope: t.nationalOnly ? "national" : "both",
       prerequisites: t.positions?.length ? t.positions.map((p) => `${p.chamber}:${p.positionId}`) : ["positions:none-authored"],
-      targets: (t.effectTargetsWeighted ?? []).map((e) => `${e.metricCategoryId}.${e.metricId}`),
+      authoredTargets: (t.effectTargetsWeighted ?? []).map((e) => `${e.metricCategoryId}.${e.metricId}`),
       blockingSystem: blocker,
       sourcePath: `src/lib/seeds/${c.toLowerCase()}/${c.toLowerCase()}LegislationTypes.ts`,
+      sourceMatch: "matched",
     });
     lines.push(
       "  {",
@@ -171,44 +180,23 @@ emit("IE", ieLegislationTypes as unknown as LT[]);
 emit("CN", cnLegislationTypes as unknown as LT[]);
 emit("BR", brLegislationTypes as unknown as LT[]);
 
-const nativeStubs: Record<string, string> = {
-  "us.economy.mobility.primary": "budget/grants",
-  "us.defense.diplomacy.primary": "military/alliance",
-  "us.defense.armedForces.primary": "military/conflict",
-  "us.environment.conservation.primary": "politicalMetrics/environment",
-  "uk.defense.security.primary": "military",
-  "ru.economy.stability.primary": "plannedEconomy",
-  "dd.economy.workerSecurity.primary": "politicalMetrics",
-  "us.tariff.primary": "tariff/customs",
-  "us.subsidy.industry.primary": "subsidy/corporation",
-  "us.union.law.primary": "labour/union",
-  "us.electoral.law.primary": "elections/electoralLaw",
-  "us.centralBank.independence.primary": "centralBank/governance",
-};
-for (const [country, laws, file] of [
+const sourceCatalogs = [
   ["US", US_LAWS, "usLaws.ts"], ["UK", UK_LAWS, "ukLaws.ts"],
   ["RU", RU_LAWS, "ruLaws.ts"], ["DD", DD_LAWS, "ddLaws.ts"],
-] as const) {
-  for (const law of laws) {
-    const blockingSystem = nativeStubs[law.id];
-    if (!blockingSystem) continue;
-    inventory.push({ id: law.id, countryId: country, scope: "national",
+] as const;
+for (const native of STUBBED_CATALOG.filter((entry) => !["JP", "DE", "IE", "CN", "BR"].includes(entry.countryId))) {
+  const sourceCatalog = sourceCatalogs.find(([, laws]) => laws.some((law) => law.id === native.id));
+  const law = sourceCatalog?.[1].find((candidate) => candidate.id === native.id);
+  if (law && sourceCatalog) {
+    inventory.push({ id: law.id, countryId: native.countryId, nativeScope: native.allowedScope, sourceScope: law.allowedScope,
       prerequisites: law.window ? [`active:${law.window.from}-${law.window.to ?? "open"}`] : ["active:any-year"],
-      targets: law.targets.map((target) => target.metricId), blockingSystem,
-      sourcePath: `src/lib/politicalLegislation/laws/${file}` });
+      authoredTargets: law.targets.map((target) => target.metricId), blockingSystem: native.blockingSystem!,
+      sourcePath: `src/lib/politicalLegislation/laws/${sourceCatalog[2]}`, sourceMatch: "matched" });
+  } else {
+    inventory.push({ id: native.id, countryId: native.countryId, nativeScope: native.allowedScope, sourceScope: null,
+      prerequisites: [], authoredTargets: [], blockingSystem: native.blockingSystem!,
+      sourcePath: "NO_AHDGAME_SOURCE_MATCH", sourceMatch: "unmatched" });
   }
-}
-for (const [id, blockingSystem] of Object.entries(nativeStubs)) {
-  if (inventory.some((row) => row.id === id)) continue;
-  inventory.push({
-    id,
-    countryId: "US",
-    scope: "national",
-    prerequisites: ["source-row:missing"],
-    targets: [blockingSystem],
-    blockingSystem,
-    sourcePath: "NO_AHDGAME_SOURCE_MATCH",
-  });
 }
 inventory.sort((a, b) => a.id.localeCompare(b.id));
 const inventoryOut = [

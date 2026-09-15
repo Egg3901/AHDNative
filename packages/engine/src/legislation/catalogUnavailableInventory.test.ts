@@ -15,10 +15,25 @@ describe("unavailable law source inventory", () => {
     for (const row of UNAVAILABLE_LAW_INVENTORY) {
       const catalog = CATALOG.find((entry) => entry.id === row.id)!;
       expect(row.sourcePath, row.id).toMatch(/^(src\/lib\/(seeds|politicalLegislation\/laws)\/|NO_AHDGAME_SOURCE_MATCH$)/);
-      expect(row.prerequisites.length, row.id).toBeGreaterThan(0);
-      expect(row.targets.length, row.id).toBeGreaterThan(0);
+      expect(row.nativeScope, row.id).toBe(catalog.allowedScope);
       expect(row.blockingSystem, row.id).toBe(catalog.blockingSystem);
-      expect(row.scope, row.id).toBe(catalog.allowedScope);
+      if (row.sourceMatch === "matched") {
+        expect(row.sourcePath, row.id).not.toBe("NO_AHDGAME_SOURCE_MATCH");
+        expect(row.sourceScope, row.id).not.toBeNull();
+        expect(row.prerequisites.length, row.id).toBeGreaterThan(0);
+        expect(row.authoredTargets.length, row.id).toBeGreaterThan(0);
+      } else {
+        expect(row.sourcePath, row.id).toBe("NO_AHDGAME_SOURCE_MATCH");
+        expect(row.sourceScope, row.id).toBeNull();
+        expect(row.authoredTargets, row.id).toEqual([]);
+        expect(row.prerequisites, row.id).toEqual([]);
+      }
     }
+    const unmatched = UNAVAILABLE_LAW_INVENTORY.filter((row) => row.sourceMatch === "unmatched");
+    expect(unmatched).toHaveLength(5);
+    expect(UNAVAILABLE_LAW_INVENTORY.find((row) => row.id === "dd.economy.workerSecurity.primary")).toMatchObject({
+      nativeScope: "national",
+      sourceScope: "both",
+    });
   });
 });

@@ -7,244 +7,275 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "br_corporate_tax",
     "countryId": "BR",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "chamber:chamber_chair",
       "chamber:chamber_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.economicFreedom",
       "economic.smallBusinessFormation",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/economic.economicFreedom,economic.smallBusinessFormation,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "br_customs_tariff",
     "countryId": "BR",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "chamber:chamber_chair",
       "chamber:chamber_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.tradeBalance",
       "economic.costOfLiving"
     ],
     "blockingSystem": "politicalMetrics/economic.tradeBalance,economic.costOfLiving",
-    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "br_defense_policy",
     "countryId": "BR",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "chamber:chamber_chair",
       "chamber:chamber_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "br_education_funding",
     "countryId": "BR",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "chamber:chamber_chair",
       "chamber:chamber_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.budgetBalance",
       "social.socialMobility",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "br_general_administration",
     "countryId": "BR",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "chamber:chamber_chair",
       "chamber:chamber_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "br_iap_contribution",
     "countryId": "BR",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "chamber:chamber_chair",
       "chamber:chamber_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.economicFreedom",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/economic.economicFreedom,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "br_income_tax_rate",
     "countryId": "BR",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "chamber:chamber_chair",
       "chamber:chamber_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.medianIncome",
       "social.incomeInequality",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/economic.medianIncome,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "br_infrastructure_investment",
     "countryId": "BR",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "chamber:chamber_chair",
       "chamber:chamber_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "br_ivc",
     "countryId": "BR",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "chamber:chamber_chair",
       "chamber:chamber_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.costOfLiving",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/economic.costOfLiving,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "br_labor_law",
     "countryId": "BR",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "chamber:chamber_chair",
       "chamber:chamber_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.economicFreedom",
       "governance.coDeterminationQuality"
     ],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "br_public_health",
     "countryId": "BR",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "chamber:chamber_chair",
       "chamber:chamber_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.budgetBalance",
       "social.socialMobility",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "br_social_security_benefits",
     "countryId": "BR",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "chamber:chamber_chair",
       "chamber:chamber_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "br_state_enterprises",
     "countryId": "BR",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "chamber:chamber_chair",
       "chamber:chamber_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.economicFreedom",
       "economic.smallBusinessFormation",
       "social.incomeInequality"
     ],
     "blockingSystem": "politicalMetrics/economic.economicFreedom,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "br_state_grants",
     "countryId": "BR",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "chamber:chamber_chair",
       "chamber:chamber_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_academic_pressure_reform",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "education.academicPressure",
       "healthcare.mentalHealthAccess",
       "population.birthRate",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/education.academicPressure,healthcare.mentalHealthAccess,population.birthRate,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_agricultural_subsidies",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.ruralRevitalization",
       "economic.commonProsperityIndex",
       "economic.tradeBalance",
@@ -252,17 +283,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.eastWestRegionalGap"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.commonProsperityIndex,economic.tradeBalance,governance.budgetBalance,economic.eastWestRegionalGap",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_ai_strategy",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.industrialPolicyExecution",
       "governance.roboticsAdoption",
       "education.workforceSkill",
@@ -271,34 +304,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.industrialPolicyExecution,governance.socialCreditCoverage,economic.manufacturingCompetitiveness,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_anticorruption_campaign",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.partyDiscipline",
       "governance.corruptionIndex",
       "governance.publicTrust",
       "economic.manufacturingCompetitiveness"
     ],
     "blockingSystem": "politicalMetrics/governance.partyDiscipline,economic.manufacturingCompetitiveness",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_belt_and_road",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.beltAndRoadEngagement",
       "economic.tradeBalance",
       "economic.manufacturingCompetitiveness",
@@ -306,17 +343,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.industrialPolicyExecution"
     ],
     "blockingSystem": "politicalMetrics/governance.beltAndRoadEngagement,economic.tradeBalance,economic.manufacturingCompetitiveness,governance.budgetBalance,economic.industrialPolicyExecution",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_climate_targets",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.climateResilience",
       "environment.carbonEmissions",
       "environment.energyTransitionProgress",
@@ -325,17 +364,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/environment.climateResilience,economic.manufacturingCompetitiveness,governance.beltAndRoadEngagement,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_common_prosperity",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.commonProsperityIndex",
       "social.incomeInequality",
       "economic.ruralRevitalization",
@@ -343,34 +384,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/economic.commonProsperityIndex,economic.ruralRevitalization,economic.manufacturingCompetitiveness,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_conscription",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.militaryReadiness",
       "governance.nationalPride",
       "governance.civilLiberties",
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/governance.militaryReadiness,governance.nationalPride,governance.civilLiberties,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_criminal_justice",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "publicSafety.incarcerationRate",
       "publicSafety.crimeRate",
       "governance.publicTrust",
@@ -379,34 +424,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/publicSafety.incarcerationRate,governance.partyDiscipline,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_customs_tariff",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.manufacturingCompetitiveness",
       "economic.tradeBalance",
       "economic.costOfLiving",
       "economic.gdpGrowth"
     ],
     "blockingSystem": "politicalMetrics/economic.manufacturingCompetitiveness,economic.tradeBalance,economic.costOfLiving,economic.gdpGrowth",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_cybersecurity",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.socialCreditCoverage",
       "governance.partyDiscipline",
       "economic.manufacturingCompetitiveness",
@@ -414,17 +463,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/governance.socialCreditCoverage,governance.partyDiscipline,economic.manufacturingCompetitiveness,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_diaspora_engagement",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.nationalPride",
       "governance.partyDiscipline",
       "economic.manufacturingCompetitiveness",
@@ -432,17 +483,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.housingAffordability"
     ],
     "blockingSystem": "politicalMetrics/governance.nationalPride,governance.partyDiscipline,economic.manufacturingCompetitiveness",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_digital_infrastructure",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "infrastructure.broadbandAccess",
       "economic.industrialPolicyExecution",
       "economic.eastWestRegionalGap",
@@ -451,34 +504,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.industrialPolicyExecution,economic.eastWestRegionalGap,economic.gdpGrowth,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_education_funding",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "education.educationSpending",
       "economic.commonProsperityIndex",
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.commonProsperityIndex,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_elder_care",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.elderCareQuality",
       "healthcare.lifeExpectancy",
       "social.socialCohesion",
@@ -487,17 +544,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.commonProsperityIndex,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_emissions_trading_scheme",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.carbonEmissions",
       "economic.manufacturingCompetitiveness",
       "environment.renewableEnergy",
@@ -505,51 +564,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.manufacturingCompetitiveness,economic.industrialPolicyExecution,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_enterprise_income_tax",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.gdpGrowth",
       "economic.smallBusinessFormation",
       "economic.manufacturingCompetitiveness",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.smallBusinessFormation,economic.manufacturingCompetitiveness,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_family_policy",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "population.birthRate",
       "social.genderEquality",
       "economic.commonProsperityIndex",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/population.birthRate,economic.commonProsperityIndex,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_fiscal_stimulus",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.gdpGrowth",
       "governance.budgetBalance",
       "governance.debtToGdp",
@@ -558,17 +623,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,governance.budgetBalance,governance.debtToGdp,economic.manufacturingCompetitiveness,economic.costOfLiving,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_food_security",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.tradeBalance",
       "economic.manufacturingCompetitiveness",
       "economic.ruralRevitalization",
@@ -576,68 +643,76 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.costOfLiving"
     ],
     "blockingSystem": "politicalMetrics/economic.tradeBalance,economic.manufacturingCompetitiveness,economic.ruralRevitalization,economic.industrialPolicyExecution,economic.costOfLiving",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_gaokao_reform",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "education.academicPressure",
       "social.socialMobility",
       "social.hukouMobility",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/education.academicPressure,social.hukouMobility,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_gender_equality",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.genderEquality",
       "social.socialMobility",
       "economic.commonProsperityIndex",
       "population.birthRate"
     ],
     "blockingSystem": "politicalMetrics/economic.commonProsperityIndex,population.birthRate",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_hk_macao_affairs",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.taiwanStraitTension",
       "governance.partyDiscipline",
       "economic.manufacturingCompetitiveness",
       "governance.beltAndRoadEngagement"
     ],
     "blockingSystem": "politicalMetrics/governance.taiwanStraitTension,governance.partyDiscipline,economic.manufacturingCompetitiveness,governance.beltAndRoadEngagement",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_housing",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.housingAffordability",
       "social.wohnungsBauRate",
       "economic.commonProsperityIndex",
@@ -646,17 +721,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/social.wohnungsBauRate,economic.commonProsperityIndex,governance.budgetBalance,economic.gdpGrowth,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_hukou_reform",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.hukouMobility",
       "economic.commonProsperityIndex",
       "economic.eastWestRegionalGap",
@@ -666,34 +743,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.housingAffordability"
     ],
     "blockingSystem": "politicalMetrics/social.hukouMobility,economic.commonProsperityIndex,economic.eastWestRegionalGap,population.urbanizationRate",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_individual_income_tax",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.medianIncome",
       "economic.povertyRate",
       "social.incomeInequality",
       "economic.gdpGrowth"
     ],
     "blockingSystem": "politicalMetrics/economic.medianIncome,economic.povertyRate,economic.gdpGrowth",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_industrial_strategy",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.industrialPolicyExecution",
       "economic.manufacturingCompetitiveness",
       "economic.gdpGrowth",
@@ -701,17 +782,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/economic.industrialPolicyExecution,economic.manufacturingCompetitiveness,economic.gdpGrowth,economic.smallBusinessFormation,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_internet_governance",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.socialCreditCoverage",
       "governance.partyDiscipline",
       "mediaInformation.pressFreedom",
@@ -720,34 +803,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "publicSafety.crimeRate"
     ],
     "blockingSystem": "politicalMetrics/governance.socialCreditCoverage,governance.partyDiscipline,mediaInformation.mediaPolarization,economic.manufacturingCompetitiveness",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_land_value_added_tax",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.housingAffordability",
       "social.incomeInequality",
       "social.wohnungsBauRate",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/social.wohnungsBauRate,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_medical_insurance",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.preventableMortality",
       "healthcare.publicHealthPreparedness",
       "healthcare.physicianRate",
@@ -756,17 +843,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.commonProsperityIndex,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_mental_health",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.mentalHealthAccess",
       "social.socialCohesion",
       "governance.socialCreditCoverage",
@@ -774,17 +863,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,governance.socialCreditCoverage,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_minimum_wage",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.medianIncome",
       "economic.unemploymentRate",
       "economic.povertyRate",
@@ -792,34 +883,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.commonProsperityIndex"
     ],
     "blockingSystem": "politicalMetrics/economic.medianIncome,economic.unemploymentRate,economic.povertyRate,economic.smallBusinessFormation,economic.commonProsperityIndex",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_npc_reform",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.governmentTransparency",
       "governance.publicTrust",
       "governance.partyDiscipline",
       "governance.voterTurnout"
     ],
     "blockingSystem": "politicalMetrics/governance.partyDiscipline",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_nuclear_energy",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.carbonEmissions",
       "environment.nuclearSafety",
       "environment.energyTransitionProgress",
@@ -827,17 +922,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.manufacturingCompetitiveness,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_pension_system",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.rentenStabilitaet",
       "healthcare.elderCareQuality",
       "economic.commonProsperityIndex",
@@ -845,17 +942,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.laborParticipation"
     ],
     "blockingSystem": "politicalMetrics/governance.rentenStabilitaet,economic.commonProsperityIndex,governance.budgetBalance,economic.laborParticipation",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_pla_modernization",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.taiwanStraitTension",
       "economic.industrialPolicyExecution",
       "governance.budgetBalance",
@@ -864,17 +963,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/governance.taiwanStraitTension,economic.industrialPolicyExecution,governance.budgetBalance,economic.manufacturingCompetitiveness,economic.gdpGrowth,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_press_freedom",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "mediaInformation.pressFreedom",
       "governance.partyDiscipline",
       "governance.corruptionIndex",
@@ -882,34 +983,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.nationalPride"
     ],
     "blockingSystem": "politicalMetrics/governance.partyDiscipline,governance.nationalPride",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_provincial_culture_propaganda",
     "countryId": "CN",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "peoplesCongress:pc_chair",
       "peoplesCongress:pc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.partyDiscipline",
       "mediaInformation.pressFreedom",
       "social.socialCohesion",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/governance.partyDiscipline,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_provincial_economic_development",
     "countryId": "CN",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "peoplesCongress:pc_chair",
       "peoplesCongress:pc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.gdpGrowth",
       "economic.industrialPolicyExecution",
       "economic.manufacturingCompetitiveness",
@@ -917,34 +1022,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.eastWestRegionalGap"
     ],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.industrialPolicyExecution,economic.manufacturingCompetitiveness,economic.smallBusinessFormation,economic.eastWestRegionalGap",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_provincial_education",
     "countryId": "CN",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "peoplesCongress:pc_chair",
       "peoplesCongress:pc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "education.educationSpending",
       "economic.commonProsperityIndex",
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.commonProsperityIndex,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_provincial_environmental_policy",
     "countryId": "CN",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "peoplesCongress:pc_chair",
       "peoplesCongress:pc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.airQuality",
       "environment.carbonEmissions",
       "environment.climateResilience",
@@ -954,17 +1063,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/environment.climateResilience,economic.manufacturingCompetitiveness,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_provincial_health_services",
     "countryId": "CN",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "peoplesCongress:pc_chair",
       "peoplesCongress:pc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.physicianRate",
       "healthcare.preventableMortality",
       "healthcare.publicHealthPreparedness",
@@ -972,17 +1083,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_provincial_infrastructure_investment",
     "countryId": "CN",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "peoplesCongress:pc_chair",
       "peoplesCongress:pc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "infrastructure.transportEfficiency",
       "infrastructure.publicTransit",
       "economic.gdpGrowth",
@@ -991,17 +1104,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.eastWestRegionalGap,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_provincial_public_security",
     "countryId": "CN",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "peoplesCongress:pc_chair",
       "peoplesCongress:pc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "publicSafety.publicSafetyConfidence",
       "publicSafety.crimeRate",
       "governance.socialCreditCoverage",
@@ -1009,34 +1124,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/governance.socialCreditCoverage,governance.partyDiscipline,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_provincial_resource_tax",
     "countryId": "CN",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "peoplesCongress:pc_chair",
       "peoplesCongress:pc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.carbonEmissions",
       "economic.ruralRevitalization",
       "economic.gdpGrowth",
       "economic.manufacturingCompetitiveness"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.gdpGrowth,economic.manufacturingCompetitiveness",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_public_health",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.publicHealthPreparedness",
       "healthcare.preventableMortality",
       "governance.socialCreditCoverage",
@@ -1044,17 +1163,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/governance.socialCreditCoverage,economic.costOfLiving,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_public_security",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "publicSafety.publicSafetyConfidence",
       "publicSafety.crimeRate",
       "governance.socialCreditCoverage",
@@ -1063,17 +1184,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/governance.socialCreditCoverage,governance.partyDiscipline,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_rail_transport",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "infrastructure.transportEfficiency",
       "infrastructure.publicTransit",
       "economic.gdpGrowth",
@@ -1082,17 +1205,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,governance.budgetBalance,economic.eastWestRegionalGap,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_renewable_energy_target",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.renewableEnergy",
       "environment.carbonEmissions",
       "environment.energyTransitionProgress",
@@ -1101,17 +1226,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.industrialPolicyExecution,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_research_science",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.rdIntensity",
       "economic.industrialPolicyExecution",
       "economic.gdpGrowth",
@@ -1119,17 +1246,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.rdIntensity,economic.industrialPolicyExecution,economic.gdpGrowth,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_rural_revitalization",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.ruralRevitalization",
       "economic.commonProsperityIndex",
       "economic.eastWestRegionalGap",
@@ -1137,17 +1266,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.commonProsperityIndex,economic.eastWestRegionalGap,economic.povertyRate,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_semiconductor_strategy",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.industrialPolicyExecution",
       "economic.manufacturingCompetitiveness",
       "economic.tradeBalance",
@@ -1156,17 +1287,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.industrialPolicyExecution,economic.manufacturingCompetitiveness,economic.tradeBalance,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_skilled_immigration",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "education.workforceSkill",
       "economic.industrialPolicyExecution",
       "social.foreignWorkerIntegration",
@@ -1176,51 +1309,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.housingAffordability"
     ],
     "blockingSystem": "politicalMetrics/economic.industrialPolicyExecution,economic.manufacturingCompetitiveness,governance.partyDiscipline,population.migrationRate",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_social_insurance_contribution",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.rentenStabilitaet",
       "economic.unemploymentRate",
       "economic.medianIncome",
       "economic.povertyRate"
     ],
     "blockingSystem": "politicalMetrics/governance.rentenStabilitaet,economic.unemploymentRate,economic.medianIncome,economic.povertyRate",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_stamp_duty",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.smallBusinessFormation",
       "governance.budgetBalance",
       "economic.gdpGrowth",
       "social.incomeInequality"
     ],
     "blockingSystem": "politicalMetrics/economic.smallBusinessFormation,governance.budgetBalance,economic.gdpGrowth",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_state_enterprises",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.industrialPolicyExecution",
       "economic.smallBusinessFormation",
       "economic.gdpGrowth",
@@ -1228,17 +1367,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.incomeInequality"
     ],
     "blockingSystem": "politicalMetrics/economic.industrialPolicyExecution,economic.smallBusinessFormation,economic.gdpGrowth,economic.manufacturingCompetitiveness",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_state_media_funding",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "mediaInformation.stateMediaControl",
       "governance.partyDiscipline",
       "mediaInformation.pressFreedom",
@@ -1247,17 +1388,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/mediaInformation.stateMediaControl,governance.partyDiscipline,mediaInformation.mediaPolarization,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_taiwan_strait_doctrine",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.taiwanStraitTension",
       "governance.partyDiscipline",
       "economic.manufacturingCompetitiveness",
@@ -1265,51 +1408,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.militaryReadiness"
     ],
     "blockingSystem": "politicalMetrics/governance.taiwanStraitTension,governance.partyDiscipline,economic.manufacturingCompetitiveness,governance.beltAndRoadEngagement,governance.militaryReadiness",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_un_security_council_posture",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.nationalPride",
       "governance.partyDiscipline",
       "governance.taiwanStraitTension",
       "economic.manufacturingCompetitiveness"
     ],
     "blockingSystem": "politicalMetrics/governance.nationalPride,governance.partyDiscipline,governance.taiwanStraitTension,economic.manufacturingCompetitiveness",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_urban_maintenance_construction_tax",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "infrastructure.transportEfficiency",
       "economic.costOfLiving",
       "economic.gdpGrowth",
       "economic.ruralRevitalization"
     ],
     "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.gdpGrowth,economic.ruralRevitalization",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_us_china_relations",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.tradeBalance",
       "economic.manufacturingCompetitiveness",
       "economic.industrialPolicyExecution",
@@ -1317,47 +1466,53 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.partyDiscipline"
     ],
     "blockingSystem": "politicalMetrics/economic.tradeBalance,economic.manufacturingCompetitiveness,economic.industrialPolicyExecution,governance.taiwanStraitTension,governance.partyDiscipline",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "cn_value_added_tax",
     "countryId": "CN",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "npc:npc_chair",
       "npc:npc_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.costOfLiving",
       "economic.gdpGrowth",
       "economic.povertyRate",
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.gdpGrowth,economic.povertyRate,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "dd.economy.workerSecurity.primary",
     "countryId": "DD",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "both",
     "prerequisites": [
       "active:any-year"
     ],
-    "targets": [
+    "authoredTargets": [
       "economy.workerSecurity"
     ],
     "blockingSystem": "politicalMetrics",
-    "sourcePath": "src/lib/politicalLegislation/laws/ddLaws.ts"
+    "sourcePath": "src/lib/politicalLegislation/laws/ddLaws.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_academic_reform",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "education.testPerformance",
       "social.socialMobility",
       "education.academicPressure",
@@ -1365,51 +1520,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/education.academicPressure,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_agricultural_subsidies",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.foodSecurity",
       "economic.ruralRevitalization",
       "economic.mittelstandHealth",
       "environment.carbonEmissions"
     ],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,economic.ruralRevitalization,economic.mittelstandHealth",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_animal_welfare",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.foodSecurity",
       "economic.ruralRevitalization",
       "social.socialCohesion",
       "environment.carbonEmissions"
     ],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,economic.ruralRevitalization",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_asylum_policy",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "population.migrationRate",
       "social.foreignWorkerIntegration",
       "social.socialCohesion",
@@ -1418,34 +1579,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.borderSecurity"
     ],
     "blockingSystem": "politicalMetrics/population.migrationRate,economic.povertyRate,economic.economicFreedom,governance.borderSecurity",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_bundeswehr_funding",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.budgetBalance",
       "economic.gdpGrowth",
       "economic.manufacturingCompetitiveness",
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.gdpGrowth,economic.manufacturingCompetitiveness,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_carbon_pricing",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.carbonEmissions",
       "environment.energyTransitionProgress",
       "economic.costOfLiving",
@@ -1453,51 +1618,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.mittelstandHealth,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_climate_targets",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.carbonEmissions",
       "environment.climateResilience",
       "economic.gdpGrowth",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/environment.climateResilience,economic.gdpGrowth,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_constitutional_protection",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "publicSafety.publicSafetyConfidence",
       "governance.governmentTransparency",
       "governance.publicTrust",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_criminal_justice",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "publicSafety.publicSafetyConfidence",
       "publicSafety.recidivismRate",
       "publicSafety.incarcerationRate",
@@ -1505,34 +1676,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/publicSafety.recidivismRate,publicSafety.incarcerationRate,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_customs_tariff_rate",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.manufacturingCompetitiveness",
       "economic.tradeBalance",
       "economic.costOfLiving",
       "governance.euCohesionScore"
     ],
     "blockingSystem": "politicalMetrics/economic.manufacturingCompetitiveness,economic.tradeBalance,economic.costOfLiving,governance.euCohesionScore",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_cybersecurity",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "publicSafety.publicSafetyConfidence",
       "governance.governmentTransparency",
       "infrastructure.broadbandAccess",
@@ -1540,17 +1715,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_defense_posture",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.bundeswehrReadiness",
       "social.socialCohesion",
       "governance.euCohesionScore",
@@ -1558,84 +1735,94 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.militaryReadiness"
     ],
     "blockingSystem": "politicalMetrics/governance.bundeswehrReadiness,governance.euCohesionScore,governance.militaryReadiness",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_digital_governance",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.governmentTransparency",
       "governance.publicTrust",
       "economic.productivityGrowth",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.productivityGrowth,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_digital_infrastructure",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "infrastructure.broadbandAccess",
       "economic.ruralRevitalization",
       "economic.rdIntensity",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.rdIntensity,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_domestic_corporate_tax_rate",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.gdpGrowth",
       "economic.smallBusinessFormation",
       "economic.mittelstandHealth",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.smallBusinessFormation,economic.mittelstandHealth,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_education_funding",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "education.educationSpending",
       "social.socialMobility",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_elder_care",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.elderCareQuality",
       "healthcare.lifeExpectancy",
       "healthcare.mentalHealthAccess",
@@ -1643,68 +1830,76 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_electoral_reform",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.voterTurnout",
       "governance.publicTrust",
       "governance.governmentTransparency",
       "mediaInformation.mediaPolarization"
     ],
     "blockingSystem": "politicalMetrics/mediaInformation.mediaPolarization",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_eu_integration",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.euCohesionScore",
       "economic.manufacturingCompetitiveness",
       "social.foreignWorkerIntegration",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/governance.euCohesionScore,economic.manufacturingCompetitiveness,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_family_policy",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "population.birthRate",
       "social.kitaCoverage",
       "social.genderEquality",
       "social.socialMobility"
     ],
     "blockingSystem": "politicalMetrics/population.birthRate,social.kitaCoverage",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_fiscal_stimulus_act",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.gdpGrowth",
       "governance.budgetBalance",
       "governance.schuldenbremseHeadroom",
@@ -1712,133 +1907,149 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,governance.budgetBalance,governance.schuldenbremseHeadroom,economic.unemploymentRate,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_food_security",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.foodSecurity",
       "economic.ruralRevitalization",
       "social.socialCohesion",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,economic.ruralRevitalization,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_foreign_aid_diplomacy",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.foodSecurity",
       "governance.euCohesionScore",
       "social.foreignWorkerIntegration",
       "governance.publicTrust"
     ],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,governance.euCohesionScore",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_foreign_corporate_tax_rate",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.manufacturingCompetitiveness",
       "economic.tradeBalance",
       "economic.gdpGrowth",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/economic.manufacturingCompetitiveness,economic.tradeBalance,economic.gdpGrowth,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_gender_equality",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.genderEquality",
       "social.incomeInequality",
       "economic.laborParticipation",
       "social.kitaCoverage"
     ],
     "blockingSystem": "politicalMetrics/economic.laborParticipation,social.kitaCoverage",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_government_ethics",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.governmentTransparency",
       "governance.publicTrust",
       "governance.voterTurnout"
     ],
     "blockingSystem": "legislation/effectDescriptor",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_grundgesetz_reform",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.devolutionSatisfaction",
       "governance.governmentTransparency",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_health_insurance",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.uninsuredRate",
       "economic.povertyRate",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.povertyRate,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_housing",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.wohnungsBauRate",
       "social.housingAffordability",
       "social.homelessnessRate",
@@ -1846,17 +2057,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/social.wohnungsBauRate,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_immigration_policy",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "population.migrationRate",
       "economic.gdpGrowth",
       "economic.unemploymentRate",
@@ -1865,34 +2078,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.borderSecurity"
     ],
     "blockingSystem": "politicalMetrics/population.migrationRate,economic.gdpGrowth,economic.unemploymentRate,economic.economicFreedom,governance.borderSecurity",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_income_tax_rate",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.medianIncome",
       "economic.povertyRate",
       "economic.gdpGrowth",
       "social.incomeInequality"
     ],
     "blockingSystem": "politicalMetrics/economic.medianIncome,economic.povertyRate,economic.gdpGrowth",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_integration_programs",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.foreignWorkerIntegration",
       "social.socialCohesion",
       "education.workforceSkill",
@@ -1900,17 +2117,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.unemploymentRate,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_labor_reform",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.coDeterminationQuality",
       "social.workLifeBalance",
       "social.incomeInequality",
@@ -1918,34 +2137,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/economic.laborParticipation,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_land_culture",
     "countryId": "DE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "landtag:landtag_chair",
       "landtag:landtag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "mediaInformation.pressFreedom",
       "social.socialCohesion",
       "mediaInformation.mediaPolarization",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/mediaInformation.mediaPolarization,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_land_economic_development",
     "countryId": "DE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "landtag:landtag_chair",
       "landtag:landtag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.mittelstandHealth",
       "economic.smallBusinessFormation",
       "economic.ruralRevitalization",
@@ -1953,64 +2176,72 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.mittelstandHealth,economic.smallBusinessFormation,economic.ruralRevitalization,economic.manufacturingCompetitiveness,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_land_education",
     "countryId": "DE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "landtag:landtag_chair",
       "landtag:landtag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "education.educationSpending",
       "social.socialMobility",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_land_health_services",
     "countryId": "DE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "landtag:landtag_chair",
       "landtag:landtag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.publicHealthPreparedness",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_land_municipal_grants",
     "countryId": "DE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "landtag:landtag_chair",
       "landtag:landtag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.devolutionSatisfaction",
       "governance.voterTurnout",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_land_police",
     "countryId": "DE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "landtag:landtag_chair",
       "landtag:landtag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "publicSafety.publicSafetyConfidence",
       "publicSafety.crimeRate",
       "publicSafety.violentCrimeRate",
@@ -2018,17 +2249,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_mental_health",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.mentalHealthAccess",
       "social.workLifeBalance",
       "social.socialCohesion",
@@ -2036,17 +2269,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_minimum_wage",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.povertyRate",
       "economic.medianIncome",
       "social.incomeInequality",
@@ -2054,17 +2289,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/economic.povertyRate,economic.medianIncome,economic.unemploymentRate,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_nuclear_energy",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.nuclearSafety",
       "environment.renewableEnergy",
       "environment.carbonEmissions",
@@ -2072,51 +2309,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_payroll_social_insurance",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.rentenStabilitaet",
       "economic.unemploymentRate",
       "economic.medianIncome",
       "economic.povertyRate"
     ],
     "blockingSystem": "politicalMetrics/governance.rentenStabilitaet,economic.unemploymentRate,economic.medianIncome,economic.povertyRate",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_pension_system",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.rentenStabilitaet",
       "economic.povertyRate",
       "economic.laborParticipation",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/governance.rentenStabilitaet,economic.povertyRate,economic.laborParticipation,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_policing_public_safety",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "publicSafety.publicSafetyConfidence",
       "publicSafety.crimeRate",
       "publicSafety.violentCrimeRate",
@@ -2124,65 +2367,73 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_press_freedom",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "mediaInformation.pressFreedom",
       "governance.governmentTransparency",
       "governance.nationalPride"
     ],
     "blockingSystem": "politicalMetrics/governance.nationalPride",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_public_broadcasting",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "mediaInformation.pressFreedom",
       "mediaInformation.mediaPolarization",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/mediaInformation.mediaPolarization,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_public_health",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.publicHealthPreparedness",
       "environment.airQuality",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_rail_transport",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "infrastructure.transportEfficiency",
       "environment.carbonEmissions",
       "economic.ruralRevitalization",
@@ -2190,49 +2441,55 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.gdpGrowth,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_renewable_energy_target",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.renewableEnergy",
       "economic.costOfLiving",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_research_science",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.rdIntensity",
       "economic.manufacturingCompetitiveness",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.rdIntensity,economic.manufacturingCompetitiveness,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_robotics_ai",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.roboticsAdoption",
       "economic.rdIntensity",
       "economic.productivityGrowth",
@@ -2240,17 +2497,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.rdIntensity,economic.productivityGrowth,economic.manufacturingCompetitiveness,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_sme_mittelstand",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.mittelstandHealth",
       "economic.smallBusinessFormation",
       "economic.manufacturingCompetitiveness",
@@ -2258,85 +2517,95 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.mittelstandHealth,economic.smallBusinessFormation,economic.manufacturingCompetitiveness,economic.productivityGrowth,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_solidarity_surcharge",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.eastWestConvergence",
       "governance.budgetBalance",
       "economic.medianIncome",
       "social.incomeInequality"
     ],
     "blockingSystem": "politicalMetrics/economic.eastWestConvergence,governance.budgetBalance,economic.medianIncome",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_trade_agreements",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.manufacturingCompetitiveness",
       "economic.gdpGrowth",
       "social.foreignWorkerIntegration",
       "environment.carbonEmissions"
     ],
     "blockingSystem": "politicalMetrics/economic.manufacturingCompetitiveness,economic.gdpGrowth",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_trade_tax",
     "countryId": "DE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.mittelstandHealth",
       "economic.smallBusinessFormation",
       "economic.gdpGrowth",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/economic.mittelstandHealth,economic.smallBusinessFormation,economic.gdpGrowth,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_unemployment_welfare",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.povertyRate",
       "social.incomeInequality",
       "social.socialCohesion",
       "economic.laborParticipation"
     ],
     "blockingSystem": "politicalMetrics/economic.povertyRate,economic.laborParticipation",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_university_tuition",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.socialMobility",
       "education.workforceSkill",
       "education.literacyRate",
@@ -2344,51 +2613,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.medianIncome,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_vat_rate",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.costOfLiving",
       "economic.gdpGrowth",
       "economic.povertyRate",
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.gdpGrowth,economic.povertyRate,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "de_wehrpflicht",
     "countryId": "DE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.militaryReadiness",
       "governance.nationalPride",
       "governance.civilLiberties",
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/governance.militaryReadiness,governance.nationalPride,governance.civilLiberties,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_agricultural_subsidies",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.foodSecurity",
       "economic.capDependency",
       "economic.ruralRevitalization",
@@ -2397,34 +2672,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,economic.capDependency,economic.ruralRevitalization,environment.agriEmissionsShare,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_capital_gains_tax",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.smallBusinessFormation",
       "economic.fdiPipelineStrength",
       "social.incomeInequality",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/economic.smallBusinessFormation,economic.fdiPipelineStrength,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_childcare_policy",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.childPoverty",
       "population.birthRate",
       "social.genderEquality",
@@ -2433,17 +2712,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/population.birthRate,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_climate_policy",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.carbonEmissions",
       "environment.agriEmissionsShare",
       "environment.renewableEnergy",
@@ -2452,34 +2733,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/environment.agriEmissionsShare,economic.gdpGrowth,environment.climateResilience,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_corporate_tax_rate",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.gdpGrowth",
       "economic.unemploymentRate",
       "social.incomeInequality",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.unemploymentRate,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_criminal_justice",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "publicSafety.recidivismRate",
       "publicSafety.incarcerationRate",
       "publicSafety.crimeRate",
@@ -2488,17 +2773,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/publicSafety.recidivismRate,publicSafety.incarcerationRate,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_curriculum_reform",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "education.testPerformance",
       "education.academicPressure",
       "social.socialMobility",
@@ -2506,17 +2793,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/education.academicPressure,social.irishLanguageStrength,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_customs_tariff_rate",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.tradeBalance",
       "economic.costOfLiving",
       "economic.manufacturingCompetitiveness",
@@ -2524,51 +2813,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.mncDependency"
     ],
     "blockingSystem": "politicalMetrics/economic.tradeBalance,economic.costOfLiving,economic.manufacturingCompetitiveness,economic.fdiPipelineStrength,economic.mncDependency",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_cybersecurity",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.governmentTransparency",
       "healthcare.publicHealthPreparedness",
       "governance.budgetBalance",
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_defence_recruitment",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.militaryReadiness",
       "governance.nationalPride",
       "governance.civilLiberties",
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/governance.militaryReadiness,governance.nationalPride,governance.civilLiberties,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_defence_spending",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.budgetBalance",
       "governance.publicTrust",
       "economic.gdpGrowth",
@@ -2576,17 +2871,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.gdpGrowth,governance.unityReferendumSupport,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_digital_infrastructure",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "infrastructure.broadbandAccess",
       "economic.ruralRevitalization",
       "social.socialMobility",
@@ -2594,17 +2891,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_drug_policy",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "publicSafety.recidivismRate",
       "publicSafety.crimeRate",
       "healthcare.mentalHealthAccess",
@@ -2613,34 +2912,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "publicSafety.crimeRate"
     ],
     "blockingSystem": "politicalMetrics/publicSafety.recidivismRate,healthcare.mentalHealthAccess,publicSafety.incarcerationRate,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_education_funding",
     "countryId": "IE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "education.educationSpending",
       "social.socialMobility",
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_elder_care",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.elderCareQuality",
       "healthcare.lifeExpectancy",
       "governance.budgetBalance",
@@ -2648,34 +2951,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_electoral_reform",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.voterTurnout",
       "social.civicParticipation",
       "governance.publicTrust",
       "governance.governmentTransparency"
     ],
     "blockingSystem": "legislation/effectDescriptor",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_excise_duty",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.carbonEmissions",
       "environment.agriEmissionsShare",
       "economic.costOfLiving",
@@ -2683,17 +2990,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.socialMobility"
     ],
     "blockingSystem": "politicalMetrics/environment.agriEmissionsShare,economic.costOfLiving,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_fiscal_stimulus",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.gdpGrowth",
       "economic.unemploymentRate",
       "governance.budgetBalance",
@@ -2701,17 +3010,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.unemploymentRate,governance.budgetBalance,governance.debtToGdp,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_food_security",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.foodSecurity",
       "environment.agriEmissionsShare",
       "economic.tradeBalance",
@@ -2720,34 +3031,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,environment.agriEmissionsShare,economic.tradeBalance,economic.ruralRevitalization,economic.mncDependency,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_foreign_aid_diplomacy",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.publicTrust",
       "governance.governmentTransparency",
       "social.socialCohesion",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_foreign_corporate_tax_rate",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.gdpGrowth",
       "economic.tradeBalance",
       "economic.fdiPipelineStrength",
@@ -2755,17 +3070,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.tradeBalance,economic.fdiPipelineStrength,economic.mncDependency,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_garda_policing",
     "countryId": "IE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "publicSafety.crimeRate",
       "publicSafety.policePerCapita",
       "publicSafety.publicSafetyConfidence",
@@ -2774,50 +3091,56 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_gender_equality",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.genderEquality",
       "social.socialMobility",
       "social.civicParticipation",
       "social.socialCohesion"
     ],
     "blockingSystem": "legislation/effectDescriptor",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_government_ethics",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.governmentTransparency",
       "governance.publicTrust",
       "social.civicParticipation"
     ],
     "blockingSystem": "legislation/effectDescriptor",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_healthcare_policy",
     "countryId": "IE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.lifeExpectancy",
       "healthcare.preventableMortality",
       "healthcare.slaintecareProgress",
@@ -2826,17 +3149,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/healthcare.slaintecareProgress,healthcare.hseWaitingListMonths,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_higher_education",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "education.universityEnrollment",
       "social.socialMobility",
       "education.workforceSkill",
@@ -2845,17 +3170,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_housing_policy",
     "countryId": "IE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.homelessnessRate",
       "social.housingCompletionsRate",
       "social.housingAffordability",
@@ -2865,17 +3192,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/social.housingCompletionsRate,social.rentalPressureIndex,social.vacantPropertyRate,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_immigration_asylum",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "population.migrationRate",
       "governance.directProvisionLoad",
       "social.socialCohesion",
@@ -2885,34 +3214,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.borderSecurity"
     ],
     "blockingSystem": "politicalMetrics/population.migrationRate,governance.directProvisionLoad,governance.budgetBalance,governance.borderSecurity",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_income_tax_rate",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.medianIncome",
       "economic.povertyRate",
       "social.incomeInequality",
       "economic.gdpGrowth"
     ],
     "blockingSystem": "politicalMetrics/economic.medianIncome,economic.povertyRate,economic.gdpGrowth",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_integration_programs",
     "countryId": "IE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.foreignWorkerIntegration",
       "social.socialCohesion",
       "social.socialMobility",
@@ -2920,17 +3253,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/social.irishLanguageStrength,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_local_property_tax",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.housingAffordability",
       "social.vacantPropertyRate",
       "governance.budgetBalance",
@@ -2938,33 +3273,37 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.homelessnessRate"
     ],
     "blockingSystem": "politicalMetrics/social.vacantPropertyRate,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_media_press",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "mediaInformation.pressFreedom",
       "mediaInformation.stateMediaControl",
       "governance.governmentTransparency"
     ],
     "blockingSystem": "politicalMetrics/mediaInformation.stateMediaControl",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_mental_health",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.mentalHealthAccess",
       "healthcare.lifeExpectancy",
       "social.socialMobility",
@@ -2972,17 +3311,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_minimum_wage",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.medianIncome",
       "economic.povertyRate",
       "economic.smallBusinessFormation",
@@ -2990,17 +3331,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.unemploymentRate"
     ],
     "blockingSystem": "politicalMetrics/economic.medianIncome,economic.povertyRate,economic.smallBusinessFormation,economic.unemploymentRate",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_neutrality_posture",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.unityReferendumSupport",
       "governance.governmentTransparency",
       "social.socialCohesion",
@@ -3009,17 +3352,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.militaryReadiness"
     ],
     "blockingSystem": "politicalMetrics/governance.unityReferendumSupport,governance.militaryReadiness",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_parental_leave",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.genderEquality",
       "population.birthRate",
       "social.workLifeBalance",
@@ -3028,17 +3373,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/population.birthRate,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_peat_bog_policy",
     "countryId": "IE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.protectedLand",
       "environment.carbonEmissions",
       "environment.agriEmissionsShare",
@@ -3047,34 +3394,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/environment.agriEmissionsShare,economic.ruralRevitalization,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_prsi",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.unemploymentRate",
       "economic.medianIncome",
       "governance.budgetBalance",
       "social.socialMobility"
     ],
     "blockingSystem": "politicalMetrics/economic.unemploymentRate,economic.medianIncome,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_public_health",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.publicHealthPreparedness",
       "healthcare.preventableMortality",
       "healthcare.lifeExpectancy",
@@ -3082,17 +3433,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_regional_economic_development",
     "countryId": "IE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.ruralRevitalization",
       "social.socialMobility",
       "population.urbanizationRate",
@@ -3101,34 +3454,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,population.urbanizationRate,economic.gdpGrowth,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_regional_health",
     "countryId": "IE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.physicianRate",
       "healthcare.hseWaitingListMonths",
       "healthcare.publicHealthPreparedness",
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/healthcare.hseWaitingListMonths,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_regional_housing",
     "countryId": "IE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.housingCompletionsRate",
       "social.housingAffordability",
       "social.vacantPropertyRate",
@@ -3136,17 +3493,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/social.housingCompletionsRate,social.vacantPropertyRate,social.rentalPressureIndex,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_regional_skills",
     "countryId": "IE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "education.apprenticeshipRate",
       "education.workforceSkill",
       "economic.ruralRevitalization",
@@ -3154,17 +3513,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.unemploymentRate,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_regional_transport",
     "countryId": "IE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "infrastructure.publicTransit",
       "infrastructure.transportEfficiency",
       "economic.ruralRevitalization",
@@ -3172,17 +3533,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_renewable_energy_target",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.renewableEnergy",
       "environment.carbonEmissions",
       "infrastructure.powerGridReliability",
@@ -3190,17 +3553,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_research_science",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.rdIntensity",
       "economic.fdiPipelineStrength",
       "economic.manufacturingCompetitiveness",
@@ -3208,17 +3573,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.rdIntensity,economic.fdiPipelineStrength,economic.manufacturingCompetitiveness,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_rural_development",
     "countryId": "IE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.ruralRevitalization",
       "social.socialMobility",
       "social.irishLanguageStrength",
@@ -3227,17 +3594,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,social.irishLanguageStrength,population.urbanizationRate,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_sme_support",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.smallBusinessFormation",
       "economic.gdpGrowth",
       "economic.unemploymentRate",
@@ -3246,17 +3615,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.smallBusinessFormation,economic.gdpGrowth,economic.unemploymentRate,economic.mncDependency,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_stamp_duty",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.smallBusinessFormation",
       "social.housingAffordability",
       "social.vacantPropertyRate",
@@ -3264,17 +3635,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.rentalPressureIndex"
     ],
     "blockingSystem": "politicalMetrics/economic.smallBusinessFormation,social.vacantPropertyRate,governance.budgetBalance,social.rentalPressureIndex",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_state_pensions",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.budgetBalance",
       "economic.povertyRate",
       "social.socialMobility",
@@ -3282,17 +3655,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.povertyRate,economic.laborParticipation,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_transport_rail",
     "countryId": "IE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "infrastructure.publicTransit",
       "infrastructure.transportEfficiency",
       "environment.carbonEmissions",
@@ -3301,17 +3676,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_unemployment_benefits",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.unemploymentRate",
       "economic.povertyRate",
       "social.socialMobility",
@@ -3319,34 +3696,38 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.unemploymentRate,economic.povertyRate,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_usc",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.medianIncome",
       "economic.povertyRate",
       "governance.budgetBalance",
       "social.incomeInequality"
     ],
     "blockingSystem": "politicalMetrics/economic.medianIncome,economic.povertyRate,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_vat_rate",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.costOfLiving",
       "economic.gdpGrowth",
       "economic.povertyRate",
@@ -3354,17 +3735,19 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance"
     ],
     "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.gdpGrowth,economic.povertyRate,economic.smallBusinessFormation,governance.budgetBalance",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_work_visas",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.fdiPipelineStrength",
       "economic.unemploymentRate",
       "economic.mncDependency",
@@ -3374,50 +3757,56 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.housingAffordability"
     ],
     "blockingSystem": "politicalMetrics/economic.fdiPipelineStrength,economic.unemploymentRate,economic.mncDependency,population.migrationRate",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_workers_rights",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.workLifeBalance",
       "economic.medianIncome",
       "economic.productivityGrowth",
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/economic.medianIncome,economic.productivityGrowth,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_workforce_development",
     "countryId": "IE",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "education.apprenticeshipRate",
       "economic.unemploymentRate",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.unemploymentRate,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ie_working_family_payment",
     "countryId": "IE",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.povertyRate",
       "social.socialMobility",
       "social.socialCohesion",
@@ -3427,19 +3816,21 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.povertyRate,governance.budgetBalance,economic.unemploymentRate,population.birthRate,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_academic_reform",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "education.academicPressure",
       "healthcare.mentalHealthAccess",
       "education.educationSpending",
@@ -3447,57 +3838,63 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/education.academicPressure,healthcare.mentalHealthAccess,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_agricultural_subsidies",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.foodSecurity",
       "economic.ruralRevitalization",
       "economic.smallBusinessFormation",
       "economic.gdpGrowth"
     ],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,economic.ruralRevitalization,economic.smallBusinessFormation,economic.gdpGrowth",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_article9_sdf",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "publicSafety.publicSafetyConfidence",
       "social.foreignWorkerIntegration",
       "governance.publicTrust",
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_climate_emissions",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.carbonEmissions",
       "economic.gdpGrowth",
       "healthcare.publicHealthPreparedness",
@@ -3505,149 +3902,165 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.foodSecurity,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_constitutional_reform",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.publicTrust",
       "social.socialCohesion"
     ],
     "blockingSystem": "legislation/effectDescriptor",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_consumption_tax",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.costOfLiving",
       "economic.gdpGrowth",
       "economic.povertyRate",
       "economic.foodSecurity"
     ],
     "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.gdpGrowth,economic.povertyRate,economic.foodSecurity",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_criminal_justice",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "publicSafety.incarcerationRate",
       "social.socialCohesion",
       "healthcare.mentalHealthAccess",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/publicSafety.incarcerationRate,healthcare.mentalHealthAccess,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_customs_tariff",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.gdpGrowth",
       "economic.foodSecurity",
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.foodSecurity,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_cybersecurity",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "publicSafety.publicSafetyConfidence",
       "governance.roboticsAdoption",
       "infrastructure.broadbandAccess",
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_defense_spending",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "publicSafety.publicSafetyConfidence",
       "economic.gdpGrowth",
       "governance.roboticsAdoption",
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_digital_governance",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "infrastructure.broadbandAccess",
       "governance.governmentTransparency",
       "governance.publicTrust",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_digital_infrastructure",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "infrastructure.broadbandAccess",
       "governance.roboticsAdoption",
       "economic.ruralRevitalization",
@@ -3655,56 +4068,62 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.gdpGrowth,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_disaster_preparedness",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.naturalDisasterPreparedness",
       "healthcare.publicHealthPreparedness",
       "economic.ruralRevitalization",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/environment.naturalDisasterPreparedness,economic.ruralRevitalization,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_domestic_corporation_tax",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.smallBusinessFormation",
       "economic.gdpGrowth",
       "economic.unemploymentRate"
     ],
     "blockingSystem": "politicalMetrics/economic.smallBusinessFormation,economic.gdpGrowth,economic.unemploymentRate",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_education_funding",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "education.educationSpending",
       "education.academicPressure",
       "social.socialMobility",
@@ -3712,19 +4131,21 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/education.academicPressure,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_elder_care",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.elderCareQuality",
       "healthcare.lifeExpectancy",
       "healthcare.mentalHealthAccess",
@@ -3732,54 +4153,60 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_electoral_reform",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.publicTrust",
       "social.socialCohesion"
     ],
     "blockingSystem": "legislation/effectDescriptor",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_family_policy",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "population.birthRate",
       "social.genderEquality",
       "social.workLifeBalance"
     ],
     "blockingSystem": "politicalMetrics/population.birthRate",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_fiscal_stimulus",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.gdpGrowth",
       "economic.unemploymentRate",
       "economic.medianIncome",
@@ -3787,92 +4214,102 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.unemploymentRate,economic.medianIncome,economic.costOfLiving,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_fixed_asset_tax",
     "countryId": "JP",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.costOfLiving",
       "economic.smallBusinessFormation",
       "governance.publicTrust"
     ],
     "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_food_security",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.foodSecurity",
       "environment.naturalDisasterPreparedness",
       "healthcare.publicHealthPreparedness"
     ],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,environment.naturalDisasterPreparedness",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_foreign_aid_diplomacy",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.publicTrust",
       "social.foreignWorkerIntegration",
       "economic.gdpGrowth"
     ],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_foreign_corporation_tax",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.gdpGrowth",
       "economic.unemploymentRate",
       "economic.smallBusinessFormation",
       "economic.costOfLiving"
     ],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.unemploymentRate,economic.smallBusinessFormation,economic.costOfLiving",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_foreign_worker_policy",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.foreignWorkerIntegration",
       "economic.unemploymentRate",
       "population.migrationRate",
@@ -3880,95 +4317,105 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.unemploymentRate,population.migrationRate,economic.gdpGrowth,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_gender_equality",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.genderEquality",
       "population.birthRate",
       "social.workLifeBalance",
       "economic.medianIncome"
     ],
     "blockingSystem": "politicalMetrics/population.birthRate,economic.medianIncome",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_income_tax_rate",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.medianIncome",
       "economic.povertyRate",
       "economic.gdpGrowth",
       "social.incomeInequality"
     ],
     "blockingSystem": "politicalMetrics/economic.medianIncome,economic.povertyRate,economic.gdpGrowth",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_integration_programs",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.foreignWorkerIntegration",
       "social.socialCohesion",
       "publicSafety.crimeRate",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_jsdf_recruitment",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.militaryReadiness",
       "governance.nationalPride",
       "governance.civilLiberties",
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/governance.militaryReadiness,governance.nationalPride,governance.civilLiberties,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_labor_reform",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.workLifeBalance",
       "healthcare.mentalHealthAccess",
       "population.birthRate",
@@ -3976,55 +4423,61 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,population.birthRate,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_local_allocation_tax",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.ruralRevitalization",
       "education.educationSpending",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_media_press",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "mediaInformation.pressFreedom",
       "mediaInformation.stateMediaControl",
       "governance.governmentTransparency"
     ],
     "blockingSystem": "politicalMetrics/mediaInformation.stateMediaControl",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_mental_health",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.mentalHealthAccess",
       "education.academicPressure",
       "social.workLifeBalance",
@@ -4032,129 +4485,143 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,education.academicPressure,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_minimum_wage",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.medianIncome",
       "economic.povertyRate",
       "economic.smallBusinessFormation",
       "social.incomeInequality"
     ],
     "blockingSystem": "politicalMetrics/economic.medianIncome,economic.povertyRate,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_national_health_insurance",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.uninsuredRate",
       "economic.povertyRate",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.povertyRate,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_nuclear_energy",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.nuclearSafety",
       "environment.carbonEmissions",
       "economic.costOfLiving",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_pension",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.povertyRate",
       "economic.laborParticipation",
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.povertyRate,economic.laborParticipation,governance.budgetBalance,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_policing_public_safety",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.socialCohesion",
       "healthcare.mentalHealthAccess",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_public_health",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.publicHealthPreparedness",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_rail_transport",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "infrastructure.transportEfficiency",
       "economic.ruralRevitalization",
       "economic.gdpGrowth",
@@ -4162,260 +4629,288 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.gdpGrowth,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_rd_investment",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.rdIntensity",
       "economic.gdpGrowth",
       "economic.smallBusinessFormation",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.rdIntensity,economic.gdpGrowth,economic.smallBusinessFormation,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_regional_agriculture",
     "countryId": "JP",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.foodSecurity",
       "economic.ruralRevitalization",
       "economic.smallBusinessFormation"
     ],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,economic.ruralRevitalization,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_regional_autonomy",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.ruralRevitalization",
       "governance.governmentTransparency",
       "governance.publicTrust"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_regional_economic_development",
     "countryId": "JP",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.unemploymentRate",
       "economic.smallBusinessFormation",
       "economic.ruralRevitalization",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.unemploymentRate,economic.smallBusinessFormation,economic.ruralRevitalization,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_regional_education",
     "countryId": "JP",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "education.educationSpending",
       "social.socialMobility",
       "economic.ruralRevitalization",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_regional_environment",
     "countryId": "JP",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.airQuality",
       "economic.ruralRevitalization",
       "economic.foodSecurity",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.foodSecurity,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_regional_governance",
     "countryId": "JP",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.publicTrust",
       "social.socialCohesion",
       "governance.governmentTransparency"
     ],
     "blockingSystem": "legislation/effectDescriptor",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_regional_health",
     "countryId": "JP",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "healthcare.publicHealthPreparedness",
       "economic.ruralRevitalization",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_regional_policing",
     "countryId": "JP",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.socialCohesion",
       "economic.ruralRevitalization",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_regional_skills",
     "countryId": "JP",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.unemploymentRate",
       "economic.ruralRevitalization",
       "economic.smallBusinessFormation",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.unemploymentRate,economic.ruralRevitalization,economic.smallBusinessFormation,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_regional_social_services",
     "countryId": "JP",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.socialCohesion",
       "publicSafety.crimeRate",
       "healthcare.mentalHealthAccess"
     ],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_regional_transport",
     "countryId": "JP",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "infrastructure.transportEfficiency",
       "economic.ruralRevitalization",
       "economic.unemploymentRate",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.unemploymentRate,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_regional_utilities",
     "countryId": "JP",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "infrastructure.waterQuality",
       "healthcare.publicHealthPreparedness",
       "environment.naturalDisasterPreparedness",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/environment.naturalDisasterPreparedness,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_renewable_energy",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.renewableEnergy",
       "environment.nuclearSafety",
       "economic.costOfLiving",
@@ -4423,55 +4918,61 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.gdpGrowth,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_research_science",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.rdIntensity",
       "economic.gdpGrowth",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.rdIntensity,economic.gdpGrowth,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_resident_tax",
     "countryId": "JP",
-    "scope": "both",
+    "nativeScope": "both",
+    "sourceScope": "both",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.publicTrust",
       "education.educationSpending",
       "publicSafety.crimeRate"
     ],
     "blockingSystem": "legislation/effectDescriptor",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_robotics_ai",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "governance.roboticsAdoption",
       "economic.unemploymentRate",
       "healthcare.elderCareQuality",
@@ -4479,38 +4980,42 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.unemploymentRate,economic.gdpGrowth,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_rural_development",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.ruralRevitalization",
       "population.urbanizationRate",
       "infrastructure.transportEfficiency",
       "economic.unemploymentRate"
     ],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,population.urbanizationRate,economic.unemploymentRate",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_sme_support",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.smallBusinessFormation",
       "economic.unemploymentRate",
       "economic.ruralRevitalization",
@@ -4518,56 +5023,62 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/economic.smallBusinessFormation,economic.unemploymentRate,economic.ruralRevitalization,economic.gdpGrowth,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_social_insurance",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.socialCohesion",
       "healthcare.elderCareQuality",
       "healthcare.mentalHealthAccess"
     ],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_trade_agreements",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "economic.gdpGrowth",
       "economic.foodSecurity",
       "economic.smallBusinessFormation",
       "social.foreignWorkerIntegration"
     ],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.foodSecurity,economic.smallBusinessFormation",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_university_tuition",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "education.educationSpending",
       "social.socialMobility",
       "social.incomeInequality",
@@ -4575,187 +5086,194 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/population.birthRate,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_visa_residency",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.foreignWorkerIntegration",
       "social.socialCohesion",
       "population.migrationRate",
       "economic.economicFreedom"
     ],
     "blockingSystem": "politicalMetrics/population.migrationRate,economic.economicFreedom",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "jp_work_culture_reform",
     "countryId": "JP",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
       "sangiin:sangiin_chair",
       "sangiin:sangiin_ranking"
     ],
-    "targets": [
+    "authoredTargets": [
       "social.workLifeBalance",
       "healthcare.mentalHealthAccess",
       "population.birthRate",
       "social.genderEquality"
     ],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,population.birthRate",
-    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts"
+    "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "ru.economy.stability.primary",
     "countryId": "RU",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "active:any-year"
     ],
-    "targets": [
+    "authoredTargets": [
       "economy.stability"
     ],
     "blockingSystem": "plannedEconomy",
-    "sourcePath": "src/lib/politicalLegislation/laws/ruLaws.ts"
+    "sourcePath": "src/lib/politicalLegislation/laws/ruLaws.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "uk.defense.security.primary",
     "countryId": "UK",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "active:any-year"
     ],
-    "targets": [
+    "authoredTargets": [
       "defense.security"
     ],
     "blockingSystem": "military",
-    "sourcePath": "src/lib/politicalLegislation/laws/ukLaws.ts"
+    "sourcePath": "src/lib/politicalLegislation/laws/ukLaws.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "us.centralBank.independence.primary",
     "countryId": "US",
-    "scope": "national",
-    "prerequisites": [
-      "source-row:missing"
-    ],
-    "targets": [
-      "centralBank/governance"
-    ],
+    "nativeScope": "national",
+    "sourceScope": null,
+    "prerequisites": [],
+    "authoredTargets": [],
     "blockingSystem": "centralBank/governance",
-    "sourcePath": "NO_AHDGAME_SOURCE_MATCH"
+    "sourcePath": "NO_AHDGAME_SOURCE_MATCH",
+    "sourceMatch": "unmatched"
   },
   {
     "id": "us.defense.armedForces.primary",
     "countryId": "US",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "active:any-year"
     ],
-    "targets": [
+    "authoredTargets": [
       "defense.armedForces"
     ],
     "blockingSystem": "military/conflict",
-    "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts"
+    "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "us.defense.diplomacy.primary",
     "countryId": "US",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "active:any-year"
     ],
-    "targets": [
+    "authoredTargets": [
       "defense.diplomacy"
     ],
     "blockingSystem": "military/alliance",
-    "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts"
+    "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "us.economy.mobility.primary",
     "countryId": "US",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "national",
     "prerequisites": [
       "active:any-year"
     ],
-    "targets": [
+    "authoredTargets": [
       "economy.mobility"
     ],
     "blockingSystem": "budget/grants",
-    "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts"
+    "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "us.electoral.law.primary",
     "countryId": "US",
-    "scope": "national",
-    "prerequisites": [
-      "source-row:missing"
-    ],
-    "targets": [
-      "elections/electoralLaw"
-    ],
+    "nativeScope": "national",
+    "sourceScope": null,
+    "prerequisites": [],
+    "authoredTargets": [],
     "blockingSystem": "elections/electoralLaw",
-    "sourcePath": "NO_AHDGAME_SOURCE_MATCH"
+    "sourcePath": "NO_AHDGAME_SOURCE_MATCH",
+    "sourceMatch": "unmatched"
   },
   {
     "id": "us.environment.conservation.primary",
     "countryId": "US",
-    "scope": "national",
+    "nativeScope": "national",
+    "sourceScope": "both",
     "prerequisites": [
       "active:any-year"
     ],
-    "targets": [
+    "authoredTargets": [
       "environment.conservation"
     ],
     "blockingSystem": "politicalMetrics/environment",
-    "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts"
+    "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts",
+    "sourceMatch": "matched"
   },
   {
     "id": "us.subsidy.industry.primary",
     "countryId": "US",
-    "scope": "national",
-    "prerequisites": [
-      "source-row:missing"
-    ],
-    "targets": [
-      "subsidy/corporation"
-    ],
+    "nativeScope": "national",
+    "sourceScope": null,
+    "prerequisites": [],
+    "authoredTargets": [],
     "blockingSystem": "subsidy/corporation",
-    "sourcePath": "NO_AHDGAME_SOURCE_MATCH"
+    "sourcePath": "NO_AHDGAME_SOURCE_MATCH",
+    "sourceMatch": "unmatched"
   },
   {
     "id": "us.tariff.primary",
     "countryId": "US",
-    "scope": "national",
-    "prerequisites": [
-      "source-row:missing"
-    ],
-    "targets": [
-      "tariff/customs"
-    ],
+    "nativeScope": "national",
+    "sourceScope": null,
+    "prerequisites": [],
+    "authoredTargets": [],
     "blockingSystem": "tariff/customs",
-    "sourcePath": "NO_AHDGAME_SOURCE_MATCH"
+    "sourcePath": "NO_AHDGAME_SOURCE_MATCH",
+    "sourceMatch": "unmatched"
   },
   {
     "id": "us.union.law.primary",
     "countryId": "US",
-    "scope": "national",
-    "prerequisites": [
-      "source-row:missing"
-    ],
-    "targets": [
-      "labour/union"
-    ],
+    "nativeScope": "national",
+    "sourceScope": null,
+    "prerequisites": [],
+    "authoredTargets": [],
     "blockingSystem": "labour/union",
-    "sourcePath": "NO_AHDGAME_SOURCE_MATCH"
+    "sourcePath": "NO_AHDGAME_SOURCE_MATCH",
+    "sourceMatch": "unmatched"
   }
 ] as const;
