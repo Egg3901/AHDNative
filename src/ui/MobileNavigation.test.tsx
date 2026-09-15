@@ -1,7 +1,7 @@
 import { createRef } from "react";
 import { readFileSync } from "node:fs";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BottomNav, GameDrawer, MENU_GROUPS, drawerRouteIds } from "./MobileNavigation";
 
@@ -285,8 +285,15 @@ describe("MobileNavigation", () => {
     const quick = screen.getByRole("group", { name: "Quick actions" });
     const goActions = within(quick).getByRole("button", { name: "Go to Actions" });
     const goAsk = within(quick).getByRole("button", { name: "Go to Ask" });
-    expect(goAsk).toHaveAttribute("aria-current", "page");
+    // The bar styles its active target with data-active only, so the dialog
+    // keeps exactly one current-page marker: the hierarchy entry above.
+    expect(goAsk).toHaveAttribute("data-active", "true");
+    expect(goAsk).not.toHaveAttribute("aria-current");
     expect(goActions).not.toHaveAttribute("aria-current");
+    expect(goActions).not.toHaveAttribute("data-active");
+    const dialog = screen.getByRole("dialog", { name: "Game menu" });
+    expect(dialog.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+    expect(within(dialog).getByRole("button", { name: "Ask" })).toHaveAttribute("aria-current", "page");
     await user.click(goActions);
     expect(onNavigate).toHaveBeenCalledWith("actions");
     await user.click(goAsk);
@@ -297,6 +304,63 @@ describe("MobileNavigation", () => {
     // Pinned below the scrolling sections, with phone-safe padding.
     expect(css).toMatch(/\.ahd-drawer-quick\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
     expect(css).toMatch(/\.ahd-drawer-quick\s*\{[^}]*env\(safe-area-inset-bottom\)/);
+  });
+
+  it("moves across bottom destinations with arrow keys without leaving the bar (#366)", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    const onOpenMenu = vi.fn();
+    render(
+      <BottomNav route="actions" menuOpen={false} menuButtonRef={createRef()} onNavigate={onNavigate} onOpenMenu={onOpenMenu} />,
+    );
+    // Right from Actions reaches Ask and focus follows it; left then steps
+    // back to Actions. Neither opens the drawer, neither hides a destination.
+    // Each keystroke's starting focus is settled first: the bar moves focus
+    // with requestAnimationFrame, so the test waits for the landing focus
+    // before pressing the next key.
+    screen.getByRole("button", { name: "Actions" }).focus();
+    await user.keyboard("{ArrowRight}");
+    expect(onNavigate).toHaveBeenCalledWith("ask");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Ask" })).toHaveFocus());
+    await user.keyboard("{ArrowLeft}");
+    expect(onNavigate).toHaveBeenCalledWith("actions");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Actions" })).toHaveFocus());
+    expect(onOpenMenu).not.toHaveBeenCalled();
+    // Arrow keys wrap at the ends: right from Ask opens Menu, left from
+    // Profile opens Menu too. The menu path moves no focus itself; the
+    // opening drawer takes focus in the app.
+    screen.getByRole("button", { name: "Ask" }).focus();
+    await user.keyboard("{ArrowRight}");
+    expect(onOpenMenu).toHaveBeenCalledTimes(1);
+    screen.getByRole("button", { name: "Profile" }).focus();
+    await user.keyboard("{ArrowLeft}");
+    expect(onOpenMenu).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps turn controls and the quick bar pinned outside the scroll region (#366)", () => {
+    // Nation auto-expands on its route (14 destinations): the long list must
+    // scroll inside .ahd-drawer-nav while End turn and the Ask/Actions quick
+    // bar stay rendered siblings after it, reachable on 320px without
+    // scrolling past every destination.
+    const css = readFileSync("src/ui/ui.css", "utf8");
+    render(
+      <GameDrawer open route="budget" busy={false} playerName="Ada" playerParty="Labor"
+        countryName="United States" turn={1} date="1953-01-08" menuButtonRef={createRef()}
+        onNavigate={vi.fn()} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onClose={vi.fn()} />,
+    );
+    const dialog = screen.getByRole("dialog", { name: "Game menu" });
+    expect(screen.getByRole("button", { name: "National Budget" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "End turn" })).toBeVisible();
+    const nav = dialog.querySelector(".ahd-drawer-nav") as HTMLElement;
+    const quick = within(dialog).getByRole("group", { name: "Quick actions" });
+    const turn = dialog.querySelector(".ahd-drawer-turn") as HTMLElement;
+    expect(nav.contains(screen.getByRole("button", { name: "End turn" }))).toBe(false);
+    expect(nav.contains(quick)).toBe(false);
+    expect(nav.compareDocumentPosition(turn) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    expect(nav.compareDocumentPosition(quick) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Only the section list scrolls; the quick bar is pinned by flex layout.
+    expect(css).toMatch(/\.ahd-drawer-nav[^{]*\{[^}]*overflow-y:\s*auto/);
+    expect(css).toMatch(/\.ahd-drawer-nav[^{]*\{[^}]*flex:\s*1/);
   });
 
   it("holds phone safe-area, backdrop and focus behavior at 320/390px (#366)", async () => {
