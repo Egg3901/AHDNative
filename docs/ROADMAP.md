@@ -1202,7 +1202,8 @@ and removed. The smoke helper now walks the conversation; no engine change.
 - The Markets panel renders a For Sale section (per-sector counts, no For Sale
   tab), a Sector asset card in company detail (scope, region, workers, union,
   sale state), and honestly disabled Buy sector controls held with
-  `SECTOR_SALE_UNAVAILABLE` instead of hidden. Focused evidence:
+  `SECTOR_SALE_UNAVAILABLE` instead of hidden (wired to the live #295 buy
+  command below). Focused evidence:
   `src/game/markets.test.ts` (34 tests) and `src/ui/MarketsPanel.test.tsx`
   For Sale/sector-asset block.
 
@@ -1223,10 +1224,43 @@ and removed. The smoke helper now walks the conversation; no engine change.
 - The Markets company-detail card exposes owner-only listing controls: List for
   sale, Asking price plus Update price, and Unlist enable only for a recorded
   shareholder (player holds >= 1 share); everyone else sees the gate reason.
-  Buy sector stays honestly disabled for all viewers with the #295 reason.
+  Buy sector wires live in #295 below.
   Focused evidence: `packages/engine/src/corporation/corporateSectorAssets.test.ts`
   (for-sale validation), `src/game/sectorSaleSession.test.ts` (player flow,
   atomicity, persistence), and the #294 block in `src/ui/MarketsPanel.test.tsx`.
+
+## Corporate-sector acquisition vertical slice, 2026-09-15 (#295 / #211)
+
+- `buyCorporateSectorForSale` ports the validated buy through the public
+  engine boundary: player-only authority (no buyer shareholding required),
+  the recorded anchor as the asking price, same-currency personal cash
+  (cross-currency refuses instead of converting — no FX, like the share-trade
+  gate), and atomic validate-then-mutate transfer (cash debited, seller
+  `liquidCapital` credited, listing cleared, `owner` recorded as `player`;
+  the recorded corporation keeps operating the sector and its turn-math state
+  is untouched). Every refusal leaves cash, capital, listing, and ownership
+  exactly as they were; corrupt anchors fail closed at the shared validator
+  before funds move.
+- Ownership model reviewed against AHDGame e364c04 `buyListedSector.ts`:
+  corp-to-corp transfer/merge, FX conversion with acquisition spread, ledger
+  and brand effects have no Native counterpart (one aggregate corporation per
+  country/sector, no player-run corporations) and are not ported. List/update
+  refuse player-owned sectors with the already-owned reason, so a bought
+  sector can never be relisted into an unbuyable listing; unlist still clears.
+- `owner: "corporation" | "player"` is seeded explicitly, strictly validated,
+  and backfilled to `"corporation"` at the save boundary, so pre-#295 saves
+  load unchanged with no version renumber. The acquisition persists through
+  serialize/load as recorded asset state.
+- The Markets panel wires the slice end to end: a live company-detail Buy
+  (enabled exactly when the session command can proceed, every refusal
+  showing its gate reason), an Owner row (You (player) vs the recorded
+  operating corporation), and a For Sale section with one live row per
+  recorded listing (asking price, owner, Buy). `evaluateSectorBuy` gates on
+  the same projection the engine validates, owner-first like the engine
+  order. Focused evidence: `packages/engine/src/corporation/corporateSectorAcquire.test.ts`,
+  `src/game/sectorSaleSession.test.ts` (#295 block), `src/ui/MarketsPanel.test.tsx`
+  (#295 block), and `packages/engine/src/corporation/corporateSectorAssets.test.ts`
+  (owner seed/validate/backfill).
 
 ## Player polling checkpoint, 2026-09-15 (#38)
 

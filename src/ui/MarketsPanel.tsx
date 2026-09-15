@@ -15,7 +15,7 @@ import {
   evaluateShareTrade,
   parseShareCount,
 } from "../game/shareTrade";
-import { SECTOR_ACQUIRE_UNAVAILABLE, SECTOR_LIST_OWNER_ONLY, parseSalePrice } from "../game/markets";
+import { SECTOR_BUY_ALREADY_OWNED, SECTOR_LIST_OWNER_ONLY, evaluateSectorBuy, parseSalePrice } from "../game/markets";
 import type { MarketListing, MarketsView, SectorSummary, ShareholderKind } from "../game/markets";
 import type { GameScreenProps } from "../game/types";
 import { formatFinanceMoney } from "./FinancePanel";
@@ -378,17 +378,27 @@ function SectorDirectory({
 }
 
 /**
- * For Sale section: per-sector recorded for-sale counts with an honestly
- * disabled purchase control. AHDGame's sectors page tabs into a For Sale list
- * (src/app/sectors/page.tsx); Native counts live listings written by the #294
- * session commands, but buying one needs the acquisition commands (#295), so
- * the single control stays held with SECTOR_ACQUIRE_UNAVAILABLE instead of
- * pretending a purchase is possible. Listing itself happens on the company
- * detail card, restricted to recorded shareholders. Plain text rows, no tab
+ * For Sale section: one live row per recorded listing (#295). AHDGame's
+ * sectors page tabs into a For Sale list (src/app/sectors/page.tsx); Native
+ * renders the same listings the #294 session commands wrote, each with its
+ * recorded asking price, recorded owner, and a Buy control gated by the same
+ * evaluateSectorBuy projection the engine buy command validates — so an
+ * enabled Buy means the session command can proceed. Plain rows, no tab
  * buttons — the directory keeps All/Unowned/Owned only.
  */
-function ForSaleDirectory({ sectors }: { sectors: SectorSummary[] }) {
-  const total = sectors.reduce((sum, sector) => sum + sector.forSaleCount, 0);
+function ForSaleDirectory({
+  listings,
+  playerCash,
+  busy,
+  onSectorSale,
+}: {
+  listings: MarketListing[];
+  playerCash: number;
+  busy: boolean;
+  onSectorSale?: GameScreenProps["onSectorSale"];
+}) {
+  const forSale = listings.filter((listing) => listing.sectorAsset.forSale != null);
+  const total = forSale.length;
   return (
     <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
       <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>For sale</h3>
@@ -397,53 +407,78 @@ function ForSaleDirectory({ sectors }: { sectors: SectorSummary[] }) {
           ? "No sector listings are for sale."
           : `${total} ${total === 1 ? "sector listing is" : "sector listings are"} for sale.`}
       </p>
-      {sectors.length === 0 ? null : (
-        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-          {sectors.map((sector) => (
-            <li
-              key={sector.sectorType}
-              style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", fontSize: "0.78rem" }}
-            >
-              <span style={{ overflowWrap: "anywhere" }}>{sector.sectorLabel}</span>
-              <span className="ahd-mono" style={{ whiteSpace: "nowrap" }}>
-                For sale: {sector.forSaleCount}
-              </span>
-            </li>
-          ))}
+      {forSale.length === 0 ? null : (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          {forSale.map((listing) => {
+            const buyEval = evaluateSectorBuy(listing, { playerCash });
+            const buyDisabled = busy || !buyEval.available || onSectorSale == null;
+            const playerOwned = listing.sectorAsset.owner === "player";
+            return (
+              <li
+                key={listing.sectorAsset.id}
+                style={{ display: "flex", flexDirection: "column", gap: "0.25rem", fontSize: "0.78rem" }}
+              >
+                <span style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+                  <span style={{ overflowWrap: "anywhere" }}>
+                    {listing.sectorLabel} <span className="ahd-muted">({listing.ticker})</span>
+                  </span>
+                  <span className="ahd-mono" style={{ whiteSpace: "nowrap" }}>
+                    {formatFinanceMoney(listing.sectorAsset.forSale!.priceAnchor, listing.currency)}
+                  </span>
+                </span>
+                <span className="ahd-muted" style={{ fontSize: "0.74rem" }}>
+                  {playerOwned ? "Owned by you" : `Owned by ${listing.name}`}
+                </span>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                  <button
+                    type="button"
+                    className="ahd-btn ahd-btn-sm"
+                    onClick={() => onSectorSale?.("buy", { assetId: listing.sectorAsset.id })}
+                    disabled={buyDisabled}
+                    aria-disabled={buyDisabled}
+                    aria-label={`Buy ${listing.sectorLabel} sector (${listing.ticker})`}
+                    style={{ minHeight: 44, alignSelf: "flex-start" }}
+                  >
+                    Buy sector
+                  </button>
+                  {buyEval.available ? (
+                    <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
+                      Asking {formatFinanceMoney(buyEval.priceAnchor ?? 0, listing.currency)} · No action-point cost
+                    </span>
+                  ) : (
+                    <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
+                      {buyEval.disabledReason}
+                    </span>
+                  )}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-        <button
-          type="button"
-          className="ahd-btn ahd-btn-sm"
-          disabled
-          aria-disabled
-          aria-label="Buy a sector listing (unavailable)"
-          style={{ minHeight: 44, alignSelf: "flex-start" }}
-        >
-          Buy sector
-        </button>
-        <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
-          {SECTOR_ACQUIRE_UNAVAILABLE}
-        </span>
-      </div>
     </div>
   );
 }
 
 /**
- * Owner-only sale listing controls (#294). The engine authorizes only a
- * recorded shareholder of the corporation, so the player must hold at least
- * one share before list/update/unlist enable; everyone else sees the gate
- * reason instead. Buying a listed sector stays honestly disabled for all
- * viewers until the acquisition commands land (#295).
+ * Owner-only sale listing controls (#294) plus the live Buy control (#295).
+ * The engine authorizes listing changes only for a recorded shareholder of
+ * the corporation, so the player must hold at least one share before
+ * list/update/unlist enable; everyone else sees the gate reason instead. A
+ * player-owned sector cannot be relisted (the engine refuses with the
+ * already-owned reason), so List/Update stay held with that reason while
+ * Unlist keeps clearing. Buy runs evaluateSectorBuy over the same projection
+ * the engine validates, so an enabled Buy means the session command proceeds;
+ * every refusal shows its exact gate reason.
  */
 function SectorSaleControls({
   listing,
+  playerCash,
   busy,
   onSectorSale,
 }: {
   listing: MarketListing;
+  playerCash: number;
   busy: boolean;
   onSectorSale?: GameScreenProps["onSectorSale"];
 }) {
@@ -451,7 +486,11 @@ function SectorSaleControls({
   const [error, setError] = useState<string | null>(null);
   const listed = listing.sectorAsset.forSale;
   const isOwner = listing.playerShares > 0;
+  const playerOwned = listing.sectorAsset.owner === "player";
   const disabled = busy || !isOwner || onSectorSale == null;
+  const listDisabled = disabled || playerOwned;
+  const buyEval = evaluateSectorBuy(listing, { playerCash });
+  const buyDisabled = busy || !buyEval.available || onSectorSale == null;
 
   const update = () => {
     const parsed = parseSalePrice(price);
@@ -495,8 +534,8 @@ function SectorSaleControls({
                 type="button"
                 className="ahd-btn ahd-btn-sm"
                 onClick={update}
-                disabled={disabled}
-                aria-disabled={disabled}
+                disabled={listDisabled}
+                aria-disabled={listDisabled}
                 aria-label={`Update ${listing.sectorLabel} sector price`}
                 style={{ minHeight: 44, alignSelf: "flex-start" }}
               >
@@ -517,7 +556,11 @@ function SectorSaleControls({
               </button>
             </div>
           </div>
-          {!isOwner ? (
+          {playerOwned ? (
+            <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
+              {SECTOR_BUY_ALREADY_OWNED}
+            </span>
+          ) : !isOwner ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_LIST_OWNER_ONLY}
             </span>
@@ -529,14 +572,18 @@ function SectorSaleControls({
             type="button"
             className="ahd-btn ahd-btn-sm"
             onClick={() => onSectorSale?.("list", { assetId: listing.sectorAsset.id })}
-            disabled={disabled}
-            aria-disabled={disabled}
+            disabled={listDisabled}
+            aria-disabled={listDisabled}
             aria-label={`List ${listing.sectorLabel} sector for sale`}
             style={{ minHeight: 44, alignSelf: "flex-start" }}
           >
             List for sale
           </button>
-          {!isOwner ? (
+          {playerOwned ? (
+            <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
+              {SECTOR_BUY_ALREADY_OWNED}
+            </span>
+          ) : !isOwner ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_LIST_OWNER_ONLY}
             </span>
@@ -547,14 +594,23 @@ function SectorSaleControls({
         <button
           type="button"
           className="ahd-btn ahd-btn-sm"
-          disabled
-          aria-disabled
-          aria-label={`Buy ${listing.sectorLabel} sector (unavailable)`}
+          onClick={() => onSectorSale?.("buy", { assetId: listing.sectorAsset.id })}
+          disabled={buyDisabled}
+          aria-disabled={buyDisabled}
+          aria-label={`Buy ${listing.sectorLabel} sector`}
           style={{ minHeight: 44, alignSelf: "flex-start" }}
         >
           Buy sector
         </button>
-        <AvailabilityHint cost={0} available={false} disabledReason={SECTOR_ACQUIRE_UNAVAILABLE} />
+        {buyEval.available ? (
+          <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
+            Asking {formatFinanceMoney(buyEval.priceAnchor ?? 0, listing.currency)} · No action-point cost
+          </span>
+        ) : (
+          <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
+            {buyEval.disabledReason}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -744,11 +800,17 @@ function CompanyDetail({
                 : "Not for sale"}
             </dd>
           </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+            <dt style={{ fontSize: "0.82rem" }}>Owner</dt>
+            <dd style={{ margin: 0, fontSize: "0.82rem" }}>
+              {listing.sectorAsset.owner === "player" ? "You (player)" : `${listing.name} (corporation)`}
+            </dd>
+          </div>
         </dl>
         <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: 0 }}>
           Recorded sector state only. Worker and union mechanics arrive with their own slices (#296-#298).
         </p>
-        <SectorSaleControls listing={listing} busy={busy} onSectorSale={onSectorSale} />
+        <SectorSaleControls listing={listing} playerCash={markets.playerCash} busy={busy} onSectorSale={onSectorSale} />
       </div>
 
       <div className="ahd-card ahd-card-pad">
@@ -914,6 +976,14 @@ export function MarketsPanel({ markets, busy, onAction, onSectorSale, initialId 
     });
   }, [markets.listings, countryId, sectorType, query]);
 
+  // For Sale rows follow the same country context as the directory, so the
+  // section can never drift from the company detail cards it links to.
+  const countryListings = useMemo(() => {
+    return countryId === "all"
+      ? markets.listings
+      : markets.listings.filter((listing) => listing.countryId === countryId);
+  }, [markets.listings, countryId]);
+
   if (selected) {
     return (
       <CompanyDetail
@@ -988,7 +1058,7 @@ export function MarketsPanel({ markets, busy, onAction, onSectorSale, initialId 
             resetKey={countryId}
           />
 
-          <ForSaleDirectory sectors={countrySectors} />
+          <ForSaleDirectory listings={countryListings} playerCash={markets.playerCash} busy={busy} onSectorSale={onSectorSale} />
 
           <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
             {sectorType ? (

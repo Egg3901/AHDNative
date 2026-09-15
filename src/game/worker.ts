@@ -32,7 +32,9 @@ self.addEventListener("message", (event: MessageEvent<GameRequest>) => {
           ? session.listSectorForSale(command.assetId)
           : command.op === "update"
             ? session.updateSectorListing(command.assetId, command.priceAnchor)
-            : session.unlistSectorForSale(command.assetId);
+            : command.op === "buy"
+              ? session.buySectorForSale(command.assetId)
+              : session.unlistSectorForSale(command.assetId);
         value = { result, view: session.view() };
         break;
       }

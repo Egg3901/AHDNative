@@ -92,3 +92,71 @@ describe("#294 corporate-sector sale through the public session", () => {
     }
   });
 });
+
+describe("#295 corporate-sector acquisition through the public session", () => {
+  it("buys at an affordable re-anchor: commits cash, listing, and owner, and persists them", () => {
+    const session = sessionWithShare();
+    const assetId = mediaAssetId(session);
+    expect(session.listSectorForSale(assetId).ok).toBe(true);
+    expect(session.updateSectorListing(assetId, 100)).toMatchObject({ ok: true, priceAnchor: 100 });
+    const cashBefore = session.markets().playerCash;
+    expect(cashBefore).toBeGreaterThanOrEqual(100);
+
+    expect(session.buySectorForSale(assetId)).toMatchObject({ ok: true, priceAnchor: 100 });
+    const held = session.markets().listings.find((entry) => entry.id === "US-media")!;
+    expect(held.sectorAsset.forSale).toBeNull();
+    expect(held.sectorAsset.owner).toBe("player");
+    expect(session.markets().playerCash).toBe(cashBefore - 100);
+    expect(session.markets().sectors.find((sector) => sector.sectorType === "media")!.forSaleCount).toBe(0);
+
+    const reloaded = new GameSession();
+    reloaded.load(session.serialize(SAVED_AT));
+    const kept = reloaded.markets().listings.find((entry) => entry.id === "US-media")!;
+    expect(kept.sectorAsset.forSale).toBeNull();
+    expect(kept.sectorAsset.owner).toBe("player");
+    expect(reloaded.markets().playerCash).toBe(cashBefore - 100);
+  });
+
+  it("refuses buy while unlisted or unknown without touching the world", () => {
+    const session = sessionWithShare();
+    const assetId = mediaAssetId(session);
+    const before = session.serialize(SAVED_AT);
+    expect(session.buySectorForSale(assetId).ok).toBe(false);
+    expect(session.buySectorForSale("corporate-sector:US:media:missing").ok).toBe(false);
+    expect(session.serialize(SAVED_AT)).toBe(before);
+  });
+
+  it("refuses short cash atomically and cannot relist what the player owns", () => {
+    const session = sessionWithShare();
+    const assetId = mediaAssetId(session);
+    expect(session.listSectorForSale(assetId).ok).toBe(true);
+    const anchor = session.markets().listings.find((entry) => entry.id === "US-media")!.sectorAsset.forSale!.priceAnchor;
+    if (session.markets().playerCash < anchor) {
+      const before = session.serialize(SAVED_AT);
+      expect(session.buySectorForSale(assetId).error).toMatch(/insufficient cash/i);
+      expect(session.serialize(SAVED_AT)).toBe(before);
+      return;
+    }
+    expect(session.buySectorForSale(assetId).ok).toBe(true);
+    expect(session.listSectorForSale(assetId).error).toMatch(/already own/i);
+    expect(session.updateSectorListing(assetId, 999).error).toMatch(/already own/i);
+  });
+
+  it("loads a pre-#295 save without owners as the corporation default", () => {
+    const session = sessionWithShare();
+    const assetId = mediaAssetId(session);
+    // The listing call materializes world.corporateSectors; the save then
+    // mimics a pre-#295 payload with the owner field stripped throughout.
+    expect(session.listSectorForSale(assetId).ok).toBe(true);
+    const anchor = session.markets().listings.find((entry) => entry.id === "US-media")!.sectorAsset.forSale!.priceAnchor;
+    const raw = JSON.parse(session.serialize(SAVED_AT)) as {
+      world: { corporateSectors: Record<string, Record<string, unknown>> };
+    };
+    for (const record of Object.values(raw.world.corporateSectors)) delete record.owner;
+    const reloaded = new GameSession();
+    reloaded.load(JSON.stringify(raw));
+    const listing = reloaded.markets().listings.find((entry) => entry.id === "US-media")!;
+    expect(listing.sectorAsset.owner).toBe("corporation");
+    expect(listing.sectorAsset.forSale).toEqual({ priceAnchor: anchor });
+  });
+});

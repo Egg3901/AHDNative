@@ -259,7 +259,7 @@ export function App() {
       setWorld(response.view);
       if (response.result.ok) {
         await save();
-        setMessage(op === "list" ? "Sector listed for sale." : op === "update" ? "Sale listing updated." : "Sector unlisted.");
+        setMessage(op === "list" ? "Sector listed for sale." : op === "update" ? "Sale listing updated." : op === "buy" ? "Sector acquired." : "Sector unlisted.");
       } else setError(response.result.error);
     })}
     onSave={() => void run(save)}

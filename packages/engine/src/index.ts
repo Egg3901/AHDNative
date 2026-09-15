@@ -108,6 +108,7 @@ export * from "./cabinet/nominationLifecycle.js";
 export * from "./cabinet/transition.js";
 export * from "./corporation/corporateSectorAssets.js";
 export * from "./corporation/corporateSectorSale.js";
+export * from "./corporation/corporateSectorAcquire.js";
 export * from "./ministerialOrders/catalog.js";
 export { runMinisterialOrders } from "./ministerialOrders/phases.js";
 // Issue #119: FOMC committee + nomination lifecycle. Types come through

@@ -11,7 +11,7 @@ import type { PoliticsView } from "./politics";
 import type { GameCommand, GameResponse } from "./protocol";
 import type { ActionOutcome } from "./notifications";
 import type { EraChoice, CreationChoices, GameView, NewGameOptions } from "./types";
-import type { SectorSaleResult, WorldFeatureFlags } from "@ahdclient/engine";
+import type { SectorAcquireResult, SectorSaleResult, WorldFeatureFlags } from "@ahdclient/engine";
 
 export interface WorkerPort {
   postMessage(message: unknown): void;
@@ -63,8 +63,8 @@ export class GameClient {
   act(actionId: string, params?: Record<string, string | number>) {
     return this.send<{ result: { ok: true; message: string; outcome: ActionOutcome } | { ok: false; error: string }; view: GameView }>({ type: "action", actionId, params });
   }
-  sectorSale(op: "list" | "update" | "unlist", assetId: string, priceAnchor?: number) {
-    return this.send<{ result: SectorSaleResult; view: GameView }>(
+  sectorSale(op: "list" | "update" | "unlist" | "buy", assetId: string, priceAnchor?: number) {
+    return this.send<{ result: SectorSaleResult | SectorAcquireResult; view: GameView }>(
       priceAnchor === undefined
         ? { type: "sectorSale", op, assetId }
         : { type: "sectorSale", op, assetId, priceAnchor },

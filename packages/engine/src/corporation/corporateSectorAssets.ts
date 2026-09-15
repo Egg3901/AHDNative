@@ -8,6 +8,18 @@ import type { CorporationType } from "./types.js";
  * regional economy split lands, each aggregate explicitly retains national,
  * unallocated scope instead of inventing state ownership.
  */
+/**
+ * Sector owner. "corporation" is the #293 default: the recorded
+ * `corporationId` operates and owns the sector. "player" records a #295
+ * player acquisition: the buyer paid the listed asking price from personal
+ * cash, the seller corporation was credited, the listing cleared, and the
+ * recorded corporation keeps operating the sector (it remains the turn-math
+ * SSOT — Native has one aggregate corporation per country/sector, so no
+ * buyer corporation can receive the asset). Routing operating income to the
+ * player owner (dividends/claims) is explicitly out of scope.
+ */
+export type CorporateSectorOwner = "corporation" | "player";
+
 export interface CorporateSectorAsset {
   id: string;
   corporationId: string;
@@ -17,6 +29,7 @@ export interface CorporateSectorAsset {
   workers: number;
   representingUnionId: string | null;
   forSale: { priceAnchor: number } | null;
+  owner: CorporateSectorOwner;
 }
 
 export interface CorporateSectorProjection extends CorporateSectorAsset {
@@ -55,6 +68,7 @@ export function seedCorporateSectorAssets(world: WorldState): Record<string, Cor
       workers: 0,
       representingUnionId: null,
       forSale: null,
+      owner: "corporation",
     };
   }
   validateCorporateSectorAssets(world, assets);
@@ -80,6 +94,7 @@ export function validateCorporateSectorAssets(
     // (and therefore at the save boundary, which validates through this
     // function). Unknown extra fields are ignored for forward compatibility.
     validateSectorForSale(asset);
+    validateSectorOwner(asset);
     const tuple = `${asset.corporationId}\u0000${asset.countryId}\u0000${asset.stateId ?? "national"}\u0000${asset.sectorType}`;
     if (tuples.has(tuple)) throw new Error(`Duplicate corporate sector identity: ${asset.id}`);
     tuples.add(tuple);
@@ -101,6 +116,34 @@ export function validateSectorForSale(asset: CorporateSectorAsset): void {
   const priceAnchor = (forSale as { priceAnchor?: unknown }).priceAnchor;
   if (typeof priceAnchor !== "number" || !Number.isFinite(priceAnchor) || priceAnchor <= 0) {
     throw new Error(`Corporate sector ${asset.id} has an invalid for-sale price anchor`);
+  }
+}
+
+/**
+ * Strict ownership validation (#295). Every seeded asset records the field
+ * explicitly; a missing or non-enum value is corruption, not a defaultable
+ * absence. Saves written before #295 carry materialized assets without the
+ * field — those are backfilled to "corporation" at the save boundary
+ * (save.ts, same additive pattern as the campaign spend-stock backfill), so
+ * this strict check only ever sees current-shape records.
+ */
+export function validateSectorOwner(asset: CorporateSectorAsset): void {
+  const owner = (asset as { owner?: unknown }).owner;
+  if (owner !== "corporation" && owner !== "player") {
+    throw new Error(`Corporate sector ${asset.id} has an invalid owner`);
+  }
+}
+
+/**
+ * Backfill pre-#295 materialized assets that predate the owner field. Missing
+ * degrades to the #293 default ("corporation"); a present but invalid value
+ * is left for validateSectorOwner to fail closed on.
+ */
+export function backfillSectorOwner(assets: Record<string, CorporateSectorAsset>): void {
+  for (const asset of Object.values(assets)) {
+    if ((asset as { owner?: unknown }).owner === undefined) {
+      asset.owner = "corporation";
+    }
   }
 }
 

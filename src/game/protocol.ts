@@ -25,7 +25,7 @@ export type GameCommand =
   | { type: "legislation"; selection?: LegislationSelection }
   | { type: "advance" }
   | { type: "action"; actionId: string; params?: Record<string, string | number> }
-  | { type: "sectorSale"; op: "list" | "update" | "unlist"; assetId: string; priceAnchor?: number }
+  | { type: "sectorSale"; op: "list" | "update" | "unlist" | "buy"; assetId: string; priceAnchor?: number }
   | { type: "serialize"; savedAt: string; includeSaveNotice?: boolean }
   | { type: "load"; contents: string }
   | { type: "notificationsRead"; id: string }

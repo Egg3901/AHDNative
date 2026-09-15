@@ -17,9 +17,9 @@ import { projectPolitics, projectPartyMembership } from "./politics";
 import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
-  ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction,
+  ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction,
   getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, unlistCorporateSectorForSale, updateCorporateSectorListing,
-  type ActionId, type ExecuteActionParams, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
+  type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionCategory, ActionView, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
 import { isWorldsimMode } from "@ahdclient/engine";
@@ -400,6 +400,23 @@ export class GameSession {
   unlistSectorForSale(assetId: string): SectorSaleResult {
     const candidate = structuredClone(this.requireWorld());
     const result = unlistCorporateSectorForSale(candidate, assetId, "player");
+    if (!result.ok) return result;
+    this.commit(candidate);
+    return result;
+  }
+
+  /**
+   * #295: player acquisition of a listed sector. The engine call runs on a
+   * clone as the player and only an ok result commits, so every refusal
+   * (unknown listing, not listed, bad anchor, foreign currency, short cash,
+   * already owned) leaves the live world untouched. A success debits
+   * personal cash, credits the seller corporation, clears the listing, and
+   * records player ownership; it persists through the normal
+   * serialize/load path as recorded CorporateSectorAsset state.
+   */
+  buySectorForSale(assetId: string): SectorAcquireResult {
+    const candidate = structuredClone(this.requireWorld());
+    const result = buyCorporateSectorForSale(candidate, assetId, "player");
     if (!result.ok) return result;
     this.commit(candidate);
     return result;
