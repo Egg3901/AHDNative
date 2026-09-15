@@ -4,7 +4,8 @@ import { join, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createWorld, rulingPartyIdForCountry, rulingPartyForCountry, headOfStateOfficeForCountry, SCHEMA_VERSION } from "./world.js";
 import { executeAction } from "./actions/execute.js";
-import { deserializeSave } from "./save.js";
+import { deserializeSave, serializeSave } from "./save.js";
+import { advanceTurn } from "./engine.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -88,6 +89,35 @@ describe("HoS office eligibility helper", () => {
   });
 });
 
+describe("#243 permanent Head of State seating", () => {
+  it("seats a presidential HoS through the executive record and save boundary", () => {
+    const world = createWorld(HOS_OPTS);
+    expect(world.player).toMatchObject({
+      permanentHeadOfState: true,
+      currentOffice: { type: "president", countryId: "US" },
+    });
+    expect(world.executives.US).toMatchObject({
+      countryId: "US",
+      presidentId: "player",
+      presidentParty: "US_REP",
+      termStartTurn: 0,
+    });
+
+    const loaded = deserializeSave(serializeSave(world, "2026-09-14T00:00:00.000Z"));
+    expect(loaded.player).toMatchObject({
+      permanentHeadOfState: true,
+      currentOffice: { type: "president", countryId: "US" },
+    });
+    expect(loaded.executives.US?.presidentId).toBe("player");
+  });
+
+  it("uses the authored parliamentary executive office instead of president", () => {
+    const world = createWorld({ ...CAREER_OPTS, countryId: "UK", mode: "hos", initialization: "historical" });
+    expect(world.player.currentOffice).toEqual({ type: "primeMinister", countryId: "UK" });
+    expect(world.executives.UK).toBeUndefined();
+  });
+});
+
 describe("M1: determinism across both modes", () => {
   it("same seed + mode produces byte-identical worlds", () => {
     const a = createWorld(HOS_OPTS);
@@ -98,12 +128,17 @@ describe("M1: determinism across both modes", () => {
     expect(JSON.stringify(c)).toBe(JSON.stringify(d));
   });
 
-  it("HoS and career worlds from the same seed differ only in player.mode/hosPartyId", () => {
+  it("HoS seating changes the consumed executive state and its public legitimacy projection", () => {
     const hos = createWorld(HOS_OPTS);
     const career = createWorld(CAREER_OPTS);
-    const hosPlayer = { ...hos.player, mode: "career" as const, hosPartyId: null };
+    const { permanentHeadOfState: _permanent, currentOffice: _office, ...hosWithoutOffice } = hos.player;
+    const hosPlayer = { ...hosWithoutOffice, mode: "career" as const, hosPartyId: null };
     expect(JSON.stringify(hosPlayer)).toBe(JSON.stringify(career.player));
-    expect(JSON.stringify({ ...hos, player: null })).toBe(JSON.stringify({ ...career, player: null }));
+    expect(hos.executives.US?.presidentId).toBe("player");
+    expect(career.executives.US?.presidentId).toBeUndefined();
+    expect(hos.countryPolitics.US?.legitimacy).toBeGreaterThan(
+      career.countryPolitics.US?.legitimacy ?? 0,
+    );
   });
 });
 
@@ -175,21 +210,28 @@ describe("M1: economic-direction levers (HoS-only, call existing budget function
     expect(tax.ok).toBe(false);
   });
 
-  it("HoS mode can direct spending; recomputes total/surplus via calculateBudgetSpending", () => {
+  it("HoS spending queues, then enacts on the next turn boundary", () => {
     const world = createWorld(HOS_OPTS);
     const before = world.budgets["US"]!.spending.total;
     const res = executeAction(world, "player", "adjustBudgetSpending", { budgetCategory: "defense", budgetAmount: 1_000_000 });
     expect(res.ok).toBe(true);
+    expect(world.budgets.US!.spending.total).toBe(before);
+    expect(world.pendingFiscalDirectives).toHaveLength(1);
+    advanceTurn(world);
     const budget = world.budgets["US"]!;
     expect(budget.spending.byCategory["defense"]).toBe(1_000_000);
     expect(budget.spending.total).not.toBe(before);
     expect(budget.surplus).toBe(budget.revenue.total - budget.spending.total);
+    expect(world.pendingFiscalDirectives).toEqual([]);
   });
 
-  it("HoS mode can set a tax rate; recomputes revenue/surplus via calculateBudgetRevenue", () => {
+  it("HoS tax direction queues, then enacts on the next turn boundary", () => {
     const world = createWorld(HOS_OPTS);
+    const before = world.budgets.US!.taxRates.incomeTax;
     const res = executeAction(world, "player", "adjustTaxRate", { taxField: "incomeTax", taxRate: 25 });
     expect(res.ok).toBe(true);
+    expect(world.budgets.US!.taxRates.incomeTax).toBe(before);
+    advanceTurn(world);
     const budget = world.budgets["US"]!;
     expect(budget.taxRates.incomeTax).toBe(25);
     expect(budget.surplus).toBe(budget.revenue.total - budget.spending.total);

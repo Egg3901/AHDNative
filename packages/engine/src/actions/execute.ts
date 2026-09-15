@@ -35,8 +35,6 @@ import {
   isPlayerNationalLeadershipVoter,
 } from "../intraparty/leadershipTenure.js";
 import { getLaw, resolveCatalogPolicyOption } from "../legislation/catalog.js";
-import { calculateBudgetSpending } from "../budget/spending.js";
-import { calculateBudgetRevenue } from "../budget/revenue.js";
 import { launchProspectingSurvey } from "../extraction/prospecting.js";
 import { issueContractOffer } from "../extraction/contracts.js";
 import type { ExtractableResource } from "../commodity/constants.js";
@@ -1594,10 +1592,8 @@ function executeActionInner(
   // Country-level fiscal authority, not a party action: gated on
   // player.mode directly (like sponsorBill/repealLaw above), not the
   // HOS_PARTY_BYPASS_ACTIONS party-membership swap. Each mutates budget
-  // state then recomputes through the SAME pure functions budget/phases.ts
-  // uses (calculateBudgetSpending / calculateBudgetRevenue), so the
-  // surplus invariant (budget/invariants.ts) stays exact — no new phase
-  // logic, just an action-layer call into the existing pure calculators.
+  // state at the next turn boundary through fiscalDirectivesPhase, which calls
+  // the same pure budget calculators and preserves the surplus invariant.
   if (actionId === "adjustBudgetSpending" || actionId === "adjustTaxRate") {
     if (found.kind !== "player") return { ok: false, error: "Only the player directs the budget" };
     const player = world.player as unknown as { mode: string };
@@ -1621,10 +1617,11 @@ function executeActionInner(
         if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
         return { ok: false, error: "adjustBudgetSpending requires budgetCategory and a non-negative finite budgetAmount" };
       }
-      const byCategory = { ...budget.spending.byCategory, [category]: amount };
-      budget.spending = calculateBudgetSpending(byCategory, budget.spending.stateGrants, budget.debt.principal, budget.debt.interestRate);
-      budget.surplus = budget.revenue.total - budget.spending.total;
-      return { ok: true, message: `Set ${category} spending to ${amount} for ${countryId}.` };
+      world.pendingFiscalDirectives = [
+        ...(world.pendingFiscalDirectives ?? []),
+        { id: `fiscal-${world.meta.turn}-${actionId}`, countryId, kind: "spending", field: category, value: amount, proposedTurn: world.meta.turn },
+      ];
+      return { ok: true, message: `Directed ${category} spending to ${amount} for ${countryId}; enacts next turn.` };
     }
     // adjustTaxRate
     const field = params.taxField;
@@ -1634,10 +1631,11 @@ function executeActionInner(
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "adjustTaxRate requires taxField and taxRate in [0,100]" };
     }
-    budget.taxRates = { ...budget.taxRates, [field]: rate };
-    budget.revenue = calculateBudgetRevenue(budget.taxRates, budget.taxBases, budget.revenue.other);
-    budget.surplus = budget.revenue.total - budget.spending.total;
-    return { ok: true, message: `Set ${field} to ${rate}% for ${countryId}.` };
+    world.pendingFiscalDirectives = [
+      ...(world.pendingFiscalDirectives ?? []),
+      { id: `fiscal-${world.meta.turn}-${actionId}`, countryId, kind: "tax", field, value: rate, proposedTurn: world.meta.turn },
+    ];
+    return { ok: true, message: `Directed ${field} to ${rate}% for ${countryId}; enacts next turn.` };
   }
   // ── W11 extraction/prospecting: government actions, HoS mode only ──────
   if (actionId === "launchProspect" || actionId === "issueExtractionContract") {

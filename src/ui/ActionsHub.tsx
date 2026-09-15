@@ -19,6 +19,7 @@ export const ACTION_HUB_CATEGORIES: { id: ActionsCategoryFilter; label: string }
   { id: "influence", label: "Influence" },
   { id: "fundraising", label: "Fundraising" },
   { id: "intelligence", label: "Intelligence" },
+  { id: "executive", label: "Executive" },
 ];
 
 /** Code-native category glyphs; no generated raster art and no asset bundle. */
@@ -26,6 +27,7 @@ const CATEGORY_GLYPH: Record<ActionCategory, string> = {
   influence: "◆",
   fundraising: "$",
   intelligence: "◎",
+  executive: "★",
 };
 
 function actionCategoryGlyph(category?: ActionCategory): string {
@@ -59,6 +61,8 @@ function ActionCard({
   const [amount, setAmount] = useState("10");
   const [partyId, setPartyId] = useState(parties[0]?.id ?? "");
   const [regionId, setRegionId] = useState(regions[0]?.id ?? "");
+  const [budgetCategory, setBudgetCategory] = useState("defense");
+  const [taxField, setTaxField] = useState("incomeTax");
 
   const [amountError, setAmountError] = useState<string | null>(null);
   const disabled = busy || !action.available;
@@ -87,6 +91,18 @@ function ActionCard({
         return;
       }
       params.regionId = regionId;
+    }
+    if (action.requires === "budgetSpending") {
+      const value = Number(amount);
+      if (!Number.isFinite(value) || value < 0) return setAmountError("Enter a non-negative spending amount.");
+      params.budgetCategory = budgetCategory;
+      params.budgetAmount = value;
+    }
+    if (action.requires === "taxRate") {
+      const value = Number(amount);
+      if (!Number.isFinite(value) || value < 0 || value > 100) return setAmountError("Enter a tax rate from 0 to 100.");
+      params.taxField = taxField;
+      params.taxRate = value;
     }
     onAction(action.id, Object.keys(params).length ? params : undefined);
   };
@@ -128,11 +144,27 @@ function ActionCard({
         <span className="ahd-badge ahd-action-state" aria-label={hint}>{action.available ? `${action.cost}` : "locked"}</span>
       </div>
 
-      {action.requires === "amount" ? (
+      {action.requires === "amount" || action.requires === "budgetSpending" || action.requires === "taxRate" ? (
         <label className="ahd-field" style={{ maxWidth: "12rem" }}>
-          <span className="ahd-label">Amount</span>
+          <span className="ahd-label">{action.requires === "taxRate" ? "Rate" : "Amount"}</span>
           <input className="ahd-input" type="number" inputMode="numeric" min={1} value={amount} onChange={(e) => { setAmount(e.target.value); if (amountError) setAmountError(null); }} disabled={busy} aria-label={`Amount for ${action.name}`} aria-invalid={!!amountError} aria-describedby={amountError ? `amount-error-${action.id}` : undefined} />
           {amountError ? <span id={`amount-error-${action.id}`} className="ahd-error-text" role="alert">{amountError}</span> : null}
+        </label>
+      ) : null}
+      {action.requires === "budgetSpending" ? (
+        <label className="ahd-field" style={{ maxWidth: "16rem" }}>
+          <span className="ahd-label">Spending category</span>
+          <select className="ahd-select" value={budgetCategory} onChange={(e) => setBudgetCategory(e.target.value)} disabled={busy} aria-label={`Spending category for ${action.name}`}>
+            {["defense", "healthcare", "education", "infrastructure", "welfare"].map((field) => <option key={field} value={field}>{field}</option>)}
+          </select>
+        </label>
+      ) : null}
+      {action.requires === "taxRate" ? (
+        <label className="ahd-field" style={{ maxWidth: "16rem" }}>
+          <span className="ahd-label">Tax</span>
+          <select className="ahd-select" value={taxField} onChange={(e) => setTaxField(e.target.value)} disabled={busy} aria-label={`Tax field for ${action.name}`}>
+            {["incomeTax", "corporateTax", "salesTax", "payrollTax"].map((field) => <option key={field} value={field}>{field}</option>)}
+          </select>
         </label>
       ) : null}
       {action.requires === "party" ? (

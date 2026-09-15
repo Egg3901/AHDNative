@@ -644,6 +644,34 @@ and disband substeps; the issue stays open with `status: partial`.
 
 ## World and new-game setup checkpoint, 2026-09-14 (#241)
 
+## Head of State journey checkpoint, 2026-09-14 (#243)
+
+#243 now seats a Head of State player as a permanent executive at world
+creation. Presidential systems write the same `executives` record consumed by
+cabinet, judiciary, succession, achievements and country overview mechanics;
+parliamentary and one-party systems retain their authored executive office in
+`player.currentOffice`. Both bindings survive save and reload.
+
+The Actions destination becomes a dedicated Executive surface in HoS mode and
+does not expose career campaigning actions. Its spending and tax controls
+consume action points immediately but queue a fiscal directive; the directive
+enacts at the next turn boundary through `fiscalDirectivesPhase`, where the
+existing budget calculators recompute revenue, spending and surplus. The UI
+identifies presidential, parliamentary and one-party office semantics rather
+than silently treating every country as presidential.
+
+Evidence: `packages/engine/src/hos.test.ts` covers permanent seating, authored
+office selection, save/load and deferred fiscal enactment; the session contract
+pins the executive-only action projection; `smoke/head-of-state.spec.ts` covers
+mode selection, character creation, presidential seating, a tax direction,
+turn advance, save, relaunch and permanent-office resume. `npm run verify`
+passes with 277 app and 321 UI tests, both typechecks pass, and the production
+browser suite passes all 59 scenarios.
+
+Country-specific cabinet, court and appointment controls beyond the surfaced
+office classification remain owned by #63, #65 and #101 rather than being
+silently represented as implemented here.
+
 #241 partial. `NewGameScreen` now captures the reference world-setup fields and
 carries them through `NewGameOptions` into the engine `NewWorldOptions`:
 `mode` (`career` | `hos`), `homeRegionId`, and `initialization`

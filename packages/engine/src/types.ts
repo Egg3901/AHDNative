@@ -34,6 +34,14 @@ export interface WorldState {
   countries: Record<string, Country>;
   /** The human player. Solo has exactly one; everyone else is an NPC. */
   player: PlayerCharacter;
+  /**
+   * Costed HoS fiscal directions awaiting the next turn boundary. Optional so
+   * legacy and career worlds retain byte-stable saves until a directive exists.
+   */
+  pendingFiscalDirectives?: Array<
+    | { id: string; countryId: string; kind: "spending"; field: string; value: number; proposedTurn: number }
+    | { id: string; countryId: string; kind: "tax"; field: string; value: number; proposedTurn: number }
+  >;
   /** Append-only feed of notable events, newest last. Trimmed by maintenance. */
   news: NewsItem[];
   /** Parties seeded from mainline party seeds. Keyed by party id. */
@@ -805,6 +813,18 @@ export interface PlayerCharacter {
    * only at the action layer, never inside a phase.
    */
   mode: "career" | "hos";
+  /**
+   * Reference singleplayer config binding. Present and true only for a world
+   * created in Head of State mode; elections cannot silently demote this local
+   * player from the selected permanent role.
+   */
+  permanentHeadOfState?: true;
+  /**
+   * Executive office consumed by profile and HoS surfaces. Presidential
+   * systems also mirror this through `WorldState.executives`; parliamentary
+   * and one-party systems use their authored executive office key here.
+   */
+  currentOffice?: { type: string; countryId: string } | null;
   /**
    * M1 (Lane 12 Head of State mode): the country's ruling party, bound at
    * world creation when mode is "hos". Null in career mode always; null in
