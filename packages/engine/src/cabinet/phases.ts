@@ -2,6 +2,7 @@ import type { TurnPhase } from "../phases/types.js";
 import { processCabinetNominationLifecycle } from "./nominationLifecycle.js";
 import { fillVacantCabinetSlots, fillUkCabinetDirectly, clearCabinetOnTransition } from "./transition.js";
 import type { WorldState } from "../types.js";
+import { refillMinisterialActionPools } from "./ministerialActionPool.js";
 
 function detectPresidentialTransition(world: WorldState): string[] {
   const changed: string[] = [];
@@ -22,6 +23,7 @@ export const cabinetTransitionPhase: TurnPhase = {
   name: "cabinetTransition",
   run(world) {
     const turn = world.meta.turn;
+    refillMinisterialActionPools(world.cabinetMembers, turn);
     // US presidential transition: if termStartTurn == current turn, clear and re-seed
     const presidentialTransitions = detectPresidentialTransition(world);
     for (const countryId of presidentialTransitions) {

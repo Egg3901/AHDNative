@@ -16,6 +16,7 @@
  */
 
 import type { WorldState } from "../types.js";
+import { initialMinisterialActionFields } from "./ministerialActionPool.js";
 
 export type SenateVote = "for" | "against" | "abstain";
 
@@ -204,6 +205,7 @@ export function processCabinetNominationLifecycle(world: WorldState): CabinetNom
             appointedBy: nom.proposedBy ?? null,
             appointedAtTurn: turn,
             confirmedAtTurn: turn,
+            ...initialMinisterialActionFields(turn),
           });
           world.news.push({
             turn,
