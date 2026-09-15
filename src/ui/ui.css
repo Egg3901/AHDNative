@@ -898,6 +898,14 @@ html, body { overflow-x: hidden; }
 .ahd-route-hero-shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(8,8,14,.96), rgba(8,8,14,.42) 62%, rgba(8,8,14,.12)); }
 .ahd-route-hero-content { position: relative; z-index: 1; min-height: 172px; display: flex; flex-direction: column; justify-content: flex-end; padding: 1rem; color: #fff; text-shadow: 0 1px 3px #000; }
 @media (min-width: 700px) { .ahd-route-hero, .ahd-route-hero-content { min-height: 220px; } .ahd-route-hero-content { padding: 1.35rem 1.5rem; } }
+.ahd-elections-tagline { margin: 0.35rem 0 0; font-size: 0.8rem; max-width: 100%; min-width: 0; overflow-wrap: anywhere; }
+.ahd-elections-stats { list-style: none; margin: 0.6rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.1rem; min-width: 0; max-width: 100%; }
+.ahd-elections-stat { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; max-width: 100%; }
+.ahd-elections-stat-value { font-size: 1.05rem; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
+.ahd-elections-stat-lead .ahd-elections-stat-value { font-size: 1.4rem; }
+.ahd-elections-stat-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.88; }
+.ahd-elections-note { margin: 0.45rem 0 0; font-size: 0.76rem; max-width: 100%; min-width: 0; overflow-wrap: anywhere; opacity: 0.92; }
+@media (min-width: 700px) { .ahd-elections-stats { gap: 0.6rem 1.6rem; } .ahd-elections-stat-value { font-size: 1.15rem; } .ahd-elections-stat-lead .ahd-elections-stat-value { font-size: 1.65rem; } }
 .ahd-mp-layout { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
 .ahd-mp-footer { z-index: 40; }
 .ahd-mp-bottomnav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
