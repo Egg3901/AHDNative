@@ -1,53 +1,37 @@
-/**
- * Contract boundary for current AHDClient single-player worlds.
- *
- * AHDClient world.json is launcher metadata. AHDGame stores the durable world
- * in MongoDB under the world home. Neither artifact is a Native save, and host
- * files must never be accepted as an interchange payload. This slice records
- * the boundary only; both directions deliberately fail closed until adapters
- * implement and verify a named inventory slice.
- */
-export const CURRENT_SP_INTERCHANGE_CONTRACT = {
-  format: "ahd-current-sp-snapshot",
-  version: 1,
-  clientRevision: "6c9ee98ce1331c24042bb48628839f6b3997dde4",
-  gameRevision: "d4baf899fd8bd529099f03d7410807143604e2e5",
-  nativeSchemaVersion: 44,
-  directions: {
-    gameToNative: "contract-only",
-    nativeToGame: "contract-only",
-  },
+export type CurrentSpJson = null | boolean | number | string | CurrentSpJson[] | { [key: string]: CurrentSpJson };
+
+export const CURRENT_SP_PROVENANCE = {
+  client: { product: "AHDClient", revision: "6c9ee98ce1331c24042bb48628839f6b3997dde4", sourcePath: "apps/desktop/src-tauri/src/desktop.rs" },
+  game: { product: "AHDGame", revision: "d4baf899fd8bd529099f03d7410807143604e2e5", sourcePath: "src/lib/admin/seed/seedManifest.ts" },
+  native: { product: "AHDNative", schemaVersion: 44, sourcePath: "packages/engine/src/save.ts" },
 } as const;
-
-export type CurrentSpInventoryDisposition =
-  | "metadata-only"
-  | "mapping-required"
-  | "reject"
-  | "exclude";
-
-export interface CurrentSpInventoryRow {
-  id: string;
-  disposition: CurrentSpInventoryDisposition;
-  source: string;
-  contents: readonly string[];
-  reason: string;
-}
-
-export const CURRENT_SP_STATE_INVENTORY: readonly CurrentSpInventoryRow[] = [
-  { id: "launcher.worldMeta", disposition: "metadata-only", source: "AHDClient apps/desktop/src-tauri/src/desktop.rs WorldMeta", contents: ["slot", "name", "preset", "timestamps", "turn", "character", "setup"], reason: "Launcher discovery metadata is not simulated world state." },
-  { id: "game.mongo.gameplay", disposition: "mapping-required", source: "AHDGame Mongo collections and GameState", contents: ["world clock", "countries", "economy", "politics", "elections", "legislation", "events"], reason: "Durable gameplay state needs collection-specific mapping and continuation evidence." },
-  { id: "game.mongo.identity", disposition: "mapping-required", source: "AHDGame characters, parties, electedOfficials, and office collections", contents: ["characters", "parties", "offices", "relationships"], reason: "Database identifiers and references require a portable identity map." },
-  { id: "game.mongo.history", disposition: "mapping-required", source: "AHDGame history and ledger collections", contents: ["turn history", "news", "ledgers", "resolved records"], reason: "Continuation may depend on history and cannot silently discard it." },
-  { id: "game.mongo.unknownCollections", disposition: "reject", source: "AHDGame world Mongo database", contents: ["collection names absent from the snapshot manifest"], reason: "Schema evolution must be reviewed instead of silently omitted." },
-  { id: "host.mongoRuntime", disposition: "exclude", source: "AHDGame single-player world home", contents: ["dbpath files", "locks", "journals", "WiredTiger files"], reason: "Host-specific database runtime files are not a portable snapshot." },
-  { id: "host.authentication", disposition: "exclude", source: "AHDGame and AHDClient host state", contents: ["users", "sessions", "linked accounts"], reason: "Authentication state is outside the game snapshot." },
-  { id: "host.secrets", disposition: "exclude", source: "AHDGame and AHDClient host state", contents: ["environment", "tokens", "keys", "cookies"], reason: "Secrets must never enter an exported game snapshot." },
-] as const;
-
-export function parseCurrentSpSnapshot(input: unknown): never {
-  if (!input || typeof input !== "object" || Array.isArray(input)
-    || (input as { format?: unknown }).format !== CURRENT_SP_INTERCHANGE_CONTRACT.format) {
-    throw new Error("Unsupported current SP snapshot format");
-  }
-  throw new Error("Current SP save interchange is contract-only; no transfer direction is implemented");
+export const CURRENT_SP_INTERCHANGE_CONTRACT = { format: "ahd-current-sp-snapshot", version: 1, clientRevision: CURRENT_SP_PROVENANCE.client.revision, gameRevision: CURRENT_SP_PROVENANCE.game.revision, nativeSchemaVersion: 44, directions: { gameToNative: "contract-only", nativeToGame: "contract-only" } } as const;
+export type CurrentSpMappingStatus = "mapping-required" | "exclude";
+export interface CurrentSpCollectionPolicy { name: string; status: CurrentSpMappingStatus; sourcePath: string; target: string | null; reason: string }
+const GAME_SOURCE = `${CURRENT_SP_PROVENANCE.game.sourcePath}@${CURRENT_SP_PROVENANCE.game.revision}`;
+const mapped = [["gameConfig","meta"],["countryGameStates","countries"],["states","regions"],["npps","politicians"],["parties","parties"],["electedOfficials","legislatures/executives"],["elections","elections"],["electionCandidates","elections"],["referendums","referendums"],["corporations","corporations"],["corporateSectors","corporateSectors"],["federalBudget","budgets"],["stateBudgets","regionalBudgets"],["bills","bills"],["stateBills","stateBills"],["enactedLaws","enactedLaws"],["turnLogs","history"],["newsPosts","news"],["cabinetMembers","cabinetMembers"],["cabinetNominations","cabinetNominations"],["supremeCourtSeats","supremeCourtSeats"],["scotusNominations","scotusNominations"]] as const;
+const excluded = ["users","sessions","userApiKeys","botApiKeys","apiAccessLog","rateLimitBuckets","notifications"] as const;
+/** Exact allow/exclude set for contract v1. Any collection absent here is rejected. */
+export const CURRENT_SP_COLLECTION_POLICY: readonly CurrentSpCollectionPolicy[] = [
+  ...mapped.map(([name,target]) => ({ name, status: "mapping-required" as const, sourcePath: GAME_SOURCE, target, reason: "Requires an explicit field adapter and continuation proof." })),
+  ...excluded.map((name) => ({ name, status: "exclude" as const, sourcePath: GAME_SOURCE, target: null, reason: "Host identity, authentication, secret, or delivery state is outside the snapshot." })),
+];
+const POLICY = new Map(CURRENT_SP_COLLECTION_POLICY.map((row) => [row.name,row]));
+const SHA = /^[a-f0-9]{64}$/;
+export interface CurrentSpCollectionManifestEntry { name: string; documentCount: number; sha256: string }
+export interface CurrentSpSnapshot { format: "ahd-current-sp-snapshot"; version: 1; source: { product: "AHDGame"; revision: typeof CURRENT_SP_PROVENANCE.game.revision; sourcePath: typeof CURRENT_SP_PROVENANCE.game.sourcePath }; rulesetSha256: string; contentSha256: string; manifest: CurrentSpCollectionManifestEntry[]; collections: Record<string, CurrentSpJson[]> }
+export interface ParsedCurrentSpSnapshot { snapshot: CurrentSpSnapshot; transferStatus: "contract-only" }
+function obj(value: unknown,path:string): Record<string,unknown> { if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${path}: expected object`); return value as Record<string,unknown>; }
+function exact(value:Record<string,unknown>,fields:readonly string[],path:string) { const extra=Object.keys(value).filter(k=>!fields.includes(k)); const missing=fields.filter(k=>!(k in value)); if(extra.length||missing.length) throw new Error(`${path}: exact fields required; unknown=${extra.join(",")} missing=${missing.join(",")}`); }
+function hash(value:unknown,path:string):string { if(typeof value!=="string"||!SHA.test(value)) throw new Error(`${path}: expected lowercase 64-hex SHA-256`); return value; }
+function json(value:unknown,path:string):asserts value is CurrentSpJson { if(value===null||typeof value==="string"||typeof value==="boolean"||(typeof value==="number"&&Number.isFinite(value))) return; if(Array.isArray(value)){value.forEach((v,i)=>json(v,`${path}.${i}`));return;} if(value&&typeof value==="object"){Object.entries(value).forEach(([k,v])=>json(v,`${path}.${k}`));return;} throw new Error(`${path}: expected finite JSON`); }
+export function parseCurrentSpSnapshot(input:unknown):ParsedCurrentSpSnapshot {
+  const root=obj(input,"$snapshot"); exact(root,["format","version","source","rulesetSha256","contentSha256","manifest","collections"],"$snapshot");
+  if(root.format!==CURRENT_SP_INTERCHANGE_CONTRACT.format||root.version!==1) throw new Error("Unsupported current SP snapshot format or version");
+  const source=obj(root.source,"source"); exact(source,["product","revision","sourcePath"],"source");
+  if(source.product!=="AHDGame"||source.revision!==CURRENT_SP_PROVENANCE.game.revision||source.sourcePath!==CURRENT_SP_PROVENANCE.game.sourcePath) throw new Error("Unsupported current SP source provenance");
+  if(!Array.isArray(root.manifest)) throw new Error("manifest: expected array"); const collections=obj(root.collections,"collections"); const seen=new Set<string>(); const manifest:CurrentSpCollectionManifestEntry[]=[];
+  for(const [i,raw] of root.manifest.entries()){const row=obj(raw,`manifest.${i}`);exact(row,["name","documentCount","sha256"],`manifest.${i}`);if(typeof row.name!=="string"||!Number.isSafeInteger(row.documentCount)||(row.documentCount as number)<0)throw new Error(`manifest.${i}: invalid entry`);if(seen.has(row.name))throw new Error(`manifest.${i}: duplicate collection ${row.name}`);seen.add(row.name);const policy=POLICY.get(row.name);if(!policy)throw new Error(`manifest.${i}: unknown collection ${row.name}`);if(policy.status==="exclude")throw new Error(`manifest.${i}: excluded collection ${row.name}`);const docs=collections[row.name];if(!Array.isArray(docs)||docs.length!==row.documentCount)throw new Error(`collections.${row.name}: manifest count mismatch`);docs.forEach((d,n)=>json(d,`collections.${row.name}.${n}`));manifest.push({name:row.name,documentCount:row.documentCount as number,sha256:hash(row.sha256,`manifest.${i}.sha256`)});}
+  const undeclared=Object.keys(collections).filter(name=>!seen.has(name));if(undeclared.length)throw new Error(`collections: payload absent from manifest: ${undeclared.join(",")}`);
+  const snapshot:CurrentSpSnapshot={format:"ahd-current-sp-snapshot",version:1,source:{product:"AHDGame",revision:CURRENT_SP_PROVENANCE.game.revision,sourcePath:CURRENT_SP_PROVENANCE.game.sourcePath},rulesetSha256:hash(root.rulesetSha256,"rulesetSha256"),contentSha256:hash(root.contentSha256,"contentSha256"),manifest,collections:Object.fromEntries(manifest.map(row=>[row.name,collections[row.name] as CurrentSpJson[]]))};return {snapshot,transferStatus:"contract-only"};
 }

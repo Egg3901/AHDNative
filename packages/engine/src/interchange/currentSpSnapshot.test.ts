@@ -1,45 +1,9 @@
-import { describe, expect, it } from "vitest";
-import {
-  CURRENT_SP_INTERCHANGE_CONTRACT,
-  CURRENT_SP_STATE_INVENTORY,
-  parseCurrentSpSnapshot,
-} from "./currentSpSnapshot.js";
-
-describe("#300 current Client/Game SP snapshot contract", () => {
-  it("pins distinct persistence products and keeps both directions disabled", () => {
-    expect(CURRENT_SP_INTERCHANGE_CONTRACT).toMatchObject({
-      clientRevision: "6c9ee98ce1331c24042bb48628839f6b3997dde4",
-      gameRevision: "d4baf899fd8bd529099f03d7410807143604e2e5",
-      nativeSchemaVersion: 44,
-      directions: { gameToNative: "contract-only", nativeToGame: "contract-only" },
-    });
-  });
-
-  it("inventories launcher metadata, durable game state, and excluded host state", () => {
-    expect(CURRENT_SP_STATE_INVENTORY.map((row) => [row.id, row.disposition])).toEqual([
-      ["launcher.worldMeta", "metadata-only"],
-      ["game.mongo.gameplay", "mapping-required"],
-      ["game.mongo.identity", "mapping-required"],
-      ["game.mongo.history", "mapping-required"],
-      ["game.mongo.unknownCollections", "reject"],
-      ["host.mongoRuntime", "exclude"],
-      ["host.authentication", "exclude"],
-      ["host.secrets", "exclude"],
-    ]);
-  });
-
-  it("fails closed because no transfer direction is implemented yet", () => {
-    expect(() => parseCurrentSpSnapshot({
-      format: "ahd-current-sp-snapshot",
-      version: 1,
-      source: {
-        product: "AHDGame",
-        revision: CURRENT_SP_INTERCHANGE_CONTRACT.gameRevision,
-        rulesetSha256: "a".repeat(64),
-        contentSha256: "b".repeat(64),
-      },
-      collections: {},
-    })).toThrow("contract-only");
-    expect(() => parseCurrentSpSnapshot({ format: "invented" })).toThrow("Unsupported current SP snapshot");
-  });
+import { describe,expect,it } from "vitest";
+import { CURRENT_SP_COLLECTION_POLICY,CURRENT_SP_INTERCHANGE_CONTRACT,CURRENT_SP_PROVENANCE,parseCurrentSpSnapshot } from "./currentSpSnapshot.js";
+const A="a".repeat(64),B="b".repeat(64);
+function fixture(over:Record<string,unknown>={}){return {format:"ahd-current-sp-snapshot",version:1,source:{product:"AHDGame",revision:CURRENT_SP_PROVENANCE.game.revision,sourcePath:CURRENT_SP_PROVENANCE.game.sourcePath},rulesetSha256:A,contentSha256:B,manifest:[{name:"gameConfig",documentCount:1,sha256:A}],collections:{gameConfig:[{turn:12}]},...over};}
+describe("#300 current SP snapshot contract",()=>{
+it("pins provenance and validates metadata without enabling transfer",()=>{expect(CURRENT_SP_INTERCHANGE_CONTRACT.directions).toEqual({gameToNative:"contract-only",nativeToGame:"contract-only"});expect(parseCurrentSpSnapshot(fixture())).toMatchObject({transferStatus:"contract-only",snapshot:{collections:{gameConfig:[{turn:12}]}}});});
+it("publishes a unique revision-bound allow/exclude collection policy",()=>{expect(new Set(CURRENT_SP_COLLECTION_POLICY.map(r=>r.name)).size).toBe(CURRENT_SP_COLLECTION_POLICY.length);expect(CURRENT_SP_COLLECTION_POLICY.every(r=>r.sourcePath.endsWith(`@${CURRENT_SP_PROVENANCE.game.revision}`))).toBe(true);expect(CURRENT_SP_COLLECTION_POLICY.filter(r=>r.status==="exclude").map(r=>r.name)).toEqual(["users","sessions","userApiKeys","botApiKeys","apiAccessLog","rateLimitBuckets","notifications"]);});
+it("rejects drift, malformed hashes, unknown, excluded, duplicate, and undeclared collections",()=>{expect(()=>parseCurrentSpSnapshot({...fixture(),extra:true})).toThrow("unknown=extra");expect(()=>parseCurrentSpSnapshot({...fixture(),rulesetSha256:"bad"})).toThrow("rulesetSha256");expect(()=>parseCurrentSpSnapshot({...fixture(),source:{...fixture().source,revision:"wrong"}})).toThrow("provenance");for(const name of ["invented","users"])expect(()=>parseCurrentSpSnapshot({...fixture(),manifest:[{name,documentCount:0,sha256:A}],collections:{[name]:[]}})).toThrow(name==="users"?"excluded":"unknown");expect(()=>parseCurrentSpSnapshot({...fixture(),manifest:[{name:"gameConfig",documentCount:1,sha256:A},{name:"gameConfig",documentCount:1,sha256:A}]})).toThrow("duplicate");expect(()=>parseCurrentSpSnapshot({...fixture(),collections:{gameConfig:[{}],bills:[]}})).toThrow("absent from manifest");expect(()=>parseCurrentSpSnapshot({...fixture(),manifest:[{name:"gameConfig",documentCount:2,sha256:A}]})).toThrow("count mismatch");});
 });

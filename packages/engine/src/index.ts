@@ -285,10 +285,14 @@ export type { ReferendumCohort, CohortModifier } from "./referendum/cohort.js";
 export type { ReferendumRecord, ReferendumKind, ReferendumStatus } from "./referendum/types.js";
 export {
   CURRENT_SP_INTERCHANGE_CONTRACT,
-  CURRENT_SP_STATE_INVENTORY,
+  CURRENT_SP_COLLECTION_POLICY,
+  CURRENT_SP_PROVENANCE,
   parseCurrentSpSnapshot,
 } from "./interchange/currentSpSnapshot.js";
 export type {
-  CurrentSpInventoryDisposition,
-  CurrentSpInventoryRow,
+  CurrentSpCollectionManifestEntry,
+  CurrentSpCollectionPolicy,
+  CurrentSpMappingStatus,
+  CurrentSpSnapshot,
+  ParsedCurrentSpSnapshot,
 } from "./interchange/currentSpSnapshot.js";
