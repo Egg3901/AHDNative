@@ -11,6 +11,7 @@
     "allow-load-game",
     "allow-list-saves",
     "allow-delete-save",
-    "allow-open-online-window"
+    "allow-open-online-window",
+    "allow-open-external-destination"
   ]
 }

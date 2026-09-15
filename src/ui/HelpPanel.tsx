@@ -1,14 +1,8 @@
 import "./ui.css";
+import { useState } from "react";
+import { openSupportDestination, SUPPORT_DESTINATIONS, type SupportDestination } from "../online/support";
 
-const NETWORK_LINKS = [
-  { label: "Wiki and guides", href: "https://wiki.ahousedividedgame.com" },
-  { label: "About A House Divided", href: "https://ahousedividedgame.com/about" },
-  { label: "Discord community", href: "https://discord.gg/DmF8zJJuqN" },
-  { label: "Support the game", href: "https://www.patreon.com/cw/AHouseDividedGame/membership" },
-  { label: "Supporter wall", href: "https://lakesidegames.net/supporters" },
-  { label: "Email support", href: "mailto:admin@ahousedividedgame.com" },
-  { label: "Service status", href: "https://ops.ahousedividedgame.com/status" },
-] as const;
+export interface HelpPanelProps { openExternal?: (destination: SupportDestination) => Promise<void> | void; }
 
 function HelpSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -21,7 +15,15 @@ function HelpSection({ title, children }: { title: string; children: React.React
   );
 }
 
-export function HelpPanel() {
+export function HelpPanel({ openExternal = openSupportDestination }: HelpPanelProps) {
+  const [opening, setOpening] = useState<SupportDestination | null>(null);
+  const [openError, setOpenError] = useState<string | null>(null);
+  const open = async (destination: SupportDestination) => {
+    setOpening(destination); setOpenError(null);
+    try { await openExternal(destination); }
+    catch { setOpenError("That destination could not open. Check your connection and try again."); }
+    finally { setOpening(null); }
+  };
   return (
     <div className="ahd-stack" aria-label="Help">
       <header className="ahd-card ahd-card-pad ahd-hero">
@@ -91,14 +93,15 @@ export function HelpPanel() {
           The local guides above remain available offline. The destinations below leave the offline game and require a network connection.
         </p>
         <ul style={{ margin: 0, paddingLeft: "1.15rem" }}>
-          {NETWORK_LINKS.map((destination) => (
-            <li key={destination.label}>
-              <a href={destination.href} target="_blank" rel="noopener noreferrer">
-                {destination.label} <span className="ahd-muted">(network required)</span>
-              </a>
+          {SUPPORT_DESTINATIONS.map((destination) => (
+            <li key={destination.id}>
+              <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" disabled={opening !== null} onClick={() => void open(destination.id)}>
+                {opening === destination.id ? "Opening" : destination.label} <span className="ahd-muted">(network required)</span>
+              </button>
             </li>
           ))}
         </ul>
+        {openError ? <p role="alert" className="ahd-error" style={{ margin: 0 }}>{openError}</p> : null}
         <p style={{ margin: 0 }}>
           Account settings, feedback, the suggestions board, and Quick Suggest screenshot capture are available inside Multiplayer after AHDGame authenticates that surface. Open Multiplayer from the home screen to use them. The offline app cannot inspect or reuse that account session.
         </p>
