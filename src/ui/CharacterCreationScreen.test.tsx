@@ -9,6 +9,11 @@ const PARTIES = [
   { id: "US_REP", name: "Republican Party", abbreviation: "REP", color: "#EF4444", logoUrl: null, economicPosition: 3, socialPosition: 2 },
 ];
 
+const HOME_REGIONS = [
+  { id: "NY", name: "New York", population: null, electorateLean: null, seeded: false },
+  { id: "CA", name: "California", population: null, electorateLean: null, seeded: false },
+];
+
 const DD_PARTIES = [
   { id: "DD_CDU", name: "Christlich-Demokratische Union (Ost)", abbreviation: "CDU", color: "#33508C", logoUrl: null, economicPosition: -3, socialPosition: 3, regimeStatus: "approved" as const },
   { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", color: "#C00000", logoUrl: null, economicPosition: -4, socialPosition: 2, regimeStatus: "ruling" as const },
@@ -20,7 +25,7 @@ function props(overrides: Partial<CharacterCreationScreenProps> = {}): Character
     regions: [{ id: "NY", name: "New York" }, { id: "CA", name: "California" }],
     initialName: "Eleanor Vance",
     initialHomeRegionId: "NY",
-    choices: { parties: PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state" },
+    choices: { parties: PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state", homeRegions: HOME_REGIONS },
     loading: false,
     busy: false,
     onSubmit: vi.fn(),
@@ -71,7 +76,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     await user.click(screen.getByRole("button", { name: /Continue to The politician/i }));
     await completeBackground(user);
     await user.click(screen.getByRole("button", { name: /Continue to Home state/i }));
-    await user.selectOptions(screen.getByRole("combobox"), "CA");
+    await user.click(screen.getByRole("radio", { name: /^California/ }));
     await user.click(screen.getByRole("button", { name: /Continue to Where you stand/i }));
     fireEvent.change(screen.getByLabelText(/Economic position/), { target: { value: "1" } });
     fireEvent.change(screen.getByLabelText(/Social position/), { target: { value: "-1" } });
@@ -122,7 +127,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     const name = screen.getByLabelText(/^Name/);
     await user.clear(name);
     await user.type(name, "Ada Lovelace");
-    await user.selectOptions(screen.getByRole("combobox"), "CA");
+    await user.click(screen.getByRole("radio", { name: /^California/ }));
     await completeBackground(user);
     fireEvent.change(screen.getByLabelText(/Economic position/), { target: { value: "1" } });
     await user.click(screen.getByRole("button", { name: "DEM Democratic Party" }));
@@ -140,7 +145,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     render(<CharacterCreationScreen {...props({ onSubmit })} />);
     await openDirectReview(user);
     const submit = screen.getByRole("button", { name: /Create character|Finish/i });
-    await user.type(screen.getByLabelText(/Name/i), "Eleanor Vance");
+    await user.type(screen.getByLabelText(/^Name/), "Eleanor Vance");
     await completeBackground(user);
     // The compass is a separate deliberate answer; choosing a party never fills it.
     fireEvent.change(screen.getByLabelText(/Economic position/), { target: { value: "-3" } });
@@ -161,7 +166,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     const onSubmit = vi.fn();
     render(<CharacterCreationScreen {...props({ onSubmit })} />);
     await openDirectReview(user);
-    await user.type(screen.getByLabelText(/Name/i), "Eleanor Vance");
+    await user.type(screen.getByLabelText(/^Name/), "Eleanor Vance");
     await completeBackground(user);
     await user.click(screen.getByRole("button", { name: "DEM Democratic Party" }));
     await user.click(screen.getByRole("button", { name: /Spread evenly/i }));
@@ -195,7 +200,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     const onSubmit = vi.fn();
     render(<CharacterCreationScreen {...props({ onSubmit })} />);
     await openDirectReview(user);
-    await user.type(screen.getByLabelText(/Name/i), "Eleanor Vance");
+    await user.type(screen.getByLabelText(/^Name/), "Eleanor Vance");
     await completeBackground(user);
     fireEvent.change(screen.getByLabelText(/Economic position/), { target: { value: "1" } });
     await user.click(screen.getByRole("button", { name: "DEM Democratic Party" }));
@@ -207,7 +212,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
   it("names the actual ruling party in a one-party briefing, never the first sorted party", () => {
     render(<CharacterCreationScreen {...props({
       selection: { era: "1953", countryId: "DD", countryName: "East Germany", regionNoun: "region" },
-      choices: { parties: DD_PARTIES, rulingParty: { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region" },
+      choices: { parties: DD_PARTIES, rulingParty: { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region", homeRegions: [] },
     })} />);
     fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
     const notice = screen.getByRole("note");
@@ -220,7 +225,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
   it("shows the one-party briefing for a one-party country instead of a generic party list", () => {
     render(<CharacterCreationScreen {...props({
       selection: { era: "1953", countryId: "RU", countryName: "Soviet Union", regionNoun: "region" },
-      choices: { parties: [{ id: "RU_CPSU", name: "Communist Party", abbreviation: "CPSU", color: "#CC0000", logoUrl: null, economicPosition: -4, socialPosition: 2, regimeStatus: "ruling" }], rulingParty: { id: "RU_CPSU", name: "Communist Party", abbreviation: "CPSU", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region" },
+      choices: { parties: [{ id: "RU_CPSU", name: "Communist Party", abbreviation: "CPSU", color: "#CC0000", logoUrl: null, economicPosition: -4, socialPosition: 2, regimeStatus: "ruling" }], rulingParty: { id: "RU_CPSU", name: "Communist Party", abbreviation: "CPSU", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region", homeRegions: [] },
     })} />);
     fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
     expect(screen.getByText(/one-party state/i)).toBeInTheDocument();
@@ -229,7 +234,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
   it("surfaces the authored regime marker on the party step", () => {
     render(<CharacterCreationScreen {...props({
       selection: { era: "1953", countryId: "DD", countryName: "East Germany", regionNoun: "region" },
-      choices: { parties: DD_PARTIES, rulingParty: { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region" },
+      choices: { parties: DD_PARTIES, rulingParty: { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region", homeRegions: [] },
     })} />);
     fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
     const partyStep = screen.getByRole("heading", { name: /^Party/ }).closest("section")!;
@@ -240,7 +245,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
   it("shows the imperial notice for an imperial-eligible country", () => {
     render(<CharacterCreationScreen {...props({
       selection: { era: "1953", countryId: "UK", countryName: "United Kingdom", regionNoun: "region" },
-      choices: { parties: PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: true, regionNoun: "region" },
+      choices: { parties: PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: true, regionNoun: "region", homeRegions: [] },
     })} />);
     fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
     expect(screen.getByText(/imperial/i)).toBeInTheDocument();
@@ -254,7 +259,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
 
     it("renders the authored logo image inside the picker when logoUrl exists", () => {
       render(<CharacterCreationScreen {...props({
-        choices: { parties: LOGO_PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state" },
+        choices: { parties: LOGO_PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state", homeRegions: [] },
       })} />);
       fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
       const button = screen.getByRole("button", { name: "DEM Democratic Party" });
@@ -273,7 +278,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
 
     it("keeps the party accessible name on the picker button beside the mark", () => {
       render(<CharacterCreationScreen {...props({
-        choices: { parties: LOGO_PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state" },
+        choices: { parties: LOGO_PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state", homeRegions: [] },
       })} />);
       fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
       expect(screen.getByRole("button", { name: "DEM Democratic Party" })).toBeInTheDocument();

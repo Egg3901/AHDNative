@@ -18,7 +18,7 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction,
-  getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination,
+  getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination,
   type ActionId, type ExecuteActionParams, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionCategory, ActionView, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
@@ -96,7 +96,9 @@ function creationToWorldOptions(creation: CharacterCreation) {
  * fallback), never the first array entry, so the one-party briefing names the
  * party that actually governs (DD's SED, not the alphabetically first CDU).
  * Region noun reproduces the reference regionNounFor (UK/JP say "region",
- * everyone else "state").
+ * everyone else "state"). Home regions carry the world-free electorate context
+ * (`listCreationHomeRegions`: pack population plus the turnout-weighted lean);
+ * display-only, never persisted — only the chosen homeRegionId reaches the save.
  */
 export function creationChoices(era: string, countryId: string): CreationChoices {
   const normalized = countryId.toUpperCase();
@@ -119,6 +121,7 @@ export function creationChoices(era: string, countryId: string): CreationChoices
     isOnePartyState: isOnePartyCountry(normalized),
     imperialEligible: isImperialEligibleCountry(normalized),
     regionNoun: normalized === "UK" || normalized === "JP" ? "region" : "state",
+    homeRegions: listCreationHomeRegions(era, normalized),
   };
 }
 
