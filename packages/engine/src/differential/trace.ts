@@ -145,13 +145,22 @@ const DIFFERENTIAL_COMPARISON_POLICY = {
 
 const PROTECTED_TOLERANCE_PATH_POLICY = {
   prefixes: ["rng"],
-  exactSegments: new Set([
-    "id", "ids", "status", "candidateid", "candidateids", "characterid",
-    "characterids", "billid", "billids", "nomineeid", "nomineeids", "orderid",
-    "orderids", "partyid", "partyids", "countryid", "countryids", "regionid",
-    "regionids", "positionid", "positionids", "fixtureid",
-  ]),
+  exactSegments: new Set(["status"]),
 } as const;
+
+/**
+ * Identifier names are an open naming class, not a catalog. Protect any terminal
+ * id/ids spelling after case folding, including camel-case and snake-case forms,
+ * so newly introduced identity fields fail closed until comparison policy changes.
+ */
+function isProtectedToleranceSegment(segment: string): boolean {
+  const normalized = segment.toLocaleLowerCase();
+  return normalized === "id"
+    || normalized === "ids"
+    || normalized.endsWith("id")
+    || normalized.endsWith("ids")
+    || PROTECTED_TOLERANCE_PATH_POLICY.exactSegments.has(normalized);
+}
 
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 
@@ -268,7 +277,7 @@ function validateToleranceRules(rules: readonly DifferentialToleranceRule[]): vo
     if (!Number.isFinite(rule.absolute) || rule.absolute < 0) throw new Error(`Tolerance rule ${index} requires a finite non-negative absolute tolerance`);
     const segments = rule.path.split(".");
     const protectedPath = PROTECTED_TOLERANCE_PATH_POLICY.prefixes.some((prefix) => rule.path === prefix || rule.path.startsWith(`${prefix}.`))
-      || segments.some((part) => PROTECTED_TOLERANCE_PATH_POLICY.exactSegments.has(part.toLocaleLowerCase()));
+      || segments.some(isProtectedToleranceSegment);
     if (protectedPath) throw new Error(`Tolerance rule ${index} cannot target RNG or identity fields`);
   }
 }

@@ -182,7 +182,16 @@ describe("#279 differential trace contract", () => {
     expect(() => compareDifferentialTraces(expected, actual, [{ ...rule, justification: "" }])).toThrow("justification");
     expect(() => compareDifferentialTraces(expected, actual, [{ ...rule, path: "rng.after.0" }])).toThrow("RNG or identity");
     expect(() => compareDifferentialTraces(expected, actual, [{ ...rule, path: "observations.elections.0.id" }])).toThrow("RNG or identity");
-    for (const identifier of ["candidateId", "characterId", "billIds", "nomineeID"]) {
+    for (const identifier of [
+      "candidateId",
+      "characterId",
+      "billIds",
+      "nomineeID",
+      "referendumId",
+      "userId",
+      "external_id",
+      "coalition_IDS",
+    ]) {
       expect(() => compareDifferentialTraces(expected, actual, [{
         ...rule,
         path: `observations.elections.0.${identifier}`,
