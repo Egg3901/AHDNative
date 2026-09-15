@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type ReactElement,
+} from "react";
 import {
   askConversation,
   askConversations,
@@ -115,7 +122,7 @@ export function AskPanel({
   onBeforeSignIn,
   onSignIn = openAskWindow,
   onOpenLink = openAskLink,
-}: AskPanelProps): JSX.Element {
+}: AskPanelProps): ReactElement {
   // The last validated snapshot paints the shell instantly; the probe
   // below revalidates it in the background. No cookies or tokens here,
   // only the quota numbers and the account they belong to.
@@ -696,7 +703,7 @@ export function AskPanel({
   );
 }
 
-function AssistantMsg({ msg, onFollowup }: { msg: Msg; onFollowup: (text: string) => void }): JSX.Element {
+function AssistantMsg({ msg, onFollowup }: { msg: Msg; onFollowup: (text: string) => void }): ReactElement {
   const result = msg.result;
   const citations = result?.citations ?? [];
   const followups = result?.followups ?? [];

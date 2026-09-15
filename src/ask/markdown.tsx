@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { askRenderMap } from "./api";
 
 /**
@@ -17,14 +17,14 @@ function fmtCell(cell: string): string {
   return cell;
 }
 
-function Inline({ text, scope }: { text: string; scope: string }): JSX.Element {
-  const nodes: JSX.Element[] = [];
+function Inline({ text, scope }: { text: string; scope: string }): ReactElement {
+  const nodes: ReactElement[] = [];
   // code, bold, italic, markdown link. Order matters: code first so its
   // contents are never re-shaped.
   const pattern = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*\n]+\*|\[[^\]]+\]\(https?:\/\/[^)\s]+\))/g;
   let cursor = 0;
   let index = 0;
-  const push = (node: JSX.Element) => {
+  const push = (node: ReactElement) => {
     nodes.push(node);
   };
   for (const match of text.matchAll(pattern)) {
@@ -59,7 +59,7 @@ function splitCells(line: string): string[] {
   return line.replace(/^\s*\||\|\s*$/g, "").split("|").map((cell) => cell.trim());
 }
 
-function TableBlock({ lines, scope }: { lines: string[]; scope: string }): JSX.Element | null {
+function TableBlock({ lines, scope }: { lines: string[]; scope: string }): ReactElement | null {
   if (lines.length < 2 || !lines[0]?.includes("|") || !/^\s*\|?[\s:|-]+$/.test(lines[1] ?? "")) return null;
   const head = splitCells(lines[0] ?? "");
   const rows = lines.slice(2).filter((line) => line.includes("|")).map(splitCells);
@@ -87,7 +87,7 @@ function TableBlock({ lines, scope }: { lines: string[]; scope: string }): JSX.E
   );
 }
 
-function MapBlock({ spec, scope }: { spec: string; scope: string }): JSX.Element {
+function MapBlock({ spec, scope }: { spec: string; scope: string }): ReactElement {
   const [svg, setSvg] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -113,7 +113,7 @@ function MapBlock({ spec, scope }: { spec: string; scope: string }): JSX.Element
   return <div className="av-map-wrap" key={scope}><img src={src} alt="Generated map" /></div>;
 }
 
-function ProseBlock({ block, scope }: { block: string; scope: string }): JSX.Element {
+function ProseBlock({ block, scope }: { block: string; scope: string }): ReactElement {
   const text = block.replace(/^\n+|\n+$/g, "");
   if (!text.trim()) return <></>;
   const lines = text.split("\n");
@@ -167,9 +167,9 @@ function ProseBlock({ block, scope }: { block: string; scope: string }): JSX.Ele
   );
 }
 
-export function Md({ text, scope }: { text: string; scope: string }): JSX.Element {
+export function Md({ text, scope }: { text: string; scope: string }): ReactElement {
   const parts = (text || "").split("```");
-  const nodes: JSX.Element[] = [];
+  const nodes: ReactElement[] = [];
   parts.forEach((part, i) => {
     if (i % 2 === 1) {
       const newline = part.indexOf("\n");
