@@ -6,7 +6,7 @@ import { DEFAULT_WORLD_FEATURE_FLAGS } from "@ahdclient/engine";
 import { DEFAULT_PREFERENCES } from "../preferences";
 import { projectWorldOverview } from "../game/worldOverview";
 import { projectRegions } from "../game/regions";
-import type { GameView } from "../game/types";
+import type { GameScreenProps, GameView } from "../game/types";
 import { GameScreen } from "./GameScreen";
 import { MENU_GROUPS } from "./MobileNavigation";
 
@@ -56,7 +56,10 @@ function makeShell(): GameView {
   } as unknown as GameView;
 }
 
-function shellProps(world: GameView, spies: { onSave: ReturnType<typeof vi.fn>; onAction: ReturnType<typeof vi.fn>; onAdvanceTurn: ReturnType<typeof vi.fn> }) {
+function shellProps(
+  world: GameView,
+  spies: Pick<GameScreenProps, "onSave" | "onAction" | "onAdvanceTurn">,
+): GameScreenProps {
   const source = engineWorld();
   return {
     preferences: DEFAULT_PREFERENCES,
@@ -88,11 +91,11 @@ function shellProps(world: GameView, spies: { onSave: ReturnType<typeof vi.fn>; 
     loadWorldOverview: async () => projectWorldOverview(source),
     world,
     busy: false,
-    onAdvanceTurn: spies.onAdvanceTurn,
-    onSave: spies.onSave,
+    onAdvanceTurn: () => spies.onAdvanceTurn(),
+    onSave: () => spies.onSave(),
     onExit: vi.fn(),
     onUpdateWorldFeatureFlags: vi.fn(),
-    onAction: spies.onAction,
+    onAction: (id, params) => spies.onAction(id, params),
   };
 }
 
