@@ -119,9 +119,14 @@ export function declareCandidacy(world: WorldState, electionId: string): Candida
       world.player.legislativeSeat.countryId === rec.countryId,
   });
   world.news.push({
+    id: `candidacy:${rec.id}:${world.meta.turn}`,
     turn: world.meta.turn,
     date: world.meta.date,
     headline: `You declare for the ${rec.state ? `${rec.state} ` : ""}${rec.electionType} race`,
+    category: "Election",
+    countryId: rec.countryId,
+    partyId: world.player.partyId ?? undefined,
+    electionId: rec.id,
   });
   // W26: create the player's campaign (no-op for non-eligible races).
   if (isCampaignEligibleElection(rec)) {

@@ -22,6 +22,7 @@ import { PollingPanel } from "./PollingPanel";
 import { NotificationBellButton, NotificationPreview, NotificationsInbox, type NotificationTarget } from "./Notifications";
 import { RACE_PHASE_LABELS } from "../game/racePhase";
 import { formatGameDate, type GameClock } from "../game/gameDate";
+import { NewsPanel } from "./NewsPanel";
 /**
  * GameScreen: AHDNative primary game shell.
  *
@@ -101,7 +102,7 @@ const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
   { id: "favorability", short: "Favorability", label: "Favorability" },
 ];
 
-export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead }: GameScreenProps) {
+export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, newsStorageKey, onAdvanceTurn, onSave, onExit, onAction, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("profile");
   const [detailId, setDetailId] = useState<string>();
   // Selected hub category survives route changes so Profile/footer deep-links
@@ -434,25 +435,8 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
           ) : null}
 
           {route === "news" ? (
-            <div className="ahd-stack">
-              <div className="ahd-card ahd-card-pad ahd-hero">
-                <h2 className="ahd-h2">News</h2>
-                <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>{world.news.length} items</p>
-              </div>
-              {world.news.length === 0 ? (
-                <div className="ahd-empty">No news yet.</div>
-              ) : (
-                <div className="ahd-grid ahd-grid-3">
-                  {world.news.map((n) => (
-                    <article key={n.id} className="ahd-card ahd-card-pad">
-                      <h3 style={{ margin: 0, fontSize: "0.86rem", fontWeight: 750 }}>{n.title}</h3>
-                      <p className="ahd-muted" style={{ fontSize: "0.72rem", margin: "0.15rem 0 0" }}>{formatGameDate(n.date, clock)}</p>
-                      <p style={{ fontSize: "0.82rem", lineHeight: 1.55, margin: "0.4rem 0 0" }}>{n.body}</p>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </div>
+            world.news.length === 0 ? <div className="ahd-stack"><div className="ahd-card ahd-card-pad ahd-hero"><h2 className="ahd-h2">News</h2><p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>0 items</p></div><div className="ahd-empty">No news yet.</div></div>
+              : <NewsPanel news={world.news} clock={clock} storageKey={newsStorageKey ?? `${world.era}:${world.countryId}:${world.player.name}`} onCountry={id => { go("nations"); setDetailId(id); }} onParty={openParty} onElection={openElection} />
           ) : null}
         </section>
         ) : (

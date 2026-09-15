@@ -85,7 +85,7 @@ export const worldEventsSchedulerPhase: TurnPhase = {
       world.worldEventLedger["GLOBAL"]![def.kind] = turn;
       const { applied } = applyEffects(world, host, def.effects, turn);
       void applied;
-      world.news.push({ turn, date, headline: def.headline });
+      world.news.push({ id: `${def.kind}:${turn}:${host}`, turn, date, headline: def.headline, body: def.body, category: "Event", countryId: host, eventId: def.kind, eventName: def.title });
       offeredCountries.add(host);
     }
 
@@ -107,7 +107,7 @@ export const worldEventsSchedulerPhase: TurnPhase = {
         world.worldEventLedger[countryId]![def.kind] = turn;
         const { applied } = applyEffects(world, countryId, def.effects, turn);
         void applied;
-        world.news.push({ turn, date, headline: def.headline });
+        world.news.push({ id: `${def.kind}:${turn}:${countryId}`, turn, date, headline: def.headline, body: def.body, category: "Event", countryId, eventId: def.kind, eventName: def.title });
         offeredCountries.add(countryId);
         break; // at most one per country per turn
       }
@@ -170,7 +170,7 @@ export const playerRandomEventsPhase: TurnPhase = {
     const effects = picked.effects;
     const countryId = world.player.countryId;
     applyEffects(world, countryId, effects, turn);
-    world.news.push({ turn, date, headline: picked.headline });
+    world.news.push({ id: `${picked.kind}:${turn}:${countryId}`, turn, date, headline: picked.headline, body: picked.body, category: "Event", countryId, eventId: picked.kind, eventName: picked.title });
     // Record for ledger/tests
     world.playerEventLog.push({ turn, kind: picked.kind, headline: picked.headline });
   },
@@ -221,7 +221,7 @@ export const crisisTurnPhase: TurnPhase = {
             playerResponse: null as string | null,
           };
           world.crises.push(crisis);
-          world.news.push({ turn, date, headline: template.wireMessageOnStart });
+          world.news.push({ id: `${id}:start`, turn, date, headline: template.wireMessageOnStart, body: template.description, category: "Crisis", countryId, eventId: id, eventName: template.name });
         }
       }
     }
@@ -240,7 +240,7 @@ export const crisisTurnPhase: TurnPhase = {
       if (crisis.durationTurns !== null && turn >= crisis.startTurn + crisis.durationTurns) {
         crisis.status = "resolved";
         crisis.endTurn = turn;
-        world.news.push({ turn, date, headline: crisis.wireMessageOnEnd });
+        world.news.push({ id: `${crisis.id}:end`, turn, date, headline: crisis.wireMessageOnEnd, body: crisis.description, category: "Crisis", countryId: crisis.countryIds[0], eventId: crisis.id, eventName: crisis.name });
       }
     }
   },

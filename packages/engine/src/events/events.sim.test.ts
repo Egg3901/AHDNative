@@ -218,6 +218,7 @@ describe("crisis lifecycle", () => {
     advanceTurn(world); // 4
     advanceTurn(world); // 5 => turn 5 >= 2+3 => resolved
     expect(world.crises[0]!.status).toBe("resolved");
+    expect(world.news.find((item) => item.id === "manual-1:end")).toMatchObject({ category: "Crisis", countryId: "US", eventId: "manual-1", eventName: "Banking Crisis" });
     expect(world.crises[0]!.endTurn).toBe(5);
     expect(world.news.some((n) => n.headline.includes("Banking crisis eased"))).toBe(true);
   });

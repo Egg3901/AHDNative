@@ -12,6 +12,28 @@ describe("singleplayer session", () => {
     expect(view.parties.some((party) => party.id === "US_DEM")).toBe(true);
     expect(view.metrics.find((metric) => metric.id === "gdp")?.value).toBeGreaterThan(0);
   });
+  it("projects stable structured offline news through save and reload", () => {
+    const session = new GameSession();
+    session.create(options);
+    const saved = JSON.parse(session.serialize("2026-09-10T00:00:00.000Z"));
+    saved.world.news.push({ id: "event-1", turn: 1, date: "1953-01-02", headline: "Election called", body: "Voters return to the polls.", category: "Election", countryId: "US", partyId: "US_DEM", electionId: saved.world.elections[0]?.id, eventId: "election-call", eventName: "Election call" });
+    const loaded = new GameSession();
+    const first = loaded.load(JSON.stringify(saved)).news[0];
+    expect(first).toMatchObject({ id: "event-1", category: "Election", country: { id: "US", name: "United States" }, party: { id: "US_DEM" }, event: { id: "election-call", name: "Election call" } });
+    const reloaded = new GameSession().load(loaded.serialize("2026-09-10T00:00:00.000Z")).news[0];
+    expect(reloaded).toEqual(first);
+  });
+  it("normalizes news produced by the running session without inventing related links", () => {
+    const session = new GameSession();
+    session.create(options);
+    for (let turn = 0; turn < 24 && session.view().news.length === 0; turn += 1) session.advance();
+    const produced = session.view().news[0];
+    expect(produced).toBeDefined();
+    expect(produced).toMatchObject({ id: expect.any(String), title: expect.any(String), body: expect.any(String), date: expect.any(String), category: expect.any(String) });
+    expect(produced?.country ?? null).toBe(null);
+    expect(produced?.party ?? null).toBe(null);
+    expect(produced?.election ?? null).toBe(null);
+  });
   it("continues the same seeded world after actions, a turn and save/reload", () => {
     const session = new GameSession();
     session.create(options);

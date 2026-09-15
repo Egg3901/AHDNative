@@ -616,9 +616,14 @@ function applyGovernorResolution(world: WorldState, rec: ElectionRecord): void {
   archiveCampaignsForElection(world, rec.id);
   const label = `${rec.state} governor`;
   world.news.push({
+    id: `election:${rec.id}:resolved`,
     turn: world.meta.turn,
     date: world.meta.date,
     headline: `${label} election resolved: ${winner.name} (${winner.partyId}) wins`,
+    category: "Election",
+    countryId: rec.countryId,
+    partyId: winner.partyId,
+    electionId: rec.id,
   });
 }
 
@@ -733,6 +738,7 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
   const label = rec.state ? `${rec.state} ${rec.electionType}` : `${rec.countryId} ${rec.electionType}`;
   const topWinner = rec.candidates.find((c) => winnerIds.has(c.id));
   world.news.push({
+    id: `election:${rec.id}:resolved`,
     turn: world.meta.turn,
     date: world.meta.date,
     headline: rec.candidates.some((c) => c.id === "player")
@@ -740,6 +746,10 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
         ? `Election won: you take the ${label} seat`
         : `Election lost: the ${label} race goes against you`
       : `${label} election resolved${topWinner ? `: ${topWinner.name} (${topWinner.partyId}) leads the winners` : ""}`,
+    category: "Election",
+    countryId: rec.countryId,
+    partyId: topWinner?.partyId,
+    electionId: rec.id,
   });
 }
 
