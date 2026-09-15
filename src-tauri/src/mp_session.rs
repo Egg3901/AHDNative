@@ -59,8 +59,9 @@ const MP_SESSION_POLL_ROUNDS: u32 = 170;
 /// Server error bodies forwarded inside `remote-error` are capped; server
 /// refusal messages are short, and full pages must never cross the bridge.
 const MP_SESSION_ERROR_BODY_CHARS: usize = 2000;
-/// Longest region/state identifier the server shape accepts.
-const MP_SESSION_MAX_STATE_ID_CHARS: usize = 128;
+/// Longest region/state identifier the server shape accepts
+/// (`MAX_REGION_ID_LENGTH` in AHDGame `src/lib/constants/states.ts`).
+const MP_SESSION_MAX_STATE_ID_CHARS: usize = 15;
 
 /// Stable bridge error strings surfaced to the TypeScript adapter.
 pub mod error {
@@ -737,6 +738,17 @@ mod tests {
         assert!(mutate_body(
             MpMutateOp::ExecuteAction,
             &serde_json::json!({ "actionType": "campaign", "targetState": "   " }),
+        )
+        .is_err());
+        // Server cap is MAX_REGION_ID_LENGTH (15): 15 passes, 16 fails.
+        assert!(mutate_body(
+            MpMutateOp::ExecuteAction,
+            &serde_json::json!({ "actionType": "campaign", "targetState": "x".repeat(15) }),
+        )
+        .is_ok());
+        assert!(mutate_body(
+            MpMutateOp::ExecuteAction,
+            &serde_json::json!({ "actionType": "campaign", "targetState": "x".repeat(16) }),
         )
         .is_err());
         assert!(mutate_body(

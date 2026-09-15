@@ -208,7 +208,9 @@ export function validateExecuteArgs(
     if (typeof args.targetState !== "string" || !args.targetState.trim()) {
       return { ok: false, reason: "Region must be a non-empty identifier." };
     }
-    if (args.targetState.trim().length > 128) {
+    // Server cap is MAX_REGION_ID_LENGTH (15) in AHDGame
+    // src/lib/constants/states.ts; the route rejects longer ids outright.
+    if (args.targetState.trim().length > 15) {
       return { ok: false, reason: "Region identifier is too long." };
     }
     body.targetState = args.targetState.trim();

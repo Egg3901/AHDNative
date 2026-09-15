@@ -182,7 +182,9 @@ describe("validateExecuteArgs", () => {
     expect(validateExecuteArgs({ actionType: "nuke" }).ok).toBe(false);
     expect(validateExecuteArgs({ actionType: null }).ok).toBe(false);
     expect(validateExecuteArgs({ actionType: "campaign", targetState: "   " }).ok).toBe(false);
-    expect(validateExecuteArgs({ actionType: "campaign", targetState: "x".repeat(129) }).ok).toBe(false);
+    // Server cap is MAX_REGION_ID_LENGTH (15): 15 passes, 16 fails.
+    expect(validateExecuteArgs({ actionType: "campaign", targetState: "x".repeat(15) }).ok).toBe(true);
+    expect(validateExecuteArgs({ actionType: "campaign", targetState: "x".repeat(16) }).ok).toBe(false);
     expect(validateExecuteArgs({ actionType: "campaign", targetState: "  CA " })).toEqual({
       ok: true,
       body: { actionType: "campaign", targetState: "CA" },

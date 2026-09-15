@@ -103,7 +103,8 @@ export const MP_EXECUTE_ACTIONS: ReadonlyArray<{
   {
     type: "campaign",
     name: "Campaign",
-    description: "Increase your political influence (cost scales with influence and state GDP)",
+    description:
+      "Increase your political influence — up to +1%, with diminishing returns above 50% (cost scales with current influence and state GDP)",
   },
   { type: "advertise", name: "Run Advertisements", description: "Run ads to boost your favorability rating" },
   {
@@ -114,12 +115,14 @@ export const MP_EXECUTE_ACTIONS: ReadonlyArray<{
   {
     type: "poll",
     name: "Quick Poll",
-    description: "Commission a quick poll: topline appeal and best/worst demographic groups ($25,000)",
+    description:
+      "Commission a quick poll — see your topline appeal and best/worst demographic groups ($25,000)",
   },
   {
     type: "pollLarge",
     name: "Full Demographic Poll",
-    description: "Commission a comprehensive poll across every demographic group ($75,000)",
+    description:
+      "Commission a comprehensive poll — full breakdown across every demographic group and category ($75,000)",
   },
   {
     type: "convertCash",
