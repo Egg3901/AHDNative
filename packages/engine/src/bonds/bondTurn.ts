@@ -22,6 +22,7 @@
 
 import type { WorldState } from "../types.js";
 import type { Bond, BondMaturityTurns } from "./types.js";
+import { resolveBondCurrency } from "./denomination.js";
 import {
   BOND_UNIT_FACE_VALUE,
   calculateBondMarketPrice,
@@ -51,12 +52,13 @@ function countryNameFor(countryId: string): string {
 function creditPlayerBondCurrency(world: WorldState, bond: Bond, amount: number): void {
   if (!(amount > 0) || !Number.isFinite(amount)) return;
   const homeCurrency = world.budgets[world.player.countryId]?.currencyCode ?? "USD";
-  if (bond.currencyCode === homeCurrency) {
+  const bondCurrency = resolveBondCurrency(world, bond);
+  if (bondCurrency === homeCurrency) {
     world.player.cash += amount;
     return;
   }
   const balances = (world.player.currencyBalances ??= { personal: {} }).personal;
-  balances[bond.currencyCode] = (balances[bond.currencyCode] ?? 0) + amount;
+  balances[bondCurrency] = (balances[bondCurrency] ?? 0) + amount;
 }
 
 /**
@@ -147,7 +149,7 @@ export function issueScheduledSovereignBonds(world: WorldState): number {
       matured: false,
       defaulted: false,
       defaultedAtTurn: null,
-      currencyCode: budget.currencyCode ?? "USD",
+      currencyCode: resolveBondCurrency(world, { countryId, currencyCode: budget.currencyCode }),
       createdAt: nowIso,
       updatedAt: nowIso,
     };

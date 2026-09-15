@@ -13,10 +13,10 @@ import {
 } from "./constants.js";
 import {
   getTraceBonds,
-  payCouponsAndUpdatePrices,
   resetBondIdSequenceForTests,
-  settleMaturedBonds,
 } from "./bondTurn.js";
+import { bondCouponMaturityPhase } from "./phases.js";
+import { resolveBondCurrency } from "./denomination.js";
 import { executeAction } from "../actions/execute.js";
 import { ACTION_CATALOG } from "../actions/catalog.js";
 
@@ -155,7 +155,7 @@ describe("coupon servicing math (cite: bonds.ts perTurnCouponPayment)", () => {
     expect(world.player.cash - beforeCash).toBeCloseTo(expected, 6);
   });
 
-  it("credits foreign coupons and matured principal in the bond denomination across reload", () => {
+  it("credits foreign coupons and due principal through the public phase across reload", () => {
     const world = createWorld(OPTS);
     world.player.cash = 25_000;
     world.bonds["sterling-1"] = {
@@ -181,18 +181,61 @@ describe("coupon servicing math (cite: bonds.ts perTurnCouponPayment)", () => {
     };
 
     const coupon = perTurnCouponPayment(4.8, 1_000) * 2;
-    payCouponsAndUpdatePrices(world);
+    bondCouponMaturityPhase.run(world, { next: () => 0, int: () => 0, pick: <T>(items: T[]) => items[0]! });
 
     expect(world.player.cash).toBe(25_000);
     expect(world.player.currencyBalances?.personal.GBP).toBeCloseTo(coupon, 8);
 
     const reloaded = deserializeSave(serializeSave(world));
     reloaded.meta.turn += 1;
-    settleMaturedBonds(reloaded);
+    bondCouponMaturityPhase.run(reloaded, { next: () => 0, int: () => 0, pick: <T>(items: T[]) => items[0]! });
 
     expect(reloaded.player.cash).toBe(25_000);
-    expect(reloaded.player.currencyBalances?.personal.GBP).toBeCloseTo(2_000 + coupon, 8);
+    expect(reloaded.player.currencyBalances?.personal.GBP).toBeCloseTo(2_000 + coupon * 2, 8);
     expect(reloaded.bonds["sterling-1"]?.matured).toBe(true);
+  });
+
+  it("resolves legacy absent or empty denominations from country before USD fallback", () => {
+    const world = createWorld(OPTS);
+    const legacy = {
+      countryId: "UK",
+      currencyCode: undefined,
+    };
+    expect(resolveBondCurrency(world, legacy)).toBe("GBP");
+    expect(resolveBondCurrency(world, { ...legacy, currencyCode: "" })).toBe("GBP");
+    expect(resolveBondCurrency(world, { countryId: "unknown", currencyCode: undefined })).toBe("USD");
+  });
+
+  it("keeps legacy domestic maturity settlement in home cash through the public phase", () => {
+    const world = createWorld(OPTS);
+    world.player.cash = 100;
+    world.meta.turn = 1;
+    world.bonds["legacy-us"] = {
+      id: "legacy-us",
+      issuerType: "sovereign",
+      countryId: "US",
+      issuerName: "US",
+      faceValue: 1_000,
+      couponRate: 0,
+      maturityTurns: 48,
+      issuedAtTurn: 0,
+      maturityTurn: 1,
+      marketPrice: 1,
+      totalIssued: 1_000,
+      publicFloat: 0,
+      holders: [{ holderId: "player", units: 1 }],
+      matured: false,
+      defaulted: false,
+      defaultedAtTurn: null,
+      currencyCode: "",
+      createdAt: world.meta.date,
+      updatedAt: world.meta.date,
+    };
+
+    bondCouponMaturityPhase.run(world, { next: () => 0, int: () => 0, pick: <T>(items: T[]) => items[0]! });
+
+    expect(world.player.cash).toBe(1_100);
+    expect(world.player.currencyBalances).toBeUndefined();
   });
 });
 
