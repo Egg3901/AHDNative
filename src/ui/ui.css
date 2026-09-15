@@ -512,39 +512,87 @@ html, body { overflow-x: hidden; }
 .ahd-bottomnav-item[data-active="true"] svg { color: var(--ahd-primary); }
 .ahd-bottomnav-item:focus-visible { outline: none; box-shadow: var(--ahd-focus); }
 
-/* Side drawer sliding from the left */
+/* Side drawer sliding from the left (#366 composition: compact phone layout).
+ * Width stays narrow so the backdrop keeps a tappable strip on 320px;
+ * the column is a fixed phone sheet: compact identity, turn controls, a
+ * scrolling section list, and a pinned Ask/Actions quick bar. */
 .ahd-drawer-backdrop {
   position: fixed; inset: 0; z-index: 40;
   background: rgb(0 0 0 / 0.55);
+  animation: ahd-backdrop-in 0.18s ease-out;
 }
+@keyframes ahd-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 .ahd-drawer {
   position: fixed; top: 0; left: 0; bottom: 0; z-index: 41;
   width: min(19rem, calc(100vw - 3.5rem));
+  max-height: 100vh;
+  max-height: 100dvh;
   background: var(--ahd-card);
   border-right: 1px solid var(--ahd-border);
   box-shadow: var(--ahd-shadow-md);
   display: flex; flex-direction: column;
+  overscroll-behavior: contain;
   padding-top: max(0.7rem, env(safe-area-inset-top));
   padding-bottom: max(0.7rem, env(safe-area-inset-bottom));
+  padding-left: max(0, env(safe-area-inset-left));
   animation: ahd-drawer-in 0.18s ease-out;
 }
 @keyframes ahd-drawer-in { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+/* Compact identity header: name plus one party/country line plus one
+ * turn/date line, each truncated so long names cannot push turn controls
+ * off the 320px first viewport. */
 .ahd-drawer-identity {
-  display: flex; flex-direction: column; gap: 0.1rem;
-  padding: 0.2rem 1rem 0.6rem; font-size: 0.82rem;
+  display: flex; flex-direction: column; gap: 0.05rem;
+  padding: 0.35rem 0.9rem 0.5rem; font-size: 0.82rem;
   border-bottom: 1px solid var(--ahd-border);
+  min-width: 0;
 }
-.ahd-drawer-identity .ahd-muted { font-size: 0.72rem; }
-.ahd-drawer-turn { padding: 0.7rem 1rem 0.4rem; border-bottom: 1px solid var(--ahd-border); }
+.ahd-drawer-identity .ahd-muted { font-size: 0.7rem; }
+.ahd-drawer-identity-name {
+  font-size: 0.85rem; line-height: 1.25; margin: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ahd-drawer-identity-meta {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  min-width: 0;
+}
+.ahd-drawer-turn { padding: 0.55rem 0.9rem 0.35rem; border-bottom: 1px solid var(--ahd-border); }
 .ahd-drawer-endturn { width: 100%; }
-.ahd-drawer-turnrow { display: flex; gap: 0.4rem; margin-top: 0.55rem; flex-wrap: wrap; }
+.ahd-drawer-turnrow { display: flex; gap: 0.35rem; margin-top: 0.45rem; flex-wrap: wrap; }
 .ahd-drawer-nav {
   flex: 1; overflow-y: auto; overscroll-behavior: contain;
-  padding: 0.4rem 0.6rem 0.8rem;
-  display: flex; flex-direction: column; gap: 0.55rem;
+  padding: 0.35rem 0.55rem 0.6rem;
+  display: flex; flex-direction: column; gap: 0.25rem;
+  min-height: 0;
   -webkit-overflow-scrolling: touch;
 }
 .ahd-drawer-group { display: flex; flex-direction: column; gap: 0.05rem; }
+/* Clearer grouped destinations: a hairline between groups so Profile /
+ * Actions / Ask / State / Nation / World / Help read as separate rows
+ * once the density tightens. */
+.ahd-drawer-group + .ahd-drawer-group {
+  border-top: 1px solid var(--ahd-border);
+  padding-top: 0.25rem;
+}
+/* Pinned Ask/Actions quick bar: fixed below the scrolling sections so the
+ * two primary workflows stay reachable with an expanded Nation/World. */
+.ahd-drawer-quick {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem;
+  padding: 0.5rem 0.9rem 0;
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--ahd-border);
+  background: var(--ahd-card);
+}
+.ahd-drawer-quick-btn { width: 100%; }
+/* Narrow phones (320/390px): squeeze section padding and item type so the
+ * first viewport holds identity, turn controls and primary destinations. */
+@media (max-width: 390px) {
+  .ahd-drawer-identity { padding: 0.3rem 0.75rem 0.45rem; }
+  .ahd-drawer-turn { padding: 0.5rem 0.75rem 0.3rem; }
+  .ahd-drawer-nav { gap: 0.2rem; padding: 0.3rem 0.5rem 0.55rem; }
+  .ahd-drawer-item { font-size: 0.8rem; padding: 0.45rem 0.5rem; }
+  .ahd-drawer-quick { padding-left: 0.75rem; padding-right: 0.75rem; }
+}
 .ahd-drawer-heading {
   font-size: 0.64rem; font-weight: 700; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--ahd-muted);
@@ -557,6 +605,17 @@ html, body { overflow-x: hidden; }
   border-radius: var(--ahd-radius-sm); padding-inline: 0.7rem;
 }
 .ahd-drawer-disclosure:focus-visible { outline: none; box-shadow: var(--ahd-focus); }
+/* Disclosure meta: destination count plus the expand marker, kept muted so
+ * the group label stays the scannable element at phone widths. */
+.ahd-drawer-disclosure-meta {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  font-size: 0.7rem; color: var(--ahd-muted);
+}
+.ahd-drawer-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.35rem; min-height: 44px;
+  font-variant-numeric: tabular-nums; font-weight: 700;
+}
 /* Reference sub-categories (Nation Politics/Government/Economy, World
    Economy/Diplomacy/Other) nest under their parent group heading. */
 .ahd-drawer-section { display: flex; flex-direction: column; gap: 0.05rem; }

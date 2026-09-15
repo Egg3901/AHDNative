@@ -421,10 +421,14 @@ export function GameDrawer({
         aria-label="Game menu"
         className="ahd-drawer"
       >
+        {/* #366 composition: compact identity header. Same three facts the
+            reference profile card shows (name, party/country, turn/date),
+            tightened to two truncated lines so the 320px first viewport keeps
+            turn controls and primary destinations above the fold. */}
         <div className="ahd-drawer-identity">
-          <strong>{playerName}</strong>
-          <span className="ahd-muted">{playerParty} · {countryName}</span>
-          <span className="ahd-muted">Turn {turn} · {formatGameDate(date, { turn, date })}</span>
+          <strong className="ahd-drawer-identity-name" title={playerName}>{playerName}</strong>
+          <span className="ahd-muted ahd-drawer-identity-meta" title={`${playerParty} · ${countryName}`}>{playerParty} · {countryName}</span>
+          <span className="ahd-muted ahd-drawer-identity-meta">Turn {turn} · {formatGameDate(date, { turn, date })}</span>
         </div>
 
         <div className="ahd-drawer-turn">
@@ -459,6 +463,10 @@ export function GameDrawer({
           {MENU_GROUPS.map((group) => {
             const deep = Boolean(group.sections?.length);
             const expanded = !deep || expandedGroups.has(group.label);
+            // Reference Nation/World sub-category counts, so the collapsed
+            // disclosure tells the player how many destinations hide inside.
+            const deepCount = (group.sections ?? []).reduce((n, section) => n + section.items.length, 0);
+            const sectionId = `ahd-drawer-section-${group.label.toLowerCase()}`;
             return (
             <div key={group.label} role="group" aria-label={group.label} className="ahd-drawer-group">
               {deep ? (
@@ -466,29 +474,59 @@ export function GameDrawer({
                   type="button"
                   className="ahd-drawer-heading ahd-drawer-disclosure"
                   aria-expanded={expanded}
+                  aria-controls={sectionId}
                   onClick={() => setExpandedGroups((current) => {
                     const next = new Set(current);
                     if (next.has(group.label)) next.delete(group.label); else next.add(group.label);
                     return next;
                   })}
                 >
-                  <span>{group.label}</span><span aria-hidden="true">{expanded ? "−" : "+"}</span>
+                  <span>{group.label}</span>
+                  <span aria-hidden="true" className="ahd-drawer-disclosure-meta">
+                    <span className="ahd-drawer-count">{deepCount}</span>
+                    <span>{expanded ? "−" : "+"}</span>
+                  </span>
                 </button>
               ) : <div className="ahd-drawer-heading" aria-hidden="true">{group.label}</div>}
               {group.items.map((item) => (
                 <DrawerNavButton key={item.id} item={item} route={route} unreadCount={unreadCount} onNavigate={onNavigate} />
               ))}
-              {expanded && group.sections?.map((section) => (
-                <div key={section.label} role="group" aria-label={section.label} className="ahd-drawer-section">
-                  <div className="ahd-drawer-subheading" aria-hidden="true">{section.label}</div>
-                  {section.items.map((item) => (
-                    <DrawerNavButton key={item.id} item={item} route={route} unreadCount={unreadCount} onNavigate={onNavigate} />
+              {expanded && group.sections ? (
+                <div id={sectionId}>
+                  {group.sections.map((section) => (
+                    <div key={section.label} role="group" aria-label={section.label} className="ahd-drawer-section">
+                      <div className="ahd-drawer-subheading" aria-hidden="true">{section.label}</div>
+                      {section.items.map((item) => (
+                        <DrawerNavButton key={item.id} item={item} route={route} unreadCount={unreadCount} onNavigate={onNavigate} />
+                      ))}
+                    </div>
                   ))}
                 </div>
-              ))}
+              ) : null}
             </div>
           )})}
         </nav>
+        {/* #366 composition: persistent Ask/Actions quick bar. The reference
+            keeps Actions a top-level tab (ExperimentalNavbar.tsx:279) and
+            Native keeps Ask beside it (#358); both also live in the drawer
+            hierarchy above, so this bar duplicates no destination and removes
+            none. It stays pinned while the section list scrolls, so the two
+            primary workflows survive an expanded Nation/World on 320px. */}
+        <div className="ahd-drawer-quick" role="group" aria-label="Quick actions">
+          {(["actions", "ask"] as const).map((id) => (
+            <button
+              key={id}
+              type="button"
+              className="ahd-btn ahd-btn-sm ahd-drawer-quick-btn"
+              aria-label={id === "actions" ? "Go to Actions" : "Go to Ask"}
+              aria-current={route === id ? "page" : undefined}
+              data-active={route === id ? "true" : undefined}
+              onClick={() => onNavigate(id)}
+            >
+              {id === "actions" ? "Actions" : "Ask"}
+            </button>
+          ))}
+        </div>
       </aside>
     </>
   );

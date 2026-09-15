@@ -217,6 +217,129 @@ describe("MobileNavigation", () => {
     expect(css).toMatch(/\.ahd-footer[^{]*\{[^}]*env\(safe-area-inset-bottom\)/);
   });
 
+  it("renders a compact identity header with every fact truncated (#366)", () => {
+    const css = readFileSync("src/ui/ui.css", "utf8");
+    const ref = createRef<HTMLButtonElement | null>();
+    render(
+      <GameDrawer
+        open route="profile" busy={false} playerName="Ada Lovelace the First of Her Very Long Name"
+        playerParty="Labor" countryName="United States" turn={12} date="1953-12-01"
+        menuButtonRef={ref} onNavigate={vi.fn()} onAdvanceTurn={vi.fn()} onSave={vi.fn()}
+        onExit={vi.fn()} onClose={vi.fn()}
+      />,
+    );
+    // All three reference profile-card facts stay player-visible.
+    const name = screen.getByText("Ada Lovelace the First of Her Very Long Name");
+    expect(name.tagName).toBe("STRONG");
+    expect(name).toHaveAttribute("title", "Ada Lovelace the First of Her Very Long Name");
+    expect(screen.getByText("Labor · United States")).toBeInTheDocument();
+    expect(screen.getByText(/Turn 12/)).toBeInTheDocument();
+    // Compact, truncated header: tight padding, single-line ellipsis.
+    expect(css).toMatch(/\.ahd-drawer-identity\s*\{[^}]*padding:\s*0\.35rem 0\.9rem 0\.5rem/);
+    expect(css).toMatch(/\.ahd-drawer-identity-name\s*\{[^}]*text-overflow:\s*ellipsis/);
+    expect(css).toMatch(/\.ahd-drawer-identity-meta\s*\{[^}]*white-space:\s*nowrap/);
+  });
+
+  it("disclosures expose counts and controlled sections without renaming groups (#366)", async () => {
+    const user = userEvent.setup();
+    const css = readFileSync("src/ui/ui.css", "utf8");
+    render(
+      <GameDrawer open route="profile" busy={false} playerName="Ada" playerParty="Labor"
+        countryName="United States" turn={1} date="1953-01-08" menuButtonRef={createRef()}
+        onNavigate={vi.fn()} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onClose={vi.fn()} />,
+    );
+    // Counts ride in an aria-hidden badge, so the stable accessible names the
+    // app navigates by ("Nation"/"World") are unchanged.
+    const nation = screen.getByRole("button", { name: "Nation" });
+    const world = screen.getByRole("button", { name: "World" });
+    expect(within(nation).getByText("14")).toBeInTheDocument();
+    expect(within(world).getByText("6")).toBeInTheDocument();
+    expect(nation).toHaveAttribute("aria-controls", "ahd-drawer-section-nation");
+    expect(world).toHaveAttribute("aria-controls", "ahd-drawer-section-world");
+    // Collapsed sections render no controlled region; expanding reveals it.
+    expect(document.getElementById("ahd-drawer-section-nation")).toBeNull();
+    await user.click(nation);
+    expect(nation).toHaveAttribute("aria-expanded", "true");
+    expect(document.getElementById("ahd-drawer-section-nation")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "National Budget" })).toBeInTheDocument();
+    // No destination added or removed by the composition pass.
+    const ids = drawerRouteIds();
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toHaveLength(30);
+    expect(css).toMatch(/\.ahd-drawer-group\s*\+\s*\.ahd-drawer-group\s*\{[^}]*border-top:/);
+  });
+
+  it("keeps Ask/Actions pinned in a quick bar without removing destinations (#366)", async () => {
+    const user = userEvent.setup();
+    const css = readFileSync("src/ui/ui.css", "utf8");
+    const onNavigate = vi.fn();
+    const props = {
+      open: true, route: "ask" as const, busy: false, playerName: "Ada", playerParty: "Labor",
+      countryName: "United States", turn: 1, date: "1953-01-08",
+      menuButtonRef: createRef<HTMLButtonElement | null>(),
+      onNavigate, onAdvanceTurn: vi.fn(), onSave: vi.fn(), onExit: vi.fn(), onClose: vi.fn(),
+    };
+    render(<GameDrawer {...props} />);
+    // The bar duplicates no hierarchy destination: its targets are the same
+    // Actions/Ask ids the drawer groups already expose.
+    const quick = screen.getByRole("group", { name: "Quick actions" });
+    const goActions = within(quick).getByRole("button", { name: "Go to Actions" });
+    const goAsk = within(quick).getByRole("button", { name: "Go to Ask" });
+    expect(goAsk).toHaveAttribute("aria-current", "page");
+    expect(goActions).not.toHaveAttribute("aria-current");
+    await user.click(goActions);
+    expect(onNavigate).toHaveBeenCalledWith("actions");
+    await user.click(goAsk);
+    expect(onNavigate).toHaveBeenCalledWith("ask");
+    // The hierarchy entries themselves are untouched.
+    expect(screen.getByRole("button", { name: "Actions" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ask" })).toBeInTheDocument();
+    // Pinned below the scrolling sections, with phone-safe padding.
+    expect(css).toMatch(/\.ahd-drawer-quick\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+    expect(css).toMatch(/\.ahd-drawer-quick\s*\{[^}]*env\(safe-area-inset-bottom\)/);
+  });
+
+  it("holds phone safe-area, backdrop and focus behavior at 320/390px (#366)", async () => {
+    const user = userEvent.setup();
+    const css = readFileSync("src/ui/ui.css", "utf8");
+    const menuRef = createRef<HTMLButtonElement | null>();
+    const onClose = vi.fn();
+    const props = {
+      route: "profile" as const, busy: false, playerName: "Ada", playerParty: "Labor",
+      countryName: "United States", turn: 1, date: "1953-01-08", menuButtonRef: menuRef,
+      onNavigate: vi.fn(), onAdvanceTurn: vi.fn(), onSave: vi.fn(), onExit: vi.fn(), onClose,
+    };
+    const { rerender } = render(
+      <>
+        <button ref={menuRef}>Menu</button>
+        <GameDrawer open {...props} />
+      </>,
+    );
+    const drawer = screen.getByRole("dialog", { name: "Game menu" });
+    expect(drawer).toHaveAttribute("aria-modal", "true");
+    // Opening moves focus inside the drawer, never onto End turn.
+    expect(drawer.contains(document.activeElement)).toBe(true);
+    expect(screen.getByRole("button", { name: "End turn" })).not.toBe(document.activeElement);
+    // Backdrop dismisses; closing returns focus to the Menu button.
+    await user.click(document.querySelector(".ahd-drawer-backdrop") as HTMLElement);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    await user.keyboard("{Escape}");
+    expect(onClose).toHaveBeenCalledTimes(2);
+    rerender(
+      <>
+        <button ref={menuRef}>Menu</button>
+        <GameDrawer open={false} {...props} />
+      </>,
+    );
+    expect(screen.getByRole("button", { name: "Menu" })).toBe(document.activeElement as HTMLElement);
+    // Phone sheet rules: left safe area, full-bleed backdrop, narrow-column
+    // tightening at 320/390px, drawer width unchanged.
+    expect(css).toMatch(/\.ahd-drawer\s*\{[^}]*padding-left:\s*max\(0,\s*env\(safe-area-inset-left\)\)/);
+    expect(css).toMatch(/\.ahd-drawer-backdrop\s*\{[^}]*position:\s*fixed;\s*inset:\s*0/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*390px\)[\s\S]*?\.ahd-drawer-nav\s*\{[^}]*gap:\s*0\.2rem/);
+    expect(css).toMatch(/\.ahd-drawer\s*\{[^}]*width:\s*min\(19rem,\s*calc\(100vw - 3\.5rem\)\)/);
+  });
+
   it("drawer busy state disables turn actions", () => {
     const ref = createRef<HTMLButtonElement | null>();
     render(
