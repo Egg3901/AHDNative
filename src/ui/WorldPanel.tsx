@@ -232,6 +232,11 @@ function NationDetail({ nation, current, clock, era }: { nation: WorldNationView
  * recorded nation's details are shown. It is a browse context: selecting a
  * nation triggers no action, save or turn change, and the player country is
  * stated next to the viewed nation at all times.
+ *
+ * Flag identity (#373): the preservation note carries the viewed and player
+ * offline marks so the last text-only nation identity on this screen matches
+ * the directory rows. The native `<select>` options stay text-only because a
+ * platform option cannot carry a mark.
  */
 function NationContextSwitcher({
   overview,
@@ -248,6 +253,11 @@ function NationContextSwitcher({
   const viewedNation = overview.nations.find((nation) => nation.id === selectedId) ?? null;
   const viewedName = viewedNation?.name ?? selectedId;
   const viewingPlayer = selectedId === playerId;
+  // Note codes agree with the resolved flag identity (RU shows SU in 1979),
+  // matching the directory rows and detail header below.
+  const viewedId = viewedNation?.id ?? selectedId;
+  const viewedCode = resolveCountryFlagCode(viewedId, overview.era) || "?";
+  const playerCode = resolveCountryFlagCode(playerId, overview.era) || "?";
   return (
     <div className="ahd-card ahd-card-pad" role="group" aria-label="Nation context">
       <div className="ahd-eyebrow">Nation context</div>
@@ -268,7 +278,11 @@ function NationContextSwitcher({
         </select>
       </label>
       <p id="ahd-nation-context-note" role="note" aria-live="polite" className="ahd-muted" style={{ margin: "0.4rem 0 0", fontSize: "0.76rem" }}>
-        {`Viewing ${viewedName} (${selectedId}). Your country is ${playerName} (${playerId})${viewingPlayer ? " — currently viewing your own country" : ""}. Switching the view never changes your country, save, or turn.`}
+        {`Viewing ${viewedName} (${viewedCode}) `}
+        <CountryFlag countryId={viewedId} countryName={viewedName} era={overview.era} size="sm" />
+        {` Your country is ${playerName} (${playerCode}) `}
+        <CountryFlag countryId={playerId} countryName={playerName} era={overview.era} size="sm" />
+        {`${viewingPlayer ? " — currently viewing your own country" : ""}. Switching the view never changes your country, save, or turn.`}
       </p>
     </div>
   );
