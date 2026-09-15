@@ -947,6 +947,23 @@ describe("GameScreen status footer", () => {
     expect(within(screen.getByRole("navigation", { name: "Primary" })).getByRole("button", { name: "Profile" })).toHaveAttribute("aria-current", "page");
   });
 
+  it("captions the resource chips with the reference Profile label ahead of the resource buttons (#223)", () => {
+    const world = makeWorld();
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
+    const footer = screen.getByRole("contentinfo", { name: "Status and primary navigation" });
+    const group = within(footer).getByRole("group", { name: "Resources" });
+    const caption = within(group).getByText("Profile");
+    const firstResource = within(group).getByRole("button", { name: /action points/i });
+    expect(caption.compareDocumentPosition(firstResource) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("renders no Founding badge without a persisted pre-iteration lifecycle (#223)", () => {
+    const world = makeWorld();
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
+    const footer = screen.getByRole("contentinfo", { name: "Status and primary navigation" });
+    expect(within(footer).queryByText("Founding")).not.toBeInTheDocument();
+  });
+
   it("shows processing status while busy", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={true} message="Advancing" onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
