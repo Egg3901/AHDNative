@@ -22,6 +22,21 @@ const inbox = (unread = 1) =>
     total: 1,
     hasMore: false,
   });
+const caps = () =>
+  JSON.stringify({
+    user: { id: USER_A, username: "Ada", isAdmin: false },
+    hasCharacter: true,
+    characterCountryId: "US",
+    characterName: "Ada",
+    unreadCount: 1,
+    unreadMailCount: 2,
+    myCorporationId: 7,
+    myUnionId: null,
+    activeElection: { id: "68a000000000000000000001", label: "President — National" },
+    cabinetOffice: { positionId: "sec-state", positionName: "Secretary of State", countryCode: "us" },
+    governorOffice: null,
+  });
+const capsGuest = () => JSON.stringify({ user: null, hasCharacter: false });
 
 interface Call {
   kind: "fetch" | "mutate";
@@ -63,12 +78,18 @@ function scriptedHost(scripts: {
 
 function readyScripts() {
   return {
-    fetch: { "auth-session": [probeA], "character-me": [meA(1000)], "turn-status": [turn()], notifications: [inbox()] },
+    fetch: {
+      "auth-session": [probeA],
+      "character-me": [meA(1000)],
+      "turn-status": [turn()],
+      "client-nav": [caps()],
+      notifications: [inbox()],
+    },
   };
 }
 
 describe("MpModeSession enter", () => {
-  it("loads probe, player, turn, and inbox in order and goes ready", async () => {
+  it("loads probe, player, turn, capabilities, and inbox in order and goes ready", async () => {
     const { host, calls } = scriptedHost(readyScripts());
     const session = new MpModeSession(host);
     const snapshot = await session.enter();
@@ -76,14 +97,16 @@ describe("MpModeSession enter", () => {
     expect(snapshot.username).toBe("Ada");
     expect(snapshot.character).toMatchObject({ name: "Ada", cashOnHand: 1000 });
     expect(snapshot.turn).toMatchObject({ currentTurn: 12, currentYear: 1862 });
+    expect(snapshot.capabilities).toMatchObject({ hasCharacter: true, characterName: "Ada" });
     expect(snapshot.inbox?.unreadCount).toBe(1);
     expect(calls.map((call) => `${call.kind}:${call.op}`)).toEqual([
       "fetch:auth-session",
       "fetch:character-me",
       "fetch:turn-status",
+      "fetch:client-nav",
       "fetch:notifications",
     ]);
-    expect(calls[3]?.arg).toEqual([MP_INBOX_LIMIT, 0]);
+    expect(calls[4]?.arg).toEqual([MP_INBOX_LIMIT, 0]);
   });
 
   it("reports signed-out on a 401 probe and keeps no authed state", async () => {
@@ -121,6 +144,7 @@ describe("MpModeSession enter", () => {
         "auth-session": [probeA, probeB],
         "character-me": [meA(1000), meA(5)],
         "turn-status": [turn(), turn()],
+        "client-nav": [caps(), capsGuest()],
         notifications: [inbox(), inbox(0)],
       },
     });
@@ -130,7 +154,7 @@ describe("MpModeSession enter", () => {
     expect(second.username).toBe("Bo");
     expect(second.character?.cashOnHand).toBe(5);
     expect(second.inbox?.unreadCount).toBe(0);
-    expect(calls).toHaveLength(8);
+    expect(calls).toHaveLength(10);
   });
 
   it("clears everything on exit", async () => {
@@ -143,6 +167,7 @@ describe("MpModeSession enter", () => {
       username: null,
       character: null,
       turn: null,
+      capabilities: null,
       inbox: null,
       mailInbox: null,
       mailSent: null,
@@ -157,9 +182,10 @@ describe("MpModeSession performAction", () => {
   it("refreshes authoritative reads after the mutation before claiming completion", async () => {
     const { host, calls } = scriptedHost({
       fetch: {
-        "auth-session": [probeA],
+        "auth-session": [probeA, probeA],
         "character-me": [meA(1000), meA(1250)],
         "turn-status": [turn(), turn(13)],
+        "client-nav": [caps(), caps()],
         notifications: [inbox(), inbox(0)],
       },
       mutate: { "execute-action": [JSON.stringify({ success: true, message: "Raised 250 from donors!" })] },
@@ -170,8 +196,10 @@ describe("MpModeSession performAction", () => {
     const snapshot = await session.performAction({ actionType: "fundraise" });
     expect(calls.map((call) => `${call.kind}:${call.op}`)).toEqual([
       "mutate:execute-action",
+      "fetch:auth-session",
       "fetch:character-me",
       "fetch:turn-status",
+      "fetch:client-nav",
       "fetch:notifications",
     ]);
     expect(calls[0]?.arg).toEqual({ actionType: "fundraise" });
@@ -183,7 +211,13 @@ describe("MpModeSession performAction", () => {
 
   it("surfaces server refusal with prior state intact and no refresh claimed", async () => {
     const { host, calls } = scriptedHost({
-      fetch: { "auth-session": [probeA], "character-me": [meA(1000)], "turn-status": [turn()], notifications: [inbox()] },
+      fetch: {
+        "auth-session": [probeA],
+        "character-me": [meA(1000)],
+        "turn-status": [turn()],
+        "client-nav": [caps()],
+        notifications: [inbox()],
+      },
       mutate: { "execute-action": [{ reject: 'remote-error:400:0:{"error":"Not enough funds."}' }] },
     });
     const session = new MpModeSession(host);
@@ -206,7 +240,13 @@ describe("MpModeSession performAction", () => {
     ];
     for (const { reject, phase, match, cleared } of cases) {
       const { host } = scriptedHost({
-        fetch: { "auth-session": [probeA], "character-me": [meA(1000)], "turn-status": [turn()], notifications: [inbox()] },
+        fetch: {
+          "auth-session": [probeA],
+          "character-me": [meA(1000)],
+          "turn-status": [turn()],
+          "client-nav": [caps()],
+          notifications: [inbox()],
+        },
         mutate: { "execute-action": [{ reject }] },
       });
       const session = new MpModeSession(host);
@@ -221,7 +261,13 @@ describe("MpModeSession performAction", () => {
 
   it("treats transport loss as offline with state intact", async () => {
     const { host } = scriptedHost({
-      fetch: { "auth-session": [probeA], "character-me": [meA(1000)], "turn-status": [turn()], notifications: [inbox()] },
+      fetch: {
+        "auth-session": [probeA],
+        "character-me": [meA(1000)],
+        "turn-status": [turn()],
+        "client-nav": [caps()],
+        notifications: [inbox()],
+      },
       mutate: { "execute-action": [{ reject: "session-transport" }] },
     });
     const session = new MpModeSession(host);
@@ -252,9 +298,10 @@ describe("MpModeSession inbox mutations", () => {
   it("marks read and archives with post-mutation refresh", async () => {
     const { host, calls } = scriptedHost({
       fetch: {
-        "auth-session": [probeA, probeA],
+        "auth-session": [probeA, probeA, probeA],
         "character-me": [meA(1000), meA(1000), meA(1000)],
         "turn-status": [turn(), turn(), turn()],
+        "client-nav": [caps(), caps(), caps()],
         notifications: [inbox(2), inbox(1), inbox(1)],
       },
       mutate: {
@@ -279,9 +326,10 @@ describe("MpModeSession inbox mutations", () => {
   it("rejects bad ids client-side and marks all read in scope", async () => {
     const { host, calls } = scriptedHost({
       fetch: {
-        "auth-session": [probeA],
+        "auth-session": [probeA, probeA],
         "character-me": [meA(1000), meA(1000)],
         "turn-status": [turn(), turn()],
+        "client-nav": [caps(), caps()],
         notifications: [inbox(2), inbox(0)],
       },
       mutate: { "notification-mark-all-read": [JSON.stringify({ success: true })] },
@@ -479,13 +527,125 @@ describe("MpModeSession inbox snooze/unarchive/preferences (#361)", () => {
   });
 });
 
-describe("MpModeSession reconnect", () => {
-  it("refresh re-enters when identity is gone and recovers after loss", async () => {
+describe("MpModeSession capabilities", () => {
+  it("loads client-nav between turn and inbox and projects standing", async () => {
+    const { host, calls } = scriptedHost({
+      fetch: {
+        "auth-session": [probeA],
+        "character-me": [meA(1000)],
+        "turn-status": [turn()],
+        "client-nav": [caps()],
+        notifications: [inbox()],
+      },
+    });
+    const snapshot = await new MpModeSession(host).enter();
+    expect(snapshot.phase).toBe("ready");
+    expect(snapshot.capabilities).toMatchObject({
+      hasCharacter: true,
+      characterName: "Ada",
+      characterCountryId: "US",
+      unreadMailCount: 2,
+      corporationId: 7,
+      activeElectionLabel: "President — National",
+      cabinetOffice: "Secretary of State",
+    });
+    expect(calls.map((call) => `${call.kind}:${call.op}`)).toEqual([
+      "fetch:auth-session",
+      "fetch:character-me",
+      "fetch:turn-status",
+      "fetch:client-nav",
+      "fetch:notifications",
+    ]);
+  });
+
+  it("fails closed on malformed capabilities with prior state intact", async () => {
+    const { host } = scriptedHost({
+      fetch: {
+        "auth-session": [probeA, probeA],
+        "character-me": [meA(1000), meA(1000)],
+        "turn-status": [turn(), turn()],
+        "client-nav": [caps(), "{oops"],
+        notifications: [inbox()],
+      },
+    });
+    const session = new MpModeSession(host);
+    expect((await session.enter()).phase).toBe("ready");
+    const failed = await session.refresh();
+    expect(failed.phase).toBe("server-error");
+    expect(failed.error).toMatch(/capabilities/);
+    expect(failed.character?.cashOnHand).toBe(1000);
+    expect(failed.capabilities).toMatchObject({ hasCharacter: true });
+  });
+
+  it("tolerates the guest capabilities shape without leaving ready", async () => {
     const { host } = scriptedHost({
       fetch: {
         "auth-session": [probeA],
+        "character-me": [meA(1000)],
+        "turn-status": [turn()],
+        "client-nav": [capsGuest()],
+        notifications: [inbox()],
+      },
+    });
+    const snapshot = await new MpModeSession(host).enter();
+    expect(snapshot.phase).toBe("ready");
+    expect(snapshot.capabilities).toMatchObject({ hasCharacter: false });
+  });
+});
+
+describe("MpModeSession refresh isolation", () => {
+  it("detects an account switch on refresh, not just enter", async () => {
+    const { host } = scriptedHost({
+      fetch: {
+        "auth-session": [probeA, probeB],
+        "character-me": [meA(1000), meA(5)],
+        "turn-status": [turn(), turn()],
+        "client-nav": [caps(), capsGuest()],
+        notifications: [inbox(), inbox(0)],
+      },
+    });
+    const session = new MpModeSession(host);
+    expect((await session.enter()).username).toBe("Ada");
+    const second = await session.refresh();
+    expect(second.phase).toBe("ready");
+    expect(second.username).toBe("Bo");
+    expect(second.character?.cashOnHand).toBe(5);
+    expect(second.capabilities).toMatchObject({ hasCharacter: false });
+    expect(second.inbox?.unreadCount).toBe(0);
+  });
+
+  it("re-probes before post-mutation refresh and never claims success when expired", async () => {
+    const { host, calls } = scriptedHost({
+      fetch: {
+        "auth-session": [probeA, { reject: "remote-error:401:0:Authentication required" }],
+        "character-me": [meA(1000)],
+        "turn-status": [turn()],
+        "client-nav": [caps()],
+        notifications: [inbox()],
+      },
+      mutate: { "execute-action": [JSON.stringify({ success: true, message: "Raised 250!" })] },
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+    calls.length = 0;
+    const snapshot = await session.performAction({ actionType: "fundraise" });
+    expect(snapshot.phase).toBe("auth-expired");
+    expect(snapshot.notice).toBeNull();
+    expect(calls.map((call) => `${call.kind}:${call.op}`)).toEqual([
+      "mutate:execute-action",
+      "fetch:auth-session",
+    ]);
+  });
+});
+
+describe("MpModeSession reconnect", () => {
+  it("refresh re-probes and recovers after loss", async () => {
+    const { host } = scriptedHost({
+      fetch: {
+        "auth-session": [probeA, probeA],
         "character-me": [{ reject: "session-transport" }, meA(1000)],
         "turn-status": [turn()],
+        "client-nav": [caps()],
         notifications: [inbox()],
       },
     });

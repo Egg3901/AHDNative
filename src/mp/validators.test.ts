@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   parseCharacterMe,
+  parseClientNav,
   parseExecuteResult,
   parseInbox,
   parseMutationAck,
@@ -157,6 +158,77 @@ describe("parseInbox", () => {
     expect(parseInbox(JSON.stringify({ notifications: [{ _id: "short" }], unreadCount: 1 }))).toBeNull();
     expect(parseInbox(JSON.stringify({ notifications: "none", unreadCount: 0 }))).toBeNull();
     expect(parseInbox("nope")).toBeNull();
+  });
+});
+
+describe("parseClientNav", () => {
+  const full = () =>
+    JSON.stringify({
+      user: { id: "507f1f77bcf86cd799439011", username: "Ada", isAdmin: false },
+      hasCharacter: true,
+      characterCountryId: "US",
+      characterName: "Ada",
+      unreadCount: 4,
+      unreadMailCount: 2,
+      myCorporationId: 7,
+      myCorporationType: "bank",
+      myCorporationCountryId: "US",
+      myUnionId: null,
+      funds: 1000,
+      actions: 3,
+      homeState: { id: "CA", name: "California", countryId: "US" },
+      currentParty: { id: "3", name: "Labor", countryId: "US" },
+      activeElection: { id: "68a000000000000000000001", label: "President — National" },
+      cabinetOffice: { positionId: "sec-state", positionName: "Secretary of State", countryCode: "us" },
+      governorOffice: null,
+      wikiDisabled: false,
+      conflictsEnabled: true,
+    });
+
+  it("projects navigation capabilities and ignores the rest", () => {
+    expect(parseClientNav(full())).toEqual({
+      hasCharacter: true,
+      characterName: "Ada",
+      characterCountryId: "US",
+      unreadMailCount: 2,
+      corporationId: 7,
+      unionId: null,
+      activeElectionLabel: "President — National",
+      cabinetOffice: "Secretary of State",
+      governorOffice: null,
+    });
+  });
+
+  it("tolerates the guest and no-character shapes", () => {
+    expect(
+      parseClientNav(
+        JSON.stringify({ user: null, hasCharacter: false, characterCountryId: null, characterName: null }),
+      ),
+    ).toMatchObject({ hasCharacter: false, characterName: null, activeElectionLabel: null });
+    expect(
+      parseClientNav(
+        JSON.stringify({
+          user: { id: "507f1f77bcf86cd799439011", username: "Bo" },
+          hasCharacter: false,
+          unreadMailCount: 0,
+        }),
+      ),
+    ).toMatchObject({ hasCharacter: false, unreadMailCount: 0, corporationId: null });
+  });
+
+  it("rejects malformed capabilities payloads", () => {
+    expect(parseClientNav("not json")).toBeNull();
+    expect(parseClientNav(JSON.stringify([1, 2]))).toBeNull();
+    expect(parseClientNav(JSON.stringify({ user: null }))).toBeNull();
+    expect(parseClientNav(JSON.stringify({ hasCharacter: "yes" }))).toBeNull();
+  });
+
+  it("nulls mistyped office decorations instead of failing the whole record", () => {
+    expect(
+      parseClientNav(
+        JSON.stringify({ hasCharacter: true, activeElection: "soon", cabinetOffice: { positionName: 42 } }),
+      ),
+    ).toMatchObject({ hasCharacter: true, activeElectionLabel: null, cabinetOffice: null });
   });
 });
 

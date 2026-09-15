@@ -186,6 +186,48 @@ export function parseInbox(bodyText: string): MpInboxView | null {
   };
 }
 
+export interface MpCapabilitiesView {
+  hasCharacter: boolean;
+  characterName: string | null;
+  characterCountryId: string | null;
+  unreadMailCount: number | null;
+  corporationId: number | null;
+  unionId: string | null;
+  activeElectionLabel: string | null;
+  cabinetOffice: string | null;
+  governorOffice: string | null;
+}
+
+/**
+ * client-nav: navbar essentials (AHDGame src/app/api/client-nav/route.ts).
+ * Only the audited capability fields are projected; everything else stays
+ * server-side. The top-level object plus `hasCharacter` are required, so a
+ * drifting payload fails closed. Office and election decorations are
+ * display-only and degrade to null individually, and the guest
+ * (`user: null`, `hasCharacter: false`) shape is tolerated: right after a
+ * signed-in probe it is a cookie race the next refresh reconciles.
+ */
+export function parseClientNav(bodyText: string): MpCapabilitiesView | null {
+  const record = asRecord(parseJsonBody(bodyText));
+  if (!record) return null;
+  const hasCharacter = asBoolean(record.hasCharacter);
+  if (hasCharacter === null) return null;
+  const election = asRecord(record.activeElection);
+  const cabinet = asRecord(record.cabinetOffice);
+  const governor = asRecord(record.governorOffice);
+  return {
+    hasCharacter,
+    characterName: asTrimmedString(record.characterName ?? null),
+    characterCountryId: asTrimmedString(record.characterCountryId ?? null),
+    unreadMailCount: record.unreadMailCount === undefined ? null : asNumber(record.unreadMailCount),
+    corporationId: record.myCorporationId === undefined ? null : asNumber(record.myCorporationId),
+    unionId: asTrimmedString(record.myUnionId ?? null),
+    activeElectionLabel: election ? asTrimmedString(election.label ?? null) : null,
+    cabinetOffice: cabinet ? asTrimmedString(cabinet.positionName ?? null) : null,
+    governorOffice: governor ? asTrimmedString(governor.stateName ?? null) : null,
+  };
+}
+
 /** execute-action 200: {success:true, message}. */
 export function parseExecuteResult(bodyText: string): string | null {
   const record = asRecord(parseJsonBody(bodyText));
