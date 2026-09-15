@@ -120,7 +120,6 @@ impl MpFetchOp {
             Self::GameTime => "/api/game-time",
             Self::Notifications => "/api/notifications",
             Self::AdminMaintenance => "/api/admin/maintenance",
-            Self::AdminMaintenance => "/api/admin/maintenance",
         }
     }
 }
