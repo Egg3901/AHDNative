@@ -19,6 +19,18 @@ Visual notes:
 - Game: percent metrics are fractions multiplied by 100, money absolute, action buttons labeled with action name, amount validates positive integer before invoke, party/region validates selection exists, tap targets 44px, no horizontal overflow.
 - CSP: style-src allows inline styles for React, script-src stays self, worker-src self blob.
 
+### United States nation overview hero (issue #143)
+
+- Native bundles `public/static/heroes/us-overview-mount-rushmore.webp`, a
+  byte-identical copy of AHDGame's file at source revision `e364c04954ed628beef73a993a8e9e156650a31e`.
+- SHA-256: `208e3eadeb480c0e5d26673c1e34db3af29e25e3906b1b91b9e8a44aa90e3a19`.
+- Original: James Trotter, "HDR Mount Rushmore", 13 August 2017,
+  https://commons.wikimedia.org/wiki/File:HDR_Mount_Rushmore.jpg.
+- License: Creative Commons Attribution-ShareAlike 4.0 International,
+  https://creativecommons.org/licenses/by-sa/4.0/. Native converts and crops
+  the image for responsive presentation; this attribution and license are
+  retained. No remote request is made at runtime.
+
 No server paths, user data, or secrets committed.
 
 Priority one is functional navigation and persistent status-bar parity, with mobile-first layouts rather than pixel matching. The [navigation inventory](NAVIGATION-PARITY.md) enumerates source destinations, conditional menus, resource details and gaps. A styled tab is not proof that its reference feature set is complete.

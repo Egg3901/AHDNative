@@ -22,6 +22,11 @@ export function RouteHero({ image, alt, eyebrow, title, children, className = ""
   );
 }
 
+export function nationOverviewHero(countryId: string): string {
+  if (countryId === "US") return "/static/heroes/us-overview-mount-rushmore.webp";
+  return "/static/heroes/actions.webp";
+}
+
 export function executiveHero(countryId: string): string {
   if (countryId === "US") return "/static/heroes/white-house.webp";
   if (countryId === "UK") return "/static/heroes/downing-street.webp";

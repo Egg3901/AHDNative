@@ -7,6 +7,7 @@ import type {
   NationView,
 } from "../game/nation";
 import { formatGameDate, type GameClock } from "../game/gameDate";
+import { RouteHero, nationOverviewHero } from "./RouteHero";
 
 export interface NationPanelProps {
   nation: NationView;
@@ -53,13 +54,16 @@ function millions(value: number, currency: string): string {
 function Layout({ nation, title, children }: { nation: NationView; title: string; children: React.ReactNode }) {
   return (
     <div className="ahd-stack" aria-label={`${nation.countryName} ${title}`}>
-      <div className="ahd-card ahd-card-pad ahd-hero">
-        <div className="ahd-eyebrow">{nation.countryName}</div>
-        <h1 className="ahd-h1" style={{ marginTop: "0.22rem" }}>{title}</h1>
-        <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.32rem 0 0" }}>
+      <RouteHero
+        image={nationOverviewHero(nation.countryId)}
+        alt={`${nation.countryName} national overview`}
+        eyebrow={nation.countryName}
+        title={title}
+      >
+        <p style={{ fontSize: "0.76rem", margin: "0.32rem 0 0", opacity: 0.85 }}>
           {nation.countryId} · {nation.currency}
         </p>
-      </div>
+      </RouteHero>
       {children}
     </div>
   );
