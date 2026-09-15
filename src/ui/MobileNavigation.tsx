@@ -5,7 +5,7 @@ export type DrawerRouteId =
   | "actions" | "parties" | "legislature" | "elections" | "news"
   | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "campaignDetails"
   | "politicians" | "presidentialDetails" | "politicalMetrics"
-  | "economy" | "budget" | "policy" | "metrics" | "nations" | "state"
+  | "economy" | "budget" | "policy" | "metrics" | "nations" | "state" | "government"
   | "help" | "settings" | "legislationDetails" | "markets" | "search"
   | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications" | "referendums"
   | "worldSettings" | "ask";
@@ -119,6 +119,7 @@ export const MENU_GROUPS: DrawerNavGroup[] = [
           { id: "legislature", label: "Legislature" },
           { id: "legislationDetails", label: "Bills and proposals" },
           { id: "policy", label: "Policy" },
+          { id: "government", label: "Cabinet office" },
         ],
       },
       {

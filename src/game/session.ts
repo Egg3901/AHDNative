@@ -3,6 +3,7 @@ import { validateProfileUpdate } from "./profileValidation";
 import type { ProfileUpdate } from "./profileTypes";
 import { applyProfileConstituency } from "./profileConstituency";
 import { projectRegions, type RegionsQuery } from "./regions";
+import { projectCabinetOffice, type IssueCabinetOrderInput } from "./cabinetOffice";
 import { projectCaucusManagement } from "./caucusManagement";
 import { projectBondMarket } from "./bondMarket";
 import { projectPartyManagement } from "./partyManagement";
@@ -17,7 +18,7 @@ import { projectPolitics, projectPartyMembership } from "./politics";
 import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
-  ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction,
+  ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder,
   getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination,
   type ActionId, type ExecuteActionParams, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
@@ -367,6 +368,42 @@ export class GameSession {
   regions(query: RegionsQuery = {}) { return projectRegions(this.requireWorld(), query); }
 
   caucusManagement() { return projectCaucusManagement(this.requireWorld()); }
+
+  cabinetOffice() { return projectCabinetOffice(this.requireWorld()); }
+
+  /**
+   * Validated ministerial order issue (#261 engine command). The candidate
+   * world is mutated only by a successful issue: the engine throws every
+   * refusal before any order or pool mutation, and the session commits
+   * solely on success, so a refusal leaves the live world untouched.
+   */
+  issueCabinetOrder(input: IssueCabinetOrderInput): {
+    result: { ok: true; message: string } | { ok: false; error: string };
+    view: GameView;
+  } {
+    const candidate = structuredClone(this.requireWorld());
+    try {
+      const issued = issueMinisterialOrder(candidate, {
+        countryId: candidate.player.countryId,
+        positionId: input.positionId,
+        orderId: input.orderId,
+        ...(input.targetRegionId ? { targetRegionId: input.targetRegionId } : {}),
+      });
+      const view = this.commit(candidate);
+      return {
+        result: {
+          ok: true,
+          message: `Issued ${issued.order.orderName ?? issued.order.orderId} for ${issued.expiresTurn - candidate.meta.turn} turns. ${issued.actionsRemaining} ministerial actions remaining.`,
+        },
+        view,
+      };
+    } catch (error) {
+      return {
+        result: { ok: false, error: error instanceof Error ? error.message : "The order could not be issued." },
+        view: this.view(),
+      };
+    }
+  }
 
   partyManagement() { return projectPartyManagement(this.requireWorld()); }
 

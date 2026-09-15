@@ -214,6 +214,10 @@ export interface GameScreenProps {
   loadBondMarket: () => Promise<import("./bondMarket").BondMarketView>;
   loadRegions: (query?: import("./regions").RegionsQuery) => Promise<import("./regions").RegionsView>;
   loadCaucusManagement: () => Promise<import("./caucusManagement").CaucusManagementView>;
+  /** Cabinet-office projection; present when the government destination is wired (App). */
+  loadCabinetOffice?: () => Promise<import("./cabinetOffice").CabinetOfficeView>;
+  /** Validated ministerial order issue; present alongside loadCabinetOffice. */
+  onIssueCabinetOrder?: (input: import("./cabinetOffice").IssueCabinetOrderInput) => void;
   loadPartyManagement: () => Promise<import("./partyManagement").PartyManagementView>;
   loadMarkets: () => Promise<import("./markets").MarketsView>;
   loadLegislation: (selection?: LegislationSelection) => Promise<LegislationDetailsQuery>;
