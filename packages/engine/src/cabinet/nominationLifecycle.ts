@@ -18,8 +18,15 @@
 import type { WorldState } from "../types.js";
 import type { CabinetConfirmationTally, CabinetNomination } from "./types.js";
 import { initialMinisterialActionFields } from "./ministerialActionPool.js";
+import {
+  assertNominationVote,
+  isHouseChamber,
+  isSenateChamber,
+  tallyCurrentSeatVotes,
+  type NominationVote,
+} from "../nominations/currentSeatTally.js";
 
-export type SenateVote = "for" | "against" | "abstain";
+export type SenateVote = NominationVote;
 
 /**
  * Party-line NPP cabinet vote — mirrors src/lib/cabinetNominationLifecycle.ts nppCabinetVote.
@@ -59,48 +66,11 @@ export function cabinetDidPass(votesFor: number, votesAgainst: number): boolean 
   return votesFor > votesAgainst;
 }
 
-function isSenateChamber(chamberKey: string): boolean {
-  return chamberKey === "senate" || chamberKey === "upper" || chamberKey === "senate_us";
-}
-
-function isHouseChamber(chamberKey: string): boolean {
-  return chamberKey === "house" || chamberKey === "lower";
-}
-
-function eligibleVoterKeys(world: WorldState, countryId: string, chamber: "senate" | "house"): Set<string> {
-  const matchesChamber = chamber === "senate" ? isSenateChamber : isHouseChamber;
-  const keys = new Set(
-    world.politicians
-      .filter((politician) => politician.countryId === countryId && matchesChamber(politician.chamberKey))
-      .map((politician) => `pol_${politician.id}`),
-  );
-  const playerSeat = world.player.legislativeSeat;
-  if (playerSeat?.countryId === countryId && matchesChamber(playerSeat.chamberKey)) keys.add("player");
-  return keys;
-}
-
-function tallyEligibleVotes(votes: Record<string, SenateVote>, eligibleKeys: ReadonlySet<string>) {
-  const tally = { votesFor: 0, votesAgainst: 0, votesAbstain: 0 };
-  for (const [key, vote] of Object.entries(votes)) {
-    if (!eligibleKeys.has(key)) continue;
-    if (vote === "for") tally.votesFor++;
-    else if (vote === "against") tally.votesAgainst++;
-    else tally.votesAbstain++;
-  }
-  return tally;
-}
-
 /** Recompute from current seat holders so stale and cross-country keys have no weight. */
 export function computeCabinetNominationTally(world: WorldState, nomination: CabinetNomination): CabinetConfirmationTally {
-  const senate = tallyEligibleVotes(
-    nomination.votes,
-    eligibleVoterKeys(world, nomination.countryId, "senate"),
-  );
+  const senate = tallyCurrentSeatVotes(world, nomination.countryId, nomination.votes);
   if (nomination.positionId !== "vicePresident") return senate;
-  const house = tallyEligibleVotes(
-    nomination.houseVotes ?? {},
-    eligibleVoterKeys(world, nomination.countryId, "house"),
-  );
+  const house = tallyCurrentSeatVotes(world, nomination.countryId, nomination.houseVotes ?? {}, "house");
   return {
     ...senate,
     houseVotesFor: house.votesFor,
@@ -126,9 +96,7 @@ export function castCabinetNominationVote(
   nominationId: string,
   vote: SenateVote,
 ): CabinetConfirmationTally {
-  if (vote !== "for" && vote !== "against" && vote !== "abstain") {
-    throw new Error("Vote must be for, against, or abstain");
-  }
+  assertNominationVote(vote);
   const nomination = world.cabinetNominations.find((candidate) => candidate.id === nominationId);
   if (!nomination || nomination.status !== "active") throw new Error("Nomination not found or voting closed");
   if (world.meta.turn >= nomination.votingEndsOnTurn) throw new Error("Voting has ended");
