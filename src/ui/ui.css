@@ -1023,4 +1023,6 @@ html, body { overflow-x: hidden; }
 .ahd-mp-input select { min-width: 0; width: 100%; }
 .ahd-mp-inbox { list-style: none; margin: 0.6rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
 .ahd-mp-inbox-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-start; justify-content: space-between; border-top: 1px solid var(--ahd-border); padding-top: 0.6rem; min-width: 0; }
+.ahd-mp-sections { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; min-width: 0; }
+.ahd-mp-back { display: flex; flex-wrap: wrap; gap: 0.5rem; min-width: 0; }
 @media (min-width: 700px) { .ahd-mp-grid { display: grid; grid-template-columns: 1fr 1fr; align-items: start; } }
