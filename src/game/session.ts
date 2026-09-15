@@ -17,7 +17,7 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, createWorld, deserializeSave, executeAction,
-  getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCreationParties, listEras, listPlayableCountries, listRegions, resolveSingleplayerDifficulty, resolveSingleplayerMode, rulingPartyForCountry, serializeSave,
+  getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, rulingPartyForCountry, serializeSave,
   type ActionId, type ExecuteActionParams, type StoredPollSnapshot, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionCategory, ActionView, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
@@ -157,15 +157,17 @@ export class GameSession {
     }
     // Issue #334: the engine owns difficulty validation, but the session
     // rejects an unknown axis before creating so a bad value can never
-    // replace the current world.
+    // replace the current world. Same for the autonomy tier (issue #345).
     const difficulty = resolveSingleplayerDifficulty(options.difficulty);
     // Issue #346: same pre-creation gate for the play mode. Career is the
     // default; worldsim marks a spectator world with no player character.
     const mode = resolveSingleplayerMode(options.mode);
+    const autonomyLevel = resolveNppAutonomyLevel(options.autonomyLevel);
     const world = createWorld({
       ...options,
       difficulty,
       mode,
+      autonomyLevel,
       playerName: creationName ?? options.playerName.trim(),
       // #242: the creation file is validated inside createWorld, which owns the
       // persistence and the wealth-driven cash grant. The session passes it
@@ -483,9 +485,10 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
   return {
     turn: world.meta.turn, date: world.meta.date, era: world.meta.era,
     countryId: country.id, countryName: country.name,
-    // Issue #334: the world stores only a non-default axis; the view
-    // always reports the effective difficulty (absent means normal).
+    // Issues #334/#345: the world stores only a non-default axis; the
+    // view always reports the effective value (absent means normal/v4).
     difficulty: resolveSingleplayerDifficulty(world.difficulty),
+    autonomyLevel: resolveNppAutonomyLevel(world.nppAutonomyLevel),
     player: { name: player.name, cash: player.cash, funds: player.funds, actions: player.actions,
       influence: player.politicalInfluence, favorability: player.favorability,
       partyName: player.partyId ? world.parties[player.partyId]?.name ?? "Independent" : "Independent",

@@ -23,6 +23,7 @@ import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import type { WorldRng } from "../rng.js";
 import { decideNppAction, getNppCampaignApCost, getNppCampaignFundCost, NPP_FUND_COSTS, FUNDRAISE_FUNDS_GAIN, FUNDRAISE_AP_COST } from "./actionAi.js";
+import { effectiveNppAutonomyLevelForCountry } from "../nppAutonomyLevel.js";
 import { applyBoost, calculateAlignmentMultiplier, getVoterGroups, DEFAULT_GOTV_CATEGORY, DOLLARS_PER_TURNOUT_POINT_DEFAULT } from "../support/turnout.js";
 import { decayPressure } from "../support/pressure.js";
 
@@ -91,6 +92,12 @@ export const nppActionProcessingPhase: TurnPhase = {
     // gives same picks. All randomness is still deterministic, not Math.random.
     const sorted = [...world.politicians].sort((a, b) => a.id.localeCompare(b.id));
     for (const pol of sorted) {
+      // Issue #345: the NPP action loop is tier-gated autonomous agency.
+      // Below the effective v0 floor (off anywhere, below v2 in the player
+      // country) this politician takes no autonomous actions. Fund and AP
+      // regen still run through the difficulty-scaled fund phase, so the
+      // competence axis stays independent of this gate.
+      if (effectiveNppAutonomyLevelForCountry(world.nppAutonomyLevel, pol.countryId, world.player.countryId) === "off") continue;
       const hasOffice = pol.chamberKey !== "" && pol.chamberKey !== undefined;
       let actionsTaken = 0;
       const localRng = makeLocalRng(world.meta.seed, pol.id, world.meta.turn);

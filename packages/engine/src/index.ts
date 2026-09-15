@@ -30,6 +30,17 @@ export {
   resolveSingleplayerMode,
 } from "./singleplayerMode.js";
 export type { SingleplayerMode } from "./singleplayerMode.js";
+export {
+  DEFAULT_NPP_AUTONOMY_LEVEL,
+  NPP_AUTONOMY_LEVEL_RANK,
+  NPP_AUTONOMY_LEVELS,
+  effectiveNppAutonomyLevelForCountry,
+  isNppAutonomyLevel,
+  nppAutonomyAtLeastForCountry,
+  nppAutonomyLevelAtLeast,
+  resolveNppAutonomyLevel,
+} from "./nppAutonomyLevel.js";
+export type { NppAutonomyLevel } from "./nppAutonomyLevel.js";
 export { serializeSave, deserializeSave, projectSaveToV42 } from "./save.js";
 export type { SaveFile, ProjectSaveToV42Result } from "./save.js";
 export { rngFromSeed, rngFromState } from "./rng.js";

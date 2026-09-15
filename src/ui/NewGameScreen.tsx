@@ -8,7 +8,8 @@
  * responsive Tauri web (touch targets, safe-area insets). No proprietary assets copied.
  */
 import { useEffect, useMemo, useState } from "react";
-import { DEFAULT_WORLD_FEATURE_FLAGS, WORLD_FEATURE_FLAG_DEFINITIONS } from "@ahdclient/engine";
+import { DEFAULT_NPP_AUTONOMY_LEVEL, DEFAULT_WORLD_FEATURE_FLAGS, NPP_AUTONOMY_LEVELS, WORLD_FEATURE_FLAG_DEFINITIONS } from "@ahdclient/engine";
+import type { NppAutonomyLevel } from "@ahdclient/engine";
 import type { EraChoice, NewGameOptions, NewGameScreenProps, WorldInitialization } from "../game/types";
 import { PartyMark } from "./PartyMark";
 import "./ui.css";
@@ -50,6 +51,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
   const [countryId, setCountryId] = useState(() => eras[0]?.countries[0]?.id ?? "");
   const [mode, setMode] = useState<"career" | "hos" | "worldsim">("career");
   const [difficulty, setDifficulty] = useState<"easy" | "normal" | "hard">("normal");
+  const [autonomyLevel, setAutonomyLevel] = useState<NppAutonomyLevel>(DEFAULT_NPP_AUTONOMY_LEVEL);
   const [initialization, setInitialization] = useState<WorldInitialization>("founding");
   const [homeRegionId, setHomeRegionId] = useState(() => eras[0]?.countries[0]?.regions[0]?.id ?? "");
   const [playerName, setPlayerName] = useState("");
@@ -105,7 +107,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
     }
   }, [eras, era]);
 
-  const options: NewGameOptions = { era, countryId, playerName, seed: seed.trim(), mode, homeRegionId, initialization, featureFlags, difficulty };
+  const options: NewGameOptions = { era, countryId, playerName, seed: seed.trim(), mode, homeRegionId, initialization, featureFlags, difficulty, autonomyLevel };
   const fieldErrors = useMemo(() => (touched ? validate(options, eras) : {}), [touched, options, eras]);
   const canSubmit = useMemo(() => Object.keys(validate(options, eras)).length === 0, [options, eras]);
 
@@ -122,7 +124,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
     // Never submit HoS with a null governing party; the engine would bind a
     // career-equivalent player while the UI claimed HoS.
     const finalMode = mode === "hos" && !previewParty ? "career" : mode;
-    onStart({ era, countryId, playerName: playerName.trim(), seed: seed.trim(), mode: finalMode, homeRegionId, initialization, featureFlags: { ...featureFlags }, difficulty });
+    onStart({ era, countryId, playerName: playerName.trim(), seed: seed.trim(), mode: finalMode, homeRegionId, initialization, featureFlags: { ...featureFlags }, difficulty, autonomyLevel });
   };
 
   return (
@@ -264,6 +266,29 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
               </div>
               <p className="ahd-help" style={{ marginTop: "0.3rem" }}>
                 Sets how competently autonomous politicians perform. Normal matches the standard game.
+              </p>
+            </div>
+
+            <div>
+              <p className="ahd-label" id="autonomy-label" style={{ marginBottom: "0.4rem" }}>Autonomy</p>
+              <div role="radiogroup" aria-labelledby="autonomy-label" style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                {NPP_AUTONOMY_LEVELS.map((tier) => (
+                  <label key={tier} style={{ display: "flex", gap: "0.4rem", alignItems: "center", minHeight: 44, cursor: busy ? "not-allowed" : "pointer" }}>
+                    <input
+                      type="radio"
+                      name="autonomy"
+                      value={tier}
+                      checked={autonomyLevel === tier}
+                      onChange={() => setAutonomyLevel(tier)}
+                      disabled={busy}
+                      aria-label={`Autonomy: ${tier}`}
+                    />
+                    <span style={{ fontSize: "0.86rem" }}>{tier}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="ahd-help" style={{ marginTop: "0.3rem" }}>
+                Sets which activities autonomous politicians may perform. V4 is the standard game.
               </p>
             </div>
 

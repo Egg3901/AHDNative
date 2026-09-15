@@ -1,4 +1,5 @@
 // Port of savings interest turn logic. Source citations per symbol below.
+import { isNppAutonomyLevel, nppAutonomyLevelAtLeast as rankAtLeast } from "../nppAutonomyLevel.js";
 // Solo engine keeps plain input interfaces; where mainline reads a system solo
 // lacks, the stub is marked PORT-STUB with the blocker.
 //
@@ -349,18 +350,14 @@ export function processNppSavingsInterest(
 }
 
 // source: src/lib/nppAutonomy/featureFlag.ts nppAutonomyLevelAtLeast
-// PORT-STUB: mainline reads gameState.nppAutonomyLevel from Db via getNppAutonomyLevel.
-// Solo uses plain string input.
-const NPP_AUTONOMY_LEVEL_RANK: Record<string, number> = {
-  off: 0,
-  v0: 1,
-  v1: 2,
-  v2: 3,
-  v3: 4,
-  v4: 5,
-};
+// Canonical rank table lives in nppAutonomyLevel.ts (issue #345). This
+// string-typed wrapper keeps the existing call sites and tests compiling:
+// unknown levels degrade to "off", matching the old `?? 0` fallback.
 export function nppAutonomyLevelAtLeast(level: string, min: string): boolean {
-  return (NPP_AUTONOMY_LEVEL_RANK[level] ?? 0) >= (NPP_AUTONOMY_LEVEL_RANK[min] ?? 0);
+  return rankAtLeast(
+    isNppAutonomyLevel(level) ? level : "off",
+    isNppAutonomyLevel(min) ? min : "off",
+  );
 }
 
 export function processSavingsInterestTurn(

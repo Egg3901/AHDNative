@@ -109,6 +109,8 @@ import { DEFAULT_SINGLEPLAYER_DIFFICULTY, resolveSingleplayerDifficulty } from "
 import type { SingleplayerDifficulty } from "./singleplayerDifficulty.js";
 import { resolveSingleplayerMode } from "./singleplayerMode.js";
 import type { SingleplayerMode } from "./singleplayerMode.js";
+import { DEFAULT_NPP_AUTONOMY_LEVEL, resolveNppAutonomyLevel } from "./nppAutonomyLevel.js";
+import type { NppAutonomyLevel } from "./nppAutonomyLevel.js";
 import { validateStatAllocation } from "./stats/characterStats.js";
 import { startingCashFor } from "./stats/characterWealth.js";
 
@@ -142,9 +144,10 @@ import { startingCashFor } from "./stats/characterWealth.js";
 // v45: regional policy metric values (world.regionalMetrics); see save.ts.
 // v46: market pressure multipliers, trade windows, and compact price history;
 // see save.ts.
-// Issue #334 difficulty carries no schema version of its own: it is an
-// optional axis with absent-means-normal (see WorldState.difficulty), so
-// default worlds keep the schema 46 bytes.
+// Issues #334/#345 difficulty and autonomy carry no schema version of
+// their own: both are optional axes with absent-means-default (see
+// WorldState.difficulty/nppAutonomyLevel), so default worlds keep the
+// schema 46 bytes.
 export const SCHEMA_VERSION = 46;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
@@ -223,6 +226,14 @@ export interface NewWorldOptions {
    * non-default axis is persisted.
    */
   difficulty?: SingleplayerDifficulty;
+  /**
+   * Autonomous-politician tier chosen at creation (issue #345). Defaults to
+   * the canonical `v4`. Source: AHDGame
+   * `src/app/api/singleplayer/new-game/route.ts`. A `v4` choice is
+   * stored as an absent key (see WorldState.nppAutonomyLevel); only a
+   * non-default tier is persisted.
+   */
+  autonomyLevel?: NppAutonomyLevel;
   /**
    * M1 (Lane 12): play mode, chosen at world creation. Career (default): the
    * player is a politician climbing the existing systems. HoS: the player is
@@ -518,9 +529,11 @@ export function createWorld(options: NewWorldOptions): WorldState {
   if (initialization !== "historical" && initialization !== "founding") {
     throw new Error(`Unknown world initialization: ${String(initialization)}`);
   }
-  // Issue #334: validated here so an unknown axis throws before any world
-  // is built; only a non-default axis is persisted (see the world literal).
+  // Issues #334/#345: validated here so an unknown axis throws before any
+  // world is built; only a non-default axis is persisted (see the world
+  // literal).
   const difficulty = resolveSingleplayerDifficulty(options.difficulty);
+  const autonomyLevel = resolveNppAutonomyLevel(options.autonomyLevel);
 
   const countries: WorldState["countries"] = {};
   for (const c of pack.countries) {
@@ -906,9 +919,11 @@ export function createWorld(options: NewWorldOptions): WorldState {
       cheatsUsed: false,
     },
     featureFlags: resolveWorldFeatureFlags(options.featureFlags),
-    // Issue #334: only a non-default axis is written — absent means
-    // `normal`, so default worlds stay byte-stable (see WorldState.difficulty).
+    // Issues #334/#345: only a non-default axis is written — absent means
+    // `normal`/`v4`, so default worlds stay byte-stable (see
+    // WorldState.difficulty/nppAutonomyLevel).
     ...(difficulty !== DEFAULT_SINGLEPLAYER_DIFFICULTY ? { difficulty } : {}),
+    ...(autonomyLevel !== DEFAULT_NPP_AUTONOMY_LEVEL ? { nppAutonomyLevel: autonomyLevel } : {}),
     countries,
     parties,
     legislatures,
