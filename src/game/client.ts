@@ -55,6 +55,7 @@ export class GameClient {
   politics() { return this.send<PoliticsView>({ type: "politics" }); }
   profile() { return this.send<ProfileView>({ type: "profile" }); }
   updateProfile(update: ProfileUpdate) { return this.send<GameView>({ type: "updateProfile", update }); }
+  selectConstituency(constituencyId: string) { return this.send<GameView>({ type: "selectConstituency", constituencyId }); }
   view() { return this.send<GameView>({ type: "view" }); }
   advance() { return this.send<GameView>({ type: "advance" }); }
   act(actionId: string, params?: Record<string, string | number>) {

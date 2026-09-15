@@ -1,6 +1,7 @@
 import { projectProfile } from "./profile";
 import { validateProfileUpdate } from "./profileValidation";
 import type { ProfileUpdate } from "./profileTypes";
+import { findUkConstituency } from "./ukWestminster2024";
 import { projectRegions, type RegionsQuery } from "./regions";
 import { projectCaucusManagement } from "./caucusManagement";
 import { projectBondMarket } from "./bondMarket";
@@ -242,6 +243,29 @@ export class GameSession {
     const valid = validateProfileUpdate(update);
     const candidate = structuredClone(this.requireWorld());
     Object.assign(candidate.player, valid);
+    return this.commit(candidate);
+  }
+
+  selectConstituency(constituencyId: string): GameView {
+    const candidate = structuredClone(this.requireWorld());
+    const commonsSeat = candidate.player.legislativeSeat?.countryId === "UK"
+      && candidate.player.legislativeSeat.chamberKey === "commons"
+      ? candidate.player.legislativeSeat
+      : null;
+    const primeMinisterOffice = candidate.player.currentOffice?.countryId === "UK"
+      && candidate.player.currentOffice.type === "primeMinister"
+      ? candidate.player.currentOffice
+      : null;
+    const office = commonsSeat ?? primeMinisterOffice;
+    const regionId = office?.regionId
+      ?? (primeMinisterOffice ? candidate.player.homeRegionId ?? undefined : undefined);
+    if (!office || !regionId || candidate.regions[regionId]?.countryId !== "UK") {
+      throw new Error("Only sitting UK Commons members and Prime Ministers can choose a constituency.");
+    }
+    const constituency = findUkConstituency(regionId, constituencyId.trim());
+    if (!constituency) throw new Error("That constituency is not in your current UK region.");
+    office.constituencyId = constituency.id;
+    office.constituencyName = constituency.name;
     return this.commit(candidate);
   }
 

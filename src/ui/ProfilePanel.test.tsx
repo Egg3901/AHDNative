@@ -12,6 +12,14 @@ const BASE: ProfileView = {
   campaignSongAutoplay: false,
   country: { id: "US", name: "United States" },
   homeRegion: { id: "US-NY", name: "New York" },
+  constituency: {
+    eligible: false,
+    officeType: null,
+    regionId: null,
+    selected: null,
+    options: [],
+    unavailableReason: "Constituency selection is available only to sitting UK Commons members and Prime Ministers.",
+  },
   party: { id: "7", name: "Labor Caucus", color: "#2563eb", economicPosition: -2, socialPosition: 1 },
   office: "Councilor",
   officeDestination: { route: "legislature", id: "lower" },
@@ -75,6 +83,7 @@ function renderPanel(overrides: Partial<ProfileView> = {}, props = {}) {
       busy={false}
       onNavigate={vi.fn()}
       onUpdateProfile={vi.fn(async () => true)}
+      onSelectConstituency={vi.fn(async () => true)}
       {...props}
     />
   );
@@ -114,6 +123,41 @@ describe("ProfilePanel", () => {
     expect(screen.getByRole("button", { name: "New York" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "United States" })).toBeInTheDocument();
     expect(screen.getByText("A")).toBeInTheDocument();
+  });
+
+  it("selects a UK constituency and links it to the owning region", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    const onSelectConstituency = vi.fn(async () => true);
+    renderPanel({
+      country: { id: "UK", name: "United Kingdom" },
+      homeRegion: { id: "LON", name: "London" },
+      constituency: {
+        eligible: true,
+        officeType: "commons",
+        regionId: "LON",
+        selected: null,
+        options: [
+          { id: "E14001073", name: "Barking", regionId: "LON" },
+          { id: "E14001081", name: "Battersea", regionId: "LON" },
+        ],
+        unavailableReason: null,
+      },
+    }, { onNavigate, onSelectConstituency });
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "Constituency" }), "E14001081");
+    await user.click(screen.getByRole("button", { name: "Save constituency" }));
+    await waitFor(() => expect(onSelectConstituency).toHaveBeenCalledWith("E14001081"));
+    await user.click(screen.getByRole("button", { name: "Battersea, view London region" }));
+    expect(onNavigate).toHaveBeenCalledWith("state", "LON");
+  });
+
+  it("explains when constituency selection is unavailable", () => {
+    renderPanel();
+    expect(screen.getByRole("region", { name: "Constituency" })).toHaveTextContent(
+      "Constituency selection is available only to sitting UK Commons members and Prime Ministers.",
+    );
+    expect(screen.queryByRole("combobox", { name: "Constituency" })).not.toBeInTheDocument();
   });
 
   it("shows the saved picture with the expected alt text when present", () => {
@@ -206,7 +250,7 @@ describe("ProfilePanel", () => {
     const sections = Array.from(document.querySelectorAll(".ahd-profile > section"))
       .map((node) => node.getAttribute("aria-label"));
     expect(sections).toEqual([
-      "Character", "Campaign song", "Biography", "Political standing", "Character stats",
+      "Character", "Constituency", "Campaign song", "Biography", "Political standing", "Character stats",
       "Policy and demographics", "Finances", "Career history", "Achievements",
     ]);
     expect(screen.getByText("In at the Ground Floor")).toBeInTheDocument();

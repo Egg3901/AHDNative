@@ -803,7 +803,15 @@ export interface PlayerCharacter {
    * bill sponsorship per src/lib/congress/billProposal.ts seat check.
    * Null means no seat. When set, chamberKey identifies the held chamber.
    */
-  legislativeSeat: { chamberKey: string; countryId: string } | null;
+  legislativeSeat: {
+    chamberKey: string;
+    countryId: string;
+    /** Region won in the election. Required for constituency-bound offices. */
+    regionId?: string;
+    /** Selected constituency within regionId, where the reference permits it. */
+    constituencyId?: string;
+    constituencyName?: string;
+  } | null;
   /**
    * Mode (career vs head of state). Career (default): player is a politician;
    * HoS: player is government. HoS mode grants government sponsorship (see
@@ -824,7 +832,13 @@ export interface PlayerCharacter {
    * systems also mirror this through `WorldState.executives`; parliamentary
    * and one-party systems use their authored executive office key here.
    */
-  currentOffice?: { type: string; countryId: string } | null;
+  currentOffice?: {
+    type: string;
+    countryId: string;
+    regionId?: string;
+    constituencyId?: string;
+    constituencyName?: string;
+  } | null;
   /**
    * M1 (Lane 12 Head of State mode): the country's ruling party, bound at
    * world creation when mode is "hos". Null in career mode always; null in

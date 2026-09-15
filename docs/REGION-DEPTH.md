@@ -110,19 +110,21 @@ shows the saved Alabama governor, chamber members, and race winners. These
 states are displayed as they exist in the save. The projection never fills a
 vacancy or roster from seat totals.
 
-The player seat is a special saved field with only `countryId` and
-`chamberKey`; it has no region id. When that seat matches the selected country
-and chamber, the projection includes the player only when the latest resolved
-player-winning race for that country and chamber records the selected region.
-This uses the race winner and state as persisted provenance. A seat with no
-such race cannot be located safely and is left out of the regional roster.
+The player seat records `countryId`, `chamberKey`, and the region won in the
+election. Older saves without the region retain the prior fallback: the
+projection includes the player only when the latest resolved player-winning
+race for that country and chamber records the selected region. A seat with no
+saved or historical region cannot be located safely and is left out of the
+regional roster.
 
 National elections are not copied into every region. The region election list
 requires the saved election's `state` to equal the selected region id. This is
 why a fresh UK region can show Commons seats but no regional elections when
 the save has no region-scoped race records. Constituency geometry, individual
-UK constituency browsing, election actions, and regional office actions are
-outside this read-only slice.
+The profile selector now browses the reference's 650 UK Westminster
+constituencies inside the region attached to a Commons or Prime Minister
+office. Election actions and regional office actions remain outside this
+read-only region-directory slice.
 
 Missing budgets, demographics, party rows, offices, races, candidates, and
 members render explicit empty states. There is no map, geographic asset, or

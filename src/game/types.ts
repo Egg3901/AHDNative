@@ -163,6 +163,7 @@ export interface GameView {
 export interface GameScreenProps {
   loadProfile: () => Promise<import("./profileTypes").ProfileView>;
   onUpdateProfile: (update: import("./profileTypes").ProfileUpdate) => Promise<boolean>;
+  onSelectConstituency: (constituencyId: string) => Promise<boolean>;
   preferences: Preferences;
   onPreferencesChange: (value: Preferences) => void;
   preferencesError?: string | null;

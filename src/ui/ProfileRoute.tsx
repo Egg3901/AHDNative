@@ -4,10 +4,11 @@ import type { DrawerRouteId } from './MobileNavigation';
 import { ProfilePanel } from './ProfilePanel';
 
 /** Refresh saved stats without unmounting an in-progress profile editor. */
-export function ProfileRoute({ load, revision, busy, onNavigate, onUpdateProfile, viewerDisablesAutoplay }: {
+export function ProfileRoute({ load, revision, busy, onNavigate, onUpdateProfile, onSelectConstituency, viewerDisablesAutoplay }: {
   load: () => Promise<ProfileView>; revision: object; busy: boolean;
   onNavigate: (route: DrawerRouteId, id?: string) => void;
   onUpdateProfile: (update: ProfileUpdate) => Promise<boolean>;
+  onSelectConstituency: (constituencyId: string) => Promise<boolean>;
   viewerDisablesAutoplay?: boolean;
 }) {
   const [profile, setProfile] = useState<ProfileView>();
@@ -27,6 +28,6 @@ export function ProfileRoute({ load, revision, busy, onNavigate, onUpdateProfile
   return <>
     {error && <div className="ahd-alert" role="alert">{error} <button type="button" className="ahd-btn" onClick={() => setAttempt(n => n + 1)}>Retry profile</button></div>}
     {!profile && loading && <p role="status">Loading profile...</p>}
-    {profile && <ProfilePanel profile={profile} busy={busy || loading || !!error} onNavigate={onNavigate} onUpdateProfile={onUpdateProfile} viewerDisablesAutoplay={viewerDisablesAutoplay} />}
+    {profile && <ProfilePanel profile={profile} busy={busy || loading || !!error} onNavigate={onNavigate} onUpdateProfile={onUpdateProfile} onSelectConstituency={onSelectConstituency} viewerDisablesAutoplay={viewerDisablesAutoplay} />}
   </>;
 }
