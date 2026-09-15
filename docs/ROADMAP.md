@@ -147,6 +147,8 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - The machine-readable contract inventories launcher metadata, gameplay,
   identity and history mapping work, fail-closed unknown collections, and the
   mandatory exclusion of Mongo runtime files, authentication and secrets.
+  Hash fields are explicitly declared metadata until exporter slices verify
+  them against canonical bytes; parsing does not claim cryptographic trust.
 - Both transfer directions remain `contract-only`. #301 through #304 own real
   exporters, adapters, continuation evidence and exact player-facing claims.
   Historical schema-v42 compatibility remains separately tracked in #116.

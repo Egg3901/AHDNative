@@ -292,6 +292,8 @@ export {
 export type {
   CurrentSpCollectionManifestEntry,
   CurrentSpCollectionPolicy,
+  CurrentSpExcludedCollectionName,
+  CurrentSpMappedCollectionName,
   CurrentSpMappingStatus,
   CurrentSpSnapshot,
   ParsedCurrentSpSnapshot,
