@@ -67,7 +67,7 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
       bills: [],
     },
     metrics: [],
-    parties: [{ id: "p1", name: "Labor", abbreviation: "LAB", color: "#dc2626", members: 120, treasury: 9000, isPlayerParty: true }],
+    parties: [{ id: "p1", name: "Labor", abbreviation: "LAB", color: "#dc2626", logoUrl: null, members: 120, treasury: 9000, isPlayerParty: true }],
     elections: [makeElection()],
     news: [],
     actions: [
