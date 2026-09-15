@@ -183,8 +183,21 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 ## Ministerial order catalog checkpoint, 2026-09-15
 
 - The exact pinned AHDGame order definitions are available for every authored position in Native's US, UK, DE, IE, JP and CN cabinet rosters. The inventory preserves source ids, names, descriptions, durations, metric paths, modifiers and scopes.
-- Catalog classification resolves only the four national metric paths currently backed by Native. Unknown paths are blocked as `unsupportedMetric`, regional effects as `regionalMetrics`, and defense portfolios as `defensePipeline`; no missing metric is created from a default.
+- Catalog classification resolves only the four national metric paths currently backed by Native. Unknown paths are blocked as `unsupportedMetric`, untargeted regional definitions as `regionalTargetRequired`, and defense portfolios as `defensePipeline`; no missing metric is created from a default.
 - Focused public-boundary coverage checks the six country totals, a literal source vector, every classification blocker and actual phase execution for every advertised supported order. The issue command and action pool remain in #261 and #260.
+
+## Regional ministerial-order checkpoint, 2026-09-15 (#275 / #263)
+
+- Active regional effects now accumulate by target region and exact existing
+  metric, then use the same strength, per-metric cap, and scale as national
+  orders. The phase never creates a region or metric from a fallback value.
+- Missing targets, cross-country regions, and unsupported metric paths return
+  stable blocker reasons. Expired orders remain inactive at the exclusive
+  lifecycle boundary. Successful results expose the changed region ids.
+- The existing region query projects a detached copy of recorded regional
+  metric values. Focused coverage verifies application, cap, target rejection,
+  phase order, expiry, save/reload, and projection. Defense consequences remain
+  isolated in #276.
 - Resources: existing engine constants drive refresh/hoarding/cap and current-influence fund generation/tax details; disabled income phases are respected. Recent recorded balances are available. Office bonuses are shown as the imported engine actually implements them, not invented from MP rules. Full footer mechanics parity remains open.
 - Performance: optional politics/world queries run only while visible. On the existing turn-95 fixture, embedding politics in routine responses had increased JSON payload from 174,384 to 2,797,081 bytes. On-demand queries reduce the final routine response to 194,264 bytes, including new national history and resource data. In a 15-sample Linux characterization, routine view median was 1.15 ms versus 1.01 ms at the baseline. This is view construction only, not worker transport, turn p95 or phone performance.
 - Mechanics: reference-exact referendum variance and TFP basket/input wiring are integrated with independent vectors and public turn/save replay tests. Full referendum lifecycle, state-metric inputs and phase-order drift remain open. [Engine adaptations](ENGINE-ADAPTATIONS.md) records changes from the pinned import without rewriting its baseline manifest.

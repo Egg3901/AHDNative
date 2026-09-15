@@ -54,7 +54,7 @@ describe("ministerial order catalog public boundary", () => {
       for (const position of cabinetPositionsForCountry(countryId)) {
         for (const order of classifyMinisterialOrders(world, countryId, position.id)) {
           if (order.availability === "blocked") {
-            expect(order.blocker).toMatch(/regionalMetrics|defensePipeline|unsupportedMetric/);
+            expect(order.blocker).toMatch(/regionalTargetRequired|defensePipeline|unsupportedMetric/);
             continue;
           }
           supported += 1;

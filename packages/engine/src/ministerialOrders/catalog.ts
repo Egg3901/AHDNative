@@ -18,7 +18,7 @@ export interface MinisterialOrderDefinition {
 
 export type ClassifiedMinisterialOrder = MinisterialOrderDefinition & (
   | { availability: "supported"; resolvedEffects: MinisterialOrderEffectDefinition[] }
-  | { availability: "blocked"; blocker: `regionalMetrics:${string}` | `defensePipeline:${string}` | `unsupportedMetric:${string}` }
+  | { availability: "blocked"; blocker: `regionalTargetRequired:${string}` | `defensePipeline:${string}` | `unsupportedMetric:${string}` }
 );
 
 type CatalogCountry = keyof typeof AUTHORED_MINISTERIAL_ORDERS;
@@ -52,9 +52,10 @@ function resolveNationalMetric(world: WorldState, countryId: string, sourceMetri
 }
 
 /**
- * Classify source orders against the actual Native world. Regional effects and
- * defense portfolios remain unavailable until their named downstream stores
- * exist. Unknown metric paths are rejected, never materialized with a default.
+ * Classify source orders against the actual Native world. Regional definitions
+ * require an issuance-time target before their now-live consumer can validate
+ * the exact stored metric. Defense portfolios remain unavailable until their
+ * named downstream stores exist. Unknown metric paths are never materialized.
  */
 export function classifyMinisterialOrders(world: WorldState, countryId: string, positionId: string): ClassifiedMinisterialOrder[] {
   return getMinisterialOrders(countryId, positionId).map((order) => {
@@ -62,7 +63,7 @@ export function classifyMinisterialOrders(world: WorldState, countryId: string, 
       return { ...order, availability: "blocked", blocker: `defensePipeline:${positionId}` };
     }
     const regional = order.effects.find((effect) => effect.scope === "regional");
-    if (regional) return { ...order, availability: "blocked", blocker: `regionalMetrics:${regional.metric}` };
+    if (regional) return { ...order, availability: "blocked", blocker: `regionalTargetRequired:${regional.metric}` };
     const resolvedEffects: MinisterialOrderEffectDefinition[] = [];
     for (const effect of order.effects) {
       const metric = resolveNationalMetric(world, countryId, effect.metric);

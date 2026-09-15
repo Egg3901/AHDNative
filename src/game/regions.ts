@@ -173,6 +173,8 @@ export interface RegionDetailView {
   population: number | null;
   currency: string | null;
   senateClasses: [1 | 2 | 3, 1 | 2 | 3] | null;
+  /** Detached values from the authoritative regional metric store. */
+  metrics: Record<string, number>;
   economy: RegionEconomyView;
   demographics: RegionDemographicsView;
   partySupport: RegionPartySupport[];
@@ -522,6 +524,12 @@ function projectDetail(
     population: finiteOrNull(region.population),
     currency,
     senateClasses,
+    metrics: Object.fromEntries(
+      Object.entries(world.regionalMetrics?.[region.id] ?? {})
+        .filter(([, metric]) => Number.isFinite(metric.value))
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([id, metric]) => [id, metric.value]),
+    ),
     economy: {
       gdpMillions: finiteOrNull(region.gdp),
       currency,
