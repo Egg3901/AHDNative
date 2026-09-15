@@ -272,6 +272,52 @@ describe("AskPanel instant startup", () => {
     expect(screen.queryByText("7 of 10 left", { exact: false })).toBeNull();
     expect(JSON.parse(localStorage.getItem(ASK_SESSION_CACHE_KEY) ?? "{}").username).toBe("delegate");
   });
+
+  it("drops the previous account's open thread when the account changes", async () => {
+    saveCachedAskSession({ username: "marshall", usage: USAGE, tier: "Player" });
+    localStorage.setItem("ahdnative.ask.conv", "conv-7");
+    const marshallMe = JSON.stringify({
+      usage: USAGE,
+      entitlement: { allowed: true, label: "Player" },
+      identity: { username: "marshall" },
+    });
+    routeInvoke({
+      "/api/me": { status: 200, body: marshallMe },
+      "/api/conversations": {
+        status: 200,
+        body: JSON.stringify({ conversations: [{ id: "conv-7", title: "Harvest" }], usage: USAGE }),
+      },
+      "/api/conversation": {
+        status: 200,
+        body: JSON.stringify({ turns: [{ question: "Why did the harvest fail?", answer: "Blight." }] }),
+      },
+    });
+
+    const base = Date.now();
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(base);
+    try {
+      render(<AskPanel />);
+      expect(await screen.findByText("Why did the harvest fail?")).toBeInTheDocument();
+
+      // A background refresh past the focus throttle learns the new account.
+      const other = { ...USAGE, used: 9, remaining: 1 };
+      routeInvoke({
+        "/api/me": {
+          status: 200,
+          body: JSON.stringify({ usage: other, entitlement: { allowed: true, label: "Player" }, identity: { username: "delegate" } }),
+        },
+        "/api/conversations": { status: 200, body: "{\"conversations\":[]}" },
+      });
+      nowSpy.mockReturnValue(base + 61_000);
+      window.dispatchEvent(new Event("focus"));
+
+      expect(await screen.findByText("1 of 10 left", { exact: false })).toBeInTheDocument();
+      expect(screen.queryByText("Why did the harvest fail?")).toBeNull();
+      expect(localStorage.getItem("ahdnative.ask.conv")).toBeNull();
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
 });
 
 describe("AskPanel live quota updates", () => {
