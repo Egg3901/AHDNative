@@ -982,7 +982,7 @@ describe("GameScreen status footer", () => {
     const user = userEvent.setup();
     const world = makeWorld();
     const onSave = vi.fn();
-    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={onSave} onExit={vi.fn()} onAction={vi.fn()} />);
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={onSave} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
     await navigate(user, "Ask");
     expect(screen.getByRole("region", { name: "Ask" })).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/ask a question/i)).toBeInTheDocument();
