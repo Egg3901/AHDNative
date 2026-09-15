@@ -9,6 +9,7 @@
  */
 
 import type { WorldState } from "../types.js";
+import { initialMinisterialActionFields } from "./ministerialActionPool.js";
 import { cabinetPositionsForCountry } from "./constants.js";
 
 export interface CabinetTransitionResult {
@@ -218,6 +219,7 @@ export function fillUkCabinetDirectly(world: WorldState, countryId: string): num
       appointedBy: gov.pmPoliticianId,
       appointedAtTurn: world.meta.turn,
       confirmedAtTurn: world.meta.turn,
+      ...initialMinisterialActionFields(world.meta.turn),
     });
     filled++;
   }

@@ -878,3 +878,16 @@ no per-region economic/social lean. The issue stays open with `status: partial`.
   cooldown, granular payload, save persistence and rendered results. The
   integrated polling journey uses the current character-creation handoff and
   remains part of the consolidated smoke gate.
+
+## Ministerial action-pool checkpoint, 2026-09-15 (#260 / #105)
+
+- Each new cabinet appointment receives the reference four-action ministerial
+  pool. Pre-#260 cabinet records are normalized on their first turn without
+  inventing a debit, and both remaining actions and the refill marker survive
+  save/reload.
+- Because Native is a deterministic offline simulation rather than a wall-clock
+  service, the reference daily refill is adapted to its 24-turn clock: depleted
+  or partial pools refill to the cap at the boundary and not before it.
+- A shared synchronous spend boundary rejects exhaustion before mutation and
+  refunds a debit if downstream order persistence throws. Catalog and dispatcher
+  wiring remain isolated in dependent #259–#262.

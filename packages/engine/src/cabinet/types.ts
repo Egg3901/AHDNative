@@ -26,6 +26,10 @@ export interface CabinetMember {
   appointedBy: string | null;
   appointedAtTurn: number;
   confirmedAtTurn: number;
+  /** Remaining one-cost cabinet directives; optional for pre-#260 saves. */
+  ministerialActions?: number;
+  /** Native turn-clock adaptation of the reference daily reset marker. */
+  lastMinisterialActionRefillTurn?: number;
   acting?: boolean;
   actingSinceTurn?: number;
   actingExpiresOnTurn?: number;
