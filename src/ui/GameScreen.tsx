@@ -33,6 +33,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GameScreenProps } from "../game/types";
 import { FinancePanel, formatFinanceMoney } from "./FinancePanel";
 import { LegislaturePanel } from "./LegislaturePanel";
+import { RouteHero, executiveHero } from "./RouteHero";
 import "./ui.css";
 
 const ELECTIONS_PAGE_SIZE = 20;
@@ -258,8 +259,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
         >
           {route === "actions" ? (
             <div className="ahd-stack">
-              <div className="ahd-card ahd-card-pad ahd-hero">
-                <h2 className="ahd-h2">Actions</h2>
+              <RouteHero image={world.player.mode === "hos" ? executiveHero(world.countryId) : "/static/heroes/actions.webp"} alt={world.player.mode === "hos" ? `${world.countryName} executive office` : "Political campaign operations"} eyebrow={world.era} title={world.player.mode === "hos" ? "Executive office" : "Campaign operations"}>
                 {world.player.mode === "hos" ? (
                   <div className="ahd-notice" role="note">
                     <strong>Permanent Head of State · {world.player.currentOffice ?? "executive office"}</strong>
@@ -278,7 +278,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
                   <span className="ahd-badge">{world.player.actions} actions</span>
                   <span className="ahd-badge">{world.player.influence.toLocaleString(undefined, { maximumFractionDigits: 1 })} influence</span>
                 </div>
-              </div>
+              </RouteHero>
 
               <ActionsHub
                 actions={world.actions}
@@ -296,13 +296,12 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
 
           {route === "parties" ? (
             <div className="ahd-stack">
-              <div className="ahd-card ahd-card-pad ahd-hero">
-                <h2 className="ahd-h2">Parties</h2>
+              <RouteHero image="/static/heroes/parties.webp" alt="Political party gathering" eyebrow={world.countryName} title="Political parties">
                 <button className="ahd-btn ahd-btn-sm" onClick={() => go("partyManagement")}>Start a party</button>
                 <button className="ahd-btn ahd-btn-sm" onClick={() => go("caucuses")}>Caucuses</button>
                 <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>{world.parties.length} parties in {world.countryName}</p>
                 <p className="ahd-help" role="note" style={{ marginTop: "0.3rem" }}>Switching parties or leaving your party withdraws your candidacy.</p>
-              </div>
+              </RouteHero>
               {world.parties.length === 0 ? (
                 <div className="ahd-empty">No parties in this world.</div>
               ) : (

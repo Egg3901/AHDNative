@@ -39,6 +39,7 @@ import type {
 } from "../game/types";
 import { PolicyCompass } from "./PolicyCompass";
 import "./ui.css";
+import { RouteHero } from "./RouteHero";
 
 // ── Reference option sets (creatorOptions.ts). Byte-identical values. ─────────
 const RACE_OPTIONS: { value: CharacterRace; label: string }[] = [
@@ -342,14 +343,12 @@ export function CharacterCreationScreen({
   return (
     <div className="ahd-screen">
       <div className="ahd-container" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "2rem", maxWidth: "42rem" }}>
-        <header style={{ marginBottom: "1rem" }}>
-          <p className="ahd-eyebrow">New candidate</p>
-          <h1 className="ahd-h1">Create your politician</h1>
+        <RouteHero image="/static/heroes/politicians.webp" alt="Politicians meeting in a national chamber" eyebrow="New candidate" title="Create your politician" className="ahd-creation-hero">
           <p className="ahd-muted" style={{ fontSize: "0.84rem", marginTop: "0.3rem", lineHeight: 1.5 }}>
             {selection.countryName}. Your choices are persisted and weighed by later primaries and
             elections. Distance from a party platform is what those races actually measure.
           </p>
-        </header>
+        </RouteHero>
 
         {loading ? <div className="ahd-card ahd-card-pad"><p className="ahd-muted">Loading country options...</p></div> : null}
 
