@@ -15,6 +15,11 @@
     "allow-open-external-destination",
     "allow-mp-view-fetch",
     "allow-mp-session-fetch",
-    "allow-mp-session-mutate"
+    "allow-mp-session-mutate",
+    "allow-open-ask-window",
+    "allow-ask-api",
+    "allow-ask-send",
+    "allow-ask-stop",
+    "allow-open-ask-link"
   ]
 }

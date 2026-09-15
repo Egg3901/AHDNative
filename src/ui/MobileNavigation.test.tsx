@@ -21,7 +21,7 @@ describe("MobileNavigation", () => {
   it.each([
     ["portfolio", "Profile"], ["markets", "Profile"],
     ["partyDetails", "Parties"], ["caucuses", "Parties"],
-    ["regions", "Menu"], ["economy", "Menu"], ["worldSettings", "Menu"],
+    ["regions", "Menu"], ["economy", "Menu"], ["ask", "Menu"],
   ] as const)("keeps the parent destination marked while viewing %s", (route, label) => {
     render(<BottomNav route={route} menuOpen={false} menuButtonRef={createRef()} onNavigate={vi.fn()} onOpenMenu={vi.fn()} />);
     expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-current", "location");
@@ -30,8 +30,8 @@ describe("MobileNavigation", () => {
 
   it("mirrors the reference menu hierarchy: no Character group, Actions top-level, Nation/World sub-groups", () => {
     // Top-level order matches the reference menu: profile header links, the
-    // Actions tab, State, Nation, World, Help (ExperimentalMobileMenu).
-    expect(MENU_GROUPS.map((g) => g.label)).toEqual(["Profile", "Actions", "State", "Nation", "World", "Help"]);
+    // Actions tab, the Native Ask entry (#358), State, Nation, World, Help.
+    expect(MENU_GROUPS.map((g) => g.label)).toEqual(["Profile", "Actions", "Ask", "State", "Nation", "World", "Help"]);
     expect(MENU_GROUPS.some((g) => g.label === "Character")).toBe(false);
 
     // Nation sections and their in-section order match nationDetailsSections.
@@ -60,7 +60,7 @@ describe("MobileNavigation", () => {
       "politicians", "economy", "budget", "policy", "nations", "state", "help", "settings",
       "legislationDetails", "markets", "search", "partyManagement", "bonds", "caucuses",
       "referendums", "notifications", "regions", "presidentialDetails", "politicalMetrics",
-      "worldSettings",
+      "ask",
     ]) {
       expect(ids).toContain(id);
     }
@@ -95,7 +95,7 @@ describe("MobileNavigation", () => {
     const menu = screen.getByRole("dialog", { name: "Game menu" });
     expect(menu).toBe(container.querySelector("#ahd-drawer"));
     expect(screen.getByText("Ada")).toBeInTheDocument();
-    for (const label of ["Profile", "Actions", "State", "Nation", "World", "Help"]) {
+    for (const label of ["Profile", "Actions", "Ask", "State", "Nation", "World", "Help"]) {
       expect(within(menu).getByRole("group", { name: label })).toBeInTheDocument();
     }
     const nation = within(menu).getByRole("group", { name: "Nation" });

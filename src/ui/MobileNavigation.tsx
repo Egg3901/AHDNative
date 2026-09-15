@@ -8,7 +8,7 @@ export type DrawerRouteId =
   | "economy" | "budget" | "policy" | "metrics" | "nations" | "state"
   | "help" | "settings" | "legislationDetails" | "markets" | "search"
   | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications" | "referendums"
-  | "worldSettings";
+  | "worldSettings" | "ask";
 
 export type BottomTabId = "profile" | "actions" | "parties";
 
@@ -40,6 +40,7 @@ export interface DrawerNavGroup {
  *   Profile header links (Profile / Notifications / Settings / Wallet)
  *     — ExperimentalMobileMenu.tsx:169-197 (profile-card links)
  *   Actions                 — ExperimentalNavbar.tsx:279 top-level tab
+ *   Ask                     — Native Ask panel (#358), beside Actions
  *   State                   — reference State section
  *   Nation                  — Politics / Government / Economy groups
  *     — nationDetailsSections.ts:88-237 (order: Politics, Government, Economy)
@@ -79,6 +80,12 @@ export const MENU_GROUPS: DrawerNavGroup[] = [
     // Actions is a top-level tab in the reference menu, not a "Character" group.
     label: "Actions",
     items: [{ id: "actions", label: "Actions" }],
+  },
+  {
+    // #358: Ask sits beside Actions as a primary entry. It renders the local
+    // panel in place; only the signed-out auth bounce leaves the app view.
+    label: "Ask",
+    items: [{ id: "ask", label: "Ask" }],
   },
   {
     label: "State",

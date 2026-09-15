@@ -1,3 +1,4 @@
+import { AskPanel } from "../ask/AskPanel";
 import { ProfileRoute } from "./ProfileRoute";
 import { RegionsRoute } from "./RegionsRoute";
 import { CaucusPanel } from "./CaucusPanel";
@@ -86,6 +87,7 @@ const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
   referendums: "Referendums",
   notifications: "Notifications",
   worldSettings: "World settings",
+  ask: "Ask",
 };
 
 function isTabRoute(route: RouteId): route is TabId {
@@ -472,6 +474,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
           {route === "help" && <HelpPanel />}
           {route === "settings" && <SettingsPanel value={preferences} onChange={onPreferencesChange} error={preferencesError} />}
           {route === "worldSettings" && <WorldSettingsPanel flags={world.featureFlags} busy={busy} onChange={onUpdateWorldFeatureFlags} />}
+          {route === "ask" && <div className="ahd-ask-embed"><AskPanel surface="main" onBeforeSignIn={onSave} /></div>}
           {route === "profile" ? <ProfileRoute load={loadProfile} revision={world} busy={busy} onUpdateProfile={onUpdateProfile} onSelectConstituency={onSelectConstituency} viewerDisablesAutoplay={preferences.disableAutoplayOnOtherProfiles} onNavigate={(next, id) => {
             // Profile deep-links into the hub carry the hub category in `id`;
             // detail ids only apply to non-actions destinations.
