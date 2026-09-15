@@ -44,3 +44,11 @@ Tapping the current destination returns to its start. Child pages retain a
 parent-section indicator: Profile for portfolio/markets/bonds, Menu for party
 detail/founding/caucuses and other sections, and Ask for Ask. The section
 indicator does not imply that the drawer is open.
+
+The drawer pins an Ask/Actions quick bar below its scrolling section list, so
+both primary workflows stay reachable with Nation or World expanded on 320px.
+The bar marks its active target with data-active only: the dialog keeps a
+single aria-current="page" marker on the hierarchy entry. The bottom bar moves
+between destinations with the arrow keys and wraps onto Menu at either end.
+The unread badge keeps the stable Notifications name; the footer bell
+announces the count to assistive technology.
