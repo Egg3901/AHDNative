@@ -111,6 +111,20 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 
 Status changes must cite an actual commit, test result, artifact or explicit blocker. Completed shell/RNG/replay groundwork does not imply a playable release.
 
+## Differential trace-contract checkpoint, 2026-09-15 (#279 / #117)
+
+- The engine-neutral trace contract records pinned engine identity, normalized
+  input provenance, ordered phase snapshots, RNG observations, resource
+  mutations, elections, budgets, policies, player consequences, and declared
+  Native adaptations in deterministic JSON.
+- Validation fails closed on malformed values and unordered or duplicate phase
+  indexes. Comparison is exact by default and reports the first divergent phase
+  and field. Numeric tolerance requires a measured, justified per-field rule;
+  missing branches, RNG, status, and identity fields cannot be tolerated.
+- This contract is infrastructure only. It does not compare Native with itself
+  or claim AHDGame parity. #280 must emit authoritative pinned AHDGame traces,
+  then #281 must capture Native and run representative cross-engine gates.
+
 ## Integration checkpoint, 2026-09-10 06:18 UTC
 
 - Engine import/session: `0c8e7ae`; UI components: `8314d8d`; native storage: `16e4c9a`; mechanics audit: `b964028`.
