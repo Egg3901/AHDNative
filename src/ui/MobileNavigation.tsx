@@ -449,6 +449,23 @@ export function GameDrawer({
           <strong className="ahd-drawer-identity-name" title={playerName}>{playerName}</strong>
           <span className="ahd-muted ahd-drawer-identity-meta" title={`${playerParty} · ${countryName}`}>{playerParty} · {countryName}</span>
           <span className="ahd-muted ahd-drawer-identity-meta">Turn {turn} · {formatGameDate(date, { turn, date })}</span>
+          {/* Identity quick links mirror the reference profile card
+              (ExperimentalMobileMenu.tsx:169-197: Profile / Notifications /
+              Settings / Wallet plus conditional org rows). Profile, Actions
+              and Wallet all have real Native destinations; My Corporation /
+              My Union have no Native destination (no CEO/owner or member
+              record is projected), so no such row is rendered here. */}
+          <span className="ahd-drawer-identity-links" style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap", marginTop: "0.35rem" }}>
+            <button type="button" className="ahd-profile-link" onClick={() => onNavigate("profile")} aria-label="Go to profile">
+              Profile
+            </button>
+            <button type="button" className="ahd-profile-link" onClick={() => onNavigate("actions")} aria-label="Go to actions">
+              Actions
+            </button>
+            <button type="button" className="ahd-profile-link" onClick={() => onNavigate("portfolio")} aria-label="Go to wallet">
+              Wallet
+            </button>
+          </span>
         </div>
 
         <div className="ahd-drawer-turn">
