@@ -154,7 +154,7 @@ const PROTECTED_TOLERANCE_PATH_POLICY = {
  * so newly introduced identity fields fail closed until comparison policy changes.
  */
 function isProtectedToleranceSegment(segment: string): boolean {
-  const normalized = segment.toLocaleLowerCase();
+  const normalized = segment.toLowerCase();
   return normalized === "id"
     || normalized === "ids"
     || normalized.endsWith("id")
