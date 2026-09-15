@@ -868,6 +868,19 @@ no per-region economic/social lean. The issue stays open with `status: partial`.
   `packages/engine/src/ministerialOrders/lifecycle.test.ts`, with the existing W28
   accumulation/cap test retained as a regression check.
 
+## Cabinet nomination ballot checkpoint, 2026-09-15 (#267 / #63)
+
+- Cabinet confirmation totals are recomputed from current, country-scoped seat
+  holders. Stale, de-seated, and cross-country vote keys no longer influence a
+  nomination outcome.
+- The public engine ballot boundary accepts and replaces for/against/abstain
+  votes only while the window is active. Ordinary cabinet nominations remain
+  Senate-only; Vice President nominations retain separate House and Senate
+  ballots and require both chambers at resolution.
+- Pending ballots survive save/reload, and the cabinet lifecycle now resolves
+  from the recomputed vote maps rather than trusting stale stored counters.
+  Sponsorship, SCOTUS ballots, session wiring, and UI remain in #268 through #273.
+
 ## Player polling checkpoint, 2026-09-15 (#38)
 
 - `poll` and `pollLarge` are live through the public `executeAction` contract

@@ -16,6 +16,7 @@
  */
 
 import type { WorldState } from "../types.js";
+import type { CabinetConfirmationTally, CabinetNomination } from "./types.js";
 import { initialMinisterialActionFields } from "./ministerialActionPool.js";
 
 export type SenateVote = "for" | "against" | "abstain";
@@ -58,19 +59,99 @@ export function cabinetDidPass(votesFor: number, votesAgainst: number): boolean 
   return votesFor > votesAgainst;
 }
 
-/**
- * Seat-weighted tally scoping — ports computeCabinetNominationTally idea:
- * recompute from current Senate seats so de-seated NPP votes don't inflate counters.
- * In solo the only seat source is legislatures[chamber].composition.seatsByParty,
- * not electedOfficials rows; we tally from votes map but bound by current seats.
- * For now we just return the stored counters since solo votes are seat-weighted at write time.
- * This function is kept as a named citation point for the confirmation math tests.
- */
-export function tallyVotes(votes: Record<string, SenateVote>, seatsByParty: Record<string, number>): number {
-  // Placeholder for seat-weighted semantics — tests drive confirmation via didPass directly.
-  void seatsByParty;
-  void votes;
-  return 0;
+function isSenateChamber(chamberKey: string): boolean {
+  return chamberKey === "senate" || chamberKey === "upper" || chamberKey === "senate_us";
+}
+
+function isHouseChamber(chamberKey: string): boolean {
+  return chamberKey === "house" || chamberKey === "lower";
+}
+
+function eligibleVoterKeys(world: WorldState, countryId: string, chamber: "senate" | "house"): Set<string> {
+  const matchesChamber = chamber === "senate" ? isSenateChamber : isHouseChamber;
+  const keys = new Set(
+    world.politicians
+      .filter((politician) => politician.countryId === countryId && matchesChamber(politician.chamberKey))
+      .map((politician) => `pol_${politician.id}`),
+  );
+  const playerSeat = world.player.legislativeSeat;
+  if (playerSeat?.countryId === countryId && matchesChamber(playerSeat.chamberKey)) keys.add("player");
+  return keys;
+}
+
+function tallyEligibleVotes(votes: Record<string, SenateVote>, eligibleKeys: ReadonlySet<string>) {
+  const tally = { votesFor: 0, votesAgainst: 0, votesAbstain: 0 };
+  for (const [key, vote] of Object.entries(votes)) {
+    if (!eligibleKeys.has(key)) continue;
+    if (vote === "for") tally.votesFor++;
+    else if (vote === "against") tally.votesAgainst++;
+    else tally.votesAbstain++;
+  }
+  return tally;
+}
+
+/** Recompute from current seat holders so stale and cross-country keys have no weight. */
+export function computeCabinetNominationTally(world: WorldState, nomination: CabinetNomination): CabinetConfirmationTally {
+  const senate = tallyEligibleVotes(
+    nomination.votes,
+    eligibleVoterKeys(world, nomination.countryId, "senate"),
+  );
+  if (nomination.positionId !== "vicePresident") return senate;
+  const house = tallyEligibleVotes(
+    nomination.houseVotes ?? {},
+    eligibleVoterKeys(world, nomination.countryId, "house"),
+  );
+  return {
+    ...senate,
+    houseVotesFor: house.votesFor,
+    houseVotesAgainst: house.votesAgainst,
+    houseVotesAbstain: house.votesAbstain,
+  };
+}
+
+function applyCabinetNominationTally(nomination: CabinetNomination, tally: CabinetConfirmationTally): void {
+  nomination.votesFor = tally.votesFor;
+  nomination.votesAgainst = tally.votesAgainst;
+  nomination.votesAbstain = tally.votesAbstain;
+  if (nomination.positionId === "vicePresident") {
+    nomination.houseVotesFor = tally.houseVotesFor ?? 0;
+    nomination.houseVotesAgainst = tally.houseVotesAgainst ?? 0;
+    nomination.houseVotesAbstain = tally.houseVotesAbstain ?? 0;
+  }
+}
+
+/** Player ballot boundary mirroring the reference nomination vote route. */
+export function castCabinetNominationVote(
+  world: WorldState,
+  nominationId: string,
+  vote: SenateVote,
+): CabinetConfirmationTally {
+  if (vote !== "for" && vote !== "against" && vote !== "abstain") {
+    throw new Error("Vote must be for, against, or abstain");
+  }
+  const nomination = world.cabinetNominations.find((candidate) => candidate.id === nominationId);
+  if (!nomination || nomination.status !== "active") throw new Error("Nomination not found or voting closed");
+  if (world.meta.turn >= nomination.votingEndsOnTurn) throw new Error("Voting has ended");
+  const seat = world.player.legislativeSeat;
+  if (!seat || seat.countryId !== nomination.countryId) {
+    throw new Error("Only members of Congress can vote on nominations");
+  }
+  const isVpNomination = nomination.positionId === "vicePresident";
+  const voteField = isVpNomination && isHouseChamber(seat.chamberKey) ? "houseVotes" : "votes";
+  if (!isSenateChamber(seat.chamberKey) && voteField !== "houseVotes") {
+    throw new Error("Only Senators can vote on cabinet nominations");
+  }
+  if (!isSenateChamber(seat.chamberKey) && !isHouseChamber(seat.chamberKey)) {
+    throw new Error("Only members of Congress can vote on nominations");
+  }
+  if (voteField === "houseVotes") {
+    (nomination.houseVotes ??= {}).player = vote;
+  } else {
+    nomination.votes.player = vote;
+  }
+  const tally = computeCabinetNominationTally(world, nomination);
+  applyCabinetNominationTally(nomination, tally);
+  return tally;
 }
 
 export interface CabinetNominationLifecycleResult {
@@ -95,12 +176,6 @@ export function processCabinetNominationLifecycle(world: WorldState): CabinetNom
   // Pre-resolve executive party for US president (sole confirmation-based system)
   const usExec = world.executives["US"];
   const presidentParty = usExec?.presidentParty ?? undefined;
-
-  // Helper to get Senate composition for seat weighting (US only)
-  const usLeg = world.legislatures["US"];
-  const senate = usLeg?.chambers.find((c) => c.key === "senate" || c.key === "upper" || c.key === "senate_us");
-  // Fallback: use any chamber named senate; if none, use lower house as stub
-  const seatsByParty = senate?.composition.seatsByParty ?? usLeg?.chambers[0]?.composition.seatsByParty ?? {};
 
   // Build rng draws deterministically
   const rng = (() => {
@@ -157,13 +232,14 @@ export function processCabinetNominationLifecycle(world: WorldState): CabinetNom
           nom.houseVotesAbstain = (nom.houseVotesAbstain ?? 0) + (vote === "abstain" ? 1 : 0);
         }
       }
+      applyCabinetNominationTally(nom, computeCabinetNominationTally(world, nom));
       if (newVotes > 0) nominationsVoted++;
       continue;
     }
 
     // B. Resolve expired nominations at or past votingEndsOnTurn
     if (turn >= nom.votingEndsOnTurn) {
-      void seatsByParty;
+      applyCabinetNominationTally(nom, computeCabinetNominationTally(world, nom));
       let passed: boolean;
       if (nom.positionId === "vicePresident") {
         const senatePassed = cabinetDidPass(nom.votesFor, nom.votesAgainst);
