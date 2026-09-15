@@ -237,6 +237,45 @@ describe("GameScreen", () => {
     fetchSpy.mockRestore();
   });
 
+  it("lands article related links on real country, party, and election destinations", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld({
+      news: [
+        {
+          id: "turn-4-election",
+          title: "General election called",
+          body: "Voters will choose a new House.",
+          date: "1953-02-01",
+          category: "Election",
+          country: { id: "US", name: "United States" },
+          party: { id: "p1", name: "Labor" },
+          election: { id: "e1", name: "General Election" },
+          event: { id: "event-election-call", name: "Election call" },
+        },
+      ],
+    } as Partial<GameView>);
+    const props = { ...preferencesProps, newsStorageKey: "article-links-slot", loadProfile: async () => profileFor(world), loadPolitics, search, loadBondMarket, loadRegions, loadCaucusManagement, loadPartyManagement, loadMarkets, loadLegislation, loadWorldOverview, world, busy: false, onAdvanceTurn: vi.fn(), onSave: vi.fn(), onExit: vi.fn(), onUpdateWorldFeatureFlags: vi.fn(), onAction: vi.fn() };
+    render(<GameScreen {...props} />);
+
+    await navigate(user, "News");
+    await user.click(screen.getByRole("button", { name: "Read General election called" }));
+    await user.click(screen.getByRole("button", { name: "View Labor" }));
+    expect(screen.getByRole("button", { name: "Back to parties" })).toBeInTheDocument();
+
+    await navigate(user, "News");
+    expect(screen.getByRole("article", { name: "General election called" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Back to news" }));
+    await user.click(screen.getByRole("button", { name: "Read General election called" }));
+    await user.click(screen.getByRole("button", { name: "View General Election" }));
+    expect(screen.getByRole("button", { name: "Back to elections" })).toBeInTheDocument();
+
+    await navigate(user, "News");
+    await user.click(screen.getByRole("button", { name: "Back to news" }));
+    await user.click(screen.getByRole("button", { name: "Read General election called" }));
+    await user.click(screen.getByRole("button", { name: "View United States" }));
+    expect(await screen.findByRole("region", { name: "Nations" })).toBeInTheDocument();
+  });
+
   it("bottom navigation opens its destination with page focus", async () => {
     const user = userEvent.setup();
     const world = makeWorld();

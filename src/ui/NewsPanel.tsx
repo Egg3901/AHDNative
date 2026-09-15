@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { NewsView } from "../game/types";
 import { formatGameDate, type GameClock } from "../game/gameDate";
 
@@ -32,6 +32,11 @@ export function NewsPanel({ news, clock, storageKey, onCountry, onParty, onElect
   const [country, setCountry] = useState("all");
   const [category, setCategory] = useState("all");
   const [date, setDate] = useState("all");
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  const readButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  // "article" moves focus into the opened article; otherwise a news id moves
+  // focus back to its Read button. Set only on user action, never on restore.
+  const pendingFocus = useRef<string | null>(null);
 
   const countries = useMemo(() => [...new Map(news.flatMap(item => item.country ? [[item.country.id, item.country.name] as const] : [])).entries()], [news]);
   const categories = useMemo(() => [...new Set(news.map(item => item.category ?? "General"))], [news]);
@@ -40,6 +45,7 @@ export function NewsPanel({ news, clock, storageKey, onCountry, onParty, onElect
   const selected = news.find(item => item.id === selectedId) ?? null;
 
   const select = (id: string | null) => {
+    pendingFocus.current = id ? "article" : (selectedId ?? null);
     setSelectedId(id);
     const nextRead = new Set(readIds);
     if (id) nextRead.add(id);
@@ -47,11 +53,22 @@ export function NewsPanel({ news, clock, storageKey, onCountry, onParty, onElect
     saveState(key, { selectedId: id, readIds: [...nextRead] });
   };
 
+  useEffect(() => {
+    if (pendingFocus.current === "article" && selected) {
+      pendingFocus.current = null;
+      headingRef.current?.focus();
+    } else if (pendingFocus.current && !selected) {
+      const target = readButtonRefs.current.get(pendingFocus.current);
+      pendingFocus.current = null;
+      target?.focus();
+    }
+  }, [selected]);
+
   if (selected) {
     return (
       <article className="ahd-card ahd-card-pad ahd-stack" aria-label={selected.title}>
         <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => select(null)}>Back to news</button>
-        <div><span className="ahd-pill">Read</span><span className="ahd-pill">{selected.category ?? "General"}</span><h2 className="ahd-h2">{selected.title}</h2><p className="ahd-muted">{formatGameDate(selected.date, clock)}</p></div>
+        <div><span className="ahd-pill">Read</span><span className="ahd-pill">{selected.category ?? "General"}</span><h2 className="ahd-h2" ref={headingRef} tabIndex={-1}>{selected.title}</h2><p className="ahd-muted">{formatGameDate(selected.date, clock)}</p></div>
         <p style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{selected.body}</p>
         <nav aria-label="Related records" style={{ display: "flex", flexWrap: "wrap", gap: "0.45rem" }}>
           {selected.country ? <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onCountry(selected.country!.id)}>View {selected.country.name}</button> : null}
@@ -73,7 +90,7 @@ export function NewsPanel({ news, clock, storageKey, onCountry, onParty, onElect
           <label className="ahd-field"><span className="ahd-label">Category</span><select className="ahd-select" aria-label="News category" value={category} onChange={event => setCategory(event.target.value)}><option value="all">All categories</option>{categories.map(value => <option key={value} value={value}>{value}</option>)}</select></label>
         </div>
       </div>
-      {filtered.length === 0 ? <div className="ahd-empty">No news matches these filters.</div> : <div className="ahd-grid ahd-grid-3">{filtered.map(item => <article key={item.id} className="ahd-card ahd-card-pad" aria-label={`${item.title}${readIds.has(item.id) ? ", read" : ", unread"}`}><div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}><h3 style={{ margin: 0, fontSize: "0.86rem", fontWeight: 750 }}>{item.title}</h3>{readIds.has(item.id) ? <span className="ahd-pill">Read</span> : null}</div><p className="ahd-muted" style={{ fontSize: "0.72rem", margin: "0.15rem 0 0" }}>{item.category ?? "General"} · {formatGameDate(item.date, clock)}</p><button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => select(item.id)} aria-label={`Read ${item.title}`}>Read article</button></article>)}</div>}
+      {filtered.length === 0 ? <div className="ahd-empty">No news matches these filters.</div> : <div className="ahd-grid ahd-grid-3">{filtered.map(item => <article key={item.id} className="ahd-card ahd-card-pad" aria-label={`${item.title}${readIds.has(item.id) ? ", read" : ", unread"}`}><div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}><h3 style={{ margin: 0, fontSize: "0.86rem", fontWeight: 750 }}>{item.title}</h3>{readIds.has(item.id) ? <span className="ahd-pill">Read</span> : null}</div><p className="ahd-muted" style={{ fontSize: "0.72rem", margin: "0.15rem 0 0" }}>{item.category ?? "General"} · {formatGameDate(item.date, clock)}</p><button type="button" ref={node => { if (node) readButtonRefs.current.set(item.id, node); else readButtonRefs.current.delete(item.id); }} className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => select(item.id)} aria-label={`Read ${item.title}`}>Read article</button></article>)}</div>}
     </div>
   );
 }
