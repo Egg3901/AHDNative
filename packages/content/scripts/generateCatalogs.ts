@@ -31,8 +31,8 @@
  *    through ADAPTER_TIER1 name blockingSystem "legislation/effectDescriptor"
  *    (targets ready for the DECAY channel, effect pending); the rest name
  *    "politicalMetrics/<unmapped ids>". Tax entries carry their taxPolicy ladder but the
- *    rate write itself is PORT-STUB in billLifecycle.ts (budget/taxRateLadder),
- *    so they get no special availability. No immediate `effect` descriptor is derived (those
+ *    rate write itself is PORT-STUB in billLifecycle.ts, so their named blocker
+ *    is "budget/taxRateLadder". No immediate `effect` descriptor is derived (those
  *    were hand-authored for US; deriving them mechanically would invent
  *    numbers).
  */
@@ -56,11 +56,11 @@ import { STUBBED_CATALOG } from "../../engine/src/legislation/catalog.js";
 const OUT = path.resolve(import.meta.dirname, "../../engine/src/legislation");
 
 type Opt = { id: string; name: string; rate?: number; economic?: number; social?: number; effectDirection?: number };
-type LT = { _id: string; name: string; description?: string; policyDomain?: string; nationalOnly?: boolean; effectTargetsWeighted?: Array<{ metricCategoryId: string; metricId: string; weight: number }>; positions?: Array<{ positionId: string; name: string; chamber: string }>; taxRateChange?: { scope: string; taxType: string }; policyOptions?: Opt[]; isPermanent?: boolean; source?: string };
+type LT = { _id: string; name: string; description?: string; policyDomain?: string; nationalOnly?: boolean; allowedScope?: "state"; effectTargetsWeighted?: Array<{ metricCategoryId: string; metricId: string; weight: number }>; positions?: Array<{ positionId: string; name: string; chamber: string }>; taxRateChange?: { scope: string; taxType: string }; policyOptions?: Opt[]; isPermanent?: boolean; source?: string };
 
 const SOURCE_REVISION = "e364c04954ed628beef73a993a8e9e156650a31e";
 const CHECK = process.argv.includes("--check");
-type InventoryRow = { id: string; countryId: string; nativeScope: string; sourceScope: string | null; prerequisites: string[]; authoredTargets: string[]; blockingSystem: string; sourcePath: string; sourceMatch: "matched" | "unmatched" };
+type InventoryRow = { id: string; countryId: string; nativeScope: string; sourceScope: string | null; prerequisites: string[]; authoredTargets: string[]; taxRateChange: { scope: string; taxType: string } | null; authoredRateOptions: Array<{ id: string; rate: number }>; blockingSystem: string; sourcePath: string; sourceMatch: "matched" | "unmatched" };
 const inventory: InventoryRow[] = [];
 
 const actualSourceRevision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: process.cwd(), encoding: "utf8" }).trim();
@@ -140,14 +140,18 @@ function emit(c: string, types: LT[]): void {
     const mapped = targets.length > 0 && unmapped.length === 0;
     if (mapped) available++;
     const isAvailable = false;
-    const blocker = mapped ? "legislation/effectDescriptor" : "politicalMetrics/" + unmapped.join(",");
+    const blocker = isTax ? "budget/taxRateLadder" : mapped ? "legislation/effectDescriptor" : "politicalMetrics/" + unmapped.join(",");
+    const sourceScope = t.allowedScope ?? (t.taxRateChange?.scope === "state" ? "state" : t.nationalOnly ? "national" : "both");
+    const nativeScope = sourceScope === "state" ? "regional" : sourceScope;
     inventory.push({
       id: t._id,
       countryId: c,
-      nativeScope: t.nationalOnly ? "national" : "both",
-      sourceScope: t.nationalOnly ? "national" : "both",
+      nativeScope,
+      sourceScope,
       prerequisites: t.positions?.length ? t.positions.map((p) => `${p.chamber}:${p.positionId}`) : ["positions:none-authored"],
       authoredTargets: (t.effectTargetsWeighted ?? []).map((e) => `${e.metricCategoryId}.${e.metricId}`),
+      taxRateChange: t.taxRateChange ?? null,
+      authoredRateOptions: (t.policyOptions ?? []).flatMap((option) => typeof option.rate === "number" ? [{ id: option.id, rate: option.rate }] : []),
       blockingSystem: blocker,
       sourcePath: `src/lib/seeds/${c.toLowerCase()}/${c.toLowerCase()}LegislationTypes.ts`,
       sourceMatch: "matched",
@@ -161,7 +165,7 @@ function emit(c: string, types: LT[]): void {
       `    title: ${q(t.name)},`,
       `    description: ${q(t.description ?? "")},`,
       `    category: ${q(t.policyDomain ?? "governance")},`,
-      `    allowedScope: ${q(t.nationalOnly ? "national" : "both")},`,
+      `    allowedScope: ${q(nativeScope)},`,
       ...(taxPolicy ? [taxPolicy.trimEnd()] : []),
       `    targets: ${JSON.stringify(targets)},`,
       `    status: ${q(isAvailable ? "available" : "unavailable")},`,
@@ -190,11 +194,12 @@ for (const native of STUBBED_CATALOG.filter((entry) => !["JP", "DE", "IE", "CN",
   if (law && sourceCatalog) {
     inventory.push({ id: law.id, countryId: native.countryId, nativeScope: native.allowedScope, sourceScope: law.allowedScope,
       prerequisites: law.window ? [`active:${law.window.from}-${law.window.to ?? "open"}`] : ["active:any-year"],
-      authoredTargets: law.targets.map((target) => target.metricId), blockingSystem: native.blockingSystem!,
+      authoredTargets: law.targets.map((target) => target.metricId), taxRateChange: law.taxPolicy ? { scope: law.taxPolicy.scope, taxType: law.taxPolicy.taxType } : null,
+      authoredRateOptions: law.taxPolicy?.waypoints.map((option) => ({ id: option.label, rate: option.rate })) ?? [], blockingSystem: native.blockingSystem!,
       sourcePath: `src/lib/politicalLegislation/laws/${sourceCatalog[2]}`, sourceMatch: "matched" });
   } else {
     inventory.push({ id: native.id, countryId: native.countryId, nativeScope: native.allowedScope, sourceScope: null,
-      prerequisites: [], authoredTargets: [], blockingSystem: native.blockingSystem!,
+      prerequisites: [], authoredTargets: [], taxRateChange: null, authoredRateOptions: [], blockingSystem: native.blockingSystem!,
       sourcePath: "NO_AHDGAME_SOURCE_MATCH", sourceMatch: "unmatched" });
   }
 }

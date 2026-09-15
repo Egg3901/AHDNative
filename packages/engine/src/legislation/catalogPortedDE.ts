@@ -20,7 +20,7 @@ export const CATALOG_DE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "incomeTax", minRate: 0, maxRate: 65, step: 3, baselineRate: 42 },
     targets: [{"metricId":"economic.medianIncome","weight":1},{"metricId":"economic.povertyRate","weight":0.5},{"metricId":"economic.gdpGrowth","weight":0.4},{"metricId":"society.socialMobility","weight":-0.6}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.medianIncome,economic.povertyRate,economic.gdpGrowth",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate from budget policyDefaults option de_solidarity_surcharge_opt_5
@@ -34,7 +34,7 @@ export const CATALOG_DE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "solidaritySurcharge", minRate: 0, maxRate: 10, step: 0.5, baselineRate: 5.5 },
     targets: [{"metricId":"economic.eastWestConvergence","weight":-1},{"metricId":"governance.budgetBalance","weight":-0.4},{"metricId":"economic.medianIncome","weight":0.3},{"metricId":"society.socialMobility","weight":-0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.eastWestConvergence,governance.budgetBalance,economic.medianIncome",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate from budget policyDefaults option de_vat_rate_opt_5
@@ -48,7 +48,7 @@ export const CATALOG_DE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "salesTax", minRate: 0, maxRate: 28, step: 1, baselineRate: 19 },
     targets: [{"metricId":"economic.costOfLiving","weight":-1},{"metricId":"economic.gdpGrowth","weight":-0.25},{"metricId":"economic.povertyRate","weight":-0.6},{"metricId":"economic.smallBusinessFormation","weight":-0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.costOfLiving,economic.gdpGrowth,economic.povertyRate,economic.smallBusinessFormation",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate from budget policyDefaults option de_domestic_corporate_tax_rate_opt_5
@@ -62,7 +62,7 @@ export const CATALOG_DE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "domesticCorporateTax", minRate: 0, maxRate: 30, step: 2, baselineRate: 15 },
     targets: [{"metricId":"economic.gdpGrowth","weight":1},{"metricId":"economic.smallBusinessFormation","weight":0.5},{"metricId":"economic.mittelstandHealth","weight":0.4},{"metricId":"governance.budgetBalance","weight":-0.4}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.gdpGrowth,economic.smallBusinessFormation,economic.mittelstandHealth,governance.budgetBalance",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate from budget policyDefaults option de_foreign_corporate_tax_rate_opt_5
@@ -76,7 +76,7 @@ export const CATALOG_DE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "foreignCorporateTax", minRate: 0, maxRate: 30, step: 2, baselineRate: 15 },
     targets: [{"metricId":"economic.manufacturingCompetitiveness","weight":-1},{"metricId":"economic.tradeBalance","weight":-0.4},{"metricId":"economic.gdpGrowth","weight":0.5},{"metricId":"governance.budgetBalance","weight":-0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.manufacturingCompetitiveness,economic.tradeBalance,economic.gdpGrowth,governance.budgetBalance",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate from budget policyDefaults option de_payroll_social_insurance_opt_5
@@ -90,7 +90,7 @@ export const CATALOG_DE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "payrollTax", minRate: 0, maxRate: 30, step: 2, baselineRate: 20 },
     targets: [{"metricId":"governance.rentenStabilitaet","weight":-1},{"metricId":"economic.unemploymentRate","weight":0.4},{"metricId":"economic.medianIncome","weight":0.5},{"metricId":"economic.povertyRate","weight":-0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/governance.rentenStabilitaet,economic.unemploymentRate,economic.medianIncome,economic.povertyRate",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate from budget policyDefaults option de_customs_tariff_rate_opt_5
@@ -104,7 +104,7 @@ export const CATALOG_DE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "tariffs", minRate: 0, maxRate: 20, step: 1, baselineRate: 5 },
     targets: [{"metricId":"economic.manufacturingCompetitiveness","weight":-1},{"metricId":"economic.tradeBalance","weight":-0.5},{"metricId":"economic.costOfLiving","weight":-0.4},{"metricId":"governance.euCohesionScore","weight":0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.manufacturingCompetitiveness,economic.tradeBalance,economic.costOfLiving,governance.euCohesionScore",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate from budget policyDefaults option de_trade_tax_opt_5
@@ -114,11 +114,11 @@ export const CATALOG_DE: CatalogEntry[] = [
     title: "Statutory Hebesatz Act",
     description: "Land-level cap/floor on municipal Gewerbesteuer-Hebesätze",
     category: "tax",
-    allowedScope: "both",
+    allowedScope: "regional",
     taxPolicy: { scope: "state", taxType: "tradeTax", minRate: 200, maxRate: 600, step: 40, baselineRate: 400 },
     targets: [{"metricId":"economic.mittelstandHealth","weight":1},{"metricId":"economic.smallBusinessFormation","weight":0.4},{"metricId":"economic.gdpGrowth","weight":0.3},{"metricId":"governance.budgetBalance","weight":-0.5}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.mittelstandHealth,economic.smallBusinessFormation,economic.gdpGrowth,governance.budgetBalance",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed
@@ -713,7 +713,7 @@ export const CATALOG_DE: CatalogEntry[] = [
     title: "Land Education Act",
     description: "Core Land competence under Kulturhoheit der Länder — K-12 schooling, Lehrerausbildung, school construction, curriculum (Bildungsplan), and Schulträgerschaft.",
     category: "education",
-    allowedScope: "both",
+    allowedScope: "regional",
     targets: [{"metricId":"education.universalSchooling","weight":1},{"metricId":"society.socialMobility","weight":0.3},{"metricId":"economic.economicFreedom","weight":-0.2}],
     status: "unavailable",
     blockingSystem: "politicalMetrics/economic.economicFreedom",
@@ -726,7 +726,7 @@ export const CATALOG_DE: CatalogEntry[] = [
     title: "Land Police Act",
     description: "The Landespolizei funding envelope — Schutzpolizei, Kriminalpolizei, Bereitschaftspolizei, traffic policing, and Land-level coordination with BKA.",
     category: "law_justice",
-    allowedScope: "both",
+    allowedScope: "regional",
     targets: [{"metricId":"order.communityTrust","weight":1},{"metricId":"order.safety","weight":-0.7},{"metricId":"governance.openness","weight":-0.2},{"metricId":"economic.economicFreedom","weight":-0.15}],
     status: "unavailable",
     blockingSystem: "politicalMetrics/economic.economicFreedom",
@@ -739,7 +739,7 @@ export const CATALOG_DE: CatalogEntry[] = [
     title: "Land Cultural Funding Act",
     description: "Land cultural budget — Landestheater, Museen, Landesoper, Bibliotheken, Konzerthäuser, Landesrundfunk-Anteil, Künstlerförderung, and Kulturhoheit programs.",
     category: "mediaInformation",
-    allowedScope: "both",
+    allowedScope: "regional",
     targets: [{"metricId":"governance.openness","weight":1},{"metricId":"society.integration","weight":0.67},{"metricId":"mediaInformation.mediaPolarization","weight":-0.33},{"metricId":"economic.economicFreedom","weight":-0.1}],
     status: "unavailable",
     blockingSystem: "politicalMetrics/mediaInformation.mediaPolarization,economic.economicFreedom",
@@ -752,7 +752,7 @@ export const CATALOG_DE: CatalogEntry[] = [
     title: "Land Economic Development Act",
     description: "Land-level Strukturpolitik — Landesinvestitionsbanken (LfA Bayern, NRW.Bank), Strukturhilfen, Land-level Innovationsförderung, and Wirtschaftsförderungsgesellschaften.",
     category: "economic",
-    allowedScope: "both",
+    allowedScope: "regional",
     targets: [{"metricId":"economic.mittelstandHealth","weight":1},{"metricId":"economic.smallBusinessFormation","weight":0.5},{"metricId":"economic.ruralRevitalization","weight":0.4},{"metricId":"economic.manufacturingCompetitiveness","weight":0.3},{"metricId":"economic.economicFreedom","weight":-0.15}],
     status: "unavailable",
     blockingSystem: "politicalMetrics/economic.mittelstandHealth,economic.smallBusinessFormation,economic.ruralRevitalization,economic.manufacturingCompetitiveness,economic.economicFreedom",
@@ -765,7 +765,7 @@ export const CATALOG_DE: CatalogEntry[] = [
     title: "Land Hospital Planning Act",
     description: "Krankenhausplanung as a Land competence — hospital network density, Versorgungsstufen, public-hospital ownership (Universitätskliniken, kommunale Krankenhäuser), Investitionskostenförderung.",
     category: "healthcare",
-    allowedScope: "both",
+    allowedScope: "regional",
     targets: [{"metricId":"health.prevention","weight":1},{"metricId":"economic.economicFreedom","weight":-0.15}],
     status: "unavailable",
     blockingSystem: "politicalMetrics/economic.economicFreedom",
@@ -778,7 +778,7 @@ export const CATALOG_DE: CatalogEntry[] = [
     title: "Municipal Fiscal Equalization Act",
     description: "The Kommunaler Finanzausgleich — annual Land-to-Gemeinde transfers via Schlüsselzuweisungen formula, plus Land-level Zweckzuweisungen.",
     category: "governance",
-    allowedScope: "both",
+    allowedScope: "regional",
     targets: [{"metricId":"governance.localAutonomy","weight":1},{"metricId":"governance.participation","weight":0.3},{"metricId":"governance.budgetBalance","weight":-0.3}],
     status: "unavailable",
     blockingSystem: "politicalMetrics/governance.budgetBalance",

@@ -18,7 +18,33 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation",
       "governance.budgetBalance"
     ],
-    "blockingSystem": "politicalMetrics/economic.economicFreedom,economic.smallBusinessFormation,governance.budgetBalance",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "domesticCorporateTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "br_corporate_tax_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "br_corporate_tax_opt_1",
+        "rate": 8
+      },
+      {
+        "id": "br_corporate_tax_opt_2",
+        "rate": 13
+      },
+      {
+        "id": "br_corporate_tax_opt_3",
+        "rate": 18
+      },
+      {
+        "id": "br_corporate_tax_opt_4",
+        "rate": 26
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -35,7 +61,25 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.tradeBalance",
       "economic.costOfLiving"
     ],
-    "blockingSystem": "politicalMetrics/economic.tradeBalance,economic.costOfLiving",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "tariffs"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "br_customs_tariff_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "br_customs_tariff_opt_1",
+        "rate": 18
+      },
+      {
+        "id": "br_customs_tariff_opt_2",
+        "rate": 35
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -52,6 +96,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -70,6 +116,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.socialMobility",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -87,6 +135,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -104,7 +154,25 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom",
       "governance.budgetBalance"
     ],
-    "blockingSystem": "politicalMetrics/economic.economicFreedom,governance.budgetBalance",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "payrollTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "br_iap_contribution_opt_0",
+        "rate": 10
+      },
+      {
+        "id": "br_iap_contribution_opt_1",
+        "rate": 20
+      },
+      {
+        "id": "br_iap_contribution_opt_2",
+        "rate": 32
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -122,7 +190,37 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.incomeInequality",
       "governance.budgetBalance"
     ],
-    "blockingSystem": "politicalMetrics/economic.medianIncome,governance.budgetBalance",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "incomeTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "br_income_tax_rate_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "br_income_tax_rate_opt_1",
+        "rate": 8
+      },
+      {
+        "id": "br_income_tax_rate_opt_2",
+        "rate": 13
+      },
+      {
+        "id": "br_income_tax_rate_opt_3",
+        "rate": 18
+      },
+      {
+        "id": "br_income_tax_rate_opt_4",
+        "rate": 24
+      },
+      {
+        "id": "br_income_tax_rate_opt_5",
+        "rate": 30
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -139,6 +237,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -156,7 +256,33 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.costOfLiving",
       "governance.budgetBalance"
     ],
-    "blockingSystem": "politicalMetrics/economic.costOfLiving,governance.budgetBalance",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "salesTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "br_ivc_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "br_ivc_opt_1",
+        "rate": 5
+      },
+      {
+        "id": "br_ivc_opt_2",
+        "rate": 10
+      },
+      {
+        "id": "br_ivc_opt_3",
+        "rate": 15
+      },
+      {
+        "id": "br_ivc_opt_4",
+        "rate": 22
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -173,6 +299,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom",
       "governance.coDeterminationQuality"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
     "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -191,6 +319,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.socialMobility",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -208,6 +338,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -226,6 +358,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation",
       "social.incomeInequality"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.economicFreedom,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -243,6 +377,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -262,6 +398,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "population.birthRate",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/education.academicPressure,healthcare.mentalHealthAccess,population.birthRate,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -282,6 +420,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.eastWestRegionalGap"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.commonProsperityIndex,economic.tradeBalance,governance.budgetBalance,economic.eastWestRegionalGap",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -303,6 +443,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.manufacturingCompetitiveness",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.industrialPolicyExecution,governance.socialCreditCoverage,economic.manufacturingCompetitiveness,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -322,6 +464,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.publicTrust",
       "economic.manufacturingCompetitiveness"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.partyDiscipline,economic.manufacturingCompetitiveness",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -342,6 +486,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.industrialPolicyExecution"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.beltAndRoadEngagement,economic.tradeBalance,economic.manufacturingCompetitiveness,governance.budgetBalance,economic.industrialPolicyExecution",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -363,6 +509,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.beltAndRoadEngagement",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/environment.climateResilience,economic.manufacturingCompetitiveness,governance.beltAndRoadEngagement,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -383,6 +531,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.manufacturingCompetitiveness",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.commonProsperityIndex,economic.ruralRevitalization,economic.manufacturingCompetitiveness,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -402,6 +552,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.civilLiberties",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.militaryReadiness,governance.nationalPride,governance.civilLiberties,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -423,6 +575,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.partyDiscipline",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/publicSafety.incarcerationRate,governance.partyDiscipline,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -442,7 +596,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.costOfLiving",
       "economic.gdpGrowth"
     ],
-    "blockingSystem": "politicalMetrics/economic.manufacturingCompetitiveness,economic.tradeBalance,economic.costOfLiving,economic.gdpGrowth",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "tariffs"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "cn_customs_tariff_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "cn_customs_tariff_opt_1",
+        "rate": 1
+      },
+      {
+        "id": "cn_customs_tariff_opt_2",
+        "rate": 2
+      },
+      {
+        "id": "cn_customs_tariff_opt_3",
+        "rate": 3
+      },
+      {
+        "id": "cn_customs_tariff_opt_4",
+        "rate": 5
+      },
+      {
+        "id": "cn_customs_tariff_opt_5",
+        "rate": 7
+      },
+      {
+        "id": "cn_customs_tariff_opt_6",
+        "rate": 10
+      },
+      {
+        "id": "cn_customs_tariff_opt_7",
+        "rate": 13
+      },
+      {
+        "id": "cn_customs_tariff_opt_8",
+        "rate": 17
+      },
+      {
+        "id": "cn_customs_tariff_opt_9",
+        "rate": 21
+      },
+      {
+        "id": "cn_customs_tariff_opt_10",
+        "rate": 25
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -462,6 +666,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "mediaInformation.disinformationRisk",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.socialCreditCoverage,governance.partyDiscipline,economic.manufacturingCompetitiveness,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -482,6 +688,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.foreignWorkerIntegration",
       "social.housingAffordability"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.nationalPride,governance.partyDiscipline,economic.manufacturingCompetitiveness",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -503,6 +711,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.industrialPolicyExecution,economic.eastWestRegionalGap,economic.gdpGrowth,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -522,6 +732,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.commonProsperityIndex,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -543,6 +755,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.commonProsperityIndex,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -563,6 +777,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.industrialPolicyExecution",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.manufacturingCompetitiveness,economic.industrialPolicyExecution,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -582,7 +798,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.manufacturingCompetitiveness",
       "governance.budgetBalance"
     ],
-    "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.smallBusinessFormation,economic.manufacturingCompetitiveness,governance.budgetBalance",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "domesticCorporateTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "cn_enterprise_income_tax_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "cn_enterprise_income_tax_opt_1",
+        "rate": 5
+      },
+      {
+        "id": "cn_enterprise_income_tax_opt_2",
+        "rate": 10
+      },
+      {
+        "id": "cn_enterprise_income_tax_opt_3",
+        "rate": 15
+      },
+      {
+        "id": "cn_enterprise_income_tax_opt_4",
+        "rate": 20
+      },
+      {
+        "id": "cn_enterprise_income_tax_opt_5",
+        "rate": 25
+      },
+      {
+        "id": "cn_enterprise_income_tax_opt_6",
+        "rate": 28
+      },
+      {
+        "id": "cn_enterprise_income_tax_opt_7",
+        "rate": 32
+      },
+      {
+        "id": "cn_enterprise_income_tax_opt_8",
+        "rate": 35
+      },
+      {
+        "id": "cn_enterprise_income_tax_opt_9",
+        "rate": 38
+      },
+      {
+        "id": "cn_enterprise_income_tax_opt_10",
+        "rate": 40
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -601,6 +867,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.commonProsperityIndex",
       "governance.budgetBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/population.birthRate,economic.commonProsperityIndex,governance.budgetBalance",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -622,6 +890,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.costOfLiving",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,governance.budgetBalance,governance.debtToGdp,economic.manufacturingCompetitiveness,economic.costOfLiving,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -642,6 +912,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.industrialPolicyExecution",
       "economic.costOfLiving"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.tradeBalance,economic.manufacturingCompetitiveness,economic.ruralRevitalization,economic.industrialPolicyExecution,economic.costOfLiving",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -661,6 +933,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.hukouMobility",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/education.academicPressure,social.hukouMobility,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -680,6 +954,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.commonProsperityIndex",
       "population.birthRate"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.commonProsperityIndex,population.birthRate",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -699,6 +975,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.manufacturingCompetitiveness",
       "governance.beltAndRoadEngagement"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.taiwanStraitTension,governance.partyDiscipline,economic.manufacturingCompetitiveness,governance.beltAndRoadEngagement",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -720,6 +998,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/social.wohnungsBauRate,economic.commonProsperityIndex,governance.budgetBalance,economic.gdpGrowth,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -742,6 +1022,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "population.urbanizationRate",
       "social.housingAffordability"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/social.hukouMobility,economic.commonProsperityIndex,economic.eastWestRegionalGap,population.urbanizationRate",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -761,7 +1043,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.incomeInequality",
       "economic.gdpGrowth"
     ],
-    "blockingSystem": "politicalMetrics/economic.medianIncome,economic.povertyRate,economic.gdpGrowth",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "incomeTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "cn_individual_income_tax_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "cn_individual_income_tax_opt_1",
+        "rate": 10
+      },
+      {
+        "id": "cn_individual_income_tax_opt_2",
+        "rate": 15
+      },
+      {
+        "id": "cn_individual_income_tax_opt_3",
+        "rate": 25
+      },
+      {
+        "id": "cn_individual_income_tax_opt_4",
+        "rate": 30
+      },
+      {
+        "id": "cn_individual_income_tax_opt_5",
+        "rate": 35
+      },
+      {
+        "id": "cn_individual_income_tax_opt_6",
+        "rate": 40
+      },
+      {
+        "id": "cn_individual_income_tax_opt_7",
+        "rate": 45
+      },
+      {
+        "id": "cn_individual_income_tax_opt_8",
+        "rate": 47
+      },
+      {
+        "id": "cn_individual_income_tax_opt_9",
+        "rate": 48
+      },
+      {
+        "id": "cn_individual_income_tax_opt_10",
+        "rate": 50
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -781,6 +1113,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation",
       "governance.budgetBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.industrialPolicyExecution,economic.manufacturingCompetitiveness,economic.gdpGrowth,economic.smallBusinessFormation,governance.budgetBalance",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -802,6 +1136,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.manufacturingCompetitiveness",
       "publicSafety.crimeRate"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.socialCreditCoverage,governance.partyDiscipline,mediaInformation.mediaPolarization,economic.manufacturingCompetitiveness",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -821,7 +1157,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.wohnungsBauRate",
       "governance.budgetBalance"
     ],
-    "blockingSystem": "politicalMetrics/social.wohnungsBauRate,governance.budgetBalance",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "landValueAddedTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "cn_land_value_added_tax_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "cn_land_value_added_tax_opt_1",
+        "rate": 10
+      },
+      {
+        "id": "cn_land_value_added_tax_opt_2",
+        "rate": 20
+      },
+      {
+        "id": "cn_land_value_added_tax_opt_3",
+        "rate": 25
+      },
+      {
+        "id": "cn_land_value_added_tax_opt_4",
+        "rate": 30
+      },
+      {
+        "id": "cn_land_value_added_tax_opt_5",
+        "rate": 40
+      },
+      {
+        "id": "cn_land_value_added_tax_opt_6",
+        "rate": 50
+      },
+      {
+        "id": "cn_land_value_added_tax_opt_7",
+        "rate": 60
+      },
+      {
+        "id": "cn_land_value_added_tax_opt_8",
+        "rate": 68
+      },
+      {
+        "id": "cn_land_value_added_tax_opt_9",
+        "rate": 75
+      },
+      {
+        "id": "cn_land_value_added_tax_opt_10",
+        "rate": 80
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -842,6 +1228,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.commonProsperityIndex",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.commonProsperityIndex,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -862,6 +1250,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "healthcare.publicHealthPreparedness",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,governance.socialCreditCoverage,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -882,6 +1272,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation",
       "economic.commonProsperityIndex"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.medianIncome,economic.unemploymentRate,economic.povertyRate,economic.smallBusinessFormation,economic.commonProsperityIndex",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -901,6 +1293,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.partyDiscipline",
       "governance.voterTurnout"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.partyDiscipline",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -921,6 +1315,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.manufacturingCompetitiveness",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.manufacturingCompetitiveness,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -941,6 +1337,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.laborParticipation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.rentenStabilitaet,economic.commonProsperityIndex,governance.budgetBalance,economic.laborParticipation",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -962,6 +1360,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.taiwanStraitTension,economic.industrialPolicyExecution,governance.budgetBalance,economic.manufacturingCompetitiveness,economic.gdpGrowth,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -982,6 +1382,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.publicTrust",
       "governance.nationalPride"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.partyDiscipline,governance.nationalPride",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -989,8 +1391,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "cn_provincial_culture_propaganda",
     "countryId": "CN",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "peoplesCongress:pc_chair",
       "peoplesCongress:pc_vice"
@@ -1001,6 +1403,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.socialCohesion",
       "governance.budgetBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.partyDiscipline,governance.budgetBalance",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1008,8 +1412,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "cn_provincial_economic_development",
     "countryId": "CN",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "peoplesCongress:pc_chair",
       "peoplesCongress:pc_vice"
@@ -1021,6 +1425,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation",
       "economic.eastWestRegionalGap"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.industrialPolicyExecution,economic.manufacturingCompetitiveness,economic.smallBusinessFormation,economic.eastWestRegionalGap",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1028,8 +1434,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "cn_provincial_education",
     "countryId": "CN",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "peoplesCongress:pc_chair",
       "peoplesCongress:pc_vice"
@@ -1040,6 +1446,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.commonProsperityIndex,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1047,8 +1455,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "cn_provincial_environmental_policy",
     "countryId": "CN",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "peoplesCongress:pc_chair",
       "peoplesCongress:pc_vice"
@@ -1062,6 +1470,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/environment.climateResilience,economic.manufacturingCompetitiveness,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1069,8 +1479,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "cn_provincial_health_services",
     "countryId": "CN",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "peoplesCongress:pc_chair",
       "peoplesCongress:pc_vice"
@@ -1082,6 +1492,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "healthcare.elderCareQuality",
       "governance.budgetBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1089,8 +1501,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "cn_provincial_infrastructure_investment",
     "countryId": "CN",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "peoplesCongress:pc_chair",
       "peoplesCongress:pc_vice"
@@ -1103,6 +1515,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.eastWestRegionalGap,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1110,8 +1524,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "cn_provincial_public_security",
     "countryId": "CN",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "peoplesCongress:pc_chair",
       "peoplesCongress:pc_vice"
@@ -1123,6 +1537,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.partyDiscipline",
       "governance.budgetBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.socialCreditCoverage,governance.partyDiscipline,governance.budgetBalance",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1130,8 +1546,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "cn_provincial_resource_tax",
     "countryId": "CN",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "peoplesCongress:pc_chair",
       "peoplesCongress:pc_vice"
@@ -1142,7 +1558,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "economic.manufacturingCompetitiveness"
     ],
-    "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.gdpGrowth,economic.manufacturingCompetitiveness",
+    "taxRateChange": {
+      "scope": "state",
+      "taxType": "salesTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "cn_provincial_resource_tax_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "cn_provincial_resource_tax_opt_1",
+        "rate": 1
+      },
+      {
+        "id": "cn_provincial_resource_tax_opt_2",
+        "rate": 2
+      },
+      {
+        "id": "cn_provincial_resource_tax_opt_3",
+        "rate": 4
+      },
+      {
+        "id": "cn_provincial_resource_tax_opt_4",
+        "rate": 5
+      },
+      {
+        "id": "cn_provincial_resource_tax_opt_5",
+        "rate": 6
+      },
+      {
+        "id": "cn_provincial_resource_tax_opt_6",
+        "rate": 8
+      },
+      {
+        "id": "cn_provincial_resource_tax_opt_7",
+        "rate": 10
+      },
+      {
+        "id": "cn_provincial_resource_tax_opt_8",
+        "rate": 12
+      },
+      {
+        "id": "cn_provincial_resource_tax_opt_9",
+        "rate": 16
+      },
+      {
+        "id": "cn_provincial_resource_tax_opt_10",
+        "rate": 20
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -1162,6 +1628,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.costOfLiving",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.socialCreditCoverage,economic.costOfLiving,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1183,6 +1651,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.publicTrust",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.socialCreditCoverage,governance.partyDiscipline,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1204,6 +1674,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.eastWestRegionalGap",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,governance.budgetBalance,economic.eastWestRegionalGap,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1225,6 +1697,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.industrialPolicyExecution,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1245,6 +1719,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.rdIntensity,economic.industrialPolicyExecution,economic.gdpGrowth,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1265,6 +1741,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.povertyRate",
       "governance.budgetBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.commonProsperityIndex,economic.eastWestRegionalGap,economic.povertyRate,governance.budgetBalance",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1286,6 +1764,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.industrialPolicyExecution,economic.manufacturingCompetitiveness,economic.tradeBalance,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1308,6 +1788,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "population.migrationRate",
       "social.housingAffordability"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.industrialPolicyExecution,economic.manufacturingCompetitiveness,governance.partyDiscipline,population.migrationRate",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1327,7 +1809,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.medianIncome",
       "economic.povertyRate"
     ],
-    "blockingSystem": "politicalMetrics/governance.rentenStabilitaet,economic.unemploymentRate,economic.medianIncome,economic.povertyRate",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "payrollTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "cn_social_insurance_contribution_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "cn_social_insurance_contribution_opt_1",
+        "rate": 5
+      },
+      {
+        "id": "cn_social_insurance_contribution_opt_2",
+        "rate": 10
+      },
+      {
+        "id": "cn_social_insurance_contribution_opt_3",
+        "rate": 15
+      },
+      {
+        "id": "cn_social_insurance_contribution_opt_4",
+        "rate": 22
+      },
+      {
+        "id": "cn_social_insurance_contribution_opt_5",
+        "rate": 28
+      },
+      {
+        "id": "cn_social_insurance_contribution_opt_6",
+        "rate": 32
+      },
+      {
+        "id": "cn_social_insurance_contribution_opt_7",
+        "rate": 36
+      },
+      {
+        "id": "cn_social_insurance_contribution_opt_8",
+        "rate": 40
+      },
+      {
+        "id": "cn_social_insurance_contribution_opt_9",
+        "rate": 43
+      },
+      {
+        "id": "cn_social_insurance_contribution_opt_10",
+        "rate": 45
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -1346,7 +1878,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "social.incomeInequality"
     ],
-    "blockingSystem": "politicalMetrics/economic.smallBusinessFormation,governance.budgetBalance,economic.gdpGrowth",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "stampDuty"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "cn_stamp_duty_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "cn_stamp_duty_opt_1",
+        "rate": 0.01
+      },
+      {
+        "id": "cn_stamp_duty_opt_2",
+        "rate": 0.02
+      },
+      {
+        "id": "cn_stamp_duty_opt_3",
+        "rate": 0.03
+      },
+      {
+        "id": "cn_stamp_duty_opt_4",
+        "rate": 0.04
+      },
+      {
+        "id": "cn_stamp_duty_opt_5",
+        "rate": 0.05
+      },
+      {
+        "id": "cn_stamp_duty_opt_6",
+        "rate": 0.1
+      },
+      {
+        "id": "cn_stamp_duty_opt_7",
+        "rate": 0.3
+      },
+      {
+        "id": "cn_stamp_duty_opt_8",
+        "rate": 0.5
+      },
+      {
+        "id": "cn_stamp_duty_opt_9",
+        "rate": 1
+      },
+      {
+        "id": "cn_stamp_duty_opt_10",
+        "rate": 2
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -1366,6 +1948,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.manufacturingCompetitiveness",
       "social.incomeInequality"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.industrialPolicyExecution,economic.smallBusinessFormation,economic.gdpGrowth,economic.manufacturingCompetitiveness",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1387,6 +1971,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/mediaInformation.stateMediaControl,governance.partyDiscipline,mediaInformation.mediaPolarization,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1407,6 +1993,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.beltAndRoadEngagement",
       "governance.militaryReadiness"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.taiwanStraitTension,governance.partyDiscipline,economic.manufacturingCompetitiveness,governance.beltAndRoadEngagement,governance.militaryReadiness",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1426,6 +2014,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.taiwanStraitTension",
       "economic.manufacturingCompetitiveness"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.nationalPride,governance.partyDiscipline,governance.taiwanStraitTension,economic.manufacturingCompetitiveness",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1445,7 +2035,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "economic.ruralRevitalization"
     ],
-    "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.gdpGrowth,economic.ruralRevitalization",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "urbanMaintenanceTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "cn_urban_maintenance_construction_tax_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "cn_urban_maintenance_construction_tax_opt_1",
+        "rate": 1
+      },
+      {
+        "id": "cn_urban_maintenance_construction_tax_opt_2",
+        "rate": 2
+      },
+      {
+        "id": "cn_urban_maintenance_construction_tax_opt_3",
+        "rate": 3
+      },
+      {
+        "id": "cn_urban_maintenance_construction_tax_opt_4",
+        "rate": 5
+      },
+      {
+        "id": "cn_urban_maintenance_construction_tax_opt_5",
+        "rate": 7
+      },
+      {
+        "id": "cn_urban_maintenance_construction_tax_opt_6",
+        "rate": 9
+      },
+      {
+        "id": "cn_urban_maintenance_construction_tax_opt_7",
+        "rate": 11
+      },
+      {
+        "id": "cn_urban_maintenance_construction_tax_opt_8",
+        "rate": 12
+      },
+      {
+        "id": "cn_urban_maintenance_construction_tax_opt_9",
+        "rate": 14
+      },
+      {
+        "id": "cn_urban_maintenance_construction_tax_opt_10",
+        "rate": 15
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -1465,6 +2105,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.taiwanStraitTension",
       "governance.partyDiscipline"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.tradeBalance,economic.manufacturingCompetitiveness,economic.industrialPolicyExecution,governance.taiwanStraitTension,governance.partyDiscipline",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1484,7 +2126,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.povertyRate",
       "economic.smallBusinessFormation"
     ],
-    "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.gdpGrowth,economic.povertyRate,economic.smallBusinessFormation",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "salesTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "cn_value_added_tax_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "cn_value_added_tax_opt_1",
+        "rate": 3
+      },
+      {
+        "id": "cn_value_added_tax_opt_2",
+        "rate": 6
+      },
+      {
+        "id": "cn_value_added_tax_opt_3",
+        "rate": 9
+      },
+      {
+        "id": "cn_value_added_tax_opt_4",
+        "rate": 11
+      },
+      {
+        "id": "cn_value_added_tax_opt_5",
+        "rate": 13
+      },
+      {
+        "id": "cn_value_added_tax_opt_6",
+        "rate": 15
+      },
+      {
+        "id": "cn_value_added_tax_opt_7",
+        "rate": 17
+      },
+      {
+        "id": "cn_value_added_tax_opt_8",
+        "rate": 19
+      },
+      {
+        "id": "cn_value_added_tax_opt_9",
+        "rate": 22
+      },
+      {
+        "id": "cn_value_added_tax_opt_10",
+        "rate": 25
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/cn/cnLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -1499,6 +2191,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "authoredTargets": [
       "economy.workerSecurity"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics",
     "sourcePath": "src/lib/politicalLegislation/laws/ddLaws.ts",
     "sourceMatch": "matched"
@@ -1519,6 +2213,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "education.workforceSkill",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/education.academicPressure,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1538,6 +2234,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.mittelstandHealth",
       "environment.carbonEmissions"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,economic.ruralRevitalization,economic.mittelstandHealth",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1557,6 +2255,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.socialCohesion",
       "environment.carbonEmissions"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,economic.ruralRevitalization",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1578,6 +2278,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom",
       "governance.borderSecurity"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/population.migrationRate,economic.povertyRate,economic.economicFreedom,governance.borderSecurity",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1597,6 +2299,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.manufacturingCompetitiveness",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.gdpGrowth,economic.manufacturingCompetitiveness,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1617,6 +2321,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.mittelstandHealth",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.mittelstandHealth,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1636,6 +2342,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/environment.climateResilience,economic.gdpGrowth,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1655,6 +2363,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.publicTrust",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1675,6 +2385,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.corruptionIndex",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/publicSafety.recidivismRate,publicSafety.incarcerationRate,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1694,7 +2406,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.costOfLiving",
       "governance.euCohesionScore"
     ],
-    "blockingSystem": "politicalMetrics/economic.manufacturingCompetitiveness,economic.tradeBalance,economic.costOfLiving,governance.euCohesionScore",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "tariffs"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "de_customs_tariff_rate_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "de_customs_tariff_rate_opt_1",
+        "rate": 1
+      },
+      {
+        "id": "de_customs_tariff_rate_opt_2",
+        "rate": 2
+      },
+      {
+        "id": "de_customs_tariff_rate_opt_3",
+        "rate": 3
+      },
+      {
+        "id": "de_customs_tariff_rate_opt_4",
+        "rate": 4
+      },
+      {
+        "id": "de_customs_tariff_rate_opt_5",
+        "rate": 5
+      },
+      {
+        "id": "de_customs_tariff_rate_opt_6",
+        "rate": 6
+      },
+      {
+        "id": "de_customs_tariff_rate_opt_7",
+        "rate": 8
+      },
+      {
+        "id": "de_customs_tariff_rate_opt_8",
+        "rate": 10
+      },
+      {
+        "id": "de_customs_tariff_rate_opt_9",
+        "rate": 14
+      },
+      {
+        "id": "de_customs_tariff_rate_opt_10",
+        "rate": 20
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -1714,6 +2476,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "mediaInformation.disinformationRisk",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1734,6 +2498,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.foreignWorkerIntegration",
       "governance.militaryReadiness"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.bundeswehrReadiness,governance.euCohesionScore,governance.militaryReadiness",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1753,6 +2519,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.productivityGrowth",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.productivityGrowth,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1772,6 +2540,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.rdIntensity",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.rdIntensity,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1791,7 +2561,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.mittelstandHealth",
       "governance.budgetBalance"
     ],
-    "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.smallBusinessFormation,economic.mittelstandHealth,governance.budgetBalance",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "domesticCorporateTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "de_domestic_corporate_tax_rate_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "de_domestic_corporate_tax_rate_opt_1",
+        "rate": 3
+      },
+      {
+        "id": "de_domestic_corporate_tax_rate_opt_2",
+        "rate": 5
+      },
+      {
+        "id": "de_domestic_corporate_tax_rate_opt_3",
+        "rate": 8
+      },
+      {
+        "id": "de_domestic_corporate_tax_rate_opt_4",
+        "rate": 12
+      },
+      {
+        "id": "de_domestic_corporate_tax_rate_opt_5",
+        "rate": 15
+      },
+      {
+        "id": "de_domestic_corporate_tax_rate_opt_6",
+        "rate": 18
+      },
+      {
+        "id": "de_domestic_corporate_tax_rate_opt_7",
+        "rate": 20
+      },
+      {
+        "id": "de_domestic_corporate_tax_rate_opt_8",
+        "rate": 22
+      },
+      {
+        "id": "de_domestic_corporate_tax_rate_opt_9",
+        "rate": 25
+      },
+      {
+        "id": "de_domestic_corporate_tax_rate_opt_10",
+        "rate": 30
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -1809,6 +2629,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.socialMobility",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1829,6 +2651,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.socialCohesion",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1848,6 +2672,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.governmentTransparency",
       "mediaInformation.mediaPolarization"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/mediaInformation.mediaPolarization",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1867,6 +2693,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.foreignWorkerIntegration",
       "governance.budgetBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.euCohesionScore,economic.manufacturingCompetitiveness,governance.budgetBalance",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1886,6 +2714,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.genderEquality",
       "social.socialMobility"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/population.birthRate,social.kitaCoverage",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1906,6 +2736,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.unemploymentRate",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,governance.budgetBalance,governance.schuldenbremseHeadroom,economic.unemploymentRate,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1925,6 +2757,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.socialCohesion",
       "governance.budgetBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,economic.ruralRevitalization,governance.budgetBalance",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1944,6 +2778,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.foreignWorkerIntegration",
       "governance.publicTrust"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,governance.euCohesionScore",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -1963,7 +2799,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "governance.budgetBalance"
     ],
-    "blockingSystem": "politicalMetrics/economic.manufacturingCompetitiveness,economic.tradeBalance,economic.gdpGrowth,governance.budgetBalance",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "foreignCorporateTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "de_foreign_corporate_tax_rate_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "de_foreign_corporate_tax_rate_opt_1",
+        "rate": 3
+      },
+      {
+        "id": "de_foreign_corporate_tax_rate_opt_2",
+        "rate": 5
+      },
+      {
+        "id": "de_foreign_corporate_tax_rate_opt_3",
+        "rate": 8
+      },
+      {
+        "id": "de_foreign_corporate_tax_rate_opt_4",
+        "rate": 12
+      },
+      {
+        "id": "de_foreign_corporate_tax_rate_opt_5",
+        "rate": 15
+      },
+      {
+        "id": "de_foreign_corporate_tax_rate_opt_6",
+        "rate": 18
+      },
+      {
+        "id": "de_foreign_corporate_tax_rate_opt_7",
+        "rate": 20
+      },
+      {
+        "id": "de_foreign_corporate_tax_rate_opt_8",
+        "rate": 22
+      },
+      {
+        "id": "de_foreign_corporate_tax_rate_opt_9",
+        "rate": 25
+      },
+      {
+        "id": "de_foreign_corporate_tax_rate_opt_10",
+        "rate": 30
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -1982,6 +2868,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.laborParticipation",
       "social.kitaCoverage"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.laborParticipation,social.kitaCoverage",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2000,6 +2888,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.publicTrust",
       "governance.voterTurnout"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "legislation/effectDescriptor",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2018,6 +2908,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.governmentTransparency",
       "governance.budgetBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2036,6 +2928,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.povertyRate",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.povertyRate,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2056,6 +2950,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.incomeInequality",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/social.wohnungsBauRate,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2077,6 +2973,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.economicFreedom",
       "governance.borderSecurity"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/population.migrationRate,economic.gdpGrowth,economic.unemploymentRate,economic.economicFreedom,governance.borderSecurity",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2096,7 +2994,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "social.incomeInequality"
     ],
-    "blockingSystem": "politicalMetrics/economic.medianIncome,economic.povertyRate,economic.gdpGrowth",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "incomeTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "de_income_tax_rate_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "de_income_tax_rate_opt_1",
+        "rate": 10
+      },
+      {
+        "id": "de_income_tax_rate_opt_2",
+        "rate": 20
+      },
+      {
+        "id": "de_income_tax_rate_opt_3",
+        "rate": 28
+      },
+      {
+        "id": "de_income_tax_rate_opt_4",
+        "rate": 35
+      },
+      {
+        "id": "de_income_tax_rate_opt_5",
+        "rate": 42
+      },
+      {
+        "id": "de_income_tax_rate_opt_6",
+        "rate": 45
+      },
+      {
+        "id": "de_income_tax_rate_opt_7",
+        "rate": 50
+      },
+      {
+        "id": "de_income_tax_rate_opt_8",
+        "rate": 55
+      },
+      {
+        "id": "de_income_tax_rate_opt_9",
+        "rate": 60
+      },
+      {
+        "id": "de_income_tax_rate_opt_10",
+        "rate": 65
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -2116,6 +3064,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.unemploymentRate",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.unemploymentRate,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2136,6 +3086,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.laborParticipation",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.laborParticipation,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2143,8 +3095,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "de_land_culture",
     "countryId": "DE",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "landtag:landtag_chair",
       "landtag:landtag_obmann"
@@ -2155,6 +3107,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "mediaInformation.mediaPolarization",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/mediaInformation.mediaPolarization,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2162,8 +3116,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "de_land_economic_development",
     "countryId": "DE",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "landtag:landtag_chair",
       "landtag:landtag_obmann"
@@ -2175,6 +3129,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.manufacturingCompetitiveness",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.mittelstandHealth,economic.smallBusinessFormation,economic.ruralRevitalization,economic.manufacturingCompetitiveness,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2182,8 +3138,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "de_land_education",
     "countryId": "DE",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "landtag:landtag_chair",
       "landtag:landtag_obmann"
@@ -2193,6 +3149,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.socialMobility",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2200,8 +3158,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "de_land_health_services",
     "countryId": "DE",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "landtag:landtag_chair",
       "landtag:landtag_obmann"
@@ -2210,6 +3168,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "healthcare.publicHealthPreparedness",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2217,8 +3177,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "de_land_municipal_grants",
     "countryId": "DE",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "landtag:landtag_chair",
       "landtag:landtag_obmann"
@@ -2228,6 +3188,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.voterTurnout",
       "governance.budgetBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2235,8 +3197,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "de_land_police",
     "countryId": "DE",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "landtag:landtag_chair",
       "landtag:landtag_obmann"
@@ -2248,6 +3210,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.governmentTransparency",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2268,6 +3232,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "healthcare.preventableMortality",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2288,6 +3254,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.unemploymentRate",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.povertyRate,economic.medianIncome,economic.unemploymentRate,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2308,6 +3276,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "infrastructure.powerGridReliability",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2327,7 +3297,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.medianIncome",
       "economic.povertyRate"
     ],
-    "blockingSystem": "politicalMetrics/governance.rentenStabilitaet,economic.unemploymentRate,economic.medianIncome,economic.povertyRate",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "payrollTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "de_payroll_social_insurance_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "de_payroll_social_insurance_opt_1",
+        "rate": 5
+      },
+      {
+        "id": "de_payroll_social_insurance_opt_2",
+        "rate": 10
+      },
+      {
+        "id": "de_payroll_social_insurance_opt_3",
+        "rate": 13
+      },
+      {
+        "id": "de_payroll_social_insurance_opt_4",
+        "rate": 16
+      },
+      {
+        "id": "de_payroll_social_insurance_opt_5",
+        "rate": 20
+      },
+      {
+        "id": "de_payroll_social_insurance_opt_6",
+        "rate": 22
+      },
+      {
+        "id": "de_payroll_social_insurance_opt_7",
+        "rate": 24
+      },
+      {
+        "id": "de_payroll_social_insurance_opt_8",
+        "rate": 26
+      },
+      {
+        "id": "de_payroll_social_insurance_opt_9",
+        "rate": 28
+      },
+      {
+        "id": "de_payroll_social_insurance_opt_10",
+        "rate": 30
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -2346,6 +3366,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.laborParticipation",
       "governance.budgetBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.rentenStabilitaet,economic.povertyRate,economic.laborParticipation,governance.budgetBalance",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2366,6 +3388,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.governmentTransparency",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2384,6 +3408,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.governmentTransparency",
       "governance.nationalPride"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.nationalPride",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2402,6 +3428,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "mediaInformation.mediaPolarization",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/mediaInformation.mediaPolarization,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2420,6 +3448,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "environment.airQuality",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2440,6 +3470,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.gdpGrowth,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2458,6 +3490,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.costOfLiving",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2476,6 +3510,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.manufacturingCompetitiveness",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.rdIntensity,economic.manufacturingCompetitiveness,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2496,6 +3532,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.manufacturingCompetitiveness",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.rdIntensity,economic.productivityGrowth,economic.manufacturingCompetitiveness,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2516,6 +3554,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.productivityGrowth",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.mittelstandHealth,economic.smallBusinessFormation,economic.manufacturingCompetitiveness,economic.productivityGrowth,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2535,7 +3575,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.medianIncome",
       "social.incomeInequality"
     ],
-    "blockingSystem": "politicalMetrics/economic.eastWestConvergence,governance.budgetBalance,economic.medianIncome",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "solidaritySurcharge"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "de_solidarity_surcharge_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "de_solidarity_surcharge_opt_1",
+        "rate": 0.5
+      },
+      {
+        "id": "de_solidarity_surcharge_opt_2",
+        "rate": 1
+      },
+      {
+        "id": "de_solidarity_surcharge_opt_3",
+        "rate": 2
+      },
+      {
+        "id": "de_solidarity_surcharge_opt_4",
+        "rate": 4
+      },
+      {
+        "id": "de_solidarity_surcharge_opt_5",
+        "rate": 5.5
+      },
+      {
+        "id": "de_solidarity_surcharge_opt_6",
+        "rate": 6.5
+      },
+      {
+        "id": "de_solidarity_surcharge_opt_7",
+        "rate": 7.5
+      },
+      {
+        "id": "de_solidarity_surcharge_opt_8",
+        "rate": 8.5
+      },
+      {
+        "id": "de_solidarity_surcharge_opt_9",
+        "rate": 9.5
+      },
+      {
+        "id": "de_solidarity_surcharge_opt_10",
+        "rate": 10
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -2554,6 +3644,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.foreignWorkerIntegration",
       "environment.carbonEmissions"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.manufacturingCompetitiveness,economic.gdpGrowth",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2561,8 +3653,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "de_trade_tax",
     "countryId": "DE",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "bundestag:bundestag_chair",
       "bundestag:bundestag_obmann"
@@ -2573,7 +3665,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "governance.budgetBalance"
     ],
-    "blockingSystem": "politicalMetrics/economic.mittelstandHealth,economic.smallBusinessFormation,economic.gdpGrowth,governance.budgetBalance",
+    "taxRateChange": {
+      "scope": "state",
+      "taxType": "tradeTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "de_trade_tax_opt_0",
+        "rate": 200
+      },
+      {
+        "id": "de_trade_tax_opt_1",
+        "rate": 240
+      },
+      {
+        "id": "de_trade_tax_opt_2",
+        "rate": 280
+      },
+      {
+        "id": "de_trade_tax_opt_3",
+        "rate": 320
+      },
+      {
+        "id": "de_trade_tax_opt_4",
+        "rate": 360
+      },
+      {
+        "id": "de_trade_tax_opt_5",
+        "rate": 400
+      },
+      {
+        "id": "de_trade_tax_opt_6",
+        "rate": 440
+      },
+      {
+        "id": "de_trade_tax_opt_7",
+        "rate": 480
+      },
+      {
+        "id": "de_trade_tax_opt_8",
+        "rate": 520
+      },
+      {
+        "id": "de_trade_tax_opt_9",
+        "rate": 560
+      },
+      {
+        "id": "de_trade_tax_opt_10",
+        "rate": 600
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -2592,6 +3734,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.socialCohesion",
       "economic.laborParticipation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.povertyRate,economic.laborParticipation",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2612,6 +3756,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.medianIncome",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.medianIncome,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2631,7 +3777,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.povertyRate",
       "economic.smallBusinessFormation"
     ],
-    "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.gdpGrowth,economic.povertyRate,economic.smallBusinessFormation",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "salesTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "de_vat_rate_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "de_vat_rate_opt_1",
+        "rate": 5
+      },
+      {
+        "id": "de_vat_rate_opt_2",
+        "rate": 7
+      },
+      {
+        "id": "de_vat_rate_opt_3",
+        "rate": 10
+      },
+      {
+        "id": "de_vat_rate_opt_4",
+        "rate": 16
+      },
+      {
+        "id": "de_vat_rate_opt_5",
+        "rate": 19
+      },
+      {
+        "id": "de_vat_rate_opt_6",
+        "rate": 20
+      },
+      {
+        "id": "de_vat_rate_opt_7",
+        "rate": 22
+      },
+      {
+        "id": "de_vat_rate_opt_8",
+        "rate": 24
+      },
+      {
+        "id": "de_vat_rate_opt_9",
+        "rate": 25
+      },
+      {
+        "id": "de_vat_rate_opt_10",
+        "rate": 28
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -2650,6 +3846,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.civilLiberties",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.militaryReadiness,governance.nationalPride,governance.civilLiberties,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/de/deLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2671,6 +3869,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,economic.capDependency,economic.ruralRevitalization,environment.agriEmissionsShare,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2690,7 +3890,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.incomeInequality",
       "governance.budgetBalance"
     ],
-    "blockingSystem": "politicalMetrics/economic.smallBusinessFormation,economic.fdiPipelineStrength,governance.budgetBalance",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "capitalGainsTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "ie_capital_gains_tax_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "ie_capital_gains_tax_opt_1",
+        "rate": 5
+      },
+      {
+        "id": "ie_capital_gains_tax_opt_2",
+        "rate": 10
+      },
+      {
+        "id": "ie_capital_gains_tax_opt_3",
+        "rate": 15
+      },
+      {
+        "id": "ie_capital_gains_tax_opt_4",
+        "rate": 20
+      },
+      {
+        "id": "ie_capital_gains_tax_opt_5",
+        "rate": 25
+      },
+      {
+        "id": "ie_capital_gains_tax_opt_6",
+        "rate": 33
+      },
+      {
+        "id": "ie_capital_gains_tax_opt_7",
+        "rate": 40
+      },
+      {
+        "id": "ie_capital_gains_tax_opt_8",
+        "rate": 45
+      },
+      {
+        "id": "ie_capital_gains_tax_opt_9",
+        "rate": 50
+      },
+      {
+        "id": "ie_capital_gains_tax_opt_10",
+        "rate": 55
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -2711,6 +3961,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/population.birthRate,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2732,6 +3984,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "environment.climateResilience",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/environment.agriEmissionsShare,economic.gdpGrowth,environment.climateResilience,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2751,7 +4005,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.incomeInequality",
       "governance.budgetBalance"
     ],
-    "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.unemploymentRate,governance.budgetBalance",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "domesticCorporateTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "ie_corporate_tax_rate_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "ie_corporate_tax_rate_opt_1",
+        "rate": 5
+      },
+      {
+        "id": "ie_corporate_tax_rate_opt_2",
+        "rate": 9
+      },
+      {
+        "id": "ie_corporate_tax_rate_opt_3",
+        "rate": 12.5
+      },
+      {
+        "id": "ie_corporate_tax_rate_opt_4",
+        "rate": 15
+      },
+      {
+        "id": "ie_corporate_tax_rate_opt_5",
+        "rate": 18
+      },
+      {
+        "id": "ie_corporate_tax_rate_opt_6",
+        "rate": 20
+      },
+      {
+        "id": "ie_corporate_tax_rate_opt_7",
+        "rate": 23
+      },
+      {
+        "id": "ie_corporate_tax_rate_opt_8",
+        "rate": 26
+      },
+      {
+        "id": "ie_corporate_tax_rate_opt_9",
+        "rate": 30
+      },
+      {
+        "id": "ie_corporate_tax_rate_opt_10",
+        "rate": 33
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -2772,6 +4076,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/publicSafety.recidivismRate,publicSafety.incarcerationRate,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2792,6 +4098,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.irishLanguageStrength",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/education.academicPressure,social.irishLanguageStrength,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2812,7 +4120,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.fdiPipelineStrength",
       "economic.mncDependency"
     ],
-    "blockingSystem": "politicalMetrics/economic.tradeBalance,economic.costOfLiving,economic.manufacturingCompetitiveness,economic.fdiPipelineStrength,economic.mncDependency",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "tariffs"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "ie_customs_tariff_rate_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "ie_customs_tariff_rate_opt_1",
+        "rate": 2
+      },
+      {
+        "id": "ie_customs_tariff_rate_opt_2",
+        "rate": 5
+      },
+      {
+        "id": "ie_customs_tariff_rate_opt_3",
+        "rate": 8
+      },
+      {
+        "id": "ie_customs_tariff_rate_opt_4",
+        "rate": 12
+      },
+      {
+        "id": "ie_customs_tariff_rate_opt_5",
+        "rate": 16
+      },
+      {
+        "id": "ie_customs_tariff_rate_opt_6",
+        "rate": 20
+      },
+      {
+        "id": "ie_customs_tariff_rate_opt_7",
+        "rate": 25
+      },
+      {
+        "id": "ie_customs_tariff_rate_opt_8",
+        "rate": 30
+      },
+      {
+        "id": "ie_customs_tariff_rate_opt_9",
+        "rate": 40
+      },
+      {
+        "id": "ie_customs_tariff_rate_opt_10",
+        "rate": 50
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -2831,6 +4189,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2850,6 +4210,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.civilLiberties",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.militaryReadiness,governance.nationalPride,governance.civilLiberties,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2870,6 +4232,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.unityReferendumSupport",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.gdpGrowth,governance.unityReferendumSupport,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2890,6 +4254,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2911,6 +4277,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "publicSafety.crimeRate"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/publicSafety.recidivismRate,healthcare.mentalHealthAccess,publicSafety.incarcerationRate,governance.budgetBalance",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2930,6 +4298,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2950,6 +4320,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.incomeInequality",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2969,6 +4341,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.publicTrust",
       "governance.governmentTransparency"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "legislation/effectDescriptor",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -2989,7 +4363,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "social.socialMobility"
     ],
-    "blockingSystem": "politicalMetrics/environment.agriEmissionsShare,economic.costOfLiving,governance.budgetBalance",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "exciseDuty"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "ie_excise_duty_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "ie_excise_duty_opt_1",
+        "rate": 25
+      },
+      {
+        "id": "ie_excise_duty_opt_2",
+        "rate": 50
+      },
+      {
+        "id": "ie_excise_duty_opt_3",
+        "rate": 75
+      },
+      {
+        "id": "ie_excise_duty_opt_4",
+        "rate": 100
+      },
+      {
+        "id": "ie_excise_duty_opt_5",
+        "rate": 125
+      },
+      {
+        "id": "ie_excise_duty_opt_6",
+        "rate": 150
+      },
+      {
+        "id": "ie_excise_duty_opt_7",
+        "rate": 175
+      },
+      {
+        "id": "ie_excise_duty_opt_8",
+        "rate": 200
+      },
+      {
+        "id": "ie_excise_duty_opt_9",
+        "rate": 250
+      },
+      {
+        "id": "ie_excise_duty_opt_10",
+        "rate": 300
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -3009,6 +4433,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.debtToGdp",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.unemploymentRate,governance.budgetBalance,governance.debtToGdp,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3030,6 +4456,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.mncDependency",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,environment.agriEmissionsShare,economic.tradeBalance,economic.ruralRevitalization,economic.mncDependency,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3049,6 +4477,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.socialCohesion",
       "governance.budgetBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3069,7 +4499,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.mncDependency",
       "governance.budgetBalance"
     ],
-    "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.tradeBalance,economic.fdiPipelineStrength,economic.mncDependency,governance.budgetBalance",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "foreignCorporateTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "ie_foreign_corporate_tax_rate_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "ie_foreign_corporate_tax_rate_opt_1",
+        "rate": 5
+      },
+      {
+        "id": "ie_foreign_corporate_tax_rate_opt_2",
+        "rate": 9
+      },
+      {
+        "id": "ie_foreign_corporate_tax_rate_opt_3",
+        "rate": 12.5
+      },
+      {
+        "id": "ie_foreign_corporate_tax_rate_opt_4",
+        "rate": 15
+      },
+      {
+        "id": "ie_foreign_corporate_tax_rate_opt_5",
+        "rate": 18
+      },
+      {
+        "id": "ie_foreign_corporate_tax_rate_opt_6",
+        "rate": 20
+      },
+      {
+        "id": "ie_foreign_corporate_tax_rate_opt_7",
+        "rate": 23
+      },
+      {
+        "id": "ie_foreign_corporate_tax_rate_opt_8",
+        "rate": 26
+      },
+      {
+        "id": "ie_foreign_corporate_tax_rate_opt_9",
+        "rate": 30
+      },
+      {
+        "id": "ie_foreign_corporate_tax_rate_opt_10",
+        "rate": 33
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -3090,6 +4570,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3109,6 +4591,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.civicParticipation",
       "social.socialCohesion"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "legislation/effectDescriptor",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3127,6 +4611,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.publicTrust",
       "social.civicParticipation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "legislation/effectDescriptor",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3148,6 +4634,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/healthcare.slaintecareProgress,healthcare.hseWaitingListMonths,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3169,6 +4657,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.incomeInequality",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3191,6 +4681,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/social.housingCompletionsRate,social.rentalPressureIndex,social.vacantPropertyRate,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3213,6 +4705,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "governance.borderSecurity"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/population.migrationRate,governance.directProvisionLoad,governance.budgetBalance,governance.borderSecurity",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3232,7 +4726,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.incomeInequality",
       "economic.gdpGrowth"
     ],
-    "blockingSystem": "politicalMetrics/economic.medianIncome,economic.povertyRate,economic.gdpGrowth",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "incomeTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "ie_income_tax_rate_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "ie_income_tax_rate_opt_1",
+        "rate": 10
+      },
+      {
+        "id": "ie_income_tax_rate_opt_2",
+        "rate": 15
+      },
+      {
+        "id": "ie_income_tax_rate_opt_3",
+        "rate": 20
+      },
+      {
+        "id": "ie_income_tax_rate_opt_4",
+        "rate": 25
+      },
+      {
+        "id": "ie_income_tax_rate_opt_5",
+        "rate": 30
+      },
+      {
+        "id": "ie_income_tax_rate_opt_6",
+        "rate": 35
+      },
+      {
+        "id": "ie_income_tax_rate_opt_7",
+        "rate": 40
+      },
+      {
+        "id": "ie_income_tax_rate_opt_8",
+        "rate": 45
+      },
+      {
+        "id": "ie_income_tax_rate_opt_9",
+        "rate": 50
+      },
+      {
+        "id": "ie_income_tax_rate_opt_10",
+        "rate": 55
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -3252,6 +4796,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.irishLanguageStrength",
       "governance.budgetBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/social.irishLanguageStrength,governance.budgetBalance",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3272,7 +4818,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.socialMobility",
       "social.homelessnessRate"
     ],
-    "blockingSystem": "politicalMetrics/social.vacantPropertyRate,governance.budgetBalance",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "propertyTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "ie_local_property_tax_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "ie_local_property_tax_opt_1",
+        "rate": 0.05
+      },
+      {
+        "id": "ie_local_property_tax_opt_2",
+        "rate": 0.1
+      },
+      {
+        "id": "ie_local_property_tax_opt_3",
+        "rate": 0.15
+      },
+      {
+        "id": "ie_local_property_tax_opt_4",
+        "rate": 0.18
+      },
+      {
+        "id": "ie_local_property_tax_opt_5",
+        "rate": 0.25
+      },
+      {
+        "id": "ie_local_property_tax_opt_6",
+        "rate": 0.3
+      },
+      {
+        "id": "ie_local_property_tax_opt_7",
+        "rate": 0.4
+      },
+      {
+        "id": "ie_local_property_tax_opt_8",
+        "rate": 0.5
+      },
+      {
+        "id": "ie_local_property_tax_opt_9",
+        "rate": 0.75
+      },
+      {
+        "id": "ie_local_property_tax_opt_10",
+        "rate": 1
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -3290,6 +4886,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "mediaInformation.stateMediaControl",
       "governance.governmentTransparency"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/mediaInformation.stateMediaControl",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3310,6 +4908,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3330,6 +4930,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.socialMobility",
       "economic.unemploymentRate"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.medianIncome,economic.povertyRate,economic.smallBusinessFormation,economic.unemploymentRate",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3351,6 +4953,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.foreignWorkerIntegration",
       "governance.militaryReadiness"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.unityReferendumSupport,governance.militaryReadiness",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3372,6 +4976,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/population.birthRate,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3393,6 +4999,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/environment.agriEmissionsShare,economic.ruralRevitalization,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3412,7 +5020,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "social.socialMobility"
     ],
-    "blockingSystem": "politicalMetrics/economic.unemploymentRate,economic.medianIncome,governance.budgetBalance",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "payrollTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "ie_prsi_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "ie_prsi_opt_1",
+        "rate": 2
+      },
+      {
+        "id": "ie_prsi_opt_2",
+        "rate": 4
+      },
+      {
+        "id": "ie_prsi_opt_3",
+        "rate": 6
+      },
+      {
+        "id": "ie_prsi_opt_4",
+        "rate": 8
+      },
+      {
+        "id": "ie_prsi_opt_5",
+        "rate": 11
+      },
+      {
+        "id": "ie_prsi_opt_6",
+        "rate": 14
+      },
+      {
+        "id": "ie_prsi_opt_7",
+        "rate": 17
+      },
+      {
+        "id": "ie_prsi_opt_8",
+        "rate": 20
+      },
+      {
+        "id": "ie_prsi_opt_9",
+        "rate": 23
+      },
+      {
+        "id": "ie_prsi_opt_10",
+        "rate": 26
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -3432,6 +5090,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3453,6 +5113,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,population.urbanizationRate,economic.gdpGrowth,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3460,8 +5122,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "ie_regional_health",
     "countryId": "IE",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
@@ -3472,6 +5134,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "healthcare.publicHealthPreparedness",
       "governance.budgetBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/healthcare.hseWaitingListMonths,governance.budgetBalance",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3479,8 +5143,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "ie_regional_housing",
     "countryId": "IE",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
@@ -3492,6 +5156,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.rentalPressureIndex",
       "governance.budgetBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/social.housingCompletionsRate,social.vacantPropertyRate,social.rentalPressureIndex,governance.budgetBalance",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3499,8 +5165,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "ie_regional_skills",
     "countryId": "IE",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
@@ -3512,6 +5178,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.unemploymentRate",
       "governance.budgetBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.unemploymentRate,governance.budgetBalance",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3519,8 +5187,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "ie_regional_transport",
     "countryId": "IE",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "dail:dail_chair",
       "dail:dail_vice"
@@ -3532,6 +5200,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "infrastructure.roadCondition",
       "governance.budgetBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,governance.budgetBalance",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3552,6 +5222,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3572,6 +5244,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.rdIntensity,economic.fdiPipelineStrength,economic.manufacturingCompetitiveness,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3593,6 +5267,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,social.irishLanguageStrength,population.urbanizationRate,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3614,6 +5290,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.smallBusinessFormation,economic.gdpGrowth,economic.unemploymentRate,economic.mncDependency,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3634,7 +5312,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "social.rentalPressureIndex"
     ],
-    "blockingSystem": "politicalMetrics/economic.smallBusinessFormation,social.vacantPropertyRate,governance.budgetBalance,social.rentalPressureIndex",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "stampDuty"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "ie_stamp_duty_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "ie_stamp_duty_opt_1",
+        "rate": 0.5
+      },
+      {
+        "id": "ie_stamp_duty_opt_2",
+        "rate": 1
+      },
+      {
+        "id": "ie_stamp_duty_opt_3",
+        "rate": 2
+      },
+      {
+        "id": "ie_stamp_duty_opt_4",
+        "rate": 3
+      },
+      {
+        "id": "ie_stamp_duty_opt_5",
+        "rate": 5
+      },
+      {
+        "id": "ie_stamp_duty_opt_6",
+        "rate": 7.5
+      },
+      {
+        "id": "ie_stamp_duty_opt_7",
+        "rate": 10
+      },
+      {
+        "id": "ie_stamp_duty_opt_8",
+        "rate": 12
+      },
+      {
+        "id": "ie_stamp_duty_opt_9",
+        "rate": 15
+      },
+      {
+        "id": "ie_stamp_duty_opt_10",
+        "rate": 20
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -3654,6 +5382,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.laborParticipation",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.povertyRate,economic.laborParticipation,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3675,6 +5405,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3695,6 +5427,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.unemploymentRate,economic.povertyRate,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3714,7 +5448,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "social.incomeInequality"
     ],
-    "blockingSystem": "politicalMetrics/economic.medianIncome,economic.povertyRate,governance.budgetBalance",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "universalSocialCharge"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "ie_usc_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "ie_usc_opt_1",
+        "rate": 1
+      },
+      {
+        "id": "ie_usc_opt_2",
+        "rate": 2
+      },
+      {
+        "id": "ie_usc_opt_3",
+        "rate": 4
+      },
+      {
+        "id": "ie_usc_opt_4",
+        "rate": 6
+      },
+      {
+        "id": "ie_usc_opt_5",
+        "rate": 8
+      },
+      {
+        "id": "ie_usc_opt_6",
+        "rate": 10
+      },
+      {
+        "id": "ie_usc_opt_7",
+        "rate": 12
+      },
+      {
+        "id": "ie_usc_opt_8",
+        "rate": 14
+      },
+      {
+        "id": "ie_usc_opt_9",
+        "rate": 16
+      },
+      {
+        "id": "ie_usc_opt_10",
+        "rate": 20
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -3734,7 +5518,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation",
       "governance.budgetBalance"
     ],
-    "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.gdpGrowth,economic.povertyRate,economic.smallBusinessFormation,governance.budgetBalance",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "salesTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "ie_vat_rate_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "ie_vat_rate_opt_1",
+        "rate": 5
+      },
+      {
+        "id": "ie_vat_rate_opt_2",
+        "rate": 9
+      },
+      {
+        "id": "ie_vat_rate_opt_3",
+        "rate": 13.5
+      },
+      {
+        "id": "ie_vat_rate_opt_4",
+        "rate": 17
+      },
+      {
+        "id": "ie_vat_rate_opt_5",
+        "rate": 21
+      },
+      {
+        "id": "ie_vat_rate_opt_6",
+        "rate": 23
+      },
+      {
+        "id": "ie_vat_rate_opt_7",
+        "rate": 25
+      },
+      {
+        "id": "ie_vat_rate_opt_8",
+        "rate": 27
+      },
+      {
+        "id": "ie_vat_rate_opt_9",
+        "rate": 30
+      },
+      {
+        "id": "ie_vat_rate_opt_10",
+        "rate": 35
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -3756,6 +5590,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "population.migrationRate",
       "social.housingAffordability"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.fdiPipelineStrength,economic.unemploymentRate,economic.mncDependency,population.migrationRate",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3775,6 +5611,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.productivityGrowth",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.medianIncome,economic.productivityGrowth,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3793,6 +5631,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.unemploymentRate",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.unemploymentRate,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3815,6 +5655,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "population.birthRate",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.povertyRate,governance.budgetBalance,economic.unemploymentRate,population.birthRate,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/ie/ieLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3837,6 +5679,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.genderEquality",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/education.academicPressure,healthcare.mentalHealthAccess,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3858,6 +5702,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation",
       "economic.gdpGrowth"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,economic.ruralRevitalization,economic.smallBusinessFormation,economic.gdpGrowth",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3879,6 +5725,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.publicTrust",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3901,6 +5749,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.foodSecurity",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.foodSecurity,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3920,6 +5770,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.publicTrust",
       "social.socialCohesion"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "legislation/effectDescriptor",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3941,7 +5793,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.povertyRate",
       "economic.foodSecurity"
     ],
-    "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.gdpGrowth,economic.povertyRate,economic.foodSecurity",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "salesTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "jp_consumption_tax_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "jp_consumption_tax_opt_1",
+        "rate": 3
+      },
+      {
+        "id": "jp_consumption_tax_opt_2",
+        "rate": 5
+      },
+      {
+        "id": "jp_consumption_tax_opt_3",
+        "rate": 8
+      },
+      {
+        "id": "jp_consumption_tax_opt_4",
+        "rate": 9
+      },
+      {
+        "id": "jp_consumption_tax_opt_5",
+        "rate": 10
+      },
+      {
+        "id": "jp_consumption_tax_opt_6",
+        "rate": 13
+      },
+      {
+        "id": "jp_consumption_tax_opt_7",
+        "rate": 15
+      },
+      {
+        "id": "jp_consumption_tax_opt_8",
+        "rate": 18
+      },
+      {
+        "id": "jp_consumption_tax_opt_9",
+        "rate": 22
+      },
+      {
+        "id": "jp_consumption_tax_opt_10",
+        "rate": 25
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -3962,6 +5864,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "healthcare.mentalHealthAccess",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/publicSafety.incarcerationRate,healthcare.mentalHealthAccess,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -3982,7 +5886,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.foodSecurity",
       "economic.smallBusinessFormation"
     ],
-    "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.foodSecurity,economic.smallBusinessFormation",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "tariffs"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "jp_customs_tariff_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "jp_customs_tariff_opt_1",
+        "rate": 1
+      },
+      {
+        "id": "jp_customs_tariff_opt_2",
+        "rate": 2
+      },
+      {
+        "id": "jp_customs_tariff_opt_3",
+        "rate": 3
+      },
+      {
+        "id": "jp_customs_tariff_opt_4",
+        "rate": 3.5
+      },
+      {
+        "id": "jp_customs_tariff_opt_5",
+        "rate": 4
+      },
+      {
+        "id": "jp_customs_tariff_opt_6",
+        "rate": 6
+      },
+      {
+        "id": "jp_customs_tariff_opt_7",
+        "rate": 8
+      },
+      {
+        "id": "jp_customs_tariff_opt_8",
+        "rate": 12
+      },
+      {
+        "id": "jp_customs_tariff_opt_9",
+        "rate": 16
+      },
+      {
+        "id": "jp_customs_tariff_opt_10",
+        "rate": 20
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -4003,6 +5957,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "infrastructure.broadbandAccess",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4024,6 +5980,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.roboticsAdoption",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4045,6 +6003,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.publicTrust",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4067,6 +6027,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.gdpGrowth,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4088,6 +6050,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.ruralRevitalization",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/environment.naturalDisasterPreparedness,economic.ruralRevitalization,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4108,7 +6072,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "economic.unemploymentRate"
     ],
-    "blockingSystem": "politicalMetrics/economic.smallBusinessFormation,economic.gdpGrowth,economic.unemploymentRate",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "domesticCorporateTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "jp_domestic_corporation_tax_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "jp_domestic_corporation_tax_opt_1",
+        "rate": 5
+      },
+      {
+        "id": "jp_domestic_corporation_tax_opt_2",
+        "rate": 9
+      },
+      {
+        "id": "jp_domestic_corporation_tax_opt_3",
+        "rate": 14
+      },
+      {
+        "id": "jp_domestic_corporation_tax_opt_4",
+        "rate": 18
+      },
+      {
+        "id": "jp_domestic_corporation_tax_opt_5",
+        "rate": 23
+      },
+      {
+        "id": "jp_domestic_corporation_tax_opt_6",
+        "rate": 28
+      },
+      {
+        "id": "jp_domestic_corporation_tax_opt_7",
+        "rate": 32
+      },
+      {
+        "id": "jp_domestic_corporation_tax_opt_8",
+        "rate": 37
+      },
+      {
+        "id": "jp_domestic_corporation_tax_opt_9",
+        "rate": 41
+      },
+      {
+        "id": "jp_domestic_corporation_tax_opt_10",
+        "rate": 46
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -4130,6 +6144,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.incomeInequality",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/education.academicPressure,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4152,6 +6168,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.socialCohesion",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4171,6 +6189,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.publicTrust",
       "social.socialCohesion"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "legislation/effectDescriptor",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4191,6 +6211,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.genderEquality",
       "social.workLifeBalance"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/population.birthRate",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4213,6 +6235,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.costOfLiving",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.unemploymentRate,economic.medianIncome,economic.costOfLiving,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4220,8 +6244,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "jp_fixed_asset_tax",
     "countryId": "JP",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
@@ -4233,7 +6257,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation",
       "governance.publicTrust"
     ],
-    "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.smallBusinessFormation",
+    "taxRateChange": {
+      "scope": "state",
+      "taxType": "fixedAssetTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "jp_fixed_asset_tax_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "jp_fixed_asset_tax_opt_1",
+        "rate": 0.2
+      },
+      {
+        "id": "jp_fixed_asset_tax_opt_2",
+        "rate": 0.5
+      },
+      {
+        "id": "jp_fixed_asset_tax_opt_3",
+        "rate": 0.8
+      },
+      {
+        "id": "jp_fixed_asset_tax_opt_4",
+        "rate": 1.1
+      },
+      {
+        "id": "jp_fixed_asset_tax_opt_5",
+        "rate": 1.4
+      },
+      {
+        "id": "jp_fixed_asset_tax_opt_6",
+        "rate": 1.8
+      },
+      {
+        "id": "jp_fixed_asset_tax_opt_7",
+        "rate": 2.2
+      },
+      {
+        "id": "jp_fixed_asset_tax_opt_8",
+        "rate": 3
+      },
+      {
+        "id": "jp_fixed_asset_tax_opt_9",
+        "rate": 4
+      },
+      {
+        "id": "jp_fixed_asset_tax_opt_10",
+        "rate": 5
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -4253,6 +6327,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "environment.naturalDisasterPreparedness",
       "healthcare.publicHealthPreparedness"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,environment.naturalDisasterPreparedness",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4273,6 +6349,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.foreignWorkerIntegration",
       "economic.gdpGrowth"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4294,7 +6372,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation",
       "economic.costOfLiving"
     ],
-    "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.unemploymentRate,economic.smallBusinessFormation,economic.costOfLiving",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "foreignCorporateTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "jp_foreign_corporation_tax_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "jp_foreign_corporation_tax_opt_1",
+        "rate": 6
+      },
+      {
+        "id": "jp_foreign_corporation_tax_opt_2",
+        "rate": 13
+      },
+      {
+        "id": "jp_foreign_corporation_tax_opt_3",
+        "rate": 19
+      },
+      {
+        "id": "jp_foreign_corporation_tax_opt_4",
+        "rate": 26
+      },
+      {
+        "id": "jp_foreign_corporation_tax_opt_5",
+        "rate": 32
+      },
+      {
+        "id": "jp_foreign_corporation_tax_opt_6",
+        "rate": 39
+      },
+      {
+        "id": "jp_foreign_corporation_tax_opt_7",
+        "rate": 45
+      },
+      {
+        "id": "jp_foreign_corporation_tax_opt_8",
+        "rate": 52
+      },
+      {
+        "id": "jp_foreign_corporation_tax_opt_9",
+        "rate": 58
+      },
+      {
+        "id": "jp_foreign_corporation_tax_opt_10",
+        "rate": 65
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -4316,6 +6444,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.unemploymentRate,population.migrationRate,economic.gdpGrowth,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4337,6 +6467,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.workLifeBalance",
       "economic.medianIncome"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/population.birthRate,economic.medianIncome",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4358,7 +6490,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "social.incomeInequality"
     ],
-    "blockingSystem": "politicalMetrics/economic.medianIncome,economic.povertyRate,economic.gdpGrowth",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "incomeTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "jp_income_tax_rate_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "jp_income_tax_rate_opt_1",
+        "rate": 5
+      },
+      {
+        "id": "jp_income_tax_rate_opt_2",
+        "rate": 10
+      },
+      {
+        "id": "jp_income_tax_rate_opt_3",
+        "rate": 15
+      },
+      {
+        "id": "jp_income_tax_rate_opt_4",
+        "rate": 20
+      },
+      {
+        "id": "jp_income_tax_rate_opt_5",
+        "rate": 25
+      },
+      {
+        "id": "jp_income_tax_rate_opt_6",
+        "rate": 30
+      },
+      {
+        "id": "jp_income_tax_rate_opt_7",
+        "rate": 35
+      },
+      {
+        "id": "jp_income_tax_rate_opt_8",
+        "rate": 40
+      },
+      {
+        "id": "jp_income_tax_rate_opt_9",
+        "rate": 45
+      },
+      {
+        "id": "jp_income_tax_rate_opt_10",
+        "rate": 50
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -4379,6 +6561,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "publicSafety.crimeRate",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4400,6 +6584,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.civilLiberties",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/governance.militaryReadiness,governance.nationalPride,governance.civilLiberties,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4422,6 +6608,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.genderEquality",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,population.birthRate,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4442,6 +6630,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "education.educationSpending",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4462,6 +6652,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "mediaInformation.stateMediaControl",
       "governance.governmentTransparency"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/mediaInformation.stateMediaControl",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4484,6 +6676,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "publicSafety.crimeRate",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,education.academicPressure,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4505,6 +6699,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation",
       "social.incomeInequality"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.medianIncome,economic.povertyRate,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4525,6 +6721,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.povertyRate",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.povertyRate,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4546,6 +6744,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.costOfLiving",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4567,6 +6767,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.budgetBalance",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.povertyRate,economic.laborParticipation,governance.budgetBalance,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4587,6 +6789,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "healthcare.mentalHealthAccess",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4606,6 +6810,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "healthcare.publicHealthPreparedness",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4628,6 +6834,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "environment.carbonEmissions",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.gdpGrowth,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4649,6 +6857,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.rdIntensity,economic.gdpGrowth,economic.smallBusinessFormation,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4669,6 +6879,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.ruralRevitalization",
       "economic.smallBusinessFormation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.foodSecurity,economic.ruralRevitalization,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4689,6 +6901,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "governance.governmentTransparency",
       "governance.publicTrust"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4710,6 +6924,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.ruralRevitalization",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.unemploymentRate,economic.smallBusinessFormation,economic.ruralRevitalization,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4731,6 +6947,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.ruralRevitalization",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4752,6 +6970,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.foodSecurity",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.foodSecurity,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4772,6 +6992,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "social.socialCohesion",
       "governance.governmentTransparency"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "legislation/effectDescriptor",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4792,6 +7014,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.ruralRevitalization",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4812,6 +7036,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.ruralRevitalization",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4833,6 +7059,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.unemploymentRate,economic.ruralRevitalization,economic.smallBusinessFormation,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4853,6 +7081,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "publicSafety.crimeRate",
       "healthcare.mentalHealthAccess"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4874,6 +7104,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.unemploymentRate",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,economic.unemploymentRate,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4895,6 +7127,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "environment.naturalDisasterPreparedness",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/environment.naturalDisasterPreparedness,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4917,6 +7151,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.costOfLiving,economic.gdpGrowth,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4937,6 +7173,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.rdIntensity,economic.gdpGrowth,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -4944,8 +7182,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
   {
     "id": "jp_resident_tax",
     "countryId": "JP",
-    "nativeScope": "both",
-    "sourceScope": "both",
+    "nativeScope": "regional",
+    "sourceScope": "state",
     "prerequisites": [
       "shugiin:shugiin_chair",
       "shugiin:shugiin_ranking",
@@ -4957,7 +7195,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "education.educationSpending",
       "publicSafety.crimeRate"
     ],
-    "blockingSystem": "legislation/effectDescriptor",
+    "taxRateChange": {
+      "scope": "state",
+      "taxType": "residentTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "jp_resident_tax_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "jp_resident_tax_opt_1",
+        "rate": 2
+      },
+      {
+        "id": "jp_resident_tax_opt_2",
+        "rate": 4
+      },
+      {
+        "id": "jp_resident_tax_opt_3",
+        "rate": 6
+      },
+      {
+        "id": "jp_resident_tax_opt_4",
+        "rate": 8
+      },
+      {
+        "id": "jp_resident_tax_opt_5",
+        "rate": 10
+      },
+      {
+        "id": "jp_resident_tax_opt_6",
+        "rate": 12
+      },
+      {
+        "id": "jp_resident_tax_opt_7",
+        "rate": 14
+      },
+      {
+        "id": "jp_resident_tax_opt_8",
+        "rate": 16
+      },
+      {
+        "id": "jp_resident_tax_opt_9",
+        "rate": 18
+      },
+      {
+        "id": "jp_resident_tax_opt_10",
+        "rate": 20
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -4979,6 +7267,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.unemploymentRate,economic.gdpGrowth,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -5000,6 +7290,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "infrastructure.transportEfficiency",
       "economic.unemploymentRate"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.ruralRevitalization,population.urbanizationRate,economic.unemploymentRate",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -5022,6 +7314,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.gdpGrowth",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.smallBusinessFormation,economic.unemploymentRate,economic.ruralRevitalization,economic.gdpGrowth,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -5042,7 +7336,57 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "healthcare.elderCareQuality",
       "healthcare.mentalHealthAccess"
     ],
-    "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess",
+    "taxRateChange": {
+      "scope": "federal",
+      "taxType": "payrollTax"
+    },
+    "authoredRateOptions": [
+      {
+        "id": "jp_social_insurance_opt_0",
+        "rate": 0
+      },
+      {
+        "id": "jp_social_insurance_opt_1",
+        "rate": 3
+      },
+      {
+        "id": "jp_social_insurance_opt_2",
+        "rate": 6
+      },
+      {
+        "id": "jp_social_insurance_opt_3",
+        "rate": 9
+      },
+      {
+        "id": "jp_social_insurance_opt_4",
+        "rate": 12
+      },
+      {
+        "id": "jp_social_insurance_opt_5",
+        "rate": 15
+      },
+      {
+        "id": "jp_social_insurance_opt_6",
+        "rate": 18
+      },
+      {
+        "id": "jp_social_insurance_opt_7",
+        "rate": 21
+      },
+      {
+        "id": "jp_social_insurance_opt_8",
+        "rate": 24
+      },
+      {
+        "id": "jp_social_insurance_opt_9",
+        "rate": 27
+      },
+      {
+        "id": "jp_social_insurance_opt_10",
+        "rate": 30
+      }
+    ],
+    "blockingSystem": "budget/taxRateLadder",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
   },
@@ -5063,6 +7407,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "economic.smallBusinessFormation",
       "social.foreignWorkerIntegration"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/economic.gdpGrowth,economic.foodSecurity,economic.smallBusinessFormation",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -5085,6 +7431,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "population.birthRate",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/population.birthRate,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -5106,6 +7454,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "population.migrationRate",
       "economic.economicFreedom"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/population.migrationRate,economic.economicFreedom",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -5127,6 +7477,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
       "population.birthRate",
       "social.genderEquality"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/healthcare.mentalHealthAccess,population.birthRate",
     "sourcePath": "src/lib/seeds/jp/jpLegislationTypes.ts",
     "sourceMatch": "matched"
@@ -5142,6 +7494,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "authoredTargets": [
       "economy.stability"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "plannedEconomy",
     "sourcePath": "src/lib/politicalLegislation/laws/ruLaws.ts",
     "sourceMatch": "matched"
@@ -5157,6 +7511,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "authoredTargets": [
       "defense.security"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "military",
     "sourcePath": "src/lib/politicalLegislation/laws/ukLaws.ts",
     "sourceMatch": "matched"
@@ -5168,6 +7524,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "sourceScope": null,
     "prerequisites": [],
     "authoredTargets": [],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "centralBank/governance",
     "sourcePath": "NO_AHDGAME_SOURCE_MATCH",
     "sourceMatch": "unmatched"
@@ -5183,6 +7541,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "authoredTargets": [
       "defense.armedForces"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "military/conflict",
     "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts",
     "sourceMatch": "matched"
@@ -5198,6 +7558,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "authoredTargets": [
       "defense.diplomacy"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "military/alliance",
     "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts",
     "sourceMatch": "matched"
@@ -5213,6 +7575,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "authoredTargets": [
       "economy.mobility"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "budget/grants",
     "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts",
     "sourceMatch": "matched"
@@ -5224,6 +7588,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "sourceScope": null,
     "prerequisites": [],
     "authoredTargets": [],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "elections/electoralLaw",
     "sourcePath": "NO_AHDGAME_SOURCE_MATCH",
     "sourceMatch": "unmatched"
@@ -5239,6 +7605,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "authoredTargets": [
       "environment.conservation"
     ],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "politicalMetrics/environment",
     "sourcePath": "src/lib/politicalLegislation/laws/usLaws.ts",
     "sourceMatch": "matched"
@@ -5250,6 +7618,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "sourceScope": null,
     "prerequisites": [],
     "authoredTargets": [],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "subsidy/corporation",
     "sourcePath": "NO_AHDGAME_SOURCE_MATCH",
     "sourceMatch": "unmatched"
@@ -5261,6 +7631,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "sourceScope": null,
     "prerequisites": [],
     "authoredTargets": [],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "tariff/customs",
     "sourcePath": "NO_AHDGAME_SOURCE_MATCH",
     "sourceMatch": "unmatched"
@@ -5272,6 +7644,8 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "sourceScope": null,
     "prerequisites": [],
     "authoredTargets": [],
+    "taxRateChange": null,
+    "authoredRateOptions": [],
     "blockingSystem": "labour/union",
     "sourcePath": "NO_AHDGAME_SOURCE_MATCH",
     "sourceMatch": "unmatched"
