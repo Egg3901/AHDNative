@@ -1037,8 +1037,9 @@ is blister packs of pills, not a manufacturing line).
   takes the Actions fallback with the fallback accessible name. No route,
   mechanic, or sector mapping was invented.
 
-Honest gaps: the corporation, central-bank, IMF, and cabinet surfaces from
-#378 stay open (no Native consumer or rights manifest yet), the other 14
+Honest gaps: the corporation, IMF, and cabinet surfaces from
+#378 stay open (no Native consumer or rights manifest yet; central-bank
+coverage moved to the #386 checkpoint below), the other 14
 commodity slugs stay remote-only, and the reference commodity browse
 surface has no Native equivalent. The issue stays open with
 `status: partial`, acceptance checklist unchanged. Full #378 acceptance
@@ -1053,6 +1054,56 @@ accessible name) and `src/ui/MarketsPanel.test.tsx` (company-detail hero
 for a bundled sector, Actions fallback with the fallback accessible name).
 Validation: focused Vitest on both files only; no full verify, typecheck,
 build, or device run was performed for this pass.
+
+## Banking hero subset checkpoint, 2026-09-15 (#386 partial)
+
+#386 partial, stacked on the #378 offline hero pipeline. The three
+reference central-bank heroes with a local file upstream ship offline,
+byte-identical to AHDGame at `e364c04` under the same public path;
+every other Native country takes the Actions fallback, never a remote
+fetch or broken image.
+
+- New total typed `bankingHero()` / `bankingHeroAlt()` in
+  `src/ui/RouteHero.tsx`: Native US/UK/JP map to
+  `federal-reserve`/`bank-of-england`/`bank-of-japan`, mirroring the
+  reference per-country `centralBank.heroImage` keying
+  (`src/lib/constants/countries.ts`; Native uses UK where the reference
+  uses GB). US/UK alts repeat the reference `heroAlt` verbatim,
+  confirmed against the inspected local WebP; JP carries no reference
+  alt so its alt follows the upstream file identity (File:Bank of Japan
+  2010.jpg). Exact-key lookup with the nonempty
+  `BANKING_HERO_FALLBACK_ALT` for every unbundled or unknown key.
+- Banking (`BankingSection` in `src/ui/FinancePanel.tsx`) now renders a
+  reachable `RouteHero` keyed by the world's country id (new optional
+  `countryId` prop, wired from `GameScreen`) with cash/savings balances
+  and the savings holder as hero content. Deposit/withdraw validation,
+  balance limits, busy/unavailable states and action payloads are
+  unchanged. No new CSS: the shared 172px phone / 220px wider crop
+  applies.
+
+Honest gaps: DD/CN/DE/IE and all other unbundled Native countries show
+generic Actions art rather than their real central bank; the reference
+BankingHub icon/gradient composition is not ported (no photo asset
+exists for it); `ecb`, `peoples-bank-of-china` and
+`banco-central-do-brasil` stay remote-only with no local file upstream;
+IMF/cabinet heroes still have no Native consumer surface. Rendered
+320/390/desktop overflow proof stays future work (this slice asserts
+the crop CSS text only). The issue stays open with `status: partial`.
+
+Evidence: `src/ui/BankingHeroImagery.test.tsx` (12 cases: resolver,
+total alt helper, grounded alts, fallback accessible name, local webp
+bytes, rendered decode, error fallback, Banking-surface balances and
+transfer controls, deposit/withdraw mechanics, crop CSS) and the
+untouched `src/ui/FinancePanel.test.tsx` (8 cases, still green).
+Validation: focused Vitest on both files only (20 passed); no install,
+full typecheck/verify/build, cargo, Playwright, or CI was run for this
+pass. SHA-256 provenance and CC attribution for all 3 assets are
+recorded in [UI reference](UI-REFERENCE.md).
+Repair 2026-09-15: replayed as one commit onto rewritten
+`ui/corporation-commodity-heroes` (`d7771ec`); old CI failure was one
+unrelated caucus smoke test, all earlier verify steps passed. Sibling
+`RouteHero` suites (`CommodityHeroImagery`, `NationHeroImagery`, 15
+passed) re-ran green after the rebase.
 
 ## Character-creation player flow checkpoint, 2026-09-14 (#242)
 
