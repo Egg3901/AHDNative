@@ -494,6 +494,10 @@ export function CharacterCreationScreen({
     ?? regions.map((region) => ({ id: region.id, name: region.name, population: null, electorateLean: null, seeded: false }));
   const parties = choices?.parties ?? [];
   const rulingParty = choices?.rulingParty ?? null;
+  // Reference `isOnePartyState` (page.tsx:460): the Country-step briefing, the
+  // regime badges and the independent-selected warning below all key off this
+  // one conditional, never a generic form.
+  const isOneParty = choices?.isOnePartyState || isOnePartyCountry(selection.countryId);
   const regimeLabel: Record<string, string> = { ruling: "Ruling", approved: "Approved", banned: "Banned" };
 
   const position = useMemo(() => ({ economic, social }), [economic, social]);
@@ -691,7 +695,7 @@ export function CharacterCreationScreen({
         </section>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-          <StepPanel hidden={!reviewAll && activeStep !== 1} step={1} title="Country" subtitle="Sets your offices, parties, currency and electoral rules." complete headingRef={(element) => { headingRefs.current[0] = element; }} focusable={!reviewAll && activeStep === 1}>
+          <StepPanel hidden={!reviewAll && activeStep !== 1} step={1} title="Country" subtitle="Sets your offices, parties, currency, and electoral rules." complete headingRef={(element) => { headingRefs.current[0] = element; }} focusable={!reviewAll && activeStep === 1}>
             <p className="ahd-help" style={{ margin: 0 }}>
               {selection.countryName} ({selection.era}). Change country or era from world setup.
             </p>
@@ -801,7 +805,7 @@ export function CharacterCreationScreen({
             headingRef={(element) => { headingRefs.current[4] = element; }}
             focusable={!reviewAll && activeStep === 5}
           >
-            {choices?.isOnePartyState || isOnePartyCountry(selection.countryId) ? (
+            {isOneParty ? (
               <div className="ahd-alert" role="note">
                 <p style={{ fontWeight: 700 }}>{selection.countryName} is a one-party state.</p>
                 <p style={{ marginTop: "0.35rem" }}>
@@ -851,6 +855,13 @@ export function CharacterCreationScreen({
                 Independent
               </button>
             </div>
+            {isOneParty && partyTouched && partyId === null ? (
+              <p className="ahd-alert" role="note" style={{ marginTop: "0.5rem" }}>
+                Running independent in a one-party state means a 0.0x vote weight. You cannot win,
+                and you cannot be fielded for the legislature. Join the ruling party and reform it
+                from inside.
+              </p>
+            ) : null}
           </StepPanel>
 
           <StepPanel

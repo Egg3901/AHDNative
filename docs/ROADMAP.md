@@ -1081,6 +1081,16 @@ and M/K population on the creation Home step. Evidence:
 `CharacterCreationMobilePresentation.test.tsx` (8), all green; fixed three
 `/Name/i` ambiguities and the combobox-to-radiogroup assertion.
 
+2026-09-15 #242 conditional-flow slice: the Party step now warns on a
+deliberate Independent pick in a one-party state (0.0x vote weight, cannot be
+fielded; join the ruling party and reform it from inside), keyed off the same
+`isOnePartyState` conditional as the briefing and regime badges, and the
+Country subtitle is word-identical to the reference. Evidence: new public
+`characterCreationPlayerFlow.test.ts` (create, act, advance, save, relaunch,
+continue with every creation field intact) plus 4 rendered tests (warning
+show/clear, competitive-country silence, six subtitles); focused runs green
+(9 session, 35 CharacterCreationScreen).
+
 Remaining #242 acceptance gaps: the imperial *creation input* remains
 admin-only per the reference (`/create-imperial-character` is admin-gated), so
 Native renders the honest notice rather than an imperial form; a rendered
