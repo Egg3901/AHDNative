@@ -891,7 +891,7 @@ function executeActionInner(
         const currentRate = tp.scope === "federal"
           ? world.budgets[countryId]?.taxRates[tp.taxType as keyof NonNullable<typeof world.budgets[string]>["taxRates"]]
           : params.regionId
-            ? world.regionalBudgets[params.regionId]?.taxRates[tp.taxType]
+            ? world.regionalBudgets[params.regionId]?.taxRates?.[tp.taxType]
             : undefined;
         const effectiveCurrentRate = typeof currentRate === "number" ? currentRate : tp.baselineRate;
         if (selectedTaxRate === effectiveCurrentRate) return { ok: false, error: `Tax rate is already ${selectedTaxRate}` };
