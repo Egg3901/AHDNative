@@ -26,6 +26,7 @@ import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import type { Corporation } from "../corporation/types.js";
 import type { BankLoan } from "./types.js";
+import { bankEquity } from "./balanceSheet.js";
 import {
   ARREARS_DEFAULT_TURNS,
   CREDIT_BANDS,
@@ -35,7 +36,6 @@ import {
   TURNS_PER_YEAR,
   bandRatePercent,
   bandsForProfile,
-  bankEquity,
   computeInsurancePremium,
   computeNpcDepositShare,
   computeNpcLoanBookVolume,
@@ -66,7 +66,7 @@ function ensureInsuranceFund(world: WorldState, countryId: string, insuredCap: n
 /** Deposit ceiling from the capital-scale proxy, equity-capped. Source: capacityAllocation.ts + deposits.ts (see constants.ts file doc). */
 function depositCeilingFor(charter: NonNullable<Corporation["bankCharter"]>): number {
   const capacityCeilingProxy = charter.postedCapital * DEPOSIT_CEILING_CAPITAL_MULTIPLE;
-  const equity = bankEquity(charter.cashReserves, charter.totalLoans, charter.npcDeposits);
+  const equity = bankEquity(charter);
   return equityCappedDepositCeiling(capacityCeilingProxy, equity);
 }
 
