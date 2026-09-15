@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NewGameScreen } from "./NewGameScreen";
 import type { EraChoice } from "../game/types";
+import { DEFAULT_WORLD_FEATURE_FLAGS, WORLD_FEATURE_FLAG_DEFINITIONS } from "@ahdclient/engine";
 
 type SetupCountry = EraChoice["countries"][number] & { regions: { id: string; name: string }[] };
 type SetupEra = Omit<EraChoice, "countries"> & { countries: SetupCountry[] };
@@ -150,6 +151,30 @@ describe("NewGameScreen", () => {
 });
 
 describe("NewGameScreen world setup (#241)", () => {
+  it("renders canonical feature-flag defaults and submits a complete changed map", async () => {
+    const user = userEvent.setup();
+    const onStart = vi.fn();
+    render(<NewGameScreen eras={ERAS} busy={false} onStart={onStart} onBack={vi.fn()} />);
+    await user.click(screen.getByText("Advanced world rules"));
+    const first = WORLD_FEATURE_FLAG_DEFINITIONS[0];
+    const toggle = screen.getByRole("checkbox", { name: first.label });
+    expect(toggle).toBeChecked();
+    expect(screen.getByText(first.description)).toBeInTheDocument();
+    await user.click(toggle);
+    await user.type(screen.getByLabelText(/your name/i), "Ada");
+    await user.click(screen.getByRole("button", { name: /^start$/i }));
+    expect(onStart).toHaveBeenCalledWith(expect.objectContaining({
+      featureFlags: { ...DEFAULT_WORLD_FEATURE_FLAGS, [first.key]: false },
+    }));
+  });
+
+  it("disables every advanced rule while world creation is busy", async () => {
+    render(<NewGameScreen eras={ERAS} busy={true} onStart={vi.fn()} onBack={vi.fn()} />);
+    await userEvent.setup().click(screen.getByText("Advanced world rules"));
+    expect(screen.getAllByRole("checkbox")).toHaveLength(WORLD_FEATURE_FLAG_DEFINITIONS.length);
+    for (const toggle of screen.getAllByRole("checkbox")) expect(toggle).toBeDisabled();
+  });
+
   it("defaults to Career and offers a selectable Head of State mode passed as mode", async () => {
     const user = userEvent.setup();
     const onStart = vi.fn();
