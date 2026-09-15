@@ -13,19 +13,27 @@ import { expect, type Page } from '@playwright/test';
  */
 export async function completeCharacterCreation(page: Page, options: { party?: string } = {}) {
   await expect(page.getByRole('heading', { name: /Create your politician/ })).toBeVisible();
+  // The conversational presentation (#335/#336) shows one canonical step at a
+  // time: Country (informational) -> The politician -> Home region ->
+  // Where you stand -> Party -> Stats. Walk it in order.
+  await page.getByRole('button', { name: /Continue to The politician/i }).click();
   await page.getByRole('button', { name: 'Female', exact: true }).click();
   await page.getByRole('button', { name: 'White', exact: true }).click();
   await page.getByRole('button', { name: 'College', exact: true }).click();
   await page.getByRole('button', { name: 'Middle Income', exact: true }).click();
+  await page.getByRole('button', { name: /Continue to Home/i }).click();
+  await page.getByRole('button', { name: /Continue to Where you stand/i }).click();
   // The compass is a deliberate answer independent of party choice now; move
   // Economics off centre so the step registers as answered, then leave it there.
   const economic = page.getByLabel('Economic position', { exact: true });
   await economic.fill('1');
+  await page.getByRole('button', { name: /Continue to Party/i }).click();
   if (options.party) {
     await page.getByRole('button', { name: options.party, exact: false }).click();
   } else {
     await page.getByRole('button', { name: 'Independent', exact: true }).click();
   }
+  await page.getByRole('button', { name: /Continue to Stats/i }).click();
   // Spend all 21 free points without touching Energy (9 + 9 + 3 = 21), so the
   // baseline action cap 200 the standing assertions expect is preserved. The
   // resulting fundraising stat is 1, so fundraise yield is 0.82x neutral.

@@ -30,15 +30,81 @@ function props(overrides: Partial<CharacterCreationScreenProps> = {}): Character
 }
 
 async function completeBackground(user: ReturnType<typeof userEvent.setup>) {
+  if (!screen.queryByRole("button", { name: "Female" })) {
+    await openDirectReview(user);
+  }
   await user.click(screen.getByRole("button", { name: "Female" }));
   await user.click(screen.getByRole("button", { name: "White" }));
   await user.click(screen.getByRole("button", { name: "College" }));
   await user.click(screen.getByRole("button", { name: "Middle Income" }));
 }
 
+async function openDirectReview(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: /Review all details/i }));
+}
+
 describe("CharacterCreationScreen reference flow (#242)", () => {
+  it("progresses through the canonical steps and keeps completed answers directly editable (#336)", async () => {
+    const user = userEvent.setup();
+    render(<CharacterCreationScreen {...props()} />);
+
+    expect(screen.getByRole("heading", { name: /^Country/ })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /The politician/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Continue to The politician/i }));
+    expect(screen.getByRole("heading", { name: /The politician/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Edit Country/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Continue to Home state/i })).toBeDisabled();
+
+    await completeBackground(user);
+    expect(screen.getByRole("button", { name: /Continue to Home state/i })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: /Edit Country/i }));
+    expect(screen.getByRole("heading", { name: /^Country/ })).toBeInTheDocument();
+    expect(screen.getAllByText(/Eleanor Vance/).length).toBeGreaterThan(0);
+  });
+
+  it("submits the unchanged creation contract through the conversational player flow (#336)", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<CharacterCreationScreen {...props({ onSubmit })} />);
+
+    await user.click(screen.getByRole("button", { name: /Continue to The politician/i }));
+    await completeBackground(user);
+    await user.click(screen.getByRole("button", { name: /Continue to Home state/i }));
+    await user.selectOptions(screen.getByRole("combobox"), "CA");
+    await user.click(screen.getByRole("button", { name: /Continue to Where you stand/i }));
+    fireEvent.change(screen.getByLabelText(/Economic position/), { target: { value: "1" } });
+    fireEvent.change(screen.getByLabelText(/Social position/), { target: { value: "-1" } });
+    await user.click(screen.getByRole("button", { name: /Continue to Party/i }));
+    await user.click(screen.getByRole("button", { name: "DEM Democratic Party" }));
+    await user.click(screen.getByRole("button", { name: /Continue to Stats/i }));
+    await user.click(screen.getByRole("button", { name: /Spread evenly/i }));
+    await user.click(screen.getByRole("button", { name: /Create character/i }));
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      name: "Eleanor Vance",
+      homeRegionId: "CA",
+      partyId: "US_DEM",
+      policies: { economic: 1, social: -1 },
+    }));
+  });
+
+  it("uses step Back after progression and preserves the outer Back action at Country (#336)", async () => {
+    const user = userEvent.setup();
+    const onBack = vi.fn();
+    render(<CharacterCreationScreen {...props({ onBack })} />);
+
+    await user.click(screen.getByRole("button", { name: /Continue to The politician/i }));
+    await user.click(screen.getByRole("button", { name: /^Back$/i }));
+    expect(screen.getByRole("heading", { name: /^Country/ })).toBeInTheDocument();
+    expect(onBack).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: /^Back$/i }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
   it("renders the six reference steps in order with their labels", () => {
     render(<CharacterCreationScreen {...props()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
     const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent ?? "");
     for (const label of ["Country", "The politician", "Home state", "Where you stand", "Party", "Stats"]) {
       expect(headings.some((h) => h.includes(label))).toBe(true);
@@ -52,6 +118,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(<CharacterCreationScreen {...props({ onSubmit })} />);
+    await openDirectReview(user);
     const name = screen.getByLabelText(/^Name/);
     await user.clear(name);
     await user.type(name, "Ada Lovelace");
@@ -71,6 +138,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(<CharacterCreationScreen {...props({ onSubmit })} />);
+    await openDirectReview(user);
     const submit = screen.getByRole("button", { name: /Create character|Finish/i });
     await user.type(screen.getByLabelText(/Name/i), "Eleanor Vance");
     await completeBackground(user);
@@ -92,6 +160,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(<CharacterCreationScreen {...props({ onSubmit })} />);
+    await openDirectReview(user);
     await user.type(screen.getByLabelText(/Name/i), "Eleanor Vance");
     await completeBackground(user);
     await user.click(screen.getByRole("button", { name: "DEM Democratic Party" }));
@@ -105,6 +174,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(<CharacterCreationScreen {...props({ onSubmit })} />);
+    await openDirectReview(user);
     await completeBackground(user);
     // The player answers the compass independently of any party platform.
     const econ = screen.getByLabelText(/Economic position/);
@@ -124,6 +194,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(<CharacterCreationScreen {...props({ onSubmit })} />);
+    await openDirectReview(user);
     await user.type(screen.getByLabelText(/Name/i), "Eleanor Vance");
     await completeBackground(user);
     fireEvent.change(screen.getByLabelText(/Economic position/), { target: { value: "1" } });
@@ -138,6 +209,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
       selection: { era: "1953", countryId: "DD", countryName: "East Germany", regionNoun: "region" },
       choices: { parties: DD_PARTIES, rulingParty: { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region" },
     })} />);
+    fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
     const notice = screen.getByRole("note");
     expect(notice).toHaveTextContent(/one-party state/i);
     expect(notice).toHaveTextContent("SED");
@@ -150,6 +222,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
       selection: { era: "1953", countryId: "RU", countryName: "Soviet Union", regionNoun: "region" },
       choices: { parties: [{ id: "RU_CPSU", name: "Communist Party", abbreviation: "CPSU", color: "#CC0000", logoUrl: null, economicPosition: -4, socialPosition: 2, regimeStatus: "ruling" }], rulingParty: { id: "RU_CPSU", name: "Communist Party", abbreviation: "CPSU", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region" },
     })} />);
+    fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
     expect(screen.getByText(/one-party state/i)).toBeInTheDocument();
   });
 
@@ -158,6 +231,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
       selection: { era: "1953", countryId: "DD", countryName: "East Germany", regionNoun: "region" },
       choices: { parties: DD_PARTIES, rulingParty: { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region" },
     })} />);
+    fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
     const partyStep = screen.getByRole("heading", { name: /^Party/ }).closest("section")!;
     expect(within(partyStep).getByText(/Ruling/)).toBeInTheDocument();
     expect(within(partyStep).getByText(/Approved/)).toBeInTheDocument();
@@ -168,6 +242,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
       selection: { era: "1953", countryId: "UK", countryName: "United Kingdom", regionNoun: "region" },
       choices: { parties: PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: true, regionNoun: "region" },
     })} />);
+    fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
     expect(screen.getByText(/imperial/i)).toBeInTheDocument();
   });
 
@@ -181,6 +256,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
       render(<CharacterCreationScreen {...props({
         choices: { parties: LOGO_PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state" },
       })} />);
+      fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
       const button = screen.getByRole("button", { name: "DEM Democratic Party" });
       const img = button.querySelector(".ahd-mark img");
       expect(img).not.toBeNull();
@@ -189,6 +265,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
 
     it("falls back to honest initials with no image when logoUrl is null", () => {
       render(<CharacterCreationScreen {...props()} />);
+      fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
       const button = screen.getByRole("button", { name: "REP Republican Party" });
       expect(button.querySelector(".ahd-mark img")).toBeNull();
       expect(button.querySelector(".ahd-mark-initials")?.textContent).toBe("REP");
@@ -198,6 +275,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
       render(<CharacterCreationScreen {...props({
         choices: { parties: LOGO_PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state" },
       })} />);
+      fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
       expect(screen.getByRole("button", { name: "DEM Democratic Party" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "REP Republican Party" })).toBeInTheDocument();
       // The mark itself stays decorative so the button label is not doubled.
@@ -208,6 +286,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     it("toggles party selection through the marked picker buttons", async () => {
       const user = userEvent.setup();
       render(<CharacterCreationScreen {...props()} />);
+      fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
       const dem = screen.getByRole("button", { name: "DEM Democratic Party" });
       const rep = screen.getByRole("button", { name: "REP Republican Party" });
       await user.click(dem);
@@ -220,6 +299,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
 
     it("keeps the picker mark compact so chips wrap inside a 320px column", () => {
       render(<CharacterCreationScreen {...props()} />);
+      fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
       const mark = screen.getByRole("button", { name: "DEM Democratic Party" }).querySelector(".ahd-mark") as HTMLElement;
       expect(mark).toHaveStyle({ width: "20px", height: "20px" });
     });
@@ -269,6 +349,7 @@ describe("CharacterCreationScreen portrait/header identity (#348)", () => {
 
   it("rejects a non-image file with the reference message in one alert", async () => {
     render(<CharacterCreationScreen {...props()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
     const bad = new File(["not an image"], "notes.txt", { type: "text/plain" });
     fireEvent.change(screen.getByTestId("candidate-identity").querySelector("#creation-portrait")!, { target: { files: [bad] } });
     const alert = await screen.findByRole("alert");
@@ -278,6 +359,7 @@ describe("CharacterCreationScreen portrait/header identity (#348)", () => {
 
   it("rejects an oversize portrait", async () => {
     render(<CharacterCreationScreen {...props()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
     const big = new File([new Uint8Array(2 * 1024 * 1024 + 1)], "big.png", { type: "image/png" });
     fireEvent.change(screen.getByTestId("candidate-identity").querySelector("#creation-portrait")!, { target: { files: [big] } });
     expect(await screen.findByRole("alert")).toHaveTextContent("Portrait must be under 2 MB.");
@@ -289,6 +371,7 @@ describe("CharacterCreationScreen portrait/header identity (#348)", () => {
       const user = userEvent.setup();
       const onSubmit = vi.fn();
       render(<CharacterCreationScreen {...props({ onSubmit })} />);
+      await openDirectReview(user);
       const portrait = new File(["portrait-bytes"], "portrait.png", { type: "image/png" });
       const header = new File(["header-bytes"], "header.png", { type: "image/png" });
       fireEvent.change(fileInput(/^Add portrait$/), { target: { files: [portrait] } });

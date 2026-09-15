@@ -14,24 +14,54 @@ test('character creation fields survive action, turn, save, relaunch and resume'
   await page.getByLabel('Country', { exact: true }).selectOption('US');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
 
-  // The reference six-step flow, order and labels.
-  await expect(page.getByRole('heading', { name: /^Country/ })).toBeVisible();
-  await expect(page.getByRole('heading', { name: /^The politician/ })).toBeVisible();
-  await expect(page.getByRole('heading', { name: /^Home state/ })).toBeVisible();
-  await expect(page.getByRole('heading', { name: /^Where you stand/ })).toBeVisible();
-  await expect(page.getByRole('heading', { name: /^Party/ })).toBeVisible();
-  await expect(page.getByRole('heading', { name: /^Stats/ })).toBeVisible();
+  // The conversational presentation (#335) walks the six reference steps in
+  // order with their labels. Each step fits the compact phone viewport.
+  async function expectFitsPhone() {
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(1);
+  }
 
-  // Background + deliberate party choice + a full stat allocation.
+  // Step 1 Country: informational, with direct progress to every section.
+  await expect(page.getByRole('heading', { name: /^Country/ })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: /Creation progress/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Current step, step 1 of 6: Country/ })).toBeVisible();
+  await expectFitsPhone();
+  await page.getByRole('button', { name: /Continue to The politician/i }).click();
+
+  // Step 2 The politician: background + deliberate party choice + full stats.
+  await expect(page.getByRole('heading', { name: /^The politician/ })).toBeVisible();
+  await expectFitsPhone();
   await page.getByRole('button', { name: 'Female', exact: true }).click();
   await page.getByLabel('Name *').fill('Creation Player');
   await page.getByRole('button', { name: 'Black', exact: true }).click();
   await page.getByRole('button', { name: 'Graduate', exact: true }).click();
   await page.getByRole('button', { name: 'High Income', exact: true }).click();
+  await page.getByRole('button', { name: /Continue to Home state/i }).click();
+
+  // Step 3 Home region.
+  await expect(page.getByRole('heading', { name: /^Home state/ })).toBeVisible();
+  await expectFitsPhone();
   await page.getByLabel('Home state', { exact: true }).selectOption('CA');
+  await page.getByRole('button', { name: /Continue to Where you stand/i }).click();
+
+  // Step 4 Where you stand: a deliberate compass answer.
+  await expect(page.getByRole('heading', { name: /^Where you stand/ })).toBeVisible();
+  await expectFitsPhone();
   await page.getByLabel('Economic position').fill('-1');
   await page.getByLabel('Social position').fill('-1');
+  await page.getByRole('button', { name: /Continue to Party/i }).click();
+
+  // Step 5 Party.
+  await expect(page.getByRole('heading', { name: /^Party/ })).toBeVisible();
+  await expectFitsPhone();
   await page.getByRole('button', { name: 'DEM Democratic Party', exact: true }).click();
+  await page.getByRole('button', { name: /Continue to Stats/i }).click();
+
+  // Step 6 Stats: a full allocation, then submit.
+  await expect(page.getByRole('heading', { name: /^Stats/ })).toBeVisible();
+  await expectFitsPhone();
   await page.getByRole('button', { name: 'Increase Charisma', exact: true }).click();
   await page.getByRole('button', { name: 'Spread evenly', exact: true }).click();
   await page.getByRole('button', { name: 'Create character', exact: true }).click();
@@ -65,6 +95,8 @@ test('a one-party country renders the reference one-party briefing', async ({ pa
   await page.getByLabel('Your name').fill('Soviet Player');
   await page.getByLabel('Country', { exact: true }).selectOption('RU');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
+  // The briefing lives on the Party step; the direct review path exposes it.
+  await page.getByRole('button', { name: /Review all details/i }).click();
   await expect(page.getByText(/one-party state/i)).toBeVisible();
 });
 
