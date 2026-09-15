@@ -796,13 +796,18 @@ html, body { overflow-x: hidden; }
 .ahd-creation-answer {
   align-self: flex-end;
   width: min(88%, 30rem);
+  min-height: 44px;
   padding: 0.65rem 0.8rem;
   border: 1px solid color-mix(in srgb, var(--ahd-primary) 45%, transparent);
   border-radius: 0.8rem 0.8rem 0.2rem 0.8rem;
   background: color-mix(in srgb, var(--ahd-primary) 12%, var(--ahd-card));
   color: inherit;
+  font: inherit;
   text-align: left;
+  cursor: pointer;
 }
+
+.ahd-creation-answer:focus-visible { outline: none; box-shadow: var(--ahd-focus); }
 
 .ahd-creation-answer span,
 .ahd-creation-answer strong {
