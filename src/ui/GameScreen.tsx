@@ -36,6 +36,7 @@ import type { GameScreenProps } from "../game/types";
 import { FinancePanel, formatFinanceMoney } from "./FinancePanel";
 import { LegislaturePanel } from "./LegislaturePanel";
 import { RouteHero, executiveHero } from "./RouteHero";
+import { HosOfficeMark } from "./HosOfficeMark";
 import "./ui.css";
 
 const ELECTIONS_PAGE_SIZE = 20;
@@ -264,7 +265,10 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
               <RouteHero image={world.player.mode === "hos" ? executiveHero(world.countryId) : "/static/heroes/actions.webp"} alt={world.player.mode === "hos" ? `${world.countryName} executive office` : "Political campaign operations"} eyebrow={world.era} title={world.player.mode === "hos" ? "Executive office" : "Campaign operations"}>
                 {world.player.mode === "hos" ? (
                   <div className="ahd-notice" role="note">
-                    <strong>Permanent Head of State · {world.player.currentOffice ?? "executive office"}</strong>
+                    <span style={{ display: "inline-flex", gap: "0.45rem", alignItems: "center", minWidth: 0 }}>
+                      <HosOfficeMark office={world.player.currentOffice} />
+                      <strong>Permanent Head of State · {world.player.currentOffice ?? "executive office"}</strong>
+                    </span>
                     <div className="ahd-help">
                       {world.player.currentOffice === "primeMinister"
                         ? "Parliamentary executive: you govern through the appointed prime-minister office."
