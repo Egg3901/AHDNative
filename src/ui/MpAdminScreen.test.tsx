@@ -45,7 +45,7 @@ describe("MpAdminScreen", () => {
   it("denies non-admins without rendering any admin data", async () => {
     const host = hostFor({ "client-nav": [adminNav(false, false)] });
     render(<MpAdminScreen host={host} onBack={() => {}} />);
-    expect(await screen.findByText(/not an admin/i)).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("This account is not an admin");
     expect(screen.queryByRole("heading", { name: /site status/i })).not.toBeInTheDocument();
     expect(host.mutate).not.toHaveBeenCalled();
   });
@@ -58,9 +58,9 @@ describe("MpAdminScreen", () => {
     });
     const onBack = vi.fn();
     render(<MpAdminScreen host={host} onBack={onBack} />);
-    await screen.findByText(/off/i);
+    await screen.findByText("off", { selector: "dd" });
     await user.click(screen.getByRole("button", { name: /refresh/i }));
-    await waitFor(() => expect(screen.getByText(/full/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("full", { selector: "dd" })).toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: /back/i }));
     expect(onBack).toHaveBeenCalledOnce();
   });
