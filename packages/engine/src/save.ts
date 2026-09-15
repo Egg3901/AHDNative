@@ -23,6 +23,7 @@ import {
 import { seedCapitalStock } from "./economy/capitalStock.js";
 import { seedStateResourceCapacities } from "./extraction/founding.js";
 import { seedCountryPolitics } from "./countryPolitics/overview.js";
+import { validateCorporateSectorAssets } from "./corporation/corporateSectorAssets.js";
 
 /**
  * Save file = versioned JSON envelope around the full WorldState. Older
@@ -2496,5 +2497,6 @@ export function deserializeSave(raw: string): WorldState {
     if (typeof campaign.campaignStrength !== "number") campaign.campaignStrength = 0;
   }
   assertCurrentWorldState(save.world);
+  if (save.world.corporateSectors !== undefined) validateCorporateSectorAssets(save.world, save.world.corporateSectors);
   return save.world;
 }

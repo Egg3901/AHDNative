@@ -39,7 +39,6 @@ import { seedExchangeRates } from "./forex/founding.js";
 import { MARKETIZATION_SCHEDULE, scheduledMarketizationLevel, NPP_DEFAULT_BUDGET_SOFTNESS, NPP_DEFAULT_INTERNAL_REPRESSION, NPP_DEFAULT_REFORMISM } from "./commandEconomy/constants.js";
 import type { CommandEconomyState } from "./commandEconomy/types.js";
 import { seedCapitalStock } from "./economy/capitalStock.js";
-import { seedCorporateSectorAssets } from "./corporation/corporateSectorAssets.js";
 import type { UnownedSectorState } from "./economy/types.js";
 
 // v29: W30 governors (governors/governorAddresses/governorOrders). This wave
@@ -1049,7 +1048,6 @@ export function createWorld(options: NewWorldOptions): WorldState {
   }
   assignUsSeatGeography(world);
   assignRegionalSeatGeography(world);
-  world.corporateSectors = seedCorporateSectorAssets(world);
   // W12: charter the financial-sector NPC corp of every playable country as
   // a retail bank. Mutates world.corporations in place, same post-
   // construction-mutation pattern as assignUsSeatGeography above.

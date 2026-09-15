@@ -916,16 +916,19 @@ no per-region economic/social lean. The issue stays open with `status: partial`.
 
 ## Corporate-sector asset core checkpoint, 2026-09-15 (#293 / #211)
 
-- New worlds persist one stable CorporateSector asset identity per aggregate
-  Native corporation, bound to a valid region and kept distinct from the
-  unowned-sector revenue headroom pools.
+- The public lazy accessor materializes one stable CorporateSector asset
+  identity per aggregate Native corporation and keeps it distinct from the
+  unowned-sector revenue headroom pools. Untouched schema-44 worlds and legacy
+  saves retain their serialized shape and pinned hashes.
 - The asset owns future-facing sale, worker, and union-representation state.
   Existing Corporation records remain authoritative for turn economics; the
   exported projection joins current revenue, margin, and growth on read so the
   two records cannot silently drift.
-- Deterministic seeding and the public save boundary preserve all asset ids and
-  references. Sale commands, worker/union mechanics, fan-out, and UI remain in
-  #294 through #299.
+- Assets remain explicitly national/unallocated until source-backed regional
+  ownership lands. Identity does not depend on catalog order. One validator is
+  shared by seeding, projection, lazy backfill, and save loading, where corrupt
+  keys, references, and duplicate tuples fail closed. Sale commands,
+  worker/union mechanics, fan-out, and UI remain in #294 through #299.
 
 ## Player polling checkpoint, 2026-09-15 (#38)
 
