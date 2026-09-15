@@ -1,4 +1,8 @@
 import "./ui.css";
+import { useState } from "react";
+import { openSupportDestination, SUPPORT_DESTINATIONS, type SupportDestination } from "../online/support";
+
+export interface HelpPanelProps { openExternal?: (destination: SupportDestination) => Promise<void> | void; }
 
 function HelpSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -11,7 +15,15 @@ function HelpSection({ title, children }: { title: string; children: React.React
   );
 }
 
-export function HelpPanel() {
+export function HelpPanel({ openExternal = openSupportDestination }: HelpPanelProps) {
+  const [opening, setOpening] = useState<SupportDestination | null>(null);
+  const [openError, setOpenError] = useState<string | null>(null);
+  const open = async (destination: SupportDestination) => {
+    setOpening(destination); setOpenError(null);
+    try { await openExternal(destination); }
+    catch { setOpenError("That destination could not open. Check your connection and try again."); }
+    finally { setOpening(null); }
+  };
   return (
     <div className="ahd-stack" aria-label="Help">
       <header className="ahd-card ahd-card-pad ahd-hero">
@@ -74,6 +86,25 @@ export function HelpPanel() {
           <li>Device saves, resume, JSON import, confirmed deletion, and visible recovery errors.</li>
           <li>Local notification inbox with a five-item preview, unread badge, mark-read and delete, and action-required flags for elections, bills, party changes, finances, and saves.</li>
         </ul>
+      </HelpSection>
+
+      <HelpSection title="Guides and support">
+        <p style={{ margin: 0 }}>
+          The local guides above remain available offline. The destinations below leave the offline game and require a network connection.
+        </p>
+        <ul style={{ margin: 0, paddingLeft: "1.15rem" }}>
+          {SUPPORT_DESTINATIONS.map((destination) => (
+            <li key={destination.id}>
+              <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" disabled={opening !== null} onClick={() => void open(destination.id)}>
+                {opening === destination.id ? "Opening" : destination.label} <span className="ahd-muted">(network required)</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        {openError ? <p role="alert" className="ahd-error" style={{ margin: 0 }}>{openError}</p> : null}
+        <p style={{ margin: 0 }}>
+          Account settings, feedback, the suggestions board, and Quick Suggest screenshot capture are available inside Multiplayer after AHDGame authenticates that surface. Open Multiplayer from the home screen to use them. The offline app cannot inspect or reuse that account session.
+        </p>
       </HelpSection>
 
       <HelpSection title="Still unavailable here">

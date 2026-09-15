@@ -4,10 +4,32 @@ use save_store::{SaveMeta, SaveStore};
 use tauri::{Manager, State, Url};
 #[cfg(desktop)]
 use tauri::{WebviewUrl, WebviewWindowBuilder, WindowEvent};
-#[cfg(desktop)]
 use tauri_plugin_opener::OpenerExt;
 
 const ONLINE_URL: &str = "https://ahousedividedgame.com";
+
+fn external_destination_url(destination: &str) -> Result<&'static str, String> {
+    // Public routes mirrored from AHDGame HelpDropdown at pinned revision
+    // e364c04954ed628beef73a993a8e9e156650a31e.
+    match destination {
+        "wiki" => Ok("https://wiki.ahousedividedgame.com"),
+        "guides" => Ok("https://ahousedividedgame.com/guides"),
+        "about" => Ok("https://ahousedividedgame.com/about"),
+        "discord" => Ok("https://discord.gg/DmF8zJJuqN"),
+        "patreon" => Ok("https://www.patreon.com/cw/AHouseDividedGame/membership"),
+        "supporters" => Ok("https://lakesidegames.net/supporters"),
+        "email" => Ok("mailto:admin@ahousedividedgame.com"),
+        "status" => Ok("https://ops.ahousedividedgame.com/status"),
+        _ => Err("unsupported external destination".to_string()),
+    }
+}
+
+#[tauri::command]
+fn open_external_destination(app: tauri::AppHandle, destination: String) -> Result<(), String> {
+    app.opener()
+        .open_url(external_destination_url(&destination)?, None::<&str>)
+        .map_err(|error| error.to_string())
+}
 #[cfg(desktop)]
 const ONLINE_HOST: &str = "ahousedividedgame.com";
 #[cfg(desktop)]
@@ -153,7 +175,8 @@ pub fn run() {
             load_game,
             list_saves,
             delete_save,
-            open_online_window
+            open_online_window,
+            open_external_destination
         ])
         .run(tauri::generate_context!())
         .expect("failed to run AHDNative");
@@ -161,7 +184,7 @@ pub fn run() {
 
 #[cfg(all(test, desktop))]
 mod tests {
-    use super::{is_online_navigation_allowed, is_online_origin};
+    use super::{external_destination_url, is_online_navigation_allowed, is_online_origin};
     use tauri::Url;
 
     #[test]
@@ -178,6 +201,19 @@ mod tests {
         assert!(!is_online_origin(
             &"https://accounts.ahousedividedgame.com/".parse().unwrap()
         ));
+    }
+
+    #[test]
+    fn external_destinations_are_allowlisted_by_identifier() {
+        assert_eq!(
+            external_destination_url("guides").unwrap(),
+            "https://ahousedividedgame.com/guides"
+        );
+        assert_eq!(
+            external_destination_url("wiki").unwrap(),
+            "https://wiki.ahousedividedgame.com"
+        );
+        assert!(external_destination_url("https://example.com").is_err());
     }
 
     #[test]
