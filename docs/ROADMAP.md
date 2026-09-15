@@ -938,6 +938,18 @@ AHDGame-vs-Native creation screenshot comparison and physical-device run were
 not captured; home-region lean markers stay absent because the engine records
 no per-region economic/social lean. The issue stays open with `status: partial`.
 
+### Conversational mobile presentation (#335 / #336)
+
+The owner-authorized Native adaptation now presents the same six sourced
+creation steps one at a time. Completed answers form an editable candidate-file
+transcript, Back follows the reached step history, and Review all details keeps
+the direct six-section path available. The layer is local and deterministic:
+it preserves the existing controls, validation, defaults and final
+`CharacterCreation` contract instead of generating or inferring answers. Focused
+rendered tests cover canonical progression, earlier-answer editing, the direct
+review path and final submission. This is a Native mobile presentation choice,
+not behavior attributed to current AHDGame development.
+
 ## Ministerial-order lifecycle checkpoint, 2026-09-15 (#258 / #105)
 
 - Persisted orders now retain their cabinet position/catalog identity, duration,

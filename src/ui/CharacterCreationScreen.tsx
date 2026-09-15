@@ -128,12 +128,12 @@ function spentPoints(stats: CharacterStats): number {
 }
 
 function StepPanel({
-  step, title, subtitle, complete, children,
+  step, title, subtitle, complete, hidden, children,
 }: {
-  step: number; title: string; subtitle?: string; complete?: boolean; children: React.ReactNode;
+  step: number; title: string; subtitle?: string; complete?: boolean; hidden?: boolean; children: React.ReactNode;
 }) {
   return (
-    <section aria-labelledby={`creation-step-${step}`} className="ahd-card ahd-card-pad">
+    <section hidden={hidden} aria-labelledby={`creation-step-${step}`} className="ahd-card ahd-card-pad">
       <header style={{ display: "flex", gap: "0.6rem", alignItems: "flex-start", marginBottom: "0.75rem" }}>
         <span
           aria-hidden
@@ -234,6 +234,9 @@ export function CharacterCreationScreen({
   const [headerUrl, setHeaderUrl] = useState<string | null>(null);
   const [portraitError, setPortraitError] = useState<string | null>(null);
   const [headerError, setHeaderError] = useState<string | null>(null);
+  const [activeStep, setActiveStep] = useState(1);
+  const [maxReachedStep, setMaxReachedStep] = useState(1);
+  const [reviewAll, setReviewAll] = useState(false);
 
   useEffect(() => { setHomeRegionId(initialHomeRegionId ?? regions[0]?.id ?? ""); }, [initialHomeRegionId, regions]);
 
@@ -260,6 +263,16 @@ export function CharacterCreationScreen({
   const nameComplete = name.trim().length >= 2;
   const statsComplete = remaining === 0;
   const canSubmit = nameComplete && backgroundComplete && Boolean(homeRegionId) && compassTouched && partyTouched && statsComplete;
+  const stepComplete = [true, nameComplete && backgroundComplete, Boolean(homeRegionId), compassTouched, partyTouched, statsComplete];
+  const stepLabels = ["Country", "The politician", `Home ${regionNoun}`, "Where you stand", "Party", "Stats"];
+  const stepSummaries = [
+    `${selection.countryName} (${selection.era})`,
+    name.trim() || "Not answered",
+    regions.find((region) => region.id === homeRegionId)?.name ?? "Not answered",
+    compassTouched ? ideologyLabel(position) : "Not answered",
+    partyTouched ? (selectedParty?.name ?? "Independent") : "Not answered",
+    statsComplete ? "All points allocated" : `${remaining} points remaining`,
+  ];
 
   const selectParty = (id: string | null) => {
     setPartyTouched(true);
@@ -352,14 +365,34 @@ export function CharacterCreationScreen({
 
         {loading ? <div className="ahd-card ahd-card-pad"><p className="ahd-muted">Loading country options...</p></div> : null}
 
+        <section className="ahd-creation-conversation" aria-label="Creation conversation">
+          <p className="ahd-label">Your candidate file</p>
+          {stepLabels.map((label, index) => ({ label, step: index + 1 })).filter(({ step }) => step <= maxReachedStep && step !== activeStep).map(({ label, step }) => (
+            <button
+              key={label}
+              type="button"
+              className="ahd-creation-answer"
+              aria-label={`Edit ${label}`}
+              onClick={() => { setReviewAll(false); setActiveStep(step); }}
+            >
+              <span>{label}</span>
+              <strong>{stepSummaries[step - 1]}</strong>
+            </button>
+          ))}
+          <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => setReviewAll((value) => !value)}>
+            {reviewAll ? "Return to conversation" : "Review all details"}
+          </button>
+        </section>
+
         <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-          <StepPanel step={1} title="Country" subtitle="Sets your offices, parties, currency and electoral rules." complete>
+          <StepPanel hidden={!reviewAll && activeStep !== 1} step={1} title="Country" subtitle="Sets your offices, parties, currency and electoral rules." complete>
             <p className="ahd-help" style={{ margin: 0 }}>
               {selection.countryName} ({selection.era}). Change country or era from world setup.
             </p>
           </StepPanel>
 
           <StepPanel
+            hidden={!reviewAll && activeStep !== 2}
             step={2}
             title="The politician"
             subtitle="Voter groups weigh these when they decide whether you are one of them."
@@ -418,6 +451,7 @@ export function CharacterCreationScreen({
           </StepPanel>
 
           <StepPanel
+            hidden={!reviewAll && activeStep !== 3}
             step={3}
             title={`Home ${regionNoun}`}
             subtitle="Your first constituency. Its electorate decides your early races."
@@ -436,6 +470,7 @@ export function CharacterCreationScreen({
           </StepPanel>
 
           <StepPanel
+            hidden={!reviewAll && activeStep !== 4}
             step={4}
             title="Where you stand"
             subtitle="Drag your pin. Distance to a platform is what primaries and general elections measure."
@@ -463,6 +498,7 @@ export function CharacterCreationScreen({
           </StepPanel>
 
           <StepPanel
+            hidden={!reviewAll && activeStep !== 5}
             step={5}
             title="Party"
             subtitle="A party gives you ballot access, a primary, and a machine. Independent is a real choice, not a default, so pick one deliberately."
@@ -513,6 +549,7 @@ export function CharacterCreationScreen({
           </StepPanel>
 
           <StepPanel
+            hidden={!reviewAll && activeStep !== 6}
             step={6}
             title="Stats"
             subtitle={`Every stat starts at ${STAT_MIN}. Spend ${STAT_FREE_POINTS} points on top of that. These shift as you play.`}
@@ -554,12 +591,32 @@ export function CharacterCreationScreen({
         {error ? <div className="ahd-alert" role="alert" style={{ marginTop: "0.75rem" }}>{error}</div> : null}
 
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center", marginTop: "1rem" }}>
-          <button type="button" className="ahd-btn ahd-btn-primary" onClick={handleSubmit} disabled={busy} aria-busy={busy}>
-            {busy ? <span className="ahd-spinner" aria-hidden /> : null}
-            {busy ? "Creating" : "Create character"}
-          </button>
-          <button type="button" className="ahd-btn ahd-btn-ghost" onClick={onBack} disabled={busy}>Back</button>
-          {!canSubmit ? <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>Complete every step to create your politician.</span> : null}
+          {reviewAll || activeStep === 6 ? (
+            <button type="button" className="ahd-btn ahd-btn-primary" onClick={handleSubmit} disabled={busy} aria-busy={busy}>
+              {busy ? <span className="ahd-spinner" aria-hidden /> : null}
+              {busy ? "Creating" : "Create character"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="ahd-btn ahd-btn-primary"
+              disabled={!stepComplete[activeStep - 1] || busy}
+              onClick={() => {
+                const next = Math.min(6, activeStep + 1);
+                setActiveStep(next);
+                setMaxReachedStep((reached) => Math.max(reached, next));
+              }}
+            >
+              Continue to {stepLabels[activeStep]}
+            </button>
+          )}
+          <button
+            type="button"
+            className="ahd-btn ahd-btn-ghost"
+            onClick={() => activeStep > 1 && !reviewAll ? setActiveStep((step) => step - 1) : onBack()}
+            disabled={busy}
+          >Back</button>
+          {(reviewAll || activeStep === 6) && !canSubmit ? <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>Complete every step to create your politician.</span> : null}
         </div>
       </div>
     </div>

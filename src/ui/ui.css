@@ -785,6 +785,34 @@ html, body { overflow-x: hidden; }
   font-family: var(--ahd-font-mono, monospace); font-size: 0.62rem;
   text-transform: uppercase; letter-spacing: 0.08em;
 }
+
+.ahd-creation-conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.85rem 0;
+}
+
+.ahd-creation-answer {
+  align-self: flex-end;
+  width: min(88%, 30rem);
+  padding: 0.65rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--ahd-primary) 45%, transparent);
+  border-radius: 0.8rem 0.8rem 0.2rem 0.8rem;
+  background: color-mix(in srgb, var(--ahd-primary) 12%, var(--ahd-card));
+  color: inherit;
+  text-align: left;
+}
+
+.ahd-creation-answer span,
+.ahd-creation-answer strong {
+  display: block;
+}
+
+.ahd-creation-answer span {
+  color: var(--ahd-muted);
+  font-size: 0.7rem;
+}
 .ahd-chip {
   display: inline-flex; align-items: center; gap: 0.35rem;
   min-height: 44px;
