@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createWorld, SCHEMA_VERSION } from "./world.js";
 import { deserializeSave, serializeSave } from "./save.js";
 import { advanceTurn } from "./engine.js";
-import { nppCabinetVote, cabinetDidPass, proposeCabinetNomination, processCabinetNominationLifecycle } from "./cabinet/nominationLifecycle.js";
+import { nppCabinetVote, cabinetDidPass, sponsorCabinetNomination, processCabinetNominationLifecycle } from "./cabinet/nominationLifecycle.js";
 import { clearCabinetOnTransition, fillUkCabinetDirectly } from "./cabinet/transition.js";
 import { decideCaseOutcome } from "./judiciary/divergence.js";
 import { processScotusTurn, ensureScotusSeats } from "./judiciary/scotusTurn.js";
@@ -114,17 +114,13 @@ describe("W29 nomination lifecycle goldens with citations", () => {
     // Politicians pool contains player country; propose player
     world.cabinetMembers = [];
     world.cabinetNominations = [];
-    const id = proposeCabinetNomination(world, {
+    world.executives.US!.presidentId = "player";
+    const nomination = sponsorCabinetNomination(world, {
       countryId: "US",
       positionId: "secretary_of_treasury",
       nomineeId: "player",
-      nomineeName: world.player.name,
-      nomineeParty: "US_DEM",
-      proposedBy: "US-1",
-      proposedByName: "Pres",
-      votingEndsOnTurn: world.meta.turn + 4,
     });
-    expect(id).toBeDefined();
+    expect(nomination.id).toBeDefined();
     expect(world.cabinetNominations.some((n) => n.nomineeId === "player")).toBe(true);
   });
 });
@@ -142,30 +138,19 @@ describe("W29 confirmation vote math", () => {
   it("processCabinetNominationLifecycle handles batched NPP voting deterministically", () => {
     const world = createWorld(OPTS);
     world.meta.turn = 5;
-    world.executives["US"] = { countryId: "US", presidentId: "US-1", presidentParty: "US_DEM", termStartTurn: 0, vicePresidentId: null, vicePresidentParty: null };
+    world.executives["US"] = { countryId: "US", presidentId: "player", presidentParty: "US_DEM", termStartTurn: 0, vicePresidentId: null, vicePresidentParty: null };
     // Five active noms at turn 5, voting ends at 10 — NPP votes should accumulate without duplication
     world.cabinetNominations = [];
     world.cabinetMembers = [];
     const usPols = world.politicians.filter((p) => p.countryId === "US");
     for (let i = 0; i < 3; i++) {
       const pol = usPols[i]!;
-      proposeCabinetNomination(world, {
+      sponsorCabinetNomination(world, {
         countryId: "US",
-        positionId: `secretary_of_state`,
+        positionId: ["secretary_of_state", "attorney_general", "secretary_of_defense"][i]!,
         nomineeId: pol.id,
-        nomineeName: pol.name,
-        nomineeParty: pol.partyId,
-        proposedBy: "US-1",
-        proposedByName: "Pres",
-        votingEndsOnTurn: 10,
       });
-      // Unique position per iteration
-      world.cabinetNominations[world.cabinetNominations.length - 1]!.positionId = `pos_${i}`;
     }
-    // Deduplicate positions to avoid same pos collision
-    world.cabinetNominations[0]!.positionId = "secretary_of_state";
-    world.cabinetNominations[1]!.positionId = "attorney_general";
-    world.cabinetNominations[2]!.positionId = "secretary_of_defense";
 
     processCabinetNominationLifecycle(world);
     // Each nomination should have at least some votes cast (NPP senators)

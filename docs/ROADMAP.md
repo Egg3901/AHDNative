@@ -907,8 +907,12 @@ no per-region economic/social lean. The issue stays open with `status: partial`.
   President for the nomination country, validates the source cabinet roster and
   era, and derives nominee identity from the world rather than caller text.
 - Occupied positions, active duplicates, foreign or unknown nominees, cabinet
-  members, and invalid turn clocks are rejected before nomination state changes.
+  members, a President self-nominated for Vice President, malformed world dates,
+  and invalid turn clocks are rejected before nomination state changes.
   Valid nominations receive the reference 24-hour window as 24 Native turns.
+- The reference nominates another player character. Offline Native has only one
+  player record, so same-country generated politicians form the explicit local
+  nominee-pool adaptation; caller-supplied identity text is never trusted.
 - Ordinary nominations open a Senate ballot. Vice President nominations create
   separate House and Senate vote maps. Pending records survive save/reload and
   resolve through the existing current-seat lifecycle boundary.

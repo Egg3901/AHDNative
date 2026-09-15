@@ -44,6 +44,8 @@ describe("#269 presidential cabinet nomination sponsorship", () => {
       (world: ReturnType<typeof presidentialWorld>) => () => sponsorCabinetNomination(world, { countryId: "US", positionId: "secretary_of_state", nomineeId: "missing" }),
       (world: ReturnType<typeof presidentialWorld>) => { const foreign = world.politicians.find((candidate) => candidate.countryId !== "US")!; return () => sponsorCabinetNomination(world, { countryId: "US", positionId: "secretary_of_state", nomineeId: foreign.id }); },
       (world: ReturnType<typeof presidentialWorld>, nomineeId: string) => { world.meta.turn = Number.NaN; return () => sponsorCabinetNomination(world, { countryId: "US", positionId: "secretary_of_state", nomineeId }); },
+      (world: ReturnType<typeof presidentialWorld>, nomineeId: string) => { world.meta.date = "not-a-date"; return () => sponsorCabinetNomination(world, { countryId: "US", positionId: "secretary_of_state", nomineeId }); },
+      (world: ReturnType<typeof presidentialWorld>) => () => sponsorCabinetNomination(world, { countryId: "US", positionId: "vicePresident", nomineeId: "player" }),
     ];
     for (const arrange of cases) {
       const world = presidentialWorld();

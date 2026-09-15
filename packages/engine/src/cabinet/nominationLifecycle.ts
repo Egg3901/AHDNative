@@ -134,6 +134,9 @@ export interface CabinetNominationLifecycleResult {
  * Source: AHDGame POST /api/whitehouse/cabinet/nominations at revision
  * e364c04954ed628beef73a993a8e9e156650a31e. Native uses its one-hour turn
  * clock, so the source 24-hour confirmation window is 24 turns.
+ * AHDGame currently accepts another player character. Offline Native has only
+ * one player record, the sitting President, so same-country generated
+ * politicians are the explicit single-player nominee-pool adaptation.
  */
 export function sponsorCabinetNomination(
   world: WorldState,
@@ -145,6 +148,9 @@ export function sponsorCabinetNomination(
   }
   const position = cabinetPositionsForCountry(input.countryId).find((candidate) => candidate.id === input.positionId);
   if (!position) throw new Error("Invalid cabinet position");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(world.meta.date) || !Number.isFinite(Date.parse(`${world.meta.date}T00:00:00Z`))) {
+    throw new Error("Invalid world date for cabinet position eligibility");
+  }
   const year = Number(world.meta.date.slice(0, 4));
   if (position.yearEnabled !== undefined && year < position.yearEnabled) {
     throw new Error("This cabinet position does not exist in the current era");
@@ -164,12 +170,15 @@ export function sponsorCabinetNomination(
   if (!isPlayer && !politician) throw new Error(`Nominee ${input.nomineeId} not found`);
   const nomineeCountry = isPlayer ? world.player.countryId : politician!.countryId;
   if (nomineeCountry !== input.countryId) throw new Error(`Nominee not from ${input.countryId}`);
+  if (input.positionId === "vicePresident" && input.nomineeId === executive.presidentId) {
+    throw new Error("The sitting President cannot be nominated as Vice President");
+  }
   if (world.cabinetMembers.some((member) => member.countryId === input.countryId && member.characterId === input.nomineeId)) {
     throw new Error(`Nominee already holds a cabinet seat in ${input.countryId}`);
   }
   const nomineeName = isPlayer ? world.player.name : politician!.name;
   const nomineeParty = isPlayer ? world.player.partyId : politician!.partyId;
-  const id = proposeCabinetNomination(world, {
+  const id = appendCabinetNomination(world, {
     countryId: input.countryId,
     positionId: input.positionId,
     nomineeId: input.nomineeId,
@@ -331,13 +340,10 @@ export function processCabinetNominationLifecycle(world: WorldState): CabinetNom
 }
 
 /**
- * Helper: president (or PM) proposes a nomination. Eligibility mirrors mainline:
- * - nominee must be a known politician or the player
- * - must not already hold a cabinet seat in that country
- * - player is eligible per same seated-holder check (no shortcut)
- * Throws on ineligible.
+ * Policy-free append seam. All authority, roster, vacancy, nominee, and clock
+ * validation belongs to sponsorCabinetNomination before this mutates state.
  */
-export function proposeCabinetNomination(
+function appendCabinetNomination(
   world: WorldState,
   opts: {
     countryId: string;
@@ -350,20 +356,6 @@ export function proposeCabinetNomination(
     votingEndsOnTurn: number;
   }
 ): string {
-  if (!world.cabinetNominations) world.cabinetNominations = [];
-  // Eligibility: nominee must be player or a politician in same country (loosened for NPC pool)
-  const isPlayer = opts.nomineeId === "player";
-  const politician = world.politicians.find((p) => p.id === opts.nomineeId);
-  if (!isPlayer && !politician) {
-    throw new Error(`Nominee ${opts.nomineeId} not found`);
-  }
-  if (politician && politician.countryId !== opts.countryId) {
-    throw new Error(`Nominee not from ${opts.countryId}`);
-  }
-  // Not already holding a cabinet seat
-  const existing = (world.cabinetMembers ?? []).some((m) => m.countryId === opts.countryId && m.characterId === opts.nomineeId);
-  if (existing) throw new Error(`Nominee already holds a cabinet seat in ${opts.countryId}`);
-
   const id = `cab_nom_${world.meta.turn}_${world.cabinetNominations.length + 1}`;
   world.cabinetNominations.push({
     id,
