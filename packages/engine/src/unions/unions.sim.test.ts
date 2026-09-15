@@ -30,6 +30,7 @@ import {
   simulateIndustrialRelationsBalance,
 } from "./industrialRelationsBalance.js";
 import { NPP_DEMAND_MIN_UNIONIZATION, NPP_DEMAND_PREMIUM } from "./nppBehavior.js";
+import { unionsTurnPhase } from "./phases.js";
 
 const OPTS = { seed: "union-test", playerName: "Tester", countryId: "US", era: "1953" } as const;
 
@@ -203,6 +204,25 @@ describe("union founding (W15)", () => {
 });
 
 describe("unionsTurn integration + determinism", () => {
+  it("retains unpaid contribution cash when no organizer is eligible", () => {
+    const withoutPolicy = createWorld(OPTS);
+    const withPolicy = createWorld(OPTS);
+    const baseline = withoutPolicy.unions["US-manufacturing"]!;
+    const configured = withPolicy.unions["US-manufacturing"]!;
+    baseline.duesPerWorkerAnnual = 5;
+    configured.duesPerWorkerAnnual = 5;
+    configured.politicalContributionPct = 0.5;
+    expect(baseline.ownerId).toBeNull();
+    expect(configured.ownerId).toBeNull();
+
+    const rng = { next: () => 0, int: () => 0, pick: <T>(items: T[]) => items[0]! };
+    unionsTurnPhase.run(withoutPolicy, rng);
+    unionsTurnPhase.run(withPolicy, rng);
+
+    expect(configured.treasury).toBe(baseline.treasury);
+    expect(configured.approval).toBeLessThan(baseline.approval);
+  });
+
   it("unionsTurn mutates treasury/approval deterministically and survives save/load", () => {
     const a = createWorld({ seed: "det", playerName: "A", countryId: "US", era: "1953" });
     const b = createWorld({ seed: "det", playerName: "A", countryId: "US", era: "1953" });
