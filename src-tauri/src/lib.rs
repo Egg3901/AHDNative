@@ -205,8 +205,14 @@ mod tests {
 
     #[test]
     fn external_destinations_are_allowlisted_by_identifier() {
-        assert_eq!(external_destination_url("guides").unwrap(), "https://ahousedividedgame.com/guides");
-        assert_eq!(external_destination_url("wiki").unwrap(), "https://wiki.ahousedividedgame.com");
+        assert_eq!(
+            external_destination_url("guides").unwrap(),
+            "https://ahousedividedgame.com/guides"
+        );
+        assert_eq!(
+            external_destination_url("wiki").unwrap(),
+            "https://wiki.ahousedividedgame.com"
+        );
         assert!(external_destination_url("https://example.com").is_err());
     }
 
