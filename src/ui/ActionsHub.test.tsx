@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
@@ -81,6 +82,37 @@ describe("ActionsHub", () => {
     const card = screen.getByRole("article", { name: /^debate prep$/i });
     expect(within(card).getByText(/needs a research briefing/i)).toBeInTheDocument();
     expect(within(card).getByText("locked")).toBeInTheDocument();
+  });
+
+  it("renders one decorative code-native banner per card, reusing the shared category glyph", () => {
+    render(<ActionsHub actions={actions} {...props} category="all" onCategoryChange={() => {}} />);
+    const card = screen.getByRole("article", { name: /^campaign$/i });
+    // Single mark per card: the shared glyph tile lives inside the banner, hidden
+    // from assistive tech, while the card name stays the one accessible name.
+    expect(card.getAttribute("aria-label")).toBe("Campaign");
+    const banners = card.querySelectorAll(".ahd-action-banner");
+    expect(banners).toHaveLength(1);
+    const banner = banners[0] as HTMLElement;
+    expect(banner).toHaveAttribute("aria-hidden", "true");
+    expect(banner).toHaveAttribute("data-category", "influence");
+    expect(banner).toHaveAttribute("data-state", "available");
+    const marks = card.querySelectorAll(".ahd-action-mark");
+    expect(marks).toHaveLength(1);
+    expect(banner.contains(marks[0])).toBe(true);
+    expect(marks[0]?.textContent?.length).toBeGreaterThan(0);
+
+    const lockedCard = screen.getByRole("article", { name: /^debate prep$/i });
+    const lockedBanner = lockedCard.querySelector(".ahd-action-banner") as HTMLElement;
+    expect(lockedBanner).toHaveAttribute("data-category", "intelligence");
+    expect(lockedBanner).toHaveAttribute("data-state", "locked");
+  });
+
+  it("styles the banner per category with a compact phone-first crop", () => {
+    const css = readFileSync("src/ui/ui.css", "utf8");
+    for (const category of ["influence", "fundraising", "intelligence", "executive"]) {
+      expect(css).toMatch(new RegExp(`\\.ahd-action-banner\\[data-category="${category}"\\]`));
+    }
+    expect(css).toMatch(/\.ahd-action-banner[^{]*\{[^}]*min-height:\s*3\.25rem/);
   });
 
   it("renders structured recent outcomes with targets, changes and follow-ups", () => {
