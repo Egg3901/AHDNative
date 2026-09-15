@@ -739,6 +739,12 @@ export interface PlayerCharacter {
   constituency?: { id: string; name: string; regionId: string };
   cash: number;
   /**
+   * Optional foreign-currency personal balances. Bond cash flows use the
+   * bond's denomination, matching AHDGame Character.currencyBalances.personal.
+   * Home-currency cash remains in `cash` for compatibility with older saves.
+   */
+  currencyBalances?: { personal: Record<string, number> };
+  /**
    * Action points mirroring mainline Character.actions refresh cadence.
    * Cites src/lib/turn/actionRefresh.ts MIN_BASE_ACTIONS_PER_TURN=4,
    * ACTION_HOARD_PENALTY=4, threshold 100, cap 200 at PORT-STUB neutral.

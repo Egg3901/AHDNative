@@ -10,7 +10,9 @@
  * Solo simplifications (all cited as cut, no silent divergence):
  *  - Single sovereign maturity (48t) per quarterly auction, not staggered 48/96/240 distribution. The distribution is an admin reconcile convenience and not required for the quarterly deficit auction shape; trace still shows price/yield vs prime correctly.
  *  - Rollover: solo rolls over *exact* maturing principal coming due next quarter (like mainline's calculateSovereignRolloverAmount) but only for the integer number of bonds whose maturityTurn falls in [turn, turn+12). This keeps the float stable even in surplus — cited.
- *  - No FX: all sovereign bonds denominate in the issuing country's currencyCode (resolveCountryCurrencyCode analog: budget.currencyCode). Cross-currency player holds are blocked in the action layer (see bonds/actions buyBond forex guard).
+ *  - Sovereign bonds denominate in the issuing budget's currencyCode. Player
+ *    coupons and principal settle in that denomination; cross-currency trades
+ *    remain blocked in the action layer pending #306.
  *  - No corporate bonds this wave — issuerType is always "sovereign". Corporate-bond helpers (credit score, spread) are out of scope.
  *  - No escrow/forexReserve/imf/recovery/legislative/central-bank-QE flows — all mainline default/sovereign-crisis machinery is PORT-STUB.
  *  - Holder bookkeeping: solo tracks only the human player ("player") plus the publicFloat (NPC bulk). Full per-character/corp/fund/NPP holder map is not ported.
@@ -20,6 +22,7 @@
 
 import type { WorldState } from "../types.js";
 import type { Bond, BondMaturityTurns } from "./types.js";
+import { resolveBondCurrency, resolveCountryCurrency } from "./denomination.js";
 import {
   BOND_UNIT_FACE_VALUE,
   calculateBondMarketPrice,
@@ -43,6 +46,19 @@ function bondIdFor(turn: number, countryId: string): string {
 function countryNameFor(countryId: string): string {
   // Minimal display; pack name would be more precise but this is stable and JSON-safe.
   return countryId;
+}
+
+/** Credit a player cash flow in the bond's authoritative denomination. */
+function creditPlayerBondCurrency(world: WorldState, bond: Bond, amount: number): void {
+  if (!(amount > 0) || !Number.isFinite(amount)) return;
+  const homeCurrency = resolveCountryCurrency(world, world.player.countryId);
+  const bondCurrency = resolveBondCurrency(world, bond);
+  if (bondCurrency === homeCurrency) {
+    world.player.cash += amount;
+    return;
+  }
+  const balances = (world.player.currencyBalances ??= { personal: {} }).personal;
+  balances[bondCurrency] = (balances[bondCurrency] ?? 0) + amount;
 }
 
 /**
@@ -133,7 +149,7 @@ export function issueScheduledSovereignBonds(world: WorldState): number {
       matured: false,
       defaulted: false,
       defaultedAtTurn: null,
-      currencyCode: budget.currencyCode ?? "USD",
+      currencyCode: resolveBondCurrency(world, { countryId, currencyCode: budget.currencyCode }),
       createdAt: nowIso,
       updatedAt: nowIso,
     };
@@ -185,8 +201,7 @@ export function payCouponsAndUpdatePrices(world: WorldState): { totalToPlayer: n
       if (h.holderId === "player") {
         const pay = couponPerUnit * h.units;
         if (pay > 0) {
-          // Player cash is single-currency. Cross-currency holds are blocked at buy time, so this is same-currency.
-          world.player.cash += pay;
+          creditPlayerBondCurrency(world, bond, pay);
           totalToPlayer += pay;
         }
       }
@@ -218,7 +233,7 @@ export function settleMaturedBonds(world: WorldState): number {
     for (const h of bond.holders) {
       if (h.holderId === "player" && h.units > 0) {
         const face = h.units * bond.faceValue;
-        world.player.cash += face;
+        creditPlayerBondCurrency(world, bond, face);
       }
     }
     // Budget linkage: reverse the issuance adjustment (principal and annual coupon) at maturity.
