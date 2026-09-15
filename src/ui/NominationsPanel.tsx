@@ -5,9 +5,8 @@
  * Read-only values arrive through LegislatureView (projected from engine
  * state in src/game/nominations.ts); commands go out through onAction using
  * the session's direct-engine commands (sponsorCabinetNomination,
- * voteCabinetNomination, voteScotusNomination). SCOTUS sponsorship is shown
- * as honestly unavailable until #270 lands. All interactive controls keep a
- * 44px minimum touch target.
+ * sponsorScotusNomination, voteCabinetNomination, voteScotusNomination).
+ * All interactive controls keep a 44px minimum touch target.
  */
 import { useState } from "react";
 import type { GameScreenProps, LegislatureView } from "../game/types";
@@ -65,6 +64,19 @@ export function NominationsPanel({ legislature, busy, onAction }: {
         ? "Choose an office and a nominee."
         : null;
   const sponsorDisabled = busy || sponsorBlocked !== null;
+
+  const scotus = legislature.scotusSponsor ?? null;
+  const [seatNumber, setSeatNumber] = useState("");
+  const [justiceNomineeId, setJusticeNomineeId] = useState("");
+  const chosenSeat = scotus?.seats.find((s) => String(s.seatNumber) === seatNumber) ?? null;
+  const scotusBlocked = !scotus?.available
+    ? (scotus?.disabledReason ?? "Sponsorship unavailable")
+    : chosenSeat && !chosenSeat.available
+      ? (chosenSeat.disabledReason ?? "Seat unavailable")
+      : !seatNumber || !justiceNomineeId
+        ? "Choose a seat and a nominee."
+        : null;
+  const scotusDisabled = busy || scotusBlocked !== null;
 
   const castVote = (nomination: NominationView, vote: Ballot) => {
     if (busy || !nomination.voting.available) return;
@@ -174,9 +186,46 @@ export function NominationsPanel({ legislature, busy, onAction }: {
           {sponsor?.disabledReason ?? "Cabinet sponsorship is unavailable."}
         </p>
       )}
-      <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: 0 }}>
-        {legislature.scotusSponsor?.disabledReason ?? "Supreme Court nominations are unavailable (#270)."}
-      </p>
+      <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: "0.3rem 0 0" }}>Sponsor a Supreme Court nomination</h3>
+      {scotus?.available ? (
+        <div style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap" }}>
+          <label className="ahd-field" style={{ maxWidth: "16rem" }}>
+            <span className="ahd-label">Supreme Court seat</span>
+            <select className="ahd-select" style={TOUCH} aria-label="Supreme Court seat" value={seatNumber}
+              onChange={(e) => setSeatNumber(e.target.value)} disabled={busy}>
+              <option value="">Choose a seat</option>
+              {scotus.seats.map((s) => (
+                <option key={s.seatNumber} value={String(s.seatNumber)} disabled={!s.available}>Seat #{s.seatNumber}{s.available ? "" : " (unavailable)"}</option>
+              ))}
+            </select>
+          </label>
+          <label className="ahd-field" style={{ maxWidth: "16rem" }}>
+            <span className="ahd-label">Justice nominee</span>
+            <select className="ahd-select" style={TOUCH} aria-label="Justice nominee" value={justiceNomineeId}
+              onChange={(e) => setJusticeNomineeId(e.target.value)} disabled={busy}>
+              <option value="">Choose a nominee</option>
+              {scotus.nominees.map((n) => (
+                <option key={n.id} value={n.id}>{n.name}</option>
+              ))}
+            </select>
+          </label>
+          <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap" }}>
+            <button type="button" className="ahd-btn ahd-btn-primary ahd-btn-sm" style={TOUCH}
+              onClick={() => {
+                if (scotusDisabled || !legislature.countryId || seatNumber === "" || !justiceNomineeId) return;
+                onAction("sponsorScotusNomination", { countryId: legislature.countryId, seatNumber: Number(seatNumber), nomineeId: justiceNomineeId });
+              }}
+              disabled={scotusDisabled} aria-disabled={scotusDisabled} aria-label="Sponsor justice nomination">
+              Sponsor justice nomination
+            </button>
+            {scotusBlocked ? <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{scotusBlocked}</span> : null}
+          </div>
+        </div>
+      ) : (
+        <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: 0 }}>
+          {scotus?.disabledReason ?? "Supreme Court sponsorship is unavailable."}
+        </p>
+      )}
     </div>
   );
 }

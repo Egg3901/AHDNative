@@ -22,7 +22,7 @@ function makeLegislature(): LegislatureView {
       },
     ],
     cabinetSponsor: { available: false, disabledReason: "Only the President of this country can propose cabinet nominations", positions: [], nominees: [] },
-    scotusSponsor: { available: false, disabledReason: "Supreme Court nominations are unavailable until vacancy and sponsorship rules land (#270)." },
+    scotusSponsor: { available: false, disabledReason: "Only the President of this country can propose Supreme Court nominations", seats: [], nominees: [] },
   };
 }
 
@@ -41,8 +41,8 @@ describe("NominationsPanel", () => {
       expect(screen.getAllByText(/vote open/i).length).toBeGreaterThanOrEqual(2);
       expect(screen.getByText(/3 for · 1 against · 0 abstain/)).toBeInTheDocument();
       expect(screen.getByText(/not yet voted/i)).toBeInTheDocument();
-      expect(screen.getByText(/only the president of this country/i)).toBeInTheDocument();
-      expect(screen.getByText(/#270/)).toBeInTheDocument();
+      expect(screen.getByText(/only the president of this country can propose cabinet nominations/i)).toBeInTheDocument();
+      expect(screen.getByText(/only the president of this country can propose supreme court nominations/i)).toBeInTheDocument();
       for (const control of screen.getAllByRole("button", { name: /for on ada nominee|against on ada nominee|abstain on ada nominee/i })) {
         expect(control.style.minHeight).toBe("44px");
       }
@@ -57,5 +57,47 @@ describe("NominationsPanel", () => {
     await user.click(screen.getByRole("button", { name: /secretary of state: ada nominee/i }));
     await user.click(screen.getByRole("button", { name: /for on ada nominee/i }));
     expect(onAction).toHaveBeenCalledWith("voteCabinetNomination", { nominationId: "cab-1", vote: "for" });
+  });
+
+  it("sponsors a SCOTUS nomination from a vacant seat through the session command", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const legislature = makeLegislature();
+    legislature.scotusSponsor = {
+      available: true,
+      seats: [{ seatNumber: 1, vacant: true, hasActiveNomination: false, available: true }],
+      nominees: [{ id: "nom-1", name: "June Nominee" }],
+    };
+    render(<NominationsPanel legislature={legislature} busy={false} onAction={onAction} />);
+    await user.selectOptions(screen.getByRole("combobox", { name: /supreme court seat/i }), "1");
+    await user.selectOptions(screen.getByRole("combobox", { name: /justice nominee/i }), "nom-1");
+    await user.click(screen.getByRole("button", { name: /sponsor justice nomination/i }));
+    expect(onAction).toHaveBeenCalledWith("sponsorScotusNomination", {
+      countryId: "US",
+      seatNumber: 1,
+      nomineeId: "nom-1",
+    });
+    for (const control of [
+      screen.getByRole("combobox", { name: /supreme court seat/i }),
+      screen.getByRole("combobox", { name: /justice nominee/i }),
+      screen.getByRole("button", { name: /sponsor justice nomination/i }),
+    ]) {
+      expect(control.style.minHeight).toBe("44px");
+    }
+  });
+
+  it("shows the exact SCOTUS refusal reason when sponsorship is unavailable", () => {
+    const onAction = vi.fn();
+    const legislature = makeLegislature();
+    legislature.scotusSponsor = {
+      available: false,
+      disabledReason: "Only the President of this country can propose Supreme Court nominations",
+      seats: [],
+      nominees: [],
+    };
+    render(<NominationsPanel legislature={legislature} busy={false} onAction={onAction} />);
+    expect(screen.getByText(/only the president of this country can propose supreme court nominations/i))
+      .toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /sponsor justice nomination/i })).not.toBeInTheDocument();
   });
 });

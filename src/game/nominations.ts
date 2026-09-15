@@ -13,9 +13,9 @@
  * Routing mirrors the engine lifecycle: ordinary cabinet nominations and
  * SCOTUS nominations are Senate ballots; vicePresident nominations require
  * both House and Senate majorities (25th Amendment path in
- * nominationLifecycle.ts). SCOTUS sponsorship stays honestly unavailable:
- * vacancy/sponsorship rules are #270, which is absent, so no sponsor
- * command or option set is projected for the court.
+ * nominationLifecycle.ts). SCOTUS sponsorship options mirror the engine
+ * sponsor guards (`sponsorScotusNomination`, #270): presidential authority
+ * plus one vacant seat with no active nomination.
  */
 import {
   cabinetPositionsForCountry,
@@ -99,9 +99,19 @@ export interface CabinetSponsorView {
   nominees: { id: string; name: string }[];
 }
 
+export interface ScotusSponsorSeat {
+  seatNumber: number;
+  vacant: boolean;
+  hasActiveNomination: boolean;
+  available: boolean;
+  disabledReason?: string;
+}
+
 export interface ScotusSponsorView {
-  available: false;
-  disabledReason: string;
+  available: boolean;
+  disabledReason?: string;
+  seats: ScotusSponsorSeat[];
+  nominees: { id: string; name: string }[];
 }
 
 function resolvedAt(nomination: CabinetNomination | ScotusNomination): number | null {
@@ -208,7 +218,7 @@ function projectScotus(world: WorldState, nomination: ScotusNomination): Nominat
     seatNumber: nomination.seatNumber,
     nominee: nomination.nomineeName,
     nomineeParty: nomination.nomineeParty ?? null,
-    sponsor: null,
+    sponsor: nomination.proposedBy ?? null,
     status: nomination.status,
     statusLabel: nominationStatusLabel(nomination.status),
     proposedAtTurn: nomination.proposedAtTurn,
@@ -300,12 +310,54 @@ export function projectCabinetSponsor(world: WorldState, countryId: string): Cab
 }
 
 /**
- * SCOTUS sponsorship is honestly unavailable: vacancy and sponsorship rules
- * are #270, which is absent, so no sponsor command or option set exists.
+ * SCOTUS sponsorship surface. Seat-level reasons mirror the engine sponsor
+ * guards (`sponsorScotusNomination`, #270) with their exact messages; the
+ * panel-level flag is the presidential authority check plus at least one
+ * sponsorable vacant seat. Seats read from persisted engine state and are
+ * never synthesized here.
  */
-export function projectScotusSponsor(): ScotusSponsorView {
+export function projectScotusSponsor(world: WorldState, countryId: string): ScotusSponsorView {
+  const executive = world.executives[countryId];
+  const authority =
+    world.player.countryId === countryId && executive?.presidentId === "player"
+      ? undefined
+      : "Only the President of this country can propose Supreme Court nominations";
+  const seats = (world.supremeCourtSeats ?? [])
+    .filter((seat) => seat.countryId === countryId)
+    .sort((left, right) => left.seatNumber - right.seatNumber)
+    .map((seat) => {
+      const hasActiveNomination = (world.scotusNominations ?? []).some(
+        (nomination) =>
+          nomination.countryId === countryId &&
+          nomination.seatNumber === seat.seatNumber &&
+          nomination.status === "active",
+      );
+      const reason = authority
+        ?? (seat.justiceMode !== null
+          ? "Seat is not vacant"
+          : hasActiveNomination
+            ? "An active nomination for this seat already exists"
+            : undefined);
+      return {
+        seatNumber: seat.seatNumber,
+        vacant: seat.justiceMode === null,
+        hasActiveNomination,
+        available: reason === undefined,
+        ...(reason ? { disabledReason: reason } : {}),
+      };
+    });
+  const nominees = [
+    { id: "player", name: `${world.player.name} (you)` },
+    ...world.politicians
+      .filter((politician) => politician.countryId === countryId)
+      .slice(0, 100)
+      .map((politician) => ({ id: politician.id, name: politician.name })),
+  ];
+  const available = authority === undefined && seats.some((seat) => seat.available);
   return {
-    available: false,
-    disabledReason: "Supreme Court nominations are unavailable until vacancy and sponsorship rules land (#270).",
+    available,
+    ...(available ? {} : { disabledReason: authority ?? "No vacant Supreme Court seats." }),
+    seats,
+    nominees,
   };
 }
