@@ -67,7 +67,10 @@ export async function chooseGameMenuDestination(page: Page, name: string) {
       : WORLD_DESTINATIONS.has(name)
         ? 'World'
         : null;
-    if (disclosure) await dialog.getByRole('button', { name: disclosure, exact: true }).click();
+    if (disclosure) {
+      await dialog.getByRole('button', { name: disclosure, exact: true }).click();
+      await expect(destination).toBeVisible();
+    }
   }
   await destination.click();
 }
