@@ -100,6 +100,7 @@ import {
   crisisTurnPhase,
 } from "../events/phases.js";
 import { bankingTurnPhase } from "../banking/bankingTurn.js";
+import { playerSavingsInterestPhase } from "../finance/playerSavingsInterest.js";
 import { bankSolvencyTurnPhase } from "../banking/bankSolvencyTurn.js";
 import {
   governorAPRegenPhase,
@@ -339,7 +340,9 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // there would shift every downstream rng draw for existing goldens - and
   // in solo's case both phases are RNG-free regardless, so the real reason
   // is the same append-only-tail rule recomputeSharePricesPhase's own
-  // comment states, not an rng argument). bankingTurnPhase before
+  // comment states, not an rng argument). playerSavingsInterestPhase handles
+  // only central-bank-held savings and runs before bankingTurnPhase, which
+  // exclusively handles private-bank-held savings. bankingTurnPhase before
   // bankSolvencyTurnPhase mirrors mainline's real relative order (a bank's
   // deposit/loan/interest flows settle before that same turn's solvency
   // pass evaluates the resulting cash position) and mainline's own stated
@@ -347,6 +350,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // Prices" (bankSolvencyTurn.ts file doc) - solo drops the prop-book mark-
   // to-market this ordering exists for (see banking/types.ts file doc: no
   // investment-bank charter type ported), but keeps the same slot.
+  playerSavingsInterestPhase,
   bankingTurnPhase,
   bankSolvencyTurnPhase,
   // W30 governor cluster at END before newsMaintenance, after the W12

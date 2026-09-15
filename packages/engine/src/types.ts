@@ -865,15 +865,19 @@ export interface PlayerCharacter {
   /**
    * W12: personal savings balance, local currency. Ports the single-currency
    * projection of Character.currencyBalances.savings (mainline is
-   * multi-currency; solo has no live FX system on WorldState — see
-   * finance/savingsInterest.ts file doc, whose own multi-currency
-   * CharacterInput is a pure library with no WorldState wiring). Defaults 0.
+   * multi-currency). Central-bank-held savings accrue through
+   * playerSavingsInterestPhase; private-bank-held savings use bankingTurn.
+   * Defaults 0.
    */
   savings: number;
+  /** Savings interest accrued since the last quarterly credit. */
+  pendingSavingsInterest?: number;
+  /** Lifetime interest credited to player savings. */
+  savingsInterestEarnedLifetime?: number;
   /**
    * Where `savings` is held: "centralBank" (mainline's default holder,
-   * earns nothing — solo has no wired savingsInterestTurn path either, see
-   * above) or a bank corp id (see corporation/types.js Corporation.
+   * earns through playerSavingsInterestPhase) or a bank corp id (see
+   * corporation/types.js Corporation.
    * bankCharter). No in-game action currently moves this away from
    * "centralBank" (mainline's moveCharacterSavings has no solo UI/action
    * counterpart yet); bankingTurnPhase/bankSolvencyTurnPhase honor it
