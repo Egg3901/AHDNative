@@ -7,7 +7,7 @@ import {
 } from "./MobileNavigation";
 import { MpModeSession, type MpSnapshot } from "../mp/adapter";
 import { tauriMpBridgeHost, type MpBridgeHost } from "../mp/bridge";
-import { MP_EXECUTE_ACTIONS } from "../mp/endpoints";
+import { MP_EXECUTE_ACTIONS, MP_NOTIFICATION_TYPES, MP_SNOOZE_MINUTES_DEFAULT } from "../mp/endpoints";
 import "./ui.css";
 
 /* Native multiplayer mode screen (#359). Renders authoritative server state
@@ -53,6 +53,9 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   const [busy, setBusy] = useState(false);
   const [region, setRegion] = useState("");
   const [amount, setAmount] = useState("");
+  const [runs, setRuns] = useState<1 | 5 | 10>(1);
+  const [snooze, setSnooze] = useState("");
+  const [prefType, setPrefType] = useState<string>("turn_advance");
 
   useEffect(() => {
     const session = sessionRef.current!;
@@ -194,6 +197,25 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
             <p className="ahd-muted" style={{ marginTop: 0 }}>
               Actions run on the live game. Costs and refusals come from the server.
             </p>
+            <div className="ahd-mp-row" role="group" aria-label="Batch runs">
+              <span className="ahd-label">Runs</span>
+              {([1, 5, 10] as const).map((count) => (
+                <button
+                  key={count}
+                  className="ahd-btn ahd-btn-sm"
+                  disabled={busy}
+                  aria-pressed={runs === count}
+                  aria-label={`×${count}`}
+                  onClick={() => setRuns(count)}
+                >
+                  ×{count}
+                </button>
+              ))}
+            </div>
+            <p className="ahd-muted" style={{ marginBottom: 0 }}>
+              Batch ×5 and ×10 run on Fundraise, Campaign, Run Advertisements, Build Donor
+              Network, and the two polls. Other actions always run once.
+            </p>
             <div className="ahd-mp-row">
               <label className="ahd-field ahd-mp-input">
                 <span className="ahd-label">Region (optional)</span>
@@ -226,7 +248,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                   onClick={() => {
                     const targetState = region.trim() ? region.trim() : undefined;
                     const convertAmount = amount.trim() ? Number(amount.trim()) : undefined;
-                    void run((s) => s.performAction({ actionType: action.type, targetState, convertAmount }));
+                    void run((s) => s.performAction({ actionType: action.type, targetState, convertAmount, count: runs }));
                   }}
                 >
                   {action.name}
@@ -252,6 +274,18 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
               </button>
             </div>
             {snapshot.inbox.notifications.length === 0 && <p className="ahd-muted">No notifications.</p>}
+            <div className="ahd-mp-row">
+              <label className="ahd-field ahd-mp-input">
+                <span className="ahd-label">Snooze length (minutes, default {MP_SNOOZE_MINUTES_DEFAULT})</span>
+                <input
+                  value={snooze}
+                  disabled={busy}
+                  inputMode="numeric"
+                  placeholder={String(MP_SNOOZE_MINUTES_DEFAULT)}
+                  onChange={(event) => setSnooze(event.currentTarget.value)}
+                />
+              </label>
+            </div>
             <ul className="ahd-mp-inbox">
               {snapshot.inbox.notifications.map((note) => (
                 <li key={note.id} className="ahd-mp-inbox-row">
@@ -267,6 +301,23 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                         Mark read
                       </button>
                     )}
+                    <button
+                      className="ahd-btn ahd-btn-sm"
+                      disabled={busy}
+                      onClick={() => {
+                        const trimmed = snooze.trim();
+                        const minutes = trimmed ? Number(trimmed) : undefined;
+                        void run((s) => s.snoozeNotification(note.id, minutes));
+                      }}
+                    >
+                      Snooze
+                    </button>
+                    <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void run((s) => s.unsnoozeNotification(note.id))}>
+                      Unsnooze
+                    </button>
+                    <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void run((s) => s.unarchiveNotification(note.id))}>
+                      Unarchive
+                    </button>
                     <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" disabled={busy} onClick={() => void run((s) => s.archiveNotification(note.id))}>
                       Archive
                     </button>
@@ -274,6 +325,26 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                 </li>
               ))}
             </ul>
+            <div className="ahd-mp-row" style={{ marginTop: "0.6rem" }}>
+              <label className="ahd-field ahd-mp-input">
+                <span className="ahd-label">Notification type</span>
+                <select
+                  value={prefType}
+                  disabled={busy}
+                  onChange={(event) => setPrefType(event.currentTarget.value)}
+                >
+                  {MP_NOTIFICATION_TYPES.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </label>
+              <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void run((s) => s.setNotificationPreference("mute", prefType))}>
+                Mute
+              </button>
+              <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void run((s) => s.setNotificationPreference("unmute", prefType))}>
+                Unmute
+              </button>
+            </div>
           </section>
         )}
       </div>

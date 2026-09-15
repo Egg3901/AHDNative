@@ -86,7 +86,9 @@ describe("MpModeScreen at 320px", () => {
     expect(screen.getByText("1000")).toBeInTheDocument();
 
     const actions = screen.getByRole("region", { name: "Player actions" });
-    const buttons = within(actions).getAllByRole("button");
+    const runsGroup = within(actions).getByRole("group", { name: "Batch runs" });
+    const runButtons = new Set(within(runsGroup).getAllByRole("button"));
+    const buttons = within(actions).getAllByRole("button").filter((button) => !runButtons.has(button));
     // Exactly the nine audited server actions: nothing more is offered.
     expect(buttons.map((button) => button.textContent)).toEqual([
       "Fundraise",
@@ -111,9 +113,51 @@ describe("MpModeScreen at 320px", () => {
     setViewport(320);
     render(<MpModeScreen host={fakeHost(readyScript()).host} onExit={() => {}} />);
     await screen.findByRole("heading", { name: "Ada" });
-    for (const absent of ["Advance turn", "Batch", "×5", "Legislature", "Travel", "Declare", "Snooze", "Delete"]) {
+    // Batch runs and inbox snooze/unarchive/preferences shipped in #361, so
+    // they are present; everything else stays absent.
+    for (const absent of ["Advance turn", "Legislature", "Travel", "Declare", "Delete"]) {
       expect(screen.queryByRole("button", { name: new RegExp(absent, "i") })).toBeNull();
     }
+  });
+
+  it("offers the ×1/×5/×10 batch control by touch with refusal and refresh evidence", async () => {
+    setViewport(320);
+    const user = userEvent.setup();
+    const { host, calls } = fakeHost({
+      fetch: {
+        "auth-session": [probe],
+        "character-me": [me(1000), me(900)],
+        "turn-status": [turn, turn],
+        notifications: [inbox(1), inbox(1)],
+      },
+      mutate: { "execute-action": [JSON.stringify({ success: true, message: "Ran 5 fundraisers!" })] },
+    });
+    render(<MpModeScreen host={host} onExit={() => {}} />);
+    await screen.findByRole("heading", { name: "Ada" });
+
+    const runs = screen.getByRole("group", { name: "Batch runs" });
+    const timesFive = within(runs).getByRole("button", { name: "×5" });
+    await user.click(timesFive);
+    expect(timesFive).toHaveAttribute("aria-pressed", "true");
+
+    calls.length = 0;
+    await user.click(screen.getByRole("button", { name: /Fundraise/ }));
+    expect(await screen.findByText("Ran 5 fundraisers!")).toBeInTheDocument();
+    expect(screen.getByText("900")).toBeInTheDocument();
+    expect(calls[0]).toMatch(/^mutate:execute-action:.*"count":5/);
+    expect(calls.slice(1, 4)).toEqual(["fetch:character-me", "fetch:turn-status", "fetch:notifications"]);
+  });
+
+  it("shows the batch refusal when a single-run action is tapped with ×10", async () => {
+    setViewport(320);
+    const user = userEvent.setup();
+    const { host, calls } = fakeHost(readyScript());
+    render(<MpModeScreen host={host} onExit={() => {}} />);
+    await screen.findByRole("heading", { name: "Ada" });
+    await user.click(screen.getByRole("button", { name: "×10" }));
+    await user.click(screen.getByRole("button", { name: /Rest/ }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Batch execution is not available");
+    expect(calls.filter((call) => call.startsWith("mutate:"))).toHaveLength(0);
   });
 
   it("uses wrap-safe CSS so 320px/390px never clip controls", () => {
@@ -121,6 +165,7 @@ describe("MpModeScreen at 320px", () => {
     expect(css).toMatch(/\.ahd-mp-actions[^{]*\{[^}]*flex-wrap:\s*wrap/);
     expect(css).toMatch(/\.ahd-mp-row[^{]*\{[^}]*flex-wrap:\s*wrap/);
     expect(css).toMatch(/\.ahd-mp-input\s+input\s*\{[^}]*min-width:\s*0/);
+    expect(css).toMatch(/\.ahd-mp-input\s+select\s*\{[^}]*min-width:\s*0/);
     const mpRules = css.split("@media")[0] ?? "";
     for (const match of mpRules.match(/\.ahd-mp-[^{]*\{[^}]*\}/g) ?? []) {
       expect(match).not.toMatch(/width:\s*\d+px/);
@@ -146,6 +191,60 @@ describe("MpModeScreen at 390px", () => {
     await user.click(screen.getByRole("button", { name: "Continue with Discord" }));
     expect(await screen.findByRole("heading", { name: "Ada" })).toBeInTheDocument();
     expect(calls).toContain("sign-in:discord");
+  });
+
+  it("snoozes, unsnoozes, and unarchives from the inbox by touch", async () => {
+    setViewport(390);
+    const user = userEvent.setup();
+    const { host, calls } = fakeHost({
+      fetch: {
+        "auth-session": [probe],
+        "character-me": [me(1000), me(1000), me(1000), me(1000)],
+        "turn-status": [turn, turn, turn, turn],
+        notifications: [inbox(1), inbox(1), inbox(1), inbox(1)],
+      },
+      mutate: {
+        "notification-snooze": [JSON.stringify({ success: true })],
+        "notification-unsnooze": [JSON.stringify({ success: true })],
+        "notification-unarchive": [JSON.stringify({ success: true })],
+      },
+    });
+    render(<MpModeScreen host={host} onExit={() => {}} />);
+    await screen.findByText(/Turn processed/);
+
+    await user.clear(screen.getByLabelText(/Snooze length/));
+    await user.type(screen.getByLabelText(/Snooze length/), "60");
+    await user.click(screen.getByRole("button", { name: "Snooze" }));
+    expect(await screen.findByText(/snoozed for 60 minutes/)).toBeInTheDocument();
+    expect(calls.find((call) => call.startsWith("mutate:notification-snooze:"))).toContain('"snoozeMinutes":60');
+
+    await user.click(screen.getByRole("button", { name: "Unsnooze" }));
+    expect(await screen.findByText(/unsnoozed/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Unarchive" }));
+    expect(await screen.findByText(/unarchived/)).toBeInTheDocument();
+  });
+
+  it("mutes a notification type preference by touch", async () => {
+    setViewport(390);
+    const user = userEvent.setup();
+    const { host, calls } = fakeHost({
+      fetch: {
+        "auth-session": [probe],
+        "character-me": [me(1000), me(1000)],
+        "turn-status": [turn, turn],
+        notifications: [inbox(1), inbox(1)],
+      },
+      mutate: { "notification-preference": [JSON.stringify({ success: true })] },
+    });
+    render(<MpModeScreen host={host} onExit={() => {}} />);
+    await screen.findByText(/Turn processed/);
+
+    await user.selectOptions(screen.getByLabelText(/Notification type/), "turn_advance");
+    await user.click(screen.getByRole("button", { name: "Mute" }));
+    expect(await screen.findByText(/preference updated/)).toBeInTheDocument();
+    expect(calls.find((call) => call.startsWith("mutate:notification-preference:"))).toContain(
+      '"action":"mute"',
+    );
   });
 
   it("reports auth expiry with a reconnect path", async () => {
