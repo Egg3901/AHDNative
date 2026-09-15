@@ -129,9 +129,65 @@ function errorMessage(status: number, body: unknown): string {
 }
 
 function usageOf(body: unknown): AskUsage | null {
-  if (body && typeof body === "object" && "usage" in body) {
-    const usage = (body as { usage?: unknown }).usage;
-    if (usage && typeof usage === "object") return usage as AskUsage;
+  return usageIn(body);
+}
+
+/**
+ * Sanitized quota summary off any `{ usage }` shaped payload: answers,
+ * conversation lists, stream events, and error bodies. Unknown fields are
+ * dropped so a wider service response can never leak into the UI.
+ */
+export function usageIn(value: unknown): AskUsage | null {
+  if (value && typeof value === "object" && "usage" in value) {
+    const usage = (value as { usage?: unknown }).usage;
+    if (!usage || typeof usage !== "object") return null;
+    const record = usage as Record<string, unknown>;
+    const num = (field: unknown): number | null =>
+      typeof field === "number" && Number.isFinite(field) ? field : null;
+    // used/limit/remaining identify the quota; live-data counters and the
+    // reset timestamp default when a refusal carries only the headline
+    // numbers, so a 429 still updates the visible allowance.
+    const used = num(record.used);
+    const limit = num(record.limit);
+    const remaining = num(record.remaining);
+    if (used === null || limit === null || remaining === null) return null;
+    const clean: AskUsage = {
+      used,
+      limit,
+      remaining,
+      mcpUsed: num(record.mcpUsed) ?? 0,
+      mcpLimit: num(record.mcpLimit) ?? 0,
+      mcpRemaining: num(record.mcpRemaining) ?? 0,
+      resetAt: num(record.resetAt) ?? 0,
+    };
+    if (typeof record.tier === "string") clean.tier = record.tier;
+    const vizUsed = num(record.vizUsed);
+    if (vizUsed !== null) clean.vizUsed = vizUsed;
+    const vizLimit = num(record.vizLimit);
+    if (vizLimit !== null) clean.vizLimit = vizLimit;
+    const vizRemaining = num(record.vizRemaining);
+    if (vizRemaining !== null) clean.vizRemaining = vizRemaining;
+    const maxFollowups = num(record.maxFollowups);
+    if (maxFollowups !== null) clean.maxFollowups = maxFollowups;
+    const followupCost = num(record.followupCost);
+    if (followupCost !== null) clean.followupCost = followupCost;
+    return clean;
+  }
+  return null;
+}
+
+/** True when the failure means the Ask session is gone (401 or missing cookie). */
+export function isSignedOutError(error: unknown): boolean {
+  if (error && typeof error === "object" && "signedOut" in error) {
+    return (error as { signedOut?: unknown }).signedOut === true;
+  }
+  return typeof error === "string" && /sign in/i.test(error);
+}
+
+/** Quota summary carried by a 429 failure, or null. */
+export function usageFromError(error: unknown): AskUsage | null {
+  if (error && typeof error === "object" && "usage" in error) {
+    return usageIn(error);
   }
   return null;
 }

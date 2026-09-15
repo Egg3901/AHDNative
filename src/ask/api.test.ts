@@ -10,7 +10,18 @@ vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn(),
 }));
 
-import { AskError, askApi, askApiJson, openAskLink, openAskWindow, quotaLabel, resetIn } from "./api";
+import {
+  AskError,
+  askApi,
+  askApiJson,
+  isSignedOutError,
+  openAskLink,
+  openAskWindow,
+  quotaLabel,
+  resetIn,
+  usageFromError,
+  usageIn,
+} from "./api";
 
 beforeEach(() => {
   invoke.mockReset();
@@ -55,6 +66,53 @@ describe("askApi", () => {
     const failure = await askApiJson("GET", "/api/me").catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(Error);
     expect(failure).not.toBeInstanceOf(AskError);
+  });
+});
+
+describe("usage extraction", () => {
+  it("sanitizes quota off any usage-shaped payload", () => {
+    const usage = usageIn({
+      usage: {
+        used: 3,
+        limit: 10,
+        remaining: 7,
+        mcpUsed: 0,
+        mcpLimit: 2,
+        mcpRemaining: 2,
+        resetAt: 123,
+        cookie: "must-not-survive",
+      },
+    });
+    expect(usage).toMatchObject({ used: 3, remaining: 7 });
+    expect(usage).not.toHaveProperty("cookie");
+  });
+
+  it("keeps headline quota from a sparse 429 body", () => {
+    expect(usageIn({ usage: { used: 5, limit: 5, remaining: 0 } })).toMatchObject({
+      remaining: 0,
+      mcpRemaining: 0,
+      resetAt: 0,
+    });
+    expect(usageIn({ usage: { remaining: "many", limit: 10 } })).toBeNull();
+    expect(usageIn(null)).toBeNull();
+  });
+
+  it("reads sign-out and quota off failures", () => {
+    expect(isSignedOutError(new AskError(401, "Signed out", null))).toBe(true);
+    expect(isSignedOutError(new AskError(429, "Spent", null))).toBe(false);
+    expect(isSignedOutError("Please sign in to Ask first.")).toBe(true);
+    expect(isSignedOutError(new Error("Cannot reach Ask."))).toBe(false);
+    const quota = new AskError(429, "Spent", {
+      used: 5,
+      limit: 5,
+      remaining: 0,
+      mcpUsed: 0,
+      mcpLimit: 0,
+      mcpRemaining: 0,
+      resetAt: 0,
+    });
+    expect(usageFromError(quota)).toMatchObject({ remaining: 0 });
+    expect(usageFromError(new Error("down"))).toBeNull();
   });
 });
 

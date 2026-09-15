@@ -19,6 +19,17 @@ vi.mock("@tauri-apps/api/event", () => ({
 }));
 
 import { AskPanel } from "./AskPanel";
+import { ASK_SESSION_CACHE_KEY, saveCachedAskSession } from "./session";
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
 
 const USAGE = {
   used: 3, limit: 10, remaining: 7,
@@ -186,6 +197,138 @@ describe("AskPanel questions and stop", () => {
     );
   });
 
+describe("AskPanel instant startup", () => {
+  function gateMe(gate: Promise<unknown>) {
+    invoke.mockImplementation((command: string, args?: Record<string, unknown>) => {
+      if (command === "ask_api") {
+        if (args?.path === "/api/me") return gate;
+        return Promise.resolve({ status: 200, body: '{"conversations":[]}' });
+      }
+      if (command === "ask_send") return Promise.resolve("req-1");
+      if (command === "ask_stop") return Promise.resolve(undefined);
+      if (command === "open_ask_window") return Promise.resolve(undefined);
+      if (command === "open_ask_link") return Promise.resolve(undefined);
+      return Promise.reject(new Error(`unexpected invoke ${command}`));
+    });
+  }
+
+  it("paints the usable shell immediately from cache while /api/me is still pending", async () => {
+    saveCachedAskSession({ username: "marshall", usage: USAGE, tier: "Player" });
+    const gate = deferred<unknown>();
+    gateMe(gate.promise);
+    render(<AskPanel />);
+
+    // Shell is usable before the authoritative refresh answers.
+    expect(screen.getByText("7 of 10 left", { exact: false })).toBeInTheDocument();
+    expect((screen.getByLabelText("Ask a question") as HTMLTextAreaElement).disabled).toBe(false);
+    expect(screen.queryByText("Opening your questions…")).toBeNull();
+
+    gate.resolve({
+      status: 200,
+      body: JSON.stringify({ usage: { ...USAGE, used: 4, remaining: 6 }, entitlement: { allowed: true, label: "Player" }, identity: { username: "marshall" } }),
+    });
+    expect(await screen.findByText("6 of 10 left", { exact: false })).toBeInTheDocument();
+  });
+
+  it("shows an explicit checking shell instead of a blocked panel on first launch", async () => {
+    const gate = deferred<unknown>();
+    gateMe(gate.promise);
+    render(<AskPanel />);
+
+    expect(screen.queryByText("Opening your questions…")).toBeNull();
+    expect(screen.getByText("Checking access…")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ask a question")).toBeInTheDocument();
+    expect((screen.getByLabelText("Ask a question") as HTMLTextAreaElement).disabled).toBe(true);
+
+    gate.resolve({ status: 200, body: meBody() });
+    await waitFor(() =>
+      expect((screen.getByLabelText("Ask a question") as HTMLTextAreaElement).disabled).toBe(false),
+    );
+    expect(screen.getByText("7 of 10 left", { exact: false })).toBeInTheDocument();
+  });
+
+  it("signs out and clears cached quota on 401", async () => {
+    saveCachedAskSession({ username: "marshall", usage: USAGE, tier: "Player" });
+    routeInvoke({ "/api/me": { status: 401, body: "{\"error\":\"no session\"}" } });
+    render(<AskPanel />);
+
+    expect(await screen.findByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    expect(localStorage.getItem(ASK_SESSION_CACHE_KEY)).toBeNull();
+  });
+
+  it("replaces cached quota when the account changes", async () => {
+    saveCachedAskSession({ username: "marshall", usage: USAGE, tier: "Player" });
+    const other = { ...USAGE, used: 9, remaining: 1 };
+    routeInvoke({
+      "/api/me": {
+        status: 200,
+        body: JSON.stringify({ usage: other, entitlement: { allowed: true, label: "Player" }, identity: { username: "delegate" } }),
+      },
+      "/api/conversations": { status: 200, body: "{\"conversations\":[]}" },
+    });
+    render(<AskPanel />);
+
+    expect(await screen.findByText("1 of 10 left", { exact: false })).toBeInTheDocument();
+    expect(screen.queryByText("7 of 10 left", { exact: false })).toBeNull();
+    expect(JSON.parse(localStorage.getItem(ASK_SESSION_CACHE_KEY) ?? "{}").username).toBe("delegate");
+  });
+});
+
+describe("AskPanel live quota updates", () => {
+  async function readyPanelWithGatedRefresh(refreshGate: Promise<unknown>) {
+    const user = userEvent.setup();
+    invoke.mockImplementation((command: string, args?: Record<string, unknown>) => {
+      if (command === "ask_api") {
+        if (args?.path === "/api/me") return refreshGate;
+        return Promise.resolve({ status: 200, body: '{"conversations":[]}' });
+      }
+      if (command === "ask_send") return Promise.resolve("req-1");
+      if (command === "ask_stop") return Promise.resolve(undefined);
+      return Promise.reject(new Error(`unexpected invoke ${command}`));
+    });
+    render(<AskPanel />);
+    await screen.findByText("7 of 10 left", { exact: false });
+    return user;
+  }
+
+  it("updates quota from the answer event before the refresh confirms it", async () => {
+    saveCachedAskSession({ username: "marshall", usage: USAGE, tier: "Player" });
+    const refresh = deferred<unknown>();
+    const user = await readyPanelWithGatedRefresh(refresh.promise);
+    await user.type(screen.getByLabelText("Ask a question"), "Why did the harvest fail?");
+    await user.click(screen.getByRole("button", { name: "Ask" }));
+    await screen.findByRole("button", { name: "Stop" });
+    streamHandler?.({
+      reqId: "req-1",
+      kind: "done",
+      data: { answer: "Blight.", usage: { ...USAGE, used: 4, remaining: 6 } },
+    });
+    expect(await screen.findByText("6 of 10 left", { exact: false })).toBeInTheDocument();
+    refresh.resolve({ status: 200, body: meBody() });
+  });
+
+  it("updates quota on a 429 answer refusal", async () => {
+    saveCachedAskSession({ username: "marshall", usage: USAGE, tier: "Player" });
+    const refresh = deferred<unknown>();
+    const user = await readyPanelWithGatedRefresh(refresh.promise);
+    await user.type(screen.getByLabelText("Ask a question"), "One more question?");
+    await user.click(screen.getByRole("button", { name: "Ask" }));
+    await screen.findByRole("button", { name: "Stop" });
+    const spent = { ...USAGE, used: 10, remaining: 0 };
+    streamHandler?.({
+      reqId: "req-1",
+      kind: "final",
+      data: { status: 429, body: JSON.stringify({ error: "No questions left", usage: spent }) },
+    });
+    expect(await screen.findByText("0 of 10 left", { exact: false })).toBeInTheDocument();
+    refresh.resolve({
+      status: 200,
+      body: JSON.stringify({ usage: spent, entitlement: { allowed: true, label: "Player" }, identity: { username: "marshall" } }),
+    });
+  });
+});
+
+describe("AskPanel 429 stream refusal", () => {
   it("surfaces 429 quota refusals with the service message", async () => {
     const user = await readyPanel();
     invoke.mockImplementation((command: string, args?: Record<string, unknown>) => {
@@ -207,4 +350,5 @@ describe("AskPanel questions and stop", () => {
     expect(thread).toBeTruthy();
     expect(await within(thread as HTMLElement).findByText("No questions left")).toBeInTheDocument();
   });
+});
 });

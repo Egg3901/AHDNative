@@ -5,17 +5,26 @@ import {
   askMe,
   askSend,
   askStop,
+  isSignedOutError,
   onAskStream,
   openAskLink,
   openAskWindow,
   quotaLabel,
   resetIn,
+  usageFromError,
+  usageIn,
   type AskAnswer,
   type AskConversation,
   type AskStreamEvent,
   type AskTurn,
   type AskUsage,
 } from "./api";
+import {
+  clearCachedAskSession,
+  loadCachedAskSession,
+  saveCachedAskSession,
+  usernameOf,
+} from "./session";
 import { Md } from "./markdown";
 import "./ask.css";
 
@@ -107,9 +116,18 @@ export function AskPanel({
   onSignIn = openAskWindow,
   onOpenLink = openAskLink,
 }: AskPanelProps): JSX.Element {
-  const [phase, setPhase] = useState<Phase>("checking");
-  const [usage, setUsage] = useState<AskUsage | null>(null);
-  const [tier, setTier] = useState<string | null>(null);
+  // The last validated snapshot paints the shell instantly; the probe
+  // below revalidates it in the background. No cookies or tokens here,
+  // only the quota numbers and the account they belong to.
+  const [cachedFirst] = useState(loadCachedAskSession);
+  const [phase, setPhase] = useState<Phase>(() =>
+    cachedFirst?.usage ?? cachedFirst?.tier ? "ready" : "checking",
+  );
+  const [usage, setUsage] = useState<AskUsage | null>(() => cachedFirst?.usage ?? null);
+  const [tier, setTier] = useState<string | null>(() => cachedFirst?.tier ?? null);
+  const [refreshing, setRefreshing] = useState(true);
+  const [quotaStale, setQuotaStale] = useState(false);
+  const accountRef = useRef<string | null>(cachedFirst?.username ?? null);
   const [convs, setConvs] = useState<AskConversation[]>([]);
   const [convId, setConvId] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -135,25 +153,69 @@ export function AskPanel({
     setMsgs((prev) => prev.map((msg) => (msg.id === `a-${reqId}` ? patch(msg) : msg)));
   }, []);
 
+  const signOut = useCallback(() => {
+    accountRef.current = null;
+    setUsage(null);
+    setTier(null);
+    setQuotaStale(false);
+    clearCachedAskSession();
+    setPhase("signedOut");
+  }, []);
+
+  // Display the authoritative snapshot and keep its non-sensitive summary
+  // cached for the next instant open. A new username means the account
+  // changed, so the previous account's conversations go first.
+  const remember = useCallback((nextUsage: AskUsage | null, nextTier: string | null, username: string | null) => {
+    if (accountRef.current !== username) {
+      setConvs([]);
+      accountRef.current = username;
+    }
+    setUsage(nextUsage);
+    setTier(nextTier);
+    setQuotaStale(false);
+    saveCachedAskSession({ username, usage: nextUsage, tier: nextTier });
+  }, []);
+
+  // Quota arriving on any stream payload (answers, credit notices): show it
+  // now; the authoritative refresh after the turn confirms it.
+  const noteUsage = useCallback((data: unknown) => {
+    const next = usageIn(data);
+    if (!next) return;
+    setUsage(next);
+    const cached = loadCachedAskSession();
+    saveCachedAskSession({ username: cached?.username ?? accountRef.current, usage: next, tier: cached?.tier ?? null });
+  }, []);
+
   const refreshQuota = useCallback(async () => {
     try {
       const me = await askMe();
-      if (me.usage) setUsage(me.usage);
-      setTier(me.entitlement?.label ?? null);
-    } catch {
-      // Quota is best-effort; the thread already carries its own usage.
+      remember(me.usage ?? null, me.entitlement?.label ?? null, usernameOf(me));
+    } catch (error) {
+      if (isSignedOutError(error)) {
+        signOut();
+        return;
+      }
+      const quota = usageFromError(error);
+      if (quota) {
+        noteUsage({ usage: quota });
+        setNotice(error instanceof Error ? error.message : "You have used today's questions.");
+      }
+      // Background refresh failed: keep the cached allowance on screen but
+      // flag it stale so the panel never implies current access.
+      setQuotaStale(true);
     }
-  }, []);
+  }, [noteUsage, remember, signOut]);
 
   const refreshConvs = useCallback(async () => {
     try {
       const { conversations, usage: listUsage } = await askConversations();
       setConvs(conversations);
-      if (listUsage) setUsage(listUsage);
-    } catch {
+      if (listUsage) noteUsage({ usage: listUsage });
+    } catch (error) {
+      if (isSignedOutError(error)) signOut();
       // History is best-effort once the thread is showing.
     }
-  }, []);
+  }, [noteUsage, signOut]);
 
   const openThread = useCallback(
     async (id: string | null) => {
@@ -179,15 +241,17 @@ export function AskPanel({
     [],
   );
 
+  // Startup probe. The shell is already painted (from cache when there is
+  // one), so this only revalidates in the background and fills in the
+  // thread. It never blocks the panel on /api/me.
   const probe = useCallback(async () => {
-    setPhase((prev) => (prev === "ready" ? prev : "checking"));
+    setRefreshing(true);
     try {
       const me = await askMe();
-      if (me.usage) setUsage(me.usage);
-      setTier(me.entitlement?.label ?? null);
+      remember(me.usage ?? null, me.entitlement?.label ?? null, usernameOf(me));
       const { conversations, usage: listUsage } = await askConversations();
       setConvs(conversations);
-      if (listUsage) setUsage(listUsage);
+      if (listUsage) noteUsage({ usage: listUsage });
       let stored: string | null = null;
       try {
         stored = localStorage.getItem(CONV_KEY);
@@ -198,31 +262,36 @@ export function AskPanel({
       setPhase("ready");
       await openThread(resume);
     } catch (error) {
-      if (error && typeof error === "object" && "signedOut" in error && (error as { signedOut?: boolean }).signedOut) {
-        setPhase("signedOut");
+      if (isSignedOutError(error)) {
+        signOut();
       } else {
         setNotice(error instanceof Error ? error.message : "Could not reach Ask.");
+        setQuotaStale(true);
         setPhase("ready");
       }
+    } finally {
+      setRefreshing(false);
     }
-  }, [openThread]);
+  }, [noteUsage, openThread, remember, signOut]);
 
   useEffect(() => {
     void probe();
   }, [probe]);
 
-  // The sign-in window closes itself on login and focuses this panel, so
-  // re-probe whenever it regains focus while signed out.
+  // The sign-in surface closes itself on login and focuses this panel, so
+  // re-probe while signed out and refresh the allowance otherwise. Sign-in,
+  // sign-out, and account switches land without reopening the panel.
   useEffect(() => {
     const onFocus = () => {
       setPhase((prev) => {
         if (prev === "signedOut") void probe();
+        else void refreshQuota();
         return prev;
       });
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [probe]);
+  }, [probe, refreshQuota]);
 
   // Answer stream routing. One question at a time: the composer locks while
   // a stream is live, so the ref always names the visible placeholder.
@@ -239,6 +308,7 @@ export function AskPanel({
       const data = event.data as Record<string, unknown>;
       switch (event.kind) {
         case "meta": {
+          noteUsage(data);
           const conv = typeof data.convId === "string" ? data.convId : null;
           if (typeof data.followupsLeft === "number") setFuLeft(data.followupsLeft);
           if (conv) {
@@ -281,7 +351,7 @@ export function AskPanel({
               setConvId(answer.convId);
             }
             if (typeof answer.followupsLeft === "number") setFuLeft(answer.followupsLeft);
-            if (answer.usage) setUsage(answer.usage);
+            if (answer.usage) noteUsage({ usage: answer.usage });
             patchAssistant(event.reqId, (msg) => ({
               ...msg,
               text: answer.answer,
@@ -305,7 +375,7 @@ export function AskPanel({
             const answer = answerOf(body);
             if (answer) {
               if (answer.convId) setConvId(answer.convId);
-              if (answer.usage) setUsage(answer.usage);
+              if (answer.usage) noteUsage({ usage: answer.usage });
               patchAssistant(event.reqId, (msg) => ({
                 ...msg,
                 text: answer.answer,
@@ -322,9 +392,13 @@ export function AskPanel({
               }));
             }
           } else if (status === 401) {
-            setPhase("signedOut");
+            signOut();
             patchAssistant(event.reqId, (msg) => ({ ...msg, streaming: false, status: undefined }));
           } else {
+            if (status === 429) {
+              const quota = usageIn(body);
+              if (quota) noteUsage({ usage: quota });
+            }
             const message =
               body && typeof body === "object" && typeof (body as { error?: unknown }).error === "string"
                 ? String((body as { error?: unknown }).error)
@@ -367,7 +441,7 @@ export function AskPanel({
     };
     // finish/refresh closures are stable single-purpose callbacks for this listener.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patchAssistant, refreshConvs, refreshQuota]);
+  }, [noteUsage, patchAssistant, refreshConvs, refreshQuota, signOut]);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -397,14 +471,16 @@ export function AskPanel({
         setActiveReq(reqId);
       } catch (error) {
         setMsgs((prev) => prev.filter((msg) => msg.id !== assistant.id));
-        if (error && typeof error === "object" && "signedOut" in error && (error as { signedOut?: boolean }).signedOut) {
-          setPhase("signedOut");
+        if (isSignedOutError(error)) {
+          signOut();
         } else {
+          const quota = usageFromError(error);
+          if (quota) noteUsage({ usage: quota });
           setNotice(error instanceof Error ? error.message : "Could not send that question.");
         }
       }
     },
-    [convId, useMcp],
+    [convId, noteUsage, signOut, useMcp],
   );
 
   const stop = useCallback(async () => {
@@ -448,17 +524,6 @@ export function AskPanel({
     [surface, onOpenLink],
   );
 
-  if (phase === "checking") {
-    return (
-      <div className="askview" onClickCapture={interceptLinks}>
-        <div className="av-center">
-          <div className="av-brand">Ask</div>
-          <p className="av-muted">Opening your questions…</p>
-        </div>
-      </div>
-    );
-  }
-
   if (phase === "signedOut") {
     return (
       <div className="askview" onClickCapture={interceptLinks}>
@@ -477,15 +542,26 @@ export function AskPanel({
     );
   }
 
+  // Cached quota is last-known, never current: the title says so while the
+  // background refresh is in flight or failed.
+  const quotaTitle = usage
+    ? `${quotaStale ? "Last known allowance · refresh failed. " : refreshing ? "Refreshing allowance… " : ""}${tier ? `Plan: ${tier}. ` : ""}${
+      usage.resetAt > 0 ? `Allowance resets in ${resetIn(usage.resetAt)}.` : "Question allowance."
+    }`
+    : "";
+  const checking = phase === "checking";
+
   return (
     <div className="askview" onClickCapture={interceptLinks}>
       <header className="av-head">
         <div className="av-brand">Ask</div>
         <div className="av-head-actions">
           {usage ? (
-            <span className="av-quota" title={tier ? `Plan: ${tier}. Allowance resets in ${resetIn(usage.resetAt)}.` : `Allowance resets in ${resetIn(usage.resetAt)}.`}>
-              {quotaLabel(usage)}
+            <span className="av-quota" aria-live="polite" title={quotaTitle}>
+              {quotaLabel(usage)}{refreshing ? " · Updating…" : ""}
             </span>
+          ) : refreshing ? (
+            <span className="av-quota">Checking access…</span>
           ) : null}
           <button type="button" className="av-iconbtn" aria-label="New chat" title="New chat" onClick={() => void openThread(null)}>
             +
@@ -519,6 +595,11 @@ export function AskPanel({
             </div>
             <div className="av-bar"><i style={{ width: `${usage.mcpLimit ? Math.round((100 * usage.mcpRemaining) / usage.mcpLimit) : 0}%` }} /></div>
           </div>
+          <p className="av-note">
+            {usage.used} of {usage.limit} used · {usage.remaining} left
+            {usage.resetAt > 0 ? ` · resets in ${resetIn(usage.resetAt)}` : ""}
+            {quotaStale ? " · last known" : refreshing ? " · updating…" : ""}
+          </p>
         </div>
       ) : null}
 
@@ -588,8 +669,9 @@ export function AskPanel({
           <textarea
             value={input}
             rows={2}
-            placeholder="Ask a question…"
+            placeholder={checking ? "Checking access…" : "Ask a question…"}
             aria-label="Ask a question"
+            disabled={checking}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
@@ -603,7 +685,7 @@ export function AskPanel({
               ■
             </button>
           ) : (
-            <button type="button" className="av-send" disabled={!input.trim()} onClick={() => void send(input)}>
+            <button type="button" className="av-send" disabled={checking || !input.trim()} onClick={() => void send(input)}>
               Ask
             </button>
           )}
