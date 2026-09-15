@@ -27,6 +27,15 @@ self.addEventListener("message", (event: MessageEvent<GameRequest>) => {
       case "view": value = session.view(); break;
       case "advance": value = session.advance(); break;
       case "action": value = { result: session.act(command.actionId, command.params), view: session.view() }; break;
+      case "sectorSale": {
+        const result = command.op === "list"
+          ? session.listSectorForSale(command.assetId)
+          : command.op === "update"
+            ? session.updateSectorListing(command.assetId, command.priceAnchor)
+            : session.unlistSectorForSale(command.assetId);
+        value = { result, view: session.view() };
+        break;
+      }
       case "serialize": value = session.serialize(command.savedAt, command.includeSaveNotice); break;
       case "load": value = session.load(command.contents); break;
       case "notificationsRead": value = session.markNotificationRead(command.id); break;

@@ -254,6 +254,14 @@ export function App() {
       const response = await client.current!.act(id, params); setWorld(response.view);
       if (response.result.ok) { await save(); setMessage(response.result.message); } else setError(response.result.error);
     })}
+    onSectorSale={(op, params) => void run(async () => {
+      const response = await client.current!.sectorSale(op, params.assetId, params.priceAnchor);
+      setWorld(response.view);
+      if (response.result.ok) {
+        await save();
+        setMessage(op === "list" ? "Sector listed for sale." : op === "update" ? "Sale listing updated." : "Sector unlisted.");
+      } else setError(response.result.error);
+    })}
     onSave={() => void run(save)}
     onExit={() => void run(async () => {
       if (!client.current?.isClosed) await save();

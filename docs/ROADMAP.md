@@ -1206,6 +1206,28 @@ and removed. The smoke helper now walks the conversation; no engine change.
   `src/game/markets.test.ts` (34 tests) and `src/ui/MarketsPanel.test.tsx`
   For Sale/sector-asset block.
 
+## Corporate-sector sale vertical slice, 2026-09-15 (#294 / #211)
+
+- Strict persisted `forSale` content validation: a stored listing must be null
+  or carry a positive finite asking price. Zero, negative, non-numeric, and
+  missing anchors fail closed through the shared asset validator, so corrupt
+  saves are refused at the load boundary. Acquisition and ownership transfer
+  stay out of scope (#295).
+- Direct `GameSession` list/update/unlist commands run the engine calls on a
+  clone as the player and commit only on ok, so every refusal (non-shareholder,
+  unknown listing, unlisted update/unlist, bad asking price) leaves the live
+  world untouched. Listings persist through serialize/load and project into
+  `MarketsView` (`sectorAsset.forSale`, per-sector `forSaleCount`). Wired
+  through the worker boundary (`sectorSale` command, `GameClient.sectorSale`,
+  `onSectorSale`) with save and success/error messaging in App.
+- The Markets company-detail card exposes owner-only listing controls: List for
+  sale, Asking price plus Update price, and Unlist enable only for a recorded
+  shareholder (player holds >= 1 share); everyone else sees the gate reason.
+  Buy sector stays honestly disabled for all viewers with the #295 reason.
+  Focused evidence: `packages/engine/src/corporation/corporateSectorAssets.test.ts`
+  (for-sale validation), `src/game/sectorSaleSession.test.ts` (player flow,
+  atomicity, persistence), and the #294 block in `src/ui/MarketsPanel.test.tsx`.
+
 ## Player polling checkpoint, 2026-09-15 (#38)
 
 - `poll` and `pollLarge` are live through the public `executeAction` contract

@@ -75,9 +75,32 @@ export function validateCorporateSectorAssets(
     if (asset.stateId !== null && world.regions[asset.stateId]?.countryId !== asset.countryId) {
       throw new Error(`Corporate sector ${asset.id} has an invalid region reference`);
     }
+    // #294: the for-sale listing is persisted content, so a stored value that
+    // is neither null nor a positive finite asking price fails closed here
+    // (and therefore at the save boundary, which validates through this
+    // function). Unknown extra fields are ignored for forward compatibility.
+    validateSectorForSale(asset);
     const tuple = `${asset.corporationId}\u0000${asset.countryId}\u0000${asset.stateId ?? "national"}\u0000${asset.sectorType}`;
     if (tuples.has(tuple)) throw new Error(`Duplicate corporate sector identity: ${asset.id}`);
     tuples.add(tuple);
+  }
+}
+
+/**
+ * Strict for-sale content validation (#294). Null means unlisted; any listed
+ * value must carry a positive finite asking price. A missing field, a
+ * non-object, or a non-positive non-finite anchor is corruption, not a
+ * defaultable absence — every seeded asset records the field explicitly.
+ */
+export function validateSectorForSale(asset: CorporateSectorAsset): void {
+  const forSale = (asset as { forSale?: unknown }).forSale;
+  if (forSale === null) return;
+  if (typeof forSale !== "object" || forSale === null) {
+    throw new Error(`Corporate sector ${asset.id} has an invalid for-sale listing`);
+  }
+  const priceAnchor = (forSale as { priceAnchor?: unknown }).priceAnchor;
+  if (typeof priceAnchor !== "number" || !Number.isFinite(priceAnchor) || priceAnchor <= 0) {
+    throw new Error(`Corporate sector ${asset.id} has an invalid for-sale price anchor`);
   }
 }
 

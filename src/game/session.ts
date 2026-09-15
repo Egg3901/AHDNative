@@ -18,8 +18,8 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction,
-  getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination,
-  type ActionId, type ExecuteActionParams, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
+  getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, unlistCorporateSectorForSale, updateCorporateSectorListing,
+  type ActionId, type ExecuteActionParams, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionCategory, ActionView, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
 import { isWorldsimMode } from "@ahdclient/engine";
@@ -371,6 +371,39 @@ export class GameSession {
   partyManagement() { return projectPartyManagement(this.requireWorld()); }
 
   markets() { return projectMarkets(this.requireWorld()); }
+
+  /**
+   * #294: direct corporate-sector sale commands. These run outside the
+   * action catalog (no AP cost, cooldown, or funds move — listing only
+   * records an asking price; purchase transfer is #295): the engine call
+   * runs on a clone as the player, and only an ok result commits, so every
+   * refusal leaves the live world untouched. Listings persist through the
+   * normal serialize/load path as recorded CorporateSectorAsset.forSale.
+   */
+  listSectorForSale(assetId: string): SectorSaleResult {
+    const candidate = structuredClone(this.requireWorld());
+    const result = listCorporateSectorForSale(candidate, assetId, "player");
+    if (!result.ok) return result;
+    this.commit(candidate);
+    return result;
+  }
+
+  /** Re-anchor from live corporation state when priceAnchor is omitted. */
+  updateSectorListing(assetId: string, priceAnchor?: number): SectorSaleResult {
+    const candidate = structuredClone(this.requireWorld());
+    const result = updateCorporateSectorListing(candidate, assetId, "player", priceAnchor);
+    if (!result.ok) return result;
+    this.commit(candidate);
+    return result;
+  }
+
+  unlistSectorForSale(assetId: string): SectorSaleResult {
+    const candidate = structuredClone(this.requireWorld());
+    const result = unlistCorporateSectorForSale(candidate, assetId, "player");
+    if (!result.ok) return result;
+    this.commit(candidate);
+    return result;
+  }
 
   politics() { return projectPolitics(this.requireWorld()); }
 

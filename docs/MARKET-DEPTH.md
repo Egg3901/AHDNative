@@ -83,3 +83,7 @@ Identity is `countryId-sectorType` (example `US-media`) and ticker `US.MEDI`. Th
 ## Integrated behavior
 
 `GameSession.markets()` projects detached company data only when the route is visible. `src/game/shareTrade.ts` contains presentation helpers without engine runtime imports. The production browser scenario creates a real US world, buys two domestic shares, sells one, relaunches, and reopens the same company with its remaining holding. No synthetic corporation or holding is injected.
+
+## Sector sale listings (#294, not acquisition)
+
+Listing commands are live outside the action catalog: `GameSession.listSectorForSale` / `updateSectorListing` / `unlistSectorForSale` run the engine calls on a clone as the player and commit only on ok. Authority is the recorded shareholder roster (player holds >= 1 share). Listings persist as `CorporateSectorAsset.forSale` (null or a positive finite asking price; anything else fails closed at validation and at the save boundary) and project into `sectorAsset.forSale` plus per-sector `forSaleCount`. The company-detail card enables List for sale, Asking price plus Update price, and Unlist only for recorded shareholders; Buy sector stays held with the #295 reason. Buying a listed sector is #295 and remains unavailable. Evidence: `src/game/sectorSaleSession.test.ts` and the #294 block in `src/ui/MarketsPanel.test.tsx`.
