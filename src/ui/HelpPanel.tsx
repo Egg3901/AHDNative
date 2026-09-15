@@ -2,7 +2,25 @@ import "./ui.css";
 import { useState } from "react";
 import { openSupportDestination, SUPPORT_DESTINATIONS, type SupportDestination } from "../online/support";
 
-export interface HelpPanelProps { openExternal?: (destination: SupportDestination) => Promise<void> | void; }
+export interface HelpPanelProps {
+  openExternal?: (destination: SupportDestination) => Promise<void> | void;
+  /** #48: tutorial chapter buttons navigate to these reachable destinations. */
+  onNavigate?: (route: "state" | "parties" | "actions" | "elections" | "portfolio" | "banking" | "markets" | "news") => void;
+}
+
+/**
+ * Offline tutorial chapters (#48). Every chapter ends on a screen that exists
+ * in this build; company founding, union backing and the wire (reference
+ * tutorialPlan chapters) are omitted until those destinations exist.
+ */
+export const TUTORIAL_CHAPTERS: { title: string; body: string; route: NonNullable<HelpPanelProps["onNavigate"]> extends (route: infer R) => void ? R : never }[] = [
+  { title: "Meet your home region", body: "Open Home region from Menu. Check its economy, officials and upcoming races: this is where a career starts.", route: "state" },
+  { title: "Join a party", body: "Open Parties, pick one that fits your platform, and join. Membership unlocks the shared action pool.", route: "parties" },
+  { title: "Act, then end the turn", body: "Take an action from Actions, then Menu, End turn. Profile tracks your standing after every turn.", route: "actions" },
+  { title: "Run for office", body: "Open Elections. When a race accepts filings, file, campaign, and watch the count.", route: "elections" },
+  { title: "Mind your money", body: "Portfolio, Banking and the Stock market hold your cash, savings and shares.", route: "portfolio" },
+  { title: "Read the news", body: "News carries dated items from this world. Empty sections mean the save records nothing there yet.", route: "news" },
+];
 
 function HelpSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -15,7 +33,7 @@ function HelpSection({ title, children }: { title: string; children: React.React
   );
 }
 
-export function HelpPanel({ openExternal = openSupportDestination }: HelpPanelProps) {
+export function HelpPanel({ openExternal = openSupportDestination, onNavigate }: HelpPanelProps) {
   const [opening, setOpening] = useState<SupportDestination | null>(null);
   const [openError, setOpenError] = useState<string | null>(null);
   const open = async (destination: SupportDestination) => {
@@ -33,6 +51,22 @@ export function HelpPanel({ openExternal = openSupportDestination }: HelpPanelPr
           This guide covers the local singleplayer game on this device. It works without a network connection.
         </p>
       </header>
+
+      <HelpSection title="Tutorial">
+        <ol style={{ margin: 0, paddingLeft: "1.15rem", display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+          {TUTORIAL_CHAPTERS.map((chapter, index) => (
+            <li key={chapter.title}>
+              <p style={{ margin: 0, fontWeight: 600 }}>{`${index + 1}. ${chapter.title}`}</p>
+              <p style={{ margin: "0.15rem 0 0" }}>{chapter.body}</p>
+              {onNavigate ? (
+                <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" style={{ marginTop: "0.3rem" }} onClick={() => onNavigate(chapter.route)}>
+                  Open {chapter.route === "state" ? "home region" : chapter.route}
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      </HelpSection>
 
       <HelpSection title="Start a local world">
         <p style={{ margin: 0 }}>

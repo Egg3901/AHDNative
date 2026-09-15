@@ -798,6 +798,15 @@ export interface PlayerCharacter {
    * seven-key allocation is written at creation (#48/#91 own later reallocation).
    */
   stats?: PlayerStats;
+  /**
+   * Save-scoped onboarding/tutorial dismissal (#48). Ports
+   * Character.onboardingDismissed (PATCH /api/character/me) as bare
+   * opt-in flags. Absent (legacy saves) means not dismissed, so the
+   * prompts show; no migration or schema bump is needed and unknown
+   * extras survive the JSON round-trip untouched.
+   */
+  onboardingDismissed?: boolean;
+  tutorialDismissed?: boolean;
   favorability: number;
   infamy: number;
   /** Action cooldowns: actionId -> turn when next available. */
