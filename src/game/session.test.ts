@@ -57,6 +57,23 @@ describe("singleplayer session", () => {
     expect(after.player.partyName).toBe(before.player.partyName);
     expect(after.countryName).toBe(before.countryName);
   });
+  it("projects founding-inactive on a fresh world and across real turns (#223)", () => {
+    const session = new GameSession();
+    expect(session.create(options).foundingActive).toBe(false);
+    for (let turn = 0; turn < 30; turn += 1) session.advance();
+    expect(session.view().foundingActive).toBe(false);
+  });
+  it("projects founding-active through save/reload while a cycle-0 race is unresolved (#223)", () => {
+    const stamp = "2026-09-10T00:00:00.000Z";
+    const session = new GameSession();
+    session.create(options);
+    const saved = JSON.parse(session.serialize(stamp));
+    saved.world.elections.push({ id: "house:US:NY:c0", electionType: "house", countryId: "US", state: "NY", cycle: 0, status: "upcoming", startTurn: 0, primaryEndTurn: 24, endTurn: 48, totalSeats: 1, chamberKey: "house", candidates: [], tally: {} });
+    expect(new GameSession().load(JSON.stringify(saved)).foundingActive).toBe(true);
+    const loaded = new GameSession();
+    loaded.load(JSON.stringify(saved));
+    expect(new GameSession().load(loaded.serialize(stamp)).foundingActive).toBe(true);
+  });
   it("rejects invalid new-game input without replacing the current world", () => {
     const session = new GameSession();
     session.create(options);

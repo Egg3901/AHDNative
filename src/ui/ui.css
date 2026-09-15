@@ -507,6 +507,17 @@ html, body { overflow-x: hidden; }
 }
 .ahd-status-identity-name:hover { color: var(--ahd-primary); }
 .ahd-status-identity-name:focus-visible { outline: none; box-shadow: var(--ahd-focus); }
+/* Reference "Founding" pre-iteration badge (#223, AHDGame
+   StatusBar.tsx:371-376): uppercase pill ahead of the in-game date, rendered
+   only while real cycle-0 founding races are unresolved. Info tint mirrors
+   the reference secondary pill; no Native secondary token exists. */
+.ahd-founding-badge {
+  display: inline-block; margin-right: 0.375rem;
+  padding: 0.05rem 0.375rem; border-radius: var(--ahd-radius-sm);
+  background: color-mix(in srgb, var(--ahd-info) 15%, transparent);
+  color: var(--ahd-info); font-size: var(--ahd-text-body-xs); font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; vertical-align: baseline;
+}
 .ahd-status-resources {
   display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.2rem;
   min-width: 0;

@@ -1003,6 +1003,17 @@ describe("GameScreen status footer", () => {
     expect(within(footer).queryByText("Founding")).not.toBeInTheDocument();
   });
 
+  it("renders the Founding badge ahead of the date while cycle-0 founding races are unresolved (#223)", () => {
+    const world = makeWorld({ foundingActive: true });
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
+    const footer = screen.getByRole("contentinfo", { name: "Status and primary navigation" });
+    const badge = within(footer).getByText("Founding");
+    expect(badge).toBeInTheDocument();
+    expect(badge.className).toMatch(/ahd-founding-badge/);
+    expect(badge.parentElement?.textContent).toMatch(/January, Week 2, 1952/);
+    expect(within(footer).getByRole("button", { name: "Profile: Ada" })).toBeInTheDocument();
+  });
+
   it("shows processing status while busy", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={true} message="Advancing" onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);

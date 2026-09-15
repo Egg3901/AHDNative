@@ -671,6 +671,22 @@ under #96 and the reference campaign projection stays open under #68.
 
 
 
+## Founding badge lifecycle checkpoint (#223)
+
+N02/N08: the footer now renders the reference "Founding" badge, but only
+while real cycle-0 founding races are unresolved. `isFoundingActive`
+(`packages/engine/src/elections/founding.ts`) projects the pending leg of the
+reference detector (`src/lib/turn/preIterationLifecycle.ts` at pinned AHDGame
+`e364c0495`); the session carries it as `GameView.foundingActive` and the
+footer gates the badge on it. No persisted field was added, so existing save
+bytes and hashes are untouched; fresh worlds schedule at cycle >= 1 and never
+trip it. The already-landed character Profile link and formatted date are
+unchanged. Still missing before #223 can close: the bootstrap opt-in with
+vacant-chamber seeding, cycle-0 spawning/resolution, the completion stamp and
+calendar pin/offset, plus the rendered 320/390/desktop comparison against the
+reference status bar. Evidence: `founding.test.ts`, `session.test.ts`,
+`GameScreen.test.tsx`.
+
 ## Resource and finance breakdown depth checkpoint
 
 N08/#49/#83: Profile and the footer now render one breakdown built from the same
