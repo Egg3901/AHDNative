@@ -1,8 +1,13 @@
 import { gameReady, exitGame, completeCharacterCreation } from './game-navigation';
 import { test, expect } from '@playwright/test';
 
-async function createWorldAndExit(page: import('@playwright/test').Page, name: string, seed: string) {
+async function createWorldAndExit(page: import('@playwright/test').Page, name: string, seed: string, confirmExisting = false) {
   await page.getByRole('button', { name: 'New game', exact: true }).click();
+  if (confirmExisting) {
+    const dialog = page.getByRole('dialog', { name: 'Start another world?' });
+    await expect(dialog).toContainText('current world stays saved');
+    await page.getByRole('button', { name: 'Start another world', exact: true }).click();
+  }
   await page.getByLabel('Your name').fill(name);
   await page.getByLabel('Seed', { exact: false }).fill(seed);
   await page.getByLabel('Country', { exact: true }).selectOption('US');
@@ -16,7 +21,7 @@ async function createWorldAndExit(page: import('@playwright/test').Page, name: s
 test('delete requires explicit confirmation: cancel preserves, confirm deletes only chosen slot and survives reload', async ({ page }) => {
   await page.goto('/');
   await createWorldAndExit(page, 'DeleteOne', 'delete-one-seed');
-  await createWorldAndExit(page, 'DeleteTwo', 'delete-two-seed');
+  await createWorldAndExit(page, 'DeleteTwo', 'delete-two-seed', true);
   await expect(page.getByRole('button', { name: /Continue DeleteOne/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Continue DeleteTwo/ })).toBeVisible();
 
