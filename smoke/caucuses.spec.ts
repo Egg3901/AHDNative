@@ -1,4 +1,4 @@
-import { openGameMenu, gameReady, advanceGame } from './game-navigation';
+import { navigateGame, gameReady, advanceGame } from './game-navigation';
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -11,8 +11,7 @@ test('a real career founds, leaves and rejoins a caucus, then resumes its member
   await advanceGame(page);
   await gameReady(page);
   const openCaucuses = async () => {
-    await openGameMenu(page);
-    await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Caucuses', exact: true }).click();
+    await navigateGame(page, 'Caucuses');
     await expect(page.getByRole('heading', { name: 'Caucuses', exact: true, level: 2 })).toBeVisible();
   };
   await openCaucuses();
@@ -44,8 +43,7 @@ test('the caucus chair edits the tax rate and disbands through the reference con
   await gameReady(page);
   await advanceGame(page);
   await gameReady(page);
-  await openGameMenu(page);
-  await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Caucuses', exact: true }).click();
+  await navigateGame(page, 'Caucuses');
   await expect(page.getByRole('heading', { name: 'Caucuses', exact: true, level: 2 })).toBeVisible();
   await page.getByLabel('Caucus name', { exact: true }).fill('Blue Dog Caucus');
   await page.getByLabel('Caucus tax', { exact: true }).fill('2');
@@ -61,8 +59,7 @@ test('the caucus chair edits the tax rate and disbands through the reference con
   await page.reload();
   await page.getByRole('button', { name: 'Continue Muse', exact: true }).click();
   await gameReady(page);
-  await openGameMenu(page);
-  await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Caucuses', exact: true }).click();
+  await navigateGame(page, 'Caucuses');
   await expect(page.getByRole('listitem').filter({ hasText: 'Blue Dog Caucus' })).toContainText('Tax 4.5%');
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Disband Blue Dog Caucus', exact: true }).click();
@@ -72,8 +69,7 @@ test('the caucus chair edits the tax rate and disbands through the reference con
   await page.reload();
   await page.getByRole('button', { name: 'Continue Muse', exact: true }).click();
   await gameReady(page);
-  await openGameMenu(page);
-  await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Caucuses', exact: true }).click();
+  await navigateGame(page, 'Caucuses');
   await expect(page.getByRole('listitem').filter({ hasText: 'Blue Dog Caucus' })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: 'artifacts/smoke/mobile-caucus-chair-controls.png', fullPage: true });

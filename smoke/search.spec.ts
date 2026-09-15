@@ -1,4 +1,4 @@
-import { openGameMenu, gameReady, completeCharacterCreation } from './game-navigation';
+import { openGameMenu, navigateGame, gameReady, completeCharacterCreation } from './game-navigation';
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -102,8 +102,7 @@ test('search opens the actual saved bill and election details', async ({ page })
   await expect(page.getByRole('article').filter({ hasText: 'Winners:' })).toContainText('Muse');
   await expect(page.getByRole('contentinfo')).toContainText('Turn 98');
   // Read a real NPC name from the directory, then prove search reopens that person.
-  await openGameMenu(page);
-  await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Politicians', exact: true }).click();
+  await navigateGame(page, 'Politicians');
   const politician = page.getByLabel('Politician', { exact: true });
   await expect(politician).toBeVisible();
   const options = await politician.locator('option').allTextContents();

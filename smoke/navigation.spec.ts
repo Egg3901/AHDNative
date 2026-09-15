@@ -1,4 +1,4 @@
-import { openGameMenu, gameReady, completeCharacterCreation } from './game-navigation';
+import { openGameMenu, navigateGame, gameReady, completeCharacterCreation } from './game-navigation';
 import { test, expect } from '@playwright/test';
 
 test('mobile navigation and resource footer connect real savings actions through relaunch', async ({ page }) => {
@@ -13,13 +13,11 @@ test('mobile navigation and resource footer connect real savings actions through
   await completeCharacterCreation(page);
   await gameReady(page);
 
-  await openGameMenu(page);
-  await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Politicians', exact: true }).click();
+  await navigateGame(page, 'Politicians');
   await expect(page.getByLabel('Politician', { exact: true })).toBeVisible();
   expect(await page.getByLabel('Politician', { exact: true }).locator('option').count()).toBeGreaterThan(0);
 
-  await openGameMenu(page);
-  await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Banking', exact: true }).click();
+  await navigateGame(page, 'Banking');
   await expect(page.getByRole('heading', { name: 'Banking', exact: true })).toBeVisible();
   await page.getByRole('spinbutton', { name: 'Amount', exact: true }).fill('1000');
   await page.getByRole('button', { name: /^Deposit:/ }).click();
@@ -36,8 +34,7 @@ test('mobile navigation and resource footer connect real savings actions through
   await expect(page.getByRole('heading', { name: 'Portfolio', exact: true })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Portfolio', exact: true })).toContainText('$1,000.00');
 
-  await openGameMenu(page);
-  await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Banking', exact: true }).click();
+  await navigateGame(page, 'Banking');
   await page.getByRole('spinbutton', { name: 'Amount', exact: true }).fill('400');
   await page.getByRole('button', { name: /^Withdraw:/ }).click();
   await expect(page.getByRole('status')).toContainText('Withdrew 400 from savings');
