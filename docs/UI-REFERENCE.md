@@ -317,17 +317,33 @@ copies from AHDGame `e364c04954ed628beef73a993a8e9e156650a31e`
 (`public/static/heroes/`) under the same public path, wired through
 `RouteHero` via `commodityHero()` (`src/ui/RouteHero.tsx`) with the reference
 image-error gradient fallback. Unported and unknown commodity keys fall back
-to Actions art, never a broken image or remote fetch. Reference slug and alt
-source: `COMMODITY_HERO_SLUGS` / `COMMODITY_HERO_ALTS` in AHDGame
-`src/lib/constants/commodities.ts`; upstream files are served remotely through
-`/api/images/hero/[slug]`, whose redirect targets (Wikimedia Commons) are the
-rights source below. All 14 are public domain or free CC licences, each
-verified against the Commons API; no fair-use or proprietary entry is
-bundled. CC attribution is recorded here. Files are 1280px-wide VP8 WebP
-(portrait to wide); `RouteHero` crops with `object-fit: cover` at the shared
-172px phone / 220px wider crop, so no new CSS was needed. Focused tests:
-`src/ui/CommodityHeroImagery.test.tsx` (resolver, fallback, local webp
-container bytes, rendered local decode, error fallback, crop CSS).
+to Actions art, never a broken image or remote fetch. Reference slug source:
+`COMMODITY_HERO_SLUGS` in AHDGame `src/lib/constants/commodities.ts`;
+upstream files are served remotely through `/api/images/hero/[slug]`, whose
+redirect targets (Wikimedia Commons) are the rights source below. Alt source
+is `COMMODITY_HERO_ALTS` except for three entries where the reference wording
+contradicts the inspected bundled bytes: `energy` reads "Anacortes oil
+refinery" (reference claims power lines; the bytes show refinery towers with
+a steam plume), `freight` reads "Maersk Sealand container ship at sea"
+(reference claims a "Sovereign Maersk" vessel name found in neither the bytes
+nor the route manifest; the hull reads MAERSK SEALAND), and
+`pharmaceuticals` reads "Blister packs of assorted pills" (reference claims
+a manufacturing line; the bytes show blister packs, File:Pill 3.jpg). Each
+correction was grounded in the rendered local WebP plus the upstream file
+identity in the hero route before wording. Alt resolution goes through the
+total typed `commodityHeroAlt()` helper: exact-key lookup with no case
+folding or trimming, and the nonempty `COMMODITY_HERO_FALLBACK_ALT`
+("Commodity hero image") for every unported or unknown key. All 14 are public
+domain or free CC licences, each verified against the Commons API; no
+fair-use or proprietary entry is bundled. CC attribution is recorded here.
+Files are 1280px-wide VP8 WebP (portrait to wide); `RouteHero` crops with
+`object-fit: cover` at the shared 172px phone / 220px wider crop, so no new
+CSS was needed. Focused tests: `src/ui/CommodityHeroImagery.test.tsx`
+(resolver, total alt helper with exact-key and fallback behavior, the three
+corrected alts, fallback accessible name, local webp container bytes,
+rendered local decode, error fallback, crop CSS) and
+`src/ui/MarketsPanel.test.tsx` (company-detail hero for a bundled sector and
+the Actions fallback with the fallback accessible name).
 
 SHA-256 provenance (left) and upstream Commons rights (right):
 
@@ -355,14 +371,18 @@ per the issue's fair-use/proprietary exclusion. `cabinet`, `bank-of-england`,
 sources in the hero route but no Native consumer surface yet (Native has no
 central-bank, IMF, cabinet, or commodity destination; corporation model and
 market lifecycles stay with #80/#211/#77), so they are staged with the
-surface rather than shipped as dead weight. No Native surface consumes the
-commodity set yet either: the engine has no commodity model, and the
-reference corporation hero shows only the corp's own banner or brand
-gradient, so CompanyDetail keeps its faithful gradient-free cards and
-Markets keeps its existing header. The Markets hero band from #378 stays an
-explicit gap until a sector-art rights manifest or a commodity surface
-lands; this slice (offline set, resolver, fallback, tests, provenance)
-unblocks either path.
+surface rather than shipped as dead weight. One Native surface consumes the
+commodity set: Markets company detail (`CompanyDetail` in
+`src/ui/MarketsPanel.tsx`) renders a `RouteHero` keyed by the listing's
+recorded `sectorType` with `commodityHero()` / `commodityHeroAlt()`. Only
+the `energy` and `retail` Native sectors hit bundled art (the 17
+`CorporationType` sector keys otherwise miss the 14 commodity keys and take
+the Actions fallback with the fallback accessible name); no route, mechanic,
+or sector mapping was invented. Partial: the corporation, central-bank, IMF,
+and cabinet surfaces from #378 stay open (no Native consumer or rights
+manifest yet), the other 14 commodity slugs stay remote-only, and the
+reference commodity browse surface has no Native equivalent. The issue stays
+open with `status: partial`.
 
 Full destination/conditional-menu inventory lives in
 [navigation parity](NAVIGATION-PARITY.md); this table only maps each Native

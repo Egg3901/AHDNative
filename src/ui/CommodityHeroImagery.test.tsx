@@ -14,9 +14,11 @@ import { describe, expect, it } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import {
   COMMODITY_HERO_ALT,
+  COMMODITY_HERO_FALLBACK_ALT,
   COMMODITY_HERO_IMAGE,
   RouteHero,
   commodityHero,
+  commodityHeroAlt,
 } from "./RouteHero";
 
 /** Reference commodity keys whose hero art ships offline in this slice. */
@@ -136,6 +138,48 @@ describe("commodity hero imagery", () => {
     expect(screen.queryByRole("img", { name: COMMODITY_HERO_ALT["freight"] })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Freight" })).toBeInTheDocument();
     expect(document.querySelector(".ahd-route-hero-shade")).not.toBeNull();
+  });
+
+  it("corrects the three reference alts that contradict the bundled bytes", () => {
+    // Inspected local WebP plus the upstream file identity in the AHDGame
+    // hero route (`src/app/api/images/hero/[slug]/route.ts`): energy is the
+    // Anacortes refinery (not power lines), freight's hull reads MAERSK
+    // SEALAND (no "Sovereign" name in file or manifest), pharmaceuticals is
+    // blister packs of pills (File:Pill 3.jpg; no manufacturing line).
+    expect(COMMODITY_HERO_ALT["energy"]).toBe("Anacortes oil refinery");
+    expect(COMMODITY_HERO_ALT["freight"]).toBe("Maersk Sealand container ship at sea");
+    expect(COMMODITY_HERO_ALT["pharmaceuticals"]).toBe("Blister packs of assorted pills");
+    expect(COMMODITY_HERO_ALT["energy"]).not.toMatch(/power lines/i);
+    expect(COMMODITY_HERO_ALT["freight"]).not.toMatch(/sovereign/i);
+    expect(COMMODITY_HERO_ALT["pharmaceuticals"]).not.toMatch(/manufacturing line/i);
+  });
+
+  it("resolves alt text totally with a nonempty fallback and exact-key matching", () => {
+    expect(COMMODITY_HERO_FALLBACK_ALT.length).toBeGreaterThan(0);
+    for (const commodity of BUNDLED) {
+      expect(commodityHeroAlt(commodity)).toBe(COMMODITY_HERO_ALT[commodity]);
+      expect(commodityHeroAlt(commodity).length).toBeGreaterThan(0);
+    }
+    // Unported, unknown and empty keys take the fallback, never undefined.
+    for (const commodity of [...UNPORTED, "xx-unknown", ""]) {
+      expect(commodityHeroAlt(commodity)).toBe(COMMODITY_HERO_FALLBACK_ALT);
+    }
+    // Exact-key: no case folding or trimming.
+    expect(commodityHeroAlt("STEEL")).toBe(COMMODITY_HERO_FALLBACK_ALT);
+    expect(commodityHeroAlt(" steel")).toBe(COMMODITY_HERO_FALLBACK_ALT);
+  });
+
+  it("renders the fallback accessible name for an unported commodity key", () => {
+    render(
+      <RouteHero
+        image={commodityHero("fertilizers")}
+        alt={commodityHeroAlt("fertilizers")}
+        eyebrow="Commodity"
+        title="Fertilizers"
+      />,
+    );
+    const hero = screen.getByRole("img", { name: COMMODITY_HERO_FALLBACK_ALT });
+    expect(hero.getAttribute("src")).toBe("/static/heroes/actions.webp");
   });
 
   it("adapts the hero crop from phones to wider screens (320/390 use the compact crop)", () => {
