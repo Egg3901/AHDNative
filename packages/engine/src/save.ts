@@ -180,7 +180,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
       return {
         ok: false,
         error:
-          "This schema 42 document still carries the v47 difficulty axis; it is not an authentic schema 42 save",
+          "This schema 42 document still carries the difficulty axis; it is not an authentic schema 42 save",
       };
     }
     try {
@@ -208,10 +208,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
       error: "player.homeRegionId is not a nullable string. Schema 42 cannot store that identity",
     };
   }
-  // Issue #334 (v47): schema 42 has no difficulty axis. A normal world
-  // projects cleanly (the axis is dropped below and the migration restores
-  // the identical default on reload); any other axis cannot round-trip and
-  // is refused, same class as subsidies/regionalMetrics above.
+  // Issue #334: schema 42 has no difficulty axis. An absent or normal
+  // axis projects cleanly (dropped below; absent reloads as the identical
+  // default); any other axis cannot round-trip and is refused, same class
+  // as subsidies/regionalMetrics above.
   const difficulty = world["difficulty"];
   if (difficulty !== undefined && difficulty !== DEFAULT_SINGLEPLAYER_DIFFICULTY) {
     return {
@@ -479,7 +479,11 @@ function assertCurrentWorldState(world: WorldState): void {
   ) {
     throw new Error("Not a valid save file: player home region does not belong to player country");
   }
-  if (!isSingleplayerDifficulty(value["difficulty"])) {
+  // Issue #334: difficulty is optional with absent-means-normal. A present
+  // axis must be a known value; an explicit `normal` (written only by
+  // unreleased schema 47 dev saves) reads as the default.
+  const saveDifficulty = value["difficulty"];
+  if (saveDifficulty !== undefined && !isSingleplayerDifficulty(saveDifficulty)) {
     throw new Error("Not a valid save file: invalid difficulty");
   }
   const featureFlags = value["featureFlags"] as Record<string, unknown>;
@@ -2491,17 +2495,12 @@ export function deserializeSave(raw: string): WorldState {
     }
     save.world.meta.schemaVersion = 46;
   }
-  // v46 -> v47: singleplayer difficulty (issue #334). Saves written before
-  // the contract carry no axis, so they load as the canonical `normal`
-  // default — the same default a fresh world gets, and the identity tuning
-  // (x1) keeps their simulation byte-identical. No RNG is consumed.
-  if (save.schemaVersion < 47) {
-    const w = save.world as unknown as Record<string, unknown>;
-    if (!isSingleplayerDifficulty(w["difficulty"])) {
-      w["difficulty"] = DEFAULT_SINGLEPLAYER_DIFFICULTY;
-    }
-    save.world.meta.schemaVersion = 47;
-  }
+  // Issue #334 difficulty needs no migration block: the axis is optional
+  // with absent-means-`normal`, so saves written before the contract
+  // already carry the canonical default — the same default a fresh world
+  // gets, with the identity tuning (x1) keeping their simulation
+  // byte-identical. A present axis is validated by assertCurrentWorldState
+  // below; no RNG is consumed.
   // NPP-backed politicians used to carry Character-only party clout and
   // bonus-action counters. Keep the fields readable for older save shapes, but
   // normalize their obsolete values before any post-load consumer can use them.

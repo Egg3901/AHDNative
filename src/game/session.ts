@@ -472,7 +472,9 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
   return {
     turn: world.meta.turn, date: world.meta.date, era: world.meta.era,
     countryId: country.id, countryName: country.name,
-    difficulty: world.difficulty,
+    // Issue #334: the world stores only a non-default axis; the view
+    // always reports the effective difficulty (absent means normal).
+    difficulty: resolveSingleplayerDifficulty(world.difficulty),
     player: { name: player.name, cash: player.cash, funds: player.funds, actions: player.actions,
       influence: player.politicalInfluence, favorability: player.favorability,
       partyName: player.partyId ? world.parties[player.partyId]?.name ?? "Independent" : "Independent",

@@ -17,7 +17,7 @@ describe("creation difficulty (#334)", () => {
       playerName: "Ada",
     });
     expect(view.difficulty).toBe(DEFAULT_SINGLEPLAYER_DIFFICULTY);
-    expect(JSON.parse(session.serialize("2026-09-15T00:00:00.000Z")).world.difficulty).toBe("normal");
+    expect(JSON.parse(session.serialize("2026-09-15T00:00:00.000Z")).world.difficulty).toBeUndefined();
 
     const hard = new GameSession();
     expect(

@@ -32,9 +32,9 @@ export const fundGenerationPhase: TurnPhase = {
     // gdpScalar uses country average (undefined -> 1.0) to keep neutral.
     // Issue #334: NPC (politician) generation scales with the world's
     // difficulty fundMultiplier — the resource half of AHDGame
-    // src/lib/turn/nppFundGeneration.ts singleplayerNppTuning. Normal is x1,
-    // so default worlds are byte-identical. The player path below is a
-    // Character, not an NPP, and stays untuned like the reference.
+    // src/lib/turn/nppFundGeneration.ts singleplayerNppTuning. Absent means
+    // normal (x1), so default worlds are byte-identical. The player path
+    // below is a Character, not an NPP, and stays untuned like the reference.
     const fundMultiplier = singleplayerNppTuning(world.difficulty).fundMultiplier;
     for (const pol of world.politicians) {
       const generation = Math.round(getTotalFundGenerationForPolitician({

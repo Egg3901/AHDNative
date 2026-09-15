@@ -36,8 +36,14 @@ export interface WorldState {
    * competently autonomous politicians perform via `singleplayerNppTuning`;
    * never unlocks or removes an activity. Source: AHDGame
    * `src/lib/db/types/gameState.ts` SingleplayerDifficulty.
+   *
+   * Optional with absent-means-`normal`: only a non-default axis is
+   * persisted, so default worlds stay byte-stable (see
+   * npp/stanceDriftPerformance.test.ts). Every consumer must read it
+   * through `resolveSingleplayerDifficulty`/`singleplayerNppTuning`, which
+   * both validate the effective `normal` default.
    */
-  difficulty: import("./singleplayerDifficulty.js").SingleplayerDifficulty;
+  difficulty?: import("./singleplayerDifficulty.js").SingleplayerDifficulty;
   countries: Record<string, Country>;
   /** The human player. Solo has exactly one; everyone else is an NPC. */
   player: PlayerCharacter;

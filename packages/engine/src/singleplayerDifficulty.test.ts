@@ -47,9 +47,16 @@ describe("singleplayer difficulty contract (#334)", () => {
     expect(singleplayerNppTuning(undefined)).toEqual(singleplayerNppTuning("normal"));
   });
 
-  it("persists the selected difficulty on the world, defaulting to normal", () => {
+  it("persists only a non-default difficulty; absent means normal", () => {
     const def = createWorld({ era: "1953", countryId: "US", seed: "diff-default", playerName: "Ada" });
-    expect(def.difficulty).toBe("normal");
+    expect(def.difficulty).toBeUndefined();
+    expect(resolveSingleplayerDifficulty(def.difficulty)).toBe("normal");
+    expect(singleplayerNppTuning(def.difficulty)).toEqual(singleplayerNppTuning("normal"));
+    // An explicit normal choice stores the same absent key, so default
+    // worlds stay byte-stable (see npp/stanceDriftPerformance.test.ts).
+    const explicit = createWorld({ era: "1953", countryId: "US", seed: "diff-default", playerName: "Ada", difficulty: "normal" });
+    expect(explicit.difficulty).toBeUndefined();
+    expect(JSON.stringify(explicit)).toBe(JSON.stringify(def));
     const hard = createWorld({ era: "1953", countryId: "US", seed: "diff-hard", playerName: "Ada", difficulty: "hard" });
     expect(hard.difficulty).toBe("hard");
   });
@@ -77,17 +84,35 @@ describe("singleplayer difficulty contract (#334)", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "diff-save", playerName: "Ada", difficulty: "hard" });
     const loaded = deserializeSave(serializeSave(world, "2026-09-15T00:00:00.000Z"));
     expect(loaded.difficulty).toBe("hard");
+    const def = createWorld({ era: "1953", countryId: "US", seed: "diff-save", playerName: "Ada" });
+    const defRaw = JSON.parse(serializeSave(def, "2026-09-15T00:00:00.000Z")) as {
+      world: Record<string, unknown>;
+    };
+    expect("difficulty" in defRaw.world).toBe(false);
+    const defLoaded = deserializeSave(serializeSave(def, "2026-09-15T00:00:00.000Z"));
+    expect(defLoaded.difficulty).toBeUndefined();
+    expect(resolveSingleplayerDifficulty(defLoaded.difficulty)).toBe("normal");
   });
 
-  it("backfills normal difficulty on pre-contract saves", () => {
+  it("loads pre-contract saves with the absent axis as the normal default", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "diff-legacy", playerName: "Ada" });
     const raw = JSON.parse(serializeSave(world, "2026-09-15T00:00:00.000Z")) as {
       schemaVersion: number;
       world: Record<string, unknown>;
     };
-    delete raw.world.difficulty;
-    raw.schemaVersion = 46;
-    (raw.world as { meta: { schemaVersion: number } }).meta.schemaVersion = 46;
-    expect(deserializeSave(JSON.stringify(raw)).difficulty).toBe("normal");
+    expect("difficulty" in raw.world).toBe(false);
+    expect(deserializeSave(JSON.stringify(raw)).difficulty).toBeUndefined();
+    expect(singleplayerNppTuning(deserializeSave(JSON.stringify(raw)).difficulty)).toEqual(
+      singleplayerNppTuning("normal"),
+    );
+  });
+
+  it("rejects an unknown persisted difficulty on load", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "diff-legacy", playerName: "Ada" });
+    const raw = JSON.parse(serializeSave(world, "2026-09-15T00:00:00.000Z")) as {
+      world: Record<string, unknown>;
+    };
+    raw.world["difficulty"] = "nightmare";
+    expect(() => deserializeSave(JSON.stringify(raw))).toThrow(/difficulty/i);
   });
 });

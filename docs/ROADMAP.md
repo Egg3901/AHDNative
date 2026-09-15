@@ -842,12 +842,13 @@ until they have real Native engine consumers.
 hard, default normal) and the exact NPP resource tuning table are ported from
 AHDGame (`new-game/route.ts`, `db/types/gameState.ts`,
 `singleplayerDifficulty/rules/index.ts`) into `singleplayerDifficulty.ts`.
-The axis persists on the world (schema 47, normal backfill), scales NPC fund
-generation through `fundGenerationPhase` (normal x1 keeps default worlds
-byte-identical; the player path stays untuned like the reference), and is
-selectable on the creation screen with Career/HoS flow preserved. Schema 42
-projection drops a normal axis and refuses any other. Covered by focused
-engine/session/UI suites. Autonomy tier and world-simulation mode stay open
+The axis persists on the world only when non-default (absent means normal,
+no schema bump, so default worlds stay byte-identical), scales NPC fund
+generation through `fundGenerationPhase` (absent/normal x1; the player path
+stays untuned like the reference), and is selectable on the creation screen
+with Career/HoS flow preserved. Schema 42 projection drops an absent/normal
+axis and refuses any other. Covered by focused engine/session/UI suites.
+Autonomy tier and world-simulation mode stay open
 in #334 child issues until their engine consumers exist.
 
 The entry journey now matches the remaining reference boundaries. Starting a

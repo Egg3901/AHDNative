@@ -105,7 +105,7 @@ import { seedStateResourceCapacities } from "./extraction/founding.js";
 import { seedCountryPolitics } from "./countryPolitics/overview.js";
 import { resolveWorldFeatureFlags } from "./featureFlags.js";
 import type { WorldFeatureFlags } from "./featureFlags.js";
-import { resolveSingleplayerDifficulty } from "./singleplayerDifficulty.js";
+import { DEFAULT_SINGLEPLAYER_DIFFICULTY, resolveSingleplayerDifficulty } from "./singleplayerDifficulty.js";
 import type { SingleplayerDifficulty } from "./singleplayerDifficulty.js";
 import { validateStatAllocation } from "./stats/characterStats.js";
 import { startingCashFor } from "./stats/characterWealth.js";
@@ -140,8 +140,10 @@ import { startingCashFor } from "./stats/characterWealth.js";
 // v45: regional policy metric values (world.regionalMetrics); see save.ts.
 // v46: market pressure multipliers, trade windows, and compact price history;
 // see save.ts.
-// v47: singleplayer difficulty (issue #334); see save.ts.
-export const SCHEMA_VERSION = 47;
+// Issue #334 difficulty carries no schema version of its own: it is an
+// optional axis with absent-means-normal (see WorldState.difficulty), so
+// default worlds keep the schema 46 bytes.
+export const SCHEMA_VERSION = 46;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -214,7 +216,9 @@ export interface NewWorldOptions {
   /**
    * Singleplayer difficulty chosen at creation (issue #334). Defaults to
    * the canonical `normal`. Source: AHDGame
-   * `src/app/api/singleplayer/new-game/route.ts`.
+   * `src/app/api/singleplayer/new-game/route.ts`. A `normal` choice is
+   * stored as an absent key (see WorldState.difficulty); only a
+   * non-default axis is persisted.
    */
   difficulty?: SingleplayerDifficulty;
   /**
@@ -509,6 +513,9 @@ export function createWorld(options: NewWorldOptions): WorldState {
   if (initialization !== "historical" && initialization !== "founding") {
     throw new Error(`Unknown world initialization: ${String(initialization)}`);
   }
+  // Issue #334: validated here so an unknown axis throws before any world
+  // is built; only a non-default axis is persisted (see the world literal).
+  const difficulty = resolveSingleplayerDifficulty(options.difficulty);
 
   const countries: WorldState["countries"] = {};
   for (const c of pack.countries) {
@@ -894,7 +901,9 @@ export function createWorld(options: NewWorldOptions): WorldState {
       cheatsUsed: false,
     },
     featureFlags: resolveWorldFeatureFlags(options.featureFlags),
-    difficulty: resolveSingleplayerDifficulty(options.difficulty),
+    // Issue #334: only a non-default axis is written — absent means
+    // `normal`, so default worlds stay byte-stable (see WorldState.difficulty).
+    ...(difficulty !== DEFAULT_SINGLEPLAYER_DIFFICULTY ? { difficulty } : {}),
     countries,
     parties,
     legislatures,
