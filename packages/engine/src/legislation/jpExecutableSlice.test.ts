@@ -26,15 +26,22 @@ describe("Japan executable legislation slice", () => {
   }
 
   it("proposes, votes, enacts, replaces, repeals, and reloads the consumption-tax posture", () => {
-    const world = createWorld({ seed: "jp-law", playerName: "P", countryId: "JP", era: "1991" });
+    // JP is an economy-preview (non-playable) country in every Native pack, so
+    // the player must be a playable country and the JP national law is driven
+    // cross-country via sponsorCountryId. US in era 1991 is the source-backed
+    // playable pick (mainline POST_COLD_WAR_PLAYER); the authored 1991 JP
+    // budget carries salesTax 3 (option[1]), below the catalog baseline 10,
+    // which is what the enact/replace/repeal step assertions below are written
+    // against.
+    const world = createWorld({ seed: "jp-law", playerName: "P", countryId: "US", era: "1991" });
     world.player.mode = "hos";
     world.player.actions = 100;
     const startingRate = world.budgets.JP!.taxRates.salesTax;
 
-    const invalid = executeAction(world, "player", "sponsorBill", { catalogId: LAW_ID, taxRate: 11 });
+    const invalid = executeAction(world, "player", "sponsorBill", { catalogId: LAW_ID, sponsorCountryId: "JP", taxRate: 11 });
     expect(invalid).toMatchObject({ ok: false, error: expect.stringContaining("not an authored option") });
 
-    const result = executeAction(world, "player", "sponsorBill", { catalogId: LAW_ID, taxRate: 13 });
+    const result = executeAction(world, "player", "sponsorBill", { catalogId: LAW_ID, sponsorCountryId: "JP", taxRate: 13 });
 
     expect(result.ok).toBe(true);
     expect(world.bills.at(-1)).toMatchObject({
@@ -52,7 +59,7 @@ describe("Japan executable legislation slice", () => {
 
     delete world.player.actionCooldowns.sponsorBill;
     world.player.legislativeSeat = null;
-    expect(executeAction(world, "player", "sponsorBill", { catalogId: LAW_ID, taxRate: 0 }).ok).toBe(true);
+    expect(executeAction(world, "player", "sponsorBill", { catalogId: LAW_ID, sponsorCountryId: "JP", taxRate: 0 }).ok).toBe(true);
     const replacement = world.bills.at(-1)!;
     expect(replacement.effectDirection).toBe(-1);
     passBill(world, replacement);
