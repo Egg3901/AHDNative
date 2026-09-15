@@ -427,12 +427,12 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
         if (c?.effect) applyEffectToWorld(world, bill, c.effect);
       }
     }
-    return;
+  } else if (!selectedPolicyOption) {
+    // Explicit program-law levels carry cost and policy targets in the source
+    // projection, but no legacy instantaneous economy or party-support fields.
+    // Preserve the legacy catalog descriptor only for omitted-option bills.
+    applyEffectToWorld(world, bill, effect);
   }
-  // Explicit program-law levels carry cost and policy targets in the source
-  // projection, but no legacy instantaneous economy or party-support fields.
-  // Preserve the legacy catalog descriptor only for omitted-option bills.
-  if (!selectedPolicyOption) applyEffectToWorld(world, bill, effect);
 
   // Support effects: track enacted law
   const enacted: import("./types.js").EnactedLaw = {

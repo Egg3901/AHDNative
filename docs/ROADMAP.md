@@ -786,6 +786,17 @@ have no matching row at the pinned AHDGame revision and say so explicitly.
 `generateCatalogs.ts --check` detects drift without changing availability, and
 the focused inventory contract proves exact coverage against the public catalog.
 
+#283 complete. Japan's Consumption Tax Act is the first bounded executable row
+from that inventory. Its national scope, exact 11 authored rate options,
+economic values, sales-tax destination, and weighted political targets come
+from the pinned Japan seed. Sponsorship rejects unauthored rates and records
+the source option plus the direction of the move from the current budget rate.
+The public legislation flow covers proposal, both Diet chamber votes,
+pocket-sign enactment, gradual tax-rate effect, replacement, repeal, and save
+reload. The generator now owns the one-row availability allowlist and leaves
+the other 268 catalog rows unavailable with named blockers. This is not a claim
+of full Japan catalog parity.
+
 #241 complete. `NewGameScreen` captures the reference world-setup fields and
 carries them through `NewGameOptions` into the engine `NewWorldOptions`:
 `mode` (`career` | `hos`), `homeRegionId`, and `initialization`
@@ -1078,3 +1089,11 @@ no per-region economic/social lean. The issue stays open with `status: partial`.
   union turn. Native has no organizer rows yet, so configured but unpaid cash
   is retained rather than destroyed. Organizer state and atomic payouts remain
   #320/#321; bargaining, strikes and phase timing remain #322/#323.
+
+## Bank balance-sheet checkpoint, 2026-09-15 (#325 / #109)
+
+- One banking rule now totals discount-window, central-bank margin and
+  interbank claims for book equity and regulatory capital. Invalid or negative
+  legacy values fail closed to zero, and the volatile proprietary mark cannot
+  be distributed as equity. Transactions remain #326-#328; solvency and phase
+  integration remain #329.

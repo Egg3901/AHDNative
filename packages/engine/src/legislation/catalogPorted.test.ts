@@ -24,11 +24,16 @@ describe("ported legislation catalogs (JP/DE/IE/CN/BR)", () => {
     }
   });
 
-  it("generated entries are PORT-STUB with a named blocker; fully mapped ones keep their decay targets", () => {
+  it("keeps generated rows unavailable except for reviewed executable slices", () => {
     // Hand-ported US/UK/RU/DD entries may be available with no decay targets
     // (they act through taxPolicy / immediate effect); the generator's rule is
     // stricter and applies to the five generated catalogs only.
     for (const e of CATALOG.filter((x) => ["JP", "DE", "IE", "CN", "BR"].includes(x.countryId))) {
+      if (e.id === "jp_consumption_tax") {
+        expect(e.status).toBe("available");
+        expect(e.blockingSystem).toBeUndefined();
+        continue;
+      }
       expect(e.status, e.id).toBe("unavailable");
       expect(e.blockingSystem, e.id).toBeTruthy();
       if (e.blockingSystem === "legislation/effectDescriptor") expect(e.targets.length, e.id).toBeGreaterThan(0);

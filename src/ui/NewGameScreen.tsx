@@ -213,7 +213,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
               {previewParty ? (
                 mode === "hos" ? (
                   <div className="ahd-preview-row">
-                    <PartyMark name={previewParty.name} abbreviation={previewParty.abbreviation} id={previewParty.id} size={24} />
+                    <PartyMark name={previewParty.name} abbreviation={previewParty.abbreviation} id={previewParty.id} countryId={countryId} size={24} />
                     <p className="ahd-help" style={{ margin: 0 }}>
                       Govern as {previewParty.name} ({previewParty.abbreviation}) in {activeCountry?.name ?? "this country"}
                     </p>

@@ -874,6 +874,29 @@ function executeActionInner(
         if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
         return { ok: false, error: reason };
       }
+      let selectedTaxOption: NonNullable<NonNullable<typeof leg.taxPolicy>["options"]>[number] | undefined;
+      let selectedTaxRate: number | undefined;
+      let taxEffectDirection: number | undefined;
+      if (leg.kind === "tax" && leg.taxPolicy) {
+        const tp = leg.taxPolicy;
+        const raw = typeof params.taxRate === "number" && Number.isFinite(params.taxRate) ? params.taxRate : tp.baselineRate;
+        if (tp.options?.length) {
+          selectedTaxOption = tp.options.find((option) => option.rate === raw);
+          if (!selectedTaxOption) return { ok: false, error: `Tax rate ${raw} is not an authored option for ${catalogId}` };
+          selectedTaxRate = selectedTaxOption.rate;
+        } else {
+          const snapped = tp.step > 0 ? Math.round((raw - tp.minRate) / tp.step) * tp.step + tp.minRate : raw;
+          selectedTaxRate = Math.round(Math.min(tp.maxRate, Math.max(tp.minRate, snapped)) * 1000) / 1000;
+        }
+        const currentRate = tp.scope === "federal"
+          ? world.budgets[countryId]?.taxRates[tp.taxType as keyof NonNullable<typeof world.budgets[string]>["taxRates"]]
+          : params.regionId
+            ? world.regionalBudgets[params.regionId]?.taxRates?.[tp.taxType]
+            : undefined;
+        const effectiveCurrentRate = typeof currentRate === "number" ? currentRate : tp.baselineRate;
+        if (selectedTaxRate === effectiveCurrentRate) return { ok: false, error: `Tax rate is already ${selectedTaxRate}` };
+        taxEffectDirection = selectedTaxRate > effectiveCurrentRate ? 1 : -1;
+      }
       // Origin chamber: player's seat chamber or first elected chamber of country
       const legConfig = world.legislatures[countryId];
       const originChamber = params.originChamber ?? player.legislativeSeat?.chamberKey ?? legConfig?.chambers.find((c) => c.elected)?.key ?? "house";
@@ -884,10 +907,10 @@ function executeActionInner(
         {
           type: "policy" as const,
           legislationTypeId: catalogId,
-          ...(selectedPolicyOption ? { policyOptionId: selectedPolicyOption.id } : {}),
-          effectDirection: selectedPolicyOption?.effectDirection ?? 1,
-          economic: 0,
-          social: 0,
+          ...(selectedPolicyOption ? { policyOptionId: selectedPolicyOption.id } : selectedTaxOption ? { policyOptionId: selectedTaxOption.id } : {}),
+          effectDirection: selectedPolicyOption?.effectDirection ?? taxEffectDirection ?? 1,
+          economic: selectedTaxOption?.economic ?? 0,
+          social: selectedTaxOption?.social ?? 0,
         },
       ];
       // If tax kind, add proposedRate handling (not needed for test)
@@ -899,18 +922,13 @@ function executeActionInner(
         category,
         legislationTypeId: catalogId,
         ...(params.regionId ? { regionId: params.regionId } : {}),
-        effectDirection: selectedPolicyOption?.effectDirection ?? 1,
+        effectDirection: selectedPolicyOption?.effectDirection ?? taxEffectDirection ?? 1,
         // Tax bills: selected rate from the catalog ladder (params.taxRate, snapped
         // to step and clamped to [minRate, maxRate]; defaults to baselineRate).
         // Source: mainline billEnactment.ts applyTaxRateChange(policyOption.rate).
         ...(leg.kind === "tax" && leg.taxPolicy
           ? {
-              selectedRate: (() => {
-                const tp = leg.taxPolicy;
-                const raw = typeof params.taxRate === "number" && Number.isFinite(params.taxRate) ? params.taxRate : tp.baselineRate;
-                const snapped = tp.step > 0 ? Math.round((raw - tp.minRate) / tp.step) * tp.step + tp.minRate : raw;
-                return Math.round(Math.min(tp.maxRate, Math.max(tp.minRate, snapped)) * 1000) / 1000;
-              })(),
+              selectedRate: selectedTaxRate!,
             }
           : {}),
         provisions,

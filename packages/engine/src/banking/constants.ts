@@ -29,6 +29,7 @@
  */
 
 import type { CreditBandId, LendingProfileId } from "./types.js";
+import { bankEquity as calculateBankEquity } from "./balanceSheet.js";
 
 // ── Per-turn cadence ─────────────────────────────────────────────────────
 /** Source: src/lib/constants/turnTime.ts TURNS_PER_YEAR. */
@@ -211,13 +212,12 @@ export function computeReserveRatioActual(cashReserves: number, cashBackedDeposi
 
 // ── Balance sheet ─────────────────────────────────────────────────────────
 /**
- * Source: balanceSheet.ts bankEquity, scope-cut to the fields W12 carries
- * (no borrowings: interbank/CB-margin/discount-window are out of scope, see
- * types.ts file doc, so `totalBorrowings` is always 0 here).
- *   equity = cash + loans - cashBackedDeposits
+ * Compatibility overload for callers that only have the original W12
+ * fields. The canonical arithmetic, including borrowings for richer callers,
+ * is owned by balanceSheet.ts.
  */
 export function bankEquity(cashReserves: number, totalLoans: number, npcDeposits: number): number {
-  return Math.max(0, cashReserves) + Math.max(0, totalLoans) - Math.max(0, npcDeposits);
+  return calculateBankEquity({ cashReserves, totalLoans, npcDeposits });
 }
 
 /** Source: balanceSheet.ts requiredReserves (verbatim, scope-cut form). */

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NewGameScreen } from "./NewGameScreen";
+import { partyMarkColor } from "./PartyMark";
 import type { EraChoice } from "../game/types";
 import { DEFAULT_WORLD_FEATURE_FLAGS, WORLD_FEATURE_FLAG_DEFINITIONS } from "@ahdclient/engine";
 
@@ -279,6 +280,7 @@ describe("NewGameScreen world setup (#241)", () => {
     expect(mark).toHaveAttribute("data-party-mark", "REP");
     expect(mark).toHaveAttribute("aria-hidden", "true");
     expect(mark.querySelector(".ahd-mark-initials")?.textContent).toBe("REP");
+    expect(mark).toHaveStyle({ background: partyMarkColor("us-US_REP") });
   });
 
   it("keeps the country/name pair in the compact responsive grid at phone width", () => {

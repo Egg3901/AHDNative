@@ -36,6 +36,7 @@ import type { GameScreenProps } from "../game/types";
 import { FinancePanel, formatFinanceMoney } from "./FinancePanel";
 import { LegislaturePanel } from "./LegislaturePanel";
 import { RouteHero, executiveHero } from "./RouteHero";
+import { HosOfficeMark } from "./HosOfficeMark";
 import "./ui.css";
 
 const ELECTIONS_PAGE_SIZE = 20;
@@ -264,7 +265,10 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
               <RouteHero image={world.player.mode === "hos" ? executiveHero(world.countryId) : "/static/heroes/actions.webp"} alt={world.player.mode === "hos" ? `${world.countryName} executive office` : "Political campaign operations"} eyebrow={world.era} title={world.player.mode === "hos" ? "Executive office" : "Campaign operations"}>
                 {world.player.mode === "hos" ? (
                   <div className="ahd-notice" role="note">
-                    <strong>Permanent Head of State · {world.player.currentOffice ?? "executive office"}</strong>
+                    <span style={{ display: "inline-flex", gap: "0.45rem", alignItems: "center", minWidth: 0 }}>
+                      <HosOfficeMark office={world.player.currentOffice} />
+                      <strong>Permanent Head of State · {world.player.currentOffice ?? "executive office"}</strong>
+                    </span>
                     <div className="ahd-help">
                       {world.player.currentOffice === "primeMinister"
                         ? "Parliamentary executive: you govern through the appointed prime-minister office."
@@ -325,7 +329,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
                       <div key={p.id} className="ahd-card ahd-card-pad" style={{ borderLeft: `3px solid ${p.color}` }}>
                         <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "center" }}>
                           <span style={{ display: "inline-flex", gap: "0.4rem", alignItems: "center", minWidth: 0 }}>
-                            <PartyMark name={p.name} abbreviation={p.abbreviation} color={p.color} id={p.id} size={24} />
+                            <PartyMark name={p.name} abbreviation={p.abbreviation} color={p.color} id={p.id} countryId={world.countryId} size={24} />
                             <strong style={{ fontSize: "0.86rem" }}>{p.name} <span className="ahd-muted" style={{ fontWeight: 600 }}>({p.abbreviation})</span></strong>
                           </span>
                           {p.isPlayerParty ? <span className="ahd-pill" style={{ background: "var(--ahd-primary)", color: "white" }}>Yours</span> : null}
