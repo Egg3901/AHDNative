@@ -228,6 +228,13 @@ export interface GameScreenProps {
   newsStorageKey?: string;
   onAdvanceTurn: () => void; onSave: () => void; onExit: () => void;
   onAction: (id: string, params?: Record<string, string | number>) => void;
+  /**
+   * Direct corporate-sector sale commands (#294): list, update, or unlist a
+   * recorded sector-asset listing as the player. Outside the action catalog
+   * (no AP cost); purchase transfer stays unavailable (#295). Optional so
+   * surfaces without sale UI render the listing controls disabled.
+   */
+  onSectorSale?: (op: "list" | "update" | "unlist", params: { assetId: string; priceAnchor?: number }) => void;
   onMarkNotificationRead: (id: string) => void;
   onDeleteNotification: (id: string) => void;
   onMarkAllNotificationsRead: () => void;

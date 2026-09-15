@@ -15,7 +15,7 @@ import {
   evaluateShareTrade,
   parseShareCount,
 } from "../game/shareTrade";
-import { SECTOR_SALE_UNAVAILABLE } from "../game/markets";
+import { SECTOR_ACQUIRE_UNAVAILABLE, SECTOR_LIST_OWNER_ONLY, parseSalePrice } from "../game/markets";
 import type { MarketListing, MarketsView, SectorSummary, ShareholderKind } from "../game/markets";
 import type { GameScreenProps } from "../game/types";
 import { formatFinanceMoney } from "./FinancePanel";
@@ -26,6 +26,7 @@ export interface MarketsPanelProps {
   onSelect?: (id: string | null) => void;
   busy: boolean;
   onAction: GameScreenProps["onAction"];
+  onSectorSale?: GameScreenProps["onSectorSale"];
 }
 
 function AvailabilityHint({ cost, available, disabledReason }: { cost: number; available: boolean; disabledReason?: string }) {
@@ -171,9 +172,9 @@ function SectorMetricRow({ sector }: { sector: SectorSummary }) {
  *
  * There is deliberately no "For Sale" tab: AHDGame's sectors page reads
  * CorporateSector.forSale (src/app/sectors/page.tsx, /api/sectors route.ts),
- * but every recorded CorporateSectorAsset.forSale is null until the sale
- * commands land (#294/#295), so there is no sale signal to filter on. The
- * For Sale section below reads each sector's `forSaleCount` instead.
+ * and Native's recorded for-sale counts now move under the #294 session
+ * commands. Sale filtering stays out of scope: the For Sale section below
+ * reads each sector's `forSaleCount` instead.
  */
 function SectorDirectory({
   sectors,
@@ -369,9 +370,8 @@ function SectorDirectory({
       ) : null}
 
       <p className="ahd-muted" style={{ fontSize: "0.72rem", margin: 0 }}>
-        Ownership reflects only the shareholders recorded in world state. No corporation records a
-        for-sale sector listing, so there is no For Sale tab. Every sector reads For sale: 0 until
-        the sector-sale commands land (#294/#295).
+        Ownership reflects only the shareholders recorded in world state. There is no For Sale tab;
+        sale listings written by the #294 commands surface per sector as For sale counts instead.
       </p>
     </div>
   );
@@ -379,11 +379,13 @@ function SectorDirectory({
 
 /**
  * For Sale section: per-sector recorded for-sale counts with an honestly
- * disabled sale control. AHDGame's sectors page tabs into a For Sale list
- * (src/app/sectors/page.tsx); Native has the counts but no sale commands
- * until #294/#295, so every row reads 0 and the single control stays held
- * with SECTOR_SALE_UNAVAILABLE instead of pretending a purchase is possible.
- * Plain text rows, no tab buttons — the directory keeps All/Unowned/Owned only.
+ * disabled purchase control. AHDGame's sectors page tabs into a For Sale list
+ * (src/app/sectors/page.tsx); Native counts live listings written by the #294
+ * session commands, but buying one needs the acquisition commands (#295), so
+ * the single control stays held with SECTOR_ACQUIRE_UNAVAILABLE instead of
+ * pretending a purchase is possible. Listing itself happens on the company
+ * detail card, restricted to recorded shareholders. Plain text rows, no tab
+ * buttons — the directory keeps All/Unowned/Owned only.
  */
 function ForSaleDirectory({ sectors }: { sectors: SectorSummary[] }) {
   const total = sectors.reduce((sum, sector) => sum + sector.forSaleCount, 0);
@@ -422,8 +424,137 @@ function ForSaleDirectory({ sectors }: { sectors: SectorSummary[] }) {
           Buy sector
         </button>
         <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
-          {SECTOR_SALE_UNAVAILABLE}
+          {SECTOR_ACQUIRE_UNAVAILABLE}
         </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Owner-only sale listing controls (#294). The engine authorizes only a
+ * recorded shareholder of the corporation, so the player must hold at least
+ * one share before list/update/unlist enable; everyone else sees the gate
+ * reason instead. Buying a listed sector stays honestly disabled for all
+ * viewers until the acquisition commands land (#295).
+ */
+function SectorSaleControls({
+  listing,
+  busy,
+  onSectorSale,
+}: {
+  listing: MarketListing;
+  busy: boolean;
+  onSectorSale?: GameScreenProps["onSectorSale"];
+}) {
+  const [price, setPrice] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const listed = listing.sectorAsset.forSale;
+  const isOwner = listing.playerShares > 0;
+  const disabled = busy || !isOwner || onSectorSale == null;
+
+  const update = () => {
+    const parsed = parseSalePrice(price);
+    if (parsed == null) {
+      setError("Enter a positive asking price.");
+      return;
+    }
+    setError(null);
+    onSectorSale?.("update", { assetId: listing.sectorAsset.id, priceAnchor: parsed });
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+      {listed ? (
+        <>
+          <label className="ahd-field" style={{ maxWidth: "16rem" }}>
+            <span className="ahd-label">Asking price</span>
+            <input
+              className="ahd-input"
+              type="text"
+              inputMode="decimal"
+              value={price}
+              onChange={(e) => {
+                setPrice(e.target.value);
+                if (error) setError(null);
+              }}
+              disabled={busy}
+              aria-label="Asking price"
+              aria-invalid={!!error}
+              aria-describedby={error ? "markets-sale-error" : undefined}
+            />
+            {error ? (
+              <span id="markets-sale-error" className="ahd-error-text" role="alert">
+                {error}
+              </span>
+            ) : null}
+          </label>
+          <div style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              <button
+                type="button"
+                className="ahd-btn ahd-btn-sm"
+                onClick={update}
+                disabled={disabled}
+                aria-disabled={disabled}
+                aria-label={`Update ${listing.sectorLabel} sector price`}
+                style={{ minHeight: 44, alignSelf: "flex-start" }}
+              >
+                Update price
+              </button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+              <button
+                type="button"
+                className="ahd-btn ahd-btn-sm"
+                onClick={() => onSectorSale?.("unlist", { assetId: listing.sectorAsset.id })}
+                disabled={disabled}
+                aria-disabled={disabled}
+                aria-label={`Unlist ${listing.sectorLabel} sector`}
+                style={{ minHeight: 44, alignSelf: "flex-start" }}
+              >
+                Unlist
+              </button>
+            </div>
+          </div>
+          {!isOwner ? (
+            <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
+              {SECTOR_LIST_OWNER_ONLY}
+            </span>
+          ) : null}
+        </>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+          <button
+            type="button"
+            className="ahd-btn ahd-btn-sm"
+            onClick={() => onSectorSale?.("list", { assetId: listing.sectorAsset.id })}
+            disabled={disabled}
+            aria-disabled={disabled}
+            aria-label={`List ${listing.sectorLabel} sector for sale`}
+            style={{ minHeight: 44, alignSelf: "flex-start" }}
+          >
+            List for sale
+          </button>
+          {!isOwner ? (
+            <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
+              {SECTOR_LIST_OWNER_ONLY}
+            </span>
+          ) : null}
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+        <button
+          type="button"
+          className="ahd-btn ahd-btn-sm"
+          disabled
+          aria-disabled
+          aria-label={`Buy ${listing.sectorLabel} sector (unavailable)`}
+          style={{ minHeight: 44, alignSelf: "flex-start" }}
+        >
+          Buy sector
+        </button>
+        <AvailabilityHint cost={0} available={false} disabledReason={SECTOR_ACQUIRE_UNAVAILABLE} />
       </div>
     </div>
   );
@@ -434,6 +565,7 @@ function CompanyDetail({
   markets,
   busy,
   onAction,
+  onSectorSale,
   onBack,
 }: {
   listing: MarketListing;
@@ -442,6 +574,7 @@ function CompanyDetail({
   onSelect?: (id: string | null) => void;
   busy: boolean;
   onAction: GameScreenProps["onAction"];
+  onSectorSale?: GameScreenProps["onSectorSale"];
   onBack: () => void;
 }) {
   const [shares, setShares] = useState("");
@@ -615,19 +748,7 @@ function CompanyDetail({
         <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: 0 }}>
           Recorded sector state only. Worker and union mechanics arrive with their own slices (#296-#298).
         </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-          <button
-            type="button"
-            className="ahd-btn ahd-btn-sm"
-            disabled
-            aria-disabled
-            aria-label={`Buy ${listing.sectorLabel} sector (unavailable)`}
-            style={{ minHeight: 44, alignSelf: "flex-start" }}
-          >
-            Buy sector
-          </button>
-          <AvailabilityHint cost={0} available={false} disabledReason={SECTOR_SALE_UNAVAILABLE} />
-        </div>
+        <SectorSaleControls listing={listing} busy={busy} onSectorSale={onSectorSale} />
       </div>
 
       <div className="ahd-card ahd-card-pad">
@@ -728,7 +849,7 @@ function CompanyDetail({
   );
 }
 
-export function MarketsPanel({ markets, busy, onAction, initialId = null, onSelect }: MarketsPanelProps) {
+export function MarketsPanel({ markets, busy, onAction, onSectorSale, initialId = null, onSelect }: MarketsPanelProps) {
   const [query, setQuery] = useState("");
   // Default context: the player's own country, mirroring AHDGame's sectors page
   // (src/app/sectors/page.tsx), which preselects the corporation/character
@@ -800,6 +921,7 @@ export function MarketsPanel({ markets, busy, onAction, initialId = null, onSele
         markets={markets}
         busy={busy}
         onAction={onAction}
+        onSectorSale={onSectorSale}
         onBack={() => setSelectedId(null)}
       />
     );
