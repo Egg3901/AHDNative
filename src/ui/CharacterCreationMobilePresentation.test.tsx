@@ -5,8 +5,8 @@ import { CharacterCreationScreen } from "./CharacterCreationScreen";
 import type { CharacterCreationScreenProps } from "../game/types";
 
 const PARTIES = [
-  { id: "US_DEM", name: "Democratic Party", abbreviation: "DEM", color: "#3B82F6", economicPosition: -3, socialPosition: -2 },
-  { id: "US_REP", name: "Republican Party", abbreviation: "REP", color: "#EF4444", economicPosition: 3, socialPosition: 2 },
+  { id: "US_DEM", name: "Democratic Party", abbreviation: "DEM", color: "#3B82F6", logoUrl: null, economicPosition: -3, socialPosition: -2 },
+  { id: "US_REP", name: "Republican Party", abbreviation: "REP", color: "#EF4444", logoUrl: null, economicPosition: 3, socialPosition: 2 },
 ];
 
 function props(overrides: Partial<CharacterCreationScreenProps> = {}): CharacterCreationScreenProps {
@@ -123,8 +123,8 @@ describe("CharacterCreationScreen mobile presentation (#335)", () => {
     // Every canonical control is present at the compact width: media pickers
     // with their caps, the region select, compass sliders, party choices and
     // the stat allocator with its helpers.
-    expect(screen.getByLabelText(/Portrait/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Header/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/portrait/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/header/i)).toBeInTheDocument();
     expect(screen.getByText(/under 2 MB/)).toBeInTheDocument();
     expect(screen.getByText(/under 4 MB/)).toBeInTheDocument();
     expect(screen.getByRole("combobox")).toBeInTheDocument();

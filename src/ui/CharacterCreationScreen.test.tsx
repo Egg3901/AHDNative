@@ -30,6 +30,9 @@ function props(overrides: Partial<CharacterCreationScreenProps> = {}): Character
 }
 
 async function completeBackground(user: ReturnType<typeof userEvent.setup>) {
+  if (!screen.queryByRole("button", { name: "Female" })) {
+    await openDirectReview(user);
+  }
   await user.click(screen.getByRole("button", { name: "Female" }));
   await user.click(screen.getByRole("button", { name: "White" }));
   await user.click(screen.getByRole("button", { name: "College" }));
@@ -57,7 +60,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     expect(screen.getByRole("button", { name: /Continue to Home state/i })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: /Edit Country/i }));
     expect(screen.getByRole("heading", { name: /^Country/ })).toBeInTheDocument();
-    expect(screen.getByText(/Eleanor Vance/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Eleanor Vance/).length).toBeGreaterThan(0);
   });
 
   it("submits the unchanged creation contract through the conversational player flow (#336)", async () => {
@@ -253,6 +256,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
       render(<CharacterCreationScreen {...props({
         choices: { parties: LOGO_PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state" },
       })} />);
+      fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
       const button = screen.getByRole("button", { name: "DEM Democratic Party" });
       const img = button.querySelector(".ahd-mark img");
       expect(img).not.toBeNull();
@@ -261,6 +265,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
 
     it("falls back to honest initials with no image when logoUrl is null", () => {
       render(<CharacterCreationScreen {...props()} />);
+      fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
       const button = screen.getByRole("button", { name: "REP Republican Party" });
       expect(button.querySelector(".ahd-mark img")).toBeNull();
       expect(button.querySelector(".ahd-mark-initials")?.textContent).toBe("REP");
@@ -270,6 +275,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
       render(<CharacterCreationScreen {...props({
         choices: { parties: LOGO_PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state" },
       })} />);
+      fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
       expect(screen.getByRole("button", { name: "DEM Democratic Party" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "REP Republican Party" })).toBeInTheDocument();
       // The mark itself stays decorative so the button label is not doubled.
@@ -280,6 +286,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     it("toggles party selection through the marked picker buttons", async () => {
       const user = userEvent.setup();
       render(<CharacterCreationScreen {...props()} />);
+      fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
       const dem = screen.getByRole("button", { name: "DEM Democratic Party" });
       const rep = screen.getByRole("button", { name: "REP Republican Party" });
       await user.click(dem);
@@ -292,6 +299,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
 
     it("keeps the picker mark compact so chips wrap inside a 320px column", () => {
       render(<CharacterCreationScreen {...props()} />);
+      fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
       const mark = screen.getByRole("button", { name: "DEM Democratic Party" }).querySelector(".ahd-mark") as HTMLElement;
       expect(mark).toHaveStyle({ width: "20px", height: "20px" });
     });
@@ -341,6 +349,7 @@ describe("CharacterCreationScreen portrait/header identity (#348)", () => {
 
   it("rejects a non-image file with the reference message in one alert", async () => {
     render(<CharacterCreationScreen {...props()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
     const bad = new File(["not an image"], "notes.txt", { type: "text/plain" });
     fireEvent.change(screen.getByTestId("candidate-identity").querySelector("#creation-portrait")!, { target: { files: [bad] } });
     const alert = await screen.findByRole("alert");
@@ -350,6 +359,7 @@ describe("CharacterCreationScreen portrait/header identity (#348)", () => {
 
   it("rejects an oversize portrait", async () => {
     render(<CharacterCreationScreen {...props()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
     const big = new File([new Uint8Array(2 * 1024 * 1024 + 1)], "big.png", { type: "image/png" });
     fireEvent.change(screen.getByTestId("candidate-identity").querySelector("#creation-portrait")!, { target: { files: [big] } });
     expect(await screen.findByRole("alert")).toHaveTextContent("Portrait must be under 2 MB.");
@@ -361,6 +371,7 @@ describe("CharacterCreationScreen portrait/header identity (#348)", () => {
       const user = userEvent.setup();
       const onSubmit = vi.fn();
       render(<CharacterCreationScreen {...props({ onSubmit })} />);
+      await openDirectReview(user);
       const portrait = new File(["portrait-bytes"], "portrait.png", { type: "image/png" });
       const header = new File(["header-bytes"], "header.png", { type: "image/png" });
       fireEvent.change(fileInput(/^Add portrait$/), { target: { files: [portrait] } });

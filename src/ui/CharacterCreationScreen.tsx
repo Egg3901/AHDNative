@@ -377,7 +377,7 @@ function CandidateIdentityCard({
           {name.trim() || "Unnamed candidate"}
         </p>
         <p className="ahd-muted" style={{ margin: "0.15rem 0 0", fontSize: "0.76rem" }}>
-          Portrait and header are optional and stay on this device.
+          Portrait under 2 MB and header under 4 MB are optional and stay on this device.
         </p>
       </div>
     </div>
