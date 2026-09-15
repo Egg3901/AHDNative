@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   advanceTurn,
+  corporateSectorAssets,
   createWorld,
   deserializeSave,
   executeAction,
@@ -460,10 +461,19 @@ describe("sector metrics and ownership", () => {
     }
   });
 
-  it("never invents worker/employee or for-sale state that world state does not record", () => {
+  it("surfaces recorded corporate-sector asset state verbatim and invents no other labor or sale state (#299)", () => {
+    // #293 records workers (0), representingUnionId (null), and forSale
+    // (null) on CorporateSectorAsset; #299 projects those recorded values
+    // instead of hiding them. Anything beyond them is still invented.
     const view = projectMarkets(createWorld(US));
     expect(view.sectors.every((sector) => sector.forSale === null)).toBe(true);
-    expect(JSON.stringify(view)).not.toMatch(/worker|employee|staff|headcount/i);
+    for (const listing of view.listings) {
+      expect(listing.sectorAsset.workers).toBe(0);
+      expect(listing.sectorAsset.unionId).toBeNull();
+      expect(listing.sectorAsset.unionName).toBeNull();
+      expect(listing.sectorAsset.forSale).toBeNull();
+    }
+    expect(JSON.stringify(view)).not.toMatch(/employee|staff|headcount|ceo|chief executive/i);
     expect(JSON.stringify(view)).not.toMatch(/"forSale":\s*(?!null)/i);
   });
 
@@ -504,6 +514,66 @@ describe("sector metrics and ownership", () => {
     expect(media.playerShares).toBe(4);
     expect(loaded.listings.find((l) => l.id === "US-media")!.playerShares).toBe(4);
   });
+
+describe("corporate-sector asset projection (#299)", () => {
+  it("projects one recorded asset per listing joined to its live corporation", () => {
+    const world = createWorld(US);
+    const view = projectMarkets(world);
+    expect(view.listings.length).toBeGreaterThan(0);
+    for (const listing of view.listings) {
+      const corp = world.corporations[listing.id]!;
+      expect(listing.sectorAsset.id).toBe(`corporate-sector:${corp.countryId}:${corp.sectorType}:${corp.id}`);
+      expect(listing.sectorAsset.scope).toBe("national");
+      expect(listing.sectorAsset.regionId).toBeNull();
+      expect(listing.sectorAsset.regionName).toBeNull();
+    }
+    const media = view.listings.find((l) => l.id === "US-media")!;
+    expect(media.sectorAsset).toMatchObject({
+      countryId: "US",
+      sectorType: "media",
+      corporationId: "US-media",
+    });
+  });
+
+  it("resolves a region-allocated asset to its recorded region name", () => {
+    const world = createWorld(US);
+    const assets = corporateSectorAssets(world);
+    const region = Object.values(world.regions).find((r) => r.countryId === "US")!;
+    const asset = Object.values(assets).find((a) => a.corporationId === "US-media")!;
+    asset.stateId = region.id;
+    const media = projectMarkets(world).listings.find((l) => l.id === "US-media")!;
+    expect(media.sectorAsset.scope).toBe("regional");
+    expect(media.sectorAsset.regionId).toBe(region.id);
+    expect(media.sectorAsset.regionName).toBe(region.name);
+  });
+
+  it("does not materialize corporateSectors on the world as a projection side effect", () => {
+    const world = createWorld(US);
+    expect(world.corporateSectors).toBeUndefined();
+    projectMarkets(world);
+    // Lazy backfill stays the engine accessor's job; the read view must not
+    // change the serialized shape or hashes of untouched schema-44 worlds.
+    expect(world.corporateSectors).toBeUndefined();
+  });
+
+  it("keeps the projected asset identical through serializeSave / deserializeSave", () => {
+    const world = createWorld(US);
+    corporateSectorAssets(world);
+    const original = projectMarkets(world).listings.find((l) => l.id === "US-media")!.sectorAsset;
+    const loaded = projectMarkets(deserializeSave(serializeSave(world, SAVED_AT)));
+    expect(loaded.listings.find((l) => l.id === "US-media")!.sectorAsset).toEqual(original);
+  });
+
+  it("reports zero for-sale listings per sector until sale commands land (#294/#295)", () => {
+    const view = projectMarkets(createWorld(US));
+    expect(view.sectors.length).toBeGreaterThan(0);
+    for (const sector of view.sectors) {
+      expect(sector.forSaleCount).toBe(0);
+      const members = view.listings.filter((l) => l.sectorType === sector.sectorType);
+      expect(members.every((l) => l.sectorAsset.forSale === null)).toBe(true);
+    }
+  });
+});
 
   it("projects the post-turn corporation state after advanceTurn", () => {
     const world = createWorld(US);

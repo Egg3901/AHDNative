@@ -13,6 +13,7 @@
 import {
   ACTION_CATALOG,
   getActionCost,
+  seedCorporateSectorAssets,
   type WorldState,
 } from "@ahdclient/engine";
 
@@ -41,6 +42,36 @@ export interface MarketCountry {
   listingCount: number;
 }
 
+/**
+ * Recorded corporate-sector asset joined to its live corporation (#299).
+ * Every field is a verbatim copy of the engine's CorporateSectorAsset record
+ * (#293) except `scope`/`regionName`/`unionName`, which resolve the recorded
+ * `stateId`/`representingUnionId` references against the recorded region and
+ * union tables on read. Nothing is derived beyond those joins: workers,
+ * union, and for-sale state are projected exactly as recorded, and sale
+ * commands (#294/#295) have not landed so `forSale` reads null everywhere.
+ */
+export interface MarketSectorAsset {
+  id: string;
+  corporationId: string;
+  countryId: string;
+  sectorType: string;
+  /** "national" when the recorded stateId is null, else "regional". */
+  scope: "national" | "regional";
+  /** Recorded stateId verbatim; null until the regional split lands. */
+  regionId: string | null;
+  /** Recorded region name for a regional asset; null for national assets. */
+  regionName: string | null;
+  /** Recorded worker headcount verbatim (#293 seeds 0). */
+  workers: number;
+  /** Recorded representingUnionId verbatim; null when no union represents the asset. */
+  unionId: string | null;
+  /** Recorded union name for the representing union; null when unrepresented. */
+  unionName: string | null;
+  /** Recorded sale listing verbatim; null until sector-sale commands land. */
+  forSale: { priceAnchor: number } | null;
+}
+
 export interface MarketListing {
   id: string;
   ticker: string;
@@ -49,6 +80,8 @@ export interface MarketListing {
   countryName: string;
   sectorType: string;
   sectorLabel: string;
+  /** Recorded corporate-sector asset for this corporation's sector (#299). */
+  sectorAsset: MarketSectorAsset;
   currency: string;
   cashCurrencyMatches: boolean;
   sharePrice: number;
@@ -152,11 +185,26 @@ export interface SectorSummary {
   growthPct: number | null;
   /**
    * AHDGame marks sellable sectors with CorporateSector.forSale (+priceAnchor).
-   * Native's merged Corporation record has no for-sale field, so there is no
-   * sale state to project and no "For Sale" tab. See markets.test.ts.
+   * #299 projects the recorded CorporateSectorAsset.forSale verbatim onto each
+   * listing's sectorAsset, so this stays a null legacy marker while the count
+   * below carries the directory signal. See markets.test.ts.
    */
   forSale: null;
+  /**
+   * Member listings whose recorded sectorAsset.forSale is non-null. Zero until
+   * the sector-sale commands land (#294/#295) — the directory's For Sale
+   * section reads this, so it can never drift from the company detail.
+   */
+  forSaleCount: number;
 }
+
+/**
+ * Honest disabled reason for every sector-sale control. Sale commands land in
+ * #294/#295, so until then there is nothing to buy and the UI holds the
+ * button disabled with this reason instead of hiding the action.
+ */
+export const SECTOR_SALE_UNAVAILABLE =
+  "Sector sales are not available yet. Buying or selling a sector needs the sale commands landing in #294/#295.";
 
 export interface MarketsView {
   playerCountryId: string;
@@ -254,6 +302,33 @@ function listingTrade(
 export function projectMarkets(world: WorldState): MarketsView {
   const player = world.player;
   const playerCurrency = homeCurrency(world, player.countryId);
+  // Read-only corporate-sector join (#299). The engine's corporateSectorAssets
+  // accessor lazily materializes world.corporateSectors; this read view must
+  // not, so untouched schema-44 worlds keep their serialized shape and hashes.
+  // Seed into a local map only — never assign back onto the world — then index
+  // by corporation id for the per-listing join.
+  const recordedAssets = world.corporateSectors ?? seedCorporateSectorAssets(world);
+  const assetByCorporation = new Map(Object.values(recordedAssets).map((asset) => [asset.corporationId, asset]));
+  const projectSectorAsset = (corporationId: string, countryId: string, sectorType: string): MarketSectorAsset => {
+    const recorded = assetByCorporation.get(corporationId);
+    const stateId = recorded?.stateId ?? null;
+    const region = stateId != null ? world.regions[stateId] : undefined;
+    const unionId = recorded?.representingUnionId ?? null;
+    const union = unionId != null ? world.unions[unionId] : undefined;
+    return {
+      id: recorded?.id ?? `corporate-sector:${countryId}:${sectorType}:${corporationId}`,
+      corporationId,
+      countryId,
+      sectorType,
+      scope: stateId == null ? "national" : "regional",
+      regionId: stateId,
+      regionName: region?.name ?? null,
+      workers: recorded?.workers ?? 0,
+      unionId,
+      unionName: union?.name ?? null,
+      forSale: recorded?.forSale ? { priceAnchor: recorded.forSale.priceAnchor } : null,
+    };
+  };
   const listings: MarketListing[] = Object.values(world.corporations).map((corp) => {
     const country = world.countries[corp.countryId];
     const currency = homeCurrency(world, corp.countryId);
@@ -279,6 +354,7 @@ export function projectMarkets(world: WorldState): MarketsView {
       countryName: country?.name ?? corp.countryId,
       sectorType: corp.sectorType,
       sectorLabel: sectorLabel(corp.sectorType),
+      sectorAsset: projectSectorAsset(corp.id, corp.countryId, corp.sectorType),
       currency,
       cashCurrencyMatches: trade.cashCurrencyMatches,
       sharePrice: corp.sharePrice,
@@ -352,6 +428,7 @@ export function projectMarkets(world: WorldState): MarketsView {
       marginCount: number;
       growthSum: number;
       growthCount: number;
+      forSaleCount: number;
     }
   >();
   for (const listing of listings) {
@@ -369,6 +446,7 @@ export function projectMarkets(world: WorldState): MarketsView {
         marginCount: 0,
         growthSum: 0,
         growthCount: 0,
+        forSaleCount: 0,
       };
       sectorMap.set(listing.sectorType, sector);
     }
@@ -377,6 +455,9 @@ export function projectMarkets(world: WorldState): MarketsView {
     if (listing.playerShares > 0) {
       sector.playerShares += listing.playerShares;
       sector.ownedCompanyCount += 1;
+    }
+    if (listing.sectorAsset.forSale != null) {
+      sector.forSaleCount += 1;
     }
     if (Number.isFinite(listing.effectiveProfitMargin)) {
       sector.marginSum += listing.effectiveProfitMargin;
@@ -415,6 +496,7 @@ export function projectMarkets(world: WorldState): MarketsView {
       marginPct: sector.marginCount > 0 ? sector.marginSum / sector.marginCount : null,
       growthPct: sector.growthCount > 0 ? sector.growthSum / sector.growthCount : null,
       forSale: null,
+      forSaleCount: sector.forSaleCount,
     }))
     .sort((a, b) => a.sectorLabel.localeCompare(b.sectorLabel) || a.sectorType.localeCompare(b.sectorType));
 
