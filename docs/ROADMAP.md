@@ -152,6 +152,21 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 
 ## Authentic save interchange checkpoint
 
+## Current Client/Game SP interchange contract checkpoint, 2026-09-15 (#300 / #122)
+
+- Current AHDClient `6c9ee98ce1331c24042bb48628839f6b3997dde4`
+  `world.json` is launcher metadata, while AHDGame
+  `d4baf899fd8bd529099f03d7410807143604e2e5` owns durable gameplay state in
+  the world-home Mongo database. Neither is relabeled as a Native save.
+- The machine-readable contract inventories launcher metadata, gameplay,
+  identity and history mapping work, fail-closed unknown collections, and the
+  mandatory exclusion of Mongo runtime files, authentication and secrets.
+  Hash fields are explicitly declared metadata until exporter slices verify
+  them against canonical bytes; parsing does not claim cryptographic trust.
+- Both transfer directions remain `contract-only`. #301 through #304 own real
+  exporters, adapters, continuation evidence and exact player-facing claims.
+  Historical schema-v42 compatibility remains separately tracked in #116.
+
 - Save hardening PR #5 passed CI and merged.
 - Minted a real schema-v42 fixture using clean AHDClient source at `c5017542c860f5f94b7d4b4d5cfea2939b28995d`. Compressed fixture and SHA-256 provenance are committed; no version relabeling was used to create it.
 - Twenty-three contract checks pass for authentic load, deterministic continuation and the old reader's rejection of new schema-v43 saves. The actual import/turn/autosave/reload UI smoke also passes.
