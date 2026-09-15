@@ -24,6 +24,24 @@ describe("playerSavingsInterestPhase", () => {
     expect(world.player.savings).toBe(48_030);
     expect(world.player.pendingSavingsInterest).toBe(0);
     expect(world.player.savingsInterestEarnedLifetime).toBe(30);
+
+    const loaded = deserializeSave(serializeSave(world));
+    expect(loaded.player.pendingSavingsInterest).toBe(0);
+    expect(loaded.player.savingsInterestEarnedLifetime).toBe(30);
+  });
+
+  it("flushes existing pending interest when the boundary accrual rounds to zero", () => {
+    const world = createWorld(OPTS);
+    world.player.savings = 1;
+    world.player.savingsHolder = "centralBank";
+    world.player.pendingSavingsInterest = 7;
+    world.meta.turn = 12;
+
+    playerSavingsInterestPhase.run(world, RNG);
+
+    expect(world.player.savings).toBe(8);
+    expect(world.player.pendingSavingsInterest).toBe(0);
+    expect(world.player.savingsInterestEarnedLifetime).toBe(7);
   });
 
   it("does not double-credit savings held by a private bank", () => {

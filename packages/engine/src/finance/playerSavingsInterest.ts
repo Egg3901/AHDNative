@@ -12,22 +12,23 @@ export const playerSavingsInterestPhase: TurnPhase = {
   name: "playerSavingsInterest",
   run(world) {
     const player = world.player;
-    if (player.savingsHolder !== "centralBank" || !(player.savings > 0)) return;
+    if (player.savingsHolder !== "centralBank") return;
 
     const countryId = player.countryId;
     const currency = world.budgets[countryId]?.currencyCode ?? "USD";
     const primeRate = world.centralBanks[countryId]?.primeRate ?? 2.5;
     const inflationPercent = (world.countries[countryId]?.economy.inflationRate ?? 0) * 100;
-    const accrued = computeSavingsInterestForTurn(player.savings, primeRate, currency, inflationPercent);
-    if (!(accrued > 0)) return;
-
+    const accrued = player.savings > 0
+      ? computeSavingsInterestForTurn(player.savings, primeRate, currency, inflationPercent)
+      : 0;
     const pending = (player.pendingSavingsInterest ?? 0) + accrued;
     if (world.meta.turn > 0 && world.meta.turn % SAVINGS_CREDIT_INTERVAL_TURNS === 0) {
+      if (!(pending > 0)) return;
       player.savings += pending;
       player.savingsInterestEarnedLifetime = (player.savingsInterestEarnedLifetime ?? 0) + pending;
       player.pendingSavingsInterest = 0;
       return;
     }
-    player.pendingSavingsInterest = pending;
+    if (accrued > 0) player.pendingSavingsInterest = pending;
   },
 };
