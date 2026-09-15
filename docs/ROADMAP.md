@@ -1301,3 +1301,15 @@ and removed. The smoke helper now walks the conversation; no engine change.
   projections. #73 remains open: Hall of Fame/leaderboards, plotted map surfaces, country/region map
   depth, and the remaining acceptance checklist (stable player/era filters, election/profile entity
   links, mobile-width verification beyond the directory slice).
+
+## Nation context and identity navigation checkpoint, 2026-09-15 (#84)
+
+- Drawer identity now exposes real Profile, Actions, and Wallet destinations;
+  Portfolio and Banking cross-link as the supported Native wallet surfaces.
+- Nation detail links into the offline World map directory. Nation deep-links
+  update browse context only, so returning preserves the viewed nation without
+  mutating the player's country, save, turn, or controlled character.
+- Focused evidence covers the full navigation flow plus World, Finance, drawer,
+  map, and GameScreen surfaces (103 tests). #84 stays open because Native has
+  no projected player-corporation or union membership destination and records
+  no coordinates for plotted country maps.
