@@ -519,7 +519,9 @@ Six reviewed local slices (#39/#40/#67/#68/#92 and the related
 #141 distributor) are preserved with `work: review` labels. Their agents have
 finished bounded implementation; root integration and acceptance are still
 required. They are excluded from Windows 0.1.1. #88 records its merged metadata
-and invented-action corrections while retaining broader unchecked acceptance.
+and invented-action corrections. Its remaining atomic player/NPC accounting
+and Profile/party/notification/save/next-turn contract is now covered at the
+public action and session boundaries.
 #96/#97 now explicitly record the distributor's missing country/primary inputs
 and lifecycle dependencies. The logo is a child of the still-open imagery #143.
 

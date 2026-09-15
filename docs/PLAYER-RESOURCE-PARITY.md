@@ -38,6 +38,11 @@ party-influence paths, not whole-engine parity.
   changes state influence. Native's manual `investInfluence` exchange had no
   reference action. Its old ID now rejects before costs for every actor; the
   invented execution branch is removed. Passive party grants remain available.
+- Campaign dispatch uses the shared action-accounting boundary for both the
+  player and NPC politicians. Actions and funds are committed together only
+  after validation, and failures return a structured result without partial
+  mutation. Session coverage follows a successful result through Profile,
+  unchanged party clout, notifications, save/reload and the following turn.
 
 Profile and the footer use the engine's shared resource projections. The AP
 breakdown separates office refresh from party grants and shows the gain after
