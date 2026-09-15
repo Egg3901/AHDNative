@@ -914,6 +914,19 @@ no per-region economic/social lean. The issue stays open with `status: partial`.
   seats a nominee only after a confirmed simple-majority result. Parent #63
   remains open for sponsorship, session wiring, UI, and the remaining slices.
 
+## Corporate-sector asset core checkpoint, 2026-09-15 (#293 / #211)
+
+- New worlds persist one stable CorporateSector asset identity per aggregate
+  Native corporation, bound to a valid region and kept distinct from the
+  unowned-sector revenue headroom pools.
+- The asset owns future-facing sale, worker, and union-representation state.
+  Existing Corporation records remain authoritative for turn economics; the
+  exported projection joins current revenue, margin, and growth on read so the
+  two records cannot silently drift.
+- Deterministic seeding and the public save boundary preserve all asset ids and
+  references. Sale commands, worker/union mechanics, fan-out, and UI remain in
+  #294 through #299.
+
 ## Player polling checkpoint, 2026-09-15 (#38)
 
 - `poll` and `pollLarge` are live through the public `executeAction` contract

@@ -158,6 +158,8 @@ export interface WorldState {
    * single-sector — see corporation/types.ts file doc). Schema v19.
    */
   corporations: Record<string, Corporation>;
+  /** Distinct region-bound CorporateSector assets. Optional on pre-#293 schema-44 saves. */
+  corporateSectors?: Record<string, import("./corporation/corporateSectorAssets.js").CorporateSectorAsset>;
   /**
    * Per-country aggregate corporate revenue, one turn apart, feeding the
    * macroCountryTurn growth signal. Maintained by corporationTurn.ts. Schema v19.
