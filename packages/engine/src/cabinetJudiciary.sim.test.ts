@@ -81,6 +81,7 @@ describe("W29 nomination lifecycle goldens with citations", () => {
     const world = createWorld(OPTS);
     world.meta.turn = 10;
     world.executives["US"] = { countryId: "US", presidentId: "US-1", presidentParty: "US_DEM", termStartTurn: 0, vicePresidentId: null, vicePresidentParty: null };
+    const senator = world.politicians.find((p) => p.countryId === "US" && p.chamberKey === "senate")!;
     const nom = {
       id: "nom2",
       countryId: "US",
@@ -91,10 +92,10 @@ describe("W29 nomination lifecycle goldens with citations", () => {
       proposedBy: "US-1",
       proposedByName: "President",
       status: "active" as const,
-      votesFor: 60,
-      votesAgainst: 40,
+      votesFor: 1,
+      votesAgainst: 0,
       votesAbstain: 0,
-      votes: {},
+      votes: { [`pol_${senator.id}`]: "for" as const },
       votingEndsOnTurn: 10,
       proposedAtTurn: 5,
     };
