@@ -23,7 +23,14 @@ import type { WorldState } from "../types.js";
 import { rngFromState, type RngState } from "../rng.js";
 import { decideCaseOutcome, type SeatedJusticeLean } from "./divergence.js";
 import { nppCabinetVote, cabinetDidPass } from "../cabinet/nominationLifecycle.js";
-import type { SupremeCourtSeat, DocketCase } from "./types.js";
+import {
+  assertNominationVote,
+  isSenateChamber,
+  tallyCurrentSeatVotes,
+  type NominationTally,
+  type NominationVote,
+} from "../nominations/currentSeatTally.js";
+import type { SupremeCourtSeat, DocketCase, ScotusNomination } from "./types.js";
 
 export const DIVERGENT_TENURE_FLOOR_TURNS = 156; // ~3 years at 52 turns/year, mirrors mainline src/lib/scotus/tenure.ts
 export const DIVERGENT_DEPARTURE_PROBABILITY_PER_TURN = 0.001; // flat hazard after floor, PORT-STUB tuned
@@ -316,6 +323,35 @@ function processSurpriseCaseTurn(world: WorldState, rng: ReturnType<typeof rngFr
   return { spawned: true, caseKey: template.templateKey, majoritySide: decision.majoritySide };
 }
 
+export function computeScotusNominationTally(world: WorldState, nomination: ScotusNomination): NominationTally {
+  return tallyCurrentSeatVotes(world, nomination.countryId, nomination.votes);
+}
+
+function applyScotusNominationTally(nomination: ScotusNomination, tally: NominationTally): void {
+  nomination.votesFor = tally.votesFor;
+  nomination.votesAgainst = tally.votesAgainst;
+  nomination.votesAbstain = tally.votesAbstain;
+}
+
+export function castScotusNominationVote(
+  world: WorldState,
+  nominationId: string,
+  vote: NominationVote,
+): NominationTally {
+  assertNominationVote(vote);
+  const nomination = world.scotusNominations?.find((candidate) => candidate.id === nominationId);
+  if (!nomination || nomination.status !== "active") throw new Error("Nomination not found or voting closed");
+  if (world.meta.turn >= nomination.votingEndsOnTurn) throw new Error("Voting has ended");
+  const seat = world.player.legislativeSeat;
+  if (!seat || seat.countryId !== nomination.countryId || !isSenateChamber(seat.chamberKey)) {
+    throw new Error("Only Senators can vote on Justice nominations");
+  }
+  nomination.votes.player = vote;
+  const tally = computeScotusNominationTally(world, nomination);
+  applyScotusNominationTally(nomination, tally);
+  return tally;
+}
+
 function processScotusNominations(world: WorldState, rng: ReturnType<typeof rngFromState>): ScotusTurnResult["nominations"] {
   if (!world.scotusNominations) world.scotusNominations = [];
   const turn = world.meta.turn;
@@ -324,31 +360,30 @@ function processScotusNominations(world: WorldState, rng: ReturnType<typeof rngF
   let rejected = 0;
 
   const noms = world.scotusNominations;
-  const exec = world.executives["US"];
-  const presidentParty = exec?.presidentParty ?? undefined;
-
   for (const nom of noms) {
     if (nom.status !== "active") continue;
+    const presidentParty = world.executives[nom.countryId]?.presidentParty ?? undefined;
 
     if (turn < nom.votingEndsOnTurn) {
-      const holders = world.politicians.filter((p) => p.countryId === "US" && (p.chamberKey === "senate" || p.chamberKey === "upper"));
+      const holders = world.politicians.filter(
+        (politician) => politician.countryId === nom.countryId && isSenateChamber(politician.chamberKey),
+      );
       let newVotes = 0;
       for (const holder of holders) {
         const key = `pol_${holder.id}`;
         if (nom.votes[key]) continue;
         const draw = rng.next();
         const vote = nppCabinetVote(holder.partyId, nom.nomineeParty ?? undefined, presidentParty, draw);
-        (nom.votes as Record<string, unknown>)[key] = vote;
-        if (vote === "for") nom.votesFor += 1;
-        else if (vote === "against") nom.votesAgainst += 1;
-        else nom.votesAbstain += 1;
+        nom.votes[key] = vote;
         newVotes++;
       }
+      applyScotusNominationTally(nom, computeScotusNominationTally(world, nom));
       if (newVotes > 0) nominationsVoted++;
       continue;
     }
 
     if (turn >= nom.votingEndsOnTurn) {
+      applyScotusNominationTally(nom, computeScotusNominationTally(world, nom));
       const passed = cabinetDidPass(nom.votesFor, nom.votesAgainst);
       if (passed) {
         // Seat the justice

@@ -888,6 +888,19 @@ no per-region economic/social lean. The issue stays open with `status: partial`.
   from the recomputed vote maps rather than trusting stale stored counters.
   Sponsorship, SCOTUS ballots, session wiring, and UI remain in #268 through #273.
 
+## Supreme Court nomination ballot checkpoint, 2026-09-15 (#268 / #63)
+
+- Supreme Court advice-and-consent now shares the cabinet nomination current-seat
+  tally seam, so only incumbent senators from the nomination country count and
+  stale, foreign, or de-seated ballots carry no weight.
+- The public engine ballot boundary accepts for, against, and abstain, permits an
+  eligible senator to replace a ballot while voting remains open, and rejects
+  closed, expired, wrong-country, and non-Senate contexts without mutating the
+  nomination.
+- Turn resolution recomputes totals from eligible ballots after save/reload and
+  seats a nominee only after a confirmed simple-majority result. Parent #63
+  remains open for sponsorship, session wiring, UI, and the remaining slices.
+
 ## Player polling checkpoint, 2026-09-15 (#38)
 
 - `poll` and `pollLarge` are live through the public `executeAction` contract

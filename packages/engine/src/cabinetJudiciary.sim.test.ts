@@ -338,6 +338,9 @@ describe("W29 scotus vacancy flow", () => {
     seat.socialLean = null;
 
     world.executives["US"] = { countryId: "US", presidentId: "US-1", presidentParty: "US_DEM", termStartTurn: 0, vicePresidentId: null, vicePresidentParty: null };
+    const senator = world.politicians.find(
+      (politician) => politician.countryId === "US" && politician.chamberKey === "senate",
+    )!;
     world.scotusNominations = [
       {
         id: "scotus_nom_1",
@@ -349,10 +352,10 @@ describe("W29 scotus vacancy flow", () => {
         nomineeParty: "US_DEM",
         proposedBy: "US-1",
         status: "active",
-        votesFor: 60,
-        votesAgainst: 40,
+        votesFor: 1,
+        votesAgainst: 0,
         votesAbstain: 0,
-        votes: {},
+        votes: { [`pol_${senator.id}`]: "for" },
         votingEndsOnTurn: world.meta.turn,
         proposedAtTurn: 0,
       } as never,
