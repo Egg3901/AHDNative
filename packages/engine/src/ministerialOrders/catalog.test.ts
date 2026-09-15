@@ -6,6 +6,7 @@ import {
   createWorld,
   advanceTurn,
   getMinisterialOrders,
+  listCountries,
   listEras,
   listPlayableCountries,
   ministerialOrderInventory,
@@ -15,9 +16,11 @@ import {
 const EXPECTED_ORDER_COUNTS = { US: 26, UK: 26, DE: 22, IE: 38, JP: 22, CN: 32 } as const;
 
 function worldFor(countryId: string) {
-  const era = listEras().find((candidate) => listPlayableCountries(candidate.id).some((country) => country.id === countryId));
-  if (!era) throw new Error(`No playable era for ${countryId}`);
-  const world = createWorld({ era: era.id, countryId, playerName: "Catalog Test", seed: `orders-${countryId}` });
+  const era = listEras().find((candidate) => listCountries(candidate.id).some((country) => country.id === countryId));
+  if (!era) throw new Error(`No authored era for ${countryId}`);
+  const playerCountry = listPlayableCountries(era.id)[0];
+  if (!playerCountry) throw new Error(`No playable country can create a ${era.id} world`);
+  const world = createWorld({ era: era.id, countryId: playerCountry.id, playerName: "Catalog Test", seed: `orders-${countryId}` });
   advanceTurn(world);
   return world;
 }
