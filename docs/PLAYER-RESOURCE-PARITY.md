@@ -82,8 +82,10 @@ Full device performance and native lifecycle remain separate acceptance gates.
 ## Remaining related systems
 
 - Full RPG allocation, progression and action efficacy: #48/#91.
-- Player policy editing and the profile compass: #87/#50. Imported axes already
-  feed the correct influence calculation.
+- Player policy editing and the profile compass are delivered under #50.
+  Creation writes the persisted axes, the Profile compass renders them with
+  available party and region context, and imported axes feed the same influence
+  calculation. Broader policy mechanics remain tracked separately under #87.
 - Central-bank character chair nomination: #119. Native currently has only NPP
   chairs, so no player chair AP is fabricated. Party leadership, coalition,
   tenure, and party-whip behavior are live; congressional chamber leadership
@@ -119,4 +121,3 @@ the office total and the round-tripped `partyInfluence`; `ResourceBreakdown` and
 `ProfilePanel` UI tests cover the rows, the chair note and the deltas;
 `smoke/resource-breakdown.spec.ts` opens and closes the action and funds panels
 at 320px and 390px and confirms the footer keeps the turn.
-
