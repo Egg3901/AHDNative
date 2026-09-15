@@ -15,7 +15,7 @@ import type { FinanceView, GameScreenProps } from "../game/types";
 
 export interface FinancePanelProps {
   finance: FinanceView;
-  section: "portfolio" | "banking";
+  section: "portfolio" | "wallet" | "banking";
   busy: boolean;
   onAction: GameScreenProps["onAction"];
 }
@@ -84,6 +84,44 @@ function PortfolioSection({ finance }: { finance: FinanceView }) {
         )}
         <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: "0.55rem 0 0" }}>
           Values are shown in each holding&apos;s own currency.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * WalletSection: the reference Wallet destination (/portfolio?tab=currency).
+ *
+ * Player-currency cash and savings balances only. Stock holdings live under
+ * Portfolio and transfers under Banking; the local engine records a single
+ * savings pool, so no multi-currency wallet, bank selection, trading, loan or
+ * monetary-policy surface is claimed here.
+ */
+function WalletSection({ finance }: { finance: FinanceView }) {
+  return (
+    <div className="ahd-stack">
+      <div className="ahd-card ahd-card-pad ahd-hero">
+        <h2 className="ahd-h2">Wallet</h2>
+        <dl style={{ display: "flex", flexDirection: "column", gap: "0.35rem", margin: "0.5rem 0 0" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+            <dt style={{ fontSize: "0.82rem" }}>Cash</dt>
+            <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem", fontWeight: 700 }}>
+              {formatFinanceMoney(finance.cash, finance.currency)}
+            </dd>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+            <dt style={{ fontSize: "0.82rem" }}>Savings</dt>
+            <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem", fontWeight: 700 }}>
+              {formatFinanceMoney(finance.savings, finance.currency)}
+            </dd>
+          </div>
+        </dl>
+        <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: "0.4rem 0 0", overflowWrap: "anywhere" }}>
+          {finance.savingsHolder}
+        </p>
+        <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.4rem 0 0" }}>
+          Balances are in {finance.currency}. Stock holdings are under Portfolio; deposits and withdrawals are under Banking.
         </p>
       </div>
     </div>
@@ -203,5 +241,6 @@ function BankingSection({ finance, busy, onAction }: { finance: FinanceView; bus
 
 export function FinancePanel({ finance, section, busy, onAction }: FinancePanelProps) {
   if (section === "banking") return <BankingSection finance={finance} busy={busy} onAction={onAction} />;
+  if (section === "wallet") return <WalletSection finance={finance} />;
   return <PortfolioSection finance={finance} />;
 }

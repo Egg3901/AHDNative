@@ -19,7 +19,7 @@ describe("MobileNavigation", () => {
   });
 
   it.each([
-    ["portfolio", "Profile"], ["markets", "Profile"],
+    ["portfolio", "Profile"], ["wallet", "Profile"], ["markets", "Profile"],
     ["partyDetails", "Menu"], ["caucuses", "Menu"],
     ["regions", "Menu"], ["economy", "Menu"], ["ask", "Ask"],
   ] as const)("keeps the parent destination marked while viewing %s", (route, label) => {
@@ -56,7 +56,7 @@ describe("MobileNavigation", () => {
   it("drawer exposes every reachable destination exactly once", () => {
     const ids = drawerRouteIds();
     for (const id of [
-      "actions", "parties", "legislature", "elections", "news", "profile", "portfolio", "banking",
+      "actions", "parties", "legislature", "elections", "news", "profile", "portfolio", "wallet", "banking",
       "politicians", "economy", "budget", "policy", "nations", "state", "help", "settings",
       "legislationDetails", "markets", "search", "partyManagement", "bonds", "caucuses",
       "referendums", "notifications", "regions", "presidentialDetails", "politicalMetrics",
@@ -147,6 +147,37 @@ describe("MobileNavigation", () => {
     expect(screen.getByRole("button", { name: "National Budget" })).toBeInTheDocument();
   });
 
+  it("drawer identity links reach Profile and Actions and the Wallet row navigates", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    render(
+      <GameDrawer
+        open
+        route="portfolio"
+        busy={false}
+        playerName="Ada"
+        playerParty="Labor"
+        countryName="United States"
+        turn={1}
+        date="1953-01-08"
+        menuButtonRef={createRef()}
+        onNavigate={onNavigate}
+        onAdvanceTurn={vi.fn()}
+        onSave={vi.fn()}
+        onExit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    const menu = screen.getByRole("dialog", { name: "Game menu" });
+    expect(within(menu).getByText("Ada")).toBeInTheDocument();
+    await user.click(within(menu).getByRole("button", { name: "View profile" }));
+    expect(onNavigate).toHaveBeenCalledWith("profile");
+    await user.click(within(menu).getByRole("button", { name: "Open actions" }));
+    expect(onNavigate).toHaveBeenCalledWith("actions");
+    await user.click(within(menu).getByRole("button", { name: "Wallet" }));
+    expect(onNavigate).toHaveBeenCalledWith("wallet");
+  });
+
   it("drawer busy state disables turn actions", () => {
     const ref = createRef<HTMLButtonElement | null>();
     render(
@@ -175,9 +206,11 @@ describe("MobileNavigation", () => {
     const groups = new Map(MENU_GROUPS.map((g) => [g.label, g]));
     // Avatar/profile menu entry: the reference profile-card links
     // (ExperimentalMobileMenu.tsx:169-197) map to Native's Profile group, and the
-    // reference "Wallet" entry (nav.json:10) maps to Native's Portfolio route.
+    // reference "Wallet" entry (nav.json:10, Wallet -> /portfolio?tab=currency)
+    // maps to Native's explicit Wallet route (player-currency balances),
+    // distinct from the Portfolio holdings route.
     expect(groups.get("Profile")!.items.map((i) => i.id)).toEqual([
-      "profile", "notifications", "settings", "portfolio",
+      "profile", "notifications", "settings", "portfolio", "wallet",
     ]);
     // Actions is a top-level destination (reference's top-level tab), reachable
     // without a desktop avatar menu.
