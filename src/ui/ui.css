@@ -377,6 +377,20 @@ html, body { overflow-x: hidden; }
 .ahd-mark img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: inherit; }
 .ahd-mark-initials { display: block; padding: 0 2px; }
 
+/* Offline country flag mark (#373). Deterministic initials tile in a
+   near-3:2 flag frame (whole-pixel sizes, not an exact ratio); no remote
+   art, no bundled raster. Fixed pixel size from the caller with flex-shrink
+   locked off, so identity rows hold at 320px. */
+.ahd-flag {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 auto; border-radius: 2px; overflow: hidden;
+  border: 1px solid var(--ahd-border);
+  font-family: var(--ahd-font-mono); font-weight: 700; letter-spacing: 0.02em;
+  text-transform: uppercase; line-height: 1; user-select: none;
+  min-width: 0;
+}
+.ahd-flag-initials { display: block; padding: 0 1px; white-space: nowrap; }
+
 /* Compact code-native action category mark (#244): a small glyph tile that
    carries both category and locked/available state at 320px. */
 .ahd-action-mark {

@@ -461,6 +461,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
               nation={world.nation}
               section={route}
               clock={clock}
+              era={world.era}
               onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }}
             />
           )}
@@ -477,7 +478,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
           {route === "settings" && <SettingsPanel value={preferences} onChange={onPreferencesChange} error={preferencesError} />}
           {route === "worldSettings" && <WorldSettingsPanel flags={world.featureFlags} busy={busy} onChange={onUpdateWorldFeatureFlags} />}
           {route === "ask" && <div className="ahd-ask-embed"><AskPanel surface="main" onBeforeSignIn={onSave} /></div>}
-          {route === "profile" ? <ProfileRoute load={loadProfile} revision={world} busy={busy} onUpdateProfile={onUpdateProfile} onSelectConstituency={onSelectConstituency} viewerDisablesAutoplay={preferences.disableAutoplayOnOtherProfiles} onNavigate={(next, id) => {
+          {route === "profile" ? <ProfileRoute load={loadProfile} revision={world} era={world.era} busy={busy} onUpdateProfile={onUpdateProfile} onSelectConstituency={onSelectConstituency} viewerDisablesAutoplay={preferences.disableAutoplayOnOtherProfiles} onNavigate={(next, id) => {
             // Profile deep-links into the hub carry the hub category in `id`;
             // detail ids only apply to non-actions destinations.
             if (next === "actions" && (id === "influence" || id === "fundraising" || id === "intelligence")) {
@@ -494,7 +495,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
           {route === "partyDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="parties" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
           {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} onOpenCampaign={openCampaign} onOpenPolitician={openPolitician} onOpenPresidential={openPresidential} busy={busy} onAction={onAction} clock={clock} />}
           {route === "presidentialDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="presidential" initialId={detailId} onOpenCampaign={openCampaign} onOpenPolitician={openPolitician} busy={busy} onAction={onAction} clock={clock} />}
-          {route === "politicalMetrics" && <PoliticsRoute load={loadPolitics} revision={world} section="metrics" nation={world.nation} onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }} busy={busy} onAction={onAction} clock={clock} />}
+          {route === "politicalMetrics" && <PoliticsRoute load={loadPolitics} revision={world} section="metrics" nation={world.nation} era={world.era} onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }} busy={busy} onAction={onAction} clock={clock} />}
           {route === "campaignDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="campaign" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
           {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} clock={clock} />}
           {route === "referendums" && <PoliticsRoute load={loadPolitics} revision={world} section="referendums" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}

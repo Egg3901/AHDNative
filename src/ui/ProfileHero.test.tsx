@@ -113,6 +113,17 @@ describe("profileHeroImage", () => {
   });
 });
 
+describe("profile country identity", () => {
+  it("renders the era-aware offline country flag beside the country link", () => {
+    const { container } = renderPanel(
+      { country: { id: "RU", name: "Soviet Union" } },
+      { era: "1979" },
+    );
+    expect(container.querySelector('[data-country-flag="SU"]')).not.toBeNull();
+    expect(container.querySelector('[data-country-flag="RU"]')).toBeNull();
+  });
+});
+
 describe("Profile hero imagery", () => {
   it("renders the offline politicians hero with the reference alt text by default", () => {
     renderPanel();
