@@ -17,6 +17,7 @@ import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import { clampCabinetModifier, modifierSpanScale } from "./constants.js";
 import { isMinisterialOrderActive, normalizeMinisterialOrderLifecycle } from "./lifecycle.js";
+import { unavailableDefenseOrderEffects } from "./catalog.js";
 
 export interface RejectedRegionalOrderEffect {
   orderId: string;
@@ -30,12 +31,19 @@ export interface MinisterialOrdersResult {
   regionalMetricsUpdated: number;
   regionsUpdated: string[];
   rejectedRegionalEffects: RejectedRegionalOrderEffect[];
+  rejectedDefenseOrders: Array<{
+    orderId: string;
+    catalogOrderId: string;
+    missingConsumers: string[];
+    reason: "unavailableConsumer";
+  }>;
 }
 
 export function runMinisterialOrders(world: WorldState): MinisterialOrdersResult {
   const combined = new Map<string, { countryId: string; metric: string; total: number }>();
   const regional = new Map<string, { regionId: string; metric: string; total: number }>();
   const rejectedRegionalEffects: RejectedRegionalOrderEffect[] = [];
+  const rejectedDefenseOrders: MinisterialOrdersResult["rejectedDefenseOrders"] = [];
   for (const order of world.ministerialOrders) {
     normalizeMinisterialOrderLifecycle(order, world.meta.turn);
     if (!isMinisterialOrderActive(order, world.meta.turn)) {
@@ -50,6 +58,18 @@ export function runMinisterialOrders(world: WorldState): MinisterialOrdersResult
         }
       }
       continue;
+    }
+    if (order.positionId && order.orderId) {
+      const unavailable = unavailableDefenseOrderEffects(order.countryId, order.positionId, order.orderId);
+      if (unavailable) {
+        rejectedDefenseOrders.push({
+          orderId: order.id,
+          catalogOrderId: order.orderId,
+          missingConsumers: unavailable.map((effect) => effect.missingConsumer),
+          reason: "unavailableConsumer",
+        });
+        continue;
+      }
     }
     let applied = false;
     for (const effect of order.effects) {
@@ -114,6 +134,7 @@ export function runMinisterialOrders(world: WorldState): MinisterialOrdersResult
     regionalMetricsUpdated,
     regionsUpdated: [...regionsUpdated].sort(),
     rejectedRegionalEffects,
+    rejectedDefenseOrders,
   };
 }
 
