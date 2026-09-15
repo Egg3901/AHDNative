@@ -659,9 +659,12 @@ Focused evidence: ten public `GameSession` profile scenarios cover Commons and
 Prime Minister eligibility, exact regional filtering, atomic rejection and
 save/reload persistence. Thirty-six `ProfilePanel` player-flow scenarios cover
 selection, save feedback, unavailable state and region navigation. The related
-GameScreen suites also pass. The catalog is the ONS Westminster July 2024
-dataset carried by the pinned reference, with 650 constituencies across all 12
-modeled UK regions. Root owns the consolidated merge gate for this batch.
+GameScreen suites also pass. The catalog retains the pinned reference's 650 ONS
+codes and names, with every region assignment corrected against the House of
+Commons Library's verified 2024 constituency results. A full-catalog source
+digest, official region counts, unique-code checks, and reviewed border-area
+cases guard all 650 mappings. Root owns the consolidated merge gate for this
+batch.
 
 ## Head of State journey checkpoint, 2026-09-14 (#243)
 

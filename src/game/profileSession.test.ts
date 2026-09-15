@@ -143,6 +143,13 @@ describe('profile through the saved game session', () => {
 
     session.selectConstituency('E14001081');
     expect(session.profile().constituency.selected).toEqual({ id: 'E14001081', name: 'Battersea' });
+    const selectedSave = JSON.parse(session.serialize(savedAt));
+    expect(selectedSave.world.player.constituency).toEqual({
+      id: 'E14001081', name: 'Battersea', regionId: 'LON',
+    });
+    expect(selectedSave.world.player.legislativeSeat).toEqual({
+      chamberKey: 'commons', countryId: 'UK', regionId: 'LON',
+    });
 
     const resumed = new GameSession();
     resumed.load(session.serialize(savedAt));

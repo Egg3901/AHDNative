@@ -2,7 +2,7 @@ import { ACHIEVEMENT_CATALOG, ACHIEVEMENT_COUNT_TRIGGERS, achievementCountProgre
 import { projectResources } from "./resources";
 import { campaignSongId, safeAvatarUrl, safeHeaderUrl } from "./profileValidation";
 import type { ProfileAchievement, ProfileView } from "./profileTypes";
-import { getConstituenciesForUkRegion } from "./ukWestminster2024";
+import { projectProfileConstituency } from "./profileConstituency";
 
 function homeCurrency(world: WorldState, countryId: string): string {
   return world.budgets[countryId]?.currencyCode ?? world.exchangeRates[countryId]?.currencyCode ?? "XXX";
@@ -39,43 +39,7 @@ export function projectProfile(world: WorldState): ProfileView {
   const homeRegion = homeRegionRecord && homeRegionRecord.countryId === country.id
     ? { id: homeRegionRecord.id, name: homeRegionRecord.name }
     : null;
-  const commonsSeat = player.legislativeSeat?.countryId === "UK"
-    && player.legislativeSeat.chamberKey === "commons"
-    ? player.legislativeSeat
-    : null;
-  const primeMinisterOffice = player.currentOffice?.countryId === "UK"
-    && player.currentOffice.type === "primeMinister"
-    ? player.currentOffice
-    : null;
-  const constituencyOffice = commonsSeat ?? primeMinisterOffice;
-  const constituencyRegionId = constituencyOffice?.regionId
-    ?? (primeMinisterOffice ? homeRegionId : null);
-  const constituencyEligible = constituencyRegionId !== null
-    && world.regions[constituencyRegionId]?.countryId === "UK";
-  const constituency = constituencyEligible
-    ? {
-        eligible: true,
-        officeType: commonsSeat ? "commons" as const : "primeMinister" as const,
-        regionId: constituencyRegionId,
-        selected: constituencyOffice?.constituencyId
-          ? {
-              id: constituencyOffice.constituencyId,
-              name: constituencyOffice.constituencyName ?? constituencyOffice.constituencyId,
-            }
-          : null,
-        options: getConstituenciesForUkRegion(constituencyRegionId),
-        unavailableReason: null,
-      }
-    : {
-        eligible: false,
-        officeType: null,
-        regionId: null,
-        selected: null,
-        options: [],
-        unavailableReason: country.id === "UK"
-          ? "Constituency selection is available after election to the Commons."
-          : "Constituency selection is available only to sitting UK Commons members and Prime Ministers.",
-      };
+  const constituency = projectProfileConstituency(world);
   const partyRecord = player.partyId ? world.parties[player.partyId] : undefined;
   // Party position (-5..+5) is the authored marker the compass plots alongside
   // the player's own axes. Only pass through finite authored numbers; a party

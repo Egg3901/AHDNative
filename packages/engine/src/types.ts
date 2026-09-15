@@ -730,6 +730,8 @@ export interface PlayerCharacter {
   countryId: string;
   /** Home state or region for the State navigation cluster. Null on migrated saves that never chose one. */
   homeRegionId?: string | null;
+  /** One normalized UK office constituency selection, valid only in its saved region. */
+  constituency?: { id: string; name: string; regionId: string };
   cash: number;
   /**
    * Action points mirroring mainline Character.actions refresh cadence.
@@ -808,9 +810,6 @@ export interface PlayerCharacter {
     countryId: string;
     /** Region won in the election. Required for constituency-bound offices. */
     regionId?: string;
-    /** Selected constituency within regionId, where the reference permits it. */
-    constituencyId?: string;
-    constituencyName?: string;
   } | null;
   /**
    * Mode (career vs head of state). Career (default): player is a politician;
@@ -836,8 +835,6 @@ export interface PlayerCharacter {
     type: string;
     countryId: string;
     regionId?: string;
-    constituencyId?: string;
-    constituencyName?: string;
   } | null;
   /**
    * M1 (Lane 12 Head of State mode): the country's ruling party, bound at
