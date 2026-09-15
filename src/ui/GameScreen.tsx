@@ -38,6 +38,7 @@ import type { GameScreenProps } from "../game/types";
 import { FinancePanel, formatFinanceMoney } from "./FinancePanel";
 import { LegislaturePanel } from "./LegislaturePanel";
 import { RouteHero, executiveHero } from "./RouteHero";
+import { ElectionsHero, summarizeElections } from "./ElectionsHero";
 import { HosOfficeMark } from "./HosOfficeMark";
 import "./ui.css";
 
@@ -245,6 +246,11 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
   // #69: the recorded national executive race the Elections surface can open
   // directly in its dedicated presidential view.
   const presidentialRaceView = world.elections.find((e) => e.electionType === "president");
+  // #377: hub summary for the hero band; the race list below stays unchanged.
+  const electionSummary = useMemo(() => summarizeElections(world.elections), [world.elections]);
+  const electionDeadlineLabel = electionSummary.nextDeadline
+    ? (formatGameDate(electionSummary.nextDeadline, clock) || electionSummary.nextDeadline)
+    : null;
 
   const joinPartyAction = world.actions.find((a) => a.id === "joinParty");
   const leavePartyAction = world.actions.find((a) => a.id === "leaveParty");
@@ -364,26 +370,25 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
 
           {route === "elections" ? (
             <div className="ahd-stack">
-              <div className="ahd-card ahd-card-pad ahd-hero">
-                <h2 className="ahd-h2">Elections</h2>
-                <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>{world.elections.length} elections</p>
-                {presidentialRaceView ? (
-                  <button type="button" className="ahd-btn ahd-btn-sm" style={{ marginTop: "0.45rem" }} onClick={() => openPresidential(presidentialRaceView.id)} disabled={busy}>
-                    Presidential race
+              <ElectionsHero
+                countryName={world.countryName}
+                summary={electionSummary}
+                nextDeadlineLabel={electionDeadlineLabel}
+                hasPresidential={Boolean(presidentialRaceView)}
+                busy={busy}
+                onOpenPresidential={presidentialRaceView ? () => openPresidential(presidentialRaceView.id) : undefined}
+              />
+              {electionPageCount > 1 ? (
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                  <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => setElectionPage(safeElectionPage - 1)} disabled={busy || safeElectionPage === 0} aria-label="Previous page">
+                    Previous
                   </button>
-                ) : null}
-                {electionPageCount > 1 ? (
-                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "0.4rem" }}>
-                    <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => setElectionPage(safeElectionPage - 1)} disabled={busy || safeElectionPage === 0} aria-label="Previous page">
-                      Previous
-                    </button>
-                    <span className="ahd-muted" style={{ fontSize: "0.74rem" }} aria-live="polite">Page {safeElectionPage + 1} of {electionPageCount}</span>
-                    <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => setElectionPage(safeElectionPage + 1)} disabled={busy || safeElectionPage >= electionPageCount - 1} aria-label="Next page">
-                      Next
-                    </button>
-                  </div>
-                ) : null}
-              </div>
+                  <span className="ahd-muted" style={{ fontSize: "0.74rem" }} aria-live="polite">Page {safeElectionPage + 1} of {electionPageCount}</span>
+                  <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => setElectionPage(safeElectionPage + 1)} disabled={busy || safeElectionPage >= electionPageCount - 1} aria-label="Next page">
+                    Next
+                  </button>
+                </div>
+              ) : null}
               {world.elections.length === 0 ? (
                 <div className="ahd-empty">No elections scheduled.</div>
               ) : (
