@@ -18,6 +18,7 @@ import { BottomNav, GameDrawer } from "./MobileNavigation";
 import type { DrawerRouteId } from "./MobileNavigation";
 import { ActionsHub, type ActionsCategoryFilter } from "./ActionsHub";
 import { PartyMark } from "./PartyMark";
+import { PollingPanel } from "./PollingPanel";
 import { NotificationBellButton, NotificationPreview, NotificationsInbox, type NotificationTarget } from "./Notifications";
 import { RACE_PHASE_LABELS } from "../game/racePhase";
 import { formatGameDate, type GameClock } from "../game/gameDate";
@@ -291,6 +292,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
                 onCategoryChange={setActionsCategory}
                 onAction={onAction}
               />
+              <PollingPanel polls={world.polls} />
             </div>
           ) : null}
 

@@ -119,9 +119,11 @@ describe("cost/cooldown enforcement", () => {
   });
 
   it("lists unavailable actions with blocking system named", () => {
-    expect(ACTION_CATALOG.poll.status).toBe("unavailable");
-    expect(ACTION_CATALOG.poll.blockingSystem).toBeDefined();
-    expect(ACTION_CATALOG.pollLarge.status).toBe("unavailable");
+    // #38: polls are ported and available; investInfluence stays stubbed.
+    expect(ACTION_CATALOG.poll.status).toBe("available");
+    expect(ACTION_CATALOG.pollLarge.status).toBe("available");
+    expect(ACTION_CATALOG.investInfluence.status).toBe("unavailable");
+    expect(ACTION_CATALOG.investInfluence.blockingSystem).toBeDefined();
     // available ones include support/pressure/GOTV/org/fundraising/partyInfluence
     expect(ACTION_CATALOG.fundraise.status).toBe("available");
     expect(ACTION_CATALOG.canvass.status).toBe("available");

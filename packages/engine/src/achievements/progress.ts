@@ -17,8 +17,8 @@ import type { WorldState } from "../types.js";
 const ACHIEVEMENT_TOTAL_ACTIONS = "__total";
 
 export interface AchievementCountTrigger {
-  /** `actionCounts` key, or the total-actions sentinel. */
-  actionId: string;
+  /** `actionCounts` key(s), or the total-actions sentinel. */
+  actionId: string | readonly string[];
   /** Count at which the trigger fires. Mirrors evaluate.ts exactly. */
   target: number;
 }
@@ -26,7 +26,8 @@ export interface AchievementCountTrigger {
 /**
  * slug -> { actionId, target }. Values mirror the CHECKS entries in
  * achievements/evaluate.ts (fundraise 10/50, campaign 10, buildDonorBase 5,
- * advertise 3, rest 1, total actions 100, wireTransfer 1).
+ * poll and pollLarge combined 5, advertise 3, rest 1, total actions 100,
+ * wireTransfer 1).
  */
 export const ACHIEVEMENT_COUNT_TRIGGERS: Readonly<Record<string, AchievementCountTrigger>> = {
   first_fundraise: { actionId: "fundraise", target: 1 },
@@ -34,6 +35,7 @@ export const ACHIEVEMENT_COUNT_TRIGGERS: Readonly<Record<string, AchievementCoun
   big_fundraiser: { actionId: "fundraise", target: 50 },
   campaigner: { actionId: "campaign", target: 10 },
   grassroots: { actionId: "buildDonorBase", target: 5 },
+  pollster: { actionId: ["poll", "pollLarge"], target: 5 },
   advertiser: { actionId: "advertise", target: 3 },
   rested: { actionId: "rest", target: 1 },
   century_club: { actionId: ACHIEVEMENT_TOTAL_ACTIONS, target: 100 },
@@ -55,6 +57,8 @@ export function achievementCountProgress(
 ): { current: number; target: number } {
   const current = trigger.actionId === ACHIEVEMENT_TOTAL_ACTIONS
     ? totalActionCount(world)
-    : actionCount(world, trigger.actionId);
+    : Array.isArray(trigger.actionId)
+      ? trigger.actionId.reduce((sum, actionId) => sum + actionCount(world, actionId), 0)
+      : actionCount(world, trigger.actionId as string);
   return { current, target: trigger.target };
 }

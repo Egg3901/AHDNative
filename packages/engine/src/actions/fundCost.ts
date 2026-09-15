@@ -15,6 +15,7 @@
  */
 
 import { NEUTRAL_STAT, statMultiplier } from "../stats/characterStats.js";
+import { campaignAnchorToLocal } from "../campaigns/campaignCurrency.js";
 
 export interface FundCostInput {
   actionId: string;
@@ -25,6 +26,8 @@ export interface FundCostInput {
   catalogFundCost: number;
   /** Actor stat block; a missing stat resolves at the neutral 1.0x multiplier. */
   stats?: { intellect?: number; fundraising?: number };
+  /** Actor country, used for frozen campaign-currency conversion. */
+  countryId?: string;
 }
 
 /** The reference-dynamic base curve for one action, before any stat hook. */
@@ -56,12 +59,15 @@ function baseFundCost(actionId: string, actionCost: number, donorBaseLevel: numb
  */
 export function actionFundCost(input: FundCostInput): number {
   let cost = baseFundCost(input.actionId, input.actionCost, input.donorBaseLevel, input.catalogFundCost);
-  if (input.actionId === "campaign") {
+  if (input.actionId === "campaign" || input.actionId === "poll" || input.actionId === "pollLarge") {
     const intellect = input.stats?.intellect ?? NEUTRAL_STAT;
     cost = Math.round(cost / statMultiplier(intellect));
   } else if (input.actionId === "buildDonorBase") {
     const fundraising = input.stats?.fundraising ?? NEUTRAL_STAT;
     cost = Math.round(cost / statMultiplier(fundraising));
+  }
+  if (input.actionId === "poll" || input.actionId === "pollLarge") {
+    cost = campaignAnchorToLocal(cost, input.countryId ?? "US");
   }
   return cost;
 }

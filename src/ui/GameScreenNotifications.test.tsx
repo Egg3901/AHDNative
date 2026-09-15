@@ -54,6 +54,7 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
       metrics: { total: 0, categories: [] },
       policy: { taxRates: [], enacted: [] } },
     resources: { actions: { base: 4, seat: 0, cabinet: 0, chair: 0, office: 0, penalty: 0, threshold: 100, cap: 200, next: 7, refresh: 4 }, funds: { enabled: true, base: 10000, donor: 0, office: 0, tax: 500, regularNet: 9500 }, partyInfluence: null, nationalInfluence: { current: 0, gain: 0 }, favorability: { current: 48, decayThreshold: 60, aboveThresholdDecay: 0, tierFloor: 30, tierCost: 6 }, history: [] },
+    polls: { quick: null, full: null },
     notifications: { items: [], unread: 0 },
     ...overrides,
   };

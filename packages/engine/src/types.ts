@@ -886,6 +886,14 @@ export interface PlayerCharacter {
    */
   wireQuotaUsedAnchor: number;
   wireQuotaWindowStartTurn: number | null;
+  /**
+   * Stored poll snapshots (#38). Ports Character.lastPoll / lastPollLarge
+   * (src/app/api/actions/poll/route.ts POST persists the commissioned results
+   * so the UI can display them without re-commissioning). Absent until the
+   * player commissions that poll type. JSON-safe; survives save/reload.
+   */
+  lastPoll?: import("./actions/polling.js").StoredPollSnapshot;
+  lastPollLarge?: import("./actions/polling.js").StoredPollSnapshot;
 }
 
 export interface NewsItem {

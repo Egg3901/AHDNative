@@ -17,6 +17,7 @@ import * as Membership from "../membership.js";
 import * as Caucus from "../caucus.js";
 import * as Endorsement from "../endorsement.js";
 import * as Candidacy from "../elections/candidacy.js";
+import { commissionPoll } from "./polling.js";
 import * as CampaignUpgrade from "./campaignUpgrade.js";
 import * as CampaignRally from "./campaignRally.js";
 import * as CampaignRallyTour from "./campaignRallyTour.js";
@@ -318,6 +319,7 @@ function executeActionInner(
     actionCost: cost,
     donorBaseLevel: actor.donorBaseLevel ?? 0,
     catalogFundCost: catalog.fundCost,
+    countryId: actor.countryId,
     ...(found.kind === "player" && actor.stats ? { stats: actor.stats } : {}),
   });
   if (fundCost > 0) {
@@ -452,6 +454,24 @@ function executeActionInner(
   if (actionId === "buildDonorBase") {
     actor.donorBaseLevel = (actor.donorBaseLevel ?? 0) + 1;
     return { ok: true, message: `Donor base now ${actor.donorBaseLevel}.` };
+  }
+  if (actionId === "poll" || actionId === "pollLarge") {
+    // commissionPoll validates every tally input and stores the snapshot on
+    // the player (lastPoll / lastPollLarge). A failure returns before any
+    // world mutation; the outer accounting snapshot restores AP/funds.
+    const commissioned = commissionPoll(world, actorId, actionId);
+    if (!commissioned.ok) return { ok: false, error: commissioned.error };
+    const snap = commissioned.snapshot;
+    const currencyCode = world.budgets[actor.countryId]?.currencyCode
+      ?? world.exchangeRates[actor.countryId]?.currencyCode
+      ?? "XXX";
+    const costLabel = `${currencyCode} ${fundCost.toLocaleString()}`;
+    const topline = `Topline appeal ${snap.overallAppeal} across ~${snap.totalEstimatedVoters.toLocaleString()} likely voters (${snap.totalPotentialVoters.toLocaleString()} reachable).`;
+    const race = snap.inRaceVoteShare
+      ? ` Projected vote: ${snap.inRaceVoteShare.myVotes.toLocaleString()} vs ${Object.values(snap.inRaceVoteShare.opponentVotes).map((v) => v.toLocaleString()).join(", ")}.`
+      : "";
+    const kind = actionId === "pollLarge" ? "full demographic poll" : "quick poll";
+    return { ok: true, message: `Commissioned a ${kind} for ${costLabel}. ${topline}${race}` };
   }
   if (actionId === "convertCash") {
     const amount = params.amount ?? 0;
