@@ -28,3 +28,42 @@ it('explains foreign settlement and blocks both trade controls', () => {
   expect(screen.getByRole('button', { name: 'Sell bond units' })).toBeDisabled();
   expect(screen.getAllByText('Foreign bond trading is unavailable in singleplayer.').length).toBeGreaterThan(0);
 });
+it('shows the source-grounded yield, coupon and ownership for the selected issue', () => {
+  render(<BondMarketPanel market={market} busy={false} onAction={vi.fn()} onSelect={vi.fn()} />);
+  // 3.75% coupon at par with 10 turns left yields 3.75% (engine YTM formula).
+  expect(screen.getByText('Yield to maturity').parentElement).toHaveTextContent('3.75%');
+  expect(screen.getByText('Annual coupon per unit').parentElement).toHaveTextContent('$37.50');
+  expect(screen.getByText('Price vs par').parentElement).toHaveTextContent('At par');
+  expect(screen.getByRole('img', { name: /you own 1 of 21 outstanding units/i })).toBeInTheDocument();
+  expect(screen.getByText('Sovereign')).toBeInTheDocument();
+  expect(screen.getByText('Outstanding')).toBeInTheDocument();
+});
+it('compares outstanding issues with scaled yield bars and selects on tap', async () => {
+  const user = userEvent.setup(); const onSelect = vi.fn();
+  const multi: BondMarketView = { ...market, bonds: [...market.bonds,
+    { id: 'bond-61-US', countryId: 'US', issuerName: 'United States Second', currency: 'USD', faceValue: 1000,
+      marketPrice: 0.9, couponRate: 5, maturityTurn: 146, publicFloat: 40, playerUnits: 0,
+      matured: false, defaulted: false, domestic: true }] };
+  render(<BondMarketPanel market={multi} busy={false} onAction={vi.fn()} onSelect={onSelect} />);
+  expect(screen.getByText('Compare issues')).toBeInTheDocument();
+  const discountBar = screen.getByTestId('bond-ytm-bar-bond-61-US');
+  const parBar = screen.getByTestId('bond-ytm-bar-bond-60-US');
+  expect(Number.parseFloat(discountBar.style.width)).toBeGreaterThan(Number.parseFloat(parBar.style.width));
+  await user.click(screen.getByRole('button', { name: /select united states second/i }));
+  expect(onSelect).toHaveBeenCalledWith('bond-61-US');
+});
+it('dashes the yield and bar for a defaulted issue instead of plotting a recovery artifact', () => {
+  const defaulted: BondMarketView = { ...market, bonds: [
+    { ...market.bonds[0]!, defaulted: true, marketPrice: 0.1 },
+    { ...market.bonds[0]!, id: 'bond-61-US', issuerName: 'United States Second', currency: 'USD',
+      marketPrice: 0.9, couponRate: 5, maturityTurn: 146, publicFloat: 40, playerUnits: 0 },
+  ] };
+  render(<BondMarketPanel market={defaulted} busy={false} onAction={vi.fn()} onSelect={vi.fn()} selectedId="bond-60-US" />);
+  expect(screen.getByText('Yield to maturity').parentElement).toHaveTextContent('—');
+  expect(screen.getAllByText('Defaulted').length).toBeGreaterThan(0);
+  expect(screen.queryByTestId('bond-ytm-bar-bond-60-US')).not.toBeInTheDocument();
+});
+it('omits the comparison when a single issue is outstanding', () => {
+  render(<BondMarketPanel market={market} busy={false} onAction={vi.fn()} onSelect={vi.fn()} />);
+  expect(screen.queryByText('Compare issues')).not.toBeInTheDocument();
+});
