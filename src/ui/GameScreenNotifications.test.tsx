@@ -92,7 +92,7 @@ function profileFor(world: GameView): ProfileView {
     office: world.legislature.office,
     officeDestination: world.legislature.office ? { route: "legislature" } : null,
     policies: null, stats: null, demographics: null, profileHeaderUrl: null, careerHistory: [], achievements: [],
-    achievementProgress: { earned: 0, available: 0 }, lockedAchievements: [],
+    achievementProgress: { earned: 0, available: 0 }, onboarding: { dismissed: true, completedCount: 0, total: 0, steps: [] }, tutorial: { dismissed: true }, lockedAchievements: [],
     unavailableAchievements: [],
     resourceDetails: world.resources,
     standing: { actions: world.player.actions, actionCap: 200, actionGain: 4,
