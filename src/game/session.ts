@@ -1,4 +1,5 @@
 import { projectProfile } from "./profile";
+import { profileDestination as profileDestinationFor, projectImperialProfile } from "./imperialProfile";
 import { validateProfileUpdate } from "./profileValidation";
 import type { ProfileUpdate } from "./profileTypes";
 import { applyProfileConstituency } from "./profileConstituency";
@@ -328,6 +329,17 @@ export class GameSession {
   }
 
   profile() { return projectProfile(this.requireWorld()); }
+
+  /**
+   * Imperial profile gate (#54). "imperial" only when the persisted marker
+   * and record resolve together; every ordinary or half-marked save stays
+   * "profile". Survives serialize/load untouched — the marker and record are
+   * plain persisted world fields.
+   */
+  profileDestination() { return profileDestinationFor(this.requireWorld()); }
+
+  /** Truthful imperial identity for an imperial save; null for ordinary ones. */
+  imperialProfile() { return projectImperialProfile(this.requireWorld()); }
 
   updateProfile(update: ProfileUpdate): GameView {
     const valid = validateProfileUpdate(update);
