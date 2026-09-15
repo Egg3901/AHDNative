@@ -46,7 +46,16 @@ export interface CharacterCreation {
   avatarUrl?: string | null;
   profileHeaderUrl?: string | null;
 }
-export interface NewGameOptions { era: string; countryId: string; playerName: string; seed: string; mode?: SingleplayerMode; homeRegionId?: string; initialization?: WorldInitialization; creation?: CharacterCreation; featureFlags?: WorldFeatureFlags; difficulty?: SingleplayerDifficulty; autonomyLevel?: NppAutonomyLevel; }
+export interface NewGameOptions { era: string; countryId: string; playerName: string; seed: string; mode?: SingleplayerMode; homeRegionId?: string; initialization?: WorldInitialization; creation?: CharacterCreation; featureFlags?: WorldFeatureFlags; difficulty?: SingleplayerDifficulty; autonomyLevel?: NppAutonomyLevel;
+  /**
+   * Explicit opt-in to the live founding-election lifecycle (#223). Chambers
+   * are seated by real cycle-0 founding races before the regular schedule
+   * begins, with the calendar frozen at the era start meanwhile. Strict
+   * opt-in only: absent/false leaves the world on the regular schedule.
+   * Independent of `initialization` ("founding" there only selects authored
+   * legislature composition and never starts this lifecycle).
+   */
+  foundingElections?: boolean; }
 export interface EraChoice {
   id: string;
   label: string;
@@ -193,6 +202,13 @@ export interface GameView {
    * as before. The footer renders the Founding badge only on true.
    */
   foundingActive?: boolean;
+  /**
+   * Raw-turn offset stamped when a founding phase completes (#223), projected
+   * from `WorldMeta.preIterationTurns`. The GameClock subtracts it so the
+   * calendar resumes at the era start. Absent on worlds that never opted in:
+   * the calendar mapping is the identity.
+   */
+  foundingOffset?: number;
   /** Singleplayer difficulty bound at world creation (issue #334). */
   difficulty: SingleplayerDifficulty;
   /** Autonomous-politician tier bound at world creation (issue #345). */

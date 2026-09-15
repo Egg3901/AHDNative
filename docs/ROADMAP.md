@@ -671,21 +671,41 @@ under #96 and the reference campaign projection stays open under #68.
 
 
 
-## Founding badge lifecycle checkpoint (#223)
+## Founding election lifecycle checkpoint (#223)
 
-N02/N08: the footer now renders the reference "Founding" badge, but only
-while real cycle-0 founding races are unresolved. `isFoundingActive`
-(`packages/engine/src/elections/founding.ts`) projects the pending leg of the
-reference detector (`src/lib/turn/preIterationLifecycle.ts` at pinned AHDGame
-`e364c0495`); the session carries it as `GameView.foundingActive` and the
-footer gates the badge on it. No persisted field was added, so existing save
-bytes and hashes are untouched; fresh worlds schedule at cycle >= 1 and never
-trip it. The already-landed character Profile link and formatted date are
-unchanged. Still missing before #223 can close: the bootstrap opt-in with
-vacant-chamber seeding, cycle-0 spawning/resolution, the completion stamp and
-calendar pin/offset, plus the rendered 320/390/desktop comparison against the
-reference status bar. Evidence: `founding.test.ts`, `session.test.ts`,
-`GameScreen.test.tsx`.
+N02/N08: the full pre-iteration lifecycle is ported behind a strict world-setup
+opt-in (`NewWorldOptions.foundingElections`, default OFF). The opt-in stamps
+`WorldMeta.preIteration` / `preIterationTurns` once via the idempotent
+`stampFoundingMarker` (never reopens a completed phase); the dedicated bounded
+`runFoundingSweep` (`packages/engine/src/elections/founding.ts`) seats one
+real cycle-0 race per in-scope series through the ported founding branch in
+`pickNextCanonicalCycle` (24-turn primary + 24-turn general, era-gated types
+skipped, capped at `MAX_FOUNDING_RACES`). The per-turn planners deliberately
+bypass founding while the marker is active, so routing creation through them
+spawns zero races and deadlocks the phase frozen forever; the sweep calls
+`pickNextCanonicalCycle` directly and writes no candidacies. The
+`foundingCompletionPhase` runs `detectFoundingComplete` (the
+`src/lib/turn/preIterationLifecycle.ts` port at pinned AHDGame `e364c0495`:
+complete once every cycle-0 race resolves with candidate + tally coverage)
+right after election resolution each turn, stamping `completedTurn` and the
+calendar offset. The calendar stays frozen at the era start while the phase is
+active (`advanceCalendarPhase`) and resumes there afterwards via the offset in
+`getCycleAnchors`; the shared `GameClock` (`src/game/gameDate.ts`) pins the
+era-start rendering while active and subtracts the stamped offset after
+completion, wired through `GameView.foundingActive` / `foundingOffset` into
+the GameScreen footer. The footer renders the reference "Founding" badge only
+while real cycle-0 founding races are unresolved. Opt-in fields are absent on
+every older world, so existing save bytes and the pinned v42 hashes are
+untouched; default worlds schedule at cycle >= 1 and never trip the badge.
+Deliberate deviations: no preset-default auto-enable (reference defaults
+1953-default/1979-default on) and no priors vacant-chamber seeding (founding
+races seat the authored cast through the real tally path). Still missing
+before #223 can close: that preset-default rule, vacant-chamber seeding, and
+the rendered 320/390/desktop comparison against the reference status bar.
+Evidence: `founding.test.ts` (stamp/sweep/detector/convergence/frozen-date/
+save-reload), `session.test.ts` (opt-in/badge/offset/save-reload),
+`gameDate.test.ts` (pinned/resumed calendar), `GameScreen.test.tsx`
+(badge + post-founding footer).
 
 ## Resource and finance breakdown depth checkpoint
 

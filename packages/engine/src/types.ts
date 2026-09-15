@@ -661,6 +661,36 @@ export interface WorldMeta {
   turn: number;
   /** In-game date as ISO day, e.g. "1953-01-06". One turn = one week. */
   date: string;
+  /**
+   * Founding / pre-iteration lifecycle marker (#223). Ports AHDGame
+   * `GameState.preIteration` (`src/lib/db/types/gameState.ts:143-149`):
+   * stamped active by the explicit world-setup opt-in
+   * (`NewWorldOptions.foundingElections`, cf. the reference reset bootstrap
+   * opt-in `src/lib/admin/resetGameWorld.ts:101-113`) and cleared by the
+   * founding-completion detector once every cycle-0 race has resolved.
+   * Absent on every world that never opted in, so existing save bytes and
+   * the pinned v42 hashes are untouched.
+   */
+  preIteration?: {
+    active: boolean;
+    /** Native turn at which the founding phase began (0 on a fresh world). */
+    startedTurn: number;
+    /** Native turn at which the founding phase completed. */
+    completedTurn?: number;
+  };
+  /**
+   * Additive raw-turn offset decoupling the displayed calendar from the raw
+   * turn counter once a founding phase ends. Ports AHDGame
+   * `GameState.preIterationTurns` (`src/lib/db/types/gameState.ts:150-159`,
+   * `calendarTurn()` in `src/lib/utils/gameDate.ts`): while the phase is
+   * active the date is frozen at the era start; on completion this is
+   * stamped so the calendar resumes at the era start instead of jumping
+   * forward by the founding turns. Native turns are 0-based (reference
+   * turns are 1-based), so the stamp is the completion turn itself where
+   * the reference stamps `completedTurn - 1`. Absent (or zero) on normal
+   * worlds: the calendar mapping is the identity.
+   */
+  preIterationTurns?: number;
   era: EraId;
   /**
    * W33: eraCrossing guard field. Ports mainline's `lastEraCrossedYear`

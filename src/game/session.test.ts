@@ -74,6 +74,33 @@ describe("singleplayer session", () => {
     loaded.load(JSON.stringify(saved));
     expect(new GameSession().load(loaded.serialize(stamp)).foundingActive).toBe(true);
   });
+  it("starts the live founding lifecycle only on explicit opt-in (#223)", () => {
+    const stamp = "2026-09-10T00:00:00.000Z";
+    const opted = new GameSession();
+    const view = opted.create({ ...options, foundingElections: true });
+    expect(view.foundingActive).toBe(true);
+    expect(view.foundingOffset).toBe(0);
+    const saved = JSON.parse(opted.serialize(stamp)) as {
+      world: { meta: { preIteration: unknown; preIterationTurns: unknown }; elections: { cycle: number }[] };
+    };
+    expect(saved.world.meta.preIteration).toMatchObject({ active: true, startedTurn: 0 });
+    expect(saved.world.meta.preIterationTurns).toBe(0);
+    expect(saved.world.elections.length).toBeGreaterThan(0);
+    expect(saved.world.elections.every((election) => election.cycle === 0)).toBe(true);
+    const loaded = new GameSession();
+    expect(loaded.load(opted.serialize(stamp)).foundingActive).toBe(true);
+    expect(loaded.view().foundingOffset).toBe(0);
+  });
+  it("leaves the founding lifecycle off by default and on bare initialization founding (#223)", () => {
+    const plain = new GameSession();
+    expect(plain.create(options).foundingActive).toBe(false);
+    expect(plain.view().foundingOffset).toBeUndefined();
+    const named = new GameSession();
+    // The New Game "founding" initialization only selects authored legislature
+    // composition; it never starts the pre-iteration lifecycle.
+    expect(named.create({ ...options, initialization: "founding" }).foundingActive).toBe(false);
+    expect(named.view().foundingOffset).toBeUndefined();
+  });
   it("rejects invalid new-game input without replacing the current world", () => {
     const session = new GameSession();
     session.create(options);
