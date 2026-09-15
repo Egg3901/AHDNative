@@ -4,6 +4,7 @@ import type { WorldOverviewView } from "./worldOverview";
 import type { NationView } from "./nation";
 import type { PoliticsView } from "./politics";
 import type { ResourceDetailsView } from "./resources";
+import type { WorldFeatureFlags } from "@ahdclient/engine";
 export type WorldInitialization = "historical" | "founding";
 export type CharacterRace = "white" | "black" | "hispanic" | "asian" | "other";
 export type CharacterGender = "male" | "female" | "nonbinary";
@@ -44,7 +45,7 @@ export interface CharacterCreation {
   avatarUrl?: string | null;
   profileHeaderUrl?: string | null;
 }
-export interface NewGameOptions { era: string; countryId: string; playerName: string; seed: string; mode?: "career" | "hos"; homeRegionId?: string; initialization?: WorldInitialization; creation?: CharacterCreation; }
+export interface NewGameOptions { era: string; countryId: string; playerName: string; seed: string; mode?: "career" | "hos"; homeRegionId?: string; initialization?: WorldInitialization; creation?: CharacterCreation; featureFlags?: WorldFeatureFlags; }
 export interface EraChoice {
   id: string;
   label: string;

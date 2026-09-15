@@ -8,6 +8,7 @@
  * responsive Tauri web (touch targets, safe-area insets). No proprietary assets copied.
  */
 import { useEffect, useMemo, useState } from "react";
+import { DEFAULT_WORLD_FEATURE_FLAGS, WORLD_FEATURE_FLAG_DEFINITIONS } from "@ahdclient/engine";
 import type { EraChoice, NewGameOptions, NewGameScreenProps, WorldInitialization } from "../game/types";
 import { PartyMark } from "./PartyMark";
 import "./ui.css";
@@ -52,6 +53,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
   const [homeRegionId, setHomeRegionId] = useState(() => eras[0]?.countries[0]?.regions[0]?.id ?? "");
   const [playerName, setPlayerName] = useState("");
   const [seed, setSeed] = useState("");
+  const [featureFlags, setFeatureFlags] = useState(() => ({ ...DEFAULT_WORLD_FEATURE_FLAGS }));
   const [touched, setTouched] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -102,7 +104,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
     }
   }, [eras, era]);
 
-  const options: NewGameOptions = { era, countryId, playerName, seed: seed.trim(), mode, homeRegionId, initialization };
+  const options: NewGameOptions = { era, countryId, playerName, seed: seed.trim(), mode, homeRegionId, initialization, featureFlags };
   const fieldErrors = useMemo(() => (touched ? validate(options, eras) : {}), [touched, options, eras]);
   const canSubmit = useMemo(() => Object.keys(validate(options, eras)).length === 0, [options, eras]);
 
@@ -119,7 +121,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
     // Never submit HoS with a null governing party; the engine would bind a
     // career-equivalent player while the UI claimed HoS.
     const finalMode = mode === "hos" && !previewParty ? "career" : mode;
-    onStart({ era, countryId, playerName: playerName.trim(), seed: seed.trim(), mode: finalMode, homeRegionId, initialization });
+    onStart({ era, countryId, playerName: playerName.trim(), seed: seed.trim(), mode: finalMode, homeRegionId, initialization, featureFlags: { ...featureFlags } });
   };
 
   return (
@@ -270,6 +272,29 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
                 </label>
               </div>
             </div>
+
+            <details className="ahd-card" style={{ padding: "0.75rem" }}>
+              <summary style={{ cursor: busy ? "not-allowed" : "pointer", fontWeight: 700 }}>Advanced world rules</summary>
+              <p className="ahd-help" style={{ margin: "0.45rem 0 0.7rem" }}>
+                Choose which simulation systems run in this local world. These rules are saved with the world.
+              </p>
+              <div className="ahd-grid ahd-grid-2">
+                {WORLD_FEATURE_FLAG_DEFINITIONS.map((definition) => (
+                  <label key={definition.key} className="ahd-era-card" style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "0.45rem", alignItems: "start" }}>
+                    <input
+                      type="checkbox"
+                      aria-label={definition.label}
+                      checked={featureFlags[definition.key]}
+                      onChange={(event) => setFeatureFlags((current) => ({ ...current, [definition.key]: event.target.checked }))}
+                    />
+                    <span>
+                      <span style={{ display: "block", fontWeight: 700, fontSize: "0.82rem" }}>{definition.label}</span>
+                      <span className="ahd-muted" style={{ display: "block", fontSize: "0.7rem", lineHeight: 1.4 }}>{definition.description}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </details>
 
             <div className="ahd-grid ahd-grid-2">
               <div className="ahd-field">

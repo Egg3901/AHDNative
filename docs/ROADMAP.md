@@ -826,6 +826,16 @@ Earlier slice: production build, `npm run verify` and all 55
 `SMOKE_PRODUCTION=1` Playwright scenarios passed against the installed
 Chromium build, including the singleplayer create/advance/save/relaunch flow.
 
+#333 complete. Local world setup now includes an Advanced world rules section
+derived directly from the engine's canonical feature-flag definitions and
+defaults. Every simulation toggle shows its source label and description,
+submits a complete boolean map through the existing character-creation handoff,
+and reaches `createWorld` without a UI-only copy. Focused rendered tests cover
+defaults, a changed rule, the complete payload, and busy-state disabling. A
+focused session test proves selected rules remain authoritative after save and
+reload. Difficulty, autonomy tier, and world-simulation mode remain in #334
+until they have real Native engine consumers.
+
 The entry journey now matches the remaining reference boundaries. Starting a
 new game while an overworld is active opens a confirmation that preserves the
 current saved world unless the player explicitly continues. After world setup,
