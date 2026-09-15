@@ -96,6 +96,15 @@ export interface WorldState {
   executives: Record<string, ExecutiveState>;
   /** Open and resolved presidential impeachment cases (W24 port, US only). */
   impeachments: ImpeachmentCase[];
+  /**
+   * Persisted imperial characters keyed by record id (#54). Ports the
+   * reference `imperialCharacters` collection
+   * (`src/lib/db/types/imperialCharacter.ts`) as the identity half of the
+   * imperial profile gate: the destination resolves to imperial only when
+   * the player marker AND one of these records resolve together. Optional
+   * so ordinary worlds — and every legacy save — stay byte-stable.
+   */
+  imperialCharacters?: Record<string, ImperialCharacterRecord>;
   /** Party charters (charter lifecycle). Ports src/lib/db/types/partyCharter.ts. */
   charters: PartyCharter[];
   /** Caucuses (faction sub-groups). Ports src/lib/db/types/caucus.ts. */
@@ -735,6 +744,28 @@ export interface PlayerDemographics {
   wealth: "low" | "middle" | "high";
 }
 
+/**
+ * Persisted imperial character record (#54). Ports the identity fields of
+ * the reference `ImperialCharacter` (`src/lib/db/types/imperialCharacter.ts`)
+ * that the imperial profile renders: name, country, gender (drives the
+ * ceremonial title), royal house, and the profile fields. Wealth, currency
+ * and cosmetic fields the local engine does not simulate are not carried —
+ * the projection never invents them.
+ */
+export interface ImperialCharacterRecord {
+  /** Record id; the player marker points at this key. */
+  id: string;
+  /** Reference `sequentialId`; an alternate marker target. */
+  sequentialId?: number;
+  name: string;
+  countryId: string;
+  gender: "male" | "female" | "nonbinary";
+  royalHouse: string;
+  homeState?: string;
+  bio?: string;
+  avatarUrl?: string | null;
+}
+
 /** Full RPG stat block. Ports src/lib/stats/statsConstants.ts CharacterStats. */
 export type PlayerStats = Partial<import("./stats/characterStats.js").CharacterStats>;
 
@@ -867,6 +898,17 @@ export interface PlayerCharacter {
    * player from the selected permanent role.
    */
   permanentHeadOfState?: true;
+  /**
+   * Imperial profile marker (#54). Ports the reference `User`
+   * `activeCharacterType` / `activeImperialCharacterId`
+   * (`src/lib/db/types/user.ts`): the profile gate routes to the imperial
+   * destination only when this marker AND a record in
+   * `WorldState.imperialCharacters` resolve together. Absent on ordinary
+   * worlds and legacy saves, which therefore stay ordinary.
+   */
+  activeCharacterType?: "character" | "imperial";
+  /** Record id (or sequentialId) in `WorldState.imperialCharacters`. */
+  activeImperialCharacterId?: string | number | null;
   /**
    * Executive office consumed by profile and HoS surfaces. Presidential
    * systems also mirror this through `WorldState.executives`; parliamentary

@@ -66,3 +66,48 @@ export function getImperialTitle(
 ): string | null {
   return getImperialRole(countryId)?.titles[gender] ?? null;
 }
+
+/**
+ * Profile destination for the imperial gate (#54).
+ *
+ * Mirrors the public AHDGame reference `src/app/profile/page.tsx`
+ * `getCharacterData`: the ordinary profile stays the default, and the
+ * imperial destination resolves only when the persisted marker
+ * (`activeCharacterType === "imperial"` with an `activeImperialCharacterId`)
+ * AND the imperial record resolve together. Anything absent or mismatched —
+ * no marker, no record, or a marker pointing at a different record — routes
+ * to the ordinary profile, never to a fabricated imperial surface.
+ */
+export type ProfileDestination = "profile" | "imperial";
+
+export interface ProfileGateInput {
+  activeCharacterType?: unknown;
+  activeImperialCharacterId?: unknown;
+  imperialCharacter?: unknown;
+}
+
+function normalizedId(value: unknown): string | null {
+  if (typeof value === "string" && value.trim().length > 0) return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return null;
+}
+
+/** Candidate identity keys on a persisted imperial record. */
+function recordIds(record: Record<string, unknown>): string[] {
+  const ids: string[] = [];
+  for (const key of ["id", "sequentialId"]) {
+    const normalized = normalizedId(record[key]);
+    if (normalized !== null) ids.push(normalized);
+  }
+  return ids;
+}
+
+export function resolveProfileDestination(input: ProfileGateInput | null | undefined): ProfileDestination {
+  if (input == null || typeof input !== "object") return "profile";
+  if (input.activeCharacterType !== "imperial") return "profile";
+  const marker = normalizedId(input.activeImperialCharacterId);
+  if (marker === null) return "profile";
+  const record = input.imperialCharacter;
+  if (record == null || typeof record !== "object") return "profile";
+  return recordIds(record as Record<string, unknown>).includes(marker) ? "imperial" : "profile";
+}

@@ -60,6 +60,8 @@ export class GameClient {
   markets() { return this.send<MarketsView>({ type: "markets" }); }
   politics() { return this.send<PoliticsView>({ type: "politics" }); }
   profile() { return this.send<ProfileView>({ type: "profile" }); }
+  profileDestination() { return this.send<"profile" | "imperial">({ type: "profileDestination" }); }
+  imperialProfile() { return this.send<import("./profileTypes").ImperialProfileView | null>({ type: "imperialProfile" }); }
   updateProfile(update: ProfileUpdate) { return this.send<GameView>({ type: "updateProfile", update }); }
   selectConstituency(constituencyId: string) { return this.send<GameView>({ type: "selectConstituency", constituencyId }); }
   updateWorldFeatureFlags(flags: Partial<WorldFeatureFlags>) { return this.send<GameView>({ type: "worldFeatureFlags", flags }); }

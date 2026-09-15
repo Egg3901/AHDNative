@@ -11,6 +11,8 @@ export type GameCommand =
   | { type: "create"; options: NewGameOptions }
   | { type: "view" }
   | { type: "profile" }
+  | { type: "profileDestination" }
+  | { type: "imperialProfile" }
   | { type: "updateProfile"; update: ProfileUpdate }
   | { type: "selectConstituency"; constituencyId: string }
   | { type: "worldFeatureFlags"; flags: Partial<WorldFeatureFlags> }
