@@ -10,6 +10,7 @@ export {
   featureFlagForPhase,
   isTurnPhaseEnabled,
   isWorldFeatureFlag,
+  resolveWorldFeatureFlags,
 } from "./featureFlags.js";
 export type { WorldFeatureFlag, WorldFeatureFlags } from "./featureFlags.js";
 export {

@@ -7,7 +7,8 @@ export type DrawerRouteId =
   | "politicians" | "presidentialDetails" | "politicalMetrics"
   | "economy" | "budget" | "policy" | "metrics" | "nations" | "state"
   | "help" | "settings" | "legislationDetails" | "markets" | "search"
-  | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications" | "referendums";
+  | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications" | "referendums"
+  | "worldSettings";
 
 export type BottomTabId = "profile" | "actions" | "parties";
 
@@ -58,6 +59,11 @@ export interface DrawerNavGroup {
  *  - Nation's unreferenced "Other" (Map) group and the reference's Executive /
  *    Supreme Court entries are Native Nation-detail gaps tracked in
  *    docs/NAVIGATION-PARITY.md, not drawer structure.
+ *  - "World settings" (#352) is the intentional Native counterpart of
+ *    AHDGame's /singleplayer/admin running-world gates (Egg3901/AHDGame#1903):
+ *    the reference has no in-drawer world-admin destination, but the local SP
+ *    player owns the world, so the saved world's simulation rules are editable
+ *    here with no auth gate. It sits under World > Other next to News.
  */
 export const MENU_GROUPS: DrawerNavGroup[] = [
   {
@@ -136,7 +142,10 @@ export const MENU_GROUPS: DrawerNavGroup[] = [
       },
       {
         label: "Other",
-        items: [{ id: "news", label: "News" }],
+        items: [
+          { id: "news", label: "News" },
+          { id: "worldSettings", label: "World settings" },
+        ],
       },
     ],
   },

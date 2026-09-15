@@ -183,6 +183,8 @@ export interface GameView {
   difficulty: SingleplayerDifficulty;
   /** Autonomous-politician tier bound at world creation (issue #345). */
   autonomyLevel: NppAutonomyLevel;
+  /** Live simulation rule map for the in-game World settings surface (#352). */
+  featureFlags: WorldFeatureFlags;
   player: { name: string; cash: number; funds: number; actions: number; influence: number; favorability: number; partyName: string; mode: SingleplayerMode; hosPartyId: string | null; homeRegionId: string | null; permanentHeadOfState?: boolean; currentOffice?: string | null; };
   legislature: LegislatureView;
   finance: FinanceView;
@@ -218,6 +220,8 @@ export interface GameScreenProps {
   onMarkNotificationRead: (id: string) => void;
   onDeleteNotification: (id: string) => void;
   onMarkAllNotificationsRead: () => void;
+  /** Persist a partial simulation-flag update from the World settings surface (#352). */
+  onUpdateWorldFeatureFlags: (flags: WorldFeatureFlags) => void;
 }
 export interface NewGameScreenProps { eras: EraChoice[]; busy: boolean; error?: string; onStart: (options: NewGameOptions) => void; onBack: () => void; }
 

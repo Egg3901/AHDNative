@@ -890,6 +890,20 @@ never moves with this axis. The tier is selectable on the creation screen
 alongside difficulty with Career/HoS flow preserved. Schema 42 projection
 drops an absent/v4 axis and refuses any other. Covered by focused
 engine/session/UI suites. World-simulation mode stays open in #346.
+#352 complete. A running world now has an in-game World settings surface under
+World > Other in the drawer, the Native counterpart of AHDGame's
+/singleplayer/admin running gates (Egg3901/AHDGame#1903). It renders exactly
+the canonical WORLD_FEATURE_FLAG_DEFINITIONS with their current saved values;
+each toggle submits a complete boolean map through a new worldFeatureFlags
+session/client/worker command that validates through the canonical resolver
+before commit, merges onto the live map, preserves every other saved field,
+and persists through the existing save envelope. Busy disables every control
+and App serializes the update through the existing run lock. Focused session
+tests cover update, preservation, strict rejection, and save round-trip;
+focused rendered tests cover drawer reachability, current values,
+complete-map submit, and busy disabling. Difficulty and world-simulation
+mode are covered in #334/#346 above; autonomy tier remains in #345 until
+its engine consumer exists.
 
 The entry journey now matches the remaining reference boundaries. Starting a
 new game while an overworld is active opens a confirmation that preserves the

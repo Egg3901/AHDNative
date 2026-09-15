@@ -38,3 +38,13 @@ it("disposal rejects in-flight work without waiting for a response", async () =>
   const rejected = expect(pending).rejects.toThrow("closed");
   client.dispose(); await rejected;
 });
+
+it("sends running-world flag updates through the worldFeatureFlags command", async () => {
+  const port = new TestPort(); const client = new GameClient(port);
+  const pending = client.updateWorldFeatureFlags({ events: false });
+  const [message] = port.messages as { id: number; command: unknown }[];
+  expect(message.command).toEqual({ type: "worldFeatureFlags", flags: { events: false } });
+  port.reply({ id: message.id, ok: true, value: "flags-view" });
+  expect(await pending).toBe("flags-view");
+  client.dispose();
+});
