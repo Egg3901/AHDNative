@@ -1,4 +1,19 @@
 import "./ui.css";
+import type { OnlineDestination } from "../online/session";
+
+const NETWORK_LINKS = [
+  { label: "Wiki and guides", href: "https://wiki.ahousedividedgame.com" },
+  { label: "About A House Divided", href: "https://ahousedividedgame.com/about" },
+  { label: "Discord community", href: "https://discord.gg/DmF8zJJuqN" },
+  { label: "Support the game", href: "https://www.patreon.com/cw/AHouseDividedGame/membership" },
+  { label: "Supporter wall", href: "https://lakesidegames.net/supporters" },
+  { label: "Email support", href: "mailto:admin@ahousedividedgame.com" },
+  { label: "Service status", href: "https://ops.ahousedividedgame.com/status" },
+] as const;
+
+export interface HelpPanelProps {
+  onOpenOnlineDestination?: (destination: OnlineDestination) => void;
+}
 
 function HelpSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -11,7 +26,7 @@ function HelpSection({ title, children }: { title: string; children: React.React
   );
 }
 
-export function HelpPanel() {
+export function HelpPanel({ onOpenOnlineDestination }: HelpPanelProps) {
   return (
     <div className="ahd-stack" aria-label="Help">
       <header className="ahd-card ahd-card-pad ahd-hero">
@@ -75,6 +90,33 @@ export function HelpPanel() {
           <li>Local notification inbox with a five-item preview, unread badge, mark-read and delete, and action-required flags for elections, bills, party changes, finances, and saves.</li>
         </ul>
       </HelpSection>
+
+      <HelpSection title="Guides and support">
+        <p style={{ margin: 0 }}>
+          The local guides above remain available offline. The destinations below leave the offline game and require a network connection.
+        </p>
+        <ul style={{ margin: 0, paddingLeft: "1.15rem" }}>
+          {NETWORK_LINKS.map((destination) => (
+            <li key={destination.label}>
+              <a href={destination.href} target="_blank" rel="noopener noreferrer">
+                {destination.label} <span className="ahd-muted">(network required)</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </HelpSection>
+
+      {onOpenOnlineDestination ? (
+        <HelpSection title="Multiplayer account and feedback">
+          <p style={{ margin: 0 }}>
+            Sign in inside multiplayer to manage your account or submit attributed feedback. AHDGame owns the account session; the offline game does not store it.
+          </p>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <button className="ahd-btn" type="button" onClick={() => onOpenOnlineDestination("settings")}>Account settings</button>
+            <button className="ahd-btn" type="button" onClick={() => onOpenOnlineDestination("feedback")}>Feedback and suggestions</button>
+          </div>
+        </HelpSection>
+      ) : null}
 
       <HelpSection title="Still unavailable here">
         <p style={{ margin: 0 }}>

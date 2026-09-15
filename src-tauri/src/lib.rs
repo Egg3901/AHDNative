@@ -35,14 +35,27 @@ fn is_online_navigation_allowed(url: &Url) -> bool {
                 .is_some_and(|host| AUXILIARY_ONLINE_HOSTS.contains(&host)))
 }
 
+fn online_destination_url(destination: &str) -> Result<Url, String> {
+    let path = match destination {
+        "home" => "/",
+        "settings" => "/settings",
+        "feedback" => "/feedback",
+        _ => return Err("unsupported online destination".to_string()),
+    };
+    format!("{ONLINE_URL}{path}")
+        .parse()
+        .map_err(|error| format!("bad online URL: {error}"))
+}
+
 #[tauri::command]
 #[cfg(desktop)]
-async fn open_online_window(app: tauri::AppHandle) -> Result<(), String> {
-    let url: Url = ONLINE_URL
-        .parse()
-        .map_err(|error| format!("bad online URL: {error}"))?;
+async fn open_online_window(app: tauri::AppHandle, destination: String) -> Result<(), String> {
+    let url = online_destination_url(&destination)?;
 
     if let Some(existing) = app.get_webview_window("online") {
+        if destination != "home" {
+            existing.navigate(url).map_err(|error| error.to_string())?;
+        }
         existing.set_focus().map_err(|error| error.to_string())?;
         return Ok(());
     }
@@ -89,10 +102,8 @@ async fn open_online_window(app: tauri::AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 #[cfg(mobile)]
-fn open_online_window(app: tauri::AppHandle) -> Result<(), String> {
-    let url: Url = ONLINE_URL
-        .parse()
-        .map_err(|error| format!("bad online URL: {error}"))?;
+fn open_online_window(app: tauri::AppHandle, destination: String) -> Result<(), String> {
+    let url = online_destination_url(&destination)?;
     let main = app
         .get_webview_window("main")
         .ok_or_else(|| "main webview is unavailable".to_string())?;
@@ -161,7 +172,7 @@ pub fn run() {
 
 #[cfg(all(test, desktop))]
 mod tests {
-    use super::{is_online_navigation_allowed, is_online_origin};
+    use super::{is_online_navigation_allowed, is_online_origin, online_destination_url};
     use tauri::Url;
 
     #[test]
@@ -205,7 +216,7 @@ mod tests {
     }
 
     #[test]
-    fn reopening_the_online_window_preserves_the_existing_session_view() {
+    fn reopening_the_online_window_preserves_home_but_allows_named_destinations() {
         let source = include_str!("lib.rs");
         let existing_window_branch = source
             .split_once("if let Some(existing) = app.get_webview_window(\"online\") {")
@@ -214,7 +225,25 @@ mod tests {
             .expect("online window reuse branch should exist");
 
         assert!(existing_window_branch.contains("existing.set_focus()"));
-        assert!(!existing_window_branch.contains("existing.navigate("));
+        assert!(existing_window_branch.contains("destination != \"home\""));
+        assert!(existing_window_branch.contains("existing.navigate(url)"));
+    }
+
+    #[test]
+    fn online_destinations_are_limited_to_server_owned_routes() {
+        assert_eq!(
+            online_destination_url("home").unwrap().as_str(),
+            "https://ahousedividedgame.com/"
+        );
+        assert_eq!(
+            online_destination_url("settings").unwrap().as_str(),
+            "https://ahousedividedgame.com/settings"
+        );
+        assert_eq!(
+            online_destination_url("feedback").unwrap().as_str(),
+            "https://ahousedividedgame.com/feedback"
+        );
+        assert!(online_destination_url("https://example.com").is_err());
     }
 }
 

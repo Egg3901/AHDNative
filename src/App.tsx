@@ -14,7 +14,7 @@ import { NewGameScreen } from './ui/NewGameScreen';
 import { CharacterCreationScreen } from './ui/CharacterCreationScreen';
 import { GameScreen } from './ui/GameScreen';
 import { LandingScreen } from './ui/LandingScreen';
-import { openOnlineSession, tauriOnlineSessionHost } from './online/session';
+import { openOnlineSession, tauriOnlineSessionHost, type OnlineDestination } from './online/session';
 
 export function App() {
   const [presentation, setPresentation] = useState(loadPreferences);
@@ -196,18 +196,18 @@ export function App() {
     });
   }
 
-  async function enterMultiplayer() {
+  async function enterMultiplayer(destination: OnlineDestination = "home") {
     if (onlineBusy) return;
     setOnlineBusy(true);
     setError(undefined);
-    const result = await openOnlineSession(tauriOnlineSessionHost());
+    const result = await openOnlineSession(tauriOnlineSessionHost(), destination);
     if (result.status === 'failed') setError(result.message);
     setOnlineBusy(false);
   }
 
   if (screen === 'help' || screen === 'settings') return <main className="ahd-screen"><div className="ahd-container" style={{ maxWidth: '42rem', paddingTop: 'max(1rem, env(safe-area-inset-top))', paddingBottom: '2rem' }}>
     <button className="ahd-btn" onClick={() => setScreen('home')} autoFocus>Back to home</button>
-    {screen === 'help' ? <HelpPanel /> : <SettingsPanel value={presentation.value} onChange={changePreferences} error={presentation.error} />}
+    {screen === 'help' ? <HelpPanel onOpenOnlineDestination={(destination) => { void enterMultiplayer(destination); }} /> : <SettingsPanel value={presentation.value} onChange={changePreferences} error={presentation.error} />}
   </div></main>;
   if (screen === 'new') return <NewGameScreen eras={eras} busy={busy} error={error} onStart={start} onBack={() => setScreen('home')} />;
   if (screen === 'creation' && pendingSetup) {
@@ -235,7 +235,7 @@ export function App() {
     setWorld(await client.current!.updateProfile(update));
     await save();
     setMessage("Profile saved.");
-  })} preferences={presentation.value} onPreferencesChange={changePreferences} preferencesError={presentation.error} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={busy} error={error} message={message}
+  })} preferences={presentation.value} onPreferencesChange={changePreferences} preferencesError={presentation.error} onOpenOnlineDestination={(destination) => { void enterMultiplayer(destination); }} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={busy} error={error} message={message}
     onMarkNotificationRead={(id) => void run(async () => { setWorld(await client.current!.markNotificationRead(id)); await save(false); })}
     onDeleteNotification={(id) => void run(async () => { setWorld(await client.current!.deleteNotification(id)); await save(false); })}
     onMarkAllNotificationsRead={() => void run(async () => { setWorld(await client.current!.markAllNotificationsRead()); await save(false); })}

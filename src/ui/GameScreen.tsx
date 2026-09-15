@@ -100,7 +100,7 @@ const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
   { id: "favorability", short: "Favorability", label: "Favorability" },
 ];
 
-export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead }: GameScreenProps) {
+export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPreferencesChange, preferencesError, onOpenOnlineDestination, search, loadRegions, loadCaucusManagement, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("profile");
   const [detailId, setDetailId] = useState<string>();
   // Selected hub category survives route changes so Profile/footer deep-links
@@ -477,7 +477,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
           {route === "search" && <SearchPanel load={search} revision={world} onOpen={openSearchResult} snapshot={searchSnapshot} onSnapshot={updateSearchSnapshot} />}
           {route === "markets" && <MarketsRoute initialId={detailId} load={loadMarkets} revision={world} busy={busy} onAction={onAction} />}
           {route === "legislationDetails" && <LegislationRoute initialId={detailId} countryId={world.countryId} load={loadLegislation} revision={world} busy={busy} onAction={onAction} />}
-          {route === "help" && <HelpPanel />}
+          {route === "help" && <HelpPanel onOpenOnlineDestination={onOpenOnlineDestination} />}
           {route === "settings" && <SettingsPanel value={preferences} onChange={onPreferencesChange} error={preferencesError} />}
           {route === "profile" ? <ProfileRoute load={loadProfile} revision={world} busy={busy} onUpdateProfile={onUpdateProfile} viewerDisablesAutoplay={preferences.disableAutoplayOnOtherProfiles} onNavigate={(next, id) => {
             // Profile deep-links into the hub carry the hub category in `id`;

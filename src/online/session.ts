@@ -1,16 +1,18 @@
 import { ONLINE_URL } from "./navigation";
 
 export interface OnlineSessionHost {
-  openDedicatedWindow: () => Promise<void>;
+  openDedicatedWindow: (destination: OnlineDestination) => Promise<void>;
 }
+
+export type OnlineDestination = "home" | "settings" | "feedback";
 
 export type OnlineSessionResult =
   | { status: "opened" }
   | { status: "failed"; message: string };
 
-export async function openOnlineSession(host: OnlineSessionHost): Promise<OnlineSessionResult> {
+export async function openOnlineSession(host: OnlineSessionHost, destination: OnlineDestination = "home"): Promise<OnlineSessionResult> {
   try {
-    await host.openDedicatedWindow();
+    await host.openDedicatedWindow(destination);
     return { status: "opened" };
   } catch {
     return {
@@ -22,9 +24,9 @@ export async function openOnlineSession(host: OnlineSessionHost): Promise<Online
 
 export function tauriOnlineSessionHost(): OnlineSessionHost {
   return {
-    openDedicatedWindow: async () => {
+    openDedicatedWindow: async (destination) => {
       const { invoke } = await import("@tauri-apps/api/core");
-      await invoke("open_online_window");
+      await invoke("open_online_window", { destination });
     },
   };
 }
