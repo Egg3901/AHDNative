@@ -12,6 +12,7 @@
  */
 import { useEffect, useState } from "react";
 import type { GameScreenProps, LegislatureView } from "../game/types";
+import { NominationsPanel } from "./NominationsPanel";
 import { loadLegislatureNav, saveLegislatureNav } from "../game/legislature";
 import { formatGameTurn, type GameClock } from "../game/gameDate";
 
@@ -244,6 +245,8 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
           </div>
         ) : null}
       </div>
+
+      <NominationsPanel legislature={legislature} busy={busy} onAction={onAction} />
 
       {visibleBills.length === 0 ? (
         <div className="ahd-empty">No bills before the legislature.</div>

@@ -75,6 +75,10 @@ export type ExecuteActionParams = {
   coalitionId?: string;
   coalitionName?: string;
   coalitionAbbr?: string;
+  // Direct nomination session commands (#272/#273).
+  positionId?: string;
+  nominationId?: string;
+  nomineeId?: string;
   position?: "chair" | "viceChair" | "treasurer";
   countryId?: string;
   disbandVote?: "yes" | "no";

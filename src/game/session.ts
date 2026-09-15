@@ -10,14 +10,15 @@ import { searchWorld, type SearchFilter } from "./search";
 import { projectMarkets } from "./markets";
 import { buildLegislationDetails, type LegislationSelection } from "./legislationDetails";
 import { buildChamberNavigation, buildCommitteeNavigation, buildFloorSchedule } from "./legislature";
+import { projectCabinetSponsor, projectNominationDetail, projectNominationList, projectScotusSponsor } from "./nominations";
 import { projectWorldOverview } from "./worldOverview";
 import { projectNation } from "./nation";
 import { projectPolitics, projectPartyMembership } from "./politics";
 import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
-  ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, createWorld, deserializeSave, executeAction,
-  getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave,
+  ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction,
+  getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination,
   type ActionId, type ExecuteActionParams, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionCategory, ActionView, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
@@ -185,6 +186,13 @@ export class GameSession {
     if (isWorldsimMode(this.requireWorld().player.mode)) {
       return { ok: false as const, error: "This spectator world has no player character. Advance the turn to run the simulation." };
     }
+    // #273: nomination commands call the engine functions directly on a
+    // cloned world. actions/catalog.ts and actions/execute.ts are untouched
+    // (serialized after #261); the engine stays authoritative and failures
+    // discard the clone so state is unchanged.
+    if (actionId === "sponsorCabinetNomination" || actionId === "voteCabinetNomination" || actionId === "voteScotusNomination") {
+      return this.actNomination(actionId, params);
+    }
     const source = this.requireWorld();
     const before = snapshotNotifications(source);
     const actionBefore = snapshotActionFields(source);
@@ -202,6 +210,64 @@ export class GameSession {
     drafts.push(...diffTurnSnapshots(before, snapshotNotifications(world), world.player.name));
     this.commit(candidate, addNotifications(this.notifications, drafts));
     return { ...result, outcome };
+  }
+
+  /**
+   * #273 nomination commands. Each runs its engine function against a clone
+   * and commits only on success, so a rejection leaves actions, resources,
+   * and nomination state untouched. The engine's exact error surfaces to
+   * the player; the projection in nominations.ts quotes the same reasons
+   * before the player acts.
+   */
+  private actNomination(actionId: "sponsorCabinetNomination" | "voteCabinetNomination" | "voteScotusNomination", params: ExecuteActionParams) {
+    const extra = params as ExecuteActionParams & { positionId?: unknown; nomineeId?: unknown; nominationId?: unknown };
+    const text = (value: unknown): string | undefined =>
+      typeof value === "string" && value.length > 0 ? value : undefined;
+    const before = snapshotNotifications(this.requireWorld());
+    const actionBefore = snapshotActionFields(this.requireWorld());
+    const candidate = structuredClone(this.requireWorld());
+    let message: string;
+    try {
+      if (actionId === "sponsorCabinetNomination") {
+        const countryId = text(extra.countryId);
+        const positionId = text(extra.positionId);
+        const nomineeId = text(extra.nomineeId);
+        if (!countryId || !positionId || !nomineeId) throw new Error("Choose a country, office, and nominee.");
+        const nomination = sponsorCabinetNomination(candidate, { countryId, positionId, nomineeId });
+        message = `Nominated ${nomination.nomineeName} for ${getCabinetPositionName(nomination.positionId)}. The Senate votes by turn ${nomination.votingEndsOnTurn}.`;
+      } else {
+        const nominationId = text(extra.nominationId);
+        const vote = text(params.vote);
+        if (!nominationId || !vote) throw new Error("Choose a nomination and a vote.");
+        if (actionId === "voteCabinetNomination") {
+          const tally = castCabinetNominationVote(candidate, nominationId, vote as "for" | "against" | "abstain");
+          const nomination = candidate.cabinetNominations.find((entry) => entry.id === nominationId)!;
+          message = `Vote recorded: ${vote} on ${nomination.nomineeName} (${tally.votesFor} for, ${tally.votesAgainst} against).`;
+        } else {
+          const tally = castScotusNominationVote(candidate, nominationId, vote as "for" | "against" | "abstain");
+          const nomination = candidate.scotusNominations.find((entry) => entry.id === nominationId)!;
+          message = `Vote recorded: ${vote} on ${nomination.nomineeName} (${tally.votesFor} for, ${tally.votesAgainst} against).`;
+        }
+      }
+    } catch (error) {
+      return { ok: false as const, error: error instanceof Error ? error.message : "The nomination command failed." };
+    }
+    const world = candidate;
+    const drafts: NotificationDraft[] = [];
+    const outcome = buildActionOutcome(actionId, params, actionBefore, world);
+    const detail = describeAction(actionId, params, world, { ok: true }, outcome);
+    if (detail) {
+      const draft = actionNotification(actionId, { ...detail, message }, world.meta.turn, world.meta.date);
+      if (draft) drafts.push({ ...draft, key: this.uniqueKey(draft.key) });
+    }
+    drafts.push(...diffTurnSnapshots(before, snapshotNotifications(world), world.player.name));
+    this.commit(candidate, addNotifications(this.notifications, drafts));
+    return { ok: true as const, message, outcome };
+  }
+
+  /** Nomination detail for the panel's selected item; null when unknown. */
+  nomination(nominationId: string) {
+    return projectNominationDetail(this.requireWorld(), nominationId);
   }
 
   advance(): GameView {
@@ -744,6 +810,9 @@ function projectLegislature(world: WorldState): LegislatureView {
     chambers: buildChamberNavigation(world, player.countryId),
     committees: buildCommitteeNavigation(world, player.countryId),
     schedule: buildFloorSchedule(world, player.countryId),
+    nominations: projectNominationList(world, player.countryId),
+    cabinetSponsor: projectCabinetSponsor(world, player.countryId),
+    scotusSponsor: projectScotusSponsor(),
     proposals: getCatalog(player.countryId, Number(world.meta.date.slice(0, 4)))
       .filter((entry) => entry.status === "available" && entry.kind !== "tax")
       .map(({ id, title, description }) => ({ id, title, description })),

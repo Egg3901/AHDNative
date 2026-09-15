@@ -1,4 +1,5 @@
 import type { LegislationDetailsQuery, LegislationSelection } from "./legislationDetails";
+import type { CabinetSponsorView, NominationView, ScotusSponsorView } from "./nominations";
 import type { Preferences } from "../preferences";
 import type { WorldOverviewView } from "./worldOverview";
 import type { NationView } from "./nation";
@@ -171,6 +172,12 @@ export interface LegislatureView {
   committees?: LegislatureCommitteeView[];
   /** Floor schedule of open bills (status + next action). */
   schedule?: LegislatureScheduleView[];
+  /** Cabinet/SCOTUS nominations for the player's country (#273). */
+  nominations?: NominationView[];
+  /** Cabinet sponsorship surface for the appointing executive. */
+  cabinetSponsor?: CabinetSponsorView;
+  /** SCOTUS sponsorship stays unavailable until #270. */
+  scotusSponsor?: ScotusSponsorView;
 }
 export interface FinanceView {
   cash: number; savings: number; currency: string; savingsHolder: string;
