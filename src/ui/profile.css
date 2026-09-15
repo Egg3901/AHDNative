@@ -19,6 +19,135 @@
   gap: 0.6rem;
 }
 
+/* ── Profile route hero (#371) ────────────────────────────────────────────
+   Bundled politicians artwork with a compact identity block: portrait with
+   initials fallback, office/mode line, PartyMark party mark, home region and
+   country. Display-only; editing stays in the Character card below. Hero
+   content sits over the shared shade, so identity controls use light ink
+   with 44px touch targets throughout. */
+.ahd-profile-hero-identity {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  min-width: 0;
+  margin-top: 0.55rem;
+}
+
+.ahd-profile-hero-portrait {
+  flex-shrink: 0;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 0.7rem;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background: rgba(8, 8, 14, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ahd-profile-hero-portraitimg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ahd-profile-hero-initials {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.ahd-profile-hero-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ahd-profile-hero-office,
+.ahd-profile-hero-partyname,
+.ahd-profile-hero-place {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+  min-height: 44px;
+  text-align: left;
+  border-radius: var(--ahd-radius-sm);
+  text-shadow: 0 1px 3px #000;
+}
+
+.ahd-profile-hero-office {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 800;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+}
+
+.ahd-profile-hero-office-static,
+.ahd-profile-hero-partyname-static,
+.ahd-profile-hero-place-static {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.ahd-profile-hero-office-static {
+  font-weight: 800;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+}
+
+.ahd-profile-hero-party {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.ahd-profile-hero-partyname {
+  font-weight: 700;
+  font-size: 0.86rem;
+  min-width: 44px;
+  overflow-wrap: anywhere;
+}
+
+.ahd-profile-hero-places {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.1rem 0.3rem;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.ahd-profile-hero-place {
+  font-weight: 650;
+  font-size: 0.78rem;
+  min-width: 44px;
+}
+
+.ahd-profile-hero-office:focus-visible,
+.ahd-profile-hero-partyname:focus-visible,
+.ahd-profile-hero-place:focus-visible {
+  outline: none;
+  box-shadow: var(--ahd-focus);
+}
+
+.ahd-profile-hero-office:disabled,
+.ahd-profile-hero-partyname:disabled,
+.ahd-profile-hero-place:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .ahd-profile-idrow {
   display: flex;
   gap: 0.75rem;
@@ -307,6 +436,18 @@ button.ahd-profile-chip:disabled {
 
 @media (max-width: 400px) {
   .ahd-profile-photo { width: 4rem; height: 4rem; }
+  /* 320px and 390px phones: tighter hero crop, smaller portrait, wrapped meta. */
+  .ahd-profile-hero-identity { gap: 0.55rem; margin-top: 0.45rem; }
+  .ahd-profile-hero-portrait { width: 3rem; height: 3rem; border-radius: 0.6rem; }
+  .ahd-profile-hero-initials { font-size: 1.25rem; }
+  .ahd-profile-hero-partyname { font-size: 0.8rem; }
+  .ahd-profile-hero-places { font-size: 0.74rem; }
+}
+
+@media (min-width: 700px) {
+  /* Wider phones and tablets: the taller route-hero crop carries a larger portrait. */
+  .ahd-profile-hero-portrait { width: 4.5rem; height: 4.5rem; }
+  .ahd-profile-hero-initials { font-size: 1.9rem; }
 }
 
 /* ── Policy compass ────────────────────────────────────────────────────────
@@ -418,6 +559,12 @@ button.ahd-profile-chip:disabled {
   }
 
   .ahd-screen .ahd-profile > .ahd-profile-header {
+    column-span: all;
+    margin-bottom: 1rem;
+  }
+
+  /* The route hero spans both desktop columns like the character header. */
+  .ahd-screen .ahd-profile > .ahd-profile-hero {
     column-span: all;
     margin-bottom: 1rem;
   }
