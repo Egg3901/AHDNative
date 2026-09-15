@@ -63,11 +63,11 @@ test('the caucus chair edits the tax rate and disbands through the reference con
   await expect(page.getByRole('listitem').filter({ hasText: 'Blue Dog Caucus' })).toContainText('Tax 4.5%');
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Disband Blue Dog Caucus', exact: true }).click();
+  // The action view updates before its detail query reloads. Wait for the
+  // persisted action result first, then assert the refreshed roster.
+  await expect(page.getByRole('status').filter({ hasText: 'Disbanded caucus' })).toBeVisible();
   await expect(page.getByText('You are not in a caucus.', { exact: true })).toBeVisible();
   await expect(page.getByRole('listitem').filter({ hasText: 'Blue Dog Caucus' })).toHaveCount(0);
-  // The result message is set after the action's save lands in storage; wait
-  // for it so the relaunch below reads the disbanded snapshot.
-  await expect(page.getByRole('status').filter({ hasText: 'Disbanded caucus' })).toBeVisible();
   // Disbanding persists across a full relaunch.
   await page.reload();
   await page.getByRole('button', { name: 'Continue Muse', exact: true }).click();
