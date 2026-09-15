@@ -85,6 +85,25 @@ describe("LandingScreen", () => {
     expect(onNew).toHaveBeenCalledTimes(1);
   });
 
+  it("confirms starting another world while a world is active", async () => {
+    const user = userEvent.setup();
+    const onNew = vi.fn();
+    render(<LandingScreen {...props({ worldActive: true, onNew })} />);
+
+    await user.click(screen.getByRole("button", { name: "New game" }));
+    const dialog = screen.getByRole("dialog", { name: "Start another world?" });
+    expect(dialog).toHaveTextContent("current world stays saved");
+    expect(onNew).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Keep playing" }));
+    expect(screen.queryByRole("dialog", { name: "Start another world?" })).not.toBeInTheDocument();
+    expect(onNew).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "New game" }));
+    await user.click(screen.getByRole("button", { name: "Start another world" }));
+    expect(onNew).toHaveBeenCalledTimes(1);
+  });
+
   it("routes Help, Settings and Return to game", async () => {
     const user = userEvent.setup();
     const p = props({ worldActive: true });

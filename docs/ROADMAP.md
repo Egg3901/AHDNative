@@ -672,7 +672,7 @@ Country-specific cabinet, court and appointment controls beyond the surfaced
 office classification remain owned by #63, #65 and #101 rather than being
 silently represented as implemented here.
 
-#241 partial. `NewGameScreen` now captures the reference world-setup fields and
+#241 complete. `NewGameScreen` captures the reference world-setup fields and
 carries them through `NewGameOptions` into the engine `NewWorldOptions`:
 `mode` (`career` | `hos`), `homeRegionId`, and `initialization`
 (`founding` | `historical`). Era/country choices expose the country's regions,
@@ -714,11 +714,13 @@ Earlier slice: production build, `npm run verify` and all 55
 `SMOKE_PRODUCTION=1` Playwright scenarios passed against the installed
 Chromium build, including the singleplayer create/advance/save/relaunch flow.
 
-Remaining #241 acceptance gaps: the reference start-over confirmation for an
-existing overworld, and the separate character-creation hand-off
-(`page.tsx:39` redirect to `/create-character`) are not implemented in this
-slice; the Native app still starts the world directly. The issue stays open
-with `status: partial`.
+The entry journey now matches the remaining reference boundaries. Starting a
+new game while an overworld is active opens a confirmation that preserves the
+current saved world unless the player explicitly continues. After world setup,
+the app hands off to `CharacterCreationScreen` before creating the world, as in
+the reference `/create-character` route. `LandingScreen.test.tsx` protects the
+confirmation and cancellation behavior, while the character-creation and
+production browser suites protect the setup-to-character-to-world flow.
 
 ## Page-coverage UI polish checkpoint, 2026-09-14 (#244)
 
