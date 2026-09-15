@@ -69,6 +69,25 @@ describe("PartyManagementPanel", () => {
     expect(onAction).not.toHaveBeenCalled();
   });
 
+  it("renders one offline identity mark per party with no constructed image URL", () => {
+    const management = makeManagement();
+    management.parties = [
+      ...management.parties,
+      { id: "US_GRN", name: "Green Union", abbreviation: "GRN", color: "#16a34a",
+        members: 41, treasury: 9000, isPlayerParty: false,
+        economicPosition: -1, socialPosition: -2, tier: "minor", founded: true },
+    ];
+    const { container } = render(<PartyManagementPanel management={management} busy={false} onAction={vi.fn()} />);
+    const list = container.querySelector('ul[aria-label="Parties"]');
+    expect(list?.querySelectorAll("li").length).toBe(2);
+    // Native DTOs carry no logoUrl, so the offline fallback renders and no
+    // image URL is ever constructed from the country/party ids.
+    expect(list?.querySelectorAll(".ahd-mark").length).toBe(2);
+    expect(list?.querySelector("img")).toBeNull();
+    expect(list?.querySelector('.ahd-mark[data-party-mark="DEM"]')).not.toBeNull();
+    expect(list?.querySelector('.ahd-mark[data-party-mark="GRN"]')).not.toBeNull();
+  });
+
   it("shows the engine disabled reason when founding is unavailable", () => {
     const management = makeManagement();
     management.founding = { ...management.founding, available: false, disabledReason: "Not enough funds. Founding needs 100000 funds available." };

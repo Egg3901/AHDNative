@@ -174,8 +174,28 @@ path and load entirely offline. `RouteHero` ports the reference image-error
 gradient fallback and adapts its crop from 172px on phones to 220px on wider
 screens. HoS resolves White House, Downing Street, Reichstag and Zhongnanhai
 art by country, with Actions as the explicit fallback for countries whose
-executive image is not yet bundled. Party cards continue to use `PartyMark`'s
-country/party-id resolution and initials fallback.
+executive image is not yet bundled. Party cards render `PartyMark` scoped by
+country+party id with the reference error fallback: the optional `logoUrl`
+is honored only when a caller passes a real authored URL (the engine and
+DTOs carry none, so nothing is fetched or invented), and the fallback is
+deterministic initials+color seeded from the storage-prefix-shaped
+`country-party-` key (numeric ids canonicalized as in
+`src/lib/partyLogoStorage.ts`). Coalition identity uses the new
+`CoalitionMark`, which follows `CoalitionLogo`: an image renders only with
+both an explicit `logoUrl` and a coalition id, otherwise the same
+deterministic fallback applies. No logo route, upload pipeline, remote
+fetch, or proprietary art is bundled; the reference resize/quality limits
+(`partyLogo` 256x256 q85) apply upstream if a URL is ever produced. Marks
+reuse the fixed-size `.ahd-mark` tile so roster rows hold at 320px and 390px
+with no overflow. Rendered tests: `src/ui/PartyMark.test.tsx`,
+`src/ui/CoalitionMark.test.tsx`, `src/ui/PartyManagementPanel.test.tsx`.
+
+Provenance (read-only inspection of the public AHDGame checkout, no assets
+copied): `src/components/PartyLogo.tsx` (route lookup + `logoUrl` override
++ error fallback), `src/components/CoalitionLogo.tsx`,
+`src/lib/partyLogoStorage.ts` (country+party scoped keys),
+`src/lib/imageOptimize.ts` (`partyLogo` 256x256 q85), and
+`src/app/country/[code]/parties/page.tsx` (party/coalition composition).
 
 SHA-256 provenance: `actions.webp`
 `cad398e81644f9ea924c511c649487bd139bf7612a391502205ebea6be86ed80`;

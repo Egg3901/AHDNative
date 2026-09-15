@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { PartyMark, partyInitials, partyMarkTextColor, partyMarkColor } from "./PartyMark";
+import { PartyMark, partyInitials, partyMarkTextColor, partyMarkColor, partyMarkKey, normalizeMarkIdSegment } from "./PartyMark";
 
 describe("partyInitials", () => {
   it("uses a recorded abbreviation before deriving letters from the name", () => {
@@ -78,5 +78,39 @@ describe("PartyMark", () => {
     const mark = container.querySelector(".ahd-mark") as HTMLElement;
     expect(mark).toHaveStyle({ background: partyMarkColor("US_DEM") });
     expect(mark).toHaveAttribute("data-party-mark", "DP");
+  });
+});
+
+describe("partyMarkKey (country/party-id lookup)", () => {
+  it("scopes the fallback key by lowercase country with storage-prefix parity", () => {
+    expect(partyMarkKey("US", "US_DEM")).toBe("us-US_DEM");
+    expect(partyMarkKey("GB", "lab")).toBe("gb-lab");
+    expect(partyMarkKey(null, "US_DEM")).toBe("US_DEM");
+    expect(partyMarkKey("US", null)).toBeNull();
+    expect(partyMarkKey("US", "  ")).toBeNull();
+  });
+
+  it("canonicalizes padded sequential ids so 01 and 1 share a key", () => {
+    expect(normalizeMarkIdSegment("01")).toBe("1");
+    expect(partyMarkKey("US", "01")).toBe("us-1");
+    expect(partyMarkKey("US", "1")).toBe("us-1");
+  });
+
+  it("seeds the deterministic fallback from the scoped key when a country is passed", () => {
+    const { container } = render(<PartyMark name="Democratic Party" id="US_DEM" countryId="US" />);
+    const mark = container.querySelector(".ahd-mark") as HTMLElement;
+    expect(mark).toHaveStyle({ background: partyMarkColor("us-US_DEM") });
+  });
+
+  it("never constructs a fetch URL from the ids: no image without an explicit logoUrl", () => {
+    const { container } = render(<PartyMark name="Democratic Party" id="US_DEM" countryId="US" label="Democratic Party" />);
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector(".ahd-mark-initials")?.textContent).toBe("DP");
+  });
+
+  it("honors a fixed caller size so roster rows cannot overflow at 320px or 390px", () => {
+    const { container } = render(<PartyMark name="Democratic Party" id="US_DEM" countryId="US" size={20} />);
+    const mark = container.querySelector(".ahd-mark") as HTMLElement;
+    expect(mark).toHaveStyle({ width: "20px", height: "20px" });
   });
 });
