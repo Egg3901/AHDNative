@@ -5,6 +5,7 @@ import { createWorld, serializeSave, type Bill } from "@ahdclient/engine";
 import { GameSession } from "./session";
 import {
   billStatusLabel,
+  buildChamberNavigation,
   loadLegislatureNav,
   nextProceduralStep,
   saveLegislatureNav,
@@ -77,6 +78,130 @@ describe("legislature navigation through the session boundary", () => {
     expect(legislature.chambers?.map((c) => c.key)).toContain("senate");
     expect(legislature.committees?.map((c) => c.id)).toContain("com-US-house-finance");
     expect(legislature.schedule).toEqual([]);
+  });
+
+  it("projects engine seat composition with party colors for the seating diagram", () => {
+    const session = new GameSession();
+    session.create(options);
+    const legislature = session.view().legislature;
+    const house = legislature.chambers?.find((c) => c.key === "house")!;
+    expect(house.seats).toBe(435);
+    expect(house.seatsByParty?.length).toBeGreaterThan(0);
+    for (const group of house.seatsByParty ?? []) {
+      expect(group.partyId).toEqual(expect.any(String));
+      expect(group.name).toEqual(expect.any(String));
+      expect(group.seats).toEqual(expect.any(Number));
+      expect(group.seats).toBeGreaterThanOrEqual(0);
+    }
+    // Authored 1953 House composition: 213 + 221 party seats plus 1 vacancy.
+    const partyTotal = (house.seatsByParty ?? []).reduce((sum, group) => sum + group.seats, 0);
+    expect(partyTotal + (house.vacancies ?? 0)).toBe(house.seats);
+    expect(house.seatsByParty).toContainEqual(
+      expect.objectContaining({ partyId: "US_DEM", seats: 213, color: expect.any(String) }),
+    );
+  });
+
+  it("projects seat shares left to right from a synthetic world without inventing seats", () => {
+    const world = {
+      legislatures: {
+        US: {
+          chambers: [
+            {
+              key: "house", name: "House of Representatives", shortName: "House",
+              seats: 435, elected: true, description: null,
+              composition: { seatsByParty: { US_DEM: 213, US_REP: 221, GHOST: 0 }, vacancies: 1 },
+            },
+          ],
+        },
+      },
+      parties: {
+        US_DEM: { id: "US_DEM", name: "Democrats", color: "#0000ff", economicPosition: -3 },
+        US_REP: { id: "US_REP", name: "Republicans", color: "#ff0000", economicPosition: 3 },
+      },
+      bills: [],
+    } as any;
+    const house = buildChamberNavigation(world, "US").find((c) => c.key === "house")!;
+    // Null economic position sorts as 0 (center), like the reference sortLR.
+    expect(house.seatsByParty!.map((g) => g.partyId)).toEqual(["US_DEM", "GHOST", "US_REP"]);
+    expect(house.seatsByParty).toContainEqual(
+      expect.objectContaining({ partyId: "US_DEM", name: "Democrats", color: "#0000ff", economicPosition: -3, seats: 213 }),
+    );
+    expect(house.seatsByParty!.find((g) => g.partyId === "GHOST")).toMatchObject({ name: "GHOST", color: null });
+    const partyTotal = house.seatsByParty!.reduce((sum, group) => sum + group.seats, 0);
+    expect(partyTotal + house.vacancies!).toBe(house.seats);
+    expect(buildChamberNavigation(world, "XX")).toEqual([]);
+  });
+
+  it("leaves composition fields absent when the engine recorded none", () => {
+    const world = {
+      legislatures: {
+        US: {
+          chambers: [
+            { key: "house", name: "House", shortName: "House", seats: 10, elected: true, description: null },
+            {
+              key: "senate", name: "Senate", shortName: "Senate",
+              seats: 10, elected: true, description: null, composition: null,
+            },
+          ],
+        },
+      },
+      parties: {},
+      bills: [],
+    } as any;
+    const [house, senate] = buildChamberNavigation(world, "US");
+    expect("seatsByParty" in house).toBe(false);
+    expect("vacancies" in house).toBe(false);
+    expect(house.seatsByParty).toBeUndefined();
+    expect(house.vacancies).toBeUndefined();
+    expect(senate.seatsByParty).toBeUndefined();
+    expect(senate.vacancies).toBeUndefined();
+  });
+
+  it("sanitizes seat counts and vacancies to finite nonnegative integers", () => {
+    const world = {
+      legislatures: {
+        US: {
+          chambers: [
+            {
+              key: "house", name: "House", shortName: "House",
+              seats: 10, elected: true, description: null,
+              composition: {
+                seatsByParty: { A: 4.9, B: -3, C: NaN, D: Infinity, E: 2 },
+                vacancies: 2.9,
+              },
+            },
+            {
+              key: "senate", name: "Senate", shortName: "Senate",
+              seats: 10, elected: true, description: null,
+              composition: { seatsByParty: { A: 3 }, vacancies: -4 },
+            },
+            {
+              key: "council", name: "Council", shortName: "Council",
+              seats: 10, elected: true, description: null,
+              composition: { seatsByParty: { A: 3 }, vacancies: NaN },
+            },
+          ],
+        },
+      },
+      parties: {},
+      bills: [],
+    } as any;
+    const [house, senate, council] = buildChamberNavigation(world, "US");
+    expect(house.seatsByParty).toContainEqual(expect.objectContaining({ partyId: "A", seats: 4 }));
+    expect(house.seatsByParty).toContainEqual(expect.objectContaining({ partyId: "B", seats: 0 }));
+    expect(house.seatsByParty).toContainEqual(expect.objectContaining({ partyId: "C", seats: 0 }));
+    expect(house.seatsByParty).toContainEqual(expect.objectContaining({ partyId: "D", seats: 0 }));
+    expect(house.vacancies).toBe(2);
+    expect(senate.vacancies).toBe(0);
+    expect(council.vacancies).toBe(0);
+    for (const chamber of [house, senate, council]) {
+      for (const group of chamber.seatsByParty ?? []) {
+        expect(Number.isInteger(group.seats)).toBe(true);
+        expect(group.seats).toBeGreaterThanOrEqual(0);
+      }
+      expect(Number.isInteger(chamber.vacancies)).toBe(true);
+      expect(chamber.vacancies).toBeGreaterThanOrEqual(0);
+    }
   });
 
   it("links sponsorship and the floor schedule to the selected chamber across a turn", () => {

@@ -15,6 +15,7 @@ import type { GameScreenProps, LegislatureView } from "../game/types";
 import { NominationsPanel } from "./NominationsPanel";
 import { loadLegislatureNav, saveLegislatureNav } from "../game/legislature";
 import { formatGameTurn, type GameClock } from "../game/gameDate";
+import { ChamberSeatingDiagram } from "./legislature/ChamberSeatingDiagram";
 
 const BILLS_PAGE_SIZE = 20;
 
@@ -65,6 +66,9 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
   }, [legislature.countryId, chamberKey]);
 
   const selectedChamber = (legislature.chambers ?? []).find((c) => c.key === chamberKey) ?? null;
+  // The seating diagram follows the chamber selection, defaulting to the
+  // first chamber so the chamber view always shows the house itself.
+  const diagramChamber = selectedChamber ?? (legislature.chambers ?? [])[0] ?? null;
   const visibleBills = selectedChamber
     ? legislature.bills.filter((bill) => (bill.chamberKey ?? bill.chamber) === selectedChamber.key || bill.chamber === selectedChamber.name)
     : legislature.bills;
@@ -135,6 +139,18 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
               Showing bills for every chamber.
             </p>
           )}
+          {diagramChamber ? (
+            <div style={{ marginTop: "0.55rem" }}>
+              <ChamberSeatingDiagram
+                chamberName={diagramChamber.name}
+                countryId={legislature.countryId}
+                chamberKey={diagramChamber.key}
+                total={diagramChamber.seats}
+                seatsByParty={diagramChamber.seatsByParty}
+                vacancies={diagramChamber.vacancies}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
 
