@@ -283,3 +283,12 @@ export type { GroundGamePreset, PresetEffect } from "./referendum/groundGame.js"
 export { referendumYesShare, aggregateYesShare, leanFromUnits, cumulativeCampaignEffect } from "./referendum/cohort.js";
 export type { ReferendumCohort, CohortModifier } from "./referendum/cohort.js";
 export type { ReferendumRecord, ReferendumKind, ReferendumStatus } from "./referendum/types.js";
+export {
+  CURRENT_SP_INTERCHANGE_CONTRACT,
+  CURRENT_SP_STATE_INVENTORY,
+  parseCurrentSpSnapshot,
+} from "./interchange/currentSpSnapshot.js";
+export type {
+  CurrentSpInventoryDisposition,
+  CurrentSpInventoryRow,
+} from "./interchange/currentSpSnapshot.js";
