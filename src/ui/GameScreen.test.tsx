@@ -778,7 +778,8 @@ describe("GameScreen navigation menu", () => {
     render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
     const menu = await openMenu(user);
     // Reference ExperimentalMobileMenu.tsx:191-197: Wallet -> /portfolio?tab=currency.
-    // Native has no forex tab; the wallet surface is Portfolio + Banking.
+    // Native has no forex tab; Portfolio keeps the cash/savings/holdings surface
+    // while the explicit Wallet route carries the currency balances.
     await user.click(within(menu).getByRole("button", { name: "Portfolio" }));
     const portfolio = screen.getByRole("region", { name: "Portfolio" });
     expect(within(portfolio).getByText("Cash")).toBeInTheDocument();
@@ -796,7 +797,7 @@ describe("GameScreen navigation menu", () => {
     // The avatar/profile menu entry is Native's Profile group (reference profile
     // card links at ExperimentalMobileMenu.tsx:169-197), with Wallet -> Portfolio.
     const identity = within(menu).getByRole("group", { name: "Profile" });
-    for (const label of ["Profile", "Notifications", "Settings", "Portfolio"]) {
+    for (const label of ["Profile", "Notifications", "Settings", "Portfolio", "Wallet"]) {
       expect(within(identity).getByRole("button", { name: label })).toBeInTheDocument();
     }
     expect(within(menu).getByRole("group", { name: "Actions" })).toBeInTheDocument();
@@ -805,6 +806,52 @@ describe("GameScreen navigation menu", () => {
     for (const label of ["Map", "Hall of Fame", "My Corporation", "Unions", "Crises", "Sectors", "Currency Exchange", "Trade", "IMF"]) {
       expect(within(menu).queryByRole("button", { name: label })).not.toBeInTheDocument();
     }
+  });
+
+  it("renders Wallet balances from world.finance and preserves nation context and turn state on return", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    const onSave = vi.fn();
+    const onAction = vi.fn();
+    const onAdvanceTurn = vi.fn();
+    const emptyGovernment = {
+      governmentType: null, regime: null, approval: null, legitimacy: null, unrest: null,
+      status: null, formationType: null, confidence: null, governingParty: null,
+      headOfGovernment: null, executive: null, legislature: null,
+    };
+    const loadNations = async () => ({
+      era: "1953", turn: 1, date: "1953-01-01", playerCountryId: "US", playerHomeRegionId: "CA",
+      nations: [
+        { id: "US", name: "United States", playable: true, currency: "USD",
+          economy: { gdpMillions: 387_000, growthRate: 0.046, inflationRate: 0.0075, unemploymentRate: 0.029, outputGap: -1.25 },
+          government: emptyGovernment },
+        { id: "FR", name: "France", playable: false, currency: "FRF",
+          economy: { gdpMillions: 47_000, growthRate: 0.035, inflationRate: 0.025, unemploymentRate: 0.02, outputGap: 0 },
+          government: emptyGovernment },
+      ],
+      homeRegion: null,
+    });
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadNations} world={world} busy={false} onAdvanceTurn={onAdvanceTurn} onSave={onSave} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={onAction} />);
+
+    await navigate(user, "Nations");
+    await user.selectOptions(await screen.findByRole("combobox", { name: "Nation view" }), "FR");
+    expect(await screen.findByRole("heading", { name: "France" })).toBeInTheDocument();
+
+    // The explicit Wallet destination deep-links from the drawer Profile group.
+    await navigate(user, "Wallet");
+    const wallet = screen.getByRole("region", { name: "Wallet" });
+    expect(within(wallet).getByRole("heading", { name: "Wallet" })).toBeInTheDocument();
+    expect(within(wallet).getByText("First National Bank")).toBeInTheDocument();
+    expect(within(wallet).queryByText("Acme Steel")).not.toBeInTheDocument();
+
+    // Returning lands back on the viewed nation with save and turn state intact.
+    await navigate(user, "Nations");
+    expect(await screen.findByRole("heading", { name: "France" })).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onAction).not.toHaveBeenCalled();
+    expect(onAdvanceTurn).not.toHaveBeenCalled();
+    expect(world.turn).toBe(1);
+    expect(world.countryId).toBe("US");
   });
 
   it("renders Banking from world.finance and deposits through the real action", async () => {

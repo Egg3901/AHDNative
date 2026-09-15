@@ -3,7 +3,7 @@ import { formatGameDate } from "../game/gameDate";
 
 export type DrawerRouteId =
   | "actions" | "parties" | "legislature" | "elections" | "news"
-  | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "campaignDetails"
+  | "profile" | "portfolio" | "wallet" | "banking" | "partyDetails" | "electionDetails" | "campaignDetails"
   | "politicians" | "presidentialDetails" | "politicalMetrics"
   | "economy" | "budget" | "policy" | "metrics" | "nations" | "state"
   | "help" | "settings" | "legislationDetails" | "markets" | "search"
@@ -37,8 +37,11 @@ export interface DrawerNavGroup {
 /**
  * Drawer hierarchy, aligned to the reference game menu:
  *
- *   Profile header links (Profile / Notifications / Settings / Wallet)
- *     — ExperimentalMobileMenu.tsx:169-197 (profile-card links)
+ *   Profile header links (Profile / Notifications / Settings / Portfolio / Wallet)
+ *     — ExperimentalMobileMenu.tsx:169-197 (profile-card links); the reference
+ *     Wallet entry (nav.json:10, Wallet -> /portfolio?tab=currency) maps to
+ *     Native's Wallet route (player-currency cash/savings balances), distinct
+ *     from Portfolio (stock holdings) and Banking (deposit/withdraw).
  *   Actions                 — ExperimentalNavbar.tsx:279 top-level tab
  *   Ask                     — Native Ask panel (#358), beside Actions
  *   State                   — reference State section
@@ -56,7 +59,7 @@ export interface DrawerNavGroup {
  *  - Search is a routed destination in Native, so it sits under Help (the
  *    reference renders an inline search field above the profile card).
  *  - The reference profile-card link labelled Wallet maps to Native's
- *    Portfolio route/label.
+ *    Wallet route/label (#84); Portfolio keeps the stock-holdings surface.
  *  - Nation's unreferenced "Other" (Map) group and the reference's Executive /
  *    Supreme Court entries are Native Nation-detail gaps tracked in
  *    docs/NAVIGATION-PARITY.md, not drawer structure.
@@ -74,6 +77,7 @@ export const MENU_GROUPS: DrawerNavGroup[] = [
       { id: "notifications", label: "Notifications" },
       { id: "settings", label: "Settings" },
       { id: "portfolio", label: "Portfolio" },
+      { id: "wallet", label: "Wallet" },
     ],
   },
   {
@@ -193,11 +197,11 @@ export const BOTTOM_TABS: { id: BottomTabId; label: string; path: string }[] = [
 
 // Parent-section indicator for the bottom bar. Retained from the owner-approved
 // mobile correction (docs/MOBILE-NAVIGATION.md): the personal-finance cluster
-// (Profile/Portfolio/Stock market/Bonds) marks Profile even though the drawer
-// now files Stock market and Bonds under the reference World group.
+// (Profile/Portfolio/Wallet/Stock market/Bonds) marks Profile even though the
+// drawer now files Stock market and Bonds under the reference World group.
 function bottomDestination(route: DrawerRouteId): BottomTabId | "menu" {
   if (route === "actions") return "actions";
-  if (["profile", "portfolio", "markets", "bonds"].includes(route)) return "profile";
+  if (["profile", "portfolio", "wallet", "markets", "bonds"].includes(route)) return "profile";
   if (route === "ask") return "ask";
   return "menu";
 }
@@ -412,6 +416,14 @@ export function GameDrawer({
           <strong>{playerName}</strong>
           <span className="ahd-muted">{playerParty} · {countryName}</span>
           <span className="ahd-muted">Turn {turn} · {formatGameDate(date, { turn, date })}</span>
+          <span className="ahd-drawer-identity-links">
+            <button type="button" className="ahd-profile-link" onClick={() => onNavigate("profile")}>
+              View profile
+            </button>
+            <button type="button" className="ahd-profile-link" onClick={() => onNavigate("actions")}>
+              Open actions
+            </button>
+          </span>
         </div>
 
         <div className="ahd-drawer-turn">

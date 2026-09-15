@@ -81,6 +81,7 @@ const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
   help: "Help", settings: "Settings",
   profile: "Profile",
   portfolio: "Portfolio",
+  wallet: "Wallet",
   banking: "Banking",
   partyDetails: "Party details", electionDetails: "Election details", campaignDetails: "Campaign", politicians: "Politicians",
   presidentialDetails: "Presidential election", politicalMetrics: "Political metrics",
@@ -487,6 +488,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
             if (id) setDetailId(id);
           }} /> : null}
           {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} /> : null}
+          {route === "wallet" ? <FinancePanel finance={world.finance} section="wallet" busy={busy} onAction={onAction} /> : null}
           {(route === "partyDetails" || route === "electionDetails" || route === "campaignDetails") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => route === "campaignDetails" ? setRoute("electionDetails") : go(route === "partyDetails" ? "parties" : "elections")}>Back to {route === "partyDetails" ? "parties" : route === "campaignDetails" ? "race" : "elections"}</button>}
           {(route === "presidentialDetails" || route === "politicalMetrics") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => go("elections")}>Back to elections</button>}
           {route === "partyDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="parties" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}

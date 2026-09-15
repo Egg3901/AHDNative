@@ -535,6 +535,7 @@ html, body { overflow-x: hidden; }
   border-bottom: 1px solid var(--ahd-border);
 }
 .ahd-drawer-identity .ahd-muted { font-size: 0.72rem; }
+.ahd-drawer-identity-links { display: flex; gap: 0.8rem; margin-top: 0.3rem; }
 .ahd-drawer-turn { padding: 0.7rem 1rem 0.4rem; border-bottom: 1px solid var(--ahd-border); }
 .ahd-drawer-endturn { width: 100%; }
 .ahd-drawer-turnrow { display: flex; gap: 0.4rem; margin-top: 0.55rem; flex-wrap: wrap; }

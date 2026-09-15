@@ -58,6 +58,23 @@ describe("FinancePanel portfolio", () => {
   });
 });
 
+describe("FinancePanel wallet", () => {
+  it("shows player-currency cash and savings balances without holdings or transfer actions", async () => {
+    const FinancePanel = await renderPanel();
+    const onAction = vi.fn();
+    render(<FinancePanel finance={makeFinance()} section="wallet" busy={false} onAction={onAction} />);
+    expect(screen.getByRole("heading", { name: "Wallet" })).toBeInTheDocument();
+    expect(screen.getByText("First National Bank")).toBeInTheDocument();
+    expect(screen.getByText(/USD/)).toBeInTheDocument();
+    // Holdings live under Portfolio; transfers live under Banking.
+    expect(screen.queryByText("Acme Steel")).not.toBeInTheDocument();
+    expect(screen.queryByText("Stock holdings")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /deposit/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /withdraw/i })).not.toBeInTheDocument();
+    expect(onAction).not.toHaveBeenCalled();
+  });
+});
+
 describe("FinancePanel banking", () => {
   it("shows balances and the savings holder", async () => {
     const FinancePanel = await renderPanel();
