@@ -968,6 +968,22 @@ no per-region economic/social lean. The issue stays open with `status: partial`.
   seats a nominee only after a confirmed simple-majority result. Parent #63
   remains open for sponsorship, session wiring, UI, and the remaining slices.
 
+## Corporate-sector asset core checkpoint, 2026-09-15 (#293 / #211)
+
+- The public lazy accessor materializes one stable CorporateSector asset
+  identity per aggregate Native corporation and keeps it distinct from the
+  unowned-sector revenue headroom pools. Untouched schema-44 worlds and legacy
+  saves retain their serialized shape and pinned hashes.
+- The asset owns future-facing sale, worker, and union-representation state.
+  Existing Corporation records remain authoritative for turn economics; the
+  exported projection joins current revenue, margin, and growth on read so the
+  two records cannot silently drift.
+- Assets remain explicitly national/unallocated until source-backed regional
+  ownership lands. Identity does not depend on catalog order. One validator is
+  shared by seeding, projection, lazy backfill, and save loading, where corrupt
+  keys, references, and duplicate tuples fail closed. Sale commands,
+  worker/union mechanics, fan-out, and UI remain in #294 through #299.
+
 ## Player polling checkpoint, 2026-09-15 (#38)
 
 - `poll` and `pollLarge` are live through the public `executeAction` contract
