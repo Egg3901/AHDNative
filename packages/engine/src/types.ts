@@ -862,6 +862,10 @@ export interface PlayerCharacter {
    * CharacterInput is a pure library with no WorldState wiring). Defaults 0.
    */
   savings: number;
+  /** Savings interest accrued since the last quarterly credit. */
+  pendingSavingsInterest?: number;
+  /** Lifetime interest credited to player savings. */
+  savingsInterestEarnedLifetime?: number;
   /**
    * Where `savings` is held: "centralBank" (mainline's default holder,
    * earns nothing — solo has no wired savingsInterestTurn path either, see
