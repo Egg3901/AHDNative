@@ -13,6 +13,14 @@ export function resolveBondCurrency(
 ): string {
   const explicit = bond.currencyCode?.trim();
   if (explicit) return explicit;
-  const inferred = world.budgets[bond.countryId]?.currencyCode?.trim();
+  return resolveCountryCurrency(world, bond.countryId);
+}
+
+/** Resolve one country's supported budget denomination. */
+export function resolveCountryCurrency(
+  world: Pick<WorldState, "budgets">,
+  countryId: string,
+): string {
+  const inferred = world.budgets[countryId]?.currencyCode?.trim();
   return inferred || "USD";
 }

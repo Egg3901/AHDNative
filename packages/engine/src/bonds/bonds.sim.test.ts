@@ -209,6 +209,7 @@ describe("coupon servicing math (cite: bonds.ts perTurnCouponPayment)", () => {
   it("keeps legacy domestic maturity settlement in home cash through the public phase", () => {
     const world = createWorld(OPTS);
     world.player.cash = 100;
+    world.budgets.US!.currencyCode = "   ";
     world.meta.turn = 1;
     world.bonds["legacy-us"] = {
       id: "legacy-us",
