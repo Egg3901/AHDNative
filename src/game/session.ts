@@ -828,6 +828,9 @@ function projectFinance(world: WorldState): FinanceView {
     }),
     deposit: savingsAction("depositSavings", player.cash <= 0, "No cash to deposit."),
     withdraw: savingsAction("withdrawSavings", player.savings <= 0, "No savings to withdraw."),
+    wealthHistory: world.history.playerWealth.map(({ turn, cash, savings, funds, bondsValue, sharesValue, netWorth }) => ({
+      turn, cash, savings, funds, bondsValue, sharesValue, netWorth,
+    })),
   };
 }
 

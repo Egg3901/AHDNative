@@ -19,6 +19,7 @@ import { SECTOR_SALE_UNAVAILABLE } from "../game/markets";
 import type { MarketListing, MarketsView, SectorSummary, ShareholderKind } from "../game/markets";
 import type { GameScreenProps } from "../game/types";
 import { formatFinanceMoney } from "./FinancePanel";
+import { TrendChart } from "./TrendChart";
 
 export interface MarketsPanelProps {
   markets: MarketsView;
@@ -632,30 +633,46 @@ function CompanyDetail({
 
       <div className="ahd-card ahd-card-pad">
         <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Earnings history</h3>
-        {listing.earningsHistory.length === 0 ? (
-          <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.35rem 0 0" }}>No earnings recorded yet.</p>
-        ) : (
-          <ol style={{ margin: "0.35rem 0 0", paddingLeft: "1.1rem", fontSize: "0.78rem" }} className="ahd-mono">
-            {listing.earningsHistory.map((value, index) => (
-              <li key={`${listing.id}-earn-${index}`}>{formatFinanceMoney(value, listing.currency)}</li>
-            ))}
-          </ol>
-        )}
+        <div style={{ marginTop: "0.45rem" }}>
+          <TrendChart
+            id={`${listing.id}-earnings-trend`}
+            title="Earnings trend"
+            singleSeriesOnly
+            turnLabel="Record"
+            emptyMessage="No earnings recorded yet."
+            series={[
+              {
+                id: "earnings",
+                label: "Earnings",
+                points: listing.earningsHistory.map((value, index) => ({ turn: index + 1, value })),
+                format: (value) => formatFinanceMoney(value, listing.currency),
+              },
+            ]}
+          />
+          <p className="ahd-muted" style={{ fontSize: "0.72rem", margin: "0.4rem 0 0" }}>
+            Records follow the engine&apos;s recorded order; the engine stores no turn stamp per entry.
+          </p>
+        </div>
       </div>
 
       <div className="ahd-card ahd-card-pad">
         <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Price history</h3>
-        {listing.priceHistory.length === 0 ? (
-          <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.35rem 0 0" }}>No recorded share-price history.</p>
-        ) : (
-          <ol style={{ margin: "0.35rem 0 0", paddingLeft: "1.1rem", fontSize: "0.78rem" }} className="ahd-mono">
-            {listing.priceHistory.map((point) => (
-              <li key={`${listing.id}-px-${point.turn}`}>
-                Turn {point.turn}: {formatFinanceMoney(point.price, listing.currency)}
-              </li>
-            ))}
-          </ol>
-        )}
+        <div style={{ marginTop: "0.45rem" }}>
+          <TrendChart
+            id={`${listing.id}-price-trend`}
+            title="Price trend"
+            singleSeriesOnly
+            emptyMessage="No recorded share-price history."
+            series={[
+              {
+                id: "price",
+                label: "Share price",
+                points: listing.priceHistory.map((point) => ({ turn: point.turn, value: point.price })),
+                format: (value) => formatFinanceMoney(value, listing.currency),
+              },
+            ]}
+          />
+        </div>
       </div>
 
       <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>

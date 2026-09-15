@@ -8,6 +8,7 @@ import type {
 } from "../game/nation";
 import { formatGameDate, type GameClock } from "../game/gameDate";
 import { RouteHero, nationOverviewHero } from "./RouteHero";
+import { TrendChart } from "./TrendChart";
 
 export interface NationPanelProps {
   nation: NationView;
@@ -242,9 +243,48 @@ function EconomySection({ nation }: { nation: NationView }) {
           <h2 className="ahd-h2">Macro history</h2>
           <span className="ahd-muted" style={{ fontSize: "0.68rem" }}>recorded turns</span>
         </div>
-        {macroHistory.length === 0 ? (
-          <div className="ahd-empty" style={{ marginTop: "0.65rem" }}>No macro history recorded.</div>
-        ) : (
+        <div style={{ marginTop: "0.55rem" }}>
+          <TrendChart
+            id="economy-macro-trend"
+            title="Economic trend"
+            singleSeriesOnly
+            defaultSeriesId="growth"
+            emptyMessage="No macro history recorded."
+            series={[
+              {
+                id: "growth",
+                label: "GDP growth",
+                points: economy.macroHistory.map((point) => ({ turn: point.turn, value: point.growthRate * 100 })),
+                format: (value) => pointsPercent(value),
+              },
+              {
+                id: "inflation",
+                label: "Inflation",
+                points: economy.macroHistory.map((point) => ({ turn: point.turn, value: point.inflationRate * 100 })),
+                format: (value) => pointsPercent(value),
+              },
+              {
+                id: "unemployment",
+                label: "Unemployment",
+                points: economy.macroHistory.map((point) => ({ turn: point.turn, value: point.unemploymentRate * 100 })),
+                format: (value) => pointsPercent(value),
+              },
+              {
+                id: "outputGap",
+                label: "Output gap",
+                points: economy.macroHistory.map((point) => ({ turn: point.turn, value: point.outputGap })),
+                format: (value) => pointsPercent(value),
+              },
+              {
+                id: "gdp",
+                label: "GDP",
+                points: economy.macroHistory.map((point) => ({ turn: point.turn, value: point.gdpMillions })),
+                format: (value) => millions(value, nation.currency),
+              },
+            ]}
+          />
+        </div>
+        {macroHistory.length === 0 ? null : (
           <div style={{ overflowX: "auto", marginTop: "0.55rem" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.72rem", minWidth: "32rem" }}>
               <caption className="ahd-muted" style={{ textAlign: "left", paddingBottom: "0.4rem" }}>
@@ -282,9 +322,23 @@ function EconomySection({ nation }: { nation: NationView }) {
           <h2 className="ahd-h2">Prime-rate history</h2>
           <span className="ahd-muted" style={{ fontSize: "0.68rem" }}>recorded turns</span>
         </div>
-        {primeRateHistory.length === 0 ? (
-          <div className="ahd-empty" style={{ marginTop: "0.65rem" }}>No prime-rate history recorded.</div>
-        ) : (
+        <div style={{ marginTop: "0.55rem" }}>
+          <TrendChart
+            id="economy-prime-rate-trend"
+            title="Prime-rate trend"
+            singleSeriesOnly
+            emptyMessage="No prime-rate history recorded."
+            series={[
+              {
+                id: "primeRate",
+                label: "Prime rate",
+                points: economy.primeRateHistory.map((point) => ({ turn: point.turn, value: point.primeRate })),
+                format: (value) => pointsPercent(value, 2),
+              },
+            ]}
+          />
+        </div>
+        {primeRateHistory.length === 0 ? null : (
           <ul style={{ listStyle: "none", margin: "0.55rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.35rem" }}>
             {primeRateHistory.map((point) => (
               <li key={point.turn} className="ahd-kv">
