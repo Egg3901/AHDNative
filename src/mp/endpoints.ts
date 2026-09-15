@@ -70,6 +70,20 @@
  *   DELETE exist server-side, not modeled: absent).
  *   requireBasicAuth; 30/min -> 429; 200 {success:true}.
  *
+ * Audited admin reads (#359 admin slice; GET only, no mutations modeled):
+ * - client-nav (above) doubles as the authoritative permission gate: the
+ *   response `user.isAdmin` / `user.isModerator` booleans (resolved in
+ *   src/lib/auth.ts mapUserToAuthUser from the DB user + JWT claims) are
+ *   the ONLY admin signal Native trusts. The legacy /api/auth/session
+ *   probe carries no role flags and must never gate admin.
+ * - admin-maintenance  GET /api/admin/maintenance  requireAdmin
+ *   (src/app/api/admin/maintenance/route.ts): 200 {mode
+ *   ("off"|"partial"|"full"), enabled, reason, expectedEnd, enabledBy,
+ *   enabledAt}; 403 {error} for signed-in non-admins; 401 signed out.
+ *   Read-only site-status triage. The PATCH sibling (maintenance mode
+ *   writes) is deliberately absent: mode changes can take the site
+ *   offline and stay out of the mobile slice.
+ *
  * Deliberately absent (#361 shrinks the v1 set to the above): every other
  * mutation surface (legislature, elections, travel, finance, corporations,
  * guilds, messaging), preference snooze/unsnooze, notification DELETE, and
@@ -85,7 +99,8 @@ export type MpFetchOpId =
   | "client-nav"
   | "turn-status"
   | "game-time"
-  | "notifications";
+  | "notifications"
+  | "admin-maintenance";
 
 export type MpMutateOpId =
   | "execute-action"

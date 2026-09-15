@@ -8,6 +8,7 @@ import {
 import { MpModeSession, type MpSnapshot } from "../mp/adapter";
 import { tauriMpBridgeHost, type MpBridgeHost } from "../mp/bridge";
 import { MP_EXECUTE_ACTIONS, MP_NOTIFICATION_TYPES, MP_SNOOZE_MINUTES_DEFAULT } from "../mp/endpoints";
+import { MpAdminScreen } from "./MpAdminScreen";
 import "./ui.css";
 
 /* Native multiplayer mode screen (#359). Renders authoritative server state
@@ -68,6 +69,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   const [runs, setRuns] = useState<1 | 5 | 10>(1);
   const [snooze, setSnooze] = useState("");
   const [prefType, setPrefType] = useState<string>("turn_advance");
+  const [adminOpen, setAdminOpen] = useState(false);
 
   useEffect(() => {
     const session = sessionRef.current!;
@@ -94,6 +96,10 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     }
   }
 
+  if (adminOpen) {
+    return <MpAdminScreen host={host} onBack={() => setAdminOpen(false)} />;
+  }
+
   const session = sessionRef.current;
   const phase = snapshot.phase;
   const needsSession = phase === "idle" || phase === "loading" || phase === "session-required" || phase === "signed-out" || phase === "auth-expired";
@@ -111,6 +117,9 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
           <div className="ahd-mp-row" style={{ marginLeft: "auto" }}>
             <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void run((s) => s.refresh())}>
               Refresh
+            </button>
+            <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => setAdminOpen(true)}>
+              Admin status
             </button>
             <button className="ahd-btn ahd-btn-sm" onClick={onExit}>Exit multiplayer</button>
           </div>
