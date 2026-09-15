@@ -170,6 +170,60 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     })} />);
     expect(screen.getByText(/imperial/i)).toBeInTheDocument();
   });
+
+  describe("party picker marks (#244 slice)", () => {
+    const LOGO_PARTIES = [
+      { id: "US_DEM", name: "Democratic Party", abbreviation: "DEM", color: "#3B82F6", logoUrl: "/party-logos/us-dem.png", economicPosition: -3, socialPosition: -2 },
+      { id: "US_REP", name: "Republican Party", abbreviation: "REP", color: "#EF4444", logoUrl: null, economicPosition: 3, socialPosition: 2 },
+    ];
+
+    it("renders the authored logo image inside the picker when logoUrl exists", () => {
+      render(<CharacterCreationScreen {...props({
+        choices: { parties: LOGO_PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state" },
+      })} />);
+      const button = screen.getByRole("button", { name: "DEM Democratic Party" });
+      const img = button.querySelector(".ahd-mark img");
+      expect(img).not.toBeNull();
+      expect(img).toHaveAttribute("src", "/party-logos/us-dem.png");
+    });
+
+    it("falls back to honest initials with no image when logoUrl is null", () => {
+      render(<CharacterCreationScreen {...props()} />);
+      const button = screen.getByRole("button", { name: "REP Republican Party" });
+      expect(button.querySelector(".ahd-mark img")).toBeNull();
+      expect(button.querySelector(".ahd-mark-initials")?.textContent).toBe("REP");
+    });
+
+    it("keeps the party accessible name on the picker button beside the mark", () => {
+      render(<CharacterCreationScreen {...props({
+        choices: { parties: LOGO_PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state" },
+      })} />);
+      expect(screen.getByRole("button", { name: "DEM Democratic Party" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "REP Republican Party" })).toBeInTheDocument();
+      // The mark itself stays decorative so the button label is not doubled.
+      const mark = screen.getByRole("button", { name: "DEM Democratic Party" }).querySelector(".ahd-mark");
+      expect(mark).toHaveAttribute("aria-hidden", "true");
+    });
+
+    it("toggles party selection through the marked picker buttons", async () => {
+      const user = userEvent.setup();
+      render(<CharacterCreationScreen {...props()} />);
+      const dem = screen.getByRole("button", { name: "DEM Democratic Party" });
+      const rep = screen.getByRole("button", { name: "REP Republican Party" });
+      await user.click(dem);
+      expect(dem).toHaveAttribute("aria-pressed", "true");
+      expect(rep).toHaveAttribute("aria-pressed", "false");
+      await user.click(rep);
+      expect(rep).toHaveAttribute("aria-pressed", "true");
+      expect(dem).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("keeps the picker mark compact so chips wrap inside a 320px column", () => {
+      render(<CharacterCreationScreen {...props()} />);
+      const mark = screen.getByRole("button", { name: "DEM Democratic Party" }).querySelector(".ahd-mark") as HTMLElement;
+      expect(mark).toHaveStyle({ width: "20px", height: "20px" });
+    });
+  });
 });
 
 describe("CharacterCreationScreen portrait/header identity (#348)", () => {
