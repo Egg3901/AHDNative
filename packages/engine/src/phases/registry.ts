@@ -138,9 +138,11 @@ import { resolveProspectsPhase } from "../extraction/prospecting.js";
 import { contractOfferAcceptancePhase } from "../extraction/contracts.js";
 import { achievementCheckPhase } from "../achievements/phase.js";
 import { countryPoliticsPhase } from "../countryPolitics/phases.js";
+import { fiscalDirectivesPhase } from "../budget/fiscalDirectives.js";
 
 export const TURN_PHASES: readonly TurnPhase[] = [
   advanceCalendarPhase,
+  fiscalDirectivesPhase,
   actionRefreshPhase,
   fundGenerationPhase,
   nppFundGenerationPhase,

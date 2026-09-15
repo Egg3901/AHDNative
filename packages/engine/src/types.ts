@@ -34,6 +34,14 @@ export interface WorldState {
   countries: Record<string, Country>;
   /** The human player. Solo has exactly one; everyone else is an NPC. */
   player: PlayerCharacter;
+  /**
+   * Costed HoS fiscal directions awaiting the next turn boundary. Optional so
+   * legacy and career worlds retain byte-stable saves until a directive exists.
+   */
+  pendingFiscalDirectives?: Array<
+    | { id: string; countryId: string; kind: "spending"; field: string; value: number; proposedTurn: number }
+    | { id: string; countryId: string; kind: "tax"; field: string; value: number; proposedTurn: number }
+  >;
   /** Append-only feed of notable events, newest last. Trimmed by maintenance. */
   news: NewsItem[];
   /** Parties seeded from mainline party seeds. Keyed by party id. */

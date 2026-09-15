@@ -260,6 +260,19 @@ export function GameScreen({ loadProfile, onUpdateProfile, preferences, onPrefer
             <div className="ahd-stack">
               <div className="ahd-card ahd-card-pad ahd-hero">
                 <h2 className="ahd-h2">Actions</h2>
+                {world.player.mode === "hos" ? (
+                  <div className="ahd-notice" role="note">
+                    <strong>Permanent Head of State · {world.player.currentOffice ?? "executive office"}</strong>
+                    <div className="ahd-help">
+                      {world.player.currentOffice === "primeMinister"
+                        ? "Parliamentary executive: you govern through the appointed prime-minister office."
+                        : world.player.currentOffice === "generalSecretary"
+                          ? "One-party executive: you govern through the ruling party and legislature-appointment system."
+                          : "Presidential executive: you occupy the national president record."}
+                    </div>
+                    <div className="ahd-help">Fiscal directions enact on the next turn.</div>
+                  </div>
+                ) : null}
                 <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", marginTop: "0.4rem", fontSize: "0.78rem" }}>
                   <span><strong>{world.player.name}</strong> · {world.player.partyName || "Independent"}</span>
                   <span className="ahd-badge">{world.player.actions} actions</span>

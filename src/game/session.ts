@@ -48,6 +48,10 @@ const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: Acti
   { id: "pollLarge", category: "intelligence" },
   { id: "debatePrep", category: "intelligence" },
 ];
+const HOS_ACTIONS: typeof ACTIONS = [
+  { id: "adjustBudgetSpending", requires: "budgetSpending", category: "executive", prerequisite: "Enacts at the next turn boundary." },
+  { id: "adjustTaxRate", requires: "taxRate", category: "executive", prerequisite: "Enacts at the next turn boundary." },
+];
 
 /**
  * Action fund-cost quote. Delegates to the engine's single stat-scaled source
@@ -434,7 +438,9 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     player: { name: player.name, cash: player.cash, funds: player.funds, actions: player.actions,
       influence: player.politicalInfluence, favorability: player.favorability,
       partyName: player.partyId ? world.parties[player.partyId]?.name ?? "Independent" : "Independent",
-      mode: player.mode, hosPartyId: player.hosPartyId, homeRegionId: player.homeRegionId ?? null },
+      mode: player.mode, hosPartyId: player.hosPartyId, homeRegionId: player.homeRegionId ?? null,
+      permanentHeadOfState: player.permanentHeadOfState === true,
+      currentOffice: player.currentOffice?.type ?? null },
     legislature: projectLegislature(world),
     finance: projectFinance(world),
     resources: projectResources(world),
@@ -452,7 +458,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     })),
     elections: projectElections(world),
     news: world.news.slice(-50).reverse().map((item, index) => ({ id: `${item.turn}:${index}`, title: item.headline, body: "", date: item.date })),
-    actions: ACTIONS.map(({ id, requires, category, prerequisite }) => {
+    actions: (player.mode === "hos" ? HOS_ACTIONS : ACTIONS).map(({ id, requires, category, prerequisite }) => {
       const entry = ACTION_CATALOG[id];
       const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
       const fundCost = quoteFundCost(id, entry.fundCost, player.donorBaseLevel, cost, player.stats);

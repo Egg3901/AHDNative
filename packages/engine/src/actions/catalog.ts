@@ -654,7 +654,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   adjustBudgetSpending: {
     id: "adjustBudgetSpending",
     name: "Direct Spending",
-    description: "Set a federal budget spending category to a new absolute value; recomputes budget.spending and surplus via calculateBudgetSpending. HoS mode only — country-level fiscal authority, not a party action. Cost 3 AP.",
+    description: "Direct a federal spending category to a new absolute value. The costed proposal enacts at the next turn boundary. Head of State mode only. Cost 3 AP.",
     baseCost: 3,
     cooldown: 0,
     fundCost: 0,
@@ -664,7 +664,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   adjustTaxRate: {
     id: "adjustTaxRate",
     name: "Set Tax Rate",
-    description: "Set a federal tax rate (0-100%); recomputes budget.revenue and surplus via calculateBudgetRevenue. HoS mode only. Cost 3 AP.",
+    description: "Direct a federal tax rate from 0 to 100%. The costed proposal enacts at the next turn boundary. Head of State mode only. Cost 3 AP.",
     baseCost: 3,
     cooldown: 0,
     fundCost: 0,
