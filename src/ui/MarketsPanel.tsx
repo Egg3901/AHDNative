@@ -15,6 +15,7 @@ import {
   evaluateShareTrade,
   parseShareCount,
 } from "../game/shareTrade";
+import { SECTOR_SALE_UNAVAILABLE } from "../game/markets";
 import type { MarketListing, MarketsView, SectorSummary, ShareholderKind } from "../game/markets";
 import type { GameScreenProps } from "../game/types";
 import { formatFinanceMoney } from "./FinancePanel";
@@ -170,8 +171,9 @@ function SectorMetricRow({ sector }: { sector: SectorSummary }) {
  *
  * There is deliberately no "For Sale" tab: AHDGame's sectors page reads
  * CorporateSector.forSale (src/app/sectors/page.tsx, /api/sectors route.ts),
- * but Native's merged Corporation record has no for-sale field, so there is no
- * sale signal to filter on. `sector.forSale` is null for every row.
+ * but every recorded CorporateSectorAsset.forSale is null until the sale
+ * commands land (#294/#295), so there is no sale signal to filter on. The
+ * For Sale section below reads each sector's `forSaleCount` instead.
  */
 function SectorDirectory({
   sectors,
@@ -330,6 +332,9 @@ function SectorDirectory({
                   <span className="ahd-mono" style={{ fontSize: "0.74rem" }}>
                     {sector.values.map((value) => formatFinanceMoney(value.marketValue, value.currency)).join(" · ")}
                   </span>
+                  <span className="ahd-muted" style={{ fontSize: "0.74rem" }}>
+                    For sale: {sector.forSaleCount}
+                  </span>
                 </button>
               </li>
             );
@@ -365,8 +370,61 @@ function SectorDirectory({
 
       <p className="ahd-muted" style={{ fontSize: "0.72rem", margin: 0 }}>
         Ownership reflects only the shareholders recorded in world state. No corporation records a
-        for-sale sector listing, so there is no For Sale tab.
+        for-sale sector listing, so there is no For Sale tab. Every sector reads For sale: 0 until
+        the sector-sale commands land (#294/#295).
       </p>
+    </div>
+  );
+}
+
+/**
+ * For Sale section: per-sector recorded for-sale counts with an honestly
+ * disabled sale control. AHDGame's sectors page tabs into a For Sale list
+ * (src/app/sectors/page.tsx); Native has the counts but no sale commands
+ * until #294/#295, so every row reads 0 and the single control stays held
+ * with SECTOR_SALE_UNAVAILABLE instead of pretending a purchase is possible.
+ * Plain text rows, no tab buttons — the directory keeps All/Unowned/Owned only.
+ */
+function ForSaleDirectory({ sectors }: { sectors: SectorSummary[] }) {
+  const total = sectors.reduce((sum, sector) => sum + sector.forSaleCount, 0);
+  return (
+    <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+      <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>For sale</h3>
+      <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: 0 }}>
+        {total === 0
+          ? "No sector listings are for sale."
+          : `${total} ${total === 1 ? "sector listing is" : "sector listings are"} for sale.`}
+      </p>
+      {sectors.length === 0 ? null : (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+          {sectors.map((sector) => (
+            <li
+              key={sector.sectorType}
+              style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", fontSize: "0.78rem" }}
+            >
+              <span style={{ overflowWrap: "anywhere" }}>{sector.sectorLabel}</span>
+              <span className="ahd-mono" style={{ whiteSpace: "nowrap" }}>
+                For sale: {sector.forSaleCount}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+        <button
+          type="button"
+          className="ahd-btn ahd-btn-sm"
+          disabled
+          aria-disabled
+          aria-label="Buy a sector listing (unavailable)"
+          style={{ minHeight: 44, alignSelf: "flex-start" }}
+        >
+          Buy sector
+        </button>
+        <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
+          {SECTOR_SALE_UNAVAILABLE}
+        </span>
+      </div>
     </div>
   );
 }
@@ -516,6 +574,60 @@ function CompanyDetail({
         <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: "0.35rem 0 0" }}>
           Public float: {listing.publicFloat.toLocaleString()} shares. Ownership reflects only the holders recorded in world state.
         </p>
+      </div>
+
+      <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+        <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Sector asset</h3>
+        <dl style={{ display: "flex", flexDirection: "column", gap: "0.3rem", margin: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+            <dt style={{ fontSize: "0.82rem" }}>Scope</dt>
+            <dd style={{ margin: 0, fontSize: "0.82rem" }}>
+              {listing.sectorAsset.scope === "national" ? "National" : "Regional"}
+            </dd>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+            <dt style={{ fontSize: "0.82rem" }}>Region</dt>
+            <dd style={{ margin: 0, fontSize: "0.82rem" }}>
+              {listing.sectorAsset.regionName ?? "No region recorded"}
+            </dd>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+            <dt style={{ fontSize: "0.82rem" }}>Workers</dt>
+            <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem" }}>
+              {listing.sectorAsset.workers.toLocaleString()}
+            </dd>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+            <dt style={{ fontSize: "0.82rem" }}>Union</dt>
+            <dd style={{ margin: 0, fontSize: "0.82rem" }}>
+              {listing.sectorAsset.unionName ?? "No representing union recorded"}
+            </dd>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+            <dt style={{ fontSize: "0.82rem" }}>For sale</dt>
+            <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem" }}>
+              {listing.sectorAsset.forSale
+                ? `Anchor ${formatFinanceMoney(listing.sectorAsset.forSale.priceAnchor, listing.currency)}`
+                : "Not for sale"}
+            </dd>
+          </div>
+        </dl>
+        <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: 0 }}>
+          Recorded sector state only. Worker and union mechanics arrive with their own slices (#296-#298).
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+          <button
+            type="button"
+            className="ahd-btn ahd-btn-sm"
+            disabled
+            aria-disabled
+            aria-label={`Buy ${listing.sectorLabel} sector (unavailable)`}
+            style={{ minHeight: 44, alignSelf: "flex-start" }}
+          >
+            Buy sector
+          </button>
+          <AvailabilityHint cost={0} available={false} disabledReason={SECTOR_SALE_UNAVAILABLE} />
+        </div>
       </div>
 
       <div className="ahd-card ahd-card-pad">
@@ -753,6 +865,8 @@ export function MarketsPanel({ markets, busy, onAction, initialId = null, onSele
             emptyReason={directoryEmptyReason}
             resetKey={countryId}
           />
+
+          <ForSaleDirectory sectors={countrySectors} />
 
           <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
             {sectorType ? (

@@ -1130,6 +1130,28 @@ and removed. The smoke helper now walks the conversation; no engine change.
   keys, references, and duplicate tuples fail closed. Sale commands,
   worker/union mechanics, fan-out, and UI remain in #294 through #299.
 
+## Corporate-sector ownership/detail slice, 2026-09-15 (#299)
+
+- `projectMarkets` joins one recorded `CorporateSectorAsset` per listing into
+  `MarketListing.sectorAsset`: verbatim id, workers, representing union, and
+  for-sale state, with `scope`/`regionId`/`regionName` resolved from the
+  recorded `stateId` against the region table and `unionName` from
+  `representingUnionId` against the union table. No labor or sale state beyond
+  the recorded fields is invented.
+- The join is read-only: it seeds into a local map and never assigns
+  `world.corporateSectors`, so untouched schema-44 worlds keep their
+  serialized shape and hashes. The projected asset survives
+  serializeSave/deserializeSave unchanged.
+- Each `SectorSummary` carries `forSaleCount` counted from the same listing
+  projection, so the directory can never drift from company detail. Every
+  count reads 0 until the sector-sale commands land (#294/#295).
+- The Markets panel renders a For Sale section (per-sector counts, no For Sale
+  tab), a Sector asset card in company detail (scope, region, workers, union,
+  sale state), and honestly disabled Buy sector controls held with
+  `SECTOR_SALE_UNAVAILABLE` instead of hidden. Focused evidence:
+  `src/game/markets.test.ts` (34 tests) and `src/ui/MarketsPanel.test.tsx`
+  For Sale/sector-asset block.
+
 ## Player polling checkpoint, 2026-09-15 (#38)
 
 - `poll` and `pollLarge` are live through the public `executeAction` contract

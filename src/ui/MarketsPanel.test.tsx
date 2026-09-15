@@ -1,7 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { CROSS_CURRENCY_UNAVAILABLE, type MarketListing, type MarketsView, type SectorSummary } from "../game/markets";
+import {
+  CROSS_CURRENCY_UNAVAILABLE,
+  SECTOR_SALE_UNAVAILABLE,
+  type MarketListing,
+  type MarketsView,
+  type SectorSummary,
+} from "../game/markets";
 
 function makeListing(overrides: Partial<MarketListing> = {}): MarketListing {
   return {
@@ -12,6 +18,19 @@ function makeListing(overrides: Partial<MarketListing> = {}): MarketListing {
     countryName: "United States",
     sectorType: "media",
     sectorLabel: "media",
+    sectorAsset: {
+      id: "corporate-sector:US:media:US-media",
+      corporationId: "US-media",
+      countryId: "US",
+      sectorType: "media",
+      scope: "national",
+      regionId: null,
+      regionName: null,
+      workers: 0,
+      unionId: null,
+      unionName: null,
+      forSale: null,
+    },
     currency: "USD",
     cashCurrencyMatches: true,
     sharePrice: 774,
@@ -96,6 +115,7 @@ function makeSector(overrides: Partial<SectorSummary> = {}): SectorSummary {
     marginPct: 8,
     growthPct: 3,
     forSale: null,
+    forSaleCount: 0,
     ...overrides,
   };
 }
@@ -518,5 +538,118 @@ describe("MarketsPanel ownership discovery", () => {
     await user.click(screen.getByRole("button", { name: /US\.MEDI US-media/i }));
     expect(screen.getByText(/controlling holder: no recorded controlling holder/i)).toBeInTheDocument();
     expect(screen.getByText(/no shareholders recorded/i)).toBeInTheDocument();
+  });
+});
+
+describe("MarketsPanel For Sale and sector asset (#299)", () => {
+  it("lists recorded for-sale counts with no For Sale tab and an honestly disabled sale control", async () => {
+    const MarketsPanel = await loadPanel();
+    const onAction = vi.fn();
+    render(<MarketsPanel markets={makeMarkets({ sectors: [makeSector()] })} busy={false} onAction={onAction} />);
+
+    expect(screen.getByRole("heading", { name: "For sale" })).toBeInTheDocument();
+    expect(screen.getByText(/no sector listings are for sale/i)).toBeInTheDocument();
+    expect(screen.getAllByText("For sale: 0").length).toBeGreaterThanOrEqual(2);
+    // The directory keeps All/Unowned/Owned tabs only; the sale control is
+    // held, not hidden, with the reason stated next to it.
+    expect(screen.queryByRole("button", { name: /for sale/i })).not.toBeInTheDocument();
+    const buySector = screen.getByRole("button", { name: /buy a sector listing \(unavailable\)/i });
+    expect(buySector).toBeDisabled();
+    expect(screen.getByText(SECTOR_SALE_UNAVAILABLE)).toBeInTheDocument();
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it("shows the recorded sector asset in company detail with a disabled sale control", async () => {
+    const MarketsPanel = await loadPanel();
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    render(
+      <MarketsPanel
+        markets={makeMarkets({ listings: [makeListing()], sectors: [makeSector()] })}
+        busy={false}
+        onAction={onAction}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /US\.MEDI US-media/i }));
+    expect(screen.getByRole("heading", { name: "Sector asset" })).toBeInTheDocument();
+    expect(screen.getByText("National")).toBeInTheDocument();
+    expect(screen.getByText(/no region recorded/i)).toBeInTheDocument();
+    expect(screen.getByText(/no representing union recorded/i)).toBeInTheDocument();
+    expect(screen.getByText("Not for sale")).toBeInTheDocument();
+    // Recorded zero workers render verbatim, not hidden.
+    expect(screen.getByText("Workers")).toBeInTheDocument();
+
+    const buySector = screen.getByRole("button", { name: /buy media sector \(unavailable\)/i });
+    expect(buySector).toBeDisabled();
+    expect(screen.getByText(SECTOR_SALE_UNAVAILABLE)).toBeInTheDocument();
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it("resolves a regional asset to its recorded region name and union", async () => {
+    const MarketsPanel = await loadPanel();
+    const user = userEvent.setup();
+    const regional = makeListing({
+      sectorAsset: {
+        id: "corporate-sector:US:media:US-media",
+        corporationId: "US-media",
+        countryId: "US",
+        sectorType: "media",
+        scope: "regional",
+        regionId: "US-CA",
+        regionName: "California",
+        workers: 0,
+        unionId: "US-media",
+        unionName: "Federated Media Workers",
+        forSale: null,
+      },
+    });
+    render(
+      <MarketsPanel
+        markets={makeMarkets({ listings: [regional], sectors: [makeSector()] })}
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /US\.MEDI US-media/i }));
+    expect(screen.getByText("Regional")).toBeInTheDocument();
+    expect(screen.getByText("California")).toBeInTheDocument();
+    expect(screen.getByText("Federated Media Workers")).toBeInTheDocument();
+  });
+
+  it("surfaces a recorded for-sale listing and its sector count without enabling a purchase", async () => {
+    const MarketsPanel = await loadPanel();
+    const user = userEvent.setup();
+    const listed = makeListing({
+      sectorAsset: {
+        id: "corporate-sector:US:media:US-media",
+        corporationId: "US-media",
+        countryId: "US",
+        sectorType: "media",
+        scope: "national",
+        regionId: null,
+        regionName: null,
+        workers: 0,
+        unionId: null,
+        unionName: null,
+        forSale: { priceAnchor: 5000 },
+      },
+    });
+    render(
+      <MarketsPanel
+        markets={makeMarkets({ listings: [listed], sectors: [makeSector({ forSaleCount: 1 })] })}
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/1 sector listing is for sale/i)).toBeInTheDocument();
+    expect(screen.getAllByText("For sale: 1").length).toBeGreaterThanOrEqual(2);
+
+    await user.click(screen.getByRole("button", { name: /US\.MEDI US-media/i }));
+    expect(screen.getByText(/anchor/i)).toBeInTheDocument();
+    const buySector = screen.getByRole("button", { name: /buy media sector \(unavailable\)/i });
+    expect(buySector).toBeDisabled();
   });
 });
