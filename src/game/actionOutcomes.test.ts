@@ -41,6 +41,34 @@ describe("action outcomes through the session boundary", () => {
       changes: expect.arrayContaining([expect.objectContaining({ field: "donorBaseLevel" })]) });
   });
 
+  it("projects campaign results through Profile, party, notifications, save/reload, and the next turn", () => {
+    const session = new GameSession();
+    const initial = session.create(options);
+    const raw = JSON.parse(session.serialize(savedAt));
+    raw.world.player.partyId = "US_DEM";
+    raw.world.player.actions = 20;
+    raw.world.player.funds = 100_000;
+    session.load(JSON.stringify(raw));
+    const beforeParty = session.politics().parties.find((party) => party.id === "US_DEM")!;
+    const result = session.act("campaign", { regionId: initial.regions[0]!.id });
+    expect(result).toMatchObject({ ok: true, outcome: { actionId: "campaign" } });
+    expect(session.profile().standing.politicalInfluence).toBeGreaterThan(0);
+    expect(session.profile().standing.partyInfluence).toBe(0);
+    expect(session.politics().parties.find((party) => party.id === "US_DEM")).toEqual(beforeParty);
+    expect(session.view().notifications.items[0]).toMatchObject({
+      category: "standing", actionOutcome: { actionId: "campaign" },
+    });
+    expect(session.view().actionHistory?.[0]).toMatchObject({ actionId: "campaign" });
+
+    const resumed = new GameSession();
+    resumed.load(session.serialize(savedAt));
+    expect(resumed.profile().standing.politicalInfluence).toBe(session.profile().standing.politicalInfluence);
+    expect(resumed.view().notifications.items[0]).toMatchObject({ actionOutcome: { actionId: "campaign" } });
+    expect(resumed.view().actionHistory?.[0]).toMatchObject({ actionId: "campaign" });
+    resumed.advance();
+    expect(resumed.profile().standing.partyInfluence).toBeGreaterThanOrEqual(0);
+  });
+
   it("returns prerequisite failures without partial spend or history", () => {
     const session = new GameSession(); session.create(options);
     const before = session.view();
