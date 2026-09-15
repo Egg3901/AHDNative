@@ -115,16 +115,22 @@ function ActionCard({
       aria-label={action.name}
       className="ahd-card ahd-card-pad ahd-action-card"
     >
-      <div className="ahd-action-head">
+      <div
+        className="ahd-action-banner"
+        data-category={action.category ?? "none"}
+        data-state={action.available ? "available" : "locked"}
+        data-glyph={actionCategoryGlyph(action.category)}
+        aria-hidden="true"
+      >
         <span
           className="ahd-action-mark"
           data-category={action.category ?? "none"}
           data-state={action.available ? "available" : "locked"}
-          aria-hidden="true"
-          title={categoryLabel ?? "Action"}
         >
           {actionCategoryGlyph(action.category)}
         </span>
+      </div>
+      <div className="ahd-action-head">
         <div className="ahd-action-body">
           <div style={{ fontWeight: 750, fontSize: "0.86rem" }}>{action.name}</div>
           <div className="ahd-muted" style={{ fontSize: "0.76rem", lineHeight: 1.45 }}>{action.description}</div>

@@ -395,6 +395,42 @@ html, body { overflow-x: hidden; }
 .ahd-action-state { flex: 0 0 auto; white-space: nowrap; }
 .ahd-action-reason { margin: 0; }
 
+/* Code-native action card banner (#143): mirrors the AHDGame ActionCard header
+   composition (category accent bar + scrim gradient + category mark) with pure
+   CSS, since the reference per-action photography is remote CDN art. No raster,
+   no downloads, offline-safe. The glyph reuses the shared CATEGORY_GLYPH tile;
+   accent hues follow CATEGORY_ACCENTS (influence/money/research) with executive
+   matching the HosOfficeMark generic slate. Decorative: aria-hidden in markup,
+   state stays on the card badge and disabled reason. No motion by design. */
+.ahd-action-banner {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center;
+  min-height: 3.25rem; padding: 0.4rem 0.55rem;
+  border: 1px solid var(--ahd-border); border-radius: var(--ahd-radius-sm);
+  background: var(--ahd-card-elevated);
+  background: linear-gradient(115deg, var(--ahd-card-elevated), var(--ahd-card-muted) 75%);
+}
+.ahd-action-banner::before {
+  content: ""; position: absolute; inset-inline: 0; top: 0; height: 3px;
+  background: var(--ahd-muted);
+}
+.ahd-action-banner::after {
+  content: attr(data-glyph); position: absolute; right: 0.5rem; top: 50%;
+  transform: translateY(-50%); font-size: 2rem; line-height: 1; opacity: 0.16;
+}
+.ahd-action-banner .ahd-action-mark { position: relative; z-index: 1; background: rgb(0 0 0 / 0.4); }
+.ahd-action-banner[data-category="influence"] { background: linear-gradient(115deg, color-mix(in srgb, var(--ahd-primary) 42%, var(--ahd-card-muted)), var(--ahd-card-muted) 72%); }
+.ahd-action-banner[data-category="influence"]::before { background: var(--ahd-primary); }
+.ahd-action-banner[data-category="fundraising"] { background: linear-gradient(115deg, color-mix(in srgb, var(--ahd-success) 30%, var(--ahd-card-muted)), var(--ahd-card-muted) 72%); }
+.ahd-action-banner[data-category="fundraising"]::before { background: var(--ahd-success); }
+.ahd-action-banner[data-category="intelligence"] { background: linear-gradient(115deg, color-mix(in srgb, var(--ahd-info) 32%, var(--ahd-card-muted)), var(--ahd-card-muted) 72%); }
+.ahd-action-banner[data-category="intelligence"]::before { background: var(--ahd-info); }
+.ahd-action-banner[data-category="executive"] { background: linear-gradient(115deg, color-mix(in srgb, #475569 42%, var(--ahd-card-muted)), var(--ahd-card-muted) 72%); }
+.ahd-action-banner[data-category="executive"]::before { background: #475569; }
+.ahd-action-banner[data-state="locked"] { filter: saturate(0.55); }
+.ahd-action-banner[data-state="locked"]::after { opacity: 0.08; }
+@media (min-width: 700px) { .ahd-action-banner { min-height: 3.75rem; } }
+
 /* New-game screen: keep the hero and stacked fields inside a 320px column. */
 .ahd-newgame { min-width: 0; }
 .ahd-newgame .ahd-eyebrow { margin: 0; }
