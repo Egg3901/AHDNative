@@ -3,11 +3,15 @@
  *
  * Mirrors the public AHDGame reference `src/components/PartyLogo.tsx`:
  * a party-authored logo image is shown when a real URL is available, and an
- * onError fallback drops to a colored mark. Native has no logo route/upload
- * pipeline yet (the DTOs carry no `logoUrl`), so this component takes an
- * optional `logoUrl` and otherwise renders a deterministic initials + color
- * mark from the party identity already in the DTO. No URL is invented and no
- * proprietary art is bundled.
+ * onError fallback drops to a colored mark. Native is offline-first so there
+ * is no `/api/logos/parties` route lookup and no upload pipeline (the engine
+ * and DTOs carry no `logoUrl`): the optional `logoUrl` prop is honored only
+ * when the caller passes a real authored URL, and country+party ids only
+ * scope the deterministic fallback (same `country-party-` key shape as
+ * `src/lib/partyLogoStorage.ts`). No URL is invented and no proprietary art
+ * is bundled. Reference resize/quality limits (`partyLogo` 256x256 q85 in
+ * `src/lib/imageOptimize.ts`) apply upstream when a URL is produced; Native
+ * renders with `object-fit: contain` and never fetches a remote original.
  *
  * Reference: AHDGame `src/components/PartyLogo.tsx` (logoUrl override +
  * error fallback + colored circle), `src/lib/partyLogoStorage.ts`
@@ -47,6 +51,31 @@ export function partyMarkColor(seed: string): string {
   return PARTY_MARK_PALETTE[hash % PARTY_MARK_PALETTE.length];
 }
 
+/**
+ * Canonicalize one id segment the way the reference storage keys do
+ * (`normalizePartyId` in `src/lib/partyLogoStorage.ts`): numeric ids drop
+ * padding so `01` and `1` share a key; anything else is used verbatim.
+ */
+export function normalizeMarkIdSegment(segment: string): string {
+  const trimmed = segment.trim();
+  return /^\d+$/.test(trimmed) ? String(Number(trimmed)) : trimmed;
+}
+
+/**
+ * Country+party scoped fallback key, mirroring the reference storage prefix
+ * `party-logos/{country}-{party}-`. Returns null when there is no party
+ * identity to scope. The key only seeds the deterministic initials/color
+ * fallback; Native never fetches a logo route from it.
+ */
+export function partyMarkKey(countryId?: string | null, id?: string | null): string | null {
+  const party = (id ?? "").trim();
+  if (!party) return null;
+  const scopedParty = normalizeMarkIdSegment(party);
+  const country = (countryId ?? "").trim().toLowerCase();
+  if (!country) return scopedParty;
+  return `${country}-${scopedParty}`;
+}
+
 export interface PartyMarkProps {
   name: string;
   abbreviation?: string | null;
@@ -54,7 +83,17 @@ export interface PartyMarkProps {
   color?: string | null;
   /** Stable seed (party id) for the deterministic fallback color. */
   id?: string;
-  /** Party-authored image URL from the DTO; falls back to initials on error. */
+  /**
+   * Country scope for the party lookup (required for sequential numeric ids,
+   * as in the reference `PartyLogo`). Only seeds the deterministic fallback;
+   * Native performs no route fetch from it.
+   */
+  countryId?: string | null;
+  /**
+   * Party-authored image URL; honored only when the caller passes a real URL
+   * (Native DTOs carry none today). Falls back to initials on error, and no
+   * URL is ever constructed from the ids.
+   */
   logoUrl?: string | null;
   /** Accessible name; omit when the party name is already shown beside the mark. */
   label?: string;
@@ -62,14 +101,15 @@ export interface PartyMarkProps {
   className?: string;
 }
 
-export function PartyMark({ name, abbreviation, color, id, logoUrl, label, size = 32, className }: PartyMarkProps) {
+export function PartyMark({ name, abbreviation, color, id, countryId, logoUrl, label, size = 32, className }: PartyMarkProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const initials = useMemo(() => partyInitials(name, abbreviation), [name, abbreviation]);
   const showImage = !!logoUrl && failedSrc !== logoUrl;
   const decorative = !label;
   const classes = ["ahd-mark", className].filter(Boolean).join(" ");
   const sizing = { width: `${size}px`, height: `${size}px` };
-  const resolvedColor = color?.trim() ? color : partyMarkColor(id ?? name);
+  const fallbackSeed = partyMarkKey(countryId, id) ?? id ?? name;
+  const resolvedColor = color?.trim() ? color : partyMarkColor(fallbackSeed);
 
   return (
     <span
