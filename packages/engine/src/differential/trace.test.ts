@@ -4,6 +4,7 @@ import {
   parseDifferentialTrace,
   serializeDifferentialTrace,
   type DifferentialTrace,
+  type DifferentialToleranceRule,
 } from "../index.js";
 
 function trace(engine: "ahdgame" | "native", overrides: Partial<DifferentialTrace> = {}): DifferentialTrace {
@@ -14,8 +15,11 @@ function trace(engine: "ahdgame" | "native", overrides: Partial<DifferentialTrac
       fixtureId: "1953-US-turn-1",
       era: "1953",
       countryId: "US",
-      canonicalInputSha256: "canonical-abc123",
-      source: { kind: engine === "ahdgame" ? "mongo" : "nativeSave", sha256: "abc123" },
+      canonicalInputSha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      source: {
+        kind: engine === "ahdgame" ? "mongo" : "nativeSave",
+        sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      },
     },
     adaptations: [],
     phases: [{
@@ -48,8 +52,8 @@ describe("#279 differential trace contract", () => {
         era: "1953",
         countryId: "US",
         seed: "shared-seed",
-        canonicalInputSha256: "normalized-world-1",
-        source: { kind: "mongo", sha256: "mongo-export-9" },
+        canonicalInputSha256: "1111111111111111111111111111111111111111111111111111111111111111",
+        source: { kind: "mongo", sha256: "2222222222222222222222222222222222222222222222222222222222222222" },
       },
       adaptations: [],
       phases: [{
@@ -67,8 +71,8 @@ describe("#279 differential trace contract", () => {
         era: "1953",
         countryId: "US",
         seed: "shared-seed",
-        canonicalInputSha256: "normalized-world-1",
-        source: { kind: "nativeSave", sha256: "native-save-4" },
+        canonicalInputSha256: "1111111111111111111111111111111111111111111111111111111111111111",
+        source: { kind: "nativeSave", sha256: "3333333333333333333333333333333333333333333333333333333333333333" },
       },
       adaptations: [],
       phases: [{
@@ -89,6 +93,11 @@ describe("#279 differential trace contract", () => {
   it("rejects malformed, non-JSON, duplicate, and unordered phase traces", () => {
     expect(() => parseDifferentialTrace({ ...trace("native"), schemaVersion: 2 })).toThrow("schemaVersion");
     expect(() => parseDifferentialTrace({ ...trace("native"), input: { ...trace("native").input, seed: 42 } })).toThrow("input.seed");
+    expect(() => parseDifferentialTrace({ ...trace("native"), input: { ...trace("native").input, canonicalInputSha256: "not-a-hash" } })).toThrow("canonicalInputSha256");
+    expect(() => parseDifferentialTrace({ ...trace("native"), input: {
+      ...trace("native").input,
+      source: { ...trace("native").input.source, sha256: "not-a-hash" },
+    } })).toThrow("source.sha256");
     expect(() => parseDifferentialTrace({ ...trace("native"), phases: [
       trace("native").phases[0],
       { ...trace("native").phases[0], index: 0, name: "duplicate" },
@@ -134,15 +143,15 @@ describe("#279 differential trace contract", () => {
   it("refuses to compare traces for different normalized inputs", () => {
     const actual = trace("native", { input: {
       ...trace("native").input,
-      canonicalInputSha256: "different-normalized-world",
+      canonicalInputSha256: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
     } });
 
     expect(compareDifferentialTraces(trace("ahdgame"), actual)).toMatchObject({
       equal: false,
       phase: null,
       path: "input.canonicalInputSha256",
-      expected: "canonical-abc123",
-      actual: "different-normalized-world",
+      expected: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      actual: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
     });
   });
 
@@ -160,18 +169,25 @@ describe("#279 differential trace contract", () => {
         budgets: { US: { balance: 5.0004 } },
       },
     }] });
-    const rules = [{
+    const rule: DifferentialToleranceRule = {
       phase: "resourceRefresh",
       path: "observations.budgets.US.balance",
       absolute: 0.001,
       justification: "Measured platform rounding at the budget boundary.",
       evidence: "fixture budget-rounding-1 max delta 0.0004",
-    }];
+    };
+    const rules: DifferentialToleranceRule[] = [rule];
 
     expect(compareDifferentialTraces(expected, actual, rules)).toEqual({ equal: true });
-    expect(() => compareDifferentialTraces(expected, actual, [{ ...rules[0], justification: "" }])).toThrow("justification");
-    expect(() => compareDifferentialTraces(expected, actual, [{ ...rules[0], path: "rng.after.0" }])).toThrow("RNG or identity");
-    expect(() => compareDifferentialTraces(expected, actual, [{ ...rules[0], path: "observations.elections.0.id" }])).toThrow("RNG or identity");
+    expect(() => compareDifferentialTraces(expected, actual, [{ ...rule, justification: "" }])).toThrow("justification");
+    expect(() => compareDifferentialTraces(expected, actual, [{ ...rule, path: "rng.after.0" }])).toThrow("RNG or identity");
+    expect(() => compareDifferentialTraces(expected, actual, [{ ...rule, path: "observations.elections.0.id" }])).toThrow("RNG or identity");
+    for (const identifier of ["candidateId", "characterId", "billIds", "nomineeID"]) {
+      expect(() => compareDifferentialTraces(expected, actual, [{
+        ...rule,
+        path: `observations.elections.0.${identifier}`,
+      }])).toThrow("RNG or identity");
+    }
   });
 
   it("labels a declared Native adaptation separately without treating it as equality", () => {

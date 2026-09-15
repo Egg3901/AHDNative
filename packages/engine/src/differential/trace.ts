@@ -145,8 +145,21 @@ const DIFFERENTIAL_COMPARISON_POLICY = {
 
 const PROTECTED_TOLERANCE_PATH_POLICY = {
   prefixes: ["rng"],
-  exactSegments: new Set(["id", "ids", "status"]),
+  exactSegments: new Set([
+    "id", "ids", "status", "candidateid", "candidateids", "characterid",
+    "characterids", "billid", "billids", "nomineeid", "nomineeids", "orderid",
+    "orderids", "partyid", "partyids", "countryid", "countryids", "regionid",
+    "regionids", "positionid", "positionids", "fixtureid",
+  ]),
 } as const;
+
+const SHA256_PATTERN = /^[a-f0-9]{64}$/;
+
+function sha256At(value: unknown, path: string): string {
+  const hash = stringAt(value, path);
+  if (!SHA256_PATTERN.test(hash)) fail(path, "expected a lowercase 64-hex SHA-256");
+  return hash;
+}
 
 export function parseDifferentialTrace(input: unknown): DifferentialTrace {
   const value = typeof input === "string" ? JSON.parse(input) : input;
@@ -164,25 +177,29 @@ export function parseDifferentialTrace(input: unknown): DifferentialTrace {
   stringAt(fixture.era, "input.era");
   stringAt(fixture.countryId, "input.countryId");
   if (fixture.seed !== undefined) stringAt(fixture.seed, "input.seed");
-  stringAt(fixture.canonicalInputSha256, "input.canonicalInputSha256");
+  sha256At(fixture.canonicalInputSha256, "input.canonicalInputSha256");
   const source = objectAt(fixture.source, "input.source");
   assertExactFields(source, ["kind", "sha256"], "input.source");
   if (source.kind !== "mongo" && source.kind !== "nativeSave") fail("input.source.kind", "expected mongo or nativeSave");
   if (engine.kind === "ahdgame" && source.kind !== "mongo") fail("input.source.kind", "AHDGame traces require Mongo provenance");
   if (engine.kind === "native" && source.kind !== "nativeSave") fail("input.source.kind", "Native traces require nativeSave provenance");
   stringAt(source.sha256, "input.source.sha256");
+  const sourceSha256 = sha256At(source.sha256, "input.source.sha256");
   if (!Array.isArray(root.adaptations)) fail("adaptations", "expected an array");
+  const adaptations: DifferentialAdaptation[] = [];
   for (const [index, raw] of root.adaptations.entries()) {
     const adaptation = objectAt(raw, `adaptations.${index}`);
     assertExactFields(adaptation, ["id", "phase", "paths", "rationale", "source"], `adaptations.${index}`);
-    stringAt(adaptation.id, `adaptations.${index}.id`);
-    stringAt(adaptation.phase, `adaptations.${index}.phase`);
-    stringAt(adaptation.rationale, `adaptations.${index}.rationale`);
-    stringAt(adaptation.source, `adaptations.${index}.source`);
+    const id = stringAt(adaptation.id, `adaptations.${index}.id`);
+    const phase = stringAt(adaptation.phase, `adaptations.${index}.phase`);
+    const rationale = stringAt(adaptation.rationale, `adaptations.${index}.rationale`);
+    const adaptationSource = stringAt(adaptation.source, `adaptations.${index}.source`);
     if (!Array.isArray(adaptation.paths) || adaptation.paths.length === 0) fail(`adaptations.${index}.paths`, "expected non-empty paths");
-    adaptation.paths.forEach((path, pathIndex) => stringAt(path, `adaptations.${index}.paths.${pathIndex}`));
+    const paths = adaptation.paths.map((path, pathIndex) => stringAt(path, `adaptations.${index}.paths.${pathIndex}`));
+    adaptations.push({ id, phase, paths, rationale, source: adaptationSource });
   }
   if (!Array.isArray(root.phases)) fail("phases", "expected an array");
+  const phases: DifferentialPhaseTrace[] = [];
   let previousIndex = -1;
   for (const [arrayIndex, raw] of root.phases.entries()) {
     const phase = objectAt(raw, `phases.${arrayIndex}`);
@@ -190,7 +207,7 @@ export function parseDifferentialTrace(input: unknown): DifferentialTrace {
     if (!Number.isInteger(phase.index) || (phase.index as number) < 0) fail(`phases.${arrayIndex}.index`, "expected a non-negative integer");
     if ((phase.index as number) <= previousIndex) fail(`phases.${arrayIndex}.index`, "phase indexes must be strictly increasing");
     previousIndex = phase.index as number;
-    stringAt(phase.name, `phases.${arrayIndex}.name`);
+    const name = stringAt(phase.name, `phases.${arrayIndex}.name`);
     const rng = objectAt(phase.rng, `phases.${arrayIndex}.rng`);
     assertExactFields(rng, ["before", "after", "draws"], `phases.${arrayIndex}.rng`);
     if (!("before" in rng) || !("after" in rng) || !Array.isArray(rng.draws)) fail(`phases.${arrayIndex}.rng`, "before, after, and draws are required");
@@ -199,11 +216,40 @@ export function parseDifferentialTrace(input: unknown): DifferentialTrace {
     for (const domain of DIFFERENTIAL_OBSERVATION_DOMAINS) {
       if (!(domain in observations)) fail(`phases.${arrayIndex}.observations.${domain}`, "domain is required");
     }
+    phases.push({
+      index: phase.index as number,
+      name,
+      rng: {
+        before: rng.before as DifferentialJson,
+        after: rng.after as DifferentialJson,
+        draws: rng.draws as DifferentialJson[],
+      },
+      observations: Object.fromEntries(
+        DIFFERENTIAL_OBSERVATION_DOMAINS.map((domain) => [domain, observations[domain] as DifferentialJson]),
+      ) as DifferentialObservations,
+    });
   }
-  return value as DifferentialTrace;
+  return {
+    schemaVersion: 1,
+    engine: {
+      kind: engine.kind,
+      revision: stringAt(engine.revision, "engine.revision"),
+    },
+    input: {
+      fixtureId: stringAt(fixture.fixtureId, "input.fixtureId"),
+      era: stringAt(fixture.era, "input.era"),
+      countryId: stringAt(fixture.countryId, "input.countryId"),
+      ...(fixture.seed === undefined ? {} : { seed: stringAt(fixture.seed, "input.seed") }),
+      canonicalInputSha256: sha256At(fixture.canonicalInputSha256, "input.canonicalInputSha256"),
+      source: { kind: source.kind, sha256: sourceSha256 },
+    },
+    adaptations,
+    phases,
+  };
 }
 
-function canonical(value: DifferentialJson): DifferentialJson {
+function canonical(value: unknown): DifferentialJson {
+  assertJsonSafe(value, "$canonical");
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === "object") {
     return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key]!) ]));
@@ -212,7 +258,7 @@ function canonical(value: DifferentialJson): DifferentialJson {
 }
 
 export function serializeDifferentialTrace(trace: unknown): string {
-  return JSON.stringify(canonical(parseDifferentialTrace(trace) as unknown as DifferentialJson));
+  return JSON.stringify(canonical(parseDifferentialTrace(trace)));
 }
 
 function validateToleranceRules(rules: readonly DifferentialToleranceRule[]): void {
@@ -222,7 +268,7 @@ function validateToleranceRules(rules: readonly DifferentialToleranceRule[]): vo
     if (!Number.isFinite(rule.absolute) || rule.absolute < 0) throw new Error(`Tolerance rule ${index} requires a finite non-negative absolute tolerance`);
     const segments = rule.path.split(".");
     const protectedPath = PROTECTED_TOLERANCE_PATH_POLICY.prefixes.some((prefix) => rule.path === prefix || rule.path.startsWith(`${prefix}.`))
-      || segments.some((part) => PROTECTED_TOLERANCE_PATH_POLICY.exactSegments.has(part));
+      || segments.some((part) => PROTECTED_TOLERANCE_PATH_POLICY.exactSegments.has(part.toLocaleLowerCase()));
     if (protectedPath) throw new Error(`Tolerance rule ${index} cannot target RNG or identity fields`);
   }
 }
@@ -269,6 +315,15 @@ function firstDifference(
   return { path, expected, actual };
 }
 
+function comparisonInputProjection(input: DifferentialTraceInput): DifferentialJson {
+  return {
+    era: input.era,
+    countryId: input.countryId,
+    seed: input.seed ?? null,
+    canonicalInputSha256: input.canonicalInputSha256,
+  };
+}
+
 export function compareDifferentialTraces(
   expectedInput: unknown,
   actualInput: unknown,
@@ -280,20 +335,21 @@ export function compareDifferentialTraces(
   if (expected.engine.kind !== "ahdgame" || actual.engine.kind !== "native") {
     throw new Error("Differential comparison requires an authoritative AHDGame trace followed by a Native trace");
   }
-  const comparableInputKeys = Object.entries(DIFFERENTIAL_COMPARISON_POLICY.input)
-    .filter(([, policy]) => policy === "compare")
-    .map(([field]) => field as keyof DifferentialTraceInput);
-  for (const key of comparableInputKeys) {
-    if (expected.input[key] !== actual.input[key]) {
-      return {
-        equal: false,
-        classification: "unexplained",
-        phase: null,
-        path: `input.${key}`,
-        expected: expected.input[key],
-        actual: actual.input[key],
-      };
-    }
+  const inputDifference = firstDifference(
+    comparisonInputProjection(expected.input),
+    comparisonInputProjection(actual.input),
+    "input",
+    [],
+  );
+  if (inputDifference) {
+    return {
+      equal: false,
+      classification: "unexplained",
+      phase: null,
+      path: inputDifference.path,
+      expected: inputDifference.expected,
+      actual: inputDifference.actual,
+    };
   }
   const phaseCount = Math.max(expected.phases.length, actual.phases.length);
   for (let offset = 0; offset < phaseCount; offset++) {
