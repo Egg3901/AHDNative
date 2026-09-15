@@ -19,7 +19,22 @@
  * 390px widths.
  */
 import { useMemo, useState } from "react";
-import { normalizeMarkIdSegment, partyInitials, partyMarkColor, partyMarkTextColor } from "./PartyMark";
+import {
+  MARK_IMAGE_TILE_BACKGROUND,
+  normalizeMarkIdSegment,
+  partyInitials,
+  partyMarkColor,
+  partyMarkTextColor,
+  partyMarkTileShade,
+} from "./PartyMark";
+
+/**
+ * Coalition ring: the shared tile shading plus one inner light band so a
+ * coalition tile reads as distinct from a party tile at a glance, without
+ * inventing coalition art or identity.
+ */
+export const COALITION_MARK_TILE_RING =
+  "inset 0 1px 0 rgba(255,255,255,0.28), inset 0 0 0 1px rgba(0,0,0,0.14), inset 0 0 0 3px rgba(255,255,255,0.22)";
 
 export function coalitionMarkKey(countryId?: string | null, coalitionId?: string | null): string | null {
   const coalition = (coalitionId ?? "").trim();
@@ -77,7 +92,18 @@ export function CoalitionMark({
   return (
     <span
       className={classes}
-      style={showImage ? sizing : { ...sizing, background: resolvedColor, color: partyMarkTextColor(resolvedColor), fontSize: `${Math.max(9, size * 0.34)}px` }}
+      style={
+        showImage
+          ? { ...sizing, background: MARK_IMAGE_TILE_BACKGROUND }
+          : {
+              ...sizing,
+              backgroundColor: resolvedColor,
+              backgroundImage: partyMarkTileShade(resolvedColor),
+              boxShadow: COALITION_MARK_TILE_RING,
+              color: partyMarkTextColor(resolvedColor),
+              fontSize: `${Math.max(9, size * 0.34)}px`,
+            }
+      }
       data-coalition-mark={initials}
       role={decorative ? undefined : "img"}
       aria-label={label}
@@ -90,6 +116,9 @@ export function CoalitionMark({
           width={size}
           height={size}
           decoding="async"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          draggable={false}
           onError={() => setFailedSrc(logoUrl ?? null)}
         />
       ) : (

@@ -62,7 +62,25 @@ describe("PartyMark", () => {
     expect(mark).toHaveAttribute("data-party-mark", "DEM");
     expect(mark.querySelector("img")).toBeNull();
     expect(mark.querySelector(".ahd-mark-initials")?.textContent).toBe("DEM");
-    expect(mark).toHaveStyle({ background: "#3333ff" });
+    expect(mark).toHaveStyle({ backgroundColor: "#3333ff" });
+  });
+
+  it("shades the fallback tile as a gradient from the party color", () => {
+    const { container } = render(<PartyMark name="Democratic Party" abbreviation="DEM" color="#3333ff" />);
+    const mark = container.querySelector(".ahd-mark") as HTMLElement;
+    expect(mark.style.backgroundImage).toContain("linear-gradient");
+    expect(mark.style.backgroundImage).toContain("#3333ff");
+    expect(mark.style.backgroundColor).toBe("rgb(51, 51, 255)");
+  });
+
+  it("loads an authored image lazily without leaking a referrer", () => {
+    const { container } = render(
+      <PartyMark name="Labour Party" abbreviation="LAB" color="#dc2626" logoUrl="/party-logos/gb-lab-1.png" />,
+    );
+    const img = container.querySelector("img");
+    expect(img).not.toBeNull();
+    expect(img).toHaveAttribute("loading", "lazy");
+    expect(img).toHaveAttribute("referrerpolicy", "no-referrer");
   });
 
   it("stays decorative when no accessible label is supplied", () => {
@@ -76,7 +94,7 @@ describe("PartyMark", () => {
     expect(partyMarkColor("US_DEM")).toBe(partyMarkColor("US_DEM"));
     const { container } = render(<PartyMark name="Democratic Party" id="US_DEM" />);
     const mark = container.querySelector(".ahd-mark") as HTMLElement;
-    expect(mark).toHaveStyle({ background: partyMarkColor("US_DEM") });
+    expect(mark).toHaveStyle({ backgroundColor: partyMarkColor("US_DEM") });
     expect(mark).toHaveAttribute("data-party-mark", "DP");
   });
 });
@@ -99,7 +117,7 @@ describe("partyMarkKey (country/party-id lookup)", () => {
   it("seeds the deterministic fallback from the scoped key when a country is passed", () => {
     const { container } = render(<PartyMark name="Democratic Party" id="US_DEM" countryId="US" />);
     const mark = container.querySelector(".ahd-mark") as HTMLElement;
-    expect(mark).toHaveStyle({ background: partyMarkColor("us-US_DEM") });
+    expect(mark).toHaveStyle({ backgroundColor: partyMarkColor("us-US_DEM") });
   });
 
   it("never constructs a fetch URL from the ids: no image without an explicit logoUrl", () => {
