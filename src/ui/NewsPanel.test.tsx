@@ -27,6 +27,17 @@ const unlinked: NewsView = {
   country: { id: "US", name: "United States" },
 };
 
+const followup: NewsView = {
+  id: "turn-5-election-aftermath",
+  title: "Election aftermath",
+  body: "Coalition talks begin after the result.",
+  date: "1953-02-02",
+  category: "Politics",
+  country: { id: "US", name: "United States" },
+  election: { id: "e1", name: "General Election" },
+  event: { id: "event-election-call", name: "Election call" },
+};
+
 function renderPanel(news: NewsView[] = [linked, unlinked], storageKey = "slot", handlers: Partial<{ onCountry: (id: string) => void; onParty: (id: string) => void; onElection: (id: string) => void }> = {}) {
   const onCountry = handlers.onCountry ?? vi.fn();
   const onParty = handlers.onParty ?? vi.fn();
@@ -91,15 +102,69 @@ describe("NewsPanel article detail", () => {
     expect(within(article).queryByRole("region", { name: "Event context" })).not.toBeInTheDocument();
   });
 
-  it("keeps event context non-interactive when Native has no event destination", async () => {
+  it("links article event context to an event detail backed by local records", async () => {
     const user = userEvent.setup();
-    renderPanel();
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    renderPanel([linked, followup, unlinked], "event-slot");
     await user.click(screen.getByRole("button", { name: "Read General election called" }));
     const article = screen.getByRole("article", { name: "General election called" });
-    const context = within(article).getByRole("region", { name: "Event context" });
-    expect(context).toHaveTextContent("Election call");
-    expect(within(context).queryByRole("button")).not.toBeInTheDocument();
-    expect(within(context).queryByRole("link")).not.toBeInTheDocument();
+    await user.click(within(article).getByRole("button", { name: "View Election call" }));
+    const event = screen.getByRole("article", { name: "Election call" });
+    expect(event).toHaveTextContent("2 articles");
+    // Only records carrying this event id are listed; the unrelated wire item is not.
+    expect(within(event).getByRole("button", { name: "Read General election called" })).toBeInTheDocument();
+    expect(within(event).getByRole("button", { name: "Read Election aftermath" })).toBeInTheDocument();
+    expect(within(event).queryByRole("button", { name: "Read Markets rally" })).not.toBeInTheDocument();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("opens event coverage articles and links related real destinations", async () => {
+    const user = userEvent.setup();
+    const { onCountry, onParty, onElection } = renderPanel([linked, followup, unlinked], "event-links-slot");
+    await user.click(screen.getByRole("button", { name: "Read General election called" }));
+    await user.click(screen.getByRole("button", { name: "View Election call" }));
+    const event = screen.getByRole("article", { name: "Election call" });
+    await user.click(within(event).getByRole("button", { name: "View United States" }));
+    expect(onCountry).toHaveBeenCalledWith("US");
+    await user.click(within(event).getByRole("button", { name: "View Labor" }));
+    expect(onParty).toHaveBeenCalledWith("p1");
+    await user.click(within(event).getByRole("button", { name: "View General Election" }));
+    expect(onElection).toHaveBeenCalledWith("e1");
+    // Opening coverage returns to the article view for that record.
+    await user.click(within(event).getByRole("button", { name: "Read Election aftermath" }));
+    expect(screen.getByRole("article", { name: "Election aftermath" })).toHaveTextContent("Coalition talks begin after the result.");
+  });
+
+  it("returns from the event detail to its article with focus and read state intact", async () => {
+    const user = userEvent.setup();
+    renderPanel([linked, followup, unlinked], "event-back-slot");
+    await user.click(screen.getByRole("button", { name: "Read General election called" }));
+    await user.click(screen.getByRole("button", { name: "View Election call" }));
+    expect(screen.getByRole("heading", { name: "Election call" })).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Back to article" }));
+    expect(screen.getByRole("article", { name: "General election called" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View Election call" })).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Back to news" }));
+    expect(screen.getByRole("button", { name: "Read General election called" })).toHaveFocus();
+    expect(screen.getByRole("article", { name: "General election called, read" })).toBeInTheDocument();
+  });
+
+  it("persists the open event detail per save slot across reload", async () => {
+    const user = userEvent.setup();
+    const first = renderPanel([linked, followup], "event-persist-a");
+    await user.click(screen.getByRole("button", { name: "Read General election called" }));
+    await user.click(screen.getByRole("button", { name: "View Election call" }));
+    expect(screen.getByRole("article", { name: "Election call" })).toBeInTheDocument();
+    first.unmount();
+
+    const second = renderPanel([linked, followup], "event-persist-a");
+    expect(screen.getByRole("article", { name: "Election call" })).toBeInTheDocument();
+    second.unmount();
+
+    renderPanel([linked, followup], "event-persist-b");
+    expect(screen.queryByRole("article", { name: "Election call" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Read General election called" })).toBeInTheDocument();
   });
 
   it("marks the article read and preserves selection across navigation and reload per save slot", async () => {
