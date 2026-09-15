@@ -1105,6 +1105,19 @@ unrelated caucus smoke test, all earlier verify steps passed. Sibling
 `RouteHero` suites (`CommodityHeroImagery`, `NationHeroImagery`, 15
 passed) re-ran green after the rebase.
 
+Follow-up slice, 2026-09-15 (#386 still partial): DD/CN/DE/IE stay on the
+Actions fallback by evidence, not by omission. DD's Staatsbank keys a flag
+URL, DE/IE key remote-only `ecb`, CN keys remote-only
+`peoples-bank-of-china`, and neither local heroes dir holds a file for
+them, so no mapping was invented. BankingHub-native composition is ported
+instead: the hero now labels the primary savings holder and currency
+(`BankingHero` primary-card pattern, rates omitted, title stays
+"Banking"). Evidence: 3 new cases in
+`src/ui/BankingHeroImagery.test.tsx` (DD/CN/DE/IE fallback, holder band
+on bundled and unbundled heroes); focused Vitest on it plus the untouched
+`src/ui/FinancePanel.test.tsx` (23 passed). No full verify, typecheck,
+build, or Playwright was run.
+
 ## Character-creation player flow checkpoint, 2026-09-14 (#242)
 
 #242 partial. The reference six-step creation hand-off now runs after world
