@@ -653,3 +653,35 @@ describe("MarketsPanel For Sale and sector asset (#299)", () => {
     expect(buySector).toBeDisabled();
   });
 });
+
+describe("MarketsPanel trend charts", () => {
+  it("charts recorded price and earnings history on company detail with data tables", async () => {
+    const MarketsPanel = await loadPanel();
+    const user = userEvent.setup();
+    const listed = makeListing({
+      priceHistory: [
+        { turn: 1, price: 700 },
+        { turn: 2, price: 774 },
+      ],
+      earningsHistory: [900, 1000],
+    });
+    render(<MarketsPanel markets={makeMarkets({ listings: [listed] })} busy={false} onAction={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: /US\.MEDI US-media/i }));
+    expect(screen.getByRole("img", { name: /price trend/i })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: /price trend data/i })).toHaveTextContent("Turn 2");
+    expect(screen.getByRole("img", { name: /earnings trend/i })).toBeInTheDocument();
+    // Earnings carry no engine turn stamp, so positions read as records, never turns.
+    expect(screen.getByRole("table", { name: /earnings trend data/i })).toHaveTextContent("Record 1");
+    expect(screen.getByText(/no turn stamp/i)).toBeInTheDocument();
+  });
+
+  it("keeps the explicit unavailable states when no price or earnings history is recorded", async () => {
+    const MarketsPanel = await loadPanel();
+    const user = userEvent.setup();
+    render(<MarketsPanel markets={makeMarkets()} busy={false} onAction={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: /US\.MEDI US-media/i }));
+    expect(screen.getByText(/no recorded share-price history/i)).toBeInTheDocument();
+    expect(screen.getByText(/no earnings recorded yet/i)).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /price trend/i })).not.toBeInTheDocument();
+  });
+});
