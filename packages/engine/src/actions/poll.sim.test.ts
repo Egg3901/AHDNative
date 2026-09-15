@@ -119,7 +119,9 @@ describe("issue #38 quick poll execution", () => {
     world.player.funds = 1_000_000;
     world.player.stats = { ...world.player.stats, intellect: 10 };
     const expected = Math.round(Math.round(25_000 / statMultiplier(10)) * 0.75);
-    expect(executeAction(world, "player", "poll").ok).toBe(true);
+    const result = executeAction(world, "player", "poll");
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.message).toContain(`GBP ${expected.toLocaleString()}`);
     expect(world.player.funds).toBe(1_000_000 - expected);
   });
 

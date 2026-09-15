@@ -462,7 +462,10 @@ function executeActionInner(
     const commissioned = commissionPoll(world, actorId, actionId);
     if (!commissioned.ok) return { ok: false, error: commissioned.error };
     const snap = commissioned.snapshot;
-    const costLabel = `${world.countries[actor.countryId]?.currency ?? "$"} ${fundCost.toLocaleString()}`;
+    const currencyCode = world.budgets[actor.countryId]?.currencyCode
+      ?? world.exchangeRates[actor.countryId]?.currencyCode
+      ?? "XXX";
+    const costLabel = `${currencyCode} ${fundCost.toLocaleString()}`;
     const topline = `Topline appeal ${snap.overallAppeal} across ~${snap.totalEstimatedVoters.toLocaleString()} likely voters (${snap.totalPotentialVoters.toLocaleString()} reachable).`;
     const race = snap.inRaceVoteShare
       ? ` Projected vote: ${snap.inRaceVoteShare.myVotes.toLocaleString()} vs ${Object.values(snap.inRaceVoteShare.opponentVotes).map((v) => v.toLocaleString()).join(", ")}.`
