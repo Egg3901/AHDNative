@@ -1,0 +1,224 @@
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+
+/* Native Ask client. Behavioral reference: AHDClient native Ask at merged
+ * revision 370c150 (`apps/desktop/src/ask/api.ts`). All Ask traffic goes
+ * through the Rust proxy commands, which attach the shared `ask_session`
+ * cookie server-side of the webview boundary; raw session material never
+ * crosses IPC and is never persisted here (only the conversation id and
+ * the live-data toggle live in localStorage, owned by the panel).
+ */
+
+export interface AskUsage {
+  used: number;
+  limit: number;
+  remaining: number;
+  mcpUsed: number;
+  mcpLimit: number;
+  mcpRemaining: number;
+  vizUsed?: number;
+  vizLimit?: number;
+  vizRemaining?: number;
+  /** Milliseconds since epoch, UTC midnight reset. */
+  resetAt: number;
+  tier?: string | null;
+  maxFollowups?: number;
+  followupCost?: number;
+}
+
+export interface AskMe {
+  identity?: { username?: string | null } | null;
+  entitlement?: { allowed?: boolean; label?: string | null } | null;
+  usage: AskUsage | null;
+}
+
+export interface AskConversation {
+  id: string;
+  title?: string | null;
+  created?: number;
+  updated?: number;
+  private?: boolean;
+}
+
+export interface AskCitation {
+  path?: string;
+  label?: string;
+  url?: string;
+}
+
+export interface AskLiveSource {
+  label: string;
+}
+
+export interface AskAnswer {
+  answer: string;
+  areas?: unknown[];
+  citations?: AskCitation[];
+  followups?: string[];
+  followupsLeft?: number;
+  model?: string;
+  modelName?: string;
+  cached?: boolean;
+  usedMcp?: boolean;
+  liveSources?: AskLiveSource[];
+  liveHint?: string | null;
+  vizBlocked?: boolean;
+  reportUrl?: string | null;
+  usage?: AskUsage | null;
+  convId?: string;
+}
+
+export interface AskTurn extends AskAnswer {
+  question: string;
+}
+
+export interface AskMeta {
+  convId?: string;
+  reqId?: string;
+  followupsLeft?: number;
+  usedMcp?: boolean;
+  model?: string;
+  modelName?: string;
+  status?: string;
+}
+
+export type AskStreamKind =
+  | "meta"
+  | "status"
+  | "action"
+  | "delta"
+  | "done"
+  | "final"
+  | "error"
+  | "stopped";
+
+export interface AskStreamEvent {
+  reqId: string;
+  kind: AskStreamKind | string;
+  data: unknown;
+}
+
+export class AskError extends Error {
+  readonly status: number;
+  readonly signedOut: boolean;
+  readonly quota: boolean;
+  readonly usage: AskUsage | null;
+
+  constructor(status: number, message: string, usage: AskUsage | null) {
+    super(message);
+    this.status = status;
+    this.signedOut = status === 401;
+    this.quota = status === 429;
+    this.usage = usage;
+  }
+}
+
+interface AskApiResult {
+  status: number;
+  body: string;
+}
+
+function errorMessage(status: number, body: unknown): string {
+  if (body && typeof body === "object" && "error" in body) {
+    const message = (body as { error?: unknown }).error;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  if (status === 401) return "Please sign in to Ask first.";
+  if (status === 429) return "You have used today's questions. Try again after midnight UTC.";
+  return "Something went wrong. Try again.";
+}
+
+function usageOf(body: unknown): AskUsage | null {
+  if (body && typeof body === "object" && "usage" in body) {
+    const usage = (body as { usage?: unknown }).usage;
+    if (usage && typeof usage === "object") return usage as AskUsage;
+  }
+  return null;
+}
+
+function parseBody(text: string): unknown {
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+/** Proxied Ask API call. HTTP statuses pass through; transport failure throws. */
+export async function askApi(method: "GET" | "POST", path: string, body?: unknown): Promise<{ status: number; text: string }> {
+  const result = await invoke<AskApiResult>("ask_api", {
+    method,
+    path,
+    body: body === undefined ? null : JSON.stringify(body),
+  });
+  const parsed = parseBody(result.body);
+  if (result.status < 200 || result.status >= 300) {
+    throw new AskError(result.status, errorMessage(result.status, parsed), usageOf(parsed));
+  }
+  return { status: result.status, text: result.body };
+}
+
+export async function askApiJson<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
+  const { text } = await askApi(method, path, body);
+  return (parseBody(text) ?? {}) as T;
+}
+
+export async function askMe(): Promise<AskMe> {
+  const json = await askApiJson<AskMe>("GET", "/api/me");
+  return json ?? { usage: null };
+}
+
+export async function askConversations(): Promise<{ conversations: AskConversation[]; usage: AskUsage | null }> {
+  const json = await askApiJson<{ conversations?: AskConversation[]; usage?: AskUsage | null }>("GET", "/api/conversations");
+  return { conversations: json?.conversations ?? [], usage: json?.usage ?? null };
+}
+
+export async function askConversation(id: string): Promise<AskTurn[]> {
+  const json = await askApiJson<{ turns?: AskTurn[] }>("GET", `/api/conversation?id=${encodeURIComponent(id)}`);
+  const turns = Array.isArray(json?.turns) ? json.turns : [];
+  return turns.filter((turn) => typeof turn?.question === "string");
+}
+
+export async function askSend(question: string, convId: string | null, useMcp: boolean): Promise<string> {
+  return invoke<string>("ask_send", { question, convId, useMcp });
+}
+
+export async function askStop(reqId: string): Promise<void> {
+  await invoke<void>("ask_stop", { reqId });
+}
+
+export async function askRenderMap(spec: object): Promise<string> {
+  const { text } = await askApi("POST", "/api/map/render", spec);
+  return text;
+}
+
+export function onAskStream(handler: (event: AskStreamEvent) => void): Promise<() => void> {
+  return listen<AskStreamEvent>("ask-stream", (event) => handler(event.payload));
+}
+
+/** Open the native Ask sign-in surface: the zero-capability auth window on
+ * desktop, the in-webview sign-in bounce on mobile. The panel re-probes on
+ * focus, so it picks the login up without further action. */
+export async function openAskWindow(): Promise<void> {
+  await invoke<void>("open_ask_window");
+}
+
+/** Send an Ask citation link to the system browser through the allowlisted
+ * Rust opener. Only plain web URLs leave the app. */
+export async function openAskLink(url: string): Promise<void> {
+  await invoke<void>("open_ask_link", { url });
+}
+
+/** "2h 14m" / "38m" until the daily allowance resets. */
+export function resetIn(resetAt: number, now: number = Date.now()): string {
+  const mins = Math.max(0, Math.round((resetAt - now) / 60000));
+  if (mins >= 60) return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+  return `${mins}m`;
+}
+
+/** "7 of 10 left" quota pill text. */
+export function quotaLabel(usage: AskUsage | null): string {
+  if (!usage) return "";
+  return `${usage.remaining} of ${usage.limit} left`;
+}

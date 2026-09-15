@@ -33,6 +33,7 @@ export interface LandingScreenProps {
   onlineBusy: boolean;
   onEnterMultiplayer: () => void;
   onEnterMultiplayerNative: () => void;
+  onAsk: () => void;
 }
 
 export function LandingScreen({
@@ -58,6 +59,7 @@ export function LandingScreen({
   onlineBusy,
   onEnterMultiplayer,
   onEnterMultiplayerNative,
+  onAsk,
 }: LandingScreenProps) {
   const [confirmingNew, setConfirmingNew] = useState(false);
   const beginNew = () => {
@@ -94,6 +96,9 @@ export function LandingScreen({
           </button>
           <button className="ahd-btn" disabled={busy || onlineBusy} onClick={onEnterMultiplayerNative}>
             Play multiplayer (Native)
+          </button>
+          <button className="ahd-btn" disabled={busy} onClick={onAsk}>
+            Ask questions
           </button>
           <p className="ahd-muted" style={{ margin: 0, fontSize: "0.78rem" }}>Local games do not need an account.</p>
           <div className="ahd-landing-secondary">

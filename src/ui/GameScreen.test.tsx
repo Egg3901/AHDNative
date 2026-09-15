@@ -978,6 +978,20 @@ describe("GameScreen status footer", () => {
     expect(within(screen.getByRole("contentinfo", { name: "Status and primary navigation" })).getByRole("button", { name: /influence/i })).toHaveFocus();
   });
 
+  it("opens the local Ask panel from the game menu without leaving the offline game", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld();
+    const onSave = vi.fn();
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={onSave} onExit={vi.fn()} onAction={vi.fn()} />);
+    await navigate(user, "Ask");
+    expect(screen.getByRole("region", { name: "Ask" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/ask a question/i)).toBeInTheDocument();
+    // Opening the panel performs no save and no navigation of its own; the
+    // offline world stays mounted behind it.
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog", { name: "Game menu" })).not.toBeInTheDocument();
+  });
+
   it("details links navigate to real destinations", async () => {
     const user = userEvent.setup();
     const world = makeWorld();

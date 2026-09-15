@@ -1,7 +1,9 @@
+mod ask;
 mod mp_session;
 mod mp_view;
 mod save_store;
 
+use ask::AskStreamState;
 use save_store::{SaveMeta, SaveStore};
 use tauri::{Manager, State, Url};
 #[cfg(desktop)]
@@ -9,6 +11,38 @@ use tauri::{WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_opener::OpenerExt;
 
 const ONLINE_URL: &str = "https://ahousedividedgame.com";
+
+/// Player Q&A service. Desktop opens it in a dedicated zero-capability
+/// auth window plus a local panel window; mobile signs in through the main
+/// webview itself. Sign-in is automatic for players already signed in
+/// anywhere in the app: the Ask bounce reads the existing game session
+/// without another password prompt.
+pub(crate) const ASK_URL: &str = "https://ask.lakesidegames.net/";
+/// Hosts the Ask sign-in bounce may legitimately touch: the Ask service
+/// itself, the Lakeside auth broker, the game origins it reads the session
+/// from, and the OAuth hosts the game sign-in uses.
+const ASK_NAVIGATION_HOSTS: &[&str] = &[
+    "ask.lakesidegames.net",
+    "auth.ahousedividedgame.com",
+    "auth.lakesidegames.net",
+    "ahousedividedgame.com",
+    "www.ahousedividedgame.com",
+    "sandbox.ahousedividedgame.com",
+    "discord.com",
+    "accounts.google.com",
+    "www.google.com",
+];
+
+/// The Ask auth surface may stay inside the Ask service, the auth broker
+/// and game origins the sign-in bounce touches, and the OAuth hosts the
+/// game sign-in uses. Anything else opens in the system browser.
+pub(crate) fn is_ask_navigation_allowed(url: &Url) -> bool {
+    url.scheme() == "https"
+        && url.port_or_known_default() == Some(443)
+        && url
+            .host_str()
+            .is_some_and(|host| ASK_NAVIGATION_HOSTS.contains(&host))
+}
 
 fn external_destination_url(destination: &str) -> Result<&'static str, String> {
     // Public routes mirrored from AHDGame HelpDropdown at pinned revision
@@ -170,6 +204,7 @@ pub fn run() {
         .setup(|app| {
             let saves_dir = app.path().app_data_dir()?.join("saves");
             app.manage(SaveStore::open(saves_dir)?);
+            app.manage(AskStreamState::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -181,7 +216,12 @@ pub fn run() {
             open_external_destination,
             mp_view::mp_view_fetch,
             mp_session::mp_session_fetch,
-            mp_session::mp_session_mutate
+            mp_session::mp_session_mutate,
+            ask::open_ask_window,
+            ask::ask_api,
+            ask::ask_send,
+            ask::ask_stop,
+            ask::open_ask_link
         ])
         .run(tauri::generate_context!())
         .expect("failed to run AHDNative");
@@ -189,7 +229,10 @@ pub fn run() {
 
 #[cfg(all(test, desktop))]
 mod tests {
-    use super::{external_destination_url, is_online_navigation_allowed, is_online_origin};
+    use super::{
+        external_destination_url, is_ask_navigation_allowed, is_online_navigation_allowed,
+        is_online_origin, ASK_URL,
+    };
     use tauri::Url;
 
     #[test]
@@ -246,6 +289,30 @@ mod tests {
     }
 
     #[test]
+    fn ask_navigation_keeps_the_sign_in_bounce_inside_the_app() {
+        let service: Url = ASK_URL.parse().unwrap();
+        let broker: Url = "https://auth.ahousedividedgame.com/auth/ahd".parse().unwrap();
+        let game: Url = "https://ahousedividedgame.com/api/client/account".parse().unwrap();
+        let discord: Url = "https://discord.com/oauth2/authorize".parse().unwrap();
+        let google: Url = "https://accounts.google.com/o/oauth2/v2/auth".parse().unwrap();
+        for allowed in [&service, &broker, &game, &discord, &google] {
+            assert!(is_ask_navigation_allowed(allowed), "{allowed} should stay in-app");
+        }
+        for denied in [
+            "http://ask.lakesidegames.net/",
+            "https://ask.lakesidegames.net:444/",
+            "https://ask.evil.example.com/",
+            "https://ask-lakesidegames-net.example.com/",
+            "https://example.com/",
+        ] {
+            assert!(
+                !is_ask_navigation_allowed(&denied.parse::<Url>().unwrap()),
+                "{denied} should leave the app"
+            );
+        }
+    }
+
+    #[test]
     fn reopening_the_online_window_preserves_the_existing_session_view() {
         let source = include_str!("lib.rs");
         let existing_window_branch = source
@@ -278,10 +345,57 @@ mod capability_tests {
     }
 
     #[test]
+    fn main_capability_reaches_the_ask_backend_without_remote_privileges() {
+        let capability = include_str!("../capabilities/default.json");
+        for permission in [
+            "allow-open-ask-window",
+            "allow-ask-api",
+            "allow-ask-send",
+            "allow-ask-stop",
+            "allow-open-ask-link",
+        ] {
+            assert!(
+                capability.contains(permission),
+                "main capability must include {permission}"
+            );
+        }
+        // The main window gains no filesystem, shell, dialog, or updater
+        // access for Ask: answers arrive through the Rust proxy only.
+        for forbidden in ["fs:", "shell:", "dialog:", "updater:"] {
+            assert!(
+                !capability.contains(forbidden),
+                "main capability must not grant {forbidden}"
+            );
+        }
+    }
+
+    #[test]
+    fn ask_panel_capability_is_local_ui_with_backend_commands_only() {
+        let capability = include_str!("../capabilities/ask.json");
+        for permission in ["allow-ask-api", "allow-ask-send", "allow-ask-stop"] {
+            assert!(
+                capability.contains(permission),
+                "ask capability must include {permission}"
+            );
+        }
+        assert!(!capability.contains("\"remote\""));
+        for forbidden in ["fs:", "shell:", "dialog:", "updater:", "allow-open-ask-link"] {
+            assert!(
+                !capability.contains(forbidden),
+                "ask capability must not grant {forbidden}"
+            );
+        }
+    }
+
+    #[test]
+    fn ask_auth_capability_stays_zero_capability() {
+        let capability = include_str!("../capabilities/ask-auth.json");
+        assert!(capability.contains("\"permissions\": []"));
+        assert!(capability.contains("ask-auth"));
+    }
+
+    #[test]
     fn remote_views_keep_zero_native_capability() {
-        // The live-site `online` window must never gain invoke rights: remote
-        // content stays unprivileged while the trusted main window drives the
-        // session bridge. Session commands are main-window-only.
         let capability = include_str!("../capabilities/default.json");
         assert!(
             !capability.contains("\"online\""),

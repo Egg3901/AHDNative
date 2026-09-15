@@ -36,6 +36,7 @@ function props(overrides: Partial<LandingScreenProps> = {}): LandingScreenProps 
     onlineBusy: false,
     onEnterMultiplayer: vi.fn(),
     onEnterMultiplayerNative: vi.fn(),
+    onAsk: vi.fn(),
     ...overrides,
   };
 }
@@ -72,6 +73,16 @@ describe("LandingScreen", () => {
     await user.click(screen.getByRole("button", { name: "Enter multiplayer" }));
     expect(onEnterMultiplayer).toHaveBeenCalledTimes(1);
     expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it("opens Ask without an account or a world", async () => {
+    const user = userEvent.setup();
+    const onAsk = vi.fn();
+    render(<LandingScreen {...props({ onAsk })} />);
+    const button = screen.getByRole("button", { name: "Ask questions" });
+    expect(button).toBeEnabled();
+    await user.click(button);
+    expect(onAsk).toHaveBeenCalledTimes(1);
   });
 
   it("blocks New game until eras load, then starts the new-game flow", async () => {
