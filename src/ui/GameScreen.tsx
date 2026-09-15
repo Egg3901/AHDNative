@@ -145,7 +145,15 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
 
   const saveNotice = message === "Game saved." || message === "Saved game imported.";
   // One world clock for every in-game date surface on this screen (#226).
-  const clock: GameClock = { turn: world.turn, date: world.date };
+  // The founding lifecycle projection (#223) rides along so the frozen
+  // era-start date renders pinned while founding races run and the resumed
+  // calendar maps through the stamped offset afterwards.
+  const clock: GameClock = {
+    turn: world.turn,
+    date: world.date,
+    ...(world.foundingActive === true ? { foundingActive: true as const } : {}),
+    ...(typeof world.foundingOffset === "number" ? { foundingOffset: world.foundingOffset } : {}),
+  };
   // #83 corporation strip: the player's recorded holdings, never summed across
   // currencies (the codebase has no FX settlement).
   const holdings = world.finance.holdings;

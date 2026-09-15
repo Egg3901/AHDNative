@@ -606,6 +606,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
   return {
     turn: world.meta.turn, date: world.meta.date, era: world.meta.era,
     foundingActive: isFoundingActive(world.elections),
+    ...(typeof world.meta.preIterationTurns === "number" ? { foundingOffset: world.meta.preIterationTurns } : {}),
     countryId: country.id, countryName: country.name,
     // Issues #334/#345: the world stores only a non-default axis; the
     // view always reports the effective value (absent means normal/v4).

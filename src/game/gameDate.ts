@@ -52,6 +52,21 @@ const LARP_MONTHS = [
 export interface GameClock {
   turn: number;
   date: string;
+  /**
+   * Founding / pre-iteration lifecycle projection (#223). While true, the
+   * engine freezes the ISO date at the era start and the calendar is pinned
+   * there (the reference `calendarTurn` returns 1 while `preIteration`
+   * is active). Projected from `GameView.foundingActive`.
+   */
+  foundingActive?: boolean;
+  /**
+   * Additive raw-turn offset stamped when a founding phase completes
+   * (`WorldMeta.preIterationTurns`): the calendar resumes at the era start
+   * instead of jumping, so a raw turn maps to `raw - offset` on the
+   * displayed calendar. Absent (or zero) on normal worlds: identity.
+   * Projected from `GameView.foundingOffset`.
+   */
+  foundingOffset?: number;
 }
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -63,13 +78,41 @@ function dayNumber(iso: string): number | null {
   return Number.isFinite(ms) ? Math.round(ms / 86_400_000) : null;
 }
 
+/** Sanitized founding offset: a finite non-negative whole-turn count, else 0. */
+function foundingOffsetOf(clock: GameClock): number {
+  const offset = clock.foundingOffset;
+  return typeof offset === "number" && Number.isFinite(offset) && offset > 0
+    ? Math.floor(offset)
+    : 0;
+}
+
+/** Sanitized raw turn: a finite non-negative whole turn, else 0. */
+function rawTurnOf(clock: GameClock): number {
+  return typeof clock.turn === "number" && Number.isFinite(clock.turn) && clock.turn > 0
+    ? Math.floor(clock.turn)
+    : 0;
+}
+
 /**
- * The era's start day (turn 0) implied by a clock: the world date walked back
- * `turn` weeks. Used to recover the calendar's starting year without threading
- * an era parameter through every panel.
+ * Calendar position of the clock itself: 0 (the era start) while a founding
+ * phase is active — the frozen ISO date IS the era start — else the raw turn
+ * less the stamped founding offset, clamped at the era start.
+ */
+export function calendarTurnForClock(clock: GameClock): number {
+  if (clock.foundingActive === true) return 0;
+  return Math.max(0, rawTurnOf(clock) - foundingOffsetOf(clock));
+}
+
+/**
+ * The era's start day implied by a clock: the world date walked back by the
+ * clock's calendar position (see {@link calendarTurnForClock}). While a
+ * founding phase is active the frozen date is the era start, so it is
+ * returned as-is. Used to recover the calendar's starting year without
+ * threading an era parameter through every panel.
  */
 export function clockEpoch(clock: GameClock): string {
-  return addDaysIso(clock.date, -clock.turn * DAYS_PER_TURN);
+  if (clock.foundingActive === true && typeof clock.date === "string") return clock.date;
+  return addDaysIso(clock.date, -calendarTurnForClock(clock) * DAYS_PER_TURN);
 }
 
 /** Calendar year the era's clock starts in (turn 0's year). */
@@ -79,15 +122,19 @@ export function clockStartingYear(clock: GameClock): number {
 }
 
 /**
- * Native turn for an ISO game day, given the current clock. Both the target and
- * the clock live on the same 7-day grid, so this is exact for real game dates.
- * Falls back to the clock's own turn when either date is malformed.
+ * Calendar turn for an ISO game day, given the current clock. Both the target
+ * and the clock live on the same 7-day grid, so this is exact for real game
+ * dates. The result is in displayed-calendar space: while a founding phase is
+ * active the frozen era-start date reads as turn 0, and after completion raw
+ * turns read less the stamped founding offset (so the resumed calendar starts
+ * at the era start). Falls back to the clock's calendar position when either
+ * date is malformed.
  */
 export function turnForGameDate(isoDate: string, clock: GameClock): number {
   const target = dayNumber(isoDate);
   const anchor = dayNumber(clock.date);
-  if (target === null || anchor === null) return clock.turn;
-  return clock.turn + Math.round((target - anchor) / DAYS_PER_TURN);
+  if (target === null || anchor === null) return calendarTurnForClock(clock);
+  return calendarTurnForClock(clock) + Math.round((target - anchor) / DAYS_PER_TURN);
 }
 
 /**
@@ -108,9 +155,23 @@ export function gameDateParts(
   };
 }
 
-/** Format a Native turn on the reference calendar, e.g. "April, Week 3, 1953". */
+/**
+ * Format a Native raw turn on the reference calendar, e.g. "April, Week 3,
+ * 1953". After a founding phase completes the stamped offset is subtracted
+ * so post-founding raw turns land on the resumed calendar (which restarts at
+ * the era start); on worlds that never opted in the mapping is the identity.
+ */
 export function formatGameTurn(turn: number, clock: GameClock): string {
-  const { month, weekOfMonth, year } = gameDateParts(turn, clockStartingYear(clock));
+  const calendarTurn =
+    typeof turn === "number" && Number.isFinite(turn)
+      ? Math.max(0, Math.floor(turn) - foundingOffsetOf(clock))
+      : 0;
+  return formatCalendarTurn(calendarTurn, clock);
+}
+
+/** Format an already calendar-space turn (see {@link turnForGameDate}). */
+function formatCalendarTurn(calendarTurn: number, clock: GameClock): string {
+  const { month, weekOfMonth, year } = gameDateParts(calendarTurn, clockStartingYear(clock));
   return `${month}, Week ${weekOfMonth}, ${year}`;
 }
 
@@ -120,5 +181,7 @@ export function formatGameTurn(turn: number, clock: GameClock): string {
  */
 export function formatGameDate(isoDate: string | null | undefined, clock: GameClock): string {
   if (typeof isoDate !== "string" || dayNumber(isoDate) === null) return "";
-  return formatGameTurn(turnForGameDate(isoDate, clock), clock);
+  // turnForGameDate already returns a calendar-space turn; formatting it as a
+  // raw turn would subtract the founding offset a second time.
+  return formatCalendarTurn(turnForGameDate(isoDate, clock), clock);
 }

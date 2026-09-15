@@ -1010,8 +1010,17 @@ describe("GameScreen status footer", () => {
     const badge = within(footer).getByText("Founding");
     expect(badge).toBeInTheDocument();
     expect(badge.className).toMatch(/ahd-founding-badge/);
-    expect(badge.parentElement?.textContent).toMatch(/January, Week 2, 1952/);
+    // The frozen era-start date renders pinned at the calendar start.
+    expect(badge.parentElement?.textContent).toMatch(/January, Week 1, 1953/);
     expect(within(footer).getByRole("button", { name: "Profile: Ada" })).toBeInTheDocument();
+  });
+
+  it("maps the resumed calendar through the stamped founding offset with no badge (#223)", () => {
+    const world = makeWorld({ turn: 52, date: "1953-02-03", foundingOffset: 48 });
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
+    const footer = screen.getByRole("contentinfo", { name: "Status and primary navigation" });
+    expect(within(footer).queryByText("Founding")).not.toBeInTheDocument();
+    expect(within(footer).getByText(/February, Week 1, 1953/)).toBeInTheDocument();
   });
 
   it("shows processing status while busy", () => {
