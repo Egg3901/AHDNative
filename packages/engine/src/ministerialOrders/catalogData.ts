@@ -1,4 +1,16 @@
-/** Generated from AHDGame e364c04954ed628beef73a993a8e9e156650a31e cabinet order tables. */
+/**
+ * GENERATED FILE. DO NOT EDIT.
+ * AHDGame revision: e364c04954ed628beef73a993a8e9e156650a31e
+ * Native-position projection SHA-256: 6f896c6c06feab1d841593066dd995f713a5608eada884407d5781953d43391a
+ * Sources:
+ * - src/lib/constants/usCabinetOrders.ts
+ * - src/lib/constants/ukCabinetOrders.ts
+ * - src/lib/constants/deCabinetOrders.ts
+ * - src/lib/constants/ieCabinetOrders.ts
+ * - src/lib/constants/jpCabinetOrders.ts
+ * - src/lib/constants/cnCabinetOrders.ts
+ * Regenerate: npx tsx packages/engine/scripts/generateMinisterialOrderCatalog.ts --source-root /path/to/AHDGame
+ */
 export const AUTHORED_MINISTERIAL_ORDERS = {
   "US": {
     "secretary_of_state": [
