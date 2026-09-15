@@ -437,6 +437,29 @@ function buildActionOutcome(actionId: string, params: ExecuteActionParams,
   return { actionId, changes, ...(target ? { target } : {}), followUps };
 }
 
+/**
+ * Normalize every engine news producer at the public session boundary. The
+ * shape follows AHDGame NewsPost at pinned revision
+ * e364c04954ed628beef73a993a8e9e156650a31e. Missing producer context stays
+ * explicitly unlinked rather than being guessed from headline text.
+ */
+function projectNewsItem(world: WorldState, item: WorldState["news"][number], sourceIndex: number): GameView["news"][number] {
+  const relatedCountry = item.countryId ? world.countries[item.countryId] : undefined;
+  const relatedParty = item.partyId ? world.parties[item.partyId] : undefined;
+  const relatedElection = item.electionId ? world.elections.find(election => election.id === item.electionId) : undefined;
+  return {
+    id: item.id ?? `${item.turn}:${sourceIndex}`,
+    title: item.headline,
+    body: item.body ?? item.headline,
+    date: item.date,
+    category: item.category ?? "General",
+    country: relatedCountry ? { id: relatedCountry.id, name: relatedCountry.name } : null,
+    party: relatedParty ? { id: relatedParty.id, name: relatedParty.name } : null,
+    election: relatedElection ? { id: relatedElection.id, name: relatedElection.electionType.replaceAll("_", " ") } : null,
+    event: item.eventId ? { id: item.eventId, name: item.eventName ?? item.eventId.replaceAll("_", " ") } : null,
+  };
+}
+
 function projectWorld(world: WorldState, notifications: NotificationItem[]): GameView {
   const country = world.countries[world.player.countryId];
   if (!country || !country.playable) throw new Error("The save does not contain the player's playable country.");
@@ -467,22 +490,8 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     })),
     elections: projectElections(world),
     polls: projectPolling(world),
-    news: world.news.map((item, sourceIndex) => ({ item, sourceIndex })).slice(-50).reverse().map(({ item, sourceIndex }) => {
-      const relatedCountry = item.countryId ? world.countries[item.countryId] : undefined;
-      const relatedParty = item.partyId ? world.parties[item.partyId] : undefined;
-      const relatedElection = item.electionId ? world.elections.find(election => election.id === item.electionId) : undefined;
-      return {
-        id: item.id ?? `${item.turn}:${sourceIndex}`,
-        title: item.headline,
-        body: item.body ?? item.headline,
-        date: item.date,
-        category: item.category ?? "General",
-        country: relatedCountry ? { id: relatedCountry.id, name: relatedCountry.name } : null,
-        party: relatedParty ? { id: relatedParty.id, name: relatedParty.name } : null,
-        election: relatedElection ? { id: relatedElection.id, name: relatedElection.electionType.replaceAll("_", " ") } : null,
-        event: item.eventId ? { id: item.eventId, name: item.eventName ?? item.eventId.replaceAll("_", " ") } : null,
-      };
-    }),
+    news: world.news.map((item, sourceIndex) => ({ item, sourceIndex })).slice(-50).reverse()
+      .map(({ item, sourceIndex }) => projectNewsItem(world, item, sourceIndex)),
     actions: (player.mode === "hos" ? HOS_ACTIONS : ACTIONS).map(({ id, requires, category, prerequisite }) => {
       const entry = ACTION_CATALOG[id];
       const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);

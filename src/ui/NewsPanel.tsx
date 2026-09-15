@@ -32,7 +32,6 @@ export function NewsPanel({ news, clock, storageKey, onCountry, onParty, onElect
   const [country, setCountry] = useState("all");
   const [category, setCategory] = useState("all");
   const [date, setDate] = useState("all");
-  const [eventOpen, setEventOpen] = useState(false);
 
   const countries = useMemo(() => [...new Map(news.flatMap(item => item.country ? [[item.country.id, item.country.name] as const] : [])).entries()], [news]);
   const categories = useMemo(() => [...new Set(news.map(item => item.category ?? "General"))], [news]);
@@ -42,7 +41,6 @@ export function NewsPanel({ news, clock, storageKey, onCountry, onParty, onElect
 
   const select = (id: string | null) => {
     setSelectedId(id);
-    setEventOpen(false);
     const nextRead = new Set(readIds);
     if (id) nextRead.add(id);
     setReadIds(nextRead);
@@ -59,9 +57,8 @@ export function NewsPanel({ news, clock, storageKey, onCountry, onParty, onElect
           {selected.country ? <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onCountry(selected.country!.id)}>View {selected.country.name}</button> : null}
           {selected.party ? <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onParty(selected.party!.id)}>View {selected.party.name}</button> : null}
           {selected.election ? <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onElection(selected.election!.id)}>View {selected.election.name}</button> : null}
-          {selected.event ? <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => setEventOpen(true)}>View {selected.event.name}</button> : null}
         </nav>
-        {eventOpen && selected.event ? <section role="region" aria-label="Event context" className="ahd-card ahd-card-pad"><h3 className="ahd-h3">{selected.event.name}</h3><p className="ahd-muted">This event produced the selected local wire report.</p></section> : null}
+        {selected.event ? <section role="region" aria-label="Event context" className="ahd-card ahd-card-pad"><h3 className="ahd-h3">Event context</h3><p>{selected.event.name}</p><p className="ahd-muted">This save has no separate event-detail destination. The article above is the complete local record.</p></section> : null}
       </article>
     );
   }

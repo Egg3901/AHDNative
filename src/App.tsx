@@ -231,7 +231,7 @@ export function App() {
       onBack={() => { setScreen('new'); setPendingSetup(null); setCreationChoices(null); }}
     />;
   }
-  if (screen === 'game' && world) return <GameScreen loadProfile={loadProfile} onUpdateProfile={update => run(async () => {
+  if (screen === 'game' && world) return <GameScreen newsStorageKey={slot.current!} loadProfile={loadProfile} onUpdateProfile={update => run(async () => {
     setWorld(await client.current!.updateProfile(update));
     await save();
     setMessage("Profile saved.");

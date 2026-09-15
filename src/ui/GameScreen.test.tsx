@@ -187,7 +187,7 @@ describe("GameScreen", () => {
         },
       ],
     } as Partial<GameView>);
-    const props = { ...preferencesProps, loadProfile: async () => profileFor(world), loadPolitics, search, loadBondMarket, loadRegions, loadCaucusManagement, loadPartyManagement, loadMarkets, loadLegislation, loadWorldOverview, world, busy: false, onAdvanceTurn: vi.fn(), onSave: vi.fn(), onExit: vi.fn(), onAction: vi.fn() };
+    const props = { ...preferencesProps, newsStorageKey: "save-slot-a", loadProfile: async () => profileFor(world), loadPolitics, search, loadBondMarket, loadRegions, loadCaucusManagement, loadPartyManagement, loadMarkets, loadLegislation, loadWorldOverview, world, busy: false, onAdvanceTurn: vi.fn(), onSave: vi.fn(), onExit: vi.fn(), onAction: vi.fn() };
     const first = render(<GameScreen {...props} />);
 
     await navigate(user, "News");
@@ -203,15 +203,20 @@ describe("GameScreen", () => {
     expect(within(article).getByRole("button", { name: "View United States" })).toBeInTheDocument();
     expect(within(article).getByRole("button", { name: "View Labor" })).toBeInTheDocument();
     expect(within(article).getByRole("button", { name: "View General Election" })).toBeInTheDocument();
-    await user.click(within(article).getByRole("button", { name: "View Election call" }));
     expect(within(article).getByRole("region", { name: "Event context" })).toHaveTextContent("Election call");
     expect(fetchSpy).not.toHaveBeenCalled();
 
     first.unmount();
-    render(<GameScreen {...props} />);
+    const reloaded = render(<GameScreen {...props} />);
     await navigate(user, "News");
     expect(screen.getByRole("article", { name: "General election called" })).toBeInTheDocument();
     expect(screen.getByText("Read")).toBeInTheDocument();
+
+    reloaded.unmount();
+    render(<GameScreen {...props} newsStorageKey="save-slot-b" />);
+    await navigate(user, "News");
+    expect(screen.queryByRole("article", { name: "General election called" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Read General election called" })).toBeInTheDocument();
     fetchSpy.mockRestore();
   });
 

@@ -102,7 +102,7 @@ const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
   { id: "favorability", short: "Favorability", label: "Favorability" },
 ];
 
-export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, onAdvanceTurn, onSave, onExit, onAction, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead }: GameScreenProps) {
+export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, newsStorageKey, onAdvanceTurn, onSave, onExit, onAction, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("profile");
   const [detailId, setDetailId] = useState<string>();
   // Selected hub category survives route changes so Profile/footer deep-links
@@ -436,7 +436,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
 
           {route === "news" ? (
             world.news.length === 0 ? <div className="ahd-stack"><div className="ahd-card ahd-card-pad ahd-hero"><h2 className="ahd-h2">News</h2><p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>0 items</p></div><div className="ahd-empty">No news yet.</div></div>
-              : <NewsPanel news={world.news} clock={clock} storageKey={`${world.era}:${world.countryId}:${world.player.name}`} onCountry={id => { go("nations"); setDetailId(id); }} onParty={openParty} onElection={openElection} />
+              : <NewsPanel news={world.news} clock={clock} storageKey={newsStorageKey ?? `${world.era}:${world.countryId}:${world.player.name}`} onCountry={id => { go("nations"); setDetailId(id); }} onParty={openParty} onElection={openElection} />
           ) : null}
         </section>
         ) : (

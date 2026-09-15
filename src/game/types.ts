@@ -206,6 +206,8 @@ export interface GameScreenProps {
   loadWorldOverview: () => Promise<WorldOverviewView>;
   loadPolitics: () => Promise<PoliticsView>;
   world: GameView; busy: boolean; message?: string; error?: string;
+  /** Save-slot identity for per-save news selection and read state. */
+  newsStorageKey?: string;
   onAdvanceTurn: () => void; onSave: () => void; onExit: () => void;
   onAction: (id: string, params?: Record<string, string | number>) => void;
   onMarkNotificationRead: (id: string) => void;
