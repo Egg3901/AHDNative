@@ -20,7 +20,7 @@ const actions: ActionView[] = [
 
 const props = {
   regions: [{ id: "r1", name: "Midwest" }],
-  parties: [{ id: "p1", name: "Labor", abbreviation: "LAB", color: "#dc2626", members: 1, treasury: 0, isPlayerParty: true }],
+  parties: [{ id: "p1", name: "Labor", abbreviation: "LAB", color: "#dc2626", logoUrl: null, members: 1, treasury: 0, isPlayerParty: true }],
   busy: false,
   currency: "USD",
   onAction: vi.fn(),

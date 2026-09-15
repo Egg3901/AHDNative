@@ -5,13 +5,13 @@ import { CharacterCreationScreen } from "./CharacterCreationScreen";
 import type { CharacterCreationScreenProps } from "../game/types";
 
 const PARTIES = [
-  { id: "US_DEM", name: "Democratic Party", abbreviation: "DEM", color: "#3B82F6", economicPosition: -3, socialPosition: -2 },
-  { id: "US_REP", name: "Republican Party", abbreviation: "REP", color: "#EF4444", economicPosition: 3, socialPosition: 2 },
+  { id: "US_DEM", name: "Democratic Party", abbreviation: "DEM", color: "#3B82F6", logoUrl: null, economicPosition: -3, socialPosition: -2 },
+  { id: "US_REP", name: "Republican Party", abbreviation: "REP", color: "#EF4444", logoUrl: null, economicPosition: 3, socialPosition: 2 },
 ];
 
 const DD_PARTIES = [
-  { id: "DD_CDU", name: "Christlich-Demokratische Union (Ost)", abbreviation: "CDU", color: "#33508C", economicPosition: -3, socialPosition: 3, regimeStatus: "approved" as const },
-  { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", color: "#C00000", economicPosition: -4, socialPosition: 2, regimeStatus: "ruling" as const },
+  { id: "DD_CDU", name: "Christlich-Demokratische Union (Ost)", abbreviation: "CDU", color: "#33508C", logoUrl: null, economicPosition: -3, socialPosition: 3, regimeStatus: "approved" as const },
+  { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", color: "#C00000", logoUrl: null, economicPosition: -4, socialPosition: 2, regimeStatus: "ruling" as const },
 ];
 
 function props(overrides: Partial<CharacterCreationScreenProps> = {}): CharacterCreationScreenProps {
@@ -136,7 +136,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
   it("names the actual ruling party in a one-party briefing, never the first sorted party", () => {
     render(<CharacterCreationScreen {...props({
       selection: { era: "1953", countryId: "DD", countryName: "East Germany", regionNoun: "region" },
-      choices: { parties: DD_PARTIES, rulingParty: { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED" }, isOnePartyState: true, imperialEligible: false, regionNoun: "region" },
+      choices: { parties: DD_PARTIES, rulingParty: { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region" },
     })} />);
     const notice = screen.getByRole("note");
     expect(notice).toHaveTextContent(/one-party state/i);
@@ -148,7 +148,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
   it("shows the one-party briefing for a one-party country instead of a generic party list", () => {
     render(<CharacterCreationScreen {...props({
       selection: { era: "1953", countryId: "RU", countryName: "Soviet Union", regionNoun: "region" },
-      choices: { parties: [{ id: "RU_CPSU", name: "Communist Party", abbreviation: "CPSU", color: "#CC0000", economicPosition: -4, socialPosition: 2, regimeStatus: "ruling" }], rulingParty: { id: "RU_CPSU", name: "Communist Party", abbreviation: "CPSU" }, isOnePartyState: true, imperialEligible: false, regionNoun: "region" },
+      choices: { parties: [{ id: "RU_CPSU", name: "Communist Party", abbreviation: "CPSU", color: "#CC0000", logoUrl: null, economicPosition: -4, socialPosition: 2, regimeStatus: "ruling" }], rulingParty: { id: "RU_CPSU", name: "Communist Party", abbreviation: "CPSU", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region" },
     })} />);
     expect(screen.getByText(/one-party state/i)).toBeInTheDocument();
   });
@@ -156,7 +156,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
   it("surfaces the authored regime marker on the party step", () => {
     render(<CharacterCreationScreen {...props({
       selection: { era: "1953", countryId: "DD", countryName: "East Germany", regionNoun: "region" },
-      choices: { parties: DD_PARTIES, rulingParty: { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED" }, isOnePartyState: true, imperialEligible: false, regionNoun: "region" },
+      choices: { parties: DD_PARTIES, rulingParty: { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region" },
     })} />);
     const partyStep = screen.getByRole("heading", { name: /^Party/ }).closest("section")!;
     expect(within(partyStep).getByText(/Ruling/)).toBeInTheDocument();
@@ -169,6 +169,60 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
       choices: { parties: PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: true, regionNoun: "region" },
     })} />);
     expect(screen.getByText(/imperial/i)).toBeInTheDocument();
+  });
+
+  describe("party picker marks (#244 slice)", () => {
+    const LOGO_PARTIES = [
+      { id: "US_DEM", name: "Democratic Party", abbreviation: "DEM", color: "#3B82F6", logoUrl: "/party-logos/us-dem.png", economicPosition: -3, socialPosition: -2 },
+      { id: "US_REP", name: "Republican Party", abbreviation: "REP", color: "#EF4444", logoUrl: null, economicPosition: 3, socialPosition: 2 },
+    ];
+
+    it("renders the authored logo image inside the picker when logoUrl exists", () => {
+      render(<CharacterCreationScreen {...props({
+        choices: { parties: LOGO_PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state" },
+      })} />);
+      const button = screen.getByRole("button", { name: "DEM Democratic Party" });
+      const img = button.querySelector(".ahd-mark img");
+      expect(img).not.toBeNull();
+      expect(img).toHaveAttribute("src", "/party-logos/us-dem.png");
+    });
+
+    it("falls back to honest initials with no image when logoUrl is null", () => {
+      render(<CharacterCreationScreen {...props()} />);
+      const button = screen.getByRole("button", { name: "REP Republican Party" });
+      expect(button.querySelector(".ahd-mark img")).toBeNull();
+      expect(button.querySelector(".ahd-mark-initials")?.textContent).toBe("REP");
+    });
+
+    it("keeps the party accessible name on the picker button beside the mark", () => {
+      render(<CharacterCreationScreen {...props({
+        choices: { parties: LOGO_PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state" },
+      })} />);
+      expect(screen.getByRole("button", { name: "DEM Democratic Party" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "REP Republican Party" })).toBeInTheDocument();
+      // The mark itself stays decorative so the button label is not doubled.
+      const mark = screen.getByRole("button", { name: "DEM Democratic Party" }).querySelector(".ahd-mark");
+      expect(mark).toHaveAttribute("aria-hidden", "true");
+    });
+
+    it("toggles party selection through the marked picker buttons", async () => {
+      const user = userEvent.setup();
+      render(<CharacterCreationScreen {...props()} />);
+      const dem = screen.getByRole("button", { name: "DEM Democratic Party" });
+      const rep = screen.getByRole("button", { name: "REP Republican Party" });
+      await user.click(dem);
+      expect(dem).toHaveAttribute("aria-pressed", "true");
+      expect(rep).toHaveAttribute("aria-pressed", "false");
+      await user.click(rep);
+      expect(rep).toHaveAttribute("aria-pressed", "true");
+      expect(dem).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("keeps the picker mark compact so chips wrap inside a 320px column", () => {
+      render(<CharacterCreationScreen {...props()} />);
+      const mark = screen.getByRole("button", { name: "DEM Democratic Party" }).querySelector(".ahd-mark") as HTMLElement;
+      expect(mark).toHaveStyle({ width: "20px", height: "20px" });
+    });
   });
 });
 

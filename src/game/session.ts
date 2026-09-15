@@ -104,13 +104,14 @@ export function creationChoices(era: string, countryId: string): CreationChoices
     name: party.name,
     abbreviation: party.abbreviation,
     color: party.color,
+    logoUrl: party.logoUrl,
     economicPosition: party.economicPosition,
     socialPosition: party.socialPosition,
     ...(party.regimeStatus ? { regimeStatus: party.regimeStatus } : {}),
   }));
   const markedRuling = parties.find((party) => party.regimeStatus === "ruling") ?? null;
   const rulingParty = rulingPartyForCountry(era, normalized)
-    ?? (markedRuling ? { id: markedRuling.id, name: markedRuling.name, abbreviation: markedRuling.abbreviation } : null);
+    ?? (markedRuling ? { id: markedRuling.id, name: markedRuling.name, abbreviation: markedRuling.abbreviation, logoUrl: markedRuling.logoUrl } : null);
   return {
     parties,
     rulingParty,
@@ -522,6 +523,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     ],
     parties: Object.values(world.parties).filter((party) => party.countryId === country.id).map((party) => ({
       id: party.id, name: party.name, abbreviation: party.abbreviation, color: party.color,
+      logoUrl: party.logoUrl ?? null,
       members: party.memberCount, treasury: party.treasury, isPlayerParty: player.partyId === party.id,
       membership: projectPartyMembership(world, party.id),
     })),

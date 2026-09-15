@@ -43,6 +43,8 @@ export interface PartyFoundingStatus {
 
 export interface PartyManagedView {
   id: string; name: string; abbreviation: string; color: string;
+  /** Authored logo URL; null until a real authored URL exists (no remote defaults offline). */
+  logoUrl: string | null;
   members: number; treasury: number; isPlayerParty: boolean;
   economicPosition: number; socialPosition: number;
   tier: string; founded: boolean;
@@ -141,6 +143,7 @@ export function projectPartyManagement(world: WorldState): PartyManagementView {
     .filter((party) => party.countryId === country.id)
     .map((party) => ({
       id: party.id, name: party.name, abbreviation: party.abbreviation, color: party.color,
+      logoUrl: party.logoUrl ?? null,
       members: party.memberCount, treasury: party.treasury, isPlayerParty: player.partyId === party.id,
       economicPosition: party.economicPosition, socialPosition: party.socialPosition,
       tier: party.tier, founded: !party.isDefault,

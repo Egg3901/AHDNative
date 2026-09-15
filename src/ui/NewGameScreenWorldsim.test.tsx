@@ -9,8 +9,8 @@ const ERAS: EraChoice[] = [
     { id: "US", name: "United States", regions: [{ id: "US-CA", name: "California" }],
       headOfStateOffice: "president",
       rulingPartyByInitialization: {
-        founding: { id: "US_REP", name: "Republican Party", abbreviation: "REP" },
-        historical: { id: "US_REP", name: "Republican Party", abbreviation: "REP" },
+        founding: { id: "US_REP", name: "Republican Party", abbreviation: "REP", logoUrl: null },
+        historical: { id: "US_REP", name: "Republican Party", abbreviation: "REP", logoUrl: null },
       } },
   ] },
 ];

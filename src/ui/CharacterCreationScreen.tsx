@@ -46,6 +46,7 @@ import type {
   CharacterWealth,
 } from "../game/types";
 import { PolicyCompass } from "./PolicyCompass";
+import { PartyMark } from "./PartyMark";
 import "./ui.css";
 import { RouteHero } from "./RouteHero";
 
@@ -659,7 +660,15 @@ export function CharacterCreationScreen({
                     onClick={() => selectParty(party.id)}
                     className={selected ? "ahd-chip ahd-chip-selected" : "ahd-chip"}
                   >
-                    <span aria-hidden className="ahd-creation-party-dot" style={{ background: party.color }} />
+                    <PartyMark
+                      name={party.name}
+                      abbreviation={party.abbreviation}
+                      color={party.color}
+                      id={party.id}
+                      countryId={selection.countryId}
+                      logoUrl={party.logoUrl}
+                      size={20}
+                    />
                     {party.abbreviation}
                     {party.regimeStatus ? (
                       <span className="ahd-muted" style={{ marginLeft: "0.3rem", fontSize: "0.66rem" }}>

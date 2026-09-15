@@ -96,7 +96,7 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
       ],
     },
     metrics: [{ id: "gdp", label: "GDP", value: 12345, format: "money" }],
-    parties: [{ id: "p1", name: "Labor", abbreviation: "LAB", color: "#dc2626", members: 120, treasury: 9000, isPlayerParty: true }],
+    parties: [{ id: "p1", name: "Labor", abbreviation: "LAB", color: "#dc2626", logoUrl: null, members: 120, treasury: 9000, isPlayerParty: true }],
     elections: [makeElection()],
     news: [{ id: "n1", title: "Markets rally", body: "Stocks up.", date: "1953-02-01" }],
     actions: [{ id: "fundraise", name: "Fundraise", description: "Raise money", cost: 1, available: true, requires: "amount" }],
@@ -394,7 +394,7 @@ describe("GameScreen", () => {
     const user = userEvent.setup();
     const onAction = vi.fn();
     const world = makeWorld({
-      parties: [{ id: "p2", name: "Tories", abbreviation: "CON", color: "#1d4ed8", members: 80, treasury: 4000, isPlayerParty: false }],
+      parties: [{ id: "p2", name: "Tories", abbreviation: "CON", color: "#1d4ed8", logoUrl: null, members: 80, treasury: 4000, isPlayerParty: false }],
       regions: [{ id: "r2", name: "North" }],
       actions: [
         { id: "endorse", name: "Endorse", description: "Endorse party", cost: 1, available: true, requires: "party" },
@@ -585,8 +585,8 @@ describe("GameScreen", () => {
     const onAction = vi.fn();
     const world = makeWorld({
       parties: [
-        { id: "p1", name: "Labor", abbreviation: "LAB", color: "#dc2626", members: 120, treasury: 9000, isPlayerParty: true },
-        { id: "p2", name: "Tories", abbreviation: "CON", color: "#1d4ed8", members: 80, treasury: 4000, isPlayerParty: false },
+        { id: "p1", name: "Labor", abbreviation: "LAB", color: "#dc2626", logoUrl: null, members: 120, treasury: 9000, isPlayerParty: true },
+        { id: "p2", name: "Tories", abbreviation: "CON", color: "#1d4ed8", logoUrl: null, members: 80, treasury: 4000, isPlayerParty: false },
       ],
       actions: [
         { id: "joinParty", name: "Join Party", description: "Join", cost: 2, available: true, requires: "party" },
@@ -628,7 +628,7 @@ describe("GameScreen", () => {
   it("party join button surfaces disabled reason from world.actions", async () => {
     const user = userEvent.setup();
     const world = makeWorld({
-      parties: [{ id: "p2", name: "Tories", abbreviation: "CON", color: "#1d4ed8", members: 80, treasury: 4000, isPlayerParty: false }],
+      parties: [{ id: "p2", name: "Tories", abbreviation: "CON", color: "#1d4ed8", logoUrl: null, members: 80, treasury: 4000, isPlayerParty: false }],
       actions: [{ id: "joinParty", name: "Join Party", description: "Join", cost: 2, available: false, disabledReason: "Cooldown", requires: "party" }],
     });
     render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);

@@ -99,6 +99,14 @@ export interface PartySeed {
   economicPosition: number;
   socialPosition: number;
   /**
+   * Party-authored logo URL (reference PoliticalParty.logoUrl, chair-uploaded
+   * custom art). Authored packs carry none today: remote PARTY_LOGOS defaults
+   * are not bundlable offline (mixed Wikimedia/fair-use/CDN rights, no
+   * checked-in static assets), so this stays null until a real authored URL
+   * exists. Never a constructed route or remote default.
+   */
+  logoUrl?: string | null;
+  /**
    * One-party regime standing (reference PoliticalParty.regimeStatus) or
    * undefined for a competitive democracy. Ports AHDGame dd/ru/cn *Parties.ts:
    * "ruling" for the governing party, "approved" for a legal bloc/coalition

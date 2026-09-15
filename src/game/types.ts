@@ -56,7 +56,7 @@ export interface EraChoice {
     /** National executive office key from the engine registry; null when none exists. */
     headOfStateOffice: string | null;
     /** Governing-party preview per initialization; null when that start has no bindable party. */
-    rulingPartyByInitialization: Record<WorldInitialization, { id: string; name: string; abbreviation: string } | null>;
+    rulingPartyByInitialization: Record<WorldInitialization, { id: string; name: string; abbreviation: string; logoUrl: string | null } | null>;
   }[];
 }
 export interface MetricView { id: string; label: string; value: number; format: "money" | "percent" | "number"; }
@@ -77,7 +77,7 @@ export interface ActionView { id: string; name: string; description: string; cos
    */
   consequences?: string[];
 }
-export interface PartyView { id: string; name: string; abbreviation: string; color: string; members: number; treasury: number; isPlayerParty: boolean; membership?: { join: ActionView; leave: ActionView }; }
+export interface PartyView { id: string; name: string; abbreviation: string; color: string; /** Authored logo URL; null until a real authored URL exists (no remote defaults offline). */ logoUrl: string | null; members: number; treasury: number; isPlayerParty: boolean; membership?: { join: ActionView; leave: ActionView }; }
 /** Derived race lifecycle stage; see game/racePhase.ts. */
 export type RacePhase = "upcoming" | "primary" | "general" | "resolved";
 export interface ElectionView {
@@ -231,6 +231,8 @@ export interface CreationParty {
   name: string;
   abbreviation: string;
   color: string;
+  /** Authored logo URL; null until a real authored URL exists (no remote defaults offline). */
+  logoUrl: string | null;
   economicPosition: number;
   socialPosition: number;
   /**
@@ -250,7 +252,7 @@ export interface CreationChoices {
    * marker. Null when no ruling party is recorded; the briefing then says so
    * rather than naming a first-array party.
    */
-  rulingParty: { id: string; name: string; abbreviation: string } | null;
+  rulingParty: { id: string; name: string; abbreviation: string; logoUrl: string | null } | null;
   /** True for the reference one-party states (RU/DD/CN); the screen shows the briefing. */
   isOnePartyState: boolean;
   /** True for the reference imperial-eligible countries (UK/JP/ES/SE); shows the imperial notice. */

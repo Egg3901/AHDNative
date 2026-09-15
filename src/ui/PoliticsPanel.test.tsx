@@ -41,7 +41,7 @@ function makePolitics(): PoliticsView {
     playerPartyId: "US_DEM",
     parties: [
       {
-        id: "US_DEM", name: "Democratic Party", abbreviation: "DEM", color: "#3333ff",
+        id: "US_DEM", name: "Democratic Party", abbreviation: "DEM", color: "#3333ff", logoUrl: null,
         members: 260, treasury: 1000000, isPlayerParty: true,
         economicPosition: -2, socialPosition: -1, tier: "major", organization: 60, politicalStrength: 10,
         leaderName: "Jane Chair", viceLeaderName: null, treasurerName: null,
@@ -50,7 +50,7 @@ function makePolitics(): PoliticsView {
         leave: { id: "leaveParty", name: "Leave", description: "", cost: 1, available: true },
       },
       {
-        id: "US_REP", name: "Republican Party", abbreviation: "REP", color: "#ff3333",
+        id: "US_REP", name: "Republican Party", abbreviation: "REP", color: "#ff3333", logoUrl: null,
         members: 269, treasury: 1000000, isPlayerParty: false,
         economicPosition: 2, socialPosition: 2, tier: "major", organization: 62, politicalStrength: 12,
         leaderName: null, viceLeaderName: null, treasurerName: null,

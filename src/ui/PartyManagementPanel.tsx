@@ -90,7 +90,7 @@ export function PartyManagementPanel({ management, busy, onAction }: PartyManage
           <ul aria-label="Parties" style={{ listStyle: "none", margin: "0.5rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.4rem" }}>
             {management.parties.map((party) => (
               <li key={party.id} style={{ display: "flex", gap: "0.5rem", alignItems: "center", borderTop: "1px solid var(--ahd-border)", paddingTop: "0.45rem" }}>
-                <PartyMark name={party.name} abbreviation={party.abbreviation} color={party.color} id={party.id} countryId={management.countryId} size={24} />
+                <PartyMark name={party.name} abbreviation={party.abbreviation} color={party.color} id={party.id} countryId={management.countryId} logoUrl={party.logoUrl} size={24} />
                 <span style={{ minWidth: 0, flex: "1 1 auto", fontSize: "0.8rem" }}>
                   <span style={{ fontWeight: 650 }}>{party.name}</span>
                   <span className="ahd-muted"> ({party.abbreviation})</span>

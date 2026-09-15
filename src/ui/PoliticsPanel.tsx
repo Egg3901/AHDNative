@@ -190,7 +190,7 @@ function PartiesSection({ politics, busy, onAction, initialId }: Omit<PoliticsPa
       {selected ? (
         <article aria-label={selected.name} className="ahd-card ahd-card-pad" style={{ borderLeft: `3px solid ${selected.color}` }}>
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
-            <PartyMark name={selected.name} abbreviation={selected.abbreviation} color={selected.color} id={selected.id} countryId={politics.countryId} size={28} />
+            <PartyMark name={selected.name} abbreviation={selected.abbreviation} color={selected.color} id={selected.id} countryId={politics.countryId} logoUrl={selected.logoUrl} size={28} />
             <strong style={{ fontSize: "0.9rem" }}>{selected.name}</strong>
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>({selected.abbreviation})</span>
             {selected.isPlayerParty ? <span className="ahd-pill" style={{ background: "var(--ahd-primary)", color: "white" }}>Yours</span> : null}
