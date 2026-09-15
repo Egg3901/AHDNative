@@ -2,10 +2,9 @@
  * Player polling (issue #38).
  *
  * Ports the AHDGame poll commission flow against Native election tallies:
- * - `src/lib/actions.ts` ACTIONS.poll / pollLarge (2 AP / $25k, 6 AP / $75k;
- *   intellect cost curve at neutral. Native has no intellect stat, and
- *   statMultiplier documents 5-6 -> ~1.0x, so the flat catalog costs ARE the
- *   neutral-intellect costs, per the catalog's collapsed-neutral convention).
+ * - `src/lib/actions.ts` ACTIONS.poll / pollLarge (2 AP / $25k, 6 AP / $75k,
+ *   with the Intellect divisor) plus the poll route's frozen campaign-currency
+ *   conversion. The shared `actionFundCost` path owns both quote and debit.
  * - `src/app/api/actions/poll/route.ts` POST (validate before charging, read
  *   the same-turn tally inputs: demographics, live GOTV/canvass turnouts,
  *   party org/reg and general-phase opponents, then compute and persist
@@ -26,10 +25,10 @@
  *   the engine it predicts.
  * - votingSystem is always fptp: Native regions carry no votingSystem field
  *   and tallyAdapter hardcodes fptp for accumulation.
- * - No Layer-1 granular payload: buildGranularPollPayloadForState needs a
- *   Layer-1 census config, which Native worlds do not carry, and the flag
- *   gate (isGranularPollEnabled) is fail-closed in AHDGame itself. Worlds
- *   without it keep exactly the legacy result shape ported here.
+ * - Native persists the seeded electorate as voter-group cells rather than
+ *   AHDGame's raw census axes. The additive granular payload preserves the
+ *   reference `dims`, `cells`, and `candidateShares` contract against those
+ *   same cells, so it describes the electorate the Native tally uses.
  * - No primary-electorale shift: AHDGame only resolves opponents for
  *   post-primary (general-phase) races, so the shift block is unreachable
  *   there; Native's tally likewise accumulates primaries unshifted.
@@ -101,6 +100,28 @@ export interface PollInRaceVoteShare {
   opponentVotes: Record<string, number>;
 }
 
+export interface GranularPollCell {
+  id: string;
+  buckets: Record<string, string>;
+  share: number;
+  economicLean: number;
+  socialLean: number;
+  turnout: number;
+}
+
+export interface GranularCandidateShare {
+  you: number;
+  opponents: Array<{ id: string; name: string; share: number }>;
+  undecided: number;
+}
+
+export interface GranularPollPayload {
+  dims: string[];
+  dimLabels: Record<string, string>;
+  cells: GranularPollCell[];
+  candidateShares: Record<string, GranularCandidateShare>;
+}
+
 /**
  * Stored poll snapshot. Ports StoredPoll: same result fields; takenAt is the
  * deterministic world-date ISO string at commission (AHDGame serializes its
@@ -116,6 +137,7 @@ export interface StoredPollSnapshot {
   bottomGroups: PollGroupResult[];
   categories?: PollCategoryResult[];
   inRaceVoteShare?: PollInRaceVoteShare;
+  granular: GranularPollPayload;
 }
 
 /** Opponent candidate input. Port of OpponentForShare (archetype approvals
@@ -237,6 +259,106 @@ export interface ComputedPollData {
   inRaceVoteShare?: PollInRaceVoteShare | undefined;
 }
 
+interface CandidateWeightInput {
+  economicPosition: number;
+  socialPosition: number;
+  politicalInfluence: number;
+  favorability: number;
+  party: string;
+  partyOrg: number;
+  partyReg: number;
+  infamy?: number;
+}
+
+/** One mechanics-sensitive candidate weight, shared by group shares and totals. */
+function candidateWeight(
+  candidate: CandidateWeightInput,
+  demographic: { economicLean: number; socialLean: number },
+): number {
+  const influence = clampPercentStat(candidate.politicalInfluence);
+  return Math.max(
+    0,
+    calcAppeal(demographic.economicLean, demographic.socialLean, candidate.economicPosition, candidate.socialPosition, influence, false)
+      * normalizeNPI(influence)
+      * approvalScalar(calcEffectiveFavorability(candidate.favorability, 0))
+      * candidate.partyOrg
+      * candidate.partyReg
+      * infamyPenaltyMultiplier(candidate.infamy),
+  );
+}
+
+/**
+ * Build the additive granular payload used by the reference poll response.
+ * Native's seeded electorate is already reduced to the cells consumed by its
+ * tally. Each active demographic category is therefore a dimension and each
+ * stored group is one real cell in that dimension. Candidate shares use the
+ * reference granular projection: positional appeal, a bounded undecided pool,
+ * then proportional allocation of the decided pool.
+ */
+export function buildGranularPollPayload(
+  player: PollPlayerInput,
+  demographics: StateDemographics,
+  categories: DemographicCategory[],
+  opponents: PollOpponent[],
+  liveTurnouts: Record<string, number>,
+): GranularPollPayload {
+  const dims = categories.map((category) => category._id);
+  const dimLabels = Object.fromEntries(categories.map((category) => [category._id, category.name]));
+  const cells: GranularPollCell[] = [];
+  const candidateShares: Record<string, GranularCandidateShare> = {};
+
+  for (const category of categories) {
+    const categoryShare = (demographics.categoryWeights[category._id] ?? 0) / 100;
+    for (const group of category.groups) {
+      const stored = demographics.groups[group.id];
+      if (!stored || stored.population <= 0) continue;
+      const id = categories.length === 1 ? group.id : `${category._id}:${group.id}`;
+      const cell = {
+        id,
+        buckets: { [category._id]: group.id },
+        share: categoryShare * stored.population / 100,
+        economicLean: stored.economicLean,
+        socialLean: stored.socialLean,
+        turnout: (liveTurnouts[group.id] ?? stored.turnout) / 100,
+      };
+      cells.push(cell);
+
+      const youAppeal = calcAppeal(
+        cell.economicLean, cell.socialLean,
+        player.economicPosition, player.socialPosition,
+        player.politicalInfluence, false,
+      );
+      const opponentAppeals = opponents.map((opponent) => ({
+        id: opponent.candidateId,
+        name: opponent.name,
+        appeal: calcAppeal(
+          cell.economicLean, cell.socialLean,
+          opponent.economicPosition, opponent.socialPosition,
+          opponent.politicalInfluence, false,
+        ),
+      }));
+      const bestOpponent = opponentAppeals.length > 0
+        ? Math.max(...opponentAppeals.map((opponent) => opponent.appeal))
+        : 0;
+      const undecided = Math.max(0.04, 0.16 - Math.abs(youAppeal - bestOpponent) / 220);
+      const totalAppeal = youAppeal + opponentAppeals.reduce((sum, opponent) => sum + opponent.appeal, 0);
+      const decidedPool = 1 - undecided;
+      candidateShares[id] = {
+        you: totalAppeal > 0 ? youAppeal / totalAppeal * decidedPool : decidedPool,
+        opponents: opponentAppeals.map((opponent) => ({
+          id: opponent.id,
+          name: opponent.name,
+          share: totalAppeal > 0 ? opponent.appeal / totalAppeal * decidedPool : 0,
+        })),
+        undecided,
+      };
+    }
+  }
+
+  cells.sort((a, b) => b.share - a.share || a.id.localeCompare(b.id));
+  return { dims, dimLabels, cells, candidateShares };
+}
+
 export function computePollData(input: ComputePollDataInput): ComputedPollData {
   const { player, region, countryId, demographics, categories, partyOrgs, opponents, liveTurnouts } = input;
   // Age-aware electorate (P1b-1b): same voting-age basis the tally uses.
@@ -297,22 +419,20 @@ export function computePollData(input: ComputePollDataInput): ComputedPollData {
       // In-race: estimated share of this group when competing.
       let estimatedSharePct: number | undefined;
       if (opponents && opponents.length > 0) {
-        const myInfamyMult = infamyPenaltyMultiplier(player.infamy);
-        const myWeight =
-          appeal * reachFraction * effectiveApproval * partyOrg * partyReg * myInfamyMult;
+        const myWeight = candidateWeight({
+          economicPosition: userEP, socialPosition: userSP,
+          politicalInfluence, favorability, party: player.partyId ?? "",
+          partyOrg, partyReg, infamy: player.infamy,
+        }, { economicLean: demoEP, socialLean: demoSP });
         let totalWeight = myWeight;
         for (const opp of opponents) {
-          const oppInfluence = clampPercentStat(opp.politicalInfluence);
-          const oppReach = normalizeNPI(oppInfluence);
-          const oppAppeal = calcAppeal(demoEP, demoSP, opp.economicPosition, opp.socialPosition, oppInfluence, false);
-          const oppEffectiveFav = calcEffectiveFavorability(opp.favorability, 0);
-          const oppApproval = approvalScalar(oppEffectiveFav);
-          const oppOrg = orgVoteWeight(partyOrgByParty, opp.party);
-          const oppInfamyMult = infamyPenaltyMultiplier(opp.infamy);
-          totalWeight += Math.max(
-            0,
-            oppAppeal * oppReach * oppApproval * oppOrg * partyRegMult(opp.party) * oppInfamyMult
-          );
+          totalWeight += candidateWeight({
+            economicPosition: opp.economicPosition, socialPosition: opp.socialPosition,
+            politicalInfluence: opp.politicalInfluence, favorability: opp.favorability,
+            party: opp.party, partyOrg: orgVoteWeight(partyOrgByParty, opp.party),
+            partyReg: partyRegMult(opp.party),
+            ...(opp.infamy !== undefined ? { infamy: opp.infamy } : {}),
+          }, { economicLean: demoEP, socialLean: demoSP });
         }
         estimatedSharePct =
           totalWeight > 0
@@ -392,7 +512,7 @@ export function computePollData(input: ComputePollDataInput): ComputedPollData {
         partyOrg,
         partyReg,
         party: player.partyId ?? "",
-        infamyMult: infamyPenaltyMultiplier(player.infamy),
+        infamy: player.infamy,
       },
       ...opponents.map((o) => ({
         id: o.candidateId,
@@ -403,7 +523,7 @@ export function computePollData(input: ComputePollDataInput): ComputedPollData {
         partyOrg: orgVoteWeight(partyOrgByParty, o.party),
         partyReg: partyRegMult(o.party),
         party: o.party,
-        infamyMult: infamyPenaltyMultiplier(o.infamy),
+        infamy: o.infamy,
       })),
     ];
     const votesByCandidate: Record<string, number> = {};
@@ -429,11 +549,12 @@ export function computePollData(input: ComputePollDataInput): ComputedPollData {
         let totalWeight = 0;
         const weights: Record<string, number> = {};
         for (const c of candidates) {
-          const reach = normalizeNPI(c.influence);
-          const appeal = calcAppeal(demoEP, demoSP, c.ep, c.sp, c.influence, false);
-          const effectiveFav = calcEffectiveFavorability(c.baseFavorability, 0);
-          const effectiveApproval = approvalScalar(effectiveFav);
-          const w = Math.max(0, appeal * reach * effectiveApproval * c.partyOrg * c.partyReg * c.infamyMult);
+          const w = candidateWeight({
+            economicPosition: c.ep, socialPosition: c.sp,
+            politicalInfluence: c.influence, favorability: c.baseFavorability,
+            party: c.party, partyOrg: c.partyOrg, partyReg: c.partyReg,
+            ...(c.infamy !== undefined ? { infamy: c.infamy } : {}),
+          }, { economicLean: demoEP, socialLean: demoSP });
           weights[c.id] = w;
           totalWeight += w;
         }
@@ -540,7 +661,7 @@ export function resolvePollOpponents(world: WorldState): { electionId: string; o
 }
 
 export type CommissionPollResult =
-  | { ok: true; snapshot: StoredPollSnapshot; fundCost: number; electionId: string | null }
+  | { ok: true; snapshot: StoredPollSnapshot; electionId: string | null }
   | { ok: false; error: string };
 
 /**
@@ -548,7 +669,8 @@ export type CommissionPollResult =
  * "Validate before charging: never charge if we cannot produce poll data"),
  * compute the snapshot, and persist it on the player (lastPoll / lastPollLarge).
  * Charging itself stays in executeAction's shared path; this returns the fund
- * cost only for message parity. Player-only (see module doc).
+ * Player-only (see module doc). The shared action-cost path owns the
+ * stat-scaled, currency-converted debit and its player message.
  */
 export function commissionPoll(
   world: WorldState,
@@ -607,6 +729,21 @@ export function commissionPoll(
     liveTurnouts,
   });
 
+  const granular = buildGranularPollPayload(
+    {
+      economicPosition: player.policies?.economic ?? 0,
+      socialPosition: player.policies?.social ?? 0,
+      favorability: player.favorability,
+      politicalInfluence: player.politicalInfluence,
+      partyId: player.partyId,
+      infamy: player.infamy,
+    },
+    demographics,
+    active,
+    race?.opponents ?? [],
+    liveTurnouts,
+  );
+
   const snapshot: StoredPollSnapshot = {
     takenAt: world.meta.date,
     takenAtTurn: world.meta.turn,
@@ -619,6 +756,7 @@ export function commissionPoll(
     // per-category breakdown (route.ts: ...(pollType === "large" ? { categories: pd.results } : {})).
     ...(pollType === "pollLarge" ? { categories: computed.results } : {}),
     ...(computed.inRaceVoteShare ? { inRaceVoteShare: computed.inRaceVoteShare } : {}),
+    granular,
   };
 
   if (pollType === "pollLarge") {
@@ -629,7 +767,6 @@ export function commissionPoll(
   return {
     ok: true,
     snapshot,
-    fundCost: pollType === "pollLarge" ? LARGE_POLL_COST : SMALL_POLL_COST,
     electionId: race?.electionId ?? null,
   };
 }

@@ -4,6 +4,7 @@ import { deserializeSave, serializeSave } from "../save.js";
 import { ACTION_CATALOG } from "./catalog.js";
 import { executeAction } from "./execute.js";
 import { evaluateAchievements } from "../achievements/evaluate.js";
+import { statMultiplier } from "../stats/characterStats.js";
 import type { WorldState } from "../types.js";
 import type { ElectionRecord } from "../elections/types.js";
 
@@ -88,9 +89,12 @@ describe("issue #38 quick poll execution", () => {
     expect(snap!.bottomGroups).toHaveLength(5);
     expect("categories" in snap!).toBe(false);
     expect("inRaceVoteShare" in snap!).toBe(false);
+    expect(snap!.granular?.dims).toEqual(["voterGroups"]);
+    expect(snap!.granular?.cells.length).toBeGreaterThan(0);
+    expect(Object.keys(snap!.granular?.candidateShares ?? {})).toHaveLength(snap!.granular!.cells.length);
   });
 
-  it("full poll stores the category breakdown and sets a cooldown", () => {
+  it("full poll stores the category breakdown without a polling cooldown", () => {
     const world = readyWorld();
     const res = executeAction(world, "player", "pollLarge");
     expect(res.ok).toBe(true);
@@ -102,10 +106,21 @@ describe("issue #38 quick poll execution", () => {
     expect(snap!.categories!.length).toBeGreaterThan(0);
     const groupCount = snap!.categories!.reduce((n, c) => n + c.groups.length, 0);
     expect(groupCount).toBeGreaterThanOrEqual(snap!.topGroups.length);
-    // Cooldown is stamped (catalog cooldown 1 -> ready at turn + 2).
+    expect(ACTION_CATALOG.pollLarge.cooldown).toBe(0);
+    world.player.actions = 50;
+    world.player.funds = 1_000_000;
     const again = executeAction(world, "player", "pollLarge");
-    expect(again.ok).toBe(false);
-    expect((again as { error: string }).error).toMatch(/cooldown/);
+    expect(again.ok).toBe(true);
+  });
+
+  it("applies Intellect and frozen campaign FX to poll costs", () => {
+    const world = createWorld({ ...OPTS, countryId: "UK" });
+    world.player.actions = 50;
+    world.player.funds = 1_000_000;
+    world.player.stats = { ...world.player.stats, intellect: 10 };
+    const expected = Math.round(Math.round(25_000 / statMultiplier(10)) * 0.75);
+    expect(executeAction(world, "player", "poll").ok).toBe(true);
+    expect(world.player.funds).toBe(1_000_000 - expected);
   });
 
   it("matches a hand-computed single-group vector", () => {

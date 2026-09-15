@@ -130,12 +130,17 @@ export interface LegislatureScheduleView {
 /** Slim poll group row for display; full engine rows stay in the save. */
 export interface PollGroupView { id: string; name: string; appeal: number; weightedPotential: number; turnoutPct: number; estimatedSharePct?: number; }
 export interface PollCategoryView { id: string; name: string; weight: number; totalPotentialVoters: number; groups: PollGroupView[]; }
+export interface GranularPollCellView {
+  id: string; label: string; sharePct: number; turnoutPct: number;
+  playerSharePct: number; undecidedPct: number;
+}
 export interface StoredPollView {
   kind: "quick" | "full"; takenAtTurn: number; takenAt: string; homeRegion: string;
   overallAppeal: number; totalEstimatedVoters: number; totalPotentialVoters: number;
   topGroups: PollGroupView[]; bottomGroups: PollGroupView[];
   categories?: PollCategoryView[];
   inRace?: { myVotes: number; opponents: { id: string; name: string; party: string; votes: number }[] };
+  granular: { dimensions: string[]; cells: GranularPollCellView[] };
 }
 /** Latest commissioned polls (ports the stored lastPoll / lastPollLarge the poll UI reads). */
 export interface PollingView { quick: StoredPollView | null; full: StoredPollView | null; }

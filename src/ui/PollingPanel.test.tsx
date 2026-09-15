@@ -23,6 +23,7 @@ const quick: StoredPollView = {
   totalPotentialVoters: 42000,
   topGroups: groups("Top"),
   bottomGroups: groups("Bottom"),
+  granular: { dimensions: ["Voter Groups"], cells: [] },
 };
 
 const full: StoredPollView = {
@@ -40,6 +41,10 @@ const full: StoredPollView = {
   inRace: {
     myVotes: 40000,
     opponents: [{ id: "opp-1", name: "Rival", party: "REP", votes: 35000 }],
+  },
+  granular: {
+    dimensions: ["Voter Groups"],
+    cells: [{ id: "moderates", label: "moderates", sharePct: 24.5, turnoutPct: 61, playerSharePct: 52.5, undecidedPct: 8 }],
   },
 };
 
@@ -69,6 +74,8 @@ describe("PollingPanel", () => {
     expect(within(card).getByText(/rival.*35,000/i)).toBeInTheDocument();
     await user.click(within(card).getByText(/voter groups · 42,000 reachable/i));
     expect(within(card).getByText("Cat Group 2")).toBeInTheDocument();
+    await user.click(within(card).getByText(/granular electorate/i));
+    expect(within(card).getByText(/moderates.*24\.5% electorate.*you 52\.5%.*undecided 8%/i)).toBeInTheDocument();
   });
 
   it("renders both polls when both exist", () => {

@@ -319,6 +319,7 @@ function executeActionInner(
     actionCost: cost,
     donorBaseLevel: actor.donorBaseLevel ?? 0,
     catalogFundCost: catalog.fundCost,
+    countryId: actor.countryId,
     ...(found.kind === "player" && actor.stats ? { stats: actor.stats } : {}),
   });
   if (fundCost > 0) {
@@ -461,7 +462,7 @@ function executeActionInner(
     const commissioned = commissionPoll(world, actorId, actionId);
     if (!commissioned.ok) return { ok: false, error: commissioned.error };
     const snap = commissioned.snapshot;
-    const costLabel = `$${commissioned.fundCost.toLocaleString()}`;
+    const costLabel = `${world.countries[actor.countryId]?.currency ?? "$"} ${fundCost.toLocaleString()}`;
     const topline = `Topline appeal ${snap.overallAppeal} across ~${snap.totalEstimatedVoters.toLocaleString()} likely voters (${snap.totalPotentialVoters.toLocaleString()} reachable).`;
     const race = snap.inRaceVoteShare
       ? ` Projected vote: ${snap.inRaceVoteShare.myVotes.toLocaleString()} vs ${Object.values(snap.inRaceVoteShare.opponentVotes).map((v) => v.toLocaleString()).join(", ")}.`

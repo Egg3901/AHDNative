@@ -237,7 +237,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     name: "Full Demographic Poll",
     description: "Commission a comprehensive poll: full breakdown across every demographic group and category ($75,000).",
     baseCost: 6,
-    cooldown: 1,
+    cooldown: 0,
     fundCost: 75_000,
     systems: ["polling"],
     status: "available",

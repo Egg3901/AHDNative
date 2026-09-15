@@ -85,6 +85,20 @@ function PollCard({ snapshot, title }: { snapshot: StoredPollView; title: string
           ))}
         </div>
       ) : null}
+      {snapshot.granular.cells.length > 0 ? (
+        <details>
+          <summary style={{ fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>
+            Granular electorate · {snapshot.granular.dimensions.join(", ")}
+          </summary>
+          <ul style={{ listStyle: "none", margin: "0.35rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+            {snapshot.granular.cells.map((cell) => (
+              <li key={cell.id} style={{ fontSize: "0.76rem" }}>
+                {cell.label}: {cell.sharePct}% electorate · turnout {cell.turnoutPct}% · you {cell.playerSharePct}% · undecided {cell.undecidedPct}%
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
     </article>
   );
 }

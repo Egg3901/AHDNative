@@ -35,6 +35,13 @@ describe("action fund cost shares one stat-scaled source (#242)", () => {
     expect(neutral).toBe(3_000);
     expect(high).toBe(Math.round(3_000 / statMultiplier(10)));
   });
+
+  it("scales polling by Intellect and frozen campaign currency", () => {
+    expect(actionFundCost({ actionId: "poll", actionCost: 2, donorBaseLevel: 0, stats: { intellect: 10 }, catalogFundCost: 25_000, countryId: "UK" }))
+      .toBe(Math.round(Math.round(25_000 / statMultiplier(10)) * 0.75));
+    expect(actionFundCost({ actionId: "pollLarge", actionCost: 6, donorBaseLevel: 0, stats: { intellect: 1 }, catalogFundCost: 75_000, countryId: "RU" }))
+      .toBe(Math.round(Math.round(75_000 / statMultiplier(1)) * 2.22));
+  });
 });
 
 describe("executeAction charges exactly the quoted campaign cost (#242)", () => {

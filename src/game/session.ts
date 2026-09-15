@@ -59,8 +59,8 @@ const HOS_ACTIONS: typeof ACTIONS = [
  * (`actionFundCost`) that executeAction itself charges, so the displayed quote
  * and the debit cannot drift. executeAction stays authoritative.
  */
-function quoteFundCost(id: ActionId, flat: number, donorBaseLevel: number, apCost: number, stats?: WorldState["player"]["stats"]): number {
-  return actionFundCost({ actionId: id, actionCost: apCost, donorBaseLevel, catalogFundCost: flat, ...(stats ? { stats } : {}) });
+function quoteFundCost(id: ActionId, flat: number, donorBaseLevel: number, apCost: number, countryId: string, stats?: WorldState["player"]["stats"]): number {
+  return actionFundCost({ actionId: id, actionCost: apCost, donorBaseLevel, catalogFundCost: flat, countryId, ...(stats ? { stats } : {}) });
 }
 
 /**
@@ -464,7 +464,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     actions: (player.mode === "hos" ? HOS_ACTIONS : ACTIONS).map(({ id, requires, category, prerequisite }) => {
       const entry = ACTION_CATALOG[id];
       const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
-      const fundCost = quoteFundCost(id, entry.fundCost, player.donorBaseLevel, cost, player.stats);
+      const fundCost = quoteFundCost(id, entry.fundCost, player.donorBaseLevel, cost, player.countryId, player.stats);
       const cooldownTurns = Math.max(0, (player.actionCooldowns[id] ?? 0) - world.meta.turn);
       // Gate order mirrors executeAction validation; executeAction stays authoritative.
       const reason = entry.status === "unavailable" ? `Not yet available: requires the ${entry.blockingSystem ?? "unported system"} system.`
@@ -528,6 +528,17 @@ function projectPolling(world: WorldState): PollingView {
         id: g.id, name: g.name, appeal: g.appeal, weightedPotential: g.weightedPotential,
         turnoutPct: g.turnoutPct, ...(g.estimatedSharePct !== undefined ? { estimatedSharePct: g.estimatedSharePct } : {}),
       })),
+      granular: {
+        dimensions: snapshot.granular.dims.map((dim) => snapshot.granular.dimLabels[dim] ?? dim),
+        cells: snapshot.granular.cells.map((cell) => ({
+          id: cell.id,
+          label: Object.values(cell.buckets).join(" / "),
+          sharePct: Math.round(cell.share * 1_000) / 10,
+          turnoutPct: Math.round(cell.turnout * 1_000) / 10,
+          playerSharePct: Math.round((snapshot.granular.candidateShares[cell.id]?.you ?? 0) * 1_000) / 10,
+          undecidedPct: Math.round((snapshot.granular.candidateShares[cell.id]?.undecided ?? 0) * 1_000) / 10,
+        })),
+      },
       ...(snapshot.categories ? {
         categories: snapshot.categories.map((c) => ({
           id: c.id, name: c.name, weight: c.weight, totalPotentialVoters: c.totalPotentialVoters,
