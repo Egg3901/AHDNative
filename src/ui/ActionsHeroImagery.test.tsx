@@ -17,6 +17,7 @@ import { RouteHero, executiveHero } from "./RouteHero";
 import { DEFAULT_PREFERENCES } from "../preferences";
 import type { ProfileView } from "../game/profileTypes";
 import type { ElectionView, FinanceView, GameView } from "../game/types";
+import { DEFAULT_WORLD_FEATURE_FLAGS } from "@ahdclient/engine";
 
 function makeFinance(overrides: Partial<FinanceView> = {}): FinanceView {
   return {
@@ -57,6 +58,7 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
     countryName: "United States",
     difficulty: "normal",
     autonomyLevel: "v4",
+    featureFlags: { ...DEFAULT_WORLD_FEATURE_FLAGS },
     player: { name: "Ada", cash: 1200, funds: 5000, actions: 3, influence: 12, favorability: 48, partyName: "Labor", mode: "career", hosPartyId: null, homeRegionId: null },
     legislature: {
       office: "Representative",
@@ -146,6 +148,7 @@ function renderGame(world: GameView) {
       onAdvanceTurn={vi.fn()}
       onSave={vi.fn()}
       onExit={vi.fn()}
+      onUpdateWorldFeatureFlags={vi.fn()}
       onAction={vi.fn()}
     />,
   );

@@ -21,7 +21,7 @@ describe("MobileNavigation", () => {
   it.each([
     ["portfolio", "Profile"], ["markets", "Profile"],
     ["partyDetails", "Parties"], ["caucuses", "Parties"],
-    ["regions", "Menu"], ["economy", "Menu"],
+    ["regions", "Menu"], ["economy", "Menu"], ["worldSettings", "Menu"],
   ] as const)("keeps the parent destination marked while viewing %s", (route, label) => {
     render(<BottomNav route={route} menuOpen={false} menuButtonRef={createRef()} onNavigate={vi.fn()} onOpenMenu={vi.fn()} />);
     expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-current", "location");
@@ -50,7 +50,7 @@ describe("MobileNavigation", () => {
     expect(world.sections?.map((s) => s.label)).toEqual(["Economy", "Diplomacy", "Other"]);
     expect(world.sections?.[0]!.items.map((i) => i.id)).toEqual(["markets", "bonds", "banking"]);
     expect(world.sections?.[1]!.items.map((i) => i.id)).toEqual(["nations"]);
-    expect(world.sections?.[2]!.items.map((i) => i.id)).toEqual(["news"]);
+    expect(world.sections?.[2]!.items.map((i) => i.id)).toEqual(["news", "worldSettings"]);
   });
 
   it("drawer exposes every reachable destination exactly once", () => {
@@ -60,6 +60,7 @@ describe("MobileNavigation", () => {
       "politicians", "economy", "budget", "policy", "nations", "state", "help", "settings",
       "legislationDetails", "markets", "search", "partyManagement", "bonds", "caucuses",
       "referendums", "notifications", "regions", "presidentialDetails", "politicalMetrics",
+      "worldSettings",
     ]) {
       expect(ids).toContain(id);
     }
@@ -106,6 +107,10 @@ describe("MobileNavigation", () => {
     expect(within(world).getByRole("button", { name: "Stock market" })).toBeInTheDocument();
     expect(within(world).getByRole("button", { name: "Bonds" })).toBeInTheDocument();
     expect(within(world).getByRole("button", { name: "Banking" })).toBeInTheDocument();
+    // #352: the in-game World administration surface lives under World > Other.
+    expect(within(world).getByRole("button", { name: "World settings" })).toBeInTheDocument();
+    await user.click(within(world).getByRole("button", { name: "World settings" }));
+    expect(onNavigate).toHaveBeenCalledWith("worldSettings");
     expect(within(nation).getByRole("button", { name: "National Budget" })).toBeInTheDocument();
     expect(within(nation).getByRole("button", { name: "National Metrics" })).toBeInTheDocument();
     // #69: the reference Politics group also carries the presidential race page

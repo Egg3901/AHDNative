@@ -17,8 +17,8 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, createWorld, deserializeSave, executeAction,
-  getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, rulingPartyForCountry, serializeSave,
-  type ActionId, type ExecuteActionParams, type StoredPollSnapshot, type WorldState,
+  getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave,
+  type ActionId, type ExecuteActionParams, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionCategory, ActionView, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
 import { isWorldsimMode } from "@ahdclient/engine";
@@ -271,6 +271,20 @@ export class GameSession {
     return this.commit(candidate);
   }
 
+  /**
+   * #352: running-world simulation controls. The partial map is validated
+   * through the canonical resolver BEFORE any state is touched (unknown keys
+   * and non-booleans throw), then merged onto the live map so untouched
+   * flags survive. Only featureFlags is replaced on the cloned world, so
+   * every other saved field is preserved. Persists through serialize/load.
+   */
+  updateWorldFeatureFlags(flags: Partial<WorldFeatureFlags>): GameView {
+    const resolved = resolveWorldFeatureFlags({ ...this.requireWorld().featureFlags, ...flags });
+    const candidate = structuredClone(this.requireWorld());
+    candidate.featureFlags = resolved;
+    return this.commit(candidate);
+  }
+
 
   legislation(selection: LegislationSelection = {}) { return buildLegislationDetails(this.requireWorld(), selection); }
 
@@ -489,6 +503,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     // view always reports the effective value (absent means normal/v4).
     difficulty: resolveSingleplayerDifficulty(world.difficulty),
     autonomyLevel: resolveNppAutonomyLevel(world.nppAutonomyLevel),
+    featureFlags: { ...world.featureFlags },
     player: { name: player.name, cash: player.cash, funds: player.funds, actions: player.actions,
       influence: player.politicalInfluence, favorability: player.favorability,
       partyName: player.partyId ? world.parties[player.partyId]?.name ?? "Independent" : "Independent",

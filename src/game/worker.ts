@@ -23,6 +23,7 @@ self.addEventListener("message", (event: MessageEvent<GameRequest>) => {
       case "profile": value = session.profile(); break;
       case "updateProfile": value = session.updateProfile(command.update); break;
       case "selectConstituency": value = session.selectConstituency(command.constituencyId); break;
+      case "worldFeatureFlags": value = session.updateWorldFeatureFlags(command.flags); break;
       case "view": value = session.view(); break;
       case "advance": value = session.advance(); break;
       case "action": value = { result: session.act(command.actionId, command.params), view: session.view() }; break;

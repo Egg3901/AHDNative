@@ -3,6 +3,7 @@ import type { RegionsQuery } from "./regions";
 import type { LegislationSelection } from "./legislationDetails";
 import type { SearchFilter } from "./search";
 import type { NewGameOptions } from "./types";
+import type { WorldFeatureFlags } from "@ahdclient/engine";
 
 export type GameCommand =
   | { type: "choices" }
@@ -12,6 +13,7 @@ export type GameCommand =
   | { type: "profile" }
   | { type: "updateProfile"; update: ProfileUpdate }
   | { type: "selectConstituency"; constituencyId: string }
+  | { type: "worldFeatureFlags"; flags: Partial<WorldFeatureFlags> }
   | { type: "politics" }
   | { type: "markets" }
   | { type: "regions"; query?: RegionsQuery }

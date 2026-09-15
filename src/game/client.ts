@@ -11,6 +11,7 @@ import type { PoliticsView } from "./politics";
 import type { GameCommand, GameResponse } from "./protocol";
 import type { ActionOutcome } from "./notifications";
 import type { EraChoice, CreationChoices, GameView, NewGameOptions } from "./types";
+import type { WorldFeatureFlags } from "@ahdclient/engine";
 
 export interface WorkerPort {
   postMessage(message: unknown): void;
@@ -56,6 +57,7 @@ export class GameClient {
   profile() { return this.send<ProfileView>({ type: "profile" }); }
   updateProfile(update: ProfileUpdate) { return this.send<GameView>({ type: "updateProfile", update }); }
   selectConstituency(constituencyId: string) { return this.send<GameView>({ type: "selectConstituency", constituencyId }); }
+  updateWorldFeatureFlags(flags: Partial<WorldFeatureFlags>) { return this.send<GameView>({ type: "worldFeatureFlags", flags }); }
   view() { return this.send<GameView>({ type: "view" }); }
   advance() { return this.send<GameView>({ type: "advance" }); }
   act(actionId: string, params?: Record<string, string | number>) {

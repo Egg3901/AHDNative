@@ -5,6 +5,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { GameScreen } from "./GameScreen";
 import type { GameView } from "../game/types";
+import { DEFAULT_WORLD_FEATURE_FLAGS } from "@ahdclient/engine";
 import type { NotificationItem } from "../game/notifications";
 
 function notif(overrides: Partial<NotificationItem> = {}): NotificationItem {
@@ -25,6 +26,7 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
     countryName: "United States",
     difficulty: "normal",
     autonomyLevel: "v4",
+    featureFlags: { ...DEFAULT_WORLD_FEATURE_FLAGS },
     player: { name: "Ada", cash: 1200, funds: 5000, actions: 3, influence: 12, favorability: 48, partyName: "Labor", mode: "career", hosPartyId: null, homeRegionId: null },
     legislature: {
       office: null,
@@ -106,7 +108,7 @@ function renderGame(world: GameView, overrides = {}) {
     search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement}
     loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation}
     loadWorldOverview={loadWorldOverview} world={world} busy={false}
-    onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onAction={vi.fn()} {...overrides} />);
+    onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} {...overrides} />);
 }
 
 describe("GameScreen notifications", () => {
