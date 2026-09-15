@@ -288,6 +288,11 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 
 - N07/finance: domestic bond purchases and sales now run through worker actions,
   with real issuer, coupon, maturity, float and player-holding details.
+- #305: sovereign coupons and matured principal now settle in the bond's
+  authoritative denomination. Home-currency flows retain the legacy `cash`
+  projection; foreign balances persist in optional per-currency player state.
+  Foreign trading remains tracked by #306, corporate lifecycle by #307/#308,
+  and phase alignment by #309.
 - The genuine elected-save flow retains the selected issue and remaining units
   across trades and relaunch. [Bond evidence](BOND-MARKET.md) records the exact
   local pricing contract and the remaining dealer-pool/FX mechanics gaps.

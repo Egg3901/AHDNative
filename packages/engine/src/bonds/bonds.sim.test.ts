@@ -11,7 +11,12 @@ import {
   calculateQuarterlyIssuanceAmount,
   annualCouponCostForBond,
 } from "./constants.js";
-import { getTraceBonds, resetBondIdSequenceForTests } from "./bondTurn.js";
+import {
+  getTraceBonds,
+  payCouponsAndUpdatePrices,
+  resetBondIdSequenceForTests,
+  settleMaturedBonds,
+} from "./bondTurn.js";
 import { executeAction } from "../actions/execute.js";
 import { ACTION_CATALOG } from "../actions/catalog.js";
 
@@ -148,6 +153,46 @@ describe("coupon servicing math (cite: bonds.ts perTurnCouponPayment)", () => {
     advanceTurn(world);
     const expected = perUnit * 10;
     expect(world.player.cash - beforeCash).toBeCloseTo(expected, 6);
+  });
+
+  it("credits foreign coupons and matured principal in the bond denomination across reload", () => {
+    const world = createWorld(OPTS);
+    world.player.cash = 25_000;
+    world.bonds["sterling-1"] = {
+      id: "sterling-1",
+      issuerType: "sovereign",
+      countryId: "UK",
+      issuerName: "United Kingdom",
+      faceValue: 1_000,
+      couponRate: 4.8,
+      maturityTurns: 48,
+      issuedAtTurn: 0,
+      maturityTurn: world.meta.turn + 1,
+      marketPrice: 1,
+      totalIssued: 100_000,
+      publicFloat: 98,
+      holders: [{ holderId: "player", units: 2 }],
+      matured: false,
+      defaulted: false,
+      defaultedAtTurn: null,
+      currencyCode: "GBP",
+      createdAt: world.meta.date,
+      updatedAt: world.meta.date,
+    };
+
+    const coupon = perTurnCouponPayment(4.8, 1_000) * 2;
+    payCouponsAndUpdatePrices(world);
+
+    expect(world.player.cash).toBe(25_000);
+    expect(world.player.currencyBalances?.personal.GBP).toBeCloseTo(coupon, 8);
+
+    const reloaded = deserializeSave(serializeSave(world));
+    reloaded.meta.turn += 1;
+    settleMaturedBonds(reloaded);
+
+    expect(reloaded.player.cash).toBe(25_000);
+    expect(reloaded.player.currencyBalances?.personal.GBP).toBeCloseTo(2_000 + coupon, 8);
+    expect(reloaded.bonds["sterling-1"]?.matured).toBe(true);
   });
 });
 
