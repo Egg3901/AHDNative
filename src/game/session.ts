@@ -245,9 +245,7 @@ export class GameSession {
         const nomineeId = text(extra.nomineeId);
         const seatNumber = typeof extra.seatNumber === "number" && Number.isInteger(extra.seatNumber)
           ? extra.seatNumber
-          : typeof extra.seatNumber === "string" && extra.seatNumber.trim() !== "" && Number.isInteger(Number(extra.seatNumber))
-            ? Number(extra.seatNumber)
-            : undefined;
+          : undefined;
         if (!countryId || seatNumber === undefined || !nomineeId) throw new Error("Choose a country, seat, and nominee.");
         const nomination = sponsorScotusNomination(candidate, { countryId, seatNumber, nomineeId });
         message = `Nominated ${nomination.nomineeName} for Supreme Court Seat #${nomination.seatNumber}. The Senate votes by turn ${nomination.votingEndsOnTurn}.`;
