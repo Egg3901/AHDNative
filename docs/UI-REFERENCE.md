@@ -369,20 +369,86 @@ licence recorded in AHDGame), so rights cannot be audited and they stay out
 per the issue's fair-use/proprietary exclusion. `cabinet`, `bank-of-england`,
 `bank-of-japan`, `federal-reserve`, `imf` and `imf-logo` have recorded Commons
 sources in the hero route but no Native consumer surface yet (Native has no
-central-bank, IMF, cabinet, or commodity destination; corporation model and
-market lifecycles stay with #80/#211/#77), so they are staged with the
-surface rather than shipped as dead weight. One Native surface consumes the
+dedicated central-bank, IMF, cabinet, or commodity destination; corporation
+model and market lifecycles stay with #80/#211/#77), so they are staged with
+the surface rather than shipped as dead weight. (The three bank slugs
+gained their Banking consumer in the #386 subset below.) One Native surface consumes the
 commodity set: Markets company detail (`CompanyDetail` in
 `src/ui/MarketsPanel.tsx`) renders a `RouteHero` keyed by the listing's
 recorded `sectorType` with `commodityHero()` / `commodityHeroAlt()`. Only
 the `energy` and `retail` Native sectors hit bundled art (the 17
 `CorporationType` sector keys otherwise miss the 14 commodity keys and take
 the Actions fallback with the fallback accessible name); no route, mechanic,
-or sector mapping was invented. Partial: the corporation, central-bank, IMF,
+or sector mapping was invented. Partial: the corporation, IMF,
 and cabinet surfaces from #378 stay open (no Native consumer or rights
-manifest yet), the other 14 commodity slugs stay remote-only, and the
+manifest yet; central-bank coverage moved to the #386 banking subset
+below), the other 14 commodity slugs stay remote-only, and the
 reference commodity browse surface has no Native equivalent. The issue stays
 open with `status: partial`.
+
+### Banking hero subset (#386)
+
+Three of the reference central-bank heroes ship offline, byte-identical
+copies from AHDGame `e364c04954ed628beef73a993a8e9e156650a31e`
+(`public/static/heroes/`) under the same public path, wired through
+`RouteHero` via `bankingHero()` (`src/ui/RouteHero.tsx`) with the reference
+image-error gradient fallback. Reference keying source:
+`centralBank.heroImage` per country in AHDGame
+`src/lib/constants/countries.ts` (US `federal-reserve`, GB plus SCO/WAL
+which share the record `bank-of-england`, JP `bank-of-japan`), served
+remotely through `/api/images/hero/[slug]`; Native ids use UK for Britain
+so the Native map is US/UK/JP. Only these three slugs have a local file
+upstream, so every other Native country (DD, CN, DE, IE and the rest,
+including the ECB-shared records with no local file) falls back to Actions
+art, never a broken image or remote fetch. The reference BankingHub hero
+itself (`BankingHero` in AHDGame `src/app/banking/BankingHubClient.tsx`)
+is an icon/gradient composition with no photo asset, so the photo surface
+follows the central-bank detail pattern instead (`InstitutionMasthead`
+in `CentralBankClient.tsx`: hero photo, gradient, identity band).
+US/UK alts repeat the reference `centralBank.heroAlt` verbatim, each
+confirmed against the inspected local WebP (Eccles facade with the
+FEDERAL RESERVE inscription and flag; Threadneedle Street building with
+bus and street statue). JP carries no reference alt, so its alt follows
+the upstream file identity (File:Bank of Japan 2010.jpg, "Bank of Japan,
+Chuo-ku Tokyo Japan"): the historic stone head office in the foreground,
+not the modern towers behind it. Alt resolution goes through the total
+typed `bankingHeroAlt()` helper: exact-key lookup with no case folding
+or trimming, and the nonempty `BANKING_HERO_FALLBACK_ALT` ("Banking hero
+image") for every unbundled or unknown key. All 3 are free CC licences,
+each verified against the Commons API; no fair-use or proprietary entry
+is bundled. CC attribution is recorded here. Files are VP8 WebP;
+`RouteHero` crops with `object-fit: cover` at the shared 172px phone /
+220px wider crop, so no new CSS was needed. One Native surface consumes
+the set: Banking (`BankingSection` in `src/ui/FinancePanel.tsx`) renders
+a `RouteHero` keyed by the world's country id (new optional `countryId`
+prop, wired from `GameScreen`; omitted ids take the Actions fallback
+with the fallback accessible name) with cash/savings balances and the
+savings holder as hero content. Deposit/withdraw validation, limits,
+busy/unavailable states and action payloads are unchanged. Focused
+tests: `src/ui/BankingHeroImagery.test.tsx` (resolver, total alt helper
+with exact-key and fallback behavior, the three grounded alts, fallback
+accessible name, local webp container bytes, rendered local decode,
+error fallback, Banking-surface hero with balances and transfer
+controls, deposit/withdraw mechanics preserved, crop CSS).
+
+SHA-256 provenance (left) and upstream Commons rights (right):
+
+- `federal-reserve.webp` `81acea8e60eb4194fd6c9b34b72b08b8776525f21605a271ae8ad99509a934fa` - File:Federal Reserve.jpg, CC BY-SA 2.5 (Dan Smith)
+- `bank-of-england.webp` `3ccd1b258347ee7970eefb9a0a4ff5df1f8b51943ceb04a56f4b05770e0ec61d` - File:Bank of England Building, London, UK - Diliff.jpg, CC BY-SA 3.0 (David Iliff)
+- `bank-of-japan.webp` `8ca60d078ac75eb58d6004f054ffb8e18862b73ed42e09da956414075b19b7a3` - File:Bank of Japan 2010.jpg, CC BY-SA 3.0 (Wiiii)
+
+Explicitly not bundled: the other reference central-bank slugs (`ecb`,
+`peoples-bank-of-china`, `banco-central-do-brasil`) have no local file
+upstream (remote-only; the offline app cannot fetch them). The 11
+`sector-*.webp` files still carry no upstream source manifest, and `imf`,
+`imf-logo` and `cabinet` still have no Native consumer surface, so they
+stay out per the fair-use/proprietary exclusion and the staged-with-
+surface rule. Partial: DD/CN/DE/IE and every other unbundled Native
+country take the Actions fallback (honest generic art, not their real
+central bank), the BankingHub icon/gradient composition itself is not
+ported, and rendered 320/390/desktop overflow proof stays future work
+(this slice asserts the crop CSS text only). The issue stays open with
+`status: partial`.
 
 Full destination/conditional-menu inventory lives in
 [navigation parity](NAVIGATION-PARITY.md); this table only maps each Native
@@ -398,6 +464,7 @@ redesign beyond landing is attempted here.
 | Nation/Economy | `src/ui/NationPanel.tsx`, `src/ui/FinancePanel.tsx` | `src/components/national/tabs/*` |
 | Politics/legislature | `src/ui/PoliticsPanel.tsx`, `src/ui/LegislaturePanel.tsx`, `src/ui/LegislationDetailsPanel.tsx` | nav inventory sections 1-3 in [navigation parity](NAVIGATION-PARITY.md); Elections hub band in `src/ui/PoliticsPanel.tsx` via shared `RouteHero` (see below) |
 | Markets/bonds/regions/world/search | `src/ui/MarketsPanel.tsx`, `BondMarketPanel.tsx`, `RegionsPanel.tsx`, `WorldPanel.tsx`, `SearchPanel.tsx` | world menu section 3 in [navigation parity](NAVIGATION-PARITY.md) |
+| Portfolio/Banking | `src/ui/FinancePanel.tsx` (Banking hero: `bankingHero()` in `src/ui/RouteHero.tsx`) | `src/components/forex/SavingsWalletBlock.tsx`, `src/app/banking/BankingHubClient.tsx`, central-bank `heroImage`/`heroAlt` in `src/lib/constants/countries.ts` |
 | Help/Settings | `src/ui/HelpPanel.tsx`, `src/ui/SettingsPanel.tsx` | app-local surfaces, tokens from `src/app/globals.css` |
 
 ### Elections hub hero (issue #377)

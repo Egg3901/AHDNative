@@ -129,6 +129,63 @@ export function commodityHero(commodity: string): string {
   return COMMODITY_HERO_IMAGE[commodity] ?? "/static/heroes/actions.webp";
 }
 
+/**
+ * Offline banking hero art (#386, slice of #143, stacked on the #378 pipeline).
+ *
+ * The reference keys central-bank photo heroes by country
+ * (`centralBank.heroImage` in AHDGame `src/lib/constants/countries.ts`,
+ * served remotely through `/api/images/hero/[slug]`): US drives
+ * `federal-reserve`, GB (plus SCO/WAL, which share the record) drives
+ * `bank-of-england`, JP drives `bank-of-japan`. Native country ids use UK
+ * for Britain, so the Native mapping is US/UK/JP; only these three slugs
+ * have a local file upstream, byte-identical to AHDGame
+ * `public/static/heroes/` at rev `e364c04` (SHA-256 provenance in
+ * `docs/UI-REFERENCE.md`). Every other Native country (DD, CN, DE, IE and
+ * the rest, including the ECB-shared ones with no local file) falls back
+ * to the Actions artwork, never a broken image or a remote fetch. The
+ * reference BankingHub hero itself is an icon/gradient composition, not a
+ * photo, so the photo surface follows the central-bank detail pattern
+ * (`InstitutionMasthead` in `CentralBankClient.tsx`) instead.
+ */
+export const BANKING_HERO_IMAGE: Record<string, string> = {
+  US: "/static/heroes/federal-reserve.webp",
+  UK: "/static/heroes/bank-of-england.webp",
+  JP: "/static/heroes/bank-of-japan.webp",
+};
+
+/**
+ * Alt text for the bundled banking heroes.
+ *
+ * US/UK repeat the reference `centralBank.heroAlt` verbatim; each was
+ * confirmed against the inspected local WebP (Eccles facade with the
+ * FEDERAL RESERVE inscription; Threadneedle Street building with bus).
+ * JP carries no reference alt, so the alt follows the upstream file
+ * identity (File:Bank of Japan 2010.jpg, "Bank of Japan, Chuo-ku Tokyo
+ * Japan"): the historic stone head office in the foreground, not the
+ * modern towers behind it.
+ */
+export const BANKING_HERO_ALT: Record<string, string> = {
+  US: "Marriner S. Eccles Federal Reserve Board Building, Washington D.C.",
+  UK: "Bank of England, Threadneedle Street, London",
+  JP: "Bank of Japan head office, Tokyo",
+};
+
+export function bankingHero(countryId: string): string {
+  return BANKING_HERO_IMAGE[countryId] ?? "/static/heroes/actions.webp";
+}
+
+/** Nonempty accessible-name fallback for countries with no bundled bank art. */
+export const BANKING_HERO_FALLBACK_ALT = "Banking hero image";
+
+/**
+ * Total alt-text resolver: exact-key lookup, no case folding or trimming,
+ * so `"us"`, `" Uk"` and `""` all take the fallback. Total over
+ * strings — never undefined, never empty.
+ */
+export function bankingHeroAlt(countryId: string): string {
+  return BANKING_HERO_ALT[countryId] ?? BANKING_HERO_FALLBACK_ALT;
+}
+
 /** Nonempty accessible-name fallback for commodity keys with no bundled art. */
 export const COMMODITY_HERO_FALLBACK_ALT = "Commodity hero image";
 

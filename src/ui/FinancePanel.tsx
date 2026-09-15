@@ -12,12 +12,15 @@
  */
 import { useState } from "react";
 import type { FinanceView, GameScreenProps } from "../game/types";
+import { RouteHero, bankingHero, bankingHeroAlt } from "./RouteHero";
 
 export interface FinancePanelProps {
   finance: FinanceView;
   section: "portfolio" | "banking";
   busy: boolean;
   onAction: GameScreenProps["onAction"];
+  /** Native country id; selects the offline central-bank hero (unknown ids take the Actions fallback). */
+  countryId?: string;
 }
 
 export function formatFinanceMoney(amount: number, currency: string): string {
@@ -90,7 +93,7 @@ function PortfolioSection({ finance }: { finance: FinanceView }) {
   );
 }
 
-function BankingSection({ finance, busy, onAction }: { finance: FinanceView; busy: boolean; onAction: GameScreenProps["onAction"] }) {
+function BankingSection({ finance, busy, onAction, countryId = "" }: { finance: FinanceView; busy: boolean; onAction: GameScreenProps["onAction"]; countryId?: string }) {
   const [amount, setAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -124,8 +127,7 @@ function BankingSection({ finance, busy, onAction }: { finance: FinanceView; bus
 
   return (
     <div className="ahd-stack">
-      <div className="ahd-card ahd-card-pad ahd-hero">
-        <h2 className="ahd-h2">Banking</h2>
+      <RouteHero image={bankingHero(countryId)} alt={bankingHeroAlt(countryId)} eyebrow="Banking" title="Banking">
         <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", marginTop: "0.5rem" }}>
           <div style={{ fontSize: "0.82rem" }}>Cash</div>
           <div className="ahd-mono" style={{ fontSize: "0.82rem", fontWeight: 700 }}>
@@ -141,7 +143,7 @@ function BankingSection({ finance, busy, onAction }: { finance: FinanceView; bus
         <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: "0.4rem 0 0", overflowWrap: "anywhere" }}>
           {finance.savingsHolder}
         </p>
-      </div>
+      </RouteHero>
 
       <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
         <label className="ahd-field" style={{ maxWidth: "16rem" }}>
@@ -201,7 +203,7 @@ function BankingSection({ finance, busy, onAction }: { finance: FinanceView; bus
   );
 }
 
-export function FinancePanel({ finance, section, busy, onAction }: FinancePanelProps) {
-  if (section === "banking") return <BankingSection finance={finance} busy={busy} onAction={onAction} />;
+export function FinancePanel({ finance, section, busy, onAction, countryId }: FinancePanelProps) {
+  if (section === "banking") return <BankingSection finance={finance} busy={busy} onAction={onAction} countryId={countryId} />;
   return <PortfolioSection finance={finance} />;
 }
