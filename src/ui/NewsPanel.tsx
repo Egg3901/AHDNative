@@ -32,6 +32,7 @@ export function NewsPanel({ news, clock, storageKey, onCountry, onParty, onElect
   const [country, setCountry] = useState("all");
   const [category, setCategory] = useState("all");
   const [date, setDate] = useState("all");
+  const [eventFilter, setEventFilter] = useState("all");
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const readButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   // "article" moves focus into the opened article; otherwise a news id moves
@@ -41,7 +42,9 @@ export function NewsPanel({ news, clock, storageKey, onCountry, onParty, onElect
   const countries = useMemo(() => [...new Map(news.flatMap(item => item.country ? [[item.country.id, item.country.name] as const] : [])).entries()], [news]);
   const categories = useMemo(() => [...new Set(news.map(item => item.category ?? "General"))], [news]);
   const dates = useMemo(() => [...new Set(news.map(item => item.date))], [news]);
-  const filtered = news.filter(item => (country === "all" || item.country?.id === country) && (category === "all" || (item.category ?? "General") === category) && (date === "all" || item.date === date));
+  const events = useMemo(() => [...new Map(news.flatMap(item => item.event ? [[item.event.id, item.event.name] as const] : [])).entries()], [news]);
+  const eventName = events.find(([id]) => id === eventFilter)?.[1] ?? null;
+  const filtered = news.filter(item => (country === "all" || item.country?.id === country) && (category === "all" || (item.category ?? "General") === category) && (date === "all" || item.date === date) && (eventFilter === "all" || item.event?.id === eventFilter));
   const selected = news.find(item => item.id === selectedId) ?? null;
 
   const select = (id: string | null) => {
@@ -75,7 +78,7 @@ export function NewsPanel({ news, clock, storageKey, onCountry, onParty, onElect
           {selected.party ? <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onParty(selected.party!.id)}>View {selected.party.name}</button> : null}
           {selected.election ? <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onElection(selected.election!.id)}>View {selected.election.name}</button> : null}
         </nav>
-        {selected.event ? <section role="region" aria-label="Event context" className="ahd-card ahd-card-pad"><h3 className="ahd-h3">Event context</h3><p>{selected.event.name}</p><p className="ahd-muted">This save has no separate event-detail destination. The article above is the complete local record.</p></section> : null}
+        {selected.event ? <section role="region" aria-label="Event context" className="ahd-card ahd-card-pad"><h3 className="ahd-h3">Event context</h3><p>{selected.event.name}</p><button type="button" className="ahd-btn ahd-btn-sm" onClick={() => { select(null); setEventFilter(selected.event!.id); }}>More on {selected.event.name}</button></section> : null}
       </article>
     );
   }
@@ -84,6 +87,7 @@ export function NewsPanel({ news, clock, storageKey, onCountry, onParty, onElect
     <div className="ahd-stack">
       <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">News</h2><p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>{filtered.length} of {news.length} items</p>
+        {eventName ? <p style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.45rem", marginTop: "0.5rem" }}><span className="ahd-pill">Event: {eventName}</span><button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => setEventFilter("all")}>Clear event filter</button></p> : null}
         <div className="ahd-grid ahd-grid-3" style={{ marginTop: "0.7rem" }}>
           <label className="ahd-field"><span className="ahd-label">Country</span><select className="ahd-select" aria-label="News country" value={country} onChange={event => setCountry(event.target.value)}><option value="all">All countries</option>{countries.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
           <label className="ahd-field"><span className="ahd-label">Date</span><select className="ahd-select" aria-label="News date" value={date} onChange={event => setDate(event.target.value)}><option value="all">All dates</option>{dates.map(value => <option key={value} value={value}>{value}</option>)}</select></label>

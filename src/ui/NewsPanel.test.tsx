@@ -27,6 +27,16 @@ const unlinked: NewsView = {
   country: { id: "US", name: "United States" },
 };
 
+const eventCoverage: NewsView = {
+  id: "turn-4-reaction",
+  title: "Markets greet the election call",
+  body: "Stocks moved on the news.",
+  date: "1953-02-01",
+  category: "Economy",
+  country: { id: "US", name: "United States" },
+  event: { id: "event-election-call", name: "Election call" },
+};
+
 function renderPanel(news: NewsView[] = [linked, unlinked], storageKey = "slot", handlers: Partial<{ onCountry: (id: string) => void; onParty: (id: string) => void; onElection: (id: string) => void }> = {}) {
   const onCountry = handlers.onCountry ?? vi.fn();
   const onParty = handlers.onParty ?? vi.fn();
@@ -91,15 +101,19 @@ describe("NewsPanel article detail", () => {
     expect(within(article).queryByRole("region", { name: "Event context" })).not.toBeInTheDocument();
   });
 
-  it("keeps event context non-interactive when Native has no event destination", async () => {
+  it("filters the offline wire to all coverage of an article event", async () => {
     const user = userEvent.setup();
-    renderPanel();
+    renderPanel([linked, eventCoverage, unlinked]);
     await user.click(screen.getByRole("button", { name: "Read General election called" }));
     const article = screen.getByRole("article", { name: "General election called" });
     const context = within(article).getByRole("region", { name: "Event context" });
     expect(context).toHaveTextContent("Election call");
-    expect(within(context).queryByRole("button")).not.toBeInTheDocument();
-    expect(within(context).queryByRole("link")).not.toBeInTheDocument();
+    await user.click(within(context).getByRole("button", { name: "More on Election call" }));
+    expect(screen.getByText("General election called")).toBeInTheDocument();
+    expect(screen.getByText("Markets greet the election call")).toBeInTheDocument();
+    expect(screen.queryByText("Markets rally")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Clear event filter" }));
+    expect(screen.getByText("Markets rally")).toBeInTheDocument();
   });
 
   it("marks the article read and preserves selection across navigation and reload per save slot", async () => {
