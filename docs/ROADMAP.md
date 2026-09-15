@@ -950,6 +950,20 @@ rendered tests cover canonical progression, earlier-answer editing, the direct
 review path and final submission. This is a Native mobile presentation choice,
 not behavior attributed to current AHDGame development.
 
+#335 mobile pass (stacked): a touch-first progress strip jumps directly to any
+reached section with `aria-current` marking, the active step heading takes
+keyboard focus on each change with a `role=status` announcement, chips gain a
+visible focus ring, stat rows wrap at 380px and below, and a sticky
+safe-area action bar keeps Continue/Back/Create reachable. Order, labels,
+fields, defaults, conditional notices and the `CharacterCreation` submission
+are untouched. Evidence: `src/ui/CharacterCreationMobilePresentation.test.tsx`
+(8 tests: progress order/jump, Back, mount/keyboard focus, live region,
+320/390px structural guards, exact submitted record),
+`smoke/character-creation.spec.ts` (per-step zero-overflow asserts at the
+390px default viewport plus turn/save/relaunch) and a temporary real-Chromium
+320px walk (zero overflow per step, 44px targets, Profile handoff) run once
+and removed. The smoke helper now walks the conversation; no engine change.
+
 ## Ministerial-order lifecycle checkpoint, 2026-09-15 (#258 / #105)
 
 - Persisted orders now retain their cabinet position/catalog identity, duration,

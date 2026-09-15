@@ -832,6 +832,53 @@ html, body { overflow-x: hidden; }
   color: var(--ahd-fg);
   font-weight: 650;
 }
+.ahd-chip:focus-visible { outline: none; box-shadow: var(--ahd-focus); border-color: var(--ahd-primary); }
+
+/* ── Conversational mobile presentation (#335) ─────────────────────────────
+   Touch-first progress navigation, compact stat rows and a sticky action bar.
+   Presentation only: order, labels, controls and submission are untouched. */
+.ahd-creation-progress-nav { min-width: 0; margin: 0.85rem 0 0.25rem; }
+.ahd-creation-progress {
+  display: flex; gap: 0.4rem; min-width: 0;
+  margin: 0; padding: 0.15rem 0.1rem 0.35rem; list-style: none;
+  overflow-x: auto; scrollbar-width: thin;
+}
+.ahd-creation-progress li { flex: 0 0 auto; }
+.ahd-creation-progress-dot {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  min-height: 44px; padding: 0.4rem 0.65rem;
+  border-radius: 999px; border: 1px solid var(--ahd-border);
+  background: var(--ahd-card-muted, transparent); color: var(--ahd-muted);
+  font-size: 0.74rem; font-weight: 650; cursor: pointer; touch-action: manipulation;
+  max-width: 11rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ahd-creation-progress-dot:disabled { opacity: 0.55; cursor: not-allowed; }
+.ahd-creation-progress-dot:focus-visible { outline: none; box-shadow: var(--ahd-focus); border-color: var(--ahd-primary); }
+.ahd-creation-progress-done { border-color: rgba(34,197,94,0.5); color: var(--ahd-fg); }
+.ahd-creation-progress-current {
+  border-color: var(--ahd-primary); color: var(--ahd-fg);
+  background: color-mix(in srgb, var(--ahd-primary) 14%, transparent);
+}
+.ahd-creation-live { font-size: 0.74rem; color: var(--ahd-muted); margin: 0 0 0.35rem; }
+
+.ahd-creation-stat-row { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.ahd-creation-stat-name { flex: 1 1 auto; min-width: 0; font-size: 0.82rem; overflow-wrap: anywhere; }
+@media (max-width: 380px) {
+  .ahd-creation-stat-row { flex-wrap: wrap; }
+  .ahd-creation-stat-name { flex: 1 1 100%; }
+}
+
+.ahd-creation-actions {
+  position: sticky; bottom: 0; z-index: 5;
+  display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;
+  margin-top: 1rem; padding: 0.6rem 0 max(0.6rem, env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--ahd-bg) 92%, transparent);
+  border-top: 1px solid var(--ahd-border);
+}
+.ahd-creation-actions .ahd-btn-primary { flex: 1 1 12rem; }
+@media (prefers-reduced-motion: reduce) {
+  .ahd-creation-progress { scroll-behavior: auto; }
+}
 .ahd-creation-party-dot {
   display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 999px;
 }
