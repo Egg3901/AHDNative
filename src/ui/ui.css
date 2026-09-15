@@ -374,7 +374,7 @@ html, body { overflow-x: hidden; }
   text-transform: uppercase; line-height: 1; user-select: none;
   min-width: 0;
 }
-.ahd-mark img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.ahd-mark img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: inherit; }
 .ahd-mark-initials { display: block; padding: 0 2px; }
 
 /* Compact code-native action category mark (#244): a small glyph tile that

@@ -51,8 +51,25 @@ describe("CoalitionMark", () => {
   it("derives a stable country-scoped fallback color when the DTO has none", () => {
     const { container } = render(<CoalitionMark name="Unity Bloc" coalitionId="7" countryId="US" />);
     const mark = container.querySelector(".ahd-mark-coalition") as HTMLElement;
-    expect(mark).toHaveStyle({ background: partyMarkColor("us-7") });
+    expect(mark).toHaveStyle({ backgroundColor: partyMarkColor("us-7") });
     expect(mark).toHaveAttribute("data-coalition-mark", "UB");
+  });
+
+  it("shades the fallback tile as a gradient with a coalition ring", () => {
+    const { container } = render(<CoalitionMark name="Unity Bloc" coalitionId="7" countryId="US" />);
+    const mark = container.querySelector(".ahd-mark-coalition") as HTMLElement;
+    expect(mark.style.backgroundImage).toContain("linear-gradient");
+    expect(mark.style.boxShadow).toContain("inset");
+  });
+
+  it("loads an authored image lazily without leaking a referrer", () => {
+    const { container } = render(
+      <CoalitionMark name="Unity Bloc" abbreviation="UB" coalitionId="us-unity" countryId="US" color="#6366f1" logoUrl="/coalition-logos/us-unity-1.png" />,
+    );
+    const img = container.querySelector("img");
+    expect(img).not.toBeNull();
+    expect(img).toHaveAttribute("loading", "lazy");
+    expect(img).toHaveAttribute("referrerpolicy", "no-referrer");
   });
 
   it("honors a fixed caller size so rows cannot overflow at 320px or 390px", () => {

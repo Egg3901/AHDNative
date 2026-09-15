@@ -80,6 +80,21 @@ export function partyMarkKey(countryId?: string | null, id?: string | null): str
   return `${country}-${scopedParty}`;
 }
 
+/**
+ * Shaded tile gradient derived ONLY from the party's own DTO color: the flat
+ * base stays as `backgroundColor` (graceful when `color-mix` is unsupported)
+ * with a top-lit gradient layered over it. No art, no remote fetch.
+ */
+export function partyMarkTileShade(color: string): string {
+  return `linear-gradient(180deg, ${color}, color-mix(in srgb, ${color} 68%, black))`;
+}
+
+/** Inset top-light + edge ring shared by the fallback tiles. */
+export const PARTY_MARK_TILE_RING = "inset 0 1px 0 rgba(255,255,255,0.28), inset 0 0 0 1px rgba(0,0,0,0.14)";
+
+/** Neutral tile bed behind an authored image (letterboxed/contained art). */
+export const MARK_IMAGE_TILE_BACKGROUND = "var(--ahd-card-elevated)";
+
 export interface PartyMarkProps {
   name: string;
   abbreviation?: string | null;
@@ -118,7 +133,18 @@ export function PartyMark({ name, abbreviation, color, id, countryId, logoUrl, l
   return (
     <span
       className={classes}
-      style={showImage ? sizing : { ...sizing, background: resolvedColor, color: partyMarkTextColor(resolvedColor), fontSize: `${Math.max(9, size * 0.34)}px` }}
+      style={
+        showImage
+          ? { ...sizing, background: MARK_IMAGE_TILE_BACKGROUND }
+          : {
+              ...sizing,
+              backgroundColor: resolvedColor,
+              backgroundImage: partyMarkTileShade(resolvedColor),
+              boxShadow: PARTY_MARK_TILE_RING,
+              color: partyMarkTextColor(resolvedColor),
+              fontSize: `${Math.max(9, size * 0.34)}px`,
+            }
+      }
       data-party-mark={initials}
       role={decorative ? undefined : "img"}
       aria-label={label}
@@ -131,6 +157,9 @@ export function PartyMark({ name, abbreviation, color, id, countryId, logoUrl, l
           width={size}
           height={size}
           decoding="async"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          draggable={false}
           onError={() => setFailedSrc(logoUrl ?? null)}
         />
       ) : (
