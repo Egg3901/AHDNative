@@ -487,8 +487,8 @@ fn mutate_body(op: MpMutateOp, payload: &serde_json::Value) -> Result<serde_json
                 let minutes = minutes_value
                     .as_u64()
                     .ok_or_else(|| error::BAD_ARG.to_string())?;
-                if minutes < NOTIFICATION_SNOOZE_MINUTES_MIN
-                    || minutes > NOTIFICATION_SNOOZE_MINUTES_MAX
+                if !(NOTIFICATION_SNOOZE_MINUTES_MIN..=NOTIFICATION_SNOOZE_MINUTES_MAX)
+                    .contains(&minutes)
                 {
                     return Err(error::BAD_ARG.to_string());
                 }
