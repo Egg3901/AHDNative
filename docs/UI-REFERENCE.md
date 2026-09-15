@@ -165,6 +165,34 @@ checks. Source and unit evidence alone do not complete #149.
 
 ## Route-level visual inventory (issue #143, compact)
 
+### 0.1.6 route hero and identity checkpoint (#244)
+
+Actions, Parties, character creation and Head of State now use the exact public
+AHDGame WebP hero assets from `public/static/heroes` at the repository revision
+used for the parity audit. They are copied into Native under the same public
+path and load entirely offline. `RouteHero` ports the reference image-error
+gradient fallback and adapts its crop from 172px on phones to 220px on wider
+screens. HoS resolves White House, Downing Street, Reichstag and Zhongnanhai
+art by country, with Actions as the explicit fallback for countries whose
+executive image is not yet bundled. Party cards continue to use `PartyMark`'s
+country/party-id resolution and initials fallback.
+
+SHA-256 provenance: `actions.webp`
+`cad398e81644f9ea924c511c649487bd139bf7612a391502205ebea6be86ed80`;
+`parties.webp` `479100f4624ed7b5ae14444ce12651f21bb849839ae7757961e00ebbbbe4024f`;
+`politicians.webp` `bb3078558687f426d939f74672e339033147e241b21495b269b59cc12acb7a00`;
+`white-house.webp` `78ea4a19c80ff93c503d41bfcff6e6d9143cd1107d813c6fec4e329bcb41e0d5`;
+`downing-street.webp` `78e8cdb21d695a0e421c114f843ce9ffb7defd1ada1f9454d57003854836233c`;
+`reichstag.webp` `6d98a5dc27b9ac609df7b03200f95d4a928aff29924772262cf5acf616acd085`;
+`zhongnanhai.webp` `b897df8cd2047021d42abc441b0f4a0c8a38531b03919cccf3a8d417bccafcbc`.
+
+`smoke/route-heroes.spec.ts` renders and screenshots creation, career Actions,
+HoS Actions and Parties
+at 320x700, 390x844 and 1280x800, proves each image decodes from the local
+bundle, detects horizontal overflow and rejects external image requests.
+Remaining route assets stay explicit under #143; this checkpoint does not
+claim whole-application image parity.
+
 Full destination/conditional-menu inventory lives in
 [navigation parity](NAVIGATION-PARITY.md); this table only maps each Native
 entry surface to its reference source so follow-up styling stays grounded. No
