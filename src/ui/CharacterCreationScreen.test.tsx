@@ -171,3 +171,96 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     expect(screen.getByText(/imperial/i)).toBeInTheDocument();
   });
 });
+
+describe("CharacterCreationScreen portrait/header identity (#348)", () => {
+  function stubDecodableImage(width = 10, height = 10) {
+    class FakeImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = width;
+      naturalHeight = height;
+      width = width;
+      height = height;
+      private srcValue = "";
+      set src(value: string) {
+        this.srcValue = value;
+        queueMicrotask(() => this.onload?.());
+      }
+      get src() { return this.srcValue; }
+    }
+    vi.stubGlobal("Image", FakeImage);
+  }
+
+  function fileInput(label: RegExp): HTMLInputElement {
+    // The sr-only file inputs are labelled by their visible pick affordance.
+    const labelEl = screen.getByText(label).closest("label")!;
+    const input = labelEl.parentElement!.querySelector("input[type=file]")!;
+    return input as HTMLInputElement;
+  }
+
+  it("renders the header band with gradient fallback and the portrait initial", () => {
+    render(<CharacterCreationScreen {...props()} />);
+    expect(screen.getByTestId("candidate-identity")).toBeInTheDocument();
+    expect(screen.getByTestId("candidate-header-band")).toBeInTheDocument();
+    expect(screen.getByTestId("candidate-header-fallback")).toBeInTheDocument();
+    expect(screen.getByTestId("candidate-portrait-fallback")).toHaveTextContent("E");
+    expect(screen.getByTestId("candidate-name-preview")).toHaveTextContent("Eleanor Vance");
+  });
+
+  it("falls back to ? when the name is empty", () => {
+    render(<CharacterCreationScreen {...props({ initialName: "" })} />);
+    expect(screen.getByTestId("candidate-portrait-fallback")).toHaveTextContent("?");
+    expect(screen.getByTestId("candidate-name-preview")).toHaveTextContent("Unnamed candidate");
+  });
+
+  it("rejects a non-image file with the reference message in one alert", async () => {
+    render(<CharacterCreationScreen {...props()} />);
+    const bad = new File(["not an image"], "notes.txt", { type: "text/plain" });
+    fireEvent.change(screen.getByTestId("candidate-identity").querySelector("#creation-portrait")!, { target: { files: [bad] } });
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Use a JPEG, PNG, WebP, or GIF image.");
+    expect(screen.queryByTestId("candidate-portrait-photo")).not.toBeInTheDocument();
+  });
+
+  it("rejects an oversize portrait", async () => {
+    render(<CharacterCreationScreen {...props()} />);
+    const big = new File([new Uint8Array(2 * 1024 * 1024 + 1)], "big.png", { type: "image/png" });
+    fireEvent.change(screen.getByTestId("candidate-identity").querySelector("#creation-portrait")!, { target: { files: [big] } });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Portrait must be under 2 MB.");
+  });
+
+  it("shows decorative previews on pick, removes them, and submits both data URLs", async () => {
+    stubDecodableImage();
+    try {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn();
+      render(<CharacterCreationScreen {...props({ onSubmit })} />);
+      const portrait = new File(["portrait-bytes"], "portrait.png", { type: "image/png" });
+      const header = new File(["header-bytes"], "header.png", { type: "image/png" });
+      fireEvent.change(fileInput(/^Add portrait$/), { target: { files: [portrait] } });
+      const portraitPhoto = await screen.findByTestId("candidate-portrait-photo");
+      expect(portraitPhoto).toHaveAttribute("alt", "");
+      fireEvent.change(fileInput(/^Add header$/), { target: { files: [header] } });
+      expect(await screen.findByTestId("candidate-header-photo")).toHaveAttribute("alt", "");
+      // Remove controls clear the previews.
+      await user.click(screen.getByRole("button", { name: "Remove portrait" }));
+      expect(screen.queryByTestId("candidate-portrait-photo")).not.toBeInTheDocument();
+      // Re-pick the portrait so the submit contract carries both images.
+      fireEvent.change(fileInput(/^Add portrait$/), { target: { files: [portrait] } });
+      await screen.findByTestId("candidate-portrait-photo");
+
+      await completeBackground(user);
+      fireEvent.change(screen.getByLabelText(/Economic position/), { target: { value: "-3" } });
+      fireEvent.change(screen.getByLabelText(/Social position/), { target: { value: "-2" } });
+      await user.click(screen.getByRole("button", { name: "DEM Democratic Party" }));
+      await user.click(screen.getByRole("button", { name: /Spread evenly/i }));
+      await user.click(screen.getByRole("button", { name: /Create character/ }));
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      const creation = onSubmit.mock.calls[0]![0];
+      expect(creation.avatarUrl).toMatch(/^data:image\/png/);
+      expect(creation.profileHeaderUrl).toMatch(/^data:image\/png/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

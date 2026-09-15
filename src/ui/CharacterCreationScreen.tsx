@@ -14,8 +14,16 @@
  * slider instead of a drag grid), but the order, meaning and labels do not.
  * Every captured value maps to a persisted engine field through `onSubmit`;
  * none is UI-only. Source is public (Egg3901/AHDGame); no proprietary assets.
+ *
+ * Portrait/header identity (#348, slice of #244) mirrors the reference
+ * `CandidateFile` composition: a party-accent header band with a gradient
+ * fallback, an overlapping portrait with an initial-letter fallback, camera
+ * pick affordances with remove controls, and one `role="alert"` error.
+ * Images stay local data URLs resized to the reference presets; nothing is
+ * uploaded and nothing is fetched. The imperial notice is unchanged: the
+ * reference imperial page carries no portrait/header imagery.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   STAT_FREE_POINTS,
   STAT_KEYS,
@@ -81,7 +89,9 @@ const STAT_LABELS: Record<StatKey, string> = {
 // All images stay local data URLs; nothing is fetched from the network.
 const PORTRAIT_MAX_BYTES = 2 * 1024 * 1024;
 const HEADER_MAX_BYTES = 4 * 1024 * 1024;
-const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+// Reference useImagePick ALLOWED_IMAGE_TYPES, in the same order.
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const IMAGE_TYPE_MESSAGE = "Use a JPEG, PNG, WebP, or GIF image.";
 
 function readDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -214,6 +224,161 @@ function AxisStepper({
   );
 }
 
+// Reference CandidateFile composition: header band tinted by the party accent
+// until a photo is chosen, portrait overlapping the band with an
+// initial-letter fallback, camera pick affordances with remove controls.
+// Previews are decorative (the name sits adjacent); the single error line
+// below carries role="alert". Both images are optional; creation succeeds
+// without them and the data URLs ride the submit contract for later display.
+function CandidateIdentityCard({
+  name,
+  accent,
+  portraitUrl,
+  headerUrl,
+  portraitInputId,
+  headerInputId,
+  accept,
+  portraitInputRef,
+  headerInputRef,
+  onPickPortrait,
+  onPickHeader,
+  onClearPortrait,
+  onClearHeader,
+  error,
+}: {
+  name: string;
+  accent: string;
+  portraitUrl: string | null;
+  headerUrl: string | null;
+  portraitInputId: string;
+  headerInputId: string;
+  accept: string;
+  portraitInputRef: React.RefObject<HTMLInputElement | null>;
+  headerInputRef: React.RefObject<HTMLInputElement | null>;
+  onPickPortrait: (file: File | undefined) => void;
+  onPickHeader: (file: File | undefined) => void;
+  onClearPortrait: () => void;
+  onClearHeader: () => void;
+  error: string | null;
+}) {
+  const initial = name.trim().charAt(0).toUpperCase() || "?";
+  return (
+    <div
+      data-testid="candidate-identity"
+      style={{ overflow: "hidden", border: "1px solid var(--ahd-border)", borderRadius: "0.6rem" }}
+    >
+      <div
+        data-testid="candidate-header-band"
+        style={{
+          position: "relative",
+          height: "5rem",
+          width: "100%",
+          backgroundColor: `color-mix(in srgb, ${accent} 13%, transparent)`,
+        }}
+      >
+        {headerUrl ? (
+          <img
+            src={headerUrl}
+            alt=""
+            aria-hidden
+            data-testid="candidate-header-photo"
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          <div
+            aria-hidden
+            data-testid="candidate-header-fallback"
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: `linear-gradient(135deg, color-mix(in srgb, ${accent} 20%, transparent) 0%, transparent 65%)`,
+            }}
+          />
+        )}
+        <span style={{ position: "absolute", right: "0.5rem", top: "0.5rem", display: "inline-flex", gap: "0.3rem" }}>
+          <label htmlFor={headerInputId} className="ahd-btn ahd-btn-sm" style={{ cursor: "pointer" }}>
+            {headerUrl ? "Change header" : "Add header"}
+          </label>
+          <input
+            id={headerInputId}
+            ref={headerInputRef}
+            className="ahd-sr-only"
+            type="file"
+            accept={accept}
+            onChange={(event) => { onPickHeader(event.target.files?.[0]); event.target.value = ""; }}
+          />
+          {headerUrl ? (
+            <button type="button" className="ahd-btn ahd-btn-sm" aria-label="Remove header image" onClick={onClearHeader}>
+              <span aria-hidden>×</span>
+            </button>
+          ) : null}
+        </span>
+      </div>
+      <div style={{ padding: "0 0.85rem 0.85rem" }}>
+        <div style={{ marginTop: "-2.25rem", marginBottom: "0.5rem", display: "flex", alignItems: "flex-end", gap: "0.5rem" }}>
+          <div
+            data-testid="candidate-portrait-frame"
+            style={{
+              position: "relative",
+              zIndex: 1,
+              width: "4.5rem",
+              height: "4.5rem",
+              flexShrink: 0,
+              overflow: "hidden",
+              borderRadius: "0.6rem",
+              border: `2px solid ${accent}`,
+              background: "var(--ahd-card)",
+            }}
+          >
+            {portraitUrl ? (
+              <img
+                src={portraitUrl}
+                alt=""
+                aria-hidden
+                data-testid="candidate-portrait-photo"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              <span
+                data-testid="candidate-portrait-fallback"
+                aria-hidden
+                style={{ display: "flex", width: "100%", height: "100%", alignItems: "center", justifyContent: "center", fontSize: "1.6rem" }}
+              >
+                {initial}
+              </span>
+            )}
+          </div>
+          <span style={{ display: "inline-flex", gap: "0.3rem", marginBottom: "0.25rem" }}>
+            <label htmlFor={portraitInputId} className="ahd-btn ahd-btn-sm" style={{ cursor: "pointer" }}>
+              {portraitUrl ? "Change portrait" : "Add portrait"}
+            </label>
+            <input
+              id={portraitInputId}
+              ref={portraitInputRef}
+              className="ahd-sr-only"
+              type="file"
+              accept={accept}
+              onChange={(event) => { onPickPortrait(event.target.files?.[0]); event.target.value = ""; }}
+            />
+            {portraitUrl ? (
+              <button type="button" className="ahd-btn ahd-btn-sm" aria-label="Remove portrait" onClick={onClearPortrait}>
+                <span aria-hidden>×</span>
+              </button>
+            ) : null}
+          </span>
+        </div>
+        {error ? <p role="alert" className="ahd-error-text" style={{ margin: "0 0 0.4rem" }}>{error}</p> : null}
+        <p data-testid="candidate-name-preview" style={{ margin: 0, fontSize: "1.05rem", fontWeight: 650, lineHeight: 1.25 }}>
+          {name.trim() || "Unnamed candidate"}
+        </p>
+        <p className="ahd-muted" style={{ margin: "0.15rem 0 0", fontSize: "0.76rem" }}>
+          Portrait and header are optional and stay on this device.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function CharacterCreationScreen({
   selection, initialName, regions, initialHomeRegionId, choices, loading, busy, error, onSubmit, onBack,
 }: CharacterCreationScreenProps) {
@@ -297,10 +462,13 @@ export function CharacterCreationScreen({
 
   const resetStats = () => setStats(defaultStatBuild());
 
+  const portraitInputRef = useRef<HTMLInputElement | null>(null);
+  const headerInputRef = useRef<HTMLInputElement | null>(null);
+
   const pickPortrait = async (file: File | undefined) => {
     if (!file) return;
     setPortraitError(null);
-    if (!IMAGE_TYPES.includes(file.type)) return setPortraitError("Use a JPEG, PNG or WebP image.");
+    if (!IMAGE_TYPES.includes(file.type)) return setPortraitError(IMAGE_TYPE_MESSAGE);
     if (file.size > PORTRAIT_MAX_BYTES) return setPortraitError("Portrait must be under 2 MB.");
     try { setPortraitUrl(await resizeLocal(file, 256, 256, 0.85)); }
     catch { setPortraitError("That file could not be read as an image."); }
@@ -309,10 +477,22 @@ export function CharacterCreationScreen({
   const pickHeader = async (file: File | undefined) => {
     if (!file) return;
     setHeaderError(null);
-    if (!IMAGE_TYPES.includes(file.type)) return setHeaderError("Use a JPEG, PNG or WebP image.");
+    if (!IMAGE_TYPES.includes(file.type)) return setHeaderError(IMAGE_TYPE_MESSAGE);
     if (file.size > HEADER_MAX_BYTES) return setHeaderError("Header must be under 4 MB.");
     try { setHeaderUrl(await resizeLocal(file, 1400, 400, 0.80)); }
     catch { setHeaderError("That file could not be read as an image."); }
+  };
+
+  const clearPortrait = () => {
+    setPortraitUrl(null);
+    setPortraitError(null);
+    if (portraitInputRef.current) portraitInputRef.current.value = "";
+  };
+
+  const clearHeader = () => {
+    setHeaderUrl(null);
+    setHeaderError(null);
+    if (headerInputRef.current) headerInputRef.current.value = "";
   };
 
   const handleSubmit = () => {
@@ -384,36 +564,22 @@ export function CharacterCreationScreen({
                 <ChipGroup label="Education" required value={education} options={EDUCATION_OPTIONS} onChange={setEducation} />
                 <ChipGroup label="Wealth" required value={wealth} options={WEALTH_OPTIONS} onChange={setWealth} />
               </div>
-              <div className="ahd-grid ahd-grid-2">
-                <div>
-                  <label className="ahd-label" htmlFor="creation-portrait">
-                    Portrait <span className="ahd-muted">(optional, under 2 MB)</span>
-                  </label>
-                  <input
-                    id="creation-portrait"
-                    className="ahd-input"
-                    type="file"
-                    accept={IMAGE_TYPES.join(",")}
-                    onChange={(event) => void pickPortrait(event.target.files?.[0])}
-                  />
-                  {portraitError ? <span className="ahd-error-text" role="alert">{portraitError}</span> : null}
-                  {portraitUrl ? <img src={portraitUrl} alt="Chosen portrait preview" style={{ marginTop: "0.4rem", width: 64, height: 64, objectFit: "cover", borderRadius: "999px" }} /> : null}
-                </div>
-                <div>
-                  <label className="ahd-label" htmlFor="creation-header">
-                    Header <span className="ahd-muted">(optional, under 4 MB)</span>
-                  </label>
-                  <input
-                    id="creation-header"
-                    className="ahd-input"
-                    type="file"
-                    accept={IMAGE_TYPES.join(",")}
-                    onChange={(event) => void pickHeader(event.target.files?.[0])}
-                  />
-                  {headerError ? <span className="ahd-error-text" role="alert">{headerError}</span> : null}
-                  {headerUrl ? <img src={headerUrl} alt="Chosen header preview" style={{ marginTop: "0.4rem", width: "100%", maxWidth: 200, height: 48, objectFit: "cover", borderRadius: "0.3rem" }} /> : null}
-                </div>
-              </div>
+              <CandidateIdentityCard
+                name={name}
+                accent={selectedParty?.color ?? "var(--ahd-muted)"}
+                portraitUrl={portraitUrl}
+                headerUrl={headerUrl}
+                portraitInputId="creation-portrait"
+                headerInputId="creation-header"
+                accept={IMAGE_TYPES.join(",")}
+                portraitInputRef={portraitInputRef}
+                headerInputRef={headerInputRef}
+                onPickPortrait={(file) => void pickPortrait(file)}
+                onPickHeader={(file) => void pickHeader(file)}
+                onClearPortrait={clearPortrait}
+                onClearHeader={clearHeader}
+                error={portraitError ?? headerError}
+              />
             </div>
           </StepPanel>
 
