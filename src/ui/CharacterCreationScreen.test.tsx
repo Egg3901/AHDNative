@@ -212,7 +212,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
   it("names the actual ruling party in a one-party briefing, never the first sorted party", () => {
     render(<CharacterCreationScreen {...props({
       selection: { era: "1953", countryId: "DD", countryName: "East Germany", regionNoun: "region" },
-      choices: { parties: DD_PARTIES, rulingParty: { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region", homeRegions: [] },
+      choices: { parties: DD_PARTIES, rulingParty: { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", color: "#C00000", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region", homeRegions: [] },
     })} />);
     fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
     const notice = screen.getByRole("note");
@@ -225,7 +225,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
   it("shows the one-party briefing for a one-party country instead of a generic party list", () => {
     render(<CharacterCreationScreen {...props({
       selection: { era: "1953", countryId: "RU", countryName: "Soviet Union", regionNoun: "region" },
-      choices: { parties: [{ id: "RU_CPSU", name: "Communist Party", abbreviation: "CPSU", color: "#CC0000", logoUrl: null, economicPosition: -4, socialPosition: 2, regimeStatus: "ruling" }], rulingParty: { id: "RU_CPSU", name: "Communist Party", abbreviation: "CPSU", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region", homeRegions: [] },
+      choices: { parties: [{ id: "RU_CPSU", name: "Communist Party", abbreviation: "CPSU", color: "#CC0000", logoUrl: null, economicPosition: -4, socialPosition: 2, regimeStatus: "ruling" }], rulingParty: { id: "RU_CPSU", name: "Communist Party", abbreviation: "CPSU", color: "#CC0000", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region", homeRegions: [] },
     })} />);
     fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
     expect(screen.getByText(/one-party state/i)).toBeInTheDocument();
@@ -234,7 +234,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
   it("surfaces the authored regime marker on the party step", () => {
     render(<CharacterCreationScreen {...props({
       selection: { era: "1953", countryId: "DD", countryName: "East Germany", regionNoun: "region" },
-      choices: { parties: DD_PARTIES, rulingParty: { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region", homeRegions: [] },
+      choices: { parties: DD_PARTIES, rulingParty: { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", color: "#C00000", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region", homeRegions: [] },
     })} />);
     fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
     const partyStep = screen.getByRole("heading", { name: /^Party/ }).closest("section")!;
@@ -318,7 +318,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     function ddProps(): CharacterCreationScreenProps {
       return props({
         selection: { era: "1953", countryId: "DD", countryName: "East Germany", regionNoun: "region" },
-        choices: { parties: DD_PARTIES, rulingParty: { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region", homeRegions: [] },
+        choices: { parties: DD_PARTIES, rulingParty: { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", color: "#C00000", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region", homeRegions: [] },
       });
     }
 

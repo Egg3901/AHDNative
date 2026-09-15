@@ -58,7 +58,7 @@ export interface EraChoice {
     /** National executive office key from the engine registry; null when none exists. */
     headOfStateOffice: string | null;
     /** Governing-party preview per initialization; null when that start has no bindable party. */
-    rulingPartyByInitialization: Record<WorldInitialization, { id: string; name: string; abbreviation: string; logoUrl: string | null } | null>;
+    rulingPartyByInitialization: Record<WorldInitialization, { id: string; name: string; abbreviation: string; color: string; logoUrl: string | null } | null>;
   }[];
 }
 export interface MetricView { id: string; label: string; value: number; format: "money" | "percent" | "number"; }
@@ -273,7 +273,7 @@ export interface CreationChoices {
    * marker. Null when no ruling party is recorded; the briefing then says so
    * rather than naming a first-array party.
    */
-  rulingParty: { id: string; name: string; abbreviation: string; logoUrl: string | null } | null;
+  rulingParty: { id: string; name: string; abbreviation: string; color: string; logoUrl: string | null } | null;
   /** True for the reference one-party states (RU/DD/CN); the screen shows the briefing. */
   isOnePartyState: boolean;
   /** True for the reference imperial-eligible countries (UK/JP/ES/SE); shows the imperial notice. */

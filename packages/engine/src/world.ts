@@ -439,9 +439,9 @@ export function rulingPartyIdForCountry(
 
 /**
  * M2 (Lane 12 creation flow): rulingPartyIdForCountry plus the party's
- * display name/abbreviation, for the New World screen's HoS variant to show
- * "you would govern as {name}" before a world (and its `world.parties`
- * record) exists. Returns null under the same conditions
+ * display name/abbreviation/color, for the New World screen's HoS variant to
+ * show "you would govern as {name}" with the authored party color before a
+ * world (and its `world.parties` record) exists. Returns null under the same conditions
  * rulingPartyIdForCountry does (no legislature data), or if the resolved
  * party id has no matching PartySeed (should not happen for authored packs;
  * defensive only).
@@ -450,14 +450,14 @@ export function rulingPartyForCountry(
   era: string,
   countryId: string,
   initialization: WorldInitialization = DEFAULT_WORLD_INITIALIZATION,
-): { id: string; name: string; abbreviation: string; logoUrl: string | null } | null {
+): { id: string; name: string; abbreviation: string; color: string; logoUrl: string | null } | null {
   const partyId = rulingPartyIdForCountry(era, countryId, initialization);
   if (!partyId) return null;
   const pack = getPackByEra(era);
   if (!pack) throw new Error(`Unknown era: ${era}`);
   const party = (pack.parties ?? []).find((p) => p.id === partyId);
   if (!party) return null;
-  return { id: party.id, name: party.name, abbreviation: party.abbreviation, logoUrl: party.logoUrl ?? null };
+  return { id: party.id, name: party.name, abbreviation: party.abbreviation, color: party.color, logoUrl: party.logoUrl ?? null };
 }
 
 /**
