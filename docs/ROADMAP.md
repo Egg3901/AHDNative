@@ -838,6 +838,18 @@ focused session test proves selected rules remain authoritative after save and
 reload. Difficulty, autonomy tier, and world-simulation mode remain in #334
 until they have real Native engine consumers.
 
+#334 partial (difficulty axis). The canonical difficulty values (easy/normal/
+hard, default normal) and the exact NPP resource tuning table are ported from
+AHDGame (`new-game/route.ts`, `db/types/gameState.ts`,
+`singleplayerDifficulty/rules/index.ts`) into `singleplayerDifficulty.ts`.
+The axis persists on the world (schema 47, normal backfill), scales NPC fund
+generation through `fundGenerationPhase` (normal x1 keeps default worlds
+byte-identical; the player path stays untuned like the reference), and is
+selectable on the creation screen with Career/HoS flow preserved. Schema 42
+projection drops a normal axis and refuses any other. Covered by focused
+engine/session/UI suites. Autonomy tier and world-simulation mode stay open
+in #334 child issues until their engine consumers exist.
+
 The entry journey now matches the remaining reference boundaries. Starting a
 new game while an overworld is active opens a confirmation that preserves the
 current saved world unless the player explicitly continues. After world setup,

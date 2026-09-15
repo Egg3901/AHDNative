@@ -57,7 +57,7 @@ function parseProjected(contents: string): {
 
 describe("projectSaveToV42 public envelope", () => {
   it("returns the authentic v42 fixture unchanged", () => {
-    expect(SCHEMA_VERSION).toBe(46);
+    expect(SCHEMA_VERSION).toBe(47);
     const authentic = loadAuthenticV42();
     expect(sha256(authentic)).toBe(FIXTURE_SHA);
     expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });
@@ -115,6 +115,14 @@ describe("projectSaveToV42 public envelope", () => {
     if (projected.ok) throw new Error("expected countryPolitics refusal");
     expect(projected.error).toMatch(/countryPolitics|market pressure|price history/);
     expect(projected.error).not.toMatch(/schemaVersion rewritten|relabel/i);
+  });
+
+  it("refuses a Native world with a non-default difficulty axis", () => {
+    const world = createWorld({ ...WORLD_OPTS, difficulty: "hard" });
+    const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
+    expect(projected.ok).toBe(false);
+    if (projected.ok) throw new Error("expected difficulty refusal");
+    expect(projected.error).toMatch(/difficulty/);
   });
 
   it("refuses a Native world with live market pressure state", () => {

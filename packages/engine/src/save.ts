@@ -1,6 +1,7 @@
 import { EXTERNAL_BROAD_MONEY_GDP_SHARE, SCHEMA_VERSION } from "./world.js";
 import { STAT_KEYS } from "./stats/characterStats.js";
 import { isWorldFeatureFlag, resolveWorldFeatureFlags, WORLD_FEATURE_FLAG_DEFINITIONS } from "./featureFlags.js";
+import { DEFAULT_SINGLEPLAYER_DIFFICULTY, isSingleplayerDifficulty } from "./singleplayerDifficulty.js";
 import { TENSION_BASELINE } from "./coldWar/constants.js";
 import { NUCLEAR_CAPABLE } from "./coldWar/nuclear.js";
 import { normalizeShares } from "./alignment/alignment.js";
@@ -175,6 +176,13 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
           "This schema 42 document still carries v43 homeRegionId; it is not an authentic schema 42 save",
       };
     }
+    if (hasOwn(world, "difficulty")) {
+      return {
+        ok: false,
+        error:
+          "This schema 42 document still carries the v47 difficulty axis; it is not an authentic schema 42 save",
+      };
+    }
     try {
       deserializeSave(contents);
     } catch (error) {
@@ -198,6 +206,17 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     return {
       ok: false,
       error: "player.homeRegionId is not a nullable string. Schema 42 cannot store that identity",
+    };
+  }
+  // Issue #334 (v47): schema 42 has no difficulty axis. A normal world
+  // projects cleanly (the axis is dropped below and the migration restores
+  // the identical default on reload); any other axis cannot round-trip and
+  // is refused, same class as subsidies/regionalMetrics above.
+  const difficulty = world["difficulty"];
+  if (difficulty !== undefined && difficulty !== DEFAULT_SINGLEPLAYER_DIFFICULTY) {
+    return {
+      ok: false,
+      error: `difficulty is ${String(difficulty)}. Schema 42 has no difficulty axis; exporting would drop it. Keep this save as schema ${SCHEMA_VERSION}`,
     };
   }
   if (!hasOwn(world, "countryPolitics")) {
@@ -263,6 +282,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   delete candidateWorld["subsidies"];
   delete candidateWorld["regionalMetrics"];
   delete candidateWorld["fomcNominations"];
+  delete candidateWorld["difficulty"];
   const candidateCorporations = candidateWorld["corporations"] as Record<string, Record<string, unknown>>;
   for (const corp of Object.values(candidateCorporations)) {
     delete corp["sentimentMultiplier"];
@@ -458,6 +478,9 @@ function assertCurrentWorldState(world: WorldState): void {
       player["countryId"]
   ) {
     throw new Error("Not a valid save file: player home region does not belong to player country");
+  }
+  if (!isSingleplayerDifficulty(value["difficulty"])) {
+    throw new Error("Not a valid save file: invalid difficulty");
   }
   const featureFlags = value["featureFlags"] as Record<string, unknown>;
   if (Object.keys(featureFlags).some((key) => !isWorldFeatureFlag(key))) {
@@ -2467,6 +2490,17 @@ export function deserializeSave(raw: string): WorldState {
       }
     }
     save.world.meta.schemaVersion = 46;
+  }
+  // v46 -> v47: singleplayer difficulty (issue #334). Saves written before
+  // the contract carry no axis, so they load as the canonical `normal`
+  // default — the same default a fresh world gets, and the identity tuning
+  // (x1) keeps their simulation byte-identical. No RNG is consumed.
+  if (save.schemaVersion < 47) {
+    const w = save.world as unknown as Record<string, unknown>;
+    if (!isSingleplayerDifficulty(w["difficulty"])) {
+      w["difficulty"] = DEFAULT_SINGLEPLAYER_DIFFICULTY;
+    }
+    save.world.meta.schemaVersion = 47;
   }
   // NPP-backed politicians used to carry Character-only party clout and
   // bonus-action counters. Keep the fields readable for older save shapes, but

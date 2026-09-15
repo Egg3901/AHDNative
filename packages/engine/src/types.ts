@@ -31,6 +31,13 @@ export interface WorldState {
   meta: WorldMeta;
   /** Player-owned switches for deterministic singleplayer simulation families. */
   featureFlags: WorldFeatureFlags;
+  /**
+   * Singleplayer difficulty chosen at world creation (issue #334). Says how
+   * competently autonomous politicians perform via `singleplayerNppTuning`;
+   * never unlocks or removes an activity. Source: AHDGame
+   * `src/lib/db/types/gameState.ts` SingleplayerDifficulty.
+   */
+  difficulty: import("./singleplayerDifficulty.js").SingleplayerDifficulty;
   countries: Record<string, Country>;
   /** The human player. Solo has exactly one; everyone else is an NPC. */
   player: PlayerCharacter;

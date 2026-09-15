@@ -17,6 +17,7 @@
 import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import { getTotalFundGenerationForPolitician, calculateTaxAmount } from "./fundGeneration.js";
+import { singleplayerNppTuning } from "../singleplayerDifficulty.js";
 
 // Neutral population for solo politicians (medium tier) — mainline base 10k
 const NEUTRAL_POPULATION = 5_000_000;
@@ -29,14 +30,20 @@ export const fundGenerationPhase: TurnPhase = {
   run(world: WorldState) {
     // Use a notional per-politician state GDP derived from country economy:
     // gdpScalar uses country average (undefined -> 1.0) to keep neutral.
+    // Issue #334: NPC (politician) generation scales with the world's
+    // difficulty fundMultiplier — the resource half of AHDGame
+    // src/lib/turn/nppFundGeneration.ts singleplayerNppTuning. Normal is x1,
+    // so default worlds are byte-identical. The player path below is a
+    // Character, not an NPP, and stays untuned like the reference.
+    const fundMultiplier = singleplayerNppTuning(world.difficulty).fundMultiplier;
     for (const pol of world.politicians) {
-      const generation = getTotalFundGenerationForPolitician({
+      const generation = Math.round(getTotalFundGenerationForPolitician({
         population: NEUTRAL_POPULATION,
         donorBaseLevel: pol.donorBaseLevel ?? 0,
         chamberKey: pol.chamberKey ?? null,
         countryId: pol.countryId,
         politicalInfluence: pol.politicalInfluence ?? 0,
-      });
+      }) * fundMultiplier);
 
       // Taxes go to party treasury
       const party = world.parties[pol.partyId];

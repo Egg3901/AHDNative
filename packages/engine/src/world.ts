@@ -105,6 +105,8 @@ import { seedStateResourceCapacities } from "./extraction/founding.js";
 import { seedCountryPolitics } from "./countryPolitics/overview.js";
 import { resolveWorldFeatureFlags } from "./featureFlags.js";
 import type { WorldFeatureFlags } from "./featureFlags.js";
+import { resolveSingleplayerDifficulty } from "./singleplayerDifficulty.js";
+import type { SingleplayerDifficulty } from "./singleplayerDifficulty.js";
 import { validateStatAllocation } from "./stats/characterStats.js";
 import { startingCashFor } from "./stats/characterWealth.js";
 
@@ -138,7 +140,8 @@ import { startingCashFor } from "./stats/characterWealth.js";
 // v45: regional policy metric values (world.regionalMetrics); see save.ts.
 // v46: market pressure multipliers, trade windows, and compact price history;
 // see save.ts.
-export const SCHEMA_VERSION = 46;
+// v47: singleplayer difficulty (issue #334); see save.ts.
+export const SCHEMA_VERSION = 47;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -208,6 +211,12 @@ export interface NewWorldOptions {
   overrides?: WorldOverrides;
   /** Optional singleplayer simulation controls. Unspecified controls default on. */
   featureFlags?: Partial<WorldFeatureFlags>;
+  /**
+   * Singleplayer difficulty chosen at creation (issue #334). Defaults to
+   * the canonical `normal`. Source: AHDGame
+   * `src/app/api/singleplayer/new-game/route.ts`.
+   */
+  difficulty?: SingleplayerDifficulty;
   /**
    * M1 (Lane 12): play mode, chosen at world creation. Career (default): the
    * player is a politician climbing the existing systems. HoS: the player is
@@ -885,6 +894,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
       cheatsUsed: false,
     },
     featureFlags: resolveWorldFeatureFlags(options.featureFlags),
+    difficulty: resolveSingleplayerDifficulty(options.difficulty),
     countries,
     parties,
     legislatures,

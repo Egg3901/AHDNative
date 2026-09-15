@@ -17,7 +17,7 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, createWorld, deserializeSave, executeAction,
-  getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCreationParties, listEras, listPlayableCountries, listRegions, rulingPartyForCountry, serializeSave,
+  getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCreationParties, listEras, listPlayableCountries, listRegions, resolveSingleplayerDifficulty, rulingPartyForCountry, serializeSave,
   type ActionId, type ExecuteActionParams, type StoredPollSnapshot, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionCategory, ActionView, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
@@ -154,8 +154,13 @@ export class GameSession {
     if (!era?.countries.some((country) => country.id === options.countryId)) {
       throw new Error("Choose a playable country in the selected era.");
     }
+    // Issue #334: the engine owns difficulty validation, but the session
+    // rejects an unknown axis before creating so a bad value can never
+    // replace the current world.
+    const difficulty = resolveSingleplayerDifficulty(options.difficulty);
     const world = createWorld({
       ...options,
+      difficulty,
       playerName: creationName ?? options.playerName.trim(),
       // #242: the creation file is validated inside createWorld, which owns the
       // persistence and the wealth-driven cash grant. The session passes it
@@ -467,6 +472,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
   return {
     turn: world.meta.turn, date: world.meta.date, era: world.meta.era,
     countryId: country.id, countryName: country.name,
+    difficulty: world.difficulty,
     player: { name: player.name, cash: player.cash, funds: player.funds, actions: player.actions,
       influence: player.politicalInfluence, favorability: player.favorability,
       partyName: player.partyId ? world.parties[player.partyId]?.name ?? "Independent" : "Independent",
