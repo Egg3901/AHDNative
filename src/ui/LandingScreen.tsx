@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { LandingGlobe } from "./LandingGlobe";
 import type { EraChoice } from "../game/types";
 import type { SaveMetadata } from "../game/storage";
@@ -56,6 +57,18 @@ export function LandingScreen({
   onlineBusy,
   onEnterMultiplayer,
 }: LandingScreenProps) {
+  const [confirmingNew, setConfirmingNew] = useState(false);
+  const beginNew = () => {
+    if (worldActive) {
+      setConfirmingNew(true);
+      return;
+    }
+    onNew();
+  };
+  const confirmNew = () => {
+    setConfirmingNew(false);
+    onNew();
+  };
   return <main className="ahd-screen ahd-landing"><div className="ahd-container ahd-landing-layout">
     <section className="ahd-landing-hero" aria-label="Begin your career">
       <LandingGlobe reducedMotion={reducedMotion} />
@@ -73,7 +86,7 @@ export function LandingScreen({
         {message && !error && <p className="ahd-notice" role="status">{message}</p>}
         {error && !eras.length && <button className="ahd-btn" onClick={onReload}>Reload app</button>}
         <div className="ahd-landing-actions">
-          <button className="ahd-btn ahd-btn-primary ahd-landing-primary" disabled={busy || !eras.length} onClick={() => { onNew(); }}>New game</button>
+          <button className="ahd-btn ahd-btn-primary ahd-landing-primary" disabled={busy || !eras.length} onClick={beginNew}>New game</button>
           <button className="ahd-btn" disabled={busy || onlineBusy} onClick={onEnterMultiplayer}>
             {onlineBusy ? "Opening multiplayer..." : "Enter multiplayer"}
           </button>
@@ -84,6 +97,16 @@ export function LandingScreen({
           </div>
           {worldActive && <button className="ahd-btn" disabled={busy} onClick={onReturn}>Return to game</button>}
         </div>
+        {confirmingNew ? (
+          <div className="ahd-card ahd-card-pad" role="dialog" aria-labelledby="start-another-world-title">
+            <h2 id="start-another-world-title" className="ahd-h2">Start another world?</h2>
+            <p className="ahd-muted">Your current world stays saved. You can return to it from Saved games.</p>
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              <button type="button" className="ahd-btn" onClick={() => setConfirmingNew(false)} autoFocus>Keep playing</button>
+              <button type="button" className="ahd-btn ahd-btn-primary" onClick={confirmNew}>Start another world</button>
+            </div>
+          </div>
+        ) : null}
         <p className="ahd-muted ahd-landing-build" style={{ fontSize: '0.75rem' }} aria-label="Build version">{buildLabel}</p>
       </div>
     </section>
