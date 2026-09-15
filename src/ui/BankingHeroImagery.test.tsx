@@ -192,3 +192,52 @@ describe("banking hero imagery", () => {
     expect(css).toMatch(/min-height:\s*220px/);
   });
 });
+
+describe("banking hub composition follow-up (#386)", () => {
+  it("keeps DD/CN/DE/IE on the Actions fallback with the fallback accessible name", () => {
+    // Negative asset result: DD keys a flag URL (Staatsbank der DDR, no photo
+    // hero), DE/IE key the remote-only `ecb` slug, CN keys the remote-only
+    // `peoples-bank-of-china` slug (AHDGame `src/lib/constants/countries.ts`).
+    // No local file exists upstream for any of them, so none may gain a
+    // mapping: inventing one from executive art (reichstag/zhongnanhai)
+    // would misattribute the surface.
+    for (const countryId of ["DD", "CN", "DE", "IE"]) {
+      expect(bankingHero(countryId)).toBe("/static/heroes/actions.webp");
+      expect(bankingHeroAlt(countryId)).toBe(BANKING_HERO_FALLBACK_ALT);
+    }
+  });
+
+  it("labels the savings holder and currency on a bundled banking hero", () => {
+    const onAction = vi.fn();
+    render(
+      <FinancePanel
+        finance={makeFinance({ savingsHolder: "Central Bank", currency: "USD" })}
+        section="banking"
+        countryId="US"
+        busy={false}
+        onAction={onAction}
+      />,
+    );
+    expect(screen.getByRole("img", { name: BANKING_HERO_ALT["US"] })).toBeInTheDocument();
+    expect(screen.getByText(/Savings holder/)).toBeInTheDocument();
+    expect(screen.getByText("Central Bank")).toBeInTheDocument();
+    expect(screen.getAllByText(/USD/).length).toBeGreaterThan(0);
+  });
+
+  it("labels the savings holder and currency on an unbundled banking hero", () => {
+    const onAction = vi.fn();
+    render(
+      <FinancePanel
+        finance={makeFinance({ savingsHolder: "Central Bank", currency: "DDM" })}
+        section="banking"
+        countryId="DD"
+        busy={false}
+        onAction={onAction}
+      />,
+    );
+    expect(screen.getByRole("img", { name: BANKING_HERO_FALLBACK_ALT })).toBeInTheDocument();
+    expect(screen.getByText(/Savings holder/)).toBeInTheDocument();
+    expect(screen.getByText("Central Bank")).toBeInTheDocument();
+    expect(screen.getAllByText(/DDM/).length).toBeGreaterThan(0);
+  });
+});

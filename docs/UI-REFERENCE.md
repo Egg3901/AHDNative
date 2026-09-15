@@ -450,6 +450,21 @@ ported, and rendered 320/390/desktop overflow proof stays future work
 (this slice asserts the crop CSS text only). The issue stays open with
 `status: partial`.
 
+Follow-up slice (#386): DD/CN/DE/IE add no mapping. Verified against the
+local sources, DD's Staatsbank record keys a flag URL (`getCountryFlagUrl("DD")`,
+no photo hero), DE/IE key the remote-only `ecb` slug, and CN keys the
+remote-only `peoples-bank-of-china` slug (AHDGame
+`src/lib/constants/countries.ts`); `public/static/heroes/` in AHDGame and
+the AHDClient resources heroes dir hold no local file for any of them, so
+bundling anything (including executive art such as reichstag/zhongnanhai)
+would misattribute the surface. Instead the Native hero ports the
+BankingHub primary-card pattern (`BankingHero` in AHDGame
+`src/app/banking/BankingHubClient.tsx`) with only Native-known data: a
+"Savings holder · {currency}" label over the verbatim holder from
+`FinanceView`, which also gives unbundled countries a truthful identity
+band on fallback art. Prime/APY rates are omitted (no Native DTO carries
+them) and the title stays "Banking" (no Native credit surface).
+
 Full destination/conditional-menu inventory lives in
 [navigation parity](NAVIGATION-PARITY.md); this table only maps each Native
 entry surface to its reference source so follow-up styling stays grounded. No

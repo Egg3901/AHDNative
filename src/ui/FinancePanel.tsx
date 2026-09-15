@@ -140,7 +140,10 @@ function BankingSection({ finance, busy, onAction, countryId = "" }: { finance: 
             {formatFinanceMoney(finance.savings, finance.currency)}
           </div>
         </div>
-        <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: "0.4rem 0 0", overflowWrap: "anywhere" }}>
+        <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.4rem 0 0" }}>
+          Savings holder · {finance.currency}
+        </p>
+        <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: "0.15rem 0 0", overflowWrap: "anywhere" }}>
           {finance.savingsHolder}
         </p>
       </RouteHero>
