@@ -178,3 +178,20 @@ The top banner and scrolling tab row have been removed. The reference inventory
 above describes required features, not a requirement to copy desktop chrome.
 Primary navigation sits at the bottom, and the full hierarchy plus End Turn,
 Save and Exit lives in the side drawer. See [mobile navigation](MOBILE-NAVIGATION.md).
+
+## World map directory slice (#73, first vertical slice)
+
+- `World map` (World > Diplomacy, route `worldMap`) is an offline directory over the actual projected
+  save data: every nation comes from `projectWorldOverview`, every region row from `projectRegions`
+  (full-page directory query, up to 100 rows). Artwork reuses the cleared local hero assets; no new
+  map tiles or geographic data were added.
+- Nothing is plotted on geographic axes and no coordinates are stored, rendered, or implied: the
+  engine records no per-nation or per-region coordinates, and the route states that explicitly.
+- Selecting a nation opens the existing Nations detail route (keeping the shared nation browse
+  context); selecting a region opens the existing Regions detail route. No election, profile, or
+  leaderboard link is fabricated; role-gated election/profile links live on those detail routes.
+- The only persisted view state is `worldMapSection` (`nations` | `regions`: which section shows
+  first), stored in device preferences and switchable on the route and in Settings.
+- Hall of Fame / leaderboards have no offline SP source and render an explicit unavailable note
+  tracked in issue #73, never a table. Country/region map depth beyond the directory (plotted
+  geography, crises, diplomacy extras) remains open, so #73 stays open.

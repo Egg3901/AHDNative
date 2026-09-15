@@ -1,4 +1,5 @@
 import { AskPanel } from "../ask/AskPanel";
+import { WorldMapRoute } from "./WorldMapRoute";
 import { ProfileRoute } from "./ProfileRoute";
 import { RegionsRoute } from "./RegionsRoute";
 import { CaucusPanel } from "./CaucusPanel";
@@ -71,7 +72,7 @@ function pageTitle(route: RouteId): string {
 }
 
 const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
-  nations: "Nations", state: "Home region",
+  nations: "Nations", worldMap: "World map", state: "Home region",
   economy: "Economy", budget: "Budget", metrics: "National metrics", policy: "Policy",
   legislationDetails: "Legislation details",
   markets: "Stock market",
@@ -506,6 +507,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
             />
           )}
           {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={route === "nations" ? (detailId ?? nationContext) : detailId} onSelectNation={route === "nations" ? (id) => { setDetailId(undefined); setNationContext(id); } : undefined} onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }} />}</DetailQuery>}
+          {route === "worldMap" && <WorldMapRoute loadOverview={loadWorldOverview} loadRegions={loadRegions} revision={world} section={preferences.worldMapSection} onSectionChange={(worldMapSection) => onPreferencesChange({ ...preferences, worldMapSection })} onNavigate={(next, id) => { if (next === "nations") setNationContext(id); go(next); if (id) setDetailId(id); }} />}
           {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} revision={world} busy={busy} onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "government" && loadCabinetOffice && onIssueCabinetOrder && <DetailQuery load={loadCabinetOffice} revision={world} label="Cabinet office">{office => <CabinetOfficePanel office={office} busy={busy} notice={error ? { kind: "error", text: error } : message ? { kind: "ok", text: message } : null} onIssue={onIssueCabinetOrder} />}</DetailQuery>}

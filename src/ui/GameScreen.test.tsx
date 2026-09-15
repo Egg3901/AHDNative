@@ -872,9 +872,10 @@ describe("GameScreen navigation menu", () => {
       expect(within(identity).getByRole("button", { name: label })).toBeInTheDocument();
     }
     expect(within(menu).getByRole("group", { name: "Actions" })).toBeInTheDocument();
-    // Reference destinations with no Native surface (Map, Hall of Fame, My
+    // Reference destinations with no Native surface (Hall of Fame, My
     // Corporation, Unions, Crises, Sectors) must not appear as placeholder rows.
-    for (const label of ["Map", "Hall of Fame", "My Corporation", "Unions", "Crises", "Sectors", "Currency Exchange", "Trade", "IMF"]) {
+    // World map now exists as its own directory route (#73).
+    for (const label of ["Hall of Fame", "My Corporation", "Unions", "Crises", "Sectors", "Currency Exchange", "Trade", "IMF"]) {
       expect(within(menu).queryByRole("button", { name: label })).not.toBeInTheDocument();
     }
   });

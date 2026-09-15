@@ -168,6 +168,29 @@ export function SettingsPanel({ value, onChange, error }: SettingsPanelProps) {
         </div>
       </section>
 
+      <section className="ahd-card ahd-card-pad" aria-labelledby="settings-world-map">
+        <h2 id="settings-world-map" className="ahd-h2">World map</h2>
+        <fieldset className="ahd-stack" style={{ border: 0, margin: "0.75rem 0 0", padding: 0, gap: "0.45rem" }}>
+          <legend className="ahd-label" style={{ marginBottom: "0.2rem" }}>Section shown first</legend>
+          <Choice
+            name="settings-world-map"
+            value="nations"
+            label="Nations first"
+            description="Open the world map on the nation directory."
+            checked={value.worldMapSection === "nations"}
+            onChange={() => update({ worldMapSection: "nations" })}
+          />
+          <Choice
+            name="settings-world-map"
+            value="regions"
+            label="Regions first"
+            description="Open the world map on the region directory."
+            checked={value.worldMapSection === "regions"}
+            onChange={() => update({ worldMapSection: "regions" })}
+          />
+        </fieldset>
+      </section>
+
       <section className="ahd-card ahd-card-pad" aria-labelledby="settings-media">
         <h2 id="settings-media" className="ahd-h2">Profile media</h2>
         <label style={{ display: "flex", alignItems: "flex-start", gap: "0.65rem", marginTop: "0.75rem" }}>

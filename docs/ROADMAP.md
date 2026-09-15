@@ -1467,3 +1467,14 @@ and removed. The smoke helper now walks the conversation; no engine change.
 - Behavior contract and QA path: [dual-pane layout](DUAL-PANE-LAYOUT.md).
   Folded/unfolded posture acceptance on representative hardware remains open;
   no device claim is made from viewport width or the override.
+
+## World map directory checkpoint, 2026-09-15 (#73, first vertical slice)
+
+- N07: the phone-first offline `World map` route lists the actual projected nations and regions with
+  search, 44px+ touch rows, and links into the existing Nations/Regions detail routes. No coordinates,
+  leaderboards, election links, or profile data are fabricated; Hall of Fame stays explicitly tracked.
+- Only the supported `worldMapSection` view preference persists (device preferences, Settings UI).
+- Validation: focused UI tests (`WorldMapPanel`, drawer, settings, preferences) against real engine
+  projections. #73 remains open: Hall of Fame/leaderboards, plotted map surfaces, country/region map
+  depth, and the remaining acceptance checklist (stable player/era filters, election/profile entity
+  links, mobile-width verification beyond the directory slice).

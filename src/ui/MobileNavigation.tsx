@@ -5,7 +5,7 @@ export type DrawerRouteId =
   | "actions" | "parties" | "legislature" | "elections" | "news"
   | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "campaignDetails"
   | "politicians" | "presidentialDetails" | "politicalMetrics"
-  | "economy" | "budget" | "policy" | "metrics" | "nations" | "state" | "government"
+  | "economy" | "budget" | "policy" | "metrics" | "nations" | "worldMap" | "state" | "government"
   | "help" | "settings" | "legislationDetails" | "markets" | "search"
   | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications" | "referendums"
   | "worldSettings" | "ask";
@@ -49,10 +49,13 @@ export interface DrawerNavGroup {
  *   Help
  *
  * Intentional Native deviations, recorded here per the standing rule:
- *  - Reference groups include Nation's "Other" (Map) and World's
- *    "Leaderboards" (Hall of Fame) / "Diplomacy" extras; Native has no
- *    reachable destination for those, so the empty groups are omitted rather
- *    than shown as placeholders.
+ *  - The reference World's Map and Nation's "Other" (Map) entries are covered
+ *    by one offline Native destination: "World map" under World > Diplomacy
+ *    (#73). It is a directory over the actual projected nations and regions,
+ *    not a plotted geographic surface: the save records no coordinates.
+ *    World's "Leaderboards" (Hall of Fame) and the remaining Diplomacy extras
+ *    have no reachable destination, so those rows are omitted rather than
+ *    shown as placeholders.
  *  - Search is a routed destination in Native, so it sits under Help (the
  *    reference renders an inline search field above the profile card).
  *  - The reference profile-card link labelled Wallet maps to Native's
@@ -146,7 +149,10 @@ export const MENU_GROUPS: DrawerNavGroup[] = [
       },
       {
         label: "Diplomacy",
-        items: [{ id: "nations", label: "Nations" }],
+        items: [
+          { id: "nations", label: "Nations" },
+          { id: "worldMap", label: "World map" },
+        ],
       },
       {
         label: "Other",
