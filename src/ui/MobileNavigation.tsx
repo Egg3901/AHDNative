@@ -173,6 +173,16 @@ export function drawerRouteIds(): DrawerRouteId[] {
   ]);
 }
 
+export const ASK_ICON_PATH = "M5 5h14v10H9l-4 4V5Zm4 4h6M9 12h4";
+export const MENU_ICON_PATH = "M4 7h16M4 12h16M4 17h16";
+/**
+ * Shared Native multiplayer glyph (#369): a stroke globe in the same 24x24
+ * icon language as the bottom tabs. Code-native SVG path, bundled offline;
+ * no remote icon dependency.
+ */
+export const MULTIPLAYER_ICON_PATH =
+  "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM3 12h18M12 3c2.8 2.7 4.2 5.8 4.2 9s-1.4 6.3-4.2 9c-2.8-2.7-4.2-5.8-4.2-9S9.2 5.7 12 3Z";
+
 export const BOTTOM_TABS: { id: BottomTabId; label: string; path: string }[] = [
   {
     id: "profile",
@@ -187,7 +197,7 @@ export const BOTTOM_TABS: { id: BottomTabId; label: string; path: string }[] = [
   {
     id: "ask",
     label: "Ask",
-    path: "M5 5h14v10H9l-4 4V5Zm4 4h6M9 12h4",
+    path: ASK_ICON_PATH,
   },
 ];
 
@@ -202,9 +212,12 @@ function bottomDestination(route: DrawerRouteId): BottomTabId | "menu" {
   return "menu";
 }
 
-const MENU_ICON_PATH = "M4 7h16M4 12h16M4 17h16";
-
-function NavIcon({ path, label }: { path: string; label: string }) {
+/**
+ * Shared Native SVG navigation icon primitive (#369). Stroke glyph on a
+ * 24x24 grid, matching the bottom-navigation sizing, active treatment,
+ * safe-area, and focus-visible behavior through `.ahd-bottomnav-item`.
+ */
+export function NavIcon({ path, label }: { path: string; label: string }) {
   return (
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
       <title>{label}</title>

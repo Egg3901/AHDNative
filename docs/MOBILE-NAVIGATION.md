@@ -20,6 +20,15 @@ focus End Turn.
 
 The footer contains a single row of five compact resource values above four
 labeled navigation icons. Full values and breakdowns remain accessible.
+
+The Native multiplayer footer (#369) reuses the same shared SVG navigation
+icon primitive (`NavIcon` in `src/ui/MobileNavigation.tsx`) instead of ad hoc
+text glyphs. Multiplayer gets a code-native stroke globe glyph; Ask and Menu
+reuse the exact single-player paths. All three MP destinations keep the
+shared `.ahd-bottomnav-item` touch targets (56px minimum), active treatment,
+safe-area footer padding, and focus-visible behavior, and stay persistently
+reachable (Multiplayer current, Ask and Menu routed to their callbacks).
+Icons are bundled offline; there are no remote icon dependencies.
 Resource panels open above the footer with independent scrolling. Content
 clearance follows the measured footer height, including safe-area padding and
 reading preferences. The interface uses the existing React/Tauri stack; this

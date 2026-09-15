@@ -1,4 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  ASK_ICON_PATH,
+  MENU_ICON_PATH,
+  MULTIPLAYER_ICON_PATH,
+  NavIcon,
+} from "./MobileNavigation";
 import { MpModeSession, type MpSnapshot } from "../mp/adapter";
 import { tauriMpBridgeHost, type MpBridgeHost } from "../mp/bridge";
 import { MP_EXECUTE_ACTIONS } from "../mp/endpoints";
@@ -275,13 +281,13 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
         <div className="ahd-container ahd-footer-inner">
           <nav className="ahd-bottomnav ahd-mp-bottomnav" aria-label="Primary">
             <button type="button" className="ahd-bottomnav-item" data-active="true" aria-current="page" aria-label="Multiplayer">
-              <span aria-hidden="true">●</span><span>Multiplayer</span>
+              <NavIcon path={MULTIPLAYER_ICON_PATH} label="" /><span>Multiplayer</span>
             </button>
             <button type="button" className="ahd-bottomnav-item" aria-label="Ask" onClick={onAsk}>
-              <span aria-hidden="true">?</span><span>Ask</span>
+              <NavIcon path={ASK_ICON_PATH} label="" /><span>Ask</span>
             </button>
             <button type="button" className="ahd-bottomnav-item" aria-label="Menu" onClick={onExit}>
-              <span aria-hidden="true">☰</span><span>Menu</span>
+              <NavIcon path={MENU_ICON_PATH} label="" /><span>Menu</span>
             </button>
           </nav>
         </div>
