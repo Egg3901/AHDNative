@@ -32,6 +32,7 @@ const IDLE: MpSnapshot = {
   username: null,
   character: null,
   turn: null,
+  capabilities: null,
   inbox: null,
   mailInbox: null,
   mailSent: null,
