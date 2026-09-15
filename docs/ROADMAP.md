@@ -859,8 +859,23 @@ generation through `fundGenerationPhase` (absent/normal x1; the player path
 stays untuned like the reference), and is selectable on the creation screen
 with Career/HoS flow preserved. Schema 42 projection drops an absent/normal
 axis and refuses any other. Covered by focused engine/session/UI suites.
-Autonomy tier and world-simulation mode stay open
-in #334 child issues until their engine consumers exist.
+Autonomy tier stays open in #345 until its engine
+consumer exists; world-simulation mode closed in #346 below.
+
+#346 complete (world-simulation mode, stacked on the #334 difficulty axis).
+The canonical play-mode axis (`SingleplayerMode` normal/head-of-state/
+worldsim, default normal, `permanentHeadOfState` only for head-of-state, a
+playerless world behind the `/singleplayer/worldsim` spectator surface) is
+projected onto the existing Native `player.mode` binding
+(`singleplayerMode.ts`: career/hos/worldsim, default career). A worldsim
+world binds no ruling party, office, or executive seat; the session offers
+no character actions and refuses character acts while turns run the
+identical engine; the mode persists through save/reload (corrupt values
+rejected) and schema 42 projection refuses worldsim worlds while career/hos
+project unchanged. The creation screen adds a Worldsim radio that submits
+the contracted mode with Career/HoS flow and feature flags preserved.
+Covered by focused engine/session/UI suites. No autonomy selector is added
+(#345 untouched).
 
 The entry journey now matches the remaining reference boundaries. Starting a
 new game while an overworld is active opens a confirmation that preserves the

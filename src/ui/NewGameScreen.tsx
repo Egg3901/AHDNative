@@ -48,7 +48,7 @@ function validate(opts: NewGameOptions, eras: EraChoice[]): Record<string, strin
 export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScreenProps) {
   const [era, setEra] = useState(() => eras[0]?.id ?? "");
   const [countryId, setCountryId] = useState(() => eras[0]?.countries[0]?.id ?? "");
-  const [mode, setMode] = useState<"career" | "hos">("career");
+  const [mode, setMode] = useState<"career" | "hos" | "worldsim">("career");
   const [difficulty, setDifficulty] = useState<"easy" | "normal" | "hard">("normal");
   const [initialization, setInitialization] = useState<WorldInitialization>("founding");
   const [homeRegionId, setHomeRegionId] = useState(() => eras[0]?.countries[0]?.regions[0]?.id ?? "");
@@ -202,7 +202,24 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
                   />
                   <span style={{ fontSize: "0.86rem" }}>Head of State</span>
                 </label>
+                <label style={{ display: "flex", gap: "0.4rem", alignItems: "center", minHeight: 44, cursor: busy ? "not-allowed" : "pointer" }}>
+                  <input
+                    type="radio"
+                    name="mode"
+                    value="worldsim"
+                    checked={mode === "worldsim"}
+                    onChange={() => setMode("worldsim")}
+                    disabled={busy}
+                    aria-label="Worldsim"
+                  />
+                  <span style={{ fontSize: "0.86rem" }}>Worldsim</span>
+                </label>
               </div>
+              {mode === "worldsim" ? (
+                <p className="ahd-help" role="note" style={{ marginTop: "0.3rem" }}>
+                  Spectate a world without a player character. Advance turns to run the simulation; character actions are unavailable.
+                </p>
+              ) : null}
               {activeCountry ? (
                 <p className="ahd-help" style={{ marginTop: "0.3rem" }}>
                   {activeCountry.headOfStateOffice

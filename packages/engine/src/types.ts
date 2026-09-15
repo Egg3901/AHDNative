@@ -836,14 +836,18 @@ export interface PlayerCharacter {
     regionId?: string;
   } | null;
   /**
-   * Mode (career vs head of state). Career (default): player is a politician;
-   * HoS: player is government. HoS mode grants government sponsorship (see
-   * sponsorBill/repealLaw gates in actions/execute.ts) and the party-action
-   * surfaces of `hosPartyId` without requiring personal membership (M1, see
-   * hosPartyId doc below). FRAMEWORK.md "Play modes (binding)": mode gates
-   * only at the action layer, never inside a phase.
+   * Mode (career vs head of state vs worldsim spectator). Career (default):
+   * player is a politician; HoS: player is government. HoS mode grants
+   * government sponsorship (see sponsorBill/repealLaw gates in
+   * actions/execute.ts) and the party-action surfaces of `hosPartyId`
+   * without requiring personal membership (M1, see hosPartyId doc below).
+   * Worldsim (issue #346, canonical SingleplayerMode worldsim): the player
+   * record is a spectator placeholder — no character actions are offered
+   * and character acts are refused, while turns run the identical engine.
+   * FRAMEWORK.md "Play modes (binding)": mode gates only at the action
+   * layer, never inside a phase.
    */
-  mode: "career" | "hos";
+  mode: import("./singleplayerMode.js").SingleplayerMode;
   /**
    * Reference singleplayer config binding. Present and true only for a world
    * created in Head of State mode; elections cannot silently demote this local
