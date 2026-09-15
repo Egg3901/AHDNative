@@ -35,6 +35,7 @@ function props(overrides: Partial<LandingScreenProps> = {}): LandingScreenProps 
     onConfirmDelete: vi.fn(),
     onlineBusy: false,
     onEnterMultiplayer: vi.fn(),
+    onEnterMultiplayerNative: vi.fn(),
     ...overrides,
   };
 }
@@ -142,6 +143,16 @@ describe("LandingScreen", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(p.onCancelDelete).toHaveBeenCalledTimes(1);
     expect(p.onConfirmDelete).not.toHaveBeenCalled();
+  });
+
+  it("offers Native multiplayer beside the live-site view", async () => {
+    const user = userEvent.setup();
+    const onEnterMultiplayer = vi.fn();
+    const onEnterMultiplayerNative = vi.fn();
+    render(<LandingScreen {...props({ onEnterMultiplayer, onEnterMultiplayerNative })} />);
+    await user.click(screen.getByRole("button", { name: "Play multiplayer (Native)" }));
+    expect(onEnterMultiplayerNative).toHaveBeenCalledTimes(1);
+    expect(onEnterMultiplayer).not.toHaveBeenCalled();
   });
 
   it("imports a chosen save file and surfaces errors and loading state", async () => {

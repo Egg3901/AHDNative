@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mp-session-fetch"
+description = "Enables the mp_session_fetch command without any pre-configured scope."
+commands.allow = ["mp_session_fetch"]
+
+[[permission]]
+identifier = "deny-mp-session-fetch"
+description = "Denies the mp_session_fetch command without any pre-configured scope."
+commands.deny = ["mp_session_fetch"]
