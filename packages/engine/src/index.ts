@@ -151,6 +151,7 @@ export type {
 export * from "./judiciary/types.js";
 export * from "./judiciary/divergence.js";
 export * from "./judiciary/scotusTurn.js";
+export * from "./judiciary/scotusSponsorship.js";
 export * from "./judiciary/ukJrSurpriseTurn.js";
 export * from "./history/types.js";
 export { recordWorldHistory, computePlayerBondsValue, computePlayerSharesValue } from "./history/phases.js";
