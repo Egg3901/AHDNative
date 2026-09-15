@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { ProfilePanel } from "./ProfilePanel";
 import { GameSession } from "../game/session";
 import type { ProfileView } from "../game/profileTypes";
+import type { DrawerRouteId } from "./MobileNavigation";
 
 const OPTIONS = { era: "1953", countryId: "US", seed: "native-profile-corp-card", playerName: "Alex" };
 const SAVED_AT = "2026-09-15T00:00:00.000Z";
@@ -29,7 +30,7 @@ function owningProfile(): ProfileView {
   return funded.profile();
 }
 
-function renderPanel(profile: ProfileView, onNavigate: (route: never, id?: string) => void) {
+function renderPanel(profile: ProfileView, onNavigate: (route: DrawerRouteId, id?: string) => void) {
   return render(
     <ProfilePanel
       profile={profile}

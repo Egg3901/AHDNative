@@ -46,6 +46,7 @@ const BASE: ProfileView = {
   careerHistory: [{ id: "race-1", office: "House", result: "Elected", turn: 12 }],
   achievements: [{ slug: "turn_one", name: "In at the Ground Floor", description: "Took an action in turn one" }],
   achievementProgress: { earned: 1, available: 3 },
+  corporations: [],
   lockedAchievements: [],
   unavailableAchievements: [],
   resourceDetails: {
