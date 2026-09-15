@@ -145,6 +145,14 @@ describe("projectSaveToV42 public envelope", () => {
     expect(projected.error).toMatch(/worldsim|not an authentic schema 42/i);
   });
 
+  it("refuses a Native world with a non-default autonomy tier", () => {
+    const world = createWorld({ ...WORLD_OPTS, autonomyLevel: "off" });
+    const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
+    expect(projected.ok).toBe(false);
+    if (projected.ok) throw new Error("expected autonomy refusal");
+    expect(projected.error).toMatch(/autonomy/);
+  });
+
   it("refuses a Native world with live market pressure state", () => {
     const world = createWorld(WORLD_OPTS);
     world.corporations["US-manufacturing"]!.orderFlowWindowBuyValue = 1;

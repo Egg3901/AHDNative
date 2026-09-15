@@ -78,6 +78,7 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
     countryId: "US",
     countryName: "United States",
     difficulty: "normal",
+    autonomyLevel: "v4",
     player: { name: "Ada", cash: 1200, funds: 5000, actions: 3, influence: 12, favorability: 48, partyName: "Labor", mode: "career", hosPartyId: null, homeRegionId: null },
     legislature: {
       office: "Representative",

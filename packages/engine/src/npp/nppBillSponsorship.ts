@@ -22,6 +22,7 @@ import type { WorldState } from "../types.js";
 import type { WorldRng } from "../rng.js";
 import type { Bill } from "../legislation/types.js";
 import { getLaw, AVAILABLE_CATALOG } from "../legislation/catalog.js";
+import { effectiveNppAutonomyLevelForCountry } from "../nppAutonomyLevel.js";
 
 const ACTIVE_CAP = 3; // per country active nppSponsored bills cap (solo neutral; mainline 3 for non-player, 2 for player)
 const COOLDOWN_TURNS = 12; // per-type repeat cooldown (mainline NPP_SPONSOR_TYPE_REPEAT_COOLDOWN_TURNS)
@@ -95,6 +96,11 @@ export const nppBillSponsorshipPhase: TurnPhase = {
     // overwhelming legislation tests and economy goldens). Deterministic via hash.
     const countryIds = Object.keys(world.legislatures).sort();
     for (const countryId of countryIds) {
+      // Issue #345: sponsorship is tier-gated autonomous activity. Below the
+      // effective v0 floor (off anywhere, below v2 in the player country) no
+      // NPP sponsors here. The default v4 tier leaves every country active,
+      // so default worlds behave exactly as before the contract.
+      if (effectiveNppAutonomyLevelForCountry(world.nppAutonomyLevel, countryId, world.player.countryId) === "off") continue;
       if (hashUnit(`${world.meta.seed}:${countryId}:${world.meta.turn}:sponsorGate`) >= 0.15) continue;
       // Only playable countries have sponsorship (mirrors mainline country access gate)
       const playable = Object.values(world.countries).some((c) => c.id === countryId && c.playable);

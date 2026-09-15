@@ -17,6 +17,7 @@
 import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import type { WorldRng } from "../rng.js";
+import { effectiveNppAutonomyLevelForCountry } from "../nppAutonomyLevel.js";
 
 function hashUnit(s: string): number {
   let h = 0x811c9dc5;
@@ -81,12 +82,16 @@ export const nppBehaviorPhase: TurnPhase = {
     // PORT-STUB: election entry — blocked system `elections/orchestration.ts` (operator active)
     // No NPP election filing in this wave; solo elections handle candidacy via elections/phases.ts.
 
-    // Bill voting: for each active bill, eligible NPPs vote
+    // Bill voting: for each active bill, eligible NPPs vote. Voting is
+    // tier-gated autonomous activity (issue #345): below the effective v0
+    // floor (off anywhere, below v2 in the player country) no NPP votes
+    // here. Endorsement cleanup below is decay, not agency, and still runs.
     const activeStatuses = new Set(["active", "active_other"]);
     for (const bill of world.bills) {
       if (!activeStatuses.has(bill.status)) continue;
       const chamberKey = bill.currentChamber;
       const countryId = bill.countryId;
+      if (effectiveNppAutonomyLevelForCountry(world.nppAutonomyLevel, countryId, world.player.countryId) === "off") continue;
 
       const eligible = world.politicians.filter(
         (p) => p.countryId === countryId && p.chamberKey === chamberKey,

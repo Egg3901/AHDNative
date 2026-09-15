@@ -3,6 +3,7 @@ import { STAT_KEYS } from "./stats/characterStats.js";
 import { isWorldFeatureFlag, resolveWorldFeatureFlags, WORLD_FEATURE_FLAG_DEFINITIONS } from "./featureFlags.js";
 import { DEFAULT_SINGLEPLAYER_DIFFICULTY, isSingleplayerDifficulty } from "./singleplayerDifficulty.js";
 import { isSingleplayerMode } from "./singleplayerMode.js";
+import { DEFAULT_NPP_AUTONOMY_LEVEL, isNppAutonomyLevel } from "./nppAutonomyLevel.js";
 import { TENSION_BASELINE } from "./coldWar/constants.js";
 import { NUCLEAR_CAPABLE } from "./coldWar/nuclear.js";
 import { normalizeShares } from "./alignment/alignment.js";
@@ -194,6 +195,13 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
           "This schema 42 document carries a worldsim play mode; it is not an authentic schema 42 save",
       };
     }
+    if (hasOwn(world, "nppAutonomyLevel")) {
+      return {
+        ok: false,
+        error:
+          "This schema 42 document still carries the autonomy axis; it is not an authentic schema 42 save",
+      };
+    }
     try {
       deserializeSave(contents);
     } catch (error) {
@@ -237,6 +245,17 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     return {
       ok: false,
       error: `This is a worldsim spectator world. Schema 42 has no worldsim play mode; exporting would drop it. Keep this save as schema ${SCHEMA_VERSION}`,
+    };
+  }
+  // Issue #345: schema 42 has no autonomy axis. An absent or v4 axis
+  // projects cleanly (dropped below; absent reloads as the identical
+  // default); any other axis cannot round-trip and is refused, same class
+  // as difficulty above.
+  const nppAutonomyLevel = world["nppAutonomyLevel"];
+  if (nppAutonomyLevel !== undefined && nppAutonomyLevel !== DEFAULT_NPP_AUTONOMY_LEVEL) {
+    return {
+      ok: false,
+      error: `autonomy tier is ${String(nppAutonomyLevel)}. Schema 42 has no autonomy axis; exporting would drop it. Keep this save as schema ${SCHEMA_VERSION}`,
     };
   }
   if (!hasOwn(world, "countryPolitics")) {
@@ -303,6 +322,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   delete candidateWorld["regionalMetrics"];
   delete candidateWorld["fomcNominations"];
   delete candidateWorld["difficulty"];
+  delete candidateWorld["nppAutonomyLevel"];
   const candidateCorporations = candidateWorld["corporations"] as Record<string, Record<string, unknown>>;
   for (const corp of Object.values(candidateCorporations)) {
     delete corp["sentimentMultiplier"];
@@ -511,6 +531,13 @@ function assertCurrentWorldState(world: WorldState): void {
   // surviving unknown value is corruption, never history.
   if (!isSingleplayerMode((value["player"] as Record<string, unknown>)["mode"])) {
     throw new Error("Not a valid save file: invalid play mode");
+  }
+  // Issue #345: autonomy is optional with absent-means-v4. A present
+  // tier must be a known value; an explicit `v4` (written only by
+  // unreleased schema 48 dev saves) reads as the default.
+  const saveAutonomy = value["nppAutonomyLevel"];
+  if (saveAutonomy !== undefined && !isNppAutonomyLevel(saveAutonomy)) {
+    throw new Error("Not a valid save file: invalid autonomy tier");
   }
   const featureFlags = value["featureFlags"] as Record<string, unknown>;
   if (Object.keys(featureFlags).some((key) => !isWorldFeatureFlag(key))) {
@@ -2521,10 +2548,11 @@ export function deserializeSave(raw: string): WorldState {
     }
     save.world.meta.schemaVersion = 46;
   }
-  // Issue #334 difficulty needs no migration block: the axis is optional
-  // with absent-means-`normal`, so saves written before the contract
-  // already carry the canonical default — the same default a fresh world
-  // gets, with the identity tuning (x1) keeping their simulation
+  // Issues #334/#345 difficulty and autonomy need no migration block:
+  // both axes are optional with absent-means-default, so saves written
+  // before either contract already carry the canonical default — the same
+  // default a fresh world gets, with the identity tuning (x1) and the
+  // v4 gate (every country active) keeping their simulation
   // byte-identical. A present axis is validated by assertCurrentWorldState
   // below; no RNG is consumed.
   // NPP-backed politicians used to carry Character-only party clout and

@@ -877,6 +877,20 @@ the contracted mode with Career/HoS flow and feature flags preserved.
 Covered by focused engine/session/UI suites. No autonomy selector is added
 (#345 untouched).
 
+#345 autonomy tier axis. The canonical tier values (off/v0/v1/v2/v3/v4/v5,
+default v4), rank ordering, and player-country rail are ported from AHDGame
+(`new-game/route.ts`, `db/types/gameState.ts`, `nppAutonomy/featureFlag.ts`)
+into `nppAutonomyLevel.ts`. The axis persists on the world only when
+non-default (absent means v4, no schema bump, so default worlds stay
+byte-identical) and gates its named simulation consumers — NPP bill
+sponsorship, bill voting, and the NPP action loop — through the effective
+per-country level (below v2 resolves to off in the player country).
+Fund and AP regen stay on the difficulty-scaled fund phase, so competence
+never moves with this axis. The tier is selectable on the creation screen
+alongside difficulty with Career/HoS flow preserved. Schema 42 projection
+drops an absent/v4 axis and refuses any other. Covered by focused
+engine/session/UI suites. World-simulation mode stays open in #346.
+
 The entry journey now matches the remaining reference boundaries. Starting a
 new game while an overworld is active opens a confirmation that preserves the
 current saved world unless the player explicitly continues. After world setup,

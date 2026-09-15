@@ -44,6 +44,19 @@ export interface WorldState {
    * both validate the effective `normal` default.
    */
   difficulty?: import("./singleplayerDifficulty.js").SingleplayerDifficulty;
+  /**
+   * Autonomous-politician tier chosen at world creation (issue #345). Says
+   * WHICH activities autonomous politicians may perform via the effective
+   * per-country level; never how competently they perform them. Source:
+   * AHDGame `src/lib/db/types/gameState.ts` NppAutonomyLevel.
+   *
+   * Optional with absent-means-`v4`: only a non-default tier is
+   * persisted, so default worlds stay byte-stable (see
+   * npp/stanceDriftPerformance.test.ts). Every consumer must read it
+   * through `resolveNppAutonomyLevel`/`effectiveNppAutonomyLevelForCountry`,
+   * which both validate the effective `v4` default.
+   */
+  nppAutonomyLevel?: import("./nppAutonomyLevel.js").NppAutonomyLevel;
   countries: Record<string, Country>;
   /** The human player. Solo has exactly one; everyone else is an NPC. */
   player: PlayerCharacter;
