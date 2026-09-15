@@ -899,7 +899,19 @@ no per-region economic/social lean. The issue stays open with `status: partial`.
   ballots and require both chambers at resolution.
 - Pending ballots survive save/reload, and the cabinet lifecycle now resolves
   from the recomputed vote maps rather than trusting stale stored counters.
-  Sponsorship, SCOTUS ballots, session wiring, and UI remain in #268 through #273.
+  SCOTUS ballots, session wiring, and UI remain in #268 through #273.
+
+## Cabinet nomination sponsorship checkpoint, 2026-09-15 (#269 / #63)
+
+- The exported sponsorship boundary requires the local player to be the sitting
+  President for the nomination country, validates the source cabinet roster and
+  era, and derives nominee identity from the world rather than caller text.
+- Occupied positions, active duplicates, foreign or unknown nominees, cabinet
+  members, and invalid turn clocks are rejected before nomination state changes.
+  Valid nominations receive the reference 24-hour window as 24 Native turns.
+- Ordinary nominations open a Senate ballot. Vice President nominations create
+  separate House and Senate vote maps. Pending records survive save/reload and
+  resolve through the existing current-seat lifecycle boundary.
 
 ## Supreme Court nomination ballot checkpoint, 2026-09-15 (#268 / #63)
 

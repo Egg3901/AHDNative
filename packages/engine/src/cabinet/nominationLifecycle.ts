@@ -17,6 +17,7 @@
 
 import type { WorldState } from "../types.js";
 import type { CabinetConfirmationTally, CabinetNomination } from "./types.js";
+import { cabinetPositionsForCountry } from "./constants.js";
 import { initialMinisterialActionFields } from "./ministerialActionPool.js";
 import {
   assertNominationVote,
@@ -126,6 +127,59 @@ export interface CabinetNominationLifecycleResult {
   nominationsVoted: number;
   confirmed: number;
   rejected: number;
+}
+
+/**
+ * Public presidential sponsorship boundary.
+ * Source: AHDGame POST /api/whitehouse/cabinet/nominations at revision
+ * e364c04954ed628beef73a993a8e9e156650a31e. Native uses its one-hour turn
+ * clock, so the source 24-hour confirmation window is 24 turns.
+ */
+export function sponsorCabinetNomination(
+  world: WorldState,
+  input: { countryId: string; positionId: string; nomineeId: string },
+): CabinetNomination {
+  const executive = world.executives[input.countryId];
+  if (world.player.countryId !== input.countryId || executive?.presidentId !== "player") {
+    throw new Error("Only the President of this country can propose cabinet nominations");
+  }
+  const position = cabinetPositionsForCountry(input.countryId).find((candidate) => candidate.id === input.positionId);
+  if (!position) throw new Error("Invalid cabinet position");
+  const year = Number(world.meta.date.slice(0, 4));
+  if (position.yearEnabled !== undefined && year < position.yearEnabled) {
+    throw new Error("This cabinet position does not exist in the current era");
+  }
+  if (!Number.isSafeInteger(world.meta.turn) || world.meta.turn < 0) throw new Error("Invalid nomination voting deadline");
+  const occupied = input.positionId === "vicePresident"
+    ? executive.vicePresidentId !== null
+    : world.cabinetMembers.some((member) => member.countryId === input.countryId && member.positionId === input.positionId);
+  if (occupied) throw new Error("Cabinet position is not vacant");
+  if (world.cabinetNominations.some((nomination) =>
+    nomination.countryId === input.countryId && nomination.positionId === input.positionId
+      && (nomination.status === "active" || nomination.status === "proposed"))) {
+    throw new Error("An active nomination for this cabinet position already exists");
+  }
+  const isPlayer = input.nomineeId === "player";
+  const politician = world.politicians.find((candidate) => candidate.id === input.nomineeId);
+  if (!isPlayer && !politician) throw new Error(`Nominee ${input.nomineeId} not found`);
+  const nomineeCountry = isPlayer ? world.player.countryId : politician!.countryId;
+  if (nomineeCountry !== input.countryId) throw new Error(`Nominee not from ${input.countryId}`);
+  if (world.cabinetMembers.some((member) => member.countryId === input.countryId && member.characterId === input.nomineeId)) {
+    throw new Error(`Nominee already holds a cabinet seat in ${input.countryId}`);
+  }
+  const nomineeName = isPlayer ? world.player.name : politician!.name;
+  const nomineeParty = isPlayer ? world.player.partyId : politician!.partyId;
+  const id = proposeCabinetNomination(world, {
+    countryId: input.countryId,
+    positionId: input.positionId,
+    nomineeId: input.nomineeId,
+    nomineeName,
+    nomineeParty,
+    proposedBy: "player",
+    proposedByName: world.player.name,
+    votingEndsOnTurn: world.meta.turn + 24,
+  });
+  return world.cabinetNominations.find((nomination) => nomination.id === id)!;
 }
 
 /**
@@ -327,6 +381,12 @@ export function proposeCabinetNomination(
     votes: {},
     votingEndsOnTurn: opts.votingEndsOnTurn,
     proposedAtTurn: world.meta.turn,
+    ...(opts.positionId === "vicePresident" ? {
+      houseVotesFor: 0,
+      houseVotesAgainst: 0,
+      houseVotesAbstain: 0,
+      houseVotes: {},
+    } : {}),
   });
   return id;
 }
