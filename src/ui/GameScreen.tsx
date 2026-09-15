@@ -575,6 +575,12 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
             </div>
           ) : null}
           <div className="ahd-status-resources" role="group" aria-label="Resources">
+            {/* Reference status-bar "Profile" caption (#223, AHDGame
+                StatusBar.tsx:471-474, desktop-only `hidden sm:inline`):
+                static chrome, no game state claimed. Hidden below the sm
+                breakpoint so the 6-cell phone grid and footer budget stay
+                untouched; captions the grid's full row at sm and up. */}
+            <span className="ahd-status-profile-label">Profile</span>
             {RESOURCES.map((r) => {
               const value = r.id === "ap" ? formatCount(world.player.actions)
                 : r.id === "funds" ? formatFinanceMoney(world.player.funds, world.finance.currency)

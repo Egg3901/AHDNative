@@ -475,6 +475,18 @@ html, body { overflow-x: hidden; }
   display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.2rem;
   min-width: 0;
 }
+/* Reference status-bar "Profile" caption (#223): desktop-only in the
+   reference (`hidden sm:inline`), so it stays display:none on phones and
+   captions the resource grid's full row at the same sm breakpoint. The
+   phone grid keeps its 6 cells and the compact footer keeps its budget. */
+.ahd-status-profile-label { display: none; }
+@media (min-width: 640px) {
+  .ahd-status-profile-label {
+    display: block; grid-column: 1 / -1;
+    font-size: 0.64rem; font-weight: 600; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--ahd-muted);
+  }
+}
 .ahd-status-btn {
   appearance: none; border: none; background: transparent; color: var(--ahd-fg);
   padding: 0.2rem 0.15rem; margin: 0;
