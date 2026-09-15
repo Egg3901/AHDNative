@@ -499,6 +499,21 @@ describe("GameScreen", () => {
     expect(screen.getByText("4.6%")).toBeInTheDocument();
   });
 
+  it("wires world.era into the production nation hero, flying the Soviet mark", async () => {
+    const user = userEvent.setup();
+    const world = makeWorld({
+      era: "1979",
+      countryId: "RU",
+      countryName: "Soviet Union",
+      nation: { ...makeWorld().nation, countryId: "RU", countryName: "Soviet Union" },
+    });
+    const { container } = render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
+    await navigate(user, "Economy");
+    expect(screen.getByRole("region", { name: "Economy" })).toBeInTheDocument();
+    expect(container.querySelector('[data-country-flag="SU"]')).not.toBeNull();
+    expect(container.querySelector('[data-country-flag="RU"]')).toBeNull();
+  });
+
   it("opens World settings from the game menu and submits the complete flag map", async () => {
     const user = userEvent.setup();
     const eventsLabel = WORLD_FEATURE_FLAG_DEFINITIONS.find((definition) => definition.key === "events")!.label;

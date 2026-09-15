@@ -19,6 +19,7 @@ import type {
 } from "../game/regions";
 import { RegionViewerCard } from "./RegionViewerCard";
 import { RegionMacroCard, RegionSectorsCard } from "./RegionEconomyCards";
+import { CountryFlag, resolveCountryFlagCode } from "./CountryFlag";
 import type { DrawerRouteId } from "./MobileNavigation";
 import { formatGameDate, formatGameTurn, type GameClock } from "../game/gameDate";
 
@@ -464,13 +465,16 @@ function SelectedRegion({
   return (
     <article className="ahd-stack" aria-label={selected.name}>
       <div className="ahd-card ahd-card-pad">
-        <div className="ahd-eyebrow">{selected.countryName}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", minWidth: 0 }}>
+          <CountryFlag countryId={selected.countryId} countryName={selected.countryName} era={view.era} size="sm" />
+          <div className="ahd-eyebrow">{selected.countryName}</div>
+        </div>
         <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "flex-start" }}>
           <h2 className="ahd-h1" style={{ marginTop: "0.22rem", fontSize: "1.15rem" }}>{selected.name}</h2>
           {selected.isHome ? <span className="ahd-badge">Home</span> : null}
         </div>
         <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.32rem 0 0" }}>
-          {selected.id} · {selected.countryId} · {currency ?? "Currency not recorded"}
+          {selected.id} · {resolveCountryFlagCode(selected.countryId, view.era) || "?"} · {currency ?? "Currency not recorded"}
         </p>
         <dl className="ahd-stack" style={{ marginTop: "0.65rem", gap: "0.42rem" }}>
           <KeyValue label="Population" value={number(selected.population)} />
@@ -715,7 +719,10 @@ export function RegionsPanel({ query, onQueryChange, busy = false, directoryOpen
   return (
     <div className="ahd-stack" aria-label={`${query.playerCountryName} regions`}>
       <div className="ahd-card ahd-card-pad ahd-hero">
-        <div className="ahd-eyebrow">{query.playerCountryName}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0 }}>
+          <CountryFlag countryId={query.playerCountryId} countryName={query.playerCountryName} era={query.era} size="lg" />
+          <div className="ahd-eyebrow">{query.playerCountryName}</div>
+        </div>
         <h1 className="ahd-h1" style={{ marginTop: "0.22rem" }}>Regions</h1>
         <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.32rem 0 0" }}>
           {query.era} · Turn {query.turn} · {formatGameDate(query.date, { turn: query.turn, date: query.date })}
