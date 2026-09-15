@@ -115,7 +115,7 @@ export function creationChoices(era: string, countryId: string): CreationChoices
   }));
   const markedRuling = parties.find((party) => party.regimeStatus === "ruling") ?? null;
   const rulingParty = rulingPartyForCountry(era, normalized)
-    ?? (markedRuling ? { id: markedRuling.id, name: markedRuling.name, abbreviation: markedRuling.abbreviation, logoUrl: markedRuling.logoUrl } : null);
+    ?? (markedRuling ? { id: markedRuling.id, name: markedRuling.name, abbreviation: markedRuling.abbreviation, color: markedRuling.color, logoUrl: markedRuling.logoUrl } : null);
   return {
     parties,
     rulingParty,
