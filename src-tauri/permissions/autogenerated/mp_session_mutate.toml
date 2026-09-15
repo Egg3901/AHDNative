@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-mp-session-mutate"
+description = "Enables the mp_session_mutate command without any pre-configured scope."
+commands.allow = ["mp_session_mutate"]
+
+[[permission]]
+identifier = "deny-mp-session-mutate"
+description = "Denies the mp_session_mutate command without any pre-configured scope."
+commands.deny = ["mp_session_mutate"]

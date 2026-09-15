@@ -12,6 +12,9 @@
     "allow-list-saves",
     "allow-delete-save",
     "allow-open-online-window",
-    "allow-open-external-destination"
+    "allow-open-external-destination",
+    "allow-mp-view-fetch",
+    "allow-mp-session-fetch",
+    "allow-mp-session-mutate"
   ]
 }

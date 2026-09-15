@@ -1,3 +1,5 @@
+mod mp_session;
+mod mp_view;
 mod save_store;
 
 use save_store::{SaveMeta, SaveStore};
@@ -176,7 +178,10 @@ pub fn run() {
             list_saves,
             delete_save,
             open_online_window,
-            open_external_destination
+            open_external_destination,
+            mp_view::mp_view_fetch,
+            mp_session::mp_session_fetch,
+            mp_session::mp_session_mutate
         ])
         .run(tauri::generate_context!())
         .expect("failed to run AHDNative");
@@ -265,6 +270,24 @@ mod capability_tests {
             "allow-list-saves",
             "allow-delete-save",
         ] {
+            assert!(
+                capability.contains(permission),
+                "main capability must include {permission}"
+            );
+        }
+    }
+
+    #[test]
+    fn remote_views_keep_zero_native_capability() {
+        // The live-site `online` window must never gain invoke rights: remote
+        // content stays unprivileged while the trusted main window drives the
+        // session bridge. Session commands are main-window-only.
+        let capability = include_str!("../capabilities/default.json");
+        assert!(
+            !capability.contains("\"online\""),
+            "no capability may target the remote online window"
+        );
+        for permission in ["allow-mp-session-fetch", "allow-mp-session-mutate"] {
             assert!(
                 capability.contains(permission),
                 "main capability must include {permission}"

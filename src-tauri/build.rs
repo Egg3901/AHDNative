@@ -6,6 +6,9 @@ fn main() {
             "list_saves",
             "delete_save",
             "open_online_window",
+            "mp_view_fetch",
+            "mp_session_fetch",
+            "mp_session_mutate",
         ]),
     ))
     .expect("failed to run tauri-build");

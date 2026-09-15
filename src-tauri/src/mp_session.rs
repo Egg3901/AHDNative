@@ -1,0 +1,1078 @@
+//! Authenticated multiplayer session bridge (#359).
+//!
+//! Reads and writes run as first-party `fetch()` calls inside the persistent
+//! `online` WebView delivered under #149. That window owns the live-site jar,
+//! so the HttpOnly session travels exactly as it does in the browser: this
+//! module never reads, writes, stores, or forwards session material, tokens,
+//! or passwords, and there is no login form anywhere in Native. The server
+//! stays authoritative for auth, validation, rate limits, conflicts, and
+//! errors; Native only projects results and surfaces server messages.
+//!
+//! What this bridge does:
+//! - `mp_session_fetch`: GET-only reads against the pinned
+//!   `https://ahousedividedgame.com` origin, restricted to [`MpFetchOp`].
+//! - `mp_session_mutate`: POST/PATCH writes against the same origin,
+//!   restricted to [`MpMutateOp`] with per-operation payload validation.
+//! - Every dynamic script fragment (request id, path, method, body) is
+//!   JSON-serialized in Rust, never interpolated, so caller input cannot
+//!   break out of the evaluated script.
+//! - The page script sends `Accept: application/json` (plus `Content-Type`
+//!   on writes) and nothing else: no bot headers, no explicit Origin — the
+//!   browser attaches the first-party Origin itself, which is exactly what
+//!   the server's same-origin guard accepts.
+//! - Redirects are `manual`: a bounced bridge call fails closed instead of
+//!   following off-origin.
+//! - Responses must be JSON and fit [`MP_SESSION_MAX_BODY_BYTES`]; nothing
+//!   is written to disk and nothing is cached.
+//!
+//! Transport contract: on 2xx the command resolves with the raw server body
+//! text (validation into view models happens in the TypeScript adapter).
+//! Anything else rejects with a stable string:
+//! `remote-error:{status}:{retry_after_secs}:{body_prefix}` preserves the
+//! server status and message so the adapter can distinguish signed-out (401)
+//! from refusal (400/403/404), conflict (409), rate limit (429), and outage
+//! (5xx). `session-unavailable` means the online window is missing (signed
+//! out, never opened, or a single-view mobile build): the UI must offer the
+//! live-site sign-in path and retry, never invent data.
+
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
+use tauri::Manager;
+
+const MP_SESSION_SCHEME: &str = "https";
+const MP_SESSION_HOST: &str = "ahousedividedgame.com";
+
+/// The only origin the bridge ever talks to, composed from the pinned parts
+/// so the scheme and host pins are load-bearing in non-test code too.
+fn session_origin() -> String {
+    format!("{MP_SESSION_SCHEME}://{MP_SESSION_HOST}")
+}
+const MP_SESSION_WINDOW_LABEL: &str = "online";
+
+/// Largest single endpoint body accepted; larger bodies are rejected before
+/// parsing so a hostile or drifting endpoint cannot blow up device memory.
+const MP_SESSION_MAX_BODY_BYTES: usize = 256 * 1024;
+/// Page-side fetch budget per call; the Rust poll loop runs slightly longer.
+const MP_SESSION_FETCH_TIMEOUT_SECS: u64 = 15;
+const MP_SESSION_POLL_INTERVAL_MS: u64 = 120;
+const MP_SESSION_POLL_ROUNDS: u32 = 170;
+/// Server error bodies forwarded inside `remote-error` are capped; server
+/// refusal messages are short, and full pages must never cross the bridge.
+const MP_SESSION_ERROR_BODY_CHARS: usize = 2000;
+/// Longest region/state identifier the server shape accepts.
+const MP_SESSION_MAX_STATE_ID_CHARS: usize = 128;
+
+/// Stable bridge error strings surfaced to the TypeScript adapter.
+pub mod error {
+    pub const UNSUPPORTED_OP: &str = "unsupported-op";
+    pub const BAD_ARG: &str = "bad-arg";
+    pub const SESSION_UNAVAILABLE: &str = "session-unavailable";
+    pub const SESSION_TIMEOUT: &str = "session-timeout";
+    pub const SESSION_TRANSPORT: &str = "session-transport";
+    pub const OVERSIZE_BODY: &str = "oversize-body";
+    pub const UNEXPECTED_CONTENT: &str = "unexpected-content";
+    pub const UNEXPECTED_REDIRECT: &str = "unexpected-redirect";
+}
+
+/// Authenticated GET reads the native multiplayer mode may perform. Every
+/// variant maps to one pinned path; see [`fetch_path_and_query`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MpFetchOp {
+    /// Legacy read-only session probe; 200 `{active:true,...}` signed in,
+    /// 401 `{active:false}` signed out.
+    AuthSession,
+    /// Authenticated character sheet; 401 signed out.
+    CharacterMe,
+    /// Navbar essentials; guest data when signed out.
+    ClientNav,
+    /// Turn/year/processing/countdown; public but fresher via the session.
+    TurnStatus,
+    /// Turn/year/iteration fallback; public.
+    GameTime,
+    /// Paginated inbox; requires the session, 401 otherwise.
+    Notifications,
+}
+
+impl MpFetchOp {
+    fn from_id(id: &str) -> Option<Self> {
+        match id {
+            "auth-session" => Some(Self::AuthSession),
+            "character-me" => Some(Self::CharacterMe),
+            "client-nav" => Some(Self::ClientNav),
+            "turn-status" => Some(Self::TurnStatus),
+            "game-time" => Some(Self::GameTime),
+            "notifications" => Some(Self::Notifications),
+            _ => None,
+        }
+    }
+
+    fn path(self) -> &'static str {
+        match self {
+            Self::AuthSession => "/api/auth/session",
+            Self::CharacterMe => "/api/character/me",
+            Self::ClientNav => "/api/client-nav",
+            Self::TurnStatus => "/api/game/turn/status",
+            Self::GameTime => "/api/game-time",
+            Self::Notifications => "/api/notifications",
+        }
+    }
+}
+
+/// Authenticated writes the native multiplayer mode may perform. Every
+/// variant maps to one pinned method+path with a validated body; see
+/// [`mutate_call`]. Anything else the UI asks for fails closed — unsupported
+/// mutations are absent, never sent anywhere.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MpMutateOp {
+    /// POST /api/actions/execute — one political action run. Nine server
+    /// action types; count/convert rules mirror the route schema.
+    ExecuteAction,
+    /// PATCH /api/notifications `{id, action:"read"}`.
+    NotificationRead,
+    /// PATCH /api/notifications `{id, action:"archive"}`.
+    NotificationArchive,
+    /// PATCH /api/notifications `{}` (no id) — mark-all-read in scope.
+    NotificationMarkAllRead,
+}
+
+impl MpMutateOp {
+    fn from_id(id: &str) -> Option<Self> {
+        match id {
+            "execute-action" => Some(Self::ExecuteAction),
+            "notification-read" => Some(Self::NotificationRead),
+            "notification-archive" => Some(Self::NotificationArchive),
+            "notification-mark-all-read" => Some(Self::NotificationMarkAllRead),
+            _ => None,
+        }
+    }
+
+    fn method(self) -> &'static str {
+        match self {
+            Self::ExecuteAction => "POST",
+            Self::NotificationRead | Self::NotificationArchive | Self::NotificationMarkAllRead => {
+                "PATCH"
+            }
+        }
+    }
+
+    fn path(self) -> &'static str {
+        match self {
+            Self::ExecuteAction => "/api/actions/execute",
+            Self::NotificationRead | Self::NotificationArchive | Self::NotificationMarkAllRead => {
+                "/api/notifications"
+            }
+        }
+    }
+}
+
+/// Action types accepted by POST /api/actions/execute (audited against
+/// `executeActionSchema` in AHDGame `src/lib/api/schemas/actions.ts`).
+const EXECUTE_ACTION_TYPES: &[&str] = &[
+    "fundraise",
+    "campaign",
+    "advertise",
+    "buildDonorBase",
+    "poll",
+    "pollLarge",
+    "convertCash",
+    "rest",
+    "debatePrep",
+];
+
+/// Batch counts accepted by the route schema (`count` omitted or 1 = single).
+const EXECUTE_ACTION_COUNTS: &[u64] = &[1, 5, 10];
+
+fn is_hex_object_id(value: &str) -> bool {
+    value.len() == 24 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+/// Build the exact request path+query for a fetch op. Pagination is rebuilt
+/// from validated integers; callers cannot smuggle raw query text through.
+fn fetch_path_and_query(
+    op: MpFetchOp,
+    limit: Option<u32>,
+    offset: Option<u32>,
+) -> Result<String, String> {
+    match op {
+        MpFetchOp::Notifications => {
+            let limit = limit.ok_or_else(|| error::BAD_ARG.to_string())?;
+            if !(1..=50).contains(&limit) {
+                return Err(error::BAD_ARG.to_string());
+            }
+            let offset = offset.unwrap_or(0);
+            if offset > 100_000 {
+                return Err(error::BAD_ARG.to_string());
+            }
+            Ok(format!("{}?limit={limit}&offset={offset}", op.path()))
+        }
+        _ => {
+            if limit.is_some() || offset.is_some() {
+                return Err(error::UNSUPPORTED_OP.to_string());
+            }
+            Ok(op.path().to_string())
+        }
+    }
+}
+
+/// Validate a mutation payload and return the canonical body to send. Unknown
+/// fields are stripped; the server ignores them, and the bridge never
+/// forwards what it did not explicitly model.
+fn mutate_body(op: MpMutateOp, payload: &serde_json::Value) -> Result<serde_json::Value, String> {
+    let object = payload
+        .as_object()
+        .ok_or_else(|| error::BAD_ARG.to_string())?;
+    let get_str = |key: &str| object.get(key).and_then(serde_json::Value::as_str);
+    match op {
+        MpMutateOp::ExecuteAction => {
+            let action_type = get_str("actionType").ok_or_else(|| error::BAD_ARG.to_string())?;
+            if !EXECUTE_ACTION_TYPES.contains(&action_type) {
+                return Err(error::BAD_ARG.to_string());
+            }
+            let mut body = serde_json::Map::with_capacity(4);
+            body.insert(
+                "actionType".to_string(),
+                serde_json::Value::String(action_type.to_string()),
+            );
+            if let Some(count_value) = object.get("count") {
+                let count = count_value
+                    .as_u64()
+                    .ok_or_else(|| error::BAD_ARG.to_string())?;
+                if !EXECUTE_ACTION_COUNTS.contains(&count) {
+                    return Err(error::BAD_ARG.to_string());
+                }
+                if count != 1 {
+                    body.insert(
+                        "count".to_string(),
+                        serde_json::Value::Number(serde_json::Number::from(count)),
+                    );
+                }
+            }
+            if let Some(target_state) = object.get("targetState") {
+                let state = target_state
+                    .as_str()
+                    .ok_or_else(|| error::BAD_ARG.to_string())?;
+                let trimmed = state.trim();
+                if trimmed.is_empty() || trimmed.chars().count() > MP_SESSION_MAX_STATE_ID_CHARS {
+                    return Err(error::BAD_ARG.to_string());
+                }
+                body.insert(
+                    "targetState".to_string(),
+                    serde_json::Value::String(trimmed.to_string()),
+                );
+            }
+            if let Some(amount_value) = object.get("convertAmount") {
+                let amount = amount_value
+                    .as_f64()
+                    .ok_or_else(|| error::BAD_ARG.to_string())?;
+                if !amount.is_finite() || amount <= 0.0 {
+                    return Err(error::BAD_ARG.to_string());
+                }
+                // Mirrors the route: batch runs and convert amounts never mix,
+                // and convertCash is single-run only.
+                if action_type != "convertCash"
+                    || object.get("count").is_some_and(|count| count != 1)
+                {
+                    return Err(error::BAD_ARG.to_string());
+                }
+                body.insert(
+                    "convertAmount".to_string(),
+                    serde_json::Value::Number(
+                        serde_json::Number::from_f64(amount)
+                            .ok_or_else(|| error::BAD_ARG.to_string())?,
+                    ),
+                );
+            }
+            Ok(serde_json::Value::Object(body))
+        }
+        MpMutateOp::NotificationRead | MpMutateOp::NotificationArchive => {
+            let id = get_str("id").ok_or_else(|| error::BAD_ARG.to_string())?;
+            if !is_hex_object_id(id) {
+                return Err(error::BAD_ARG.to_string());
+            }
+            let action = match op {
+                MpMutateOp::NotificationRead => "read",
+                _ => "archive",
+            };
+            Ok(serde_json::json!({ "id": id, "action": action }))
+        }
+        MpMutateOp::NotificationMarkAllRead => {
+            if !object.is_empty() {
+                return Err(error::BAD_ARG.to_string());
+            }
+            Ok(serde_json::json!({}))
+        }
+    }
+}
+
+/// Re-check a fully formed method+path+query against the allowlist. Defense
+/// in depth: the call is built by [`fetch_path_and_query`]/[`mutate_body`],
+/// but the transport re-validates so a future refactor cannot bypass the pin.
+fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
+    let (path, query) = match path_and_query.split_once('?') {
+        Some((path, query)) => (path, Some(query)),
+        None => (path_and_query, None),
+    };
+    match (method, path) {
+        ("GET", "/api/auth/session")
+        | ("GET", "/api/character/me")
+        | ("GET", "/api/client-nav")
+        | ("GET", "/api/game/turn/status")
+        | ("GET", "/api/game-time") => query.is_none(),
+        ("GET", "/api/notifications") => match query {
+            Some(query) => {
+                let mut limit_ok = false;
+                let mut offset_ok = false;
+                for pair in query.split('&') {
+                    let (key, value) = pair.split_once('=').unwrap_or(("", ""));
+                    match key {
+                        "limit" => {
+                            if !value
+                                .parse::<u32>()
+                                .is_ok_and(|limit| (1..=50).contains(&limit))
+                            {
+                                return false;
+                            }
+                            limit_ok = true;
+                        }
+                        "offset" => {
+                            if !value.parse::<u32>().is_ok_and(|offset| offset <= 100_000) {
+                                return false;
+                            }
+                            offset_ok = true;
+                        }
+                        _ => return false,
+                    }
+                }
+                limit_ok && offset_ok
+            }
+            None => false,
+        },
+        ("POST", "/api/actions/execute") | ("PATCH", "/api/notifications") => query.is_none(),
+        _ => false,
+    }
+}
+
+fn next_request_id() -> String {
+    static COUNTER: AtomicU64 = AtomicU64::new(1);
+    let sequence = COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("mp-{}-{sequence}", std::process::id())
+}
+
+/// JSON-encode a dynamic fragment for embedding in the evaluated script.
+/// Serialization (never interpolation) is what keeps caller input inert.
+fn json_fragment(value: &serde_json::Value) -> String {
+    serde_json::to_string(value).expect("bridge fragments must serialize")
+}
+
+/// Build the fire-and-forget script that starts one session call in the
+/// online window and parks its outcome at
+/// `window.__ahdMpPending[<id>]`. Returns the script plus the request id.
+fn start_script(
+    method: &str,
+    path_and_query: &str,
+    body: Option<&serde_json::Value>,
+) -> (String, String) {
+    let request_id = next_request_id();
+    let id_json = json_fragment(&serde_json::Value::String(request_id.clone()));
+    let url_json = json_fragment(&serde_json::Value::String(format!(
+        "{}{path_and_query}",
+        session_origin()
+    )));
+    let method_json = json_fragment(&serde_json::Value::String(method.to_string()));
+    let body_json = match body {
+        Some(body) => json_fragment(body),
+        None => "null".to_string(),
+    };
+    let max_bytes = serde_json::Value::Number(serde_json::Number::from(MP_SESSION_MAX_BODY_BYTES));
+    let timeout_ms = serde_json::Value::Number(serde_json::Number::from(
+        MP_SESSION_FETCH_TIMEOUT_SECS * 1000,
+    ));
+    let script = format!(
+        r#"(function(){{var id={id_json};window.__ahdMpPending=window.__ahdMpPending||{{}};if(window.__ahdMpPending[id]){{return "already-running";}}window.__ahdMpPending[id]={{done:false}};var headers={{"Accept":"application/json"}};var init={{method:{method_json},credentials:"same-origin",redirect:"manual",headers:headers}};if({body_json}!==null){{headers["Content-Type"]="application/json";init.body=JSON.stringify({body_json});}}var max={max_bytes};var budget={timeout_ms};var ctl=new AbortController();init.signal=ctl.signal;setTimeout(function(){{try{{ctl.abort();}}catch(e){{}}}},budget);fetch({url_json},init).then(function(r){{var redirected=(typeof r.type==="string"&&r.type==="opaqueredirect");if(redirected){{return {{redirected:true}};}}return r.text().then(function(t){{return {{status:r.status,retryAfter:r.headers.get("Retry-After"),contentType:r.headers.get("content-type"),oversize:t.length>max,body:t.slice(0,max+1)}};}});}}).then(function(out){{window.__ahdMpPending[id]={{done:true,ok:true,out:out}};}},function(e){{window.__ahdMpPending[id]={{done:true,ok:false}};}});return "started";}})()"#,
+    );
+    (script, request_id)
+}
+
+/// Build the polling probe for one in-flight request id.
+fn poll_script(request_id: &str) -> String {
+    let id_json = json_fragment(&serde_json::Value::String(request_id.to_string()));
+    format!(
+        r#"(function(){{var s=(window.__ahdMpPending||{{}})[{id_json}];return s?JSON.stringify(s):JSON.stringify({{done:false}});}})()"#
+    )
+}
+
+/// Build the cleanup script that drops one parked outcome.
+fn cleanup_script(request_id: &str) -> String {
+    let id_json = json_fragment(&serde_json::Value::String(request_id.to_string()));
+    format!(
+        r#"(function(){{try{{delete (window.__ahdMpPending||{{}})[{id_json}];}}catch(e){{}}return "ok";}})()"#
+    )
+}
+
+/// Page outcome parked by the start script.
+#[derive(Debug, serde::Deserialize)]
+struct PageOutcome {
+    #[serde(default)]
+    done: bool,
+    #[serde(default)]
+    ok: bool,
+    #[serde(default)]
+    out: Option<PageCall>,
+}
+
+/// Successful `fetch()` resolution (or redirect marker).
+#[derive(Debug, serde::Deserialize)]
+struct PageCall {
+    #[serde(default)]
+    redirected: bool,
+    #[serde(default)]
+    status: u16,
+    #[serde(default, rename = "retryAfter")]
+    retry_after: Option<String>,
+    #[serde(default, rename = "contentType")]
+    content_type: Option<String>,
+    #[serde(default)]
+    oversize: bool,
+    #[serde(default)]
+    body: String,
+}
+
+fn retry_after_secs(raw: Option<&str>) -> u64 {
+    raw.and_then(|value| value.trim().parse::<u64>().ok())
+        .unwrap_or(0)
+}
+
+fn content_type_is_json(raw: Option<&str>) -> bool {
+    raw.and_then(|value| value.split(';').next())
+        .is_some_and(|mime| mime.trim().eq_ignore_ascii_case("application/json"))
+}
+
+/// Classify one parked outcome into the transport contract. `Ok` carries the
+/// raw server body; `Err` carries a stable bridge string (possibly with the
+/// `remote-error:{status}:{retry}:{prefix}` envelope).
+fn classify_outcome(outcome: &PageOutcome) -> Result<String, String> {
+    if !outcome.done {
+        return Err(error::SESSION_TRANSPORT.to_string());
+    }
+    if !outcome.ok {
+        // A rejected first-party fetch is a network failure, an aborted page,
+        // or a navigated-away session window: reconnect and retry.
+        return Err(error::SESSION_TRANSPORT.to_string());
+    }
+    let call = outcome
+        .out
+        .as_ref()
+        .ok_or_else(|| error::SESSION_TRANSPORT.to_string())?;
+    if call.redirected {
+        return Err(error::UNEXPECTED_REDIRECT.to_string());
+    }
+    if !(200..300).contains(&call.status) {
+        let prefix: String = call
+            .body
+            .chars()
+            .take(MP_SESSION_ERROR_BODY_CHARS)
+            .collect();
+        return Err(format!(
+            "remote-error:{}:{}:{prefix}",
+            call.status,
+            retry_after_secs(call.retry_after.as_deref())
+        ));
+    }
+    if !content_type_is_json(call.content_type.as_deref()) {
+        return Err(error::UNEXPECTED_CONTENT.to_string());
+    }
+    if call.oversize || call.body.len() > MP_SESSION_MAX_BODY_BYTES {
+        return Err(error::OVERSIZE_BODY.to_string());
+    }
+    Ok(call.body.clone())
+}
+
+/// Parse one poll probe result body into a [`PageOutcome`].
+fn parse_poll_result(raw: &str) -> Result<PageOutcome, String> {
+    serde_json::from_str(raw).map_err(|_| error::SESSION_TRANSPORT.to_string())
+}
+
+async fn poll_for_outcome(
+    window: &tauri::WebviewWindow,
+    request_id: &str,
+) -> Result<PageOutcome, String> {
+    let probe = poll_script(request_id);
+    for _ in 0..MP_SESSION_POLL_ROUNDS {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        window
+            .eval_with_callback(probe.clone(), move |value| {
+                let _ = sender.send(value);
+            })
+            .map_err(|_| error::SESSION_TRANSPORT.to_string())?;
+        let raw = tauri::async_runtime::spawn_blocking(move || {
+            receiver.recv_timeout(Duration::from_secs(5))
+        })
+        .await
+        .map_err(|_| error::SESSION_TRANSPORT.to_string())?
+        .map_err(|_| error::SESSION_TRANSPORT.to_string())?;
+        let outcome = parse_poll_result(&raw)?;
+        if outcome.done {
+            return Ok(outcome);
+        }
+        tauri::async_runtime::spawn_blocking(|| {
+            std::thread::sleep(Duration::from_millis(MP_SESSION_POLL_INTERVAL_MS));
+        })
+        .await
+        .map_err(|_| error::SESSION_TRANSPORT.to_string())?;
+    }
+    Err(error::SESSION_TIMEOUT.to_string())
+}
+
+/// Run one allowlisted call in the persistent online window and resolve it
+/// per [`classify_outcome`]. Only the `online` window is ever touched: any
+/// other label (including the app's own main view) fails closed, so bridge
+/// scripts can only execute in first-party live-site context.
+async fn run_session_call(
+    app: &tauri::AppHandle,
+    method: &str,
+    path_and_query: &str,
+    body: Option<&serde_json::Value>,
+) -> Result<String, String> {
+    if !is_allowlisted_call(method, path_and_query) {
+        return Err(error::UNSUPPORTED_OP.to_string());
+    }
+    let window = app
+        .get_webview_window(MP_SESSION_WINDOW_LABEL)
+        .ok_or_else(|| error::SESSION_UNAVAILABLE.to_string())?;
+    if window.label() != MP_SESSION_WINDOW_LABEL {
+        return Err(error::SESSION_UNAVAILABLE.to_string());
+    }
+    let (script, request_id) = start_script(method, path_and_query, body);
+    window
+        .eval(script)
+        .map_err(|_| error::SESSION_TRANSPORT.to_string())?;
+    let outcome = poll_for_outcome(&window, &request_id).await;
+    let _ = window.eval(cleanup_script(&request_id));
+    classify_outcome(&outcome?)
+}
+
+/// Fetch one allowlisted read through the live-site session. Resolves with
+/// the raw JSON body; the TypeScript adapter validates and projects it.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn mp_session_fetch(
+    app: tauri::AppHandle,
+    op_id: String,
+    limit: Option<u32>,
+    offset: Option<u32>,
+) -> Result<String, String> {
+    let op = MpFetchOp::from_id(op_id.trim()).ok_or_else(|| error::UNSUPPORTED_OP.to_string())?;
+    let path_and_query = fetch_path_and_query(op, limit, offset)?;
+    run_session_call(&app, "GET", &path_and_query, None).await
+}
+
+/// Perform one allowlisted mutation through the live-site session. Resolves
+/// with the raw JSON body; the adapter must refresh authoritative reads
+/// before the UI claims completion.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn mp_session_mutate(
+    app: tauri::AppHandle,
+    op_id: String,
+    payload: Option<serde_json::Value>,
+) -> Result<String, String> {
+    let op = MpMutateOp::from_id(op_id.trim()).ok_or_else(|| error::UNSUPPORTED_OP.to_string())?;
+    let body = mutate_body(op, payload.as_ref().unwrap_or(&serde_json::Value::Null))?;
+    let path_and_query = op.path().to_string();
+    run_session_call(&app, op.method(), &path_and_query, Some(&body)).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fetch_ids_resolve_to_pinned_paths() {
+        assert_eq!(
+            MpFetchOp::from_id("auth-session"),
+            Some(MpFetchOp::AuthSession)
+        );
+        assert_eq!(
+            MpFetchOp::from_id("character-me"),
+            Some(MpFetchOp::CharacterMe)
+        );
+        assert_eq!(MpFetchOp::from_id("client-nav"), Some(MpFetchOp::ClientNav));
+        assert_eq!(
+            MpFetchOp::from_id("turn-status"),
+            Some(MpFetchOp::TurnStatus)
+        );
+        assert_eq!(MpFetchOp::from_id("game-time"), Some(MpFetchOp::GameTime));
+        assert_eq!(
+            MpFetchOp::from_id("notifications"),
+            Some(MpFetchOp::Notifications)
+        );
+        assert_eq!(MpFetchOp::from_id("../admin"), None);
+        assert_eq!(MpFetchOp::from_id("CHARACTER-ME"), None);
+        assert_eq!(MpFetchOp::from_id(""), None);
+    }
+
+    #[test]
+    fn mutate_ids_resolve_to_pinned_method_and_path() {
+        assert_eq!(
+            MpMutateOp::from_id("execute-action"),
+            Some(MpMutateOp::ExecuteAction)
+        );
+        assert_eq!(
+            MpMutateOp::from_id("notification-read"),
+            Some(MpMutateOp::NotificationRead)
+        );
+        assert_eq!(
+            MpMutateOp::from_id("notification-archive"),
+            Some(MpMutateOp::NotificationArchive)
+        );
+        assert_eq!(
+            MpMutateOp::from_id("notification-mark-all-read"),
+            Some(MpMutateOp::NotificationMarkAllRead)
+        );
+        assert_eq!(MpMutateOp::from_id("delete-account"), None);
+        assert_eq!(MpMutateOp::from_id("EXECUTE-ACTION"), None);
+        let op = MpMutateOp::ExecuteAction;
+        assert_eq!((op.method(), op.path()), ("POST", "/api/actions/execute"));
+        let op = MpMutateOp::NotificationRead;
+        assert_eq!((op.method(), op.path()), ("PATCH", "/api/notifications"));
+    }
+
+    #[test]
+    fn pagination_is_rebuilt_never_forwarded() {
+        assert_eq!(
+            fetch_path_and_query(MpFetchOp::ClientNav, Some(10), None).unwrap_err(),
+            error::UNSUPPORTED_OP
+        );
+        assert_eq!(
+            fetch_path_and_query(MpFetchOp::Notifications, None, None).unwrap_err(),
+            error::BAD_ARG
+        );
+        for bad in [0, 51, 500, u32::MAX] {
+            assert_eq!(
+                fetch_path_and_query(MpFetchOp::Notifications, Some(bad), None).unwrap_err(),
+                error::BAD_ARG,
+                "limit {bad} must be rejected"
+            );
+        }
+        assert_eq!(
+            fetch_path_and_query(MpFetchOp::Notifications, Some(25), Some(100_001)).unwrap_err(),
+            error::BAD_ARG
+        );
+        assert_eq!(
+            fetch_path_and_query(MpFetchOp::Notifications, Some(25), None).unwrap(),
+            "/api/notifications?limit=25&offset=0"
+        );
+        assert_eq!(
+            fetch_path_and_query(MpFetchOp::Notifications, Some(50), Some(100)).unwrap(),
+            "/api/notifications?limit=50&offset=100"
+        );
+    }
+
+    #[test]
+    fn execute_action_bodies_mirror_the_route_schema() {
+        let ok = mutate_body(
+            MpMutateOp::ExecuteAction,
+            &serde_json::json!({ "actionType": "fundraise" }),
+        )
+        .unwrap();
+        assert_eq!(ok, serde_json::json!({ "actionType": "fundraise" }));
+
+        // Unknown fields are stripped, never forwarded.
+        let stripped = mutate_body(
+            MpMutateOp::ExecuteAction,
+            &serde_json::json!({ "actionType": "rest", "admin": true, "count": 1 }),
+        )
+        .unwrap();
+        assert_eq!(stripped, serde_json::json!({ "actionType": "rest" }));
+
+        // Batch counts mirror the server enum; anything else fails closed.
+        let batched = mutate_body(
+            MpMutateOp::ExecuteAction,
+            &serde_json::json!({ "actionType": "campaign", "count": 5 }),
+        )
+        .unwrap();
+        assert_eq!(
+            batched,
+            serde_json::json!({ "actionType": "campaign", "count": 5 })
+        );
+        for bad_count in [0, 2, 7, 100] {
+            assert!(
+                mutate_body(
+                    MpMutateOp::ExecuteAction,
+                    &serde_json::json!({ "actionType": "campaign", "count": bad_count }),
+                )
+                .is_err(),
+                "count {bad_count} must be rejected"
+            );
+        }
+
+        // convertCash is the only amount action, single-run only, positive only.
+        assert!(mutate_body(
+            MpMutateOp::ExecuteAction,
+            &serde_json::json!({ "actionType": "convertCash", "convertAmount": 250 }),
+        )
+        .is_ok());
+        for bad in [
+            serde_json::json!({ "actionType": "convertCash", "convertAmount": 0 }),
+            serde_json::json!({ "actionType": "convertCash", "convertAmount": -5 }),
+            serde_json::json!({ "actionType": "convertCash", "convertAmount": "many" }),
+            serde_json::json!({ "actionType": "fundraise", "convertAmount": 10 }),
+            serde_json::json!({ "actionType": "convertCash", "convertAmount": 10, "count": 5 }),
+            serde_json::json!({ "actionType": "campaign", "convertAmount": 10, "count": 5 }),
+        ] {
+            assert!(
+                mutate_body(MpMutateOp::ExecuteAction, &bad).is_err(),
+                "must reject {bad}"
+            );
+        }
+
+        // targetState is trimmed shape validation; blank or huge fails closed.
+        let with_state = mutate_body(
+            MpMutateOp::ExecuteAction,
+            &serde_json::json!({ "actionType": "campaign", "targetState": "  CA  " }),
+        )
+        .unwrap();
+        assert_eq!(
+            with_state,
+            serde_json::json!({ "actionType": "campaign", "targetState": "CA" })
+        );
+        assert!(mutate_body(
+            MpMutateOp::ExecuteAction,
+            &serde_json::json!({ "actionType": "campaign", "targetState": "   " }),
+        )
+        .is_err());
+        assert!(mutate_body(
+            MpMutateOp::ExecuteAction,
+            &serde_json::json!({ "actionType": "nuke" }),
+        )
+        .is_err());
+        assert!(mutate_body(MpMutateOp::ExecuteAction, &serde_json::Value::Null).is_err());
+    }
+
+    #[test]
+    fn notification_bodies_require_hex_ids_and_fixed_actions() {
+        let id = "507f1f77bcf86cd799439011";
+        assert_eq!(
+            mutate_body(
+                MpMutateOp::NotificationRead,
+                &serde_json::json!({ "id": id }),
+            )
+            .unwrap(),
+            serde_json::json!({ "id": id, "action": "read" })
+        );
+        assert_eq!(
+            mutate_body(
+                MpMutateOp::NotificationArchive,
+                &serde_json::json!({ "id": id, "action": "delete", "ids": [id] }),
+            )
+            .unwrap(),
+            serde_json::json!({ "id": id, "action": "archive" })
+        );
+        for bad in [
+            "",
+            "507f1f77bcf86cd79943901",
+            "507f1f77bcf86cd79943901zz",
+            "not-an-id",
+        ] {
+            assert!(
+                mutate_body(
+                    MpMutateOp::NotificationRead,
+                    &serde_json::json!({ "id": bad }),
+                )
+                .is_err(),
+                "{bad} must be rejected"
+            );
+        }
+        assert!(mutate_body(MpMutateOp::NotificationMarkAllRead, &serde_json::json!({}),).is_ok());
+        assert!(mutate_body(
+            MpMutateOp::NotificationMarkAllRead,
+            &serde_json::json!({ "id": id }),
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn allowlist_rejects_off_origin_and_injected_calls() {
+        for allowed in [
+            ("GET", "/api/auth/session"),
+            ("GET", "/api/character/me"),
+            ("GET", "/api/client-nav"),
+            ("GET", "/api/game/turn/status"),
+            ("GET", "/api/game-time"),
+            ("GET", "/api/notifications?limit=25&offset=0"),
+            ("GET", "/api/notifications?offset=10&limit=1"),
+            ("POST", "/api/actions/execute"),
+            ("PATCH", "/api/notifications"),
+        ] {
+            assert!(
+                is_allowlisted_call(allowed.0, allowed.1),
+                "{allowed:?} must be allowed"
+            );
+        }
+        for denied in [
+            ("GET", "https://ahousedividedgame.com/api/client-nav"),
+            ("POST", "/api/client-nav"),
+            ("GET", "/api/actions/execute"),
+            ("DELETE", "/api/notifications"),
+            ("PATCH", "/api/notifications?limit=10"),
+            ("GET", "/api/client-nav?x=1"),
+            ("GET", "/api/notifications"),
+            ("GET", "/api/notifications?limit=500&offset=0"),
+            ("GET", "/api/notifications?limit=10"),
+            ("GET", "/api/notifications?limit=10&offset=0&admin=true"),
+            ("GET", "/api/notifications?LIMIT=10&offset=0"),
+            ("GET", "/api/character/me?x=1"),
+            ("POST", "/api/auth/login"),
+            ("GET", "/api/admin/users"),
+        ] {
+            assert!(
+                !is_allowlisted_call(denied.0, denied.1),
+                "{denied:?} must be rejected"
+            );
+        }
+        // Off-origin smuggling through the path slot is impossible: pins are
+        // relative, and anything else fails the match above.
+        for sneaky in [
+            "https://evil.com/api/client-nav",
+            "https://ahousedividedgame.com.evil.com/api/client-nav",
+            "//evil.com/api/client-nav",
+            "/api/client-nav#x",
+        ] {
+            assert!(
+                !is_allowlisted_call("GET", sneaky),
+                "{sneaky} must be rejected"
+            );
+        }
+        // The origin pin itself is scheme+host exact.
+        assert_eq!(MP_SESSION_SCHEME, "https");
+        assert_eq!(MP_SESSION_HOST, "ahousedividedgame.com");
+        assert_eq!(session_origin(), "https://ahousedividedgame.com");
+    }
+
+    #[test]
+    fn start_scripts_embed_dynamics_as_json_only() {
+        let hostile = serde_json::json!({
+            "actionType": "campaign",
+            "targetState": "\");alert(1);//",
+        });
+        let body = mutate_body(MpMutateOp::ExecuteAction, &hostile).unwrap();
+        let (script, request_id) = start_script("POST", "/api/actions/execute", Some(&body));
+        // The hostile fragment survives only inside a JSON string literal.
+        assert!(script.contains("alert(1)"));
+        assert!(script.contains("https://ahousedividedgame.com/api/actions/execute"));
+        assert!(script.contains("credentials:\"same-origin\""));
+        assert!(script.contains("redirect:\"manual\""));
+        assert!(!script.contains("document.cookie"));
+        assert!(!script.contains("localStorage"));
+        assert!(!script.contains("sessionStorage"));
+        assert!(!script.contains("X-Bot-Token"));
+        assert!(!script.contains("XMLHttpRequest"));
+        // Poll and cleanup round-trip the same id without executing calls.
+        let poll = poll_script(&request_id);
+        assert!(poll.contains(&request_id));
+        assert!(!poll.contains("fetch("));
+        let cleanup = cleanup_script(&request_id);
+        assert!(cleanup.contains(&request_id));
+        assert!(!cleanup.contains("fetch("));
+        // Ids are unique per call so concurrent actions cannot collide.
+        let (_, second_id) = start_script("GET", "/api/game-time", None);
+        assert_ne!(request_id, second_id);
+    }
+
+    #[test]
+    fn outcomes_classify_server_statuses_honestly() {
+        let ok_outcome = PageOutcome {
+            done: true,
+            ok: true,
+            out: Some(PageCall {
+                redirected: false,
+                status: 200,
+                retry_after: None,
+                content_type: Some("application/json; charset=utf-8".to_string()),
+                oversize: false,
+                body: "{\"active\":true}".to_string(),
+            }),
+        };
+        assert_eq!(classify_outcome(&ok_outcome).unwrap(), "{\"active\":true}");
+
+        // Non-2xx preserves status, retry delay, and the server message.
+        let limited = PageOutcome {
+            done: true,
+            ok: true,
+            out: Some(PageCall {
+                redirected: false,
+                status: 429,
+                retry_after: Some("45".to_string()),
+                content_type: Some("application/json".to_string()),
+                oversize: false,
+                body: "{\"error\":\"too quick\",\"code\":\"rate_limited\"}".to_string(),
+            }),
+        };
+        let err = classify_outcome(&limited).unwrap_err();
+        assert!(err.starts_with("remote-error:429:45:"), "got {err}");
+        assert!(err.contains("rate_limited"));
+
+        let refused = PageOutcome {
+            done: true,
+            ok: true,
+            out: Some(PageCall {
+                redirected: false,
+                status: 403,
+                retry_after: None,
+                content_type: Some("application/json".to_string()),
+                oversize: false,
+                body: "{\"error\":\"Forbidden\"}".to_string(),
+            }),
+        };
+        assert!(classify_outcome(&refused)
+            .unwrap_err()
+            .starts_with("remote-error:403:0:"));
+
+        // Long error bodies are capped; redirects, wrong types, and oversize
+        // fail closed with stable strings.
+        let big = PageOutcome {
+            done: true,
+            ok: true,
+            out: Some(PageCall {
+                redirected: false,
+                status: 500,
+                retry_after: None,
+                content_type: Some("application/json".to_string()),
+                oversize: false,
+                body: "x".repeat(10_000),
+            }),
+        };
+        let err = classify_outcome(&big).unwrap_err();
+        assert!(err.starts_with("remote-error:500:0:"));
+        assert!(err.len() < 10_000);
+        for (outcome, expected) in [
+            (
+                PageOutcome {
+                    done: true,
+                    ok: true,
+                    out: Some(PageCall {
+                        redirected: true,
+                        status: 0,
+                        retry_after: None,
+                        content_type: None,
+                        oversize: false,
+                        body: String::new(),
+                    }),
+                },
+                error::UNEXPECTED_REDIRECT,
+            ),
+            (
+                PageOutcome {
+                    done: true,
+                    ok: true,
+                    out: Some(PageCall {
+                        redirected: false,
+                        status: 200,
+                        retry_after: None,
+                        content_type: Some("text/html".to_string()),
+                        oversize: false,
+                        body: "<html>".to_string(),
+                    }),
+                },
+                error::UNEXPECTED_CONTENT,
+            ),
+            (
+                PageOutcome {
+                    done: true,
+                    ok: true,
+                    out: Some(PageCall {
+                        redirected: false,
+                        status: 200,
+                        retry_after: None,
+                        content_type: Some("application/json".to_string()),
+                        oversize: true,
+                        body: "x".repeat(10),
+                    }),
+                },
+                error::OVERSIZE_BODY,
+            ),
+            (
+                PageOutcome {
+                    done: false,
+                    ok: false,
+                    out: None,
+                },
+                error::SESSION_TRANSPORT,
+            ),
+            (
+                PageOutcome {
+                    done: true,
+                    ok: false,
+                    out: None,
+                },
+                error::SESSION_TRANSPORT,
+            ),
+        ] {
+            assert_eq!(classify_outcome(&outcome).unwrap_err(), expected);
+        }
+        assert!(parse_poll_result("not json").is_err());
+        assert!(!parse_poll_result("{\"done\":false}").unwrap().done);
+    }
+
+    #[test]
+    fn retry_after_parsing_is_lenient_but_bounded() {
+        assert_eq!(retry_after_secs(None), 0);
+        assert_eq!(retry_after_secs(Some("45")), 45);
+        assert_eq!(retry_after_secs(Some("  60  ")), 60);
+        assert_eq!(retry_after_secs(Some("soon")), 0);
+        assert_eq!(retry_after_secs(Some("-5")), 0);
+        // `u64::MAX + 1` cannot parse, so absurd server values become 0.
+        assert_eq!(retry_after_secs(Some("18446744073709551616")), 0);
+        assert!(content_type_is_json(Some("application/json")));
+        assert!(content_type_is_json(Some(
+            "Application/JSON; charset=utf-8"
+        )));
+        assert!(!content_type_is_json(Some("text/html")));
+        assert!(!content_type_is_json(None));
+    }
+
+    #[test]
+    fn bridge_wiring_stays_session_scoped() {
+        // Structural guard: the bridge must never grow session capture,
+        // persistence, or off-origin traffic. If any of these change, the
+        // #149 session boundary needs owner review. Tokens are joined so this
+        // test itself does not self-match; page scripts are checked as built
+        // artifacts, module wiring as source.
+        let (start, id) = start_script(
+            "POST",
+            "/api/actions/execute",
+            Some(&serde_json::json!({ "actionType": "rest" })),
+        );
+        let pages = [start, poll_script(&id), cleanup_script(&id)];
+        for page in &pages {
+            for forbidden in [
+                ["document", "cookie"].join("."),
+                ["local", "Storage"].join(""),
+                ["session", "Storage"].join(""),
+                ["X", "Bot-Token"].join("-"),
+                ["Authori", "zation"].join(""),
+                ["pass", "word"].join(""),
+            ] {
+                assert!(
+                    !page.contains(&forbidden),
+                    "bridge scripts must stay session-scoped ({forbidden})"
+                );
+            }
+        }
+        let source = include_str!("mp_session.rs");
+        assert!(source.contains(MP_SESSION_WINDOW_LABEL));
+        assert!(source.contains("redirect:\"manual\""));
+        assert!(source.contains("credentials:\"same-origin\""));
+        for forbidden in [
+            ["std", "fs"].join("::"),
+            ["fs", ""].join("::"),
+            ["cookie", "store"].join("_"),
+            ["Cookie", "Store"].join(""),
+            [".post", ""].join("("),
+            ["req", "west"].join(""),
+        ] {
+            assert!(
+                !source.contains(&forbidden),
+                "bridge wiring must stay session-scoped ({forbidden})"
+            );
+        }
+    }
+}

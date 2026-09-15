@@ -14,6 +14,7 @@ import { NewGameScreen } from './ui/NewGameScreen';
 import { CharacterCreationScreen } from './ui/CharacterCreationScreen';
 import { GameScreen } from './ui/GameScreen';
 import { LandingScreen } from './ui/LandingScreen';
+import { MpModeScreen } from './ui/MpModeScreen';
 import { openOnlineSession, tauriOnlineSessionHost } from './online/session';
 
 export function App() {
@@ -24,7 +25,7 @@ export function App() {
   const locked = useRef(false);
   const [eras, setEras] = useState<EraChoice[]>([]);
   const [saves, setSaves] = useState<SaveMetadata[]>([]);
-  const [screen, setScreen] = useState<'home' | 'new' | 'creation' | 'game' | 'help' | 'settings'>('home');
+  const [screen, setScreen] = useState<'home' | 'new' | 'creation' | 'game' | 'help' | 'settings' | 'mp'>('home');
   // #242: world-setup selection held while the player completes the character
   // creation file; the world is not created until both steps are done.
   const [pendingSetup, setPendingSetup] = useState<NewGameOptions | null>(null);
@@ -209,6 +210,7 @@ export function App() {
     <button className="ahd-btn" onClick={() => setScreen('home')} autoFocus>Back to home</button>
     {screen === 'help' ? <HelpPanel /> : <SettingsPanel value={presentation.value} onChange={changePreferences} error={presentation.error} />}
   </div></main>;
+  if (screen === 'mp') return <MpModeScreen onExit={() => setScreen('home')} />;
   if (screen === 'new') return <NewGameScreen eras={eras} busy={busy} error={error} onStart={start} onBack={() => setScreen('home')} />;
   if (screen === 'creation' && pendingSetup) {
     const era = eras.find((entry) => entry.id === pendingSetup.era);
@@ -275,5 +277,6 @@ export function App() {
     onConfirmDelete={confirmDelete}
     onlineBusy={onlineBusy}
     onEnterMultiplayer={() => { void enterMultiplayer(); }}
+    onEnterMultiplayerNative={() => { setError(undefined); setScreen('mp'); }}
   />;
 }

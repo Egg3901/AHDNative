@@ -32,6 +32,7 @@ export interface LandingScreenProps {
   onConfirmDelete: () => void;
   onlineBusy: boolean;
   onEnterMultiplayer: () => void;
+  onEnterMultiplayerNative: () => void;
 }
 
 export function LandingScreen({
@@ -56,6 +57,7 @@ export function LandingScreen({
   onConfirmDelete,
   onlineBusy,
   onEnterMultiplayer,
+  onEnterMultiplayerNative,
 }: LandingScreenProps) {
   const [confirmingNew, setConfirmingNew] = useState(false);
   const beginNew = () => {
@@ -89,6 +91,9 @@ export function LandingScreen({
           <button className="ahd-btn ahd-btn-primary ahd-landing-primary" disabled={busy || !eras.length} onClick={beginNew}>New game</button>
           <button className="ahd-btn" disabled={busy || onlineBusy} onClick={onEnterMultiplayer}>
             {onlineBusy ? "Opening multiplayer..." : "Enter multiplayer"}
+          </button>
+          <button className="ahd-btn" disabled={busy || onlineBusy} onClick={onEnterMultiplayerNative}>
+            Play multiplayer (Native)
           </button>
           <p className="ahd-muted" style={{ margin: 0, fontSize: "0.78rem" }}>Local games do not need an account.</p>
           <div className="ahd-landing-secondary">
