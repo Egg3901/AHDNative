@@ -108,6 +108,9 @@ export * from "./cabinet/nominationLifecycle.js";
 export * from "./cabinet/transition.js";
 export * from "./corporation/corporateSectorAssets.js";
 export * from "./ministerialOrders/catalog.js";
+export * from "./ministerialOrders/issue.js";
+export * from "./ministerialOrders/lifecycle.js";
+export * from "./cabinet/ministerialActionPool.js";
 export { runMinisterialOrders } from "./ministerialOrders/phases.js";
 // Issue #119: FOMC committee + nomination lifecycle. Types come through
 // `export type * from "./types.js"`; these are the pure rules, the meeting

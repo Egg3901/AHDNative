@@ -72,6 +72,7 @@ export type NationDestination =
   | "policy"
   | "metrics"
   | "legislature"
+  | "government"
   | "elections"
   | "nations";
 

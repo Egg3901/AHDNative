@@ -2,6 +2,7 @@ import { AskPanel } from "../ask/AskPanel";
 import { ProfileRoute } from "./ProfileRoute";
 import { RegionsRoute } from "./RegionsRoute";
 import { CaucusPanel } from "./CaucusPanel";
+import { CabinetOfficePanel } from "./CabinetOfficePanel";
 import { BondMarketRoute } from "./BondMarketRoute";
 import { PartyManagementPanel } from "./PartyManagementPanel";
 import { LegislationRoute } from "./LegislationRoute";
@@ -77,7 +78,7 @@ const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
   search: "Search",
   partyManagement: "Party management",
   regions: "Regions",
-  caucuses: "Caucuses",
+  caucuses: "Caucuses", government: "Cabinet office",
   help: "Help", settings: "Settings",
   profile: "Profile",
   portfolio: "Portfolio",
@@ -107,7 +108,7 @@ const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
   { id: "favorability", short: "Favorability", label: "Favorability" },
 ];
 
-export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, newsStorageKey, onAdvanceTurn, onSave, onExit, onAction, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
+export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, newsStorageKey, onAdvanceTurn, onSave, onExit, onAction, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("profile");
   const [detailId, setDetailId] = useState<string>();
   // Selected hub category survives route changes so Profile/footer deep-links
@@ -466,6 +467,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
           {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={route === "nations" ? (detailId ?? nationContext) : detailId} onSelectNation={route === "nations" ? (id) => { setDetailId(undefined); setNationContext(id); } : undefined} onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }} />}</DetailQuery>}
           {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} revision={world} busy={busy} onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
+          {route === "government" && loadCabinetOffice && onIssueCabinetOrder && <DetailQuery load={loadCabinetOffice} revision={world} label="Cabinet office">{office => <CabinetOfficePanel office={office} busy={busy} notice={error ? { kind: "error", text: error } : message ? { kind: "ok", text: message } : null} onIssue={onIssueCabinetOrder} />}</DetailQuery>}
           {route === "bonds" && <BondMarketRoute initialId={detailId} load={loadBondMarket} revision={world} busy={busy} onAction={onAction} />}
           {route === "partyManagement" && <DetailQuery load={loadPartyManagement} revision={world} label="Party management">{management => <PartyManagementPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "search" && <SearchPanel load={search} revision={world} onOpen={openSearchResult} snapshot={searchSnapshot} onSnapshot={updateSearchSnapshot} />}
