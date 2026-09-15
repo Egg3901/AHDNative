@@ -798,6 +798,11 @@ setup, and every captured field persists through the engine, save and session.
   reference option labels, one-party briefing and imperial notice, and local
   portrait (2 MB) / header (4 MB) pickers resized to the reference presets.
   `ProfilePanel` shows the full stat block, demographics and header.
+- Profile policy and demographics parity (#50) is complete: the compass reads
+  the persisted player axes, plots the authored party platform when available,
+  labels the unavailable home-region lean without inventing one, and links to
+  the party, home region and national policy destinations. Creation is the
+  reference editing command; its values survive action, turn, save and reload.
 
 Evidence: `packages/engine/src/characterCreation.test.ts` (persist/reject/
 round-trip/wealth/party), `characterConsequences.test.ts` (charisma,
