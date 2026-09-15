@@ -278,6 +278,38 @@ bundle, detects horizontal overflow and rejects external image requests.
 Remaining route assets stay explicit under #143; this checkpoint does not
 claim whole-application image parity.
 
+### Profile route hero and identity composition (issue #371)
+
+Profile now opens on a route hero like Actions and Parties instead of a dense
+text/card surface. `src/ui/ProfilePanel.tsx` renders a `RouteHero` whose
+image is `profileHeroImage(profile.profileHeaderUrl)`
+(`src/ui/RouteHero.tsx`): the saved custom header when set, otherwise the
+bundled offline `politicians.webp` above (same SHA-256, no remote request).
+Below the fold, one overlap identity row carries the projected portrait (or
+initials fallback), party and office chips, and home-region/country links —
+the same composition as the reference, without duplicating any editable
+field (picture/header uploads and the biography editor stay in the Character
+card body). Phone-first density: compact overlap at 320px
+(`max-width: 360px`), base phone column at 390px, roomier overlap beside the
+220px crop on desktop; chips and links keep 44px targets.
+
+Provenance (read-only inspection of the public AHDGame checkout at the
+revision above, no assets copied): `src/app/profile/components/ProfileHeader.tsx`
+(banner strip with custom header or accent-gradient fallback, overlap
+identity row, party/region/country/office chips), and
+`src/lib/constants/profileHeroLayout.ts` (`PROFILE_HERO_OVERLAP_CLASSES`
+negative-margin overlap). Deliberate adaptations: the reference gradient
+fallback is the bundled politicians art, and server-only elements are
+omitted — Patreon/admin/moderator badges, copy-link, wiki link,
+member-since, and `CountryFlag` (no lawful flag asset is bundled; offline
+play has no supporter tiers). No office, portrait, or lean is fabricated:
+missing values render the existing honest unavailable states.
+
+Rendered tests: `src/ui/ProfileHero.test.tsx` (hero imagery and fallback,
+identity composition and destinations, edit-control boundaries, responsive
+rules). Existing `src/ui/ProfilePanel.test.tsx` still protects every
+profile edit, constituency, finance, and navigation behavior unchanged.
+
 Full destination/conditional-menu inventory lives in
 [navigation parity](NAVIGATION-PARITY.md); this table only maps each Native
 entry surface to its reference source so follow-up styling stays grounded. No

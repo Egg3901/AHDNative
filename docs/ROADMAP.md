@@ -987,6 +987,37 @@ across the eight named specs (`singleplayer`, `actions-hub`, `party-founding`,
 `ui-navigation-depth`), all 17 passing against the installed Chromium build.
 
 
+## Profile hero and identity composition checkpoint, 2026-09-15 (#371)
+
+#371 done as a bounded Native UI slice; no engine, session, DTO, signing,
+version or release file changed. Child of #143.
+
+- `src/ui/ProfilePanel.tsx`: the Character section opens on a `RouteHero`
+  (new `profileHeroImage`/`PROFILE_HERO_IMAGE` in `src/ui/RouteHero.tsx`)
+  using the saved custom header when set, else the bundled offline
+  `politicians.webp`; one overlap identity row below the fold carries the
+  projected portrait-or-initials, party/office chips and region/country
+  links. Edit controls, section order, constituency, finance and navigation
+  behavior are unchanged.
+- `src/ui/profile.css` (+ dead-banner removal in `src/ui/ui.css`):
+  phone-first hero bleed and overlap with compact density at 320px, base
+  phone column at 390px, and roomier overlap on desktop; 44px chip/link
+  targets preserved.
+- Reference: AHDGame `ProfileHeader.tsx` banner + overlap composition and
+  `profileHeroLayout.ts` offsets; server-only elements (supporter/admin
+  badges, copy-link, wiki link, member-since, flags) stay omitted.
+- No remote images or new assets; no mechanics invented.
+
+Evidence: new `src/ui/ProfileHero.test.tsx` (12 cases: imagery, fallback,
+identity, destinations, boundaries, responsive rules) plus the unchanged
+`src/ui/ProfilePanel.test.tsx`. Validation: focused UI suites only, per the
+slice boundary — no full verify/build/typecheck/Playwright run.
+
+Honest gaps: no rendered AHDGame-vs-Native comparison screenshot and no
+physical-device run for this slice; `smoke/route-heroes.spec.ts` does not
+yet cover the Profile hero. Server-only header elements remain omitted by
+design (see UI reference).
+
 ## Character-creation player flow checkpoint, 2026-09-14 (#242)
 
 #242 partial. The reference six-step creation hand-off now runs after world

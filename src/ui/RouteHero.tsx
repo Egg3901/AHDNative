@@ -22,6 +22,22 @@ export function RouteHero({ image, alt, eyebrow, title, children, className = ""
   );
 }
 
+/**
+ * Bundled offline route art for the Profile hero (issue #371): the same
+ * `politicians.webp` character creation uses, byte-identical to AHDGame
+ * (SHA-256 `bb3078558687f426d939f74672e339033147e241b21495b269b59cc12acb7a00`).
+ */
+export const PROFILE_HERO_IMAGE = "/static/heroes/politicians.webp";
+
+/**
+ * Profile hero source: a saved custom header wins, otherwise the bundled
+ * politicians asset. Never a remote URL — the header is a local data URL and
+ * the fallback is bundled offline.
+ */
+export function profileHeroImage(profileHeaderUrl: string | null): string {
+  return profileHeaderUrl ?? PROFILE_HERO_IMAGE;
+}
+
 export function nationOverviewHero(countryId: string): string {
   if (countryId === "US") return "/static/heroes/us-overview-mount-rushmore.webp";
   return "/static/heroes/actions.webp";
