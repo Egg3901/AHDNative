@@ -97,7 +97,7 @@ export function tauriMpBridgeHost(): MpBridgeHost {
     },
     openOnlineWindow: async () => {
       const { invoke } = await import("@tauri-apps/api/core");
-      await invoke("open_online_window");
+      await invoke("open_mp_sign_in");
     },
   };
 }

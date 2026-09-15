@@ -26,7 +26,10 @@ export function App() {
   const locked = useRef(false);
   const [eras, setEras] = useState<EraChoice[]>([]);
   const [saves, setSaves] = useState<SaveMetadata[]>([]);
-  const [screen, setScreen] = useState<'home' | 'new' | 'creation' | 'game' | 'help' | 'settings' | 'mp' | 'ask'>('home');
+  const [screen, setScreen] = useState<'home' | 'new' | 'creation' | 'game' | 'help' | 'settings' | 'mp' | 'ask'>(() =>
+    new URLSearchParams(window.location.search).get('view') === 'ask' ? 'ask'
+      : new URLSearchParams(window.location.search).get('view') === 'mp' ? 'mp' : 'home',
+  );
   // #242: world-setup selection held while the player completes the character
   // creation file; the world is not created until both steps are done.
   const [pendingSetup, setPendingSetup] = useState<NewGameOptions | null>(null);

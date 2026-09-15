@@ -6,6 +6,7 @@ fn main() {
             "list_saves",
             "delete_save",
             "open_online_window",
+            "open_mp_sign_in",
             "mp_view_fetch",
             "mp_session_fetch",
             "mp_session_mutate",

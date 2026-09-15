@@ -4,6 +4,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { GameScreen } from "./GameScreen";
+import { MENU_GROUPS } from "./MobileNavigation";
 import type { ElectionView, FinanceView, GameView } from "../game/types";
 import { DEFAULT_WORLD_FEATURE_FLAGS, WORLD_FEATURE_FLAG_DEFINITIONS } from "@ahdclient/engine";
 
@@ -122,7 +123,19 @@ async function navigate(user: ReturnType<typeof userEvent.setup>, name: string) 
   const direct = primary.queryByRole("button", { name });
   if (direct) { await user.click(direct); return; }
   await user.click(primary.getByRole("button", { name: "Menu" }));
-  await user.click(within(screen.getByRole("dialog", { name: "Game menu" })).getByRole("button", { name }));
+  const menu = within(screen.getByRole("dialog", { name: "Game menu" }));
+  let destination = menu.queryByRole("button", { name });
+  if (!destination) {
+    const collapsedGroup = MENU_GROUPS.find((group) =>
+      group.sections?.some((section) => section.items.some((item) => item.label === name)),
+    );
+    if (collapsedGroup) {
+      await user.click(menu.getByRole("button", { name: collapsedGroup.label }));
+      destination = menu.getByRole("button", { name });
+    }
+  }
+  expect(destination).not.toBeNull();
+  await user.click(destination!);
 }
 
 describe("GameScreen", () => {
@@ -157,7 +170,7 @@ describe("GameScreen", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
     await navigate(user, "Parties");
-    expect(screen.getByRole("button", { name: "Parties" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("button", { name: "Menu" })).toHaveAttribute("aria-current", "location");
     expect(screen.getByText("Labor")).toBeInTheDocument();
     await navigate(user, "Elections");
     expect(screen.getByText("General Election")).toBeInTheDocument();
@@ -431,7 +444,7 @@ describe("GameScreen", () => {
     render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
     const tabs = within(screen.getByRole("navigation", { name: "Primary" })).getAllByRole("button");
     tabs.forEach((t) => expect(t).not.toBeDisabled());
-    expect(tabs.map((t) => t.textContent)).toEqual(["Profile", "Actions", "Parties", "Menu"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["Profile", "Actions", "Ask", "Menu"]);
   });
 
   it("keeps national figures on Economy, reached through the game menu", async () => {
@@ -702,6 +715,7 @@ describe("GameScreen navigation menu", () => {
     const actions = within(menu).getByRole("group", { name: "Actions" });
     expect(within(actions).getByRole("button", { name: "Actions" })).toBeInTheDocument();
     const nation = within(menu).getByRole("group", { name: "Nation" });
+    await user.click(within(nation).getByRole("button", { name: "Nation" }));
     expect(within(nation).getByRole("group", { name: "Politics" })).toBeInTheDocument();
     expect(within(nation).getByRole("group", { name: "Government" })).toBeInTheDocument();
     expect(within(nation).getByRole("group", { name: "Economy" })).toBeInTheDocument();
@@ -710,6 +724,7 @@ describe("GameScreen navigation menu", () => {
     expect(within(nation).getByRole("button", { name: "Elections" })).toBeInTheDocument();
     expect(within(nation).getByRole("button", { name: "National Budget" })).toBeInTheDocument();
     const worldGroup = within(menu).getByRole("group", { name: "World" });
+    await user.click(within(worldGroup).getByRole("button", { name: "World" }));
     expect(within(worldGroup).getByRole("group", { name: "Economy" })).toBeInTheDocument();
     expect(within(worldGroup).getByRole("button", { name: "Stock market" })).toBeInTheDocument();
     expect(within(worldGroup).getByRole("button", { name: "Bonds" })).toBeInTheDocument();
@@ -798,6 +813,7 @@ describe("GameScreen navigation menu", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={onAction} />);
     const menu = await openMenu(user);
+    await user.click(within(menu).getByRole("button", { name: "World" }));
     await user.click(within(menu).getByRole("button", { name: "Banking" }));
     const region = screen.getByRole("region", { name: "Banking" });
     expect(within(region).getByText("First National Bank")).toBeInTheDocument();

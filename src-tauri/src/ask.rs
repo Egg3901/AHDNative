@@ -38,7 +38,16 @@ use tauri_plugin_opener::OpenerExt;
 
 /// ask.lakesidegames.net session cookie. Mirrors `COOKIE` in the Ask
 /// service's auth module.
-const ASK_SESSION_COOKIE: &str = "ask_session";
+const ASK_SESSION_COOKIES: &[&str] = &["__Host-ask_session", "ask_session"];
+const ASK_NATIVE_AUTH_URL: &str = "https://auth.ahousedividedgame.com/auth/ahd?return=https%3A%2F%2Fask.lakesidegames.net%2Fauth%2Fnative%2Fcallback";
+
+fn is_ask_session_cookie(name: &str) -> bool {
+    ASK_SESSION_COOKIES.contains(&name)
+}
+
+fn ask_auth_url() -> Url {
+    ASK_NATIVE_AUTH_URL.parse().expect("static Ask auth URL")
+}
 
 /// Ask panel size in logical pixels (desktop): a narrow panel that sits
 /// beside the game rather than covering it.
@@ -64,8 +73,8 @@ fn ask_session_cookie(app: &AppHandle) -> Option<String> {
             continue;
         };
         for cookie in cookies {
-            if cookie.name() == ASK_SESSION_COOKIE && !cookie.value().is_empty() {
-                return Some(cookie.value().to_string());
+            if is_ask_session_cookie(cookie.name()) && !cookie.value().is_empty() {
+                return Some(format!("{}={}", cookie.name(), cookie.value()));
             }
         }
     }
@@ -118,7 +127,7 @@ pub(crate) async fn ask_api(
             _ => return Err("unsupported Ask request".to_string()),
         };
         request = request
-            .set("Cookie", &format!("{ASK_SESSION_COOKIE}={session}"))
+            .set("Cookie", &session)
             .set("Content-Type", "application/json")
             .set(
                 "User-Agent",
@@ -248,7 +257,7 @@ pub(crate) async fn ask_stop(
                 .build();
             let _ = agent
                 .post(&url)
-                .set("Cookie", &format!("{ASK_SESSION_COOKIE}={session}"))
+                .set("Cookie", &session)
                 .set("Content-Type", "application/json")
                 .send_string(&payload);
         });
@@ -285,7 +294,7 @@ fn pump_ask_stream(
         .build();
     let response = agent
         .post(&url)
-        .set("Cookie", &format!("{ASK_SESSION_COOKIE}={session}"))
+        .set("Cookie", &session)
         .set("Content-Type", "application/json")
         .set(
             "User-Agent",
@@ -440,9 +449,7 @@ pub(crate) async fn open_ask_window(app: AppHandle) -> Result<(), String> {
     if ask_session_cookie(&app).is_some() {
         return Ok(());
     }
-    let url: Url = crate::ASK_URL
-        .parse()
-        .map_err(|error| format!("bad ASK_URL: {error}"))?;
+    let url = ask_auth_url();
     let main = app
         .get_webview_window("main")
         .ok_or_else(|| "main webview is unavailable".to_string())?;
@@ -480,9 +487,9 @@ pub(crate) async fn open_ask_window(app: AppHandle) -> Result<(), String> {
 #[cfg(mobile)]
 fn mobile_launcher_home() -> Url {
     let fallback = if cfg!(target_os = "android") {
-        "http://tauri.localhost/"
+        "http://tauri.localhost/?view=ask"
     } else {
-        "tauri://localhost/"
+        "tauri://localhost/?view=ask"
     };
     fallback.parse().expect("static launcher URL")
 }
@@ -558,9 +565,7 @@ fn open_ask_auth(app: &AppHandle) -> Result<(), String> {
         existing.set_focus().map_err(|e| e.to_string())?;
         return Ok(());
     }
-    let url: Url = crate::ASK_URL
-        .parse()
-        .map_err(|e| format!("bad ASK_URL: {e}"))?;
+    let url = ask_auth_url();
     let nav_app = app.clone();
     let new_window_app = app.clone();
     let close_app = app.clone();
@@ -648,7 +653,7 @@ impl SseParser {
 mod tests {
     #[cfg(desktop)]
     use super::ask_dock_origin;
-    use super::{ask_api_allowed, SseParser};
+    use super::{ask_api_allowed, ask_auth_url, is_ask_session_cookie, SseParser};
 
     #[test]
     #[cfg(desktop)]
@@ -738,6 +743,17 @@ mod tests {
         assert!(!ask_api_allowed("GET", "/api/uploads/x"));
         assert!(!ask_api_allowed("GET", "/console"));
         assert!(!ask_api_allowed("DELETE", "/api/upload"));
+    }
+
+    #[test]
+    fn ask_auth_matches_the_current_client_cookie_and_native_broker() {
+        assert!(is_ask_session_cookie("__Host-ask_session"));
+        assert!(is_ask_session_cookie("ask_session"));
+        assert!(!is_ask_session_cookie("__Host-ask_login"));
+        assert_eq!(
+            ask_auth_url().as_str(),
+            "https://auth.ahousedividedgame.com/auth/ahd?return=https%3A%2F%2Fask.lakesidegames.net%2Fauth%2Fnative%2Fcallback"
+        );
     }
 
     #[test]

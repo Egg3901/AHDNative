@@ -1,12 +1,13 @@
 //! Authenticated multiplayer session bridge (#359).
 //!
-//! Reads and writes run as first-party `fetch()` calls inside the persistent
-//! `online` WebView delivered under #149. That window owns the live-site jar,
-//! so the HttpOnly session travels exactly as it does in the browser: this
-//! module never reads, writes, stores, or forwards session material, tokens,
-//! or passwords, and there is no login form anywhere in Native. The server
-//! stays authoritative for auth, validation, rate limits, conflicts, and
-//! errors; Native only projects results and surfaces server messages.
+//! Desktop reads and writes run as first-party `fetch()` calls inside the
+//! persistent `online` WebView delivered under #149. Mobile has one WebView,
+//! so it reads only the current account cookie from that platform-owned jar
+//! and relays the same tightly allowlisted requests directly. Neither path
+//! persists session material, tokens, or passwords, and there is no login
+//! form anywhere in Native. The server stays authoritative for auth,
+//! validation, rate limits, conflicts, and errors; Native only projects
+//! results and surfaces server messages.
 //!
 //! What this bridge does:
 //! - `mp_session_fetch`: GET-only reads against the pinned
@@ -528,6 +529,7 @@ async fn poll_for_outcome(
 /// per [`classify_outcome`]. Only the `online` window is ever touched: any
 /// other label (including the app's own main view) fails closed, so bridge
 /// scripts can only execute in first-party live-site context.
+#[cfg(desktop)]
 async fn run_session_call(
     app: &tauri::AppHandle,
     method: &str,
@@ -550,6 +552,112 @@ async fn run_session_call(
     let outcome = poll_for_outcome(&window, &request_id).await;
     let _ = window.eval(cleanup_script(&request_id));
     classify_outcome(&outcome?)
+}
+
+#[cfg(mobile)]
+fn account_session_header(app: &tauri::AppHandle) -> Option<String> {
+    let url: tauri::Url = format!("{}/api/auth/session", session_origin())
+        .parse()
+        .ok()?;
+    for label in ["online", "main"] {
+        let Some(view) = app.get_webview_window(label) else {
+            continue;
+        };
+        let Ok(cookies) = view.cookies_for_url(url.clone()) else {
+            continue;
+        };
+        let header = cookies
+            .into_iter()
+            .filter(|cookie| {
+                crate::is_account_session_cookie(cookie.name()) && !cookie.value().is_empty()
+            })
+            .map(|cookie| format!("{}={}", cookie.name(), cookie.value()))
+            .collect::<Vec<_>>()
+            .join("; ");
+        if !header.is_empty() {
+            return Some(header);
+        }
+    }
+    None
+}
+
+#[cfg(mobile)]
+pub(crate) fn has_account_session(app: &tauri::AppHandle) -> bool {
+    account_session_header(app).is_some()
+}
+
+#[cfg(mobile)]
+async fn run_session_call(
+    app: &tauri::AppHandle,
+    method: &str,
+    path_and_query: &str,
+    body: Option<&serde_json::Value>,
+) -> Result<String, String> {
+    if !is_allowlisted_call(method, path_and_query) {
+        return Err(error::UNSUPPORTED_OP.to_string());
+    }
+    let session =
+        account_session_header(app).ok_or_else(|| error::SESSION_UNAVAILABLE.to_string())?;
+    let url = format!("{}{path_and_query}", session_origin());
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(Duration::from_secs(MP_SESSION_FETCH_TIMEOUT_SECS))
+        .build()
+        .map_err(|_| error::SESSION_TRANSPORT.to_string())?;
+    let mut request = match method {
+        "GET" => client.get(url),
+        "POST" => client.post(url),
+        "PATCH" => client.patch(url),
+        _ => return Err(error::UNSUPPORTED_OP.to_string()),
+    }
+    .header(reqwest::header::COOKIE, session)
+    .header(reqwest::header::ACCEPT, "application/json");
+    if let Some(payload) = body {
+        request = request
+            .header(reqwest::header::CONTENT_TYPE, "application/json")
+            .body(payload.to_string());
+    }
+    let response = request
+        .send()
+        .await
+        .map_err(|_| error::SESSION_TRANSPORT.to_string())?;
+    if response.status().is_redirection() {
+        return Err(error::UNEXPECTED_REDIRECT.to_string());
+    }
+    let status = response.status().as_u16();
+    let retry_after = retry_after_secs(
+        response
+            .headers()
+            .get(reqwest::header::RETRY_AFTER)
+            .and_then(|value| value.to_str().ok()),
+    );
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
+    if !content_type_is_json(content_type.as_deref()) {
+        return Err(error::UNEXPECTED_CONTENT.to_string());
+    }
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|_| error::SESSION_TRANSPORT.to_string())?;
+    if bytes.len() > MP_SESSION_MAX_BODY_BYTES {
+        return Err(error::OVERSIZE_BODY.to_string());
+    }
+    let text =
+        String::from_utf8(bytes.to_vec()).map_err(|_| error::UNEXPECTED_CONTENT.to_string())?;
+    if (200..300).contains(&status) {
+        Ok(text)
+    } else {
+        Err(format!(
+            "remote-error:{status}:{retry_after}:{}",
+            text.chars()
+                .take(MP_SESSION_ERROR_BODY_CHARS)
+                .collect::<String>()
+        ))
+    }
 }
 
 /// Fetch one allowlisted read through the live-site session. Resolves with
@@ -1043,11 +1151,10 @@ mod tests {
 
     #[test]
     fn bridge_wiring_stays_session_scoped() {
-        // Structural guard: the bridge must never grow session capture,
-        // persistence, or off-origin traffic. If any of these change, the
-        // #149 session boundary needs owner review. Tokens are joined so this
-        // test itself does not self-match; page scripts are checked as built
-        // artifacts, module wiring as source.
+        // Structural guard: neither transport may persist credentials or
+        // permit arbitrary traffic. Desktop remains same-origin in its
+        // authenticated WebView; mobile relays only allowlisted calls with a
+        // platform-owned account cookie to the pinned origin.
         let (start, id) = start_script(
             "POST",
             "/api/actions/execute",
@@ -1073,13 +1180,14 @@ mod tests {
         assert!(source.contains(MP_SESSION_WINDOW_LABEL));
         assert!(source.contains("redirect:\"manual\""));
         assert!(source.contains("credentials:\"same-origin\""));
+        assert!(source.contains("account_session_header"));
+        assert!(source.contains("redirect(reqwest::redirect::Policy::none())"));
+        assert!(source.contains("header(reqwest::header::COOKIE, session)"));
         for forbidden in [
             ["std", "fs"].join("::"),
             ["fs", ""].join("::"),
             ["cookie", "store"].join("_"),
             ["Cookie", "Store"].join(""),
-            [".post", ""].join("("),
-            ["req", "west"].join(""),
         ] {
             assert!(
                 !source.contains(&forbidden),

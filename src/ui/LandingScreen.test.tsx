@@ -63,15 +63,17 @@ describe("LandingScreen", () => {
     expect(logo?.height).toBe(logo?.width);
   });
 
-  it("enters multiplayer without blocking offline New game", async () => {
+  it("makes the shared Native UI the primary multiplayer entry", async () => {
     const user = userEvent.setup();
     const onEnterMultiplayer = vi.fn();
+    const onEnterMultiplayerNative = vi.fn();
     const onNew = vi.fn();
-    render(<LandingScreen {...props({ onEnterMultiplayer, onNew })} />);
+    render(<LandingScreen {...props({ onEnterMultiplayer, onEnterMultiplayerNative, onNew })} />);
     expect(screen.getByRole("button", { name: "New game" })).toBeEnabled();
     expect(screen.getByText(/local games do not need an account/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Enter multiplayer" }));
-    expect(onEnterMultiplayer).toHaveBeenCalledTimes(1);
+    expect(onEnterMultiplayerNative).toHaveBeenCalledTimes(1);
+    expect(onEnterMultiplayer).not.toHaveBeenCalled();
     expect(onNew).not.toHaveBeenCalled();
   });
 
@@ -156,14 +158,14 @@ describe("LandingScreen", () => {
     expect(p.onConfirmDelete).not.toHaveBeenCalled();
   });
 
-  it("offers Native multiplayer beside the live-site view", async () => {
+  it("keeps the full website as an explicit secondary fallback", async () => {
     const user = userEvent.setup();
     const onEnterMultiplayer = vi.fn();
     const onEnterMultiplayerNative = vi.fn();
     render(<LandingScreen {...props({ onEnterMultiplayer, onEnterMultiplayerNative })} />);
-    await user.click(screen.getByRole("button", { name: "Play multiplayer (Native)" }));
-    expect(onEnterMultiplayerNative).toHaveBeenCalledTimes(1);
-    expect(onEnterMultiplayer).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Open full multiplayer website" }));
+    expect(onEnterMultiplayer).toHaveBeenCalledTimes(1);
+    expect(onEnterMultiplayerNative).not.toHaveBeenCalled();
   });
 
   it("imports a chosen save file and surfaces errors and loading state", async () => {

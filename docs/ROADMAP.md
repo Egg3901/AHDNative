@@ -409,6 +409,22 @@ UI tests and build also passed. Screenshots at 320px and 390px show the new
 footer and drawer; large-text 320px/568px flow passes. Engine and Rust tests
 were not repeated for this UI-only change. Paid build usage remains unchanged.
 
+### Native account, Ask and multiplayer correction
+
+The phone navigation now gives Ask a permanent bottom destination and reduces
+drawer density with accessible Nation and World disclosures while retaining
+every route and turn/save control. Ask recognizes the current AHDClient secure
+session cookie and opens the same native authentication broker instead of the
+Ask homepage. Multiplayer enters the Native React screen by default; the full
+website remains an explicitly labeled fallback. On mobile, authenticated
+multiplayer requests use the platform WebView cookie jar and a pinned,
+allowlisted native relay, so the feature no longer depends on a second desktop
+WebView that mobile builds cannot create.
+
+Validation includes focused component tests at phone width, Rust cookie and
+transport guards, desktop clippy, and an Android-target compile of the mobile
+transport. Physical-device sign-in and cookie-sharing acceptance remain open
+release checks.
 
 ## War mechanics prerequisite checkpoint
 

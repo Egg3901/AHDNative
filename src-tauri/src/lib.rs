@@ -12,6 +12,33 @@ use tauri_plugin_opener::OpenerExt;
 
 const ONLINE_URL: &str = "https://ahousedividedgame.com";
 
+#[cfg(any(mobile, test))]
+pub(crate) fn is_account_session_cookie(name: &str) -> bool {
+    matches!(
+        name,
+        "auth-token"
+            | "authjs.session-token"
+            | "__Secure-authjs.session-token"
+            | "next-auth.session-token"
+            | "__Secure-next-auth.session-token"
+    ) || name.strip_prefix("auth-token-").is_some_and(|suffix| {
+        !suffix.is_empty()
+            && suffix
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-')
+    }) || [
+        "authjs.session-token.",
+        "__Secure-authjs.session-token.",
+        "next-auth.session-token.",
+        "__Secure-next-auth.session-token.",
+    ]
+    .iter()
+    .any(|prefix| {
+        name.strip_prefix(prefix)
+            .is_some_and(|suffix| !suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_digit()))
+    })
+}
+
 /// Player Q&A service. Desktop opens it in a dedicated zero-capability
 /// auth window plus a local panel window; mobile signs in through the main
 /// webview itself. Sign-in is automatic for players already signed in
@@ -157,6 +184,43 @@ fn open_online_window(app: tauri::AppHandle) -> Result<(), String> {
     main.navigate(url).map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+#[cfg(desktop)]
+async fn open_mp_sign_in(app: tauri::AppHandle) -> Result<(), String> {
+    open_online_window(app).await
+}
+
+#[tauri::command]
+#[cfg(mobile)]
+async fn open_mp_sign_in(app: tauri::AppHandle) -> Result<(), String> {
+    let url: Url = format!("{ONLINE_URL}/client/link")
+        .parse()
+        .map_err(|error| format!("bad multiplayer sign-in URL: {error}"))?;
+    let main = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main webview is unavailable".to_string())?;
+    main.navigate(url).map_err(|error| error.to_string())?;
+    std::thread::spawn(move || {
+        for _ in 0..600 {
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            if mp_session::has_account_session(&app) {
+                if let Some(main) = app.get_webview_window("main") {
+                    let home: Url = if cfg!(target_os = "android") {
+                        "http://tauri.localhost/?view=mp"
+                    } else {
+                        "tauri://localhost/?view=mp"
+                    }
+                    .parse()
+                    .expect("static multiplayer launcher URL");
+                    let _ = main.navigate(home);
+                }
+                break;
+            }
+        }
+    });
+    Ok(())
+}
+
 #[tauri::command(rename_all = "camelCase")]
 async fn save_game(
     slot_id: String,
@@ -213,6 +277,7 @@ pub fn run() {
             list_saves,
             delete_save,
             open_online_window,
+            open_mp_sign_in,
             open_external_destination,
             mp_view::mp_view_fetch,
             mp_session::mp_session_fetch,
@@ -230,9 +295,18 @@ pub fn run() {
 #[cfg(all(test, desktop))]
 mod tests {
     use super::{
-        external_destination_url, is_ask_navigation_allowed, is_online_navigation_allowed,
-        is_online_origin, ASK_URL,
+        external_destination_url, is_account_session_cookie, is_ask_navigation_allowed,
+        is_online_navigation_allowed, is_online_origin, ASK_URL,
     };
+
+    #[test]
+    fn account_cookie_filter_matches_the_current_client_contract() {
+        assert!(is_account_session_cookie("auth-token-production"));
+        assert!(is_account_session_cookie("__Secure-authjs.session-token"));
+        assert!(is_account_session_cookie("__Secure-authjs.session-token.0"));
+        assert!(!is_account_session_cookie("ask_session"));
+        assert!(!is_account_session_cookie("auth-token-"));
+    }
     use tauri::Url;
 
     #[test]

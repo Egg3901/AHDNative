@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatGameDate } from "../game/gameDate";
 
 export type DrawerRouteId =
@@ -10,7 +10,7 @@ export type DrawerRouteId =
   | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications" | "referendums"
   | "worldSettings" | "ask";
 
-export type BottomTabId = "profile" | "actions" | "parties";
+export type BottomTabId = "profile" | "actions" | "ask";
 
 export interface DrawerNavLink {
   id: DrawerRouteId;
@@ -185,9 +185,9 @@ export const BOTTOM_TABS: { id: BottomTabId; label: string; path: string }[] = [
     path: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0",
   },
   {
-    id: "parties",
-    label: "Parties",
-    path: "M4 21v-8l5-4 5 4v8M14 21v-9l6-4v13M2 21h20",
+    id: "ask",
+    label: "Ask",
+    path: "M5 5h14v10H9l-4 4V5Zm4 4h6M9 12h4",
   },
 ];
 
@@ -198,7 +198,7 @@ export const BOTTOM_TABS: { id: BottomTabId; label: string; path: string }[] = [
 function bottomDestination(route: DrawerRouteId): BottomTabId | "menu" {
   if (route === "actions") return "actions";
   if (["profile", "portfolio", "markets", "bonds"].includes(route)) return "profile";
-  if (["parties", "partyDetails", "partyManagement", "caucuses"].includes(route)) return "parties";
+  if (route === "ask") return "ask";
   return "menu";
 }
 
@@ -230,7 +230,7 @@ export function BottomNav({
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
-    const order: (BottomTabId | "menu")[] = ["profile", "actions", "parties", "menu"];
+    const order: (BottomTabId | "menu")[] = ["profile", "actions", "ask", "menu"];
     const buttons = Array.from(e.currentTarget.querySelectorAll("button"));
     const focused = buttons.indexOf(document.activeElement as HTMLButtonElement);
     const idx = focused >= 0 ? focused : order.indexOf(destination);
@@ -352,6 +352,13 @@ export function GameDrawer({
   unreadCount?: number;
 }) {
   const drawerRef = useRef<HTMLElement | null>(null);
+  const activeGroup = MENU_GROUPS.find((group) =>
+    [...group.items, ...(group.sections ?? []).flatMap((section) => section.items)]
+      .some((item) => item.id === route),
+  )?.label;
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    () => new Set(activeGroup && ["Nation", "World"].includes(activeGroup) ? [activeGroup] : []),
+  );
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
 
@@ -436,13 +443,29 @@ export function GameDrawer({
         {error ? <p className="ahd-alert ahd-drawer-feedback" role="alert">{error}</p>
           : message ? <p className="ahd-notice ahd-drawer-feedback" role="status">{message}</p> : null}
         <nav aria-label="Game sections" className="ahd-drawer-nav">
-          {MENU_GROUPS.map((group) => (
+          {MENU_GROUPS.map((group) => {
+            const deep = Boolean(group.sections?.length);
+            const expanded = !deep || expandedGroups.has(group.label);
+            return (
             <div key={group.label} role="group" aria-label={group.label} className="ahd-drawer-group">
-              <div className="ahd-drawer-heading" aria-hidden="true">{group.label}</div>
+              {deep ? (
+                <button
+                  type="button"
+                  className="ahd-drawer-heading ahd-drawer-disclosure"
+                  aria-expanded={expanded}
+                  onClick={() => setExpandedGroups((current) => {
+                    const next = new Set(current);
+                    if (next.has(group.label)) next.delete(group.label); else next.add(group.label);
+                    return next;
+                  })}
+                >
+                  <span>{group.label}</span><span aria-hidden="true">{expanded ? "−" : "+"}</span>
+                </button>
+              ) : <div className="ahd-drawer-heading" aria-hidden="true">{group.label}</div>}
               {group.items.map((item) => (
                 <DrawerNavButton key={item.id} item={item} route={route} unreadCount={unreadCount} onNavigate={onNavigate} />
               ))}
-              {group.sections?.map((section) => (
+              {expanded && group.sections?.map((section) => (
                 <div key={section.label} role="group" aria-label={section.label} className="ahd-drawer-section">
                   <div className="ahd-drawer-subheading" aria-hidden="true">{section.label}</div>
                   {section.items.map((item) => (
@@ -451,7 +474,7 @@ export function GameDrawer({
                 </div>
               ))}
             </div>
-          ))}
+          )})}
         </nav>
       </aside>
     </>

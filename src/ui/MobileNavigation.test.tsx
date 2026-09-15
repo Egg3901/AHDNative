@@ -12,7 +12,7 @@ describe("MobileNavigation", () => {
     );
     const nav = screen.getByRole("navigation", { name: "Primary" });
     expect(nav).toBeInTheDocument();
-    for (const label of ["Profile", "Actions", "Parties", "Menu"]) {
+    for (const label of ["Profile", "Actions", "Ask", "Menu"]) {
       expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
     }
     expect(screen.getByRole("button", { name: "Profile" })).toHaveAttribute("aria-current", "page");
@@ -20,11 +20,11 @@ describe("MobileNavigation", () => {
 
   it.each([
     ["portfolio", "Profile"], ["markets", "Profile"],
-    ["partyDetails", "Parties"], ["caucuses", "Parties"],
-    ["regions", "Menu"], ["economy", "Menu"], ["ask", "Menu"],
+    ["partyDetails", "Menu"], ["caucuses", "Menu"],
+    ["regions", "Menu"], ["economy", "Menu"], ["ask", "Ask"],
   ] as const)("keeps the parent destination marked while viewing %s", (route, label) => {
     render(<BottomNav route={route} menuOpen={false} menuButtonRef={createRef()} onNavigate={vi.fn()} onOpenMenu={vi.fn()} />);
-    expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-current", "location");
+    expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-current", route === label.toLowerCase() ? "page" : "location");
     expect(screen.getByRole("button", { name: "Menu" })).toHaveAttribute("aria-expanded", "false");
   });
 
@@ -99,10 +99,12 @@ describe("MobileNavigation", () => {
       expect(within(menu).getByRole("group", { name: label })).toBeInTheDocument();
     }
     const nation = within(menu).getByRole("group", { name: "Nation" });
+    await user.click(within(nation).getByRole("button", { name: "Nation" }));
     for (const label of ["Politics", "Government", "Economy"]) {
       expect(within(nation).getByRole("group", { name: label })).toBeInTheDocument();
     }
     const world = within(menu).getByRole("group", { name: "World" });
+    await user.click(within(world).getByRole("button", { name: "World" }));
     expect(within(world).getByRole("group", { name: "Economy" })).toBeInTheDocument();
     expect(within(world).getByRole("button", { name: "Stock market" })).toBeInTheDocument();
     expect(within(world).getByRole("button", { name: "Bonds" })).toBeInTheDocument();
@@ -128,6 +130,21 @@ describe("MobileNavigation", () => {
     expect(onNavigate).toHaveBeenCalledWith("legislationDetails");
     await user.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("collapses deep groups into touch-friendly disclosure controls", async () => {
+    const user = userEvent.setup();
+    render(
+      <GameDrawer open route="profile" busy={false} playerName="Ada" playerParty="Labor"
+        countryName="United States" turn={1} date="1953-01-08" menuButtonRef={createRef()}
+        onNavigate={vi.fn()} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onClose={vi.fn()} />,
+    );
+    const nationToggle = screen.getByRole("button", { name: "Nation" });
+    expect(nationToggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "National Budget" })).not.toBeInTheDocument();
+    await user.click(nationToggle);
+    expect(nationToggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "National Budget" })).toBeInTheDocument();
   });
 
   it("drawer busy state disables turn actions", () => {

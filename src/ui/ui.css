@@ -550,6 +550,13 @@ html, body { overflow-x: hidden; }
   text-transform: uppercase; color: var(--ahd-muted);
   padding: 0.45rem 0.55rem 0.2rem;
 }
+.ahd-drawer-disclosure {
+  width: 100%; min-height: 44px; border: 0; color: inherit;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; background: color-mix(in srgb, var(--ahd-card-elevated) 72%, transparent);
+  border-radius: var(--ahd-radius-sm); padding-inline: 0.7rem;
+}
+.ahd-drawer-disclosure:focus-visible { outline: none; box-shadow: var(--ahd-focus); }
 /* Reference sub-categories (Nation Politics/Government/Economy, World
    Economy/Diplomacy/Other) nest under their parent group heading. */
 .ahd-drawer-section { display: flex; flex-direction: column; gap: 0.05rem; }

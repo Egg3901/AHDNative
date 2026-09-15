@@ -91,11 +91,11 @@ export function LandingScreen({
         {error && !eras.length && <button className="ahd-btn" onClick={onReload}>Reload app</button>}
         <div className="ahd-landing-actions">
           <button className="ahd-btn ahd-btn-primary ahd-landing-primary" disabled={busy || !eras.length} onClick={beginNew}>New game</button>
-          <button className="ahd-btn" disabled={busy || onlineBusy} onClick={onEnterMultiplayer}>
-            {onlineBusy ? "Opening multiplayer..." : "Enter multiplayer"}
-          </button>
           <button className="ahd-btn" disabled={busy || onlineBusy} onClick={onEnterMultiplayerNative}>
-            Play multiplayer (Native)
+            Enter multiplayer
+          </button>
+          <button className="ahd-btn ahd-btn-ghost" disabled={busy || onlineBusy} onClick={onEnterMultiplayer}>
+            {onlineBusy ? "Opening website..." : "Open full multiplayer website"}
           </button>
           <button className="ahd-btn" disabled={busy} onClick={onAsk}>
             Ask questions
