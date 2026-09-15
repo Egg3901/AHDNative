@@ -91,6 +91,7 @@ export * as electionEngine from "./electionEngine/index.js";
 export { declareCandidacy, withdrawCandidacy } from "./elections/candidacy.js";
 export { electionSeriesForWorld, recomputeComposition, seatHolders } from "./elections/orchestration.js";
 export { resolvePrimaries, requiresPrimaryResolution } from "./elections/primaryResolution.js";
+export { isFoundingActive } from "./elections/founding.js";
 export type { ElectionRecord, ElectionCandidate, ElectionStatus, PrimaryResults, PrimaryResultEntry } from "./elections/types.js";
 // W24b real Electoral College (#69): the read-only display adapter shares the
 // SAME per-state winner-take-all allocation, live EV apportionment, and

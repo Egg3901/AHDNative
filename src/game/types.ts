@@ -186,6 +186,13 @@ export interface FinanceView {
 }
 export interface GameView {
   turn: number; date: string; era: string; countryId: string; countryName: string;
+  /**
+   * True while real cycle-0 founding races are unresolved (#223). Projected
+   * from `world.elections` by `isFoundingActive`; absent (older callers) reads
+   * as inactive, matching the reference where an absent preIteration behaves
+   * as before. The footer renders the Founding badge only on true.
+   */
+  foundingActive?: boolean;
   /** Singleplayer difficulty bound at world creation (issue #334). */
   difficulty: SingleplayerDifficulty;
   /** Autonomous-politician tier bound at world creation (issue #345). */
