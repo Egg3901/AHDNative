@@ -1,3 +1,5 @@
+import { PINNED_GAME_COLLECTION_POLICY } from "./currentSpCollections.generated.js";
+
 export type CurrentSpJson = null | boolean | number | string | CurrentSpJson[] | { [key: string]: CurrentSpJson };
 
 export const CURRENT_SP_PROVENANCE = {
@@ -5,19 +7,16 @@ export const CURRENT_SP_PROVENANCE = {
   game: { product: "AHDGame", revision: "d4baf899fd8bd529099f03d7410807143604e2e5", sourcePath: "src/lib/admin/seed/seedManifest.ts" },
   native: { product: "AHDNative", schemaVersion: 44, sourcePath: "packages/engine/src/save.ts" },
 } as const;
+export const CURRENT_SP_LAUNCHER_METADATA_CONTRACT = { provenance: CURRENT_SP_PROVENANCE.client, classification: "metadata-only", fields: ["slot", "name", "preset", "createdAt", "lastPlayedAt", "turn", "character", "setup"] } as const;
 export const CURRENT_SP_INTERCHANGE_CONTRACT = { format: "ahd-current-sp-snapshot", version: 1, clientRevision: CURRENT_SP_PROVENANCE.client.revision, gameRevision: CURRENT_SP_PROVENANCE.game.revision, nativeSchemaVersion: CURRENT_SP_PROVENANCE.native.schemaVersion, directions: { gameToNative: "contract-only", nativeToGame: "contract-only" } } as const;
-export type CurrentSpMappingStatus = "mapping-required" | "exclude";
+export type CurrentSpMappingStatus = "mapping-required" | "exclude" | "missing";
 export interface CurrentSpCollectionPolicy { name: string; status: CurrentSpMappingStatus; sourcePath: string; target: string | null; reason: string }
 const GAME_SOURCE = `${CURRENT_SP_PROVENANCE.game.sourcePath}@${CURRENT_SP_PROVENANCE.game.revision}`;
-const mapped = [["gameConfig","meta"],["countryGameStates","countries"],["states","regions"],["npps","politicians"],["parties","parties"],["electedOfficials","legislatures/executives"],["elections","elections"],["electionCandidates","elections"],["referendums","referendums"],["corporations","corporations"],["corporateSectors","corporateSectors"],["federalBudget","budgets"],["stateBudgets","regionalBudgets"],["bills","bills"],["stateBills","stateBills"],["enactedLaws","enactedLaws"],["turnLogs","history"],["newsPosts","news"],["cabinetMembers","cabinetMembers"],["cabinetNominations","cabinetNominations"],["supremeCourtSeats","supremeCourtSeats"],["scotusNominations","scotusNominations"]] as const;
-const excluded = ["users","sessions","userApiKeys","botApiKeys","apiAccessLog","rateLimitBuckets","notifications"] as const;
-export type CurrentSpMappedCollectionName = typeof mapped[number][0];
-export type CurrentSpExcludedCollectionName = typeof excluded[number];
-/** Exact allow/exclude set for contract v1. Any collection absent here is rejected. */
-export const CURRENT_SP_COLLECTION_POLICY: readonly CurrentSpCollectionPolicy[] = [
-  ...mapped.map(([name,target]) => ({ name, status: "mapping-required" as const, sourcePath: GAME_SOURCE, target, reason: "Requires an explicit field adapter and continuation proof." })),
-  ...excluded.map((name) => ({ name, status: "exclude" as const, sourcePath: GAME_SOURCE, target: null, reason: "Host identity, authentication, secret, or delivery state is outside the snapshot." })),
-];
+export type CurrentSpKnownCollectionName = typeof PINNED_GAME_COLLECTION_POLICY[number]["name"];
+export type CurrentSpMappedCollectionName = Extract<typeof PINNED_GAME_COLLECTION_POLICY[number], { status: "mapping-required" }>["name"];
+export type CurrentSpExcludedCollectionName = Extract<typeof PINNED_GAME_COLLECTION_POLICY[number], { status: "exclude" }>["name"];
+/** Exhaustive classification of every collection in the pinned seed manifest. */
+export const CURRENT_SP_COLLECTION_POLICY: readonly CurrentSpCollectionPolicy[] = PINNED_GAME_COLLECTION_POLICY.map((row) => ({ ...row, sourcePath: GAME_SOURCE, reason: row.status === "mapping-required" ? "Requires an explicit field adapter and continuation proof." : row.status === "exclude" ? "Host state is outside the snapshot." : "Known Game collection has no Native mapping and must be rejected." }));
 const POLICY = new Map(CURRENT_SP_COLLECTION_POLICY.map((row) => [row.name,row]));
 const SHA = /^[a-f0-9]{64}$/;
 export interface CurrentSpCollectionManifestEntry { name: CurrentSpMappedCollectionName; documentCount: number; declaredSha256: string }
@@ -33,7 +32,7 @@ export function parseCurrentSpSnapshot(input:unknown):ParsedCurrentSpSnapshot {
   const source=obj(root.source,"source"); exact(source,["product","revision","sourcePath"],"source");
   if(source.product!=="AHDGame"||source.revision!==CURRENT_SP_PROVENANCE.game.revision||source.sourcePath!==CURRENT_SP_PROVENANCE.game.sourcePath) throw new Error("Unsupported current SP source provenance");
   if(!Array.isArray(root.manifest)) throw new Error("manifest: expected array"); const collections=obj(root.collections,"collections"); const seen=new Set<string>(); const manifest:CurrentSpCollectionManifestEntry[]=[];
-  for(const [i,raw] of root.manifest.entries()){const row=obj(raw,`manifest.${i}`);exact(row,["name","documentCount","declaredSha256"],`manifest.${i}`);if(typeof row.name!=="string"||!Number.isSafeInteger(row.documentCount)||(row.documentCount as number)<0)throw new Error(`manifest.${i}: invalid entry`);if(seen.has(row.name))throw new Error(`manifest.${i}: duplicate collection ${row.name}`);seen.add(row.name);const policy=POLICY.get(row.name);if(!policy)throw new Error(`manifest.${i}: unknown collection ${row.name}`);if(policy.status==="exclude")throw new Error(`manifest.${i}: excluded collection ${row.name}`);const docs=collections[row.name];if(!Array.isArray(docs)||docs.length!==row.documentCount)throw new Error(`collections.${row.name}: manifest count mismatch`);docs.forEach((d,n)=>json(d,`collections.${row.name}.${n}`));manifest.push({name:row.name as CurrentSpMappedCollectionName,documentCount:row.documentCount as number,declaredSha256:hash(row.declaredSha256,`manifest.${i}.declaredSha256`)});}
+  for(const [i,raw] of root.manifest.entries()){const row=obj(raw,`manifest.${i}`);exact(row,["name","documentCount","declaredSha256"],`manifest.${i}`);if(typeof row.name!=="string"||!Number.isSafeInteger(row.documentCount)||(row.documentCount as number)<0)throw new Error(`manifest.${i}: invalid entry`);if(seen.has(row.name))throw new Error(`manifest.${i}: duplicate collection ${row.name}`);seen.add(row.name);const policy=POLICY.get(row.name);if(!policy)throw new Error(`manifest.${i}: unknown collection ${row.name}`);if(policy.status!=="mapping-required")throw new Error(`manifest.${i}: ${policy.status} collection ${row.name}`);const docs=collections[row.name];if(!Array.isArray(docs)||docs.length!==row.documentCount)throw new Error(`collections.${row.name}: manifest count mismatch`);docs.forEach((d,n)=>json(d,`collections.${row.name}.${n}`));manifest.push({name:row.name as CurrentSpMappedCollectionName,documentCount:row.documentCount as number,declaredSha256:hash(row.declaredSha256,`manifest.${i}.declaredSha256`)});}
   const undeclared=Object.keys(collections).filter(name=>!seen.has(name));if(undeclared.length)throw new Error(`collections: payload absent from manifest: ${undeclared.join(",")}`);
   const snapshot:CurrentSpSnapshot={format:"ahd-current-sp-snapshot",version:1,source:{product:"AHDGame",revision:CURRENT_SP_PROVENANCE.game.revision,sourcePath:CURRENT_SP_PROVENANCE.game.sourcePath},declaredRulesetSha256:hash(root.declaredRulesetSha256,"declaredRulesetSha256"),declaredContentSha256:hash(root.declaredContentSha256,"declaredContentSha256"),manifest,collections:Object.fromEntries(manifest.map(row=>[row.name,collections[row.name] as CurrentSpJson[]]))};return {snapshot,transferStatus:"contract-only"};
 }
