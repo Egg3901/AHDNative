@@ -29,6 +29,13 @@ const me = JSON.stringify({
   corporation: null,
 });
 const turn = JSON.stringify({ currentTurn: 12, currentYear: 1862, isActive: true, isProcessing: false, nextScheduledTurn: null });
+const capabilities = JSON.stringify({
+  user: { id: USER, username: "Ada", isAdmin: false },
+  hasCharacter: true,
+  characterCountryId: "US",
+  characterName: "Ada",
+  unreadMailCount: 0,
+});
 const inbox = JSON.stringify({
   notifications: [{ _id: NOTE, title: "Turn processed", message: "Done", read: false }],
   unreadCount: 1,
@@ -51,6 +58,7 @@ function readyHost(): MpBridgeHost {
       if (op === "auth-session") return probe;
       if (op === "character-me") return me;
       if (op === "turn-status") return turn;
+      if (op === "client-nav") return capabilities;
       if (op === "notifications") return inbox;
       throw new Error(`unexpected fetch ${op}`);
     },
