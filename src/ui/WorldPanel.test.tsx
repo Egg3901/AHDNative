@@ -288,6 +288,28 @@ describe("WorldPanel", () => {
     expect(within(screen.getByRole("group", { name: "Nation context" })).getByRole("note")).toHaveTextContent("Your country is United States (US)");
   });
 
+  it("marks the viewed and player nations in the context note with era-aware offline marks", () => {
+    const base = makeOverview();
+    const nations = base.nations.map((nation) =>
+      nation.id === "FR" ? { ...nation, id: "RU", name: "Soviet Union" } : nation,
+    );
+    render(
+      <WorldPanel overview={{ ...base, era: "1979", nations }} section="nations" initialId="RU" />,
+    );
+    const note = within(screen.getByRole("group", { name: "Nation context" })).getByRole("note");
+    // Note codes agree with the resolved flag identity (RU shows SU in 1979).
+    expect(note).toHaveTextContent("Viewing Soviet Union (SU)");
+    expect(note).toHaveTextContent("Your country is United States (US)");
+    const marks = note.querySelectorAll("[data-country-flag]");
+    expect(marks.length).toBe(2);
+    expect(note.querySelector('[data-country-flag="SU"]')).not.toBeNull();
+    expect(note.querySelector('[data-country-flag="US"]')).not.toBeNull();
+    // Decorative: both names stay as text, so the marks hide from assistive tech.
+    marks.forEach((mark) => expect(mark.getAttribute("aria-hidden")).toBe("true"));
+    expect(note.querySelector("img")).toBeNull();
+    expect(note.innerHTML).not.toContain("http");
+  });
+
   it("renders home region population, party support, election, and office data", () => {
     render(<WorldPanel overview={makeOverview()} section="state" />);
 
