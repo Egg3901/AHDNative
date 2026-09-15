@@ -78,7 +78,7 @@ export function parseBridgeBody(bodyText: string): MpCallResult {
 export interface MpBridgeHost {
   fetch: (op: MpFetchOpId, limit?: number, offset?: number) => Promise<string>;
   mutate: (op: MpMutateOpId, payload: Record<string, unknown>) => Promise<string>;
-  openOnlineWindow: () => Promise<void>;
+  beginSignIn: (provider: "discord" | "google") => Promise<void>;
 }
 
 export function tauriMpBridgeHost(): MpBridgeHost {
@@ -95,9 +95,9 @@ export function tauriMpBridgeHost(): MpBridgeHost {
       const { invoke } = await import("@tauri-apps/api/core");
       return (await invoke("mp_session_mutate", { opId: op, payload })) as string;
     },
-    openOnlineWindow: async () => {
+    beginSignIn: async (provider) => {
       const { invoke } = await import("@tauri-apps/api/core");
-      await invoke("open_mp_sign_in");
+      await invoke("open_mp_sign_in", { provider });
     },
   };
 }

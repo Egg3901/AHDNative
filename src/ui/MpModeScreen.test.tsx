@@ -66,8 +66,8 @@ function fakeHost(script: Script): { host: MpBridgeHost; calls: string[] } {
         calls.push(`mutate:${op}:${JSON.stringify(payload)}`);
         return next(`mutate:${op}`);
       },
-      openOnlineWindow: async () => {
-        calls.push("open-window");
+      beginSignIn: async (provider) => {
+        calls.push(`sign-in:${provider}`);
       },
     },
   };
@@ -129,7 +129,7 @@ describe("MpModeScreen at 320px", () => {
 });
 
 describe("MpModeScreen at 390px", () => {
-  it("offers the live-site sign-in path when no session exists, then loads", async () => {
+  it("offers native provider choices when no session exists, then loads", async () => {
     setViewport(390);
     const user = userEvent.setup();
     const { host, calls } = fakeHost({
@@ -142,9 +142,10 @@ describe("MpModeScreen at 390px", () => {
     });
     render(<MpModeScreen host={host} onExit={() => {}} />);
     expect(await screen.findByRole("heading", { name: "Sign in to play multiplayer" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Open live site to sign in" }));
+    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Continue with Discord" }));
     expect(await screen.findByRole("heading", { name: "Ada" })).toBeInTheDocument();
-    expect(calls).toContain("open-window");
+    expect(calls).toContain("sign-in:discord");
   });
 
   it("reports auth expiry with a reconnect path", async () => {
@@ -253,5 +254,20 @@ describe("MpModeScreen on desktop", () => {
     await user.click(screen.getByRole("button", { name: "Exit multiplayer" }));
     expect(onExit).toHaveBeenCalledTimes(1);
     expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("keeps Multiplayer, Ask, and Menu reachable in the persistent mobile navigation", async () => {
+    setViewport(320);
+    const user = userEvent.setup();
+    const onAsk = vi.fn();
+    const onExit = vi.fn();
+    render(<MpModeScreen host={fakeHost(readyScript()).host} onAsk={onAsk} onExit={onExit} />);
+    await screen.findByRole("heading", { name: "Ada" });
+    const navigation = within(screen.getByRole("navigation", { name: "Primary" }));
+    expect(navigation.getByRole("button", { name: "Multiplayer" })).toHaveAttribute("aria-current", "page");
+    await user.click(navigation.getByRole("button", { name: "Ask" }));
+    expect(onAsk).toHaveBeenCalledTimes(1);
+    await user.click(navigation.getByRole("button", { name: "Menu" }));
+    expect(onExit).toHaveBeenCalledTimes(1);
   });
 });

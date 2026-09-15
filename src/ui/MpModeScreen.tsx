@@ -13,6 +13,7 @@ import "./ui.css";
 
 export interface MpModeScreenProps {
   host?: MpBridgeHost;
+  onAsk?: () => void;
   onExit: () => void;
 }
 
@@ -39,7 +40,7 @@ function formatCountdown(iso: string | null): string | null {
   return `Next turn in ~${hours}h ${rest}m`;
 }
 
-export function MpModeScreen({ host, onExit }: MpModeScreenProps) {
+export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   const sessionRef = useRef<MpModeSession | null>(null);
   if (!sessionRef.current) sessionRef.current = new MpModeSession(host ?? tauriMpBridgeHost());
   const [snapshot, setSnapshot] = useState<MpSnapshot>(IDLE);
@@ -112,16 +113,15 @@ export function MpModeScreen({ host, onExit }: MpModeScreenProps) {
             </h2>
             <p className="ahd-muted">
               {phase === "auth-expired"
-                ? "Your multiplayer session expired. Sign back in on the live site, then reconnect to continue."
-                : "Multiplayer uses your live-site account. Sign in on the live site first; this screen never sees your password."}
+                ? "Your multiplayer session expired. Choose your account provider to reconnect securely."
+                : "Choose your account provider. Native opens only the provider's secure authorization step and returns here automatically."}
             </p>
             <div className="ahd-mp-row">
-              <button
-                className="ahd-btn ahd-btn-primary"
-                disabled={busy}
-                onClick={() => void run((s) => s.openLiveSiteAndReload())}
-              >
-                Open live site to sign in
+              <button className="ahd-btn ahd-btn-primary" disabled={busy} onClick={() => void run((s) => s.signIn("discord"))}>
+                Continue with Discord
+              </button>
+              <button className="ahd-btn" disabled={busy} onClick={() => void run((s) => s.signIn("google"))}>
+                Continue with Google
               </button>
               <button className="ahd-btn" disabled={busy} onClick={() => void run((s) => s.refresh())}>
                 Retry
@@ -143,9 +143,6 @@ export function MpModeScreen({ host, onExit }: MpModeScreenProps) {
             <div className="ahd-mp-row">
               <button className="ahd-btn ahd-btn-primary" disabled={busy} onClick={() => void run((s) => s.refresh())}>
                 Reconnect
-              </button>
-              <button className="ahd-btn" disabled={busy} onClick={() => void run((s) => s.openLiveSiteAndReload())}>
-                Open full live site
               </button>
             </div>
           </section>
@@ -274,6 +271,21 @@ export function MpModeScreen({ host, onExit }: MpModeScreenProps) {
           </section>
         )}
       </div>
+      <footer className="ahd-footer ahd-mp-footer" aria-label="Multiplayer navigation">
+        <div className="ahd-container ahd-footer-inner">
+          <nav className="ahd-bottomnav ahd-mp-bottomnav" aria-label="Primary">
+            <button type="button" className="ahd-bottomnav-item" data-active="true" aria-current="page" aria-label="Multiplayer">
+              <span aria-hidden="true">●</span><span>Multiplayer</span>
+            </button>
+            <button type="button" className="ahd-bottomnav-item" aria-label="Ask" onClick={onAsk}>
+              <span aria-hidden="true">?</span><span>Ask</span>
+            </button>
+            <button type="button" className="ahd-bottomnav-item" aria-label="Menu" onClick={onExit}>
+              <span aria-hidden="true">☰</span><span>Menu</span>
+            </button>
+          </nav>
+        </div>
+      </footer>
     </main>
   );
 }

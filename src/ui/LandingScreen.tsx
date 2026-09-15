@@ -30,8 +30,6 @@ export interface LandingScreenProps {
   onRequestDelete: (saved: SaveMetadata) => void;
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
-  onlineBusy: boolean;
-  onEnterMultiplayer: () => void;
   onEnterMultiplayerNative: () => void;
   onAsk: () => void;
 }
@@ -56,8 +54,6 @@ export function LandingScreen({
   onRequestDelete,
   onCancelDelete,
   onConfirmDelete,
-  onlineBusy,
-  onEnterMultiplayer,
   onEnterMultiplayerNative,
   onAsk,
 }: LandingScreenProps) {
@@ -91,11 +87,8 @@ export function LandingScreen({
         {error && !eras.length && <button className="ahd-btn" onClick={onReload}>Reload app</button>}
         <div className="ahd-landing-actions">
           <button className="ahd-btn ahd-btn-primary ahd-landing-primary" disabled={busy || !eras.length} onClick={beginNew}>New game</button>
-          <button className="ahd-btn" disabled={busy || onlineBusy} onClick={onEnterMultiplayerNative}>
+          <button className="ahd-btn" disabled={busy} onClick={onEnterMultiplayerNative}>
             Enter multiplayer
-          </button>
-          <button className="ahd-btn ahd-btn-ghost" disabled={busy || onlineBusy} onClick={onEnterMultiplayer}>
-            {onlineBusy ? "Opening website..." : "Open full multiplayer website"}
           </button>
           <button className="ahd-btn" disabled={busy} onClick={onAsk}>
             Ask questions

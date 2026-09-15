@@ -68,10 +68,8 @@ describe("canonical AHD logo asset (#148)", () => {
         onRequestDelete={() => {}}
         onCancelDelete={() => {}}
         onConfirmDelete={() => {}}
-        onlineBusy={false}
         onEnterMultiplayerNative={() => {}}
         onAsk={() => {}}
-        onEnterMultiplayer={() => {}}
       />,
     );
     const logo = document.querySelector("img.ahd-landing-logo") as HTMLImageElement | null;

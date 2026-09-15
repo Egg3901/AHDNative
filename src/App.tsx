@@ -15,7 +15,6 @@ import { CharacterCreationScreen } from './ui/CharacterCreationScreen';
 import { GameScreen } from './ui/GameScreen';
 import { LandingScreen } from './ui/LandingScreen';
 import { MpModeScreen } from './ui/MpModeScreen';
-import { openOnlineSession, tauriOnlineSessionHost } from './online/session';
 import { AskPanel } from './ask/AskPanel';
 
 export function App() {
@@ -24,6 +23,7 @@ export function App() {
   const changePreferences = useCallback((value: Preferences) => setPresentation(savePreferences(value)), []);
   const client = useRef<GameClient | null>(null);
   const locked = useRef(false);
+  const askReturn = useRef<'home' | 'mp'>('home');
   const [eras, setEras] = useState<EraChoice[]>([]);
   const [saves, setSaves] = useState<SaveMetadata[]>([]);
   const [screen, setScreen] = useState<'home' | 'new' | 'creation' | 'game' | 'help' | 'settings' | 'mp' | 'ask'>(() =>
@@ -40,7 +40,6 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [message, setMessage] = useState<string>();
-  const [onlineBusy, setOnlineBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<SaveMetadata | null>(null);
   const loadProfile = useCallback(() => {
     if (!client.current) return Promise.reject(new Error("Start or load a game first."));
@@ -201,26 +200,17 @@ export function App() {
     });
   }
 
-  async function enterMultiplayer() {
-    if (onlineBusy) return;
-    setOnlineBusy(true);
-    setError(undefined);
-    const result = await openOnlineSession(tauriOnlineSessionHost());
-    if (result.status === 'failed') setError(result.message);
-    setOnlineBusy(false);
-  }
-
   if (screen === 'help' || screen === 'settings') return <main className="ahd-screen"><div className="ahd-container" style={{ maxWidth: '42rem', paddingTop: 'max(1rem, env(safe-area-inset-top))', paddingBottom: '2rem' }}>
     <button className="ahd-btn" onClick={() => setScreen('home')} autoFocus>Back to home</button>
     {screen === 'help' ? <HelpPanel /> : <SettingsPanel value={presentation.value} onChange={changePreferences} error={presentation.error} />}
   </div></main>;
   if (screen === 'ask') return <main className="ahd-screen"><div className="ahd-container" style={{ maxWidth: '42rem', paddingTop: 'max(1rem, env(safe-area-inset-top))', paddingBottom: '2rem' }}>
-    <button className="ahd-btn" onClick={() => setScreen(world ? 'game' : 'home')} autoFocus>Back</button>
+    <button className="ahd-btn" onClick={() => setScreen(askReturn.current)} autoFocus>Back</button>
     <div className="ahd-ask-embed" style={{ marginTop: '0.75rem' }}>
       <AskPanel surface="main" onBeforeSignIn={() => { if (world) void run(save); }} />
     </div>
   </div></main>;
-  if (screen === 'mp') return <MpModeScreen onExit={() => setScreen('home')} />;
+  if (screen === 'mp') return <MpModeScreen onAsk={() => { askReturn.current = 'mp'; setScreen('ask'); }} onExit={() => setScreen('home')} />;
   if (screen === 'new') return <NewGameScreen eras={eras} busy={busy} error={error} onStart={start} onBack={() => setScreen('home')} />;
   if (screen === 'creation' && pendingSetup) {
     const era = eras.find((entry) => entry.id === pendingSetup.era);
@@ -289,9 +279,7 @@ export function App() {
     onRequestDelete={requestDelete}
     onCancelDelete={cancelDelete}
     onConfirmDelete={confirmDelete}
-    onlineBusy={onlineBusy}
-    onEnterMultiplayer={() => { void enterMultiplayer(); }}
     onEnterMultiplayerNative={() => { setError(undefined); setScreen('mp'); }}
-    onAsk={() => { setError(undefined); setScreen('ask'); }}
+    onAsk={() => { setError(undefined); askReturn.current = 'home'; setScreen('ask'); }}
   />;
 }

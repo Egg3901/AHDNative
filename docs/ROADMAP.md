@@ -415,8 +415,8 @@ The phone navigation now gives Ask a permanent bottom destination and reduces
 drawer density with accessible Nation and World disclosures while retaining
 every route and turn/save control. Ask recognizes the current AHDClient secure
 session cookie and opens the same native authentication broker instead of the
-Ask homepage. Multiplayer enters the Native React screen by default; the full
-website remains an explicitly labeled fallback. On mobile, authenticated
+Ask homepage. Multiplayer enters the Native React screen exclusively; full-site
+gameplay is not embedded as an alternate mode. On mobile, authenticated
 multiplayer requests use the platform WebView cookie jar and a pinned,
 allowlisted native relay, so the feature no longer depends on a second desktop
 WebView that mobile builds cannot create.

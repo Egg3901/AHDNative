@@ -56,7 +56,7 @@ function scriptedHost(scripts: {
         calls.push({ kind: "mutate", op, arg: payload });
         return next(`mutate:${op}`);
       }),
-      openOnlineWindow: vi.fn(async () => {}),
+      beginSignIn: vi.fn(async () => {}),
     },
   };
 }

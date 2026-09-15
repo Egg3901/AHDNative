@@ -102,12 +102,12 @@ export class MpModeSession {
     return this.refreshAuthed();
   }
 
-  /** Open the live-site window (sign-in / session repair), then reload. */
-  async openLiveSiteAndReload(): Promise<MpSnapshot> {
+  /** Begin a provider OAuth round trip, then reload authoritative state. */
+  async signIn(provider: "discord" | "google"): Promise<MpSnapshot> {
     try {
-      await this.host.openOnlineWindow();
+      await this.host.beginSignIn(provider);
     } catch {
-      return this.set({ phase: "offline", error: "The live site could not be opened. Check your connection and try again." });
+      return this.set({ phase: "offline", error: "Sign-in could not be started. Check your connection and try again." });
     }
     return this.enter();
   }

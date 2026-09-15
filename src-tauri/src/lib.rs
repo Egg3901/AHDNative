@@ -120,14 +120,10 @@ fn is_online_navigation_allowed(url: &Url) -> bool {
                 .is_some_and(|host| AUXILIARY_ONLINE_HOSTS.contains(&host)))
 }
 
-#[tauri::command]
 #[cfg(desktop)]
-async fn open_online_window(app: tauri::AppHandle) -> Result<(), String> {
-    let url: Url = ONLINE_URL
-        .parse()
-        .map_err(|error| format!("bad online URL: {error}"))?;
-
+async fn open_mp_auth_window(app: tauri::AppHandle, url: Url) -> Result<(), String> {
     if let Some(existing) = app.get_webview_window("online") {
+        existing.navigate(url).map_err(|error| error.to_string())?;
         existing.set_focus().map_err(|error| error.to_string())?;
         return Ok(());
     }
@@ -136,7 +132,7 @@ async fn open_online_window(app: tauri::AppHandle) -> Result<(), String> {
     let new_window_app = app.clone();
     let close_app = app.clone();
     let window = WebviewWindowBuilder::new(&app, "online", WebviewUrl::External(url))
-        .title("A House Divided: Multiplayer")
+        .title("Sign in to A House Divided")
         .inner_size(1280.0, 800.0)
         .center()
         .resizable(true)
@@ -173,27 +169,20 @@ async fn open_online_window(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-#[cfg(mobile)]
-fn open_online_window(app: tauri::AppHandle) -> Result<(), String> {
-    let url: Url = ONLINE_URL
-        .parse()
-        .map_err(|error| format!("bad online URL: {error}"))?;
-    let main = app
-        .get_webview_window("main")
-        .ok_or_else(|| "main webview is unavailable".to_string())?;
-    main.navigate(url).map_err(|error| error.to_string())
-}
-
-#[tauri::command]
 #[cfg(desktop)]
-async fn open_mp_sign_in(app: tauri::AppHandle) -> Result<(), String> {
-    open_online_window(app).await
+async fn open_mp_sign_in(app: tauri::AppHandle, provider: String) -> Result<(), String> {
+    let path = mp_sign_in_path(&provider)?;
+    let url: Url = format!("{ONLINE_URL}{path}")
+        .parse()
+        .map_err(|error| format!("bad multiplayer sign-in URL: {error}"))?;
+    open_mp_auth_window(app, url).await
 }
 
 #[tauri::command]
 #[cfg(mobile)]
-async fn open_mp_sign_in(app: tauri::AppHandle) -> Result<(), String> {
-    let url: Url = format!("{ONLINE_URL}/client/link")
+async fn open_mp_sign_in(app: tauri::AppHandle, provider: String) -> Result<(), String> {
+    let path = mp_sign_in_path(&provider)?;
+    let url: Url = format!("{ONLINE_URL}{path}")
         .parse()
         .map_err(|error| format!("bad multiplayer sign-in URL: {error}"))?;
     let main = app
@@ -219,6 +208,14 @@ async fn open_mp_sign_in(app: tauri::AppHandle) -> Result<(), String> {
         }
     });
     Ok(())
+}
+
+fn mp_sign_in_path(provider: &str) -> Result<&'static str, String> {
+    match provider {
+        "discord" => Ok("/api/auth/discord/login"),
+        "google" => Ok("/api/auth/google/login"),
+        _ => Err("unsupported sign-in provider".to_string()),
+    }
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -276,7 +273,6 @@ pub fn run() {
             load_game,
             list_saves,
             delete_save,
-            open_online_window,
             open_mp_sign_in,
             open_external_destination,
             mp_view::mp_view_fetch,
@@ -296,8 +292,19 @@ pub fn run() {
 mod tests {
     use super::{
         external_destination_url, is_account_session_cookie, is_ask_navigation_allowed,
-        is_online_navigation_allowed, is_online_origin, ASK_URL,
+        is_online_navigation_allowed, is_online_origin, mp_sign_in_path, ASK_URL,
     };
+
+    #[test]
+    fn multiplayer_sign_in_uses_only_native_provider_entrypoints() {
+        assert_eq!(
+            mp_sign_in_path("discord").unwrap(),
+            "/api/auth/discord/login"
+        );
+        assert_eq!(mp_sign_in_path("google").unwrap(), "/api/auth/google/login");
+        assert!(mp_sign_in_path("password").is_err());
+        assert!(mp_sign_in_path("https://example.com").is_err());
+    }
 
     #[test]
     fn account_cookie_filter_matches_the_current_client_contract() {
@@ -393,19 +400,6 @@ mod tests {
                 "{denied} should leave the app"
             );
         }
-    }
-
-    #[test]
-    fn reopening_the_online_window_preserves_the_existing_session_view() {
-        let source = include_str!("lib.rs");
-        let existing_window_branch = source
-            .split_once("if let Some(existing) = app.get_webview_window(\"online\") {")
-            .and_then(|(_, rest)| rest.split_once("return Ok(())"))
-            .map(|(branch, _)| branch)
-            .expect("online window reuse branch should exist");
-
-        assert!(existing_window_branch.contains("existing.set_focus()"));
-        assert!(!existing_window_branch.contains("existing.navigate("));
     }
 }
 
