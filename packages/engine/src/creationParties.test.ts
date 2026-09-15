@@ -32,4 +32,11 @@ describe("creation party ruling semantics (#242)", () => {
   it("keeps the one-party predicate aligned with the pack", () => {
     for (const id of ["RU", "DD", "CN"]) expect(isOnePartyCountry(id), id).toBe(true);
   });
+
+  it("carries the authored logo override (null for every authored pack party)", () => {
+    for (const party of listCreationParties("2019", "US")) {
+      expect(party.logoUrl).toBeNull();
+    }
+    expect(rulingPartyForCountry("1953", "DD")!.logoUrl).toBeNull();
+  });
 });

@@ -984,6 +984,14 @@ export interface Party {
   countryId: string;
   abbreviation: string;
   color: string;
+  /**
+   * Party-authored logo URL (reference PoliticalParty.logoUrl, chair-uploaded
+   * custom art). Seeded from the content pack; every authored pack carries
+   * none today, so worlds resolve to null and marks fall back to initials.
+   * Remote PARTY_LOGOS defaults are never substituted (offline-first, and
+   * the upstream defaults are not legally bundlable as a complete set).
+   */
+  logoUrl?: string | null;
   /** Economic left (-5) to right (+5). */
   economicPosition: number;
   /** Social libertarian (-5) to authoritarian (+5). */

@@ -169,6 +169,23 @@ describe("foundParty through the public action", () => {
 });
 
 
+describe("party logo identity (authored override carrier)", () => {
+  it("resolves to null for every authored pack party: no remote default is substituted", () => {
+    const world = createWorld({ ...FRESH });
+    for (const party of projectPartyManagement(world).parties) {
+      expect(party.logoUrl).toBeNull();
+    }
+  });
+
+  it("passes a real authored URL through the projection when the world carries one", () => {
+    const world = createWorld({ ...FRESH });
+    const first = Object.values(world.parties)[0]!;
+    first.logoUrl = "/party-logos/us-dem-1.png";
+    const projected = projectPartyManagement(world).parties.find((p) => p.id === first.id)!;
+    expect(projected.logoUrl).toBe("/party-logos/us-dem-1.png");
+  });
+});
+
 it("queries, founds and resumes through the session boundary without leaking state", () => {
   const session = new GameSession();
   expect(() => session.partyManagement()).toThrow("Start or load");

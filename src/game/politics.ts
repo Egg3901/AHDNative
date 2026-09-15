@@ -39,6 +39,8 @@ import { formatGameDate, formatGameTurn } from "./gameDate";
 
 export interface PoliticsPartyDetail {
   id: string; name: string; abbreviation: string; color: string;
+  /** Authored logo URL; null until a real authored URL exists (no remote defaults offline). */
+  logoUrl: string | null;
   members: number; treasury: number; isPlayerParty: boolean;
   economicPosition: number; socialPosition: number;
   tier: "major" | "minor"; organization: number; politicalStrength: number;
@@ -1449,6 +1451,7 @@ export function projectPolitics(world: WorldState): PoliticsView {
       memberNames.sort();
       return {
         id: party.id, name: party.name, abbreviation: party.abbreviation, color: party.color,
+        logoUrl: party.logoUrl ?? null,
         members: party.memberCount, treasury: party.treasury, isPlayerParty,
         economicPosition: party.economicPosition, socialPosition: party.socialPosition,
         tier: party.tier, organization: party.organization, politicalStrength: party.politicalStrength,

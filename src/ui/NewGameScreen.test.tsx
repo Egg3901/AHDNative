@@ -9,8 +9,8 @@ import { DEFAULT_WORLD_FEATURE_FLAGS, WORLD_FEATURE_FLAG_DEFINITIONS } from "@ah
 type SetupCountry = EraChoice["countries"][number] & { regions: { id: string; name: string }[] };
 type SetupEra = Omit<EraChoice, "countries"> & { countries: SetupCountry[] };
 
-const REP = { id: "US_REP", name: "Republican Party", abbreviation: "REP" };
-const LAB = { id: "UK_LAB", name: "Labour Party", abbreviation: "LAB" };
+const REP = { id: "US_REP", name: "Republican Party", abbreviation: "REP", logoUrl: null as string | null };
+const LAB = { id: "UK_LAB", name: "Labour Party", abbreviation: "LAB", logoUrl: null as string | null };
 
 const ERAS: SetupEra[] = [
   { id: "1953", label: "1953", countries: [

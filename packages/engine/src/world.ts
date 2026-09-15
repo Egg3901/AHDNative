@@ -328,7 +328,7 @@ export function listRegions(
 export function listCreationParties(
   era: string,
   countryId: string,
-): Array<{ id: string; name: string; abbreviation: string; color: string; economicPosition: number; socialPosition: number; isDefault: boolean; regimeStatus?: "ruling" | "approved" | "banned" }> {
+): Array<{ id: string; name: string; abbreviation: string; color: string; logoUrl: string | null; economicPosition: number; socialPosition: number; isDefault: boolean; regimeStatus?: "ruling" | "approved" | "banned" }> {
   const pack = getPackByEra(era);
   if (!pack) throw new Error(`Unknown era: ${era}`);
   return (pack.parties ?? [])
@@ -338,6 +338,7 @@ export function listCreationParties(
       name: party.name,
       abbreviation: party.abbreviation,
       color: party.color,
+      logoUrl: party.logoUrl ?? null,
       economicPosition: party.economicPosition,
       socialPosition: party.socialPosition,
       isDefault: true,
@@ -424,14 +425,14 @@ export function rulingPartyForCountry(
   era: string,
   countryId: string,
   initialization: WorldInitialization = DEFAULT_WORLD_INITIALIZATION,
-): { id: string; name: string; abbreviation: string } | null {
+): { id: string; name: string; abbreviation: string; logoUrl: string | null } | null {
   const partyId = rulingPartyIdForCountry(era, countryId, initialization);
   if (!partyId) return null;
   const pack = getPackByEra(era);
   if (!pack) throw new Error(`Unknown era: ${era}`);
   const party = (pack.parties ?? []).find((p) => p.id === partyId);
   if (!party) return null;
-  return { id: party.id, name: party.name, abbreviation: party.abbreviation };
+  return { id: party.id, name: party.name, abbreviation: party.abbreviation, logoUrl: party.logoUrl ?? null };
 }
 
 /**

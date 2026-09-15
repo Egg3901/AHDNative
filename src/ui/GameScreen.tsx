@@ -331,7 +331,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
                       <div key={p.id} className="ahd-card ahd-card-pad" style={{ borderLeft: `3px solid ${p.color}` }}>
                         <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "center" }}>
                           <span style={{ display: "inline-flex", gap: "0.4rem", alignItems: "center", minWidth: 0 }}>
-                            <PartyMark name={p.name} abbreviation={p.abbreviation} color={p.color} id={p.id} countryId={world.countryId} size={24} />
+                            <PartyMark name={p.name} abbreviation={p.abbreviation} color={p.color} id={p.id} countryId={world.countryId} logoUrl={p.logoUrl} size={24} />
                             <strong style={{ fontSize: "0.86rem" }}>{p.name} <span className="ahd-muted" style={{ fontWeight: 600 }}>({p.abbreviation})</span></strong>
                           </span>
                           {p.isPlayerParty ? <span className="ahd-pill" style={{ background: "var(--ahd-primary)", color: "white" }}>Yours</span> : null}

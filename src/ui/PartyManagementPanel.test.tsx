@@ -25,7 +25,7 @@ function makeManagement(): PartyManagementView {
       action: { id: "foundParty", name: "Found Party", description: "", cost: 8, available: true },
     },
     parties: [
-      { id: "US_DEM", name: "Democratic Party", abbreviation: "DEM", color: "#3333ff",
+      { id: "US_DEM", name: "Democratic Party", abbreviation: "DEM", color: "#3333ff", logoUrl: null,
         members: 260, treasury: 1000000, isPlayerParty: false,
         economicPosition: -2, socialPosition: -1, tier: "major", founded: false },
     ],
@@ -73,19 +73,30 @@ describe("PartyManagementPanel", () => {
     const management = makeManagement();
     management.parties = [
       ...management.parties,
-      { id: "US_GRN", name: "Green Union", abbreviation: "GRN", color: "#16a34a",
+      { id: "US_GRN", name: "Green Union", abbreviation: "GRN", color: "#16a34a", logoUrl: null,
         members: 41, treasury: 9000, isPlayerParty: false,
         economicPosition: -1, socialPosition: -2, tier: "minor", founded: true },
     ];
     const { container } = render(<PartyManagementPanel management={management} busy={false} onAction={vi.fn()} />);
     const list = container.querySelector('ul[aria-label="Parties"]');
     expect(list?.querySelectorAll("li").length).toBe(2);
-    // Native DTOs carry no logoUrl, so the offline fallback renders and no
+    // Authored packs carry no logoUrl, so the offline fallback renders and no
     // image URL is ever constructed from the country/party ids.
     expect(list?.querySelectorAll(".ahd-mark").length).toBe(2);
     expect(list?.querySelector("img")).toBeNull();
     expect(list?.querySelector('.ahd-mark[data-party-mark="DEM"]')).not.toBeNull();
     expect(list?.querySelector('.ahd-mark[data-party-mark="GRN"]')).not.toBeNull();
+  });
+
+  it("renders the authored image when the projection carries a real logo URL", () => {
+    const management = makeManagement();
+    management.parties = management.parties.map((party) =>
+      party.id === "US_DEM" ? { ...party, logoUrl: "/party-logos/us-dem-1.png" } : party,
+    );
+    const { container } = render(<PartyManagementPanel management={management} busy={false} onAction={vi.fn()} />);
+    const mark = container.querySelector('.ahd-mark[data-party-mark="DEM"]');
+    expect(mark?.querySelector("img")).not.toBeNull();
+    expect(mark?.querySelector("img")).toHaveAttribute("src", "/party-logos/us-dem-1.png");
   });
 
   it("shows the engine disabled reason when founding is unavailable", () => {

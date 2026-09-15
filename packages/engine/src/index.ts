@@ -289,6 +289,11 @@ export { canJoinParty, canLeaveParty } from "./membership.js";
 export type { WorldInitialization } from "./initialization/ukHistorical.js";
 
 export { projectPlayerPartyInfluence } from "./party/playerInfluence.js";
+
+// Party logo identity: preset-stable country:abbreviation key plus the
+// authored-URL carrier (remote defaults intentionally unresolved offline).
+export { partyLogoKey, resolvePartyLogoUrl } from "./party/partyLogo.js";
+export type { PartyLogoIdentity } from "./party/partyLogo.js";
 export { ACHIEVEMENT_CATALOG } from "./achievements/catalog.js";
 
 // W25 referendum request seam (#70): the display adapter shares the engine's

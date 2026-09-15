@@ -188,27 +188,53 @@ gradient fallback and adapts its crop from 172px on phones to 220px on wider
 screens. HoS resolves White House, Downing Street, Reichstag and Zhongnanhai
 art by country, with Actions as the explicit fallback for countries whose
 executive image is not yet bundled. Party cards render `PartyMark` scoped by
-country+party id with the reference error fallback: the optional `logoUrl`
-is honored only when a caller passes a real authored URL (the engine and
-DTOs carry none, so nothing is fetched or invented), and the fallback is
-deterministic initials+color seeded from the storage-prefix-shaped
+country+party id with the reference error fallback: the engine `Party.logoUrl`
+(reference `PoliticalParty.logoUrl`, chair-uploaded custom art) is carried
+through every projection (`listCreationParties`, `rulingPartyForCountry`,
+`projectPartyManagement`, politics detail, `projectWorld`, creation choices),
+and the image renders only when that chain yields a real authored URL. All
+authored packs carry none today, so marks resolve to the deterministic
+initials+color fallback seeded from the storage-prefix-shaped
 `country-party-` key (numeric ids canonicalized as in
-`src/lib/partyLogoStorage.ts`). Coalition identity uses the new
-`CoalitionMark`, which follows `CoalitionLogo`: an image renders only with
-both an explicit `logoUrl` and a coalition id, otherwise the same
-deterministic fallback applies. No logo route, upload pipeline, remote
-fetch, or proprietary art is bundled; the reference resize/quality limits
-(`partyLogo` 256x256 q85) apply upstream if a URL is ever produced. Marks
-reuse the fixed-size `.ahd-mark` tile so roster rows hold at 320px and 390px
-with no overflow. Rendered tests: `src/ui/PartyMark.test.tsx`,
-`src/ui/CoalitionMark.test.tsx`, `src/ui/PartyManagementPanel.test.tsx`.
+`src/lib/partyLogoStorage.ts`). The preset-stable default-lookup key
+`country:abbreviation` (reference `PARTY_LOGOS` keying, mirrored by engine
+`partyLogoKey`) is carried as identity only: remote defaults are never
+substituted. Coalition identity uses the new `CoalitionMark`, which follows
+`CoalitionLogo`: an image renders only with both an explicit `logoUrl` and
+a coalition id, otherwise the same deterministic fallback applies; the engine
+surfaces no coalition roster DTO, so `CoalitionMark` stays reusable but
+unbound. No logo route, upload pipeline, remote fetch, or proprietary art is
+bundled; the reference resize/quality limits (`partyLogo` 256x256 q85) apply
+upstream if a URL is ever produced. Marks reuse the fixed-size `.ahd-mark`
+tile so roster rows hold at 320px and 390px with no overflow. Rendered tests:
+`src/ui/PartyMark.test.tsx`, `src/ui/CoalitionMark.test.tsx`,
+`src/ui/PartyManagementPanel.test.tsx`.
 
 Provenance (read-only inspection of the public AHDGame checkout, no assets
 copied): `src/components/PartyLogo.tsx` (route lookup + `logoUrl` override
 + error fallback), `src/components/CoalitionLogo.tsx`,
 `src/lib/partyLogoStorage.ts` (country+party scoped keys),
-`src/lib/imageOptimize.ts` (`partyLogo` 256x256 q85), and
+`src/lib/imageOptimize.ts` (`partyLogo` 256x256 q85),
+`src/lib/constants.ts` (`PARTY_LOGOS` country:abbreviation defaults),
+`src/lib/db/types/party.ts` (`PoliticalParty.logoUrl`),
+`src/lib/db/types/coalition.ts` (`Coalition` name/abbreviation/color/logoUrl),
+`src/app/api/logos/parties/[partyId]/route.ts` (custom upload, then
+`PARTY_LOGOS` default, then fallback) and
 `src/app/country/[code]/parties/page.tsx` (party/coalition composition).
+
+Actual-logo audit (no static assets bundled): upstream keeps no checked-in
+party/coalition image files (`public/` carries none; `PARTY_LOGOS` values are
+remote URLs). The remote defaults are not legally bundlable as a complete
+offline set: most entries are Wikimedia Commons files (per-file license
+review and attribution still required), while `UK:UUP`, `IE:WP` and `BR:PSB`
+are English-Wikipedia fair-use files and `UK:LAB` is a proprietary CDN jpg,
+so those four can never ship in an offline bundle. Coalition defaults do not
+exist at all (the coalition logo route falls back to `/ahd-logo.png`). No
+logos were fabricated: until a real authored URL flows through `logoUrl`,
+marks intentionally render initials. Unblocks, in order: (1) an
+owner-authorized authored/chair-upload equivalent for Native offline use,
+(2) per-file rights clearance plus SHA-256 provenance for any Commons subset,
+(3) a source-backed coalition roster DTO before `CoalitionMark` binding.
 
 SHA-256 provenance: `actions.webp`
 `cad398e81644f9ea924c511c649487bd139bf7612a391502205ebea6be86ed80`;

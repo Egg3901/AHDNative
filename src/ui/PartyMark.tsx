@@ -4,12 +4,16 @@
  * Mirrors the public AHDGame reference `src/components/PartyLogo.tsx`:
  * a party-authored logo image is shown when a real URL is available, and an
  * onError fallback drops to a colored mark. Native is offline-first so there
- * is no `/api/logos/parties` route lookup and no upload pipeline (the engine
- * and DTOs carry no `logoUrl`): the optional `logoUrl` prop is honored only
- * when the caller passes a real authored URL, and country+party ids only
- * scope the deterministic fallback (same `country-party-` key shape as
- * `src/lib/partyLogoStorage.ts`). No URL is invented and no proprietary art
- * is bundled. Reference resize/quality limits (`partyLogo` 256x256 q85 in
+ * is no `/api/logos/parties` route lookup and no upload pipeline: the engine
+ * `Party.logoUrl` (reference `PoliticalParty.logoUrl`) carries the authored
+ * override through every projection, and the optional `logoUrl` prop is
+ * honored only when that chain yields a real authored URL. All authored
+ * packs carry none today, so marks resolve to the deterministic fallback.
+ * Country+party ids only scope the fallback (same `country-party-` key
+ * shape as `src/lib/partyLogoStorage.ts`); remote PARTY_LOGOS defaults are
+ * never substituted (mixed Wikimedia/fair-use/CDN rights, no checked-in
+ * static assets upstream). No URL is invented and no proprietary art is
+ * bundled. Reference resize/quality limits (`partyLogo` 256x256 q85 in
  * `src/lib/imageOptimize.ts`) apply upstream when a URL is produced; Native
  * renders with `object-fit: contain` and never fetches a remote original.
  *
@@ -90,9 +94,9 @@ export interface PartyMarkProps {
    */
   countryId?: string | null;
   /**
-   * Party-authored image URL; honored only when the caller passes a real URL
-   * (Native DTOs carry none today). Falls back to initials on error, and no
-   * URL is ever constructed from the ids.
+   * Party-authored image URL from the projection chain (`Party.logoUrl`);
+   * null for every authored pack today. Falls back to initials on error,
+   * and no URL is ever constructed from the ids.
    */
   logoUrl?: string | null;
   /** Accessible name; omit when the party name is already shown beside the mark. */
