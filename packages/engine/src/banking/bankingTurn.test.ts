@@ -37,6 +37,19 @@ describe("bankingTurnPhase — NPC deposit flow", () => {
     run(world); // same turn again
     expect(JSON.stringify(world.corporations["US-financial"])).toBe(after1);
   });
+
+  it("includes bank borrowings when the public turn phase caps NPC deposits", () => {
+    const world = createWorld(OPTS);
+    const charter = world.corporations["US-financial"]!.bankCharter!;
+    world.centralBanks["US"]!.externalBroadMoney = 1_000_000;
+    charter.discountWindowDebt = charter.cashReserves + charter.totalLoans + 1;
+    world.meta.turn = 1;
+
+    run(world);
+
+    expect(charter.depositCeiling).toBe(0);
+    expect(charter.npcDeposits).toBe(0);
+  });
 });
 
 describe("bankingTurnPhase — deposit interest paid by the bank (W5 PORT-STUB resolution)", () => {
