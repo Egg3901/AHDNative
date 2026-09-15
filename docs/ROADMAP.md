@@ -1199,3 +1199,18 @@ and removed. The smoke helper now walks the conversation; no engine change.
 - No paid build, no signing access, no device claim. #148 stays open with
   `status: partial` until the installed icon/launcher check passes in an
   authorized package on each platform (0.1.5 build 1.9 or later qualifies).
+
+## Legislature nominations checkpoint, 2026-09-15 (#273 / #271)
+
+- The Legislature destination now projects the cabinet/SCOTUS nomination list,
+  per-item ballot eligibility with the engine's exact blocked reasons, cabinet
+  sponsorship options, and an honestly unavailable SCOTUS sponsor (#270 absent).
+  Session commands run the engine sponsor/vote functions on a clone and commit
+  only on success, so rejections leave state untouched.
+- Focused evidence: `src/game/nominations.test.ts` (6 cases: empty list,
+  sponsor/project, senator ballot with save/reload, House refusal with
+  unchanged state, turn resolution, SCOTUS unavailable) and
+  `src/ui/NominationsPanel.test.tsx` (2 cases: status/tally/widths/refusals,
+  cabinet ballot command). Session trio
+  (nominations/legislature/session, 32 tests) and UI trio
+  (NominationsPanel/LegislaturePanel/LegislationDetailsPanel, 24 tests) green.
