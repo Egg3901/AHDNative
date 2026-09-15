@@ -369,17 +369,17 @@ export function CharacterCreationScreen({
           <p className="ahd-label">Your candidate file</p>
           {stepLabels.map((label, index) => ({ label, step: index + 1 })).filter(({ step }) => step <= maxReachedStep && step !== activeStep).map(({ label, step }) => (
             <button
-              key={label}
+              key={step}
               type="button"
               className="ahd-creation-answer"
-              aria-label={`Edit ${label}`}
+              aria-label={`Edit ${label}: ${stepSummaries[step - 1]}`}
               onClick={() => { setReviewAll(false); setActiveStep(step); }}
             >
               <span>{label}</span>
               <strong>{stepSummaries[step - 1]}</strong>
             </button>
           ))}
-          <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => setReviewAll((value) => !value)}>
+          <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" aria-expanded={reviewAll} onClick={() => setReviewAll((value) => !value)}>
             {reviewAll ? "Return to conversation" : "Review all details"}
           </button>
         </section>
