@@ -248,7 +248,70 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
       choices: { parties: PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: true, regionNoun: "region", homeRegions: [] },
     })} />);
     fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
-    expect(screen.getByText(/imperial/i)).toBeInTheDocument();
+    expect(screen.getByText("Ceremonial imperial role")).toBeInTheDocument();
+  });
+
+  describe("imperial role panel (#242 imperial slice)", () => {
+    function ukProps(): CharacterCreationScreenProps {
+      return props({
+        selection: { era: "1953", countryId: "UK", countryName: "United Kingdom", regionNoun: "region" },
+        choices: { parties: PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: true, regionNoun: "region", homeRegions: [] },
+      });
+    }
+
+    it("previews the gender-aware ceremonial title once gender is chosen", async () => {
+      const user = userEvent.setup();
+      render(<CharacterCreationScreen {...ukProps()} />);
+      await openDirectReview(user);
+      await user.click(screen.getByRole("button", { name: "Female" }));
+      expect(screen.getByText(/Title:/)).toHaveTextContent("Queen");
+      expect(screen.getByText(/displayed as/i)).toHaveTextContent("Queen Eleanor Vance");
+    });
+
+    it("names the reference starter corporation and its starting capital", async () => {
+      const user = userEvent.setup();
+      render(<CharacterCreationScreen {...ukProps()} />);
+      await openDirectReview(user);
+      expect(screen.getByText(/Royal Estate/)).toBeInTheDocument();
+      expect(screen.getByText(/\$50,000,000/)).toBeInTheDocument();
+    });
+
+    it("titles the JP head of state from the same reference source", async () => {
+      const user = userEvent.setup();
+      render(<CharacterCreationScreen {...props({
+        selection: { era: "1953", countryId: "JP", countryName: "Japan", regionNoun: "region" },
+        choices: { parties: PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: true, regionNoun: "region", homeRegions: [] },
+      })} />);
+      await openDirectReview(user);
+      await user.click(screen.getByRole("button", { name: "Male" }));
+      expect(screen.getByText(/Title:/)).toHaveTextContent("Emperor");
+      expect(screen.getByText(/Chrysanthemum Properties/)).toBeInTheDocument();
+    });
+
+    it("refuses imperial creation honestly instead of offering an imperial form", async () => {
+      const user = userEvent.setup();
+      render(<CharacterCreationScreen {...ukProps()} />);
+      await openDirectReview(user);
+      expect(screen.getByText(/created separately by an administrator/i)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Create Imperial Character/i })).not.toBeInTheDocument();
+    });
+
+    it("claims no title or corporation for an eligible country the reference leaves unconfigured", () => {
+      render(<CharacterCreationScreen {...props({
+        selection: { era: "1953", countryId: "ES", countryName: "Spain", regionNoun: "state" },
+        choices: { parties: PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: true, regionNoun: "state", homeRegions: [] },
+      })} />);
+      fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
+      expect(screen.getByText(/imperial/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Title:/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/\$50,000,000/)).not.toBeInTheDocument();
+    });
+
+    it("shows no imperial panel for a country with no imperial role", () => {
+      render(<CharacterCreationScreen {...props()} />);
+      fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
+      expect(screen.queryByText(/imperial/i)).not.toBeInTheDocument();
+    });
   });
 
   describe("party picker marks (#244 slice)", () => {
