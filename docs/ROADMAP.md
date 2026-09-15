@@ -855,6 +855,19 @@ AHDGame-vs-Native creation screenshot comparison and physical-device run were
 not captured; home-region lean markers stay absent because the engine records
 no per-region economic/social lean. The issue stays open with `status: partial`.
 
+## Ministerial-order lifecycle checkpoint, 2026-09-15 (#258 / #105)
+
+- Persisted orders now retain their cabinet position/catalog identity, duration,
+  exclusive expiry turn, lifecycle status, last-applied turn, and optional regional
+  target through the normal engine save/reload boundary.
+- The turn phase normalizes pre-lifecycle saves from `issuedAtTurn`, applies active
+  orders only before the exclusive boundary, and deactivates them at expiry. New
+  worlds continue to start with no ministerial orders; issuance remains tracked by
+  the dependent #259–#262 slices rather than being invented here.
+- Focused evidence lives in
+  `packages/engine/src/ministerialOrders/lifecycle.test.ts`, with the existing W28
+  accumulation/cap test retained as a regression check.
+
 ## Player polling checkpoint, 2026-09-15 (#38)
 
 - `poll` and `pollLarge` are live through the public `executeAction` contract
