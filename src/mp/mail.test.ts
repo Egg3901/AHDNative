@@ -107,7 +107,7 @@ function scriptedHost(scripts: {
   };
 }
 
-function readyScripts(extraFetch: Record<string, string[]> = {}) {
+function readyScripts(extraFetch: Record<string, Array<string | { reject: string }>> = {}) {
   return {
     fetch: {
       "auth-session": [probe],
