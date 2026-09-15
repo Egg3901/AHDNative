@@ -87,10 +87,9 @@ export const CATALOG_JP: CatalogEntry[] = [
     description: "Sets Japan's consumption tax rate (equivalent to VAT)",
     category: "tax",
     allowedScope: "national",
-    taxPolicy: { scope: "federal", taxType: "salesTax", minRate: 0, maxRate: 25, step: 1, baselineRate: 10 },
+    taxPolicy: { scope: "federal", taxType: "salesTax", minRate: 0, maxRate: 25, step: 1, baselineRate: 10, options: [{"id":"jp_consumption_tax_opt_0","rate":0,"economic":-5,"social":0},{"id":"jp_consumption_tax_opt_1","rate":3,"economic":-4,"social":0},{"id":"jp_consumption_tax_opt_2","rate":5,"economic":-3,"social":0},{"id":"jp_consumption_tax_opt_3","rate":8,"economic":-2,"social":0},{"id":"jp_consumption_tax_opt_4","rate":9,"economic":-1,"social":0},{"id":"jp_consumption_tax_opt_5","rate":10,"economic":0,"social":0},{"id":"jp_consumption_tax_opt_6","rate":13,"economic":1,"social":0},{"id":"jp_consumption_tax_opt_7","rate":15,"economic":2,"social":0},{"id":"jp_consumption_tax_opt_8","rate":18,"economic":3,"social":0},{"id":"jp_consumption_tax_opt_9","rate":22,"economic":4,"social":0},{"id":"jp_consumption_tax_opt_10","rate":25,"economic":5,"social":0}] },
     targets: [{"metricId":"economic.costOfLiving","weight":-1},{"metricId":"economic.gdpGrowth","weight":-0.25},{"metricId":"economic.povertyRate","weight":-0.4},{"metricId":"economic.foodSecurity","weight":-0.3}],
-    status: "unavailable",
-    blockingSystem: "budget/taxRateLadder",
+    status: "available",
   },
   {
     // source: seed; baselineRate = median authored option (no policyDefaults entry for this preset; PORT-STUB)

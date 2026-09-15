@@ -41,6 +41,12 @@ export interface CatalogEntry {
     maxRate: number;
     step: number;
     baselineRate: number;
+    options?: Array<{
+      id: string;
+      rate: number;
+      economic: number;
+      social: number;
+    }>;
   };
   /**
    * Metric targets this law's DECAY-path effect pulls on. `higherBetter`
