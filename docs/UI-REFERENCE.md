@@ -310,6 +310,80 @@ identity composition and destinations, edit-control boundaries, responsive
 rules). Existing `src/ui/ProfilePanel.test.tsx` still protects every
 profile edit, constituency, finance, and navigation behavior unchanged.
 
+### 0.1.7 commodity hero subset (#378)
+
+Fourteen of the 28 reference commodity heroes ship offline, byte-identical
+copies from AHDGame `e364c04954ed628beef73a993a8e9e156650a31e`
+(`public/static/heroes/`) under the same public path, wired through
+`RouteHero` via `commodityHero()` (`src/ui/RouteHero.tsx`) with the reference
+image-error gradient fallback. Unported and unknown commodity keys fall back
+to Actions art, never a broken image or remote fetch. Reference slug source:
+`COMMODITY_HERO_SLUGS` in AHDGame `src/lib/constants/commodities.ts`;
+upstream files are served remotely through `/api/images/hero/[slug]`, whose
+redirect targets (Wikimedia Commons) are the rights source below. Alt source
+is `COMMODITY_HERO_ALTS` except for three entries where the reference wording
+contradicts the inspected bundled bytes: `energy` reads "Anacortes oil
+refinery" (reference claims power lines; the bytes show refinery towers with
+a steam plume), `freight` reads "Maersk Sealand container ship at sea"
+(reference claims a "Sovereign Maersk" vessel name found in neither the bytes
+nor the route manifest; the hull reads MAERSK SEALAND), and
+`pharmaceuticals` reads "Blister packs of assorted pills" (reference claims
+a manufacturing line; the bytes show blister packs, File:Pill 3.jpg). Each
+correction was grounded in the rendered local WebP plus the upstream file
+identity in the hero route before wording. Alt resolution goes through the
+total typed `commodityHeroAlt()` helper: exact-key lookup with no case
+folding or trimming, and the nonempty `COMMODITY_HERO_FALLBACK_ALT`
+("Commodity hero image") for every unported or unknown key. All 14 are public
+domain or free CC licences, each verified against the Commons API; no
+fair-use or proprietary entry is bundled. CC attribution is recorded here.
+Files are 1280px-wide VP8 WebP (portrait to wide); `RouteHero` crops with
+`object-fit: cover` at the shared 172px phone / 220px wider crop, so no new
+CSS was needed. Focused tests: `src/ui/CommodityHeroImagery.test.tsx`
+(resolver, total alt helper with exact-key and fallback behavior, the three
+corrected alts, fallback accessible name, local webp container bytes,
+rendered local decode, error fallback, crop CSS) and
+`src/ui/MarketsPanel.test.tsx` (company-detail hero for a bundled sector and
+the Actions fallback with the fallback accessible name).
+
+SHA-256 provenance (left) and upstream Commons rights (right):
+
+- `commodity-steel.webp` `95b743fc5a83f3c4b4859029fac76684e161ac3aac27fb48c858e1d26d95f797` - File:Showa Steel Works.JPG, public domain (Kokusho-kankoukai, pre-1945)
+- `commodity-electronics.webp` `2ab2e8d292a92aea697c6a72544233952e4f2be0aaff3b88e83d0dafb2847844` - File:TSMC Fab5.JPG, CC BY-SA 3.0 (Peellden)
+- `commodity-energy.webp` `9b7675fc0464d07537e182db1cb6090198f1fca1c10d0daef0b4a9904c76e561` - File:Anacortes Refinery 31911.JPG, CC BY 2.5 (Walter Siegmund)
+- `commodity-chemicals.webp` `3465abc91483b813c730feaa410dcd98373c44b3c937d4112f1d3e5ba91f7d7b` - File:BASF Werk Ludwigshafen 1881.JPG, public domain (Robert Stieler, BASF-Archiv)
+- `commodity-pharmaceuticals.webp` `3a6c1df192a21fb07c8a84b6cd1f00a689a04a0638b372877a2615ae71a5dc8b` - File:Pill 3.jpg, CC0 (freestocks.org via Pexels)
+- `commodity-food.webp` `4b60e5a0e27a746114c53e4f80f9b8fa6bef3f264d77bd4cba57483bd304641f` - File:CSIRO ScienceImage 4486 Harvesting wheat.jpg, CC BY 3.0 (John Coppi, CSIRO)
+- `commodity-building-materials.webp` `f1d5e6544f80effbe8fb411fe945899a0924188782f04f1abf0ab7be4c1f26a2` - File:HK Central Piers construction site building material steel.JPG, CC BY-SA 3.0 (Tosirog)
+- `commodity-software.webp` `8073897067857099eb5795576cf1cd85ca1003d6f87bc9419b04b41260a72034` - File:Wikimedia Foundation Servers-8055 14.jpg, CC BY-SA 3.0 (Victorgrigas)
+- `commodity-financial-services.webp` `452dc1ee7c85da1287041cb1011fa7e6426f1445565b727df64dd06d04b68ee3` - File:USA-NYC-New York Stock Exchange.JPG, CC BY-SA 3.0 (Ingfbruno)
+- `commodity-advertising.webp` `2d1a53cbcd90630895c9fb17d3e07720fb5a8776c7f2b5cb39ac7b49bb6dd489` - File:Broadway and Times Square by night.jpg, CC BY-SA 2.0 (Willem van Bergen, via Flickr)
+- `commodity-vehicles.webp` `ecce4279c4f062ea2329bd7851551b2ccb3877775ef44d1e243561429a636348` - File:Hyundai car assembly line.jpg, CC BY 2.5 (Anonyme)
+- `commodity-retail.webp` `28c1ac96456d2f4cbd8a1a9fe9317705709c7cc47bdaa436906dc3491654832b` - File:Macys dep store.JPG, CC BY 3.0 (Mike Strand)
+- `commodity-freight.webp` `1e2069e615d4144df1dde2d5f862ce821e356401d9115e7def9e61447e04bd9f` - File:Maersk container ship 002.JPG, CC BY-SA 3.0 (Yennen-Gas)
+- `commodity-consulting-services.webp` `23f8a6ee7030709e1e22f464cb699b4bf0051b044936d1f22e876097934a944d` - File:Booz Allen Hamilton in Washington D.C..jpg, CC BY 2.0 (Tony Webster, via Flickr)
+
+Explicitly not bundled: the other 14 reference commodity slugs have no local
+file upstream (remote-only; the offline app cannot fetch them). The 11
+`sector-*.webp` files carry no upstream source manifest (no credit, URL, or
+licence recorded in AHDGame), so rights cannot be audited and they stay out
+per the issue's fair-use/proprietary exclusion. `cabinet`, `bank-of-england`,
+`bank-of-japan`, `federal-reserve`, `imf` and `imf-logo` have recorded Commons
+sources in the hero route but no Native consumer surface yet (Native has no
+central-bank, IMF, cabinet, or commodity destination; corporation model and
+market lifecycles stay with #80/#211/#77), so they are staged with the
+surface rather than shipped as dead weight. One Native surface consumes the
+commodity set: Markets company detail (`CompanyDetail` in
+`src/ui/MarketsPanel.tsx`) renders a `RouteHero` keyed by the listing's
+recorded `sectorType` with `commodityHero()` / `commodityHeroAlt()`. Only
+the `energy` and `retail` Native sectors hit bundled art (the 17
+`CorporationType` sector keys otherwise miss the 14 commodity keys and take
+the Actions fallback with the fallback accessible name); no route, mechanic,
+or sector mapping was invented. Partial: the corporation, central-bank, IMF,
+and cabinet surfaces from #378 stay open (no Native consumer or rights
+manifest yet), the other 14 commodity slugs stay remote-only, and the
+reference commodity browse surface has no Native equivalent. The issue stays
+open with `status: partial`.
+
 Full destination/conditional-menu inventory lives in
 [navigation parity](NAVIGATION-PARITY.md); this table only maps each Native
 entry surface to its reference source so follow-up styling stays grounded. No

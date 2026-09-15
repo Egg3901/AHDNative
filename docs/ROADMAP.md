@@ -1018,6 +1018,42 @@ physical-device run for this slice; `smoke/route-heroes.spec.ts` does not
 yet cover the Profile hero. Server-only header elements remain omitted by
 design (see UI reference).
 
+## Commodity hero review corrections checkpoint, 2026-09-15 (#378 partial)
+
+#378 partial. Review pass over the offline commodity hero subset: the 14
+byte-identical AHDGame heroes stay under the same public path, and three
+reference alt texts that contradicted the bundled bytes are corrected
+against the inspected local WebP plus the upstream file identity in the
+hero route (`energy` is the Anacortes refinery, not power lines; `freight`
+is a hull marked MAERSK SEALAND, not "Sovereign Maersk"; `pharmaceuticals`
+is blister packs of pills, not a manufacturing line).
+
+- New total typed `commodityHeroAlt()` in `src/ui/RouteHero.tsx`: exact-key
+  lookup with no case folding or trimming, and the nonempty
+  `COMMODITY_HERO_FALLBACK_ALT` for every unported or unknown key.
+- Markets company detail (`CompanyDetail`) now renders a reachable
+  `RouteHero` keyed by the listing's recorded `sectorType`; only the
+  `energy` and `retail` Native sectors hit bundled art, everything else
+  takes the Actions fallback with the fallback accessible name. No route,
+  mechanic, or sector mapping was invented.
+
+Honest gaps: the corporation, central-bank, IMF, and cabinet surfaces from
+#378 stay open (no Native consumer or rights manifest yet), the other 14
+commodity slugs stay remote-only, and the reference commodity browse
+surface has no Native equivalent. The issue stays open with
+`status: partial`, acceptance checklist unchanged. Full #378 acceptance
+(corporation/central-bank/IMF/cabinet heroes, plus rendered
+overflow/external-request proof at 320px, 390px and desktop like
+`smoke/route-heroes.spec.ts`; this slice asserts the crop CSS text only)
+remains open under parent #143.
+
+Evidence: `src/ui/CommodityHeroImagery.test.tsx` (total alt helper,
+exact-key and fallback behavior, the three corrected alts, fallback
+accessible name) and `src/ui/MarketsPanel.test.tsx` (company-detail hero
+for a bundled sector, Actions fallback with the fallback accessible name).
+Validation: focused Vitest on both files only; no full verify, typecheck,
+build, or device run was performed for this pass.
+
 ## Character-creation player flow checkpoint, 2026-09-14 (#242)
 
 #242 partial. The reference six-step creation hand-off now runs after world
