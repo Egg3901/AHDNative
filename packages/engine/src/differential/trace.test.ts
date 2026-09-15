@@ -14,6 +14,7 @@ function trace(engine: "ahdgame" | "native", overrides: Partial<DifferentialTrac
       fixtureId: "1953-US-turn-1",
       era: "1953",
       countryId: "US",
+      canonicalInputSha256: "canonical-abc123",
       source: { kind: engine === "ahdgame" ? "mongo" : "nativeSave", sha256: "abc123" },
     },
     adaptations: [],
@@ -38,17 +39,56 @@ function trace(engine: "ahdgame" | "native", overrides: Partial<DifferentialTrac
 }
 
 describe("#279 differential trace contract", () => {
-  it("round-trips a JSON-safe trace in deterministic key order", () => {
-    const source = trace("ahdgame");
-    const one = serializeDifferentialTrace(source);
+  it("round-trips independently authored Game and Native source shapes in deterministic key order", () => {
+    const gameFixture: DifferentialTrace = {
+      schemaVersion: 1,
+      engine: { kind: "ahdgame", revision: "game-pin" },
+      input: {
+        fixtureId: "mongo-1953-us",
+        era: "1953",
+        countryId: "US",
+        seed: "shared-seed",
+        canonicalInputSha256: "normalized-world-1",
+        source: { kind: "mongo", sha256: "mongo-export-9" },
+      },
+      adaptations: [],
+      phases: [{
+        index: 0,
+        name: "resourceRefresh",
+        rng: { before: [1, 2], after: [3, 4], draws: [0.25] },
+        observations: { resources: { actions: 4 }, elections: [], budgets: {}, policies: [], playerConsequences: {} },
+      }],
+    };
+    const nativeFixture: DifferentialTrace = {
+      schemaVersion: 1,
+      engine: { kind: "native", revision: "native-pin" },
+      input: {
+        fixtureId: "native-save-1953-us",
+        era: "1953",
+        countryId: "US",
+        seed: "shared-seed",
+        canonicalInputSha256: "normalized-world-1",
+        source: { kind: "nativeSave", sha256: "native-save-4" },
+      },
+      adaptations: [],
+      phases: [{
+        index: 0,
+        name: "resourceRefresh",
+        rng: { before: [1, 2], after: [3, 4], draws: [0.25] },
+        observations: { budgets: {}, elections: [], playerConsequences: {}, policies: [], resources: { actions: 4 } },
+      }],
+    };
+    const one = serializeDifferentialTrace(gameFixture);
     const two = serializeDifferentialTrace(JSON.parse(one));
 
     expect(two).toBe(one);
-    expect(parseDifferentialTrace(one)).toEqual(source);
+    expect(parseDifferentialTrace(one)).toEqual(gameFixture);
+    expect(compareDifferentialTraces(gameFixture, nativeFixture)).toEqual({ equal: true });
   });
 
   it("rejects malformed, non-JSON, duplicate, and unordered phase traces", () => {
     expect(() => parseDifferentialTrace({ ...trace("native"), schemaVersion: 2 })).toThrow("schemaVersion");
+    expect(() => parseDifferentialTrace({ ...trace("native"), input: { ...trace("native").input, seed: 42 } })).toThrow("input.seed");
     expect(() => parseDifferentialTrace({ ...trace("native"), phases: [
       trace("native").phases[0],
       { ...trace("native").phases[0], index: 0, name: "duplicate" },
@@ -61,6 +101,10 @@ describe("#279 differential trace contract", () => {
       ...trace("native").phases[0],
       observations: { ...trace("native").phases[0]!.observations, budgets: { bad: Number.NaN } },
     }] })).toThrow("JSON-safe");
+    expect(() => parseDifferentialTrace({ ...trace("native"), phases: [{
+      ...trace("native").phases[0],
+      silentlyIgnoredLaterField: {},
+    }] })).toThrow("unexpected field");
   });
 
   it("reports the first divergent phase and exact field without hiding later differences", () => {
@@ -88,15 +132,23 @@ describe("#279 differential trace contract", () => {
   });
 
   it("refuses to compare traces for different normalized inputs", () => {
-    const actual = trace("native", { input: { ...trace("native").input, countryId: "UK" } });
+    const actual = trace("native", { input: {
+      ...trace("native").input,
+      canonicalInputSha256: "different-normalized-world",
+    } });
 
     expect(compareDifferentialTraces(trace("ahdgame"), actual)).toMatchObject({
       equal: false,
       phase: null,
-      path: "input.countryId",
-      expected: "US",
-      actual: "UK",
+      path: "input.canonicalInputSha256",
+      expected: "canonical-abc123",
+      actual: "different-normalized-world",
     });
+  });
+
+  it("refuses Native self-comparison as authority evidence", () => {
+    expect(() => compareDifferentialTraces(trace("native"), trace("native")))
+      .toThrow("authoritative AHDGame trace");
   });
 
   it("applies only justified per-field numeric tolerance and never tolerates RNG or ids", () => {

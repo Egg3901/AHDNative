@@ -10,6 +10,8 @@ export interface DifferentialTraceInput {
   era: string;
   countryId: string;
   seed?: string;
+  /** Hash of the shared normalized comparison input, not either persistence envelope. */
+  canonicalInputSha256: string;
   source: DifferentialTraceSource;
 }
 
@@ -21,6 +23,17 @@ export interface DifferentialAdaptation {
   source: string;
 }
 
+export const DIFFERENTIAL_OBSERVATION_DOMAINS = [
+  "resources",
+  "elections",
+  "budgets",
+  "policies",
+  "playerConsequences",
+] as const;
+
+export type DifferentialObservationDomain = typeof DIFFERENTIAL_OBSERVATION_DOMAINS[number];
+export type DifferentialObservations = { [Domain in DifferentialObservationDomain]: DifferentialJson };
+
 export interface DifferentialPhaseTrace {
   index: number;
   name: string;
@@ -29,13 +42,7 @@ export interface DifferentialPhaseTrace {
     after: DifferentialJson;
     draws: DifferentialJson[];
   };
-  observations: {
-    resources: DifferentialJson;
-    elections: DifferentialJson;
-    budgets: DifferentialJson;
-    policies: DifferentialJson;
-    playerConsequences: DifferentialJson;
-  };
+  observations: DifferentialObservations;
 }
 
 export interface DifferentialTrace {
@@ -65,6 +72,16 @@ export type DifferentialComparison =
       actual: DifferentialJson | undefined;
       adaptation?: DifferentialAdaptation;
     };
+
+const DIFFERENTIAL_TRACE_FIELD_POLICY = {
+  schemaVersion: "schema",
+  engine: "provenance",
+  input: "comparison",
+  adaptations: "provenance",
+  phases: "comparison",
+} as const satisfies {
+  [Field in keyof DifferentialTrace]: "schema" | "provenance" | "comparison";
+};
 
 function fail(path: string, message: string): never {
   throw new Error(`Invalid differential trace at ${path}: ${message}`);
@@ -99,24 +116,65 @@ function stringAt(value: unknown, path: string): string {
   return value;
 }
 
+function assertExactFields(value: Record<string, unknown>, allowed: readonly string[], path: string): void {
+  const allowedFields = new Set(allowed);
+  for (const key of Object.keys(value)) {
+    if (!allowedFields.has(key)) fail(`${path}.${key}`, "unexpected field for schema version 1");
+  }
+}
+
+const DIFFERENTIAL_COMPARISON_POLICY = {
+  input: {
+    fixtureId: "provenanceOnly",
+    era: "compare",
+    countryId: "compare",
+    seed: "compare",
+    canonicalInputSha256: "compare",
+    source: "provenanceOnly",
+  },
+  phase: {
+    index: "identity",
+    name: "identity",
+    rng: "compare",
+    observations: "compare",
+  },
+} as const satisfies {
+  input: { [Field in keyof DifferentialTraceInput]: "compare" | "provenanceOnly" };
+  phase: { [Field in keyof DifferentialPhaseTrace]: "identity" | "compare" };
+};
+
+const PROTECTED_TOLERANCE_PATH_POLICY = {
+  prefixes: ["rng"],
+  exactSegments: new Set(["id", "ids", "status"]),
+} as const;
+
 export function parseDifferentialTrace(input: unknown): DifferentialTrace {
   const value = typeof input === "string" ? JSON.parse(input) : input;
   assertJsonSafe(value, "$trace");
   const root = objectAt(value, "$trace");
+  assertExactFields(root, Object.keys(DIFFERENTIAL_TRACE_FIELD_POLICY), "$trace");
   if (root.schemaVersion !== 1) fail("schemaVersion", "expected 1");
   const engine = objectAt(root.engine, "engine");
+  assertExactFields(engine, ["kind", "revision"], "engine");
   if (engine.kind !== "ahdgame" && engine.kind !== "native") fail("engine.kind", "expected ahdgame or native");
   stringAt(engine.revision, "engine.revision");
   const fixture = objectAt(root.input, "input");
+  assertExactFields(fixture, ["fixtureId", "era", "countryId", "seed", "canonicalInputSha256", "source"], "input");
   stringAt(fixture.fixtureId, "input.fixtureId");
   stringAt(fixture.era, "input.era");
   stringAt(fixture.countryId, "input.countryId");
+  if (fixture.seed !== undefined) stringAt(fixture.seed, "input.seed");
+  stringAt(fixture.canonicalInputSha256, "input.canonicalInputSha256");
   const source = objectAt(fixture.source, "input.source");
+  assertExactFields(source, ["kind", "sha256"], "input.source");
   if (source.kind !== "mongo" && source.kind !== "nativeSave") fail("input.source.kind", "expected mongo or nativeSave");
+  if (engine.kind === "ahdgame" && source.kind !== "mongo") fail("input.source.kind", "AHDGame traces require Mongo provenance");
+  if (engine.kind === "native" && source.kind !== "nativeSave") fail("input.source.kind", "Native traces require nativeSave provenance");
   stringAt(source.sha256, "input.source.sha256");
   if (!Array.isArray(root.adaptations)) fail("adaptations", "expected an array");
   for (const [index, raw] of root.adaptations.entries()) {
     const adaptation = objectAt(raw, `adaptations.${index}`);
+    assertExactFields(adaptation, ["id", "phase", "paths", "rationale", "source"], `adaptations.${index}`);
     stringAt(adaptation.id, `adaptations.${index}.id`);
     stringAt(adaptation.phase, `adaptations.${index}.phase`);
     stringAt(adaptation.rationale, `adaptations.${index}.rationale`);
@@ -128,14 +186,17 @@ export function parseDifferentialTrace(input: unknown): DifferentialTrace {
   let previousIndex = -1;
   for (const [arrayIndex, raw] of root.phases.entries()) {
     const phase = objectAt(raw, `phases.${arrayIndex}`);
+    assertExactFields(phase, Object.keys(DIFFERENTIAL_COMPARISON_POLICY.phase), `phases.${arrayIndex}`);
     if (!Number.isInteger(phase.index) || (phase.index as number) < 0) fail(`phases.${arrayIndex}.index`, "expected a non-negative integer");
     if ((phase.index as number) <= previousIndex) fail(`phases.${arrayIndex}.index`, "phase indexes must be strictly increasing");
     previousIndex = phase.index as number;
     stringAt(phase.name, `phases.${arrayIndex}.name`);
     const rng = objectAt(phase.rng, `phases.${arrayIndex}.rng`);
+    assertExactFields(rng, ["before", "after", "draws"], `phases.${arrayIndex}.rng`);
     if (!("before" in rng) || !("after" in rng) || !Array.isArray(rng.draws)) fail(`phases.${arrayIndex}.rng`, "before, after, and draws are required");
     const observations = objectAt(phase.observations, `phases.${arrayIndex}.observations`);
-    for (const domain of ["resources", "elections", "budgets", "policies", "playerConsequences"]) {
+    assertExactFields(observations, DIFFERENTIAL_OBSERVATION_DOMAINS, `phases.${arrayIndex}.observations`);
+    for (const domain of DIFFERENTIAL_OBSERVATION_DOMAINS) {
       if (!(domain in observations)) fail(`phases.${arrayIndex}.observations.${domain}`, "domain is required");
     }
   }
@@ -159,7 +220,9 @@ function validateToleranceRules(rules: readonly DifferentialToleranceRule[]): vo
     if (!rule.justification.trim()) throw new Error(`Tolerance rule ${index} requires a justification`);
     if (!rule.evidence.trim()) throw new Error(`Tolerance rule ${index} requires measured evidence`);
     if (!Number.isFinite(rule.absolute) || rule.absolute < 0) throw new Error(`Tolerance rule ${index} requires a finite non-negative absolute tolerance`);
-    const protectedPath = rule.path.split(".").some((part) => part === "rng" || part === "status" || /ids?$/i.test(part));
+    const segments = rule.path.split(".");
+    const protectedPath = PROTECTED_TOLERANCE_PATH_POLICY.prefixes.some((prefix) => rule.path === prefix || rule.path.startsWith(`${prefix}.`))
+      || segments.some((part) => PROTECTED_TOLERANCE_PATH_POLICY.exactSegments.has(part));
     if (protectedPath) throw new Error(`Tolerance rule ${index} cannot target RNG or identity fields`);
   }
 }
@@ -214,7 +277,12 @@ export function compareDifferentialTraces(
   const expected = parseDifferentialTrace(expectedInput);
   const actual = parseDifferentialTrace(actualInput);
   validateToleranceRules(toleranceRules);
-  const comparableInputKeys = ["fixtureId", "era", "countryId", "seed"] as const;
+  if (expected.engine.kind !== "ahdgame" || actual.engine.kind !== "native") {
+    throw new Error("Differential comparison requires an authoritative AHDGame trace followed by a Native trace");
+  }
+  const comparableInputKeys = Object.entries(DIFFERENTIAL_COMPARISON_POLICY.input)
+    .filter(([, policy]) => policy === "compare")
+    .map(([field]) => field as keyof DifferentialTraceInput);
   for (const key of comparableInputKeys) {
     if (expected.input[key] !== actual.input[key]) {
       return {
@@ -248,8 +316,11 @@ export function compareDifferentialTraces(
     if (expectedPhase.name !== actualPhase.name) {
       return { equal: false, classification: "unexplained", phase, path: "name", expected: expectedPhase.name, actual: actualPhase.name };
     }
-    const comparableExpected = { rng: expectedPhase.rng, observations: expectedPhase.observations } as unknown as DifferentialJson;
-    const comparableActual = { rng: actualPhase.rng, observations: actualPhase.observations } as unknown as DifferentialJson;
+    const comparableFields = Object.entries(DIFFERENTIAL_COMPARISON_POLICY.phase)
+      .filter(([, policy]) => policy === "compare")
+      .map(([field]) => field as keyof DifferentialPhaseTrace);
+    const comparableExpected = Object.fromEntries(comparableFields.map((field) => [field, expectedPhase[field]])) as DifferentialJson;
+    const comparableActual = Object.fromEntries(comparableFields.map((field) => [field, actualPhase[field]])) as DifferentialJson;
     const matchingRules = toleranceRules.filter((rule) => rule.phase === expectedPhase.name);
     const difference = firstDifference(comparableExpected, comparableActual, "", matchingRules);
     if (!difference) continue;
