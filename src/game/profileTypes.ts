@@ -53,6 +53,27 @@ export interface ProfileAchievementProgress {
   available: number;
 }
 
+/**
+ * Truthful imperial identity for an imperial save (#54). Every field comes
+ * from the persisted imperial record plus the reference gender-aware title;
+ * wealth, currency and admin-creation claims are never carried because the
+ * local engine cannot back them. Null title = eligible-but-unconfigured
+ * country (ES/SE), rendered without a title claim.
+ */
+export interface ImperialProfileView {
+  id: string;
+  sequentialId?: number;
+  name: string;
+  fullName: string;
+  title: string | null;
+  country: { id: string; name: string };
+  royalHouse: string;
+  homeState?: string;
+  bio?: string;
+  /** Honest admin-creation boundary: the live game creates imperials, offline cannot. */
+  notice: string;
+}
+
 export interface ProfileView {
   name: string;
   bio: string;

@@ -208,6 +208,9 @@ export interface GameView {
 }
 export interface GameScreenProps {
   loadProfile: () => Promise<import("./profileTypes").ProfileView>;
+  /** Imperial gate loaders (#54); absent keeps the ordinary Profile route. */
+  loadProfileDestination?: () => Promise<"profile" | "imperial">;
+  loadImperialProfile?: () => Promise<import("./profileTypes").ImperialProfileView | null>;
   onUpdateProfile: (update: import("./profileTypes").ProfileUpdate) => Promise<boolean>;
   onSelectConstituency: (constituencyId: string) => Promise<boolean>;
   preferences: Preferences;

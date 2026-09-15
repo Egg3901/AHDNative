@@ -109,7 +109,7 @@ const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
   { id: "favorability", short: "Favorability", label: "Favorability" },
 ];
 
-export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, newsStorageKey, onAdvanceTurn, onSave, onExit, onAction, onSectorSale, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
+export function GameScreen({ loadProfile, loadProfileDestination, loadImperialProfile, onUpdateProfile, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, newsStorageKey, onAdvanceTurn, onSave, onExit, onAction, onSectorSale, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("profile");
   const [detailId, setDetailId] = useState<string>();
   // Selected hub category survives route changes so Profile/footer deep-links
@@ -518,7 +518,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
           {route === "settings" && <SettingsPanel value={preferences} onChange={onPreferencesChange} error={preferencesError} />}
           {route === "worldSettings" && <WorldSettingsPanel flags={world.featureFlags} busy={busy} onChange={onUpdateWorldFeatureFlags} />}
           {route === "ask" && <div className="ahd-ask-embed"><AskPanel surface="main" onBeforeSignIn={onSave} /></div>}
-          {route === "profile" ? <ProfileRoute load={loadProfile} revision={world} busy={busy} onUpdateProfile={onUpdateProfile} onSelectConstituency={onSelectConstituency} viewerDisablesAutoplay={preferences.disableAutoplayOnOtherProfiles} onNavigate={(next, id) => {
+          {route === "profile" ? <ProfileRoute load={loadProfile} loadDestination={loadProfileDestination} loadImperial={loadImperialProfile} revision={world} busy={busy} onUpdateProfile={onUpdateProfile} onSelectConstituency={onSelectConstituency} viewerDisablesAutoplay={preferences.disableAutoplayOnOtherProfiles} onNavigate={(next, id) => {
             // Profile deep-links into the hub carry the hub category in `id`;
             // detail ids only apply to non-actions destinations.
             if (next === "actions" && (id === "influence" || id === "fundraising" || id === "intelligence")) {
