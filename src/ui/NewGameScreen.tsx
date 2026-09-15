@@ -8,7 +8,7 @@
  * responsive Tauri web (touch targets, safe-area insets). No proprietary assets copied.
  */
 import { useEffect, useMemo, useState } from "react";
-import { DEFAULT_NPP_AUTONOMY_LEVEL, DEFAULT_WORLD_FEATURE_FLAGS, NPP_AUTONOMY_LEVELS, WORLD_FEATURE_FLAG_DEFINITIONS } from "@ahdclient/engine";
+import { DEFAULT_NPP_AUTONOMY_LEVEL, DEFAULT_WORLD_FEATURE_FLAGS, NPP_AUTONOMY_LEVELS, WORLD_FEATURE_FLAG_DEFINITIONS, isOnePartyCountry } from "@ahdclient/engine";
 import type { NppAutonomyLevel } from "@ahdclient/engine";
 import type { EraChoice, NewGameOptions, NewGameScreenProps, WorldInitialization } from "../game/types";
 import { PartyMark } from "./PartyMark";
@@ -46,6 +46,42 @@ function validate(opts: NewGameOptions, eras: EraChoice[]): Record<string, strin
   return errs;
 }
 
+const EXECUTIVE_OFFICE_TITLES: Record<string, string> = {
+  president: "President",
+  primeMinister: "Prime Minister",
+  chancellor: "Chancellor",
+  premier: "Premier",
+  taoiseach: "Taoiseach",
+  firstMinister: "First Minister",
+  firstSecretary: "First Secretary",
+  generalSecretary: "General Secretary",
+};
+
+/**
+ * HoS seating-path notice (#243 creation-UI slice of #240). The reference
+ * seats the singleplayer head of state through office records
+ * (AHDGame src/lib/singleplayerHeadOfState.ts): president for presidential
+ * systems, the authored executive office otherwise — via parliamentary
+ * appointment (appointPrimeMinister) or the one-party legislature-appointment
+ * system. The engine binds that same office at creation and marks it
+ * permanent (packages/engine/src/world.ts), so the creation screen states
+ * the path before the world exists. Unknown office keys fall back to the
+ * raw key; no title is invented.
+ */
+function hosSeatingNotice(country: { id: string; name: string; headOfStateOffice: string | null }): string | null {
+  const office = country.headOfStateOffice;
+  if (!office) return null;
+  const title = EXECUTIVE_OFFICE_TITLES[office] ?? office;
+  const permanent = "The office is permanent for this world.";
+  if (isOnePartyCountry(country.id)) {
+    return `Seated by legislature appointment as ${title} of ${country.name} when the world starts. ${permanent}`;
+  }
+  if (office === "president") {
+    return `Seated as President of ${country.name} when the world starts. ${permanent}`;
+  }
+  return `Seated by parliamentary appointment as ${title} of ${country.name} when the world starts. ${permanent}`;
+}
+
 export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScreenProps) {
   const [era, setEra] = useState(() => eras[0]?.id ?? "");
   const [countryId, setCountryId] = useState(() => eras[0]?.countries[0]?.id ?? "");
@@ -72,6 +108,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
         ? `No governing party exists for the ${initialization} start in ${activeCountry.name}; Head of State is unavailable.`
         : null;
   const hosEligible = !hosUnavailableReason;
+  const hosSeating = mode === "hos" && activeCountry && previewParty ? hosSeatingNotice(activeCountry) : null;
 
   useEffect(() => {
     if (!activeEra) {
@@ -243,6 +280,11 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
                   {hosUnavailableReason}
                 </p>
               )}
+              {hosSeating ? (
+                <p className="ahd-help" role="note" style={{ marginTop: "0.3rem" }}>
+                  {hosSeating}
+                </p>
+              ) : null}
               {fieldErrors.mode ? <span className="ahd-error-text" role="alert">{fieldErrors.mode}</span> : null}
             </div>
 
