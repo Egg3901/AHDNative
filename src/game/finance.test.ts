@@ -64,3 +64,20 @@ describe("session finance view", () => {
     expect(holding).toMatchObject({ name: "US-media", ticker: "US.MEDI", shares: 1, price: 774, currency: "USD" });
   });
 });
+
+describe("session finance wealth history", () => {
+  it("projects empty wealth history before any turn and recorded points after", () => {
+    const session = new GameSession();
+    session.create(options);
+    expect(session.view().finance.wealthHistory).toEqual([]);
+    session.advance();
+    const finance = session.view().finance;
+    expect(finance.wealthHistory).toHaveLength(1);
+    expect(finance.wealthHistory?.[0]).toMatchObject({
+      turn: 1,
+      cash: finance.cash,
+      savings: finance.savings,
+    });
+    expect(finance.wealthHistory?.[0]?.netWorth).toBeGreaterThanOrEqual(0);
+  });
+});

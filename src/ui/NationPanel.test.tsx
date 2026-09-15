@@ -163,7 +163,8 @@ describe("NationPanel", () => {
     expect(screen.getByText("2.9%")).toBeInTheDocument();
     expect(screen.getByText("-1.3%")).toBeInTheDocument();
     expect(screen.getAllByText(/Turn 1/).length).toBeGreaterThan(0);
-    expect(screen.getByText("2.75%")).toBeInTheDocument();
+    // The recorded prime rate reads both in the trend chart table and the history list.
+    expect(screen.getAllByText("2.75%").length).toBeGreaterThan(0);
   });
 
   it("keeps the macro-history table keyboard-reachable at phone widths", () => {
@@ -524,5 +525,35 @@ describe("NationPanel approval history chart (#385)", () => {
     const disclosure = within(approval).getByText("Chart data table");
     expect(disclosure.tagName.toLowerCase()).toBe("summary");
     expect((disclosure as HTMLElement).style.minHeight).toBe("44px");
+  });
+});
+
+describe("NationPanel economy trend charts", () => {
+  it("charts recorded macro and prime-rate trends with data tables", () => {
+    const base = makeNation().economy;
+    const nation = makeNation({
+      economy: {
+        ...base,
+        macroHistory: [
+          ...base.macroHistory,
+          {
+            turn: 2,
+            gdpMillions: 395_000,
+            growthRate: 0.039,
+            inflationRate: 0.009,
+            unemploymentRate: 0.028,
+            outputGap: 0.5,
+          },
+        ],
+        primeRateHistory: [...base.primeRateHistory, { turn: 2, primeRate: 3 }],
+      },
+    });
+    render(<NationPanel nation={nation} section="economy" clock={CLOCK} />);
+    expect(screen.getByRole("img", { name: /economic trend/i })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: /economic trend data/i })).toHaveTextContent("Turn 2");
+    expect(screen.getByRole("img", { name: /prime-rate trend/i })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: /prime-rate trend data/i })).toHaveTextContent("Turn 2");
+    // Existing values and tables stay on screen alongside the charts.
+    expect(screen.getByText("4.6%")).toBeInTheDocument();
   });
 });

@@ -13,6 +13,7 @@
 import { useState } from "react";
 import type { FinanceView, GameScreenProps } from "../game/types";
 import { RouteHero, bankingHero, bankingHeroAlt } from "./RouteHero";
+import { TrendChart } from "./TrendChart";
 
 export interface FinancePanelProps {
   finance: FinanceView;
@@ -74,6 +75,62 @@ function PortfolioSection({ finance, onNavigate }: { finance: FinanceView; onNav
             </dd>
           </div>
         </dl>
+      </div>
+
+      <div className="ahd-card ahd-card-pad">
+        <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Portfolio trend</h3>
+        {(finance.wealthHistory ?? []).length === 0 ? (
+          <div className="ahd-empty" style={{ marginTop: "0.45rem" }}>
+            No portfolio history recorded yet. History appears after completing a turn.
+          </div>
+        ) : (
+          <div style={{ marginTop: "0.45rem" }}>
+            <TrendChart
+              id="portfolio-trend"
+              title="Portfolio trend"
+              defaultSeriesId="netWorth"
+              emptyMessage="No portfolio history recorded yet."
+              series={[
+                {
+                  id: "netWorth",
+                  label: "Net worth",
+                  points: finance.wealthHistory!.map((p) => ({ turn: p.turn, value: p.netWorth })),
+                  format: (v) => formatFinanceMoney(v, finance.currency),
+                },
+                {
+                  id: "cash",
+                  label: "Cash",
+                  points: finance.wealthHistory!.map((p) => ({ turn: p.turn, value: p.cash })),
+                  format: (v) => formatFinanceMoney(v, finance.currency),
+                },
+                {
+                  id: "savings",
+                  label: "Savings",
+                  points: finance.wealthHistory!.map((p) => ({ turn: p.turn, value: p.savings })),
+                  format: (v) => formatFinanceMoney(v, finance.currency),
+                },
+                {
+                  id: "shares",
+                  label: "Shares value",
+                  points: finance.wealthHistory!.map((p) => ({ turn: p.turn, value: p.sharesValue })),
+                  format: (v) => formatFinanceMoney(v, finance.currency),
+                },
+                {
+                  id: "bonds",
+                  label: "Bonds value",
+                  points: finance.wealthHistory!.map((p) => ({ turn: p.turn, value: p.bondsValue })),
+                  format: (v) => formatFinanceMoney(v, finance.currency),
+                },
+                {
+                  id: "funds",
+                  label: "Funds",
+                  points: finance.wealthHistory!.map((p) => ({ turn: p.turn, value: p.funds })),
+                  format: (v) => formatFinanceMoney(v, finance.currency),
+                },
+              ]}
+            />
+          </div>
+        )}
       </div>
 
       <div className="ahd-card ahd-card-pad">
