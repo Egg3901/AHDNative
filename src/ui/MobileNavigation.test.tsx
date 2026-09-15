@@ -1,4 +1,5 @@
 import { createRef } from "react";
+import { readFileSync } from "node:fs";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -145,6 +146,75 @@ describe("MobileNavigation", () => {
     await user.click(nationToggle);
     expect(nationToggle).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: "National Budget" })).toBeInTheDocument();
+  });
+
+  it("expands the active deep group when opened on its route (#366)", () => {
+    // Reaching a Nation/World destination while the drawer is closed (search
+    // result, notification target, resource link) must not leave that group
+    // collapsed on the next open: the active route's own entry stays visible.
+    const props = {
+      busy: false, playerName: "Ada", playerParty: "Labor", countryName: "United States",
+      turn: 1, date: "1953-01-08", menuButtonRef: createRef<HTMLButtonElement | null>(),
+      onNavigate: vi.fn(), onAdvanceTurn: vi.fn(), onSave: vi.fn(), onExit: vi.fn(), onClose: vi.fn(),
+    };
+    const { rerender } = render(<GameDrawer open route="profile" {...props} />);
+    expect(screen.getByRole("button", { name: "Nation" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "National Budget" })).not.toBeInTheDocument();
+    rerender(<GameDrawer open={false} route="profile" {...props} />);
+    rerender(<GameDrawer open route="economy" {...props} />);
+    expect(screen.getByRole("button", { name: "Nation" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "World" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: "National Budget" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Economy" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("resets deep groups to collapsed when reopened on a shallow route (#366)", async () => {
+    const user = userEvent.setup();
+    const props = {
+      busy: false, playerName: "Ada", playerParty: "Labor", countryName: "United States",
+      turn: 1, date: "1953-01-08", menuButtonRef: createRef<HTMLButtonElement | null>(),
+      onNavigate: vi.fn(), onAdvanceTurn: vi.fn(), onSave: vi.fn(), onExit: vi.fn(), onClose: vi.fn(),
+    };
+    const { rerender } = render(<GameDrawer open route="profile" {...props} />);
+    await user.click(screen.getByRole("button", { name: "Nation" }));
+    expect(screen.getByRole("button", { name: "Nation" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "National Budget" })).toBeInTheDocument();
+    rerender(<GameDrawer open={false} route="profile" {...props} />);
+    rerender(<GameDrawer open route="profile" {...props} />);
+    expect(screen.getByRole("button", { name: "Nation" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: "World" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "National Budget" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Stock market" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the unread badge on the Notifications entry (#366)", () => {
+    const props = {
+      open: true, route: "profile" as const, busy: false, playerName: "Ada", playerParty: "Labor",
+      countryName: "United States", turn: 1, date: "1953-01-08",
+      menuButtonRef: createRef<HTMLButtonElement | null>(),
+      onNavigate: vi.fn(), onAdvanceTurn: vi.fn(), onSave: vi.fn(), onExit: vi.fn(), onClose: vi.fn(),
+    };
+    const { rerender } = render(<GameDrawer {...props} unreadCount={3} />);
+    // The entry keeps its stable accessible name (GameScreenNotifications
+    // navigates by it); the count rides in the visual badge beside the label.
+    const entry = screen.getByRole("button", { name: "Notifications" });
+    expect(within(entry).getByText("3")).toBeInTheDocument();
+    rerender(<GameDrawer {...props} unreadCount={0} />);
+    expect(within(screen.getByRole("button", { name: "Notifications" })).queryByText("3")).not.toBeInTheDocument();
+  });
+
+  it("keeps phone chrome compact: narrow drawer, 44px targets, safe areas (#366)", () => {
+    const css = readFileSync("src/ui/ui.css", "utf8");
+    // Drawer never covers the full phone width, so the backdrop stays tappable.
+    expect(css).toMatch(/\.ahd-drawer[^{]*\{[^}]*width:\s*min\(19rem,\s*calc\(100vw - 3\.5rem\)\)/);
+    // Bottom nav keeps four phone columns; every nav touch target is 44px+.
+    expect(css).toMatch(/\.ahd-bottomnav[^{]*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
+    expect(css).toMatch(/\.ahd-bottomnav-item[^{]*\{[^}]*min-height:\s*56px/);
+    expect(css).toMatch(/\.ahd-drawer-item[^{]*\{[^}]*min-height:\s*44px/);
+    expect(css).toMatch(/\.ahd-drawer-disclosure[^{]*\{[^}]*min-height:\s*44px/);
+    // Drawer and footer respect the phone safe areas.
+    expect(css).toMatch(/\.ahd-drawer[^{]*\{[^}]*env\(safe-area-inset-top\)/);
+    expect(css).toMatch(/\.ahd-footer[^{]*\{[^}]*env\(safe-area-inset-bottom\)/);
   });
 
   it("drawer busy state disables turn actions", () => {

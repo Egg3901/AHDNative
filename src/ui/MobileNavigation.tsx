@@ -359,6 +359,19 @@ export function GameDrawer({
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
     () => new Set(activeGroup && ["Nation", "World"].includes(activeGroup) ? [activeGroup] : []),
   );
+  // #366: the drawer stays mounted while closed, so routes reached without it
+  // (search results, notification targets, resource links) would leave a stale
+  // disclosure behind. Every open resets to the compact default: exactly the
+  // active deep group expanded, everything else collapsed. Toggles while open
+  // are untouched.
+  useEffect(() => {
+    if (!open) return;
+    const deflated = activeGroup && ["Nation", "World"].includes(activeGroup) ? [activeGroup] : [];
+    setExpandedGroups((current) => {
+      if (current.size === deflated.length && deflated.every((group) => current.has(group))) return current;
+      return new Set(deflated);
+    });
+  }, [open, activeGroup]);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
 
