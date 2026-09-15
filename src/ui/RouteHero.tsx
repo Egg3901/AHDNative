@@ -94,13 +94,26 @@ export const COMMODITY_HERO_IMAGE: Record<string, string> = {
   consulting_services: "/static/heroes/commodity-consulting-services.webp",
 };
 
-/** Reference alt text (`COMMODITY_HERO_ALTS`) for the bundled commodity heroes. */
+/**
+ * Alt text for the bundled commodity heroes.
+ *
+ * Source: reference `COMMODITY_HERO_ALTS` (AHDGame
+ * `src/lib/constants/commodities.ts`) except where the reference wording
+ * contradicts the bundled bytes. Three entries are corrected against the
+ * inspected local WebP plus the upstream file identity recorded in the hero
+ * route (`src/app/api/images/hero/[slug]/route.ts`): `energy` shows the
+ * Anacortes oil refinery (distillation towers, steam plume, waterfront;
+ * not power lines), `freight` shows a hull marked MAERSK SEALAND (no
+ * "Sovereign" vessel name appears in the file or the route manifest), and
+ * `pharmaceuticals` shows blister packs of pills (File:Pill 3.jpg; no
+ * manufacturing line).
+ */
 export const COMMODITY_HERO_ALT: Record<string, string> = {
   steel: "Showa Steel Works industrial facility",
   electronics: "TSMC semiconductor fabrication plant",
-  energy: "High-voltage power lines at sunset",
+  energy: "Anacortes oil refinery",
   chemicals: "BASF chemical plant in Ludwigshafen",
-  pharmaceuticals: "Pharmaceutical manufacturing line with packaged medicines",
+  pharmaceuticals: "Blister packs of assorted pills",
   food: "Combine harvester gathering wheat",
   building_materials: "Construction site with building materials",
   software: "Wikimedia Foundation server room",
@@ -108,10 +121,22 @@ export const COMMODITY_HERO_ALT: Record<string, string> = {
   advertising: "Broadway and Times Square lit up at night",
   vehicles: "Hyundai car assembly line",
   retail: "Macy's department store at Herald Square",
-  freight: "Sovereign Maersk container ship at sea",
+  freight: "Maersk Sealand container ship at sea",
   consulting_services: "Booz Allen Hamilton office in Washington D.C.",
 };
 
 export function commodityHero(commodity: string): string {
   return COMMODITY_HERO_IMAGE[commodity] ?? "/static/heroes/actions.webp";
+}
+
+/** Nonempty accessible-name fallback for commodity keys with no bundled art. */
+export const COMMODITY_HERO_FALLBACK_ALT = "Commodity hero image";
+
+/**
+ * Total alt-text resolver: exact-key lookup, no case folding or trimming,
+ * so `"STEEL"`, `" steel"` and `""` all take the fallback. Total over
+ * strings — never undefined, never empty.
+ */
+export function commodityHeroAlt(commodity: string): string {
+  return COMMODITY_HERO_ALT[commodity] ?? COMMODITY_HERO_FALLBACK_ALT;
 }
