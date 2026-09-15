@@ -2,9 +2,15 @@
  * ProfilePanel: own character profile.
  *
  * Layout hierarchy adapted from the public AHDGame reference:
- *   src/app/profile/components/ProfileHeader.tsx (portrait with initials
- *   fallback, name, party chip, home region and country links, office label,
- *   inline biography),
+ *   src/app/profile/components/ProfileHeader.tsx (banner strip with custom
+ *   header or accent-gradient fallback, overlap identity row with portrait and
+ *   initials fallback, name, party chip, home region and country links, office
+ *   label, inline biography) plus the overlap offsets in
+ *   src/lib/constants/profileHeroLayout.ts. The banner strip is a RouteHero
+ *   using the bundled offline politicians asset (#371) instead of the
+ *   reference gradient, and server-only elements (Patreon/admin badges,
+ *   copy-link, wiki link, member-since, CountryFlag) are omitted: no lawful
+ *   flag asset is bundled and offline play has no supporter tiers.
  *   src/app/profile/components/PoliticalStanding.tsx (actions with cap and
  *   per turn rate plus Campaign Office link, state influence, national
  *   influence, favorability, infamy, conditional party influence),
@@ -26,6 +32,7 @@ import { useRef, useState } from "react";
 import type { ProfileUpdate, ProfileView } from "../game/profileTypes";
 import type { DrawerRouteId } from "./MobileNavigation";
 import { campaignSongId } from "../game/profileValidation";
+import { RouteHero, profileHeroImage } from "./RouteHero";
 import { CampaignSongPlayer } from "./CampaignSongPlayer";
 import { PolicyCompass, policyAxisLabel, type CompassMarker } from "./PolicyCompass";
 import { ResourceBreakdown } from "./ResourceBreakdown";
@@ -336,14 +343,14 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, onSel
   return (
     <div className="ahd-stack ahd-profile">
       <section aria-label="Character" className="ahd-card ahd-card-pad ahd-profile-header ahd-hero">
-        {profile.profileHeaderUrl ? (
-          <img
-            src={profile.profileHeaderUrl}
-            alt={`${profile.name} profile header`}
-            className="ahd-profile-banner"
-          />
-        ) : null}
-        <div className="ahd-profile-idrow">
+        <RouteHero
+          image={profileHeroImage(profile.profileHeaderUrl)}
+          alt={profile.profileHeaderUrl ? `${profile.name} profile header` : "Politicians meeting in a national chamber"}
+          eyebrow={profile.country.name}
+          title={profile.name}
+          className="ahd-profile-hero"
+        />
+        <div className="ahd-profile-hero-id">
           <div className="ahd-profile-photo">
             {profile.avatarUrl ? (
               <img
@@ -358,7 +365,6 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, onSel
             )}
           </div>
           <div className="ahd-profile-idtext">
-            <h1 className="ahd-h1 ahd-profile-name">{profile.name}</h1>
             <div className="ahd-profile-chips">
               {profile.party ? (
                 <button
@@ -388,9 +394,6 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, onSel
                 </span>
               )}
             </div>
-
-          </div>
-        </div>
             <div className="ahd-profile-places">
               {profile.homeRegion ? (
                 <button
@@ -414,6 +417,8 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, onSel
                 {profile.country.name}
               </button>
             </div>
+          </div>
+        </div>
         <div className="ahd-profile-photoactions">
           <input
             ref={fileRef}
