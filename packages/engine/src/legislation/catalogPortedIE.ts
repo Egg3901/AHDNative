@@ -1,7 +1,7 @@
 import type { CatalogEntry } from "./catalog.js";
 /**
  * IE legislation catalog. Generated from mainline AHDGame — DO NOT HAND-EDIT.
- * Generated: 2026-09-02 by packages/content/scripts/generateCatalogs.ts
+ * Generator: packages/content/scripts/generateCatalogs.ts
  * Source: src/lib/seeds/ie/ieLegislationTypes.ts (58 types),
  * src/lib/politicalLegislation/marginAdapter.ts ADAPTER_TIER1 (target mapping),
  * src/lib/seeds/reference/budgets.ts policyDefaults (tax baselines). See the
@@ -20,7 +20,7 @@ export const CATALOG_IE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "domesticCorporateTax", minRate: 0, maxRate: 33, step: 2, baselineRate: 12.5 },
     targets: [{"metricId":"economic.gdpGrowth","weight":1},{"metricId":"economic.unemploymentRate","weight":0.4},{"metricId":"society.socialMobility","weight":-0.3},{"metricId":"governance.budgetBalance","weight":-0.4}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.gdpGrowth,economic.unemploymentRate,governance.budgetBalance",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: ieLegislationTypes.ts ie_foreign_corporate_tax_rate; baselineRate from budget policyDefaults option ie_foreign_corporate_tax_rate_opt_3
@@ -34,7 +34,7 @@ export const CATALOG_IE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "foreignCorporateTax", minRate: 0, maxRate: 33, step: 2, baselineRate: 12.5 },
     targets: [{"metricId":"economic.gdpGrowth","weight":1},{"metricId":"economic.tradeBalance","weight":0.4},{"metricId":"economic.fdiPipelineStrength","weight":0.6},{"metricId":"economic.mncDependency","weight":-0.5},{"metricId":"governance.budgetBalance","weight":-0.4}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.gdpGrowth,economic.tradeBalance,economic.fdiPipelineStrength,economic.mncDependency,governance.budgetBalance",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: ieLegislationTypes.ts ie_income_tax_rate; baselineRate from budget policyDefaults option ie_income_tax_rate_opt_5
@@ -48,7 +48,7 @@ export const CATALOG_IE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "incomeTax", minRate: 0, maxRate: 55, step: 5, baselineRate: 30 },
     targets: [{"metricId":"economic.medianIncome","weight":1},{"metricId":"economic.povertyRate","weight":-0.5},{"metricId":"society.socialMobility","weight":-0.7},{"metricId":"economic.gdpGrowth","weight":0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.medianIncome,economic.povertyRate,economic.gdpGrowth",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: ieLegislationTypes.ts ie_usc; baselineRate from budget policyDefaults option ie_usc_opt_5
@@ -62,7 +62,7 @@ export const CATALOG_IE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "universalSocialCharge", minRate: 0, maxRate: 20, step: 1, baselineRate: 8 },
     targets: [{"metricId":"economic.medianIncome","weight":1},{"metricId":"economic.povertyRate","weight":-0.4},{"metricId":"governance.budgetBalance","weight":-0.5},{"metricId":"society.socialMobility","weight":-0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.medianIncome,economic.povertyRate,governance.budgetBalance",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: ieLegislationTypes.ts ie_prsi; baselineRate from budget policyDefaults option ie_prsi_opt_5
@@ -76,7 +76,7 @@ export const CATALOG_IE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "payrollTax", minRate: 0, maxRate: 26, step: 2, baselineRate: 11 },
     targets: [{"metricId":"economic.unemploymentRate","weight":1},{"metricId":"economic.medianIncome","weight":0.4},{"metricId":"governance.budgetBalance","weight":-0.5},{"metricId":"society.socialMobility","weight":-0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.unemploymentRate,economic.medianIncome,governance.budgetBalance",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: ieLegislationTypes.ts ie_vat_rate; baselineRate from budget policyDefaults option ie_vat_rate_opt_5
@@ -90,7 +90,7 @@ export const CATALOG_IE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "salesTax", minRate: 0, maxRate: 35, step: 2, baselineRate: 21 },
     targets: [{"metricId":"economic.costOfLiving","weight":-1},{"metricId":"economic.gdpGrowth","weight":-0.25},{"metricId":"economic.povertyRate","weight":-0.6},{"metricId":"economic.smallBusinessFormation","weight":-0.3},{"metricId":"governance.budgetBalance","weight":-0.5}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.costOfLiving,economic.gdpGrowth,economic.povertyRate,economic.smallBusinessFormation,governance.budgetBalance",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: ieLegislationTypes.ts ie_customs_tariff_rate; baselineRate from budget policyDefaults option ie_customs_tariff_rate_opt_0
@@ -104,7 +104,7 @@ export const CATALOG_IE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "tariffs", minRate: 0, maxRate: 50, step: 2, baselineRate: 0 },
     targets: [{"metricId":"economic.tradeBalance","weight":1},{"metricId":"economic.costOfLiving","weight":-0.4},{"metricId":"economic.manufacturingCompetitiveness","weight":0.4},{"metricId":"economic.fdiPipelineStrength","weight":-0.5},{"metricId":"economic.mncDependency","weight":0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.tradeBalance,economic.costOfLiving,economic.manufacturingCompetitiveness,economic.fdiPipelineStrength,economic.mncDependency",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: ieLegislationTypes.ts ie_local_property_tax; baselineRate from budget policyDefaults option ie_local_property_tax_opt_4
@@ -118,7 +118,7 @@ export const CATALOG_IE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "propertyTax", minRate: 0, maxRate: 1, step: 0.03, baselineRate: 0.18 },
     targets: [{"metricId":"infrastructure.publicHousing","weight":-0.8},{"metricId":"social.vacantPropertyRate","weight":-0.4},{"metricId":"governance.budgetBalance","weight":-0.5},{"metricId":"society.socialMobility","weight":-0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/social.vacantPropertyRate,governance.budgetBalance",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: ieLegislationTypes.ts ie_stamp_duty; baselineRate from budget policyDefaults option ie_stamp_duty_opt_3
@@ -132,7 +132,7 @@ export const CATALOG_IE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "stampDuty", minRate: 0, maxRate: 20, step: 0.5, baselineRate: 2 },
     targets: [{"metricId":"economic.smallBusinessFormation","weight":0.5},{"metricId":"infrastructure.publicHousing","weight":-0.4},{"metricId":"social.vacantPropertyRate","weight":-0.3},{"metricId":"governance.budgetBalance","weight":-0.4},{"metricId":"social.rentalPressureIndex","weight":-0.2}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.smallBusinessFormation,social.vacantPropertyRate,governance.budgetBalance,social.rentalPressureIndex",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: ieLegislationTypes.ts ie_capital_gains_tax; baselineRate from budget policyDefaults option ie_capital_gains_tax_opt_5
@@ -146,7 +146,7 @@ export const CATALOG_IE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "capitalGainsTax", minRate: 0, maxRate: 55, step: 5, baselineRate: 25 },
     targets: [{"metricId":"economic.smallBusinessFormation","weight":0.6},{"metricId":"economic.fdiPipelineStrength","weight":0.3},{"metricId":"society.socialMobility","weight":-0.5},{"metricId":"governance.budgetBalance","weight":-0.4}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.smallBusinessFormation,economic.fdiPipelineStrength,governance.budgetBalance",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: ieLegislationTypes.ts ie_excise_duty; baselineRate from budget policyDefaults option ie_excise_duty_opt_4
@@ -160,7 +160,7 @@ export const CATALOG_IE: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "exciseDuty", minRate: 0, maxRate: 300, step: 25, baselineRate: 100 },
     targets: [{"metricId":"environment.stewardship","weight":0.5},{"metricId":"environment.agriEmissionsShare","weight":0.2},{"metricId":"economic.costOfLiving","weight":-0.4},{"metricId":"governance.budgetBalance","weight":-0.5},{"metricId":"society.socialMobility","weight":0.2}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/environment.agriEmissionsShare,economic.costOfLiving,governance.budgetBalance",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: ieLegislationTypes.ts ie_housing_policy
@@ -703,7 +703,7 @@ export const CATALOG_IE: CatalogEntry[] = [
     title: "Regional Health Services Delivery Act",
     description: "Sets regional HSE network funding and community-health investment per RHA",
     category: "healthcare",
-    allowedScope: "both",
+    allowedScope: "regional",
     targets: [{"metricId":"health.outcomes","weight":1},{"metricId":"healthcare.hseWaitingListMonths","weight":0.4},{"metricId":"health.prevention","weight":0.3},{"metricId":"governance.budgetBalance","weight":-0.3}],
     status: "unavailable",
     blockingSystem: "politicalMetrics/healthcare.hseWaitingListMonths,governance.budgetBalance",
@@ -716,7 +716,7 @@ export const CATALOG_IE: CatalogEntry[] = [
     title: "Regional Housing Strategy Act",
     description: "Sets RSES housing targets, LDA activation, and AHB pipeline per region",
     category: "housing",
-    allowedScope: "both",
+    allowedScope: "regional",
     targets: [{"metricId":"social.housingCompletionsRate","weight":1},{"metricId":"infrastructure.publicHousing","weight":0.5},{"metricId":"social.vacantPropertyRate","weight":0.4},{"metricId":"social.rentalPressureIndex","weight":0.3},{"metricId":"governance.budgetBalance","weight":-0.3}],
     status: "unavailable",
     blockingSystem: "politicalMetrics/social.housingCompletionsRate,social.vacantPropertyRate,social.rentalPressureIndex,governance.budgetBalance",
@@ -729,7 +729,7 @@ export const CATALOG_IE: CatalogEntry[] = [
     title: "Regional Transport Infrastructure Act",
     description: "Sets Connecting Ireland rural mobility, regional rail, and LIS funding per region",
     category: "infrastructure",
-    allowedScope: "both",
+    allowedScope: "regional",
     targets: [{"metricId":"infrastructure.transit","weight":0.8},{"metricId":"infrastructure.highways","weight":0.4},{"metricId":"economic.ruralRevitalization","weight":0.5},{"metricId":"infrastructure.condition","weight":-0.3},{"metricId":"governance.budgetBalance","weight":-0.3}],
     status: "unavailable",
     blockingSystem: "politicalMetrics/economic.ruralRevitalization,governance.budgetBalance",
@@ -742,7 +742,7 @@ export const CATALOG_IE: CatalogEntry[] = [
     title: "Regional Skills Forum Strategy Act",
     description: "Sets Regional Skills Fora, FET Strategy, and ETB capital programme per region",
     category: "education",
-    allowedScope: "both",
+    allowedScope: "regional",
     targets: [{"metricId":"education.adultSkills","weight":1.5},{"metricId":"economic.ruralRevitalization","weight":0.4},{"metricId":"economic.unemploymentRate","weight":0.3},{"metricId":"governance.budgetBalance","weight":-0.3}],
     status: "unavailable",
     blockingSystem: "politicalMetrics/economic.ruralRevitalization,economic.unemploymentRate,governance.budgetBalance",

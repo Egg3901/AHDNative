@@ -31,8 +31,8 @@
  *    through ADAPTER_TIER1 name blockingSystem "legislation/effectDescriptor"
  *    (targets ready for the DECAY channel, effect pending); the rest name
  *    "politicalMetrics/<unmapped ids>". Tax entries carry their taxPolicy ladder but the
- *    rate write itself is PORT-STUB in billLifecycle.ts (budget/taxRateLadder),
- *    so they get no special availability. No immediate `effect` descriptor is derived (those
+ *    rate write itself is PORT-STUB in billLifecycle.ts, so their named blocker
+ *    is "budget/taxRateLadder". No immediate `effect` descriptor is derived (those
  *    were hand-authored for US; deriving them mechanically would invent
  *    numbers).
  */
@@ -46,11 +46,37 @@ import { cnLegislationTypes } from "@/lib/seeds/cn/cnLegislationTypes";
 import { brLegislationTypes } from "@/lib/seeds/br/brLegislationTypes";
 import { ADAPTER_TIER1 } from "@/lib/politicalLegislation/marginAdapter";
 import { getNationalBudgetSeedConfigsForPreset } from "@/lib/seeds/reference/budgets";
+import { US_LAWS } from "@/lib/politicalLegislation/laws/usLaws";
+import { UK_LAWS } from "@/lib/politicalLegislation/laws/ukLaws";
+import { RU_LAWS } from "@/lib/politicalLegislation/laws/ruLaws";
+import { DD_LAWS } from "@/lib/politicalLegislation/laws/ddLaws";
+import { STUBBED_CATALOG } from "../../engine/src/legislation/catalog.js";
+import { assertPinnedSourceCheckout } from "./catalogSourceCheckout.js";
 
 const OUT = path.resolve(import.meta.dirname, "../../engine/src/legislation");
 
 type Opt = { id: string; name: string; rate?: number; economic?: number; social?: number; effectDirection?: number };
-type LT = { _id: string; name: string; description?: string; policyDomain?: string; nationalOnly?: boolean; effectTargetsWeighted?: Array<{ metricCategoryId: string; metricId: string; weight: number }>; taxRateChange?: { scope: string; taxType: string }; policyOptions?: Opt[]; isPermanent?: boolean; source?: string };
+type LT = { _id: string; name: string; description?: string; policyDomain?: string; nationalOnly?: boolean; allowedScope?: "state"; effectTargetsWeighted?: Array<{ metricCategoryId: string; metricId: string; weight: number }>; positions?: Array<{ positionId: string; name: string; chamber: string }>; taxRateChange?: { scope: string; taxType: string }; policyOptions?: Opt[]; isPermanent?: boolean; source?: string };
+
+const SOURCE_REVISION = "e364c04954ed628beef73a993a8e9e156650a31e";
+const CHECK = process.argv.includes("--check");
+const sourceRootArg = process.argv.indexOf("--source-root");
+const sourceRoot = path.resolve(sourceRootArg >= 0 ? process.argv[sourceRootArg + 1] ?? "" : process.cwd());
+type InventoryRow = { id: string; countryId: string; nativeScope: string; sourceScope: string | null; prerequisites: string[]; authoredTargets: string[]; taxRateChange: { scope: string; taxType: string } | null; authoredRateOptions: Array<{ id: string; rate: number }>; blockingSystem: string; sourcePath: string; sourceMatch: "matched" | "unmatched" };
+const inventory: InventoryRow[] = [];
+
+assertPinnedSourceCheckout(sourceRoot, SOURCE_REVISION);
+
+function writeGenerated(file: string, content: string): void {
+  const output = path.join(OUT, file);
+  if (CHECK) {
+    if (!fs.existsSync(output) || fs.readFileSync(output, "utf8") !== content) {
+      throw new Error(`${file} is stale; run the catalog generator`);
+    }
+    return;
+  }
+  fs.writeFileSync(output, content);
+}
 
 const adapter = ADAPTER_TIER1 as Record<string, string>;
 const q = (s: string) => JSON.stringify(s);
@@ -113,7 +139,22 @@ function emit(c: string, types: LT[]): void {
     const mapped = targets.length > 0 && unmapped.length === 0;
     if (mapped) available++;
     const isAvailable = false;
-    const blocker = mapped ? "legislation/effectDescriptor" : "politicalMetrics/" + unmapped.join(",");
+    const blocker = isTax ? "budget/taxRateLadder" : mapped ? "legislation/effectDescriptor" : "politicalMetrics/" + unmapped.join(",");
+    const sourceScope = t.allowedScope ?? (t.taxRateChange?.scope === "state" ? "state" : t.nationalOnly ? "national" : "both");
+    const nativeScope = sourceScope === "state" ? "regional" : sourceScope;
+    inventory.push({
+      id: t._id,
+      countryId: c,
+      nativeScope,
+      sourceScope,
+      prerequisites: t.positions?.length ? t.positions.map((p) => `${p.chamber}:${p.positionId}`) : ["positions:none-authored"],
+      authoredTargets: (t.effectTargetsWeighted ?? []).map((e) => `${e.metricCategoryId}.${e.metricId}`),
+      taxRateChange: t.taxRateChange ?? null,
+      authoredRateOptions: (t.policyOptions ?? []).flatMap((option) => typeof option.rate === "number" ? [{ id: option.id, rate: option.rate }] : []),
+      blockingSystem: blocker,
+      sourcePath: `src/lib/seeds/${c.toLowerCase()}/${c.toLowerCase()}LegislationTypes.ts`,
+      sourceMatch: "matched",
+    });
     lines.push(
       "  {",
       `    // source: ${t.source ?? `${c.toLowerCase()}LegislationTypes.ts ${t._id}`}${taxNote ? `; ${taxNote}` : ""}`,
@@ -123,7 +164,7 @@ function emit(c: string, types: LT[]): void {
       `    title: ${q(t.name)},`,
       `    description: ${q(t.description ?? "")},`,
       `    category: ${q(t.policyDomain ?? "governance")},`,
-      `    allowedScope: ${q(t.nationalOnly ? "national" : "both")},`,
+      `    allowedScope: ${q(nativeScope)},`,
       ...(taxPolicy ? [taxPolicy.trimEnd()] : []),
       `    targets: ${JSON.stringify(targets)},`,
       `    status: ${q(isAvailable ? "available" : "unavailable")},`,
@@ -132,7 +173,7 @@ function emit(c: string, types: LT[]): void {
     );
   }
   lines.push("];", "");
-  fs.writeFileSync(path.join(OUT, `catalogPorted${c}.ts`), lines.join("\n"));
+  writeGenerated(`catalogPorted${c}.ts`, lines.join("\n"));
   console.log(`wrote catalogPorted${c}.ts: ${seen.size} entries (all PORT-STUB; ${available} with fully mapped targets, ${tax} tax)`);
 }
 
@@ -141,4 +182,39 @@ emit("DE", deLegislationTypes as unknown as LT[]);
 emit("IE", ieLegislationTypes as unknown as LT[]);
 emit("CN", cnLegislationTypes as unknown as LT[]);
 emit("BR", brLegislationTypes as unknown as LT[]);
+
+const sourceCatalogs = [
+  ["US", US_LAWS, "usLaws.ts"], ["UK", UK_LAWS, "ukLaws.ts"],
+  ["RU", RU_LAWS, "ruLaws.ts"], ["DD", DD_LAWS, "ddLaws.ts"],
+] as const;
+for (const native of STUBBED_CATALOG.filter((entry) => !["JP", "DE", "IE", "CN", "BR"].includes(entry.countryId))) {
+  const sourceMatches = sourceCatalogs.flatMap(([countryId, laws, file]) =>
+    countryId === native.countryId ? laws.filter((law) => law.id === native.id).map((law) => ({ law, file })) : []);
+  if (sourceMatches.length > 1) throw new Error(`Ambiguous AHDGame source rows for ${native.countryId}/${native.id}`);
+  const sourceMatch = sourceMatches[0];
+  const law = sourceMatch?.law;
+  if (law && sourceMatch) {
+    inventory.push({ id: law.id, countryId: native.countryId, nativeScope: native.allowedScope, sourceScope: law.allowedScope,
+      prerequisites: law.window ? [`active:${law.window.from}-${law.window.to ?? "open"}`] : ["active:any-year"],
+      authoredTargets: law.targets.map((target) => target.metricId), taxRateChange: law.taxPolicy ? { scope: law.taxPolicy.scope, taxType: law.taxPolicy.taxType } : null,
+      authoredRateOptions: law.taxPolicy?.waypoints.map((option) => ({ id: option.label, rate: option.rate })) ?? [], blockingSystem: native.blockingSystem!,
+      sourcePath: `src/lib/politicalLegislation/laws/${sourceMatch.file}`, sourceMatch: "matched" });
+  } else {
+    inventory.push({ id: native.id, countryId: native.countryId, nativeScope: native.allowedScope, sourceScope: null,
+      prerequisites: [], authoredTargets: [], taxRateChange: null, authoredRateOptions: [], blockingSystem: native.blockingSystem!,
+      sourcePath: "NO_AHDGAME_SOURCE_MATCH", sourceMatch: "unmatched" });
+  }
+}
+inventory.sort((a, b) => a.id.localeCompare(b.id));
+const inventoryOut = [
+  "/** Generated by packages/content/scripts/generateCatalogs.ts. DO NOT EDIT.",
+  ` * AHDGame revision: ${SOURCE_REVISION}`,
+  " * Regenerate from sibling checkouts: cd ../AHDGame && npx tsx ../AHDNative/packages/content/scripts/generateCatalogs.ts --source-root .",
+  " */",
+  `export const UNAVAILABLE_LAW_SOURCE_REVISION = ${q(SOURCE_REVISION)};`,
+  `export const UNAVAILABLE_LAW_INVENTORY = ${JSON.stringify(inventory, null, 2)} as const;`,
+  "",
+].join("\n");
+writeGenerated("catalogUnavailableInventory.ts", inventoryOut);
+console.log(`wrote catalogUnavailableInventory.ts: ${inventory.length} unavailable entries`);
 console.log("done");

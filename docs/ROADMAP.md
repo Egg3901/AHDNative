@@ -735,6 +735,15 @@ Country-specific cabinet, court and appointment controls beyond the surfaced
 office classification remain owned by #63, #65 and #101 rather than being
 silently represented as implemented here.
 
+#282 complete. The generated unavailable-law inventory accounts for all 269
+Native PORT-STUB rows: 257 JP/DE/IE/CN/BR seed rows and 12 hand-ported
+US/UK/RU/DD rows. Each record preserves its AHDGame source revision and path,
+scope, authored eligibility prerequisites and effect targets, plus the named
+Native subsystem required before release. Five Native-only US placeholder ids
+have no matching row at the pinned AHDGame revision and say so explicitly.
+`generateCatalogs.ts --check` detects drift without changing availability, and
+the focused inventory contract proves exact coverage against the public catalog.
+
 #241 complete. `NewGameScreen` captures the reference world-setup fields and
 carries them through `NewGameOptions` into the engine `NewWorldOptions`:
 `mode` (`career` | `hos`), `homeRegionId`, and `initialization`

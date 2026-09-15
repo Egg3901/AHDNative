@@ -1,7 +1,7 @@
 import type { CatalogEntry } from "./catalog.js";
 /**
  * JP legislation catalog. Generated from mainline AHDGame — DO NOT HAND-EDIT.
- * Generated: 2026-09-02 by packages/content/scripts/generateCatalogs.ts
+ * Generator: packages/content/scripts/generateCatalogs.ts
  * Source: src/lib/seeds/jp/jpLegislationTypes.ts (63 types),
  * src/lib/politicalLegislation/marginAdapter.ts ADAPTER_TIER1 (target mapping),
  * src/lib/seeds/reference/budgets.ts policyDefaults (tax baselines). See the
@@ -20,7 +20,7 @@ export const CATALOG_JP: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "incomeTax", minRate: 0, maxRate: 50, step: 5, baselineRate: 25 },
     targets: [{"metricId":"economic.medianIncome","weight":1},{"metricId":"economic.povertyRate","weight":0.5},{"metricId":"economic.gdpGrowth","weight":0.4},{"metricId":"society.socialMobility","weight":-0.6}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.medianIncome,economic.povertyRate,economic.gdpGrowth",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate = median authored option (no policyDefaults entry for this preset; PORT-STUB)
@@ -34,7 +34,7 @@ export const CATALOG_JP: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "domesticCorporateTax", minRate: 0, maxRate: 46, step: 4, baselineRate: 23 },
     targets: [{"metricId":"economic.smallBusinessFormation","weight":1},{"metricId":"economic.gdpGrowth","weight":0.5},{"metricId":"economic.unemploymentRate","weight":0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.smallBusinessFormation,economic.gdpGrowth,economic.unemploymentRate",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate = median authored option (no policyDefaults entry for this preset; PORT-STUB)
@@ -48,7 +48,7 @@ export const CATALOG_JP: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "foreignCorporateTax", minRate: 0, maxRate: 65, step: 6, baselineRate: 32 },
     targets: [{"metricId":"economic.gdpGrowth","weight":1},{"metricId":"economic.unemploymentRate","weight":0.2},{"metricId":"economic.smallBusinessFormation","weight":-0.3},{"metricId":"economic.costOfLiving","weight":0.2}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.gdpGrowth,economic.unemploymentRate,economic.smallBusinessFormation,economic.costOfLiving",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate = median authored option (no policyDefaults entry for this preset; PORT-STUB)
@@ -62,7 +62,7 @@ export const CATALOG_JP: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "payrollTax", minRate: 0, maxRate: 30, step: 3, baselineRate: 15 },
     targets: [{"metricId":"society.integration","weight":1},{"metricId":"health.socialInsurance","weight":0.6},{"metricId":"healthcare.mentalHealthAccess","weight":0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/healthcare.mentalHealthAccess",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate = median authored option (no policyDefaults entry for this preset; PORT-STUB)
@@ -76,7 +76,7 @@ export const CATALOG_JP: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "tariffs", minRate: 0, maxRate: 20, step: 0.5, baselineRate: 4 },
     targets: [{"metricId":"economic.gdpGrowth","weight":1},{"metricId":"economic.foodSecurity","weight":0.4},{"metricId":"economic.smallBusinessFormation","weight":-0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.gdpGrowth,economic.foodSecurity,economic.smallBusinessFormation",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate = median authored option (no policyDefaults entry for this preset; PORT-STUB)
@@ -90,7 +90,7 @@ export const CATALOG_JP: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "salesTax", minRate: 0, maxRate: 25, step: 1, baselineRate: 10 },
     targets: [{"metricId":"economic.costOfLiving","weight":-1},{"metricId":"economic.gdpGrowth","weight":-0.25},{"metricId":"economic.povertyRate","weight":-0.4},{"metricId":"economic.foodSecurity","weight":-0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.costOfLiving,economic.gdpGrowth,economic.povertyRate,economic.foodSecurity",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate = median authored option (no policyDefaults entry for this preset; PORT-STUB)
@@ -100,11 +100,11 @@ export const CATALOG_JP: CatalogEntry[] = [
     title: "Prefectural Resident Tax Act",
     description: "Sets the combined prefectural and municipal resident tax rate applied to income",
     category: "tax",
-    allowedScope: "both",
+    allowedScope: "regional",
     taxPolicy: { scope: "state", taxType: "residentTax", minRate: 0, maxRate: 20, step: 2, baselineRate: 10 },
     targets: [{"metricId":"governance.integrity","weight":1},{"metricId":"education.universalSchooling","weight":0.4},{"metricId":"order.safety","weight":0.3}],
     status: "unavailable",
-    blockingSystem: "legislation/effectDescriptor",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate = median authored option (no policyDefaults entry for this preset; PORT-STUB)
@@ -114,11 +114,11 @@ export const CATALOG_JP: CatalogEntry[] = [
     title: "Fixed Asset Tax Act",
     description: "Sets the tax rate on land, buildings, and depreciable business assets",
     category: "tax",
-    allowedScope: "both",
+    allowedScope: "regional",
     taxPolicy: { scope: "state", taxType: "fixedAssetTax", minRate: 0, maxRate: 5, step: 0.2, baselineRate: 1.4 },
     targets: [{"metricId":"economic.costOfLiving","weight":1},{"metricId":"economic.smallBusinessFormation","weight":-0.3},{"metricId":"governance.integrity","weight":0.4}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.costOfLiving,economic.smallBusinessFormation",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed

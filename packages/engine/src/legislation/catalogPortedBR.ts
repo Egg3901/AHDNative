@@ -1,7 +1,7 @@
 import type { CatalogEntry } from "./catalog.js";
 /**
  * BR legislation catalog. Generated from mainline AHDGame — DO NOT HAND-EDIT.
- * Generated: 2026-09-02 by packages/content/scripts/generateCatalogs.ts
+ * Generator: packages/content/scripts/generateCatalogs.ts
  * Source: src/lib/seeds/br/brLegislationTypes.ts (14 types),
  * src/lib/politicalLegislation/marginAdapter.ts ADAPTER_TIER1 (target mapping),
  * src/lib/seeds/reference/budgets.ts policyDefaults (tax baselines). See the
@@ -20,7 +20,7 @@ export const CATALOG_BR: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "incomeTax", minRate: 0, maxRate: 30, step: 5, baselineRate: 18 },
     targets: [{"metricId":"economic.medianIncome","weight":1},{"metricId":"society.socialMobility","weight":-0.4},{"metricId":"governance.budgetBalance","weight":-0.4}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.medianIncome,governance.budgetBalance",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate = median authored option (no policyDefaults entry for this preset; PORT-STUB)
@@ -34,7 +34,7 @@ export const CATALOG_BR: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "domesticCorporateTax", minRate: 0, maxRate: 26, step: 5, baselineRate: 13 },
     targets: [{"metricId":"economic.economicFreedom","weight":1},{"metricId":"economic.smallBusinessFormation","weight":0.5},{"metricId":"governance.budgetBalance","weight":-0.5}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.economicFreedom,economic.smallBusinessFormation,governance.budgetBalance",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate = median authored option (no policyDefaults entry for this preset; PORT-STUB)
@@ -48,7 +48,7 @@ export const CATALOG_BR: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "salesTax", minRate: 0, maxRate: 22, step: 5, baselineRate: 10 },
     targets: [{"metricId":"economic.costOfLiving","weight":0.6},{"metricId":"governance.budgetBalance","weight":-0.6}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.costOfLiving,governance.budgetBalance",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate = median authored option (no policyDefaults entry for this preset; PORT-STUB)
@@ -62,7 +62,7 @@ export const CATALOG_BR: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "payrollTax", minRate: 10, maxRate: 32, step: 10, baselineRate: 20 },
     targets: [{"metricId":"economic.economicFreedom","weight":1},{"metricId":"governance.budgetBalance","weight":-0.4}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.economicFreedom,governance.budgetBalance",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed; baselineRate = median authored option (no policyDefaults entry for this preset; PORT-STUB)
@@ -76,7 +76,7 @@ export const CATALOG_BR: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "tariffs", minRate: 0, maxRate: 35, step: 17, baselineRate: 18 },
     targets: [{"metricId":"economic.tradeBalance","weight":0.5},{"metricId":"economic.costOfLiving","weight":0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.tradeBalance,economic.costOfLiving",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed

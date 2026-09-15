@@ -1,7 +1,7 @@
 import type { CatalogEntry } from "./catalog.js";
 /**
  * CN legislation catalog. Generated from mainline AHDGame — DO NOT HAND-EDIT.
- * Generated: 2026-09-02 by packages/content/scripts/generateCatalogs.ts
+ * Generator: packages/content/scripts/generateCatalogs.ts
  * Source: src/lib/seeds/cn/cnLegislationTypes.ts (62 types),
  * src/lib/politicalLegislation/marginAdapter.ts ADAPTER_TIER1 (target mapping),
  * src/lib/seeds/reference/budgets.ts policyDefaults (tax baselines). See the
@@ -20,7 +20,7 @@ export const CATALOG_CN: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "domesticCorporateTax", minRate: 0, maxRate: 40, step: 2, baselineRate: 25 },
     targets: [{"metricId":"economic.gdpGrowth","weight":1},{"metricId":"economic.smallBusinessFormation","weight":0.5},{"metricId":"economic.manufacturingCompetitiveness","weight":0.4},{"metricId":"governance.budgetBalance","weight":-0.5}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.gdpGrowth,economic.smallBusinessFormation,economic.manufacturingCompetitiveness,governance.budgetBalance",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: cnLegislationTypes.ts cn_individual_income_tax; baselineRate from budget policyDefaults option cn_individual_income_tax_opt_5
@@ -34,7 +34,7 @@ export const CATALOG_CN: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "incomeTax", minRate: 0, maxRate: 50, step: 1, baselineRate: 35 },
     targets: [{"metricId":"economic.medianIncome","weight":1},{"metricId":"economic.povertyRate","weight":0.5},{"metricId":"society.socialMobility","weight":-0.6},{"metricId":"economic.gdpGrowth","weight":0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.medianIncome,economic.povertyRate,economic.gdpGrowth",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: cnLegislationTypes.ts cn_value_added_tax; baselineRate from budget policyDefaults option cn_value_added_tax_opt_5
@@ -48,7 +48,7 @@ export const CATALOG_CN: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "salesTax", minRate: 0, maxRate: 25, step: 2, baselineRate: 13 },
     targets: [{"metricId":"economic.costOfLiving","weight":-1},{"metricId":"economic.gdpGrowth","weight":-0.25},{"metricId":"economic.povertyRate","weight":-0.6},{"metricId":"economic.smallBusinessFormation","weight":-0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.costOfLiving,economic.gdpGrowth,economic.povertyRate,economic.smallBusinessFormation",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: cnLegislationTypes.ts cn_land_value_added_tax; baselineRate from budget policyDefaults option cn_land_value_added_tax_opt_5
@@ -62,7 +62,7 @@ export const CATALOG_CN: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "landValueAddedTax", minRate: 0, maxRate: 80, step: 5, baselineRate: 40 },
     targets: [{"metricId":"infrastructure.publicHousing","weight":1},{"metricId":"society.socialMobility","weight":-0.5},{"metricId":"social.wohnungsBauRate","weight":-0.3},{"metricId":"governance.budgetBalance","weight":-0.4}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/social.wohnungsBauRate,governance.budgetBalance",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: cnLegislationTypes.ts cn_urban_maintenance_construction_tax; baselineRate from budget policyDefaults option cn_urban_maintenance_construction_tax_opt_5
@@ -76,7 +76,7 @@ export const CATALOG_CN: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "urbanMaintenanceTax", minRate: 0, maxRate: 15, step: 1, baselineRate: 7 },
     targets: [{"metricId":"infrastructure.highways","weight":1},{"metricId":"economic.costOfLiving","weight":0.3},{"metricId":"economic.gdpGrowth","weight":-0.2},{"metricId":"economic.ruralRevitalization","weight":-0.4}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.costOfLiving,economic.gdpGrowth,economic.ruralRevitalization",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: cnLegislationTypes.ts cn_stamp_duty; baselineRate from budget policyDefaults option cn_stamp_duty_opt_5
@@ -90,7 +90,7 @@ export const CATALOG_CN: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "stampDuty", minRate: 0, maxRate: 2, step: 0.009999999999999998, baselineRate: 0.05 },
     targets: [{"metricId":"economic.smallBusinessFormation","weight":1},{"metricId":"governance.budgetBalance","weight":-0.3},{"metricId":"economic.gdpGrowth","weight":0.2},{"metricId":"society.socialMobility","weight":-0.2}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.smallBusinessFormation,governance.budgetBalance,economic.gdpGrowth",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: cnLegislationTypes.ts cn_social_insurance_contribution; baselineRate from budget policyDefaults option cn_social_insurance_contribution_opt_5
@@ -104,7 +104,7 @@ export const CATALOG_CN: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "payrollTax", minRate: 0, maxRate: 45, step: 2, baselineRate: 28 },
     targets: [{"metricId":"governance.rentenStabilitaet","weight":-1},{"metricId":"economic.unemploymentRate","weight":0.4},{"metricId":"economic.medianIncome","weight":0.5},{"metricId":"economic.povertyRate","weight":-0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/governance.rentenStabilitaet,economic.unemploymentRate,economic.medianIncome,economic.povertyRate",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: cnLegislationTypes.ts cn_customs_tariff; baselineRate from budget policyDefaults option cn_customs_tariff_opt_5
@@ -118,7 +118,7 @@ export const CATALOG_CN: CatalogEntry[] = [
     taxPolicy: { scope: "federal", taxType: "tariffs", minRate: 0, maxRate: 25, step: 1, baselineRate: 7 },
     targets: [{"metricId":"economic.manufacturingCompetitiveness","weight":-1},{"metricId":"economic.tradeBalance","weight":-0.5},{"metricId":"economic.costOfLiving","weight":-0.4},{"metricId":"economic.gdpGrowth","weight":0.2}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.manufacturingCompetitiveness,economic.tradeBalance,economic.costOfLiving,economic.gdpGrowth",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: cnLegislationTypes.ts cn_provincial_resource_tax; baselineRate from budget policyDefaults option cn_provincial_resource_tax_opt_5
@@ -128,11 +128,11 @@ export const CATALOG_CN: CatalogEntry[] = [
     title: "Provincial Resource Tax Law",
     description: "Sets the provincial-level ad-valorem rate on natural-resource extraction",
     category: "tax",
-    allowedScope: "both",
+    allowedScope: "regional",
     taxPolicy: { scope: "state", taxType: "salesTax", minRate: 0, maxRate: 20, step: 1, baselineRate: 6 },
     targets: [{"metricId":"environment.stewardship","weight":-1},{"metricId":"economic.ruralRevitalization","weight":0.4},{"metricId":"economic.gdpGrowth","weight":-0.3},{"metricId":"economic.manufacturingCompetitiveness","weight":-0.3}],
     status: "unavailable",
-    blockingSystem: "politicalMetrics/economic.ruralRevitalization,economic.gdpGrowth,economic.manufacturingCompetitiveness",
+    blockingSystem: "budget/taxRateLadder",
   },
   {
     // source: seed
@@ -727,7 +727,7 @@ export const CATALOG_CN: CatalogEntry[] = [
     title: "Provincial Education Law",
     description: "Sets provincial-level K-12 funding and 高考 (Gaokao) preparation programs",
     category: "education",
-    allowedScope: "both",
+    allowedScope: "regional",
     targets: [{"metricId":"education.universalSchooling","weight":1},{"metricId":"economic.commonProsperityIndex","weight":0.3},{"metricId":"governance.budgetBalance","weight":-0.5},{"metricId":"economic.economicFreedom","weight":-0.2}],
     status: "unavailable",
     blockingSystem: "politicalMetrics/economic.commonProsperityIndex,governance.budgetBalance,economic.economicFreedom",
@@ -740,7 +740,7 @@ export const CATALOG_CN: CatalogEntry[] = [
     title: "Provincial Public Security Law",
     description: "Sets provincial 公安厅 (PSB) operational scale and 维稳 (stability maintenance) capability",
     category: "law_justice",
-    allowedScope: "both",
+    allowedScope: "regional",
     targets: [{"metricId":"order.communityTrust","weight":0.7},{"metricId":"order.safety","weight":0.5},{"metricId":"governance.socialCreditCoverage","weight":0.5},{"metricId":"governance.partyDiscipline","weight":0.3},{"metricId":"governance.budgetBalance","weight":-0.4}],
     status: "unavailable",
     blockingSystem: "politicalMetrics/governance.socialCreditCoverage,governance.partyDiscipline,governance.budgetBalance",
@@ -753,7 +753,7 @@ export const CATALOG_CN: CatalogEntry[] = [
     title: "Provincial Economic Development Law",
     description: "Sets provincial industrial-policy scope and 经济特区 (SEZ) management",
     category: "economic",
-    allowedScope: "both",
+    allowedScope: "regional",
     targets: [{"metricId":"economic.gdpGrowth","weight":-0.6},{"metricId":"economic.industrialPolicyExecution","weight":0.5},{"metricId":"economic.manufacturingCompetitiveness","weight":0.4},{"metricId":"economic.smallBusinessFormation","weight":-0.3},{"metricId":"economic.eastWestRegionalGap","weight":-0.4}],
     status: "unavailable",
     blockingSystem: "politicalMetrics/economic.gdpGrowth,economic.industrialPolicyExecution,economic.manufacturingCompetitiveness,economic.smallBusinessFormation,economic.eastWestRegionalGap",
@@ -766,7 +766,7 @@ export const CATALOG_CN: CatalogEntry[] = [
     title: "Provincial Health Services Law",
     description: "Sets provincial-hospital network funding and rural-urban equalization",
     category: "healthcare",
-    allowedScope: "both",
+    allowedScope: "regional",
     targets: [{"metricId":"health.outcomes","weight":0.7},{"metricId":"health.prevention","weight":1},{"metricId":"health.socialInsurance","weight":0.3},{"metricId":"governance.budgetBalance","weight":-0.5}],
     status: "unavailable",
     blockingSystem: "politicalMetrics/governance.budgetBalance",
@@ -779,7 +779,7 @@ export const CATALOG_CN: CatalogEntry[] = [
     title: "Provincial Culture & Propaganda Law",
     description: "Sets provincial 统战部 (United Front) activity and cultural-content regulation",
     category: "mediaInformation",
-    allowedScope: "both",
+    allowedScope: "regional",
     targets: [{"metricId":"governance.partyDiscipline","weight":0.5},{"metricId":"governance.openness","weight":-0.4},{"metricId":"society.integration","weight":0.3},{"metricId":"governance.budgetBalance","weight":-0.3}],
     status: "unavailable",
     blockingSystem: "politicalMetrics/governance.partyDiscipline,governance.budgetBalance",
@@ -792,7 +792,7 @@ export const CATALOG_CN: CatalogEntry[] = [
     title: "Provincial Environmental Policy Law",
     description: "Sets provincial-level pollution control, ecological restoration, and environmental-enforcement funding",
     category: "environment",
-    allowedScope: "both",
+    allowedScope: "regional",
     targets: [{"metricId":"environment.urbanAir","weight":0.8},{"metricId":"environment.stewardship","weight":-1},{"metricId":"environment.climateResilience","weight":-0.6},{"metricId":"economic.manufacturingCompetitiveness","weight":0.3},{"metricId":"governance.budgetBalance","weight":0.5},{"metricId":"economic.economicFreedom","weight":-0.4}],
     status: "unavailable",
     blockingSystem: "politicalMetrics/environment.climateResilience,economic.manufacturingCompetitiveness,governance.budgetBalance,economic.economicFreedom",
@@ -805,7 +805,7 @@ export const CATALOG_CN: CatalogEntry[] = [
     title: "Provincial Infrastructure Investment Law",
     description: "Sets provincial-level capital investment in inter-city roads, bridges, water, sewage, and urban-renewal programs",
     category: "infrastructure",
-    allowedScope: "both",
+    allowedScope: "regional",
     targets: [{"metricId":"infrastructure.highways","weight":-0.8},{"metricId":"infrastructure.transit","weight":-0.5},{"metricId":"economic.gdpGrowth","weight":-0.4},{"metricId":"economic.eastWestRegionalGap","weight":-0.4},{"metricId":"governance.budgetBalance","weight":0.6},{"metricId":"economic.economicFreedom","weight":-0.15}],
     status: "unavailable",
     blockingSystem: "politicalMetrics/economic.gdpGrowth,economic.eastWestRegionalGap,governance.budgetBalance,economic.economicFreedom",
