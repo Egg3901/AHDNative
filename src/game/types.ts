@@ -92,7 +92,18 @@ export interface ElectionView {
   seatProjection: { name: string; seats: number }[] | null;
   candidacy: ActionView;
 }
-export interface NewsView { id: string; title: string; body: string; date: string; }
+export interface NewsRelatedView { id: string; name: string; }
+export interface NewsView {
+  id: string;
+  title: string;
+  body: string;
+  date: string;
+  category?: string;
+  country?: NewsRelatedView | null;
+  party?: NewsRelatedView | null;
+  election?: NewsRelatedView | null;
+  event?: NewsRelatedView | null;
+}
 /** Chamber destination/label from the legislature configuration. */
 export interface LegislatureChamberView {
   key: string;

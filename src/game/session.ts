@@ -467,7 +467,22 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     })),
     elections: projectElections(world),
     polls: projectPolling(world),
-    news: world.news.slice(-50).reverse().map((item, index) => ({ id: `${item.turn}:${index}`, title: item.headline, body: "", date: item.date })),
+    news: world.news.map((item, sourceIndex) => ({ item, sourceIndex })).slice(-50).reverse().map(({ item, sourceIndex }) => {
+      const relatedCountry = item.countryId ? world.countries[item.countryId] : undefined;
+      const relatedParty = item.partyId ? world.parties[item.partyId] : undefined;
+      const relatedElection = item.electionId ? world.elections.find(election => election.id === item.electionId) : undefined;
+      return {
+        id: item.id ?? `${item.turn}:${sourceIndex}`,
+        title: item.headline,
+        body: item.body ?? item.headline,
+        date: item.date,
+        category: item.category ?? "General",
+        country: relatedCountry ? { id: relatedCountry.id, name: relatedCountry.name } : null,
+        party: relatedParty ? { id: relatedParty.id, name: relatedParty.name } : null,
+        election: relatedElection ? { id: relatedElection.id, name: relatedElection.electionType.replaceAll("_", " ") } : null,
+        event: item.eventId ? { id: item.eventId, name: item.eventName ?? item.eventId.replaceAll("_", " ") } : null,
+      };
+    }),
     actions: (player.mode === "hos" ? HOS_ACTIONS : ACTIONS).map(({ id, requires, category, prerequisite }) => {
       const entry = ACTION_CATALOG[id];
       const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);

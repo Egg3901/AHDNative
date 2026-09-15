@@ -166,9 +166,13 @@ function vacate(world: WorldState, rec: ElectionRecord): void {
   rec.resolvedTurn = world.meta.turn;
   archiveCampaignsForElection(world, rec.id);
   world.news.push({
+    id: `election:${rec.id}:resolved`,
     turn: world.meta.turn,
     date: world.meta.date,
     headline: `The ${rec.countryId} presidency stays vacant: the election resolved with no votes cast`,
+    category: "Election",
+    countryId: rec.countryId,
+    electionId: rec.id,
   });
 }
 
@@ -273,11 +277,16 @@ export function applyPresidentialResolution(world: WorldState, rec: ElectionReco
   const modeLabel =
     resolutionMode !== "majority" ? "House contingent election" : ec ? "electoral college majority" : "national majority";
   world.news.push({
+    id: `election:${rec.id}:resolved`,
     turn: world.meta.turn,
     date: world.meta.date,
     headline:
       winnerId === "player"
         ? `You win the ${rec.countryId} presidency (${modeLabel})`
         : `${winnerName} (${winnerParty}) wins the ${rec.countryId} presidency (${modeLabel})`,
+    category: "Election",
+    countryId: rec.countryId,
+    partyId: winnerParty,
+    electionId: rec.id,
   });
 }

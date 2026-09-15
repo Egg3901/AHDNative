@@ -79,6 +79,7 @@ describe("player candidacy fees and eligibility (#99)", () => {
     // Solo's own action-economy AP charge still applies (baseCost 2).
     expect(world.player.actions).toBe(actionsBefore - 2);
     expect(rec.candidates.some((c) => c.id === "player")).toBe(true);
+    expect(world.news.at(-1)).toMatchObject({ category: "Election", countryId: "US", electionId: rec.id, partyId: world.player.partyId });
   });
 
   it("rejects a duplicate declaration with an actionable error and leaves the world unchanged", () => {

@@ -161,6 +161,60 @@ describe("GameScreen", () => {
     expect(screen.getByText("Markets rally")).toBeInTheDocument();
   });
 
+  it("filters the offline wire and restores the selected read article with related links", async () => {
+    const user = userEvent.setup();
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const world = makeWorld({
+      news: [
+        {
+          id: "turn-4-election",
+          title: "General election called",
+          body: "Voters will choose a new House.",
+          date: "1953-02-01",
+          category: "Election",
+          country: { id: "US", name: "United States" },
+          party: { id: "p1", name: "Labor" },
+          election: { id: "e1", name: "General Election" },
+          event: { id: "event-election-call", name: "Election call" },
+        },
+        {
+          id: "turn-3-economy",
+          title: "Markets rally",
+          body: "Stocks moved higher after the budget.",
+          date: "1953-01-31",
+          category: "Economy",
+          country: { id: "US", name: "United States" },
+        },
+      ],
+    } as Partial<GameView>);
+    const props = { ...preferencesProps, loadProfile: async () => profileFor(world), loadPolitics, search, loadBondMarket, loadRegions, loadCaucusManagement, loadPartyManagement, loadMarkets, loadLegislation, loadWorldOverview, world, busy: false, onAdvanceTurn: vi.fn(), onSave: vi.fn(), onExit: vi.fn(), onAction: vi.fn() };
+    const first = render(<GameScreen {...props} />);
+
+    await navigate(user, "News");
+    await user.selectOptions(screen.getByRole("combobox", { name: "News category" }), "Election");
+    await user.selectOptions(screen.getByRole("combobox", { name: "News country" }), "US");
+    await user.selectOptions(screen.getByRole("combobox", { name: "News date" }), "1953-02-01");
+    expect(screen.getByText("General election called")).toBeInTheDocument();
+    expect(screen.queryByText("Markets rally")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Read General election called" }));
+    const article = screen.getByRole("article", { name: "General election called" });
+    expect(article).toHaveTextContent("Voters will choose a new House.");
+    expect(within(article).getByRole("button", { name: "View United States" })).toBeInTheDocument();
+    expect(within(article).getByRole("button", { name: "View Labor" })).toBeInTheDocument();
+    expect(within(article).getByRole("button", { name: "View General Election" })).toBeInTheDocument();
+    await user.click(within(article).getByRole("button", { name: "View Election call" }));
+    expect(within(article).getByRole("region", { name: "Event context" })).toHaveTextContent("Election call");
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    first.unmount();
+    render(<GameScreen {...props} />);
+    await navigate(user, "News");
+    expect(screen.getByRole("article", { name: "General election called" })).toBeInTheDocument();
+    expect(screen.getByText("Read")).toBeInTheDocument();
+    fetchSpy.mockRestore();
+  });
+
   it("bottom navigation opens its destination with page focus", async () => {
     const user = userEvent.setup();
     const world = makeWorld();

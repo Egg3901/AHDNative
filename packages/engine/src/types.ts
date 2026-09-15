@@ -911,9 +911,18 @@ export interface PlayerCharacter {
 }
 
 export interface NewsItem {
+  /** Stable producer key. Legacy saves fall back to the item position. */
+  id?: string;
   turn: number;
   date: string;
   headline: string;
+  body?: string;
+  category?: string;
+  countryId?: string;
+  partyId?: string;
+  electionId?: string;
+  eventId?: string;
+  eventName?: string;
 }
 
 /**
