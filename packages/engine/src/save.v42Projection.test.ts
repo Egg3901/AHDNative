@@ -125,6 +125,26 @@ describe("projectSaveToV42 public envelope", () => {
     expect(projected.error).toMatch(/difficulty/);
   });
 
+  it("refuses a Native worldsim spectator world (issue #346)", () => {
+    const world = createWorld({ ...WORLD_OPTS, mode: "worldsim" });
+    const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
+    expect(projected.ok).toBe(false);
+    if (projected.ok) throw new Error("expected worldsim refusal");
+    expect(projected.error).toMatch(/worldsim|play mode/);
+  });
+
+  it("refuses a schema 42 document carrying a worldsim mode as non-authentic", () => {
+    const parsed = JSON.parse(loadAuthenticV42()) as {
+      schemaVersion: number;
+      world: { meta: { schemaVersion: number }; player: { mode?: unknown } };
+    };
+    parsed.world.player.mode = "worldsim";
+    const projected = projectSaveToV42(JSON.stringify(parsed));
+    expect(projected.ok).toBe(false);
+    if (projected.ok) throw new Error("expected non-authentic worldsim refusal");
+    expect(projected.error).toMatch(/worldsim|not an authentic schema 42/i);
+  });
+
   it("refuses a Native world with live market pressure state", () => {
     const world = createWorld(WORLD_OPTS);
     world.corporations["US-manufacturing"]!.orderFlowWindowBuyValue = 1;

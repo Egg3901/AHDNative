@@ -2,6 +2,7 @@ import { EXTERNAL_BROAD_MONEY_GDP_SHARE, SCHEMA_VERSION } from "./world.js";
 import { STAT_KEYS } from "./stats/characterStats.js";
 import { isWorldFeatureFlag, resolveWorldFeatureFlags, WORLD_FEATURE_FLAG_DEFINITIONS } from "./featureFlags.js";
 import { DEFAULT_SINGLEPLAYER_DIFFICULTY, isSingleplayerDifficulty } from "./singleplayerDifficulty.js";
+import { isSingleplayerMode } from "./singleplayerMode.js";
 import { TENSION_BASELINE } from "./coldWar/constants.js";
 import { NUCLEAR_CAPABLE } from "./coldWar/nuclear.js";
 import { normalizeShares } from "./alignment/alignment.js";
@@ -183,6 +184,16 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
           "This schema 42 document still carries the difficulty axis; it is not an authentic schema 42 save",
       };
     }
+    // Issue #346: schema 42 knows career/hos (player.mode since v12) but no
+    // worldsim spectator mode. A 42-labeled document carrying worldsim is
+    // not an authentic schema 42 save.
+    if (player["mode"] === "worldsim") {
+      return {
+        ok: false,
+        error:
+          "This schema 42 document carries a worldsim play mode; it is not an authentic schema 42 save",
+      };
+    }
     try {
       deserializeSave(contents);
     } catch (error) {
@@ -217,6 +228,15 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     return {
       ok: false,
       error: `difficulty is ${String(difficulty)}. Schema 42 has no difficulty axis; exporting would drop it. Keep this save as schema ${SCHEMA_VERSION}`,
+    };
+  }
+  // Issue #346: schema 42 has no worldsim spectator mode. Career/hos project
+  // cleanly (mode is a v12 field the projection keeps); a spectator world
+  // cannot round-trip and is refused, same class as the difficulty axis above.
+  if (player["mode"] === "worldsim") {
+    return {
+      ok: false,
+      error: `This is a worldsim spectator world. Schema 42 has no worldsim play mode; exporting would drop it. Keep this save as schema ${SCHEMA_VERSION}`,
     };
   }
   if (!hasOwn(world, "countryPolitics")) {
@@ -485,6 +505,12 @@ function assertCurrentWorldState(world: WorldState): void {
   const saveDifficulty = value["difficulty"];
   if (saveDifficulty !== undefined && !isSingleplayerDifficulty(saveDifficulty)) {
     throw new Error("Not a valid save file: invalid difficulty");
+  }
+  // Issue #346: the play mode is part of the load contract. Legacy saves
+  // reach here only after the v12/v39 migrations backfill career, so a
+  // surviving unknown value is corruption, never history.
+  if (!isSingleplayerMode((value["player"] as Record<string, unknown>)["mode"])) {
+    throw new Error("Not a valid save file: invalid play mode");
   }
   const featureFlags = value["featureFlags"] as Record<string, unknown>;
   if (Object.keys(featureFlags).some((key) => !isWorldFeatureFlag(key))) {

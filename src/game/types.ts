@@ -4,7 +4,7 @@ import type { WorldOverviewView } from "./worldOverview";
 import type { NationView } from "./nation";
 import type { PoliticsView } from "./politics";
 import type { ResourceDetailsView } from "./resources";
-import type { SingleplayerDifficulty, WorldFeatureFlags } from "@ahdclient/engine";
+import type { SingleplayerDifficulty, SingleplayerMode, WorldFeatureFlags } from "@ahdclient/engine";
 export type WorldInitialization = "historical" | "founding";
 export type CharacterRace = "white" | "black" | "hispanic" | "asian" | "other";
 export type CharacterGender = "male" | "female" | "nonbinary";
@@ -45,7 +45,7 @@ export interface CharacterCreation {
   avatarUrl?: string | null;
   profileHeaderUrl?: string | null;
 }
-export interface NewGameOptions { era: string; countryId: string; playerName: string; seed: string; mode?: "career" | "hos"; homeRegionId?: string; initialization?: WorldInitialization; creation?: CharacterCreation; featureFlags?: WorldFeatureFlags; difficulty?: SingleplayerDifficulty; }
+export interface NewGameOptions { era: string; countryId: string; playerName: string; seed: string; mode?: SingleplayerMode; homeRegionId?: string; initialization?: WorldInitialization; creation?: CharacterCreation; featureFlags?: WorldFeatureFlags; difficulty?: SingleplayerDifficulty; }
 export interface EraChoice {
   id: string;
   label: string;
@@ -181,7 +181,7 @@ export interface GameView {
   turn: number; date: string; era: string; countryId: string; countryName: string;
   /** Singleplayer difficulty bound at world creation (issue #334). */
   difficulty: SingleplayerDifficulty;
-  player: { name: string; cash: number; funds: number; actions: number; influence: number; favorability: number; partyName: string; mode: "career" | "hos"; hosPartyId: string | null; homeRegionId: string | null; permanentHeadOfState?: boolean; currentOffice?: string | null; };
+  player: { name: string; cash: number; funds: number; actions: number; influence: number; favorability: number; partyName: string; mode: SingleplayerMode; hosPartyId: string | null; homeRegionId: string | null; permanentHeadOfState?: boolean; currentOffice?: string | null; };
   legislature: LegislatureView;
   finance: FinanceView;
   resources: ResourceDetailsView;

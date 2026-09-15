@@ -107,6 +107,8 @@ import { resolveWorldFeatureFlags } from "./featureFlags.js";
 import type { WorldFeatureFlags } from "./featureFlags.js";
 import { DEFAULT_SINGLEPLAYER_DIFFICULTY, resolveSingleplayerDifficulty } from "./singleplayerDifficulty.js";
 import type { SingleplayerDifficulty } from "./singleplayerDifficulty.js";
+import { resolveSingleplayerMode } from "./singleplayerMode.js";
+import type { SingleplayerMode } from "./singleplayerMode.js";
 import { validateStatAllocation } from "./stats/characterStats.js";
 import { startingCashFor } from "./stats/characterWealth.js";
 
@@ -227,8 +229,11 @@ export interface NewWorldOptions {
    * bound to `countryId`'s seeded ruling party (see rulingPartyIdForCountry)
    * and gains that party's action surfaces at the action layer — never a
    * change to turn/phase logic (FRAMEWORK.md "Play modes (binding)").
+   * Worldsim (issue #346, canonical SingleplayerMode worldsim): a spectator
+   * world with no player character; the player record is a placeholder and
+   * the session offers no character actions. Turns run the identical engine.
    */
-  mode?: "career" | "hos";
+  mode?: SingleplayerMode;
   /**
    * Fresh-world political initialization. Historical applies the source-backed
    * UK 1953/1979 winner roster when selected. Founding is
@@ -997,7 +1002,11 @@ export function createWorld(options: NewWorldOptions): WorldState {
       purgeRejoinBlocks: [],
       caucusId: null,
       legislativeSeat: null,
-      mode: options.mode === "hos" ? "hos" : "career",
+      // Issue #346: the validated play mode binds once, here, at creation —
+      // never recomputed by a phase. Only hos binds a ruling party; career
+      // and worldsim (spectator) stay unbound, and only hos seats the
+      // permanent office below.
+      mode: resolveSingleplayerMode(options.mode),
       // M1: bound once, here, at creation — never recomputed by a phase.
       hosPartyId: options.mode === "hos" ? rulingPartyIdForCountry(era, options.countryId, initialization) : null,
       savings: 0,

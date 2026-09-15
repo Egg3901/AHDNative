@@ -22,6 +22,14 @@ export {
   singleplayerNppTuning,
 } from "./singleplayerDifficulty.js";
 export type { SingleplayerDifficulty, SingleplayerNppTuning } from "./singleplayerDifficulty.js";
+export {
+  DEFAULT_SINGLEPLAYER_MODE,
+  SINGLEPLAYER_MODES,
+  isSingleplayerMode,
+  isWorldsimMode,
+  resolveSingleplayerMode,
+} from "./singleplayerMode.js";
+export type { SingleplayerMode } from "./singleplayerMode.js";
 export { serializeSave, deserializeSave, projectSaveToV42 } from "./save.js";
 export type { SaveFile, ProjectSaveToV42Result } from "./save.js";
 export { rngFromSeed, rngFromState } from "./rng.js";

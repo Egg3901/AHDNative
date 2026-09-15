@@ -17,10 +17,11 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, createWorld, deserializeSave, executeAction,
-  getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCreationParties, listEras, listPlayableCountries, listRegions, resolveSingleplayerDifficulty, rulingPartyForCountry, serializeSave,
+  getActionCost, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCreationParties, listEras, listPlayableCountries, listRegions, resolveSingleplayerDifficulty, resolveSingleplayerMode, rulingPartyForCountry, serializeSave,
   type ActionId, type ExecuteActionParams, type StoredPollSnapshot, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionCategory, ActionView, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
+import { isWorldsimMode } from "@ahdclient/engine";
 import {
   actionNotification, addNotifications, deleteNotification, diffTurnSnapshots, markAllNotificationsRead,
   markNotificationRead, parseNotifications, saveNotification, toInbox, welcomeNotification,
@@ -158,9 +159,13 @@ export class GameSession {
     // rejects an unknown axis before creating so a bad value can never
     // replace the current world.
     const difficulty = resolveSingleplayerDifficulty(options.difficulty);
+    // Issue #346: same pre-creation gate for the play mode. Career is the
+    // default; worldsim marks a spectator world with no player character.
+    const mode = resolveSingleplayerMode(options.mode);
     const world = createWorld({
       ...options,
       difficulty,
+      mode,
       playerName: creationName ?? options.playerName.trim(),
       // #242: the creation file is validated inside createWorld, which owns the
       // persistence and the wealth-driven cash grant. The session passes it
@@ -171,6 +176,12 @@ export class GameSession {
   }
 
   act(actionId: string, params: ExecuteActionParams = {}) {
+    // Issue #346: a worldsim world is a spectator world with no player
+    // character (canonical advanceWorldsim likewise takes no character
+    // input). Refuse before cloning so the simulation is untouched.
+    if (isWorldsimMode(this.requireWorld().player.mode)) {
+      return { ok: false as const, error: "This spectator world has no player character. Advance the turn to run the simulation." };
+    }
     const source = this.requireWorld();
     const before = snapshotNotifications(source);
     const actionBefore = snapshotActionFields(source);
@@ -500,7 +511,9 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     polls: projectPolling(world),
     news: world.news.map((item, sourceIndex) => ({ item, sourceIndex })).slice(-50).reverse()
       .map(({ item, sourceIndex }) => projectNewsItem(world, item, sourceIndex)),
-    actions: (player.mode === "hos" ? HOS_ACTIONS : ACTIONS).map(({ id, requires, category, prerequisite }) => {
+    // Issue #346: the spectator surface offers no character actions. Career
+    // and HoS bindings are unchanged.
+    actions: (isWorldsimMode(player.mode) ? [] : player.mode === "hos" ? HOS_ACTIONS : ACTIONS).map(({ id, requires, category, prerequisite }) => {
       const entry = ACTION_CATALOG[id];
       const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
       const fundCost = quoteFundCost(id, entry.fundCost, player.donorBaseLevel, cost, player.countryId, player.stats);
