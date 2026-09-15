@@ -113,7 +113,7 @@ describe("#243 permanent Head of State seating", () => {
 
   it("uses the authored parliamentary executive office instead of president", () => {
     const world = createWorld({ ...CAREER_OPTS, countryId: "UK", mode: "hos", initialization: "historical" });
-    expect(world.player.currentOffice).toEqual({ type: "primeMinister", countryId: "UK" });
+    expect(world.player.currentOffice).toEqual({ type: "primeMinister", countryId: "UK", regionId: "EMI" });
     expect(world.executives.UK).toBeUndefined();
   });
 });
