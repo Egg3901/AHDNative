@@ -35,7 +35,7 @@ describe("M1: player.mode and hosPartyId binding at creation", () => {
 
   it("rulingPartyForCountry resolves display name/abbreviation for the M2 picker", () => {
     const rp = rulingPartyForCountry("1953", "US");
-    expect(rp).toEqual({ id: "US_REP", name: "Republican Party", abbreviation: "REP", logoUrl: null });
+    expect(rp).toEqual({ id: "US_REP", name: "Republican Party", abbreviation: "REP", color: "#EF4444", logoUrl: null });
   });
 
   it("founding UK has no authored commons composition, so the ruling party stays null", () => {
