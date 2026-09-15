@@ -1090,15 +1090,20 @@ IMF/cabinet heroes still have no Native consumer surface. Rendered
 320/390/desktop overflow proof stays future work (this slice asserts
 the crop CSS text only). The issue stays open with `status: partial`.
 
-Evidence: `src/ui/BankingHeroImagery.test.tsx` (11 cases: resolver,
+Evidence: `src/ui/BankingHeroImagery.test.tsx` (12 cases: resolver,
 total alt helper, grounded alts, fallback accessible name, local webp
 bytes, rendered decode, error fallback, Banking-surface balances and
 transfer controls, deposit/withdraw mechanics, crop CSS) and the
-untouched `src/ui/FinancePanel.test.tsx` (9 cases, still green).
+untouched `src/ui/FinancePanel.test.tsx` (8 cases, still green).
 Validation: focused Vitest on both files only (20 passed); no install,
 full typecheck/verify/build, cargo, Playwright, or CI was run for this
 pass. SHA-256 provenance and CC attribution for all 3 assets are
 recorded in [UI reference](UI-REFERENCE.md).
+Repair 2026-09-15: replayed as one commit onto rewritten
+`ui/corporation-commodity-heroes` (`d7771ec`); old CI failure was one
+unrelated caucus smoke test, all earlier verify steps passed. Sibling
+`RouteHero` suites (`CommodityHeroImagery`, `NationHeroImagery`, 15
+passed) re-ran green after the rebase.
 
 ## Character-creation player flow checkpoint, 2026-09-14 (#242)
 
