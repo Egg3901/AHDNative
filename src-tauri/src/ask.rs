@@ -138,7 +138,10 @@ pub(crate) async fn ask_api(
             }
             Err(ureq::Error::Status(code, failed)) => {
                 let text = failed.into_string().unwrap_or_default();
-                Ok(AskApiResult { status: code, body: text })
+                Ok(AskApiResult {
+                    status: code,
+                    body: text,
+                })
             }
             Err(_) => Err("Cannot reach Ask. Connect to the internet and try again.".into()),
         }
@@ -195,8 +198,12 @@ pub(crate) async fn ask_send(
     }
     let session = ask_session_cookie(&app).ok_or("Please sign in to Ask first.")?;
     let mut entropy = [0_u8; 9];
-    getrandom::getrandom(&mut entropy).map_err(|_| "secure random source unavailable".to_string())?;
-    let req_id = entropy.iter().map(|b| format!("{b:02x}")).collect::<String>();
+    getrandom::getrandom(&mut entropy)
+        .map_err(|_| "secure random source unavailable".to_string())?;
+    let req_id = entropy
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<String>();
     let stop = Arc::new(AtomicBool::new(false));
     state
         .0
@@ -206,7 +213,15 @@ pub(crate) async fn ask_send(
     let pump_app = app.clone();
     let pump_req_id = req_id.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        pump_ask_stream(&pump_app, &pump_req_id, stop, session, question, conv_id, use_mcp);
+        pump_ask_stream(
+            &pump_app,
+            &pump_req_id,
+            stop,
+            session,
+            question,
+            conv_id,
+            use_mcp,
+        );
     });
     Ok(req_id)
 }
@@ -301,7 +316,10 @@ fn pump_ask_stream(
     if !streaming {
         let status = response.status();
         let text = response.into_string().unwrap_or_default();
-        finish("final", serde_json::json!({ "status": status, "body": text }));
+        finish(
+            "final",
+            serde_json::json!({ "status": status, "body": text }),
+        );
         forget_stream(app, req_id);
         return;
     }
@@ -343,7 +361,9 @@ fn pump_ask_stream(
 /// so remote answer content can never trigger local handling.
 #[tauri::command]
 pub(crate) async fn open_ask_link(app: AppHandle, url: String) -> Result<(), String> {
-    let parsed: Url = url.parse().map_err(|_| "unsupported Ask link".to_string())?;
+    let parsed: Url = url
+        .parse()
+        .map_err(|_| "unsupported Ask link".to_string())?;
     if !matches!(parsed.scheme(), "http" | "https") {
         return Err("unsupported Ask link".to_string());
     }
@@ -517,7 +537,10 @@ fn open_ask_ui(app: &AppHandle) -> Result<(), String> {
     let window = builder.build().map_err(|e| e.to_string())?;
     let close_app = app.clone();
     window.on_window_event(move |event| {
-        if matches!(event, WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed) {
+        if matches!(
+            event,
+            WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed
+        ) {
             if let Some(main) = close_app.get_webview_window("main") {
                 let _ = main.set_focus();
             }
@@ -563,7 +586,10 @@ fn open_ask_auth(app: &AppHandle) -> Result<(), String> {
         .build()
         .map_err(|e| e.to_string())?;
     window.on_window_event(move |event| {
-        if matches!(event, WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed) {
+        if matches!(
+            event,
+            WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed
+        ) {
             if let Some(main) = close_app.get_webview_window("main") {
                 let _ = main.set_focus();
             }
@@ -620,9 +646,9 @@ impl SseParser {
 
 #[cfg(test)]
 mod tests {
-    use super::{ask_api_allowed, SseParser};
     #[cfg(desktop)]
     use super::ask_dock_origin;
+    use super::{ask_api_allowed, SseParser};
 
     #[test]
     #[cfg(desktop)]
@@ -666,8 +692,14 @@ mod tests {
         assert_eq!(events[0].0, "meta");
         assert_eq!(events[0].1["convId"], serde_json::json!("abc123"));
         assert_eq!(events[1].0, "status");
-        assert_eq!(events[2], ("delta".to_string(), serde_json::json!("The North ")));
-        assert_eq!(events[3], ("delta".to_string(), serde_json::json!("holds.")));
+        assert_eq!(
+            events[2],
+            ("delta".to_string(), serde_json::json!("The North "))
+        );
+        assert_eq!(
+            events[3],
+            ("delta".to_string(), serde_json::json!("holds."))
+        );
         assert_eq!(events[4].0, "done");
         assert_eq!(events[4].1["usage"]["remaining"], serde_json::json!(4));
     }
@@ -682,7 +714,10 @@ mod tests {
         let event = parser.push_line("data: 1}");
         assert!(event.is_none());
         let event = parser.push_line("");
-        assert_eq!(event, Some(("delta".to_string(), serde_json::json!({"a": 1}))));
+        assert_eq!(
+            event,
+            Some(("delta".to_string(), serde_json::json!({"a": 1})))
+        );
         // A data block with no event name dispatches as "message".
         assert!(parser.push_line("data: 7").is_none());
         let event = parser.push_line("");

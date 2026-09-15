@@ -291,12 +291,21 @@ mod tests {
     #[test]
     fn ask_navigation_keeps_the_sign_in_bounce_inside_the_app() {
         let service: Url = ASK_URL.parse().unwrap();
-        let broker: Url = "https://auth.ahousedividedgame.com/auth/ahd".parse().unwrap();
-        let game: Url = "https://ahousedividedgame.com/api/client/account".parse().unwrap();
+        let broker: Url = "https://auth.ahousedividedgame.com/auth/ahd"
+            .parse()
+            .unwrap();
+        let game: Url = "https://ahousedividedgame.com/api/client/account"
+            .parse()
+            .unwrap();
         let discord: Url = "https://discord.com/oauth2/authorize".parse().unwrap();
-        let google: Url = "https://accounts.google.com/o/oauth2/v2/auth".parse().unwrap();
+        let google: Url = "https://accounts.google.com/o/oauth2/v2/auth"
+            .parse()
+            .unwrap();
         for allowed in [&service, &broker, &game, &discord, &google] {
-            assert!(is_ask_navigation_allowed(allowed), "{allowed} should stay in-app");
+            assert!(
+                is_ask_navigation_allowed(allowed),
+                "{allowed} should stay in-app"
+            );
         }
         for denied in [
             "http://ask.lakesidegames.net/",
@@ -379,7 +388,13 @@ mod capability_tests {
             );
         }
         assert!(!capability.contains("\"remote\""));
-        for forbidden in ["fs:", "shell:", "dialog:", "updater:", "allow-open-ask-link"] {
+        for forbidden in [
+            "fs:",
+            "shell:",
+            "dialog:",
+            "updater:",
+            "allow-open-ask-link",
+        ] {
             assert!(
                 !capability.contains(forbidden),
                 "ask capability must not grant {forbidden}"
