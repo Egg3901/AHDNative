@@ -252,7 +252,7 @@ describe("MobileNavigation", () => {
     // app navigates by ("Nation"/"World") are unchanged.
     const nation = screen.getByRole("button", { name: "Nation" });
     const world = screen.getByRole("button", { name: "World" });
-    expect(within(nation).getByText("14")).toBeInTheDocument();
+    expect(within(nation).getByText("15")).toBeInTheDocument();
     expect(within(world).getByText("6")).toBeInTheDocument();
     expect(nation).toHaveAttribute("aria-controls", "ahd-drawer-section-nation");
     expect(world).toHaveAttribute("aria-controls", "ahd-drawer-section-world");
@@ -265,7 +265,7 @@ describe("MobileNavigation", () => {
     // No destination added or removed by the composition pass.
     const ids = drawerRouteIds();
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(30);
+    expect(ids).toHaveLength(31);
     expect(css).toMatch(/\.ahd-drawer-group\s*\+\s*\.ahd-drawer-group\s*\{[^}]*border-top:/);
   });
 
