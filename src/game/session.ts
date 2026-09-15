@@ -1,6 +1,7 @@
 import { projectProfile } from "./profile";
 import { validateProfileUpdate } from "./profileValidation";
 import type { ProfileUpdate } from "./profileTypes";
+import { applyProfileConstituency } from "./profileConstituency";
 import { projectRegions, type RegionsQuery } from "./regions";
 import { projectCaucusManagement } from "./caucusManagement";
 import { projectBondMarket } from "./bondMarket";
@@ -243,6 +244,12 @@ export class GameSession {
     const valid = validateProfileUpdate(update);
     const candidate = structuredClone(this.requireWorld());
     Object.assign(candidate.player, valid);
+    return this.commit(candidate);
+  }
+
+  selectConstituency(constituencyId: string): GameView {
+    const candidate = structuredClone(this.requireWorld());
+    applyProfileConstituency(candidate, constituencyId);
     return this.commit(candidate);
   }
 

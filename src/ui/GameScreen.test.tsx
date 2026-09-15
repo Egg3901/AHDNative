@@ -39,12 +39,13 @@ function makeElection(overrides: Partial<ElectionView> = {}): ElectionView {
   };
 }
 
-const preferencesProps = { preferences: DEFAULT_PREFERENCES, onPreferencesChange: vi.fn(), onUpdateProfile: vi.fn(async () => true),
+const preferencesProps = { preferences: DEFAULT_PREFERENCES, onPreferencesChange: vi.fn(), onUpdateProfile: vi.fn(async () => true), onSelectConstituency: vi.fn(async () => true),
   onMarkNotificationRead: vi.fn(), onDeleteNotification: vi.fn(), onMarkAllNotificationsRead: vi.fn() };
 function profileFor(world: GameView): ProfileView {
   return {
     name: world.player.name, bio: "", avatarUrl: null, campaignSongUrl: "", campaignSongAutoplay: false,
     country: { id: world.countryId, name: world.countryName }, homeRegion: null,
+    constituency: { eligible: false, officeType: null, regionId: null, selected: null, options: [], unavailableReason: "Unavailable." },
     party: world.player.partyName ? { id: "p1", name: world.player.partyName, color: "#dc2626" } : null,
     office: world.legislature.office,
     officeDestination: world.legislature.office ? { route: "legislature" } : null,

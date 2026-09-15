@@ -1027,7 +1027,13 @@ export function createWorld(options: NewWorldOptions): WorldState {
     const officeType = headOfStateOfficeForCountry(world.player.countryId);
     if (officeType) {
       world.player.permanentHeadOfState = true;
-      world.player.currentOffice = { type: officeType, countryId: world.player.countryId };
+      world.player.currentOffice = {
+        type: officeType,
+        countryId: world.player.countryId,
+        ...(officeType === "primeMinister" && world.player.homeRegionId
+          ? { regionId: world.player.homeRegionId }
+          : {}),
+      };
       if (officeType === "president") {
         world.executives[world.player.countryId] = {
           countryId: world.player.countryId,

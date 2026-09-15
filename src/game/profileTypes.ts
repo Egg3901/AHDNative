@@ -61,6 +61,14 @@ export interface ProfileView {
   campaignSongAutoplay: boolean;
   country: { id: string; name: string };
   homeRegion: { id: string; name: string } | null;
+  constituency: {
+    eligible: boolean;
+    officeType: "commons" | "primeMinister" | null;
+    regionId: string | null;
+    selected: { id: string; name: string } | null;
+    options: Array<{ id: string; name: string; regionId: string }>;
+    unavailableReason: string | null;
+  };
   /**
    * Player party, or null when independent. Carries the party's authored
    * economic/social position (world.parties[].economicPosition/socialPosition,

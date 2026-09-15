@@ -120,4 +120,89 @@ describe('profile through the saved game session', () => {
     const resumed = new GameSession(); resumed.load(loaded.serialize(savedAt));
     expect(resumed.profile()).toEqual(loaded.profile());
   });
+
+  it('lets a sitting UK Commons member choose a constituency in the elected region and persists it', () => {
+    const session = new GameSession();
+    session.create({ ...options, countryId: 'UK', homeRegionId: 'LON' });
+    const raw = JSON.parse(session.serialize(savedAt));
+    raw.world.player.legislativeSeat = { chamberKey: 'commons', countryId: 'UK', regionId: 'LON' };
+    session.load(JSON.stringify(raw));
+
+    const before = session.profile().constituency;
+    expect(before).toMatchObject({
+      eligible: true,
+      officeType: 'commons',
+      regionId: 'LON',
+      selected: null,
+    });
+    expect(before.options).toContainEqual({
+      id: 'E14001081',
+      name: 'Battersea',
+      regionId: 'LON',
+    });
+
+    session.selectConstituency('E14001081');
+    expect(session.profile().constituency.selected).toEqual({ id: 'E14001081', name: 'Battersea' });
+    const selectedSave = JSON.parse(session.serialize(savedAt));
+    expect(selectedSave.world.player.constituency).toEqual({
+      id: 'E14001081', name: 'Battersea', regionId: 'LON',
+    });
+    expect(selectedSave.world.player.legislativeSeat).toEqual({
+      chamberKey: 'commons', countryId: 'UK', regionId: 'LON',
+    });
+
+    const resumed = new GameSession();
+    resumed.load(session.serialize(savedAt));
+    expect(resumed.profile().constituency.selected).toEqual({ id: 'E14001081', name: 'Battersea' });
+  });
+
+  it('offers the same regional constituency choice to a UK Prime Minister', () => {
+    const session = new GameSession();
+    session.create({ ...options, countryId: 'UK', homeRegionId: 'LON', mode: 'hos' });
+
+    expect(session.profile().constituency).toMatchObject({
+      eligible: true,
+      officeType: 'primeMinister',
+      regionId: 'LON',
+    });
+    session.selectConstituency('E14001081');
+    expect(session.profile().constituency.selected).toEqual({ id: 'E14001081', name: 'Battersea' });
+  });
+
+  it('rejects constituency changes outside the held UK region without mutating the save', () => {
+    const session = new GameSession();
+    session.create({ ...options, countryId: 'UK', homeRegionId: 'LON', mode: 'hos' });
+    const before = session.serialize(savedAt);
+
+    expect(() => session.selectConstituency('E14001069')).toThrow(
+      'That constituency is not in your current UK region.',
+    );
+    expect(session.serialize(savedAt)).toBe(before);
+
+    const ineligible = new GameSession();
+    ineligible.create(options);
+    expect(ineligible.profile().constituency).toMatchObject({ eligible: false, selected: null, options: [] });
+    expect(() => ineligible.selectConstituency('E14001081')).toThrow(
+      'Only sitting UK Commons members and Prime Ministers can choose a constituency.',
+    );
+  });
+
+  it('rejects a constituency already represented by another official', () => {
+    const session = new GameSession();
+    session.create({ ...options, countryId: 'UK', homeRegionId: 'LON' });
+    const raw = JSON.parse(session.serialize(savedAt));
+    raw.world.player.legislativeSeat = { chamberKey: 'commons', countryId: 'UK', regionId: 'LON' };
+    raw.world.politicians[0].countryId = 'UK';
+    raw.world.politicians[0].chamberKey = 'commons';
+    raw.world.politicians[0].electedState = 'LON';
+    raw.world.politicians[0].constituencyId = 'E14001081';
+    raw.world.politicians[0].constituency = 'Battersea';
+    session.load(JSON.stringify(raw));
+    const before = session.serialize(savedAt);
+
+    expect(() => session.selectConstituency('E14001081')).toThrow(
+      'Battersea is already represented by another player.',
+    );
+    expect(session.serialize(savedAt)).toBe(before);
+  });
 });

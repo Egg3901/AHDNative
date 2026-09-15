@@ -711,7 +711,11 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
     seat.chamberKey === rec.chamberKey &&
     rec.candidates.some((c) => c.id === "player");
   if (playerWon) {
-    world.player.legislativeSeat = { chamberKey: rec.chamberKey, countryId: rec.countryId };
+    world.player.legislativeSeat = {
+      chamberKey: rec.chamberKey,
+      countryId: rec.countryId,
+      ...(rec.state ? { regionId: rec.state } : {}),
+    };
   } else if (playerContested) {
     world.player.legislativeSeat = null;
   }

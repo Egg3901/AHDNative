@@ -235,6 +235,10 @@ export function App() {
     setWorld(await client.current!.updateProfile(update));
     await save();
     setMessage("Profile saved.");
+  })} onSelectConstituency={constituencyId => run(async () => {
+    setWorld(await client.current!.selectConstituency(constituencyId));
+    await save();
+    setMessage("Constituency saved.");
   })} preferences={presentation.value} onPreferencesChange={changePreferences} preferencesError={presentation.error} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={busy} error={error} message={message}
     onMarkNotificationRead={(id) => void run(async () => { setWorld(await client.current!.markNotificationRead(id)); await save(false); })}
     onDeleteNotification={(id) => void run(async () => { setWorld(await client.current!.deleteNotification(id)); await save(false); })}

@@ -81,6 +81,16 @@ export function declareCandidacy(world: WorldState, electionId: string): Candida
       error: `You can only run for office in your home state (${home}); ${describeRace(rec)} is outside your constituency.`,
     };
   }
+  const selectedConstituency = world.player.constituency;
+  if (
+    rec.countryId === "UK" && rec.constituencyId && selectedConstituency
+    && rec.constituencyId !== selectedConstituency.id
+  ) {
+    return {
+      ok: false,
+      error: `Your selected constituency is ${selectedConstituency.name}; choose its Commons race before filing.`,
+    };
+  }
   if (rec.candidates.some((c) => c.id === "player")) {
     return { ok: false, error: `You are already a candidate in ${describeRace(rec)}.` };
   }

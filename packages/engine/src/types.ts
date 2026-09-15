@@ -562,6 +562,9 @@ export interface Politician {
   chamberKey: string;
   /** US state whose seat is held (house/senate). */
   electedState?: string | undefined;
+  /** UK constituency held by this official, when the election has one seat. */
+  constituencyId?: string | undefined;
+  constituency?: string | undefined;
   /** US senate class of the held seat. */
   senateClass?: 1 | 2 | 3 | undefined;
   ideology: PoliticianIdeology;
@@ -730,6 +733,8 @@ export interface PlayerCharacter {
   countryId: string;
   /** Home state or region for the State navigation cluster. Null on migrated saves that never chose one. */
   homeRegionId?: string | null;
+  /** One normalized UK office constituency selection, valid only in its saved region. */
+  constituency?: { id: string; name: string; regionId: string };
   cash: number;
   /**
    * Action points mirroring mainline Character.actions refresh cadence.
@@ -803,7 +808,12 @@ export interface PlayerCharacter {
    * bill sponsorship per src/lib/congress/billProposal.ts seat check.
    * Null means no seat. When set, chamberKey identifies the held chamber.
    */
-  legislativeSeat: { chamberKey: string; countryId: string } | null;
+  legislativeSeat: {
+    chamberKey: string;
+    countryId: string;
+    /** Region won in the election. Required for constituency-bound offices. */
+    regionId?: string;
+  } | null;
   /**
    * Mode (career vs head of state). Career (default): player is a politician;
    * HoS: player is government. HoS mode grants government sponsorship (see
@@ -824,7 +834,11 @@ export interface PlayerCharacter {
    * systems also mirror this through `WorldState.executives`; parliamentary
    * and one-party systems use their authored executive office key here.
    */
-  currentOffice?: { type: string; countryId: string } | null;
+  currentOffice?: {
+    type: string;
+    countryId: string;
+    regionId?: string;
+  } | null;
   /**
    * M1 (Lane 12 Head of State mode): the country's ruling party, bound at
    * world creation when mode is "hos". Null in career mode always; null in

@@ -60,6 +60,7 @@ export interface ProfilePanelProps {
   busy: boolean;
   onNavigate: (route: DrawerRouteId, id?: string) => void;
   onUpdateProfile: (update: ProfileUpdate) => Promise<boolean>;
+  onSelectConstituency: (constituencyId: string) => Promise<boolean>;
   viewerDisablesAutoplay?: boolean;
 }
 
@@ -143,7 +144,7 @@ function validateHeader(file: File): string | null {
   return null;
 }
 
-export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewerDisablesAutoplay = false }: ProfilePanelProps) {
+export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, onSelectConstituency, viewerDisablesAutoplay = false }: ProfilePanelProps) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const headerRef = useRef<HTMLInputElement | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -158,6 +159,10 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
   const [songAutoplay, setSongAutoplay] = useState(profile.campaignSongAutoplay);
   const [songError, setSongError] = useState<string | null>(null);
   const [songSaving, setSongSaving] = useState(false);
+  const [constituencyId, setConstituencyId] = useState(profile.constituency.selected?.id ?? "");
+  const [savedConstituencyId, setSavedConstituencyId] = useState(profile.constituency.selected?.id ?? "");
+  const [constituencySaving, setConstituencySaving] = useState(false);
+  const [constituencyError, setConstituencyError] = useState<string | null>(null);
 
   const photoBusy = busy || photoSaving;
   const headerBusy = busy || headerSaving;
@@ -212,6 +217,20 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
       } else setSongError("Campaign song could not be cleared.");
     } catch { setSongError("Campaign song could not be cleared."); }
     finally { setSongSaving(false); }
+  };
+
+  const saveConstituency = async () => {
+    if (busy || constituencySaving || !constituencyId) return;
+    setConstituencyError(null);
+    setConstituencySaving(true);
+    try {
+      if (await onSelectConstituency(constituencyId)) setSavedConstituencyId(constituencyId);
+      else setConstituencyError("Constituency could not be saved. Your selection is kept.");
+    } catch {
+      setConstituencyError("Constituency could not be saved. Your selection is kept.");
+    } finally {
+      setConstituencySaving(false);
+    }
   };
 
   const startBioEdit = () => {
@@ -477,6 +496,56 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, viewe
             {headerError}
           </p>
         ) : null}
+      </section>
+
+      <section aria-label="Constituency" className="ahd-card ahd-card-pad">
+        <h2 className="ahd-h2">
+          {profile.constituency.officeType === "primeMinister" ? "Prime Minister constituency" : "Commons constituency"}
+        </h2>
+        {profile.constituency.eligible ? (
+          <>
+            <p className="ahd-muted">Choose a constituency inside the UK region tied to your elected office.</p>
+            <label className="ahd-field" htmlFor="ahd-profile-constituency">
+              <span className="ahd-label">Constituency</span>
+              <select
+                id="ahd-profile-constituency"
+                className="ahd-select"
+                value={constituencyId}
+                disabled={busy || constituencySaving}
+                onChange={(event) => { setConstituencyId(event.target.value); setConstituencyError(null); }}
+              >
+                <option value="">Choose a constituency</option>
+                {profile.constituency.options.map((option) => (
+                  <option key={option.id} value={option.id}>{option.name} ({option.id})</option>
+                ))}
+              </select>
+            </label>
+            <div className="ahd-profile-actions">
+              <button
+                type="button"
+                className="ahd-btn ahd-btn-primary ahd-btn-sm"
+                disabled={busy || constituencySaving || !constituencyId}
+                onClick={() => void saveConstituency()}
+              >
+                {constituencySaving ? "Saving..." : "Save constituency"}
+              </button>
+              {savedConstituencyId && profile.constituency.regionId ? (
+                <button
+                  type="button"
+                  className="ahd-btn ahd-btn-sm"
+                  aria-label={`${profile.constituency.options.find((option) => option.id === savedConstituencyId)?.name ?? savedConstituencyId}, view ${profile.homeRegion?.name ?? profile.constituency.regionId} region`}
+                  onClick={() => onNavigate("state", profile.constituency.regionId ?? undefined)}
+                  disabled={busy}
+                >
+                  View constituency region
+                </button>
+              ) : null}
+            </div>
+            {constituencyError ? <p className="ahd-alert" role="alert">{constituencyError}</p> : null}
+          </>
+        ) : (
+          <p className="ahd-muted">{profile.constituency.unavailableReason}</p>
+        )}
       </section>
 
       <section aria-label="Campaign song" className="ahd-card ahd-card-pad">

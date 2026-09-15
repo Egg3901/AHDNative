@@ -11,6 +11,7 @@ export type GameCommand =
   | { type: "view" }
   | { type: "profile" }
   | { type: "updateProfile"; update: ProfileUpdate }
+  | { type: "selectConstituency"; constituencyId: string }
   | { type: "politics" }
   | { type: "markets" }
   | { type: "regions"; query?: RegionsQuery }

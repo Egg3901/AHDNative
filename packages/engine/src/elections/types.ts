@@ -56,6 +56,8 @@ export interface ElectionRecord {
   countryId: string;
   /** US state id for house/senate races; absent for national races. */
   state?: string | undefined;
+  /** UK constituency identifier for a constituency-specific Commons race. */
+  constituencyId?: string | undefined;
   /** Senate class for US senate races. */
   senateClass?: 1 | 2 | 3 | undefined;
   cycle: number;

@@ -2,6 +2,7 @@ import { ACHIEVEMENT_CATALOG, ACHIEVEMENT_COUNT_TRIGGERS, achievementCountProgre
 import { projectResources } from "./resources";
 import { campaignSongId, safeAvatarUrl, safeHeaderUrl } from "./profileValidation";
 import type { ProfileAchievement, ProfileView } from "./profileTypes";
+import { projectProfileConstituency } from "./profileConstituency";
 
 function homeCurrency(world: WorldState, countryId: string): string {
   return world.budgets[countryId]?.currencyCode ?? world.exchangeRates[countryId]?.currencyCode ?? "XXX";
@@ -38,6 +39,7 @@ export function projectProfile(world: WorldState): ProfileView {
   const homeRegion = homeRegionRecord && homeRegionRecord.countryId === country.id
     ? { id: homeRegionRecord.id, name: homeRegionRecord.name }
     : null;
+  const constituency = projectProfileConstituency(world);
   const partyRecord = player.partyId ? world.parties[player.partyId] : undefined;
   // Party position (-5..+5) is the authored marker the compass plots alongside
   // the player's own axes. Only pass through finite authored numbers; a party
@@ -109,6 +111,7 @@ export function projectProfile(world: WorldState): ProfileView {
     campaignSongAutoplay: player.campaignSongAutoplay === true,
     country: { id: country.id, name: country.name },
     homeRegion,
+    constituency,
     party,
     office: projectOffice(world),
     officeDestination: player.legislativeSeat
