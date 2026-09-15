@@ -367,7 +367,7 @@ pub(crate) async fn open_ask_link(app: AppHandle, url: String) -> Result<(), Str
     if !matches!(parsed.scheme(), "http" | "https") {
         return Err("unsupported Ask link".to_string());
     }
-    if parsed.host_str().is_none_or(|host| host.is_empty()) {
+    if parsed.host_str().map_or(true, |host| host.is_empty()) {
         return Err("unsupported Ask link".to_string());
     }
     app.opener()
