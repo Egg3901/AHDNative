@@ -290,9 +290,29 @@ redesign beyond landing is attempted here.
 | Game chrome/nav/footer | `src/ui/GameScreen.tsx`, `src/ui/MobileNavigation.tsx` | `src/components/Navbar.tsx`, `src/components/navbar/*` |
 | Profile (entry target) | `src/ui/ProfilePanel.tsx`, `src/ui/ProfileRoute.tsx` | `src/app/page.tsx` routing to `/profile` |
 | Nation/Economy | `src/ui/NationPanel.tsx`, `src/ui/FinancePanel.tsx` | `src/components/national/tabs/*` |
-| Politics/legislature | `src/ui/PoliticsPanel.tsx`, `src/ui/LegislaturePanel.tsx`, `src/ui/LegislationDetailsPanel.tsx` | nav inventory sections 1-3 in [navigation parity](NAVIGATION-PARITY.md) |
+| Politics/legislature | `src/ui/PoliticsPanel.tsx`, `src/ui/LegislaturePanel.tsx`, `src/ui/LegislationDetailsPanel.tsx` | nav inventory sections 1-3 in [navigation parity](NAVIGATION-PARITY.md); Elections hub band in `src/ui/PoliticsPanel.tsx` via shared `RouteHero` (see below) |
 | Markets/bonds/regions/world/search | `src/ui/MarketsPanel.tsx`, `BondMarketPanel.tsx`, `RegionsPanel.tsx`, `WorldPanel.tsx`, `SearchPanel.tsx` | world menu section 3 in [navigation parity](NAVIGATION-PARITY.md) |
 | Help/Settings | `src/ui/HelpPanel.tsx`, `src/ui/SettingsPanel.tsx` | app-local surfaces, tokens from `src/app/globals.css` |
+
+### Elections hub hero (issue #377)
+
+Native Elections opens with a hero band plus a Races/Contested/Next-to-close
+stat strip above the unchanged race lists. Composition (image band, title,
+tagline, Contested prominent so zero candidates reads as open ground) follows
+AHDGame at `e364c04954ed628beef73a993a8e9e156650a31e`:
+`src/app/country/[code]/elections/components/ElectionsHero.tsx`
+(`HeroImage`, `HeroStatsStrip`), tagline "Pick an office, find your seat, and
+file to stand." The band reuses the already-bundled offline
+`public/static/heroes/politicians.webp` (byte-identical to AHDGame, SHA-256
+`bb3078558687f426d939f74672e339033147e241b21495b269b59cc12acb7a00`); the
+reference remote Wikimedia voting photo is never copied or hotlinked. The
+strip is pure composition over the projected race list
+(`summarizeElectionRaces` in `src/ui/PoliticsPanel.tsx`): Contested counts
+races with at least one declared candidate, Next to close is the soonest
+filing deadline among unresolved races on the reference calendar, and no
+tally or forecast is invented. Rendered tests:
+`src/ui/ElectionsHero.test.tsx`. Remaining: primaries/results tabs,
+candidate-directory page, per-race detail page.
 
 Root visual review restored the reference Fraunces display face (Game
 `src/app/layout.tsx` and `font-display` hero). The unchanged 600 face is bundled

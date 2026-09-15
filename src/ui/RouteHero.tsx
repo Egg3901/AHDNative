@@ -27,6 +27,17 @@ export function nationOverviewHero(countryId: string): string {
   return "/static/heroes/actions.webp";
 }
 
+/**
+ * Elections hub band (#377). Reuses the already-bundled `politicians.webp`
+ * chamber art (byte-identical to AHDGame, SHA-256 `bb3078558687f426d939f...`,
+ * see docs/UI-REFERENCE.md) instead of the reference `ElectionsHero` remote
+ * Wikimedia voting photo, which must never be copied or hotlinked. The
+ * reference image-error gradient fallback in `RouteHero` still applies.
+ */
+export function electionsHero(): string {
+  return "/static/heroes/politicians.webp";
+}
+
 export function executiveHero(countryId: string): string {
   if (countryId === "US") return "/static/heroes/white-house.webp";
   if (countryId === "UK") return "/static/heroes/downing-street.webp";

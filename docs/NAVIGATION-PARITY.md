@@ -41,7 +41,7 @@ Order is traffic-ordered: Politics, Other (Map), Government, Economy (collapsibl
 
 | Item | Condition | AHDNative |
 |---|---|---|
-| Elections (country elections page) | always | PARTIAL: race list only, no country elections hub, no primaries/results. |
+| Elections (country elections page) | always | PARTIAL: hero band with Races/Contested/Next-to-close strip and open-ground framing above the race list (#377); race list with run/withdraw candidacy, winners, pagination. No primaries/results tabs, no candidate-directory page, no per-race detail page. |
 | Political Parties | always | PARTIAL: party list with members/treasury, join/leave actions. No per-party detail page. |
 | Politicians (candidate directory) | always | MISSING: candidate names appear inline on races only; no roster page. |
 | Presidential Election (race page) | direct-election country + active race | MISSING as a page; active-race candidacy is inline on the Elections tab. |

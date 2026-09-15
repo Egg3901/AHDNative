@@ -59,3 +59,16 @@ formula changed.
   campaign projection is still open in
   [#68](https://github.com/Egg3901/AHDNative/issues/68); this slice does not
   present campaign strength as a forecast.
+
+## Hub hero band ([#377](https://github.com/Egg3901/AHDNative/issues/377))
+
+The Elections surface now opens with a hero band (title, tagline, Races /
+Contested / Next-to-close strip) above the unchanged race lists, following
+the reference `ElectionsHero` composition with Contested prominent so zero
+candidates reads as open ground. The band reuses the already-bundled offline
+`politicians.webp` chamber art through `electionsHero()` in
+`src/ui/RouteHero.tsx`; the reference remote photo is never copied or
+hotlinked. `summarizeElectionRaces` composes the strip from the projected
+list only (no tally or forecast). The stat grid holds at 320px/390px/desktop
+with no overflow. Rendered coverage: `src/ui/ElectionsHero.test.tsx` (band,
+strip, empty contested framing, mobile reachability).

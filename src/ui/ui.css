@@ -1005,6 +1005,14 @@ html, body { overflow-x: hidden; }
 .ahd-route-hero-shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(8,8,14,.96), rgba(8,8,14,.42) 62%, rgba(8,8,14,.12)); }
 .ahd-route-hero-content { position: relative; z-index: 1; min-height: 172px; display: flex; flex-direction: column; justify-content: flex-end; padding: 1rem; color: #fff; text-shadow: 0 1px 3px #000; }
 @media (min-width: 700px) { .ahd-route-hero, .ahd-route-hero-content { min-height: 220px; } .ahd-route-hero-content { padding: 1.35rem 1.5rem; } }
+/* Elections hub stat strip (#377): Races / Contested / Next-to-close under the
+   hero band. Grid tiles keep their own minimum width at zero so long deadline
+   values wrap instead of overflowing at 320px. */
+.ahd-hero-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 0.75rem; margin: 0.5rem 0 0; padding: 0.65rem 1rem; }
+.ahd-hero-stats > div { min-width: 0; }
+.ahd-hero-stats dt { font-size: 0.62rem; font-weight: 650; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ahd-muted); }
+.ahd-hero-stats dd { margin: 0.15rem 0 0; font-size: 0.82rem; font-weight: 700; overflow-wrap: anywhere; min-width: 0; }
+@media (max-width: 380px) { .ahd-hero-stats { padding: 0.6rem 0.75rem; } .ahd-hero-stats dd { font-size: 0.74rem; } }
 .ahd-mp-layout { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
 .ahd-mp-footer { z-index: 40; }
 .ahd-mp-bottomnav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
