@@ -16,13 +16,17 @@
 import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import { clampCabinetModifier, modifierSpanScale } from "./constants.js";
+import { isMinisterialOrderActive, normalizeMinisterialOrderLifecycle } from "./lifecycle.js";
 
 export function runMinisterialOrders(world: WorldState): { metricsUpdated: number } {
   const combined = new Map<string, { countryId: string; metric: string; total: number }>();
   for (const order of world.ministerialOrders) {
-    if (!order.active) continue;
+    normalizeMinisterialOrderLifecycle(order, world.meta.turn);
+    if (!isMinisterialOrderActive(order, world.meta.turn)) continue;
+    let applied = false;
     for (const effect of order.effects) {
       if (effect.scope !== "national") continue; // B02: regional order targets have no per-region metric store yet (same blocker as policyEffects)
+      applied = true;
       const key = `${order.countryId}:${effect.metric}`;
       let entry = combined.get(key);
       if (!entry) {
@@ -31,6 +35,7 @@ export function runMinisterialOrders(world: WorldState): { metricsUpdated: numbe
       }
       entry.total += effect.modifier;
     }
+    if (applied) order.lastAppliedTurn = world.meta.turn;
   }
 
   let metricsUpdated = 0;

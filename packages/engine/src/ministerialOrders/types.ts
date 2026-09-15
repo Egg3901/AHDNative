@@ -26,6 +26,16 @@ export interface MinisterialOrder {
   /** Issuing minister — politician id or "player". */
   characterId: string;
   active: boolean;
+  /** Cabinet position and catalog identity retained for save/reload and UI projection. */
+  positionId?: string;
+  orderId?: string;
+  orderName?: string;
+  /** Lifecycle fields are optional so saves created before #258 remain loadable. */
+  status?: "active" | "expired";
+  duration?: number;
+  expiresTurn?: number;
+  lastAppliedTurn?: number;
+  expiredAtTurn?: number;
   effects: MinisterialOrderEffect[];
   issuedAtTurn: number;
 }
