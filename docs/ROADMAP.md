@@ -973,3 +973,11 @@ no per-region economic/social lean. The issue stays open with `status: partial`.
 - A shared synchronous spend boundary rejects exhaustion before mutation and
   refunds a debit if downstream order persistence throws. Catalog and dispatcher
   wiring remain isolated in dependent #259–#262.
+
+## Union contribution conservation checkpoint, 2026-09-15 (#319 / #114)
+
+- Union political policy still affects approval, but cash now leaves treasury
+  only when it can be credited to an eligible organizer, matching the pinned
+  union turn. Native has no organizer rows yet, so configured but unpaid cash
+  is retained rather than destroyed. Organizer state and atomic payouts remain
+  #320/#321; bargaining, strikes and phase timing remain #322/#323.

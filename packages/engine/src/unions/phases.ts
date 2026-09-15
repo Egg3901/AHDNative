@@ -27,7 +27,9 @@
  *  - duesRate = min(stored, maxDuesForWage(annualWage)) (re-clamped each turn)
  *  - duesIncome = duesIncomePerTurn(members, duesRate)
  *  - servicesCost floored to 0 when > treasury+duesIncome (lapses)
- *  - contribution = politicalContributionPerTurn(freeCashFlow, pct) (PORT-STUB: not paid out to organizers yet, just debited)
+ *  - requested contribution = politicalContributionPerTurn(freeCashFlow, pct)
+ *  - actual debit equals eligible organizer payouts; with no organizer state
+ *    before #320/#321, Native retains the unpaid amount in treasury
  *  - treasury += duesIncome - servicesCost - contribution
  *  - approval trends toward approvalTarget
  *
@@ -62,6 +64,7 @@ import {
 import { normalizeServiceIds, GAME_DAYS_PER_YEAR } from "./services.js";
 import {
   clampPoliticalContributionPct,
+  distributePoliticalContributions,
   freeCashFlowPerTurn,
   politicalContributionPerTurn,
 } from "./political.js";
@@ -141,13 +144,12 @@ export const unionsTurnPhase: TurnPhase = {
       const servicesCost = servicesLapsed ? 0 : fullServicesCost;
       const contributionPct = clampPoliticalContributionPct(union.politicalContributionPct);
       const freeCashFlow = freeCashFlowPerTurn(duesIncome, servicesCost);
-      // PORT-STUB: mainline distributes contributions to organizers by strength
-      // (unionPoliticalContributions.ts distributePoliticalContributions). AHDClient
-      // has no UnionOrganizer table yet, so contribution is debited from treasury
-      // but not credited to any character — the organizer payout wire is blocked
-      // until organizer/strength lands. BLOCKER: organizer payout requires
-      // UnionOrganizer/strength (src/lib/db/types/union.ts UnionOrganizer).
-      const contribution = politicalContributionPerTurn(freeCashFlow, contributionPct);
+      // Mainline debits only the sum actually paid to eligible organizers. Native
+      // has no UnionOrganizer rows yet, so the eligible set is empty and the
+      // requested amount remains in treasury until #320/#321 add real recipients.
+      const requestedContribution = politicalContributionPerTurn(freeCashFlow, contributionPct);
+      const payouts = distributePoliticalContributions(requestedContribution, []);
+      const contribution = payouts.reduce((sum, payout) => sum + payout.amount, 0);
       const target = approvalTarget({
         duesPerWorkerAnnual: duesRate,
         annualWage: avgWage,
