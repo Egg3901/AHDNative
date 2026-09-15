@@ -351,4 +351,51 @@ describe("AskPanel 429 stream refusal", () => {
     expect(await within(thread as HTMLElement).findByText("No questions left")).toBeInTheDocument();
   });
 });
+
+describe("AskPanel single verification round", () => {
+  it("requests access and history together instead of sequential entitlement checks", async () => {
+    const meGate = deferred<unknown>();
+    const convGate = deferred<unknown>();
+    invoke.mockImplementation((command: string, args?: Record<string, unknown>) => {
+      if (command === "ask_api") {
+        if (args?.path === "/api/me") return meGate.promise;
+        if (args?.path === "/api/conversations") return convGate.promise;
+        if (String(args?.path ?? "").startsWith("/api/conversation")) {
+          return Promise.resolve({ status: 200, body: '{"turns":[]}' });
+        }
+      }
+      if (command === "ask_send") return Promise.resolve("req-1");
+      if (command === "ask_stop") return Promise.resolve(undefined);
+      if (command === "open_ask_window") return Promise.resolve(undefined);
+      if (command === "open_ask_link") return Promise.resolve(undefined);
+      return Promise.reject(new Error(`unexpected invoke ${command}`));
+    });
+    render(<AskPanel />);
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith("ask_api", { method: "GET", path: "/api/me", body: null }),
+    );
+    // History must already be in flight while the access check is pending.
+    expect(invoke).toHaveBeenCalledWith("ask_api", { method: "GET", path: "/api/conversations", body: null });
+    meGate.resolve({ status: 200, body: meBody() });
+    convGate.resolve({ status: 200, body: JSON.stringify({ conversations: [], usage: USAGE }) });
+    expect(await screen.findByText("7 of 10 left", { exact: false })).toBeInTheDocument();
+  });
+
+  it("does not re-verify the allowance on every window focus", async () => {
+    routeInvoke({
+      "/api/me": { status: 200, body: meBody() },
+      "/api/conversations": { status: 200, body: '{"conversations":[]}' },
+    });
+    render(<AskPanel />);
+    expect(await screen.findByText("7 of 10 left", { exact: false })).toBeInTheDocument();
+    const meCalls = () =>
+      invoke.mock.calls.filter(
+        (call) => call[0] === "ask_api" && (call[1] as Record<string, unknown>)?.path === "/api/me",
+      ).length;
+    const before = meCalls();
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(meCalls()).toBe(before);
+  });
+});
 });

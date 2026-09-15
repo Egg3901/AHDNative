@@ -39,7 +39,7 @@ use tauri_plugin_opener::OpenerExt;
 /// ask.lakesidegames.net session cookie. Mirrors `COOKIE` in the Ask
 /// service's auth module.
 const ASK_SESSION_COOKIES: &[&str] = &["__Host-ask_session", "ask_session"];
-const ASK_NATIVE_AUTH_URL: &str = "https://auth.ahousedividedgame.com/auth/ahd?return=https%3A%2F%2Fask.lakesidegames.net%2Fauth%2Fnative%2Fcallback";
+const ASK_NATIVE_AUTH_URL: &str = "https://auth.ahousedividedgame.com/auth/ahd?return=https%3A%2F%2Fask.lakesidegames.net%2Fauth%2Fcallback%3Fnext%3D%2F";
 
 fn is_ask_session_cookie(name: &str) -> bool {
     ASK_SESSION_COOKIES.contains(&name)
@@ -752,7 +752,7 @@ mod tests {
         assert!(!is_ask_session_cookie("__Host-ask_login"));
         assert_eq!(
             ask_auth_url().as_str(),
-            "https://auth.ahousedividedgame.com/auth/ahd?return=https%3A%2F%2Fask.lakesidegames.net%2Fauth%2Fnative%2Fcallback"
+            "https://auth.ahousedividedgame.com/auth/ahd?return=https%3A%2F%2Fask.lakesidegames.net%2Fauth%2Fcallback%3Fnext%3D%2F"
         );
     }
 
