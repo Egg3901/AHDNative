@@ -134,6 +134,19 @@ the Windows ICO contains six sizes and the macOS ICNS is readable. This is
 asset and browser evidence only. Installed launcher treatment, OS masking and
 device accessibility remain package/device acceptance.
 
+Linux re-verification, 2026-09-15 (issue stays open, `status: partial`).
+SHA-256 `1a7fe54f...f66a9`, 500x500 RGBA, offline decorative square launcher
+render and full desktop/iOS/Android/ICO dimension declarations are pinned in
+`src/ui/logoIconAcceptance.test.tsx` (8 cases, TDD red-to-green). Two concrete
+defects were fixed: Android `mipmap-hdpi` legacy and round launchers were
+49px instead of the 72px density size (corrected by downsampling the
+same-pipeline xhdpi pair, so the canonical artwork is unchanged and nothing
+is substituted or redrawn), and three byte-identical iOS `*-1.png` duplicates
+were removed. No paid build was triggered, no signing material was accessed,
+and no physical-device acceptance is claimed. Remaining: installed
+icon/launcher confirmation in the next authorized package on each platform;
+0.1.5 build 1.9 (or later) already contains the canonical families.
+
 The globe remains decorative. Per-era selection, nation detail and drag/zoom
 are outside this landing slice. Physical WebView frame pacing and battery
 use remain device checks. Cross-screen imagery remains #143.
