@@ -1084,3 +1084,20 @@ no per-region economic/social lean. The issue stays open with `status: partial`.
   legacy values fail closed to zero, and the volatile proprietary mark cannot
   be distributed as equity. Transactions remain #326-#328; solvency and phase
   integration remain #329.
+
+## Canonical logo/icon Linux re-verification checkpoint, 2026-09-15 (#148 partial)
+
+- Linux-verifiable acceptance is re-confirmed and pinned: canonical SHA-256
+  `1a7fe54f...f66a9` at 500x500 RGBA, offline decorative square launcher
+  render, `tauri.conf.json` declarations, desktop/iOS/Android/ICO dimensions
+  and no remote image references (`src/ui/logoIconAcceptance.test.tsx`,
+  8 cases, red-to-green; `LandingScreen.test.tsx` still green).
+- Fixed: Android `mipmap-hdpi` legacy and round launchers were 49px instead of
+  72px (corrected from the same-pipeline xhdpi pair; artwork unchanged).
+  Removed three byte-identical iOS `*-1.png` duplicates.
+- Launcher/account surfaces re-checked: Help/Settings carry no remote image
+  dependency and `src/` holds no Native auth token store; AHDGame still owns
+  authentication and SP stays account-free.
+- No paid build, no signing access, no device claim. #148 stays open with
+  `status: partial` until the installed icon/launcher check passes in an
+  authorized package on each platform (0.1.5 build 1.9 or later qualifies).
