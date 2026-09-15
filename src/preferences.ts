@@ -2,11 +2,14 @@ export const PREFERENCES_STORAGE_KEY = "ahdnative-preferences-v1";
 
 export type TextSize = "standard" | "large";
 export type ReducedMotion = "system" | "on" | "off";
+/** World map/directory section shown first. Both sections are implemented. */
+export type WorldMapSection = "nations" | "regions";
 
 export interface Preferences {
   textSize: TextSize;
   reducedMotion: ReducedMotion;
   disableAutoplayOnOtherProfiles: boolean;
+  worldMapSection: WorldMapSection;
 }
 
 export interface PreferenceStorage {
@@ -29,6 +32,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   textSize: "standard",
   reducedMotion: "system",
   disableAutoplayOnOtherProfiles: false,
+  worldMapSection: "nations",
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -58,6 +62,9 @@ export function parsePreferences(value: unknown): Preferences {
     disableAutoplayOnOtherProfiles: typeof parsed.disableAutoplayOnOtherProfiles === "boolean"
       ? parsed.disableAutoplayOnOtherProfiles
       : DEFAULT_PREFERENCES.disableAutoplayOnOtherProfiles,
+    worldMapSection: parsed.worldMapSection === "nations" || parsed.worldMapSection === "regions"
+      ? parsed.worldMapSection
+      : DEFAULT_PREFERENCES.worldMapSection,
   };
 }
 
