@@ -222,6 +222,20 @@ tile so roster rows hold at 320px and 390px with no overflow. Rendered tests:
 `src/ui/PartyMark.test.tsx`, `src/ui/CoalitionMark.test.tsx`,
 `src/ui/PartyManagementPanel.test.tsx`.
 
+Party platform comparison (#143 visual, N04 detail): the Parties detail now
+opens with a code-native comparison drawn from the saved projection. The
+shared `PolicyCompass` SVG plots one marker per party at its real authored
+`economicPosition`/`socialPosition` (-5..+5), a compact table repeats the same
+numbers as text with bucket labels matching the detail card, and one-tap
+party chips drive the same selection state as the existing dropdown, so both
+controls select the detail card below. No logo URL is invented, no
+vote/share/strength figures are added, and everything renders offline from
+the projection. Source: `src/ui/PartyPlatformComparison.tsx` wired in
+`src/ui/PoliticsPanel.tsx` (`PartiesSection`); tests:
+`src/ui/PartyPlatformComparison.test.tsx`,
+`src/ui/PoliticsPanel.test.tsx`. Read-only: editable platform actions stay
+open under #59.
+
 Provenance (read-only inspection of the public AHDGame checkout, no assets
 copied): `src/components/PartyLogo.tsx` (route lookup + `logoUrl` override
 + error fallback), `src/components/CoalitionLogo.tsx`,
