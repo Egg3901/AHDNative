@@ -8,10 +8,10 @@
  * banking/bankSolvencyTurn.ts file docs for the full scope-cut rationale).
  *
  * Scope cut (cited, not silently dropped): mainline's BankCharter also
- * carries an investment/universal charter type running a proprietary trading
- * book (propBook, propBookMarkValue), an interbank market (InterbankLoan),
- * a central-bank margin line and B8 discount window (cbMarginDebt/
- * discountWindowDebt + their arrears/idempotency fields), Regulation Q rate
+ * carries investment/universal charter capabilities, proprietary positions,
+ * InterbankLoan rows, central-bank facility commands, and their idempotency
+ * fields. #325 adds the optional aggregate debts and proprietary mark needed
+ * for canonical accounting; transaction lifecycles remain #326-#328. Regulation Q rate
  * corridors, charter-switch cooldowns, a blacklist, opt-in loan approval, and
  * B7 supervisory capital-adequacy stress testing (capitalStanding,
  * appliedStressLossFraction, undercapitalizedSinceTurn). All of that sits
@@ -21,8 +21,8 @@
  * "request a bank loan" / "open an investment charter" action exists). W12
  * ports the retail/deposit-taking core only: one bank per playable country
  * (see npcBanks.ts), NPC household deposits + interest, the NPC household
- * bulk loan book, deposit insurance, and solvency/failure. Prop trading,
- * interbank, CB margin, discount window, charter switching, Regulation Q,
+ * bulk loan book, deposit insurance, and solvency/failure. Prop transactions,
+ * interbank servicing, central-bank facility commands, charter switching, Regulation Q,
  * supervision and loan approval are out of scope for this wave — flagged for
  * operator review, not silently ported partial.
  */
@@ -60,6 +60,18 @@ export interface BankCharter {
   /** Cached deposit aggregate (player pointer + npcDeposits), recomputed each bankingTurn. Source: BankCharter.totalDeposits. */
   totalDeposits: number;
   totalLoans: number;
+  /** Principal owed to the central bank discount window. */
+  discountWindowDebt?: number;
+  /** Unpaid discount-window interest. */
+  discountWindowArrears?: number;
+  /** Principal owed on the central-bank margin facility. */
+  cbMarginDebt?: number;
+  /** Unpaid central-bank margin interest. */
+  cbMarginArrears?: number;
+  /** Outstanding principal borrowed from other banks. */
+  interbankDebt?: number;
+  /** Latest marked value of the proprietary book, not distributable equity. */
+  propBookMarkValue?: number;
   /** CEO-set offsets against prime; solo has no rate-console action, so these stay at their charter default (0). Source: BankCharter.depositOffset/lendingOffset. */
   depositOffset: number;
   lendingOffset: number;

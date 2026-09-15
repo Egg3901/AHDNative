@@ -1065,3 +1065,11 @@ no per-region economic/social lean. The issue stays open with `status: partial`.
   union turn. Native has no organizer rows yet, so configured but unpaid cash
   is retained rather than destroyed. Organizer state and atomic payouts remain
   #320/#321; bargaining, strikes and phase timing remain #322/#323.
+
+## Bank balance-sheet checkpoint, 2026-09-15 (#325 / #109)
+
+- One banking rule now totals discount-window, central-bank margin and
+  interbank claims for book equity and regulatory capital. Invalid or negative
+  legacy values fail closed to zero, and the volatile proprietary mark cannot
+  be distributed as equity. Transactions remain #326-#328; solvency and phase
+  integration remain #329.
