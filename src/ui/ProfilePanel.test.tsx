@@ -68,6 +68,7 @@ const BASE: ProfileView = {
     regularIncome: 150,
     donorIncome: 90,
   },
+  corporations: [],
 };
 
 function renderPanel(overrides: Partial<ProfileView> = {}, props = {}) {

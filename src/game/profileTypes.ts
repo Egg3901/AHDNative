@@ -1,5 +1,6 @@
 import type { ResourceDetailsView } from "./resources";
 import type { CharacterDemographics } from "./types";
+import type { ProfileCorporationEntry } from "./profileCorporation";
 
 export interface ProfileUpdate {
   bio?: string;
@@ -125,4 +126,14 @@ export interface ProfileView {
     currency: string; cash: number; savings: number; funds: number;
     donorBaseLevel: number; regularIncome: number; donorIncome: number;
   };
+  /**
+   * Player-owned corporations for the conditional Profile card (#51),
+   * projected from the same Markets listings the company detail renders.
+   * Empty for ordinary players (no recorded sector acquisition), in which
+   * case the Profile omits the card entirely. Never inferred from share
+   * holdings: the reference gates its CEO card on a recorded ceoId, and the
+   * engine records no CEO relationship, so only the recorded #295 sector
+   * owner qualifies.
+   */
+  corporations: ProfileCorporationEntry[];
 }

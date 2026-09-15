@@ -60,6 +60,7 @@ function profileFor(world: GameView): ProfileView {
       favorability: world.player.favorability, infamy: 0, partyInfluence: null },
     finances: { currency: world.finance.currency, cash: world.finance.cash, savings: world.finance.savings,
       funds: world.player.funds, donorBaseLevel: 0, regularIncome: 9500, donorIncome: 0 },
+    corporations: [],
   };
 }
 const search = async (query: string) => ({ query, results: [], total: 0, facets: { kinds: [], countries: [], regions: [] } });
