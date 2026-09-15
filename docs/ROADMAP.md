@@ -651,13 +651,17 @@ on the player's legislative seat. A sitting UK Commons member or Prime
 Minister receives the same region-constrained 650-seat Westminster catalog as
 the pinned AHDGame profile reference. The Profile selector writes through a
 real worker/session command, rejects a constituency outside the held region
-without mutation, persists the selection through save and reload, and links
-the selected constituency back to its region detail. Ineligible profiles show
-the applicable rule instead of a disabled or fabricated choice.
+or one already assigned to another Commons official without mutation,
+persists the selection through save and reload, and links the selected
+constituency back to its region detail. Constituency-specific Commons
+elections consume the selection in the real candidacy action and reject a
+different constituency's race. Ineligible profiles show the applicable rule
+instead of a disabled or fabricated choice.
 
-Focused evidence: ten public `GameSession` profile scenarios cover Commons and
+Focused evidence: eleven public `GameSession` profile scenarios cover Commons and
 Prime Minister eligibility, exact regional filtering, atomic rejection and
-save/reload persistence. Thirty-six `ProfilePanel` player-flow scenarios cover
+save/reload persistence. Ten public engine candidacy scenarios include the
+selected-constituency race constraint. Thirty-six `ProfilePanel` player-flow scenarios cover
 selection, save feedback, unavailable state and region navigation. The related
 GameScreen suites also pass. The catalog retains the pinned reference's 650 ONS
 codes and names, with every region assignment corrected against the House of

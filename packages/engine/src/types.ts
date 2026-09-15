@@ -562,6 +562,9 @@ export interface Politician {
   chamberKey: string;
   /** US state whose seat is held (house/senate). */
   electedState?: string | undefined;
+  /** UK constituency held by this official, when the election has one seat. */
+  constituencyId?: string | undefined;
+  constituency?: string | undefined;
   /** US senate class of the held seat. */
   senateClass?: 1 | 2 | 3 | undefined;
   ideology: PoliticianIdeology;

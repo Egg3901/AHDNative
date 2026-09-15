@@ -62,6 +62,14 @@ export function applyProfileConstituency(world: WorldState, constituencyId: stri
   }
   const constituency = findUkConstituency(resolved.regionId, constituencyId.trim());
   if (!constituency) throw new Error("That constituency is not in your current UK region.");
+  const represented = world.politicians.some((politician) =>
+    politician.countryId === "UK"
+    && politician.chamberKey === "commons"
+    && politician.constituencyId === constituency.id
+  );
+  if (represented) {
+    throw new Error(`${constituency.name} is already represented by another player.`);
+  }
   world.player.constituency = {
     id: constituency.id,
     name: constituency.name,

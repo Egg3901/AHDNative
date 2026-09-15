@@ -186,4 +186,23 @@ describe('profile through the saved game session', () => {
       'Only sitting UK Commons members and Prime Ministers can choose a constituency.',
     );
   });
+
+  it('rejects a constituency already represented by another official', () => {
+    const session = new GameSession();
+    session.create({ ...options, countryId: 'UK', homeRegionId: 'LON' });
+    const raw = JSON.parse(session.serialize(savedAt));
+    raw.world.player.legislativeSeat = { chamberKey: 'commons', countryId: 'UK', regionId: 'LON' };
+    raw.world.politicians[0].countryId = 'UK';
+    raw.world.politicians[0].chamberKey = 'commons';
+    raw.world.politicians[0].electedState = 'LON';
+    raw.world.politicians[0].constituencyId = 'E14001081';
+    raw.world.politicians[0].constituency = 'Battersea';
+    session.load(JSON.stringify(raw));
+    const before = session.serialize(savedAt);
+
+    expect(() => session.selectConstituency('E14001081')).toThrow(
+      'Battersea is already represented by another player.',
+    );
+    expect(session.serialize(savedAt)).toBe(before);
+  });
 });

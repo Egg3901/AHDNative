@@ -107,6 +107,29 @@ describe("player candidacy fees and eligibility (#99)", () => {
     expect(rec.candidates.some((c) => c.id === "player")).toBe(false);
   });
 
+  it("uses the selected UK constituency to constrain a real candidacy", () => {
+    const world = createWorld({ ...OPTS, countryId: "UK" });
+    world.player.partyId = "UK_LAB";
+    world.player.homeRegionId = "LON";
+    world.player.constituency = { id: "E14001081", name: "Battersea", regionId: "LON" };
+    world.player.actions = 10;
+    world.meta.turn = 5;
+    const wrong: ElectionRecord = {
+      ...houseRace("LON", "commons:UK:LON:E14001080:c1"),
+      countryId: "UK", electionType: "commons", chamberKey: "commons",
+      constituencyId: "E14001080",
+    };
+    world.elections = [wrong];
+
+    const rejected = executeAction(world, "player", "declareCandidacy", { electionId: wrong.id });
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok) expect(rejected.error).toMatch(/selected constituency.*Battersea/i);
+
+    const matching = { ...wrong, id: "commons:UK:LON:E14001081:c1", constituencyId: "E14001081", candidates: [], tally: {} };
+    world.elections = [matching];
+    expect(executeAction(world, "player", "declareCandidacy", { electionId: matching.id }).ok).toBe(true);
+  });
+
   it("exempts nationwide executive races from the home-state gate", () => {
     const world = createWorld(OPTS);
     world.player.partyId = "US_DEM";
