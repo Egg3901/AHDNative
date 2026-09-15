@@ -5,7 +5,7 @@ import type { WorldOverviewView } from "./worldOverview";
 import type { NationView } from "./nation";
 import type { PoliticsView } from "./politics";
 import type { ResourceDetailsView } from "./resources";
-import type { NppAutonomyLevel, SingleplayerDifficulty, SingleplayerMode, WorldFeatureFlags } from "@ahdclient/engine";
+import type { HomeRegionContext, NppAutonomyLevel, SingleplayerDifficulty, SingleplayerMode, WorldFeatureFlags } from "@ahdclient/engine";
 export type WorldInitialization = "historical" | "founding";
 export type CharacterRace = "white" | "black" | "hispanic" | "asian" | "other";
 export type CharacterGender = "male" | "female" | "nonbinary";
@@ -266,6 +266,13 @@ export interface CreationChoices {
   imperialEligible: boolean;
   /** "state" or "region", matching the reference regionNounFor. */
   regionNoun: "state" | "region";
+  /**
+   * World-free home-region context for the picker (the engine's
+   * `HomeRegionContext`: pack population plus the turnout-weighted electorate
+   * lean with its `seeded` flag). Display-only: it never enters the persisted
+   * `CharacterCreation` record or the save; only the chosen `homeRegionId` does.
+   */
+  homeRegions: HomeRegionContext[];
 }
 
 export interface CharacterCreationScreenProps {

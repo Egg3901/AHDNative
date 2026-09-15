@@ -1026,12 +1026,21 @@ the new `smoke/character-creation.spec.ts` create/act/turn/save/relaunch flow
 and one-party briefing; existing creation-sensitive smoke expectations
 (wealth cash, fundraising yield) were updated to the real consequence values.
 
+2026-09-15 #242 home-region slice: `listCreationHomeRegions` and
+`creationChoices.homeRegions` expose pack population plus the turnout-weighted
+electorate lean per region (unseeded leans flagged as country averages), and
+`HomeRegionPicker` renders the reference filter/sort radiogroup with lean, fit
+and M/K population on the creation Home step. Evidence:
+`homeRegionContext.test.ts` (6), `creationHomeRegions.test.ts` (3),
+`HomeRegionPicker.test.tsx` (4), `CharacterCreationScreen.test.tsx` (25) and
+`CharacterCreationMobilePresentation.test.tsx` (8), all green; fixed three
+`/Name/i` ambiguities and the combobox-to-radiogroup assertion.
+
 Remaining #242 acceptance gaps: the imperial *creation input* remains
 admin-only per the reference (`/create-imperial-character` is admin-gated), so
 Native renders the honest notice rather than an imperial form; a rendered
 AHDGame-vs-Native creation screenshot comparison and physical-device run were
-not captured; home-region lean markers stay absent because the engine records
-no per-region economic/social lean. The issue stays open with `status: partial`.
+not captured. The issue stays open with `status: partial`.
 
 ### Conversational mobile presentation (#335 / #336)
 

@@ -45,6 +45,8 @@ import type {
   CharacterRace,
   CharacterWealth,
 } from "../game/types";
+import type { HomeRegionContext } from "@ahdclient/engine";
+import { HomeRegionPicker } from "./HomeRegionPicker";
 import { PolicyCompass } from "./PolicyCompass";
 import { PartyMark } from "./PartyMark";
 import "./ui.css";
@@ -426,6 +428,11 @@ export function CharacterCreationScreen({
 
   const remaining = STAT_FREE_POINTS - spentPoints(stats);
   const regionNoun = choices?.regionNoun ?? selection.regionNoun;
+  // Rich electorate context (population, lean, seeded flag) comes from
+  // creationChoices; the bare world-setup name list is the loading fallback.
+  // Either way only the chosen homeRegionId is submitted and persisted.
+  const homeRegionOptions: HomeRegionContext[] = choices?.homeRegions
+    ?? regions.map((region) => ({ id: region.id, name: region.name, population: null, electorateLean: null, seeded: false }));
   const parties = choices?.parties ?? [];
   const rulingParty = choices?.rulingParty ?? null;
   const regimeLabel: Record<string, string> = { ruling: "Ruling", approved: "Approved", banned: "Banned" };
@@ -452,7 +459,7 @@ export function CharacterCreationScreen({
   const stepSummaries = [
     `${selection.countryName} (${selection.era})`,
     name.trim() || "Not answered",
-    regions.find((region) => region.id === homeRegionId)?.name ?? "Not answered",
+    homeRegionOptions.find((region) => region.id === homeRegionId)?.name ?? regions.find((region) => region.id === homeRegionId)?.name ?? "Not answered",
     compassTouched ? ideologyLabel(position) : "Not answered",
     partyTouched ? (selectedParty?.name ?? "Independent") : "Not answered",
     statsComplete ? "All points allocated" : `${remaining} points remaining`,
@@ -687,16 +694,13 @@ export function CharacterCreationScreen({
             headingRef={(element) => { headingRefs.current[2] = element; }}
             focusable={!reviewAll && activeStep === 3}
           >
-            <label className="ahd-label" htmlFor="creation-region">Home {regionNoun}</label>
-            <select
-              id="creation-region"
-              className="ahd-select"
+            <HomeRegionPicker
+              regions={homeRegionOptions}
               value={homeRegionId}
-              onChange={(event) => setHomeRegionId(event.target.value)}
-            >
-              {regions.map((region) => <option key={region.id} value={region.id}>{region.name}</option>)}
-              {regions.length === 0 ? <option value="">No regions</option> : null}
-            </select>
+              onChange={setHomeRegionId}
+              position={position}
+              regionNoun={regionNoun}
+            />
           </StepPanel>
 
           <StepPanel
