@@ -1,5 +1,6 @@
 import { formatFinanceMoney } from "./FinancePanel";
 import { PartyMark } from "./PartyMark";
+import { PartyPlatformComparison } from "./PartyPlatformComparison";
 /**
  * PoliticsPanel: per party detail, per election detail with its candidate
  * roster, and the country politician roster.
@@ -175,17 +176,28 @@ function PartiesSection({ politics, busy, onAction, initialId }: Omit<PoliticsPa
         </p>
       </div>
       {politics.parties.length === 0 ? <div className="ahd-empty">No parties in this country.</div> : (
-        <label className="ahd-field" style={{ maxWidth: "20rem" }}>
-          <span className="ahd-label">Party</span>
-          <select className="ahd-select" aria-label="Party" value={selected?.id ?? ""}
-            onChange={(e) => setSelectedId(e.target.value)} disabled={busy}>
-            {politics.parties.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.abbreviation}){p.isPlayerParty ? " [yours]" : ""}
-              </option>
-            ))}
-          </select>
-        </label>
+        <>
+          <PartyPlatformComparison
+            parties={politics.parties.map((p) => ({
+              id: p.id, name: p.name, abbreviation: p.abbreviation, color: p.color,
+              economicPosition: p.economicPosition, socialPosition: p.socialPosition,
+              isPlayerParty: p.isPlayerParty,
+            }))}
+            selectedId={selected?.id ?? ""}
+            onSelect={setSelectedId}
+          />
+          <label className="ahd-field" style={{ maxWidth: "20rem" }}>
+            <span className="ahd-label">Party</span>
+            <select className="ahd-select" aria-label="Party" value={selected?.id ?? ""}
+              onChange={(e) => setSelectedId(e.target.value)} disabled={busy}>
+              {politics.parties.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.abbreviation}){p.isPlayerParty ? " [yours]" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
       )}
       {selected ? (
         <article aria-label={selected.name} className="ahd-card ahd-card-pad" style={{ borderLeft: `3px solid ${selected.color}` }}>

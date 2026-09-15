@@ -298,6 +298,20 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
   one 100k charge and failed eligibility checks leave accounting unchanged.
 - Validation and remaining source differences: [party management](PARTY-MANAGEMENT.md).
   Single-founder immediate ratification is not AHDGame's full charter lifecycle.
+
+## Party platform comparison checkpoint, 2026-09-15
+
+- N04 detail (#143 visual): the Parties detail opens with a phone-first,
+  code-native platform comparison drawn from the saved projection. One compass
+  marker per party at its real authored axes, a text table repeating the same
+  numbers, and one-tap chips driving the same selection as the dropdown.
+  Offline, no invented logos or vote figures. Read-only: editable platform
+  actions, multi-founder flow, coalitions and charter depth stay open under
+  #59; broader imagery #143 stays open.
+- Source: `src/ui/PartyPlatformComparison.tsx` wired in
+  `src/ui/PoliticsPanel.tsx`; visual reference record in [UI reference](UI-REFERENCE.md).
+  Tests: `src/ui/PartyPlatformComparison.test.tsx` plus new
+  `PoliticsPanel` chip/dropdown-sync and empty-projection cases.
 - Integrated gate: 81 root tests, 114 UI tests, fixture integrity, engine
   typecheck and 7 focused action-accounting tests passed. All 21 production
   browser scenarios passed, including founding and reload at phone size.
