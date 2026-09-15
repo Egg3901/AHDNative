@@ -166,7 +166,6 @@ export interface GameScreenProps {
   preferences: Preferences;
   onPreferencesChange: (value: Preferences) => void;
   preferencesError?: string | null;
-  onOpenOnlineDestination?: (destination: import("../online/session").OnlineDestination) => void;
   search: (query: string, filter?: import("./search").SearchFilter) => Promise<import("./search").SearchResults>;
   loadBondMarket: () => Promise<import("./bondMarket").BondMarketView>;
   loadRegions: (query?: import("./regions").RegionsQuery) => Promise<import("./regions").RegionsView>;

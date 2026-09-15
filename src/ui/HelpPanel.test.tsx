@@ -1,6 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { HelpPanel } from "./HelpPanel";
 
 describe("HelpPanel", () => {
@@ -29,20 +28,12 @@ describe("HelpPanel", () => {
     expect(screen.getByText(/the local guides above remain available offline/i)).toBeInTheDocument();
   });
 
-  it("exposes account and feedback only through the authenticated multiplayer surface", async () => {
-    const user = userEvent.setup();
-    const onOpenOnlineDestination = vi.fn();
-    const { rerender } = render(<HelpPanel />);
+  it("keeps authenticated account and feedback controls inside Multiplayer", () => {
+    render(<HelpPanel />);
 
     expect(screen.queryByRole("button", { name: /account settings/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /feedback and suggestions/i })).not.toBeInTheDocument();
-
-    rerender(<HelpPanel onOpenOnlineDestination={onOpenOnlineDestination} />);
-    await user.click(screen.getByRole("button", { name: /account settings/i }));
-    await user.click(screen.getByRole("button", { name: /feedback and suggestions/i }));
-
-    expect(onOpenOnlineDestination).toHaveBeenNthCalledWith(1, "settings");
-    expect(onOpenOnlineDestination).toHaveBeenNthCalledWith(2, "feedback");
-    expect(screen.getByText(/sign in inside multiplayer/i)).toBeInTheDocument();
+    expect(screen.getByText(/account settings, feedback, the suggestions board, and quick suggest screenshot capture are available inside multiplayer/i)).toBeInTheDocument();
+    expect(screen.getByText(/after AHDGame authenticates that surface/i)).toBeInTheDocument();
   });
 });

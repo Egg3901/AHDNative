@@ -1,5 +1,4 @@
 import "./ui.css";
-import type { OnlineDestination } from "../online/session";
 
 const NETWORK_LINKS = [
   { label: "Wiki and guides", href: "https://wiki.ahousedividedgame.com" },
@@ -10,10 +9,6 @@ const NETWORK_LINKS = [
   { label: "Email support", href: "mailto:admin@ahousedividedgame.com" },
   { label: "Service status", href: "https://ops.ahousedividedgame.com/status" },
 ] as const;
-
-export interface HelpPanelProps {
-  onOpenOnlineDestination?: (destination: OnlineDestination) => void;
-}
 
 function HelpSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -26,7 +21,7 @@ function HelpSection({ title, children }: { title: string; children: React.React
   );
 }
 
-export function HelpPanel({ onOpenOnlineDestination }: HelpPanelProps) {
+export function HelpPanel() {
   return (
     <div className="ahd-stack" aria-label="Help">
       <header className="ahd-card ahd-card-pad ahd-hero">
@@ -104,19 +99,10 @@ export function HelpPanel({ onOpenOnlineDestination }: HelpPanelProps) {
             </li>
           ))}
         </ul>
+        <p style={{ margin: 0 }}>
+          Account settings, feedback, the suggestions board, and Quick Suggest screenshot capture are available inside Multiplayer after AHDGame authenticates that surface. Open Multiplayer from the home screen to use them. The offline app cannot inspect or reuse that account session.
+        </p>
       </HelpSection>
-
-      {onOpenOnlineDestination ? (
-        <HelpSection title="Multiplayer account and feedback">
-          <p style={{ margin: 0 }}>
-            Sign in inside multiplayer to manage your account or submit attributed feedback. AHDGame owns the account session; the offline game does not store it.
-          </p>
-          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-            <button className="ahd-btn" type="button" onClick={() => onOpenOnlineDestination("settings")}>Account settings</button>
-            <button className="ahd-btn" type="button" onClick={() => onOpenOnlineDestination("feedback")}>Feedback and suggestions</button>
-          </div>
-        </HelpSection>
-      ) : null}
 
       <HelpSection title="Still unavailable here">
         <p style={{ margin: 0 }}>

@@ -10,8 +10,9 @@ test('offline help and presentation preferences remain usable and survive relaun
   await expect(page.getByRole('heading', { name: 'Saving and recovery' })).toBeVisible();
   await expect(page.getByRole('link', { name: /Wiki and guides.*network required/i })).toHaveAttribute('href', 'https://wiki.ahousedividedgame.com');
   await expect(page.getByRole('link', { name: /Service status.*network required/i })).toHaveAttribute('href', 'https://ops.ahousedividedgame.com/status');
-  await expect(page.getByRole('button', { name: 'Account settings' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Feedback and suggestions' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Account settings' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Feedback and suggestions' })).toHaveCount(0);
+  await expect(page.getByText(/suggestions board, and Quick Suggest screenshot capture are available inside Multiplayer/i)).toBeVisible();
   await expect(page.getByText(/local guides above remain available offline/i)).toBeVisible();
   await page.getByRole('button', { name: 'Back to home' }).click();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
