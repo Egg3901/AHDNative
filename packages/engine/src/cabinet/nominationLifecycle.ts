@@ -148,7 +148,9 @@ export function sponsorCabinetNomination(
   }
   const position = cabinetPositionsForCountry(input.countryId).find((candidate) => candidate.id === input.positionId);
   if (!position) throw new Error("Invalid cabinet position");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(world.meta.date) || !Number.isFinite(Date.parse(`${world.meta.date}T00:00:00Z`))) {
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(world.meta.date);
+  const parsedDate = dateMatch ? new Date(Date.UTC(Number(dateMatch[1]), Number(dateMatch[2]) - 1, Number(dateMatch[3]))) : null;
+  if (!dateMatch || !parsedDate || parsedDate.toISOString().slice(0, 10) !== world.meta.date) {
     throw new Error("Invalid world date for cabinet position eligibility");
   }
   const year = Number(world.meta.date.slice(0, 4));
