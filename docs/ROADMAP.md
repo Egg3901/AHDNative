@@ -1344,6 +1344,30 @@ and removed. The smoke helper now walks the conversation; no engine change.
 - #437 stays open: representative phone screenshots and named-device
   performance evidence remain before any release claim.
 
+## Glass material visual acceptance checkpoint, 2026-09-16 (#437 partial)
+
+- New `smoke/material-visual-acceptance.spec.ts` renders the real game at
+  320px and 390px portrait and asserts the shipped hierarchy: chrome footer
+  plus 4-button bottom nav and drawer (translucent with blur), elevated
+  resource details inside the modal resource popover with linked actions and
+  close reachable, opaque never-blurred content cards, and no horizontal
+  overflow. Supported appearance is the default dark theme (AHDGame
+  light/pastel options are not ported); forced-colors and the Settings
+  Transparency group both resolve every glass surface to its solid fallback
+  with no blur. Large text keeps chrome and overlays reachable; Settings
+  reduced motion removes the drawer animation.
+- Rendered evidence (local, gitignored): `artifacts/smoke/material-{game,
+  overlay, drawer, solid, large-text}-{320,390}.png`. One probe finding was
+  a test-timing artifact, not a product defect: drawer screenshots caught
+  the 0.18s slide-in mid-flight, so the spec now polls the drawer to its
+  resting x before asserting geometry or capturing.
+- Focused evidence: new spec 2 passed; neighboring
+  `safe-area-composition` (3) and `preferences` (2) smoke green; unit
+  `materials`/`SettingsPanel`/`MobileNavigation`/`GameScreen` (96) plus
+  `preferences` (4) green. No full typecheck or verify per scope.
+- #437 stays `status: partial` solely for named physical-device performance
+  evidence; all software-verifiable acceptance is now covered.
+
 ## Dynamic Island safe-area composition checkpoint, 2026-09-16 (#436 partial)
 
 - Browser-geometry contract only. `env(safe-area-inset-*)` is now used

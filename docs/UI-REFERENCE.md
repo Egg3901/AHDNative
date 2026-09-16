@@ -377,5 +377,9 @@ to elevated card) with no blur. Solid-token contrast: body 12.1-15.4,
 secondary 4.6-5.2, primary-action label 4.8. No new transitions or animations;
 the existing reduced-motion takeover covers drawer/backdrop keyframes.
 Layout geometry (insets, widths, heights, positioning) is unchanged and stays
-owned by #436. Remaining: representative phone screenshots and named-device
-performance evidence before release claims.
+owned by #436. Rendered acceptance:
+`smoke/material-visual-acceptance.spec.ts` (320/390px portrait: chrome,
+drawer, footer, resource overlay, opaque cards, dark appearance, reduced
+transparency, forced-colors, large text, reduced motion; screenshots local
+under `artifacts/smoke/material-*`). Remaining before release claims: named
+physical-device performance evidence only.
