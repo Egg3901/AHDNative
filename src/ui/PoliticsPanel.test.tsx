@@ -898,3 +898,19 @@ describe("PoliticsPanel political metrics", () => {
     });
   });
 });
+
+describe("PoliticsPanel dual-pane list/detail (#438)", () => {
+  it("exposes list and detail panes sharing one selection, with no duplicated state", async () => {
+    const user = userEvent.setup();
+    const PoliticsPanel = await renderPanel();
+    render(<PoliticsPanel politics={makePolitics()} section="parties" clock={CLOCK} busy={false} onAction={vi.fn()} />);
+    const list = document.querySelector('[data-pane="list"]');
+    expect(list).not.toBeNull();
+    expect(within(list as HTMLElement).getByLabelText("Party")).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "Democratic Party" })).toHaveAttribute("data-pane", "detail");
+    // One selection drives both panes.
+    await user.selectOptions(screen.getByLabelText("Party"), "US_REP");
+    expect(screen.getByRole("article", { name: "Republican Party" })).toHaveAttribute("data-pane", "detail");
+    expect(screen.getByLabelText("Party")).toHaveValue("US_REP");
+  });
+});

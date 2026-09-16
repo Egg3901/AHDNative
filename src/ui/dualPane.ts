@@ -1,0 +1,194 @@
+import { useEffect, useState } from "react";
+
+/**
+ * Dual-pane and hinge-aware layout primitives (issue #438).
+ *
+ * Hardware sources, in priority order:
+ *   1. The Viewport Segments Enumeration API (`window.getViewportSegments`),
+ *      which reports one rect per separated display region on foldables.
+ *   2. The CSS Viewport Segments `spanning` media queries
+ *      (`single-fold-vertical` / `single-fold-horizontal`).
+ *   3. The explicit `?ahd-span=vertical|horizontal|single` query override.
+ *      This is a QA/emulator capability signal only: it exercises the pane
+ *      assignment and hinge-avoidance layout without claiming hardware
+ *      evidence, and it never ships as a device acceptance claim.
+ *
+ * A generic wide viewport is deliberately not an input: posture resolution
+ * takes only separated segments, spanning media, or the explicit override,
+ * so a desktop-width window keeps the single-pane phone navigation flow.
+ *
+ * Tauri constraint: the desktop/mobile webviews expose no segment API today
+ * (no `getViewportSegments`, no `spanning` media), so dual-pane stays
+ * unreachable there until the platform reports it. See docs/DUAL-PANE-LAYOUT.md.
+ */
+
+export interface ViewportSegment {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export type HingeOrientation = "vertical" | "horizontal";
+export type DualPaneMode = "single" | "dual";
+/** Where the dual-pane claim came from. `override` is QA-only, never hardware. */
+export type DualPaneCapability = "none" | "segments" | "spanning-media" | "override";
+export type DualPaneOverride = "single" | HingeOrientation;
+
+export interface DualPaneInput {
+  segments?: ViewportSegment[] | null;
+  spanningVertical?: boolean;
+  spanningHorizontal?: boolean;
+  override?: DualPaneOverride | null;
+}
+
+export interface DualPaneLayout {
+  mode: DualPaneMode;
+  /** Hinge direction: vertical separates left/right panes, horizontal top/bottom. */
+  hinge: HingeOrientation | null;
+  capability: DualPaneCapability;
+}
+
+export interface PaneAssignment {
+  /** Shell pairing: docked navigation drawer vs routed content. */
+  navigationPane: 0 | 1;
+  contentPane: 0 | 1;
+  /** List/detail pairing inside routed surfaces. */
+  listPane: 0 | 1;
+  detailPane: 0 | 1;
+}
+
+export interface HingeBounds {
+  orientation: HingeOrientation;
+  /** Occlusion interval along the hinge axis, in CSS pixels. */
+  start: number;
+  end: number;
+}
+
+function isSeparatedPair(segments: ViewportSegment[]): HingeOrientation | null {
+  if (segments.length !== 2) return null;
+  const [a, b] = segments as [ViewportSegment, ViewportSegment];
+  const verticalGap = b.x - (a.x + a.width);
+  const horizontalGap = b.y - (a.y + a.height);
+  const rowsOverlap = a.y < b.y + b.height && b.y < a.y + a.height;
+  const colsOverlap = a.x < b.x + b.width && b.x < a.x + a.width;
+  if (verticalGap > 0 && rowsOverlap && horizontalGap <= 0) return "vertical";
+  if (horizontalGap > 0 && colsOverlap && verticalGap <= 0) return "horizontal";
+  return null;
+}
+
+/**
+ * Resolve the display posture. Exactly one disposition: an explicit single
+ * override wins, then separated segments, then spanning media, else
+ * single-pane. Viewport width never participates.
+ */
+export function resolveDualPaneLayout(input: DualPaneInput): DualPaneLayout {
+  if (input.override === "single") {
+    return { mode: "single", hinge: null, capability: "override" };
+  }
+  if (input.override === "vertical" || input.override === "horizontal") {
+    return { mode: "dual", hinge: input.override, capability: "override" };
+  }
+  const segments = input.segments ?? null;
+  if (segments) {
+    const hinge = isSeparatedPair(segments);
+    if (hinge) return { mode: "dual", hinge, capability: "segments" };
+  }
+  if (input.spanningVertical) return { mode: "dual", hinge: "vertical", capability: "spanning-media" };
+  if (input.spanningHorizontal) return { mode: "dual", hinge: "horizontal", capability: "spanning-media" };
+  return { mode: "single", hinge: null, capability: "none" };
+}
+
+/**
+ * Deliberate pane assignment without duplicating state: selection and route
+ * state stay single-source in the existing components; this only names which
+ * visual pane hosts each role. Single-pane stacks everything (phone flow);
+ * dual-pane keeps navigation/list on pane 0 and content/detail on pane 1.
+ */
+export function assignPanes(layout: DualPaneLayout): PaneAssignment {
+  if (layout.mode === "dual") {
+    return { navigationPane: 0, contentPane: 1, listPane: 0, detailPane: 1 };
+  }
+  return { navigationPane: 0, contentPane: 0, listPane: 0, detailPane: 0 };
+}
+
+/** Occlusion interval between two separated segments, or null. */
+export function hingeBounds(segments: ViewportSegment[] | null | undefined): HingeBounds | null {
+  if (!segments || segments.length !== 2) return null;
+  const [a, b] = segments as [ViewportSegment, ViewportSegment];
+  const orientation = isSeparatedPair(segments);
+  if (!orientation) return null;
+  return orientation === "vertical"
+    ? { orientation, start: a.x + a.width, end: b.x }
+    : { orientation, start: a.y + a.height, end: b.y };
+}
+
+/** Parse the documented QA override (`?ahd-span=vertical|horizontal|single`). */
+export function parseDualPaneOverride(search: string): DualPaneOverride | null {
+  const value = new URLSearchParams(search).get("ahd-span");
+  return value === "vertical" || value === "horizontal" || value === "single" ? value : null;
+}
+
+function readSegments(win: Window): ViewportSegment[] | null {
+  try {
+    const getter = (win as unknown as { getViewportSegments?: () => ViewportSegment[] }).getViewportSegments;
+    if (typeof getter !== "function") return null;
+    const segments = getter.call(win);
+    return Array.isArray(segments) ? segments : null;
+  } catch {
+    return null;
+  }
+}
+
+function readSpanning(win: Window, query: string): boolean {
+  try {
+    return typeof win.matchMedia === "function" && win.matchMedia(query).matches;
+  } catch {
+    return false;
+  }
+}
+
+function readInput(win: Window, explicitOverride?: DualPaneOverride | null): DualPaneInput {
+  return {
+    segments: readSegments(win),
+    spanningVertical: readSpanning(win, "(spanning: single-fold-vertical)"),
+    spanningHorizontal: readSpanning(win, "(spanning: single-fold-horizontal)"),
+    override: explicitOverride ?? parseDualPaneOverride(win.location?.search ?? ""),
+  };
+}
+
+/**
+ * Live posture hook for the game shell. Defaults to single-pane (phone
+ * navigation intact) and re-resolves on viewport resizes and spanning
+ * changes. Safe without a window (renders single-pane).
+ */
+export function useDualPaneLayout(options?: { override?: DualPaneOverride | null }): DualPaneLayout {
+  const override = options?.override;
+  const [layout, setLayout] = useState<DualPaneLayout>(() =>
+    typeof window === "undefined" ? { mode: "single", hinge: null, capability: "none" } : resolveDualPaneLayout(readInput(window, override)),
+  );
+  useEffect(() => {
+    const update = () => setLayout(resolveDualPaneLayout(readInput(window, override)));
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    window.visualViewport?.addEventListener("resize", update);
+    let spanningQueries: MediaQueryList[] = [];
+    try {
+      spanningQueries = [
+        window.matchMedia("(spanning: single-fold-vertical)"),
+        window.matchMedia("(spanning: single-fold-horizontal)"),
+      ];
+      for (const query of spanningQueries) query.addEventListener("change", update);
+    } catch {
+      spanningQueries = [];
+    }
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+      window.visualViewport?.removeEventListener("resize", update);
+      for (const query of spanningQueries) query.removeEventListener("change", update);
+    };
+  }, [override]);
+  return layout;
+}
