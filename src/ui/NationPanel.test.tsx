@@ -289,4 +289,32 @@ describe("NationPanel", () => {
     expect(screen.getByText("Health / NHS")).toBeInTheDocument();
     expect(screen.getByText("National Insurance")).toBeInTheDocument();
   });
+
+  it("marks the nation hero with the offline flag and honors the Soviet era", () => {
+    const { container, rerender } = render(<NationPanel nation={makeNation()} section="economy" clock={CLOCK} />);
+    expect(container.querySelector('[data-country-flag="US"]')).not.toBeNull();
+    rerender(
+      <NationPanel
+        nation={{ ...makeNation(), countryId: "RU", countryName: "Soviet Union" }}
+        section="economy"
+        clock={CLOCK}
+        era="1979-default"
+      />,
+    );
+    expect(container.querySelector('[data-country-flag="SU"]')).not.toBeNull();
+  });
+
+  it("keeps the hero code beside the flag in agreement with the resolved identity", () => {
+    const { container } = render(
+      <NationPanel
+        nation={{ ...makeNation(), countryId: "RU", countryName: "Soviet Union" }}
+        section="economy"
+        clock={CLOCK}
+        era="1979"
+      />,
+    );
+    expect(container.querySelector('[data-country-flag="SU"]')).not.toBeNull();
+    expect(container.querySelector('[data-country-flag="RU"]')).toBeNull();
+    expect(screen.getByText(/SU · USD/)).toBeInTheDocument();
+  });
 });

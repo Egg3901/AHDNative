@@ -43,6 +43,8 @@ export interface PoliticsPanelProps {
   onOpenPresidential?: (id: string) => void;
   /** The already-projected nation registry, reused by the political-metrics view (#69). */
   nation?: NationView;
+  /** World era for the reused flag identity (RU flies SU in 1979); from `world.era`. */
+  era?: string | null;
   /** Navigation for registry consequence links, reused from the nation metrics view. */
   onNavigate?: (route: NationDestination, detailId?: string) => void;
   onAction: GameScreenProps["onAction"];
@@ -1563,9 +1565,10 @@ function PresidentialRaceSection({ politics, busy, onAction, initialId, onOpenCa
  * — no second projection and no re-derived metric. Categories, recorded history
  * and recorded modifier rows all come from the shared `NationMetricsView` DTO.
  */
-function PoliticalMetricsSection({ politics, nation, onNavigate }: {
+function PoliticalMetricsSection({ politics, nation, era, onNavigate }: {
   politics: PoliticsView;
   nation?: NationView;
+  era?: string | null;
   onNavigate?: PoliticsPanelProps["onNavigate"];
 }) {
   if (!nation) {
@@ -1579,14 +1582,14 @@ function PoliticalMetricsSection({ politics, nation, onNavigate }: {
       </div>
     );
   }
-  return <MetricsSection nation={nation} onNavigate={onNavigate} />;
+  return <MetricsSection nation={nation} era={era} onNavigate={onNavigate} />;
 }
 
-export function PoliticsPanel({ politics, section, busy, onAction, initialId, onOpenElection, onOpenCampaign, onOpenPolitician, onOpenPresidential, nation, onNavigate, clock }: PoliticsPanelProps) {
+export function PoliticsPanel({ politics, section, busy, onAction, initialId, onOpenElection, onOpenCampaign, onOpenPolitician, onOpenPresidential, nation, era, onNavigate, clock }: PoliticsPanelProps) {
   if (section === "campaign") return <CampaignSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} clock={clock} />;
   if (section === "elections") return <ElectionsSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} onOpenCampaign={onOpenCampaign} onOpenPolitician={onOpenPolitician} onOpenPresidential={onOpenPresidential} clock={clock} />;
   if (section === "presidential") return <PresidentialRaceSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} onOpenCampaign={onOpenCampaign} onOpenPolitician={onOpenPolitician} clock={clock} />;
-  if (section === "metrics") return <PoliticalMetricsSection politics={politics} nation={nation} onNavigate={onNavigate} />;
+  if (section === "metrics") return <PoliticalMetricsSection politics={politics} nation={nation} era={era} onNavigate={onNavigate} />;
   if (section === "referendums") return <ReferendumsSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} clock={clock} />;
   if (section === "politicians") return <PoliticiansSection politics={politics} busy={busy} initialId={initialId} onOpenElection={onOpenElection} clock={clock} />;
   return <PartiesSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} clock={clock} />;
