@@ -134,7 +134,7 @@ describe("PoliticsPanel parties", () => {
     render(<PoliticsPanel politics={makePolitics()} section="parties" clock={CLOCK} busy={false} onAction={onAction} />);
     expect(screen.getByText("Democratic Party")).toBeInTheDocument();
     expect(screen.getAllByText(/Jane Chair/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Left/)).toBeInTheDocument();
+    expect(within(screen.getByRole("article", { name: "Democratic Party" })).getByText(/Left/)).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("Party"), "US_REP");
     expect(screen.getByRole("button", { name: "Join Republican Party" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Join Republican Party" }));
@@ -142,6 +142,31 @@ describe("PoliticsPanel parties", () => {
     await user.selectOptions(screen.getByLabelText("Party"), "US_DEM");
     await user.click(screen.getByRole("button", { name: "Leave Democratic Party" }));
     expect(onAction).toHaveBeenCalledWith("leaveParty", undefined);
+  });
+
+  it("renders the projected platform comparison with chips and dropdown driving the same detail", async () => {
+    const user = userEvent.setup();
+    const PoliticsPanel = await renderPanel();
+    render(<PoliticsPanel politics={makePolitics()} section="parties" clock={CLOCK} busy={false} onAction={vi.fn()} />);
+    // Comparison reads the real projected axes, not invented metrics.
+    expect(screen.getByRole("region", { name: /party platform comparison/i })).toBeInTheDocument();
+    expect(screen.getByText(/Democratic Party · economic -2\.0, social -1\.0/)).toBeInTheDocument();
+    expect(screen.getByText(/Republican Party · economic 2\.0, social 2\.0/)).toBeInTheDocument();
+    // One-tap chip selects the detail card below.
+    await user.click(screen.getByRole("button", { name: /show republican party detail/i }));
+    expect(screen.getByRole("button", { name: "Join Republican Party" })).toBeInTheDocument();
+    // The dropdown stays in sync and keeps working after a chip selection.
+    expect(screen.getByLabelText("Party")).toHaveValue("US_REP");
+    await user.selectOptions(screen.getByLabelText("Party"), "US_DEM");
+    expect(screen.getByRole("button", { name: "Leave Democratic Party" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /show democratic party detail/i })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("renders no comparison when the projection carries no parties", async () => {
+    const PoliticsPanel = await renderPanel();
+    render(<PoliticsPanel politics={{ ...makePolitics(), parties: [] }} section="parties" clock={CLOCK} busy={false} onAction={vi.fn()} />);
+    expect(screen.getByText("No parties in this country.")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /party platform comparison/i })).not.toBeInTheDocument();
   });
 
   it("disables join when busy and shows the reason", async () => {
@@ -162,7 +187,7 @@ describe("PoliticsPanel parties", () => {
     const { rerender } = render(<PoliticsPanel politics={view} section="parties" clock={CLOCK} busy={false} onAction={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: "Leave Democratic Party" })).toBeInTheDocument();
-    expect(screen.getByText(/Left/)).toBeInTheDocument();
+    expect(within(screen.getByRole("article", { name: "Democratic Party" })).getByText(/Left/)).toBeInTheDocument();
     expect(screen.getByText("Roster (25)")).toBeInTheDocument();
     expect(screen.queryByRole("searchbox", { name: "Search roster" })).not.toBeInTheDocument();
     expect(screen.queryByText("Member 13")).not.toBeInTheDocument();

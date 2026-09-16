@@ -8,10 +8,13 @@ import {
   parseTurnStatus,
   validateExecuteArgs,
   validateNotificationId,
+  validateNotificationPreference,
+  validateSnoozeMinutes,
   type MpCharacterView,
   type MpInboxView,
   type MpTurnView,
 } from "./validators";
+import type { MpMutateOpId } from "./endpoints";
 
 /**
  * Native multiplayer mode session (#359). The server owns all state: this
@@ -102,12 +105,12 @@ export class MpModeSession {
     return this.refreshAuthed();
   }
 
-  /** Open the live-site window (sign-in / session repair), then reload. */
-  async openLiveSiteAndReload(): Promise<MpSnapshot> {
+  /** Begin a provider OAuth round trip, then reload authoritative state. */
+  async signIn(provider: "discord" | "google"): Promise<MpSnapshot> {
     try {
-      await this.host.openOnlineWindow();
+      await this.host.beginSignIn(provider);
     } catch {
-      return this.set({ phase: "offline", error: "The live site could not be opened. Check your connection and try again." });
+      return this.set({ phase: "offline", error: "Sign-in could not be started. Check your connection and try again." });
     }
     return this.enter();
   }
@@ -116,6 +119,7 @@ export class MpModeSession {
     actionType: unknown;
     targetState?: unknown;
     convertAmount?: unknown;
+    count?: unknown;
   }): Promise<MpSnapshot> {
     if (!this.snapshot.userId) return this.enter();
     const validated = validateExecuteArgs(args);
@@ -138,11 +142,49 @@ export class MpModeSession {
   }
 
   async markNotificationRead(id: unknown): Promise<MpSnapshot> {
-    return this.notificationMutation("notification-read", id);
+    return this.notificationIdMutation("notification-read", id, "Notification marked as read.");
   }
 
   async archiveNotification(id: unknown): Promise<MpSnapshot> {
-    return this.notificationMutation("notification-archive", id);
+    return this.notificationIdMutation("notification-archive", id, "Notification archived.");
+  }
+
+  async unsnoozeNotification(id: unknown): Promise<MpSnapshot> {
+    return this.notificationIdMutation("notification-unsnooze", id, "Notification unsnoozed.");
+  }
+
+  async unarchiveNotification(id: unknown): Promise<MpSnapshot> {
+    return this.notificationIdMutation("notification-unarchive", id, "Notification unarchived.");
+  }
+
+  async snoozeNotification(id: unknown, minutes?: unknown): Promise<MpSnapshot> {
+    if (!this.snapshot.userId) return this.enter();
+    const validatedId = validateNotificationId(id);
+    if (!validatedId.ok) {
+      return this.set({ error: validatedId.reason });
+    }
+    const validatedMinutes = validateSnoozeMinutes(minutes);
+    if (!validatedMinutes.ok) {
+      return this.set({ error: validatedMinutes.reason });
+    }
+    return this.notificationAckMutation(
+      "notification-snooze",
+      { id: validatedId.id, snoozeMinutes: validatedMinutes.minutes },
+      `Notification snoozed for ${validatedMinutes.minutes} minutes.`,
+    );
+  }
+
+  async setNotificationPreference(action: unknown, type: unknown): Promise<MpSnapshot> {
+    if (!this.snapshot.userId) return this.enter();
+    const validated = validateNotificationPreference({ action, type });
+    if (!validated.ok) {
+      return this.set({ error: validated.reason });
+    }
+    return this.notificationAckMutation(
+      "notification-preference",
+      { action: validated.body.action, type: validated.body.type },
+      "Notification preference updated.",
+    );
   }
 
   async markAllNotificationsRead(): Promise<MpSnapshot> {
@@ -160,24 +202,35 @@ export class MpModeSession {
     return this.applyRemoteFailure(result, "action");
   }
 
-  private async notificationMutation(
-    op: "notification-read" | "notification-archive",
+  private async notificationIdMutation(
+    op: "notification-read" | "notification-archive" | "notification-unsnooze" | "notification-unarchive",
     id: unknown,
+    notice: string,
   ): Promise<MpSnapshot> {
     if (!this.snapshot.userId) return this.enter();
     const validated = validateNotificationId(id);
     if (!validated.ok) {
       return this.set({ error: validated.reason });
     }
+    return this.notificationAckMutation(op, { id: validated.id }, notice);
+  }
+
+  /** One ack-shaped inbox mutation with the same mutate-then-refresh contract. */
+  private async notificationAckMutation(
+    op: MpMutateOpId,
+    body: Record<string, unknown>,
+    notice: string,
+  ): Promise<MpSnapshot> {
+    if (!this.snapshot.userId) return this.enter();
     this.set({ error: null, notice: null, retryAfter: null });
-    const result = await mpMutate(this.host, op, { id: validated.id });
+    const result = await mpMutate(this.host, op, body);
     if (result.kind === "ok") {
       if (!parseMutationAck(result.bodyText)) {
         return this.set({ phase: "server-error", error: "The server answered in an unexpected shape." });
       }
       const refreshed = await this.refreshAuthed();
       if (refreshed.phase !== "ready") return refreshed;
-      return this.set({ notice: op === "notification-read" ? "Notification marked as read." : "Notification archived." });
+      return this.set({ notice });
     }
     return this.applyRemoteFailure(result, "action");
   }

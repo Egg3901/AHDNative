@@ -1,4 +1,15 @@
-import { isMpExecuteActionType, type MpExecuteActionType } from "./endpoints";
+import {
+  MP_SNOOZE_MINUTES_DEFAULT,
+  MP_SNOOZE_MINUTES_MAX,
+  MP_SNOOZE_MINUTES_MIN,
+  isMpBatchableActionType,
+  isMpExecuteActionType,
+  isMpNotificationPreferenceAction,
+  isMpNotificationType,
+  type MpExecuteActionType,
+  type MpNotificationPreferenceAction,
+  type MpNotificationType,
+} from "./endpoints";
 
 /**
  * Runtime validation for authoritative payloads (#359). Every remote body is
@@ -190,20 +201,43 @@ export interface MpExecuteArgs {
   actionType: MpExecuteActionType;
   targetState?: string;
   convertAmount?: number;
+  count?: number;
 }
 
+/** Server refusal wording for batch runs the route will not accept. */
+export const MP_BATCH_UNAVAILABLE_MESSAGE = "Batch execution is not available for this action.";
+
 /**
- * Client-side pre-check mirroring the audited route schema (single runs
- * only: v1 sends no count). Returns the canonical body or a refusal reason;
- * the Rust bridge re-validates before anything is sent.
+ * Client-side pre-check mirroring the audited route schema: single runs send
+ * no count; ×5/×10 runs go only to the six batchable types, never with a
+ * convert amount. Returns the canonical body or a refusal reason; the Rust
+ * bridge re-validates before anything is sent.
  */
 export function validateExecuteArgs(
-  args: { actionType: unknown; targetState?: unknown; convertAmount?: unknown },
+  args: { actionType: unknown; targetState?: unknown; convertAmount?: unknown; count?: unknown },
 ): { ok: true; body: Record<string, unknown> } | { ok: false; reason: string } {
   if (!isMpExecuteActionType(args.actionType)) {
     return { ok: false, reason: "That action is not supported in multiplayer Native mode." };
   }
   const body: Record<string, unknown> = { actionType: args.actionType };
+  let count = 1;
+  if (args.count !== undefined) {
+    if (typeof args.count !== "number" || !Number.isInteger(args.count) || ![1, 5, 10].includes(args.count)) {
+      return { ok: false, reason: "Batch runs are ×1, ×5, or ×10." };
+    }
+    count = args.count;
+  }
+  if (count > 1) {
+    // Mirrors the route guard: batch runs need a batchable type, never
+    // convertCash, never mixed with a convert amount.
+    if (!isMpBatchableActionType(args.actionType)) {
+      return { ok: false, reason: MP_BATCH_UNAVAILABLE_MESSAGE };
+    }
+    if (args.convertAmount !== undefined) {
+      return { ok: false, reason: "Batch runs cannot include a convert amount." };
+    }
+    body.count = count;
+  }
   if (args.targetState !== undefined) {
     if (typeof args.targetState !== "string" || !args.targetState.trim()) {
       return { ok: false, reason: "Region must be a non-empty identifier." };
@@ -236,4 +270,45 @@ export function validateNotificationId(id: unknown): { ok: true; id: string } | 
     return { ok: false, reason: "That notification reference is invalid." };
   }
   return { ok: true, id };
+}
+
+/**
+ * Snooze length pre-check mirroring notificationsPatchSchema (#361):
+ * an integer number of minutes in 5..10080; omitted means the server
+ * default of 720. The adapter always sends the resolved minutes so the
+ * notice can state what was requested.
+ */
+export function validateSnoozeMinutes(
+  minutes: unknown,
+): { ok: true; minutes: number } | { ok: false; reason: string } {
+  if (minutes === undefined) {
+    return { ok: true, minutes: MP_SNOOZE_MINUTES_DEFAULT };
+  }
+  if (typeof minutes !== "number" || !Number.isInteger(minutes)) {
+    return { ok: false, reason: "Snooze length must be a whole number of minutes." };
+  }
+  if (minutes < MP_SNOOZE_MINUTES_MIN || minutes > MP_SNOOZE_MINUTES_MAX) {
+    return {
+      ok: false,
+      reason: `Snooze length must be between ${MP_SNOOZE_MINUTES_MIN} and ${MP_SNOOZE_MINUTES_MAX} minutes.`,
+    };
+  }
+  return { ok: true, minutes };
+}
+
+/**
+ * Preference pre-check mirroring notificationPreferenceActionSchema (#361):
+ * only mute/unmute with an allowlisted notification type. Preference
+ * snooze/unsnooze stay absent and are refused here.
+ */
+export function validateNotificationPreference(
+  args: { action: unknown; type: unknown },
+): { ok: true; body: { action: MpNotificationPreferenceAction; type: MpNotificationType } } | { ok: false; reason: string } {
+  if (!isMpNotificationPreferenceAction(args.action)) {
+    return { ok: false, reason: "Preference action must be mute or unmute." };
+  }
+  if (!isMpNotificationType(args.type)) {
+    return { ok: false, reason: "That notification type cannot take a preference here." };
+  }
+  return { ok: true, body: { action: args.action, type: args.type } };
 }

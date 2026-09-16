@@ -56,7 +56,7 @@ function scriptedHost(scripts: {
         calls.push({ kind: "mutate", op, arg: payload });
         return next(`mutate:${op}`);
       }),
-      openOnlineWindow: vi.fn(async () => {}),
+      beginSignIn: vi.fn(async () => {}),
     },
   };
 }
@@ -292,6 +292,188 @@ describe("MpModeSession inbox mutations", () => {
     const all = await session.markAllNotificationsRead();
     expect(all.notice).toMatch(/All notifications marked as read/);
     expect(all.inbox?.unreadCount).toBe(0);
+  });
+});
+
+describe("MpModeSession batch actions (#361)", () => {
+  function batchScripts() {
+    return {
+      fetch: {
+        "auth-session": [probeA],
+        "character-me": [meA(1000), meA(900)],
+        "turn-status": [turn(), turn()],
+        notifications: [inbox(), inbox()],
+      },
+      mutate: { "execute-action": [JSON.stringify({ success: true, message: "Ran 5 times!" })] },
+    };
+  }
+
+  it("sends the batch count, then refreshes before claiming completion", async () => {
+    const { host, calls } = scriptedHost(batchScripts());
+    const session = new MpModeSession(host);
+    await session.enter();
+    calls.length = 0;
+    const snapshot = await session.performAction({ actionType: "fundraise", count: 5 });
+    expect(calls.map((call) => `${call.kind}:${call.op}`)).toEqual([
+      "mutate:execute-action",
+      "fetch:character-me",
+      "fetch:turn-status",
+      "fetch:notifications",
+    ]);
+    expect(calls[0]?.arg).toEqual({ actionType: "fundraise", count: 5 });
+    expect(snapshot.phase).toBe("ready");
+    expect(snapshot.notice).toBe("Ran 5 times!");
+    expect(snapshot.character?.cashOnHand).toBe(900);
+  });
+
+  it("never sends batch runs for convertCash or count mixed with an amount", async () => {
+    const { host, calls } = scriptedHost(readyScripts());
+    const session = new MpModeSession(host);
+    await session.enter();
+    calls.length = 0;
+    for (const args of [
+      { actionType: "convertCash", count: 5 },
+      { actionType: "convertCash", count: 10 },
+      { actionType: "rest", count: 10 },
+      { actionType: "fundraise", count: 5, convertAmount: 10 },
+      { actionType: "fundraise", count: 7 },
+    ]) {
+      const snapshot = await session.performAction(args);
+      expect(snapshot.error, JSON.stringify(args)).toBeTruthy();
+      expect(snapshot.notice, JSON.stringify(args)).toBeNull();
+    }
+    expect(calls).toHaveLength(0);
+  });
+
+  it("maps the server batch refusal honestly with prior state intact", async () => {
+    const { host, calls } = scriptedHost({
+      fetch: { "auth-session": [probeA], "character-me": [meA(1000)], "turn-status": [turn()], notifications: [inbox()] },
+      mutate: {
+        "execute-action": [{ reject: 'remote-error:400:0:{"error":"Batch execution is not available for this action."}' }],
+      },
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+    calls.length = 0;
+    // Client-valid batch the server still refuses (drift or world state):
+    // the refusal surfaces verbatim with prior state intact.
+    const snapshot = await session.performAction({ actionType: "fundraise", count: 5 });
+    expect(snapshot.phase).toBe("ready");
+    expect(snapshot.error).toBe("Batch execution is not available for this action.");
+    expect(snapshot.notice).toBeNull();
+    expect(snapshot.character?.cashOnHand).toBe(1000);
+    // No authoritative refresh is claimed after a refusal.
+    expect(calls).toHaveLength(1);
+  });
+});
+
+describe("MpModeSession inbox snooze/unarchive/preferences (#361)", () => {
+  function inboxScripts(extraMutate: Record<string, Array<string | { reject: string }>>) {
+    return {
+      fetch: {
+        "auth-session": [probeA],
+        "character-me": [meA(1000), meA(1000), meA(1000)],
+        "turn-status": [turn(), turn(), turn()],
+        notifications: [inbox(2), inbox(1), inbox(1)],
+      },
+      mutate: extraMutate,
+    };
+  }
+
+  it("snoozes with an explicit length, defaulting to 720, mutating before refresh", async () => {
+    const { host, calls } = scriptedHost(
+      inboxScripts({ "notification-snooze": [JSON.stringify({ success: true }), JSON.stringify({ success: true })] }),
+    );
+    const session = new MpModeSession(host);
+    await session.enter();
+    calls.length = 0;
+    const snoozed = await session.snoozeNotification(NOTE_ID, 60);
+    expect(calls.map((call) => `${call.kind}:${call.op}`)).toEqual([
+      "mutate:notification-snooze",
+      "fetch:character-me",
+      "fetch:turn-status",
+      "fetch:notifications",
+    ]);
+    expect(calls[0]?.arg).toEqual({ id: NOTE_ID, snoozeMinutes: 60 });
+    expect(snoozed.notice).toMatch(/snoozed for 60 minutes/);
+    expect(snoozed.inbox?.unreadCount).toBe(1);
+
+    calls.length = 0;
+    const defaulted = await session.snoozeNotification(NOTE_ID);
+    expect(calls[0]?.arg).toEqual({ id: NOTE_ID, snoozeMinutes: 720 });
+    expect(defaulted.notice).toMatch(/snoozed for 720 minutes/);
+  });
+
+  it("rejects bad snooze lengths and ids client-side", async () => {
+    const { host, calls } = scriptedHost(readyScripts());
+    const session = new MpModeSession(host);
+    await session.enter();
+    calls.length = 0;
+    for (const args of [[NOTE_ID, 4], [NOTE_ID, 10081], [NOTE_ID, "60"], ["short", 60]] as const) {
+      const snapshot = await session.snoozeNotification(args[0], args[1]);
+      expect(snapshot.error, JSON.stringify(args)).toBeTruthy();
+    }
+    expect(calls).toHaveLength(0);
+  });
+
+  it("unsnoozes and unarchives with post-mutation refresh", async () => {
+    const { host, calls } = scriptedHost(
+      inboxScripts({
+        "notification-unsnooze": [JSON.stringify({ success: true })],
+        "notification-unarchive": [JSON.stringify({ success: true })],
+      }),
+    );
+    const session = new MpModeSession(host);
+    await session.enter();
+    calls.length = 0;
+    const unsnoozed = await session.unsnoozeNotification(NOTE_ID);
+    expect(calls[0]).toMatchObject({ kind: "mutate", op: "notification-unsnooze", arg: { id: NOTE_ID } });
+    expect(unsnoozed.notice).toMatch(/unsnoozed/);
+    calls.length = 0;
+    const unarchived = await session.unarchiveNotification(NOTE_ID);
+    expect(calls[0]).toMatchObject({ kind: "mutate", op: "notification-unarchive", arg: { id: NOTE_ID } });
+    expect(unarchived.notice).toMatch(/unarchived/);
+  });
+
+  it("mutes and unmutes preferences with exact payloads", async () => {
+    const { host, calls } = scriptedHost(
+      inboxScripts({
+        "notification-preference": [JSON.stringify({ success: true }), JSON.stringify({ success: true })],
+      }),
+    );
+    const session = new MpModeSession(host);
+    await session.enter();
+    calls.length = 0;
+    const muted = await session.setNotificationPreference("mute", "turn_advance");
+    expect(calls.map((call) => `${call.kind}:${call.op}`)).toEqual([
+      "mutate:notification-preference",
+      "fetch:character-me",
+      "fetch:turn-status",
+      "fetch:notifications",
+    ]);
+    expect(calls[0]?.arg).toEqual({ action: "mute", type: "turn_advance" });
+    expect(muted.notice).toMatch(/preference updated/);
+    calls.length = 0;
+    const unmuted = await session.setNotificationPreference("unmute", "system");
+    expect(calls[0]?.arg).toEqual({ action: "unmute", type: "system" });
+    expect(unmuted.notice).toMatch(/preference updated/);
+  });
+
+  it("rejects bad preference payloads client-side", async () => {
+    const { host, calls } = scriptedHost(readyScripts());
+    const session = new MpModeSession(host);
+    await session.enter();
+    calls.length = 0;
+    for (const args of [
+      ["snooze", "system"],
+      ["mute", "nuke"],
+      ["mute", ""],
+      [null, "system"],
+    ] as const) {
+      const snapshot = await session.setNotificationPreference(args[0], args[1]);
+      expect(snapshot.error, JSON.stringify(args)).toBeTruthy();
+    }
+    expect(calls).toHaveLength(0);
   });
 });
 

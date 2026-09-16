@@ -1,12 +1,13 @@
 //! Authenticated multiplayer session bridge (#359).
 //!
-//! Reads and writes run as first-party `fetch()` calls inside the persistent
-//! `online` WebView delivered under #149. That window owns the live-site jar,
-//! so the HttpOnly session travels exactly as it does in the browser: this
-//! module never reads, writes, stores, or forwards session material, tokens,
-//! or passwords, and there is no login form anywhere in Native. The server
-//! stays authoritative for auth, validation, rate limits, conflicts, and
-//! errors; Native only projects results and surfaces server messages.
+//! Desktop reads and writes run as first-party `fetch()` calls inside the
+//! persistent `online` WebView delivered under #149. Mobile has one WebView,
+//! so it reads only the current account cookie from that platform-owned jar
+//! and relays the same tightly allowlisted requests directly. Neither path
+//! persists session material, tokens, or passwords, and there is no login
+//! form anywhere in Native. The server stays authoritative for auth,
+//! validation, rate limits, conflicts, and errors; Native only projects
+//! results and surfaces server messages.
 //!
 //! What this bridge does:
 //! - `mp_session_fetch`: GET-only reads against the pinned
@@ -134,6 +135,17 @@ pub enum MpMutateOp {
     NotificationArchive,
     /// PATCH /api/notifications `{}` (no id) — mark-all-read in scope.
     NotificationMarkAllRead,
+    /// PATCH /api/notifications `{id, action:"snooze", snoozeMinutes?}` —
+    /// snoozeMinutes is 5..=10080, server default 720 when omitted.
+    NotificationSnooze,
+    /// PATCH /api/notifications `{id, action:"unsnooze"}`.
+    NotificationUnsnooze,
+    /// PATCH /api/notifications `{id, action:"unarchive"}`.
+    NotificationUnarchive,
+    /// PUT /api/notifications/preferences `{action:"mute"|"unmute",
+    /// type: NOTIFICATION_TYPES member}` — preference snooze/unsnooze stay
+    /// absent, never sent.
+    NotificationPreference,
 }
 
 impl MpMutateOp {
@@ -143,6 +155,10 @@ impl MpMutateOp {
             "notification-read" => Some(Self::NotificationRead),
             "notification-archive" => Some(Self::NotificationArchive),
             "notification-mark-all-read" => Some(Self::NotificationMarkAllRead),
+            "notification-snooze" => Some(Self::NotificationSnooze),
+            "notification-unsnooze" => Some(Self::NotificationUnsnooze),
+            "notification-unarchive" => Some(Self::NotificationUnarchive),
+            "notification-preference" => Some(Self::NotificationPreference),
             _ => None,
         }
     }
@@ -150,18 +166,26 @@ impl MpMutateOp {
     fn method(self) -> &'static str {
         match self {
             Self::ExecuteAction => "POST",
-            Self::NotificationRead | Self::NotificationArchive | Self::NotificationMarkAllRead => {
-                "PATCH"
-            }
+            Self::NotificationPreference => "PUT",
+            Self::NotificationRead
+            | Self::NotificationArchive
+            | Self::NotificationMarkAllRead
+            | Self::NotificationSnooze
+            | Self::NotificationUnsnooze
+            | Self::NotificationUnarchive => "PATCH",
         }
     }
 
     fn path(self) -> &'static str {
         match self {
             Self::ExecuteAction => "/api/actions/execute",
-            Self::NotificationRead | Self::NotificationArchive | Self::NotificationMarkAllRead => {
-                "/api/notifications"
-            }
+            Self::NotificationPreference => "/api/notifications/preferences",
+            Self::NotificationRead
+            | Self::NotificationArchive
+            | Self::NotificationMarkAllRead
+            | Self::NotificationSnooze
+            | Self::NotificationUnsnooze
+            | Self::NotificationUnarchive => "/api/notifications",
         }
     }
 }
@@ -182,6 +206,156 @@ const EXECUTE_ACTION_TYPES: &[&str] = &[
 
 /// Batch counts accepted by the route schema (`count` omitted or 1 = single).
 const EXECUTE_ACTION_COUNTS: &[u64] = &[1, 5, 10];
+
+/// Snooze window from `notificationsPatchSchema` in AHDGame
+/// `src/lib/api/schemas/notifications.ts` (minutes, server default 720).
+const NOTIFICATION_SNOOZE_MINUTES_MIN: u64 = 5;
+const NOTIFICATION_SNOOZE_MINUTES_MAX: u64 = 7 * 24 * 60;
+
+/// Preference actions modeled in Native (`notificationPreferenceActionSchema`
+/// also accepts snooze/unsnooze; those stay absent, never sent).
+const NOTIFICATION_PREFERENCE_ACTIONS: &[&str] = &["mute", "unmute"];
+
+/// Notification types accepted by `notificationPreferenceActionSchema`,
+/// pinned to `NOTIFICATION_TYPES` in AHDGame
+/// `src/lib/db/types/notifications.ts`.
+const NOTIFICATION_TYPES: &[&str] = &[
+    "welcome",
+    "primary_win",
+    "primary_loss",
+    "general_win",
+    "general_loss",
+    "impeachment_filed",
+    "impeachment_convicted",
+    "player_attack",
+    "player_support",
+    "system",
+    "leadership_elected",
+    "leadership_lost",
+    "leadership_appointed",
+    "command_appointed",
+    "treaty_defence_invoked",
+    "leadership_removed",
+    "leadership_candidacy",
+    "leadership_election_opened",
+    "national_leadership_elected",
+    "national_leadership_lost",
+    "national_leadership_appointed",
+    "national_leadership_removed",
+    "national_leadership_candidacy",
+    "national_leadership_election_opened",
+    "committee_election_opened",
+    "committee_elected",
+    "committee_lost",
+    "committee_removed",
+    "committee_candidacy",
+    "bill_vote_open",
+    "bill_passed_chamber",
+    "crisis",
+    "bill_failed_chamber",
+    "bill_enrolled",
+    "bill_signed",
+    "bill_vetoed",
+    "feedback_status_changed",
+    "new_feedback",
+    "new_player_suggestion",
+    "player_suggestion_status_changed",
+    "player_suggestion_new_comment",
+    "player_suggestion_merged",
+    "new_post",
+    "turn_advance",
+    "resource_income",
+    "election_opened",
+    "ceo_vote_offer",
+    "ceo_resigned",
+    "ceo_elected",
+    "corp_sector_sold",
+    "corp_sector_attacked",
+    "corp_nationalization_notice",
+    "corp_nationalization_cancelled",
+    "corp_nationalization_risk",
+    "corp_privatization_offered",
+    "corp_privatization_resolved",
+    "corp_credit_rating_change",
+    "corp_bond_due_soon",
+    "corp_bond_repaid",
+    "corp_bond_auto_refinanced",
+    "corp_bond_auto_restructured",
+    "cb_auction_shortfall",
+    "corp_inactive_ceo_share_release_warning",
+    "wire_received",
+    "coalition_invite_received",
+    "coalition_invite_accepted",
+    "coalition_invite_declined",
+    "coalition_join_request",
+    "coalition_join_accepted",
+    "coalition_join_declined",
+    "coalition_kicked",
+    "coalition_disband_vote_started",
+    "coalition_disbanded",
+    "coalition_chair_transferred",
+    "share_listing_offer_received",
+    "share_offer_accepted",
+    "share_offer_expired",
+    "corp_hostile_takeover_available",
+    "party_whip_issued",
+    "party_kicked",
+    "party_join_request",
+    "party_join_accepted",
+    "party_join_declined",
+    "caucus_chair_election_opened",
+    "caucus_chair_elected",
+    "caucus_chair_lost",
+    "caucus_chair_removed",
+    "rd_breakthrough",
+    "wiki_submission_pending",
+    "wiki_submission_approved",
+    "wiki_submission_rejected",
+    "supporter_request_pending",
+    "supporter_request_approved",
+    "supporter_request_rejected",
+    "corp_vote_opened",
+    "corp_vote_reminder",
+    "corp_vote_passed",
+    "corp_vote_failed",
+    "corp_vote_cancelled",
+    "charter_invited",
+    "charter_replacement_needed",
+    "charter_ratified",
+    "share_invite_received",
+    "share_invite_cancelled",
+    "share_invite_declined",
+    "share_invite_accepted",
+    "player_event",
+    "player_event_resolved",
+    "extraction_capacity_bound",
+    "union_leader_offer",
+    "union_busting_attempted",
+    "bargaining_dispute_lapsed",
+    "overtime_ban_defunded",
+    "bargaining_ratification_open",
+    "bargaining_ratification_closed",
+    "world_event_offered",
+    "world_event_resolved",
+    "prospect_succeeded",
+    "prospect_failed",
+    "contract_offered",
+    "contract_royalty_missed",
+    "contract_defaulted",
+    "contract_expired",
+    "merger_review_opened",
+    "merger_review_decided",
+    "merger_remedy_overdue",
+    "transfer_pricing_assessed",
+    "corp_supply_agreement_damages",
+    "bank_supervision_breach",
+    "bank_supervision_cleared",
+    "defence_contract_offered",
+    "defence_contract_cancelled",
+    "ask_refund",
+    "ask_correction",
+    "ask_watch",
+];
 
 fn is_hex_object_id(value: &str) -> bool {
     value.len() == 24 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
@@ -296,6 +470,57 @@ fn mutate_body(op: MpMutateOp, payload: &serde_json::Value) -> Result<serde_json
             };
             Ok(serde_json::json!({ "id": id, "action": action }))
         }
+        MpMutateOp::NotificationSnooze => {
+            let id = get_str("id").ok_or_else(|| error::BAD_ARG.to_string())?;
+            if !is_hex_object_id(id) {
+                return Err(error::BAD_ARG.to_string());
+            }
+            let mut body = serde_json::Map::with_capacity(3);
+            body.insert("id".to_string(), serde_json::Value::String(id.to_string()));
+            body.insert(
+                "action".to_string(),
+                serde_json::Value::String("snooze".to_string()),
+            );
+            // Omitted minutes fall through to the server default (720); when
+            // present the value must sit inside the schema window.
+            if let Some(minutes_value) = object.get("snoozeMinutes") {
+                let minutes = minutes_value
+                    .as_u64()
+                    .ok_or_else(|| error::BAD_ARG.to_string())?;
+                if !(NOTIFICATION_SNOOZE_MINUTES_MIN..=NOTIFICATION_SNOOZE_MINUTES_MAX)
+                    .contains(&minutes)
+                {
+                    return Err(error::BAD_ARG.to_string());
+                }
+                body.insert(
+                    "snoozeMinutes".to_string(),
+                    serde_json::Value::Number(serde_json::Number::from(minutes)),
+                );
+            }
+            Ok(serde_json::Value::Object(body))
+        }
+        MpMutateOp::NotificationUnsnooze | MpMutateOp::NotificationUnarchive => {
+            let id = get_str("id").ok_or_else(|| error::BAD_ARG.to_string())?;
+            if !is_hex_object_id(id) {
+                return Err(error::BAD_ARG.to_string());
+            }
+            let action = match op {
+                MpMutateOp::NotificationUnsnooze => "unsnooze",
+                _ => "unarchive",
+            };
+            Ok(serde_json::json!({ "id": id, "action": action }))
+        }
+        MpMutateOp::NotificationPreference => {
+            let action = get_str("action").ok_or_else(|| error::BAD_ARG.to_string())?;
+            if !NOTIFICATION_PREFERENCE_ACTIONS.contains(&action) {
+                return Err(error::BAD_ARG.to_string());
+            }
+            let kind = get_str("type").ok_or_else(|| error::BAD_ARG.to_string())?;
+            if !NOTIFICATION_TYPES.contains(&kind) {
+                return Err(error::BAD_ARG.to_string());
+            }
+            Ok(serde_json::json!({ "action": action, "type": kind }))
+        }
         MpMutateOp::NotificationMarkAllRead => {
             if !object.is_empty() {
                 return Err(error::BAD_ARG.to_string());
@@ -349,6 +574,7 @@ fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
             None => false,
         },
         ("POST", "/api/actions/execute") | ("PATCH", "/api/notifications") => query.is_none(),
+        ("PUT", "/api/notifications/preferences") => query.is_none(),
         _ => false,
     }
 }
@@ -528,6 +754,7 @@ async fn poll_for_outcome(
 /// per [`classify_outcome`]. Only the `online` window is ever touched: any
 /// other label (including the app's own main view) fails closed, so bridge
 /// scripts can only execute in first-party live-site context.
+#[cfg(desktop)]
 async fn run_session_call(
     app: &tauri::AppHandle,
     method: &str,
@@ -550,6 +777,113 @@ async fn run_session_call(
     let outcome = poll_for_outcome(&window, &request_id).await;
     let _ = window.eval(cleanup_script(&request_id));
     classify_outcome(&outcome?)
+}
+
+#[cfg(mobile)]
+fn account_session_header(app: &tauri::AppHandle) -> Option<String> {
+    let url: tauri::Url = format!("{}/api/auth/session", session_origin())
+        .parse()
+        .ok()?;
+    for label in ["online", "main"] {
+        let Some(view) = app.get_webview_window(label) else {
+            continue;
+        };
+        let Ok(cookies) = view.cookies_for_url(url.clone()) else {
+            continue;
+        };
+        let header = cookies
+            .into_iter()
+            .filter(|cookie| {
+                crate::is_account_session_cookie(cookie.name()) && !cookie.value().is_empty()
+            })
+            .map(|cookie| format!("{}={}", cookie.name(), cookie.value()))
+            .collect::<Vec<_>>()
+            .join("; ");
+        if !header.is_empty() {
+            return Some(header);
+        }
+    }
+    None
+}
+
+#[cfg(mobile)]
+pub(crate) fn has_account_session(app: &tauri::AppHandle) -> bool {
+    account_session_header(app).is_some()
+}
+
+#[cfg(mobile)]
+async fn run_session_call(
+    app: &tauri::AppHandle,
+    method: &str,
+    path_and_query: &str,
+    body: Option<&serde_json::Value>,
+) -> Result<String, String> {
+    if !is_allowlisted_call(method, path_and_query) {
+        return Err(error::UNSUPPORTED_OP.to_string());
+    }
+    let session =
+        account_session_header(app).ok_or_else(|| error::SESSION_UNAVAILABLE.to_string())?;
+    let url = format!("{}{path_and_query}", session_origin());
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(Duration::from_secs(MP_SESSION_FETCH_TIMEOUT_SECS))
+        .build()
+        .map_err(|_| error::SESSION_TRANSPORT.to_string())?;
+    let mut request = match method {
+        "GET" => client.get(url),
+        "POST" => client.post(url),
+        "PATCH" => client.patch(url),
+        "PUT" => client.put(url),
+        _ => return Err(error::UNSUPPORTED_OP.to_string()),
+    }
+    .header(reqwest::header::COOKIE, session)
+    .header(reqwest::header::ACCEPT, "application/json");
+    if let Some(payload) = body {
+        request = request
+            .header(reqwest::header::CONTENT_TYPE, "application/json")
+            .body(payload.to_string());
+    }
+    let response = request
+        .send()
+        .await
+        .map_err(|_| error::SESSION_TRANSPORT.to_string())?;
+    if response.status().is_redirection() {
+        return Err(error::UNEXPECTED_REDIRECT.to_string());
+    }
+    let status = response.status().as_u16();
+    let retry_after = retry_after_secs(
+        response
+            .headers()
+            .get(reqwest::header::RETRY_AFTER)
+            .and_then(|value| value.to_str().ok()),
+    );
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
+    if !content_type_is_json(content_type.as_deref()) {
+        return Err(error::UNEXPECTED_CONTENT.to_string());
+    }
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|_| error::SESSION_TRANSPORT.to_string())?;
+    if bytes.len() > MP_SESSION_MAX_BODY_BYTES {
+        return Err(error::OVERSIZE_BODY.to_string());
+    }
+    let text =
+        String::from_utf8(bytes.to_vec()).map_err(|_| error::UNEXPECTED_CONTENT.to_string())?;
+    if (200..300).contains(&status) {
+        Ok(text)
+    } else {
+        Err(format!(
+            "remote-error:{status}:{retry_after}:{}",
+            text.chars()
+                .take(MP_SESSION_ERROR_BODY_CHARS)
+                .collect::<String>()
+        ))
+    }
 }
 
 /// Fetch one allowlisted read through the live-site session. Resolves with
@@ -802,6 +1136,141 @@ mod tests {
     }
 
     #[test]
+    fn snooze_unsnooze_unarchive_bodies_match_the_patch_schema() {
+        let id = "507f1f77bcf86cd799439011";
+        // Snooze without minutes is accepted: the server defaults to 720.
+        assert_eq!(
+            mutate_body(
+                MpMutateOp::NotificationSnooze,
+                &serde_json::json!({ "id": id }),
+            )
+            .unwrap(),
+            serde_json::json!({ "id": id, "action": "snooze" })
+        );
+        assert_eq!(
+            mutate_body(
+                MpMutateOp::NotificationSnooze,
+                &serde_json::json!({ "id": id, "snoozeMinutes": 60 }),
+            )
+            .unwrap(),
+            serde_json::json!({ "id": id, "action": "snooze", "snoozeMinutes": 60 })
+        );
+        // Server window is 5..10080 minutes; anything else fails closed.
+        for bad_minutes in [
+            serde_json::json!(0),
+            serde_json::json!(4),
+            serde_json::json!(10081),
+            serde_json::json!(7.5),
+            serde_json::json!("60"),
+        ] {
+            assert!(
+                mutate_body(
+                    MpMutateOp::NotificationSnooze,
+                    &serde_json::json!({ "id": id, "snoozeMinutes": bad_minutes }),
+                )
+                .is_err(),
+                "snoozeMinutes {bad_minutes} must be rejected"
+            );
+        }
+        assert!(mutate_body(
+            MpMutateOp::NotificationSnooze,
+            &serde_json::json!({ "id": "short", "snoozeMinutes": 60 }),
+        )
+        .is_err());
+        assert_eq!(
+            mutate_body(
+                MpMutateOp::NotificationUnsnooze,
+                &serde_json::json!({ "id": id, "action": "snooze" }),
+            )
+            .unwrap(),
+            serde_json::json!({ "id": id, "action": "unsnooze" })
+        );
+        assert_eq!(
+            mutate_body(
+                MpMutateOp::NotificationUnarchive,
+                &serde_json::json!({ "id": id }),
+            )
+            .unwrap(),
+            serde_json::json!({ "id": id, "action": "unarchive" })
+        );
+        assert!(mutate_body(
+            MpMutateOp::NotificationUnarchive,
+            &serde_json::json!({ "id": "not-an-id" }),
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn preference_bodies_match_the_preference_schema() {
+        assert_eq!(
+            mutate_body(
+                MpMutateOp::NotificationPreference,
+                &serde_json::json!({ "action": "mute", "type": "turn_advance" }),
+            )
+            .unwrap(),
+            serde_json::json!({ "action": "mute", "type": "turn_advance" })
+        );
+        assert_eq!(
+            mutate_body(
+                MpMutateOp::NotificationPreference,
+                &serde_json::json!({ "action": "unmute", "type": "system", "admin": true }),
+            )
+            .unwrap(),
+            serde_json::json!({ "action": "unmute", "type": "system" })
+        );
+        // Preference snooze/unsnooze are not modeled; unknown types never send.
+        for bad in [
+            serde_json::json!({ "action": "snooze", "type": "system" }),
+            serde_json::json!({ "action": "unsnooze", "type": "system" }),
+            serde_json::json!({ "action": "mute", "type": "nuke" }),
+            serde_json::json!({ "action": "mute", "type": "" }),
+            serde_json::json!({ "action": "mute" }),
+            serde_json::json!({ "type": "system" }),
+        ] {
+            assert!(
+                mutate_body(MpMutateOp::NotificationPreference, &bad).is_err(),
+                "must reject {bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn new_mutate_ids_resolve_to_pinned_method_and_path() {
+        assert_eq!(
+            MpMutateOp::from_id("notification-snooze"),
+            Some(MpMutateOp::NotificationSnooze)
+        );
+        assert_eq!(
+            MpMutateOp::from_id("notification-unsnooze"),
+            Some(MpMutateOp::NotificationUnsnooze)
+        );
+        assert_eq!(
+            MpMutateOp::from_id("notification-unarchive"),
+            Some(MpMutateOp::NotificationUnarchive)
+        );
+        assert_eq!(
+            MpMutateOp::from_id("notification-preference"),
+            Some(MpMutateOp::NotificationPreference)
+        );
+        assert_eq!(MpMutateOp::from_id("notification-delete"), None);
+        assert_eq!(MpMutateOp::from_id("NOTIFICATION-SNOOZE"), None);
+        let op = MpMutateOp::NotificationSnooze;
+        assert_eq!((op.method(), op.path()), ("PATCH", "/api/notifications"));
+        let op = MpMutateOp::NotificationPreference;
+        assert_eq!(
+            (op.method(), op.path()),
+            ("PUT", "/api/notifications/preferences")
+        );
+        assert!(is_allowlisted_call("PUT", "/api/notifications/preferences"));
+        assert!(!is_allowlisted_call(
+            "PATCH",
+            "/api/notifications/preferences"
+        ));
+        assert!(!is_allowlisted_call("PUT", "/api/notifications"));
+        assert!(!is_allowlisted_call("DELETE", "/api/notifications"));
+    }
+
+    #[test]
     fn allowlist_rejects_off_origin_and_injected_calls() {
         for allowed in [
             ("GET", "/api/auth/session"),
@@ -1043,11 +1512,10 @@ mod tests {
 
     #[test]
     fn bridge_wiring_stays_session_scoped() {
-        // Structural guard: the bridge must never grow session capture,
-        // persistence, or off-origin traffic. If any of these change, the
-        // #149 session boundary needs owner review. Tokens are joined so this
-        // test itself does not self-match; page scripts are checked as built
-        // artifacts, module wiring as source.
+        // Structural guard: neither transport may persist credentials or
+        // permit arbitrary traffic. Desktop remains same-origin in its
+        // authenticated WebView; mobile relays only allowlisted calls with a
+        // platform-owned account cookie to the pinned origin.
         let (start, id) = start_script(
             "POST",
             "/api/actions/execute",
@@ -1073,13 +1541,14 @@ mod tests {
         assert!(source.contains(MP_SESSION_WINDOW_LABEL));
         assert!(source.contains("redirect:\"manual\""));
         assert!(source.contains("credentials:\"same-origin\""));
+        assert!(source.contains("account_session_header"));
+        assert!(source.contains("redirect(reqwest::redirect::Policy::none())"));
+        assert!(source.contains("header(reqwest::header::COOKIE, session)"));
         for forbidden in [
             ["std", "fs"].join("::"),
             ["fs", ""].join("::"),
             ["cookie", "store"].join("_"),
             ["Cookie", "Store"].join(""),
-            [".post", ""].join("("),
-            ["req", "west"].join(""),
         ] {
             assert!(
                 !source.contains(&forbidden),

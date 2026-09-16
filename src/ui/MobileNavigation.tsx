@@ -1,16 +1,16 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { formatGameDate } from "../game/gameDate";
 
 export type DrawerRouteId =
   | "actions" | "parties" | "legislature" | "elections" | "news"
   | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "campaignDetails"
   | "politicians" | "presidentialDetails" | "politicalMetrics"
-  | "economy" | "budget" | "policy" | "metrics" | "nations" | "state"
+  | "economy" | "budget" | "policy" | "metrics" | "nations" | "state" | "government"
   | "help" | "settings" | "legislationDetails" | "markets" | "search"
   | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications" | "referendums"
   | "worldSettings" | "ask";
 
-export type BottomTabId = "profile" | "actions" | "parties";
+export type BottomTabId = "profile" | "actions" | "ask";
 
 export interface DrawerNavLink {
   id: DrawerRouteId;
@@ -119,6 +119,7 @@ export const MENU_GROUPS: DrawerNavGroup[] = [
           { id: "legislature", label: "Legislature" },
           { id: "legislationDetails", label: "Bills and proposals" },
           { id: "policy", label: "Policy" },
+          { id: "government", label: "Cabinet office" },
         ],
       },
       {
@@ -173,6 +174,16 @@ export function drawerRouteIds(): DrawerRouteId[] {
   ]);
 }
 
+export const ASK_ICON_PATH = "M5 5h14v10H9l-4 4V5Zm4 4h6M9 12h4";
+export const MENU_ICON_PATH = "M4 7h16M4 12h16M4 17h16";
+/**
+ * Shared Native multiplayer glyph (#369): a stroke globe in the same 24x24
+ * icon language as the bottom tabs. Code-native SVG path, bundled offline;
+ * no remote icon dependency.
+ */
+export const MULTIPLAYER_ICON_PATH =
+  "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18ZM3 12h18M12 3c2.8 2.7 4.2 5.8 4.2 9s-1.4 6.3-4.2 9c-2.8-2.7-4.2-5.8-4.2-9S9.2 5.7 12 3Z";
+
 export const BOTTOM_TABS: { id: BottomTabId; label: string; path: string }[] = [
   {
     id: "profile",
@@ -185,9 +196,9 @@ export const BOTTOM_TABS: { id: BottomTabId; label: string; path: string }[] = [
     path: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0",
   },
   {
-    id: "parties",
-    label: "Parties",
-    path: "M4 21v-8l5-4 5 4v8M14 21v-9l6-4v13M2 21h20",
+    id: "ask",
+    label: "Ask",
+    path: ASK_ICON_PATH,
   },
 ];
 
@@ -198,13 +209,16 @@ export const BOTTOM_TABS: { id: BottomTabId; label: string; path: string }[] = [
 function bottomDestination(route: DrawerRouteId): BottomTabId | "menu" {
   if (route === "actions") return "actions";
   if (["profile", "portfolio", "markets", "bonds"].includes(route)) return "profile";
-  if (["parties", "partyDetails", "partyManagement", "caucuses"].includes(route)) return "parties";
+  if (route === "ask") return "ask";
   return "menu";
 }
 
-const MENU_ICON_PATH = "M4 7h16M4 12h16M4 17h16";
-
-function NavIcon({ path, label }: { path: string; label: string }) {
+/**
+ * Shared Native SVG navigation icon primitive (#369). Stroke glyph on a
+ * 24x24 grid, matching the bottom-navigation sizing, active treatment,
+ * safe-area, and focus-visible behavior through `.ahd-bottomnav-item`.
+ */
+export function NavIcon({ path, label }: { path: string; label: string }) {
   return (
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
       <title>{label}</title>
@@ -230,7 +244,7 @@ export function BottomNav({
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
-    const order: (BottomTabId | "menu")[] = ["profile", "actions", "parties", "menu"];
+    const order: (BottomTabId | "menu")[] = ["profile", "actions", "ask", "menu"];
     const buttons = Array.from(e.currentTarget.querySelectorAll("button"));
     const focused = buttons.indexOf(document.activeElement as HTMLButtonElement);
     const idx = focused >= 0 ? focused : order.indexOf(destination);
@@ -352,6 +366,29 @@ export function GameDrawer({
   unreadCount?: number;
 }) {
   const drawerRef = useRef<HTMLElement | null>(null);
+  const activeGroup = MENU_GROUPS.find((group) =>
+    [...group.items, ...(group.sections ?? []).flatMap((section) => section.items)]
+      .some((item) => item.id === route),
+  )?.label;
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    () => new Set(activeGroup && ["Nation", "World"].includes(activeGroup) ? [activeGroup] : []),
+  );
+  // #366: the drawer stays mounted while closed, so routes reached without it
+  // (search results, notification targets, resource links) would leave a stale
+  // disclosure behind. Every open resets to the compact default: exactly the
+  // active deep group expanded, everything else collapsed. Toggles while open
+  // are untouched.
+  // Reset before paint. A passive effect can race the first tap after the
+  // drawer opens: the player expands Nation, then the delayed reset collapses
+  // it again before the destination receives the tap.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const deflated = activeGroup && ["Nation", "World"].includes(activeGroup) ? [activeGroup] : [];
+    setExpandedGroups((current) => {
+      if (current.size === deflated.length && deflated.every((group) => current.has(group))) return current;
+      return new Set(deflated);
+    });
+  }, [open, activeGroup]);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
 
@@ -401,10 +438,14 @@ export function GameDrawer({
         aria-label="Game menu"
         className="ahd-drawer"
       >
+        {/* #366 composition: compact identity header. Same three facts the
+            reference profile card shows (name, party/country, turn/date),
+            tightened to two truncated lines so the 320px first viewport keeps
+            turn controls and primary destinations above the fold. */}
         <div className="ahd-drawer-identity">
-          <strong>{playerName}</strong>
-          <span className="ahd-muted">{playerParty} · {countryName}</span>
-          <span className="ahd-muted">Turn {turn} · {formatGameDate(date, { turn, date })}</span>
+          <strong className="ahd-drawer-identity-name" title={playerName}>{playerName}</strong>
+          <span className="ahd-muted ahd-drawer-identity-meta" title={`${playerParty} · ${countryName}`}>{playerParty} · {countryName}</span>
+          <span className="ahd-muted ahd-drawer-identity-meta">Turn {turn} · {formatGameDate(date, { turn, date })}</span>
         </div>
 
         <div className="ahd-drawer-turn">
@@ -436,23 +477,73 @@ export function GameDrawer({
         {error ? <p className="ahd-alert ahd-drawer-feedback" role="alert">{error}</p>
           : message ? <p className="ahd-notice ahd-drawer-feedback" role="status">{message}</p> : null}
         <nav aria-label="Game sections" className="ahd-drawer-nav">
-          {MENU_GROUPS.map((group) => (
+          {MENU_GROUPS.map((group) => {
+            const deep = Boolean(group.sections?.length);
+            const expanded = !deep || expandedGroups.has(group.label);
+            // Reference Nation/World sub-category counts, so the collapsed
+            // disclosure tells the player how many destinations hide inside.
+            const deepCount = (group.sections ?? []).reduce((n, section) => n + section.items.length, 0);
+            const sectionId = `ahd-drawer-section-${group.label.toLowerCase()}`;
+            return (
             <div key={group.label} role="group" aria-label={group.label} className="ahd-drawer-group">
-              <div className="ahd-drawer-heading" aria-hidden="true">{group.label}</div>
+              {deep ? (
+                <button
+                  type="button"
+                  className="ahd-drawer-heading ahd-drawer-disclosure"
+                  aria-expanded={expanded}
+                  aria-controls={sectionId}
+                  onClick={() => setExpandedGroups((current) => {
+                    const next = new Set(current);
+                    if (next.has(group.label)) next.delete(group.label); else next.add(group.label);
+                    return next;
+                  })}
+                >
+                  <span>{group.label}</span>
+                  <span aria-hidden="true" className="ahd-drawer-disclosure-meta">
+                    <span className="ahd-drawer-count">{deepCount}</span>
+                    <span>{expanded ? "−" : "+"}</span>
+                  </span>
+                </button>
+              ) : <div className="ahd-drawer-heading" aria-hidden="true">{group.label}</div>}
               {group.items.map((item) => (
                 <DrawerNavButton key={item.id} item={item} route={route} unreadCount={unreadCount} onNavigate={onNavigate} />
               ))}
-              {group.sections?.map((section) => (
-                <div key={section.label} role="group" aria-label={section.label} className="ahd-drawer-section">
-                  <div className="ahd-drawer-subheading" aria-hidden="true">{section.label}</div>
-                  {section.items.map((item) => (
-                    <DrawerNavButton key={item.id} item={item} route={route} unreadCount={unreadCount} onNavigate={onNavigate} />
+              {expanded && group.sections ? (
+                <div id={sectionId}>
+                  {group.sections.map((section) => (
+                    <div key={section.label} role="group" aria-label={section.label} className="ahd-drawer-section">
+                      <div className="ahd-drawer-subheading" aria-hidden="true">{section.label}</div>
+                      {section.items.map((item) => (
+                        <DrawerNavButton key={item.id} item={item} route={route} unreadCount={unreadCount} onNavigate={onNavigate} />
+                      ))}
+                    </div>
                   ))}
                 </div>
-              ))}
+              ) : null}
             </div>
-          ))}
+          )})}
         </nav>
+        {/* #366 composition: persistent Ask/Actions quick bar. The reference
+            keeps Actions a top-level tab (ExperimentalNavbar.tsx:279) and
+            Native keeps Ask beside it (#358); both also live in the drawer
+            hierarchy above, so this bar duplicates no destination and removes
+            none. It stays pinned while the section list scrolls, so the two
+            primary workflows survive an expanded Nation/World on 320px. */}
+        <div className="ahd-drawer-quick" role="group" aria-label="Quick actions">
+          {(["actions", "ask"] as const).map((id) => (
+            <button
+              key={id}
+              type="button"
+              className="ahd-btn ahd-btn-sm ahd-drawer-quick-btn"
+              aria-label={id === "actions" ? "Go to Actions" : "Go to Ask"}
+              aria-current={route === id ? "page" : undefined}
+              data-active={route === id ? "true" : undefined}
+              onClick={() => onNavigate(id)}
+            >
+              {id === "actions" ? "Actions" : "Ask"}
+            </button>
+          ))}
+        </div>
       </aside>
     </>
   );

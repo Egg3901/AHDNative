@@ -49,6 +49,32 @@ export async function openGameMenu(page: Page) {
   await expect(menu).toHaveAttribute('aria-expanded', 'true');
 }
 
+const NATION_DESTINATIONS = new Set([
+  'Elections', 'Parties', 'Start a party', 'Caucuses', 'Politicians',
+  'Presidential election', 'Political metrics', 'Referendums', 'Legislature',
+  'Bills and proposals', 'Policy', 'Economy', 'National Budget', 'National Metrics',
+]);
+const WORLD_DESTINATIONS = new Set([
+  'Stock market', 'Bonds', 'Banking', 'Nations', 'News', 'World settings',
+]);
+
+export async function chooseGameMenuDestination(page: Page, name: string) {
+  const dialog = page.getByRole('dialog', { name: 'Game menu' });
+  const destination = dialog.getByRole('button', { name, exact: true });
+  if (!(await destination.isVisible())) {
+    const disclosure = NATION_DESTINATIONS.has(name)
+      ? 'Nation'
+      : WORLD_DESTINATIONS.has(name)
+        ? 'World'
+        : null;
+    if (disclosure) {
+      await dialog.getByRole('button', { name: disclosure, exact: true }).click();
+      await expect(destination).toBeVisible();
+    }
+  }
+  await destination.click();
+}
+
 export async function closeGameMenu(page: Page) {
   const menu = page.locator('button[aria-controls="ahd-drawer"]');
   if (await menu.getAttribute('aria-expanded') === 'true') await page.keyboard.press('Escape');
@@ -64,7 +90,7 @@ export async function gameReady(page: Page) {
 
 export async function navigateGame(page: Page, name: string) {
   await openGameMenu(page);
-  await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name, exact: true }).click();
+  await chooseGameMenuDestination(page, name);
   await expect(page.locator('button[aria-controls="ahd-drawer"]')).toHaveAttribute('aria-expanded', 'false');
 }
 

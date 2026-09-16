@@ -1,9 +1,8 @@
-import { openGameMenu, gameReady, navigateGame, advanceGame, completeCharacterCreation } from './game-navigation';
+import { gameReady, navigateGame, advanceGame, completeCharacterCreation } from './game-navigation';
 import { test, expect, type Page } from '@playwright/test';
 
 async function openMenu(page: Page, destination: string) {
-  await openGameMenu(page);
-  await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: destination, exact: true }).click();
+  await navigateGame(page, destination);
 }
 
 test('mobile politics, national accounts and resource explanations use a real UK world', async ({ page }) => {

@@ -48,6 +48,15 @@ describe("singleplayer session", () => {
     session.advance();
     expect(loaded.serialize("2026-09-10T00:00:00.000Z")).toBe(session.serialize("2026-09-10T00:00:00.000Z"));
   });
+  it("keeps the status-bar identity inputs across save and reload (#223)", () => {
+    const session = new GameSession();
+    const before = session.create(options);
+    const loaded = new GameSession();
+    const after = loaded.load(session.serialize("2026-09-10T00:00:00.000Z"));
+    expect(after.player.name).toBe(before.player.name);
+    expect(after.player.partyName).toBe(before.player.partyName);
+    expect(after.countryName).toBe(before.countryName);
+  });
   it("rejects invalid new-game input without replacing the current world", () => {
     const session = new GameSession();
     session.create(options);

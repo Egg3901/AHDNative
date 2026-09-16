@@ -1,4 +1,4 @@
-import { openGameMenu, gameReady, advanceGame, completeCharacterCreation } from './game-navigation';
+import { navigateGame, gameReady, advanceGame, completeCharacterCreation } from './game-navigation';
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -11,8 +11,7 @@ test('domestic shares can be bought, partly sold and retained across relaunch', 
   await completeCharacterCreation(page);
   await gameReady(page);
   const openMarket = async () => {
-    await openGameMenu(page);
-    await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Stock market', exact: true }).click();
+    await navigateGame(page, 'Stock market');
     await page.getByRole('region', { name: 'Stock market', exact: true }).getByLabel('Country', { exact: true }).selectOption('US');
   };
   await openMarket();
@@ -45,8 +44,7 @@ test('an elected player proposes a tax rate and reopens the actual bill after re
   await advanceGame(page); // The real saved sponsorship cooldown ends at turn 99.
   await gameReady(page);
   const openBills = async () => {
-    await openGameMenu(page);
-    await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Bills and proposals', exact: true }).click();
+    await navigateGame(page, 'Bills and proposals');
     await expect(page.getByLabel('Available legislation', { exact: true })).toBeEnabled();
   };
   await openBills();

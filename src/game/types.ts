@@ -1,10 +1,11 @@
 import type { LegislationDetailsQuery, LegislationSelection } from "./legislationDetails";
+import type { CabinetSponsorView, NominationView, ScotusSponsorView } from "./nominations";
 import type { Preferences } from "../preferences";
 import type { WorldOverviewView } from "./worldOverview";
 import type { NationView } from "./nation";
 import type { PoliticsView } from "./politics";
 import type { ResourceDetailsView } from "./resources";
-import type { NppAutonomyLevel, SingleplayerDifficulty, SingleplayerMode, WorldFeatureFlags } from "@ahdclient/engine";
+import type { HomeRegionContext, NppAutonomyLevel, SingleplayerDifficulty, SingleplayerMode, WorldFeatureFlags } from "@ahdclient/engine";
 export type WorldInitialization = "historical" | "founding";
 export type CharacterRace = "white" | "black" | "hispanic" | "asian" | "other";
 export type CharacterGender = "male" | "female" | "nonbinary";
@@ -171,6 +172,12 @@ export interface LegislatureView {
   committees?: LegislatureCommitteeView[];
   /** Floor schedule of open bills (status + next action). */
   schedule?: LegislatureScheduleView[];
+  /** Cabinet/SCOTUS nominations for the player's country (#273). */
+  nominations?: NominationView[];
+  /** Cabinet sponsorship surface for the appointing executive. */
+  cabinetSponsor?: CabinetSponsorView;
+  /** SCOTUS sponsorship stays unavailable until #270. */
+  scotusSponsor?: ScotusSponsorView;
 }
 export interface FinanceView {
   cash: number; savings: number; currency: string; savingsHolder: string;
@@ -207,6 +214,10 @@ export interface GameScreenProps {
   loadBondMarket: () => Promise<import("./bondMarket").BondMarketView>;
   loadRegions: (query?: import("./regions").RegionsQuery) => Promise<import("./regions").RegionsView>;
   loadCaucusManagement: () => Promise<import("./caucusManagement").CaucusManagementView>;
+  /** Cabinet-office projection; present when the government destination is wired (App). */
+  loadCabinetOffice?: () => Promise<import("./cabinetOffice").CabinetOfficeView>;
+  /** Validated ministerial order issue; present alongside loadCabinetOffice. */
+  onIssueCabinetOrder?: (input: import("./cabinetOffice").IssueCabinetOrderInput) => void;
   loadPartyManagement: () => Promise<import("./partyManagement").PartyManagementView>;
   loadMarkets: () => Promise<import("./markets").MarketsView>;
   loadLegislation: (selection?: LegislationSelection) => Promise<LegislationDetailsQuery>;
@@ -259,6 +270,13 @@ export interface CreationChoices {
   imperialEligible: boolean;
   /** "state" or "region", matching the reference regionNounFor. */
   regionNoun: "state" | "region";
+  /**
+   * World-free home-region context for the picker (the engine's
+   * `HomeRegionContext`: pack population plus the turnout-weighted electorate
+   * lean with its `seeded` flag). Display-only: it never enters the persisted
+   * `CharacterCreation` record or the save; only the chosen `homeRegionId` does.
+   */
+  homeRegions: HomeRegionContext[];
 }
 
 export interface CharacterCreationScreenProps {

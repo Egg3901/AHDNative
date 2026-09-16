@@ -38,3 +38,27 @@ selected-issue dispatch and foreign settlement restrictions.
 The production browser scenario loads that same save, trades, relaunches and
 verifies the remaining holding at turn 98. It uses actual worker actions and
 IndexedDB storage. Native phone lifecycle and performance remain unproven.
+
+## Market visual (issue #143)
+
+The panel adds one offline code-native comparison visual plus a selected-issue
+hero, both computed from the already-projected listing fields:
+
+- Yield to maturity per issue from the engine's verbatim
+  `calculateBondYieldToMaturityPercent` (AHDGame
+  `src/lib/constants/bonds.ts`), with annual coupon per unit, price-vs-par
+  label and Sovereign/Defaulted/Matured badges mirroring the reference
+  `BondHeroPanel`. Defaulted and matured issues show a dash, never a plotted
+  recovery artifact.
+- A "Compare issues" card (two or more issues only) scales each outstanding
+  yield to the market maximum as a touch-sized (44px) selection row,
+  alongside coupon, price-vs-par, turns remaining and status text.
+- An ownership strip splits outstanding units into exactly the two slices the
+  solo engine tracks — player holdings and public float — with a text
+  equivalent behind `role="img"`. No holder roster or price history is
+  invented; trend charts stay tracked separately (#375).
+
+Bars are percentage-width divs with visible text values, so the layout holds
+at 320px and 390px with no horizontal overflow. Component coverage lives in
+`src/ui/BondMarketPanel.test.tsx`; display-math goldens in
+`src/game/bondYield.test.ts`.

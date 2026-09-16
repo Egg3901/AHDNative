@@ -272,6 +272,52 @@ describe("AskPanel instant startup", () => {
     expect(screen.queryByText("7 of 10 left", { exact: false })).toBeNull();
     expect(JSON.parse(localStorage.getItem(ASK_SESSION_CACHE_KEY) ?? "{}").username).toBe("delegate");
   });
+
+  it("drops the previous account's open thread when the account changes", async () => {
+    saveCachedAskSession({ username: "marshall", usage: USAGE, tier: "Player" });
+    localStorage.setItem("ahdnative.ask.conv", "conv-7");
+    const marshallMe = JSON.stringify({
+      usage: USAGE,
+      entitlement: { allowed: true, label: "Player" },
+      identity: { username: "marshall" },
+    });
+    routeInvoke({
+      "/api/me": { status: 200, body: marshallMe },
+      "/api/conversations": {
+        status: 200,
+        body: JSON.stringify({ conversations: [{ id: "conv-7", title: "Harvest" }], usage: USAGE }),
+      },
+      "/api/conversation": {
+        status: 200,
+        body: JSON.stringify({ turns: [{ question: "Why did the harvest fail?", answer: "Blight." }] }),
+      },
+    });
+
+    const base = Date.now();
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(base);
+    try {
+      render(<AskPanel />);
+      expect(await screen.findByText("Why did the harvest fail?")).toBeInTheDocument();
+
+      // A background refresh past the focus throttle learns the new account.
+      const other = { ...USAGE, used: 9, remaining: 1 };
+      routeInvoke({
+        "/api/me": {
+          status: 200,
+          body: JSON.stringify({ usage: other, entitlement: { allowed: true, label: "Player" }, identity: { username: "delegate" } }),
+        },
+        "/api/conversations": { status: 200, body: "{\"conversations\":[]}" },
+      });
+      nowSpy.mockReturnValue(base + 61_000);
+      window.dispatchEvent(new Event("focus"));
+
+      expect(await screen.findByText("1 of 10 left", { exact: false })).toBeInTheDocument();
+      expect(screen.queryByText("Why did the harvest fail?")).toBeNull();
+      expect(localStorage.getItem("ahdnative.ask.conv")).toBeNull();
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
 });
 
 describe("AskPanel live quota updates", () => {
@@ -349,6 +395,53 @@ describe("AskPanel 429 stream refusal", () => {
     const thread = screen.getByText("How do unions work here?").closest(".av-turn")?.parentElement;
     expect(thread).toBeTruthy();
     expect(await within(thread as HTMLElement).findByText("No questions left")).toBeInTheDocument();
+  });
+});
+
+describe("AskPanel single verification round", () => {
+  it("requests access and history together instead of sequential entitlement checks", async () => {
+    const meGate = deferred<unknown>();
+    const convGate = deferred<unknown>();
+    invoke.mockImplementation((command: string, args?: Record<string, unknown>) => {
+      if (command === "ask_api") {
+        if (args?.path === "/api/me") return meGate.promise;
+        if (args?.path === "/api/conversations") return convGate.promise;
+        if (String(args?.path ?? "").startsWith("/api/conversation")) {
+          return Promise.resolve({ status: 200, body: '{"turns":[]}' });
+        }
+      }
+      if (command === "ask_send") return Promise.resolve("req-1");
+      if (command === "ask_stop") return Promise.resolve(undefined);
+      if (command === "open_ask_window") return Promise.resolve(undefined);
+      if (command === "open_ask_link") return Promise.resolve(undefined);
+      return Promise.reject(new Error(`unexpected invoke ${command}`));
+    });
+    render(<AskPanel />);
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith("ask_api", { method: "GET", path: "/api/me", body: null }),
+    );
+    // History must already be in flight while the access check is pending.
+    expect(invoke).toHaveBeenCalledWith("ask_api", { method: "GET", path: "/api/conversations", body: null });
+    meGate.resolve({ status: 200, body: meBody() });
+    convGate.resolve({ status: 200, body: JSON.stringify({ conversations: [], usage: USAGE }) });
+    expect(await screen.findByText("7 of 10 left", { exact: false })).toBeInTheDocument();
+  });
+
+  it("does not re-verify the allowance on every window focus", async () => {
+    routeInvoke({
+      "/api/me": { status: 200, body: meBody() },
+      "/api/conversations": { status: 200, body: '{"conversations":[]}' },
+    });
+    render(<AskPanel />);
+    expect(await screen.findByText("7 of 10 left", { exact: false })).toBeInTheDocument();
+    const meCalls = () =>
+      invoke.mock.calls.filter(
+        (call) => call[0] === "ask_api" && (call[1] as Record<string, unknown>)?.path === "/api/me",
+      ).length;
+    const before = meCalls();
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(meCalls()).toBe(before);
   });
 });
 });

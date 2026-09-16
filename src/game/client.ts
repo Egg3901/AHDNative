@@ -1,5 +1,6 @@
 import type { ProfileUpdate, ProfileView } from "./profileTypes";
 import type { RegionsQuery, RegionsView } from "./regions";
+import type { CabinetOfficeView, IssueCabinetOrderInput } from "./cabinetOffice";
 import type { CaucusManagementView } from "./caucusManagement";
 import type { BondMarketView } from "./bondMarket";
 import type { PartyManagementView } from "./partyManagement";
@@ -50,6 +51,10 @@ export class GameClient {
   bondMarket() { return this.send<BondMarketView>({ type: "bondMarket" }); }
   regions(query: RegionsQuery = {}) { return this.send<RegionsView>({ type: "regions", query }); }
 
+  cabinetOffice() { return this.send<CabinetOfficeView>({ type: "cabinetOffice" }); }
+  issueCabinetOrder(input: IssueCabinetOrderInput) {
+    return this.send<{ result: { ok: true; message: string } | { ok: false; error: string }; view: GameView }>({ type: "issueCabinetOrder", ...input });
+  }
   caucusManagement() { return this.send<CaucusManagementView>({ type: "caucusManagement" }); }
   partyManagement() { return this.send<PartyManagementView>({ type: "partyManagement" }); }
   markets() { return this.send<MarketsView>({ type: "markets" }); }

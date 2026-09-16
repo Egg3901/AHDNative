@@ -20,17 +20,30 @@
  * fallback, an overlapping portrait with an initial-letter fallback, camera
  * pick affordances with remove controls, and one `role="alert"` error.
  * Images stay local data URLs resized to the reference presets; nothing is
- * uploaded and nothing is fetched. The imperial notice is unchanged: the
- * reference imperial page carries no portrait/header imagery.
+ * uploaded and nothing is fetched. The reference imperial page carries no
+ * portrait/header imagery, so the imperial role panel below is text only.
+ *
+ * Imperial role panel (#242): the reference `/create-imperial-character`
+ * page is admin-gated (`requireAdmin`; non-admins are redirected away), so
+ * Native never offers an imperial form. For an imperial-eligible country the
+ * screen states the reference-conditional facts instead: the gender-aware
+ * ceremonial title (`getImperialTitle`), the starter corporation and its
+ * $50,000,000 starting capital, and the honest refusal. Countries the
+ * reference leaves unconfigured (ES/SE: eligible by government type, no
+ * titles or corporation) keep the generic notice with no title or
+ * corporation claims, matching the reference nulls.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  IMPERIAL_STARTING_CAPITAL,
   STAT_FREE_POINTS,
   STAT_KEYS,
   STAT_MIN,
   STAT_MAX,
   alignmentBand,
   defaultStatBuild,
+  getImperialRole,
+  getImperialTitle,
   ideologyLabel,
   isOnePartyCountry,
   nearestParty,
@@ -45,6 +58,8 @@ import type {
   CharacterRace,
   CharacterWealth,
 } from "../game/types";
+import type { HomeRegionContext } from "@ahdclient/engine";
+import { HomeRegionPicker } from "./HomeRegionPicker";
 import { PolicyCompass } from "./PolicyCompass";
 import { PartyMark } from "./PartyMark";
 import "./ui.css";
@@ -197,6 +212,52 @@ function ChipGroup<T extends string>({
         })}
       </div>
     </fieldset>
+  );
+}
+
+// Reference corporation sector labels for the imperial starter fact. Only
+// real_estate ships in the reference imperial configs; anything else falls
+// back to the raw sector so the panel never invents a name.
+const IMPERIAL_SECTOR_LABELS: Record<string, string> = { real_estate: "Real Estate" };
+
+function ImperialRolePanel({ countryId, countryName, gender, name }: {
+  countryId: string;
+  countryName: string;
+  gender: CharacterGender | "";
+  name: string;
+}) {
+  const role = getImperialRole(countryId);
+  const title = gender ? getImperialTitle(countryId, gender) : null;
+  const trimmedName = name.trim();
+  // Eligible by government type but unconfigured in the reference (ES/SE):
+  // state the role honestly with no title or corporation claims.
+  if (!role) {
+    return (
+      <p className="ahd-help" style={{ marginTop: "0.6rem" }}>
+        {countryName} has a ceremonial imperial role. This career character is a
+        politician; the imperial character is created separately by an administrator.
+      </p>
+    );
+  }
+  const sectorLabel = IMPERIAL_SECTOR_LABELS[role.corporation.sector] ?? role.corporation.sector;
+  return (
+    <div className="ahd-card ahd-card-pad" style={{ marginTop: "0.6rem" }}>
+      <p className="ahd-label" style={{ marginBottom: "0.3rem" }}>Ceremonial imperial role</p>
+      {title ? (
+        <p style={{ margin: "0 0 0.3rem" }}>
+          Title: <span className="ahd-mono" style={{ fontWeight: 600 }}>{title}</span>
+          {trimmedName ? <span className="ahd-muted"> — displayed as &ldquo;{title} {trimmedName}&rdquo;</span> : null}
+        </p>
+      ) : null}
+      <p className="ahd-muted" style={{ margin: "0 0 0.3rem", fontSize: "0.8rem" }}>
+        A {sectorLabel} corporation ({role.corporation.name}) is created with
+        ${IMPERIAL_STARTING_CAPITAL.toLocaleString("en-US")} starting capital for an imperial character.
+      </p>
+      <p className="ahd-help" style={{ margin: 0 }}>
+        This career character is a politician. The imperial character is created
+        separately by an administrator on the live game, which this offline career cannot do.
+      </p>
+    </div>
   );
 }
 
@@ -426,6 +487,11 @@ export function CharacterCreationScreen({
 
   const remaining = STAT_FREE_POINTS - spentPoints(stats);
   const regionNoun = choices?.regionNoun ?? selection.regionNoun;
+  // Rich electorate context (population, lean, seeded flag) comes from
+  // creationChoices; the bare world-setup name list is the loading fallback.
+  // Either way only the chosen homeRegionId is submitted and persisted.
+  const homeRegionOptions: HomeRegionContext[] = choices?.homeRegions
+    ?? regions.map((region) => ({ id: region.id, name: region.name, population: null, electorateLean: null, seeded: false }));
   const parties = choices?.parties ?? [];
   const rulingParty = choices?.rulingParty ?? null;
   const regimeLabel: Record<string, string> = { ruling: "Ruling", approved: "Approved", banned: "Banned" };
@@ -452,7 +518,7 @@ export function CharacterCreationScreen({
   const stepSummaries = [
     `${selection.countryName} (${selection.era})`,
     name.trim() || "Not answered",
-    regions.find((region) => region.id === homeRegionId)?.name ?? "Not answered",
+    homeRegionOptions.find((region) => region.id === homeRegionId)?.name ?? regions.find((region) => region.id === homeRegionId)?.name ?? "Not answered",
     compassTouched ? ideologyLabel(position) : "Not answered",
     partyTouched ? (selectedParty?.name ?? "Independent") : "Not answered",
     statsComplete ? "All points allocated" : `${remaining} points remaining`,
@@ -687,16 +753,13 @@ export function CharacterCreationScreen({
             headingRef={(element) => { headingRefs.current[2] = element; }}
             focusable={!reviewAll && activeStep === 3}
           >
-            <label className="ahd-label" htmlFor="creation-region">Home {regionNoun}</label>
-            <select
-              id="creation-region"
-              className="ahd-select"
+            <HomeRegionPicker
+              regions={homeRegionOptions}
               value={homeRegionId}
-              onChange={(event) => setHomeRegionId(event.target.value)}
-            >
-              {regions.map((region) => <option key={region.id} value={region.id}>{region.name}</option>)}
-              {regions.length === 0 ? <option value="">No regions</option> : null}
-            </select>
+              onChange={setHomeRegionId}
+              position={position}
+              regionNoun={regionNoun}
+            />
           </StepPanel>
 
           <StepPanel
@@ -825,10 +888,12 @@ export function CharacterCreationScreen({
         </div>
 
         {choices?.imperialEligible ? (
-          <p className="ahd-help" style={{ marginTop: "0.6rem" }}>
-            {selection.countryName} has a ceremonial imperial role. This career character is a
-            politician; the imperial character is created separately by an administrator.
-          </p>
+          <ImperialRolePanel
+            countryId={selection.countryId}
+            countryName={selection.countryName}
+            gender={gender}
+            name={name}
+          />
         ) : null}
 
         {localError ? <div className="ahd-alert" role="alert" style={{ marginTop: "0.75rem" }}>{localError}</div> : null}

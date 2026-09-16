@@ -8,6 +8,8 @@ import {
   parseTurnStatus,
   validateExecuteArgs,
   validateNotificationId,
+  validateNotificationPreference,
+  validateSnoozeMinutes,
 } from "./validators";
 import { MP_EXECUTE_ACTION_TYPES } from "./endpoints";
 
@@ -197,6 +199,88 @@ describe("validateExecuteArgs", () => {
       ok: true,
       body: { actionType: "convertCash", convertAmount: 250 },
     });
+  });
+});
+
+describe("validateExecuteArgs batch counts (#361)", () => {
+  it("sends count only for batch runs of batchable types", () => {
+    expect(validateExecuteArgs({ actionType: "fundraise", count: 5 })).toEqual({
+      ok: true,
+      body: { actionType: "fundraise", count: 5 },
+    });
+    expect(validateExecuteArgs({ actionType: "pollLarge", count: 10, targetState: "CA" })).toEqual({
+      ok: true,
+      body: { actionType: "pollLarge", count: 10, targetState: "CA" },
+    });
+    // Omitted or 1 stays a canonical single run: no count crosses the bridge.
+    expect(validateExecuteArgs({ actionType: "campaign" })).toEqual({
+      ok: true,
+      body: { actionType: "campaign" },
+    });
+    expect(validateExecuteArgs({ actionType: "campaign", count: 1 })).toEqual({
+      ok: true,
+      body: { actionType: "campaign" },
+    });
+  });
+
+  it("refuses batch runs for non-batchable types with the server refusal wording", () => {
+    for (const args of [
+      { actionType: "convertCash", count: 5 },
+      { actionType: "convertCash", count: 10 },
+      { actionType: "rest", count: 5 },
+      { actionType: "debatePrep", count: 10 },
+    ]) {
+      const result = validateExecuteArgs(args);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.reason).toBe("Batch execution is not available for this action.");
+    }
+  });
+
+  it("refuses batch counts outside 1/5/10 and count mixed with a convert amount", () => {
+    for (const count of [0, 2, 7, 100, "5", Number.NaN, null]) {
+      expect(validateExecuteArgs({ actionType: "fundraise", count }).ok).toBe(false);
+    }
+    const mixed = validateExecuteArgs({ actionType: "fundraise", count: 5, convertAmount: 10 });
+    expect(mixed.ok).toBe(false);
+    // Single-run convert rules still hold.
+    expect(validateExecuteArgs({ actionType: "convertCash", convertAmount: 250 })).toEqual({
+      ok: true,
+      body: { actionType: "convertCash", convertAmount: 250 },
+    });
+  });
+});
+
+describe("validateSnoozeMinutes (#361)", () => {
+  it("defaults an omitted length to 720 and accepts the 5..10080 window", () => {
+    expect(validateSnoozeMinutes(undefined)).toEqual({ ok: true, minutes: 720 });
+    expect(validateSnoozeMinutes(5)).toEqual({ ok: true, minutes: 5 });
+    expect(validateSnoozeMinutes(10080)).toEqual({ ok: true, minutes: 10080 });
+  });
+
+  it("rejects out-of-range, fractional, and non-numeric lengths", () => {
+    for (const minutes of [0, 4, 10081, 1.5, Number.NaN, "60", null, {}]) {
+      expect(validateSnoozeMinutes(minutes).ok, JSON.stringify(minutes)).toBe(false);
+    }
+  });
+});
+
+describe("validateNotificationPreference (#361)", () => {
+  it("accepts mute/unmute with an allowlisted type", () => {
+    expect(validateNotificationPreference({ action: "mute", type: "turn_advance" })).toEqual({
+      ok: true,
+      body: { action: "mute", type: "turn_advance" },
+    });
+    expect(validateNotificationPreference({ action: "unmute", type: "system" })).toEqual({
+      ok: true,
+      body: { action: "unmute", type: "system" },
+    });
+  });
+
+  it("rejects preference snooze and unknown types before anything is sent", () => {
+    expect(validateNotificationPreference({ action: "snooze", type: "system" }).ok).toBe(false);
+    expect(validateNotificationPreference({ action: "mute", type: "nuke" }).ok).toBe(false);
+    expect(validateNotificationPreference({ action: "mute", type: "" }).ok).toBe(false);
+    expect(validateNotificationPreference({ action: null, type: "system" }).ok).toBe(false);
   });
 });
 

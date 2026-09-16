@@ -135,6 +135,7 @@ export function AskPanel({
   const [refreshing, setRefreshing] = useState(true);
   const [quotaStale, setQuotaStale] = useState(false);
   const accountRef = useRef<string | null>(cachedFirst?.username ?? null);
+  const lastRefreshRef = useRef(0);
   const [convs, setConvs] = useState<AskConversation[]>([]);
   const [convId, setConvId] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -171,10 +172,19 @@ export function AskPanel({
 
   // Display the authoritative snapshot and keep its non-sensitive summary
   // cached for the next instant open. A new username means the account
-  // changed, so the previous account's conversations go first.
+  // changed, so the previous account's thread and history go first: nothing
+  // from the old account may stay visible while the refresh is in flight.
   const remember = useCallback((nextUsage: AskUsage | null, nextTier: string | null, username: string | null) => {
+    lastRefreshRef.current = Date.now();
     if (accountRef.current !== username) {
       setConvs([]);
+      setConvId(null);
+      setMsgs([]);
+      try {
+        localStorage.removeItem(CONV_KEY);
+      } catch {
+        // Private browsing: the in-memory thread is still cleared above.
+      }
       accountRef.current = username;
     }
     setUsage(nextUsage);
@@ -254,9 +264,11 @@ export function AskPanel({
   const probe = useCallback(async () => {
     setRefreshing(true);
     try {
-      const me = await askMe();
+      // One verification round: identity/quota and history race together so
+      // reopening the panel never pays two sequential entitlement checks.
+      const [me, listed] = await Promise.all([askMe(), askConversations()]);
       remember(me.usage ?? null, me.entitlement?.label ?? null, usernameOf(me));
-      const { conversations, usage: listUsage } = await askConversations();
+      const { conversations, usage: listUsage } = listed;
       setConvs(conversations);
       if (listUsage) noteUsage({ usage: listUsage });
       let stored: string | null = null;
@@ -287,12 +299,15 @@ export function AskPanel({
 
   // The sign-in surface closes itself on login and focuses this panel, so
   // re-probe while signed out and refresh the allowance otherwise. Sign-in,
-  // sign-out, and account switches land without reopening the panel.
+  // sign-out, and account switches land without reopening the panel. A focus
+  // minutes after a fresh verification skips the refresh: replaying the
+  // multi-second entitlement lookup on every focus is the repeated check the
+  // cached shell exists to avoid.
   useEffect(() => {
     const onFocus = () => {
       setPhase((prev) => {
         if (prev === "signedOut") void probe();
-        else void refreshQuota();
+        else if (Date.now() - lastRefreshRef.current > 60_000) void refreshQuota();
         return prev;
       });
     };

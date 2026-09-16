@@ -1,6 +1,8 @@
 export { advanceTurn } from "./engine.js";
 export type { AdvanceTurnOptions } from "./engine.js";
 export { createWorld, listEras, listPlayableCountries, listParties, listRegions, listCreationParties, listCountries, rulingPartyIdForCountry, rulingPartyForCountry, headOfStateOfficeForCountry, SCHEMA_VERSION } from "./world.js";
+export { electorateLeanForGroups, listCreationHomeRegions } from "./demographics/homeRegionContext.js";
+export type { HomeRegionContext, HomeRegionElectorateLean } from "./demographics/homeRegionContext.js";
 export type { NewWorldOptions, EraInfo, PlayableCountryInfo, WorldOverrides, CountryEconomyOverride } from "./world.js";
 export { applyCheat } from "./cheats.js";
 export type { CheatOp, PartyNumericField, PlayerNumericField, PoliticianNumericField } from "./cheats.js";
@@ -106,6 +108,9 @@ export * from "./cabinet/nominationLifecycle.js";
 export * from "./cabinet/transition.js";
 export * from "./corporation/corporateSectorAssets.js";
 export * from "./ministerialOrders/catalog.js";
+export * from "./ministerialOrders/issue.js";
+export * from "./ministerialOrders/lifecycle.js";
+export * from "./cabinet/ministerialActionPool.js";
 export { runMinisterialOrders } from "./ministerialOrders/phases.js";
 // Issue #119: FOMC committee + nomination lifecycle. Types come through
 // `export type * from "./types.js"`; these are the pure rules, the meeting
@@ -151,6 +156,7 @@ export type {
 export * from "./judiciary/types.js";
 export * from "./judiciary/divergence.js";
 export * from "./judiciary/scotusTurn.js";
+export * from "./judiciary/scotusSponsorship.js";
 export * from "./judiciary/ukJrSurpriseTurn.js";
 export * from "./history/types.js";
 export { recordWorldHistory, computePlayerBondsValue, computePlayerSharesValue } from "./history/phases.js";
@@ -212,6 +218,12 @@ export {
   onePartyCountries,
   imperialEligibleCountries,
 } from "./creationCountryRules.js";
+export {
+  IMPERIAL_STARTING_CAPITAL,
+  getImperialRole,
+  getImperialTitle,
+} from "./imperialRole.js";
+export type { ImperialGender, ImperialRole, ImperialTitles } from "./imperialRole.js";
 export * from "./countryPolitics/index.js";
 export * from "./governor/constants.js";
 export * from "./governor/powers.js";

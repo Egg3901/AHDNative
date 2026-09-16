@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  ASK_ICON_PATH,
+  MENU_ICON_PATH,
+  MULTIPLAYER_ICON_PATH,
+  NavIcon,
+} from "./MobileNavigation";
 import { MpModeSession, type MpSnapshot } from "../mp/adapter";
 import { tauriMpBridgeHost, type MpBridgeHost } from "../mp/bridge";
-import { MP_EXECUTE_ACTIONS } from "../mp/endpoints";
+import { MP_EXECUTE_ACTIONS, MP_NOTIFICATION_TYPES, MP_SNOOZE_MINUTES_DEFAULT } from "../mp/endpoints";
 import "./ui.css";
 
 /* Native multiplayer mode screen (#359). Renders authoritative server state
@@ -13,6 +19,7 @@ import "./ui.css";
 
 export interface MpModeScreenProps {
   host?: MpBridgeHost;
+  onAsk?: () => void;
   onExit: () => void;
 }
 
@@ -39,13 +46,16 @@ function formatCountdown(iso: string | null): string | null {
   return `Next turn in ~${hours}h ${rest}m`;
 }
 
-export function MpModeScreen({ host, onExit }: MpModeScreenProps) {
+export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   const sessionRef = useRef<MpModeSession | null>(null);
   if (!sessionRef.current) sessionRef.current = new MpModeSession(host ?? tauriMpBridgeHost());
   const [snapshot, setSnapshot] = useState<MpSnapshot>(IDLE);
   const [busy, setBusy] = useState(false);
   const [region, setRegion] = useState("");
   const [amount, setAmount] = useState("");
+  const [runs, setRuns] = useState<1 | 5 | 10>(1);
+  const [snooze, setSnooze] = useState("");
+  const [prefType, setPrefType] = useState<string>("turn_advance");
 
   useEffect(() => {
     const session = sessionRef.current!;
@@ -112,16 +122,15 @@ export function MpModeScreen({ host, onExit }: MpModeScreenProps) {
             </h2>
             <p className="ahd-muted">
               {phase === "auth-expired"
-                ? "Your multiplayer session expired. Sign back in on the live site, then reconnect to continue."
-                : "Multiplayer uses your live-site account. Sign in on the live site first; this screen never sees your password."}
+                ? "Your multiplayer session expired. Choose your account provider to reconnect securely."
+                : "Choose your account provider. Native opens only the provider's secure authorization step and returns here automatically."}
             </p>
             <div className="ahd-mp-row">
-              <button
-                className="ahd-btn ahd-btn-primary"
-                disabled={busy}
-                onClick={() => void run((s) => s.openLiveSiteAndReload())}
-              >
-                Open live site to sign in
+              <button className="ahd-btn ahd-btn-primary" disabled={busy} onClick={() => void run((s) => s.signIn("discord"))}>
+                Continue with Discord
+              </button>
+              <button className="ahd-btn" disabled={busy} onClick={() => void run((s) => s.signIn("google"))}>
+                Continue with Google
               </button>
               <button className="ahd-btn" disabled={busy} onClick={() => void run((s) => s.refresh())}>
                 Retry
@@ -143,9 +152,6 @@ export function MpModeScreen({ host, onExit }: MpModeScreenProps) {
             <div className="ahd-mp-row">
               <button className="ahd-btn ahd-btn-primary" disabled={busy} onClick={() => void run((s) => s.refresh())}>
                 Reconnect
-              </button>
-              <button className="ahd-btn" disabled={busy} onClick={() => void run((s) => s.openLiveSiteAndReload())}>
-                Open full live site
               </button>
             </div>
           </section>
@@ -191,6 +197,25 @@ export function MpModeScreen({ host, onExit }: MpModeScreenProps) {
             <p className="ahd-muted" style={{ marginTop: 0 }}>
               Actions run on the live game. Costs and refusals come from the server.
             </p>
+            <div className="ahd-mp-row" role="group" aria-label="Batch runs">
+              <span className="ahd-label">Runs</span>
+              {([1, 5, 10] as const).map((count) => (
+                <button
+                  key={count}
+                  className="ahd-btn ahd-btn-sm"
+                  disabled={busy}
+                  aria-pressed={runs === count}
+                  aria-label={`×${count}`}
+                  onClick={() => setRuns(count)}
+                >
+                  ×{count}
+                </button>
+              ))}
+            </div>
+            <p className="ahd-muted" style={{ marginBottom: 0 }}>
+              Batch ×5 and ×10 run on Fundraise, Campaign, Run Advertisements, Build Donor
+              Network, and the two polls. Other actions always run once.
+            </p>
             <div className="ahd-mp-row">
               <label className="ahd-field ahd-mp-input">
                 <span className="ahd-label">Region (optional)</span>
@@ -223,7 +248,7 @@ export function MpModeScreen({ host, onExit }: MpModeScreenProps) {
                   onClick={() => {
                     const targetState = region.trim() ? region.trim() : undefined;
                     const convertAmount = amount.trim() ? Number(amount.trim()) : undefined;
-                    void run((s) => s.performAction({ actionType: action.type, targetState, convertAmount }));
+                    void run((s) => s.performAction({ actionType: action.type, targetState, convertAmount, count: runs }));
                   }}
                 >
                   {action.name}
@@ -249,6 +274,18 @@ export function MpModeScreen({ host, onExit }: MpModeScreenProps) {
               </button>
             </div>
             {snapshot.inbox.notifications.length === 0 && <p className="ahd-muted">No notifications.</p>}
+            <div className="ahd-mp-row">
+              <label className="ahd-field ahd-mp-input">
+                <span className="ahd-label">Snooze length (minutes, default {MP_SNOOZE_MINUTES_DEFAULT})</span>
+                <input
+                  value={snooze}
+                  disabled={busy}
+                  inputMode="numeric"
+                  placeholder={String(MP_SNOOZE_MINUTES_DEFAULT)}
+                  onChange={(event) => setSnooze(event.currentTarget.value)}
+                />
+              </label>
+            </div>
             <ul className="ahd-mp-inbox">
               {snapshot.inbox.notifications.map((note) => (
                 <li key={note.id} className="ahd-mp-inbox-row">
@@ -264,6 +301,23 @@ export function MpModeScreen({ host, onExit }: MpModeScreenProps) {
                         Mark read
                       </button>
                     )}
+                    <button
+                      className="ahd-btn ahd-btn-sm"
+                      disabled={busy}
+                      onClick={() => {
+                        const trimmed = snooze.trim();
+                        const minutes = trimmed ? Number(trimmed) : undefined;
+                        void run((s) => s.snoozeNotification(note.id, minutes));
+                      }}
+                    >
+                      Snooze
+                    </button>
+                    <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void run((s) => s.unsnoozeNotification(note.id))}>
+                      Unsnooze
+                    </button>
+                    <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void run((s) => s.unarchiveNotification(note.id))}>
+                      Unarchive
+                    </button>
                     <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" disabled={busy} onClick={() => void run((s) => s.archiveNotification(note.id))}>
                       Archive
                     </button>
@@ -271,9 +325,44 @@ export function MpModeScreen({ host, onExit }: MpModeScreenProps) {
                 </li>
               ))}
             </ul>
+            <div className="ahd-mp-row" style={{ marginTop: "0.6rem" }}>
+              <label className="ahd-field ahd-mp-input">
+                <span className="ahd-label">Notification type</span>
+                <select
+                  value={prefType}
+                  disabled={busy}
+                  onChange={(event) => setPrefType(event.currentTarget.value)}
+                >
+                  {MP_NOTIFICATION_TYPES.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </label>
+              <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void run((s) => s.setNotificationPreference("mute", prefType))}>
+                Mute
+              </button>
+              <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void run((s) => s.setNotificationPreference("unmute", prefType))}>
+                Unmute
+              </button>
+            </div>
           </section>
         )}
       </div>
+      <footer className="ahd-footer ahd-mp-footer" aria-label="Multiplayer navigation">
+        <div className="ahd-container ahd-footer-inner">
+          <nav className="ahd-bottomnav ahd-mp-bottomnav" aria-label="Primary">
+            <button type="button" className="ahd-bottomnav-item" data-active="true" aria-current="page" aria-label="Multiplayer">
+              <NavIcon path={MULTIPLAYER_ICON_PATH} label="" /><span>Multiplayer</span>
+            </button>
+            <button type="button" className="ahd-bottomnav-item" aria-label="Ask" onClick={onAsk}>
+              <NavIcon path={ASK_ICON_PATH} label="" /><span>Ask</span>
+            </button>
+            <button type="button" className="ahd-bottomnav-item" aria-label="Menu" onClick={onExit}>
+              <NavIcon path={MENU_ICON_PATH} label="" /><span>Menu</span>
+            </button>
+          </nav>
+        </div>
+      </footer>
     </main>
   );
 }

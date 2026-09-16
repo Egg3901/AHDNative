@@ -11,7 +11,7 @@ function hostWith(impl: Partial<MpBridgeHost>): MpBridgeHost {
   return {
     fetch: vi.fn(async () => ""),
     mutate: vi.fn(async () => ""),
-    openOnlineWindow: vi.fn(async () => {}),
+    beginSignIn: vi.fn(async () => {}),
     ...impl,
   };
 }

@@ -43,7 +43,7 @@ test('character creation fields survive action, turn, save, relaunch and resume'
   // Step 3 Home region.
   await expect(page.getByRole('heading', { name: /^Home state/ })).toBeVisible();
   await expectFitsPhone();
-  await page.getByLabel('Home state', { exact: true }).selectOption('CA');
+  await page.getByRole('radio', { name: /^California\b/ }).check();
   await page.getByRole('button', { name: /Continue to Where you stand/i }).click();
 
   // Step 4 Where you stand: a deliberate compass answer.

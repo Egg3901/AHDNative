@@ -374,7 +374,7 @@ html, body { overflow-x: hidden; }
   text-transform: uppercase; line-height: 1; user-select: none;
   min-width: 0;
 }
-.ahd-mark img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.ahd-mark img { width: 100%; height: 100%; object-fit: contain; display: block; border-radius: inherit; }
 .ahd-mark-initials { display: block; padding: 0 2px; }
 
 /* Compact code-native action category mark (#244): a small glyph tile that
@@ -394,6 +394,42 @@ html, body { overflow-x: hidden; }
 .ahd-action-head .ahd-action-body { min-width: 0; flex: 1 1 auto; }
 .ahd-action-state { flex: 0 0 auto; white-space: nowrap; }
 .ahd-action-reason { margin: 0; }
+
+/* Code-native action card banner (#143): mirrors the AHDGame ActionCard header
+   composition (category accent bar + scrim gradient + category mark) with pure
+   CSS, since the reference per-action photography is remote CDN art. No raster,
+   no downloads, offline-safe. The glyph reuses the shared CATEGORY_GLYPH tile;
+   accent hues follow CATEGORY_ACCENTS (influence/money/research) with executive
+   matching the HosOfficeMark generic slate. Decorative: aria-hidden in markup,
+   state stays on the card badge and disabled reason. No motion by design. */
+.ahd-action-banner {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center;
+  min-height: 3.25rem; padding: 0.4rem 0.55rem;
+  border: 1px solid var(--ahd-border); border-radius: var(--ahd-radius-sm);
+  background: var(--ahd-card-elevated);
+  background: linear-gradient(115deg, var(--ahd-card-elevated), var(--ahd-card-muted) 75%);
+}
+.ahd-action-banner::before {
+  content: ""; position: absolute; inset-inline: 0; top: 0; height: 3px;
+  background: var(--ahd-muted);
+}
+.ahd-action-banner::after {
+  content: attr(data-glyph); position: absolute; right: 0.5rem; top: 50%;
+  transform: translateY(-50%); font-size: 2rem; line-height: 1; opacity: 0.16;
+}
+.ahd-action-banner .ahd-action-mark { position: relative; z-index: 1; background: rgb(0 0 0 / 0.4); }
+.ahd-action-banner[data-category="influence"] { background: linear-gradient(115deg, color-mix(in srgb, var(--ahd-primary) 42%, var(--ahd-card-muted)), var(--ahd-card-muted) 72%); }
+.ahd-action-banner[data-category="influence"]::before { background: var(--ahd-primary); }
+.ahd-action-banner[data-category="fundraising"] { background: linear-gradient(115deg, color-mix(in srgb, var(--ahd-success) 30%, var(--ahd-card-muted)), var(--ahd-card-muted) 72%); }
+.ahd-action-banner[data-category="fundraising"]::before { background: var(--ahd-success); }
+.ahd-action-banner[data-category="intelligence"] { background: linear-gradient(115deg, color-mix(in srgb, var(--ahd-info) 32%, var(--ahd-card-muted)), var(--ahd-card-muted) 72%); }
+.ahd-action-banner[data-category="intelligence"]::before { background: var(--ahd-info); }
+.ahd-action-banner[data-category="executive"] { background: linear-gradient(115deg, color-mix(in srgb, #475569 42%, var(--ahd-card-muted)), var(--ahd-card-muted) 72%); }
+.ahd-action-banner[data-category="executive"]::before { background: #475569; }
+.ahd-action-banner[data-state="locked"] { filter: saturate(0.55); }
+.ahd-action-banner[data-state="locked"]::after { opacity: 0.08; }
+@media (min-width: 700px) { .ahd-action-banner { min-height: 3.75rem; } }
 
 /* New-game screen: keep the hero and stacked fields inside a 320px column. */
 .ahd-newgame { min-width: 0; }
@@ -475,6 +511,18 @@ html, body { overflow-x: hidden; }
   display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.2rem;
   min-width: 0;
 }
+/* Reference status-bar "Profile" caption (#223): desktop-only in the
+   reference (`hidden sm:inline`), so it stays display:none on phones and
+   captions the resource grid's full row at the same sm breakpoint. The
+   phone grid keeps its 6 cells and the compact footer keeps its budget. */
+.ahd-status-profile-label { display: none; }
+@media (min-width: 640px) {
+  .ahd-status-profile-label {
+    display: block; grid-column: 1 / -1;
+    font-size: 0.64rem; font-weight: 600; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--ahd-muted);
+  }
+}
 .ahd-status-btn {
   appearance: none; border: none; background: transparent; color: var(--ahd-fg);
   padding: 0.2rem 0.15rem; margin: 0;
@@ -512,43 +560,109 @@ html, body { overflow-x: hidden; }
 .ahd-bottomnav-item[data-active="true"] svg { color: var(--ahd-primary); }
 .ahd-bottomnav-item:focus-visible { outline: none; box-shadow: var(--ahd-focus); }
 
-/* Side drawer sliding from the left */
+/* Side drawer sliding from the left (#366 composition: compact phone layout).
+ * Width stays narrow so the backdrop keeps a tappable strip on 320px;
+ * the column is a fixed phone sheet: compact identity, turn controls, a
+ * scrolling section list, and a pinned Ask/Actions quick bar. */
 .ahd-drawer-backdrop {
   position: fixed; inset: 0; z-index: 40;
   background: rgb(0 0 0 / 0.55);
+  animation: ahd-backdrop-in 0.18s ease-out;
 }
+@keyframes ahd-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 .ahd-drawer {
   position: fixed; top: 0; left: 0; bottom: 0; z-index: 41;
   width: min(19rem, calc(100vw - 3.5rem));
+  max-height: 100vh;
+  max-height: 100dvh;
   background: var(--ahd-card);
   border-right: 1px solid var(--ahd-border);
   box-shadow: var(--ahd-shadow-md);
   display: flex; flex-direction: column;
+  overscroll-behavior: contain;
   padding-top: max(0.7rem, env(safe-area-inset-top));
   padding-bottom: max(0.7rem, env(safe-area-inset-bottom));
+  padding-left: max(0, env(safe-area-inset-left));
   animation: ahd-drawer-in 0.18s ease-out;
 }
 @keyframes ahd-drawer-in { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+/* Compact identity header: name plus one party/country line plus one
+ * turn/date line, each truncated so long names cannot push turn controls
+ * off the 320px first viewport. */
 .ahd-drawer-identity {
-  display: flex; flex-direction: column; gap: 0.1rem;
-  padding: 0.2rem 1rem 0.6rem; font-size: 0.82rem;
+  display: flex; flex-direction: column; gap: 0.05rem;
+  padding: 0.35rem 0.9rem 0.5rem; font-size: 0.82rem;
   border-bottom: 1px solid var(--ahd-border);
+  min-width: 0;
 }
-.ahd-drawer-identity .ahd-muted { font-size: 0.72rem; }
-.ahd-drawer-turn { padding: 0.7rem 1rem 0.4rem; border-bottom: 1px solid var(--ahd-border); }
+.ahd-drawer-identity .ahd-muted { font-size: 0.7rem; }
+.ahd-drawer-identity-name {
+  font-size: 0.85rem; line-height: 1.25; margin: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ahd-drawer-identity-meta {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  min-width: 0;
+}
+.ahd-drawer-turn { padding: 0.55rem 0.9rem 0.35rem; border-bottom: 1px solid var(--ahd-border); }
 .ahd-drawer-endturn { width: 100%; }
-.ahd-drawer-turnrow { display: flex; gap: 0.4rem; margin-top: 0.55rem; flex-wrap: wrap; }
+.ahd-drawer-turnrow { display: flex; gap: 0.35rem; margin-top: 0.45rem; flex-wrap: wrap; }
 .ahd-drawer-nav {
   flex: 1; overflow-y: auto; overscroll-behavior: contain;
-  padding: 0.4rem 0.6rem 0.8rem;
-  display: flex; flex-direction: column; gap: 0.55rem;
+  padding: 0.35rem 0.55rem 0.6rem;
+  display: flex; flex-direction: column; gap: 0.25rem;
+  min-height: 0;
   -webkit-overflow-scrolling: touch;
 }
 .ahd-drawer-group { display: flex; flex-direction: column; gap: 0.05rem; }
+/* Clearer grouped destinations: a hairline between groups so Profile /
+ * Actions / Ask / State / Nation / World / Help read as separate rows
+ * once the density tightens. */
+.ahd-drawer-group + .ahd-drawer-group {
+  border-top: 1px solid var(--ahd-border);
+  padding-top: 0.25rem;
+}
+/* Pinned Ask/Actions quick bar: fixed below the scrolling sections so the
+ * two primary workflows stay reachable with an expanded Nation/World. */
+.ahd-drawer-quick {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem;
+  padding: 0.5rem 0.9rem 0;
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--ahd-border);
+  background: var(--ahd-card);
+}
+.ahd-drawer-quick-btn { width: 100%; }
+/* Narrow phones (320/390px): squeeze section padding and item type so the
+ * first viewport holds identity, turn controls and primary destinations. */
+@media (max-width: 390px) {
+  .ahd-drawer-identity { padding: 0.3rem 0.75rem 0.45rem; }
+  .ahd-drawer-turn { padding: 0.5rem 0.75rem 0.3rem; }
+  .ahd-drawer-nav { gap: 0.2rem; padding: 0.3rem 0.5rem 0.55rem; }
+  .ahd-drawer-item { font-size: 0.8rem; padding: 0.45rem 0.5rem; }
+  .ahd-drawer-quick { padding-left: 0.75rem; padding-right: 0.75rem; }
+}
 .ahd-drawer-heading {
   font-size: 0.64rem; font-weight: 700; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--ahd-muted);
   padding: 0.45rem 0.55rem 0.2rem;
+}
+.ahd-drawer-disclosure {
+  width: 100%; min-height: 44px; border: 0; color: inherit;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; background: color-mix(in srgb, var(--ahd-card-elevated) 72%, transparent);
+  border-radius: var(--ahd-radius-sm); padding-inline: 0.7rem;
+}
+.ahd-drawer-disclosure:focus-visible { outline: none; box-shadow: var(--ahd-focus); }
+/* Disclosure meta: destination count plus the expand marker, kept muted so
+ * the group label stays the scannable element at phone widths. */
+.ahd-drawer-disclosure-meta {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  font-size: 0.7rem; color: var(--ahd-muted);
+}
+.ahd-drawer-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.35rem; min-height: 44px;
+  font-variant-numeric: tabular-nums; font-weight: 700;
 }
 /* Reference sub-categories (Nation Politics/Government/Economy, World
    Economy/Diplomacy/Other) nest under their parent group heading. */
@@ -882,16 +996,22 @@ html, body { overflow-x: hidden; }
 .ahd-creation-party-dot {
   display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 999px;
 }
-.ahd-profile-banner {
-  display: block; width: 100%; height: 5.5rem; object-fit: cover;
-  border-radius: 0.4rem; margin-bottom: 0.6rem;
-}
 .ahd-route-hero { position: relative; min-height: 172px; overflow: hidden; border: 1px solid var(--ahd-border); border-radius: 14px; background: linear-gradient(135deg, var(--ahd-card), var(--ahd-card-elevated, #242435)); }
 .ahd-route-hero-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 52%; }
 .ahd-route-hero-shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(8,8,14,.96), rgba(8,8,14,.42) 62%, rgba(8,8,14,.12)); }
 .ahd-route-hero-content { position: relative; z-index: 1; min-height: 172px; display: flex; flex-direction: column; justify-content: flex-end; padding: 1rem; color: #fff; text-shadow: 0 1px 3px #000; }
 @media (min-width: 700px) { .ahd-route-hero, .ahd-route-hero-content { min-height: 220px; } .ahd-route-hero-content { padding: 1.35rem 1.5rem; } }
-.ahd-mp-layout { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; padding-bottom: 2rem; }
+/* Elections hub stat strip (#377): Races / Contested / Next-to-close under the
+   hero band. Grid tiles keep their own minimum width at zero so long deadline
+   values wrap instead of overflowing at 320px. */
+.ahd-hero-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 0.75rem; margin: 0.5rem 0 0; padding: 0.65rem 1rem; }
+.ahd-hero-stats > div { min-width: 0; }
+.ahd-hero-stats dt { font-size: 0.62rem; font-weight: 650; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ahd-muted); }
+.ahd-hero-stats dd { margin: 0.15rem 0 0; font-size: 0.82rem; font-weight: 700; overflow-wrap: anywhere; min-width: 0; }
+@media (max-width: 380px) { .ahd-hero-stats { padding: 0.6rem 0.75rem; } .ahd-hero-stats dd { font-size: 0.74rem; } }
+.ahd-mp-layout { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
+.ahd-mp-footer { z-index: 40; }
+.ahd-mp-bottomnav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .ahd-mp-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; min-width: 0; }
 .ahd-mp-grid { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; }
 .ahd-mp-facts { display: grid; grid-template-columns: auto 1fr; gap: 0.2rem 0.75rem; margin: 0.5rem 0 0; font-size: 0.85rem; }
@@ -900,6 +1020,7 @@ html, body { overflow-x: hidden; }
 .ahd-mp-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; }
 .ahd-mp-input { min-width: 0; flex: 1 1 8rem; }
 .ahd-mp-input input { min-width: 0; width: 100%; }
+.ahd-mp-input select { min-width: 0; width: 100%; }
 .ahd-mp-inbox { list-style: none; margin: 0.6rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
 .ahd-mp-inbox-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-start; justify-content: space-between; border-top: 1px solid var(--ahd-border); padding-top: 0.6rem; min-width: 0; }
 @media (min-width: 700px) { .ahd-mp-grid { display: grid; grid-template-columns: 1fr 1fr; align-items: start; } }

@@ -17,6 +17,8 @@ export type GameCommand =
   | { type: "politics" }
   | { type: "markets" }
   | { type: "regions"; query?: RegionsQuery }
+  | { type: "cabinetOffice" }
+  | { type: "issueCabinetOrder"; positionId: string; orderId: string; targetRegionId?: string }
   | { type: "caucusManagement" }
   | { type: "partyManagement" }
   | { type: "bondMarket" }

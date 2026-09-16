@@ -9,13 +9,18 @@ const PARTIES = [
   { id: "US_REP", name: "Republican Party", abbreviation: "REP", color: "#EF4444", logoUrl: null, economicPosition: 3, socialPosition: 2 },
 ];
 
+const HOME_REGIONS = [
+  { id: "NY", name: "New York", population: 14830192, electorateLean: { economic: -1, social: -1 }, seeded: true },
+  { id: "CA", name: "California", population: 10672500, electorateLean: { economic: -1, social: -1 }, seeded: true },
+];
+
 function props(overrides: Partial<CharacterCreationScreenProps> = {}): CharacterCreationScreenProps {
   return {
     selection: { era: "1953", countryId: "US", countryName: "United States", regionNoun: "state" },
     regions: [{ id: "NY", name: "New York" }, { id: "CA", name: "California" }],
     initialName: "Eleanor Vance",
     initialHomeRegionId: "NY",
-    choices: { parties: PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state" },
+    choices: { parties: PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state", homeRegions: HOME_REGIONS },
     loading: false,
     busy: false,
     onSubmit: vi.fn(),
@@ -121,13 +126,14 @@ describe("CharacterCreationScreen mobile presentation (#335)", () => {
 
     await user.click(screen.getByRole("button", { name: /Review all details/i }));
     // Every canonical control is present at the compact width: media pickers
-    // with their caps, the region select, compass sliders, party choices and
-    // the stat allocator with its helpers.
+    // with their caps, the region radiogroup, compass sliders, party choices
+    // and the stat allocator with its helpers.
     expect(screen.getByLabelText(/portrait/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/header/i)).toBeInTheDocument();
     expect(screen.getByText(/under 2 MB/)).toBeInTheDocument();
     expect(screen.getByText(/under 4 MB/)).toBeInTheDocument();
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(screen.getByRole("radiogroup", { name: /Home state/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /^California/ })).toBeInTheDocument();
     expect(screen.getByLabelText(/Economic position/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Social position/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "DEM Democratic Party" })).toBeInTheDocument();
@@ -151,7 +157,7 @@ describe("CharacterCreationScreen mobile presentation (#335)", () => {
     await user.click(screen.getByRole("button", { name: /Continue to The politician/i }));
     await completeBackground(user);
     await user.click(screen.getByRole("button", { name: /Continue to Home state/i }));
-    await user.selectOptions(screen.getByRole("combobox"), "CA");
+    await user.click(screen.getByRole("radio", { name: /^California/ }));
     await user.click(screen.getByRole("button", { name: /Continue to Where you stand/i }));
     fireEvent.change(screen.getByLabelText(/Economic position/), { target: { value: "1" } });
     fireEvent.change(screen.getByLabelText(/Social position/), { target: { value: "-1" } });

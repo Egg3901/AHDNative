@@ -19,11 +19,33 @@
   gap: 0.6rem;
 }
 
-.ahd-profile-idrow {
+/* Profile route hero (#371): the RouteHero banner bleeds to the card edges and
+   the identity row overlaps its fold, mirroring the reference
+   PROFILE_HERO_OVERLAP_CLASSES pattern without absolute positioning. */
+.ahd-profile-header > .ahd-route-hero.ahd-profile-hero {
+  margin: -0.85rem -0.85rem 0;
+  border: 0;
+  border-radius: var(--ahd-radius) var(--ahd-radius) 0 0;
+}
+
+.ahd-profile-hero .ahd-h1 {
+  overflow-wrap: anywhere;
+}
+
+.ahd-profile-hero-id {
+  position: relative;
+  z-index: 2;
   display: flex;
   gap: 0.75rem;
-  align-items: flex-start;
+  align-items: flex-end;
   min-width: 0;
+  margin-top: -2.75rem;
+  padding: 0 0.15rem;
+}
+
+.ahd-profile-hero-id .ahd-profile-photo {
+  border: 2px solid var(--ahd-card);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
 }
 
 .ahd-profile-photo {
@@ -58,10 +80,6 @@
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-}
-
-.ahd-profile-name {
-  overflow-wrap: anywhere;
 }
 
 .ahd-profile-chips {
@@ -307,6 +325,48 @@ button.ahd-profile-chip:disabled {
 
 @media (max-width: 400px) {
   .ahd-profile-photo { width: 4rem; height: 4rem; }
+}
+
+/* 320px phones (#371): tighten the overlap so the portrait, chips and place
+   links hold in a 320px column with no sideways scroll. */
+@media (max-width: 360px) {
+  .ahd-profile-hero-id {
+    gap: 0.55rem;
+    margin-top: -2.25rem;
+    padding: 0;
+  }
+
+  .ahd-profile-hero-id .ahd-profile-photo {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+
+  .ahd-profile-hero-id .ahd-profile-initials {
+    font-size: 1.5rem;
+  }
+
+  .ahd-profile-hero-id .ahd-profile-chip {
+    font-size: 0.68rem;
+  }
+
+  .ahd-profile-hero-id .ahd-profile-places {
+    font-size: 0.76rem;
+  }
+}
+
+/* Cards pad to 1rem from 720px (ui.css), so the hero bleed follows. */
+@media (min-width: 720px) {
+  .ahd-profile-header > .ahd-route-hero.ahd-profile-hero {
+    margin: -1rem -1rem 0;
+  }
+}
+
+/* Desktop (#371): a roomier overlap to match the 220px hero crop. */
+@media (min-width: 1024px) {
+  .ahd-profile-hero-id {
+    gap: 1rem;
+    margin-top: -3.25rem;
+  }
 }
 
 /* ── Policy compass ────────────────────────────────────────────────────────

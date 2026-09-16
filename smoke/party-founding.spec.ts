@@ -1,4 +1,4 @@
-import { openGameMenu, gameReady, advanceGame } from './game-navigation';
+import { navigateGame, gameReady, advanceGame } from './game-navigation';
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -11,8 +11,7 @@ test('a funded career founds a party once and resumes with its membership and ch
   await advanceGame(page);
   await gameReady(page);
   const openFounding = async () => {
-    await openGameMenu(page);
-    await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Start a party', exact: true }).click();
+    await navigateGame(page, 'Start a party');
     await expect(page.getByLabel('Party name', { exact: true })).toBeVisible();
   };
   await openFounding();

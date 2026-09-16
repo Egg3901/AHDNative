@@ -19,7 +19,7 @@ test('bottom destinations reset reading position and retain their section highli
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
   await page.mouse.wheel(0, 1200);
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(100);
-  await primary.getByRole('button', { name: 'Parties', exact: true }).click();
+  await navigateGame(page, 'Parties');
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
   await expect(page.getByRole('region', { name: 'Parties', exact: true })).toBeFocused();
   await navigateGame(page, 'Profile');

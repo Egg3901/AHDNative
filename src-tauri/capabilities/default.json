@@ -11,7 +11,7 @@
     "allow-load-game",
     "allow-list-saves",
     "allow-delete-save",
-    "allow-open-online-window",
+    "allow-open-mp-sign-in",
     "allow-open-external-destination",
     "allow-mp-view-fetch",
     "allow-mp-session-fetch",

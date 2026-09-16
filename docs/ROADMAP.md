@@ -298,6 +298,20 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
   one 100k charge and failed eligibility checks leave accounting unchanged.
 - Validation and remaining source differences: [party management](PARTY-MANAGEMENT.md).
   Single-founder immediate ratification is not AHDGame's full charter lifecycle.
+
+## Party platform comparison checkpoint, 2026-09-15
+
+- N04 detail (#143 visual): the Parties detail opens with a phone-first,
+  code-native platform comparison drawn from the saved projection. One compass
+  marker per party at its real authored axes, a text table repeating the same
+  numbers, and one-tap chips driving the same selection as the dropdown.
+  Offline, no invented logos or vote figures. Read-only: editable platform
+  actions, multi-founder flow, coalitions and charter depth stay open under
+  #59; broader imagery #143 stays open.
+- Source: `src/ui/PartyPlatformComparison.tsx` wired in
+  `src/ui/PoliticsPanel.tsx`; visual reference record in [UI reference](UI-REFERENCE.md).
+  Tests: `src/ui/PartyPlatformComparison.test.tsx` plus new
+  `PoliticsPanel` chip/dropdown-sync and empty-projection cases.
 - Integrated gate: 81 root tests, 114 UI tests, fixture integrity, engine
   typecheck and 7 focused action-accounting tests passed. All 21 production
   browser scenarios passed, including founding and reload at phone size.
@@ -409,6 +423,22 @@ UI tests and build also passed. Screenshots at 320px and 390px show the new
 footer and drawer; large-text 320px/568px flow passes. Engine and Rust tests
 were not repeated for this UI-only change. Paid build usage remains unchanged.
 
+### Native account, Ask and multiplayer correction
+
+The phone navigation now gives Ask a permanent bottom destination and reduces
+drawer density with accessible Nation and World disclosures while retaining
+every route and turn/save control. Ask recognizes the current AHDClient secure
+session cookie and opens the same native authentication broker instead of the
+Ask homepage. Multiplayer enters the Native React screen exclusively; full-site
+gameplay is not embedded as an alternate mode. On mobile, authenticated
+multiplayer requests use the platform WebView cookie jar and a pinned,
+allowlisted native relay, so the feature no longer depends on a second desktop
+WebView that mobile builds cannot create.
+
+Validation includes focused component tests at phone width, Rust cookie and
+transport guards, desktop clippy, and an Android-target compile of the mobile
+transport. Physical-device sign-in and cookie-sharing acceptance remain open
+release checks.
 
 ## War mechanics prerequisite checkpoint
 
@@ -960,6 +990,37 @@ across the eight named specs (`singleplayer`, `actions-hub`, `party-founding`,
 `ui-navigation-depth`), all 17 passing against the installed Chromium build.
 
 
+## Profile hero and identity composition checkpoint, 2026-09-15 (#371)
+
+#371 done as a bounded Native UI slice; no engine, session, DTO, signing,
+version or release file changed. Child of #143.
+
+- `src/ui/ProfilePanel.tsx`: the Character section opens on a `RouteHero`
+  (new `profileHeroImage`/`PROFILE_HERO_IMAGE` in `src/ui/RouteHero.tsx`)
+  using the saved custom header when set, else the bundled offline
+  `politicians.webp`; one overlap identity row below the fold carries the
+  projected portrait-or-initials, party/office chips and region/country
+  links. Edit controls, section order, constituency, finance and navigation
+  behavior are unchanged.
+- `src/ui/profile.css` (+ dead-banner removal in `src/ui/ui.css`):
+  phone-first hero bleed and overlap with compact density at 320px, base
+  phone column at 390px, and roomier overlap on desktop; 44px chip/link
+  targets preserved.
+- Reference: AHDGame `ProfileHeader.tsx` banner + overlap composition and
+  `profileHeroLayout.ts` offsets; server-only elements (supporter/admin
+  badges, copy-link, wiki link, member-since, flags) stay omitted.
+- No remote images or new assets; no mechanics invented.
+
+Evidence: new `src/ui/ProfileHero.test.tsx` (12 cases: imagery, fallback,
+identity, destinations, boundaries, responsive rules) plus the unchanged
+`src/ui/ProfilePanel.test.tsx`. Validation: focused UI suites only, per the
+slice boundary — no full verify/build/typecheck/Playwright run.
+
+Honest gaps: no rendered AHDGame-vs-Native comparison screenshot and no
+physical-device run for this slice; `smoke/route-heroes.spec.ts` does not
+yet cover the Profile hero. Server-only header elements remain omitted by
+design (see UI reference).
+
 ## Character-creation player flow checkpoint, 2026-09-14 (#242)
 
 #242 partial. The reference six-step creation hand-off now runs after world
@@ -1013,12 +1074,21 @@ the new `smoke/character-creation.spec.ts` create/act/turn/save/relaunch flow
 and one-party briefing; existing creation-sensitive smoke expectations
 (wealth cash, fundraising yield) were updated to the real consequence values.
 
+2026-09-15 #242 home-region slice: `listCreationHomeRegions` and
+`creationChoices.homeRegions` expose pack population plus the turnout-weighted
+electorate lean per region (unseeded leans flagged as country averages), and
+`HomeRegionPicker` renders the reference filter/sort radiogroup with lean, fit
+and M/K population on the creation Home step. Evidence:
+`homeRegionContext.test.ts` (6), `creationHomeRegions.test.ts` (3),
+`HomeRegionPicker.test.tsx` (4), `CharacterCreationScreen.test.tsx` (25) and
+`CharacterCreationMobilePresentation.test.tsx` (8), all green; fixed three
+`/Name/i` ambiguities and the combobox-to-radiogroup assertion.
+
 Remaining #242 acceptance gaps: the imperial *creation input* remains
 admin-only per the reference (`/create-imperial-character` is admin-gated), so
 Native renders the honest notice rather than an imperial form; a rendered
 AHDGame-vs-Native creation screenshot comparison and physical-device run were
-not captured; home-region lean markers stay absent because the engine records
-no per-region economic/social lean. The issue stays open with `status: partial`.
+not captured. The issue stays open with `status: partial`.
 
 ### Conversational mobile presentation (#335 / #336)
 
@@ -1117,6 +1187,28 @@ and removed. The smoke helper now walks the conversation; no engine change.
   keys, references, and duplicate tuples fail closed. Sale commands,
   worker/union mechanics, fan-out, and UI remain in #294 through #299.
 
+## Corporate-sector ownership/detail slice, 2026-09-15 (#299)
+
+- `projectMarkets` joins one recorded `CorporateSectorAsset` per listing into
+  `MarketListing.sectorAsset`: verbatim id, workers, representing union, and
+  for-sale state, with `scope`/`regionId`/`regionName` resolved from the
+  recorded `stateId` against the region table and `unionName` from
+  `representingUnionId` against the union table. No labor or sale state beyond
+  the recorded fields is invented.
+- The join is read-only: it seeds into a local map and never assigns
+  `world.corporateSectors`, so untouched schema-44 worlds keep their
+  serialized shape and hashes. The projected asset survives
+  serializeSave/deserializeSave unchanged.
+- Each `SectorSummary` carries `forSaleCount` counted from the same listing
+  projection, so the directory can never drift from company detail. Every
+  count reads 0 until the sector-sale commands land (#294/#295).
+- The Markets panel renders a For Sale section (per-sector counts, no For Sale
+  tab), a Sector asset card in company detail (scope, region, workers, union,
+  sale state), and honestly disabled Buy sector controls held with
+  `SECTOR_SALE_UNAVAILABLE` instead of hidden. Focused evidence:
+  `src/game/markets.test.ts` (34 tests) and `src/ui/MarketsPanel.test.tsx`
+  For Sale/sector-asset block.
+
 ## Player polling checkpoint, 2026-09-15 (#38)
 
 - `poll` and `pollLarge` are live through the public `executeAction` contract
@@ -1186,3 +1278,18 @@ and removed. The smoke helper now walks the conversation; no engine change.
 - No paid build, no signing access, no device claim. #148 stays open with
   `status: partial` until the installed icon/launcher check passes in an
   authorized package on each platform (0.1.5 build 1.9 or later qualifies).
+
+## Legislature nominations checkpoint, 2026-09-15 (#273 / #271)
+
+- The Legislature destination now projects the cabinet/SCOTUS nomination list,
+  per-item ballot eligibility with the engine's exact blocked reasons, cabinet
+  sponsorship options, and an honestly unavailable SCOTUS sponsor (#270 absent).
+  Session commands run the engine sponsor/vote functions on a clone and commit
+  only on success, so rejections leave state untouched.
+- Focused evidence: `src/game/nominations.test.ts` (6 cases: empty list,
+  sponsor/project, senator ballot with save/reload, House refusal with
+  unchanged state, turn resolution, SCOTUS unavailable) and
+  `src/ui/NominationsPanel.test.tsx` (2 cases: status/tally/widths/refusals,
+  cabinet ballot command). Session trio
+  (nominations/legislature/session, 32 tests) and UI trio
+  (NominationsPanel/LegislaturePanel/LegislationDetailsPanel, 24 tests) green.

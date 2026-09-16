@@ -33,8 +33,6 @@ function props(overrides: Partial<LandingScreenProps> = {}): LandingScreenProps 
     onRequestDelete: vi.fn(),
     onCancelDelete: vi.fn(),
     onConfirmDelete: vi.fn(),
-    onlineBusy: false,
-    onEnterMultiplayer: vi.fn(),
     onEnterMultiplayerNative: vi.fn(),
     onAsk: vi.fn(),
     ...overrides,
@@ -63,15 +61,15 @@ describe("LandingScreen", () => {
     expect(logo?.height).toBe(logo?.width);
   });
 
-  it("enters multiplayer without blocking offline New game", async () => {
+  it("makes the shared Native UI the primary multiplayer entry", async () => {
     const user = userEvent.setup();
-    const onEnterMultiplayer = vi.fn();
+    const onEnterMultiplayerNative = vi.fn();
     const onNew = vi.fn();
-    render(<LandingScreen {...props({ onEnterMultiplayer, onNew })} />);
+    render(<LandingScreen {...props({ onEnterMultiplayerNative, onNew })} />);
     expect(screen.getByRole("button", { name: "New game" })).toBeEnabled();
     expect(screen.getByText(/local games do not need an account/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Enter multiplayer" }));
-    expect(onEnterMultiplayer).toHaveBeenCalledTimes(1);
+    expect(onEnterMultiplayerNative).toHaveBeenCalledTimes(1);
     expect(onNew).not.toHaveBeenCalled();
   });
 
@@ -156,14 +154,9 @@ describe("LandingScreen", () => {
     expect(p.onConfirmDelete).not.toHaveBeenCalled();
   });
 
-  it("offers Native multiplayer beside the live-site view", async () => {
-    const user = userEvent.setup();
-    const onEnterMultiplayer = vi.fn();
-    const onEnterMultiplayerNative = vi.fn();
-    render(<LandingScreen {...props({ onEnterMultiplayer, onEnterMultiplayerNative })} />);
-    await user.click(screen.getByRole("button", { name: "Play multiplayer (Native)" }));
-    expect(onEnterMultiplayerNative).toHaveBeenCalledTimes(1);
-    expect(onEnterMultiplayer).not.toHaveBeenCalled();
+  it("does not embed the AHDClient multiplayer website as an alternate mode", () => {
+    render(<LandingScreen {...props()} />);
+    expect(screen.queryByRole("button", { name: /multiplayer website/i })).not.toBeInTheDocument();
   });
 
   it("imports a chosen save file and surfaces errors and loading state", async () => {

@@ -1,4 +1,4 @@
-import { openGameMenu, gameReady } from './game-navigation';
+import { navigateGame, gameReady } from './game-navigation';
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -9,8 +9,7 @@ test('sovereign units can be bought, partly sold and retained across relaunch', 
   await page.getByLabel('Import saved game', { exact: true }).setInputFiles({ name: 'elected.json', mimeType: 'application/json', buffer: fixture });
   await gameReady(page);
   const openBonds = async () => {
-    await openGameMenu(page);
-    await page.getByRole('dialog', { name: 'Game menu' }).getByRole('button', { name: 'Bonds', exact: true }).click();
+    await navigateGame(page, 'Bonds');
     await expect(page.getByLabel('Bond issue', { exact: true })).toBeVisible();
     await page.getByLabel('Bond issue', { exact: true }).selectOption('bond-60-US');
   };
