@@ -19,6 +19,7 @@ import { PoliticsRoute } from "./PoliticsRoute";
 import { ResourceBreakdown } from "./ResourceBreakdown";
 import { BottomNav, GameDrawer } from "./MobileNavigation";
 import type { DrawerRouteId } from "./MobileNavigation";
+import { useDualPaneLayout } from "./dualPane";
 import { ActionsHub, type ActionsCategoryFilter } from "./ActionsHub";
 import { PartyMark } from "./PartyMark";
 import { PollingPanel } from "./PollingPanel";
@@ -119,6 +120,10 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
   // It only changes whose details are shown — never the player's country.
   const [nationContext, setNationContext] = useState<string>();
   const [menuOpen, setMenuOpen] = useState(false);
+  // Dual-pane posture (#438): separated segments, spanning media, or the
+  // explicit QA override. Single-pane keeps the phone navigation flow below.
+  const dualPane = useDualPaneLayout();
+  const dual = dualPane.mode === "dual";
   const [openResource, setOpenResource] = useState<ResourceId | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [electionPage, setElectionPage] = useState(0);
@@ -250,9 +255,40 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
   const joinPartyAction = world.actions.find((a) => a.id === "joinParty");
   const leavePartyAction = world.actions.find((a) => a.id === "leaveParty");
 
+  const drawer = (
+    <GameDrawer
+      open={menuOpen}
+      docked={dual || undefined}
+      route={route}
+      busy={busy}
+      playerName={world.player.name}
+      playerParty={world.player.partyName || "Independent"}
+      countryName={world.countryName}
+      turn={world.turn}
+      date={world.date}
+      message={message}
+      error={error}
+      menuButtonRef={menuButtonRef}
+      onNavigate={go}
+      onAdvanceTurn={onAdvanceTurn}
+      onSave={onSave}
+      onExit={onExit}
+      onClose={() => setMenuOpen(false)}
+      unreadCount={world.notifications.unread}
+    />
+  );
+
   return (
-    <div ref={screenRef} className="ahd-screen">
-      <main aria-hidden={menuOpen || undefined} inert={menuOpen} className="ahd-container ahd-main">
+    <div
+      ref={screenRef}
+      className="ahd-screen"
+      data-dual-pane={dualPane.mode}
+      data-hinge={dualPane.hinge ?? "none"}
+      data-dual-capability={dualPane.capability}
+    >
+      <div className="ahd-dual-body">
+      {dual ? drawer : null}
+      <main aria-hidden={(menuOpen && !dual) || undefined} inert={menuOpen && !dual} className="ahd-container ahd-main" data-pane={dual ? "content" : undefined}>
         <h1 className="ahd-sr-only">A House Divided · {pageTitle(route)}</h1>
         {busy && message ? <div className="ahd-notice" role="status" aria-live="polite" style={{ marginBottom: "0.6rem" }}>{message}</div> : null}
         {error ? <div className="ahd-alert" role="alert" style={{ marginBottom: "0.6rem" }}>{error}</div> : null}
@@ -515,27 +551,9 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
         </section>
         )}
       </main>
-
-      <GameDrawer
-        open={menuOpen}
-        route={route}
-        busy={busy}
-        playerName={world.player.name}
-        playerParty={world.player.partyName || "Independent"}
-        countryName={world.countryName}
-        turn={world.turn}
-        date={world.date}
-        message={message}
-        error={error}
-        menuButtonRef={menuButtonRef}
-        onNavigate={go}
-        onAdvanceTurn={onAdvanceTurn}
-        onSave={onSave}
-        onExit={onExit}
-        onClose={() => setMenuOpen(false)}
-        unreadCount={world.notifications.unread}
-      />
-      <footer aria-hidden={menuOpen || undefined} inert={menuOpen} ref={footerRef} className="ahd-footer" aria-label="Status and primary navigation">
+      {dual ? null : drawer}
+      </div>
+      <footer aria-hidden={(menuOpen && !dual) || undefined} inert={menuOpen && !dual} ref={footerRef} className="ahd-footer" aria-label="Status and primary navigation">
         <div className="ahd-container ahd-footer-inner">
           <div className="ahd-statusline">
             {/* Reference status bar leads with the character identity (#223):

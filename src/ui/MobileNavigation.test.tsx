@@ -380,6 +380,41 @@ describe("MobileNavigation", () => {
     expect(diplomacy?.items.map((i) => i.id)).toEqual(["nations"]);
   });
 
+  it("docks the drawer as an in-flow navigation pane without modal behavior (#438)", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+    const ref = createRef<HTMLButtonElement | null>();
+    const { container } = render(
+      <GameDrawer
+        docked
+        open={false}
+        route="parties"
+        busy={false}
+        playerName="Ada"
+        playerParty="Labor"
+        countryName="United States"
+        turn={1}
+        date="1953-01-01"
+        menuButtonRef={ref}
+        onNavigate={onNavigate}
+        onAdvanceTurn={vi.fn()}
+        onSave={vi.fn()}
+        onExit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    // Visible even when the modal sheet is closed, with no backdrop or dialog.
+    const pane = screen.getByRole("complementary", { name: "Game navigation" });
+    expect(pane).toHaveAttribute("data-pane", "navigation");
+    expect(container.querySelector(".ahd-drawer-backdrop")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.body.style.overflow).not.toBe("hidden");
+    // Same destinations and turn controls through the caller's handlers.
+    expect(within(pane).getByRole("button", { name: "End turn" })).toBeInTheDocument();
+    await user.click(within(pane).getByRole("button", { name: "Elections" }));
+    expect(onNavigate).toHaveBeenCalledWith("elections");
+  });
+
   it("omits reference-only destinations Native cannot reach instead of adding placeholders", () => {
     // Reference worldNavItems.ts / nationDetailsSections.ts expose Map, Crises,
     // Hall of Fame, International Orgs, Sectors, Currency Exchange, Trade, IMF,

@@ -1099,3 +1099,69 @@ html, body { overflow-x: hidden; }
 .ahd-mp-inbox { list-style: none; margin: 0.6rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
 .ahd-mp-inbox-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-start; justify-content: space-between; border-top: 1px solid var(--ahd-border); padding-top: 0.6rem; min-width: 0; }
 @media (min-width: 700px) { .ahd-mp-grid { display: grid; grid-template-columns: 1fr 1fr; align-items: start; } }
+
+/* Dual-pane and hinge-aware layout (issue #438). Every rule below is gated
+   on data-dual-pane="dual", which the shell sets only for separated display
+   segments, a spanning-media match, or the explicit ?ahd-span= QA override.
+   A merely wide viewport never matches, so single-pane phone navigation,
+   drawer, footer, and list stacks render exactly as before. No material
+   tokens here: surfaces keep the existing card/border system (#437 owns it).
+   Pane assignment: navigation/list on pane 0, content/detail on pane 1. */
+.ahd-dual-body { display: contents; }
+.ahd-dual-panes { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; }
+.ahd-screen[data-dual-pane="dual"] { --ahd-hinge-gap: 0.75rem; }
+.ahd-screen[data-dual-pane="dual"] .ahd-dual-body {
+  display: grid; gap: var(--ahd-hinge-gap); align-items: start; min-width: 0;
+}
+/* Vertical hinge: docked navigation left, routed content right. */
+.ahd-screen[data-dual-pane="dual"][data-hinge="vertical"] .ahd-dual-body {
+  grid-template-columns: minmax(13rem, 5fr) minmax(0, 7fr);
+}
+/* Horizontal hinge: navigation pane above, content pane below. */
+.ahd-screen[data-dual-pane="dual"][data-hinge="horizontal"] .ahd-dual-body {
+  grid-template-columns: minmax(0, 1fr);
+}
+/* Docked navigation pane: the same drawer destinations and turn controls,
+   in-flow instead of modal. Sticky so the pane scrolls with long content;
+   the fixed phone sheet above keeps its own rules for single-pane. */
+.ahd-screen[data-dual-pane="dual"] .ahd-drawer-docked {
+  position: sticky; top: 0; left: auto; bottom: auto; z-index: 5;
+  width: auto; max-width: none; max-height: 100dvh; overflow-y: auto;
+  animation: none; box-shadow: none;
+  border: 1px solid var(--ahd-border); border-radius: var(--ahd-radius);
+}
+/* List/detail pairing: side by side across a vertical hinge, stacked
+   everywhere else (single-pane and horizontal-hinge top/bottom panes). */
+.ahd-screen[data-dual-pane="dual"][data-hinge="vertical"] .ahd-dual-panes {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  gap: var(--ahd-hinge-gap); align-items: start;
+}
+/* Separated-segment fit on real foldable hardware: size the navigation pane
+   to the first segment and drop the hinge gutter exactly over the occlusion,
+   so controls and reading surfaces stay out of it. Ignored where the
+   Viewport Segments env() values are unsupported. */
+@media (spanning: single-fold-vertical) {
+  .ahd-screen[data-dual-pane="dual"][data-hinge="vertical"] .ahd-dual-body {
+    grid-template-columns:
+      env(viewport-segment-width 0 0)
+      calc(env(viewport-segment-left 1 0) - env(viewport-segment-right 0 0))
+      minmax(0, 1fr);
+  }
+  .ahd-screen[data-dual-pane="dual"][data-hinge="vertical"] .ahd-dual-body > aside { grid-column: 1; }
+  .ahd-screen[data-dual-pane="dual"][data-hinge="vertical"] .ahd-dual-body > main { grid-column: 3; }
+  /* Footer controls follow the content segment instead of spanning the hinge. */
+  .ahd-screen[data-dual-pane="dual"][data-hinge="vertical"] .ahd-footer-inner {
+    max-width: none; margin-left: calc(env(viewport-segment-left 1 0) + 0.85rem); margin-right: 0.85rem;
+    padding-left: 0; padding-right: 0;
+  }
+}
+@media (spanning: single-fold-horizontal) {
+  .ahd-screen[data-dual-pane="dual"][data-hinge="horizontal"] .ahd-dual-body {
+    grid-template-rows:
+      env(viewport-segment-height 0 0)
+      calc(env(viewport-segment-top 1 0) - env(viewport-segment-bottom 0 0))
+      minmax(0, 1fr);
+  }
+  .ahd-screen[data-dual-pane="dual"][data-hinge="horizontal"] .ahd-dual-body > aside { grid-row: 1; }
+  .ahd-screen[data-dual-pane="dual"][data-hinge="horizontal"] .ahd-dual-body > main { grid-row: 3; }
+}
