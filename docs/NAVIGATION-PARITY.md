@@ -76,7 +76,7 @@ Order is traffic-ordered: Politics, Other (Map), Government, Economy (collapsibl
 | Stock Market (global + country route) | always | MISSING. |
 | Currency Exchange | always | MISSING. |
 | Trade | always | MISSING. |
-| News (`/news?country=`) | always | PRESENT (functional): News tab with country/date/category filters, offline article detail with country/party/election links to real destinations, and persisted read/selected state. Event context is non-interactive: Native has no event-detail route, so #78 stays open on that criterion. |
+| News (`/news?country=`) | always | PRESENT (functional): News tab with country/date/category filters, offline article detail with country/party/election links to real destinations, and persisted read/selected state. Article event context links to a Native offline event-detail destination backed only by local news records sharing the projected event id (event id/name plus genuinely projected article fields and their real country/party/election links; no invented chronology). The event detail lists the event's own coverage, links each related real destination, preserves Back/focus/read/event state per save slot, and stays network-free. All #78 acceptance criteria are met; the PR may use Closes #78. |
 | IMF | always | MISSING. |
 | Banking hub | always | MISSING. |
 
