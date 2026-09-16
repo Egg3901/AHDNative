@@ -100,6 +100,76 @@ describe("NominationsPanel", () => {
       .toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /sponsor justice nomination/i })).not.toBeInTheDocument();
   });
+
+  it("shows the exact seat-level refusal when an occupied seat is chosen", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const legislature = makeLegislature();
+    legislature.scotusSponsor = {
+      available: true,
+      seats: [
+        { seatNumber: 1, vacant: false, hasActiveNomination: false, available: false },
+        { seatNumber: 2, vacant: true, hasActiveNomination: false, available: true },
+      ],
+      nominees: [{ id: "nom-1", name: "June Nominee" }],
+    };
+    render(<NominationsPanel legislature={legislature} busy={false} onAction={onAction} />);
+    const seatCombo = screen.getByRole("combobox", { name: /supreme court seat/i });
+    expect(screen.getByRole("option", { name: "Seat #1 (unavailable)" })).toBeDisabled();
+    await user.selectOptions(seatCombo, "1");
+    await user.selectOptions(screen.getByRole("combobox", { name: /justice nominee/i }), "nom-1");
+    expect(seatCombo).toHaveValue("");
+    expect(screen.getByText("Choose a seat and a nominee.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sponsor justice nomination/i })).toBeDisabled();
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it("shows the exact seat-level refusal when a seat with an active nomination is chosen", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const legislature = makeLegislature();
+    legislature.scotusSponsor = {
+      available: true,
+      seats: [
+        { seatNumber: 1, vacant: true, hasActiveNomination: true, available: false },
+        { seatNumber: 2, vacant: true, hasActiveNomination: false, available: true },
+      ],
+      nominees: [{ id: "nom-1", name: "June Nominee" }],
+    };
+    render(<NominationsPanel legislature={legislature} busy={false} onAction={onAction} />);
+    const seatCombo = screen.getByRole("combobox", { name: /supreme court seat/i });
+    expect(screen.getByRole("option", { name: "Seat #1 (unavailable)" })).toBeDisabled();
+    await user.selectOptions(seatCombo, "1");
+    await user.selectOptions(screen.getByRole("combobox", { name: /justice nominee/i }), "nom-1");
+    expect(seatCombo).toHaveValue("");
+    expect(screen.getByText("Choose a seat and a nominee.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sponsor justice nomination/i })).toBeDisabled();
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it("links a SCOTUS nomination to its seat, Senate window, and ballot", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const legislature = makeLegislature();
+    legislature.nominations = [
+      {
+        id: "sco-1", kind: "scotus", countryId: "US", chamber: "senate", chamberLabel: "Senate",
+        office: "Supreme Court Seat #2", seatNumber: 2,
+        nominee: "June Nominee", nomineeParty: null, sponsor: "player",
+        status: "active", statusLabel: "Vote Open", proposedAtTurn: 0, votingEndsOnTurn: 24,
+        resolvedAtTurn: null, tally: { for: 1, against: 0, abstain: 0 },
+        playerVote: null, voting: { available: true },
+      },
+    ];
+    render(<NominationsPanel legislature={legislature} busy={false} onAction={onAction} />);
+    await user.click(screen.getByRole("button", { name: /supreme court seat #2: june nominee/i }));
+    expect(screen.getByText("Supreme Court Seat #2")).toBeInTheDocument();
+    expect(screen.getByText(/senate/i)).toBeInTheDocument();
+    expect(screen.getByText(/vote closes turn 24/i)).toBeInTheDocument();
+    expect(screen.getByText(/1 for · 0 against · 0 abstain/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /for on june nominee/i }));
+    expect(onAction).toHaveBeenCalledWith("voteScotusNomination", { nominationId: "sco-1", vote: "for" });
+  });
 });
 
 describe("NominationsPanel dual-pane list/detail (#438)", () => {

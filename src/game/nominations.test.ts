@@ -194,4 +194,86 @@ describe("nomination projection and session commands (#273 bounded slice)", () =
     }
     expect(session.serialize(SAVED_AT)).toBe(before);
   });
+
+  it("refuses a duplicate SCOTUS nomination for the same seat with unchanged state", () => {
+    const world = createWorld({ ...HOS_US });
+    ensureScotusSeats(world);
+    const seat = world.supremeCourtSeats.find((candidate) => candidate.countryId === "US")!;
+    Object.assign(seat, {
+      justiceMode: null, justiceId: null, justiceName: null, justiceParty: null,
+      economicLean: null, socialLean: null, seatedAtTurn: null, divergentHazardStartsTurn: null,
+    });
+    const politicians = world.politicians.filter((p) => p.countryId === "US");
+    const session = new GameSession();
+    session.load(serializeSave(world, SAVED_AT));
+    expect(session.act("sponsorScotusNomination", {
+      countryId: "US",
+      seatNumber: seat.seatNumber,
+      nomineeId: politicians[0]!.id,
+    }).ok).toBe(true);
+    const before = session.serialize(SAVED_AT);
+    const refused = session.act("sponsorScotusNomination", {
+      countryId: "US",
+      seatNumber: seat.seatNumber,
+      nomineeId: politicians[1]!.id,
+    });
+    expect(refused.ok).toBe(false);
+    if (refused.ok === false) expect(refused.error).toBe("An active nomination for this seat already exists");
+    expect(session.serialize(SAVED_AT)).toBe(before);
+  });
+
+  it("refuses a SCOTUS nominee from another country with unchanged state", () => {
+    const world = createWorld({ ...HOS_US });
+    ensureScotusSeats(world);
+    const seat = world.supremeCourtSeats.find((candidate) => candidate.countryId === "US")!;
+    Object.assign(seat, {
+      justiceMode: null, justiceId: null, justiceName: null, justiceParty: null,
+      economicLean: null, socialLean: null, seatedAtTurn: null, divergentHazardStartsTurn: null,
+    });
+    const foreign = world.politicians.find((p) => p.countryId !== "US")!;
+    const session = new GameSession();
+    session.load(serializeSave(world, SAVED_AT));
+    const before = session.serialize(SAVED_AT);
+    const refused = session.act("sponsorScotusNomination", {
+      countryId: "US",
+      seatNumber: seat.seatNumber,
+      nomineeId: foreign.id,
+    });
+    expect(refused.ok).toBe(false);
+    if (refused.ok === false) expect(refused.error).toBe("Nominee not from US");
+    expect(session.serialize(SAVED_AT)).toBe(before);
+  });
+
+  it("seats a confirmed SCOTUS justice in the targeted seat through turn advancement", () => {
+    const world = createWorld({ ...HOS_US });
+    ensureScotusSeats(world);
+    const seat = world.supremeCourtSeats.find((candidate) => candidate.countryId === "US")!;
+    Object.assign(seat, {
+      justiceMode: null, justiceId: null, justiceName: null, justiceParty: null,
+      economicLean: null, socialLean: null, seatedAtTurn: null, divergentHazardStartsTurn: null,
+    });
+    world.player.legislativeSeat = { countryId: "US", chamberKey: "senate" };
+    const nominee = world.politicians.find((p) => p.countryId === "US" && p.partyId === "US_REP")!;
+    const session = new GameSession();
+    session.load(serializeSave(world, SAVED_AT));
+    expect(session.act("sponsorScotusNomination", {
+      countryId: "US",
+      seatNumber: seat.seatNumber,
+      nomineeId: nominee.id,
+    }).ok).toBe(true);
+    const pending = session.view().legislature.nominations!.find((entry) => entry.kind === "scotus")!;
+    expect(pending.votingEndsOnTurn).toBeGreaterThan(session.view().turn);
+    expect(session.act("voteScotusNomination", { nominationId: pending.id, vote: "for" }).ok).toBe(true);
+    const deadline = session.nomination(pending.id)!.votingEndsOnTurn;
+    for (let turn = session.view().turn; turn < deadline; turn += 1) session.advance();
+    const resolved = session.nomination(pending.id)!;
+    expect(resolved.status).toBe("confirmed");
+    expect(resolved).toMatchObject({ seatNumber: seat.seatNumber, chamber: "senate" });
+    const targeted = session.view().legislature.scotusSponsor!.seats
+      .find((entry) => entry.seatNumber === seat.seatNumber)!;
+    expect(targeted).toMatchObject({ vacant: false, hasActiveNomination: false, available: false });
+    const reloaded = new GameSession();
+    reloaded.load(session.serialize(SAVED_AT));
+    expect(reloaded.nomination(pending.id)).toMatchObject({ status: "confirmed", seatNumber: seat.seatNumber });
+  });
 });
