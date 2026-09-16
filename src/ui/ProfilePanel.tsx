@@ -22,6 +22,11 @@
  *   world.parties[].economicPosition/socialPosition, and the honest unavailable
  *   state for the home-region lean the engine does not record — so no region
  *   marker is ever fabricated).
+ *   src/app/profile/components/CeoCorporationCard.tsx (conditional corporation
+ *   summary between policy and finances, linking to the company detail,
+ *   rendered only for recorded #295 sector ownership, never from share counts,
+ *   with company-detail values and no CEO/salary/dividend claims the engine
+ *   does not record).
  * No server or Next.js imports; data arrives through the ProfileView DTO and
  * section navigation and profile persistence cross the session boundary. Metrics the local
  * engine does not simulate yet arrive as null and render as unavailable, never
@@ -840,6 +845,65 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, onSel
           Where present, the party marker is that party's authored platform.
         </p>
       </section>
+
+      {profile.corporations.length > 0 ? (
+        <section aria-label="Corporation" className="ahd-card ahd-card-pad">
+          <h2 className="ahd-h2">Corporation</h2>
+          {profile.corporations.map((entry) => (
+            <div key={entry.id}>
+              <div style={{ fontWeight: 750, fontSize: "0.92rem", marginTop: "0.4rem", overflowWrap: "anywhere" }}>
+                {entry.ticker} <span className="ahd-muted">({entry.name})</span>
+              </div>
+              <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: "0.25rem 0 0" }}>
+                Sector owner · {entry.countryName} · {entry.sectorLabel}
+                {entry.scope === "regional" && entry.regionName ? ` · ${entry.regionName}` : ""}
+              </p>
+              <dl className="ahd-profile-rows">
+                <div className="ahd-profile-row">
+                  <dt>Market value</dt>
+                  <dd className="ahd-mono">{money(entry.marketValue, entry.currency)}</dd>
+                </div>
+                <div className="ahd-profile-row">
+                  <dt>Share price</dt>
+                  <dd className="ahd-mono">{money(entry.sharePrice, entry.currency)}</dd>
+                </div>
+                <div className="ahd-profile-row">
+                  <dt>Your shares</dt>
+                  <dd className="ahd-mono">
+                    {entry.playerShares} {entry.playerShares === 1 ? "share" : "shares"}
+                    {entry.playerAvgCostPerShare != null ? (
+                      <span className="ahd-profile-sub">
+                        avg {money(entry.playerAvgCostPerShare, entry.currency)}
+                      </span>
+                    ) : null}
+                  </dd>
+                </div>
+                <div className="ahd-profile-row">
+                  <dt>Treasury</dt>
+                  <dd className="ahd-mono">{money(entry.liquidCapital, entry.currency)}</dd>
+                </div>
+                <div className="ahd-profile-row">
+                  <dt>Revenue</dt>
+                  <dd className="ahd-mono">{money(entry.revenue, entry.currency)}</dd>
+                </div>
+              </dl>
+              <div className="ahd-profile-actions">
+                <button
+                  type="button"
+                  className="ahd-btn ahd-btn-sm"
+                  onClick={() => onNavigate("markets", entry.id)}
+                  disabled={busy}
+                >
+                  View company
+                </button>
+              </div>
+            </div>
+          ))}
+          <p className="ahd-help">
+            Recorded sector ownership only. The engine records no CEO seat, salary, or dividends, so none are shown.
+          </p>
+        </section>
+      ) : null}
 
       <section aria-label="Finances" className="ahd-card ahd-card-pad">
         <h2 className="ahd-h2">Finances</h2>

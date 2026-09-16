@@ -30,7 +30,7 @@ The tables below describe the audited base, not the current branch. Implementati
 | Search (UniversalSearch, expanding overlay) | Global search overlay | all pages | MISSING. No search capability locally. |
 | Wallet icon (`/portfolio?tab=currency`) | Portfolio/wallet | logged in | MISSING as a destination. Cash/funds shown as read-only header + overview values; no portfolio, currency, holdings views. |
 | Notifications bell + `/notifications` inbox | 5-item preview dropdown (mark-read/delete inline, action-required flag), full inbox page | logged in; badge on `unreadCount` | MISSING. No notification store or inbox locally. |
-| Profile avatar menu | Profile, Actions, wallet shortcut, My Corporation / My Union rows (conditional) | logged in; corp/union rows conditional | PARTIAL: Character tab covers profile+actions data; no avatar menu, no corp/union rows. |
+| Profile avatar menu | Profile, Actions, wallet shortcut, My Corporation / My Union rows (conditional) | logged in; corp/union rows conditional | PARTIAL: Profile carries a conditional Corporation card for recorded sector ownership (#51) linking to the Markets company detail; no avatar menu, no union rows. |
 | SP: End-turn button | In-navbar singleplayer end-turn control | `user.singleplayer` only | PRESENT (parity): header `End turn` + Save + Exit. Real local turn advance. |
 | Settings | Appearance (incl. classic/experimental UI opt-out), account settings | logged in | MISSING. No settings surface. |
 | Country switcher | Registered/enabled countries in current game, era/preset names + runtime renames | logged in | MISSING. One loaded world at a time; new/load via home screens, not in-game switching. |

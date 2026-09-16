@@ -3,6 +3,7 @@ import { projectResources } from "./resources";
 import { campaignSongId, safeAvatarUrl, safeHeaderUrl } from "./profileValidation";
 import type { ProfileAchievement, ProfileView } from "./profileTypes";
 import { projectProfileConstituency } from "./profileConstituency";
+import { projectProfileCorporations } from "./profileCorporation";
 
 function homeCurrency(world: WorldState, countryId: string): string {
   return world.budgets[countryId]?.currencyCode ?? world.exchangeRates[countryId]?.currencyCode ?? "XXX";
@@ -159,5 +160,8 @@ export function projectProfile(world: WorldState): ProfileView {
       regularIncome: resources.funds.regularNet,
       donorIncome: resources.funds.donor,
     },
+    // #51: recorded player-owned corporations only (never inferred from
+    // shares). projectMarkets is a pure read view, so this adds no writes.
+    corporations: projectProfileCorporations(world),
   };
 }
