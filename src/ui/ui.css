@@ -156,13 +156,13 @@
      Modal: popover dialogs. Content (.ahd-card) stays opaque by design.
      Names are owned by src/ui/materials.ts; values stay restrained so
      text contrast holds and no proprietary effect is copied. */
-  --ahd-material-chrome-bg: color-mix(in srgb, var(--ahd-bg) 94%, transparent);
-  --ahd-material-chrome-blur: 10px;
-  --ahd-material-elevated-bg: color-mix(in srgb, var(--ahd-card-elevated) 88%, transparent);
-  --ahd-material-elevated-blur: 12px;
-  --ahd-material-modal-bg: color-mix(in srgb, var(--ahd-card-elevated) 92%, transparent);
-  --ahd-material-modal-blur: 16px;
-  --ahd-material-modal-border: color-mix(in srgb, var(--ahd-fg) 16%, var(--ahd-border));
+  --ahd-material-chrome-bg: color-mix(in srgb, var(--ahd-bg) 78%, transparent);
+  --ahd-material-chrome-blur: 16px;
+  --ahd-material-elevated-bg: color-mix(in srgb, var(--ahd-card-elevated) 72%, transparent);
+  --ahd-material-elevated-blur: 22px;
+  --ahd-material-modal-bg: color-mix(in srgb, var(--ahd-card-elevated) 68%, transparent);
+  --ahd-material-modal-blur: 28px;
+  --ahd-material-modal-border: color-mix(in srgb, var(--ahd-fg) 24%, var(--ahd-border));
 
   /* Type families — same mapping as AHDGame globals.css. The bundled face is
      listed first, then next/font's metric-matched fallback, then the platform
@@ -490,7 +490,8 @@ html, body { overflow-x: hidden; }
   background: var(--ahd-material-chrome-bg);
   -webkit-backdrop-filter: blur(var(--ahd-material-chrome-blur));
   backdrop-filter: blur(var(--ahd-material-chrome-blur));
-  border-top: 1px solid var(--ahd-border);
+  border-top: 1px solid color-mix(in srgb, var(--ahd-fg) 18%, transparent);
+  box-shadow: 0 -10px 32px rgb(0 0 0 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.06);
   padding-top: 0.25rem;
   padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
   overflow: visible;
@@ -1084,7 +1085,7 @@ html, body { overflow-x: hidden; }
 .ahd-hero-stats dt { font-size: 0.62rem; font-weight: 650; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ahd-muted); }
 .ahd-hero-stats dd { margin: 0.15rem 0 0; font-size: 0.82rem; font-weight: 700; overflow-wrap: anywhere; min-width: 0; }
 @media (max-width: 380px) { .ahd-hero-stats { padding: 0.6rem 0.75rem; } .ahd-hero-stats dd { font-size: 0.74rem; } }
-.ahd-mp-layout { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
+.ahd-mp-layout { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; padding-top: max(1rem, env(safe-area-inset-top)); padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
 .ahd-mp-footer { z-index: 40; }
 .ahd-mp-bottomnav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .ahd-mp-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; min-width: 0; }
