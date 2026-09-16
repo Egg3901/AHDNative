@@ -472,13 +472,19 @@ html, body { overflow-x: hidden; }
   overflow-wrap: anywhere;
 }
 
-/* Main reserves space for the fixed status footer + bottom nav */
+/* Main reserves space for the fixed status footer + bottom nav.
+ * Top chrome (#436): content starts below the status area. The top inset
+ * covers the Dynamic Island in portrait and the side cutout in landscape;
+ * no header control overlays the island because chrome is padded, never
+ * absolutely positioned over it. */
 .ahd-main {
   padding-top: max(0.7rem, env(safe-area-inset-top));
   padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem);
 }
 
-/* Persistent status footer */
+/* Persistent status footer. The bottom padding clears the home indicator
+ * (#436); content clearance follows the measured footer height including
+ * that padding, so the resource row and bottom nav never hide page content. */
 .ahd-footer {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
   background: var(--ahd-material-chrome-bg);
@@ -555,12 +561,16 @@ html, body { overflow-x: hidden; }
 }
 .ahd-status-btn-value { overflow-wrap: anywhere; min-width: 0; }
 
-/* Fixed bottom navigation, flat iOS/Android tab bar feel */
+/* Fixed bottom navigation, flat iOS/Android tab bar feel.
+ * The bar spans the footer column edge to edge. The negative side margins
+ * mirror the footer container padding including the side insets (#436), so
+ * the bar stays full-bleed without pulling its items under the landscape
+ * cutout or rounded corners. Portrait geometry is unchanged. */
 .ahd-bottomnav {
   display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
   border-top: 1px solid var(--ahd-border);
-  margin: 0.15rem calc(-0.85rem) 0;
-  padding: 0.15rem 0.4rem 0;
+  margin: 0.15rem calc(-1 * max(0.85rem, env(safe-area-inset-right))) 0 calc(-1 * max(0.85rem, env(safe-area-inset-left)));
+  padding: 0.15rem max(0.4rem, env(safe-area-inset-right)) 0 max(0.4rem, env(safe-area-inset-left));
 }
 .ahd-bottomnav-item {
   appearance: none; border: none; background: transparent; color: var(--ahd-muted);
@@ -781,6 +791,17 @@ html, body { overflow-x: hidden; }
   max-height: calc(100vh - var(--ahd-footer-height, 9rem) - max(1rem, env(safe-area-inset-top)));
   max-height: calc(100dvh - var(--ahd-footer-height, 9rem) - max(1rem, env(safe-area-inset-top)));
   overflow-y: auto; overscroll-behavior: contain;
+}
+
+/* Modern iPhone composition (#436): in landscape the cutout and rounded
+ * corners sit on the sides and the viewport is short. The fixed footer owns
+ * the side insets explicitly so its controls clear them where the content
+ * container padding alone no longer applies. */
+@media (orientation: landscape) {
+  .ahd-footer {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
 }
 
 .ahd-drawer-feedback { margin: 0.5rem 1rem 0; }

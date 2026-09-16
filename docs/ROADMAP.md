@@ -1342,3 +1342,32 @@ and removed. The smoke helper now walks the conversation; no engine change.
   smoke run per scope; no physical-device performance evidence is claimed.
 - #437 stays open: representative phone screenshots and named-device
   performance evidence remain before any release claim.
+
+## Dynamic Island safe-area composition checkpoint, 2026-09-16 (#436 partial)
+
+- Browser-geometry contract only. `env(safe-area-inset-*)` is now used
+  coherently across every chrome surface: top inset for main content, drawer,
+  and landing (padded chrome, never overlaid on the island); bottom inset for
+  the fixed footer, creation sticky action bar, and drawer quick bar; side
+  insets for the content container, drawer, and bottom navigation.
+- Two geometry fixes: the bottom navigation's full-bleed negative margins now
+  mirror the container's side insets instead of defeating them in landscape,
+  and a landscape query pins the fixed footer to the side insets where the
+  cutout and rounded corners move to the sides. The viewport meta adds
+  `interactive-widget=resizes-content` so keyboard-adjacent layouts
+  (creation inputs, search) resize rather than hide behind the keyboard;
+  inputs already hold 16px to avoid iOS zoom, and large text scales type
+  with no hidden-control fallback.
+- Evidence: new `src/ui/SafeAreaComposition.test.tsx` (13 cases: geometry
+  contract plus rendered footer/drawer/overlay visibility at 320/390px,
+  landscape shape, and large text) and new
+  `smoke/safe-area-composition.spec.ts` (portrait 320/390px plus 844x390
+  landscape: overflow, footer/nav visibility, resource overlay, drawer).
+  Focused runs green: 13 new, 32 MobileNavigation/MpModeScreenNav, 56
+  GameScreen. Full typecheck, verify, and Playwright runs were not repeated
+  for this CSS/test-only slice.
+- Honest gaps: no physical-device pass on a Dynamic Island iPhone (portrait /
+  landscape, keyboard, large text, reduced motion, orientation changes,
+  rounded-corner and home-indicator behavior), no rendered
+  AHDGame-vs-Native comparison, and the new smoke spec has not yet run in CI.
+  #436 stays open with `status: partial`; no device claim is made.
