@@ -349,9 +349,10 @@ describe("MpModeSession batch actions (#361)", () => {
   function batchScripts() {
     return {
       fetch: {
-        "auth-session": [probeA],
+        "auth-session": [probeA, probeA],
         "character-me": [meA(1000), meA(900)],
         "turn-status": [turn(), turn()],
+        "client-nav": [caps(), caps()],
         notifications: [inbox(), inbox()],
       },
       mutate: { "execute-action": [JSON.stringify({ success: true, message: "Ran 5 times!" })] },
@@ -366,8 +367,10 @@ describe("MpModeSession batch actions (#361)", () => {
     const snapshot = await session.performAction({ actionType: "fundraise", count: 5 });
     expect(calls.map((call) => `${call.kind}:${call.op}`)).toEqual([
       "mutate:execute-action",
+      "fetch:auth-session",
       "fetch:character-me",
       "fetch:turn-status",
+      "fetch:client-nav",
       "fetch:notifications",
     ]);
     expect(calls[0]?.arg).toEqual({ actionType: "fundraise", count: 5 });
@@ -397,7 +400,7 @@ describe("MpModeSession batch actions (#361)", () => {
 
   it("maps the server batch refusal honestly with prior state intact", async () => {
     const { host, calls } = scriptedHost({
-      fetch: { "auth-session": [probeA], "character-me": [meA(1000)], "turn-status": [turn()], notifications: [inbox()] },
+      fetch: { "auth-session": [probeA], "character-me": [meA(1000)], "turn-status": [turn()], "client-nav": [caps()], notifications: [inbox()] },
       mutate: {
         "execute-action": [{ reject: 'remote-error:400:0:{"error":"Batch execution is not available for this action."}' }],
       },
@@ -421,9 +424,10 @@ describe("MpModeSession inbox snooze/unarchive/preferences (#361)", () => {
   function inboxScripts(extraMutate: Record<string, Array<string | { reject: string }>>) {
     return {
       fetch: {
-        "auth-session": [probeA],
+        "auth-session": [probeA, probeA, probeA],
         "character-me": [meA(1000), meA(1000), meA(1000)],
         "turn-status": [turn(), turn(), turn()],
+        "client-nav": [caps(), caps(), caps()],
         notifications: [inbox(2), inbox(1), inbox(1)],
       },
       mutate: extraMutate,
@@ -440,8 +444,10 @@ describe("MpModeSession inbox snooze/unarchive/preferences (#361)", () => {
     const snoozed = await session.snoozeNotification(NOTE_ID, 60);
     expect(calls.map((call) => `${call.kind}:${call.op}`)).toEqual([
       "mutate:notification-snooze",
+      "fetch:auth-session",
       "fetch:character-me",
       "fetch:turn-status",
+      "fetch:client-nav",
       "fetch:notifications",
     ]);
     expect(calls[0]?.arg).toEqual({ id: NOTE_ID, snoozeMinutes: 60 });
@@ -497,8 +503,10 @@ describe("MpModeSession inbox snooze/unarchive/preferences (#361)", () => {
     const muted = await session.setNotificationPreference("mute", "turn_advance");
     expect(calls.map((call) => `${call.kind}:${call.op}`)).toEqual([
       "mutate:notification-preference",
+      "fetch:auth-session",
       "fetch:character-me",
       "fetch:turn-status",
+      "fetch:client-nav",
       "fetch:notifications",
     ]);
     expect(calls[0]?.arg).toEqual({ action: "mute", type: "turn_advance" });
