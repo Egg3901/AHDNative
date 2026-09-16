@@ -355,7 +355,7 @@ describe("MpModeScreen on desktop", () => {
     expect(setItem).not.toHaveBeenCalled();
   });
 
-  it("keeps Multiplayer, Ask, and Menu reachable in the persistent mobile navigation", async () => {
+  it("keeps Profile, Actions, Ask, and Menu reachable in the persistent mobile navigation", async () => {
     setViewport(320);
     const user = userEvent.setup();
     const onAsk = vi.fn();
@@ -363,7 +363,8 @@ describe("MpModeScreen on desktop", () => {
     render(<MpModeScreen host={fakeHost(readyScript()).host} onAsk={onAsk} onExit={onExit} />);
     await screen.findByRole("heading", { name: "Ada" });
     const navigation = within(screen.getByRole("navigation", { name: "Primary" }));
-    expect(navigation.getByRole("button", { name: "Multiplayer" })).toHaveAttribute("aria-current", "page");
+    expect(navigation.getByRole("link", { name: "Profile" })).toHaveAttribute("href", "#mp-profile");
+    expect(navigation.getByRole("link", { name: "Actions" })).toHaveAttribute("href", "#mp-actions");
     await user.click(navigation.getByRole("button", { name: "Ask" }));
     expect(onAsk).toHaveBeenCalledTimes(1);
     await user.click(navigation.getByRole("button", { name: "Menu" }));

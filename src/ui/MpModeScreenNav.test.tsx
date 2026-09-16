@@ -16,7 +16,6 @@ import {
   ASK_ICON_PATH,
   BOTTOM_TABS,
   MENU_ICON_PATH,
-  MULTIPLAYER_ICON_PATH,
 } from "./MobileNavigation";
 import type { MpBridgeHost } from "../mp/bridge";
 
@@ -73,9 +72,10 @@ function nav(query: HTMLElement) {
 }
 
 describe.each([320, 390])("MP footer navigation at %spx", (width) => {
-  it("keeps Multiplayer, Ask, and Menu persistently reachable", async () => {
+  it("keeps Profile, Actions, Ask, and Menu persistently reachable", async () => {
     const queries = nav(await renderReady(width));
-    expect(queries.getByRole("button", { name: "Multiplayer" })).toBeInTheDocument();
+    expect(queries.getByRole("link", { name: "Profile" })).toHaveAttribute("href", "#mp-profile");
+    expect(queries.getByRole("link", { name: "Actions" })).toHaveAttribute("href", "#mp-actions");
     expect(queries.getByRole("button", { name: "Ask" })).toBeInTheDocument();
     expect(queries.getByRole("button", { name: "Menu" })).toBeInTheDocument();
   });
@@ -84,11 +84,12 @@ describe.each([320, 390])("MP footer navigation at %spx", (width) => {
     const element = await renderReady(width);
     const queries = nav(element);
     for (const [name, path] of [
-      ["Multiplayer", MULTIPLAYER_ICON_PATH],
+      ["Profile", BOTTOM_TABS[0].path],
+      ["Actions", BOTTOM_TABS[1].path],
       ["Ask", ASK_ICON_PATH],
       ["Menu", MENU_ICON_PATH],
     ] as const) {
-      const button = queries.getByRole("button", { name });
+      const button = queries.getByRole(name === "Profile" || name === "Actions" ? "link" : "button", { name });
       const svg = button.querySelector("svg");
       expect(svg).not.toBeNull();
       expect(svg).toHaveAttribute("aria-hidden", "true");
@@ -98,13 +99,11 @@ describe.each([320, 390])("MP footer navigation at %spx", (width) => {
     expect(element.textContent).not.toMatch(/[●?☰]/);
   });
 
-  it("marks Multiplayer active and routes Ask/Menu callbacks", async () => {
+  it("routes Ask/Menu callbacks without replacing shared destinations", async () => {
     const user = userEvent.setup();
     const onAsk = vi.fn();
     const onExit = vi.fn();
     const queries = nav(await renderReady(width, { onAsk, onExit }));
-    expect(queries.getByRole("button", { name: "Multiplayer" })).toHaveAttribute("aria-current", "page");
-    expect(queries.getByRole("button", { name: "Multiplayer" })).toHaveAttribute("data-active", "true");
     expect(queries.getByRole("button", { name: "Ask" })).not.toHaveAttribute("data-active");
     expect(queries.getByRole("button", { name: "Menu" })).not.toHaveAttribute("data-active");
     await user.click(queries.getByRole("button", { name: "Ask" }));
@@ -118,7 +117,6 @@ describe("MP footer shared-system parity", () => {
   it("reuses the single-player Ask and Menu icon paths", () => {
     expect(ASK_ICON_PATH).toBe(BOTTOM_TABS.find((tab) => tab.id === "ask")!.path);
     expect(MENU_ICON_PATH).toBe("M4 7h16M4 12h16M4 17h16");
-    expect(MULTIPLAYER_ICON_PATH.length).toBeGreaterThan(0);
   });
 
   it("shares the bottom-navigation touch, active, safe-area, and focus treatment", () => {
@@ -132,8 +130,8 @@ describe("MP footer shared-system parity", () => {
     // Footer safe-area padding applies to the MP footer through .ahd-footer.
     expect(css).toMatch(/\.ahd-footer[^{]*\{[^}]*env\(safe-area-inset-bottom\)/);
     // MP footer keeps the shared footer + bottomnav classes, only narrowing
-    // the grid to three columns.
-    expect(css).toMatch(/\.ahd-mp-bottomnav\s*\{[^}]*grid-template-columns:\s*repeat\(3/);
+    // the grid to the same four primary destinations.
+    expect(css).toMatch(/\.ahd-mp-bottomnav\s*\{[^}]*grid-template-columns:\s*repeat\(4/);
   });
 
   it("stays fully native and offline-bundled with no remote icon dependencies", async () => {
