@@ -190,11 +190,20 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
   // #69: the dedicated presidential race destination, opened from the Elections surface.
   const openPresidential = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("presidentialDetails"); };
 
+  // Deep-links into Nations also re-point the shared browse context so the
+  // viewed nation survives the round trip; the player country is never touched.
+  const navigate = (next: RouteId, id?: string) => {
+    if (next === "nations" && id) setNationContext(id);
+    go(next);
+    if (id) setDetailId(id);
+  };
+
   const openSearchResult = (result: SearchResult) => {
     // Every kind maps to a route that can render that specific entity by id.
     const destinations: Record<SearchResult['kind'], RouteId> = { nation: 'nations', party: 'partyDetails', company: 'markets', election: 'electionDetails', bill: 'legislationDetails', politician: 'politicians', player: 'profile', region: 'regions', bond: 'bonds', referendum: 'referendums' };
     // Remember which result was opened so returning to Search keeps it marked.
     setSearchSnapshot(prev => ({ ...prev, opened: `${result.kind}:${result.id}` }));
+    if (destinations[result.kind] === "nations") setNationContext(result.id);
     setDetailId(result.id); focusPage.current = true; setRoute(destinations[result.kind]);
   };
 
@@ -446,7 +455,7 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
 
           {route === "news" ? (
             world.news.length === 0 ? <div className="ahd-stack"><div className="ahd-card ahd-card-pad ahd-hero"><h2 className="ahd-h2">News</h2><p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>0 items</p></div><div className="ahd-empty">No news yet.</div></div>
-              : <NewsPanel news={world.news} clock={clock} storageKey={newsStorageKey ?? `${world.era}:${world.countryId}:${world.player.name}`} onCountry={id => { go("nations"); setDetailId(id); }} onParty={openParty} onElection={openElection} />
+              : <NewsPanel news={world.news} clock={clock} storageKey={newsStorageKey ?? `${world.era}:${world.countryId}:${world.player.name}`} onCountry={id => navigate("nations", id)} onParty={openParty} onElection={openElection} />
           ) : null}
         </section>
         ) : (
@@ -462,12 +471,12 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
               nation={world.nation}
               section={route}
               clock={clock}
-              onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }}
+              onNavigate={navigate}
             />
           )}
-          {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={route === "nations" ? (detailId ?? nationContext) : detailId} onSelectNation={route === "nations" ? (id) => { setDetailId(undefined); setNationContext(id); } : undefined} onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }} />}</DetailQuery>}
-          {route === "worldMap" && <WorldMapRoute loadOverview={loadWorldOverview} loadRegions={loadRegions} revision={world} section={preferences.worldMapSection} onSectionChange={(worldMapSection) => onPreferencesChange({ ...preferences, worldMapSection })} onNavigate={(next, id) => { if (next === "nations") setNationContext(id); go(next); if (id) setDetailId(id); }} />}
-          {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} revision={world} busy={busy} onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }} />}
+          {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={route === "nations" ? (detailId ?? nationContext) : detailId} onSelectNation={route === "nations" ? (id) => { setDetailId(undefined); setNationContext(id); } : undefined} onNavigate={navigate} />}</DetailQuery>}
+          {route === "worldMap" && <WorldMapRoute loadOverview={loadWorldOverview} loadRegions={loadRegions} revision={world} section={preferences.worldMapSection} onSectionChange={(worldMapSection) => onPreferencesChange({ ...preferences, worldMapSection })} onNavigate={navigate} />}
+          {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} revision={world} busy={busy} onNavigate={navigate} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "government" && loadCabinetOffice && onIssueCabinetOrder && <DetailQuery load={loadCabinetOffice} revision={world} label="Cabinet office">{office => <CabinetOfficePanel office={office} busy={busy} notice={error ? { kind: "error", text: error } : message ? { kind: "ok", text: message } : null} onIssue={onIssueCabinetOrder} />}</DetailQuery>}
           {route === "bonds" && <BondMarketRoute initialId={detailId} load={loadBondMarket} revision={world} busy={busy} onAction={onAction} />}
@@ -487,20 +496,19 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
               go(next);
               return;
             }
-            go(next);
-            if (id) setDetailId(id);
+            navigate(next, id);
           }} /> : null}
-          {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} /> : null}
+          {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} onNavigate={(next) => go(next)} /> : null}
           {(route === "partyDetails" || route === "electionDetails" || route === "campaignDetails") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => route === "campaignDetails" ? setRoute("electionDetails") : go(route === "partyDetails" ? "parties" : "elections")}>Back to {route === "partyDetails" ? "parties" : route === "campaignDetails" ? "race" : "elections"}</button>}
           {(route === "presidentialDetails" || route === "politicalMetrics") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => go("elections")}>Back to elections</button>}
           {route === "partyDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="parties" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
           {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} onOpenCampaign={openCampaign} onOpenPolitician={openPolitician} onOpenPresidential={openPresidential} busy={busy} onAction={onAction} clock={clock} />}
           {route === "presidentialDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="presidential" initialId={detailId} onOpenCampaign={openCampaign} onOpenPolitician={openPolitician} busy={busy} onAction={onAction} clock={clock} />}
-          {route === "politicalMetrics" && <PoliticsRoute load={loadPolitics} revision={world} section="metrics" nation={world.nation} onNavigate={(next, id) => { go(next); if (id) setDetailId(id); }} busy={busy} onAction={onAction} clock={clock} />}
+          {route === "politicalMetrics" && <PoliticsRoute load={loadPolitics} revision={world} section="metrics" nation={world.nation} onNavigate={navigate} busy={busy} onAction={onAction} clock={clock} />}
           {route === "campaignDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="campaign" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
           {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} clock={clock} />}
           {route === "referendums" && <PoliticsRoute load={loadPolitics} revision={world} section="referendums" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
-          {route === "banking" ? <FinancePanel finance={world.finance} section="banking" busy={busy} onAction={onAction} /> : null}
+          {route === "banking" ? <FinancePanel finance={world.finance} section="banking" busy={busy} onAction={onAction} onNavigate={(next) => go(next)} /> : null}
           {route === "notifications" ? (
             <NotificationsInbox
               items={world.notifications.items}

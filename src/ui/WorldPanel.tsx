@@ -185,7 +185,7 @@ function GovernmentSummary({ nation, clock }: { nation: WorldNationView; clock: 
   );
 }
 
-function NationDetail({ nation, current, clock }: { nation: WorldNationView; current: boolean; clock: GameClock }) {
+function NationDetail({ nation, current, clock, onNavigate }: { nation: WorldNationView; current: boolean; clock: GameClock; onNavigate?: (route: DrawerRouteId, id?: string) => void }) {
   return (
     <article className="ahd-card ahd-card-pad" aria-label={nation.name}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "flex-start" }}>
@@ -207,6 +207,16 @@ function NationDetail({ nation, current, clock }: { nation: WorldNationView; cur
         </div>
         <GovernmentSummary nation={nation} clock={clock} />
       </div>
+      {onNavigate ? (
+        <div style={{ marginTop: "0.6rem", display: "flex", gap: "0.45rem", flexWrap: "wrap" }}>
+          <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onNavigate("worldMap")} aria-label={`Open ${nation.name} in World map`}>
+            Open in World map
+          </button>
+        </div>
+      ) : null}
+      <p className="ahd-help" role="note" style={{ marginTop: "0.4rem" }}>
+        Plotted geography is unavailable offline: the World map is a directory of the same recorded nations and regions.
+      </p>
     </article>
   );
 }
@@ -268,7 +278,7 @@ function NationContextSwitcher({
   );
 }
 
-function NationsSection({ overview, initialId, onSelectNation }: { overview: WorldOverviewView; initialId?: string; onSelectNation?: (id: string) => void }) {
+function NationsSection({ overview, initialId, onSelectNation, onNavigate }: { overview: WorldOverviewView; initialId?: string; onSelectNation?: (id: string) => void; onNavigate?: (route: DrawerRouteId, id?: string) => void }) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(initialId ?? overview.playerCountryId);
   const [directoryOpen, setDirectoryOpen] = useState(false);
@@ -350,7 +360,7 @@ function NationsSection({ overview, initialId, onSelectNation }: { overview: Wor
         ) : <div className="ahd-empty" style={{ marginTop: "0.55rem" }}>No nations match this search.</div>}
       </details>
       <NationContextSwitcher overview={overview} selectedId={selectedNation?.id ?? selectedId} onSelect={selectNation} />
-      {selectedNation ? <NationDetail nation={selectedNation} current={selectedNation.id === overview.playerCountryId} clock={clock} /> : <div className="ahd-empty">No nations recorded.</div>}
+      {selectedNation ? <NationDetail nation={selectedNation} current={selectedNation.id === overview.playerCountryId} clock={clock} onNavigate={onNavigate} /> : <div className="ahd-empty">No nations recorded.</div>}
     </WorldLayout>
   );
 }
@@ -509,6 +519,6 @@ function StateSection({ overview, onNavigate }: { overview: WorldOverviewView; o
 
 export function WorldPanel({ overview, section, initialId, onNavigate, onSelectNation }: WorldPanelProps) {
   return section === "nations"
-    ? <NationsSection overview={overview} initialId={initialId} onSelectNation={onSelectNation} />
+    ? <NationsSection overview={overview} initialId={initialId} onSelectNation={onSelectNation} onNavigate={onNavigate} />
     : <StateSection overview={overview} onNavigate={onNavigate} />;
 }
