@@ -1,5 +1,6 @@
 import type { ResourceDetailsView } from "./resources";
 import type { CharacterDemographics } from "./types";
+import type { DrawerRouteId } from "../ui/MobileNavigation";
 
 export interface ProfileUpdate {
   bio?: string;
@@ -7,6 +8,39 @@ export interface ProfileUpdate {
   profileHeaderUrl?: string | null;
   campaignSongUrl?: string;
   campaignSongAutoplay?: boolean;
+  /** #48: persist save-scoped onboarding dismissal. */
+  onboardingDismissed?: boolean;
+  /** #48: persist save-scoped tutorial dismissal. */
+  tutorialDismissed?: boolean;
+}
+
+/**
+ * One onboarding step (#48). `done` derives from live save state only
+ * (party membership, action counts, candidacy, resources), so completion
+ * persists with the save itself; `route` is always a reachable Native
+ * destination, never a placeholder.
+ */
+export interface ProfileOnboardingStep {
+  id: "join-party" | "first-action" | "file-for-race" | "grow-resources";
+  title: string;
+  body: string;
+  route: DrawerRouteId;
+  done: boolean;
+}
+
+/** Save-scoped onboarding prompt state (#48). */
+export interface ProfileOnboarding {
+  /** True once the player dismisses the card; persisted on player.onboardingDismissed. */
+  dismissed: boolean;
+  completedCount: number;
+  total: number;
+  steps: ProfileOnboardingStep[];
+}
+
+/** Save-scoped tutorial prompt state (#48). */
+export interface ProfileTutorial {
+  /** True once the player dismisses the replay card; persisted on player.tutorialDismissed. */
+  dismissed: boolean;
 }
 
 /** One catalog achievement surfaced as a profile record (earned or locked). */
@@ -85,6 +119,10 @@ export interface ProfileView {
   } | null;
   office: string | null;
   officeDestination: { route: "legislature" | "policy"; id?: string } | null;
+  /** Save-scoped onboarding prompt state (#48). */
+  onboarding: ProfileOnboarding;
+  /** Save-scoped tutorial prompt state (#48). */
+  tutorial: ProfileTutorial;
   /**
    * Player policy axes (-5..+5) read straight from world.player.policies. Null
    * when the save records none — which is the standing case, since no engine

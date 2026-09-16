@@ -46,7 +46,7 @@ function safeRaster(value: unknown, maxBytes: number): string | null {
 export function validateProfileUpdate(value: ProfileUpdate): ProfileUpdate {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Choose a profile change to save.');
   const keys = Object.keys(value);
-  if (!keys.length || keys.some(key => !['bio', 'avatarUrl', 'profileHeaderUrl', 'campaignSongUrl', 'campaignSongAutoplay'].includes(key))) throw new Error('Unknown profile change.');
+  if (!keys.length || keys.some(key => !['bio', 'avatarUrl', 'profileHeaderUrl', 'campaignSongUrl', 'campaignSongAutoplay', 'onboardingDismissed', 'tutorialDismissed'].includes(key))) throw new Error('Unknown profile change.');
   const update: ProfileUpdate = {};
   if (Object.hasOwn(value, 'bio')) {
     if (typeof value.bio !== 'string' || value.bio.length > MAX_BIO_LENGTH) throw new Error('Bio must be 500 characters or fewer.');
@@ -69,6 +69,16 @@ export function validateProfileUpdate(value: ProfileUpdate): ProfileUpdate {
   if (Object.hasOwn(value, 'campaignSongAutoplay')) {
     if (typeof value.campaignSongAutoplay !== 'boolean') throw new Error('Choose whether the campaign song plays automatically.');
     update.campaignSongAutoplay = value.campaignSongAutoplay;
+  }
+  // #48: save-scoped prompt dismissal. Strict booleans; the session applies
+  // the validated patch onto a cloned player, so a rejection changes nothing.
+  if (Object.hasOwn(value, 'onboardingDismissed')) {
+    if (typeof value.onboardingDismissed !== 'boolean') throw new Error('Choose whether to dismiss the onboarding checklist.');
+    update.onboardingDismissed = value.onboardingDismissed;
+  }
+  if (Object.hasOwn(value, 'tutorialDismissed')) {
+    if (typeof value.tutorialDismissed !== 'boolean') throw new Error('Choose whether to dismiss the tutorial prompt.');
+    update.tutorialDismissed = value.tutorialDismissed;
   }
   return update;
 }

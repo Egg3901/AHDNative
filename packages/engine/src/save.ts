@@ -476,6 +476,14 @@ function assertCurrentWorldState(world: WorldState): void {
   if (profileHeader !== undefined && profileHeader !== null && !isSafeRaster(profileHeader)) {
     throw new Error("Not a valid save file: invalid player profile header");
   }
+  // #48: save-scoped onboarding/tutorial dismissal. Optional booleans only;
+  // absent on legacy saves means not dismissed. No migration, no schema bump.
+  for (const field of ["onboardingDismissed", "tutorialDismissed"] as const) {
+    const dismissed = player[field];
+    if (dismissed !== undefined && typeof dismissed !== "boolean") {
+      throw new Error(`Not a valid save file: invalid player ${field}`);
+    }
+  }
   // #242: the portrait shares the header raster envelope; a corrupt or
   // non-raster value must be rejected here, not persisted and rendered.
   const avatar = player["avatarUrl"];

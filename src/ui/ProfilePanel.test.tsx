@@ -21,6 +21,18 @@ const BASE: ProfileView = {
     unavailableReason: "Constituency selection is available only to sitting UK Commons members and Prime Ministers.",
   },
   party: { id: "7", name: "Labor Caucus", color: "#2563eb", economicPosition: -2, socialPosition: 1 },
+  onboarding: {
+    dismissed: false,
+    completedCount: 1,
+    total: 4,
+    steps: [
+      { id: "join-party", title: "Join a party", body: "Pick one that fits your platform.", route: "parties", done: true },
+      { id: "first-action", title: "Take your first action", body: "A successful action saves automatically.", route: "actions", done: false },
+      { id: "file-for-race", title: "File for a race", body: "Then run for office.", route: "elections", done: false },
+      { id: "grow-resources", title: "Grow your resources", body: "Either one clears this step.", route: "portfolio", done: false },
+    ],
+  },
+  tutorial: { dismissed: false },
   office: "Councilor",
   officeDestination: { route: "legislature", id: "lower" },
   policies: { economic: -1.5, social: 2 },
@@ -250,7 +262,8 @@ describe("ProfilePanel", () => {
     const sections = Array.from(document.querySelectorAll(".ahd-profile > section"))
       .map((node) => node.getAttribute("aria-label"));
     expect(sections).toEqual([
-      "Character", "Constituency", "Campaign song", "Biography", "Political standing", "Character stats",
+      "Character", "Constituency", "Getting started", "Tutorial", "Campaign song", "Biography",
+      "Political standing", "Character stats",
       "Policy and demographics", "Finances", "Career history", "Achievements",
     ]);
     expect(screen.getByText("In at the Ground Floor")).toBeInTheDocument();

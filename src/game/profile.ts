@@ -1,8 +1,60 @@
 import { ACHIEVEMENT_CATALOG, ACHIEVEMENT_COUNT_TRIGGERS, achievementCountProgress, type WorldState } from "@ahdclient/engine";
 import { projectResources } from "./resources";
 import { campaignSongId, safeAvatarUrl, safeHeaderUrl } from "./profileValidation";
-import type { ProfileAchievement, ProfileView } from "./profileTypes";
+import type { ProfileAchievement, ProfileOnboarding, ProfileOnboardingStep, ProfileView } from "./profileTypes";
 import { projectProfileConstituency } from "./profileConstituency";
+
+/**
+ * Save-scoped onboarding checklist (#48). Every step derives from persisted
+ * save state, so completion needs no extra flag: it persists with the save
+ * itself. Only steps with a reachable Native destination are listed; the
+ * reference scout-state, invest/found-company, back-union and read-wire steps
+ * need visit tracking or unported company/union/wire systems, so they stay
+ * documented gaps (docs/PROFILE-ONBOARDING.md) rather than dead links.
+ */
+function projectOnboarding(world: WorldState): ProfileOnboarding {
+  const player = world.player;
+  const actionsTaken = Object.values(player.actionCounts ?? {})
+    .reduce((sum, count) => sum + (typeof count === "number" && Number.isFinite(count) ? count : 0), 0);
+  const filedForRace = world.elections.some((election) =>
+    election.candidates?.some((candidate) => candidate.id === "player"));
+  const steps: ProfileOnboardingStep[] = [
+    {
+      id: "join-party",
+      title: "Join a party",
+      body: "Parties unlock the shared action pool and improve primary scores. Pick one that fits your platform.",
+      route: "parties",
+      done: player.partyId != null,
+    },
+    {
+      id: "first-action",
+      title: "Take your first action",
+      body: "Campaign, advertise, fundraise or poll from the Actions hub. A successful action saves automatically.",
+      route: "actions",
+      done: actionsTaken > 0,
+    },
+    {
+      id: "file-for-race",
+      title: "File for a race",
+      body: "When a race accepts filings, join a party first if it requires one, then run for office.",
+      route: "elections",
+      done: filedForRace,
+    },
+    {
+      id: "grow-resources",
+      title: "Grow your resources",
+      body: "Expand your donor network from Actions or deposit savings from Portfolio. Either one clears this step.",
+      route: "portfolio",
+      done: player.donorBaseLevel > 0 || player.savings > 0,
+    },
+  ];
+  return {
+    dismissed: player.onboardingDismissed === true,
+    completedCount: steps.filter((step) => step.done).length,
+    total: steps.length,
+    steps,
+  };
+}
 
 function homeCurrency(world: WorldState, countryId: string): string {
   return world.budgets[countryId]?.currencyCode ?? world.exchangeRates[countryId]?.currencyCode ?? "XXX";
@@ -114,6 +166,8 @@ export function projectProfile(world: WorldState): ProfileView {
     constituency,
     party,
     office: projectOffice(world),
+    onboarding: projectOnboarding(world),
+    tutorial: { dismissed: player.tutorialDismissed === true },
     officeDestination: player.legislativeSeat
       ? { route: "legislature", id: player.legislativeSeat.chamberKey }
       : player.mode === "hos" ? { route: "policy" } : null,

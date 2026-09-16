@@ -36,7 +36,7 @@ import { RouteHero, profileHeroImage } from "./RouteHero";
 import { CampaignSongPlayer } from "./CampaignSongPlayer";
 import { PolicyCompass, policyAxisLabel, type CompassMarker } from "./PolicyCompass";
 import { ResourceBreakdown } from "./ResourceBreakdown";
-import { STAT_KEYS } from "@ahdclient/engine";
+import { STAT_KEYS, statBonus, type StatKey } from "@ahdclient/engine";
 import "./profile.css";
 
 /** Canonical stat display order and labels (reference statsConstants.ts / statMeta.ts). */
@@ -49,6 +49,24 @@ const STAT_LABELS: Record<string, string> = {
   businessAcumen: "Business Acumen",
   statecraft: "Statecraft",
   intellect: "Intellect",
+};
+
+/**
+ * Readable stat effects (#48). Each line names a mechanic this build actually
+ * wires: charisma scales Campaign/Advertise/Canvass influence outcomes
+ * (actions/execute.ts), debate gates and grows through Debate Prep, energy
+ * sets the action cap/bank (actions/officeBonus.ts energyActionLimits),
+ * fundraising scales fundraise yield and donor-network cost (fundGeneration,
+ * fundCost), intellect lowers poll and repeated-campaign fund costs
+ * (actions/fundCost.ts). Business Acumen and Statecraft have no wired local
+ * effect yet, so they render an honest note instead of a multiplier.
+ */
+const STAT_EFFECTS: Partial<Record<StatKey, string>> = {
+  charisma: "Scales Campaign, Advertise and Canvass influence outcomes.",
+  debate: "Debate Prep requires an allocated Debate stat and can raise it by 1.",
+  energy: "Sets the action stockpile cap and bank threshold in the numbers above.",
+  fundraising: "Raises Fundraise yield and lowers donor-network expansion cost.",
+  intellect: "Lowers poll costs and the rising fund cost of repeated Campaigning.",
 };
 
 /** Reference demographic option labels (creatorOptions.ts labelFor). */
@@ -170,6 +188,25 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, onSel
   const [savedConstituencyId, setSavedConstituencyId] = useState(profile.constituency.selected?.id ?? "");
   const [constituencySaving, setConstituencySaving] = useState(false);
   const [constituencyError, setConstituencyError] = useState<string | null>(null);
+  const [promptBusy, setPromptBusy] = useState(false);
+  const [promptError, setPromptError] = useState<string | null>(null);
+
+  const onboarding = profile.onboarding;
+  const tutorial = profile.tutorial;
+  const showOnboarding = !onboarding.dismissed && onboarding.completedCount < onboarding.total;
+
+  const dismissPrompt = async (update: { onboardingDismissed?: boolean; tutorialDismissed?: boolean }) => {
+    if (busy || promptBusy) return;
+    setPromptError(null);
+    setPromptBusy(true);
+    try {
+      if (!await onUpdateProfile(update)) setPromptError("Could not save. Your progress is kept.");
+    } catch {
+      setPromptError("Could not save. Your progress is kept.");
+    } finally {
+      setPromptBusy(false);
+    }
+  };
 
   const photoBusy = busy || photoSaving;
   const headerBusy = busy || headerSaving;
@@ -553,6 +590,102 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, onSel
         )}
       </section>
 
+      {showOnboarding ? (
+        <section aria-label="Getting started" className="ahd-card ahd-card-pad">
+          <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", flexWrap: "wrap" }}>
+            <h2 className="ahd-h2">Getting started</h2>
+            <span className="ahd-muted ahd-profile-sub">
+              {`${onboarding.completedCount} of ${onboarding.total} steps complete`}
+            </span>
+          </div>
+          <ul className="ahd-profile-history">
+            {onboarding.steps.map((step, index) => (
+              <li key={step.id}>
+                {step.done ? (
+                  <>
+                    <strong><span aria-hidden="true">{"\u2713 "}</span>{step.title}</strong>
+                    <span className="ahd-profile-sub">Done<span className="ahd-sr-only">{`, step ${index + 1} of ${onboarding.total}`}</span></span>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="ahd-profile-link"
+                      style={{ fontWeight: 600, textAlign: "left" }}
+                      onClick={() => onNavigate(step.route)}
+                      disabled={busy}
+                      aria-label={`${step.title}, step ${index + 1} of ${onboarding.total}`}
+                    >
+                      {step.title}<span aria-hidden="true"> {"\u2192"}</span>
+                    </button>
+                    <span className="ahd-profile-sub">{step.body}</span>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+          <div className="ahd-profile-actions">
+            <button
+              type="button"
+              className="ahd-btn ahd-btn-ghost ahd-btn-sm"
+              onClick={() => void dismissPrompt({ onboardingDismissed: true })}
+              disabled={busy || promptBusy}
+            >
+              {promptBusy ? "Saving..." : "Dismiss checklist"}
+            </button>
+          </div>
+          <p className="ahd-help">
+            Each step links to a screen that exists in this build. Completion is read from
+            this save, so finished steps stay finished after reload.
+          </p>
+        </section>
+      ) : null}
+
+      <section aria-label="Tutorial" className="ahd-card ahd-card-pad">
+        <h2 className="ahd-h2">Tutorial</h2>
+        {tutorial.dismissed ? (
+          <div className="ahd-profile-actions">
+            <button
+              type="button"
+              className="ahd-btn ahd-btn-sm"
+              onClick={() => onNavigate("help")}
+              disabled={busy}
+            >
+              <span aria-hidden="true">{"\uD83C\uDF93 "}</span>Replay tutorial
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="ahd-muted">
+              A short guided tour of the offline game, from your home region to your first race.
+            </p>
+            <div className="ahd-profile-actions">
+              <button
+                type="button"
+                className="ahd-btn ahd-btn-primary ahd-btn-sm"
+                onClick={() => onNavigate("help")}
+                disabled={busy}
+              >
+                <span aria-hidden="true">{"\uD83C\uDF93 "}</span>Open tutorial
+              </button>
+              <button
+                type="button"
+                className="ahd-btn ahd-btn-ghost ahd-btn-sm"
+                onClick={() => void dismissPrompt({ tutorialDismissed: true })}
+                disabled={busy || promptBusy}
+              >
+                {promptBusy ? "Saving..." : "Dismiss"}
+              </button>
+            </div>
+          </>
+        )}
+        {promptError ? (
+          <p className="ahd-alert" role="alert">
+            {promptError}
+          </p>
+        ) : null}
+      </section>
+
       <section aria-label="Campaign song" className="ahd-card ahd-card-pad">
         <h2 className="ahd-h2">Campaign song</h2>
         {profile.campaignSongUrl ? (
@@ -744,14 +877,25 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, onSel
               profile.stats![key] != null ? (
                 <div className="ahd-profile-row" key={key}>
                   <dt>{STAT_LABELS[key] ?? key}</dt>
-                  <dd className="ahd-mono">{profile.stats![key]}</dd>
+                  <dd className="ahd-mono">
+                    {profile.stats![key]}
+                    {STAT_EFFECTS[key] ? (
+                      <span className="ahd-profile-sub">{statBonus(key, profile.stats![key]).label}</span>
+                    ) : null}
+                    <span className="ahd-profile-sub">
+                      {STAT_EFFECTS[key]
+                        ? `${statBonus(key, profile.stats![key]).detail}. ${STAT_EFFECTS[key]}`
+                        : "No local effect yet in this build."}
+                    </span>
+                  </dd>
                 </div>
               ) : null,
             )}
           </dl>
           <p className="ahd-help">
-            Every stat ranges 1 to 10 on the engine's own scale. A higher stat shifts the
-            corresponding action outcome by a gentle multiplier (see Actions for quoted costs).
+            Every stat ranges 1 to 10 on the engine's own scale. Effects above name only
+            the mechanics this build wires; unwired stats say so instead of showing a
+            multiplier. Stat reallocation is not available yet.
           </p>
         </section>
       ) : null}
