@@ -3,14 +3,14 @@ import type { GameScreenProps } from '../game/types';
 import { DetailQuery } from './DetailQuery';
 import { MarketsPanel } from './MarketsPanel';
 
-export function MarketsRoute({ load, revision, busy, onAction, initialId }: {
+export function MarketsRoute({ load, revision, busy, onAction, onSectorSale, initialId }: {
   initialId?: string;
   load: GameScreenProps['loadMarkets']; revision: object;
-  busy: boolean; onAction: GameScreenProps['onAction'];
+  busy: boolean; onAction: GameScreenProps['onAction']; onSectorSale?: GameScreenProps['onSectorSale'];
 }) {
   // Keep the current company when a completed trade refreshes its balances.
   const [companyId, setCompanyId] = useState<string | null>(initialId ?? null);
   return <DetailQuery load={load} revision={revision} label="Stock market">
-    {markets => <MarketsPanel markets={markets} initialId={companyId} onSelect={setCompanyId} busy={busy} onAction={onAction} />}
+    {markets => <MarketsPanel markets={markets} initialId={companyId} onSelect={setCompanyId} busy={busy} onAction={onAction} onSectorSale={onSectorSale} />}
   </DetailQuery>;
 }

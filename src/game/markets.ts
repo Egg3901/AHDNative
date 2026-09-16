@@ -22,6 +22,20 @@ const EARNINGS_HISTORY_BOUND = 52;
 import { CROSS_CURRENCY_UNAVAILABLE, evaluateShareTrade, type TradeListing } from "./shareTrade";
 export { CROSS_CURRENCY_UNAVAILABLE, shareNotional, parseShareCount, evaluateShareTrade } from "./shareTrade";
 
+/**
+ * Parse an asking-price input for the #294 update control. Positive finite
+ * currency amounts only (decimals allowed); anything else is a local input
+ * error and never reaches the session. Mirrors parseShareCount's
+ * reject-before-send shape for share quantities.
+ */
+export function parseSalePrice(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) return null;
+  const value = Number(trimmed);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value;
+}
+
 export interface MarketActionHint {
   id: "buyShares" | "sellShares";
   name: string;
@@ -48,8 +62,8 @@ export interface MarketCountry {
  * (#293) except `scope`/`regionName`/`unionName`, which resolve the recorded
  * `stateId`/`representingUnionId` references against the recorded region and
  * union tables on read. Nothing is derived beyond those joins: workers,
- * union, and for-sale state are projected exactly as recorded, and sale
- * commands (#294/#295) have not landed so `forSale` reads null everywhere.
+ * union, and for-sale state are projected exactly as recorded. `forSale`
+ * reads null until the #294 session commands list the sector.
  */
 export interface MarketSectorAsset {
   id: string;
@@ -68,7 +82,7 @@ export interface MarketSectorAsset {
   unionId: string | null;
   /** Recorded union name for the representing union; null when unrepresented. */
   unionName: string | null;
-  /** Recorded sale listing verbatim; null until sector-sale commands land. */
+  /** Recorded sale listing verbatim; null when unlisted (#294 session commands write it). */
   forSale: { priceAnchor: number } | null;
 }
 
@@ -191,20 +205,29 @@ export interface SectorSummary {
    */
   forSale: null;
   /**
-   * Member listings whose recorded sectorAsset.forSale is non-null. Zero until
-   * the sector-sale commands land (#294/#295) — the directory's For Sale
-   * section reads this, so it can never drift from the company detail.
+   * Member listings whose recorded sectorAsset.forSale is non-null. Zero on a
+   * fresh world; the #294 session commands raise it, and the directory's For
+   * Sale section reads this, so it can never drift from the company detail.
    */
   forSaleCount: number;
 }
 
 /**
- * Honest disabled reason for every sector-sale control. Sale commands land in
- * #294/#295, so until then there is nothing to buy and the UI holds the
- * button disabled with this reason instead of hiding the action.
+ * Honest disabled reason for the sector purchase control. Listing commands
+ * are live (#294), but buying a listed sector needs the acquisition commands
+ * landing in #295, so until then the UI holds the button disabled with this
+ * reason instead of hiding the action.
  */
-export const SECTOR_SALE_UNAVAILABLE =
-  "Sector sales are not available yet. Buying or selling a sector needs the sale commands landing in #294/#295.";
+export const SECTOR_ACQUIRE_UNAVAILABLE =
+  "Buying a sector is not available yet. It needs the acquisition commands landing in #295.";
+
+/**
+ * Owner gate for the listing controls (#294). The engine authorizes only a
+ * recorded shareholder of the corporation, so a player who holds no shares
+ * sees the reason instead of an enabled control.
+ */
+export const SECTOR_LIST_OWNER_ONLY =
+  "Only a recorded shareholder of this corporation can manage its sale listing. Buy at least one share first.";
 
 export interface MarketsView {
   playerCountryId: string;

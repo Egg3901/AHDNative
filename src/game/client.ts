@@ -12,7 +12,7 @@ import type { PoliticsView } from "./politics";
 import type { GameCommand, GameResponse } from "./protocol";
 import type { ActionOutcome } from "./notifications";
 import type { EraChoice, CreationChoices, GameView, NewGameOptions } from "./types";
-import type { WorldFeatureFlags } from "@ahdclient/engine";
+import type { SectorSaleResult, WorldFeatureFlags } from "@ahdclient/engine";
 
 export interface WorkerPort {
   postMessage(message: unknown): void;
@@ -67,6 +67,13 @@ export class GameClient {
   advance() { return this.send<GameView>({ type: "advance" }); }
   act(actionId: string, params?: Record<string, string | number>) {
     return this.send<{ result: { ok: true; message: string; outcome: ActionOutcome } | { ok: false; error: string }; view: GameView }>({ type: "action", actionId, params });
+  }
+  sectorSale(op: "list" | "update" | "unlist", assetId: string, priceAnchor?: number) {
+    return this.send<{ result: SectorSaleResult; view: GameView }>(
+      priceAnchor === undefined
+        ? { type: "sectorSale", op, assetId }
+        : { type: "sectorSale", op, assetId, priceAnchor },
+    );
   }
   serialize(savedAt: string, includeSaveNotice = false) { return this.send<string>({ type: "serialize", savedAt, ...(includeSaveNotice ? { includeSaveNotice: true } : {}) }); }
   load(contents: string) { return this.send<GameView>({ type: "load", contents }); }
