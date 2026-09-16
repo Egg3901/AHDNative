@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { formatGameDate } from "../game/gameDate";
 
 export type DrawerRouteId =
@@ -378,7 +378,10 @@ export function GameDrawer({
   // disclosure behind. Every open resets to the compact default: exactly the
   // active deep group expanded, everything else collapsed. Toggles while open
   // are untouched.
-  useEffect(() => {
+  // Reset before paint. A passive effect can race the first tap after the
+  // drawer opens: the player expands Nation, then the delayed reset collapses
+  // it again before the destination receives the tap.
+  useLayoutEffect(() => {
     if (!open) return;
     const deflated = activeGroup && ["Nation", "World"].includes(activeGroup) ? [activeGroup] : [];
     setExpandedGroups((current) => {
