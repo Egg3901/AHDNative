@@ -914,3 +914,19 @@ describe("PoliticsPanel dual-pane list/detail (#438)", () => {
     expect(screen.getByLabelText("Party")).toHaveValue("US_REP");
   });
 });
+
+describe("PoliticsPanel elections dual-pane list/detail (#438)", () => {
+  it("exposes race list and selected-race detail panes sharing one selection", async () => {
+    const user = userEvent.setup();
+    const PoliticsPanel = await renderPanel();
+    render(<PoliticsPanel politics={makePolitics()} section="elections" clock={CLOCK} busy={false} onAction={vi.fn()} />);
+    const list = document.querySelector('[data-pane="list"]');
+    expect(list).not.toBeNull();
+    expect(within(list as HTMLElement).getByLabelText("Race")).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "house · AL" })).toHaveAttribute("data-pane", "detail");
+    // One selection drives both panes.
+    await user.selectOptions(screen.getByLabelText("Race"), "senate:US:TX:c1");
+    expect(screen.getByRole("article", { name: "senate · TX" })).toHaveAttribute("data-pane", "detail");
+    expect(screen.getByLabelText("Race")).toHaveValue("senate:US:TX:c1");
+  });
+});

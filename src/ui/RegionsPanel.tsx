@@ -203,7 +203,7 @@ function Directory({
 
   const selectedId = view.selected?.id ?? null;
   return (
-    <div className="ahd-card ahd-card-pad">
+    <div className="ahd-card ahd-card-pad" data-pane="list">
       <h2 className="ahd-h2">Region directory</h2>
       <p className="ahd-muted" style={{ margin: "0.35rem 0 0", fontSize: "0.76rem" }}>
         Regions in {view.playerCountryName}. Choosing a row opens details and does not change your home region.
@@ -462,7 +462,7 @@ function SelectedRegion({
     (demographics.independenceDesire !== null ? 1 : 0);
   const hasDemographicData = demographics.groups.length > 0 || demographicMetricCount > 0;
   return (
-    <article className="ahd-stack" aria-label={selected.name}>
+    <article className="ahd-stack" aria-label={selected.name} data-pane="detail">
       <div className="ahd-card ahd-card-pad">
         <div className="ahd-eyebrow">{selected.countryName}</div>
         <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "flex-start" }}>
@@ -722,18 +722,24 @@ export function RegionsPanel({ query, onQueryChange, busy = false, directoryOpen
           {query.playerHomeRegionId ? ` · Home ${query.playerHomeRegionId}` : ""}
         </p>
       </div>
-      <Directory
-        view={query}
-        busy={busy}
-        directoryOpen={directoryOpen}
-        onDirectoryOpenChange={onDirectoryOpenChange}
-        onQueryChange={onQueryChange}
-      />
-      {query.selected ? (
-        <SelectedRegion key={query.selected.id} view={query} selected={query.selected} busy={busy} onQueryChange={onQueryChange} onNavigate={onNavigate} />
-      ) : (
-        <div className="ahd-empty">No region selected.</div>
-      )}
+      {/* Dual-pane list/detail pairing (#438): the directory list and the
+          selected-region detail share the existing regions query; the shell
+          places them on separate panes only when a hinge is reported.
+          Single-pane renders the same stack as before. */}
+      <div className="ahd-dual-panes">
+        <Directory
+          view={query}
+          busy={busy}
+          directoryOpen={directoryOpen}
+          onDirectoryOpenChange={onDirectoryOpenChange}
+          onQueryChange={onQueryChange}
+        />
+        {query.selected ? (
+          <SelectedRegion key={query.selected.id} view={query} selected={query.selected} busy={busy} onQueryChange={onQueryChange} onNavigate={onNavigate} />
+        ) : (
+          <div className="ahd-empty" data-pane="detail">No region selected.</div>
+        )}
+      </div>
     </div>
   );
 }

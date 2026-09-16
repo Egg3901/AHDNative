@@ -308,3 +308,28 @@ describe("LegislationDetailsPanel", () => {
     expect(onSelectChamber).toHaveBeenCalledWith("house");
   });
 });
+
+describe("LegislationDetailsPanel dual-pane list/detail (#438)", () => {
+  it("pairs the chamber bill list with the selected bill detail sharing one selection", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    const LegislationDetailsPanel = await renderPanel();
+    const query = makeQuery();
+    const { rerender } = render(
+      <LegislationDetailsPanel query={query} busy={false} onAction={vi.fn()} onSelectBill={onSelect} />,
+    );
+    const list = document.querySelector('[data-pane="list"]');
+    expect(list).not.toBeNull();
+    expect(within(list as HTMLElement).getByRole("article", { name: "Wage Bill" })).toBeInTheDocument();
+    expect(screen.queryByText("Bill details: Wage Bill")).not.toBeInTheDocument();
+    // One selection drives both panes: expanding the card reports the bill,
+    // and the fetched detail lands in the detail pane.
+    await user.click(within(list as HTMLElement).getByRole("button", { name: "Show details for Wage Bill" }));
+    expect(onSelect).toHaveBeenCalledWith("bill-1");
+    const fetched: LegislationDetailsQuery = { ...query, selectedBill: { ...wageBillDetails() } };
+    rerender(<LegislationDetailsPanel query={fetched} busy={false} onAction={vi.fn()} onSelectBill={onSelect} />);
+    const detail = document.querySelector('[data-pane="detail"]');
+    expect(detail).not.toBeNull();
+    expect(within(detail as HTMLElement).getByText("Bill details: Wage Bill")).toBeInTheDocument();
+  });
+});

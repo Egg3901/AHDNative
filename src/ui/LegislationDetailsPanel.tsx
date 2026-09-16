@@ -251,6 +251,13 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
         )}
       </div>
 
+      {/* Dual-pane list/detail pairing (#438): the chamber bill lists and
+          the selected-bill detail plus sponsor catalog share the existing
+          chamber/expanded-bill state; the shell places them on separate
+          panes only when a hinge is reported. Single-pane renders the same
+          stack as before. */}
+      <div className="ahd-dual-panes">
+      <div data-pane="list" className="ahd-stack">
       <div className="ahd-card ahd-card-pad">
         <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Bills by chamber</h3>
         <div style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap", marginTop: "0.5rem" }} role="group" aria-label="Chamber">
@@ -317,32 +324,6 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
         </div>
       ) : null}
 
-      {selected ? (
-        <div className="ahd-card ahd-card-pad">
-          <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Bill details: {selected.title}</h3>
-          <p className="ahd-muted" style={{ fontSize: "0.78rem", lineHeight: 1.5 }}>{selected.summary}</p>
-          <div style={{ fontSize: "0.78rem", display: "grid", gap: "0.2rem" }}>
-            <div>Category: {capitalize(selected.category)}</div>
-            {selected.selectedRate !== undefined ? <div>Selected rate: {selected.selectedRate}%</div> : null}
-            <div>Proposed at turn {selected.proposedAtTurn}</div>
-          </div>
-          {selected.catalogLevels && selected.catalogLevels.length > 0 ? (
-            <div style={{ marginTop: "0.5rem" }}>
-              <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.3rem" }}>
-                Legal options (reference only)
-              </h4>
-              <ul style={{ fontSize: "0.78rem", margin: 0, paddingLeft: "1.1rem", display: "grid", gap: "0.25rem" }}>
-                {selected.catalogLevels.map((level) => (
-                  <li key={level.index}>
-                    <strong>{level.name}</strong>: {level.description}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
       {chamber ? (
         <>
           <div className="ahd-card ahd-card-pad">
@@ -391,8 +372,33 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
       ) : (
         <div className="ahd-empty">No chambers in this legislature.</div>
       )}
-
-
+      </div>
+      <div data-pane="detail" className="ahd-stack">
+      {selected ? (
+        <div className="ahd-card ahd-card-pad">
+          <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Bill details: {selected.title}</h3>
+          <p className="ahd-muted" style={{ fontSize: "0.78rem", lineHeight: 1.5 }}>{selected.summary}</p>
+          <div style={{ fontSize: "0.78rem", display: "grid", gap: "0.2rem" }}>
+            <div>Category: {capitalize(selected.category)}</div>
+            {selected.selectedRate !== undefined ? <div>Selected rate: {selected.selectedRate}%</div> : null}
+            <div>Proposed at turn {selected.proposedAtTurn}</div>
+          </div>
+          {selected.catalogLevels && selected.catalogLevels.length > 0 ? (
+            <div style={{ marginTop: "0.5rem" }}>
+              <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0 0 0.3rem" }}>
+                Legal options (reference only)
+              </h4>
+              <ul style={{ fontSize: "0.78rem", margin: 0, paddingLeft: "1.1rem", display: "grid", gap: "0.25rem" }}>
+                {selected.catalogLevels.map((level) => (
+                  <li key={level.index}>
+                    <strong>{level.name}</strong>: {level.description}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
         <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Available legislation</h3>
@@ -504,6 +510,8 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
             </div>
           </>
         ) : null}
+      </div>
+      </div>
       </div>
     </div>
   );
