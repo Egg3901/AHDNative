@@ -49,7 +49,7 @@ describe('profile through the saved game session', () => {
     const loaded = new GameSession(); loaded.load(session.serialize(savedAt));
     expect(loaded.profile()).toMatchObject({ name: 'Alex', bio: '', avatarUrl: null,
       standing: { nationalInfluence: 0, partyInfluence: 0, infamy: 0 },
-      finances: { donorBaseLevel: 0 },
+      finances: { donorBaseLevel: 1 },
     });
   });
 

@@ -145,17 +145,17 @@ describe("actions hub projection", () => {
       if (!action.available) expect(action.disabledReason).toBeTruthy();
     }
     expect(new Set(actions.map((a) => a.category))).toEqual(new Set(["influence", "fundraising", "intelligence"]));
-    expect(actions.find((a) => a.id === "fundraise")).toMatchObject({ available: false, disabledReason: "No donor base. Use Build Donor Network first." });
+    expect(actions.find((a) => a.id === "fundraise")).toMatchObject({ available: true });
+    expect(session.act("fundraise").ok).toBe(true);
   });
   it("offers real intelligence polls whose results project into the view and survive reload", () => {
     const session = new GameSession(); session.create(options);
     expect(session.view().actions.find((a) => a.id === "poll")).toMatchObject({ category: "intelligence", cost: 2, fundCost: 25_000 });
     expect(session.view().actions.find((a) => a.id === "pollLarge")).toMatchObject({ category: "intelligence", cost: 6, fundCost: 75_000 });
     expect(session.view().polls).toEqual({ quick: null, full: null });
-    // New players start broke: polls are funds-gated until money is raised.
+    // New players start without campaign funds, but the donor floor lets them
+    // raise funds without first spending funds.
     expect(session.view().actions.find((a) => a.id === "poll")).toMatchObject({ available: false });
-    expect(session.act("convertCash", { amount: 10000 }).ok).toBe(true);
-    expect(session.act("buildDonorBase").ok).toBe(true);
     expect(session.act("fundraise").ok).toBe(true);
     expect(session.view().actions.find((a) => a.id === "poll")).toMatchObject({ available: true });
     const result = session.act("poll");

@@ -1007,7 +1007,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
       ...(options.profileHeaderUrl !== undefined ? { profileHeaderUrl: options.profileHeaderUrl } : {}),
       actions: 25,
       funds: 0,
-      donorBaseLevel: 0,
+      donorBaseLevel: 1,
       politicalInfluence: 0,
       favorability: 50,
       infamy: 0,

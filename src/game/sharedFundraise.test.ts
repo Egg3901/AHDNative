@@ -7,14 +7,27 @@ const savedAt = "2026-09-10T00:00:00.000Z";
 
 describe("shared Fundraise through the saved game session", () => {
   it("explains the donor prerequisite before an action can be taken", () => {
+    const world = createWorld(options);
+    world.player.donorBaseLevel = 0;
     const session = new GameSession();
-    session.create(options);
+    session.load(serializeSave(world, savedAt));
     const before = session.serialize(savedAt);
     expect(session.view().actions.find(action => action.id === "fundraise")).toMatchObject({
       cost: 3, available: false, disabledReason: "No donor base. Use Build Donor Network first.",
     });
     expect(session.act("fundraise").ok).toBe(false);
     expect(session.serialize(savedAt)).toBe(before);
+  });
+
+  it("bootstraps campaign funds through Fundraise without converting cash or building a network", () => {
+    const session = new GameSession();
+    session.create(options);
+    expect(session.view().player.funds).toBe(0);
+    expect(session.view().actions.find(action => action.id === "fundraise")).toMatchObject({ available: true });
+    expect(session.view().actions.find(action => action.id === "buildDonorBase")).toMatchObject({ available: false });
+    expect(session.act("buildDonorBase").ok).toBe(false);
+    expect(session.act("fundraise").ok).toBe(true);
+    expect(session.view().player.funds).toBeGreaterThan(0);
   });
 
   it("quotes the credited amount and pays the same AP cost after saving and reloading", () => {

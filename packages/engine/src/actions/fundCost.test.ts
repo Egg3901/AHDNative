@@ -76,11 +76,22 @@ describe("executeAction charges exactly the quoted campaign cost (#242)", () => 
   });
 
   it("charges the Fundraising-scaled buildDonorBase cost", () => {
-    const world = createWorld({ ...base, homeRegionId: "NY", stats: spiked("fundraising") });
+    const stats = spiked("fundraising");
+    const world = createWorld({ ...base, homeRegionId: "NY", stats });
+    expect(world.player.donorBaseLevel).toBe(1);
+    const quoted = actionFundCost({
+      actionId: "buildDonorBase",
+      actionCost: 4,
+      donorBaseLevel: world.player.donorBaseLevel,
+      stats,
+      catalogFundCost: 3_000,
+    });
     world.player.funds = 1_000_000;
     const before = world.player.funds;
     const result = executeAction(world, "player", "buildDonorBase");
     expect(result.ok).toBe(true);
-    expect(before - world.player.funds).toBe(Math.round(3_000 / statMultiplier(10)));
+    expect(world.player.donorBaseLevel).toBe(2);
+    expect(quoted).toBe(Math.round(5_000 / statMultiplier(10)));
+    expect(before - world.player.funds).toBe(quoted);
   });
 });

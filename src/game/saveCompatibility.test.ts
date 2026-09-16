@@ -73,7 +73,7 @@ describe("schema 42 projection of public save envelopes", () => {
     expect(Object.prototype.hasOwnProperty.call(parsed.world, "countryPolitics")).toBe(false);
     // Re-pinned #242: one-party packs now carry the authored `regimeStatus`
     // party marker, which appears in the projected Native-fresh envelope.
-    expect(sha256(projected.contents)).toBe("1dd3ba84ec3d8fde2220a61f087b2b143f038bef3f0c4e9a52456313ac077d1d");
+    expect(sha256(projected.contents)).toBe("357995ba43adef2584792ccad55ba1a44666cd4eb4a314060f829bdf2bd704c7");
     const restored = deserializeSave(projected.contents);
     expect(restored.player.homeRegionId).toBe("AL");
     expect(restored.countryPolitics).toEqual(world.countryPolitics);
