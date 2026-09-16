@@ -93,6 +93,10 @@ pub enum MpFetchOp {
     GameTime,
     /// Paginated inbox; requires the session, 401 otherwise.
     Notifications,
+    /// Received player mail page; requireAuthWithCharacter, 401 otherwise.
+    MailInbox,
+    /// Sent player mail page; same gate and paging, no unread count.
+    MailSent,
 }
 
 impl MpFetchOp {
@@ -104,6 +108,8 @@ impl MpFetchOp {
             "turn-status" => Some(Self::TurnStatus),
             "game-time" => Some(Self::GameTime),
             "notifications" => Some(Self::Notifications),
+            "mail-inbox" => Some(Self::MailInbox),
+            "mail-sent" => Some(Self::MailSent),
             _ => None,
         }
     }
@@ -116,6 +122,8 @@ impl MpFetchOp {
             Self::TurnStatus => "/api/game/turn/status",
             Self::GameTime => "/api/game-time",
             Self::Notifications => "/api/notifications",
+            Self::MailInbox => "/api/mail",
+            Self::MailSent => "/api/mail/sent",
         }
     }
 }
@@ -146,6 +154,16 @@ pub enum MpMutateOp {
     /// type: NOTIFICATION_TYPES member}` — preference snooze/unsnooze stay
     /// absent, never sent.
     NotificationPreference,
+    /// POST /api/mail — one player mail send. Body mirrors sendMailSchema.
+    MailSend,
+    /// PATCH /api/mail/{id} — mark one received mail read (empty body).
+    MailRead,
+    /// DELETE /api/mail/{id} — soft-delete the recipient copy (empty body).
+    MailDelete,
+    /// DELETE /api/mail/sent/{id} — soft-delete the sender copy (empty body).
+    MailSentDelete,
+    /// POST /api/mail/{id}/report — one moderator report (empty body).
+    MailReport,
 }
 
 impl MpMutateOp {
@@ -159,23 +177,33 @@ impl MpMutateOp {
             "notification-unsnooze" => Some(Self::NotificationUnsnooze),
             "notification-unarchive" => Some(Self::NotificationUnarchive),
             "notification-preference" => Some(Self::NotificationPreference),
+            "mail-send" => Some(Self::MailSend),
+            "mail-read" => Some(Self::MailRead),
+            "mail-delete" => Some(Self::MailDelete),
+            "mail-sent-delete" => Some(Self::MailSentDelete),
+            "mail-report" => Some(Self::MailReport),
             _ => None,
         }
     }
 
     fn method(self) -> &'static str {
         match self {
-            Self::ExecuteAction => "POST",
+            Self::ExecuteAction | Self::MailSend | Self::MailReport => "POST",
             Self::NotificationPreference => "PUT",
+            Self::MailDelete | Self::MailSentDelete => "DELETE",
             Self::NotificationRead
             | Self::NotificationArchive
             | Self::NotificationMarkAllRead
             | Self::NotificationSnooze
             | Self::NotificationUnsnooze
-            | Self::NotificationUnarchive => "PATCH",
+            | Self::NotificationUnarchive
+            | Self::MailRead => "PATCH",
         }
     }
 
+    /// Static collection path. Ops addressed to one mail id build their exact
+    /// path in [`mutate_path`]; this base exists so the allowlist and the
+    /// transport share one pin per collection.
     fn path(self) -> &'static str {
         match self {
             Self::ExecuteAction => "/api/actions/execute",
@@ -186,6 +214,8 @@ impl MpMutateOp {
             | Self::NotificationSnooze
             | Self::NotificationUnsnooze
             | Self::NotificationUnarchive => "/api/notifications",
+            Self::MailSend | Self::MailRead | Self::MailDelete | Self::MailReport => "/api/mail",
+            Self::MailSentDelete => "/api/mail/sent",
         }
     }
 }
@@ -211,6 +241,12 @@ const EXECUTE_ACTION_COUNTS: &[u64] = &[1, 5, 10];
 /// `src/lib/api/schemas/notifications.ts` (minutes, server default 720).
 const NOTIFICATION_SNOOZE_MINUTES_MIN: u64 = 5;
 const NOTIFICATION_SNOOZE_MINUTES_MAX: u64 = 7 * 24 * 60;
+
+/// Player-mail send limits from `sendMailSchema` in AHDGame
+/// `src/app/api/mail/route.ts`. The server counts UTF-16 units (zod string
+/// max, like JS length), so the bridge counts `encode_utf16` units too.
+const MP_MAIL_SUBJECT_MAX_UTF16: usize = 80;
+const MP_MAIL_BODY_MAX_UTF16: usize = 1000;
 
 /// Preference actions modeled in Native (`notificationPreferenceActionSchema`
 /// also accepts snooze/unsnooze; those stay absent, never sent).
@@ -361,6 +397,27 @@ fn is_hex_object_id(value: &str) -> bool {
     value.len() == 24 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
+/// Length in UTF-16 code units, matching the server's zod string limits.
+fn utf16_len(value: &str) -> usize {
+    value.encode_utf16().count()
+}
+
+/// Extract one validated 24-hex mail id from a mutation payload. Anything
+/// else never leaves the bridge.
+fn mail_id_from(payload: &serde_json::Value) -> Result<&str, String> {
+    let object = payload
+        .as_object()
+        .ok_or_else(|| error::BAD_ARG.to_string())?;
+    let id = object
+        .get("id")
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| error::BAD_ARG.to_string())?;
+    if !is_hex_object_id(id) {
+        return Err(error::BAD_ARG.to_string());
+    }
+    Ok(id)
+}
+
 /// Build the exact request path+query for a fetch op. Pagination is rebuilt
 /// from validated integers; callers cannot smuggle raw query text through.
 fn fetch_path_and_query(
@@ -369,7 +426,7 @@ fn fetch_path_and_query(
     offset: Option<u32>,
 ) -> Result<String, String> {
     match op {
-        MpFetchOp::Notifications => {
+        MpFetchOp::Notifications | MpFetchOp::MailInbox | MpFetchOp::MailSent => {
             let limit = limit.ok_or_else(|| error::BAD_ARG.to_string())?;
             if !(1..=50).contains(&limit) {
                 return Err(error::BAD_ARG.to_string());
@@ -527,11 +584,104 @@ fn mutate_body(op: MpMutateOp, payload: &serde_json::Value) -> Result<serde_json
             }
             Ok(serde_json::json!({}))
         }
+        MpMutateOp::MailSend => {
+            let to_character_id = get_str("toCharacterId")
+                .ok_or_else(|| error::BAD_ARG.to_string())?;
+            if !is_hex_object_id(to_character_id.trim()) {
+                return Err(error::BAD_ARG.to_string());
+            }
+            let subject = get_str("subject")
+                .ok_or_else(|| error::BAD_ARG.to_string())?;
+            let subject = subject.trim();
+            if subject.is_empty() || utf16_len(subject) > MP_MAIL_SUBJECT_MAX_UTF16 {
+                return Err(error::BAD_ARG.to_string());
+            }
+            let body = get_str("body").ok_or_else(|| error::BAD_ARG.to_string())?;
+            let body = body.trim();
+            if body.is_empty() || utf16_len(body) > MP_MAIL_BODY_MAX_UTF16 {
+                return Err(error::BAD_ARG.to_string());
+            }
+            Ok(serde_json::json!({
+                "toCharacterId": to_character_id.trim(),
+                "subject": subject,
+                "body": body,
+            }))
+        }
+        MpMutateOp::MailRead
+        | MpMutateOp::MailDelete
+        | MpMutateOp::MailSentDelete
+        | MpMutateOp::MailReport => {
+            // The id travels in the path (see `mutate_path`); the wire body
+            // stays empty. Unknown fields are never forwarded.
+            mail_id_from(payload)?;
+            Ok(serde_json::json!({}))
+        }
     }
 }
 
+/// Build the exact request path for a mutation. Collection ops use their
+/// pinned path; mail id ops embed one validated 24-hex id, so caller input
+/// can only ever address a single mail or its report endpoint.
+fn mutate_path(op: MpMutateOp, payload: &serde_json::Value) -> Result<String, String> {
+    match op {
+        MpMutateOp::MailRead | MpMutateOp::MailDelete => {
+            Ok(format!("/api/mail/{}", mail_id_from(payload)?))
+        }
+        MpMutateOp::MailSentDelete => Ok(format!("/api/mail/sent/{}", mail_id_from(payload)?)),
+        MpMutateOp::MailReport => Ok(format!("/api/mail/{}/report", mail_id_from(payload)?)),
+        _ => Ok(op.path().to_string()),
+    }
+}
+
+/// One mail id addressed as a recipient item: `/api/mail/{24-hex}`.
+fn is_mail_item_path(path: &str) -> bool {
+    path.strip_prefix("/api/mail/")
+        .is_some_and(is_hex_object_id)
+}
+
+/// One mail id addressed as a sender item: `/api/mail/sent/{24-hex}`.
+fn is_mail_sent_item_path(path: &str) -> bool {
+    path.strip_prefix("/api/mail/sent/")
+        .is_some_and(is_hex_object_id)
+}
+
+/// One mail id addressed as a report endpoint: `/api/mail/{24-hex}/report`.
+fn is_mail_report_path(path: &str) -> bool {
+    path.strip_prefix("/api/mail/")
+        .and_then(|rest| rest.strip_suffix("/report"))
+        .is_some_and(is_hex_object_id)
+}
+
+/// Paged `limit&offset` query shared by the notification and mail reads.
+fn is_paged_query(query: &str) -> bool {
+    let mut limit_ok = false;
+    let mut offset_ok = false;
+    for pair in query.split('&') {
+        let (key, value) = pair.split_once('=').unwrap_or(("", ""));
+        match key {
+            "limit" => {
+                if !value
+                    .parse::<u32>()
+                    .is_ok_and(|limit| (1..=50).contains(&limit))
+                {
+                    return false;
+                }
+                limit_ok = true;
+            }
+            "offset" => {
+                if !value.parse::<u32>().is_ok_and(|offset| offset <= 100_000) {
+                    return false;
+                }
+                offset_ok = true;
+            }
+            _ => return false,
+        }
+    }
+    limit_ok && offset_ok
+}
+
 /// Re-check a fully formed method+path+query against the allowlist. Defense
-/// in depth: the call is built by [`fetch_path_and_query`]/[`mutate_body`],
+/// in depth: the call is built by [`fetch_path_and_query`]/[`mutate_path`],
 /// but the transport re-validates so a future refactor cannot bypass the pin.
 fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
     let (path, query) = match path_and_query.split_once('?') {
@@ -544,37 +694,20 @@ fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
         | ("GET", "/api/client-nav")
         | ("GET", "/api/game/turn/status")
         | ("GET", "/api/game-time") => query.is_none(),
-        ("GET", "/api/notifications") => match query {
-            Some(query) => {
-                let mut limit_ok = false;
-                let mut offset_ok = false;
-                for pair in query.split('&') {
-                    let (key, value) = pair.split_once('=').unwrap_or(("", ""));
-                    match key {
-                        "limit" => {
-                            if !value
-                                .parse::<u32>()
-                                .is_ok_and(|limit| (1..=50).contains(&limit))
-                            {
-                                return false;
-                            }
-                            limit_ok = true;
-                        }
-                        "offset" => {
-                            if !value.parse::<u32>().is_ok_and(|offset| offset <= 100_000) {
-                                return false;
-                            }
-                            offset_ok = true;
-                        }
-                        _ => return false,
-                    }
-                }
-                limit_ok && offset_ok
+        ("GET", "/api/notifications") | ("GET", "/api/mail") | ("GET", "/api/mail/sent") => {
+            match query {
+                Some(query) => is_paged_query(query),
+                None => false,
             }
-            None => false,
-        },
+        }
         ("POST", "/api/actions/execute") | ("PATCH", "/api/notifications") => query.is_none(),
         ("PUT", "/api/notifications/preferences") => query.is_none(),
+        ("POST", "/api/mail") => query.is_none(),
+        ("PATCH", path) if is_mail_item_path(path) => query.is_none(),
+        ("DELETE", path) if is_mail_item_path(path) || is_mail_sent_item_path(path) => {
+            query.is_none()
+        }
+        ("POST", path) if is_mail_report_path(path) => query.is_none(),
         _ => false,
     }
 }
@@ -834,6 +967,7 @@ async fn run_session_call(
         "POST" => client.post(url),
         "PATCH" => client.patch(url),
         "PUT" => client.put(url),
+        "DELETE" => client.delete(url),
         _ => return Err(error::UNSUPPORTED_OP.to_string()),
     }
     .header(reqwest::header::COOKIE, session)
@@ -910,8 +1044,9 @@ pub async fn mp_session_mutate(
     payload: Option<serde_json::Value>,
 ) -> Result<String, String> {
     let op = MpMutateOp::from_id(op_id.trim()).ok_or_else(|| error::UNSUPPORTED_OP.to_string())?;
-    let body = mutate_body(op, payload.as_ref().unwrap_or(&serde_json::Value::Null))?;
-    let path_and_query = op.path().to_string();
+    let payload = payload.unwrap_or(serde_json::Value::Null);
+    let body = mutate_body(op, &payload)?;
+    let path_and_query = mutate_path(op, &payload)?;
     run_session_call(&app, op.method(), &path_and_query, Some(&body)).await
 }
 
@@ -1553,6 +1688,251 @@ mod tests {
             assert!(
                 !source.contains(&forbidden),
                 "bridge wiring must stay session-scoped ({forbidden})"
+            );
+        }
+    }
+
+    #[test]
+    fn mail_fetch_ids_resolve_to_pinned_paths() {
+        assert_eq!(MpFetchOp::from_id("mail-inbox"), Some(MpFetchOp::MailInbox));
+        assert_eq!(MpFetchOp::from_id("mail-sent"), Some(MpFetchOp::MailSent));
+        assert_eq!(MpFetchOp::MailInbox.path(), "/api/mail");
+        assert_eq!(MpFetchOp::MailSent.path(), "/api/mail/sent");
+        // No single-mail fetch exists server-side; channels and admin reads
+        // stay absent too.
+        for bad in ["mail", "mail-read", "MAIL-INBOX", "Mail-Sent", "", "../mail", "/api/mail"] {
+            assert_eq!(MpFetchOp::from_id(bad), None, "{bad} must be rejected");
+        }
+    }
+
+    #[test]
+    fn mail_fetch_pagination_is_rebuilt_never_forwarded() {
+        assert_eq!(
+            fetch_path_and_query(MpFetchOp::MailInbox, Some(50), Some(0)).unwrap(),
+            "/api/mail?limit=50&offset=0"
+        );
+        assert_eq!(
+            fetch_path_and_query(MpFetchOp::MailSent, Some(20), Some(40)).unwrap(),
+            "/api/mail/sent?limit=20&offset=40"
+        );
+        // Same window as the notification read: 1..=50 with a required limit.
+        for bad in [0, 51, 500, u32::MAX] {
+            assert_eq!(
+                fetch_path_and_query(MpFetchOp::MailInbox, Some(bad), None).unwrap_err(),
+                error::BAD_ARG,
+                "limit {bad} must be rejected"
+            );
+        }
+        assert_eq!(
+            fetch_path_and_query(MpFetchOp::MailSent, None, None).unwrap_err(),
+            error::BAD_ARG
+        );
+        assert_eq!(
+            fetch_path_and_query(MpFetchOp::MailInbox, Some(25), Some(100_001)).unwrap_err(),
+            error::BAD_ARG
+        );
+    }
+
+    #[test]
+    fn mail_mutate_ids_resolve_to_pinned_method_and_path() {
+        assert_eq!(MpMutateOp::from_id("mail-send"), Some(MpMutateOp::MailSend));
+        assert_eq!(MpMutateOp::from_id("mail-read"), Some(MpMutateOp::MailRead));
+        assert_eq!(MpMutateOp::from_id("mail-delete"), Some(MpMutateOp::MailDelete));
+        assert_eq!(
+            MpMutateOp::from_id("mail-sent-delete"),
+            Some(MpMutateOp::MailSentDelete)
+        );
+        assert_eq!(MpMutateOp::from_id("mail-report"), Some(MpMutateOp::MailReport));
+        assert_eq!(MpMutateOp::from_id("mail-inbox"), None);
+        assert_eq!(MpMutateOp::from_id("MAIL-SEND"), None);
+        assert_eq!(MpMutateOp::from_id("admin-mail"), None);
+        assert_eq!(MpMutateOp::MailSend.method(), "POST");
+        assert_eq!(MpMutateOp::MailRead.method(), "PATCH");
+        assert_eq!(MpMutateOp::MailDelete.method(), "DELETE");
+        assert_eq!(MpMutateOp::MailSentDelete.method(), "DELETE");
+        assert_eq!(MpMutateOp::MailReport.method(), "POST");
+    }
+
+    #[test]
+    fn mail_send_bodies_mirror_the_route_schema() {
+        let recipient = "507f1f77bcf86cd799439012";
+        let ok = mutate_body(
+            MpMutateOp::MailSend,
+            &serde_json::json!({ "toCharacterId": recipient, "subject": "  Hi  ", "body": " Hello " }),
+        )
+        .unwrap();
+        assert_eq!(
+            ok,
+            serde_json::json!({ "toCharacterId": recipient, "subject": "Hi", "body": "Hello" })
+        );
+        // Unknown fields are stripped, never forwarded.
+        let stripped = mutate_body(
+            MpMutateOp::MailSend,
+            &serde_json::json!({ "toCharacterId": recipient, "subject": "Hi", "body": "Hello", "admin": true }),
+        )
+        .unwrap();
+        assert_eq!(
+            stripped,
+            serde_json::json!({ "toCharacterId": recipient, "subject": "Hi", "body": "Hello" })
+        );
+        // Boundary lengths pass; one unit more fails.
+        assert!(mutate_body(
+            MpMutateOp::MailSend,
+            &serde_json::json!({ "toCharacterId": recipient, "subject": "x".repeat(80), "body": "x".repeat(1000) }),
+        )
+        .is_ok());
+        for bad in [
+            serde_json::json!({ "toCharacterId": "short", "subject": "Hi", "body": "Hello" }),
+            serde_json::json!({ "toCharacterId": recipient, "subject": "   ", "body": "Hello" }),
+            serde_json::json!({ "toCharacterId": recipient, "subject": "x".repeat(81), "body": "Hello" }),
+            serde_json::json!({ "toCharacterId": recipient, "subject": "Hi", "body": "" }),
+            serde_json::json!({ "toCharacterId": recipient, "subject": "Hi", "body": "x".repeat(1001) }),
+            serde_json::json!({ "toCharacterId": recipient, "subject": 42, "body": "Hello" }),
+            serde_json::json!({ "toCharacterId": recipient, "subject": "Hi" }),
+            serde_json::json!({ "subject": "Hi", "body": "Hello" }),
+        ] {
+            assert!(
+                mutate_body(MpMutateOp::MailSend, &bad).is_err(),
+                "must reject {bad}"
+            );
+        }
+        // Limits count UTF-16 units like the server: 80 emoji are 160 units.
+        assert!(mutate_body(
+            MpMutateOp::MailSend,
+            &serde_json::json!({ "toCharacterId": recipient, "subject": "😀".repeat(40), "body": "ok" }),
+        )
+        .is_ok());
+        assert!(mutate_body(
+            MpMutateOp::MailSend,
+            &serde_json::json!({ "toCharacterId": recipient, "subject": "😀".repeat(41), "body": "ok" }),
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn mail_id_bodies_require_hex_ids_and_empty_wire_bodies() {
+        let id = "607f1f77bcf86cd799439011";
+        for op in [
+            MpMutateOp::MailRead,
+            MpMutateOp::MailDelete,
+            MpMutateOp::MailSentDelete,
+            MpMutateOp::MailReport,
+        ] {
+            assert_eq!(
+                mutate_body(op, &serde_json::json!({ "id": id })),
+                Ok(serde_json::json!({})),
+                "{op:?} must send an empty body"
+            );
+            // Unknown fields are tolerated but never forwarded.
+            assert_eq!(
+                mutate_body(op, &serde_json::json!({ "id": id, "action": "delete" })),
+                Ok(serde_json::json!({})),
+                "{op:?} must strip unknown fields"
+            );
+            for bad in ["", "short", "607f1f77bcf86cd79943901zz", "not-an-id"] {
+                assert!(
+                    mutate_body(op, &serde_json::json!({ "id": bad })).is_err(),
+                    "{op:?} must reject id {bad}"
+                );
+            }
+            assert!(mutate_body(op, &serde_json::json!({})).is_err());
+            assert!(mutate_body(op, &serde_json::Value::Null).is_err());
+        }
+    }
+
+    #[test]
+    fn mail_id_paths_embed_one_validated_id() {
+        let id = "607f1f77bcf86cd799439011";
+        let payload = serde_json::json!({ "id": id });
+        assert_eq!(
+            mutate_path(MpMutateOp::MailRead, &payload).unwrap(),
+            format!("/api/mail/{id}")
+        );
+        assert_eq!(
+            mutate_path(MpMutateOp::MailDelete, &payload).unwrap(),
+            format!("/api/mail/{id}")
+        );
+        assert_eq!(
+            mutate_path(MpMutateOp::MailSentDelete, &payload).unwrap(),
+            format!("/api/mail/sent/{id}")
+        );
+        assert_eq!(
+            mutate_path(MpMutateOp::MailReport, &payload).unwrap(),
+            format!("/api/mail/{id}/report")
+        );
+        assert_eq!(
+            mutate_path(
+                MpMutateOp::MailSend,
+                &serde_json::json!({ "toCharacterId": "507f1f77bcf86cd799439012", "subject": "Hi", "body": "Hello" }),
+            )
+            .unwrap(),
+            "/api/mail"
+        );
+        // A hostile id never reaches the path: traversal and bad hex fail.
+        for bad in [
+            serde_json::json!({ "id": "../admin" }),
+            serde_json::json!({ "id": "607f1f77bcf86cd799439011/report" }),
+            serde_json::json!({ "id": "short" }),
+        ] {
+            assert!(mutate_path(MpMutateOp::MailRead, &bad).is_err());
+            assert!(mutate_path(MpMutateOp::MailReport, &bad).is_err());
+        }
+    }
+
+    #[test]
+    fn mail_allowlist_pins_method_path_and_body_shape() {
+        let id = "607f1f77bcf86cd799439011";
+        for allowed in [
+            ("GET", "/api/mail?limit=50&offset=0"),
+            ("GET", "/api/mail?offset=10&limit=1"),
+            ("GET", "/api/mail/sent?limit=25&offset=0"),
+            ("POST", "/api/mail"),
+            ("PATCH", &format!("/api/mail/{id}")),
+            ("DELETE", &format!("/api/mail/{id}")),
+            ("DELETE", &format!("/api/mail/sent/{id}")),
+            ("POST", &format!("/api/mail/{id}/report")),
+        ] {
+            assert!(
+                is_allowlisted_call(allowed.0, allowed.1),
+                "{allowed:?} must be allowed"
+            );
+        }
+        for denied in [
+            // No single-mail fetch exists server-side.
+            ("GET", &format!("/api/mail/{id}")),
+            ("GET", "/api/mail"),
+            ("GET", "/api/mail/sent"),
+            ("GET", "/api/mail?limit=500&offset=0"),
+            ("GET", "/api/mail?limit=10"),
+            ("GET", "/api/mail/sent?limit=10&offset=0&admin=true"),
+            ("GET", "/api/mail/sent?LIMIT=10&offset=0"),
+            // Wrong methods on the mail collections and items.
+            ("POST", "/api/mail/sent"),
+            ("PUT", "/api/mail"),
+            ("DELETE", "/api/mail"),
+            ("GET", &format!("/api/mail/{id}/report")),
+            ("PATCH", &format!("/api/mail/{id}/report")),
+            ("DELETE", &format!("/api/mail/{id}/report")),
+            ("PATCH", &format!("/api/mail/sent/{id}")),
+            ("POST", &format!("/api/mail/sent/{id}")),
+            ("POST", &format!("/api/mail/{id}")),
+            // Query strings never ride on mutations.
+            ("PATCH", &format!("/api/mail/{id}?limit=10")),
+            ("POST", "/api/mail?limit=10"),
+            // Non-hex ids and traversal fail closed.
+            ("PATCH", "/api/mail/short"),
+            ("DELETE", "/api/mail/../admin"),
+            ("POST", "/api/mail/not-an-id/report"),
+            ("DELETE", "/api/mail/sent/not-an-id"),
+            // Staff and channel surfaces stay absent.
+            ("GET", "/api/admin/mail-reports"),
+            ("POST", "/api/admin/mail-reports"),
+            ("GET", "/api/channels"),
+            ("POST", "/api/channels"),
+        ] {
+            assert!(
+                !is_allowlisted_call(denied.0, denied.1),
+                "{denied:?} must be rejected"
             );
         }
     }

@@ -30,6 +30,8 @@ const IDLE: MpSnapshot = {
   character: null,
   turn: null,
   inbox: null,
+  mailInbox: null,
+  mailSent: null,
   notice: null,
   error: null,
   retryAfter: null,
@@ -68,12 +70,28 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   const [runs, setRuns] = useState<1 | 5 | 10>(1);
   const [snooze, setSnooze] = useState("");
   const [prefType, setPrefType] = useState<string>("turn_advance");
+  /* Player mail slice: which pane owns the single notice/error display, the
+   * open reader message, and the compose draft. The notice/error pair renders
+   * exactly once: inside Player mail after a mail op, globally otherwise.
+   */
+  const [noticeScope, setNoticeScope] = useState<"general" | "mail">("general");
+  const [openMailId, setOpenMailId] = useState<string | null>(null);
+  const [composeTo, setComposeTo] = useState("");
+  const [composeSubject, setComposeSubject] = useState("");
+  const [composeBody, setComposeBody] = useState("");
 
   useEffect(() => {
     const session = sessionRef.current!;
     let live = true;
     setBusy(true);
+    setNoticeScope("general");
     void session.enter().then((next) => {
+      // Mail pages load on demand, never on enter: opening this screen is
+      // the demand, so chain one loadMail before the first paint. Chaining
+      // keeps the initial call order deterministic for the call-order tests.
+      if (next.phase === "ready" && next.userId) return session.loadMail();
+      return next;
+    }).then((next) => {
       if (live) setSnapshot(next);
     }).finally(() => {
       if (live) setBusy(false);
@@ -84,17 +102,61 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     };
   }, []);
 
-  async function run(operation: (session: MpModeSession) => Promise<MpSnapshot>) {
-    if (busy) return;
+  async function run(operation: (session: MpModeSession) => Promise<MpSnapshot>): Promise<MpSnapshot | null> {
+    if (busy) return null;
     setBusy(true);
     try {
-      setSnapshot(await operation(sessionRef.current!));
+      const next = await operation(sessionRef.current!);
+      setSnapshot(next);
+      return next;
     } finally {
       setBusy(false);
     }
   }
 
+  function runGeneral(operation: (session: MpModeSession) => Promise<MpSnapshot>) {
+    setNoticeScope("general");
+    void run(operation);
+  }
+
+  function runMail(operation: (session: MpModeSession) => Promise<MpSnapshot>): Promise<MpSnapshot | null> {
+    setNoticeScope("mail");
+    return run(operation);
+  }
+
   const session = sessionRef.current;
+  /* Reader lookup runs against the loaded pages: there is no single-mail
+   * fetch endpoint, so an id missing from both pages closes the reader. */
+  const inboxMails = snapshot.mailInbox?.mails ?? [];
+  const sentMails = snapshot.mailSent?.mails ?? [];
+  const openInboxMail = openMailId ? (inboxMails.find((mail) => mail.id === openMailId) ?? null) : null;
+  const openSentMail = openMailId && !openInboxMail
+    ? (sentMails.find((mail) => mail.id === openMailId) ?? null)
+    : null;
+  const openMail = openInboxMail ?? openSentMail;
+
+  function replyToOpenMail() {
+    if (!openInboxMail?.fromCharacterId) return;
+    setComposeTo(openInboxMail.fromCharacterId);
+    setComposeSubject(
+      /^re:/i.test(openInboxMail.subject) ? openInboxMail.subject : `Re: ${openInboxMail.subject}`,
+    );
+    setComposeBody("");
+  }
+
+  function sendComposedMail() {
+    const toCharacterId = composeTo;
+    const subject = composeSubject;
+    const body = composeBody;
+    void runMail((s) => s.sendMail({ toCharacterId, subject, body })).then((next) => {
+      if (next?.notice === "Mail sent.") {
+        setComposeTo("");
+        setComposeSubject("");
+        setComposeBody("");
+      }
+    });
+  }
+
   const phase = snapshot.phase;
   const needsSession = phase === "idle" || phase === "loading" || phase === "session-required" || phase === "signed-out" || phase === "auth-expired";
   const blocked = phase === "offline" || phase === "server-error" || phase === "rate-limited";
@@ -109,7 +171,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
             {snapshot.username && <p className="ahd-muted" style={{ margin: 0 }}>Playing as {snapshot.username}</p>}
           </div>
           <div className="ahd-mp-row" style={{ marginLeft: "auto" }}>
-            <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void run((s) => s.refresh())}>
+            <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void runGeneral((s) => s.refresh())}>
               Refresh
             </button>
             <button className="ahd-btn ahd-btn-sm" onClick={onExit}>Exit multiplayer</button>
@@ -128,11 +190,14 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
             <button className="ahd-btn ahd-btn-sm" onClick={() => jumpTo("mp-inbox")}>
               Inbox{snapshot.inbox && snapshot.inbox.unreadCount > 0 ? ` (${snapshot.inbox.unreadCount} unread)` : ""}
             </button>
+            <button className="ahd-btn ahd-btn-sm" onClick={() => jumpTo("mp-mail")}>
+              Player mail{snapshot.mailInbox && snapshot.mailInbox.unreadCount > 0 ? ` (${snapshot.mailInbox.unreadCount} unread)` : ""}
+            </button>
           </nav>
         )}
 
-        {snapshot.notice && <p className="ahd-notice" role="status">{snapshot.notice}</p>}
-        {snapshot.error && <p className="ahd-alert" role="alert">{snapshot.error}</p>}
+        {noticeScope !== "mail" && snapshot.notice && <p className="ahd-notice" role="status">{snapshot.notice}</p>}
+        {noticeScope !== "mail" && snapshot.error && <p className="ahd-alert" role="alert">{snapshot.error}</p>}
         {(phase === "rate-limited" && snapshot.retryAfter !== null) && (
           <p className="ahd-muted" role="status">Try again in about {snapshot.retryAfter} seconds.</p>
         )}
@@ -157,13 +222,13 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
               straight back after you approve. Multiplayer stays fully native.
             </p>
             <div className="ahd-mp-row">
-              <button className="ahd-btn ahd-btn-primary" disabled={busy} onClick={() => void run((s) => s.signIn("discord"))}>
+              <button className="ahd-btn ahd-btn-primary" disabled={busy} onClick={() => void runGeneral((s) => s.signIn("discord"))}>
                 Continue with Discord
               </button>
-              <button className="ahd-btn" disabled={busy} onClick={() => void run((s) => s.signIn("google"))}>
+              <button className="ahd-btn" disabled={busy} onClick={() => void runGeneral((s) => s.signIn("google"))}>
                 Continue with Google
               </button>
-              <button className="ahd-btn" disabled={busy} onClick={() => void run((s) => s.refresh())}>
+              <button className="ahd-btn" disabled={busy} onClick={() => void runGeneral((s) => s.refresh())}>
                 Retry
               </button>
               <button className="ahd-btn ahd-btn-ghost" onClick={onExit}>
@@ -184,7 +249,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                 : "Your last loaded state is kept below. Retry to reconnect and continue."}
             </p>
             <div className="ahd-mp-row">
-              <button className="ahd-btn ahd-btn-primary" disabled={busy} onClick={() => void run((s) => s.refresh())}>
+              <button className="ahd-btn ahd-btn-primary" disabled={busy} onClick={() => void runGeneral((s) => s.refresh())}>
                 Reconnect
               </button>
             </div>
@@ -290,7 +355,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                   onClick={() => {
                     const targetState = region.trim() ? region.trim() : undefined;
                     const convertAmount = amount.trim() ? Number(amount.trim()) : undefined;
-                    void run((s) => s.performAction({ actionType: action.type, targetState, convertAmount, count: runs }));
+                    void runGeneral((s) => s.performAction({ actionType: action.type, targetState, convertAmount, count: runs }));
                   }}
                 >
                   {action.name}
@@ -317,7 +382,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                 className="ahd-btn ahd-btn-sm"
                 style={{ marginLeft: "auto" }}
                 disabled={busy || snapshot.inbox.unreadCount === 0}
-                onClick={() => void run((s) => s.markAllNotificationsRead())}
+                onClick={() => void runGeneral((s) => s.markAllNotificationsRead())}
               >
                 Mark all read
               </button>
@@ -346,7 +411,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                   </div>
                   <div className="ahd-mp-row">
                     {!note.read && (
-                      <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void run((s) => s.markNotificationRead(note.id))}>
+                      <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void runGeneral((s) => s.markNotificationRead(note.id))}>
                         Mark read
                       </button>
                     )}
@@ -356,18 +421,18 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                       onClick={() => {
                         const trimmed = snooze.trim();
                         const minutes = trimmed ? Number(trimmed) : undefined;
-                        void run((s) => s.snoozeNotification(note.id, minutes));
+                        void runGeneral((s) => s.snoozeNotification(note.id, minutes));
                       }}
                     >
                       Snooze
                     </button>
-                    <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void run((s) => s.unsnoozeNotification(note.id))}>
+                    <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void runGeneral((s) => s.unsnoozeNotification(note.id))}>
                       Unsnooze
                     </button>
-                    <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void run((s) => s.unarchiveNotification(note.id))}>
+                    <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void runGeneral((s) => s.unarchiveNotification(note.id))}>
                       Unarchive
                     </button>
-                    <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" disabled={busy} onClick={() => void run((s) => s.archiveNotification(note.id))}>
+                    <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" disabled={busy} onClick={() => void runGeneral((s) => s.archiveNotification(note.id))}>
                       Archive
                     </button>
                   </div>
@@ -387,11 +452,177 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                   ))}
                 </select>
               </label>
-              <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void run((s) => s.setNotificationPreference("mute", prefType))}>
+              <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void runGeneral((s) => s.setNotificationPreference("mute", prefType))}>
                 Mute
               </button>
-              <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void run((s) => s.setNotificationPreference("unmute", prefType))}>
+              <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void runGeneral((s) => s.setNotificationPreference("unmute", prefType))}>
                 Unmute
+              </button>
+            </div>
+          </section>
+          <div className="ahd-mp-row ahd-mp-back">
+            <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" onClick={() => jumpTo("mp-top")}>
+              Back to sections
+            </button>
+          </div>
+          </>
+        )}
+
+        {snapshot.character && (
+          <>
+          <section className="ahd-card ahd-card-pad" aria-label="Player mail" id="mp-mail" tabIndex={-1}>
+            <div className="ahd-mp-row">
+              <h2 className="ahd-h2" style={{ margin: 0 }}>Player mail</h2>
+              <button
+                className="ahd-btn ahd-btn-sm"
+                style={{ marginLeft: "auto" }}
+                disabled={busy}
+                onClick={() => void runMail((s) => s.loadMail())}
+              >
+                Refresh mail
+              </button>
+            </div>
+            {snapshot.mailInbox && (
+              <p className="ahd-muted" style={{ marginBottom: 0 }}>
+                {snapshot.mailInbox.unreadCount > 0
+                  ? `${snapshot.mailInbox.unreadCount} unread`
+                  : "No unread mail"}
+              </p>
+            )}
+            {noticeScope === "mail" && snapshot.notice && <p className="ahd-notice" role="status">{snapshot.notice}</p>}
+            {noticeScope === "mail" && snapshot.error && <p className="ahd-alert" role="alert">{snapshot.error}</p>}
+            {!snapshot.mailInbox || !snapshot.mailSent ? (
+              <p className="ahd-muted">Player mail is loading...</p>
+            ) : (
+              <>
+                <h3 className="ahd-h2">Inbox</h3>
+                {inboxMails.length === 0 && <p className="ahd-muted">No received mail.</p>}
+                <ul className="ahd-mp-inbox">
+                  {inboxMails.map((mail) => (
+                    <li key={mail.id} className="ahd-mp-inbox-row">
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ margin: 0, fontWeight: mail.read ? 400 : 700 }}>
+                          <span>{mail.subject}</span>{mail.read ? "" : " · unread"}
+                        </p>
+                        <p className="ahd-muted" style={{ margin: "0.2rem 0 0" }}>
+                          {mail.fromName ? `from ${mail.fromName}` : "system mail"}
+                        </p>
+                      </div>
+                      <div className="ahd-mp-row">
+                        <button
+                          className="ahd-btn ahd-btn-sm"
+                          disabled={busy}
+                          aria-label={`Open ${mail.subject} from ${mail.fromName ?? "system mail"}`}
+                          onClick={() => setOpenMailId(mail.id)}
+                        >
+                          Open
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <h3 className="ahd-h2">Sent</h3>
+                {sentMails.length === 0 && <p className="ahd-muted">No sent mail.</p>}
+                <ul className="ahd-mp-inbox">
+                  {sentMails.map((mail) => (
+                    <li key={mail.id} className="ahd-mp-inbox-row">
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ margin: 0 }}>{mail.subject}</p>
+                        <p className="ahd-muted" style={{ margin: "0.2rem 0 0" }}>
+                          {mail.toName ? `to ${mail.toName}` : "to recipient"}
+                        </p>
+                      </div>
+                      <div className="ahd-mp-row">
+                        <button
+                          className="ahd-btn ahd-btn-sm"
+                          disabled={busy}
+                          aria-label={`Open ${mail.subject} to ${mail.toName ?? "recipient"}`}
+                          onClick={() => setOpenMailId(mail.id)}
+                        >
+                          Open
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {openMail && (
+              <article className="ahd-card ahd-card-pad" aria-label="Open mail">
+                <h3 className="ahd-h2" style={{ marginTop: 0 }}>{openMail.subject}</h3>
+                <p className="ahd-muted" style={{ marginTop: 0 }}>
+                  {openSentMail
+                    ? (openMail.toName ? `To ${openMail.toName}` : "To recipient")
+                    : (openMail.fromName ? `From ${openMail.fromName}` : "System mail")}
+                </p>
+                <p style={{ whiteSpace: "pre-wrap" }}>{openMail.body}</p>
+                <div className="ahd-mp-row">
+                  {openInboxMail?.fromCharacterId && (
+                    <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={replyToOpenMail}>
+                      Reply
+                    </button>
+                  )}
+                  {openInboxMail && !openInboxMail.read && (
+                    <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void runMail((s) => s.markMailRead(openMail.id))}>
+                      Mark read
+                    </button>
+                  )}
+                  {openInboxMail && (
+                    <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void runMail((s) => s.reportMail(openMail.id))}>
+                      Report mail
+                    </button>
+                  )}
+                  <button
+                    className="ahd-btn ahd-btn-sm ahd-btn-ghost"
+                    disabled={busy}
+                    onClick={() => void runMail((s) => (openSentMail ? s.deleteSentMail(openMail.id) : s.deleteMail(openMail.id)))}
+                  >
+                    Remove
+                  </button>
+                  <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" onClick={() => setOpenMailId(null)}>
+                    Close
+                  </button>
+                </div>
+              </article>
+            )}
+            <h3 className="ahd-h2">Compose</h3>
+            <p className="ahd-muted" style={{ marginTop: 0 }}>
+              Send player mail with a pasted 24-character recipient character ID.
+            </p>
+            <div className="ahd-mp-row">
+              <label className="ahd-field ahd-mp-input">
+                <span className="ahd-label">Recipient character ID</span>
+                <input
+                  value={composeTo}
+                  disabled={busy}
+                  placeholder="e.g. 507f1f77bcf86cd799439012"
+                  onChange={(event) => setComposeTo(event.currentTarget.value)}
+                />
+              </label>
+              <label className="ahd-field ahd-mp-input">
+                <span className="ahd-label">Subject</span>
+                <input
+                  value={composeSubject}
+                  disabled={busy}
+                  placeholder="Subject"
+                  onChange={(event) => setComposeSubject(event.currentTarget.value)}
+                />
+              </label>
+            </div>
+            <div className="ahd-mp-row">
+              <label className="ahd-field ahd-mp-input">
+                <span className="ahd-label">Message</span>
+                <textarea
+                  value={composeBody}
+                  disabled={busy}
+                  placeholder="Write your message"
+                  onChange={(event) => setComposeBody(event.currentTarget.value)}
+                />
+              </label>
+            </div>
+            <div className="ahd-mp-row">
+              <button className="ahd-btn ahd-btn-sm ahd-btn-primary" disabled={busy} onClick={sendComposedMail}>
+                Send mail
               </button>
             </div>
           </section>
