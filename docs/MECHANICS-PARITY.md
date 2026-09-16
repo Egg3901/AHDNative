@@ -43,6 +43,11 @@ remainder; do not cite the baseline rows for these areas as current.
 - Explicit opt-in UK historical initialization, with the founding default kept.
 - Decaying campaign spend stock ported by #92 (closed); the imported NPC
   financing model stays a disclosed non-port.
+- Character actions: the 11 ActionsHub entries are audited per-action for AP,
+  monetary cost/yield, state inputs/results, RPG stat inputs and frozen campaign
+  currency at this pinned baseline; gdpScalar, stat multipliers and currency
+  conversion remain unwired. See [character action parity](CHARACTER-ACTION-PARITY.md).
+  This is a tracking audit (M07 partial), not a runtime parity claim.
 
 These corrections do not establish whole-engine parity or physical-device
 performance. In particular, war abstraction, remaining phase/content/electoral
