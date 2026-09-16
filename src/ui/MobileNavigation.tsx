@@ -528,7 +528,9 @@ export function GameDrawer({
             Native keeps Ask beside it (#358); both also live in the drawer
             hierarchy above, so this bar duplicates no destination and removes
             none. It stays pinned while the section list scrolls, so the two
-            primary workflows survive an expanded Nation/World on 320px. */}
+            primary workflows survive an expanded Nation/World on 320px. The
+            bar marks its active target with data-active only: the hierarchy
+            entry above keeps the dialog's single aria-current="page" marker. */}
         <div className="ahd-drawer-quick" role="group" aria-label="Quick actions">
           {(["actions", "ask"] as const).map((id) => (
             <button
@@ -536,7 +538,6 @@ export function GameDrawer({
               type="button"
               className="ahd-btn ahd-btn-sm ahd-drawer-quick-btn"
               aria-label={id === "actions" ? "Go to Actions" : "Go to Ask"}
-              aria-current={route === id ? "page" : undefined}
               data-active={route === id ? "true" : undefined}
               onClick={() => onNavigate(id)}
             >
