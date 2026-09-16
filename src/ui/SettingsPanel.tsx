@@ -1,5 +1,5 @@
 import { BUILD_LABEL } from '../buildIdentity';
-import type { Preferences, ReducedMotion, TextSize } from "../preferences";
+import type { Preferences, ReducedMotion, ReducedTransparency, TextSize } from "../preferences";
 import "./ui.css";
 
 export interface SettingsPanelProps {
@@ -111,6 +111,38 @@ function ReducedMotionChoices({ value, onChange }: { value: ReducedMotion; onCha
   );
 }
 
+function ReducedTransparencyChoices({ value, onChange }: { value: ReducedTransparency; onChange: (value: ReducedTransparency) => void }) {
+  return (
+    <fieldset className="ahd-stack" style={{ border: 0, margin: 0, padding: 0, gap: "0.45rem" }}>
+      <legend className="ahd-label" style={{ marginBottom: "0.2rem" }}>Transparency</legend>
+      <Choice
+        name="settings-reduced-transparency"
+        value="system"
+        label="Use device setting"
+        description="Follow the device setting for transparency effects."
+        checked={value === "system"}
+        onChange={() => onChange("system")}
+      />
+      <Choice
+        name="settings-reduced-transparency"
+        value="on"
+        label="Reduce transparency"
+        description="Use solid surfaces with no blur. Best for readability."
+        checked={value === "on"}
+        onChange={() => onChange("on")}
+      />
+      <Choice
+        name="settings-reduced-transparency"
+        value="off"
+        label="Allow transparency"
+        description="Keep translucent glass surfaces with blur."
+        checked={value === "off"}
+        onChange={() => onChange("off")}
+      />
+    </fieldset>
+  );
+}
+
 export function SettingsPanel({ value, onChange, error }: SettingsPanelProps) {
   const update = (changes: Partial<Preferences>) => onChange({ ...value, ...changes });
   return (
@@ -132,6 +164,7 @@ export function SettingsPanel({ value, onChange, error }: SettingsPanelProps) {
         <div className="ahd-stack" style={{ marginTop: "0.75rem", gap: "1rem" }}>
           <TextSizeChoices value={value.textSize} onChange={(textSize) => update({ textSize })} />
           <ReducedMotionChoices value={value.reducedMotion} onChange={(reducedMotion) => update({ reducedMotion })} />
+          <ReducedTransparencyChoices value={value.reducedTransparency} onChange={(reducedTransparency) => update({ reducedTransparency })} />
         </div>
       </section>
 

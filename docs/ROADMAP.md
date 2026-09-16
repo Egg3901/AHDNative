@@ -1315,3 +1315,30 @@ and removed. The smoke helper now walks the conversation; no engine change.
   cabinet ballot command). Session trio
   (nominations/legislature/session, 32 tests) and UI trio
   (NominationsPanel/LegislaturePanel/LegislationDetailsPanel, 24 tests) green.
+
+## Glass material system checkpoint, 2026-09-16 (#437 partial)
+
+- The Native material contract now lives in `src/ui/materials.ts`: a
+  restrained four-level hierarchy (chrome, elevated, modal, opaque content)
+  on the established AHD dark palette, a `system/on/off` reduced-transparency
+  resolver, and WCAG contrast pairs for the solid fallbacks. Token values
+  ship in `src/ui/ui.css` between the material markers; inspiration only, no
+  proprietary assets copied and no new transitions or animations added.
+- Representative surfaces: footer and drawer resolve chrome, resource details
+  resolve elevated, the resource/notification popover resolves modal with a
+  new readable surface, and content cards stay opaque. Geometry (insets,
+  widths, heights, positioning) is untouched and stays owned by #436.
+- Accessibility: Settings gains a Transparency group wired through the
+  existing device-preference pipeline (`data-reduced-transparency`);
+  `prefers-reduced-transparency` and forced-colors both resolve every glass
+  surface to its solid fallback. Measured contrast on the solid tokens: body
+  text 12.1-15.4, secondary 4.6-5.2, primary-action label 4.8 (all WCAG AA;
+  body pairs hold 7+). The existing reduced-motion takeover is unchanged.
+- Focused evidence: `src/ui/materials.test.ts` (9 cases: token contract,
+  blur/fallback resolution, resolver, shipped-stylesheet fallback, contrast,
+  motion restraint), `src/ui/SettingsPanel.test.tsx` transparency reporting,
+  `src/preferences.test.ts` normalization/dataset, plus neighboring
+  `MobileNavigation`/`GameScreen` suites green. No full typecheck, verify, or
+  smoke run per scope; no physical-device performance evidence is claimed.
+- #437 stays open: representative phone screenshots and named-device
+  performance evidence remain before any release claim.

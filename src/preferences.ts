@@ -2,10 +2,12 @@ export const PREFERENCES_STORAGE_KEY = "ahdnative-preferences-v1";
 
 export type TextSize = "standard" | "large";
 export type ReducedMotion = "system" | "on" | "off";
+export type ReducedTransparency = "system" | "on" | "off";
 
 export interface Preferences {
   textSize: TextSize;
   reducedMotion: ReducedMotion;
+  reducedTransparency: ReducedTransparency;
   disableAutoplayOnOtherProfiles: boolean;
 }
 
@@ -28,6 +30,7 @@ export interface PreferencesDocument {
 export const DEFAULT_PREFERENCES: Preferences = {
   textSize: "standard",
   reducedMotion: "system",
+  reducedTransparency: "system",
   disableAutoplayOnOtherProfiles: false,
 };
 
@@ -55,6 +58,9 @@ export function parsePreferences(value: unknown): Preferences {
     reducedMotion: parsed.reducedMotion === "system" || parsed.reducedMotion === "on" || parsed.reducedMotion === "off"
       ? parsed.reducedMotion
       : DEFAULT_PREFERENCES.reducedMotion,
+    reducedTransparency: parsed.reducedTransparency === "system" || parsed.reducedTransparency === "on" || parsed.reducedTransparency === "off"
+      ? parsed.reducedTransparency
+      : DEFAULT_PREFERENCES.reducedTransparency,
     disableAutoplayOnOtherProfiles: typeof parsed.disableAutoplayOnOtherProfiles === "boolean"
       ? parsed.disableAutoplayOnOtherProfiles
       : DEFAULT_PREFERENCES.disableAutoplayOnOtherProfiles,
@@ -114,4 +120,5 @@ export function applyPreferencesToDocument(preferences: Preferences, target?: Pr
   if (!destination) return;
   destination.documentElement.dataset.textSize = preferences.textSize;
   destination.documentElement.dataset.reducedMotion = preferences.reducedMotion;
+  destination.documentElement.dataset.reducedTransparency = preferences.reducedTransparency;
 }
