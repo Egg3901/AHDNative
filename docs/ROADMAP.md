@@ -1396,6 +1396,19 @@ and removed. The smoke helper now walks the conversation; no engine change.
   rounded-corner and home-indicator behavior), no rendered
   AHDGame-vs-Native comparison, and the new smoke spec has not yet run in CI.
   #436 stays open with `status: partial`; no device claim is made.
+- Visual-acceptance follow-up, 2026-09-16: `smoke/safe-area-composition.spec.ts`
+  passes 3/3 against the installed desktop Chromium build (320px portrait,
+  390px portrait, 844x390 landscape: zero horizontal overflow, footer/primary
+  nav visible, resource overlay and drawer controls reachable). Structural
+  limit: desktop Chromium resolves every `env(safe-area-inset-*)` to 0px (no
+  island, cutout, or home indicator), so this run proves the geometry contract,
+  not island-shaped rendering. Source-grounded comparison: the chrome preserves
+  the reference hierarchy per the character-first correction above
+  (Profile-first entry, consistent Actions label, national details under
+  Economy) instead of a generic dashboard; no rendered AHDGame-vs-Native
+  screenshot was captured. #436 stays open with `status: partial` only for
+  the named physical Dynamic Island device pass. Probe screenshots removed;
+  no product code changed in this follow-up.
 
 ## Dual-pane and hinge-aware layout checkpoint, 2026-09-16 (#438 partial)
 
