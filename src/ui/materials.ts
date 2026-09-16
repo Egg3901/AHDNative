@@ -23,7 +23,10 @@ export interface MaterialDefinition {
   backgroundVar: string;
   /** Opaque token the level resolves to under reduced transparency. */
   solidVar: string;
-  /** Blur token applied through `backdrop-filter` at full presentation. */
+  /**
+   * Blur token applied through `backdrop-filter` at full presentation.
+   * "none" when the level never blurs, so content cannot borrow a glass radius.
+   */
   blurVar: string;
   /** Whether the level ever uses backdrop blur. */
   backdrop: boolean;
@@ -51,7 +54,7 @@ export const MATERIALS: Record<MaterialLevel, MaterialDefinition> = {
   content: {
     backgroundVar: "var(--ahd-card)",
     solidVar: "var(--ahd-card)",
-    blurVar: "var(--ahd-material-chrome-blur)",
+    blurVar: "none",
     backdrop: false,
   },
 };
