@@ -354,3 +354,28 @@ is shipped in `public/licenses/fraunces-OFL.txt`, sourced from
 [Google Fonts](https://github.com/google/fonts/blob/main/ofl/fraunces/OFL.txt).
 The globe and font need no runtime network request. Era badges use the playable
 pack years rather than exposing seed implementation labels in the launcher.
+
+## Glass material system (issue #437, partial)
+
+Restrained glass-inspired hierarchy on the default theme tokens above
+(bg #14141c, card #1d1d2a, elevated #26263a, border #2a2a3d). Contract:
+`src/ui/materials.ts`; values: `src/ui/ui.css` material markers; tests:
+`src/ui/materials.test.ts`. Inspiration only; no proprietary assets.
+
+| Level | Surfaces | Treatment |
+|---|---|---|
+| Chrome | Persistent footer + bottom nav, navigation drawer | App-bg tint 94%, 10px backdrop blur |
+| Elevated | Resource detail cards | Elevated tint 88%, 12px blur |
+| Modal | Resource/notification popover dialogs | Elevated tint 92%, 16px blur, edge highlight, modal shadow |
+| Content | All `.ahd-card` surfaces | Opaque, never blurred |
+
+Reduced transparency: Settings Transparency group (`system/on/off`) drives
+`data-reduced-transparency`; explicit choice wins, otherwise
+`prefers-reduced-transparency` applies; forced-colors also resolves solid.
+Every level falls back to an opaque token (chrome to app bg, elevated/modal
+to elevated card) with no blur. Solid-token contrast: body 12.1-15.4,
+secondary 4.6-5.2, primary-action label 4.8. No new transitions or animations;
+the existing reduced-motion takeover covers drawer/backdrop keyframes.
+Layout geometry (insets, widths, heights, positioning) is unchanged and stays
+owned by #436. Remaining: representative phone screenshots and named-device
+performance evidence before release claims.

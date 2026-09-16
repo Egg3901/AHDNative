@@ -151,6 +151,19 @@
   --ahd-shadow-md: 0 4px 12px -1px rgb(0 0 0 / 0.6), 0 2px 4px -2px rgb(0 0 0 / 0.5);
   --ahd-focus: 0 0 0 2px var(--ahd-bg), 0 0 0 4px var(--ahd-primary);
 
+  /* Material tokens (issue #437) — glass-inspired hierarchy on the AHD
+     palette. Chrome: persistent footer/drawer. Elevated: resource details.
+     Modal: popover dialogs. Content (.ahd-card) stays opaque by design.
+     Names are owned by src/ui/materials.ts; values stay restrained so
+     text contrast holds and no proprietary effect is copied. */
+  --ahd-material-chrome-bg: color-mix(in srgb, var(--ahd-bg) 94%, transparent);
+  --ahd-material-chrome-blur: 10px;
+  --ahd-material-elevated-bg: color-mix(in srgb, var(--ahd-card-elevated) 88%, transparent);
+  --ahd-material-elevated-blur: 12px;
+  --ahd-material-modal-bg: color-mix(in srgb, var(--ahd-card-elevated) 92%, transparent);
+  --ahd-material-modal-blur: 16px;
+  --ahd-material-modal-border: color-mix(in srgb, var(--ahd-fg) 16%, var(--ahd-border));
+
   /* Type families — same mapping as AHDGame globals.css. The bundled face is
      listed first, then next/font's metric-matched fallback, then the platform
      stack the reference falls back to. */
@@ -468,8 +481,9 @@ html, body { overflow-x: hidden; }
 /* Persistent status footer */
 .ahd-footer {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
-  background: color-mix(in srgb, var(--ahd-bg) 94%, transparent);
-  backdrop-filter: blur(10px);
+  background: var(--ahd-material-chrome-bg);
+  -webkit-backdrop-filter: blur(var(--ahd-material-chrome-blur));
+  backdrop-filter: blur(var(--ahd-material-chrome-blur));
   border-top: 1px solid var(--ahd-border);
   padding-top: 0.25rem;
   padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
@@ -575,7 +589,9 @@ html, body { overflow-x: hidden; }
   width: min(19rem, calc(100vw - 3.5rem));
   max-height: 100vh;
   max-height: 100dvh;
-  background: var(--ahd-card);
+  background: var(--ahd-material-chrome-bg);
+  -webkit-backdrop-filter: blur(var(--ahd-material-chrome-blur));
+  backdrop-filter: blur(var(--ahd-material-chrome-blur));
   border-right: 1px solid var(--ahd-border);
   box-shadow: var(--ahd-shadow-md);
   display: flex; flex-direction: column;
@@ -690,7 +706,9 @@ html, body { overflow-x: hidden; }
 
 /* Nonmodal resource details above the footer */
 .ahd-resource-details {
-  background: var(--ahd-card-elevated);
+  background: var(--ahd-material-elevated-bg);
+  -webkit-backdrop-filter: blur(var(--ahd-material-elevated-blur));
+  backdrop-filter: blur(var(--ahd-material-elevated-blur));
   border: 1px solid var(--ahd-border);
   border-radius: var(--ahd-radius);
   box-shadow: var(--ahd-shadow-md);
@@ -702,6 +720,42 @@ html, body { overflow-x: hidden; }
 }
 .ahd-resource-facts { font-size: 0.82rem; line-height: 1.5; overflow-wrap: anywhere; }
 .ahd-resource-links { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+/* Material system (issue #437) — representative surface assignments and
+ * the reduced-transparency contract. Geometry (position, insets, widths,
+ * heights) is owned by #436 and untouched: only backgrounds, blur,
+ * borders and depth change here, and the system adds no transitions or
+ * animations of its own (the existing reduced-motion takeover covers the
+ * drawer/backdrop keyframes). Content cards (.ahd-card) stay opaque. */
+.ahd-resource-popover {
+  background: var(--ahd-material-modal-bg);
+  -webkit-backdrop-filter: blur(var(--ahd-material-modal-blur));
+  backdrop-filter: blur(var(--ahd-material-modal-blur));
+  border: 1px solid var(--ahd-material-modal-border);
+  border-radius: var(--ahd-radius);
+  box-shadow: var(--ahd-shadow-md);
+}
+/* Reduced-transparency fallback: solid opaque surfaces, no blur. Explicit
+ * player choice wins; otherwise the device setting applies. */
+:root[data-reduced-transparency="on"] .ahd-footer { background: var(--ahd-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-reduced-transparency="on"] .ahd-drawer { background: var(--ahd-card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-reduced-transparency="on"] .ahd-resource-details { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-reduced-transparency="on"] .ahd-resource-popover { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
+@media (prefers-reduced-transparency: reduce) {
+  :root:not([data-reduced-transparency="off"]) .ahd-footer { background: var(--ahd-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :root:not([data-reduced-transparency="off"]) .ahd-drawer { background: var(--ahd-card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :root:not([data-reduced-transparency="off"]) .ahd-resource-details { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :root:not([data-reduced-transparency="off"]) .ahd-resource-popover { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+/* Forced-colors mode: translucency and blur are meaningless, so every
+ * glass surface resolves to its solid fallback. */
+@media (forced-colors: active) {
+  .ahd-footer { background: var(--ahd-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .ahd-drawer { background: var(--ahd-card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .ahd-resource-details { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .ahd-resource-popover { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+/* End material system (issue #437) */
 
 /* Device-local reading and motion preferences. */
 :root[data-text-size="large"] { font-size: 20px; }
