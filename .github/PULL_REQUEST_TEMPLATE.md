@@ -4,9 +4,24 @@
 
 ## Issue progress
 
-<!-- List affected issues, the acceptance criteria this completes, and what remains.
-Use Closes #N only for fully completed issues. After merge, update issue checklists,
-status labels and the matching roadmap rows with the final commit/test evidence. -->
+<!-- Give every affected issue exactly one disposition.
+
+Closes #N
+- Completed criteria:
+- Verification evidence:
+
+Partial #N
+- Completed criteria:
+- Remaining unchecked criteria:
+- Issue checklist/`status: partial`/roadmap updated: yes/no
+
+Reference only #N
+- Relationship, with no claimed acceptance progress:
+
+Use Closes only when every acceptance criterion is verified. PR text alone does not
+update issue state. After merge, reconcile the issue checklist, labels, evidence
+comment, closure state, roadmap row, and parent tracker count before starting the
+next batch. -->
 
 ## Checklist
 
@@ -14,5 +29,6 @@ status labels and the matching roadmap rows with the final commit/test evidence.
 - [ ] New/changed behavior has tests through the public contract or player flow
 - [ ] No mechanics constants changed - or parity evidence against the reference engine is attached
 - [ ] No save-schema support promised without explicit compatibility validation
-- [ ] Affected issue progress and roadmap updates are included; partial work is distinguished from full closure
+- [ ] Every affected issue has a `closes`, `partial`, or `reference only` disposition with evidence
+- [ ] Issue checklists, `status: partial` labels, roadmap rows, and parent counts are reconciled for all claimed progress
 - [ ] Workflow changes, if any, preserve manual build limits and signing privacy; no signing material, credentials, or build artifacts included
