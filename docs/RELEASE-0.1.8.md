@@ -31,6 +31,8 @@ mobile-design batch. It is not a 1.0.0 release.
 The build remains internal-only. No physical-device pass is claimed:
 named-device portrait/landscape, keyboard, large-text, orientation-change,
 and performance acceptance stay open, as do foldable posture checks on
-representative hardware, the AHDGame-vs-Native visual comparison, and the
-pending CI run of the new smoke spec. Broader mechanics/save parity gates
-remain tracked separately (see #124).
+representative hardware and a rendered AHDGame-vs-Native screenshot
+comparison. Source-grounded hierarchy comparison is recorded, and the new
+safe-area and material smoke suites passed the full GitHub gate before this
+candidate was prepared. Broader mechanics/save parity gates remain tracked
+separately (see #124).
