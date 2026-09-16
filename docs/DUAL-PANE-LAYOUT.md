@@ -40,11 +40,17 @@ destinations, turn/save/exit controls, and `onNavigate` handler; it adds no
 backdrop, focus trap, or scroll lock.
 
 List/detail pairing: routed surfaces opt in with `.ahd-dual-panes` and
-`data-pane="list"` / `data-pane="detail"` landmarks. Adopted by the parties
-surface (`PoliticsPanel` parties section: comparison/select list beside the
-selected-party detail across a vertical hinge). Other list/detail surfaces
-(regions, markets, legislation, elections) keep the stacked flow until they
-adopt the same landmarks.
+`data-pane="list"` / `data-pane="detail"` landmarks. Adopted by all five
+player-flow surfaces: parties (`PoliticsPanel` parties section), elections
+(`PoliticsPanel` elections section: race filters/select beside the
+selected-race detail), regions (`RegionsPanel`: directory beside the
+selected region), legislation (`LegislationDetailsPanel`: chamber bill lists
+beside the selected-bill detail and sponsor catalog), and markets
+(`MarketsPanel`: browse list beside the selected-company detail, paired only
+in dual posture so the single-pane selected view stays exactly the
+detail-only phone flow with Back). Every pairing shares the existing
+selection/query state; no surface duplicates it. The GameScreen elections tab
+is list-only and routes into the paired elections section for detail.
 
 ## Hinge avoidance
 

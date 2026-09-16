@@ -985,6 +985,12 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign,
           </p>
         ) : null}
       </div>
+      {/* Dual-pane list/detail pairing (#438): the race filters/select list
+          and the selected-race detail share the existing selection state;
+          the shell places them on separate panes only when a hinge is
+          reported. Single-pane renders the same stack as before. */}
+      <div className="ahd-dual-panes">
+      <div data-pane="list" className="ahd-stack">
       <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">Elections</h2>
         <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>
@@ -1040,9 +1046,9 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign,
           </select>
         </label>
       )}
-
+      </div>
       {selected ? (
-        <article aria-label={selected.title} className="ahd-card ahd-card-pad">
+        <article aria-label={selected.title} data-pane="detail" className="ahd-card ahd-card-pad">
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
             <strong style={{ fontSize: "0.9rem" }}>{selected.title}</strong>
             <span className="ahd-pill">{RACE_PHASE_LABELS[selected.phase]}</span>
@@ -1108,6 +1114,7 @@ function ElectionsSection({ politics, busy, onAction, initialId, onOpenCampaign,
             ? <p className="ahd-help" role="note">{selected.candidacy.disabledReason}</p> : null}
         </article>
       ) : null}
+      </div>
     </div>
   );
 }

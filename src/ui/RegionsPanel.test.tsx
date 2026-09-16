@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { createWorld, deserializeSave, type WorldState } from "@ahdclient/engine";
 import { projectRegions } from "../game/regions";
 import { RegionsPanel } from "./RegionsPanel";
@@ -176,5 +176,32 @@ describe("RegionsPanel", () => {
     expect(screen.getByRole("heading", { name: "Sectors" })).toBeInTheDocument();
     expect(screen.getAllByText(/revenue/).length).toBeGreaterThan(0);
     expect(screen.getByText("National macro")).toBeInTheDocument();
+  });
+});
+
+describe("RegionsPanel dual-pane list/detail (#438)", () => {
+  it("exposes directory list and selected-region detail panes sharing one query", () => {
+    const world = createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "regions-dual-pane" });
+    function Harness() {
+      const [query, setQuery] = useState(projectRegions(world));
+      const [directoryOpen, setDirectoryOpen] = useState(false);
+      return (
+        <RegionsPanel
+          query={query}
+          onQueryChange={(next) => setQuery(projectRegions(world, next))}
+          directoryOpen={directoryOpen}
+          onDirectoryOpenChange={setDirectoryOpen}
+        />
+      );
+    }
+    render(<Harness />);
+    const list = document.querySelector('[data-pane="list"]');
+    expect(list).not.toBeNull();
+    expect(within(list as HTMLElement).getByRole("searchbox", { name: "Search regions" })).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "Alabama" })).toHaveAttribute("data-pane", "detail");
+    // One query drives both panes: picking another directory row moves the detail.
+    fireEvent.click(screen.getByText("Browse regions"));
+    fireEvent.click(screen.getByRole("button", { name: "View California details" }));
+    expect(screen.getByRole("article", { name: "California" })).toHaveAttribute("data-pane", "detail");
   });
 });

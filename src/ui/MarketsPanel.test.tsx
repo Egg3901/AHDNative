@@ -755,3 +755,32 @@ describe("MarketsPanel sector sale listing controls (#294)", () => {
     expect(screen.getByRole("button", { name: /list media sector for sale/i })).toBeDisabled();
   });
 });
+
+describe("MarketsPanel dual-pane list/detail (#438)", () => {
+  it("pairs the company list with the selected company detail sharing one selection", async () => {
+    // Dual posture via the documented QA override; single-pane keeps the
+    // exact pre-existing detail-only journey (covered by the suites above).
+    window.history.replaceState({}, "", "?ahd-span=vertical");
+    try {
+      const MarketsPanel = await loadPanel();
+      const user = userEvent.setup();
+      render(<MarketsPanel markets={makeMarkets()} busy={false} onAction={vi.fn()} />);
+      const list = document.querySelector('[data-pane="list"]');
+      expect(list).not.toBeNull();
+      expect(within(list as HTMLElement).getByLabelText("Search corporations")).toBeInTheDocument();
+      expect(document.querySelector('[data-pane="detail"]')).toBeNull();
+      // One selection drives both panes: opening a company keeps the list mounted.
+      await user.click(screen.getByRole("button", { name: /US\.MEDI US-media/i }));
+      const detail = document.querySelector('[data-pane="detail"]');
+      expect(detail).not.toBeNull();
+      expect(within(detail as HTMLElement).getByText("Your shares")).toBeInTheDocument();
+      expect(within(document.querySelector('[data-pane="list"]') as HTMLElement).getByLabelText("Search corporations")).toBeInTheDocument();
+      // The journey is unchanged: Back clears the selection.
+      await user.click(screen.getByRole("button", { name: "Back to market list" }));
+      expect(document.querySelector('[data-pane="detail"]')).toBeNull();
+      expect(screen.getByRole("button", { name: /US\.MEDI US-media/i })).toBeInTheDocument();
+    } finally {
+      window.history.replaceState({}, "", "/");
+    }
+  });
+});

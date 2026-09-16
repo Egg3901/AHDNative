@@ -19,6 +19,7 @@ import { SECTOR_ACQUIRE_UNAVAILABLE, SECTOR_LIST_OWNER_ONLY, parseSalePrice } fr
 import type { MarketListing, MarketsView, SectorSummary, ShareholderKind } from "../game/markets";
 import type { GameScreenProps } from "../game/types";
 import { formatFinanceMoney } from "./FinancePanel";
+import { useDualPaneLayout } from "./dualPane";
 
 export interface MarketsPanelProps {
   markets: MarketsView;
@@ -612,7 +613,7 @@ function CompanyDetail({
   };
 
   return (
-    <div className="ahd-stack">
+    <div className="ahd-stack" data-pane="detail">
       <div>
         <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={onBack} aria-label="Back to market list">
           Back
@@ -914,7 +915,79 @@ export function MarketsPanel({ markets, busy, onAction, onSectorSale, initialId 
     });
   }, [markets.listings, countryId, sectorType, query]);
 
-  if (selected) {
+  // Dual-pane list/detail pairing (#438): the browse list below and the
+  // selected-company detail share the existing selection, search, country,
+  // and sector state; the shell places them on separate panes only when a
+  // hinge is reported. Single-pane stacks the same flow as before, and the
+  // Back control still clears the selection.
+  const browse = (
+    <>
+      <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+        <label className="ahd-field">
+          <span className="ahd-label">Search</span>
+          <input
+            className="ahd-input"
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search corporations..."
+            aria-label="Search corporations"
+          />
+        </label>
+        <label className="ahd-field" style={{ maxWidth: "16rem" }}>
+          <span className="ahd-label">Country</span>
+          <select
+            className="ahd-select"
+            value={countryId}
+            onChange={(e) => setCountryId(e.target.value)}
+            aria-label="Country"
+          >
+            <option value="all">All countries</option>
+            {markets.countries.map((country) => (
+              <option key={country.id} value={country.id}>
+                {country.name} ({country.currency})
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <SectorDirectory
+        sectors={countrySectors}
+        activeSectorType={sectorType}
+        onSelectSector={setSectorType}
+        emptyReason={directoryEmptyReason}
+        resetKey={countryId}
+      />
+
+      <ForSaleDirectory sectors={countrySectors} />
+
+      <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+        {sectorType ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+            <span className="ahd-muted" style={{ fontSize: "0.78rem" }}>
+              Sector: {markets.sectors.find((s) => s.sectorType === sectorType)?.sectorLabel ?? sectorType}
+            </span>
+            <button
+              type="button"
+              className="ahd-btn ahd-btn-ghost ahd-btn-sm"
+              onClick={() => setSectorType(null)}
+              aria-label="Show all sectors"
+            >
+              All sectors
+            </button>
+          </div>
+        ) : null}
+        <ListingList listings={visible} onSelect={setSelectedId} emptyMessage={listingEmptyMessage} />
+      </div>
+    </>
+  );
+
+  // The selected company renders detail-only in single-pane (the exact
+  // pre-existing phone journey) and pairs the browse list beside the detail
+  // only when a hinge is reported.
+  const dual = useDualPaneLayout().mode === "dual";
+  if (selected && !dual) {
     return (
       <CompanyDetail
         listing={selected}
@@ -924,6 +997,22 @@ export function MarketsPanel({ markets, busy, onAction, onSectorSale, initialId 
         onSectorSale={onSectorSale}
         onBack={() => setSelectedId(null)}
       />
+    );
+  }
+  if (selected) {
+    return (
+      <div className="ahd-dual-panes">
+        <div data-pane="list" className="ahd-stack">{browse}</div>
+        <CompanyDetail
+          key={selected.id}
+          listing={selected}
+          markets={markets}
+          busy={busy}
+          onAction={onAction}
+          onSectorSale={onSectorSale}
+          onBack={() => setSelectedId(null)}
+        />
+      </div>
     );
   }
 
@@ -949,66 +1038,7 @@ export function MarketsPanel({ markets, busy, onAction, onSectorSale, initialId 
       {markets.listings.length === 0 ? (
         <div className="ahd-empty">No listed corporations.</div>
       ) : (
-        <>
-          <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
-            <label className="ahd-field">
-              <span className="ahd-label">Search</span>
-              <input
-                className="ahd-input"
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search corporations..."
-                aria-label="Search corporations"
-              />
-            </label>
-            <label className="ahd-field" style={{ maxWidth: "16rem" }}>
-              <span className="ahd-label">Country</span>
-              <select
-                className="ahd-select"
-                value={countryId}
-                onChange={(e) => setCountryId(e.target.value)}
-                aria-label="Country"
-              >
-                <option value="all">All countries</option>
-                {markets.countries.map((country) => (
-                  <option key={country.id} value={country.id}>
-                    {country.name} ({country.currency})
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <SectorDirectory
-            sectors={countrySectors}
-            activeSectorType={sectorType}
-            onSelectSector={setSectorType}
-            emptyReason={directoryEmptyReason}
-            resetKey={countryId}
-          />
-
-          <ForSaleDirectory sectors={countrySectors} />
-
-          <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
-            {sectorType ? (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
-                <span className="ahd-muted" style={{ fontSize: "0.78rem" }}>
-                  Sector: {markets.sectors.find((s) => s.sectorType === sectorType)?.sectorLabel ?? sectorType}
-                </span>
-                <button
-                  type="button"
-                  className="ahd-btn ahd-btn-ghost ahd-btn-sm"
-                  onClick={() => setSectorType(null)}
-                  aria-label="Show all sectors"
-                >
-                  All sectors
-                </button>
-              </div>
-            ) : null}
-            <ListingList listings={visible} onSelect={setSelectedId} emptyMessage={listingEmptyMessage} />
-          </div>
-        </>
+        <div data-pane="list" className="ahd-stack">{browse}</div>
       )}
     </div>
   );
