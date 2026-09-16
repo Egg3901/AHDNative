@@ -334,15 +334,28 @@ mod tests {
 
     #[test]
     fn external_destinations_are_allowlisted_by_identifier() {
-        assert_eq!(
-            external_destination_url("guides").unwrap(),
-            "https://ahousedividedgame.com/guides"
-        );
-        assert_eq!(
-            external_destination_url("wiki").unwrap(),
-            "https://wiki.ahousedividedgame.com"
-        );
+        // Centralized reachability gate for issue #82: every public
+        // destination mirrored from AHDGame HelpDropdown at pinned revision
+        // e364c049 must resolve to its exact reference URL. Raw URLs and
+        // unknown identifiers never open.
+        for (destination, url) in [
+            ("wiki", "https://wiki.ahousedividedgame.com"),
+            ("guides", "https://ahousedividedgame.com/guides"),
+            ("about", "https://ahousedividedgame.com/about"),
+            ("discord", "https://discord.gg/DmF8zJJuqN"),
+            (
+                "patreon",
+                "https://www.patreon.com/cw/AHouseDividedGame/membership",
+            ),
+            ("supporters", "https://lakesidegames.net/supporters"),
+            ("email", "mailto:admin@ahousedividedgame.com"),
+            ("status", "https://ops.ahousedividedgame.com/status"),
+        ] {
+            assert_eq!(external_destination_url(destination).unwrap(), url);
+        }
         assert!(external_destination_url("https://example.com").is_err());
+        assert!(external_destination_url("feedback").is_err());
+        assert!(external_destination_url("account").is_err());
     }
 
     #[test]
