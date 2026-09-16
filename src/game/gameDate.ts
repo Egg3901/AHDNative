@@ -52,6 +52,8 @@ const LARP_MONTHS = [
 export interface GameClock {
   turn: number;
   date: string;
+  foundingActive?: boolean;
+  foundingOffset?: number;
 }
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -63,13 +65,33 @@ function dayNumber(iso: string): number | null {
   return Number.isFinite(ms) ? Math.round(ms / 86_400_000) : null;
 }
 
+function foundingOffsetOf(clock: GameClock): number {
+  const offset = clock.foundingOffset;
+  return typeof offset === "number" && Number.isFinite(offset) && offset > 0
+    ? Math.floor(offset)
+    : 0;
+}
+
+function rawTurnOf(clock: GameClock): number {
+  return typeof clock.turn === "number" && Number.isFinite(clock.turn) && clock.turn > 0
+    ? Math.floor(clock.turn)
+    : 0;
+}
+
+export function calendarTurnForClock(clock: GameClock): number {
+  if (clock.foundingActive === true) return 0;
+  return Math.max(0, rawTurnOf(clock) - foundingOffsetOf(clock));
+}
+
 /**
- * The era's start day (turn 0) implied by a clock: the world date walked back
- * `turn` weeks. Used to recover the calendar's starting year without threading
- * an era parameter through every panel.
+ * The era's start day implied by a clock: the world date walked back by the
+ * clock's calendar position (see {@link calendarTurnForClock}). While a
+ * founding phase is active the frozen date is the era start, so it is
+ * returned as-is.
  */
 export function clockEpoch(clock: GameClock): string {
-  return addDaysIso(clock.date, -clock.turn * DAYS_PER_TURN);
+  if (clock.foundingActive === true && typeof clock.date === "string") return clock.date;
+  return addDaysIso(clock.date, -calendarTurnForClock(clock) * DAYS_PER_TURN);
 }
 
 /** Calendar year the era's clock starts in (turn 0's year). */
@@ -86,8 +108,8 @@ export function clockStartingYear(clock: GameClock): number {
 export function turnForGameDate(isoDate: string, clock: GameClock): number {
   const target = dayNumber(isoDate);
   const anchor = dayNumber(clock.date);
-  if (target === null || anchor === null) return clock.turn;
-  return clock.turn + Math.round((target - anchor) / DAYS_PER_TURN);
+  if (target === null || anchor === null) return calendarTurnForClock(clock);
+  return calendarTurnForClock(clock) + Math.round((target - anchor) / DAYS_PER_TURN);
 }
 
 /**
@@ -108,9 +130,16 @@ export function gameDateParts(
   };
 }
 
-/** Format a Native turn on the reference calendar, e.g. "April, Week 3, 1953". */
 export function formatGameTurn(turn: number, clock: GameClock): string {
-  const { month, weekOfMonth, year } = gameDateParts(turn, clockStartingYear(clock));
+  const calendarTurn =
+    typeof turn === "number" && Number.isFinite(turn)
+      ? Math.max(0, Math.floor(turn) - foundingOffsetOf(clock))
+      : 0;
+  return formatCalendarTurn(calendarTurn, clock);
+}
+
+function formatCalendarTurn(calendarTurn: number, clock: GameClock): string {
+  const { month, weekOfMonth, year } = gameDateParts(calendarTurn, clockStartingYear(clock));
   return `${month}, Week ${weekOfMonth}, ${year}`;
 }
 
@@ -120,5 +149,5 @@ export function formatGameTurn(turn: number, clock: GameClock): string {
  */
 export function formatGameDate(isoDate: string | null | undefined, clock: GameClock): string {
   if (typeof isoDate !== "string" || dayNumber(isoDate) === null) return "";
-  return formatGameTurn(turnForGameDate(isoDate, clock), clock);
+  return formatCalendarTurn(turnForGameDate(isoDate, clock), clock);
 }

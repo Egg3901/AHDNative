@@ -1,5 +1,6 @@
 import { rngFromSeed } from "./rng.js";
 import { assignUsSeatGeography, assignRegionalSeatGeography } from "./elections/seatGeography.js";
+import { runFoundingSweep, stampFoundingMarker } from "./elections/founding.js";
 import type { WorldState } from "./types.js";
 import { getPackByEra, PACKS_BY_DATE } from "@ahdclient/content";
 import { createPoliticiansForWorld } from "./politician.js";
@@ -250,8 +251,32 @@ export interface NewWorldOptions {
    * UK 1953/1979 winner roster when selected. Founding is
    * the current default and preserves the authored empty-seat start for a
    * deliberate founding election.
+   *
+   * NOTE: this selects legislature composition only. It is NOT the
+   * reference pre-iteration lifecycle — see `foundingElections` below.
    */
   initialization?: WorldInitialization;
+  /**
+   * Explicit opt-in to the live founding-election lifecycle (#223). Ports
+   * the reference reset bootstrap opt-in (`preIteration?: boolean` in
+   * `src/lib/admin/resetGameWorld.ts:101-113`, resolved explicit > preset
+   * default > off in `resetAndBootstrapGameWorld.ts`): chambers are seated
+   * by real cycle-0 founding races before the regular schedule begins,
+   * the calendar stays frozen at the era start meanwhile, and the
+   * completion detector resumes it with the historical offset once every
+   * founding race has resolved.
+   *
+   * Strict opt-in only (`=== true`): the default is OFF even for eras
+   * whose reference presets default the phase on (1953-default,
+   * 1979-default per `presetDefaultsToFoundingPhase`), because flipping
+   * the default world shape would rewrite every existing golden and save.
+   * That preset-default rule is an explicit remaining gap (see
+   * `docs/ROADMAP.md` founding checkpoint). Priors vacant-chamber seeding
+   * is likewise not ported: founding races run as genuine
+   * incumbent-and-challenger contests over the authored cast and resolve
+   * through the real tally path — never stubbed or pre-decided.
+   */
+  foundingElections?: boolean;
   /**
    * #242 character-creation inputs. All optional: a world can still be created
    * without a character file (tests, fixtures), in which case the player carries
@@ -1100,6 +1125,10 @@ export function createWorld(options: NewWorldOptions): WorldState {
   // not seat an executive or otherwise wake gameplay phases merely to fill
   // presentation data.
   world.countryPolitics = seedCountryPolitics(world);
+  if (options.foundingElections === true && stampFoundingMarker(world)) {
+    runFoundingSweep(world, rng);
+    world.meta.rng = rng.state();
+  }
   return world;
 }
 

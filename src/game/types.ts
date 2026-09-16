@@ -46,7 +46,8 @@ export interface CharacterCreation {
   avatarUrl?: string | null;
   profileHeaderUrl?: string | null;
 }
-export interface NewGameOptions { era: string; countryId: string; playerName: string; seed: string; mode?: SingleplayerMode; homeRegionId?: string; initialization?: WorldInitialization; creation?: CharacterCreation; featureFlags?: WorldFeatureFlags; difficulty?: SingleplayerDifficulty; autonomyLevel?: NppAutonomyLevel; }
+export interface NewGameOptions { era: string; countryId: string; playerName: string; seed: string; mode?: SingleplayerMode; homeRegionId?: string; initialization?: WorldInitialization; creation?: CharacterCreation; featureFlags?: WorldFeatureFlags; difficulty?: SingleplayerDifficulty; autonomyLevel?: NppAutonomyLevel;
+  foundingElections?: boolean; }
 export interface EraChoice {
   id: string;
   label: string;
@@ -186,6 +187,8 @@ export interface FinanceView {
 }
 export interface GameView {
   turn: number; date: string; era: string; countryId: string; countryName: string;
+  foundingActive?: boolean;
+  foundingOffset?: number;
   /** Singleplayer difficulty bound at world creation (issue #334). */
   difficulty: SingleplayerDifficulty;
   /** Autonomous-politician tier bound at world creation (issue #345). */

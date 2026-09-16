@@ -56,7 +56,7 @@ import { nppBillSponsorshipPhase } from "../npp/nppBillSponsorship.js";
 import { nppActionProcessingPhase } from "../npp/nppActionProcessing.js";
 import { nppStanceDriftPhase } from "../npp/stanceDrift.js";
 import { nppBehaviorPhase } from "../npp/nppBehavior.js";
-import { primaryResolutionPhase, voteAccumulationPhase, electionTimersPhase, electionResolutionPhase } from "../elections/phases.js";
+import { primaryResolutionPhase, voteAccumulationPhase, electionTimersPhase, electionResolutionPhase, foundingCompletionPhase } from "../elections/phases.js";
 import { demographicEffectsPhase } from "../demographics/demographicEffects.js";
 import { demographicFlowsPhase } from "../demographics/demographicFlows.js";
 import { censusPhase } from "../demographics/census.js";
@@ -211,6 +211,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   campaignSpendResetPhase,
   electionTimersPhase,
   electionResolutionPhase,
+  foundingCompletionPhase,
   // Demographics at end of ported subset (before newsMaintenance) to avoid
   // shifting existing RNG streams - mirrors elections block deviation note.
   // Mainline order is demographics (census earlier, flows after metricEngine,
