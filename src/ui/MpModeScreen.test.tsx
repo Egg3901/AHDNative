@@ -128,7 +128,7 @@ describe("MpModeScreen at 320px", () => {
     const user = userEvent.setup();
     const { host, calls } = fakeHost({
       fetch: {
-        "auth-session": [probe],
+        "auth-session": [probe, probe],
         "character-me": [me(1000), me(900)],
         "turn-status": [turn, turn],
         notifications: [inbox(1), inbox(1)],
@@ -148,7 +148,7 @@ describe("MpModeScreen at 320px", () => {
     expect(await screen.findByText("Ran 5 fundraisers!")).toBeInTheDocument();
     expect(screen.getByText("900")).toBeInTheDocument();
     expect(calls[0]).toMatch(/^mutate:execute-action:.*"count":5/);
-    expect(calls.slice(1, 4)).toEqual(["fetch:character-me", "fetch:turn-status", "fetch:notifications"]);
+    expect(calls.slice(1, 6)).toEqual(["fetch:auth-session", "fetch:character-me", "fetch:turn-status", "fetch:client-nav", "fetch:notifications"]);
   });
 
   it("shows the batch refusal when a single-run action is tapped with ×10", async () => {
@@ -201,7 +201,7 @@ describe("MpModeScreen at 390px", () => {
     const user = userEvent.setup();
     const { host, calls } = fakeHost({
       fetch: {
-        "auth-session": [probe],
+        "auth-session": [probe, probe, probe, probe],
         "character-me": [me(1000), me(1000), me(1000), me(1000)],
         "turn-status": [turn, turn, turn, turn],
         notifications: [inbox(1), inbox(1), inbox(1), inbox(1)],
@@ -232,7 +232,7 @@ describe("MpModeScreen at 390px", () => {
     const user = userEvent.setup();
     const { host, calls } = fakeHost({
       fetch: {
-        "auth-session": [probe],
+        "auth-session": [probe, probe],
         "character-me": [me(1000), me(1000)],
         "turn-status": [turn, turn],
         notifications: [inbox(1), inbox(1)],
