@@ -75,8 +75,9 @@ and [complying with encryption export regulations](https://developer.apple.com/d
 The Mac image does not preinstall `rustup`. The workflow bootstraps it from the official Rust installer when absent, installs the pinned toolchain and records the Cargo binary path for later steps. The first attempt failed at this prerequisite before compilation or signing; inspect a failed step before retrying.
 
 The most recently delivered and processed internal iOS preview is marketing
-version `0.1.5`, Apple build `1.9`; current release-candidate source metadata is
-`0.1.6`. For the next authorized candidate, set the intended marketing version
+version `0.1.7`, Apple build `1.11`: Apple processing VALID, attached to the
+internal Owner review group. Current release-candidate source metadata is
+`0.1.8`. For the next authorized candidate, set the intended marketing version
 deliberately and keep the iOS bundle version as `1.N`, where Tauri appends
 Codemagic's build number. Do not append a fourth numeric component to the
 marketing version.
