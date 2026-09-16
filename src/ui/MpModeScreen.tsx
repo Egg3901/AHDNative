@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ASK_ICON_PATH,
+  BOTTOM_TABS,
   MENU_ICON_PATH,
-  MULTIPLAYER_ICON_PATH,
   NavIcon,
 } from "./MobileNavigation";
 import { MpModeSession, type MpSnapshot } from "../mp/adapter";
@@ -158,7 +158,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
         )}
 
         {snapshot.character && (
-          <section className="ahd-mp-grid" aria-label="Multiplayer status">
+          <section id="mp-profile" className="ahd-mp-grid" aria-label="Multiplayer status">
             <article className="ahd-card ahd-card-pad" aria-label="Player">
               <h2 className="ahd-h2">{snapshot.character.name}</h2>
               <dl className="ahd-mp-facts">
@@ -192,7 +192,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
         )}
 
         {snapshot.character && (
-          <section className="ahd-card ahd-card-pad" aria-label="Player actions">
+          <section id="mp-actions" className="ahd-card ahd-card-pad" aria-label="Player actions">
             <h2 className="ahd-h2">Take action</h2>
             <p className="ahd-muted" style={{ marginTop: 0 }}>
               Actions run on the live game. Costs and refusals come from the server.
@@ -351,9 +351,12 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
       <footer className="ahd-footer ahd-mp-footer" aria-label="Multiplayer navigation">
         <div className="ahd-container ahd-footer-inner">
           <nav className="ahd-bottomnav ahd-mp-bottomnav" aria-label="Primary">
-            <button type="button" className="ahd-bottomnav-item" data-active="true" aria-current="page" aria-label="Multiplayer">
-              <NavIcon path={MULTIPLAYER_ICON_PATH} label="" /><span>Multiplayer</span>
-            </button>
+            <a className="ahd-bottomnav-item" aria-label="Profile" href="#mp-profile">
+              <NavIcon path={BOTTOM_TABS[0].path} label="" /><span>Profile</span>
+            </a>
+            <a className="ahd-bottomnav-item" aria-label="Actions" href="#mp-actions">
+              <NavIcon path={BOTTOM_TABS[1].path} label="" /><span>Actions</span>
+            </a>
             <button type="button" className="ahd-bottomnav-item" aria-label="Ask" onClick={onAsk}>
               <NavIcon path={ASK_ICON_PATH} label="" /><span>Ask</span>
             </button>
