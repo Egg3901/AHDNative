@@ -346,8 +346,16 @@ export function GameDrawer({
   onExit,
   onClose,
   unreadCount,
+  docked,
 }: {
   open: boolean;
+  /**
+   * Dual-pane navigation pane (#438): renders the same destinations, turn
+   * controls and handlers as an in-flow pane instead of a modal sheet. No
+   * backdrop, focus trap, or scroll lock; the single-pane modal flow below
+   * is untouched. Selection/route state stays with the caller.
+   */
+  docked?: boolean;
   route: DrawerRouteId;
   busy: boolean;
   playerName: string;
@@ -393,7 +401,7 @@ export function GameDrawer({
   closeRef.current = onClose;
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || docked) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const drawer = drawerRef.current;
@@ -425,18 +433,19 @@ export function GameDrawer({
     };
   }, [open, menuButtonRef]);
 
-  if (!open) return null;
+  if (!open && !docked) return null;
 
   return (
     <>
-      <div className="ahd-drawer-backdrop" aria-hidden="true" onClick={onClose} />
+      {docked ? null : <div className="ahd-drawer-backdrop" aria-hidden="true" onClick={onClose} />}
       <aside
         ref={drawerRef}
-        id="ahd-drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Game menu"
-        className="ahd-drawer"
+        id={docked ? "ahd-drawer-docked" : "ahd-drawer"}
+        role={docked ? "complementary" : "dialog"}
+        aria-modal={docked ? undefined : true}
+        aria-label={docked ? "Game navigation" : "Game menu"}
+        className={docked ? "ahd-drawer ahd-drawer-docked" : "ahd-drawer"}
+        data-pane={docked ? "navigation" : undefined}
       >
         {/* #366 composition: compact identity header. Same three facts the
             reference profile card shows (name, party/country, turn/date),

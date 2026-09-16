@@ -154,6 +154,39 @@ describe("GameScreen", () => {
     expect(screen.getAllByText(/united states/i).length).toBeGreaterThan(0);
   });
 
+  it("keeps single-pane phone navigation when no hinge is reported (#438)", () => {
+    const world = makeWorld();
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
+    const shell = document.querySelector(".ahd-screen");
+    expect(shell).toHaveAttribute("data-dual-pane", "single");
+    expect(shell).toHaveAttribute("data-dual-capability", "none");
+    // Modal drawer stays closed; bottom navigation is the phone flow.
+    expect(screen.queryByRole("complementary", { name: "Game navigation" })).not.toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();
+  });
+
+  it("docks navigation beside content when separated segments are reported (#438)", () => {
+    (window as unknown as { getViewportSegments: () => unknown }).getViewportSegments = () => [
+      { x: 0, y: 0, width: 400, height: 800 },
+      { x: 416, y: 0, width: 400, height: 800 },
+    ];
+    try {
+      const world = makeWorld();
+      render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
+      const shell = document.querySelector(".ahd-screen");
+      expect(shell).toHaveAttribute("data-dual-pane", "dual");
+      expect(shell).toHaveAttribute("data-hinge", "vertical");
+      expect(shell).toHaveAttribute("data-dual-capability", "segments");
+      // Navigation/content pairing with no modal sheet and no duplicated chrome.
+      expect(screen.getByRole("complementary", { name: "Game navigation" })).toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: "Game menu" })).not.toBeInTheDocument();
+      expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "Profile" })).toBeInTheDocument();
+    } finally {
+      delete (window as unknown as { getViewportSegments?: unknown }).getViewportSegments;
+    }
+  });
+
   it("keeps the own-profile context across linked destinations and return", async () => {
     const user = userEvent.setup();
     const world = makeWorld();

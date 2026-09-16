@@ -73,6 +73,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | U06 | Interface | Done | U03,E05 | Expose election and news views | Real records and clear empty states |
 | U07 | Interface | Done | U03,S03 | Connect save browser and in-game lifecycle | New/resume/save/reload/exit and confirmed deletion pass browser smoke; native-device lifecycle remains I02/I03 and #44 |
 | U08 | Interface | In progress | U02,U07 | Verify mobile layout and accessibility | Small-screen overflow,touch,keyboard,focus and errors |
+| U11 | Interface | Partial | U03,U08 | Dual-pane and hinge-aware layout (#438) | Hinge primitives, docked nav/content and parties list/detail panes tested; single-pane phone flow intact; foldable hardware acceptance remains |
 | U09 | UI | Done | E02,U07 | Expose party membership and candidacy through real engine actions | Filing,withdrawal,save/reload and accessible race pagination |
 | U10 | UI | Done | U09,Q01 | Complete a seeded election-to-office loop and expose legislature actions | Genuine t95 fixture, election win,sponsor,vote,relaunch through production UI |
 | M01 | Mechanics | Done | G03 | Inventory phase/order and feature drift from AHDGame | Named differences,source refs,release blockers |
@@ -1371,3 +1372,25 @@ and removed. The smoke helper now walks the conversation; no engine change.
   rounded-corner and home-indicator behavior), no rendered
   AHDGame-vs-Native comparison, and the new smoke spec has not yet run in CI.
   #436 stays open with `status: partial`; no device claim is made.
+
+## Dual-pane and hinge-aware layout checkpoint, 2026-09-16 (#438 partial)
+
+- The shell reports dual-pane only for separated viewport segments, a
+  spanning-media match, or the explicit `?ahd-span=` QA override
+  (`src/ui/dualPane.ts`). Viewport width is not an input, so a generic wide
+  window keeps the single-pane phone flow: bottom nav, modal drawer, compact
+  footer, stacked lists.
+- Deliberate pairings without duplicated state: docked navigation drawer
+  beside routed content (same destinations/handlers, no modal trap), and
+  parties list/detail landmarks sharing one selection. Other list/detail
+  surfaces keep the stacked flow until they adopt the landmarks.
+- Hinge avoidance: segment-fitted grid tracks and footer placement via
+  `env(viewport-segment-*)` under `spanning` media (ignored where
+  unsupported); Tauri webviews expose no segment API today, so dual-pane
+  stays unreachable there. No material tokens changed (#437 owns them).
+- Focused evidence: `dualPane` (14), docked drawer, GameScreen single/dual
+  shell, parties list/detail, plus adjacent notification shell suites green.
+  No full typecheck or verify ran for this UI-only batch (per batch scope).
+- Behavior contract and QA path: [dual-pane layout](DUAL-PANE-LAYOUT.md).
+  Folded/unfolded posture acceptance on representative hardware remains open;
+  no device claim is made from viewport width or the override.

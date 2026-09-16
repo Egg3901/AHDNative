@@ -176,6 +176,12 @@ function PartiesSection({ politics, busy, onAction, initialId }: Omit<PoliticsPa
           Switching parties or leaving your party withdraws your candidacy.
         </p>
       </div>
+      {/* Dual-pane list/detail pairing (#438): the comparison/select list and
+          the selected-party detail share the existing selection state; the
+          shell places them on separate panes only when a hinge is reported.
+          Single-pane renders the same stack as before. */}
+      <div className="ahd-dual-panes">
+      <div data-pane="list" className="ahd-stack">
       {politics.parties.length === 0 ? <div className="ahd-empty">No parties in this country.</div> : (
         <>
           <PartyPlatformComparison
@@ -200,8 +206,9 @@ function PartiesSection({ politics, busy, onAction, initialId }: Omit<PoliticsPa
           </label>
         </>
       )}
+      </div>
       {selected ? (
-        <article aria-label={selected.name} className="ahd-card ahd-card-pad" style={{ borderLeft: `3px solid ${selected.color}` }}>
+        <article data-pane="detail" aria-label={selected.name} className="ahd-card ahd-card-pad" style={{ borderLeft: `3px solid ${selected.color}` }}>
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
             <PartyMark name={selected.name} abbreviation={selected.abbreviation} color={selected.color} id={selected.id} countryId={politics.countryId} logoUrl={selected.logoUrl} size={28} />
             <strong style={{ fontSize: "0.9rem" }}>{selected.name}</strong>
@@ -257,6 +264,7 @@ function PartiesSection({ politics, busy, onAction, initialId }: Omit<PoliticsPa
             : null}
         </article>
       ) : null}
+      </div>
     </div>
   );
 }
