@@ -35,7 +35,7 @@ describe("safe-area composition (#436)", () => {
   });
 
   it("starts top chrome below the cutout without overlaying it", () => {
-    for (const selector of ["\\.ahd-main", "\\.ahd-drawer", "\\.ahd-landing-layout"]) {
+    for (const selector of ["\\.ahd-main", "\\.ahd-drawer", "\\.ahd-landing-layout", "\\.ahd-mp-layout"]) {
       expect(css).toMatch(new RegExp(`${selector}[^{]*\\{[^}]*max\\([^}]*env\\(safe-area-inset-top\\)`));
     }
   });
@@ -81,6 +81,11 @@ describe("perceptible glass (#437)", () => {
       expect(background).toMatch(/transparent|color-mix|rgba?\(|hsla?\(/);
     }
     expect(new Set(backgrounds).size).toBe(3);
+    expect(backgrounds).toEqual(expect.arrayContaining([
+      expect.stringMatching(/78%/),
+      expect.stringMatching(/72%/),
+      expect.stringMatching(/68%/),
+    ]));
   });
 
   it("binds each shipped surface to its own level tokens", () => {
