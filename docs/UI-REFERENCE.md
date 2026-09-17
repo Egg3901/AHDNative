@@ -364,16 +364,23 @@ Restrained glass-inspired hierarchy on the default theme tokens above
 
 | Level | Surfaces | Treatment |
 |---|---|---|
-| Chrome | Persistent footer + bottom nav, navigation drawer | App-bg tint 94%, 10px backdrop blur |
-| Elevated | Resource detail cards | Elevated tint 88%, 12px blur |
-| Modal | Resource/notification popover dialogs | Elevated tint 92%, 16px blur, edge highlight, modal shadow |
-| Content | All `.ahd-card` surfaces | Opaque, never blurred |
+| Chrome | Persistent footer + bottom nav, navigation drawer, creation sticky action bar | App-bg tint 78%, 16px backdrop blur, translucent fg-18% outer edge + depth shadow on the footer |
+| Elevated | Resource detail cards; drawer disclosures (blur-free elevated tint over the already-blurred drawer, no nested backdrop cost) | Elevated tint 72%, 22px blur, translucent edge highlight on detail cards |
+| Modal | Resource/notification popover dialogs | Elevated tint 68%, 28px blur, edge highlight, modal shadow |
+| Content | All `.ahd-card` surfaces, `.ahd-empty` placeholders | Opaque, never blurred |
+
+The drawer quick bar is transparent so drawer chrome shows through; the
+drawer scrim stays an unblurred dim layer by design (a full-screen scrim blur
+costs GPU for no hierarchy gain). Chrome inner dividers (bottom nav, quick
+bar) use a fainter fg-10% hairline so they read subordinate to the outer
+chrome edge instead of stacking a double rule.
 
 Reduced transparency: Settings Transparency group (`system/on/off`) drives
 `data-reduced-transparency`; explicit choice wins, otherwise
 `prefers-reduced-transparency` applies; forced-colors also resolves solid.
-Every level falls back to an opaque token (chrome to app bg, elevated/modal
-to elevated card) with no blur. Solid-token contrast: body 12.1-15.4,
+Every level falls back to an opaque token (chrome surfaces footer, drawer,
+and creation bar to app bg; elevated/modal surfaces resource details,
+disclosures, and popovers to elevated card) with no blur. Solid-token contrast: body 12.1-15.4,
 secondary 4.6-5.2, primary-action label 4.8. No new transitions or animations;
 the existing reduced-motion takeover covers drawer/backdrop keyframes.
 Layout geometry (insets, widths, heights, positioning) is unchanged and stays
