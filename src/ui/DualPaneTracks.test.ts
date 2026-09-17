@@ -53,3 +53,54 @@ describe("dual-pane hinge-avoidance tracks (#438)", () => {
     expect(css).toMatch(/\.ahd-screen\[data-dual-pane="dual"\]\s*\{\s*--ahd-hinge-gap:/);
   });
 });
+
+describe("segment-fitted hinge tracks without spanning media (#438)", () => {
+  it("sizes the vertical panes to the reported segments with the gutter over the occlusion", () => {
+    expect(css).toMatch(
+      /\.ahd-screen\[data-dual-pane="dual"\]\[data-hinge="vertical"\]\[data-segfit="true"\] \.ahd-dual-body\s*\{[^}]*grid-template-columns:\s*var\(--ahd-pane0\)\s*var\(--ahd-hinge-gap\)/,
+    );
+    expect(css).toMatch(
+      /\.ahd-screen\[data-dual-pane="dual"\]\[data-hinge="vertical"\]\[data-segfit="true"\] \.ahd-dual-body > aside\s*\{\s*grid-column:\s*1/,
+    );
+    expect(css).toMatch(
+      /\.ahd-screen\[data-dual-pane="dual"\]\[data-hinge="vertical"\]\[data-segfit="true"\] \.ahd-dual-body > main\s*\{\s*grid-column:\s*3/,
+    );
+  });
+
+  it("pins the footer and popovers to the content segment across a vertical hinge", () => {
+    expect(css).toMatch(
+      /\.ahd-screen\[data-dual-pane="dual"\]\[data-hinge="vertical"\]\[data-segfit="true"\] \.ahd-footer-inner\s*\{[^}]*margin-left:\s*calc\(var\(--ahd-pane0\) \+ var\(--ahd-hinge-gap\)/,
+    );
+    expect(css).toMatch(
+      /\.ahd-screen\[data-dual-pane="dual"\]\[data-hinge="vertical"\]\[data-segfit="true"\] \.ahd-resource-popover\s*\{[^}]*left:\s*calc\(var\(--ahd-pane0\) \+ var\(--ahd-hinge-gap\)/,
+    );
+  });
+
+  it("stacks segment-fitted panes across a horizontal hinge and caps popovers at the bottom segment", () => {
+    expect(css).toMatch(
+      /\.ahd-screen\[data-dual-pane="dual"\]\[data-hinge="horizontal"\]\[data-segfit="true"\] \.ahd-dual-body\s*\{[^}]*grid-template-rows:\s*var\(--ahd-pane0\)\s*var\(--ahd-hinge-gap\)/,
+    );
+    expect(css).toMatch(
+      /\.ahd-screen\[data-dual-pane="dual"\]\[data-hinge="horizontal"\]\[data-segfit="true"\] \.ahd-dual-body > aside\s*\{\s*grid-row:\s*1/,
+    );
+    expect(css).toMatch(
+      /\.ahd-screen\[data-dual-pane="dual"\]\[data-hinge="horizontal"\]\[data-segfit="true"\] \.ahd-dual-body > main\s*\{\s*grid-row:\s*3/,
+    );
+    expect(css).toMatch(
+      /\.ahd-screen\[data-dual-pane="dual"\]\[data-hinge="horizontal"\]\[data-segfit="true"\] \.ahd-resource-popover\s*\{[^}]*max-height:\s*calc\(var\(--ahd-pane1\)/,
+    );
+  });
+
+  it("zeroes the grid gap on segment-fitted tracks so the gutter lands exactly over the occlusion", () => {
+    // The gutter track already spans the occlusion. The dual-pane base grid
+    // carries gap: var(--ahd-hinge-gap), which the shell overrides inline to
+    // the exact pixel occlusion; without gap: 0 it would pad both sides of
+    // the gutter track and push the content pane off its reported segment.
+    expect(css).toMatch(
+      /\.ahd-screen\[data-dual-pane="dual"\]\[data-hinge="vertical"\]\[data-segfit="true"\] \.ahd-dual-body\s*\{[^}]*gap:\s*0/,
+    );
+    expect(css).toMatch(
+      /\.ahd-screen\[data-dual-pane="dual"\]\[data-hinge="horizontal"\]\[data-segfit="true"\] \.ahd-dual-body\s*\{[^}]*gap:\s*0/,
+    );
+  });
+});

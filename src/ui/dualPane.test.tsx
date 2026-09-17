@@ -6,6 +6,7 @@ import {
   parseDualPaneOverride,
   resolveDualPaneLayout,
   useDualPaneLayout,
+  useViewportSegments,
 } from "./dualPane";
 
 describe("dualPane posture resolution (#438)", () => {
@@ -144,5 +145,49 @@ describe("useDualPaneLayout (#438)", () => {
     expect(result.current.mode).toBe("dual");
     expect(result.current.hinge).toBe("horizontal");
     expect(result.current.capability).toBe("override");
+  });
+});
+
+describe("useViewportSegments (#438)", () => {
+  afterEach(() => {
+    delete (window as unknown as { getViewportSegments?: unknown }).getViewportSegments;
+  });
+
+  it("reports null with no platform segment API", () => {
+    const { result } = renderHook(() => useViewportSegments());
+    expect(result.current).toBeNull();
+  });
+
+  it("reports the platform rects for separated segments", () => {
+    (window as unknown as { getViewportSegments: () => unknown }).getViewportSegments = () => [
+      { x: 0, y: 0, width: 400, height: 800 },
+      { x: 416, y: 0, width: 400, height: 800 },
+    ];
+    const { result } = renderHook(() => useViewportSegments());
+    expect(result.current).toEqual([
+      { x: 0, y: 0, width: 400, height: 800 },
+      { x: 416, y: 0, width: 400, height: 800 },
+    ]);
+  });
+
+  it("re-reads segments on viewport resize", () => {
+    (window as unknown as { getViewportSegments: () => unknown }).getViewportSegments = () => [
+      { x: 0, y: 0, width: 400, height: 800 },
+      { x: 416, y: 0, width: 400, height: 800 },
+    ];
+    const { result } = renderHook(() => useViewportSegments());
+    act(() => {
+      (window as unknown as { getViewportSegments: () => unknown }).getViewportSegments = () => null;
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(result.current).toBeNull();
+  });
+
+  it("reports null when the platform getter throws", () => {
+    (window as unknown as { getViewportSegments: () => unknown }).getViewportSegments = () => {
+      throw new Error("segments unavailable");
+    };
+    const { result } = renderHook(() => useViewportSegments());
+    expect(result.current).toBeNull();
   });
 });

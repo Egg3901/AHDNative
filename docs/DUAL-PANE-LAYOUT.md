@@ -71,6 +71,16 @@ is list-only and routes into the paired elections section for detail.
   matching `spanning` media, segment-fitted tracks size the navigation pane
   to the first segment and place the gutter over the occlusion via
   `env(viewport-segment-*)`. Unsupported browsers ignore those blocks.
+- When dual-pane comes from `getViewportSegments` alone (no spanning media
+  to drive the env-fitted tracks), the shell applies the reported rects
+  itself: `GameScreen` sets `data-segfit` with exact `--ahd-pane0` /
+  `--ahd-pane1` / `--ahd-hinge-gap` pixel geometry (via `useViewportSegments`
+  + `hingeBounds`), and the segfit tracks repeat the same placement
+  (navigation pane to the first segment, gutter over the occlusion, footer
+  and popovers pinned to the content/bottom segment). Override-only dual
+  (no rects) keeps the fractional fallback grid. Previously the shell read
+  the segments for posture but never applied them, so the fixed footer and
+  popovers stretched across the occlusion in exactly this configuration.
 - Footer controls follow the content segment under vertical spanning instead
   of crossing the hinge. Resource popovers and the notification preview stay
   transient dialogs above the content pane: vertical spanning pins them to
@@ -81,19 +91,26 @@ is list-only and routes into the paired elections section for detail.
 
 ## Verification and remainder
 
-- `src/ui/dualPane.test.tsx` (14 cases): posture resolution, pane
-  assignment, hinge bounds, override parsing, live hook adoption.
+- `src/ui/dualPane.test.tsx` (18 cases): posture resolution, pane
+  assignment, hinge bounds, override parsing, live hook adoption, live
+  segment geometry (default null, adoption, resize re-read, throwing
+  getter).
 - `MobileNavigation.test.tsx`: docked drawer renders destinations and turn
   controls with no modal behavior. `GameScreen.test.tsx`: single-pane
   attributes/flow by default; 320/390px viewports keep the single-pane
   phone flow with no pane landmarks; docked navigation/content pairing
   with reported vertical segments; navigation/content pane assignment
   across reported vertical and horizontal segments with no modal dialog.
-  `src/ui/DualPaneTracks.test.ts` (4 cases): spanning-media grid drops a
+  `src/ui/DualPaneTracks.test.ts` (7 cases): spanning-media grid drops a
   gutter track over the occlusion with navigation and content pinned to
   their own segment tracks, list/detail splits side by side only across a
   reported vertical hinge, single-pane stacks, gutter defined on dual
-  posture only. `PoliticsPanel.test.tsx`: list/detail landmarks share
+  posture only, plus segment-fitted tracks (no spanning media): exact
+  vertical pane/gutter sizing with footer/popover pinning, horizontal
+  stacking with bottom-segment popover cap. `GameScreen.test.tsx` dual
+  block pins the shell side: exact `data-segfit` geometry for reported
+  vertical/horizontal segments, fractional fallback for override-only
+  dual, no fit in single-pane. `PoliticsPanel.test.tsx`: list/detail landmarks share
   one selection. `RegionsPanel`, `MarketsPanel`, `LegislationDetailsPanel`
   tests: directory/bill/browse lists paired with their details.
   `NominationsPanel.test.tsx`: nomination list paired with the selected
