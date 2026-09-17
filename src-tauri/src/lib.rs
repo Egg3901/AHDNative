@@ -178,6 +178,39 @@ async fn open_mp_sign_in(app: tauri::AppHandle, provider: String) -> Result<(), 
     open_mp_auth_window(app, url).await
 }
 
+/// Mobile multiplayer launcher (#362 return path): the app boot reads
+/// `?view=mp` into the MP screen, mirroring the Ask `?view=ask` launcher.
+#[cfg(any(mobile, test))]
+fn mobile_mp_launcher_url() -> Url {
+    let raw = if cfg!(target_os = "android") {
+        "http://tauri.localhost/?view=mp"
+    } else {
+        "tauri://localhost/?view=mp"
+    };
+    raw.parse().expect("static multiplayer launcher URL")
+}
+
+/// Pure stop rule for the mobile sign-in watch below: stop when the session
+/// cookie appeared (navigate back to the MP launcher), or when the main view
+/// is already back on the app origin (the player returned on their own, so a
+/// late navigate must never yank the view).
+#[cfg(any(mobile, test))]
+fn mp_signin_watch_done(signed_in: bool, on_app_origin: bool) -> bool {
+    signed_in || on_app_origin
+}
+
+/// Whether the main view currently shows app content rather than the borrowed
+/// live-site sign-in page. Mirrors the Ask watcher stop condition.
+#[cfg(mobile)]
+fn main_view_on_app_origin(app: &tauri::AppHandle) -> bool {
+    app.get_webview_window("main")
+        .and_then(|view| view.url().ok())
+        .is_some_and(|current| {
+            current.scheme() == "tauri"
+                || (current.scheme() == "http" && current.host_str() == Some("tauri.localhost"))
+        })
+}
+
 #[tauri::command]
 #[cfg(mobile)]
 async fn open_mp_sign_in(app: tauri::AppHandle, provider: String) -> Result<(), String> {
@@ -192,16 +225,14 @@ async fn open_mp_sign_in(app: tauri::AppHandle, provider: String) -> Result<(), 
     std::thread::spawn(move || {
         for _ in 0..600 {
             std::thread::sleep(std::time::Duration::from_secs(1));
-            if mp_session::has_account_session(&app) {
-                if let Some(main) = app.get_webview_window("main") {
-                    let home: Url = if cfg!(target_os = "android") {
-                        "http://tauri.localhost/?view=mp"
-                    } else {
-                        "tauri://localhost/?view=mp"
+            if mp_signin_watch_done(
+                mp_session::has_account_session(&app),
+                main_view_on_app_origin(&app),
+            ) {
+                if mp_session::has_account_session(&app) {
+                    if let Some(main) = app.get_webview_window("main") {
+                        let _ = main.navigate(mobile_mp_launcher_url());
                     }
-                    .parse()
-                    .expect("static multiplayer launcher URL");
-                    let _ = main.navigate(home);
                 }
                 break;
             }
@@ -292,8 +323,27 @@ pub fn run() {
 mod tests {
     use super::{
         external_destination_url, is_account_session_cookie, is_ask_navigation_allowed,
-        is_online_navigation_allowed, is_online_origin, mp_sign_in_path, ASK_URL,
+        is_online_navigation_allowed, is_online_origin, mobile_mp_launcher_url, mp_sign_in_path,
+        mp_signin_watch_done, ASK_URL,
     };
+
+    #[test]
+    fn mobile_sign_in_returns_to_the_mp_launcher() {
+        // The app boot reads `?view=mp` into the MP screen, so the mobile
+        // watcher landing here is the reliable return path (#362).
+        assert_eq!(
+            mobile_mp_launcher_url().to_string(),
+            "tauri://localhost/?view=mp"
+        );
+    }
+
+    #[test]
+    fn mobile_sign_in_watcher_stops_once_home_or_signed_in() {
+        assert!(mp_signin_watch_done(true, false));
+        assert!(mp_signin_watch_done(false, true));
+        assert!(mp_signin_watch_done(true, true));
+        assert!(!mp_signin_watch_done(false, false));
+    }
 
     #[test]
     fn multiplayer_sign_in_uses_only_native_provider_entrypoints() {
