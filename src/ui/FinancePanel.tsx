@@ -58,15 +58,15 @@ function PortfolioSection({ finance, onNavigate }: { finance: FinanceView; onNav
           ) : null}
         </p>
         <dl style={{ display: "flex", flexDirection: "column", gap: "0.35rem", margin: "0.5rem 0 0" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
-            <dt style={{ fontSize: "0.82rem" }}>Cash</dt>
-            <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem", fontWeight: 700 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", minWidth: 0 }}>
+            <dt style={{ fontSize: "0.82rem", flexShrink: 0 }}>Cash</dt>
+            <dd className="ahd-mono" style={{ margin: 0, minWidth: 0, fontSize: "0.82rem", fontWeight: 700, textAlign: "right", overflowWrap: "anywhere" }}>
               {formatFinanceMoney(finance.cash, finance.currency)}
             </dd>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
-            <dt style={{ fontSize: "0.82rem" }}>Savings</dt>
-            <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem", fontWeight: 700 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", minWidth: 0 }}>
+            <dt style={{ fontSize: "0.82rem", flexShrink: 0 }}>Savings</dt>
+            <dd className="ahd-mono" style={{ margin: 0, minWidth: 0, fontSize: "0.82rem", fontWeight: 700, textAlign: "right", overflowWrap: "anywhere" }}>
               {formatFinanceMoney(finance.savings, finance.currency)}
             </dd>
           </div>
@@ -147,15 +147,15 @@ function BankingSection({ finance, busy, onAction, onNavigate }: { finance: Fina
             </button>
           </p>
         ) : null}
-        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", marginTop: "0.5rem" }}>
-          <div style={{ fontSize: "0.82rem" }}>Cash</div>
-          <div className="ahd-mono" style={{ fontSize: "0.82rem", fontWeight: 700 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", minWidth: 0, marginTop: "0.5rem" }}>
+          <div style={{ fontSize: "0.82rem", flexShrink: 0 }}>Cash</div>
+          <div className="ahd-mono" style={{ minWidth: 0, fontSize: "0.82rem", fontWeight: 700, textAlign: "right", overflowWrap: "anywhere" }}>
             {formatFinanceMoney(finance.cash, finance.currency)}
           </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", marginTop: "0.25rem" }}>
-          <div style={{ fontSize: "0.82rem" }}>Savings</div>
-          <div className="ahd-mono" style={{ fontSize: "0.82rem", fontWeight: 700 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", minWidth: 0, marginTop: "0.25rem" }}>
+          <div style={{ fontSize: "0.82rem", flexShrink: 0 }}>Savings</div>
+          <div className="ahd-mono" style={{ minWidth: 0, fontSize: "0.82rem", fontWeight: 700, textAlign: "right", overflowWrap: "anywhere" }}>
             {formatFinanceMoney(finance.savings, finance.currency)}
           </div>
         </div>

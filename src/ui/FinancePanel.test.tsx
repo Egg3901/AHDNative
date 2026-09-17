@@ -108,6 +108,54 @@ describe("FinancePanel banking", () => {
     expect(onAction).toHaveBeenCalledWith("withdrawSavings", { amount: 200 });
   });
 
+describe("FinancePanel 320px balance-row contract", () => {
+  // Long currency values (large balances, unknown-currency fallback suffixes)
+  // must shrink and wrap inside the hero Cash/Savings rows instead of
+  // overflowing the card or crushing the label at 320px. jsdom performs no
+  // layout, so the case asserts the shipped shrink/wrap styles, matching the
+  // MetricRowContracts convention.
+  it("keeps banking Cash/Savings values inside the row at 320px", async () => {
+    const FinancePanel = await renderPanel();
+    render(
+      <FinancePanel
+        finance={makeFinance({ cash: 1234567890.5, savings: 987654321.25 })}
+        section="banking"
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+    for (const label of ["Cash", "Savings"]) {
+      const labelEl = screen.getByText(label, { exact: true });
+      const row = labelEl.parentElement!;
+      const value = row.lastElementChild as HTMLElement;
+      expect(value.style.minWidth).toBe("0");
+      expect(value.style.textAlign).toBe("right");
+      expect(value.style.overflowWrap).toBe("anywhere");
+      expect((labelEl as HTMLElement).style.flexShrink).toBe("0");
+    }
+  });
+
+  it("keeps portfolio Cash/Savings values inside the row at 320px", async () => {
+    const FinancePanel = await renderPanel();
+    render(
+      <FinancePanel
+        finance={makeFinance({ cash: 1234567890.5, savings: 987654321.25, holdings: [] })}
+        section="portfolio"
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+    for (const label of ["Cash", "Savings"]) {
+      const labelEl = screen.getByText(label, { exact: true });
+      const row = labelEl.parentElement!;
+      const value = row.lastElementChild as HTMLElement;
+      expect(value.style.minWidth).toBe("0");
+      expect(value.style.textAlign).toBe("right");
+      expect(value.style.overflowWrap).toBe("anywhere");
+      expect((labelEl as HTMLElement).style.flexShrink).toBe("0");
+    }
+  });
+});
   it("disables buttons when busy or the action is unavailable, showing the reason", async () => {
     const FinancePanel = await renderPanel();
     const { rerender } = render(
@@ -127,3 +175,4 @@ describe("FinancePanel banking", () => {
     expect(screen.getByText("No open account")).toBeInTheDocument();
   });
 });
+
