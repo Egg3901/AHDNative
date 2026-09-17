@@ -197,8 +197,22 @@ export interface FinanceView {
   /** Recorded wealth series for the portfolio trend chart. Absent on older projections; empty before the first turn. */
   wealthHistory?: FinanceWealthHistoryPoint[];
 }
+/**
+ * The player's validated cabinet seat (#510). Mirrors AHDGame's cabinet nav
+ * entry (`resolveCabinetOfficeNavEntry` over `myCabinetMember` in
+ * `src/lib/navigation/cabinetOfficeNavEntry.ts`, served through
+ * `src/app/api/client-nav/route.ts`): the seat counts only when the stored
+ * position id is in the player's own country position list. Null means no
+ * seat; absent means a pre-signal projection (old fixtures), which callers
+ * treat like today's unconditional row rather than a proven absence.
+ */
+export interface CabinetSeatView {
+  positionId: string;
+  positionName: string;
+}
 export interface GameView {
   turn: number; date: string; era: string; countryId: string; countryName: string;
+  cabinet?: CabinetSeatView | null;
   foundingActive?: boolean;
   foundingOffset?: number;
   /** Singleplayer difficulty bound at world creation (issue #334). */

@@ -5,6 +5,7 @@ import type { ProfileUpdate } from "./profileTypes";
 import { applyProfileConstituency } from "./profileConstituency";
 import { projectRegions, type RegionsQuery } from "./regions";
 import { projectCabinetOffice, type IssueCabinetOrderInput } from "./cabinetOffice";
+import { projectCabinetMembership } from "./cabinetSeat";
 import { projectCaucusManagement } from "./caucusManagement";
 import { projectBondMarket } from "./bondMarket";
 import { projectPartyManagement } from "./partyManagement";
@@ -679,6 +680,8 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     foundingActive: isFoundingActive(world.elections),
     ...(typeof world.meta.preIterationTurns === "number" ? { foundingOffset: world.meta.preIterationTurns } : {}),
     countryId: country.id, countryName: country.name,
+    // #510 drawer gating signal; see projectCabinetMembership provenance.
+    cabinet: projectCabinetMembership(world),
     // Issues #334/#345: the world stores only a non-default axis; the
     // view always reports the effective value (absent means normal/v4).
     difficulty: resolveSingleplayerDifficulty(world.difficulty),
