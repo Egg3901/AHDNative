@@ -150,7 +150,7 @@ export function LandingScreen({
               <p id={`delete-desc-${saved.slotId}`} className="ahd-muted" style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', lineHeight: 1.5 }}>
                 This will permanently delete this saved game. This cannot be undone.
               </p>
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+              <div className="ahd-delete-confirm-actions">
                 <button
                   id={`delete-cancel-${saved.slotId}`}
                   className="ahd-btn ahd-btn-sm"
@@ -161,7 +161,7 @@ export function LandingScreen({
                   Cancel
                 </button>
                 <button
-                  className="ahd-btn ahd-btn-sm ahd-btn-primary"
+                  className="ahd-btn ahd-btn-sm ahd-btn-danger"
                   disabled={busy}
                   onClick={onConfirmDelete}
                   aria-label={`Confirm delete ${saved.playerName}`}
