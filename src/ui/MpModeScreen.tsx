@@ -283,6 +283,26 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                 {snapshot.character.corporationName && (<><dt>Corporation</dt><dd>{snapshot.character.corporationName}</dd></>)}
               </dl>
             </article>
+            {snapshot.capabilities && (
+              <article className="ahd-card ahd-card-pad" aria-label="Standing">
+                <h2 className="ahd-h2">Standing</h2>
+                {(snapshot.capabilities.corporationId !== null ||
+                  snapshot.capabilities.unionId ||
+                  snapshot.capabilities.activeElectionLabel ||
+                  snapshot.capabilities.cabinetOffice ||
+                  snapshot.capabilities.governorOffice) ? (
+                  <dl className="ahd-mp-facts">
+                    {snapshot.capabilities.corporationId !== null && (<><dt>Corporation</dt><dd>#{snapshot.capabilities.corporationId}</dd></>)}
+                    {snapshot.capabilities.unionId && (<><dt>Union</dt><dd>{snapshot.capabilities.unionId}</dd></>)}
+                    {snapshot.capabilities.activeElectionLabel && (<><dt>Election</dt><dd>{snapshot.capabilities.activeElectionLabel}</dd></>)}
+                    {snapshot.capabilities.cabinetOffice && (<><dt>Cabinet</dt><dd>{snapshot.capabilities.cabinetOffice}</dd></>)}
+                    {snapshot.capabilities.governorOffice && (<><dt>Governor</dt><dd>{snapshot.capabilities.governorOffice}</dd></>)}
+                  </dl>
+                ) : (
+                  <p className="ahd-muted" style={{ margin: 0 }}>No offices, candidacies, or company standing.</p>
+                )}
+              </article>
+            )}
             {snapshot.turn && (
               <article className="ahd-card ahd-card-pad" aria-label="World turn">
                 <h2 className="ahd-h2">Turn {snapshot.turn.currentTurn} · {snapshot.turn.currentYear}</h2>
