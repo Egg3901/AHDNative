@@ -227,11 +227,11 @@ export function App() {
     });
   }
 
-  if (screen === 'help' || screen === 'settings') return <main className="ahd-screen"><div className="ahd-container" style={{ maxWidth: '42rem', paddingTop: 'max(1rem, env(safe-area-inset-top))', paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
+  if (screen === 'help' || screen === 'settings') return <main className="ahd-screen"><div className="ahd-container" style={{ maxWidth: '42rem', paddingTop: 'max(1rem, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top))', paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
     <button className="ahd-btn" onClick={() => setScreen('home')} autoFocus>Back to home</button>
     {screen === 'help' ? <HelpPanel /> : <SettingsPanel value={presentation.value} onChange={changePreferences} error={presentation.error} />}
   </div></main>;
-  if (screen === 'ask') return <main className="ahd-screen"><div className="ahd-container" style={{ maxWidth: '42rem', paddingTop: 'max(1rem, env(safe-area-inset-top))', paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
+  if (screen === 'ask') return <main className="ahd-screen"><div className="ahd-container" style={{ maxWidth: '42rem', paddingTop: 'max(1rem, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top))', paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
     <button className="ahd-btn" onClick={() => setScreen(askReturn.current)} autoFocus>Back</button>
     <div className="ahd-ask-embed" style={{ marginTop: '0.75rem' }}>
       <AskPanel surface="main" onBeforeSignIn={() => { if (world) void run(save); }} />

@@ -1611,6 +1611,24 @@ and removed. The smoke helper now walks the conversation; no engine change.
   neighboring `DeviceChromeContracts` (10), `SafeAreaComposition`,
   `MobileNavigation`, `MpModeScreenNav` suites green. #436 stays open with
   `status: partial` for the named physical-device pass; no device claim made.
+- Native-fallback follow-up, 2026-09-17 (WKWebView zero-env failure): internal
+  iOS 0.1.8 resolved `env(safe-area-inset-top)` to zero, which no web CSS can
+  distinguish from a notch-less device. New `src/ui/iosSafeArea.ts` measures
+  the live value with a probe and, only on iPhone-class portrait webviews
+  reading ~zero, publishes a 59px fail-safe floor as
+  `--ahd-safe-area-top-fallback` (composed into all 11 top rules: game main,
+  drawer, landing, MP layout, docked drawer, resource popover, Ask window,
+  App/NewGame/Creation shells) plus `data-ahd-safe-area` and
+  `window.__AHD_SAFE_AREA__` diagnostics. The pinned runtime cannot expose
+  the metric natively (Tauri JS 2.11.1: window sizes only; tauri 2.11.3: no
+  iOS inset command), pinned by a Rust no-native-surface test. Desktop,
+  Android, iPad, landscape, keyboard, and pinch zoom are untouched by
+  construction. Evidence: new `iosSafeArea` (14) + `SafeAreaFallback` (10)
+  cases, red-checked (8 fail without the fix); neighboring safe-area suites
+  green. `NewGameScreen` seed-length case times out identically on the clean
+  tree (pre-existing, unrelated). #436 stays open with `status: partial`
+  for the named physical-device pass reading the diagnostic; no device
+  claim made.
 
 ## Dual-pane and hinge-aware layout checkpoint, 2026-09-16 (#438 partial)
 

@@ -40,11 +40,11 @@ describe("entry shell top clearance (#436)", () => {
   });
 
   it("starts the NewGameScreen root below the island", () => {
-    expect(newGameTsx).toContain(`paddingTop: "max(1rem, ${TOP_INSET})"`);
+    expect(newGameTsx).toContain(`paddingTop: "max(1rem, var(--ahd-safe-area-top-fallback, 0px), ${TOP_INSET})"`);
   });
 
   it("starts the CharacterCreationScreen root below the island", () => {
-    expect(creationTsx).toContain(`paddingTop: "max(1rem, ${TOP_INSET})"`);
+    expect(creationTsx).toContain(`paddingTop: "max(1rem, var(--ahd-safe-area-top-fallback, 0px), ${TOP_INSET})"`);
   });
 
   it("keeps every entry shell inside the side-inset container", () => {
