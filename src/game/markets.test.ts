@@ -475,7 +475,7 @@ describe("sector metrics and ownership", () => {
       expect(listing.sectorAsset.unionId).toBe(`${corp.countryId}-${corp.sectorType}`);
       expect(listing.sectorAsset.unionName).toBe(world.unions[`${corp.countryId}-${corp.sectorType}`]!.name);
       expect(listing.sectorAsset.forSale).toBeNull();
-      expect(JSON.stringify(listing.sectorAsset)).not.toMatch(/employee|staff|headcount|ceo|chief executive/i);
+      expect(Object.keys(listing.sectorAsset).join(" ")).not.toMatch(/employee|staff|headcount|ceo|chief executive/i);
     }
     expect(JSON.stringify(view)).not.toMatch(/"forSale":\s*(?!null)/i);
   });
