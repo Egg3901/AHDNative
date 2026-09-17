@@ -81,6 +81,20 @@ export async function closeGameMenu(page: Page) {
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
 }
 
+/**
+ * Test-only fixture bootstrap (#506). Loads save bytes through the DEV-only
+ * `window.__ahdTestHooks` boundary installed by the app (same worker/store
+ * path as a native resume). The hook does not exist in production builds, so
+ * this helper throws there instead of injecting anything.
+ */
+export async function loadFixture(page: Page, fixture: Buffer) {
+  await page.evaluate(async (saveText: string) => {
+    const hooks = (window as unknown as { __ahdTestHooks?: { loadFixture: (contents: string) => Promise<void> } }).__ahdTestHooks;
+    if (!hooks) throw new Error('Test fixture hooks are unavailable in this build.');
+    await hooks.loadFixture(saveText);
+  }, fixture.toString('utf8'));
+}
+
 export async function gameReady(page: Page) {
   await closeGameMenu(page);
   await expect(page.getByRole('contentinfo')).toBeVisible();

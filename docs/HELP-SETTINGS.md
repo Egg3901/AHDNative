@@ -10,8 +10,8 @@ This slice adds a self-contained Help page and device-local presentation setting
 - The Character tab exposes the action catalog and the amount, party, and region fields supplied by each action.
 - Successful actions and turns are saved by `src/App.tsx`; rejected actions stay out of the committed session state.
 - Parties, candidacy, elections, legislature, news, banking, portfolio, and market views use actual game data. Larger directory queries are loaded only while visible.
-- The home save browser supports continue, import, confirmed deletion, and visible errors.
-- Failed imports are loaded into a replacement session, so an error leaves the current session open.
+- The home save browser supports continue, confirmed deletion, and visible errors.
+- Failed loads are validated in a replacement session, so an error leaves the current session open.
 
 The page names current gaps from the navigation audit without sending players to a network resource. Multiplayer accounts and live server play remain outside the offline app. Corporation management, unions, notifications, maps, country switching, regional legislative actions, and several advanced country systems remain unavailable. The app includes stock-market browsing and trades in the player cash currency, bill details with tax-rate proposals, and region/nation browsing.
 

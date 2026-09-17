@@ -1,4 +1,4 @@
-import { openGameMenu, navigateGame, gameReady, completeCharacterCreation } from './game-navigation';
+import { openGameMenu, navigateGame, gameReady, completeCharacterCreation, loadFixture } from './game-navigation';
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -42,7 +42,7 @@ test('offline search opens the matching party, foreign nation and company withou
 test('search filters narrow the result set and a region result opens the regions route', async ({ page }) => {
   const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-elected-1953-US.save.json.gz', import.meta.url)));
   await page.goto('/');
-  await page.getByLabel('Import saved game', { exact: true }).setInputFiles({ name: 'elected.json', mimeType: 'application/json', buffer: fixture });
+  await loadFixture(page, fixture);
   await gameReady(page);
   // A region result opens the existing regions route on the exact region.
   const alabama = await search(page, 'Alabama');
@@ -61,7 +61,7 @@ test('search filters narrow the result set and a region result opens the regions
 test('search opens the saved bond issue on the bond market', async ({ page }) => {
   const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-elected-1953-US.save.json.gz', import.meta.url)));
   await page.goto('/');
-  await page.getByLabel('Import saved game', { exact: true }).setInputFiles({ name: 'elected.json', mimeType: 'application/json', buffer: fixture });
+  await loadFixture(page, fixture);
   await gameReady(page);
   await (await search(page, 'bond-60-US')).getByRole('button').first().click();
   await expect(page.getByRole('region', { name: 'Bond market', exact: true })).toBeFocused();
@@ -93,7 +93,7 @@ test('search keeps the query and opened result when the player returns', async (
 test('search opens the actual saved bill and election details', async ({ page }) => {
   const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-elected-1953-US.save.json.gz', import.meta.url)));
   await page.goto('/');
-  await page.getByLabel('Import saved game', { exact: true }).setInputFiles({ name: 'elected.json', mimeType: 'application/json', buffer: fixture });
+  await loadFixture(page, fixture);
   await gameReady(page);
   await (await search(page, 'Fair Labor')).getByRole('button').first().click();
   await expect(page.getByRole('heading', { name: 'Bill details: Fair Labor Standards and Employment Security Act', exact: true })).toBeVisible();

@@ -14,6 +14,7 @@ import { NewGameScreen } from './ui/NewGameScreen';
 import { CharacterCreationScreen } from './ui/CharacterCreationScreen';
 import { GameScreen } from './ui/GameScreen';
 import { LandingScreen } from './ui/LandingScreen';
+import { clearTestHooks, installTestHooks } from './game/testHooks';
 import { MpModeScreen } from './ui/MpModeScreen';
 import { AskPanel } from './ask/AskPanel';
 import { installIosViewport } from './ui/iosViewport';
@@ -163,10 +164,13 @@ export function App() {
       await replaceWorld(worker => worker.load(contents), saved.slotId);
     });
   }
-  function importSave(file: File) {
-    void run(async () => {
-      if (file.size > 256 * 1024 * 1024) throw new Error('This save exceeds the 256 MB limit.');
-      const contents = await file.text();
+  // #506: test-only fixture bootstrap. The player-facing import control is
+  // removed; Playwright fixtures enter through `window.__ahdTestHooks`, which
+  // is installed only in DEV builds (production builds drop the branch at
+  // compile time). Fixtures travel the same native/session path as resume:
+  // worker load (deserialize + compatibility migration) then the save store.
+  function loadFixtureContents(contents: string) {
+    return run(async () => {
       const nextSlot = newId();
       await replaceWorld(async worker => {
         const view = await worker.load(contents);
@@ -175,9 +179,14 @@ export function App() {
         setSaves(await saveRepository.list());
         return view;
       }, nextSlot);
-      setMessage('Saved game imported.');
+      setMessage('Saved game loaded.');
     });
   }
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    installTestHooks({ loadFixture: contents => loadFixtureContents(contents).then(() => undefined) });
+    return () => clearTestHooks();
+  });
   async function save(includeSaveNotice = true) {
     if (!client.current || !slot.current) throw new Error('Start or load a game first.');
     // Prepare the prospective notice without mutating the session. Only
@@ -303,7 +312,6 @@ export function App() {
     onSettings={() => setScreen('settings')}
     onReturn={() => setScreen('game')}
     onReload={() => window.location.reload()}
-    onImport={importSave}
     onLoad={load}
     onRequestDelete={requestDelete}
     onCancelDelete={cancelDelete}

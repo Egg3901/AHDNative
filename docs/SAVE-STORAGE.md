@@ -4,7 +4,7 @@ The Rust store keeps the original JSON envelope bytes. It validates metadata wit
 
 Listing reads one bounded file at a time and extracts only the envelope, player identity and turn. Unknown world fields are parsed and skipped without constructing their object trees. This retains one raw file buffer; it is not constant-memory streaming. The 256 MiB file limit remains in effect.
 
-The app does not rescan all saved worlds after every autosaved action or turn. It refreshes the browser on exit/import and updates the list directly after a successful deletion. Delete requires an explicit confirmation; cancelling or a storage failure preserves the save. Deleting the active slot also disposes its in-memory session.
+The app does not rescan all saved worlds after every autosaved action or turn. It refreshes the browser on exit/load and updates the list directly after a successful deletion. Delete requires an explicit confirmation; cancelling or a storage failure preserves the save. Deleting the active slot also disposes its in-memory session.
 
 ## Local performance evidence
 

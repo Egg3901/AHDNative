@@ -28,7 +28,6 @@ function props(overrides: Partial<LandingScreenProps> = {}): LandingScreenProps 
     onSettings: vi.fn(),
     onReturn: vi.fn(),
     onReload: vi.fn(),
-    onImport: vi.fn(),
     onLoad: vi.fn(),
     onRequestDelete: vi.fn(),
     onCancelDelete: vi.fn(),
@@ -191,17 +190,29 @@ describe("LandingScreen", () => {
     expect(screen.queryByRole("button", { name: /multiplayer website/i })).not.toBeInTheDocument();
   });
 
-  it("imports a chosen save file and surfaces errors and loading state", async () => {
-    const user = userEvent.setup();
-    const p = props({ error: "Import failed.", busy: true });
-    const { rerender } = render(<LandingScreen {...p} />);
-    expect(screen.getByRole("alert")).toHaveTextContent("Import failed.");
+  it("surfaces errors and loading state without an import control", () => {
+    const p = props({ error: "Load failed.", busy: true });
+    render(<LandingScreen {...p} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Load failed.");
     expect(screen.getByText("Loading your world...")).toBeInTheDocument();
-    rerender(<LandingScreen {...props({ error: "Import failed.", onImport: p.onImport })} />);
-    const file = new File(["{}"], "save.json", { type: "application/json" });
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    await user.upload(input, file);
-    expect(p.onImport).toHaveBeenCalledTimes(1);
-    expect((p.onImport as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]).toBeInstanceOf(File);
+  });
+
+  it("exposes no player-facing import control on phone or desktop launch surfaces", () => {
+    // #506: the player UI offers New game and native saved-world
+    // resume/delete only. Fixture loading lives behind the DEV-only
+    // test-hooks boundary, never behind a rendered control.
+    for (const saves of [[], SAVES] as const) {
+      const { unmount } = render(<LandingScreen {...props({ saves: [...saves] })} />);
+      expect(screen.queryByText("Import saved game")).toBeNull();
+      expect(screen.queryByLabelText(/import saved game/i)).toBeNull();
+      expect(document.querySelector('input[type="file"]')).toBeNull();
+      expect(document.querySelector('input[accept*="json"]')).toBeNull();
+      // Entry stays reachable: New game plus native resume/delete.
+      expect(screen.getByRole("button", { name: "New game" })).toBeInTheDocument();
+      unmount();
+    }
+    render(<LandingScreen {...props({ saves: SAVES })} />);
+    expect(screen.getByRole("button", { name: "Continue Ada" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete Ada" })).toBeInTheDocument();
   });
 });

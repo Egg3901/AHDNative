@@ -1,4 +1,4 @@
-import { openGameMenu, closeGameMenu, gameReady, navigateGame, advanceGame, saveGame, exitGame, completeCharacterCreation } from './game-navigation';
+import { openGameMenu, closeGameMenu, gameReady, navigateGame, advanceGame, saveGame, exitGame, completeCharacterCreation, loadFixture } from './game-navigation';
 import { test, expect } from '@playwright/test';
 test('a real singleplayer world survives save and relaunch on a phone sized screen', async ({ page }) => {
   const errors: string[] = [];
@@ -36,7 +36,7 @@ test('a real singleplayer world survives save and relaunch on a phone sized scre
   await page.screenshot({ path: 'artifacts/smoke/mobile-world.png', fullPage: true });
 });
 
-test('a corrupt import leaves the saved world available', async ({ page }) => {
+test('a corrupt save through the native session boundary leaves the saved world available', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'New game', exact: true }).click();
   await page.getByLabel('Your name').fill('Recovery Player');
@@ -45,7 +45,7 @@ test('a corrupt import leaves the saved world available', async ({ page }) => {
   await completeCharacterCreation(page);
   await exitGame(page);
   await expect(page.getByRole('button', { name: 'Continue Recovery Player' })).toBeVisible();
-  await page.getByLabel('Import saved game', { exact: true }).setInputFiles({ name: 'broken.json', mimeType: 'application/json', buffer: Buffer.from('{broken') }, { timeout: 10_000 });
+  await loadFixture(page, Buffer.from('{broken'));
   await expect(page.getByRole('alert')).toBeVisible();
   await page.getByRole('button', { name: 'Continue Recovery Player' }).click();
   await gameReady(page);

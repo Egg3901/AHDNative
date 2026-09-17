@@ -150,7 +150,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   const focusPage = useRef(false);
   const resourceButtonRefs = useRef<Partial<Record<ResourceId, HTMLButtonElement | null>>>({});
 
-  const saveNotice = message === "Game saved." || message === "Saved game imported.";
+  const saveNotice = message === "Game saved." || message === "Saved game loaded.";
   // One world clock for every in-game date surface on this screen (#226).
   const clock: GameClock = {
     turn: world.turn,
