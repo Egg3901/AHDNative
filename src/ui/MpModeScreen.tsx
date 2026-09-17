@@ -42,6 +42,7 @@ const IDLE: MpSnapshot = {
   character: null,
   turn: null,
   capabilities: null,
+  electionDetail: null,
   inbox: null,
   mailInbox: null,
   mailSent: null,
@@ -270,12 +271,19 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     });
   }
 
+  const phase = snapshot.phase;
+  const needsSession = phase === "idle" || phase === "loading" || phase === "session-required" || phase === "signed-out" || phase === "auth-expired";
+
+  /* Auth expiry evicts the detail with every other authed projection, so the
+   * open panel closes itself instead of showing a stale race. Above the
+   * admin early-return: every render runs the same hooks. */
+  useEffect(() => {
+    if (needsSession && electionOpen) setElectionOpen(false);
+  }, [needsSession, electionOpen]);
+
   if (adminOpen) {
     return <MpAdminScreen host={host} onBack={() => setAdminOpen(false)} />;
   }
-
-  const phase = snapshot.phase;
-  const needsSession = phase === "idle" || phase === "loading" || phase === "session-required" || phase === "signed-out" || phase === "auth-expired";
   const blocked = phase === "offline" || phase === "server-error" || phase === "rate-limited";
   /* Authoritative timing projection (#359 presence slice): the countdown is
    * computed from the server's nextScheduledTurn at render, exactly like the
@@ -288,12 +296,6 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     && !snapshot.turn.isProcessing
     && !snapshot.turn.paused
     && snapshot.turn.isActive !== false;
-
-  /* Auth expiry evicts the detail with every other authed projection, so the
-   * open panel closes itself instead of showing a stale race. */
-  useEffect(() => {
-    if (needsSession && electionOpen) setElectionOpen(false);
-  }, [needsSession, electionOpen]);
 
   const visibleElection = !needsSession && electionOpen ? snapshot.electionDetail : null;
   const electionPhaseLabel = visibleElection
