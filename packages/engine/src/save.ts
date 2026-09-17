@@ -26,7 +26,12 @@ import {
 import { seedCapitalStock } from "./economy/capitalStock.js";
 import { seedStateResourceCapacities } from "./extraction/founding.js";
 import { seedCountryPolitics } from "./countryPolitics/overview.js";
-import { backfillSectorOwner, validateCorporateSectorAssets } from "./corporation/corporateSectorAssets.js";
+import {
+  backfillSectorOwner,
+  calculateSectorWorkers,
+  initialRepresentingUnionId,
+  validateCorporateSectorAssets,
+} from "./corporation/corporateSectorAssets.js";
 
 /**
  * Save file = versioned JSON envelope around the full WorldState. Older
@@ -2547,6 +2552,30 @@ export function deserializeSave(raw: string): WorldState {
       }
     }
     save.world.meta.schemaVersion = 46;
+  }
+  // v46 -> v47: grounded corporate-sector workforce (#296). Pre-#296 asset
+  // rows carry placeholder workforce state (workers: 0, representingUnionId:
+  // null, seeded by #293 before the substrate existed); no command or UI ever
+  // authored those fields, so every stored pre-#47 value is placeholder, and
+  // the schema version — not a magic value — is what distinguishes it from a
+  // genuinely recorded 0. Recompute headcount deterministically from each
+  // asset's recorded corporation (live revenue: the reference re-derives
+  // headcount from live revenue every turn, so this is the steady-state
+  // value, not history) and adopt the seeded union for the pair where one
+  // exists, preserving any present pointer (raid preservation). Saves with no
+  // materialized corporateSectors are untouched — they lazy-seed grounded
+  // values on access. No RNG is consumed and no identity changes.
+  if (save.schemaVersion < 47) {
+    const assets = save.world.corporateSectors;
+    if (assets) {
+      for (const asset of Object.values(assets)) {
+        asset.workers = calculateSectorWorkers(save.world.corporations[asset.corporationId]?.revenue, null);
+        if (asset.representingUnionId === null || asset.representingUnionId === undefined) {
+          asset.representingUnionId = initialRepresentingUnionId(save.world, asset.countryId, asset.sectorType);
+        }
+      }
+    }
+    save.world.meta.schemaVersion = 47;
   }
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
