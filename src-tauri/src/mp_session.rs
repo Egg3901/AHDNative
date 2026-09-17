@@ -98,6 +98,12 @@ pub enum MpFetchOp {
     ClientNav,
     /// Turn/year/processing/countdown; public but fresher via the session.
     TurnStatus,
+    /// Players active within the last hour; public, no session required.
+    /// Audited against `GET /api/players/online` (route comment pins the
+    /// one-hour window and the banned exclusion); answers `{online, asOf}`
+    /// with a 120s public cache. The adapter treats every failure as
+    /// absent, never as zero, and a 401 here must never expire the session.
+    PlayersOnline,
     /// Turn/year/iteration fallback; public.
     GameTime,
     /// Paginated inbox; requires the session, 401 otherwise.
@@ -117,6 +123,7 @@ impl MpFetchOp {
             "character-me" => Some(Self::CharacterMe),
             "client-nav" => Some(Self::ClientNav),
             "turn-status" => Some(Self::TurnStatus),
+            "players-online" => Some(Self::PlayersOnline),
             "game-time" => Some(Self::GameTime),
             "notifications" => Some(Self::Notifications),
             "mail-inbox" => Some(Self::MailInbox),
@@ -132,6 +139,7 @@ impl MpFetchOp {
             Self::CharacterMe => "/api/character/me",
             Self::ClientNav => "/api/client-nav",
             Self::TurnStatus => "/api/game/turn/status",
+            Self::PlayersOnline => "/api/players/online",
             Self::GameTime => "/api/game-time",
             Self::Notifications => "/api/notifications",
             Self::MailInbox => "/api/mail",
@@ -722,6 +730,7 @@ fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
         | ("GET", "/api/character/me")
         | ("GET", "/api/client-nav")
         | ("GET", "/api/game/turn/status")
+        | ("GET", "/api/players/online")
         | ("GET", "/api/admin/maintenance")
         | ("GET", "/api/game-time") => query.is_none(),
         ("GET", "/api/notifications") | ("GET", "/api/mail") | ("GET", "/api/mail/sent") => {
@@ -1262,6 +1271,11 @@ mod tests {
             MpFetchOp::from_id("turn-status"),
             Some(MpFetchOp::TurnStatus)
         );
+        assert_eq!(
+            MpFetchOp::from_id("players-online"),
+            Some(MpFetchOp::PlayersOnline)
+        );
+        assert_eq!(MpFetchOp::PlayersOnline.path(), "/api/players/online");
         assert_eq!(MpFetchOp::from_id("game-time"), Some(MpFetchOp::GameTime));
         assert_eq!(
             MpFetchOp::from_id("notifications"),
@@ -1685,6 +1699,7 @@ mod tests {
             ("GET", "/api/character/me"),
             ("GET", "/api/client-nav"),
             ("GET", "/api/game/turn/status"),
+            ("GET", "/api/players/online"),
             ("GET", "/api/game-time"),
             ("GET", "/api/admin/maintenance"),
             ("GET", "/api/notifications?limit=25&offset=0"),
@@ -1704,6 +1719,7 @@ mod tests {
             ("DELETE", "/api/notifications"),
             ("PATCH", "/api/notifications?limit=10"),
             ("GET", "/api/client-nav?x=1"),
+            ("GET", "/api/players/online?x=1"),
             ("GET", "/api/notifications"),
             ("GET", "/api/notifications?limit=500&offset=0"),
             ("GET", "/api/notifications?limit=10"),

@@ -8,6 +8,7 @@ import {
 import { MpModeSession, type MpSnapshot } from "../mp/adapter";
 import { tauriMpBridgeHost, type MpBridgeHost } from "../mp/bridge";
 import { MP_EXECUTE_ACTIONS, MP_NOTIFICATION_TYPES, MP_SNOOZE_MINUTES_DEFAULT } from "../mp/endpoints";
+import { formatTurnCountdown } from "../mp/validators";
 import { MpAdminScreen } from "./MpAdminScreen";
 import "./ui.css";
 
@@ -26,6 +27,13 @@ export interface MpModeScreenProps {
   onExit: () => void;
 }
 
+/* Presence freshness cadence (#359 presence slice): mirrors the reference
+ * StatusBar, which re-polls GET /api/players/online every 5 minutes plus on
+ * visibility return. loadPresence never touches phase or error state, so a
+ * failed poll stays absent without disturbing the session; the adapter
+ * no-ops entirely without a signed-in session. */
+const PRESENCE_POLL_MS = 300_000;
+
 const IDLE: MpSnapshot = {
   phase: "idle",
   userId: null,
@@ -36,6 +44,7 @@ const IDLE: MpSnapshot = {
   inbox: null,
   mailInbox: null,
   mailSent: null,
+  presence: null,
   notice: null,
   error: null,
   retryAfter: null,
@@ -53,15 +62,17 @@ function jumpTo(id: string) {
   target?.scrollIntoView?.();
 }
 
-function formatCountdown(iso: string | null): string | null {
-  if (!iso) return null;
-  const target = Date.parse(iso);
-  if (!Number.isFinite(target)) return null;
-  const minutes = Math.max(0, Math.round((target - Date.now()) / 60000));
-  if (minutes < 60) return `Next turn in ~${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return `Next turn in ~${hours}h ${rest}m`;
+/**
+ * Chain an independent presence load after a refresh that landed ready
+ * (#359 presence slice). Presence never blocks the refresh and never fails
+ * it: loadPresence keeps the last good value (or stays absent) on any
+ * failure, so reconnect freshness arrives without risking the core views.
+ */
+function withPresenceRefresh(session: MpModeSession, base: Promise<MpSnapshot>): Promise<MpSnapshot> {
+  return base.then((next) => {
+    if (next.phase === "ready" && next.userId) return session.loadPresence();
+    return next;
+  });
 }
 
 export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
@@ -95,6 +106,11 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
       // the demand, so chain one loadMail before the first paint. Chaining
       // keeps the initial call order deterministic for the call-order tests.
       if (next.phase === "ready" && next.userId) return session.loadMail();
+      return next;
+    }).then((next) => {
+      // Presence rides the same mount freshness without joining the
+      // enter/refresh contract: a failed presence load stays absent.
+      if (next.phase === "ready" && next.userId) return session.loadPresence();
       return next;
     }).then((next) => {
       if (live) setSnapshot(next);
@@ -135,7 +151,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
       if (focusProbeRef.current) return;
       focusProbeRef.current = true;
       setBusy(true);
-      void session.refresh().then((next) => {
+      void withPresenceRefresh(session, session.refresh()).then((next) => {
         setSnapshot(next);
       }).finally(() => {
         focusProbeRef.current = false;
@@ -154,6 +170,34 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     return () => {
       window.removeEventListener("focus", probeReturn);
       document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
+  /* Presence re-poll (#359 presence slice): the mount chain loads presence
+   * once, but a long-open screen would otherwise go stale. Like the
+   * reference StatusBar this re-polls on a visible-only interval plus on
+   * foreground return, including in the ready phase (the focus re-probe
+   * above only fires while waiting for a session). loadPresence keeps the
+   * last good value on any failure, so these polls can never disturb the
+   * session or its views. */
+  useEffect(() => {
+    const session = sessionRef.current!;
+    let live = true;
+    const pollPresence = () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      void session.loadPresence().then((next) => {
+        if (live) setSnapshot(next);
+      });
+    };
+    const onVisiblePresence = () => {
+      if (document.visibilityState === "visible") pollPresence();
+    };
+    const intervalId = setInterval(pollPresence, PRESENCE_POLL_MS);
+    document.addEventListener("visibilitychange", onVisiblePresence);
+    return () => {
+      live = false;
+      clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisiblePresence);
     };
   }, []);
 
@@ -206,6 +250,17 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   const phase = snapshot.phase;
   const needsSession = phase === "idle" || phase === "loading" || phase === "session-required" || phase === "signed-out" || phase === "auth-expired";
   const blocked = phase === "offline" || phase === "server-error" || phase === "rate-limited";
+  /* Authoritative timing projection (#359 presence slice): the countdown is
+   * computed from the server's nextScheduledTurn at render, exactly like the
+   * reference StatusBar. Null means no claim, never a synthesized time. */
+  const turnCountdown = snapshot.turn
+    ? formatTurnCountdown(snapshot.turn.nextScheduledTurn, snapshot.turn.paused)
+    : null;
+  const turnPlayerPaced = !!snapshot.turn
+    && !turnCountdown
+    && !snapshot.turn.isProcessing
+    && !snapshot.turn.paused
+    && snapshot.turn.isActive !== false;
 
   return (
     <main className="ahd-screen ahd-mp">
@@ -217,7 +272,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
             {snapshot.username && <p className="ahd-muted" style={{ margin: 0 }}>Playing as {snapshot.username}</p>}
           </div>
           <div className="ahd-mp-row" style={{ marginLeft: "auto" }}>
-            <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void runGeneral((s) => s.refresh())}>
+            <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void runGeneral((s) => withPresenceRefresh(s, s.refresh()))}>
               Refresh
             </button>
             <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => setAdminOpen(true)}>
@@ -287,7 +342,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
               <button className="ahd-btn" disabled={busy} onClick={() => void runGeneral((s) => s.signIn("google"))}>
                 Continue with Google
               </button>
-              <button className="ahd-btn" disabled={busy} onClick={() => void runGeneral((s) => s.refresh())}>
+              <button className="ahd-btn" disabled={busy} onClick={() => void runGeneral((s) => withPresenceRefresh(s, s.refresh()))}>
                 Retry
               </button>
               <button className="ahd-btn ahd-btn-ghost" onClick={onExit}>
@@ -308,7 +363,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                 : "Your last loaded state is kept below. Retry to reconnect and continue."}
             </p>
             <div className="ahd-mp-row">
-              <button className="ahd-btn ahd-btn-primary" disabled={busy} onClick={() => void runGeneral((s) => s.refresh())}>
+              <button className="ahd-btn ahd-btn-primary" disabled={busy} onClick={() => void runGeneral((s) => withPresenceRefresh(s, s.refresh()))}>
                 Reconnect
               </button>
             </div>
@@ -359,10 +414,17 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                       ? `Processing${snapshot.turn.processingLabel ? `: ${snapshot.turn.processingLabel}` : ""}`
                       : snapshot.turn.paused
                         ? `Paused${snapshot.turn.pauseReason ? `: ${snapshot.turn.pauseReason}` : ""}`
-                        : "Live"}
+                        : snapshot.turn.isActive === false
+                          ? "Paused"
+                          : "Live"}
                   </dd>
-                  {formatCountdown(snapshot.turn.nextScheduledTurn) && (
-                    <><dt>Schedule</dt><dd>{formatCountdown(snapshot.turn.nextScheduledTurn)}</dd></>
+                  {turnCountdown ? (
+                    <><dt>Schedule</dt><dd>{turnCountdown}</dd></>
+                  ) : turnPlayerPaced ? (
+                    <><dt>Schedule</dt><dd>Player paced</dd></>
+                  ) : null}
+                  {snapshot.presence && (
+                    <><dt>Online</dt><dd>{snapshot.presence.online} player{snapshot.presence.online !== 1 ? "s" : ""} online</dd></>
                   )}
                 </dl>
               </article>

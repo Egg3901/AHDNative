@@ -142,6 +142,54 @@ export function parseTurnStatus(bodyText: string): MpTurnView | null {
   };
 }
 
+export interface MpPresenceView {
+  online: number;
+  /** Server `asOf` timestamp; null when missing or not a usable string. */
+  asOf: string | null;
+}
+
+/**
+ * players-online: {online, asOf}. The count is the whole claim: it must be
+ * a non-negative integer, so a drifting or hostile payload fails closed
+ * instead of rendering a fabricated zero. `asOf` is display metadata only
+ * and degrades to null on its own.
+ */
+export function parsePlayersOnline(bodyText: string): MpPresenceView | null {
+  const record = asRecord(parseJsonBody(bodyText));
+  if (!record) return null;
+  const online = record.online;
+  if (typeof online !== "number" || !Number.isInteger(online) || online < 0) return null;
+  const asOf = typeof record.asOf === "string" && record.asOf.trim() ? record.asOf : null;
+  return { online, asOf };
+}
+
+/**
+ * Wall-clock countdown to the next scheduled turn, pinned to the reference
+ * `formatRealTimeCountdown` in AHDGame src/lib/utils/formatters.ts (used by
+ * StatusBar.getTimeUntilNextTurn): "—"-equivalent null when there is no
+ * schedule, "Paused" while paused, "Processing..." once the deadline passes,
+ * else the compact "45m" / "2h 30m" / "2d 0h" form. Returns null (render
+ * nothing) instead of ever synthesizing a time.
+ */
+export function formatTurnCountdown(
+  nextScheduledTurn: string | null,
+  paused: boolean,
+): string | null {
+  if (!nextScheduledTurn) return null;
+  const target = Date.parse(nextScheduledTurn);
+  if (!Number.isFinite(target)) return null;
+  if (paused) return "Paused";
+  const diff = target - Date.now();
+  if (diff <= 0) return "Processing...";
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const days = Math.floor(hours / 24);
+  const rest = hours % 24;
+  if (days > 0) return `${days}d ${rest}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
 export interface MpNotificationView {
   id: string;
   title: string | null;

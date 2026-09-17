@@ -1,11 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  formatTurnCountdown,
   parseCharacterMe,
   parseClientNav,
   parseExecuteResult,
   parseInbox,
   parseLogoutAck,
   parseMutationAck,
+  parsePlayersOnline,
   parseSessionProbe,
   parseTurnStatus,
   validateExecuteArgs,
@@ -377,6 +379,70 @@ describe("validateNotificationId", () => {
     });
     for (const bad of ["", "short", "507f1f77bcf86cd79943901zz", null, 42]) {
       expect(validateNotificationId(bad).ok).toBe(false);
+    }
+  });
+});
+
+describe("parsePlayersOnline (#359 presence slice)", () => {
+  it("projects the count and freshness timestamp", () => {
+    expect(
+      parsePlayersOnline(JSON.stringify({ online: 123, asOf: "2026-09-17T12:00:00.000Z" })),
+    ).toEqual({ online: 123, asOf: "2026-09-17T12:00:00.000Z" });
+    expect(parsePlayersOnline(JSON.stringify({ online: 0, asOf: "2026-09-17T12:00:00.000Z" }))).toEqual({
+      online: 0,
+      asOf: "2026-09-17T12:00:00.000Z",
+    });
+  });
+
+  it("degrades a missing asOf to null without losing the count", () => {
+    expect(parsePlayersOnline(JSON.stringify({ online: 7 }))).toEqual({ online: 7, asOf: null });
+    expect(parsePlayersOnline(JSON.stringify({ online: 7, asOf: "" }))).toEqual({ online: 7, asOf: null });
+  });
+
+  it("fails closed on a drifting count instead of rendering a fabricated zero", () => {
+    for (const bad of [
+      JSON.stringify({ asOf: "2026-09-17T12:00:00.000Z" }),
+      JSON.stringify({ online: "123", asOf: "2026-09-17T12:00:00.000Z" }),
+      JSON.stringify({ online: 12.5 }),
+      JSON.stringify({ online: -1 }),
+      JSON.stringify({ online: null }),
+      JSON.stringify({ error: "boom" }),
+      "garbage",
+      "[]",
+    ]) {
+      expect(parsePlayersOnline(bad)).toBeNull();
+    }
+  });
+});
+
+describe("formatTurnCountdown (#359 presence slice)", () => {
+  const NOW = Date.parse("2026-09-17T12:00:00.000Z");
+  const at = (ms: number) => new Date(NOW + ms).toISOString();
+
+  it("matches the reference compact form for future deadlines", () => {
+    vi.spyOn(Date, "now").mockReturnValue(NOW);
+    try {
+      expect(formatTurnCountdown(at(45 * 60 * 1000), false)).toBe("45m");
+      expect(formatTurnCountdown(at((2 * 60 + 30) * 60 * 1000), false)).toBe("2h 30m");
+      expect(formatTurnCountdown(at(26 * 60 * 60 * 1000), false)).toBe("1d 2h");
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("returns null instead of synthesizing when there is no usable schedule", () => {
+    expect(formatTurnCountdown(null, false)).toBeNull();
+    expect(formatTurnCountdown("", false)).toBeNull();
+    expect(formatTurnCountdown("not-a-date", false)).toBeNull();
+  });
+
+  it("reports Paused while paused and Processing... once the deadline passes", () => {
+    vi.spyOn(Date, "now").mockReturnValue(NOW);
+    try {
+      expect(formatTurnCountdown(at(30 * 60 * 1000), true)).toBe("Paused");
+      expect(formatTurnCountdown(at(-60 * 1000), false)).toBe("Processing...");
+    } finally {
+      vi.restoreAllMocks();
     }
   });
 });
