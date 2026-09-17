@@ -78,6 +78,20 @@ describe("PollingPanel", () => {
     expect(within(card).getByText(/moderates.*24\.5% electorate.*you 52\.5%.*undecided 8%/i)).toBeInTheDocument();
   });
 
+  it("gives every electorate disclosure a 44px phone touch target", () => {
+    render(<PollingPanel polls={{ quick: null, full } satisfies PollingView} />);
+    const card = screen.getByRole("article", { name: "Full Demographic Poll" });
+    const disclosures = [
+      within(card).getByText(/voter groups · 42,000 reachable/i).closest("summary")!,
+      within(card).getByText(/granular electorate/i).closest("summary")!,
+    ];
+    expect(disclosures).toHaveLength(2);
+    for (const disclosure of disclosures) {
+      expect(disclosure.tagName).toBe("SUMMARY");
+      expect(disclosure).toHaveStyle({ minHeight: "44px" });
+    }
+  });
+
   it("renders both polls when both exist", () => {
     render(<PollingPanel polls={{ quick, full } satisfies PollingView} />);
     expect(screen.getByRole("article", { name: "Quick Poll" })).toBeInTheDocument();
