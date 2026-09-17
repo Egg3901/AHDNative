@@ -203,6 +203,33 @@ above describes required features, not a requirement to copy desktop chrome.
 Primary navigation sits at the bottom, and the full hierarchy plus End Turn,
 Save and Exit lives in the side drawer. See [mobile navigation](MOBILE-NAVIGATION.md).
 
+## SP-to-MP-to-SP switching lifecycle (#510)
+
+No product-code gap was found; the lifecycle was already honest, so this
+slice adds rendered regression coverage instead of new behavior:
+
+- `MpModeScreen` renders no SP `End Turn`/`Save` controls at 320/390/1280px;
+  the MP way out (`Exit multiplayer`) stays reachable. Covered by
+  `src/ui/SpMpSwitching510.test.tsx` (the exact SP drawer wording; the
+  looser "Advance turn" absence was already covered in `MpModeScreen.test.tsx`).
+- An expired MP session (401 on refresh) renders the `Session expired` card,
+  evicts the player/sections/inbox projections, keeps retry, provider
+  reconnect, and exit-home reachable, and reconnecting restores `ready`
+  without writing to web storage (the local SP save is untouched).
+- An offline MP session (transport failure on refresh) renders the
+  `Connection lost` card, keeps the last loaded state visible below it, and
+  `Reconnect` restores `ready`.
+- The world-active home keeps both switch legs: `Return to game` (SP resume)
+  and `Enter multiplayer` coexist and fire independently at 320/1280px.
+- Architecture facts the tests pin: entering MP never disposes the SP
+  client/world/slot (`App.tsx` only switches `screen`), exiting MP unmounts
+  the session (`session.exit()` clears remote state), and the `src/mp` layer
+  plus `MpModeScreen` never touch the SP save store or web storage.
+
+Still owed for #510: role/country capability rows beyond #514/#520, cabinet
+drawer gating on a GameView membership signal, multi-level returns, and the
+physical-iPhone smoke pass.
+
 ## World map directory slice (#73, first vertical slice)
 
 - `World map` (World > Diplomacy, route `worldMap`) is an offline directory over the actual projected
