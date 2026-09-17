@@ -32,9 +32,9 @@ describe('resource details through the session contract', () => {
     session.create(options);
     expect(session.view().resources.actions).toMatchObject({ base: 4, seat: 0, cabinet: 0, chair: 0, office: 0, penalty: 0, threshold: 100, cap: 200, next: 29, refresh: 4 });
     expect(session.view().resources.partyInfluence).toBeNull();
-    expect(session.view().resources.funds).toMatchObject({ base: 10000, donor: 0, office: 0, tax: 0, regularNet: 10000 });
+    expect(session.view().resources.funds).toMatchObject({ base: 10000, donor: 200, office: 0, tax: 0, regularNet: 10200 });
     expect(session.act('joinParty', { partyId: 'US_DEM' }).ok).toBe(true);
-    expect(session.view().resources.funds).toMatchObject({ tax: 500, regularNet: 9500 });
+    expect(session.view().resources.funds).toMatchObject({ tax: 510, regularNet: 9690 });
     const partyInfluence = session.view().resources.partyInfluence;
     expect(partyInfluence).not.toBeNull();
     expect(typeof partyInfluence!.gain).toBe('number');

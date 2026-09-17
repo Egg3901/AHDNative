@@ -1,43 +1,66 @@
-import { expect, test } from '@playwright/test';
-import { gameReady, navigateGame, completeCharacterCreation } from './game-navigation';
+import { expect, test } from "@playwright/test";
+import {
+  gameReady,
+  navigateGame,
+  completeCharacterCreation,
+} from "./game-navigation";
 
-test('a player builds donors, receives the quoted Fundraise yield and continues after relaunch', async ({ page }) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'New game', exact: true }).click();
-  await page.getByLabel('Your name').fill('Donor Player');
-  await page.getByLabel('Country', { exact: true }).selectOption('US');
-  await page.getByRole('button', { name: 'Start', exact: true }).click();
+test("a player receives the quoted Fundraise yield and continues after relaunch", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "New game", exact: true }).click();
+  await page.getByLabel("Your name").fill("Donor Player");
+  await page.getByLabel("Country", { exact: true }).selectOption("US");
+  await page.getByRole("button", { name: "Start", exact: true }).click();
   await completeCharacterCreation(page);
   await gameReady(page);
-  await navigateGame(page, 'Actions');
-  await expect(page.getByRole('button', { name: 'Unavailable: Fundraise', exact: true })).toBeDisabled();
-  await expect(page.getByRole('note').filter({ hasText: 'No donor base. Use Build Donor Network first.' })).toBeVisible();
-  // Fundraising 1 makes Build Donor Network cost 3,659. Personal Campaign
-  // Donation converts cash at 50%, so 7,318 funds that exact quoted charge.
-  await page.getByRole('spinbutton', { name: /Amount for/ }).fill('7318');
-  await page.getByRole('button', { name: 'Take action: Personal Campaign Donation', exact: true }).click();
-  await gameReady(page);
-  await page.getByRole('button', { name: 'Take action: Build Donor Network', exact: true }).click();
-  await gameReady(page);
+  await navigateGame(page, "Actions");
+  await expect(
+    page.getByRole("button", { name: "Take action: Fundraise", exact: true }),
+  ).toBeEnabled();
   // AHDGame L1/0% Fundraise yields 52,000 at neutral stats; the creation file
   // leaves Fundraising at its floor (1), so the efficacy multiplier is 0.82 and
   // the quoted/credited yield is 42,640. Quote and grant read one source.
-  await expect(page.getByText('Raises 42,640 campaign funds', { exact: true })).toBeVisible();
-  await page.screenshot({ path: 'artifacts/smoke/mobile-shared-fundraise.png', fullPage: true });
-  await page.getByRole('button', { name: 'Take action: Fundraise', exact: true }).click();
+  await expect(
+    page.getByText("Raises 42,640 campaign funds", { exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: "artifacts/smoke/mobile-shared-fundraise.png",
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "Take action: Fundraise", exact: true })
+    .click();
   await gameReady(page);
-  await navigateGame(page, 'Profile');
-  await expect(page.getByRole('region', { name: 'Political standing' })).toContainText('16 / 200');
-  await expect(page.getByText('Campaign funds', { exact: true }).locator('..')).toContainText('42,640');
+  await navigateGame(page, "Profile");
+  await expect(
+    page.getByRole("region", { name: "Political standing" }),
+  ).toContainText("22 / 200");
+  await expect(
+    page.getByText("Campaign funds", { exact: true }).locator(".."),
+  ).toContainText("42,640");
   await page.reload();
-  await page.getByRole('button', { name: 'Continue Donor Player', exact: true }).click();
+  await page
+    .getByRole("button", { name: "Continue Donor Player", exact: true })
+    .click();
   await gameReady(page);
-  await expect(page.getByText('Campaign funds', { exact: true }).locator('..')).toContainText('42,640');
-  await navigateGame(page, 'Actions');
-  await expect(page.getByText('Raises 42,640 campaign funds', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Take action: Fundraise', exact: true }).click();
+  await expect(
+    page.getByText("Campaign funds", { exact: true }).locator(".."),
+  ).toContainText("42,640");
+  await navigateGame(page, "Actions");
+  await expect(
+    page.getByText("Raises 42,640 campaign funds", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Take action: Fundraise", exact: true })
+    .click();
   await gameReady(page);
-  await navigateGame(page, 'Profile');
-  await expect(page.getByRole('region', { name: 'Political standing' })).toContainText('13 / 200');
-  await expect(page.getByText('Campaign funds', { exact: true }).locator('..')).toContainText('85,280');
+  await navigateGame(page, "Profile");
+  await expect(
+    page.getByRole("region", { name: "Political standing" }),
+  ).toContainText("19 / 200");
+  await expect(
+    page.getByText("Campaign funds", { exact: true }).locator(".."),
+  ).toContainText("85,280");
 });

@@ -11,6 +11,13 @@ const OPTIONS = {
 } as const;
 
 describe("fast turn pipeline smoke", () => {
+  it("gives a new character the reference donor floor needed to bootstrap campaign funds", () => {
+    const world = createWorld(OPTIONS);
+
+    expect(world.player.funds).toBe(0);
+    expect(world.player.donorBaseLevel).toBe(1);
+  });
+
   it("advances, remains deterministic, and survives a save round trip", () => {
     const first = createWorld(OPTIONS);
     const second = createWorld(OPTIONS);
