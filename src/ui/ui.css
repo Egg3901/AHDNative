@@ -1016,6 +1016,18 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
   .ahd-delete-confirm-actions { flex-direction: row; flex-wrap: wrap; }
   .ahd-delete-confirm-actions .ahd-btn { width: auto; }
 }
+/* Saved-game cards: long names and metadata wrap instead of forcing 320px
+   overflow, and Continue/Delete stack full-width on narrow phones so the
+   targets never crowd. Desktop keeps the side-by-side row. */
+.ahd-save-card { min-width: 0; }
+.ahd-save-name { min-width: 0; overflow-wrap: anywhere; }
+.ahd-save-meta { min-width: 0; overflow-wrap: anywhere; }
+.ahd-save-actions { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.65rem; align-items: stretch; }
+.ahd-save-actions .ahd-btn { width: 100%; }
+@media (min-width: 640px) {
+  .ahd-save-actions { flex-direction: row; flex-wrap: wrap; }
+  .ahd-save-actions .ahd-btn { width: auto; }
+}
 @media (min-width: 900px) {
   .ahd-landing-layout { max-width: 64rem; }
   .ahd-landing-hero {

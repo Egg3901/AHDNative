@@ -165,6 +165,18 @@ describe("LandingScreen", () => {
     expect(confirm).not.toHaveFocus();
   });
 
+  it("wraps long save names and stacks actions for narrow phones", () => {
+    const longName = "Alexandrina".repeat(8);
+    const long = { ...SAVES[0], playerName: longName };
+    render(<LandingScreen {...props({ saves: [long] })} />);
+    const heading = screen.getByRole("heading", { name: longName });
+    expect(heading).toHaveClass("ahd-save-name");
+    expect(heading.closest(".ahd-save-card")).not.toBeNull();
+    const actions = screen.getByRole("button", { name: `Continue ${longName}` }).closest(".ahd-save-actions");
+    expect(actions).not.toBeNull();
+    expect(actions).toContainElement(screen.getByRole("button", { name: `Delete ${longName}` }));
+  });
+
   it("cancels the deletion confirmation without deleting", async () => {
     const user = userEvent.setup();
     const p = props({ saves: SAVES, pendingDelete: SAVES[0] });
