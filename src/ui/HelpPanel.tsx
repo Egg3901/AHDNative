@@ -101,7 +101,7 @@ export function HelpPanel({ openExternal = openSupportDestination }: HelpPanelPr
             </li>
           ))}
         </ul>
-        {openError ? <p role="alert" className="ahd-error" style={{ margin: 0 }}>{openError}</p> : null}
+        {openError ? <p role="alert" className="ahd-alert" style={{ margin: 0 }}>{openError}</p> : null}
         <p style={{ margin: 0 }}>
           Account settings, feedback, the suggestions board, and Quick Suggest screenshot capture are available inside Multiplayer after AHDGame authenticates that surface. Open Multiplayer from the home screen to use them. The offline app cannot inspect or reuse that account session.
         </p>
