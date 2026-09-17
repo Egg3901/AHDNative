@@ -314,6 +314,60 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     });
   });
 
+  describe("one-party independent warning (#242 conditional flow)", () => {
+    function ddProps(): CharacterCreationScreenProps {
+      return props({
+        selection: { era: "1953", countryId: "DD", countryName: "East Germany", regionNoun: "region" },
+        choices: { parties: DD_PARTIES, rulingParty: { id: "DD_SED", name: "Sozialistische Einheitspartei Deutschlands", abbreviation: "SED", logoUrl: null }, isOnePartyState: true, imperialEligible: false, regionNoun: "region", homeRegions: [] },
+      });
+    }
+
+    it("warns when Independent is deliberately picked in a one-party state", async () => {
+      const user = userEvent.setup();
+      render(<CharacterCreationScreen {...ddProps()} />);
+      fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
+      // The briefing is there, but no independent warning until the pick.
+      expect(screen.queryByText(/0\.0x vote weight/)).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Independent" }));
+      const warning = screen.getByText(/0\.0x vote weight/);
+      expect(warning).toHaveTextContent(/cannot be fielded for the legislature/);
+      expect(warning).toHaveTextContent(/Join the ruling party and reform it from inside/);
+    });
+
+    it("clears the warning when the ruling party is picked instead", async () => {
+      const user = userEvent.setup();
+      render(<CharacterCreationScreen {...ddProps()} />);
+      fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
+      await user.click(screen.getByRole("button", { name: "Independent" }));
+      expect(screen.getByText(/0\.0x vote weight/)).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /SED/ }));
+      expect(screen.queryByText(/0\.0x vote weight/)).not.toBeInTheDocument();
+    });
+
+    it("never warns for a competitive country", async () => {
+      const user = userEvent.setup();
+      render(<CharacterCreationScreen {...props()} />);
+      fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
+      await user.click(screen.getByRole("button", { name: "Independent" }));
+      expect(screen.queryByText(/0\.0x vote weight/)).not.toBeInTheDocument();
+    });
+
+    it("keeps the six reference step subtitles word-identical", () => {
+      render(<CharacterCreationScreen {...props()} />);
+      fireEvent.click(screen.getByRole("button", { name: /Review all details/i }));
+      for (const subtitle of [
+        "Sets your offices, parties, currency, and electoral rules.",
+        "Voter groups weigh these when they decide whether you are one of them.",
+        "Your first constituency. Its electorate decides your early races.",
+        "Drag your pin. Distance to a platform is what primaries and general elections measure.",
+        "A party gives you ballot access, a primary, and a machine. Independent is a real choice, not a default, so pick one deliberately.",
+        "Every stat starts at 1. Spend 21 points on top of that. These shift as you play.",
+      ]) {
+        expect(screen.getByText(subtitle)).toBeInTheDocument();
+      }
+    });
+  });
+
   describe("party picker marks (#244 slice)", () => {
     const LOGO_PARTIES = [
       { id: "US_DEM", name: "Democratic Party", abbreviation: "DEM", color: "#3B82F6", logoUrl: "/party-logos/us-dem.png", economicPosition: -3, socialPosition: -2 },
