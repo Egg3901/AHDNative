@@ -419,3 +419,41 @@ it('keeps US congressional labels out of a UK regional profile', () => {
   expect(screen.queryByText('Senate classes')).not.toBeInTheDocument();
   expect(screen.queryByText('House seats')).not.toBeInTheDocument();
 });
+
+it("marks the viewed and player nations in the context note with era-aware offline marks", () => {
+  const base = makeOverview();
+  const nations = base.nations.map((nation) =>
+    nation.id === "FR" ? { ...nation, id: "RU", name: "Soviet Union" } : nation,
+  );
+  render(
+    <WorldPanel overview={{ ...base, era: "1979", nations }} section="nations" initialId="RU" />,
+  );
+  const note = within(screen.getByRole("group", { name: "Nation context" })).getByRole("note");
+  // Note codes agree with the resolved flag identity (RU shows SU in 1979).
+  expect(note).toHaveTextContent("Viewing Soviet Union (SU)");
+  expect(note).toHaveTextContent("Your country is United States (US)");
+  const marks = note.querySelectorAll("[data-country-flag]");
+  expect(marks.length).toBe(2);
+  expect(note.querySelector('[data-country-flag="SU"]')).not.toBeNull();
+  expect(note.querySelector('[data-country-flag="US"]')).not.toBeNull();
+  // Decorative: both names stay as text, so the marks hide from assistive tech.
+  marks.forEach((mark) => expect(mark.getAttribute("aria-hidden")).toBe("true"));
+  expect(note.querySelector("img")).toBeNull();
+  expect(note.innerHTML).not.toContain("http");
+});
+
+it("marks directory rows and the detail header with the resolved identity", () => {
+  const base = makeOverview();
+  const nations = base.nations.map((nation) =>
+    nation.id === "FR" ? { ...nation, id: "RU", name: "Soviet Union" } : nation,
+  );
+  const { container } = render(
+    <WorldPanel overview={{ ...base, era: "1979", nations }} section="nations" initialId="RU" />,
+  );
+  const directory = within(screen.getByRole("group", { name: "Nation directory" }));
+  const row = directory.getByRole("button", { name: "View Soviet Union details" });
+  expect(within(row).getByText("Soviet Union")).toBeInTheDocument();
+  expect(row.querySelector('[data-country-flag="SU"]')).not.toBeNull();
+  expect(screen.getByRole("article", { name: "Soviet Union" })).toBeInTheDocument();
+  expect(container.querySelector('[data-country-flag="RU"]')).toBeNull();
+});

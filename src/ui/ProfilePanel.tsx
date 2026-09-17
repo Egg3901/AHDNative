@@ -36,6 +36,7 @@ import { RouteHero, profileHeroImage } from "./RouteHero";
 import { CampaignSongPlayer } from "./CampaignSongPlayer";
 import { PolicyCompass, policyAxisLabel, type CompassMarker } from "./PolicyCompass";
 import { ResourceBreakdown } from "./ResourceBreakdown";
+import { CountryFlag } from "./CountryFlag";
 import { STAT_KEYS } from "@ahdclient/engine";
 import "./profile.css";
 
@@ -64,6 +65,8 @@ function demographicLabel(value: string): string {
 
 export interface ProfilePanelProps {
   profile: ProfileView;
+  /** World era for the country identity mark (#373: RU flies SU in 1979). */
+  era?: string;
   busy: boolean;
   onNavigate: (route: DrawerRouteId, id?: string) => void;
   onUpdateProfile: (update: ProfileUpdate) => Promise<boolean>;
@@ -151,7 +154,7 @@ function validateHeader(file: File): string | null {
   return null;
 }
 
-export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, onSelectConstituency, viewerDisablesAutoplay = false }: ProfilePanelProps) {
+export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, onSelectConstituency, viewerDisablesAutoplay = false }: ProfilePanelProps) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const headerRef = useRef<HTMLInputElement | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -408,6 +411,7 @@ export function ProfilePanel({ profile, busy, onNavigate, onUpdateProfile, onSel
                 <span className="ahd-muted">Home region not recorded</span>
               )}
               <span aria-hidden="true" className="ahd-muted"> · </span>
+              <CountryFlag countryId={profile.country.id} countryName={profile.country.name} era={era} size="sm" />
               <button
                 type="button"
                 className="ahd-profile-link"

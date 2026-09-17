@@ -11,6 +11,7 @@ import type {
 } from "../game/worldOverview";
 import { RegionViewerCard } from "./RegionViewerCard";
 import { RegionBudgetCard, RegionMacroCard, RegionSectorsCard } from "./RegionEconomyCards";
+import { CountryFlag, resolveCountryFlagCode } from "./CountryFlag";
 import type { DrawerRouteId } from "./MobileNavigation";
 import { formatGameDate, formatGameTurn, type GameClock } from "../game/gameDate";
 
@@ -185,14 +186,19 @@ function GovernmentSummary({ nation, clock }: { nation: WorldNationView; clock: 
   );
 }
 
-function NationDetail({ nation, current, clock, onNavigate }: { nation: WorldNationView; current: boolean; clock: GameClock; onNavigate?: (route: DrawerRouteId, id?: string) => void }) {
+function NationDetail({ nation, current, clock, era, onNavigate }: { nation: WorldNationView; current: boolean; clock: GameClock; era?: string | null; onNavigate?: (route: DrawerRouteId, id?: string) => void }) {
+  // The detail code agrees with the resolved flag identity (RU shows SU in 1979).
+  const code = resolveCountryFlagCode(nation.id, era) || "?";
   return (
     <article className="ahd-card ahd-card-pad" aria-label={nation.name} data-pane="detail">
       <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "flex-start", minWidth: 0 }}>
-        <div style={{ minWidth: 0, flex: "1 1 auto" }}>
-          <h2 className="ahd-h2" style={{ margin: 0, overflowWrap: "anywhere" }}>{nation.name}</h2>
-          <div className="ahd-muted" style={{ fontSize: "0.7rem", marginTop: "0.25rem", overflowWrap: "anywhere" }}>
-            {nation.id} · {nation.currency ?? "Currency not recorded"}
+        <div style={{ minWidth: 0, flex: "1 1 auto", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <CountryFlag countryId={nation.id} countryName={nation.name} era={era} size="lg" />
+          <div style={{ minWidth: 0 }}>
+            <h2 className="ahd-h2" style={{ margin: 0, overflowWrap: "anywhere" }}>{nation.name}</h2>
+            <div className="ahd-muted" style={{ fontSize: "0.7rem", marginTop: "0.25rem", overflowWrap: "anywhere" }}>
+              {code} · {nation.currency ?? "Currency not recorded"}
+            </div>
           </div>
         </div>
         <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", justifyContent: "flex-end", minWidth: 0, maxWidth: "100%", flexShrink: 1 }}>
@@ -236,6 +242,11 @@ function NationDetail({ nation, current, clock, onNavigate }: { nation: WorldNat
  * recorded nation's details are shown. It is a browse context: selecting a
  * nation triggers no action, save or turn change, and the player country is
  * stated next to the viewed nation at all times.
+ *
+ * Flag identity (#373): the preservation note carries the viewed and player
+ * offline marks so the last text-only nation identity on this screen matches
+ * the directory rows. The native `<select>` options stay text-only because a
+ * platform option cannot carry a mark.
  */
 function NationContextSwitcher({
   overview,
@@ -252,6 +263,11 @@ function NationContextSwitcher({
   const viewedNation = overview.nations.find((nation) => nation.id === selectedId) ?? null;
   const viewedName = viewedNation?.name ?? selectedId;
   const viewingPlayer = selectedId === playerId;
+  // Note codes agree with the resolved flag identity (RU shows SU in 1979),
+  // matching the directory rows and detail header below.
+  const viewedId = viewedNation?.id ?? selectedId;
+  const viewedCode = resolveCountryFlagCode(viewedId, overview.era) || "?";
+  const playerCode = resolveCountryFlagCode(playerId, overview.era) || "?";
   return (
     <div className="ahd-card ahd-card-pad" role="group" aria-label="Nation context">
       <div className="ahd-eyebrow">Nation context</div>
@@ -272,7 +288,11 @@ function NationContextSwitcher({
         </select>
       </label>
       <p id="ahd-nation-context-note" role="note" aria-live="polite" className="ahd-muted" style={{ margin: "0.4rem 0 0", fontSize: "0.76rem" }}>
-        {`Viewing ${viewedName} (${selectedId}). Your country is ${playerName} (${playerId})${viewingPlayer ? " — currently viewing your own country" : ""}. Switching the view never changes your country, save, or turn.`}
+        {`Viewing ${viewedName} (${viewedCode}) `}
+        <CountryFlag countryId={viewedId} countryName={viewedName} era={overview.era} size="sm" />
+        {` Your country is ${playerName} (${playerCode}) `}
+        <CountryFlag countryId={playerId} countryName={playerName} era={overview.era} size="sm" />
+        {`${viewingPlayer ? " — currently viewing your own country" : ""}. Switching the view never changes your country, save, or turn.`}
       </p>
     </div>
   );
@@ -341,6 +361,8 @@ function NationsSection({ overview, initialId, onSelectNation, onNavigate }: { o
             {filteredNations.map((nation) => {
               const selected = selectedNation?.id === nation.id;
               const isPlayer = nation.id === overview.playerCountryId;
+              // The row code agrees with the resolved flag identity (RU shows SU in 1979).
+              const code = resolveCountryFlagCode(nation.id, overview.era) || "?";
               return (
                 <button
                   key={nation.id}
@@ -351,9 +373,12 @@ function NationsSection({ overview, initialId, onSelectNation, onNavigate }: { o
                   style={{ width: "100%", minWidth: 0, minHeight: "3.1rem", borderRadius: "var(--ahd-radius-sm)", justifyContent: "space-between", textAlign: "left", background: selected ? "color-mix(in srgb, var(--ahd-primary) 10%, var(--ahd-card-elevated))" : undefined }}
                   aria-label={`View ${nation.name} details`}
                 >
-                  <span style={{ minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.12rem" }}>
-                    <span style={{ overflowWrap: "anywhere", maxWidth: "100%" }}>{nation.name}</span>
-                    <span className="ahd-muted" style={{ fontSize: "0.68rem", fontWeight: 400, overflowWrap: "anywhere", maxWidth: "100%" }}>{nation.id} · {nation.currency ?? "Currency not recorded"}</span>
+                  <span style={{ minWidth: 0, flex: "1 1 auto", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                    <CountryFlag countryId={nation.id} countryName={nation.name} era={overview.era} size="sm" />
+                    <span style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.12rem" }}>
+                      <span style={{ overflowWrap: "anywhere", maxWidth: "100%" }}>{nation.name}</span>
+                      <span className="ahd-muted" style={{ fontSize: "0.68rem", fontWeight: 400, overflowWrap: "anywhere", maxWidth: "100%" }}>{code} · {nation.currency ?? "Currency not recorded"}</span>
+                    </span>
                   </span>
                   <span style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", justifyContent: "flex-end", minWidth: 0, maxWidth: "100%", flexShrink: 1 }}>
                     {isPlayer ? <span className="ahd-badge">Your country</span> : selected ? <span className="ahd-badge">Viewing</span> : null}
@@ -367,7 +392,7 @@ function NationsSection({ overview, initialId, onSelectNation, onNavigate }: { o
       </details>
       <NationContextSwitcher overview={overview} selectedId={selectedNation?.id ?? selectedId} onSelect={selectNation} />
       </div>
-      {selectedNation ? <NationDetail nation={selectedNation} current={selectedNation.id === overview.playerCountryId} clock={clock} onNavigate={onNavigate} /> : <div className="ahd-empty" data-pane="detail">No nations recorded.</div>}
+      {selectedNation ? <NationDetail nation={selectedNation} current={selectedNation.id === overview.playerCountryId} clock={clock} era={overview.era} onNavigate={onNavigate} /> : <div className="ahd-empty" data-pane="detail">No nations recorded.</div>}
       </div>
     </WorldLayout>
   );
@@ -481,7 +506,10 @@ function StateSection({ overview, onNavigate }: { overview: WorldOverviewView; o
   return (
     <WorldLayout overview={overview} title={region.name}>
       <div className="ahd-card ahd-card-pad">
-        <div className="ahd-eyebrow">Home region · {region.countryId}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", minWidth: 0 }}>
+          <CountryFlag countryId={region.countryId} era={overview.era} size="sm" />
+          <div className="ahd-eyebrow">Home region · {resolveCountryFlagCode(region.countryId, overview.era) || "?"}</div>
+        </div>
         <h2 className="ahd-h2" style={{ marginTop: "0.25rem" }}>Regional profile</h2>
         <dl className="ahd-stack" style={{ marginTop: "0.65rem", gap: "0.42rem" }}>
           <RegionMetric label="Population" value={number(region.population)} />
