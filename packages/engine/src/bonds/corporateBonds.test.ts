@@ -282,20 +282,24 @@ describe("public float conservation", () => {
     expect(validateBondIssuerIdentity(world, bond)).toBeNull();
   });
 
-  it("corporate issues stay inert through the turn (no coupon/maturity servicing until #308)", () => {
+  it("corporate issues accrue coupons through the turn (#308 servicing; no maturity inside 240t)", () => {
     const world = createWorld(OPTS);
     const corpId = usCorpId();
     const bond = validCorporateBond(world, corpId);
+    world.corporations[corpId]!.liquidCapital = 1_000_000_000;
     const cashBefore = world.player.cash;
     for (let i = 0; i < 15; i++) advanceTurn(world);
-    expect(world.bonds[bond.id]!.matured).toBe(false);
-    expect(world.bonds[bond.id]!.marketPrice).toBe(1.0);
-    expect(world.bonds[bond.id]!.publicFloat).toBe(100);
+    const serviced = world.bonds[bond.id]!;
+    expect(serviced.lastCouponTurn).toBe(world.meta.turn);
+    expect(serviced.matured).toBe(false);
+    expect(serviced.defaulted).toBe(false);
+    expect(serviced.marketPrice).toBe(1.0);
+    expect(serviced.publicFloat).toBe(100);
     expect(world.player.cash).toBe(cashBefore);
-    expect(validateBondIssuerIdentity(world, world.bonds[bond.id]!)).toBeNull();
+    expect(validateBondIssuerIdentity(world, serviced)).toBeNull();
   });
 
-  it("corporate issues stay inert past maturityTurn (no coupon/settlement/NPC drift until #308)", () => {
+  it("sovereign-only turn helpers still skip corporate issues past maturityTurn (#308 owns them)", () => {
     const world = createWorld(OPTS);
     const corpId = usCorpId();
     const bond = validCorporateBond(world, corpId);
