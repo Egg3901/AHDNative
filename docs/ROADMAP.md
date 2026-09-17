@@ -1619,9 +1619,10 @@ and removed. The smoke helper now walks the conversation; no engine change.
   `--ahd-safe-area-top-fallback` (composed into all 11 top rules: game main,
   drawer, landing, MP layout, docked drawer, resource popover, Ask window,
   App/NewGame/Creation shells) plus `data-ahd-safe-area` and
-  `window.__AHD_SAFE_AREA__` diagnostics. The pinned runtime cannot expose
-  the metric natively (Tauri JS 2.11.1: window sizes only; tauri 2.11.3: no
-  iOS inset command), pinned by a Rust no-native-surface test. Desktop,
+  `window.__AHD_SAFE_AREA__` diagnostics. The probe is the chosen source
+  over the locked native-derived window position APIs (async bridge call,
+  physical pixels, main-thread caveat); no dedicated inset command exists,
+  pinned by a Rust no-native-surface test. Desktop,
   Android, iPad, landscape, keyboard, and pinch zoom are untouched by
   construction. Evidence: new `iosSafeArea` (14) + `SafeAreaFallback` (10)
   cases, red-checked (8 fail without the fix); neighboring safe-area suites

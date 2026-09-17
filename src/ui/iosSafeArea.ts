@@ -19,13 +19,15 @@
  *   orientation, iphoneClass }`): the diagnostic surface a device pass reads
  *   to tell a notch/status-bar inset apart from a zero-inset device.
  *
- * Why web-measured instead of native: the pinned runtime cannot expose the
- * metric. `@tauri-apps/api` 2.11.1 publishes window `innerSize` /
- * `outerSize` / `scaleFactor` only (no inset API), and pinned `tauri`
- * 2.11.3 has no iOS `safeAreaInsets` command; reaching
- * `UIView.safeAreaInsets` would need unpinned objc-bridge dependencies.
- * The probe plus platform gate below is the supported maximum, and the Rust
- * pin test in `src-tauri/src/lib.rs` keeps that decision explicit.
+ * Why web-measured instead of native: the locked stack can expose a
+ * native-derived value (`@tauri-apps/api` 2.11.1 `innerPosition()` /
+ * `outerPosition()` over `tauri` 2.11.x `Window::inner_position`, which
+ * tao 0.35.3 implements on iOS from the view inset with no new
+ * dependencies), but that path is an async bridge call over physical
+ * pixels with a main-thread caveat, while the probe reads the
+ * synchronous CSS truth the floor actually guards. The probe plus
+ * platform gate below is the chosen source, and the Rust pin test in
+ * `src-tauri/src/lib.rs` records that no dedicated inset command exists.
  *
  * No device lists: the gate is iPhone-class family (iPhone UA/platform +
  * touch) with portrait orientation, never model numbers or screen sizes.
