@@ -1,6 +1,7 @@
 import { mpFetch, mpMutate, type MpBridgeHost, type MpCallResult } from "./bridge";
 import {
   parseCharacterMe,
+  parseClientNav,
   parseExecuteResult,
   parseInbox,
   parseMailInbox,
@@ -14,6 +15,7 @@ import {
   validateNotificationId,
   validateNotificationPreference,
   validateSnoozeMinutes,
+  type MpCapabilitiesView,
   type MpCharacterView,
   type MpInboxView,
   type MpMailInbox,
@@ -48,6 +50,8 @@ export interface MpSnapshot {
   username: string | null;
   character: MpCharacterView | null;
   turn: MpTurnView | null;
+  /** Server-derived navigation capabilities (client-nav projection). */
+  capabilities: MpCapabilitiesView | null;
   inbox: MpInboxView | null;
   /** Received player mail page; loaded on demand, never on enter. */
   mailInbox: MpMailInbox | null;
@@ -67,6 +71,7 @@ const INITIAL_SNAPSHOT: MpSnapshot = {
   username: null,
   character: null,
   turn: null,
+  capabilities: null,
   inbox: null,
   mailInbox: null,
   mailSent: null,
@@ -84,8 +89,11 @@ export const MP_INBOX_LIMIT = 25;
  */
 export const MP_MAIL_LIMIT = 50;
 
-function emptyAuthed(): Pick<MpSnapshot, "character" | "turn" | "inbox" | "mailInbox" | "mailSent"> {
-  return { character: null, turn: null, inbox: null, mailInbox: null, mailSent: null };
+function emptyAuthed(): Pick<
+  MpSnapshot,
+  "character" | "turn" | "capabilities" | "inbox" | "mailInbox" | "mailSent"
+> {
+  return { character: null, turn: null, capabilities: null, inbox: null, mailInbox: null, mailSent: null };
 }
 
 export class MpModeSession {
@@ -108,18 +116,18 @@ export class MpModeSession {
     return this.get();
   }
 
-  /** Full authenticated load: probe, then player/turn/inbox in order. */
+  /** Full authenticated load: probe, then player/turn/capabilities/inbox in order. */
   async enter(): Promise<MpSnapshot> {
     this.set({ ...emptyAuthed(), phase: "loading", notice: null, error: null, retryAfter: null });
-    const probe = await mpFetch(this.host, "auth-session");
-    const probeOutcome = this.applyProbe(probe);
-    if (probeOutcome !== "signed-in") return this.get();
     return this.refreshAuthed();
   }
 
-  /** Re-read authoritative state; used for manual refresh and reconnect. */
+  /**
+   * Re-read authoritative state; used for manual refresh, reconnect, and the
+   * post-mutation refresh. The probe runs first every time so an account
+   * switch or expiry is caught here too, never just on entry.
+   */
   async refresh(): Promise<MpSnapshot> {
-    if (!this.snapshot.userId) return this.enter();
     this.set({ phase: "loading", notice: null, error: null, retryAfter: null });
     return this.refreshAuthed();
   }
@@ -395,7 +403,13 @@ export class MpModeSession {
       return "signed-in";
     }
     if (result.kind === "remote" && result.http === 401) {
-      this.set({ ...emptyAuthed(), userId: null, username: null, phase: "signed-out" });
+      if (this.snapshot.userId) {
+        // The probe proved nothing, but a previous load named an account:
+        // the session expired mid-mode, not a fresh signed-out entry.
+        this.set({ ...emptyAuthed(), phase: "auth-expired", error: "Your multiplayer session expired. Reconnect to continue." });
+      } else {
+        this.set({ ...emptyAuthed(), userId: null, username: null, phase: "signed-out" });
+      }
       return "not-signed-in";
     }
     if (result.kind === "remote" && result.http >= 500) {
@@ -412,8 +426,14 @@ export class MpModeSession {
     return "not-signed-in";
   }
 
-  /** Read character + turn + inbox; any 401 expires the session. */
+  /**
+   * Read probe + character + turn + capabilities + inbox; the leading probe
+   * keeps every refresh (manual, reconnect, post-mutation) isolated per
+   * account. Any 401 expires the session.
+   */
   private async refreshAuthed(): Promise<MpSnapshot> {
+    const probe = await mpFetch(this.host, "auth-session");
+    if (this.applyProbe(probe) !== "signed-in") return this.get();
     const me = await mpFetch(this.host, "character-me");
     if (me.kind !== "ok") return this.applyAuthedReadFailure(me);
     const character = parseCharacterMe(me.bodyText);
@@ -426,13 +446,19 @@ export class MpModeSession {
     if (!turn) {
       return this.set({ phase: "server-error", error: "The turn record answered in an unexpected shape." });
     }
+    const capsResult = await mpFetch(this.host, "client-nav");
+    if (capsResult.kind !== "ok") return this.applyAuthedReadFailure(capsResult);
+    const capabilities = parseClientNav(capsResult.bodyText);
+    if (!capabilities) {
+      return this.set({ phase: "server-error", error: "The capabilities record answered in an unexpected shape." });
+    }
     const inboxResult = await mpFetch(this.host, "notifications", MP_INBOX_LIMIT, 0);
     if (inboxResult.kind !== "ok") return this.applyAuthedReadFailure(inboxResult);
     const inbox = parseInbox(inboxResult.bodyText);
     if (!inbox) {
       return this.set({ phase: "server-error", error: "The inbox answered in an unexpected shape." });
     }
-    return this.set({ phase: "ready", character, turn, inbox, error: null, retryAfter: null });
+    return this.set({ phase: "ready", character, turn, capabilities, inbox, error: null, retryAfter: null });
   }
 
   private applyAuthedReadFailure(result: MpCallResult): MpSnapshot {

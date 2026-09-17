@@ -20,6 +20,7 @@ const me = JSON.stringify({
   corporation: null,
 });
 const turn = JSON.stringify({ currentTurn: 12, currentYear: 1862 });
+const caps = JSON.stringify({ hasCharacter: true, characterName: "Ada", characterCountryId: "US" });
 const inboxNote = JSON.stringify({ notifications: [], unreadCount: 0, total: 0, hasMore: false });
 
 const received = (overrides: Record<string, unknown> = {}) =>
@@ -113,6 +114,7 @@ function readyScripts(extraFetch: Record<string, Array<string | { reject: string
       "auth-session": [probe],
       "character-me": [me],
       "turn-status": [turn],
+      "client-nav": [caps],
       notifications: [inboxNote],
       ...extraFetch,
     },
@@ -198,8 +200,8 @@ describe("MpModeSession mail reads", () => {
     expect(next.phase).toBe("ready");
     expect(next.mailInbox).toBeNull();
     expect(next.mailSent).toBeNull();
-    // enter fetches probe, player, turn, and notifications only: never mail.
-    expect(calls.map((call) => call.op)).toEqual(["auth-session", "character-me", "turn-status", "notifications"]);
+    // enter fetches probe, player, turn, capabilities, and notifications only: never mail.
+    expect(calls.map((call) => call.op)).toEqual(["auth-session", "character-me", "turn-status", "client-nav", "notifications"]);
   });
 
   it("fetches mail-inbox and mail-sent with limit 50 offset 0", async () => {

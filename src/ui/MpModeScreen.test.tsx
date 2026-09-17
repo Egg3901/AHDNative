@@ -55,6 +55,9 @@ function fakeHost(script: Script): { host: MpBridgeHost; calls: string[] } {
     const item = queues.get(key)?.shift();
     if (typeof item === "string") return item;
     if (item) throw new Error(item.reject);
+    // The adapter always reads capabilities; scripts focused on other flows
+    // get the neutral guest shape instead of failing on the extra read.
+    if (key === "fetch:client-nav") return JSON.stringify({ user: null, hasCharacter: false });
     throw new Error(`unexpected call ${key}`);
   };
   return {
@@ -137,7 +140,7 @@ describe("MpModeScreen at 320px", () => {
     const user = userEvent.setup();
     const { host, calls } = fakeHost({
       fetch: {
-        "auth-session": [probe],
+        "auth-session": [probe, probe],
         "character-me": [me(1000), me(900)],
         "turn-status": [turn, turn],
         notifications: [inbox(1), inbox(1)],
@@ -159,7 +162,7 @@ describe("MpModeScreen at 320px", () => {
     expect(await screen.findByText("Ran 5 fundraisers!")).toBeInTheDocument();
     expect(screen.getByText("900")).toBeInTheDocument();
     expect(calls[0]).toMatch(/^mutate:execute-action:.*"count":5/);
-    expect(calls.slice(1, 4)).toEqual(["fetch:character-me", "fetch:turn-status", "fetch:notifications"]);
+    expect(calls.slice(1, 6)).toEqual(["fetch:auth-session", "fetch:character-me", "fetch:turn-status", "fetch:client-nav", "fetch:notifications"]);
   });
 
   it("shows the batch refusal when a single-run action is tapped with ×10", async () => {
@@ -215,7 +218,7 @@ describe("MpModeScreen at 390px", () => {
     const user = userEvent.setup();
     const { host, calls } = fakeHost({
       fetch: {
-        "auth-session": [probe],
+        "auth-session": [probe, probe, probe, probe],
         "character-me": [me(1000), me(1000), me(1000), me(1000)],
         "turn-status": [turn, turn, turn, turn],
         notifications: [inbox(1), inbox(1), inbox(1), inbox(1)],
@@ -248,7 +251,7 @@ describe("MpModeScreen at 390px", () => {
     const user = userEvent.setup();
     const { host, calls } = fakeHost({
       fetch: {
-        "auth-session": [probe],
+        "auth-session": [probe, probe],
         "character-me": [me(1000), me(1000)],
         "turn-status": [turn, turn],
         notifications: [inbox(1), inbox(1)],
@@ -287,7 +290,7 @@ describe("MpModeScreen on desktop", () => {
     const user = userEvent.setup();
     const { host, calls } = fakeHost({
       fetch: {
-        "auth-session": [probe],
+        "auth-session": [probe, probe],
         "character-me": [me(1000), me(1250)],
         "turn-status": [turn, turn],
         notifications: [inbox(1), inbox(0)],
@@ -304,7 +307,13 @@ describe("MpModeScreen on desktop", () => {
     expect(screen.getByText("1250")).toBeInTheDocument();
     // Mutation first, authoritative refresh after: the UI never claims early.
     expect(calls[0]).toMatch(/^mutate:execute-action:/);
-    expect(calls.slice(1, 4)).toEqual(["fetch:character-me", "fetch:turn-status", "fetch:notifications"]);
+    expect(calls.slice(1, 6)).toEqual([
+      "fetch:auth-session",
+      "fetch:character-me",
+      "fetch:turn-status",
+      "fetch:client-nav",
+      "fetch:notifications",
+    ]);
   });
 
   it("surfaces server refusal with prior state intact", async () => {
@@ -362,7 +371,7 @@ describe("MpModeScreen on desktop", () => {
     const user = userEvent.setup();
     const { host } = fakeHost({
       fetch: {
-        "auth-session": [probe],
+        "auth-session": [probe, probe],
         "character-me": [me(1000), me(1000)],
         "turn-status": [turn, turn],
         notifications: [inbox(1), inbox(0)],
@@ -422,7 +431,20 @@ describe("MpModeScreen on desktop", () => {
         "mail-inbox": [emptyMailInbox],
         "mail-sent": [emptyMailSent],
         "client-nav": [
-          JSON.stringify({ user: { id: "u1", username: "Ada", isAdmin: true, isModerator: true } }),
+          JSON.stringify({
+            user: { id: "u1", username: "Ada", isAdmin: true, isModerator: true },
+            hasCharacter: true,
+            characterName: "Ada",
+            characterCountryId: "US",
+            unreadMailCount: 1,
+          }),
+          JSON.stringify({
+            user: { id: "u1", username: "Ada", isAdmin: true, isModerator: true },
+            hasCharacter: true,
+            characterName: "Ada",
+            characterCountryId: "US",
+            unreadMailCount: 1,
+          }),
         ],
         "admin-maintenance": [
           JSON.stringify({
