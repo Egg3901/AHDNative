@@ -179,6 +179,19 @@ describe("RegionsPanel", () => {
   });
 });
 
+describe("RegionsPanel election labels on 320px phones", () => {
+  it("wraps a long chamber name and status badge instead of overflowing the card", () => {
+    render(<RegionsPanel query={projectRegions(electedWorld(), { regionId: "AL" })} onQueryChange={vi.fn()} directoryOpen={false} onDirectoryOpenChange={vi.fn()} />);
+
+    const row = screen.getByRole("listitem", { name: "house:US:AL:c1" });
+    const name = within(row).getByText("House of Representatives");
+    const header = name.closest("div")!;
+    expect(header).toHaveStyle({ flexWrap: "wrap" });
+    expect(name).toHaveStyle({ minWidth: "0", overflowWrap: "anywhere" });
+    expect(within(row).getByText("Resolved").closest("span")).toHaveStyle({ flexShrink: "0" });
+  });
+});
+
 describe("RegionsPanel dual-pane list/detail (#438)", () => {
   it("exposes directory list and selected-region detail panes sharing one query", () => {
     const world = createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "regions-dual-pane" });

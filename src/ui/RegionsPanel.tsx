@@ -402,9 +402,9 @@ function ChamberCard({
 function ElectionCard({ election, clock }: { election: RegionElectionView; clock: GameClock }) {
   return (
     <li style={{ borderTop: "1px solid var(--ahd-border)", paddingTop: "0.55rem" }} aria-label={election.id}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
-        <strong>{election.chamberName}</strong>
-        <span className="ahd-badge">{humanize(election.status)}</span>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "flex-start", flexWrap: "wrap" }}>
+        <strong style={{ minWidth: 0, overflowWrap: "anywhere" }}>{election.chamberName}</strong>
+        <span className="ahd-badge" style={{ flexShrink: 0 }}>{humanize(election.status)}</span>
       </div>
       <div className="ahd-muted" style={{ fontSize: "0.7rem", marginTop: "0.25rem" }}>
         {humanize(election.electionType)} · cycle {number(election.cycle)} · {number(election.totalSeats)} seat{election.totalSeats === 1 ? "" : "s"}
