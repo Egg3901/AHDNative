@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_NPP_AUTONOMY_LEVEL, DEFAULT_WORLD_FEATURE_FLAGS, NPP_AUTONOMY_LEVELS, WORLD_FEATURE_FLAG_DEFINITIONS } from "@ahdclient/engine";
 import type { NppAutonomyLevel } from "@ahdclient/engine";
 import type { EraChoice, NewGameOptions, NewGameScreenProps, WorldInitialization } from "../game/types";
+import { hosOfficeCopy } from "./hosOfficeCopy";
 import { PartyMark } from "./PartyMark";
 import "./ui.css";
 
@@ -46,6 +47,28 @@ function validate(opts: NewGameOptions, eras: EraChoice[]): Record<string, strin
   return errs;
 }
 
+/**
+ * HoS seating-path notice (#243 creation-UI slice of #240). Names the office
+ * the world start binds, following the reference office-type semantics
+ * (AHDGame src/lib/singleplayerHeadOfState.ts
+ * getSingleplayerHeadOfStateOfficeType: president for presidential systems,
+ * the authored executive office otherwise), and states its permanence
+ * (AHDGame new-game route permanentHeadOfState; engine createWorld binds
+ * currentOffice and permanentHeadOfState in packages/engine/src/world.ts).
+ * Outcome only: no appointment vote runs at world start in Native or in the
+ * reference seating path, and one-party selection (partyChairSync outside RU)
+ * is ongoing governance rather than world-start seating, so the notice
+ * claims no appointment mechanism. Titles come from hosOfficeCopy, the same
+ * source as the in-world HoS banner, so setup and banner never disagree;
+ * unknown offices fall back to its neutral "executive office".
+ */
+function hosSeatingNotice(country: { name: string; headOfStateOffice: string | null }): string | null {
+  const office = country.headOfStateOffice;
+  if (!office) return null;
+  const title = hosOfficeCopy(office).title;
+  return `Seated as ${title} of ${country.name} when the world starts. The office is permanent for this world.`;
+}
+
 export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScreenProps) {
   const [era, setEra] = useState(() => eras[0]?.id ?? "");
   const [countryId, setCountryId] = useState(() => eras[0]?.countries[0]?.id ?? "");
@@ -72,6 +95,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
         ? `No governing party exists for the ${initialization} start in ${activeCountry.name}; Head of State is unavailable.`
         : null;
   const hosEligible = !hosUnavailableReason;
+  const hosSeating = mode === "hos" && activeCountry && previewParty ? hosSeatingNotice(activeCountry) : null;
 
   useEffect(() => {
     if (!activeEra) {
@@ -243,6 +267,11 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
                   {hosUnavailableReason}
                 </p>
               )}
+              {hosSeating ? (
+                <p className="ahd-help" role="note" style={{ marginTop: "0.3rem" }}>
+                  {hosSeating}
+                </p>
+              ) : null}
               {fieldErrors.mode ? <span className="ahd-error-text" role="alert">{fieldErrors.mode}</span> : null}
             </div>
 
