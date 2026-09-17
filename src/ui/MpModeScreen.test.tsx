@@ -2,8 +2,9 @@
  * Rendered contract for the Native multiplayer mode screen (#359).
  *
  * Covers navigation/state at 320px, 390px, and desktop widths, supported
- * screens, action success/refusal/rate-limit flows with post-mutation
- * refresh, and the absent-not-inert rule for unsupported actions.
+ * screens, action success/refusal/conflict/rate-limit flows with
+ * post-mutation refresh, authoritative standing rendering, and the
+ * absent-not-inert rule for unsupported actions.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi, afterEach } from "vitest";
@@ -337,6 +338,109 @@ describe("MpModeScreen on desktop", () => {
     expect(screen.getByText("1000")).toBeInTheDocument();
     expect(screen.queryByRole("status")).toBeNull();
     expect(calls.filter((call) => call.startsWith("fetch:character-me"))).toHaveLength(1);
+  });
+
+  it("renders authoritative standing from capabilities and omits absent fields", async () => {
+    setViewport(1280);
+    render(
+      <MpModeScreen
+        host={
+          fakeHost({
+            fetch: {
+              "auth-session": [probe],
+              "character-me": [me(1000)],
+              "turn-status": [turn],
+              "client-nav": [
+                JSON.stringify({
+                  user: { id: USER, username: "Ada", isAdmin: false },
+                  hasCharacter: true,
+                  characterName: "Ada",
+                  characterCountryId: "US",
+                  unreadMailCount: 0,
+                  myCorporationId: 42,
+                  myUnionId: "union-7",
+                  activeElection: { id: "e1", label: "President · US" },
+                  cabinetOffice: { positionId: "sec-state", positionName: "Secretary of State", countryCode: "us" },
+                  governorOffice: { stateId: "CA", stateName: "California", countryCode: "us" },
+                }),
+              ],
+              notifications: [inbox(1)],
+              "mail-inbox": [emptyMailInbox],
+              "mail-sent": [emptyMailSent],
+            },
+          }).host
+        }
+        onExit={() => {}}
+      />,
+    );
+    const standing = await screen.findByRole("article", { name: "Standing" });
+    expect(within(standing).getByText("Corporation")).toBeInTheDocument();
+    expect(within(standing).getByText("#42")).toBeInTheDocument();
+    expect(within(standing).getByText("union-7")).toBeInTheDocument();
+    expect(within(standing).getByText("President · US")).toBeInTheDocument();
+    expect(within(standing).getByText("Secretary of State")).toBeInTheDocument();
+    expect(within(standing).getByText("California")).toBeInTheDocument();
+  });
+
+  it("states empty standing honestly and keeps absent offices out of the view", async () => {
+    setViewport(1280);
+    render(
+      <MpModeScreen
+        host={
+          fakeHost({
+            fetch: {
+              "auth-session": [probe],
+              "character-me": [me(1000)],
+              "turn-status": [turn],
+              "client-nav": [
+                JSON.stringify({
+                  user: { id: USER, username: "Ada", isAdmin: false },
+                  hasCharacter: true,
+                  characterName: "Ada",
+                  characterCountryId: "US",
+                  unreadMailCount: 0,
+                }),
+              ],
+              notifications: [inbox(1)],
+              "mail-inbox": [emptyMailInbox],
+              "mail-sent": [emptyMailSent],
+            },
+          }).host
+        }
+        onExit={() => {}}
+      />,
+    );
+    const standing = await screen.findByRole("article", { name: "Standing" });
+    expect(within(standing).getByText(/No offices, candidacies/)).toBeInTheDocument();
+    for (const absent of ["Corporation", "Union", "Election", "Cabinet", "Governor"]) {
+      expect(within(standing).queryByText(absent)).toBeNull();
+    }
+    expect(await screen.findByRole("heading", { name: "Ada" })).toBeInTheDocument();
+  });
+
+  it("surfaces a paused-world conflict verbatim with state intact and no refresh", async () => {
+    setViewport(1280);
+    const user = userEvent.setup();
+    const { host, calls } = fakeHost({
+      fetch: {
+        "auth-session": [probe],
+        "character-me": [me(1000)],
+        "turn-status": [turn],
+        notifications: [inbox(1)],
+        "mail-inbox": [emptyMailInbox],
+        "mail-sent": [emptyMailSent],
+      },
+      mutate: { "execute-action": [{ reject: 'remote-error:409:0:{"error":"The game is currently paused."}' }] },
+    });
+    render(<MpModeScreen host={host} onExit={() => {}} />);
+    await screen.findByRole("heading", { name: "Ada" });
+    await user.click(screen.getByRole("button", { name: /Rest/ }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("The game is currently paused.");
+    expect(screen.getByText("1000")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).toBeNull();
+    // Conflict refuses without an authoritative refresh: only the initial load ran.
+    expect(calls.filter((call) => call.startsWith("fetch:character-me"))).toHaveLength(1);
+    expect(calls.filter((call) => call.startsWith("mutate:"))).toHaveLength(1);
   });
 
   it("shows the retry delay on rate limits and keeps loaded state", async () => {
