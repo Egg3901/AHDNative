@@ -195,11 +195,12 @@ describe("company hero mapping", () => {
 
 describe("MarketsPanel hero bands (#378)", () => {
   let MarketsPanel: Awaited<ReturnType<typeof loadPanel>>;
-  // Hoisted: transforming MarketsPanel plus its panel deps can exceed the
-  // per-test timeout under load; the import cost is paid once here.
+  // Hoisted: transforming MarketsPanel plus its panel deps exceeds the
+  // default 10s hook budget under load (observed ~9-21s); the import cost is
+  // paid once here with the repo's 60s timeout budget (vitest.config.ts).
   beforeAll(async () => {
     MarketsPanel = await loadPanel();
-  });
+  }, 60_000);
 
   it("renders the list band with NYSE art, cash line and no external requests", async () => {
     render(<MarketsPanel markets={makeMarkets()} busy={false} onAction={vi.fn()} />);
@@ -209,7 +210,7 @@ describe("MarketsPanel hero bands (#378)", () => {
     expect(screen.getByRole("heading", { name: "Stock market" })).toBeInTheDocument();
     expect(screen.getByText(/0 listed companies\. Cash/i)).toBeInTheDocument();
     expect(screen.getByText(/No listed corporations\./i)).toBeInTheDocument();
-  });
+  }, 60_000);
 
   it("renders a mapped company hero on detail for a previously-fallback sector", async () => {
     const user = userEvent.setup();
@@ -270,7 +271,7 @@ describe("MarketsPanel hero bands (#378)", () => {
     const hero = screen.getByRole("img", { name: COMMODITY_HERO_ALT["advertising"] });
     expect(hero.getAttribute("src")).toBe("/static/heroes/commodity-advertising.webp");
     expect(screen.getByRole("heading", { name: "US-media" })).toBeInTheDocument();
-  });
+  }, 60_000);
 
   it("adapts both bands from phones to wider screens with no overflow", () => {
     const css = readFileSync("src/ui/ui.css", "utf8");
