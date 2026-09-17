@@ -498,7 +498,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
       identityOrg={identityOrg}
       roleConditions={roleConditions}
       metricsAvailable={world.capabilityNav?.metricsAvailable}
-      referendumCampaignActive={world.capabilityNav?.referendumCampaignActive}
+      referendumsAvailable={world.capabilityNav?.referendumsAvailable}
       onAdvanceTurn={onAdvanceTurn}
       onSave={onSave}
       onExit={onExit}

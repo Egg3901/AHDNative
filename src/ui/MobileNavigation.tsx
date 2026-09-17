@@ -395,7 +395,7 @@ export function GameDrawer({
   roleConditions,
   cabinetAvailable,
   metricsAvailable,
-  referendumCampaignActive,
+  referendumsAvailable,
 }: {
   open: boolean;
   /**
@@ -442,7 +442,7 @@ export function GameDrawer({
    * (pre-signal saves) keeps today's rows. No overlap with #520 role rows.
    */
   metricsAvailable?: boolean;
-  referendumCampaignActive?: boolean;
+  referendumsAvailable?: boolean;
 }) {
   const drawerRef = useRef<HTMLElement | null>(null);
   const activeGroup = MENU_GROUPS.find((group) =>
@@ -512,7 +512,7 @@ export function GameDrawer({
   // Absent props keep today's rows for pre-signal saves.
   const capabilityHidden = (id: DrawerRouteId): boolean =>
     ((id === "politicalMetrics" || id === "metrics") && metricsAvailable === false)
-    || (id === "referendums" && referendumCampaignActive === false);
+    || (id === "referendums" && referendumsAvailable === false);
   const visibleGroups = MENU_GROUPS.map((group) => ({
     ...group,
     items: group.items.filter((item) => !capabilityHidden(item.id)),

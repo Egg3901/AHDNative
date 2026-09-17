@@ -18,18 +18,16 @@ import type { WorldState } from "@ahdclient/engine";
  *   pipeline-country list is not copied: a flag-off world must not offer
  *   metrics rows whose data can never update. The reference's
  *   playable/non-playable registry split stays a documented gap.
- * - referendum support mirrors the active endpoint exactly: a record for the
- *   player's country with `status === "campaigning"`. Granted/polling/
- *   actuating records are lifecycle states, not campaigns, and foreign
- *   records never gate the home drawer. The UK-only request seam stays owned
- *   by projectReferendumRequest in politics.ts.
+ * - referendum navigation remains available where Native supports starting
+ *   a request (the UK slice), or where the player's country already has an
+ *   active campaign. Foreign and inactive records never unlock the drawer.
  *
  * Pre-signal saves (missing flags or referendum ledger) project undefined so
  * callers keep today's rows instead of hiding destinations the save predates.
  */
 export interface CapabilityNavSupport {
   metricsAvailable: boolean;
-  referendumCampaignActive: boolean;
+  referendumsAvailable: boolean;
 }
 
 export function projectCapabilityNav(world: WorldState): CapabilityNavSupport | undefined {
@@ -39,7 +37,7 @@ export function projectCapabilityNav(world: WorldState): CapabilityNavSupport | 
   const countryId = world.player.countryId;
   return {
     metricsAvailable: flags.metrics === true,
-    referendumCampaignActive: referendums.some(
+    referendumsAvailable: countryId === "UK" || referendums.some(
       (record) =>
         !!record &&
         (record as { countryId?: unknown }).countryId === countryId &&

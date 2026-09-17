@@ -183,7 +183,7 @@ describe.each([320, 1280])("metrics/referendum gating at %spx (#510)", (width) =
   it("hides unsupported rows when the signal denies them", async () => {
     setViewport(width);
     const user = userEvent.setup();
-    render(<GameScreen {...baseProps(makeWorld({ capabilityNav: { metricsAvailable: false, referendumCampaignActive: false } }))} />);
+    render(<GameScreen {...baseProps(makeWorld({ capabilityNav: { metricsAvailable: false, referendumsAvailable: false } }))} />);
     const menu = await openMenu(user);
     await expandNation(user, menu);
     expect(menu.queryByRole("button", { name: "Political metrics" })).toBeNull();
@@ -197,7 +197,7 @@ describe.each([320, 1280])("metrics/referendum gating at %spx (#510)", (width) =
   it("shows every row when the signal grants them", async () => {
     setViewport(width);
     const user = userEvent.setup();
-    render(<GameScreen {...baseProps(makeWorld({ capabilityNav: { metricsAvailable: true, referendumCampaignActive: true } }))} />);
+    render(<GameScreen {...baseProps(makeWorld({ capabilityNav: { metricsAvailable: true, referendumsAvailable: true } }))} />);
     const menu = await openMenu(user);
     await expandNation(user, menu);
     expect(menu.queryByRole("button", { name: "Political metrics" })).not.toBeNull();
@@ -208,7 +208,7 @@ describe.each([320, 1280])("metrics/referendum gating at %spx (#510)", (width) =
   it("recovers honestly on a metrics deep link with the flag off", async () => {
     setViewport(width);
     const user = userEvent.setup();
-    const onWorld = makeWorld({ capabilityNav: { metricsAvailable: true, referendumCampaignActive: false } });
+    const onWorld = makeWorld({ capabilityNav: { metricsAvailable: true, referendumsAvailable: false } });
     const { rerender } = render(<GameScreen {...baseProps(onWorld)} />);
     // Arrive while supported, then the save arrives with the flag off (World
     // settings toggle or restored route): the frozen registry must not pose
@@ -217,7 +217,7 @@ describe.each([320, 1280])("metrics/referendum gating at %spx (#510)", (width) =
     await expandNation(user, menu);
     await user.click(menu.getByRole("button", { name: "National Metrics" }));
     expect(await within(mainRegion()).findByRole("heading", { name: "National metrics registry" })).toBeInTheDocument();
-    rerender(<GameScreen {...baseProps(makeWorld({ capabilityNav: { metricsAvailable: false, referendumCampaignActive: false } }))} />);
+    rerender(<GameScreen {...baseProps(makeWorld({ capabilityNav: { metricsAvailable: false, referendumsAvailable: false } }))} />);
     const main = mainRegion();
     expect(await within(main).findByRole("heading", { name: "National metrics" })).toBeInTheDocument();
     expect(within(main).getByRole("note")).toHaveTextContent(/turned off/i);
@@ -228,13 +228,13 @@ describe.each([320, 1280])("metrics/referendum gating at %spx (#510)", (width) =
   it("recovers honestly on a political-metrics deep link with the flag off", async () => {
     setViewport(width);
     const user = userEvent.setup();
-    const onWorld = makeWorld({ capabilityNav: { metricsAvailable: true, referendumCampaignActive: false } });
+    const onWorld = makeWorld({ capabilityNav: { metricsAvailable: true, referendumsAvailable: false } });
     const { rerender } = render(<GameScreen {...baseProps(onWorld)} />);
     let menu = await openMenu(user);
     await expandNation(user, menu);
     await user.click(menu.getByRole("button", { name: "Political metrics" }));
     expect(await within(mainRegion()).findByText("No national metrics recorded.")).toBeInTheDocument();
-    rerender(<GameScreen {...baseProps(makeWorld({ capabilityNav: { metricsAvailable: false, referendumCampaignActive: false } }))} />);
+    rerender(<GameScreen {...baseProps(makeWorld({ capabilityNav: { metricsAvailable: false, referendumsAvailable: false } }))} />);
     const main = mainRegion();
     expect(await within(main).findByRole("heading", { name: "Political metrics" })).toBeInTheDocument();
     expect(within(main).getByRole("note")).toHaveTextContent(/turned off/i);
@@ -252,7 +252,7 @@ describe.each([320, 1280])("metrics/referendum gating at %spx (#510)", (width) =
       results: [{ kind: "referendum", id: "ref-1", title: "Should SCO become independent?", description: "Referendum · Scotland" }],
       facets: { kinds: [], countries: [], regions: [] },
     };
-    render(<GameScreen {...baseProps(makeWorld({ capabilityNav: { metricsAvailable: true, referendumCampaignActive: false } }), searchResults)} />);
+    render(<GameScreen {...baseProps(makeWorld({ capabilityNav: { metricsAvailable: true, referendumsAvailable: false } }), searchResults)} />);
     // The drawer offers no Referendums row without an active campaign.
     let menu = await openMenu(user);
     await expandNation(user, menu);

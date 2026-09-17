@@ -43,13 +43,20 @@ describe("projectCapabilityNav", () => {
       projectCapabilityNav(
         fakeWorld({ records: [{ countryId: "US", status: "campaigning" }] }),
       ),
-    ).toEqual({ metricsAvailable: true, referendumCampaignActive: true });
+    ).toEqual({ metricsAvailable: true, referendumsAvailable: true });
   });
 
   it("reports no active campaign without records", () => {
     expect(projectCapabilityNav(fakeWorld({}))).toEqual({
       metricsAvailable: true,
-      referendumCampaignActive: false,
+      referendumsAvailable: false,
+    });
+  });
+
+  it("keeps referendums discoverable where a UK request can start the campaign", () => {
+    expect(projectCapabilityNav(fakeWorld({ countryId: "UK" }))).toEqual({
+      metricsAvailable: true,
+      referendumsAvailable: true,
     });
   });
 
@@ -65,7 +72,7 @@ describe("projectCapabilityNav", () => {
           ],
         }),
       ),
-    ).toEqual({ metricsAvailable: true, referendumCampaignActive: false });
+    ).toEqual({ metricsAvailable: true, referendumsAvailable: false });
   });
 
   it("reports metrics unavailable when the saved flag is off", () => {
@@ -76,7 +83,7 @@ describe("projectCapabilityNav", () => {
           records: [{ countryId: "US", status: "campaigning" }],
         }),
       ),
-    ).toEqual({ metricsAvailable: false, referendumCampaignActive: true });
+    ).toEqual({ metricsAvailable: false, referendumsAvailable: true });
   });
 
   it("projects undefined for pre-signal saves so the drawer keeps today's rows", () => {
