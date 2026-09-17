@@ -161,4 +161,15 @@ describe("GameScreen footer transient status", () => {
     );
     expect(css).toMatch(/\.ahd-statusline-text[\s\S]*?line-clamp:\s*2/);
   });
+
+  it("keeps short transient status text inline so the phone footer stays compact", () => {
+    // A fixed flex basis wider than the leftover statusline row space forces
+    // even a short notice like "Game saved." onto its own row and pushes the
+    // fixed footer past its 160px budget at 320/390px
+    // (smoke/mobile-navigation.spec.ts). The basis must stay content-sized so
+    // short text sits inline while long text still takes a full clamped row.
+    const rule = css.match(/\.ahd-statusline-text\s*\{[^}]*\}/);
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/flex:\s*1\s+1\s+auto/);
+  });
 });

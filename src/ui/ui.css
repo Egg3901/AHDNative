@@ -528,10 +528,14 @@ html, body { overflow-x: hidden; }
    phones a long message would otherwise wrap unboundedly inside the fixed
    footer and push it past its height budget on 320px, so the copy clamps to
    two lines. The clamp is visual only: the full text stays in the
-   accessibility tree and in `title`. Desktop rendering is unchanged. */
+   accessibility tree and in `title`. The flex basis stays `auto` (content
+   width): a fixed basis wider than the leftover row space would force even a
+   short notice like "Game saved." onto its own row and push the footer past
+   its 160px budget at 320/390px (smoke/mobile-navigation.spec.ts). Desktop
+   rendering is unchanged. */
 @media (max-width: 390px) {
   .ahd-statusline-text {
-    flex: 1 1 10rem; min-width: 0;
+    flex: 1 1 auto; min-width: 0;
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
     overflow: hidden;
   }
