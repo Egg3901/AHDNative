@@ -173,6 +173,109 @@ describe("wallet SP/MP reachability", () => {
   });
 });
 
+describe("wallet adverse data states", () => {
+  it("names an unavailable market price instead of a $0.00 value", () => {
+    // NaN across the JSON save interchange arrives as null at runtime.
+    const nullPrice = null as unknown as number;
+    render(
+      <FinancePanel
+        finance={makeFinance({
+          holdings: [
+            { id: "h1", name: "Acme Steel", ticker: "ACME", shares: 10, price: Number.NaN, currency: "USD" },
+            { id: "h2", name: "Yen Works", ticker: "YENW", shares: 5, price: nullPrice, currency: "JPY" },
+          ],
+        })}
+        section="portfolio"
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+    expect(screen.getAllByText("Price unavailable")).toHaveLength(2);
+    expect(screen.getByText(/market price unavailable in USD/)).toBeInTheDocument();
+    expect(screen.getByText(/market price unavailable in JPY/)).toBeInTheDocument();
+    expect(screen.queryByText("$0.00")).not.toBeInTheDocument();
+  });
+
+  it("renders a single holding with an unavailable price in the stacked layout", () => {
+    render(
+      <FinancePanel
+        finance={makeFinance({
+          holdings: [{ id: "h1", name: "Acme Steel", ticker: "ACME", shares: 10, price: Number.NaN, currency: "USD" }],
+        })}
+        section="portfolio"
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Price unavailable")).toBeInTheDocument();
+    expect(screen.getByText(/market price unavailable in USD/)).toBeInTheDocument();
+  });
+
+  it("keeps very long issuer, ticker, and currency labels rendered in full with wrap contracts", () => {
+    const longName = "Consolidated Transcontinental Mercantile and Steamship Assurance Corporation of the Northern Provinces".repeat(2);
+    render(
+      <FinancePanel
+        finance={makeFinance({
+          savingsHolder: "The First National Bank and Trust Company of the Greater Metropolitan Harbor District",
+          holdings: [{ id: "h1", name: longName, ticker: "VERYLONGTICKERCODE", shares: 3, price: 12.5, currency: "XXL" }],
+        })}
+        section="portfolio"
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(longName)).toBeInTheDocument();
+    // Long/unknown currency codes still render a named amount, never a crash or blank.
+    const detail = screen.getByText(/per share/);
+    expect(detail.textContent).toMatch(/XXL/);
+    expect(detail.textContent).toMatch(/12\.50/);
+    const nameEl = screen.getByText(longName);
+    expect((nameEl as HTMLElement).style.overflowWrap).toBe("anywhere");
+  });
+
+  it("renders losses and large values without clipping contracts", () => {
+    render(
+      <FinancePanel
+        finance={makeFinance({ cash: -250.75, savings: 9876543210.99 })}
+        section="banking"
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+    const cashValue = screen.getByText("Cash", { exact: true }).parentElement!.lastElementChild as HTMLElement;
+    expect(cashValue.textContent).toMatch(/-.*250/);
+    expect(cashValue.style.overflowWrap).toBe("anywhere");
+    const savingsValue = screen.getByText("Savings", { exact: true }).parentElement!.lastElementChild as HTMLElement;
+    expect(savingsValue.style.overflowWrap).toBe("anywhere");
+    expect(savingsValue.textContent).toMatch(/9,876,543,210/);
+  });
+
+  it("renders many holdings with every disclosure keyboard-focusable", async () => {
+    const user = userEvent.setup();
+    const holdings = Array.from({ length: 25 }, (_, i) => ({
+      id: `h${i}`, name: `Holding ${i}`, ticker: `H${i}`, shares: i + 1, price: 10, currency: "USD",
+    }));
+    render(<FinancePanel finance={makeFinance({ holdings })} section="portfolio" busy={false} onAction={vi.fn()} />);
+    const details = document.querySelectorAll("details.ahd-wallet-holding");
+    expect(details).toHaveLength(25);
+    // A closed disclosure past the first opens on activation and takes focus;
+    // jsdom only toggles details on summary activation (click), not on the
+    // Enter keypress itself, so the visible-focus half is pinned via CSS.
+    const second = details[1];
+    expect(second).not.toHaveAttribute("open");
+    const summary = second.querySelector("summary") as HTMLElement;
+    summary.focus();
+    expect(document.activeElement).toBe(summary);
+    await user.click(summary);
+    expect(second).toHaveAttribute("open");
+    expect(css).toMatch(/\.ahd-wallet-disclosure:focus-visible\s*\{[^}]*outline:/);
+  });
+
+  it("pins the reduced-motion takeover so wallet rendering adds no animation burden", () => {
+    expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+  });
+});
+
 describe("wallet action and save-reload through the real screen", () => {
   it("renders reloaded balances after a save round-trip and dispatches withdraw", async () => {
     // The full deposit/save/load engine cycle lives in src/game/finance.test.ts.
