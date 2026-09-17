@@ -749,7 +749,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
               onNavigate={navigate}
             />
           ))}
-          {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={route === "nations" ? (detailId ?? nationContext) : detailId} onSelectNation={route === "nations" ? (id) => { setDetailId(undefined); setNationContext(id); } : undefined} onNavigate={navigate} />}</DetailQuery>}
+          {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={route === "nations" ? (detailId ?? nationContext) : detailId} onSelectNation={route === "nations" ? (id) => { setDetailId(undefined); setNationContext(id); } : undefined} onNavigate={navigate} onOpenParty={openParty} onOpenElection={openElection} />}</DetailQuery>}
           {route === "worldMap" && <WorldMapRoute loadOverview={loadWorldOverview} loadRegions={loadRegions} revision={world} section={preferences.worldMapSection} onSectionChange={(worldMapSection) => onPreferencesChange({ ...preferences, worldMapSection })} onNavigate={navigate} />}
           {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} revision={world} busy={busy} onNavigate={navigate} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}

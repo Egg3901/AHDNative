@@ -367,6 +367,31 @@ Remaining gaps (issue #510 stays open):
   #521, per-screen action/data depth, and physical-iPhone smoke remain as in
   section 8.
 
+## 12. Home-region surface links (#510, post-0.1.9 audit)
+
+Reference: AHDGame e364c0495 `ExperimentalMobileMenu.tsx` State rows link
+the state party page and regional elections. The Native home State surface
+(`WorldPanel` StateSection) rendered both as dead text. It now opens the
+national party/race detail for the same recorded engine id (home-region
+rows are always player-country, so the ids resolve in the politics
+projection) through the shell drill callbacks, and Back restores the
+home-region surface through the bounded return stack. Stale recorded ids
+fall back to the first live row with Back intact; no home region keeps the
+honest empty with no buttons.
+
+Focused evidence: `src/ui/StateSurfaceLinks510.test.tsx` (8 rendered tests:
+party and race round-trips at 320/390/1280px desktop, ghost-id fallback,
+null-region empty state).
+
+Still open after this slice: the Regions directory detail (foreign-region
+ids do not resolve in the player-country politics projection, so its party
+support and election rows stay unlinked), RegionViewerCard-adjacent office
+holder links, and the no-destination rows (Executive, SCOTUS, US Political
+Operations, charters surface, unions, Hall of Fame, crises, conflicts,
+international orgs, sectors surface, forex, trade, IMF). The RouteMatrix510
+politicians-return residual noted under section 10 now passes (verified
+2026-09-17 on the 0.1.9 base). No physical-iPhone evidence is claimed.
+
 ## 11. Metrics/referendum capability gating (#510)
 
 - `projectCapabilityNav` projects support from saved domain state: the

@@ -22,6 +22,15 @@ export interface WorldPanelProps {
   /** Opens a linked destination (election, office, profile) from the role rows. */
   onNavigate?: (route: DrawerRouteId, id?: string) => void;
   /**
+   * Home-region drill-downs (#510). The reference State submenu links the
+   * state party page and regional elections; the offline equivalent opens
+   * the national party/race detail for the same recorded engine id. The
+   * shell supplies drill callbacks so Back restores the home-region surface
+   * through the return stack instead of a canonical parent.
+   */
+  onOpenParty?: (id: string) => void;
+  onOpenElection?: (id: string) => void;
+  /**
    * Reports a nation-context switch from the Nations switcher. The selection is
    * a browse context only — it never changes the player's country — and the
    * owner keeps it across route changes so returning lands on the viewed nation.
@@ -402,7 +411,7 @@ function RegionMetric({ label, value, note }: { label: string; value: string; no
   return <KeyValue label={label} value={value} note={note} />;
 }
 
-function PartySupport({ region }: { region: WorldRegionView }) {
+function PartySupport({ region, onOpenParty }: { region: WorldRegionView; onOpenParty?: (id: string) => void }) {
   return (
     <div className="ahd-card ahd-card-pad">
       <h2 className="ahd-h2">Party support</h2>
@@ -412,7 +421,20 @@ function PartySupport({ region }: { region: WorldRegionView }) {
         <ul style={{ listStyle: "none", margin: "0.6rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.4rem" }}>
           {region.partySupport.map((row) => (
             <li key={row.party.id} className="ahd-kv" style={{ alignItems: "flex-start" }}>
-              <PartyLabel party={row.party} />
+              <span>
+                <PartyLabel party={row.party} />
+                {onOpenParty ? (
+                  <button
+                    type="button"
+                    className="ahd-btn ahd-btn-sm"
+                    style={{ marginTop: "0.3rem" }}
+                    onClick={() => onOpenParty(row.party.id)}
+                    aria-label={`View ${row.party.name} details`}
+                  >
+                    View details
+                  </button>
+                ) : null}
+              </span>
               <span className="ahd-mono" style={{ textAlign: "right" }}>
                 <span>{`${row.organization.toFixed(1)}% organization`}</span><br />
                 <span>{`${row.registration.toFixed(1)}% registration`}</span>
@@ -425,7 +447,7 @@ function PartySupport({ region }: { region: WorldRegionView }) {
   );
 }
 
-function RegionElections({ elections, clock }: { elections: WorldRegionElectionView[]; clock: GameClock }) {
+function RegionElections({ elections, clock, onOpenElection }: { elections: WorldRegionElectionView[]; clock: GameClock; onOpenElection?: (id: string) => void }) {
   return (
     <div className="ahd-card ahd-card-pad">
       <h2 className="ahd-h2">Elections</h2>
@@ -445,6 +467,17 @@ function RegionElections({ elections, clock }: { elections: WorldRegionElectionV
               <div className="ahd-muted" style={{ fontSize: "0.7rem", marginTop: "0.2rem" }}>
                 Starts {formatGameTurn(election.startTurn, clock)} · primary ends {formatGameTurn(election.primaryEndTurn, clock)} · ends {formatGameTurn(election.endTurn, clock)}
               </div>
+              {onOpenElection ? (
+                <button
+                  type="button"
+                  className="ahd-btn ahd-btn-sm"
+                  style={{ marginTop: "0.35rem" }}
+                  onClick={() => onOpenElection(election.id)}
+                  aria-label={`View ${humanize(election.electionType)} race details`}
+                >
+                  View race details
+                </button>
+              ) : null}
               {election.candidates.length > 0 ? (
                 <ul style={{ listStyle: "none", margin: "0.45rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.2rem" }}>
                   {election.candidates.map((candidate) => (
@@ -486,7 +519,7 @@ function RegionOffice({ region, clock }: { region: WorldRegionView; clock: GameC
   );
 }
 
-function StateSection({ overview, onNavigate }: { overview: WorldOverviewView; onNavigate?: (route: DrawerRouteId, id?: string) => void }) {
+function StateSection({ overview, onNavigate, onOpenParty, onOpenElection }: { overview: WorldOverviewView; onNavigate?: (route: DrawerRouteId, id?: string) => void; onOpenParty?: (id: string) => void; onOpenElection?: (id: string) => void }) {
   const region = overview.homeRegion;
   if (region === null) {
     return (
@@ -527,7 +560,7 @@ function StateSection({ overview, onNavigate }: { overview: WorldOverviewView; o
       </div>
       <RegionViewerCard rows={region.viewer} onNavigate={onNavigate} clock={clock} />
       <div className="ahd-grid ahd-grid-2">
-        <PartySupport region={region} />
+        <PartySupport region={region} onOpenParty={onOpenParty} />
         <div className="ahd-card ahd-card-pad">
           <h2 className="ahd-h2">Electorate pool</h2>
           {region.electoratePool === null ? (
@@ -546,15 +579,15 @@ function StateSection({ overview, onNavigate }: { overview: WorldOverviewView; o
       </div>
       <RegionSectorsCard sectors={region.sectors} currency={currency} />
       <div className="ahd-grid ahd-grid-2">
-        <RegionElections elections={region.elections} clock={clock} />
+        <RegionElections elections={region.elections} clock={clock} onOpenElection={onOpenElection} />
         <RegionOffice region={region} clock={clock} />
       </div>
     </WorldLayout>
   );
 }
 
-export function WorldPanel({ overview, section, initialId, onNavigate, onSelectNation }: WorldPanelProps) {
+export function WorldPanel({ overview, section, initialId, onNavigate, onSelectNation, onOpenParty, onOpenElection }: WorldPanelProps) {
   return section === "nations"
     ? <NationsSection overview={overview} initialId={initialId} onSelectNation={onSelectNation} onNavigate={onNavigate} />
-    : <StateSection overview={overview} onNavigate={onNavigate} />;
+    : <StateSection overview={overview} onNavigate={onNavigate} onOpenParty={onOpenParty} onOpenElection={onOpenElection} />;
 }
