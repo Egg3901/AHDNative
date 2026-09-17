@@ -1162,6 +1162,32 @@ describe("GameScreen status footer", () => {
     expect(screen.queryByRole("dialog", { name: "Game menu" })).not.toBeInTheDocument();
   });
 
+  it("lets the elections pager wrap at 320px without losing pager semantics", async () => {
+    const user = userEvent.setup();
+    const elections = Array.from({ length: 25 }, (_, i) =>
+      makeElection({ id: `e${i}`, title: `Race ${i}`, filingDate: "1954-09-01" }),
+    );
+    const world = makeWorld({ elections });
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
+    await navigate(user, "Elections");
+    const prev = screen.getByRole("button", { name: /previous page/i });
+    const next = screen.getByRole("button", { name: /next page/i });
+    const pager = prev.closest(".ahd-election-pager");
+    expect(pager).not.toBeNull();
+    // Row wraps instead of clipping long or localized labels at 320px.
+    expect(pager!).toHaveStyle({ flexWrap: "wrap" });
+    // Full labels stay readable: no icon-only fallback with missing names.
+    expect(prev).toHaveAccessibleName("Previous page");
+    expect(next).toHaveAccessibleName("Next page");
+    expect(prev.textContent).toMatch(/previous/i);
+    expect(next.textContent).toMatch(/next/i);
+    // Paging semantics preserved across the fix.
+    await user.click(next);
+    expect(screen.getByRole("article", { name: "Race 24" })).toBeInTheDocument();
+    await user.click(prev);
+    expect(screen.getByRole("article", { name: "Race 0" })).toBeInTheDocument();
+  });
+
   it("details links navigate to real destinations", async () => {
     const user = userEvent.setup();
     const world = makeWorld();

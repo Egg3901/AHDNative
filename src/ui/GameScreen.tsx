@@ -425,11 +425,11 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
                   </button>
                 ) : null}
                 {electionPageCount > 1 ? (
-                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "0.4rem" }}>
+                  <div className="ahd-election-pager" style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap", minWidth: 0, marginTop: "0.4rem" }}>
                     <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => setElectionPage(safeElectionPage - 1)} disabled={busy || safeElectionPage === 0} aria-label="Previous page">
                       Previous
                     </button>
-                    <span className="ahd-muted" style={{ fontSize: "0.74rem" }} aria-live="polite">Page {safeElectionPage + 1} of {electionPageCount}</span>
+                    <span className="ahd-muted" style={{ fontSize: "0.74rem", minWidth: 0, overflowWrap: "anywhere" }} aria-live="polite">Page {safeElectionPage + 1} of {electionPageCount}</span>
                     <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => setElectionPage(safeElectionPage + 1)} disabled={busy || safeElectionPage >= electionPageCount - 1} aria-label="Next page">
                       Next
                     </button>

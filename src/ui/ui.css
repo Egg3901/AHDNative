@@ -1183,6 +1183,14 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
 .ahd-hero-stats dt { font-size: 0.62rem; font-weight: 650; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ahd-muted); }
 .ahd-hero-stats dd { margin: 0.15rem 0 0; font-size: 0.82rem; font-weight: 700; overflow-wrap: anywhere; min-width: 0; }
 @media (max-width: 380px) { .ahd-hero-stats { padding: 0.6rem 0.75rem; } .ahd-hero-stats dd { font-size: 0.74rem; } }
+/* Elections pager (Previous / Page N of M / Next): the only non-wrapping
+   button row on the Elections hub. Long or localized pager labels exceed
+   320px when the row cannot wrap and pill buttons keep their automatic
+   minimum width, so the row wraps and every item shrinks instead of
+   clipping. Desktop is unchanged: the row still fits on one line. */
+.ahd-election-pager { flex-wrap: wrap; min-width: 0; }
+.ahd-election-pager .ahd-btn { min-width: 0; max-width: 100%; }
+.ahd-election-pager > span { min-width: 0; }
 .ahd-mp-layout { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; padding-top: max(1rem, env(safe-area-inset-top)); padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
 .ahd-mp-footer { z-index: 40; }
 .ahd-mp-bottomnav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
