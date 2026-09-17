@@ -9,12 +9,19 @@ import type {
 import { formatGameDate, type GameClock } from "../game/gameDate";
 import { RouteHero, nationOverviewHero } from "./RouteHero";
 import { TrendChart } from "./TrendChart";
+import { CountryFlag, resolveCountryFlagCode } from "./CountryFlag";
 
 export interface NationPanelProps {
   nation: NationView;
   section: "economy" | "budget" | "policy" | "metrics";
   /** World clock used to render enacted-policy dates on the reference calendar (#226). */
   clock: GameClock;
+  /**
+   * World era/preset for era-specific flag identity (#373: RU flies SU in
+   * 1979). Optional because NationView carries no era; omitted renders the
+   * base engine id.
+   */
+  era?: string | null;
   /** Opens a linked consequence destination. Omitted in read-only renders. */
   onNavigate?: (route: NationDestination, detailId?: string) => void;
 }
@@ -52,7 +59,9 @@ function millions(value: number, currency: string): string {
   return `${number(value, 1)} million ${currency}`;
 }
 
-function Layout({ nation, title, children }: { nation: NationView; title: string; children: React.ReactNode }) {
+function Layout({ nation, title, era, children }: { nation: NationView; title: string; era?: string | null; children: React.ReactNode }) {
+  // The hero code agrees with the resolved flag identity (RU shows SU in 1979).
+  const code = resolveCountryFlagCode(nation.countryId, era) || "?";
   return (
     <div className="ahd-stack" aria-label={`${nation.countryName} ${title}`}>
       <RouteHero
@@ -61,9 +70,12 @@ function Layout({ nation, title, children }: { nation: NationView; title: string
         eyebrow={nation.countryName}
         title={title}
       >
-        <p style={{ fontSize: "0.76rem", margin: "0.32rem 0 0", opacity: 0.85 }}>
-          {nation.countryId} · {nation.currency}
-        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.32rem" }}>
+          <CountryFlag countryId={nation.countryId} countryName={nation.countryName} era={era} size="lg" />
+          <p style={{ fontSize: "0.76rem", margin: 0, opacity: 0.85 }}>
+            {code} · {nation.currency}
+          </p>
+        </div>
       </RouteHero>
       {children}
     </div>
@@ -252,13 +264,13 @@ function MetricCard({ metric, onNavigate }: { metric: NationMetricView; onNaviga
   );
 }
 
-function EconomySection({ nation }: { nation: NationView }) {
+function EconomySection({ nation, era }: { nation: NationView; era?: string | null }) {
   const { economy } = nation;
   const macroHistory = economy.macroHistory.slice(-8);
   const primeRateHistory = economy.primeRateHistory.slice(-8);
 
   return (
-    <Layout nation={nation} title="Economy">
+    <Layout nation={nation} title="Economy" era={era}>
       <div className="ahd-card ahd-card-pad">
         <h2 className="ahd-h2">Current metrics</h2>
         <dl className="ahd-kv-grid" style={{ marginTop: "0.65rem" }}>
@@ -341,12 +353,12 @@ function EconomySection({ nation }: { nation: NationView }) {
   );
 }
 
-function BudgetSection({ nation, onNavigate }: { nation: NationView; onNavigate?: NationPanelProps["onNavigate"] }) {
+function BudgetSection({ nation, era, onNavigate }: { nation: NationView; era?: string | null; onNavigate?: NationPanelProps["onNavigate"] }) {
   const { budget } = nation;
   const { labels } = budget;
   const budgetMoney = (value: number) => money(value, budget.currency);
   return (
-    <Layout nation={nation} title="Budget">
+    <Layout nation={nation} title="Budget" era={era}>
       <div className="ahd-card ahd-card-pad">
         <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "baseline" }}>
           <h2 className="ahd-h2">{labels.title}</h2>
@@ -428,10 +440,10 @@ function BudgetSection({ nation, onNavigate }: { nation: NationView; onNavigate?
 }
 
 /** Exported so the political-metrics view (#69) renders the same registry Native already projects. */
-export function MetricsSection({ nation, onNavigate }: { nation: NationView; onNavigate?: NationPanelProps["onNavigate"] }) {
+export function MetricsSection({ nation, era, onNavigate }: { nation: NationView; era?: string | null; onNavigate?: NationPanelProps["onNavigate"] }) {
   const { metrics } = nation;
   return (
-    <Layout nation={nation} title="Metrics">
+    <Layout nation={nation} title="Metrics" era={era}>
       <div className="ahd-card ahd-card-pad">
         <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "baseline" }}>
           <h2 className="ahd-h2">National metrics registry</h2>
@@ -487,10 +499,10 @@ function PolicyCard({ policy, clock }: { policy: NationPolicySetting; clock: Gam
   );
 }
 
-function PolicySection({ nation, clock }: { nation: NationView; clock: GameClock }) {
+function PolicySection({ nation, clock, era }: { nation: NationView; clock: GameClock; era?: string | null }) {
   const { policy } = nation;
   return (
-    <Layout nation={nation} title="Policy">
+    <Layout nation={nation} title="Policy" era={era}>
       <div className="ahd-card ahd-card-pad">
         <h2 className="ahd-h2">Current tax settings</h2>
         {policy.taxRates.length === 0 ? (
@@ -519,9 +531,9 @@ function PolicySection({ nation, clock }: { nation: NationView; clock: GameClock
   );
 }
 
-export function NationPanel({ nation, section, clock, onNavigate }: NationPanelProps) {
-  if (section === "economy") return <EconomySection nation={nation} />;
-  if (section === "budget") return <BudgetSection nation={nation} onNavigate={onNavigate} />;
-  if (section === "metrics") return <MetricsSection nation={nation} onNavigate={onNavigate} />;
-  return <PolicySection nation={nation} clock={clock} />;
+export function NationPanel({ nation, section, clock, era, onNavigate }: NationPanelProps) {
+  if (section === "economy") return <EconomySection nation={nation} era={era} />;
+  if (section === "budget") return <BudgetSection nation={nation} era={era} onNavigate={onNavigate} />;
+  if (section === "metrics") return <MetricsSection nation={nation} era={era} onNavigate={onNavigate} />;
+  return <PolicySection nation={nation} clock={clock} era={era} />;
 }

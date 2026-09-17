@@ -908,6 +908,26 @@ describe("PoliticsPanel political metrics", () => {
       expect(within(approval).getByRole("table", { name: /government approval trend data/i })).toBeInTheDocument();
     });
   });
+
+  it("carries the world era into the reused metrics hero flag", () => {
+    const PoliticsPanel = renderPanel();
+    const nation = projectNation(createWorld({ era: "1953", countryId: "US", playerName: "Ada", seed: "politics-metrics-era" }));
+    return PoliticsPanel.then((Panel) => {
+      const { container } = render(
+        <Panel
+          politics={makePolitics()}
+          section="metrics"
+          clock={CLOCK}
+          busy={false}
+          onAction={vi.fn()}
+          nation={{ ...nation, countryId: "RU", countryName: "Soviet Union" }}
+          era="1979"
+        />,
+      );
+      expect(container.querySelector('[data-country-flag="SU"]')).not.toBeNull();
+      expect(container.querySelector('[data-country-flag="RU"]')).toBeNull();
+    });
+  });
 });
 
 describe("PoliticsPanel dual-pane list/detail (#438)", () => {

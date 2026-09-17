@@ -196,6 +196,30 @@ describe("Profile hero identity composition", () => {
   });
 });
 
+describe("profile country identity", () => {
+  it("renders the era-aware offline country flag beside the country link", () => {
+    const { container } = renderPanel(
+      { country: { id: "RU", name: "Soviet Union" } },
+      { era: "1979" },
+    );
+    expect(container.querySelector('[data-country-flag="SU"]')).not.toBeNull();
+    expect(container.querySelector('[data-country-flag="RU"]')).toBeNull();
+  });
+
+  it("keeps the flag decorative beside the accessible country name", () => {
+    const { container } = renderPanel(
+      { country: { id: "RU", name: "Soviet Union" } },
+      { era: "1979" },
+    );
+    const mark = container.querySelector("[data-country-flag]");
+    expect(mark?.getAttribute("aria-hidden")).toBe("true");
+    expect(screen.getByRole("button", { name: "Soviet Union" })).toBeInTheDocument();
+    // The mark itself is a text tile: no remote art inside it.
+    expect(mark?.querySelector("img")).toBeNull();
+    expect(mark?.innerHTML).not.toContain("http");
+  });
+});
+
 describe("Profile hero boundaries", () => {
   it("keeps every edit control in the Character card and never duplicates it into the hero", () => {
     renderPanel();
