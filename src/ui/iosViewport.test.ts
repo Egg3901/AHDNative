@@ -9,10 +9,25 @@ import {
 
 /**
  * Runtime viewport seam for #436: keyboard/visualViewport facts published as
- * stable CSS variables. jsdom performs no layout and has no visualViewport,
- * so install behavior runs against a fake window. Nothing here is
+ * stable CSS variables. This file also runs under vitest.config.ts (node
+ * environment, no `document`), so install behavior runs against a fake window
+ * and a minimal style-root double instead of a real element. Nothing here is
  * physical-device evidence.
  */
+
+/** Minimal style root: only the setProperty/getPropertyValue surface installIosViewport uses. */
+function makeStyleRoot(): HTMLElement {
+  const props = new Map<string, string>();
+  const style = {
+    setProperty(name: string, value: string) {
+      props.set(name, value);
+    },
+    getPropertyValue(name: string) {
+      return props.get(name) ?? "";
+    },
+  };
+  return { style } as unknown as HTMLElement;
+}
 
 function makeViewport(height = 700, width = 390): VisualViewportLike & { fire(type: string): void } {
   const listeners = new Map<string, Set<() => void>>();
@@ -85,7 +100,7 @@ describe("installIosViewport", () => {
   });
 
   it("publishes the keyboard inset and viewport size on install", () => {
-    const root = document.createElement("div");
+    const root = makeStyleRoot();
     const vv = makeViewport(500, 390);
     installIosViewport(root, makeWindow(844, 390, vv));
     expect(root.style.getPropertyValue("--ahd-keyboard-inset")).toBe("344px");
@@ -94,7 +109,7 @@ describe("installIosViewport", () => {
   });
 
   it("falls back to window size with zero inset and no visual viewport", () => {
-    const root = document.createElement("div");
+    const root = makeStyleRoot();
     installIosViewport(root, makeWindow(844, 390));
     expect(root.style.getPropertyValue("--ahd-keyboard-inset")).toBe("0px");
     expect(root.style.getPropertyValue("--ahd-viewport-height")).toBe("844px");
@@ -102,7 +117,7 @@ describe("installIosViewport", () => {
   });
 
   it("refreshes on visualViewport resize, window resize, and orientationchange", () => {
-    const root = document.createElement("div");
+    const root = makeStyleRoot();
     const vv = makeViewport(844, 390);
     const win = makeWindow(844, 390, vv);
     installIosViewport(root, win);
@@ -123,7 +138,7 @@ describe("installIosViewport", () => {
   });
 
   it("tracks keyboard pans via visualViewport scroll", () => {
-    const root = document.createElement("div");
+    const root = makeStyleRoot();
     const vv = makeViewport(844, 390);
     installIosViewport(root, makeWindow(844, 390, vv));
     vv.height = 600;
@@ -132,7 +147,7 @@ describe("installIosViewport", () => {
   });
 
   it("removes every listener on uninstall", () => {
-    const root = document.createElement("div");
+    const root = makeStyleRoot();
     const vv = makeViewport(844, 390);
     const win = makeWindow(844, 390, vv);
     const handle = installIosViewport(root, win);
