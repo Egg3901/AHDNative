@@ -565,7 +565,7 @@ export function AskPanel({
 
   if (phase === "signedOut") {
     return (
-      <div className="askview" onClickCapture={interceptLinks}>
+      <div className="askview" data-surface={surface} onClickCapture={interceptLinks}>
         <div className="av-center">
           <div className="av-brand">Ask</div>
           <p className="av-muted">Sign in with your game account to ask questions. Players already signed in skip the password prompt.</p>
@@ -591,7 +591,7 @@ export function AskPanel({
   const checking = phase === "checking";
 
   return (
-    <div className="askview" onClickCapture={interceptLinks}>
+    <div className="askview" data-surface={surface} onClickCapture={interceptLinks}>
       <header className="av-head">
         <div className="av-brand">Ask</div>
         <div className="av-head-actions">
