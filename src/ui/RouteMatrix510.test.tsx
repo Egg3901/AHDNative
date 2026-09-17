@@ -18,6 +18,7 @@ import type { GameView, ActionView } from "../game/types";
 import type { ProfileView } from "../game/profileTypes";
 import type { PoliticsView, PoliticsPartyDetail } from "../game/politics";
 import type { CaucusManagementView } from "../game/caucusManagement";
+import type { PartyManagementView } from "../game/partyManagement";
 import { DEFAULT_WORLD_FEATURE_FLAGS } from "@ahdclient/engine";
 
 function setViewport(width: number) {
@@ -127,7 +128,7 @@ const loadCabinetOffice = async () => ({
   positions: [{ id: "treasury", name: "Secretary of the Treasury", holderName: "Ada", isPlayerHolder: true, isVacant: false, actionsRemaining: 3, canIssue: true, orders: [] }],
   activeOrders: [],
 });
-const loadPartyManagement = async () => ({
+const loadPartyManagement = async (): Promise<PartyManagementView> => ({
   countryId: "US", countryName: "United States", currency: "USD", playerPartyName: "Labor",
   partyCount: 1, foundedCount: 0, charterDeadlineTurns: 14,
   founding: { actionCost: 8, fundCost: 100000, fundsRequired: 100000, funds: 152000, actions: 9, cooldownRemaining: 0, charterDeadlineTurns: 14, available: true,
