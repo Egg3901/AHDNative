@@ -188,14 +188,14 @@ function GovernmentSummary({ nation, clock }: { nation: WorldNationView; clock: 
 function NationDetail({ nation, current, clock, onNavigate }: { nation: WorldNationView; current: boolean; clock: GameClock; onNavigate?: (route: DrawerRouteId, id?: string) => void }) {
   return (
     <article className="ahd-card ahd-card-pad" aria-label={nation.name}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "flex-start" }}>
-        <div style={{ minWidth: 0 }}>
-          <h2 className="ahd-h2" style={{ margin: 0 }}>{nation.name}</h2>
-          <div className="ahd-muted" style={{ fontSize: "0.7rem", marginTop: "0.25rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "flex-start", minWidth: 0 }}>
+        <div style={{ minWidth: 0, flex: "1 1 auto" }}>
+          <h2 className="ahd-h2" style={{ margin: 0, overflowWrap: "anywhere" }}>{nation.name}</h2>
+          <div className="ahd-muted" style={{ fontSize: "0.7rem", marginTop: "0.25rem", overflowWrap: "anywhere" }}>
             {nation.id} · {nation.currency ?? "Currency not recorded"}
           </div>
         </div>
-        <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", justifyContent: "flex-end", minWidth: 0, maxWidth: "100%", flexShrink: 1 }}>
           {current ? <span className="ahd-badge">Your country</span> : <span className="ahd-badge">Viewing</span>}
           <span className="ahd-badge">{nation.playable ? "Playable" : "Not playable"}</span>
         </div>
@@ -342,14 +342,14 @@ function NationsSection({ overview, initialId, onSelectNation, onNavigate }: { o
                   aria-pressed={selected}
                   className="ahd-btn"
                   onClick={() => selectNation(nation.id)}
-                  style={{ width: "100%", minHeight: "3.1rem", borderRadius: "var(--ahd-radius-sm)", justifyContent: "space-between", textAlign: "left", background: selected ? "color-mix(in srgb, var(--ahd-primary) 10%, var(--ahd-card-elevated))" : undefined }}
+                  style={{ width: "100%", minWidth: 0, minHeight: "3.1rem", borderRadius: "var(--ahd-radius-sm)", justifyContent: "space-between", textAlign: "left", background: selected ? "color-mix(in srgb, var(--ahd-primary) 10%, var(--ahd-card-elevated))" : undefined }}
                   aria-label={`View ${nation.name} details`}
                 >
-                  <span style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.12rem" }}>
-                    <span style={{ overflowWrap: "anywhere" }}>{nation.name}</span>
-                    <span className="ahd-muted" style={{ fontSize: "0.68rem", fontWeight: 400 }}>{nation.id} · {nation.currency ?? "Currency not recorded"}</span>
+                  <span style={{ minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.12rem" }}>
+                    <span style={{ overflowWrap: "anywhere", maxWidth: "100%" }}>{nation.name}</span>
+                    <span className="ahd-muted" style={{ fontSize: "0.68rem", fontWeight: 400, overflowWrap: "anywhere", maxWidth: "100%" }}>{nation.id} · {nation.currency ?? "Currency not recorded"}</span>
                   </span>
-                  <span style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  <span style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", justifyContent: "flex-end", minWidth: 0, maxWidth: "100%", flexShrink: 1 }}>
                     {isPlayer ? <span className="ahd-badge">Your country</span> : selected ? <span className="ahd-badge">Viewing</span> : null}
                     <span className="ahd-badge">{nation.playable ? "Playable" : "Not playable"}</span>
                   </span>
