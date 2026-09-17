@@ -1375,6 +1375,51 @@ describe("GameScreen dual-pane posture completion (#438)", () => {
     expect(shell).not.toHaveAttribute("data-segfit");
     expect(shell.style.getPropertyValue("--ahd-pane0")).toBe("");
   });
+
+  it("ignores segment geometry when the override hinge mismatches the occlusion axis", () => {
+    // Segments report a vertical occlusion but the QA override forces a
+    // horizontal hinge: the fit must stay off and the fractional fallback
+    // grid applies, rather than fitting panes to the wrong axis.
+    (window as unknown as { getViewportSegments: () => unknown }).getViewportSegments = () => [
+      { x: 0, y: 0, width: 400, height: 800 },
+      { x: 416, y: 0, width: 400, height: 800 },
+    ];
+    window.history.replaceState({}, "", "?ahd-span=horizontal");
+    try {
+      renderShell(makeWorld());
+      const shell = document.querySelector(".ahd-screen") as HTMLElement;
+      expect(shell).toHaveAttribute("data-dual-pane", "dual");
+      expect(shell).toHaveAttribute("data-hinge", "horizontal");
+      expect(shell).toHaveAttribute("data-dual-capability", "override");
+      expect(shell).not.toHaveAttribute("data-segfit");
+      expect(shell.style.getPropertyValue("--ahd-pane0")).toBe("");
+      expect(shell.style.getPropertyValue("--ahd-hinge-gap")).toBe("");
+    } finally {
+      window.history.replaceState({}, "", "/");
+      delete (window as unknown as { getViewportSegments?: unknown }).getViewportSegments;
+    }
+  });
+
+  it("keeps the fallback grid when reported geometry is non-finite", () => {
+    // Only finite non-negative rect values may reach the --ahd-pane /
+    // --ahd-hinge-gap variables; an infinite bound must not be injected.
+    (window as unknown as { getViewportSegments: () => unknown }).getViewportSegments = () => [
+      { x: 0, y: 0, width: 800, height: 400 },
+      { x: 0, y: Infinity, width: 800, height: 400 },
+    ];
+    try {
+      renderShell(makeWorld());
+      const shell = document.querySelector(".ahd-screen") as HTMLElement;
+      expect(shell).toHaveAttribute("data-dual-pane", "dual");
+      expect(shell).toHaveAttribute("data-hinge", "horizontal");
+      expect(shell).not.toHaveAttribute("data-segfit");
+      expect(shell.style.getPropertyValue("--ahd-pane0")).toBe("");
+      expect(shell.style.getPropertyValue("--ahd-pane1")).toBe("");
+      expect(shell.style.getPropertyValue("--ahd-hinge-gap")).toBe("");
+    } finally {
+      delete (window as unknown as { getViewportSegments?: unknown }).getViewportSegments;
+    }
+  });
 });
 
 describe("GameScreen menu keyboard flow", () => {

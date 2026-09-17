@@ -90,4 +90,17 @@ describe("segment-fitted hinge tracks without spanning media (#438)", () => {
       /\.ahd-screen\[data-dual-pane="dual"\]\[data-hinge="horizontal"\]\[data-segfit="true"\] \.ahd-resource-popover\s*\{[^}]*max-height:\s*calc\(var\(--ahd-pane1\)/,
     );
   });
+
+  it("zeroes the grid gap on segment-fitted tracks so the gutter lands exactly over the occlusion", () => {
+    // The gutter track already spans the occlusion. The dual-pane base grid
+    // carries gap: var(--ahd-hinge-gap), which the shell overrides inline to
+    // the exact pixel occlusion; without gap: 0 it would pad both sides of
+    // the gutter track and push the content pane off its reported segment.
+    expect(css).toMatch(
+      /\.ahd-screen\[data-dual-pane="dual"\]\[data-hinge="vertical"\]\[data-segfit="true"\] \.ahd-dual-body\s*\{[^}]*gap:\s*0/,
+    );
+    expect(css).toMatch(
+      /\.ahd-screen\[data-dual-pane="dual"\]\[data-hinge="horizontal"\]\[data-segfit="true"\] \.ahd-dual-body\s*\{[^}]*gap:\s*0/,
+    );
+  });
 });

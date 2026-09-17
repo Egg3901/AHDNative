@@ -1446,6 +1446,10 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
    grid above. No safe-area or material tokens here. */
 .ahd-screen[data-dual-pane="dual"][data-hinge="vertical"][data-segfit="true"] .ahd-dual-body {
   grid-template-columns: var(--ahd-pane0) var(--ahd-hinge-gap) minmax(0, 1fr);
+  /* The gutter track already spans the occlusion: zero the inherited grid
+     gap, which would otherwise pad both sides of the track and push the
+     content pane off its reported segment. */
+  gap: 0;
 }
 .ahd-screen[data-dual-pane="dual"][data-hinge="vertical"][data-segfit="true"] .ahd-dual-body > aside { grid-column: 1; }
 .ahd-screen[data-dual-pane="dual"][data-hinge="vertical"][data-segfit="true"] .ahd-dual-body > main { grid-column: 3; }
@@ -1463,6 +1467,8 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
 }
 .ahd-screen[data-dual-pane="dual"][data-hinge="horizontal"][data-segfit="true"] .ahd-dual-body {
   grid-template-rows: var(--ahd-pane0) var(--ahd-hinge-gap) minmax(0, 1fr);
+  /* Same as vertical: the gutter track is the occlusion, so no grid gap. */
+  gap: 0;
 }
 .ahd-screen[data-dual-pane="dual"][data-hinge="horizontal"][data-segfit="true"] .ahd-dual-body > aside { grid-row: 1; }
 .ahd-screen[data-dual-pane="dual"][data-hinge="horizontal"][data-segfit="true"] .ahd-dual-body > main { grid-row: 3; }

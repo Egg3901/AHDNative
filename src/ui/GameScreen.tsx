@@ -152,12 +152,17 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   // hingeBounds is null unless the rects are exactly two separated segments,
   // so a non-null bound already proves the pair shape below.
   const segmentHinge = hingeBounds(segments);
-  const segFit: { pane0: number; pane1: number; gap: number } | null =
+  const rawSegFit: { pane0: number; pane1: number; gap: number } | null =
     dual && segmentHinge && segmentHinge.orientation === dualPane.hinge && segments
       ? segmentHinge.orientation === "vertical"
         ? { pane0: segments[0]!.width, pane1: segments[1]!.width, gap: segmentHinge.end - segmentHinge.start }
         : { pane0: segments[0]!.height, pane1: segments[1]!.height, gap: segmentHinge.end - segmentHinge.start }
       : null;
+  // Only finite non-negative geometry reaches the --ahd-pane/--ahd-hinge-gap
+  // variables below; anything else keeps the fractional fallback grid.
+  const segFit = rawSegFit && [rawSegFit.pane0, rawSegFit.pane1, rawSegFit.gap].every((value) => Number.isFinite(value) && value >= 0)
+    ? rawSegFit
+    : null;
   const shellStyle = segFit
     ? ({
       "--ahd-pane0": `${segFit.pane0}px`,
