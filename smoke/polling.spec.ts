@@ -7,9 +7,10 @@ import {
 
 /**
  * Issue #38: commission a real quick poll through the shared mobile UI.
- * New players start broke with the reference donor floor, so the flow earns
- * funds directly, then commissions under Intelligence and
- * reads the stored results in Latest polls.
+ * New players arrive with the reference creation endowment
+ * (gameConfig.startingFunds 250_000), so the quick poll is commissionable
+ * on arrival; the flow commissions under Intelligence and reads the stored
+ * results in Latest polls.
  */
 test("intelligence quick poll commissions and displays stored results", async ({
   page,
@@ -23,23 +24,15 @@ test("intelligence quick poll commissions and displays stored results", async ({
   await gameReady(page);
   await navigateGame(page, "Actions");
 
-  // Intelligence tab: quick poll exists but is funds-gated for a new player.
+  // Intelligence tab: the endowed quick poll is commissionable on arrival.
   await page.getByRole("tab", { name: /^Intelligence,/ }).click();
   const quickCard = page.getByRole("article", { name: "Quick Poll" });
   await expect(
-    quickCard.getByRole("button", { name: "Unavailable: Quick Poll" }),
-  ).toBeDisabled();
-
-  // Earn funds through the creation-time donor floor.
-  await page.getByRole("tab", { name: /^Fundraising,/ }).click();
-  await page.getByRole("button", { name: "Take action: Fundraise" }).click();
-  await gameReady(page);
+    quickCard.getByRole("button", { name: "Take action: Quick Poll" }),
+  ).toBeEnabled();
 
   // Commission the quick poll and read the stored results.
   await page.getByRole("tab", { name: /^Intelligence,/ }).click();
-  await expect(
-    quickCard.getByRole("button", { name: "Take action: Quick Poll" }),
-  ).toBeEnabled();
   await quickCard
     .getByRole("button", { name: "Take action: Quick Poll" })
     .click();

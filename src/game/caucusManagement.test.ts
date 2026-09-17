@@ -37,6 +37,7 @@ function readyWorld(): WorldState {
 describe("projectCaucusCreate", () => {
   it("mirrors the engine's first rejection reason for a fresh independent player (#61)", () => {
     const world = createWorld({ ...FRESH });
+    world.player.funds = 0; // Drain the reference endowment: this gate needs a broke player.
     const create = projectCaucusCreate(world);
     expect(create.fundCost).toBe(25_000);
     expect(create.fundsRequired).toBe(25_000);
@@ -64,6 +65,7 @@ describe("projectCaucusCreate", () => {
 
   it("rejects a createCaucus attempt with no party through the public action", () => {
     const world = createWorld({ ...FRESH });
+    world.player.funds = 0; // Drain the reference endowment: this gate needs a broke player.
     const broke = executeAction(world, "player", "createCaucus", {
       caucusName: "Blue Dog Caucus",
       caucusTaxRate: 2,

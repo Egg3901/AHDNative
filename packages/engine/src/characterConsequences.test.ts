@@ -25,8 +25,8 @@ function spikedBuild(spiked: (typeof STAT_KEYS)[number]): CharacterStats {
 
 function runCampaign(stats: CharacterStats): number {
   const world = createWorld({ ...base, stats, homeRegionId: "NY" });
-  // Campaign costs campaign funds, which a fresh player has none of; fund the
-  // fixture directly so the measured delta is the outcome only.
+  // Campaign costs campaign funds; fund the fixture directly so the measured
+  // delta is the outcome only, independent of the creation endowment.
   world.player.funds = 1_000_000;
   const before = world.player.politicalInfluence;
   const result = executeAction(world, "player", "campaign", { regionId: "NY" });

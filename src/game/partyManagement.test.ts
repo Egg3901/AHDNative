@@ -38,6 +38,7 @@ function readyWorld(): WorldState {
 describe("projectPartyFounding", () => {
   it("blocks a fresh player on funds with the real founder cost", () => {
     const world = createWorld({ ...FRESH });
+    world.player.funds = 0; // Drain the reference endowment: this gate needs a broke player.
     const founding = projectPartyFounding(world);
     expect(founding.fundCost).toBe(100_000);
     expect(founding.fundsRequired).toBe(100_000);
@@ -49,6 +50,7 @@ describe("projectPartyFounding", () => {
 
   it("rejects a founding attempt with no funds through the public action", () => {
     const world = createWorld({ ...FRESH });
+    world.player.funds = 0; // Drain the reference endowment: this gate needs a broke player.
     const before = projectPartyManagement(world).partyCount;
     const result = executeAction(world, "player", "foundParty", {
       foundPartyName: "New Frontier",

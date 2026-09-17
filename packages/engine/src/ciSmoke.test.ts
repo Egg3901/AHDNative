@@ -11,10 +11,11 @@ const OPTIONS = {
 } as const;
 
 describe("fast turn pipeline smoke", () => {
-  it("gives a new character the reference donor floor needed to bootstrap campaign funds", () => {
+  it("gives a new character the reference endowment needed to bootstrap campaign funds", () => {
     const world = createWorld(OPTIONS);
 
-    expect(world.player.funds).toBe(0);
+    // Reference gameConfig seed: startingFunds 250_000 flat, donor floor 1.
+    expect(world.player.funds).toBe(250_000);
     expect(world.player.donorBaseLevel).toBe(1);
   });
 

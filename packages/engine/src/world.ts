@@ -1031,7 +1031,11 @@ export function createWorld(options: NewWorldOptions): WorldState {
       ...(options.avatarUrl !== undefined ? { avatarUrl: options.avatarUrl } : {}),
       ...(options.profileHeaderUrl !== undefined ? { profileHeaderUrl: options.profileHeaderUrl } : {}),
       actions: 25,
-      funds: 0,
+      // Reference creation endowment (AHDGame gameConfig seed plus the
+      // character route): startingFunds 250_000 flat (wealth touches personal
+      // cash only) with a donor floor of 1 (MIN_STARTING_DONOR_BASE_LEVEL),
+      // so Fundraise stays reachable at $0 without a Native-only grant (#447).
+      funds: 250_000,
       donorBaseLevel: 1,
       politicalInfluence: 0,
       favorability: 50,
