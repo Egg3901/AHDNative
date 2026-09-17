@@ -154,10 +154,28 @@
   background: var(--av-paper-hi);
   max-height: 180px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 6px;
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+/* In-sheet dismiss control: first tab stop inside the dialog so the sheet
+   stays closable at 320px without hunting for the header toggle. */
+.av-history-close {
+  border: 1px solid var(--av-line);
+  background: var(--av-paper-hi);
+  color: var(--av-ink-soft);
+  border-radius: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 7px 10px;
+  font-size: 0.83rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
 }
 
 .av-conv {
@@ -169,6 +187,7 @@
   font-size: 0.83rem;
   color: var(--av-ink-soft);
   cursor: pointer;
+  overflow-wrap: anywhere;
 }
 
 .av-conv.active { background: var(--av-shade); font-weight: 600; color: var(--av-ink); }

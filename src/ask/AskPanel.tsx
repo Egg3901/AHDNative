@@ -154,6 +154,8 @@ export function AskPanel({
   const activeReqRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
+  const historyToggleRef = useRef<HTMLButtonElement>(null);
+  const historyDialogRef = useRef<HTMLDivElement>(null);
 
   activeReqRef.current = activeReq;
 
@@ -222,6 +224,21 @@ export function AskPanel({
       setQuotaStale(true);
     }
   }, [noteUsage, remember, signOut]);
+
+  // History sheet dismissal always hands focus back to the header toggle,
+  // so keyboard and screen-reader users never lose their place when the
+  // dialog closes on a 320px phone where the toggle is the only other
+  // history affordance.
+  const closeHistory = useCallback(() => {
+    setShowHistory(false);
+    historyToggleRef.current?.focus();
+  }, []);
+
+  // Move focus into the sheet on open without scrolling the thread behind
+  // it; Escape and the in-sheet close control return focus via closeHistory.
+  useEffect(() => {
+    if (showHistory) historyDialogRef.current?.focus({ preventScroll: true });
+  }, [showHistory]);
 
   const refreshConvs = useCallback(async () => {
     try {
@@ -590,6 +607,7 @@ export function AskPanel({
           </button>
           <button
             type="button"
+            ref={historyToggleRef}
             className="av-iconbtn"
             aria-label="Chat history"
             title="Chat history"
@@ -626,7 +644,23 @@ export function AskPanel({
       ) : null}
 
       {showHistory ? (
-        <div className="av-history" role="dialog" aria-label="Chat history">
+        <div
+          ref={historyDialogRef}
+          className="av-history"
+          role="dialog"
+          aria-modal="false"
+          aria-label="Chat history"
+          tabIndex={-1}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.stopPropagation();
+              closeHistory();
+            }
+          }}
+        >
+          <button type="button" className="av-history-close" onClick={closeHistory}>
+            Close history
+          </button>
           {convs.length === 0 ? <p className="av-muted">No conversations yet.</p> : null}
           {convs.map((conv) => (
             <button
@@ -634,7 +668,7 @@ export function AskPanel({
               type="button"
               className={conv.id === convId ? "av-conv active" : "av-conv"}
               onClick={() => {
-                setShowHistory(false);
+                closeHistory();
                 void openThread(conv.id);
               }}
             >

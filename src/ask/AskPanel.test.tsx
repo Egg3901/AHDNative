@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -444,4 +445,49 @@ describe("AskPanel single verification round", () => {
     expect(meCalls()).toBe(before);
   });
 });
+});
+
+describe("AskPanel chat-history dialog", () => {
+  const CONVS = [
+    { id: "conv-1", title: "Taxes" },
+    { id: "conv-2", title: "Unions and strikes and a very long title that must stay inside a 320px sheet" },
+  ];
+
+  async function readyPanelWithHistory() {
+    const user = userEvent.setup();
+    routeInvoke({
+      "/api/me": { status: 200, body: meBody() },
+      "/api/conversations": { status: 200, body: JSON.stringify({ conversations: CONVS }) },
+    });
+    render(<AskPanel />);
+    await screen.findByPlaceholderText(/ask a question/i);
+    return user;
+  }
+
+  it("offers an in-dialog close control that dismisses and returns focus to the toggle", async () => {
+    const user = await readyPanelWithHistory();
+    const toggle = screen.getByRole("button", { name: "Chat history" });
+    await user.click(toggle);
+    const dialog = await screen.findByRole("dialog", { name: "Chat history" });
+    expect(within(dialog).getByRole("button", { name: "Taxes" })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Close history" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Chat history" })).toBeNull());
+    expect(document.activeElement).toBe(toggle);
+  });
+
+  it("moves focus into the dialog on open and Escape dismisses it back to the toggle", async () => {
+    const user = await readyPanelWithHistory();
+    const toggle = screen.getByRole("button", { name: "Chat history" });
+    await user.click(toggle);
+    const dialog = await screen.findByRole("dialog", { name: "Chat history" });
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Chat history" })).toBeNull());
+    expect(document.activeElement).toBe(toggle);
+  });
+
+  it("keeps history scroll contained in the sheet instead of chaining into the thread", () => {
+    const css = readFileSync("src/ask/ask.css", "utf8");
+    expect(css).toMatch(/\.av-history[^{]*\{[^}]*overscroll-behavior:\s*contain/);
+  });
 });
