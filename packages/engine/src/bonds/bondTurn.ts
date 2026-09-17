@@ -13,7 +13,10 @@
  *  - Sovereign bonds denominate in the issuing budget's currencyCode. Player
  *    coupons and principal settle in that denomination; cross-currency trades
  *    remain blocked in the action layer pending #306.
- *  - No corporate bonds this wave — issuerType is always "sovereign". Corporate-bond helpers (credit score, spread) are out of scope.
+ *  - Corporate bonds (#307) are inert state: coupon, maturity, buyback, and
+ *    default servicing on corporate issues is #308, so the cash-flow phases
+ *    below skip issuerType "corporation" (price stays at issuance par until
+ *    #308/#309). Only the read-only trace includes them.
  *  - No escrow/forexReserve/imf/recovery/legislative/central-bank-QE flows — all mainline default/sovereign-crisis machinery is PORT-STUB.
  *  - Holder bookkeeping: solo tracks only the human player ("player") plus the publicFloat (NPC bulk). Full per-character/corp/fund/NPP holder map is not ported.
  *
@@ -178,6 +181,8 @@ export function payCouponsAndUpdatePrices(world: WorldState): { totalToPlayer: n
 
   for (const bond of Object.values(world.bonds ?? {})) {
     if (bond.matured || bond.defaulted) continue;
+    // #308 owns corporate servicing — corporate issues stay inert here.
+    if (bond.issuerType === "corporation") continue;
 
     const turnsRemaining = bond.maturityTurn - turn;
     // Market price vs W3 prime rate: price = f(couponRate, currentRate=primeRate)
@@ -227,6 +232,8 @@ export function settleMaturedBonds(world: WorldState): number {
   let maturedCount = 0;
   for (const bond of Object.values(world.bonds ?? {})) {
     if (bond.matured || bond.defaulted) continue;
+    // #308 owns corporate settlement — corporate issues stay inert here.
+    if (bond.issuerType === "corporation") continue;
     if (turn < bond.maturityTurn) continue;
 
     // Pay face value to player holders
@@ -264,6 +271,8 @@ export function runNpcHolderBehavior(world: WorldState): void {
   const turn = world.meta.turn;
   for (const bond of Object.values(world.bonds ?? {})) {
     if (bond.matured || bond.defaulted) continue;
+    // #308 owns corporate holder behavior — corporate issues stay inert here.
+    if (bond.issuerType === "corporation") continue;
     const turnsRemaining = bond.maturityTurn - turn;
     if (turnsRemaining <= 0) continue;
     const primeRate = world.centralBanks[bond.countryId]?.primeRate ?? 3.0;

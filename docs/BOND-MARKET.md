@@ -23,8 +23,20 @@ no engine formulas, pricing or issuance/coupon/maturity mechanics.
 AHDGame `e364c0495`, `src/app/api/bonds/[bondId]/buy/route.ts` and the matching
 sell route use bond quotes with dealer spreads and pool behavior. Native does
 not implement that full market model, cross-currency settlement, corporate
-bonds or sovereign default triggers. The interface exposes the current local
+servicing or sovereign default triggers. The interface exposes the current local
 engine; it does not establish full bond-mechanics parity.
+
+## Corporate issuer/state slice (#307)
+
+The engine models corporate issuance identity only: `issuerType:
+"corporation"` with `corporationId`, `CORPORATE_BOND_MATURITY_ISSUANCE_OPTIONS`
+(96/240/336), home-currency denomination, full-float placement, and
+issuer/owner invariant enforcement on issuance and on `buyBond`/`sellBond`.
+Corporation records carry optional `countryOwnerId`/`ownershipState` (absent =
+private). Corporate issues are inert in the turn pipeline until #308 (coupons,
+maturity, buybacks, defaults) and #309 (phase timing). No save-envelope
+migration: all new fields are optional and old saves round-trip byte-stable.
+Focused evidence: `packages/engine/src/bonds/corporateBonds.test.ts`.
 
 ## Validation boundary
 
