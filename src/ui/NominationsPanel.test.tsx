@@ -236,7 +236,7 @@ describe("NominationsPanel live session flow (#272/#273)", () => {
   it("renders the sponsored detail, casts a ballot through the session, and keeps it across save/reload and a turn at 320/390/desktop widths", async () => {
     const user = userEvent.setup();
     const { session, nominationId, nomineeName } = liveSession();
-    const onAction = vi.fn((id: string, params: Record<string, string>) => {
+    const onAction = vi.fn((id: string, params?: Record<string, string | number>) => {
       session.act(id, params as never);
     });
 
@@ -290,8 +290,10 @@ describe("NominationsPanel live session flow (#272/#273)", () => {
     unmount();
 
     const gated = makeLegislature();
+    const gatedNomination = gated.nominations?.[0];
+    expect(gatedNomination).toBeDefined();
     gated.nominations = [{
-      ...gated.nominations[0]!,
+      ...gatedNomination!,
       voting: { available: false, disabledReason: "Only Senators can vote on cabinet nominations" },
     }];
     const { unmount: unmountGated } = render(
@@ -306,8 +308,10 @@ describe("NominationsPanel live session flow (#272/#273)", () => {
     unmountGated();
 
     const resolved = makeLegislature();
+    const resolvedNomination = resolved.nominations?.[0];
+    expect(resolvedNomination).toBeDefined();
     resolved.nominations = [{
-      ...resolved.nominations[0]!,
+      ...resolvedNomination!,
       status: "confirmed",
       statusLabel: "Confirmed",
       resolvedAtTurn: 24,
