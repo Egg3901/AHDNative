@@ -145,6 +145,26 @@ describe("LandingScreen", () => {
     expect(p.onConfirmDelete).toHaveBeenCalledTimes(1);
   });
 
+  it("separates the destructive confirm from the safe cancel at phone widths", () => {
+    render(<LandingScreen {...props({ saves: SAVES, pendingDelete: SAVES[0] })} />);
+    const dialog = screen.getByRole("dialog");
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    const confirm = screen.getByRole("button", { name: "Confirm delete Ada" });
+    // Safe action first in DOM/keyboard order, destructive action visually distinct.
+    expect(dialog.contains(cancel)).toBe(true);
+    expect(dialog.contains(confirm)).toBe(true);
+    expect(cancel.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(confirm).toHaveClass("ahd-btn-danger");
+    expect(confirm).not.toHaveClass("ahd-btn-primary");
+    // Stacked full-width action container (narrow phones); desktop row is a CSS rule.
+    const actions = confirm.closest(".ahd-delete-confirm-actions");
+    expect(actions).not.toBeNull();
+    expect(actions).toContainElement(cancel);
+    // Initial keyboard focus stays on the safe action, never the destructive one.
+    expect(cancel).toHaveFocus();
+    expect(confirm).not.toHaveFocus();
+  });
+
   it("cancels the deletion confirmation without deleting", async () => {
     const user = userEvent.setup();
     const p = props({ saves: SAVES, pendingDelete: SAVES[0] });
