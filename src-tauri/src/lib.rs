@@ -393,11 +393,67 @@ mod tests {
 
     #[test]
     fn account_cookie_filter_matches_the_current_client_contract() {
-        assert!(is_account_session_cookie("auth-token-production"));
-        assert!(is_account_session_cookie("__Secure-authjs.session-token"));
-        assert!(is_account_session_cookie("__Secure-authjs.session-token.0"));
-        assert!(!is_account_session_cookie("ask_session"));
-        assert!(!is_account_session_cookie("auth-token-"));
+        // Canonical live names: AHDGame `AUTH_COOKIE_NAME` is
+        // `auth-token-<railway-tag>` (`computeAuthCookieName` lowercases the
+        // service/environment name and collapses non-alphanumerics to single
+        // dashes, falling back to `local`), and `/api/client/account` still
+        // bridges the historic literal `auth-token`. Auth.js-era session
+        // names (plain and sharded) stay recognized for older profiles.
+        for recognized in [
+            "auth-token",
+            "auth-token-production",
+            "auth-token-staging",
+            "auth-token-local",
+            "auth-token-ahd-game-prod",
+            "auth-token-123",
+            "authjs.session-token",
+            "__Secure-authjs.session-token",
+            "__Secure-authjs.session-token.0",
+            "next-auth.session-token",
+            "__Secure-next-auth.session-token.2",
+        ] {
+            assert!(
+                is_account_session_cookie(recognized),
+                "{recognized} must be recognized"
+            );
+        }
+        // Transient OAuth flow cookies (`discord/google_oauth_state|mode`,
+        // return-url cookies), the analytics cookie, the character-gate
+        // cookie, and the Ask service cookie are never account sessions:
+        // recognizing one would attach the wrong material to live-site calls.
+        for rejected in [
+            "ask_session",
+            "auth-token-",
+            "discord_oauth_state",
+            "discord_oauth_mode",
+            "google_oauth_state",
+            "google_oauth_mode",
+            "__ahd_track",
+            "ahd-needs-character",
+            "__Secure-authjs.session-token.x",
+        ] {
+            assert!(
+                !is_account_session_cookie(rejected),
+                "{rejected} must not be recognized"
+            );
+        }
+    }
+
+    #[test]
+    fn online_window_keeps_the_persistent_platform_profile() {
+        // Session persistence across full process relaunches (#149): the
+        // online window must use the platform's normal persistent
+        // cookie/storage jar, which is the Tauri default — the same default
+        // AHDClient's `open_online_window` documents (WebView2 user data
+        // folder / WKWebView default store / WebKitGTK profile). Building
+        // the window incognito would silently discard the account session on
+        // every quit. The token is joined so this test never self-matches.
+        let source = include_str!("lib.rs");
+        let incognito = [".incognito", "("].join("");
+        assert!(
+            !source.contains(&incognito),
+            "the online window must never be built incognito"
+        );
     }
     use tauri::Url;
 
