@@ -442,3 +442,46 @@ Remaining gaps (issue #510 stays open):
 - Role/country/capability conditions beyond #514/#520, SP-MP switching beyond
   #521, per-screen action/data depth, and physical-iPhone smoke remain as in
   section 8.
+
+## 12. Home-region viewer-row returns (#510)
+
+Enforced by `src/ui/RegionViewerReturn510.test.tsx`: 12 rendered tests green
+at 320px, 390px, and 1280px (desktop). The Governor Office (office-holder)
+and My Office / My Election (player) rows open their implemented destinations
+through a bounded shell drill instead of stack-clearing navigation: the
+regions surface reports itself with its selected region id as the return
+frame, the state home region reports itself, and Back restores the opener
+with its selection. The governor self-link (row pointing at its own region)
+reselects without pushing a frame. `legislature`, `profile`, and `policy`
+show Back only with a live frame, so plain drawer visits stay chromeless;
+the legislature arrival pre-selects the row's chamber through the existing
+legislature nav store instead of dropping the id. Reference mapping audited
+against AHDGame `StateDropdown.tsx`: holder-gated office, active-candidacy
+race, cabinet-holder office; inapplicable rows stay omitted (never inert),
+and the legislature-seat / head-of-state rows keep their implemented
+destinations. No browser history; identical offline in SP.
+
+Proven paths:
+
+| Chain | Proven behavior |
+|---|---|
+| Regions -> race -> regions | Back to regions restores the Alabama selection with its rows; no Back remains after the return |
+| Regions -> office -> regions | Back to regions restores the selection and the row's chamber is honored |
+| Regions (browsed CA) -> race -> regions | The explicit non-home origin restores California, not the home default |
+| Regions governor self-link | Reselects with no return frame and no Back |
+| Home region -> governor/race -> home region | Back to home region restores the regional profile |
+| Home region -> cabinet office -> profile | Back to home region restores the profile round trip |
+| Home region -> head of state -> policy | Back to home region restores the policy round trip |
+| No applicable rows | Honest empty card with no row buttons |
+| NPC holder, no candidacy | Only the My Office row renders |
+| Drawer -> legislature/profile/policy | No Back is rendered; the chromeless surface stands |
+
+Remaining gaps (issue #510 stays open):
+
+- No dedicated governor-office screen exists: the office row lands on the
+  region detail, with the office facts on the card itself.
+- The cabinet row lands on profile rather than a cabinet-position detail;
+  no such Native screen exists.
+- Role/country/capability conditions beyond this slice, SP-MP switching,
+  per-screen action/data depth, and physical-iPhone smoke remain as in
+  section 8.

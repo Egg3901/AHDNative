@@ -26,6 +26,7 @@ import { PartyMark } from "./PartyMark";
 import { PollingPanel } from "./PollingPanel";
 import { NotificationBellButton, NotificationPreview, NotificationsInbox, type NotificationTarget } from "./Notifications";
 import { RACE_PHASE_LABELS } from "../game/racePhase";
+import { loadLegislatureNav, saveLegislatureNav } from "../game/legislature";
 import { formatGameDate, type GameClock } from "../game/gameDate";
 import { NewsPanel } from "./NewsPanel";
 /**
@@ -298,6 +299,41 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   // #69: the dedicated presidential race destination, opened from the Elections surface.
   const openPresidential = (id: string) => drill("presidentialDetails", id);
 
+  // #510 viewer-row drill: a home-region office/race row opens its
+  // implemented destination while pushing the opening surface as the return
+  // frame — regions with its selected region id, or the state home region —
+  // so Back restores context instead of falling to a canonical parent.
+  // Identical re-opens (the governor row pointing at its own region)
+  // reselect without pushing a self frame. Bounded by MAX_RETURN_DEPTH like
+  // drill, and a legislature arrival pre-selects the row's chamber through
+  // the existing legislature nav store so the id is honored, never dropped.
+  const drillViewer = (origin: ReturnContext, next: RouteId, id?: string) => {
+    focusPage.current = true;
+    if (next === "legislature" && id) {
+      const chambers = world.legislature.chambers ?? [];
+      if (chambers.length === 0 || chambers.some((chamber) => chamber.key === id)) {
+        const existing = loadLegislatureNav(world.countryId);
+        saveLegislatureNav(world.countryId, { chamberKey: id, billId: existing.billId });
+      }
+    }
+    if (next === origin.route && (id ?? undefined) === (origin.detailId ?? undefined)) {
+      if (id === undefined) setDetailId(undefined);
+      else setDetailId(id);
+      setRoute(next);
+      return;
+    }
+    setReturnStack((prev) => {
+      const top = prev[prev.length - 1];
+      if (top && top.route === origin.route && top.detailId === origin.detailId) return prev;
+      const pushed = [...prev, origin];
+      if (pushed.length <= MAX_RETURN_DEPTH) return pushed;
+      return [pushed[0]!, ...pushed.slice(pushed.length - MAX_RETURN_DEPTH + 1)];
+    });
+    if (id === undefined) setDetailId(undefined);
+    else setDetailId(id);
+    setRoute(next);
+  };
+
   // Deep-links into Nations also re-point the shared browse context so the
   // viewed nation survives the round trip; the player country is never touched.
   const navigate = (next: RouteId, id?: string) => {
@@ -471,6 +507,14 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
       if (!live) return null;
       return restore("search", "Back to search", false);
     }
+    // #510 viewer-row returns: legislature/profile/policy are canonical
+    // destinations with no Back on plain drawer visits. A drilled arrival
+    // (home-region row, search player hit) restores its opener instead, so
+    // the row round-trips to the region that opened it.
+    if (route === "legislature" || route === "profile" || route === "policy") {
+      if (!live) return null;
+      return restore("search", "Back to search", false);
+    }
     return null;
   })();
 
@@ -623,7 +667,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           ) : null}
 
           {route === "legislature" ? (
-            <div className="ahd-stack"><button className="ahd-btn" onClick={() => go("legislationDetails")}>Browse bills and proposals</button><LegislaturePanel legislature={world.legislature} busy={busy} onAction={onAction} clock={clock} /></div>
+            <div className="ahd-stack"><button className="ahd-btn" onClick={() => go("legislationDetails")}>Browse bills and proposals</button><LegislaturePanel legislature={world.legislature} busy={busy} onAction={onAction} clock={clock} />{detailBack ? <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={detailBack.onBack}>{detailBack.name}</button> : null}</div>
           ) : null}
 
           {route === "elections" ? (
@@ -749,9 +793,9 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
               onNavigate={navigate}
             />
           ))}
-          {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={route === "nations" ? (detailId ?? nationContext) : detailId} onSelectNation={route === "nations" ? (id) => { setDetailId(undefined); setNationContext(id); } : undefined} onNavigate={navigate} onOpenParty={openParty} onOpenElection={openElection} />}</DetailQuery>}
+          {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={route === "nations" ? (detailId ?? nationContext) : detailId} onSelectNation={route === "nations" ? (id) => { setDetailId(undefined); setNationContext(id); } : undefined} onNavigate={navigate} onDrill={drillViewer} onOpenParty={openParty} onOpenElection={openElection} />}</DetailQuery>}
           {route === "worldMap" && <WorldMapRoute loadOverview={loadWorldOverview} loadRegions={loadRegions} revision={world} section={preferences.worldMapSection} onSectionChange={(worldMapSection) => onPreferencesChange({ ...preferences, worldMapSection })} onNavigate={navigate} />}
-          {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} revision={world} busy={busy} onNavigate={navigate} />}
+          {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} revision={world} busy={busy} onNavigate={navigate} onDrill={drillViewer} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "government" && (world.cabinet === null ? (
             // #510 honest no-seat state: the drawer hides this destination
@@ -800,7 +844,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
             navigate(next, id);
           }} /> : null}
           {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} onNavigate={(next) => go(next)} /> : null}
-          {detailBack && (route === "partyDetails" || route === "electionDetails" || route === "campaignDetails" || route === "presidentialDetails" || route === "politicians" || route === "markets" || route === "legislationDetails" || route === "bonds" || route === "regions" || route === "nations" || route === "referendums") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={detailBack.onBack}>{detailBack.name}</button>}
+          {detailBack && (route === "partyDetails" || route === "electionDetails" || route === "campaignDetails" || route === "presidentialDetails" || route === "politicians" || route === "markets" || route === "legislationDetails" || route === "bonds" || route === "regions" || route === "nations" || route === "referendums" || route === "profile" || route === "policy") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={detailBack.onBack}>{detailBack.name}</button>}
           {route === "politicalMetrics" && world.capabilityNav?.metricsAvailable !== false && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => go("elections")}>Back to elections</button>}
           {route === "partyDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="parties" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
           {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} onOpenCampaign={openCampaign} onOpenPolitician={openPolitician} onOpenPresidential={openPresidential} busy={busy} onAction={onAction} clock={clock} />}
