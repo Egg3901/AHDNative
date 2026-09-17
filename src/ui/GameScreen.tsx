@@ -592,8 +592,19 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
             <span className="ahd-mono">Turn {world.turn} · {world.foundingActive === true ? (
               <span className="ahd-founding-badge" title="In-game date is frozen at the era start until the founding elections finish">Founding</span>
             ) : null}{world.foundingActive === true ? " " : null}{formatGameDate(world.date, clock)}</span>
-            {saveNotice && !busy && !error ? <span className="ahd-muted" role="status">{message}</span>
-              : <span className="ahd-muted">{busy ? (message ? `Processing: ${message}` : "Processing...") : "Player paced"}</span>}
+            {saveNotice && !busy && !error ? <span className="ahd-muted ahd-statusline-text" role="status" title={message}>{message}</span>
+              : busy && message ? (
+                // Announced by the main-region pending banner above, so the
+                // footer copy stays out of the live region and desktop screen
+                // readers hear it once.
+                <span className="ahd-muted ahd-statusline-text" title={`Processing: ${message}`}>Processing: {message}</span>
+              )
+              : busy ? (
+                // No main-region banner exists without a message, so the
+                // footer pending state carries the live region here.
+                <span className="ahd-muted ahd-statusline-text" role="status" title="Processing...">Processing...</span>
+              )
+              : <span className="ahd-muted">Player paced</span>}
 
           </div>
           {holdingsSummary ? (

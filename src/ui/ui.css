@@ -524,6 +524,18 @@ html, body { overflow-x: hidden; }
   font-size: 0.72rem; line-height: 1.2; align-items: baseline;
   overflow-wrap: anywhere;
 }
+/* Transient footer status text (save notice, async pending state). On narrow
+   phones a long message would otherwise wrap unboundedly inside the fixed
+   footer and push it past its height budget on 320px, so the copy clamps to
+   two lines. The clamp is visual only: the full text stays in the
+   accessibility tree and in `title`. Desktop rendering is unchanged. */
+@media (max-width: 390px) {
+  .ahd-statusline-text {
+    flex: 1 1 10rem; min-width: 0;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+    overflow: hidden;
+  }
+}
 /* Reference status-bar identity (#223): the character name links to Profile,
    followed by the party · country context. The name stays visually inline so
    the compact footer keeps its height budget on 320px, but the text alone is
