@@ -1381,9 +1381,12 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
 }
 /* Docked navigation pane: the same drawer destinations and turn controls,
    in-flow instead of modal. Sticky so the pane scrolls with long content;
-   the fixed phone sheet above keeps its own rules for single-pane. */
+   the fixed phone sheet above keeps its own rules for single-pane. The
+   stick offset (#436) starts below the Dynamic Island / status area instead
+   of viewport top, so the stuck pane never parks its headings and turn
+   controls under the island on notched phones. */
 .ahd-screen[data-dual-pane="dual"] .ahd-drawer-docked {
-  position: sticky; top: 0; left: auto; bottom: auto; z-index: 5;
+  position: sticky; top: max(0px, env(safe-area-inset-top)); left: auto; bottom: auto; z-index: 5;
   width: auto; max-width: none; max-height: 100vh; max-height: 100dvh; overflow-y: auto;
   animation: none; box-shadow: none;
   border: 1px solid var(--ahd-border); border-radius: var(--ahd-radius);
