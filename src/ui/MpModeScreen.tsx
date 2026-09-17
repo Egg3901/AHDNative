@@ -41,6 +41,18 @@ const IDLE: MpSnapshot = {
   retryAfter: null,
 };
 
+/* Single-view drill-in (#362): the ready screen stays fully mounted (one
+ * scroll, no hidden state) while the overview jump-nav moves focus to a
+ * section and each section offers a sibling back row. Buttons live outside
+ * the audited regions so the action set stays exactly the server set.
+ */
+function jumpTo(id: string) {
+  window.location.hash = id;
+  const target = document.getElementById(id);
+  target?.focus({ preventScroll: true });
+  target?.scrollIntoView?.();
+}
+
 function formatCountdown(iso: string | null): string | null {
   if (!iso) return null;
   const target = Date.parse(iso);
@@ -163,7 +175,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
         <header className="ahd-mp-row" aria-label="Multiplayer header">
           <div style={{ minWidth: 0 }}>
             <p className="ahd-eyebrow">Multiplayer · Native</p>
-            <h1 className="ahd-h1">Multiplayer</h1>
+            <h1 className="ahd-h1" id="mp-top" tabIndex={-1}>Multiplayer</h1>
             {snapshot.username && <p className="ahd-muted" style={{ margin: 0 }}>Playing as {snapshot.username}</p>}
           </div>
           <div className="ahd-mp-row" style={{ marginLeft: "auto" }}>
@@ -176,6 +188,26 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
             <button className="ahd-btn ahd-btn-sm" onClick={onExit}>Exit multiplayer</button>
           </div>
         </header>
+
+        {snapshot.character && (
+          <nav className="ahd-mp-row ahd-mp-sections" aria-label="Multiplayer sections">
+            <span className="ahd-label">Sections</span>
+            <button className="ahd-btn ahd-btn-sm" onClick={() => jumpTo("mp-profile")}>
+              Status
+            </button>
+            <button className="ahd-btn ahd-btn-sm" onClick={() => jumpTo("mp-actions")}>
+              Actions
+            </button>
+            {snapshot.inbox && (
+              <button className="ahd-btn ahd-btn-sm" onClick={() => jumpTo("mp-inbox")}>
+                Inbox{snapshot.inbox.unreadCount > 0 ? ` (${snapshot.inbox.unreadCount} unread)` : ""}
+              </button>
+            )}
+            <button className="ahd-btn ahd-btn-sm" onClick={() => jumpTo("mp-mail")}>
+              Mail
+            </button>
+          </nav>
+        )}
 
         {noticeScope !== "mail" && snapshot.notice && <p className="ahd-notice" role="status">{snapshot.notice}</p>}
         {noticeScope !== "mail" && snapshot.error && <p className="ahd-alert" role="alert">{snapshot.error}</p>}
@@ -198,6 +230,10 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                 ? "Your multiplayer session expired. Choose your account provider to reconnect securely."
                 : "Choose your account provider. Native opens only the provider's secure authorization step and returns here automatically."}
             </p>
+            <p className="ahd-muted">
+              On a phone or other single-view device this step briefly leaves this screen and comes
+              straight back after you approve. Multiplayer stays fully native.
+            </p>
             <div className="ahd-mp-row">
               <button className="ahd-btn ahd-btn-primary" disabled={busy} onClick={() => void runGeneral((s) => s.signIn("discord"))}>
                 Continue with Discord
@@ -207,6 +243,9 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
               </button>
               <button className="ahd-btn" disabled={busy} onClick={() => void runGeneral((s) => s.refresh())}>
                 Retry
+              </button>
+              <button className="ahd-btn ahd-btn-ghost" onClick={onExit}>
+                Back
               </button>
             </div>
           </section>
@@ -231,7 +270,8 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
         )}
 
         {snapshot.character && (
-          <section id="mp-profile" className="ahd-mp-grid" aria-label="Multiplayer status">
+          <>
+          <section id="mp-profile" className="ahd-mp-grid" aria-label="Multiplayer status" tabIndex={-1}>
             <article className="ahd-card ahd-card-pad" aria-label="Player">
               <h2 className="ahd-h2">{snapshot.character.name}</h2>
               <dl className="ahd-mp-facts">
@@ -262,10 +302,17 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
               </article>
             )}
           </section>
+          <div className="ahd-mp-row ahd-mp-back">
+            <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" onClick={() => jumpTo("mp-top")}>
+              Back to sections
+            </button>
+          </div>
+          </>
         )}
 
         {snapshot.character && (
-          <section id="mp-actions" className="ahd-card ahd-card-pad" aria-label="Player actions">
+          <>
+          <section id="mp-actions" className="ahd-card ahd-card-pad" aria-label="Player actions" tabIndex={-1}>
             <h2 className="ahd-h2">Take action</h2>
             <p className="ahd-muted" style={{ marginTop: 0 }}>
               Actions run on the live game. Costs and refusals come from the server.
@@ -329,10 +376,17 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
               ))}
             </div>
           </section>
+          <div className="ahd-mp-row ahd-mp-back">
+            <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" onClick={() => jumpTo("mp-top")}>
+              Back to sections
+            </button>
+          </div>
+          </>
         )}
 
         {snapshot.inbox && (
-          <section className="ahd-card ahd-card-pad" aria-label="Notifications">
+          <>
+          <section className="ahd-card ahd-card-pad" aria-label="Notifications" id="mp-inbox" tabIndex={-1}>
             <div className="ahd-mp-row">
               <h2 className="ahd-h2" style={{ margin: 0 }}>
                 Inbox{snapshot.inbox.unreadCount > 0 ? ` (${snapshot.inbox.unreadCount} unread)` : ""}
@@ -419,10 +473,17 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
               </button>
             </div>
           </section>
+          <div className="ahd-mp-row ahd-mp-back">
+            <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" onClick={() => jumpTo("mp-top")}>
+              Back to sections
+            </button>
+          </div>
+          </>
         )}
 
         {snapshot.character && (
-          <section className="ahd-card ahd-card-pad" aria-label="Player mail" id="mp-mail">
+          <>
+          <section className="ahd-card ahd-card-pad" aria-label="Player mail" id="mp-mail" tabIndex={-1}>
             <div className="ahd-mp-row">
               <h2 className="ahd-h2" style={{ margin: 0 }}>Player mail</h2>
               <button
@@ -578,6 +639,12 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
               </button>
             </div>
           </section>
+          <div className="ahd-mp-row ahd-mp-back">
+            <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" onClick={() => jumpTo("mp-top")}>
+              Back to sections
+            </button>
+          </div>
+          </>
         )}
       </div>
       <footer className="ahd-footer ahd-mp-footer" aria-label="Multiplayer navigation">
