@@ -86,7 +86,16 @@ export function PartyPlatformComparison({ parties, selectedId, onSelect }: Party
           </button>
         ))}
       </div>
-      <div style={{ overflowX: "auto", marginTop: "0.6rem" }}>
+      {/* The table below scrolls horizontally at 320/390px once party names
+          and axis labels exceed the phone viewport. Its scroll container is
+          a labelled tab stop so the clipped columns stay keyboard-reachable;
+          visual and desktop behavior are unchanged. */}
+      <div
+        role="region"
+        aria-label="Party platforms table"
+        tabIndex={0}
+        style={{ overflowX: "auto", marginTop: "0.6rem" }}
+      >
       <table
         aria-label="Party platforms"
         style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.76rem" }}
