@@ -1201,6 +1201,14 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
 .ahd-election-pager { flex-wrap: wrap; min-width: 0; }
 .ahd-election-pager .ahd-btn { min-width: 0; max-width: 100%; }
 .ahd-election-pager > span { min-width: 0; }
+/* Bills pager (Previous / Page N of M / Next): the same non-wrapping button
+   row on the Legislature hub. Long or localized pager labels exceed 320px
+   when the row cannot wrap and pill buttons keep their automatic minimum
+   width, so the row wraps and every item shrinks instead of clipping.
+   Desktop is unchanged: the row still fits on one line. */
+.ahd-bills-pager { flex-wrap: wrap; min-width: 0; }
+.ahd-bills-pager .ahd-btn { min-width: 0; max-width: 100%; }
+.ahd-bills-pager > span { min-width: 0; }
 .ahd-mp-layout { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; padding-top: max(1rem, env(safe-area-inset-top)); padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
 .ahd-mp-footer { z-index: 40; }
 .ahd-mp-bottomnav { grid-template-columns: repeat(4, minmax(0, 1fr)); }

@@ -239,6 +239,36 @@ describe("LegislaturePanel", () => {
     expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "cat-a", originChamber: "senate" });
   });
 
+  it("lets the bills pager wrap at 320px without losing pager semantics", async () => {
+    const user = userEvent.setup();
+    const LegislaturePanel = await renderPanel();
+    const bills = Array.from({ length: 25 }, (_, i) => ({
+      id: `b${i}`, title: `Bill ${i}`, status: "active", chamber: "house", sponsorName: "Ada",
+      votesFor: 1, votesAgainst: 0, votesAbstain: 0,
+      playerVote: null as null,
+      voting: { id: "voteOnBill", name: "Vote", description: "Vote", cost: 0, available: true },
+    }));
+    render(<LegislaturePanel legislature={makeLegislature({ bills })} clock={CLOCK} busy={false} onAction={vi.fn()} />);
+    const prev = screen.getByRole("button", { name: /previous page/i });
+    const next = screen.getByRole("button", { name: /next page/i });
+    const pager = prev.closest(".ahd-bills-pager");
+    expect(pager).not.toBeNull();
+    // Row wraps instead of clipping long or localized labels at 320px.
+    expect(pager!).toHaveStyle({ flexWrap: "wrap" });
+    // Full labels stay readable: no icon-only fallback with missing names.
+    expect(prev).toHaveAccessibleName("Previous page");
+    expect(next).toHaveAccessibleName("Next page");
+    expect(prev.textContent).toMatch(/previous/i);
+    expect(next.textContent).toMatch(/next/i);
+    // Paging semantics preserved across the fix.
+    await user.click(next);
+    expect(screen.getByRole("article", { name: "Bill 24" })).toBeInTheDocument();
+    await user.click(prev);
+    expect(screen.getByRole("article", { name: "Bill 0" })).toBeInTheDocument();
+    // Explicit timeout: the file's dynamic import plus first render can
+    // exceed the 5s default on loaded hosts (transform cost, not behavior).
+  }, 20000);
+
   it("restores the persisted chamber context across a reload", async () => {
     window.localStorage.setItem(LEGISLATURE_NAV_STORAGE_KEY, JSON.stringify({ US: { chamberKey: "senate", billId: null } }));
     const LegislaturePanel = await renderPanel();
