@@ -207,7 +207,9 @@ describe("HoS office-identity mark", () => {
     expect(within(region).getByRole("img", { name: "United States executive office" })).toHaveAttribute("src", "/static/heroes/white-house.webp");
     expect(within(region).getByRole("heading", { name: "Executive office" })).toBeInTheDocument();
     expect(within(region).getByText("PR").closest("[data-office]")).toHaveAttribute("data-office", "president");
-    expect(within(region).getByText(/Permanent Head of State · president/)).toBeInTheDocument();
+    const bannerTitle = within(region).getByText(/Permanent Head of State · President/);
+    expect(bannerTitle).toBeInTheDocument();
+    expect(bannerTitle.parentElement).toHaveStyle({ flexWrap: "wrap" });
     expect(within(region).getByText(/Presidential executive/)).toBeInTheDocument();
     const tabs = within(region).getByRole("tablist", { name: /filter actions by category/i });
     expect(within(tabs).getByRole("tab", { name: /all, 2 of 2 available/i })).toBeInTheDocument();
@@ -227,7 +229,9 @@ describe("HoS office-identity mark", () => {
     const region = screen.getByRole("region", { name: "Actions" });
     expect(within(region).getByRole("img", { name: "United Kingdom executive office" })).toHaveAttribute("src", "/static/heroes/downing-street.webp");
     expect(within(region).getByText("PM").closest("[data-office]")).toHaveAttribute("data-office", "primeMinister");
-    expect(within(region).getByText(/Parliamentary executive/)).toBeInTheDocument();
+    expect(within(region).getByText(/Permanent Head of State · Prime minister/)).toBeInTheDocument();
+    expect(within(region).getByText(/Parliamentary executive: you govern through the appointed prime minister office\./)).toBeInTheDocument();
+    expect(within(region).queryByText(/Presidential executive/)).not.toBeInTheDocument();
   });
 
   it("HoS fallback flow: unknown country uses Actions art, null office uses the neutral mark", async () => {
@@ -263,5 +267,65 @@ describe("HoS office-identity mark", () => {
     expect(css).toMatch(/\.ahd-route-hero[^{]*\{[^}]*min-height:\s*172px/);
     expect(css).toMatch(/@media\s*\(min-width:\s*700px\)/);
     expect(css).toMatch(/min-height:\s*220px/);
+  });
+
+  it("HoS DE flow: chancellor title with parliamentary text, never presidential", async () => {
+    const user = userEvent.setup();
+    renderGame(makeWorld({
+      countryId: "DE",
+      countryName: "Germany",
+      player: { name: "Ada", cash: 1200, funds: 5000, actions: 3, influence: 12, favorability: 48, partyName: "SPD", mode: "hos", hosPartyId: "DE_SPD", homeRegionId: null, permanentHeadOfState: true, currentOffice: "chancellor" },
+    }));
+    await goToActions(user);
+
+    const region = screen.getByRole("region", { name: "Actions" });
+    expect(within(region).getByText(/Permanent Head of State · Chancellor/)).toBeInTheDocument();
+    expect(within(region).getByText(/Parliamentary executive: you govern through the appointed chancellor office\./)).toBeInTheDocument();
+    expect(within(region).queryByText(/Presidential executive/)).not.toBeInTheDocument();
+  });
+
+  it("HoS IE flow: taoiseach title with parliamentary text, never presidential", async () => {
+    const user = userEvent.setup();
+    renderGame(makeWorld({
+      countryId: "IE",
+      countryName: "Ireland",
+      player: { name: "Ada", cash: 1200, funds: 5000, actions: 3, influence: 12, favorability: 48, partyName: "Labour", mode: "hos", hosPartyId: "IE_LAB", homeRegionId: null, permanentHeadOfState: true, currentOffice: "taoiseach" },
+    }));
+    await goToActions(user);
+
+    const region = screen.getByRole("region", { name: "Actions" });
+    expect(within(region).getByText(/Permanent Head of State · Taoiseach/)).toBeInTheDocument();
+    expect(within(region).getByText(/Parliamentary executive: you govern through the appointed taoiseach office\./)).toBeInTheDocument();
+    expect(within(region).queryByText(/Presidential executive/)).not.toBeInTheDocument();
+  });
+
+  it("HoS CN flow: premier title with one-party text, never presidential", async () => {
+    const user = userEvent.setup();
+    renderGame(makeWorld({
+      countryId: "CN",
+      countryName: "China",
+      player: { name: "Ada", cash: 1200, funds: 5000, actions: 3, influence: 12, favorability: 48, partyName: "CCP", mode: "hos", hosPartyId: "CN_CCP", homeRegionId: null, permanentHeadOfState: true, currentOffice: "premier" },
+    }));
+    await goToActions(user);
+
+    const region = screen.getByRole("region", { name: "Actions" });
+    expect(within(region).getByText(/Permanent Head of State · Premier/)).toBeInTheDocument();
+    expect(within(region).getByText(/One-party executive/)).toBeInTheDocument();
+    expect(within(region).queryByText(/Presidential executive/)).not.toBeInTheDocument();
+  });
+
+  it("HoS unknown office flow: neutral executive fallback, never presidential", async () => {
+    const user = userEvent.setup();
+    renderGame(makeWorld({
+      countryId: "XX",
+      countryName: "Nowhereland",
+      player: { name: "Ada", cash: 1200, funds: 5000, actions: 3, influence: 12, favorability: 48, partyName: "", mode: "hos", hosPartyId: null, homeRegionId: null, permanentHeadOfState: true, currentOffice: "archon" },
+    }));
+    await goToActions(user);
+
+    const region = screen.getByRole("region", { name: "Actions" });
+    expect(within(region).getByText(/Permanent Head of State · executive office/)).toBeInTheDocument();
+    expect(within(region).getByText(/Executive office: you occupy the national executive record\./)).toBeInTheDocument();
+    expect(within(region).queryByText(/Presidential executive/)).not.toBeInTheDocument();
   });
 });

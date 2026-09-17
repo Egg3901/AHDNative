@@ -42,6 +42,7 @@ import { FinancePanel, formatFinanceMoney } from "./FinancePanel";
 import { LegislaturePanel } from "./LegislaturePanel";
 import { RouteHero, executiveHero } from "./RouteHero";
 import { HosOfficeMark } from "./HosOfficeMark";
+import { hosOfficeCopy } from "./hosOfficeCopy";
 import "./ui.css";
 
 const ELECTIONS_PAGE_SIZE = 20;
@@ -269,6 +270,9 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
 
   const joinPartyAction = world.actions.find((a) => a.id === "joinParty");
   const leavePartyAction = world.actions.find((a) => a.id === "leaveParty");
+  // HoS office/system text derives from the projected currentOffice type only;
+  // unknown offices keep the neutral executive fallback.
+  const hosCopy = hosOfficeCopy(world.player.currentOffice);
 
   const drawer = (
     <GameDrawer
@@ -321,16 +325,12 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
               <RouteHero image={world.player.mode === "hos" ? executiveHero(world.countryId) : "/static/heroes/actions.webp"} alt={world.player.mode === "hos" ? `${world.countryName} executive office` : "Political campaign operations"} eyebrow={world.era} title={world.player.mode === "hos" ? "Executive office" : "Campaign operations"}>
                 {world.player.mode === "hos" ? (
                   <div className="ahd-notice" role="note">
-                    <span style={{ display: "inline-flex", gap: "0.45rem", alignItems: "center", minWidth: 0 }}>
+                    <span style={{ display: "inline-flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap", minWidth: 0 }}>
                       <HosOfficeMark office={world.player.currentOffice} />
-                      <strong>Permanent Head of State · {world.player.currentOffice ?? "executive office"}</strong>
+                      <strong>Permanent Head of State · {hosCopy.title}</strong>
                     </span>
                     <div className="ahd-help">
-                      {world.player.currentOffice === "primeMinister"
-                        ? "Parliamentary executive: you govern through the appointed prime-minister office."
-                        : world.player.currentOffice === "generalSecretary"
-                          ? "One-party executive: you govern through the ruling party and legislature-appointment system."
-                          : "Presidential executive: you occupy the national president record."}
+                      {hosCopy.system}
                     </div>
                     <div className="ahd-help">Fiscal directions enact on the next turn.</div>
                   </div>
