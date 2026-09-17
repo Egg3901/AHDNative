@@ -384,6 +384,16 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                 {snapshot.character.corporationName && (<><dt>Corporation</dt><dd>{snapshot.character.corporationName}</dd></>)}
               </dl>
             </article>
+            {/* Standing capability audit (#359/#510, docs/NAVIGATION-PARITY.md
+              * section 12): the reference links each row at a live-site
+              * destination (My Corporation -> /corporation/[id], My Union ->
+              * /unions/[id], My election -> /elections/[seatId ?? id],
+              * cabinet -> /country/[cc]/executive/cabinet/[position]/office,
+              * governor -> /country/[cc]/region/[state]/office), but none of
+              * those reads is allowlisted and none has a Native MP surface,
+              * so every row stays display-only: no dead controls, no links
+              * into local SP state. A row becomes a link only with a
+              * supported authoritative MP destination behind it. */}
             {snapshot.capabilities && (
               <article className="ahd-card ahd-card-pad" aria-label="Standing">
                 <h2 className="ahd-h2">Standing</h2>

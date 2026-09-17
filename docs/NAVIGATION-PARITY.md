@@ -485,3 +485,40 @@ Remaining gaps (issue #510 stays open):
 - Role/country/capability conditions beyond this slice, SP-MP switching,
   per-screen action/data depth, and physical-iPhone smoke remain as in
   section 8.
+## 13. MP Standing capability audit (#359/#510)
+
+Audited the authoritative multiplayer Standing card (corporation, union,
+active election, cabinet, governor) against current AHDGame main. Reference
+targets, all live-site pages with no Native MP counterpart:
+`profileNavItems.ts` (My Corporation -> `/corporation/[id]` shown with
+`myCorporationId`; My Union -> `/unions/[id]` shown with `unionsEnabled` +
+`myUnionId`); `Navbar.tsx` / `ExperimentalMobileMenu.tsx` state rows (My
+election -> `/elections/[seatId ?? id]` with a disabled `myElectionNone`
+label otherwise; cabinet ->
+`/country/[cc]/executive/cabinet/[positionId]/office` via `cabinetOfficeUrl`;
+governor -> `/country/[cc]/region/[stateId]/office`, holder-only plus the
+party-officer `canManage` case from `governorOffice/access`).
+
+Result: zero of the five has an already-supported meaningful Native MP
+destination. None of those reads is allowlisted (`src/mp/endpoints.ts`,
+`src-tauri/src/mp_session.rs`: only auth-session, character-me, client-nav,
+turn-status, game-time, notifications, mail-inbox/sent, admin-maintenance;
+corporation/election/legislature surfaces are deliberately absent), the Rust
+allowlist is unchanged, and no remote state is synthesized. Every row stays
+display-only: absent navigation, never an inert control, never a route into
+local SP state. A row becomes a link only when a supported authoritative MP
+destination exists behind it; the card carries that rule as a code comment.
+
+Focused evidence: `src/ui/MpStandingCapabilities510.test.tsx` (7 tests x
+320/390/1280px): full capabilities render display-only with no links,
+buttons, or live-site paths; absent capabilities render the honest empty
+with no invented rows; election-only partial renders without sibling rows;
+section navigation plus Back to sections sets the return hash; auth expiry
+evicts the whole card (no stale rows) and reconnect restores it; a 403
+refusal keeps standing intact with the server message and no refresh; a
+malformed capabilities payload reports honestly with no stale rows.
+
+Remaining gaps (issues #359 and #510 stay open): Native MP has no
+corporation, union, election, cabinet-office, or governor-office detail
+surface at all, so the card cannot navigate anywhere yet; per-screen
+action/data depth and physical-iPhone smoke remain as in section 8.
