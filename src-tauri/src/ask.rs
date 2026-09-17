@@ -18,8 +18,11 @@
 //! - Mobile (single webview) renders the same local panel in place. The
 //!   signed-out `open_ask_window` call navigates the main webview to the Ask
 //!   service for the sign-in bounce — remote pages in that webview receive
-//!   no Tauri IPC — and a watcher navigates back to the launcher once the
-//!   session lands. The offline game itself is untouched by any of this.
+//!   no Tauri IPC — and a watcher brings the launcher back once the session
+//!   lands, or when the bounce ends with the webview still on remote content
+//!   (failure, cancellation, or an unreadable callback cookie), so the panel
+//!   re-probes and offers retry instead of stranding the player. The offline
+//!   game itself is untouched by any of this.
 //!
 //! Raw cookies never cross IPC and are never persisted: the session value
 //! stays inside Rust and is attached server-side of the webview boundary.
@@ -405,6 +408,38 @@ pub(crate) fn ask_dock_logical(monitor_width: u32, monitor_height: u32, scale: f
     (f64::from(x) / scale, f64::from(y) / scale)
 }
 
+/// Whether the main view currently shows app content rather than the borrowed
+/// live-site sign-in page. Mirrors the multiplayer watcher stop condition.
+#[cfg(mobile)]
+fn main_view_on_app_origin(app: &AppHandle) -> bool {
+    app.get_webview_window("main")
+        .and_then(|view| view.url().ok())
+        .is_some_and(|current| {
+            current.scheme() == "tauri"
+                || (current.scheme() == "http" && current.host_str() == Some("tauri.localhost"))
+        })
+}
+
+/// One poll step of the mobile sign-in watch: stop when the session cookie
+/// appeared or when the main view is already back on the app origin (the
+/// player returned on their own, so a late navigate must never yank the view).
+#[cfg(any(mobile, test))]
+fn ask_signin_watch_done(signed_in: bool, on_app_origin: bool) -> bool {
+    signed_in || on_app_origin
+}
+
+/// End-of-watch decision for the mobile Ask sign-in bounce: navigate back
+/// to the local launcher whenever the only webview is still showing remote
+/// content after the watch ends. A linked session lands on the panel (which
+/// re-probes); a failed, cancelled, or cookie-invisible callback lands on
+/// the signed-out panel with retry instead of stranding the player on a
+/// dead remote page. Never navigate when the player already came back on
+/// their own.
+#[cfg(any(mobile, test))]
+fn ask_signin_return_home(gave_up: bool, on_app_origin: bool) -> bool {
+    gave_up && !on_app_origin
+}
+
 /// Open the native Ask sign-in surface. Desktop focuses the local panel when
 /// a session already exists and otherwise opens the zero-capability auth
 /// window, which closes itself the moment the session lands. Mobile has a
@@ -456,25 +491,28 @@ pub(crate) async fn open_ask_window(app: AppHandle) -> Result<(), String> {
     main.navigate(url).map_err(|error| error.to_string())?;
     let watch_app = app.clone();
     std::thread::spawn(move || {
+        let mut gave_up = true;
         for _ in 0..AUTH_WATCH_POLLS {
             std::thread::sleep(AUTH_WATCH_INTERVAL);
-            if ask_session_cookie(&watch_app).is_some() {
+            let signed_in = ask_session_cookie(&watch_app).is_some();
+            // The player went back on their own; stop watching.
+            if !ask_signin_watch_done(signed_in, main_view_on_app_origin(&watch_app)) {
+                continue;
+            }
+            if signed_in {
                 if let Some(main) = watch_app.get_webview_window("main") {
                     let _ = main.navigate(mobile_launcher_home());
                 }
-                break;
             }
-            // The player went back on their own; stop watching.
-            let on_app_origin = watch_app
-                .get_webview_window("main")
-                .and_then(|view| view.url().ok())
-                .is_some_and(|current| {
-                    current.scheme() == "tauri"
-                        || (current.scheme() == "http"
-                            && current.host_str() == Some("tauri.localhost"))
-                });
-            if on_app_origin {
-                break;
+            gave_up = false;
+            break;
+        }
+        // The bounce ended without a visible session while the only webview
+        // still shows remote content: bring it home so the panel re-probes
+        // and offers retry instead of stranding the player on a dead page.
+        if ask_signin_return_home(gave_up, main_view_on_app_origin(&watch_app)) {
+            if let Some(main) = watch_app.get_webview_window("main") {
+                let _ = main.navigate(mobile_launcher_home());
             }
         }
     });
@@ -653,7 +691,10 @@ impl SseParser {
 mod tests {
     #[cfg(desktop)]
     use super::ask_dock_origin;
-    use super::{ask_api_allowed, ask_auth_url, is_ask_session_cookie, SseParser};
+    use super::{
+        ask_api_allowed, ask_auth_url, ask_signin_return_home, ask_signin_watch_done,
+        is_ask_session_cookie, SseParser,
+    };
 
     #[test]
     #[cfg(desktop)]
@@ -743,6 +784,28 @@ mod tests {
         assert!(!ask_api_allowed("GET", "/api/uploads/x"));
         assert!(!ask_api_allowed("GET", "/console"));
         assert!(!ask_api_allowed("DELETE", "/api/upload"));
+    }
+
+    #[test]
+    fn mobile_signin_watch_stops_once_home_or_signed_in() {
+        assert!(ask_signin_watch_done(true, false));
+        assert!(ask_signin_watch_done(false, true));
+        assert!(ask_signin_watch_done(true, true));
+        assert!(!ask_signin_watch_done(false, false));
+    }
+
+    #[test]
+    fn mobile_signin_returns_home_unless_player_came_back() {
+        // Linked session (already navigated home in the watch): the tail
+        // stays quiet.
+        assert!(!ask_signin_return_home(false, false));
+        // Failed, cancelled, or cookie-invisible callback with the only
+        // webview still on remote content: home so the signed-out panel
+        // offers retry instead of stranding the player.
+        assert!(ask_signin_return_home(true, false));
+        // Player came back on their own (or never left): never yank the view.
+        assert!(!ask_signin_return_home(false, true));
+        assert!(!ask_signin_return_home(true, true));
     }
 
     #[test]

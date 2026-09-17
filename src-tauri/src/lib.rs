@@ -199,6 +199,18 @@ fn mp_signin_watch_done(signed_in: bool, on_app_origin: bool) -> bool {
     signed_in || on_app_origin
 }
 
+/// End-of-watch decision for the mobile multiplayer sign-in bounce:
+/// navigate back to the local MP launcher whenever the only webview is still
+/// showing remote content after the watch ends. A linked session lands on
+/// the screen (which re-probes); a failed, cancelled, or cookie-invisible
+/// callback lands on the sign-in path with retry instead of stranding the
+/// player on a dead remote page. Never navigate when the player already
+/// came back on their own.
+#[cfg(any(mobile, test))]
+fn mp_signin_return_home(gave_up: bool, on_app_origin: bool) -> bool {
+    gave_up && !on_app_origin
+}
+
 /// Whether the main view currently shows app content rather than the borrowed
 /// live-site sign-in page. Mirrors the Ask watcher stop condition.
 #[cfg(mobile)]
@@ -223,18 +235,27 @@ async fn open_mp_sign_in(app: tauri::AppHandle, provider: String) -> Result<(), 
         .ok_or_else(|| "main webview is unavailable".to_string())?;
     main.navigate(url).map_err(|error| error.to_string())?;
     std::thread::spawn(move || {
+        let mut gave_up = true;
         for _ in 0..600 {
             std::thread::sleep(std::time::Duration::from_secs(1));
-            if mp_signin_watch_done(
-                mp_session::has_account_session(&app),
-                main_view_on_app_origin(&app),
-            ) {
-                if mp_session::has_account_session(&app) {
-                    if let Some(main) = app.get_webview_window("main") {
-                        let _ = main.navigate(mobile_mp_launcher_url());
-                    }
+            let signed_in = mp_session::has_account_session(&app);
+            if !mp_signin_watch_done(signed_in, main_view_on_app_origin(&app)) {
+                continue;
+            }
+            if signed_in {
+                if let Some(main) = app.get_webview_window("main") {
+                    let _ = main.navigate(mobile_mp_launcher_url());
                 }
-                break;
+            }
+            gave_up = false;
+            break;
+        }
+        // The bounce ended without a visible session while the only webview
+        // still shows remote content: bring it home so the screen re-probes
+        // and offers the sign-in path again instead of stranding the player.
+        if mp_signin_return_home(gave_up, main_view_on_app_origin(&app)) {
+            if let Some(main) = app.get_webview_window("main") {
+                let _ = main.navigate(mobile_mp_launcher_url());
             }
         }
     });
@@ -324,7 +345,7 @@ mod tests {
     use super::{
         external_destination_url, is_account_session_cookie, is_ask_navigation_allowed,
         is_online_navigation_allowed, is_online_origin, mobile_mp_launcher_url, mp_sign_in_path,
-        mp_signin_watch_done, ASK_URL,
+        mp_signin_return_home, mp_signin_watch_done, ASK_URL,
     };
 
     #[test]
@@ -343,6 +364,20 @@ mod tests {
         assert!(mp_signin_watch_done(false, true));
         assert!(mp_signin_watch_done(true, true));
         assert!(!mp_signin_watch_done(false, false));
+    }
+
+    #[test]
+    fn mobile_sign_in_returns_home_unless_player_came_back() {
+        // Linked session (already navigated home in the watch): the tail
+        // stays quiet.
+        assert!(!mp_signin_return_home(false, false));
+        // Failed, cancelled, or cookie-invisible callback with the only
+        // webview still on remote content: home so the sign-in path offers
+        // retry instead of stranding the player.
+        assert!(mp_signin_return_home(true, false));
+        // Player came back on their own (or never left): never yank the view.
+        assert!(!mp_signin_return_home(false, true));
+        assert!(!mp_signin_return_home(true, true));
     }
 
     #[test]
