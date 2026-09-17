@@ -1433,3 +1433,22 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
     max-height: calc(env(viewport-segment-height 1 0) - var(--ahd-footer-height, 9rem));
   }
 }
+
+/* Wallet/portfolio redesign (#507). Phone is a single touch-first column
+   with progressive disclosure; desktop uses the width for overview, trend,
+   holdings/accounts, and actionable detail side by side. Every surface is a
+   solid .ahd-card, so no backdrop-filter fallback is needed here. The bottom
+   clearance keeps the last card above the persistent footer and home
+   indicator, including the Dynamic Island / cutout top via the container. */
+.ahd-wallet { min-width: 0; max-width: 100%; padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+.ahd-wallet-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; min-width: 0; max-width: 100%; }
+.ahd-wallet-grid > * { min-width: 0; max-width: 100%; }
+.ahd-wallet-holding { min-width: 0; max-width: 100%; }
+.ahd-wallet-disclosure { min-height: 44px; border-radius: var(--ahd-radius-sm); }
+.ahd-wallet-disclosure:focus-visible { outline: 2px solid var(--ahd-primary); outline-offset: 2px; }
+@media (min-width: 1024px) {
+  .ahd-wallet-grid { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); align-items: start; }
+}
+@media (prefers-contrast: more) {
+  .ahd-wallet .ahd-card { border-width: 2px; }
+}
