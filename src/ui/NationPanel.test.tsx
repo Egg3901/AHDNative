@@ -299,6 +299,58 @@ describe("NationPanel", () => {
     expect(within(card).getByText(/▼/)).toBeInTheDocument();
   });
 
+  it("contains long debt and policy titles without losing the badge at 320/390px", () => {
+    // jsdom performs no layout, so the case asserts the shipped flex
+    // containment contract around the real headers: the title is the flex
+    // item that shrinks/wraps in place, while the badge keeps its own box
+    // beside it. Unconstrained desktop widths render identically because the
+    // wrap only engages under constraint. MetricCard headers are covered by
+    // the sibling case above (PR #485) and are deliberately not duplicated
+    // here.
+    const longDebtTitle = "National Debt and Public Borrowing Obligations Authority";
+    const longPolicyTitle =
+      "Fair Labor Standards and Employment Security Administration Act";
+    const nation = makeNation({
+      budget: {
+        ...makeNation().budget,
+        labels: { ...makeNation().budget.labels, debtTitle: longDebtTitle },
+        debt: { ...makeNation().budget.debt, creditRating: "AAA Stable" },
+      },
+      policy: {
+        ...makeNation().policy,
+        enacted: [
+          { ...makeNation().policy.enacted[0], title: longPolicyTitle },
+        ],
+      },
+    });
+
+    const { unmount } = render(<NationPanel nation={nation} section="budget" clock={CLOCK} />);
+    const debtTitle = screen.getByRole("heading", { name: longDebtTitle });
+    expect(debtTitle.style.minWidth).toBe("0");
+    expect(debtTitle.style.flex).toBe("1 1 auto");
+    expect(debtTitle.style.overflowWrap).toBe("anywhere");
+    const rating = screen.getByText("AAA Stable");
+    expect(rating).toHaveClass("ahd-badge");
+    expect(rating.style.flex).toBe("0 0 auto");
+    expect(rating.style.whiteSpace).toBe("nowrap");
+    // Data and desktop composition are unchanged: same row treatment,
+    // badge text intact, debt figures still rendered.
+    expect(screen.getByText("$100,000,000,000")).toBeInTheDocument();
+    unmount();
+
+    render(<NationPanel nation={nation} section="policy" clock={CLOCK} />);
+    const law = screen.getByRole("article", { name: longPolicyTitle });
+    const policyTitle = within(law).getByRole("heading", { name: longPolicyTitle });
+    expect(policyTitle.style.overflowWrap).toBe("anywhere");
+    const current = within(law).getByText("Current");
+    expect(current).toHaveClass("ahd-badge");
+    expect(current.style.flex).toBe("0 0 auto");
+    expect(current.style.whiteSpace).toBe("nowrap");
+    // Policy data/actions unchanged: option details still rendered.
+    expect(within(law).getByText("National Standards")).toBeInTheDocument();
+    expect(within(law).getByText("Broader coverage.")).toBeInTheDocument();
+  });
+
   it("shows current tax settings and enacted policy option details", () => {
     render(<NationPanel nation={makeNation()} section="policy" clock={CLOCK} />);
 

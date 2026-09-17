@@ -380,9 +380,12 @@ function BudgetSection({ nation, onNavigate }: { nation: NationView; onNavigate?
       </div>
 
       <div className="ahd-card ahd-card-pad">
-        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "baseline" }}>
-          <h2 className="ahd-h2">{labels.debtTitle}</h2>
-          <span className="ahd-badge">{budget.debt.creditRating}</span>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "baseline", minWidth: 0 }}>
+          {/* Long/localized debt titles wrap in place at 320/390px instead of
+              pushing the credit-rating badge out of the row. The badge keeps
+              its own flex box so it is never squeezed or wrapped away. */}
+          <h2 className="ahd-h2" style={{ minWidth: 0, flex: "1 1 auto", overflowWrap: "anywhere" }}>{labels.debtTitle}</h2>
+          <span className="ahd-badge" style={{ flex: "0 0 auto", whiteSpace: "nowrap" }}>{budget.debt.creditRating}</span>
         </div>
         <dl className="ahd-kv-grid" style={{ marginTop: "0.65rem" }}>
           <KeyValue label="Debt principal" value={budgetMoney(budget.debt.principal)} />
@@ -433,14 +436,17 @@ export function MetricsSection({ nation, onNavigate }: { nation: NationView; onN
 function PolicyCard({ policy, clock }: { policy: NationPolicySetting; clock: GameClock }) {
   return (
     <article className="ahd-card ahd-card-pad" aria-label={policy.title}>
-      <div style={{ display: "flex", gap: "0.55rem", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div style={{ minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontSize: "0.86rem" }}>{policy.title}</h3>
+      {/* Long policy titles wrap in place at 320/390px instead of pushing
+          the Current badge out of the card. The badge keeps its own flex box
+          so it is never squeezed or wrapped below the title. */}
+      <div style={{ display: "flex", gap: "0.55rem", justifyContent: "space-between", alignItems: "flex-start", minWidth: 0 }}>
+        <div style={{ minWidth: 0, flex: "1 1 auto" }}>
+          <h3 style={{ margin: 0, fontSize: "0.86rem", overflowWrap: "anywhere", minWidth: 0 }}>{policy.title}</h3>
           <div className="ahd-muted" style={{ fontSize: "0.7rem", marginTop: "0.25rem" }}>
             {policy.category ?? "Category not recorded"} · {policy.scope}
           </div>
         </div>
-        <span className="ahd-badge">Current</span>
+        <span className="ahd-badge" style={{ flex: "0 0 auto", whiteSpace: "nowrap" }}>Current</span>
       </div>
       <dl className="ahd-stack" style={{ marginTop: "0.65rem", gap: "0.42rem" }}>
         <KeyValue label="Option" value={policy.optionName ?? (policy.level === null ? "Not recorded" : `Level ${policy.level}`)} />
