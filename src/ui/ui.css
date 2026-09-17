@@ -830,7 +830,9 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
  * borders and depth change here, and the system adds no transitions or
  * animations of its own (the existing reduced-motion takeover covers the
  * drawer/backdrop keyframes). Chrome: footer, drawer, creation sticky
- * action bar. Elevated: resource details; drawer disclosures are a blur-free
+ * action bar. Elevated: resource details (which render only nested inside
+ * the modal popover, so the nested section is a flat transparent single-
+ * surface overlay per the rule below); drawer disclosures are a blur-free
  * elevated tint over the already-blurred drawer (no nested backdrop cost)
  * with a solid fallback. The drawer quick bar stays transparent so drawer
  * chrome shows through. Content cards (.ahd-card) and empty placeholders
@@ -843,6 +845,22 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
   border: 1px solid var(--ahd-material-modal-border);
   border-radius: var(--ahd-radius);
   box-shadow: var(--ahd-shadow-md);
+}
+/* Single-surface overlays: .ahd-resource-details renders only nested inside
+ * the modal popover (GameScreen), so the nested section drops its own
+ * background, blur, edge and depth and the open overlay paints exactly one
+ * modal glass surface. Same no-nested-backdrop-cost rule as the drawer
+ * disclosures above, which also keeps stacked 22-28px blurs off phone GPUs
+ * and stops the combined ~91% opacity from burying the modal translucency.
+ * Layout (padding, margins, gaps) is untouched. The reduced-transparency
+ * selectors below outrank this rule, so the nested section stays solid
+ * there; forced-colors pins it solid explicitly. */
+.ahd-resource-popover .ahd-resource-details {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-color: transparent;
+  box-shadow: none;
 }
 /* Reduced-transparency fallback: solid opaque surfaces, no blur. Explicit
  * player choice wins; otherwise the device setting applies. */
@@ -869,6 +887,7 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
   .ahd-resource-details { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
   .ahd-drawer-disclosure { background: var(--ahd-card-elevated); }
   .ahd-resource-popover { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .ahd-resource-popover .ahd-resource-details { background: var(--ahd-card-elevated); }
 }
 /* End material system (issue #437) */
 

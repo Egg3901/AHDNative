@@ -1452,6 +1452,29 @@ and removed. The smoke helper now walks the conversation; no engine change.
 - #437 stays `status: partial` solely for representative phone screenshots
   and named physical-device performance evidence; no device claim is made.
 
+## Glass material single-surface overlay fix, 2026-09-17 (#437 partial)
+
+- `.ahd-resource-details` renders only nested inside the modal
+  `.ahd-resource-popover` (GameScreen), so every resource overlay opening
+  stacked two backdrop blurs (22px elevated inside 28px modal) behind a
+  double border/shadow frame at ~91% combined opacity, burying the modal
+  translucency and contradicting the system's own no-nested-backdrop-cost
+  rule used for drawer disclosures. The nested section is now a flat
+  transparent single-surface overlay (no own background, blur, edge, or
+  depth; padding/margins/gaps untouched), so an open overlay paints exactly
+  one modal glass surface. Reduced-transparency selectors outrank the nested
+  rule and forced-colors pins it solid, so all fallbacks stay opaque and the
+  contrast evidence still holds. No geometry, motion, or token changes.
+- Focused evidence: `src/ui/materials.test.ts` (15, incl. the new nested
+  single-surface regression case), `src/ui/DeviceChromeContracts.test.ts`
+  (10), `GameScreen`/`GameScreenNotifications`/`SettingsPanel` (75),
+  `preferences` (4). No full typecheck, verify, build, or smoke rerun per
+  scope; shared-scheduler validation owed (incl. the material visual
+  acceptance spec at 320/390px, which could not run locally: no matching
+  Playwright browser installed and port 1427 held by another session).
+- #437 stays `status: partial` solely for representative phone screenshots
+  and named physical-device performance evidence; no device claim is made.
+
 ## Dynamic Island safe-area composition checkpoint, 2026-09-16 (#436 partial)
 
 - Browser-geometry contract only. `env(safe-area-inset-*)` is now used

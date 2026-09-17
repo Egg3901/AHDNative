@@ -365,7 +365,7 @@ Restrained glass-inspired hierarchy on the default theme tokens above
 | Level | Surfaces | Treatment |
 |---|---|---|
 | Chrome | Persistent footer + bottom nav, navigation drawer, creation sticky action bar | App-bg tint 78%, 16px backdrop blur, translucent fg-18% outer edge + depth shadow on the footer |
-| Elevated | Resource detail cards; drawer disclosures (blur-free elevated tint over the already-blurred drawer, no nested backdrop cost) | Elevated tint 72%, 22px blur, translucent edge highlight on detail cards |
+| Elevated | Resource detail cards (nested inside the modal popover only, rendered as a flat transparent single-surface section: no own blur, edge, or depth); drawer disclosures (blur-free elevated tint over the already-blurred drawer, no nested backdrop cost) | Elevated tint 72%, 22px blur, translucent edge highlight on detail cards |
 | Modal | Resource/notification popover dialogs | Elevated tint 68%, 28px blur, edge highlight, modal shadow |
 | Content | All `.ahd-card` surfaces, `.ahd-empty` placeholders | Opaque, never blurred |
 
