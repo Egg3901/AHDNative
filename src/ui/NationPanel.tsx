@@ -242,10 +242,18 @@ function EconomySection({ nation }: { nation: NationView }) {
           <h2 className="ahd-h2">Macro history</h2>
           <span className="ahd-muted" style={{ fontSize: "0.68rem" }}>recorded turns</span>
         </div>
+        {/* The 32rem table below scrolls horizontally at 320/390px. Its
+            scroll container is a labelled tab stop so the clipped columns
+            stay keyboard-reachable; visual behavior is unchanged. */}
         {macroHistory.length === 0 ? (
           <div className="ahd-empty" style={{ marginTop: "0.65rem" }}>No macro history recorded.</div>
         ) : (
-          <div style={{ overflowX: "auto", marginTop: "0.55rem" }}>
+          <div
+            role="region"
+            aria-label="Macro history table"
+            tabIndex={0}
+            style={{ overflowX: "auto", marginTop: "0.55rem" }}
+          >
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.72rem", minWidth: "32rem" }}>
               <caption className="ahd-muted" style={{ textAlign: "left", paddingBottom: "0.4rem" }}>
                 GDP in millions of USD; rates in percent.
