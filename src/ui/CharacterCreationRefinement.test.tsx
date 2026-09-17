@@ -10,13 +10,18 @@ const PARTIES = [
   { id: "US_REP", name: "Republican Party", abbreviation: "REP", color: "#EF4444", logoUrl: null, economicPosition: 3, socialPosition: 2 },
 ];
 
+const HOME_REGIONS = [
+  { id: "NY", name: "New York", population: null, electorateLean: null, seeded: false },
+  { id: "CA", name: "California", population: null, electorateLean: null, seeded: false },
+];
+
 function props(overrides: Partial<CharacterCreationScreenProps> = {}): CharacterCreationScreenProps {
   return {
     selection: { era: "1953", countryId: "US", countryName: "United States", regionNoun: "state" },
     regions: [{ id: "NY", name: "New York" }, { id: "CA", name: "California" }],
     initialName: "Eleanor Vance",
     initialHomeRegionId: "NY",
-    choices: { parties: PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state" },
+    choices: { parties: PARTIES, rulingParty: null, isOnePartyState: false, imperialEligible: false, regionNoun: "state", homeRegions: HOME_REGIONS },
     loading: false,
     busy: false,
     onSubmit: vi.fn(),
