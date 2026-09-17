@@ -154,6 +154,42 @@ describe("surface consistency audit (#437)", () => {
   });
 });
 
+describe("high-contrast preferences", () => {
+  const glassSurfaces = [
+    ".ahd-footer",
+    ".ahd-drawer",
+    ".ahd-creation-actions",
+    ".ahd-resource-details",
+    ".ahd-drawer-disclosure",
+    ".ahd-resource-popover",
+  ];
+
+  it("resolves every glass surface solid with no blur under prefers-contrast: more", () => {
+    const start = materialCss.indexOf("@media (prefers-contrast: more)");
+    expect(start).toBeGreaterThan(0);
+    const contrastBlock = materialCss.slice(start, materialCss.indexOf("End material system (issue #437)"));
+    for (const surface of glassSurfaces) {
+      expect(contrastBlock, `missing ${surface}`).toContain(surface);
+    }
+    expect(contrastBlock).toContain("backdrop-filter: none");
+    expect(contrastBlock).not.toMatch(/blur\(var\(--ahd-material/);
+  });
+
+  it("keeps keyboard focus visible in forced-colors with a system-color outline", () => {
+    const forcedStart = materialCss.indexOf("@media (forced-colors: active)");
+    expect(forcedStart).toBeGreaterThan(0);
+    const forcedBlock = materialCss.slice(forcedStart, materialCss.indexOf("End material system (issue #437)"));
+    // Box-shadow focus rings are suppressed in forced-colors mode, so the
+    // takeover must replace them with a real outline, not another shadow.
+    expect(forcedBlock).toContain("Highlight");
+    expect(forcedBlock).toMatch(/:focus-visible[^}]*outline:\s*2px solid Highlight/);
+    expect(forcedBlock).toMatch(/:focus-visible[^}]*box-shadow:\s*none/);
+    for (const control of [".ahd-bottomnav-item:focus-visible", ".ahd-drawer-item:focus-visible", ".ahd-status-btn:focus-visible", ".ahd-btn:focus-visible"]) {
+      expect(forcedBlock, `missing ${control}`).toContain(control);
+    }
+  });
+});
+
 describe("motion restraint", () => {
   it("adds no transitions or animations to the material system", () => {
     const block = materialBlock();

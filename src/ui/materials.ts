@@ -6,7 +6,9 @@
  * modal surfaces, and opaque content. This module owns the token names,
  * the reduced-transparency contract, and the contrast evidence. The
  * shipped values live in `src/ui/ui.css` between the material markers;
- * `materials.test.ts` pins the two sides together.
+ * `materials.test.ts` pins the two sides together. `prefers-contrast: more`
+ * reuses the same solid fallbacks, and forced-colors adds a system-color
+ * focus outline because the box-shadow rings are suppressed there.
  *
  * Inspiration only: no proprietary Apple assets are copied or referenced.
  * Geometry (insets, widths, heights, positioning) is owned by #436 and is

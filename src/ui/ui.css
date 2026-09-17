@@ -908,6 +908,42 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
   .ahd-resource-popover { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
   .ahd-resource-popover .ahd-resource-details { background: var(--ahd-card-elevated); }
 }
+/* Forced-colors focus takeover (issue #437): every glass-chrome control
+ * marks keyboard focus with a box-shadow ring and `outline: none`, and
+ * box-shadow is suppressed in forced-colors mode, which would leave Tab
+ * focus invisible on the footer, drawer, bottom nav, and creation
+ * controls. A real system-color outline keeps focus visible there.
+ * `!important` mirrors the reduced-motion takeover below: the guarantee
+ * must hold regardless of source order (creation rules ship later). */
+@media (forced-colors: active) {
+  .ahd-btn:focus-visible,
+  .ahd-input:focus-visible,
+  .ahd-select:focus-visible,
+  .ahd-status-identity-name:focus-visible,
+  .ahd-status-btn:focus-visible,
+  .ahd-bottomnav-item:focus-visible,
+  .ahd-drawer-disclosure:focus-visible,
+  .ahd-drawer-item:focus-visible,
+  .ahd-creation-answer:focus-visible,
+  .ahd-chip:focus-visible,
+  .ahd-creation-progress-dot:focus-visible,
+  .ahd-era-card:has(:focus-visible) { outline: 2px solid Highlight !important; outline-offset: 2px !important; box-shadow: none !important; }
+}
+/* Higher-contrast preference (issue #437): translucent glass over variable
+ * page content lowers effective text contrast, so `prefers-contrast: more`
+ * resolves the same six glass surfaces to their solid opaque fallbacks
+ * with no blur, reusing the reduced-transparency tokens. No explicit
+ * player override exists for contrast (SettingsPanel offers motion and
+ * transparency only), so the device setting applies directly. */
+@media (prefers-contrast: more) {
+  .ahd-footer { background: var(--ahd-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .ahd-drawer { background: var(--ahd-card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .ahd-creation-actions { background: var(--ahd-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .ahd-resource-details { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .ahd-drawer-disclosure { background: var(--ahd-card-elevated); }
+  .ahd-resource-popover { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .ahd-resource-popover .ahd-resource-details { background: var(--ahd-card-elevated); }
+}
 /* End material system (issue #437) */
 
 /* Device-local reading and motion preferences. */
