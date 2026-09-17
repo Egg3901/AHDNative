@@ -121,16 +121,19 @@ const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
 export function GameScreen({ loadProfile, loadProfileDestination, loadImperialProfile, onUpdateProfile, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, newsStorageKey, onAdvanceTurn, onSave, onExit, onAction, onSectorSale, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("profile");
   const [detailId, setDetailId] = useState<string>();
-  // #510 bounded return context: detail routes remember the browse surface
-  // that opened them ({ route, detailId }) so Back restores the actual
-  // origin — parties list, politicians selection, search snapshot — instead
-  // of a hard-coded parent. Single slot in React state only (never browser
+  // #510 bounded return stack: detail routes remember the chain of browse
+  // surfaces that opened them ({ route, detailId } frames) so Back restores
+  // each level — parties list, politicians selection, search snapshot —
+  // instead of a hard-coded parent. Bounded React state only (never browser
   // history), so it behaves identically offline in SP and through the MP
-  // navigation adapters. Drawer and deep-link navigation clear it; the
-  // transient news reader is never recorded as an origin (article links keep
-  // their long-pinned canonical parents).
+  // navigation adapters. Drawer, deep-link, and notification navigation
+  // clear the whole stack; the transient news reader is never recorded as
+  // an origin (article links keep their long-pinned canonical parents).
+  // Frames whose detail id no longer exists in the world are skipped on the
+  // way out, never restored stale.
   type ReturnContext = { route: RouteId; detailId?: string };
-  const [returnContext, setReturnContext] = useState<ReturnContext | null>(null);
+  const MAX_RETURN_DEPTH = 5;
+  const [returnStack, setReturnStack] = useState<ReturnContext[]>([]);
   // Selected hub category survives route changes so Profile/footer deep-links
   // and returns never lose the player's filter selection.
   const [actionsCategory, setActionsCategory] = useState<ActionsCategoryFilter>("all");
@@ -192,7 +195,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
 
   const go = (next: RouteId) => {
     focusPage.current = true;
-    setReturnContext(null);
+    setReturnStack([]);
     setDetailId(undefined);
     setRoute(next);
     setMenuOpen(false);
@@ -212,12 +215,29 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
     document.scrollingElement?.scrollTo?.({ top: 0 });
   }, [route, menuOpen, openResource, tabPanelId]);
 
-  // #510 drill-down: open a detail route while remembering the current browse
-  // surface as the single-slot return context (news-reader deep-links record
-  // none and keep canonical parents).
+  // #510 drill-down: open a detail route while pushing the current browse
+  // surface as the next return-stack frame (news-reader deep-links record
+  // none and reset the stack, so article links keep canonical parents).
+  // Identical re-opens push nothing; the stack is capped so deep chains stay
+  // deterministic. Eviction preserves the chain root (the entry surface)
+  // and drops the oldest middle frame, so unwinding always terminates at
+  // the surface the chain started from instead of stranding a detail
+  // (notably politicians, which stays chromeless with an empty stack) with
+  // no Back.
   const drill = (next: RouteId, id?: string) => {
     focusPage.current = true;
-    setReturnContext(route === "news" ? null : { route, detailId });
+    if (route === "news") {
+      setReturnStack([]);
+    } else {
+      const frame: ReturnContext = { route, detailId };
+      setReturnStack((prev) => {
+        const top = prev[prev.length - 1];
+        if (top && top.route === frame.route && top.detailId === frame.detailId) return prev;
+        const pushed = [...prev, frame];
+        if (pushed.length <= MAX_RETURN_DEPTH) return pushed;
+        return [pushed[0]!, ...pushed.slice(pushed.length - MAX_RETURN_DEPTH + 1)];
+      });
+    }
     if (id === undefined) setDetailId(undefined);
     else setDetailId(id);
     setRoute(next);
@@ -250,7 +270,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
 
   const openNotificationTarget = (target: { route: RouteId; detailId?: string }) => {
     focusPage.current = true;
-    setReturnContext(null);
+    setReturnStack([]);
     setDetailId(target.detailId);
     setRoute(target.route);
     setMenuOpen(false);
@@ -332,22 +352,43 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   // ownership, so SP passes none and the drawer omits both rows.
   const identityOrg: IdentityOrgLink[] = [];
 
-  // #510 detail return: restore the recorded origin (route + detail id) when
-  // one exists, otherwise the long-standing canonical parent for that
-  // detail. Single-use: returning clears the slot. The politicians surface
-  // only shows Back when it was opened from a detail (race/campaign); plain
-  // drawer visits keep today's chromeless list.
+  // #510 detail return: pop the newest live return-stack frame (route +
+  // detail id) when one exists, otherwise the long-standing canonical parent
+  // for that detail. Each Back restores exactly one level, so multi-level
+  // chains unwind step by step with each surface's selection intact. Frames
+  // whose detail id left the world are skipped, never restored stale; the
+  // politicians surface only shows Back when a live frame exists (plain
+  // drawer visits keep today's chromeless list).
   const detailBack: { name: string; onBack: () => void } | null = (() => {
+    // A frame is live when its route differs from the current one and its
+    // recorded detail still exists. List surfaces (no detail id) and routes
+    // the shell cannot verify against the world view (search snapshot,
+    // politician selection) are trusted; party/race ids are checked so a
+    // removed party or resolved race can never come back stale.
+    const partyIds = new Set(world.parties.map((p) => p.id));
+    const electionIds = new Set(world.elections.map((e) => e.id));
+    const isLiveFrame = (frame: ReturnContext): boolean => {
+      if (frame.route === route) return false;
+      if (frame.detailId === undefined) return true;
+      if (frame.route === "partyDetails") return partyIds.has(frame.detailId);
+      if (frame.route === "electionDetails" || frame.route === "campaignDetails" || frame.route === "presidentialDetails") {
+        return electionIds.has(frame.detailId);
+      }
+      return true;
+    };
+    const live = [...returnStack].reverse().find(isLiveFrame);
     const restore = (fallbackRoute: RouteId, fallbackName: string, keepDetail: boolean) => {
-      const origin = returnContext;
-      if (origin && origin.route !== route) {
+      if (live) {
         return {
-          name: `Back to ${shortReturnLabel(origin.route)}`,
+          name: `Back to ${shortReturnLabel(live.route)}`,
           onBack: () => {
             focusPage.current = true;
-            setReturnContext(null);
-            setDetailId(origin.detailId);
-            setRoute(origin.route);
+            // Pop the restored frame and every stale frame above it.
+            let at = returnStack.length - 1;
+            while (at >= 0 && returnStack[at] !== live) at -= 1;
+            setReturnStack(returnStack.slice(0, at));
+            setDetailId(live.detailId);
+            setRoute(live.route);
           },
         };
       }
@@ -355,7 +396,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
         name: fallbackName,
         onBack: () => {
           focusPage.current = true;
-          setReturnContext(null);
+          setReturnStack([]);
           if (keepDetail) setRoute(fallbackRoute);
           else go(fallbackRoute);
         },
@@ -365,7 +406,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
     if (route === "electionDetails") return restore("elections", "Back to elections", false);
     if (route === "campaignDetails") return restore("electionDetails", "Back to race", true);
     if (route === "presidentialDetails") return restore("elections", "Back to elections", false);
-    if (route === "politicians" && returnContext && returnContext.route !== "politicians") {
+    if (route === "politicians" && live) {
       return restore("politicians", "Back to politicians", false);
     }
     return null;

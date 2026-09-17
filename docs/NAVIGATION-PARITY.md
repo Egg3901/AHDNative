@@ -326,3 +326,43 @@ Remaining gaps (issue #510 stays open):
 - Matrix asserts headings/content per destination, not per-screen action/data depth.
 - Physical-iPhone smoke (Dynamic Island/safe-area, Liquid Glass readability)
   for the complete navigation loop is still owed; all evidence here is Linux jsdom.
+
+## 9. Multi-level return stack (#510, follow-up to #517)
+
+Enforced by `src/ui/NavReturnStack510.test.tsx`: 9 rendered tests green at 320px,
+390px, and 1280px (desktop). Generalizes the section-8 single slot to a bounded
+stack of at most 5 `{ route, detailId }` frames in shell state. No browser
+history; identical offline in SP and through MP adapters. Cap eviction keeps
+the chain root (entry surface) and drops the oldest middle frame, so unwinding
+a capped chain always terminates at the entry surface instead of stranding a
+detail with no Back.
+
+Proven paths:
+
+| Chain | Proven behavior |
+|---|---|
+| Race -> politician -> race | Each Back pops exactly one level (Back to politicians, Back to election details, Back to elections); the politician article and race article selections are restored at each step |
+| Search -> result -> nested detail -> search | Back from the nested politician restores the race with Back to search still stacked; Back to search restores the query value, the "1 of 1 matches" list, and the Selected marker from the shell snapshot |
+| Notification entry from depth | A 3-frame chain cleared by inbox entry: the race keeps its canonical Back to elections |
+| Drawer entry from depth | A fresh party drill after drawer navigation keeps the canonical Back to parties |
+| Capped chain | A 9-push race <-> politician chain unwinds in 5 pops plus the canonical Back to elections; the evicted root is preserved so no detail is stranded without Back |
+| Stale frames | A race frame removed from the world is skipped to the live elections list (Back to elections); the stale race is never restored |
+
+Unchanged from section 8: drawer, deep-link, and notification entry clear the
+whole stack; the transient news reader records no origin and resets the stack,
+so article links keep canonical parents; politicians shows Back only with a live
+frame; all other canonical-parent fallbacks (parties, elections, race) stand.
+
+Remaining gaps (issue #510 stays open):
+
+- Search-originated company/bill/bond/region/nation/referendum details
+  (markets, legislationDetails, bonds, regions, nations, referendums routes) have
+  no Back button even when the search surface is stacked below them.
+- Politician frames are trusted unverified: the shell cannot check a politician
+  id against the world view (the roster lives behind the politics loader), so a
+  removed politician restores by id and the panel falls back to its first row.
+- Campaign/presidential nesting (race -> campaign, elections -> presidential ->
+  politician) is stack-compatible but has no rendered multi-level test.
+- Role/country/capability conditions beyond #514/#520, SP-MP switching beyond
+  #521, per-screen action/data depth, and physical-iPhone smoke remain as in
+  section 8.
