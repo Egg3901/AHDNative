@@ -251,6 +251,54 @@ describe("NationPanel", () => {
     expect(onNavigate).toHaveBeenCalledWith("elections");
   });
 
+  it("wraps a long metric label with its value/trend badge instead of clipping at 320px", () => {
+    // MetricCard headers pair the registry label with a value + nowrap trend
+    // badge in one flex row. With no wrap and no shrink on the label, a long
+    // label plus the badge exceeds a 320/390px phone and clips. The row now
+    // wraps and the label shrinks/wraps (the .ahd-notification-title and
+    // elections-pager sibling convention); the trend keeps its nowrap unit
+    // and drops to the next line. jsdom performs no layout, so the case
+    // asserts the shipped inline-style contract around the real header.
+    const longLabel = "Intergovernmental fiscal equalization coefficient rating index";
+    const nation = makeNation({
+      metrics: {
+        total: 1,
+        categories: [
+          {
+            id: "economic",
+            label: "Economic",
+            metrics: [
+              {
+                id: "economic.equalization",
+                category: "economic",
+                label: longLabel,
+                value: 54.8,
+                format: "percent",
+                history: [{ turn: 0, value: 56.3 }, { turn: 1, value: 54.8 }],
+                modifiers: [],
+                links: [{ label: "Economy", route: "economy" }],
+              },
+            ],
+          },
+        ],
+      },
+    });
+    render(<NationPanel nation={nation} section="metrics" clock={CLOCK} />);
+
+    const card = screen.getByRole("article", { name: longLabel });
+    const heading = within(card).getByRole("heading", { name: longLabel });
+    const row = heading.parentElement;
+    expect(row).not.toBeNull();
+    expect(row!.style.flexWrap).toBe("wrap");
+    expect(row!.style.minWidth).toBe("0");
+    expect(heading.style.minWidth).toBe("0");
+    expect(heading.style.overflowWrap).toBe("anywhere");
+    // Value and trend badge stay rendered (the value also appears in the
+    // recorded-history list, so both instances must survive).
+    expect(within(card).getAllByText("54.80%").length).toBeGreaterThan(0);
+    expect(within(card).getByText(/▼/)).toBeInTheDocument();
+  });
+
   it("shows current tax settings and enacted policy option details", () => {
     render(<NationPanel nation={makeNation()} section="policy" clock={CLOCK} />);
 

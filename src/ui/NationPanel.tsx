@@ -148,9 +148,14 @@ function MetricCard({ metric, onNavigate }: { metric: NationMetricView; onNaviga
   const sparkSpan = sparkMax - sparkMin || 1;
   return (
     <article className="ahd-card ahd-card-pad" aria-label={metric.label}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "baseline" }}>
-        <h3 style={{ margin: 0, fontSize: "0.86rem" }}>{metric.label}</h3>
-        <span style={{ display: "inline-flex", gap: "0.4rem", alignItems: "baseline" }}>
+      {/* Metric header row: a long registry label plus the value/trend badge
+          exceeds 320px when the row cannot wrap and the label cannot shrink
+          (the trend keeps its nowrap unit). The row wraps and the label
+          shrinks/wraps instead of clipping; desktop is unchanged because the
+          row still fits on one line when labels are short. */}
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "baseline", flexWrap: "wrap", minWidth: 0 }}>
+        <h3 style={{ margin: 0, fontSize: "0.86rem", minWidth: 0, overflowWrap: "anywhere" }}>{metric.label}</h3>
+        <span style={{ display: "inline-flex", gap: "0.4rem", alignItems: "baseline", minWidth: 0 }}>
           <span className="ahd-mono" style={{ fontWeight: 650 }}>{metricValue(metric)}</span>
           {trend !== null && trendText !== null ? (
             <span
