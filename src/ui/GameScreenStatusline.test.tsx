@@ -4,7 +4,7 @@ import { render, screen, within } from "@testing-library/react";
 import { DEFAULT_PREFERENCES } from "../preferences";
 import { DEFAULT_WORLD_FEATURE_FLAGS } from "@ahdclient/engine";
 import { GameScreen } from "./GameScreen";
-import type { GameView } from "../game/types";
+import type { FinanceView, GameView } from "../game/types";
 
 /**
  * Footer transient status text on narrow phones: the async pending state and
@@ -16,6 +16,19 @@ import type { GameView } from "../game/types";
  */
 
 const css = readFileSync("src/ui/ui.css", "utf8");
+
+function makeFinance(overrides: Partial<FinanceView> = {}): FinanceView {
+  return {
+    cash: 1200,
+    savings: 300,
+    currency: "USD",
+    savingsHolder: "First National Bank",
+    holdings: [],
+    deposit: { id: "depositSavings", name: "Deposit", description: "Move cash to savings.", cost: 0, available: true },
+    withdraw: { id: "withdrawSavings", name: "Withdraw", description: "Move savings to cash.", cost: 0, available: true },
+    ...overrides,
+  };
+}
 
 function makeWorld(): GameView {
   return {
@@ -33,7 +46,7 @@ function makeWorld(): GameView {
       hosPartyId: null, homeRegionId: null,
     },
     legislature: {} as GameView["legislature"],
-    finance: { cash: 1200, currency: "USD", holdings: [] } as GameView["finance"],
+    finance: makeFinance(),
     resources: {} as GameView["resources"],
     nation: {} as GameView["nation"],
     metrics: [],
