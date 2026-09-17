@@ -75,7 +75,7 @@ function PollCard({ snapshot, title }: { snapshot: StoredPollView; title: string
         <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
           {snapshot.categories.map((category) => (
             <details key={category.id}>
-              <summary style={{ fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>
+              <summary style={{ fontSize: "0.78rem", fontWeight: 700, cursor: "pointer", minHeight: 44, paddingBlock: "0.65rem", boxSizing: "border-box" }}>
                 {category.name} · {formatCount(category.totalPotentialVoters)} reachable
               </summary>
               <div style={{ marginTop: "0.3rem" }}>
@@ -87,7 +87,7 @@ function PollCard({ snapshot, title }: { snapshot: StoredPollView; title: string
       ) : null}
       {snapshot.granular.cells.length > 0 ? (
         <details>
-          <summary style={{ fontSize: "0.78rem", fontWeight: 700, cursor: "pointer" }}>
+          <summary style={{ fontSize: "0.78rem", fontWeight: 700, cursor: "pointer", minHeight: 44, paddingBlock: "0.65rem", boxSizing: "border-box" }}>
             Granular electorate · {snapshot.granular.dimensions.join(", ")}
           </summary>
           <ul style={{ listStyle: "none", margin: "0.35rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.3rem" }}>
