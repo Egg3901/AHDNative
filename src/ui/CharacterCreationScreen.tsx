@@ -41,6 +41,7 @@ import {
   STAT_MIN,
   STAT_MAX,
   alignmentBand,
+  compassDistance,
   defaultStatBuild,
   getImperialRole,
   getImperialTitle,
@@ -60,7 +61,7 @@ import type {
 } from "../game/types";
 import type { HomeRegionContext } from "@ahdclient/engine";
 import { HomeRegionPicker } from "./HomeRegionPicker";
-import { PolicyCompass } from "./PolicyCompass";
+import { PolicyCompass, policyAxisLabel } from "./PolicyCompass";
 import { PartyMark } from "./PartyMark";
 import "./ui.css";
 import { RouteHero } from "./RouteHero";
@@ -266,25 +267,48 @@ function AxisStepper({
 }: {
   label: string; leftLabel: string; rightLabel: string; value: number; onChange: (value: number) => void;
 }) {
+  const axisId = label.toLowerCase();
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+    <div className="ahd-creation-axis">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "0.5rem" }}>
         <span className="ahd-label">{label}</span>
-        <span className="ahd-mono">{value > 0 ? `+${value}` : value}</span>
+        <span className="ahd-mono" aria-live="polite" data-testid={`creation-${axisId}-value`}>
+          {value > 0 ? `+${value}` : value} ({policyAxisLabel(value, axisId === "social" ? "social" : "economic")})
+        </span>
       </div>
-      <input
-        type="range"
-        min={-5}
-        max={5}
-        step={1}
-        value={value}
-        onChange={(event) => onChange(Number.parseInt(event.target.value, 10))}
-        aria-label={`${label} position`}
-        style={{ width: "100%", minHeight: 44 }}
-      />
+      <div className="ahd-creation-compass-row">
+        <button
+          type="button"
+          className="ahd-btn ahd-btn-sm ahd-creation-stepper"
+          aria-label={`Decrease ${label}`}
+          disabled={value <= -5}
+          onClick={() => onChange(Math.max(-5, value - 1))}
+        >
+          <span aria-hidden>-</span>
+        </button>
+        <input
+          type="range"
+          min={-5}
+          max={5}
+          step={1}
+          value={value}
+          onChange={(event) => onChange(Number.parseInt(event.target.value, 10))}
+          aria-label={`${label} position`}
+          style={{ flex: "1 1 auto", minWidth: 0, minHeight: 44 }}
+        />
+        <button
+          type="button"
+          className="ahd-btn ahd-btn-sm ahd-creation-stepper"
+          aria-label={`Increase ${label}`}
+          disabled={value >= 5}
+          onClick={() => onChange(Math.min(5, value + 1))}
+        >
+          <span aria-hidden>+</span>
+        </button>
+      </div>
       <div style={{ display: "flex", justifyContent: "space-between" }} className="ahd-muted">
-        <span style={{ fontSize: "0.7rem" }}>{leftLabel}</span>
-        <span style={{ fontSize: "0.7rem" }}>{rightLabel}</span>
+        <span style={{ fontSize: "0.7rem" }}>{leftLabel} -5</span>
+        <span style={{ fontSize: "0.7rem" }}>+5 {rightLabel}</span>
       </div>
     </div>
   );
@@ -521,12 +545,47 @@ export function CharacterCreationScreen({
   );
   const selectedParty = parties.find((party) => party.id === partyId) ?? null;
   const band = closest ? alignmentBand(closest.distance) : null;
+  // The closest platform only means something once the player answers the
+  // compass; before that every platform distance is unmeasured, not zero.
+  const bestPartyId = compassTouched && closest ? closest.party.party.id : null;
+  const partyDistance = (party: { economicPosition: number; socialPosition: number }) =>
+    compassTouched ? compassDistance(position, { economic: party.economicPosition, social: party.socialPosition }) : null;
 
   const backgroundComplete = Boolean(gender && race && education && wealth);
   const nameComplete = name.trim().length >= 2;
+  const nameLength = name.trim().length;
+  const backgroundAnswers = [gender, race, education, wealth];
+  const backgroundCount = backgroundAnswers.filter(Boolean).length;
+  const missingBackground = (["Gender", "Race", "Education", "Wealth"] as const).filter((_, index) => !backgroundAnswers[index]);
+  const spent = STAT_FREE_POINTS - remaining;
   const statsComplete = remaining === 0;
   const canSubmit = nameComplete && backgroundComplete && Boolean(homeRegionId) && compassTouched && partyTouched && statsComplete;
   const stepComplete = [true, nameComplete && backgroundComplete, Boolean(homeRegionId), compassTouched, partyTouched, statsComplete];
+  // Phone-first guidance: one plain line per step naming exactly what still
+  // blocks Continue, using the same completeness rules as the buttons.
+  const stepHint = reviewAll
+    ? "Reviewing all six sections. Every answer stays editable."
+    : activeStep === 1
+      ? "Country and era are set in world setup. Continue when ready."
+      : activeStep === 2
+        ? (!nameComplete
+          ? "Enter a name of at least two characters."
+          : missingBackground.length > 0
+            ? `Still to choose: ${missingBackground.join(", ")}.`
+            : "Politician details complete.")
+        : activeStep === 3
+          ? (regions.length === 0
+            ? "No regions are available for this country."
+            : homeRegionId
+              ? `Home ${regionNoun} set.`
+              : `Choose a home ${regionNoun}.`)
+          : activeStep === 4
+            ? (compassTouched
+              ? `Position set: ${ideologyLabel(position)}.`
+              : "Move either slider, or use its - and + buttons, to set your position.")
+            : activeStep === 5
+              ? (partyTouched ? "Party choice recorded." : "Pick a party, or choose Independent on purpose.")
+              : (statsComplete ? "All points allocated." : `${remaining} of ${STAT_FREE_POINTS} points remaining.`);
   const stepLabels = ["Country", "The politician", `Home ${regionNoun}`, "Where you stand", "Party", "Stats"];
   const stepSummaries = [
     `${selection.countryName} (${selection.era})`,
@@ -706,8 +765,26 @@ export function CharacterCreationScreen({
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
           <StepPanel hidden={!reviewAll && activeStep !== 1} step={1} title="Country" subtitle="Sets your offices, parties, currency, and electoral rules." complete headingRef={(element) => { headingRefs.current[0] = element; }} focusable={!reviewAll && activeStep === 1}>
-            <p className="ahd-help" style={{ margin: 0 }}>
-              {selection.countryName} ({selection.era}). Change country or era from world setup.
+            <dl className="ahd-creation-country-card" data-testid="creation-country-card" style={{ margin: 0 }}>
+              <div>
+                <dt>Country</dt>
+                <dd>{selection.countryName}</dd>
+              </div>
+              <div>
+                <dt>Era</dt>
+                <dd>{selection.era}</dd>
+              </div>
+              <div>
+                <dt>Home options</dt>
+                <dd>{regions.length} {regionNoun}{regions.length === 1 ? "" : "s"}</dd>
+              </div>
+              <div>
+                <dt>Parties</dt>
+                <dd>{parties.length}</dd>
+              </div>
+            </dl>
+            <p className="ahd-help" style={{ margin: "0.6rem 0 0" }}>
+              Change country or era from world setup.
             </p>
           </StepPanel>
 
@@ -725,15 +802,22 @@ export function CharacterCreationScreen({
                 <label className="ahd-label" htmlFor="creation-name">Name *</label>
                 <input
                   id="creation-name"
-                  className="ahd-input"
+                  className="ahd-input ahd-creation-name"
                   type="text"
                   value={name}
                   maxLength={80}
                   placeholder="e.g. Eleanor Vance"
+                  aria-describedby="creation-name-hint"
                   onChange={(event) => setName(event.target.value)}
                 />
+                <p id="creation-name-hint" className="ahd-help" style={{ margin: "0.3rem 0 0" }}>
+                  {nameLength} of 80 characters. At least two to continue.
+                </p>
               </div>
-              <div className="ahd-grid ahd-grid-2">
+              <p className="ahd-help" data-testid="background-progress" style={{ margin: 0 }} aria-live="polite">
+                Background: {backgroundCount} of 4 chosen{missingBackground.length > 0 ? ` (still to choose: ${missingBackground.join(", ")})` : ""}.
+              </p>
+              <div className="ahd-grid ahd-grid-2 ahd-creation-background">
                 <ChipGroup label="Gender" required value={gender} options={GENDER_OPTIONS} onChange={setGender} />
                 <ChipGroup label="Race" required value={race} options={RACE_OPTIONS} onChange={setRace} />
                 <ChipGroup label="Education" required value={education} options={EDUCATION_OPTIONS} onChange={setEducation} />
@@ -825,9 +909,11 @@ export function CharacterCreationScreen({
                 </p>
               </div>
             ) : null}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "0.5rem" }}>
+            <div className="ahd-creation-party-list" style={{ marginTop: "0.5rem" }}>
               {parties.map((party) => {
                 const selected = partyId === party.id;
+                const distance = partyDistance(party);
+                const best = party.id === bestPartyId;
                 return (
                   <button
                     key={party.id}
@@ -835,7 +921,7 @@ export function CharacterCreationScreen({
                     aria-pressed={selected}
                     aria-label={`${party.abbreviation} ${party.name}`}
                     onClick={() => selectParty(party.id)}
-                    className={selected ? "ahd-chip ahd-chip-selected" : "ahd-chip"}
+                    className={selected ? "ahd-chip ahd-chip-selected ahd-creation-party-card" : "ahd-chip ahd-creation-party-card"}
                   >
                     <PartyMark
                       name={party.name}
@@ -846,12 +932,15 @@ export function CharacterCreationScreen({
                       logoUrl={party.logoUrl}
                       size={20}
                     />
-                    {party.abbreviation}
-                    {party.regimeStatus ? (
-                      <span className="ahd-muted" style={{ marginLeft: "0.3rem", fontSize: "0.66rem" }}>
-                        {regimeLabel[party.regimeStatus]}
+                    <span className="ahd-creation-party-meta">
+                      <span className="ahd-creation-party-name">{party.name}</span>
+                      <span className="ahd-muted ahd-creation-party-dist">
+                        {party.abbreviation}
+                        {party.regimeStatus ? ` · ${regimeLabel[party.regimeStatus]}` : ""}
+                        {distance !== null ? ` · ${distance.toFixed(1)} away` : ""}
                       </span>
-                    ) : null}
+                    </span>
+                    {best ? <span className="ahd-creation-best">Best match</span> : null}
                   </button>
                 );
               })}
@@ -860,9 +949,12 @@ export function CharacterCreationScreen({
                 aria-pressed={partyId === null}
                 aria-label="Independent"
                 onClick={() => selectParty(null)}
-                className={partyId === null ? "ahd-chip ahd-chip-selected" : "ahd-chip"}
+                className={partyId === null ? "ahd-chip ahd-chip-selected ahd-creation-party-card" : "ahd-chip ahd-creation-party-card"}
               >
-                Independent
+                <span className="ahd-creation-party-meta">
+                  <span className="ahd-creation-party-name">Independent</span>
+                  <span className="ahd-muted ahd-creation-party-dist">No platform to measure against</span>
+                </span>
               </button>
             </div>
             {isOneParty && partyTouched && partyId === null ? (
@@ -885,7 +977,17 @@ export function CharacterCreationScreen({
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
               <span className="ahd-label">Points remaining</span>
-              <span className="ahd-mono" aria-live="polite">{remaining}</span>
+              <span className="ahd-mono" aria-live="polite">{remaining} of {STAT_FREE_POINTS}</span>
+            </div>
+            <div
+              className="ahd-creation-stat-meter"
+              role="progressbar"
+              aria-label="Stat points spent"
+              aria-valuemin={0}
+              aria-valuemax={STAT_FREE_POINTS}
+              aria-valuenow={spent}
+            >
+              <span style={{ width: `${STAT_FREE_POINTS === 0 ? 0 : (spent / STAT_FREE_POINTS) * 100}%` }} />
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
               {STAT_KEYS.map((key) => {
@@ -921,8 +1023,11 @@ export function CharacterCreationScreen({
         {error ? <div className="ahd-alert" role="alert" style={{ marginTop: "0.75rem" }}>{error}</div> : null}
 
         <div className="ahd-creation-actions">
+          <p className="ahd-creation-hint" data-testid="creation-step-hint" id="creation-step-hint" style={{ flex: "1 1 100%", margin: 0 }}>
+            {stepHint}
+          </p>
           {reviewAll || activeStep === 6 ? (
-            <button type="button" className="ahd-btn ahd-btn-primary" onClick={handleSubmit} disabled={busy} aria-busy={busy}>
+            <button type="button" className="ahd-btn ahd-btn-primary" onClick={handleSubmit} disabled={busy} aria-busy={busy} aria-describedby="creation-step-hint">
               {busy ? <span className="ahd-spinner" aria-hidden /> : null}
               {busy ? "Creating" : "Create character"}
             </button>
@@ -931,6 +1036,7 @@ export function CharacterCreationScreen({
               type="button"
               className="ahd-btn ahd-btn-primary"
               disabled={!stepComplete[activeStep - 1] || busy}
+              aria-describedby="creation-step-hint"
               onClick={() => {
                 const next = Math.min(6, activeStep + 1);
                 setActiveStep(next);

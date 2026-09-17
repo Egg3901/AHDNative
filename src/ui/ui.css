@@ -1244,6 +1244,54 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
   border-top: 1px solid color-mix(in srgb, var(--ahd-fg) 18%, transparent);
 }
 .ahd-creation-actions .ahd-btn-primary { flex: 1 1 12rem; }
+
+/* Creation refinement: phone-first step cards (#242).
+   Layout only. Step order, labels, option sets, validation rules and the
+   submit contract are untouched. Every control keeps a 44px touch target
+   and no fixed pixel widths, so 320px and 390px columns never overflow. */
+.ahd-creation-country-card {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.5rem; padding: 0;
+}
+.ahd-creation-country-card > div {
+  min-width: 0; padding: 0.55rem 0.65rem;
+  border: 1px solid var(--ahd-border); border-radius: 0.5rem;
+  background: var(--ahd-card-muted, transparent);
+}
+.ahd-creation-country-card dt { font-size: 0.68rem; color: var(--ahd-muted); }
+.ahd-creation-country-card dd { margin: 0.15rem 0 0; font-weight: 650; font-size: 0.86rem; overflow-wrap: anywhere; }
+
+.ahd-creation-hint { font-size: 0.78rem; color: var(--ahd-muted); line-height: 1.45; }
+
+.ahd-creation-name,
+.ahd-creation-region { min-height: 44px; width: 100%; max-width: 100%; }
+
+.ahd-creation-compass-row { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.ahd-creation-stepper { flex: 0 0 auto; min-width: 44px; min-height: 44px; }
+
+.ahd-creation-party-list { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+.ahd-creation-party-card {
+  width: 100%; max-width: 100%; min-height: 44px;
+  justify-content: flex-start; text-align: left;
+  white-space: normal; overflow-wrap: anywhere;
+}
+.ahd-creation-party-meta { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.ahd-creation-party-name { font-weight: 650; color: var(--ahd-fg); overflow-wrap: anywhere; }
+.ahd-creation-party-dist { font-size: 0.7rem; }
+.ahd-creation-best {
+  flex: 0 0 auto; padding: 0.15rem 0.5rem; border-radius: 999px;
+  border: 1px solid var(--ahd-primary); font-size: 0.68rem; font-weight: 700;
+}
+
+.ahd-creation-stat-meter {
+  height: 0.5rem; border-radius: 999px; overflow: hidden;
+  background: var(--ahd-card-muted, rgba(255,255,255,0.08));
+  border: 1px solid var(--ahd-border); margin-bottom: 0.6rem;
+}
+.ahd-creation-stat-meter > span {
+  display: block; height: 100%;
+  background: color-mix(in srgb, var(--ahd-primary) 70%, transparent);
+}
 @media (prefers-reduced-motion: reduce) {
   .ahd-creation-progress { scroll-behavior: auto; }
 }
