@@ -214,4 +214,39 @@ describe("MpModeScreen player mail at 390px", () => {
     await user.click(within(mail).getByRole("button", { name: /Open Hello/ }));
     expect(within(mail).queryByRole("button", { name: "Reply" })).not.toBeInTheDocument();
   });
+
+  it("returns from admin status with inbox, sent, compose, and navigation still usable", async () => {
+    setViewport(390);
+    const user = userEvent.setup();
+    const { host, calls } = fakeHost(
+      mailScript({
+        fetch: {
+          "mail-inbox": [received()],
+          "mail-sent": [sentBox()],
+          "client-nav": [JSON.stringify({ user: { id: "u1", username: "Ada", isAdmin: true, isModerator: true } })],
+          "admin-maintenance": [
+            JSON.stringify({ mode: "off", enabled: false, reason: "", expectedEnd: "", enabledBy: "", enabledAt: "" }),
+          ],
+        },
+      }),
+    );
+    render(<MpModeScreen host={host} onExit={() => {}} />);
+    const mail = await screen.findByRole("region", { name: "Player mail" });
+    expect(within(mail).getByText("Hello")).toBeInTheDocument();
+    expect(within(mail).getByText("Re: Hello")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Admin status" }));
+    expect(await screen.findByRole("heading", { name: /site status/i })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Player mail" })).not.toBeInTheDocument();
+    expect(calls.filter((call) => call.startsWith("mutate:"))).toHaveLength(0);
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    const mailAgain = await screen.findByRole("region", { name: "Player mail" });
+    expect(within(mailAgain).getByText("Hello")).toBeInTheDocument();
+    expect(within(mailAgain).getByText("Re: Hello")).toBeInTheDocument();
+    await user.click(within(mailAgain).getByRole("button", { name: /Open Hello from Bo/ }));
+    expect(within(mailAgain).getByText("World")).toBeInTheDocument();
+    expect(within(mailAgain).getByRole("button", { name: "Send mail" })).toBeInTheDocument();
+    const navigation = within(screen.getByRole("navigation", { name: "Primary" }));
+    expect(navigation.getByRole("link", { name: "Profile" })).toHaveAttribute("href", "#mp-profile");
+    expect(navigation.getByRole("link", { name: "Actions" })).toHaveAttribute("href", "#mp-actions");
+  });
 });

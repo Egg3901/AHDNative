@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   MP_BATCHABLE_ACTION_TYPES,
@@ -12,6 +13,7 @@ import {
   MP_SNOOZE_MINUTES_MIN,
   isMpBatchableActionType,
   isMpNotificationType,
+  type MpFetchOpId,
 } from "./endpoints";
 
 /**
@@ -120,5 +122,30 @@ describe("MP player-mail pins (#359 chat slice)", () => {
   it("pins sendMailSchema UTF-16 length limits", () => {
     expect(MP_MAIL_SUBJECT_MAX).toBe(80);
     expect(MP_MAIL_BODY_MAX).toBe(1000);
+  });
+});
+
+describe("MP admin-maintenance pin (#359)", () => {
+  it("models the GET as a fetch op and keeps the PATCH sibling absent", () => {
+    const op: MpFetchOpId = "admin-maintenance";
+    expect(op).toBe("admin-maintenance");
+    const source = readFileSync(new URL("./endpoints.ts", import.meta.url), "utf8");
+    expect(source).toMatch(/GET \/api\/admin\/maintenance/);
+    expect(source).toMatch(/PATCH sibling \(maintenance mode[\s\S]*writes\) is deliberately absent/);
+    const mutateBlock = source.slice(source.indexOf("export type MpMutateOpId"), source.indexOf("export type MpExecuteActionType"));
+    expect(mutateBlock).not.toMatch(/admin/i);
+  });
+
+  it("keeps player mail fetch ops next to the admin-maintenance read", () => {
+    const source = readFileSync(new URL("./endpoints.ts", import.meta.url), "utf8");
+    const fetchBlock = source.slice(source.indexOf("export type MpFetchOpId"), source.indexOf("export type MpMutateOpId"));
+    const mutateBlock = source.slice(source.indexOf("export type MpMutateOpId"), source.indexOf("export type MpExecuteActionType"));
+    expect(fetchBlock).toMatch(/mail-inbox/);
+    expect(fetchBlock).toMatch(/mail-sent/);
+    expect(fetchBlock).toMatch(/admin-maintenance/);
+    expect(source).toMatch(/GET \/api\/mail/);
+    expect(fetchBlock).not.toMatch(/mail-reports/);
+    expect(mutateBlock).not.toMatch(/mail-reports/);
+    expect(mutateBlock).not.toMatch(/admin/i);
   });
 });
