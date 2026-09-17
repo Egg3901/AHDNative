@@ -383,12 +383,12 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
                     };
                     return (
                       <div key={p.id} className="ahd-card ahd-card-pad" style={{ borderLeft: `3px solid ${p.color}` }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "center" }}>
-                          <span style={{ display: "inline-flex", gap: "0.4rem", alignItems: "center", minWidth: 0 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                          <span style={{ display: "inline-flex", gap: "0.4rem", alignItems: "center", minWidth: 0, flex: "1 1 auto", flexWrap: "wrap" }}>
                             <PartyMark name={p.name} abbreviation={p.abbreviation} color={p.color} id={p.id} countryId={world.countryId} logoUrl={p.logoUrl} size={24} />
-                            <strong style={{ fontSize: "0.86rem" }}>{p.name} <span className="ahd-muted" style={{ fontWeight: 600 }}>({p.abbreviation})</span></strong>
+                            <strong style={{ fontSize: "0.86rem", minWidth: 0, overflowWrap: "anywhere" }}>{p.name} <span className="ahd-muted" style={{ fontWeight: 600 }}>({p.abbreviation})</span></strong>
                           </span>
-                          {p.isPlayerParty ? <span className="ahd-pill" style={{ background: "var(--ahd-primary)", color: "white" }}>Yours</span> : null}
+                          {p.isPlayerParty ? <span className="ahd-pill" style={{ background: "var(--ahd-primary)", color: "white", flexShrink: 0 }}>Yours</span> : null}
                         </div>
                         <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.2rem" }}>{p.members.toLocaleString()} members · {formatFinanceMoney(p.treasury, world.finance.currency)} treasury</div>
                         <div style={{ marginTop: "0.3rem", height: "6px", borderRadius: 999, background: "var(--ahd-border)", overflow: "hidden" }}>
