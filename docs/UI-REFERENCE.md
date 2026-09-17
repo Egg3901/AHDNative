@@ -346,6 +346,78 @@ tally or forecast is invented. Rendered tests:
 `src/ui/ElectionsHero.test.tsx`. Remaining: primaries/results tabs,
 candidate-directory page, per-race detail page.
 
+### Banking hero subset (issue #386)
+
+Three of the reference central-bank heroes ship offline, byte-identical
+copies from AHDGame `e364c04954ed628beef73a993a8e9e156650a31e`
+(`public/static/heroes/`) under the same public path, wired through
+`RouteHero` via `bankingHero()` (`src/ui/RouteHero.tsx`) with the reference
+image-error gradient fallback. Reference keying source:
+`centralBank.heroImage` per country in AHDGame
+`src/lib/constants/countries.ts` (US `federal-reserve`, GB plus SCO/WAL
+which share the record `bank-of-england`, JP `bank-of-japan`), served
+remotely through `/api/images/hero/[slug]`; Native ids use UK for Britain
+so the Native map is US/UK/JP. Only these three slugs have a local file
+upstream, so every other Native country (DD, CN, DE, IE and the rest,
+including the ECB-shared records with no local file) falls back to Actions
+art, never a broken image or remote fetch. The reference BankingHub hero
+itself (`BankingHero` in AHDGame `src/app/banking/BankingHubClient.tsx`)
+is an icon/gradient composition with no photo asset, so the photo surface
+follows the central-bank detail pattern instead (`InstitutionMasthead`
+in `src/components/national/InstitutionMasthead.tsx`: hero photo,
+gradient, identity band).
+US/UK alts repeat the reference `centralBank.heroAlt` verbatim. JP
+carries no reference alt, so its alt follows the upstream file identity
+recorded in the hero-route manifest (File:Bank of Japan 2010.jpg,
+"Bank of Japan, Chuo-ku Tokyo Japan"): the head office building, not the
+surrounding towers. Alt resolution goes through the total
+`bankingHeroAlt()` helper: exact-key lookup with no case folding
+or trimming, and the nonempty `BANKING_HERO_FALLBACK_ALT` ("Banking hero
+image") for every unbundled or unknown key. All 3 are free CC licences
+per the upstream hero-route manifest (`src/app/api/images/hero/[slug]/route.ts`,
+which records the Commons file identity per slug); no fair-use or
+proprietary entry is bundled. CC attribution is recorded here. Files are
+VP8 WebP;
+`RouteHero` crops with `object-fit: cover` at the shared 172px phone /
+220px wider crop (120px short-landscape cap), so no new CSS was needed.
+One Native surface consumes the set: Banking (`BankingSection` in
+`src/ui/FinancePanel.tsx`) renders a `RouteHero` keyed by the world's
+country id (new optional `countryId` prop, wired from `GameScreen`;
+omitted ids take the Actions fallback with the fallback accessible name)
+with cash/savings balances and the savings holder as hero content.
+Deposit/withdraw validation, limits, busy/unavailable states and action
+payloads are unchanged. The hero also ports the BankingHub primary-card
+pattern with only Native-known data: a "Savings holder · {currency}"
+label over the verbatim holder from `FinanceView`, which gives unbundled
+countries a truthful identity band on fallback art. Prime/APY rates are
+omitted (no Native DTO carries them) and the title stays "Banking" (no
+Native credit surface). Focused tests:
+`src/ui/BankingHeroImagery.test.tsx` (resolver, total alt helper
+with exact-key and fallback behavior, the three grounded alts, fallback
+accessible name, local webp container bytes, rendered local decode,
+error fallback, Banking-surface hero with balances and transfer
+controls, deposit/withdraw mechanics preserved, crop CSS, holder/currency
+label on bundled and fallback art, 320px shrink/wrap and control-wrap
+rules).
+
+SHA-256 provenance (left) and upstream Commons rights (right):
+
+- `federal-reserve.webp` `81acea8e60eb4194fd6c9b34b72b08b8776525f21605a271ae8ad99509a934fa` - File:Federal Reserve.jpg, CC BY-SA 2.5 (Dan Smith)
+- `bank-of-england.webp` `3ccd1b258347ee7970eefb9a0a4ff5df1f8b51943ceb04a56f4b05770e0ec61d` - File:Bank of England Building, London, UK - Diliff.jpg, CC BY-SA 3.0 (David Iliff)
+- `bank-of-japan.webp` `8ca60d078ac75eb58d6004f054ffb8e18862b73ed42e09da956414075b19b7a3` - File:Bank of Japan 2010.jpg, CC BY-SA 3.0 (Wiiii)
+
+Explicitly not bundled: the other reference central-bank slugs (`ecb`,
+`peoples-bank-of-china`, `banco-central-do-brasil`) have no local file
+upstream (remote-only; the offline app cannot fetch them). DD's
+Staatsbank record keys a flag URL (`getCountryFlagUrl("DD")`, no photo
+hero), so bundling executive art such as reichstag/zhongnanhai for
+DD/CN/DE/IE would misattribute the surface and stays out. Partial:
+DD/CN/DE/IE and every other unbundled Native country take the Actions
+fallback (honest generic art, not their real central bank), the
+BankingHub icon/gradient composition itself is not ported, and no
+physical-device run was performed. `smoke/route-heroes.spec.ts` covers
+the Banking hero at 320/390/desktop.
+
 Root visual review restored the reference Fraunces display face (Game
 `src/app/layout.tsx` and `font-display` hero). The unchanged 600 face is bundled
 from AHDClient `378126dc`, `apps/desktop/src/assets/fonts/fraunces-600.ttf`.

@@ -12,6 +12,7 @@
  */
 import { useState } from "react";
 import type { FinanceView, GameScreenProps } from "../game/types";
+import { RouteHero, bankingHero, bankingHeroAlt } from "./RouteHero";
 
 export interface FinancePanelProps {
   finance: FinanceView;
@@ -20,6 +21,8 @@ export interface FinancePanelProps {
   onAction: GameScreenProps["onAction"];
   /** Cross-links the two real finance destinations (wallet/portfolio and banking). */
   onNavigate?: (route: "portfolio" | "banking") => void;
+  /** Native country id; selects the offline central-bank hero (unknown ids take the Actions fallback). */
+  countryId?: string;
 }
 
 export function formatFinanceMoney(amount: number, currency: string): string {
@@ -103,7 +106,7 @@ function PortfolioSection({ finance, onNavigate }: { finance: FinanceView; onNav
   );
 }
 
-function BankingSection({ finance, busy, onAction, onNavigate }: { finance: FinanceView; busy: boolean; onAction: GameScreenProps["onAction"]; onNavigate?: (route: "portfolio" | "banking") => void }) {
+function BankingSection({ finance, busy, onAction, onNavigate, countryId = "" }: { finance: FinanceView; busy: boolean; onAction: GameScreenProps["onAction"]; onNavigate?: (route: "portfolio" | "banking") => void; countryId?: string }) {
   const [amount, setAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -137,8 +140,7 @@ function BankingSection({ finance, busy, onAction, onNavigate }: { finance: Fina
 
   return (
     <div className="ahd-stack">
-      <div className="ahd-card ahd-card-pad ahd-hero">
-        <h2 className="ahd-h2">Banking</h2>
+      <RouteHero image={bankingHero(countryId)} alt={bankingHeroAlt(countryId)} eyebrow="Banking" title="Banking">
         {onNavigate ? (
           <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.3rem 0 0" }}>
             Savings deposits and withdrawals.{" "}
@@ -159,10 +161,13 @@ function BankingSection({ finance, busy, onAction, onNavigate }: { finance: Fina
             {formatFinanceMoney(finance.savings, finance.currency)}
           </div>
         </div>
-        <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: "0.4rem 0 0", overflowWrap: "anywhere" }}>
+        <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.4rem 0 0" }}>
+          Savings holder · {finance.currency}
+        </p>
+        <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: "0.15rem 0 0", overflowWrap: "anywhere" }}>
           {finance.savingsHolder}
         </p>
-      </div>
+      </RouteHero>
 
       <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
         <label className="ahd-field" style={{ maxWidth: "16rem" }}>
@@ -222,7 +227,7 @@ function BankingSection({ finance, busy, onAction, onNavigate }: { finance: Fina
   );
 }
 
-export function FinancePanel({ finance, section, busy, onAction, onNavigate }: FinancePanelProps) {
-  if (section === "banking") return <BankingSection finance={finance} busy={busy} onAction={onAction} onNavigate={onNavigate} />;
+export function FinancePanel({ finance, section, busy, onAction, onNavigate, countryId }: FinancePanelProps) {
+  if (section === "banking") return <BankingSection finance={finance} busy={busy} onAction={onAction} onNavigate={onNavigate} countryId={countryId} />;
   return <PortfolioSection finance={finance} onNavigate={onNavigate} />;
 }

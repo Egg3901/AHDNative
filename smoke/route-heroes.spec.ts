@@ -31,6 +31,10 @@ for (const viewport of [
     await navigateGame(page, 'Parties');
     await expect(page.locator('.ahd-route-hero-image')).toHaveAttribute('src', '/static/heroes/parties.webp');
     await page.screenshot({ path: `artifacts/smoke/hero-parties-${viewport.name}.png`, fullPage: true });
+    await navigateGame(page, 'Banking');
+    await expect(page.locator('.ahd-route-hero-image')).toHaveAttribute('src', '/static/heroes/federal-reserve.webp');
+    await expect.poll(() => page.locator('.ahd-route-hero-image').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    await page.screenshot({ path: `artifacts/smoke/hero-banking-${viewport.name}.png`, fullPage: true });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(externalImages).toEqual([]);
   });

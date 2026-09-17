@@ -1575,3 +1575,47 @@ and removed. The smoke helper now walks the conversation; no engine change.
   map, and GameScreen surfaces (103 tests). #84 stays open because Native has
   no projected player-corporation or union membership destination and records
   no coordinates for plotted country maps.
+
+## Banking hero subset checkpoint, 2026-09-17 (#386)
+
+#386 done as a bounded Native UI slice; no engine, session, DTO, signing,
+version or release file changed. Child of #378 and #143.
+
+- Reference (read-only inspection of the public AHDGame checkout at
+  `e364c04`, no downloads): `centralBank.heroImage`/`heroAlt` per country
+  in `src/lib/constants/countries.ts` (US `federal-reserve`, GB+SCO/WAL
+  `bank-of-england`, JP `bank-of-japan`, DE/IE remote-only `ecb`, CN
+  remote-only `peoples-bank-of-china`, DD flag URL with no photo hero),
+  the Commons file identity per slug in
+  `src/app/api/images/hero/[slug]/route.ts`, the icon/gradient
+  `BankingHero` in `src/app/banking/BankingHubClient.tsx`, and the photo
+  pattern `InstitutionMasthead` in
+  `src/components/national/InstitutionMasthead.tsx`.
+- `public/static/heroes/{federal-reserve,bank-of-england,bank-of-japan}.webp`
+  vendored under the same public path, SHA-256 verified byte-identical to
+  AHDGame (hashes in docs/UI-REFERENCE.md). Only these three slugs have a
+  local file upstream; DD/CN/DE/IE and all other countries take the
+  Actions fallback with a nonempty fallback accessible name. No mapping
+  was invented from executive art.
+- `src/ui/RouteHero.tsx`: `BANKING_HERO_IMAGE`/`BANKING_HERO_ALT`,
+  `bankingHero()`/`bankingHeroAlt()` with exact-key total fallback.
+  `src/ui/FinancePanel.tsx`: Banking renders the hero keyed by the new
+  optional `countryId` prop (wired from `GameScreen`), with cash/savings
+  balances, a "Savings holder · {currency}" label over the verbatim
+  holder, and the unchanged Portfolio cross-link; deposit/withdraw
+  validation, limits, busy/unavailable states and payloads unchanged.
+- Shared 172px/220px crop (120px short-landscape cap) reused with no new
+  CSS; balance rows keep the shrink/wrap contract and transfer controls
+  wrap at 320px.
+
+Evidence: new `src/ui/BankingHeroImagery.test.tsx` (18 cases: resolver,
+total alt, grounded alts, webp bytes, local decode, error fallback,
+Banking surface, mechanics preserved, crop CSS, holder/currency labels,
+320px contracts) plus unchanged `FinancePanel`/`GameScreen` suites and
+`smoke/route-heroes.spec.ts` Banking coverage at 320/390/desktop.
+Validation: focused UI suites only, per the slice boundary — no full
+verify/build/typecheck/Playwright run.
+
+Honest gaps: unbundled countries show honest generic art rather than
+their real central bank; the BankingHub icon/gradient composition is not
+ported; prime/APY rates omitted (no Native DTO); no physical-device run.
