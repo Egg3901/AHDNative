@@ -48,7 +48,7 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
     player: { name: "Ada", cash: 1200, funds: 5000, actions: 3, influence: 12, favorability: 48, partyName: "Labor", mode: "career", hosPartyId: null, homeRegionId: null },
     legislature: { office: "Representative", proposals: [], sponsor: action("sponsorBill", true, 2), bills: [] },
     metrics: [], parties: [{ id: "p1", name: "Labor", abbreviation: "LAB", color: "#dc2626", logoUrl: null, members: 120, treasury: 9000, isPlayerParty: true }],
-    elections: [{ id: "e1", title: "General Election", status: "upcoming", date: "1954-11-02", filingDate: "1954-09-01", electionType: "house", phase: "upcoming", playerCandidate: false, candidateNames: ["Ada", "Bob"], winnerNames: [], countedVotes: null, leaderName: null, leaderShare: null, marginPct: null, seatProjection: null, candidacy: action("declareCandidacy", true, 1) }],
+    elections: [{ id: "e1", title: "General Election", status: "upcoming", date: "1954-11-02", filingDate: "1954-09-01", electionType: "president", phase: "upcoming", playerCandidate: false, candidateNames: ["Ada", "Bob"], winnerNames: [], countedVotes: null, leaderName: null, leaderShare: null, marginPct: null, seatProjection: null, candidacy: action("declareCandidacy", true, 1) }],
     news: [{ id: "n1", title: "Markets rally", body: "Stocks up.", date: "1953-02-01" }],
     actions: [action("fundraise", true, 1)], regions: [{ id: "r1", name: "Midwest" }],
     finance: makeFinance(), polls: { quick: null, full: null }, notifications: { items: [], unread: 0 },
