@@ -1,4 +1,6 @@
 import {
+  MP_MAIL_BODY_MAX,
+  MP_MAIL_SUBJECT_MAX,
   MP_SNOOZE_MINUTES_DEFAULT,
   MP_SNOOZE_MINUTES_MAX,
   MP_SNOOZE_MINUTES_MIN,
@@ -294,6 +296,155 @@ export function validateSnoozeMinutes(
     };
   }
   return { ok: true, minutes };
+}
+
+export interface MpMailMessage {
+  id: string;
+  /** Null for system mail: no sender exists, so no reply path is offered. */
+  fromCharacterId: string | null;
+  fromName: string | null;
+  toCharacterId: string;
+  toName: string | null;
+  subject: string;
+  body: string;
+  read: boolean;
+  createdAt: string | null;
+}
+
+export interface MpMailInbox {
+  mails: MpMailMessage[];
+  unreadCount: number;
+  total: number | null;
+  hasMore: boolean;
+}
+
+export interface MpMailSent {
+  mails: MpMailMessage[];
+  total: number | null;
+  hasMore: boolean;
+}
+
+/** One serialized PlayerMail entry; null invalidates the whole page, never a row. */
+function parseMailMessage(entry: unknown): MpMailMessage | null {
+  const item = asRecord(entry);
+  const id = item ? asTrimmedString(item._id) : null;
+  if (!item || !id || !HEX_OBJECT_ID.test(id)) return null;
+  const subject = asTrimmedString(item.subject ?? null);
+  const body = asTrimmedString(item.body ?? null);
+  // Subject and body are the message: a blank or missing one signals a
+  // drifting or hostile payload, so the page fails closed.
+  if (!subject || !body) return null;
+  const fromRaw = item.fromCharacterId;
+  const fromCharacterId =
+    fromRaw === undefined || fromRaw === null ? null : asTrimmedString(fromRaw);
+  if (fromCharacterId !== null && !HEX_OBJECT_ID.test(fromCharacterId)) return null;
+  const toCharacterId = asTrimmedString(item.toCharacterId ?? null);
+  if (!toCharacterId || !HEX_OBJECT_ID.test(toCharacterId)) return null;
+  return {
+    id,
+    fromCharacterId,
+    fromName: asTrimmedString(item.fromCharacterName ?? null),
+    toCharacterId,
+    toName: asTrimmedString(item.toCharacterName ?? null),
+    subject,
+    body,
+    read: asBoolean(item.read) ?? false,
+    createdAt: typeof item.createdAt === "string" ? item.createdAt : null,
+  };
+}
+
+/** GET /api/mail: mails + unreadCount required; the sent shape is separate. */
+export function parseMailInbox(bodyText: string): MpMailInbox | null {
+  const record = asRecord(parseJsonBody(bodyText));
+  if (!record || !Array.isArray(record.mails)) return null;
+  const unreadCount = asNumber(record.unreadCount);
+  if (unreadCount === null) return null;
+  const mails: MpMailMessage[] = [];
+  for (const entry of record.mails) {
+    const message = parseMailMessage(entry);
+    if (!message) return null;
+    mails.push(message);
+  }
+  // A present-but-non-numeric total signals a drifting or hostile payload,
+  // so the page fails closed instead of coercing it to null.
+  let total: number | null = null;
+  if (record.total !== undefined) {
+    const parsed = asNumber(record.total);
+    if (parsed === null) return null;
+    total = parsed;
+  }
+  return {
+    mails,
+    unreadCount,
+    total,
+    hasMore: asBoolean(record.hasMore) ?? false,
+  };
+}
+
+/** GET /api/mail/sent: mails required; there is no unread count on this shape. */
+export function parseMailSent(bodyText: string): MpMailSent | null {
+  const record = asRecord(parseJsonBody(bodyText));
+  if (!record || !Array.isArray(record.mails)) return null;
+  const mails: MpMailMessage[] = [];
+  for (const entry of record.mails) {
+    const message = parseMailMessage(entry);
+    if (!message) return null;
+    mails.push(message);
+  }
+  // Same fail-closed total as the inbox page: a present non-number is a
+  // drifting payload, never a silent null.
+  let total: number | null = null;
+  if (record.total !== undefined) {
+    const parsed = asNumber(record.total);
+    if (parsed === null) return null;
+    total = parsed;
+  }
+  return {
+    mails,
+    total,
+    hasMore: asBoolean(record.hasMore) ?? false,
+  };
+}
+
+/**
+ * Send pre-check mirroring sendMailSchema in AHDGame
+ * src/app/api/mail/route.ts: a 24-hex recipient, a 1..80 subject, and a
+ * 1..1000 body, all trimmed. Lengths are UTF-16 units, matching the server.
+ * Returns the canonical body or a refusal reason; the Rust bridge
+ * re-validates before anything is sent.
+ */
+export function validateMailSend(
+  args: { toCharacterId: unknown; subject: unknown; body: unknown },
+): { ok: true; body: { toCharacterId: string; subject: string; body: string } } | { ok: false; reason: string } {
+  const toCharacterId =
+    typeof args.toCharacterId === "string" ? args.toCharacterId.trim() : "";
+  if (!HEX_OBJECT_ID.test(toCharacterId)) {
+    return { ok: false, reason: "Recipient must be a 24-character character ID." };
+  }
+  if (typeof args.subject !== "string" || !args.subject.trim()) {
+    return { ok: false, reason: "Subject is required." };
+  }
+  if (args.subject.trim().length > MP_MAIL_SUBJECT_MAX) {
+    return { ok: false, reason: `Subject must be ${MP_MAIL_SUBJECT_MAX} characters or fewer.` };
+  }
+  if (typeof args.body !== "string" || !args.body.trim()) {
+    return { ok: false, reason: "Message body is required." };
+  }
+  if (args.body.trim().length > MP_MAIL_BODY_MAX) {
+    return { ok: false, reason: `Message body must be ${MP_MAIL_BODY_MAX} characters or fewer.` };
+  }
+  return {
+    ok: true,
+    body: { toCharacterId, subject: args.subject.trim(), body: args.body.trim() },
+  };
+}
+
+/** Mail ids are 24-hex ObjectIds; anything else never leaves the UI. */
+export function validateMailId(id: unknown): { ok: true; id: string } | { ok: false; reason: string } {
+  if (typeof id !== "string" || !HEX_OBJECT_ID.test(id)) {
+    return { ok: false, reason: "That mail reference is invalid." };
+  }
+  return { ok: true, id };
 }
 
 /**

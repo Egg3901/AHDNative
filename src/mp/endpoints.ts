@@ -72,8 +72,60 @@
  *
  * Deliberately absent (#361 shrinks the v1 set to the above): every other
  * mutation surface (legislature, elections, travel, finance, corporations,
- * guilds, messaging), preference snooze/unsnooze, notification DELETE, and
+ * guilds), preference snooze/unsnooze, notification DELETE, and
  * local turn advancement — MP turns advance on the server schedule only.
+ *
+ * Player mail (#359 chat slice), audited against AHDGame at the same
+ * revision (src/app/api/mail/*, src/lib/mail/{commands,queries,dto}):
+ * - mail-inbox  GET /api/mail?limit&offset  requireAuthWithCharacter; 401
+ *   otherwise. Query limit 1..50 (default 20), offset >= 0; response
+ *   {mails[] (serialized PlayerMail: string _id/fromCharacterId|null,
+ *   toUserId/toCharacterId, subject, body, read, createdAt ISO),
+ *   unreadCount, total, hasMore}. Cache: no-store.
+ * - mail-sent   GET /api/mail/sent?limit&offset  same gate and paging;
+ *   response {mails[], total, hasMore} (no unread count).
+ * - mail-send   POST /api/mail  requireAuthWithCharacter;
+ *   body {toCharacterId: ObjectId, subject: 1..80, body: 1..1000}
+ *   (zod sendMailSchema; limits count UTF-16 units, like JS length).
+ *   1 req/min per character id -> 429 with Retry-After. 400 validation,
+ *   self-send ("Cannot send mail to yourself"), or banned recipient
+ *   ("Cannot send mail to this player"); 404 recipient not found
+ *   ("Recipient not found"). 200 {success:true}. No optimistic send is
+ *   modeled: the adapter refreshes the mail pages before claiming success.
+ * - mail-read   PATCH /api/mail/[id] (empty body)  requireAuthWithCharacter;
+ *   30/min per userId -> 429; 200 {success:true}; 404 mail not found.
+ * - mail-delete DELETE /api/mail/[id] (empty body)  same gate; soft-deletes
+ *   the recipient copy (hard-deletes when the sender already deleted it).
+ *   200 {success:true}; 404.
+ * - mail-sent-delete DELETE /api/mail/sent/[id] (empty body)  same gate;
+ *   soft-deletes the sender copy. 200 {success:true}; 404.
+ * - mail-report POST /api/mail/[id]/report (empty body)
+ *   requireAuthWithCharacter; recipient only, one report per mail.
+ *   10/min per userId -> 429; 200 {success:true}; 403 non-recipient or bad
+ *   id ("Forbidden"); 409 already reported ("Already reported"). Reports
+ *   notify staff server-side; there is no client-visible admin surface.
+ *
+ * Mail auth notes: the mail routes use plain requireAuthWithCharacter (no
+ * X-Bot-Token rejection, no in-route assertSameOrigin); the bridge still
+ * sends no custom headers over the first-party session, same posture as the
+ * other audited calls. Human-mutation Bot/CSRF guards stay documented on
+ * execute-action only.
+ *
+ * Deliberately absent from the mail slice:
+ * - GET /api/mail/[id]: no such endpoint exists server-side. Native can only
+ *   show mail already loaded in a page, never fetch one message directly.
+ * - /api/admin/mail-reports (requireModerator: admins AND moderators) and
+ *   any staff-gated creation: the audited identity payload (auth-session
+ *   {active,sub,username,email,iat,exp} plus the character-me projection)
+ *   carries no role/isAdmin proof, so Native exposes no admin UI and never
+ *   infers it. /api/auth/me does carry admin material but is not allowlisted.
+ * - Thread grouping (AHDGame src/lib/inbox/mailThreads groups inbox+sent by
+ *   counterpart+normalized subject client-side): Native shows the flat
+ *   audited inbox/sent pages; grouping stays an explicit gap.
+ * - Recipient lookup: POST /api/mail takes a raw character ObjectId and the
+ *   reference composer opens from a profile with the id known. No player
+ *   search endpoint is allowlisted, so Native compose takes a pasted
+ *   24-hex character id.
  */
 
 export const MP_AUDIT_REVISION = "e364c04954ed628beef73a993a8e9e156650a31e";
@@ -85,7 +137,9 @@ export type MpFetchOpId =
   | "client-nav"
   | "turn-status"
   | "game-time"
-  | "notifications";
+  | "notifications"
+  | "mail-inbox"
+  | "mail-sent";
 
 export type MpMutateOpId =
   | "execute-action"
@@ -95,7 +149,12 @@ export type MpMutateOpId =
   | "notification-snooze"
   | "notification-unsnooze"
   | "notification-unarchive"
-  | "notification-preference";
+  | "notification-preference"
+  | "mail-send"
+  | "mail-read"
+  | "mail-delete"
+  | "mail-sent-delete"
+  | "mail-report";
 
 export type MpExecuteActionType =
   | "fundraise"
@@ -354,3 +413,12 @@ export function isMpNotificationType(value: unknown): value is MpNotificationTyp
     (MP_NOTIFICATION_TYPES as ReadonlyArray<string>).includes(value)
   );
 }
+
+/**
+ * Player-mail send schema limits (#359 chat slice), pinned to
+ * sendMailSchema in AHDGame src/app/api/mail/route.ts. The server counts in
+ * UTF-16 units (zod string max), so the TS pre-check uses string length and
+ * the Rust bridge counts UTF-16 units too.
+ */
+export const MP_MAIL_SUBJECT_MAX = 80;
+export const MP_MAIL_BODY_MAX = 1000;
