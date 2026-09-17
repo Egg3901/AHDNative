@@ -196,6 +196,47 @@ The accidental double entry threshold is repaired. Chair/whip/health,
 recruitment, disbanding, post-create tax editing and reference action costs
 remain open; see [caucus management](CAUCUS-MANAGEMENT.md).
 
+## Role/country condition slice (#510, after #514, beside PR #517)
+
+Reference matrix (public Egg3901/AHDGame): `ExperimentalMobileMenu.tsx`
+(State/Nation rows), `nationDetailsSections.ts` (Politics conditions),
+`experimentalNavMenus.ts` (legacy-route extras).
+
+Covered, rendered-verified in `src/ui/DrawerRoleConditions510.test.tsx`
+(10 tests: drawer + docked desktop pane, CSS truncation/disabled contracts):
+
+- Nation loose "My party" (reference member-only): shown only with a
+  recorded player-party membership, deep-links to that party's detail.
+  Omitted otherwise; the unconditional party directory is untouched.
+- Nation > Politics "Presidential election" (reference direct-election
+  country + active race): shown only when the save records a presidential
+  race, which implies a country that runs one. The route's honest empty
+  ("No presidential race is recorded") plus Back covers deep-link arrivals.
+- State "My election" (reference link-or-disabled-label): links the
+  unresolved player candidacy when one exists; otherwise a disabled row in
+  the same 44px box with "No active candidacy. Declare one from Elections."
+  Hierarchy never shifts when the candidacy flips.
+- US legacy-route honest state: US saves name Primaries, results tabs, and
+  Political Operations as reference-only legacy congress routes on the
+  Elections surface. Non-US saves carry no note (upcoming races + candidate
+  directory is already the complete reference surface there).
+
+Explicitly not done, no signal invented:
+
+- Cabinet-office drawer gating (reference office-holder only): GameView
+  carries no cabinet-membership signal, and the government route is a
+  positions overview meaningful to non-holders. Row stays unconditional.
+  PR #517 owns the loader-absent fallback; this slice does not touch it.
+- Political Metrics / Referendums drawer gating (reference playable-pipeline
+  / active-campaign only): no synchronous GameView signal; both routes keep
+  their honest empty states. Needs a projected support flag first.
+- UK devolution-aware state legislature label (Scottish Parliament / Senedd
+  / Northern Ireland Assembly): the engine records no devolved-body display
+  names, so the state route keeps its generic legislature entry.
+- Governor drawer row: covered one level down by the tested
+  RegionViewerCard governor/my-election/my-office rows on the state route;
+  no separate drawer entry, matching the reference's in-section placement.
+
 ## Mobile layout standing correction
 
 The top banner and scrolling tab row have been removed. The reference inventory

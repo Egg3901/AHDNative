@@ -805,6 +805,11 @@ html, body { overflow-x: hidden; }
 }
 .ahd-drawer-item .ahd-badge { flex: 0 0 auto; }
 .ahd-drawer-item:hover { background: var(--ahd-card-elevated); }
+/* Disabled honest rows (#510, reference state.myElectionNone): the row keeps
+ * its 44px box and truncation so the hierarchy never shifts when the
+ * candidacy flips; opacity alone marks it unavailable. */
+.ahd-drawer-item:disabled { opacity: 0.5; cursor: default; }
+.ahd-drawer-item:disabled:hover { background: transparent; }
 .ahd-drawer-item:focus-visible { outline: none; box-shadow: var(--ahd-focus); }
 .ahd-drawer-item[data-active="true"] {
   border-left-color: var(--ahd-primary);

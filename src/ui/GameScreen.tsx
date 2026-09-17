@@ -305,6 +305,23 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   // unknown offices keep the neutral executive fallback.
   const hosCopy = hosOfficeCopy(world.player.currentOffice);
 
+  // Role/country conditions for drawer rows (#510). Reference gates (AHDGame
+  // ExperimentalMobileMenu.tsx, nationDetailsSections.ts): My Party only with
+  // a current party, Presidential Election only for a direct-election country
+  // with an active race, My Election linking the active race or a disabled
+  // label otherwise. Native derives each from save-backed signals only: party
+  // membership from the projected party list, a recorded presidential race
+  // (which implies a country that runs one), and the unresolved player
+  // candidacy above. Cabinet-office drawer gating stays out: GameView carries
+  // no cabinet-membership signal, and the government route is a meaningful
+  // positions overview for non-holders rather than a personal office page.
+  const playerParty = world.parties.find((p) => p.isPlayerParty) ?? null;
+  const roleConditions = {
+    myParty: playerParty ? { partyId: playerParty.id, partyName: playerParty.name } : null,
+    presidentialAvailable: world.elections.some((e) => e.electionType === "president"),
+    myElectionRaceId: activeRaceId ?? null,
+  };
+
   // Conditional identity org rows (#84). The reference shows "My Corporation"
   // only with myCorporationId and "My Union" only with unionsEnabled plus
   // myUnionId (AHDGame profileNavItems.ts). Offline SP projects neither: stock
@@ -370,6 +387,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
       menuButtonRef={menuButtonRef}
       onNavigate={navigate}
       identityOrg={identityOrg}
+      roleConditions={roleConditions}
       onAdvanceTurn={onAdvanceTurn}
       onSave={onSave}
       onExit={onExit}
@@ -500,6 +518,16 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
               <div className="ahd-card ahd-card-pad ahd-hero">
                 <h2 className="ahd-h2">Elections</h2>
                 <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>{world.elections.length} elections</p>
+                {/* #510 legacy-route honest state: the reference keeps
+                    Primaries/Results tabs and Political Operations on US-only
+                    legacy congress routes (AHDGame experimentalNavMenus.ts
+                    usesLegacyCongressRoutes). No offline equivalent exists, so
+                    US saves name the gap instead of silently omitting it.
+                    Non-US saves already have the complete reference surface
+                    (upcoming races + candidate directory), so no note. */}
+                {world.countryId === "US" ? (
+                  <p className="ahd-help" role="note" style={{ marginTop: "0.3rem" }}>Primaries, results tabs, and Political Operations live on the reference's legacy US congress routes and have no offline equivalent here. Upcoming races and the candidate directory below are the complete local surface.</p>
+                ) : null}
                 {presidentialRaceView ? (
                   <button type="button" className="ahd-btn ahd-btn-sm" style={{ marginTop: "0.45rem" }} onClick={() => openPresidential(presidentialRaceView.id)} disabled={busy}>
                     Presidential race
