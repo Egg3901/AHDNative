@@ -85,6 +85,15 @@ export interface Union {
    * Source: src/lib/db/types/union.ts Union.strength.
    */
   strength?: number;
+  /**
+   * Turn this union last called a strike, null/absent when it never has
+   * (#322). Ports Union.lastCalledStrikeTurn: gates the union-level
+   * UNION_STRIKE_CALL_COOLDOWN_TURNS cooldown between force-called strikes,
+   * separate from each sector's own strikeCooldownUntilTurn. Absent reads as
+   * never (the reference's own absent-means-zero rule for pre-existing
+   * documents). Source: unions/unionEconomy.ts.
+   */
+  lastCalledStrikeTurn?: number | null;
   createdAtTurn: number;
   updatedAtTurn: number;
 }

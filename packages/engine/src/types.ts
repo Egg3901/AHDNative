@@ -364,6 +364,22 @@ export interface WorldState {
    */
   pensionLedger?: Array<import("./unions/pension.js").PensionLedgerRecord>;
   /**
+    * Open and historical bargaining campaigns, keyed by deterministic
+   * `${unionId}::${employerCorporationId}::${startedAtTurn}` (#322). Ports
+   * mainline's bargainingCampaigns collection at seeded-roster granularity.
+   * Optional with absent-means-empty — pre-#322 saves carry no rows —
+   * validated on load when present (see unions/campaigns.ts). No schema
+   * bump: same additive pattern as the organizer/ledger backfills.
+   */
+  bargainingCampaigns?: Record<string, import("./unions/campaigns.js").BargainingCampaign>;
+  /**
+   * Enforceable collective agreements, keyed `agreement:${campaignId}`
+   * (#322). Ports mainline's collectiveAgreements collection: the wage
+   * floor plus the no-strike window the corporation turn reads. Optional
+   * with absent-means-empty, validated on load when present. No schema bump.
+   */
+  collectiveAgreements?: Record<string, import("./unions/campaigns.js").CollectiveAgreement>;
+  /**
    * Sovereign bonds, keyed by bond id. Ports src/lib/db/types/bond.ts (sovereign
    * subset) + src/lib/bonds/sovereign.ts issuance/maturity bookkeeping. One row
    * per quarterly auction tranche (single 48t maturity this wave); holders are
