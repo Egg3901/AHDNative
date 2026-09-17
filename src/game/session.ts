@@ -19,7 +19,7 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder,
-  getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isImperialEligibleCountry, isOnePartyCountry, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, unlistCorporateSectorForSale, updateCorporateSectorListing,
+  getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, unlistCorporateSectorForSale, updateCorporateSectorListing,
   type ActionId, type ExecuteActionParams, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import type { ActionCategory, ActionView, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
@@ -638,6 +638,8 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
   const player = world.player;
   return {
     turn: world.meta.turn, date: world.meta.date, era: world.meta.era,
+    foundingActive: isFoundingActive(world.elections),
+    ...(typeof world.meta.preIterationTurns === "number" ? { foundingOffset: world.meta.preIterationTurns } : {}),
     countryId: country.id, countryName: country.name,
     // Issues #334/#345: the world stores only a non-default axis; the
     // view always reports the effective value (absent means normal/v4).

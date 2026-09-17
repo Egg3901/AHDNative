@@ -5,6 +5,7 @@ export const advanceCalendarPhase: TurnPhase = {
   name: "advanceCalendar",
   run(world) {
     world.meta.turn += 1;
+    if (world.meta.preIteration?.active === true) return;
     world.meta.date = addDaysIso(world.meta.date, DAYS_PER_TURN);
     // Label update only, via the legacy-safe nextEraForDate (era-truth v40):
     // never regresses a legacy-era save, promotes forward at real era

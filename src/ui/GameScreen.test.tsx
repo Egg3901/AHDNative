@@ -1036,6 +1036,25 @@ describe("GameScreen status footer", () => {
     expect(within(footer).queryByText("Founding")).not.toBeInTheDocument();
   });
 
+  it("renders the Founding badge and pins the frozen era-start date (#223)", () => {
+    const world = makeWorld({ foundingActive: true, date: "1953-01-06", turn: 30 });
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
+    const footer = screen.getByRole("contentinfo", { name: "Status and primary navigation" });
+    const badge = within(footer).getByText("Founding");
+    expect(badge).toBeInTheDocument();
+    expect(badge.className).toMatch(/ahd-founding-badge/);
+    expect(badge.parentElement?.textContent).toMatch(/January, Week 1, 1953/);
+    expect(within(footer).getByRole("button", { name: "Profile: Ada" })).toBeInTheDocument();
+  });
+
+  it("maps the resumed calendar through the stamped founding offset with no badge (#223)", () => {
+    const world = makeWorld({ turn: 52, date: "1953-02-03", foundingOffset: 48 });
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
+    const footer = screen.getByRole("contentinfo", { name: "Status and primary navigation" });
+    expect(within(footer).queryByText("Founding")).not.toBeInTheDocument();
+    expect(within(footer).getByText(/February, Week 1, 1953/)).toBeInTheDocument();
+  });
+
   it("shows processing status while busy", () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={true} message="Advancing" onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);

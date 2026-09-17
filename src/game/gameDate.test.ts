@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  calendarTurnForClock,
   clockEpoch,
   clockStartingYear,
   formatGameDate,
@@ -105,5 +106,31 @@ describe("formatGameDate", () => {
   it("matches formatGameTurn for the clock's own day", () => {
     const clock = { turn: 9, date: "1953-03-10" };
     expect(formatGameDate(clock.date, clock)).toBe(formatGameTurn(clock.turn, clock));
+  });
+});
+
+describe("founding lifecycle projection (#223)", () => {
+  it("pins the calendar at the era start while the phase is active", () => {
+    const clock = { turn: 30, date: "1953-01-06", foundingActive: true as const };
+    expect(calendarTurnForClock(clock)).toBe(0);
+    expect(clockEpoch(clock)).toBe("1953-01-06");
+    expect(clockStartingYear(clock)).toBe(1953);
+    expect(turnForGameDate("1953-01-06", clock)).toBe(0);
+    expect(formatGameDate("1953-01-06", clock)).toBe("January, Week 1, 1953");
+  });
+
+  it("resumes at the era start through the stamped offset after completion", () => {
+    const clock = { turn: 52, date: "1953-02-03", foundingOffset: 48 };
+    expect(calendarTurnForClock(clock)).toBe(4);
+    expect(clockEpoch(clock)).toBe("1953-01-06");
+    expect(clockStartingYear(clock)).toBe(1953);
+    expect(formatGameDate("1953-02-03", clock)).toBe("February, Week 1, 1953");
+    expect(formatGameTurn(48, clock)).toBe("January, Week 1, 1953");
+    expect(formatGameTurn(52, clock)).toBe("February, Week 1, 1953");
+  });
+
+  it("stays the identity mapping without founding fields", () => {
+    expect(calendarTurnForClock({ turn: 26, date: "1953-07-07" })).toBe(26);
+    expect(formatGameTurn(48, era1953)).toBe("January, Week 1, 1954");
   });
 });

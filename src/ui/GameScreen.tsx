@@ -150,7 +150,12 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
 
   const saveNotice = message === "Game saved." || message === "Saved game imported.";
   // One world clock for every in-game date surface on this screen (#226).
-  const clock: GameClock = { turn: world.turn, date: world.date };
+  const clock: GameClock = {
+    turn: world.turn,
+    date: world.date,
+    ...(world.foundingActive === true ? { foundingActive: true as const } : {}),
+    ...(typeof world.foundingOffset === "number" ? { foundingOffset: world.foundingOffset } : {}),
+  };
   // #83 corporation strip: the player's recorded holdings, never summed across
   // currencies (the codebase has no FX settlement).
   const holdings = world.finance.holdings;
@@ -560,14 +565,8 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
                 the name links to Profile, followed by the party · country
                 context (AHDGame StatusBar.tsx:345-350 renders the name as a
                 Link to /profile; Native routes through `go` instead of href).
-                NB: the reference's "Founding" pre-iteration badge
-                (StatusBar.tsx:371-379, gated on preIterationActive) is
-                intentionally NOT rendered here — Native's solo engine records
-                no pre-iteration/founding state: WorldMeta has no such field
-                (packages/engine/src/types.ts:616-644) and cycleContextForWorld
-                hardcodes preIterationActive:false ("Solo has no
-                pre-iteration/founding phase concept", elections/
-                orchestration.ts:45-53). Inventing the flag would misreport it. */}
+                The "Founding" badge (StatusBar.tsx:371-379) renders only while
+                `GameView.foundingActive` is true. */}
             <span className="ahd-status-identity">
               <button
                 type="button"
@@ -580,7 +579,9 @@ export function GameScreen({ loadProfile, onUpdateProfile, onSelectConstituency,
               </button>
               <span className="ahd-muted ahd-status-identity-context">{world.player.partyName || "Independent"} · {world.countryName}</span>
             </span>
-            <span className="ahd-mono">Turn {world.turn} · {formatGameDate(world.date, clock)}</span>
+            <span className="ahd-mono">Turn {world.turn} · {world.foundingActive === true ? (
+              <span className="ahd-founding-badge" title="In-game date is frozen at the era start until the founding elections finish">Founding</span>
+            ) : null}{world.foundingActive === true ? " " : null}{formatGameDate(world.date, clock)}</span>
             {saveNotice && !busy && !error ? <span className="ahd-muted" role="status">{message}</span>
               : <span className="ahd-muted">{busy ? (message ? `Processing: ${message}` : "Processing...") : "Player paced"}</span>}
 

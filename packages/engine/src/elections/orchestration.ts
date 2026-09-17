@@ -38,17 +38,23 @@ import { GOVERNOR_COUNTRIES, LOWER_CHAMBER_PER_REGION, SUBNATIONAL_CHAMBER_PER_R
  * world's actual era (a leftover from before 1979/1991/2019 packs existed).
  * A 1979/1991/2019 world now correctly gets its own preset's real-election-
  * year anchors (see cycleAnchorContext.ts CANONICAL_REAL_ELECTION_YEARS_BY_PRESET)
- * instead of silently running on 1953's. Solo has no pre-iteration/founding
- * phase concept, so those two fields stay their identity defaults for every
- * era.
+ * instead of silently running on 1953's.
+ *
+ * The pre-iteration/founding clock threads through from
+ * `WorldMeta.preIteration` / `preIterationTurns` (#223): while a founding
+ * phase is active the ported founding branch in `pickNextCanonicalCycle`
+ * schedules cycle-0 races and the canonical-spawner guards stay suppressed;
+ * after completion the stamped offset shifts every canonical anchor forward
+ * (see `getCycleAnchors`). Both fields keep their identity defaults on
+ * worlds that never opted in.
  */
 export function cycleContextForWorld(world: WorldState): CycleAnchorContext {
   const preset = eraToPreset(world.meta.era);
   return {
     startingYear: getStartingYearForPreset(preset),
     preset,
-    preIterationTurns: 0,
-    preIterationActive: false,
+    preIterationTurns: world.meta.preIterationTurns ?? 0,
+    preIterationActive: world.meta.preIteration?.active === true,
   } as CycleAnchorContext;
 }
 
@@ -63,7 +69,7 @@ function worldNow(world: WorldState): Date {
 
 
 /** Election series solo currently schedules, per playable country. */
-interface SeriesSpec {
+export interface SeriesSpec {
   electionType: string;
   countryId: string;
   chamberKey: string;
@@ -199,12 +205,12 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
   return specs;
 }
 
-function seriesKey(s: SeriesSpec): string {
+export function seriesKey(s: SeriesSpec): string {
   const cls = s.senateClass ?? s.chamberClass;
   return `${s.electionType}:${s.countryId}:${s.state ?? "-"}${cls ? `:cl${cls}` : ""}`;
 }
 
-function recordSeriesKey(r: ElectionRecord): string {
+export function recordSeriesKey(r: ElectionRecord): string {
   return `${r.electionType}:${r.countryId}:${r.state ?? "-"}${r.senateClass ? `:cl${r.senateClass}` : ""}`;
 }
 
