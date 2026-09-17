@@ -45,6 +45,14 @@ export function App() {
     if (!client.current) return Promise.reject(new Error("Start or load a game first."));
     return client.current.profile();
   }, []);
+  const loadProfileDestination = useCallback(() => {
+    if (!client.current) return Promise.reject(new Error("Start or load a game first."));
+    return client.current.profileDestination();
+  }, []);
+  const loadImperialProfile = useCallback(() => {
+    if (!client.current) return Promise.reject(new Error("Start or load a game first."));
+    return client.current.imperialProfile();
+  }, []);
   const search = useCallback((query: string, filter?: SearchFilter) => {
     if (!client.current) return Promise.reject(new Error("Start or load a game first."));
     return client.current.search(query, filter);
@@ -237,7 +245,7 @@ export function App() {
       onBack={() => { setScreen('new'); setPendingSetup(null); setCreationChoices(null); }}
     />;
   }
-  if (screen === 'game' && world) return <GameScreen newsStorageKey={slot.current!} loadProfile={loadProfile} onUpdateProfile={update => run(async () => {
+  if (screen === 'game' && world) return <GameScreen newsStorageKey={slot.current!} loadProfile={loadProfile} loadProfileDestination={loadProfileDestination} loadImperialProfile={loadImperialProfile} onUpdateProfile={update => run(async () => {
     setWorld(await client.current!.updateProfile(update));
     await save();
     setMessage("Profile saved.");
