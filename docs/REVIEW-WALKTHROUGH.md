@@ -6,7 +6,7 @@ works, and what is known-unproven on this build.
 
 ## Fresh-world flow (2 minutes)
 
-1. Launch: home shows New game, Help, Settings, Import saved game, Saved games.
+1. Launch: home shows New game, Help, Settings, Saved games. There is no save-file import control.
 2. New game: pick an era card, a country, enter a name (1-80 chars), leave seed
    empty for random or set one for a reproducible world. Start opens Profile.
 3. Profile (entry screen for every start and resume): portrait upload or
@@ -48,19 +48,20 @@ works, and what is known-unproven on this build.
   unions, maps, country switching, regional legislative actions and several
   advanced country systems are unavailable.
 - Saves: interchange coverage is whatever SAVE-COMPATIBILITY.md validates;
-  unlisted schemas are not promised. Import cap is 256 MB.
+  unlisted schemas are not promised. Native slots store the original bytes;
+  the 256 MiB store limit remains in effect.
 - Native proof outstanding (IOS-RUNTIME-VALIDATION.md): bundled worker in
   WKWebView, Rust store round-trip with terminate/reopen, background/lock
   during turn and during save, phone turn timings, VoiceOver and keyboard
   passes, and MP/SP screen comparison on device. Browser smoke covers phone-size new game, actions, turn, save, reload,
-  resume and corrupt import. Rust storage and engine tests provide separate
+  resume and corrupt-save recovery. Rust storage and engine tests provide separate
   evidence, but do not establish a working native webview or physical device.
 - Appearance settings do not change world rules, actions, saves, or accounts.
 
 ## If something breaks
 
 Note the screen, the last action or turn, and the exact message text. Saves
-stay listed on home; a failed import leaves the current session open. Reload
+stay listed on home; a failed load leaves the current session open. Reload
 and Continue from the preceding save.
 
 ## Feedback details

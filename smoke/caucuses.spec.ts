@@ -1,4 +1,4 @@
-import { navigateGame, gameReady, advanceGame } from './game-navigation';
+import { navigateGame, gameReady, advanceGame, loadFixture } from './game-navigation';
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -6,7 +6,7 @@ import { gunzipSync } from 'node:zlib';
 test('a real career founds, leaves and rejoins a caucus, then resumes its membership', async ({ page }) => {
   const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-elected-1953-US.save.json.gz', import.meta.url)));
   await page.goto('/');
-  await page.getByLabel('Import saved game', { exact: true }).setInputFiles({ name: 'elected.json', mimeType: 'application/json', buffer: fixture });
+  await loadFixture(page, fixture);
   await gameReady(page);
   await advanceGame(page);
   await gameReady(page);
@@ -39,7 +39,7 @@ test('a real career founds, leaves and rejoins a caucus, then resumes its member
 test('the caucus chair edits the tax rate and disbands through the reference controls, then resumes disbanded', async ({ page }) => {
   const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-elected-1953-US.save.json.gz', import.meta.url)));
   await page.goto('/');
-  await page.getByLabel('Import saved game', { exact: true }).setInputFiles({ name: 'elected.json', mimeType: 'application/json', buffer: fixture });
+  await loadFixture(page, fixture);
   await gameReady(page);
   await advanceGame(page);
   await gameReady(page);

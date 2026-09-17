@@ -1,4 +1,4 @@
-import { gameReady, navigateGame, advanceGame, completeCharacterCreation } from './game-navigation';
+import { gameReady, navigateGame, advanceGame, completeCharacterCreation, loadFixture } from './game-navigation';
 import { expect, test } from '@playwright/test';
 
 test('an unelected player can inspect legislation without sponsoring a bill', async ({ page }) => {
@@ -24,7 +24,7 @@ test('the historical primary transition and sponsorship survive relaunch', async
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
-  await page.getByLabel('Import saved game', { exact: true }).setInputFiles({ name: 'career.json', mimeType: 'application/json', buffer: fixture });
+  await loadFixture(page, fixture);
   await gameReady(page);
   await advanceGame(page);
   await expect(page.getByRole('contentinfo')).toContainText('Turn 96 ·');

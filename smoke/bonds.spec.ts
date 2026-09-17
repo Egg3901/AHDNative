@@ -1,4 +1,4 @@
-import { navigateGame, gameReady } from './game-navigation';
+import { navigateGame, gameReady, loadFixture } from './game-navigation';
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -6,7 +6,7 @@ import { gunzipSync } from 'node:zlib';
 test('sovereign units can be bought, partly sold and retained across relaunch', async ({ page }) => {
   const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-elected-1953-US.save.json.gz', import.meta.url)));
   await page.goto('/');
-  await page.getByLabel('Import saved game', { exact: true }).setInputFiles({ name: 'elected.json', mimeType: 'application/json', buffer: fixture });
+  await loadFixture(page, fixture);
   await gameReady(page);
   const openBonds = async () => {
     await navigateGame(page, 'Bonds');

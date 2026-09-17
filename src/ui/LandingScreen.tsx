@@ -25,7 +25,6 @@ export interface LandingScreenProps {
   onSettings: () => void;
   onReturn: () => void;
   onReload: () => void;
-  onImport: (file: File) => void;
   onLoad: (saved: SaveMetadata) => void;
   onRequestDelete: (saved: SaveMetadata) => void;
   onCancelDelete: () => void;
@@ -49,7 +48,6 @@ export function LandingScreen({
   onSettings,
   onReturn,
   onReload,
-  onImport,
   onLoad,
   onRequestDelete,
   onCancelDelete,
@@ -114,14 +112,7 @@ export function LandingScreen({
       </div>
     </section>
     <section className="ahd-landing-saves" aria-label="Saved games">
-      <label className="ahd-field">
-        <span className="ahd-label">Import saved game</span>
-        <input type="file" accept=".json,application/json" disabled={busy} onChange={event => {
-          const file = event.currentTarget.files?.[0]; event.currentTarget.value = '';
-          if (file) onImport(file);
-        }} />
-      </label>
-      <h2 className="ahd-h2" style={{ marginTop: '1.5rem' }}>Saved games</h2>
+      <h2 className="ahd-h2">Saved games</h2>
       {!saves.length && <p className="ahd-muted">Your saved worlds will appear here.</p>}
       {saves.map(saved => {
         const isPending = pendingDelete?.slotId === saved.slotId;

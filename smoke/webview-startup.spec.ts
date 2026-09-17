@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
-import { exitGame, gameReady, completeCharacterCreation } from './game-navigation';
+import { exitGame, gameReady, completeCharacterCreation, loadFixture } from './game-navigation';
 
-test('new game and import remain usable when a webview has no randomUUID', async ({ page }) => {
+test('new game and fixture loading remain usable when a webview has no randomUUID', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: undefined });
   });
@@ -18,10 +18,7 @@ test('new game and import remain usable when a webview has no randomUUID', async
   await page.getByRole('button', { name: 'Continue Webview Player', exact: true }).click();
   await gameReady(page);
   await exitGame(page);
-  await page.getByLabel('Import saved game', { exact: true }).setInputFiles({
-    name: 'legacy-v42.json', mimeType: 'application/json',
-    buffer: gunzipSync(readFileSync('fixtures/v42-1953-US.save.json.gz')),
-  });
+  await loadFixture(page, gunzipSync(readFileSync('fixtures/v42-1953-US.save.json.gz')));
   await gameReady(page);
   await expect(page.getByRole('region', { name: 'Profile', exact: true })).toContainText('Validator');
   await exitGame(page);

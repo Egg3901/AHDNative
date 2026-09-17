@@ -116,9 +116,9 @@ Native after authentic v42 load:
 
 Local artifact: `artifacts/v42-validation.json` (gitignored).
 
-## Integrated import evidence
+## Integrated load evidence
 
-`smoke/save-compatibility.spec.ts` opens this compressed fixture through the real import UI, advances a turn, waits for autosave, reloads the app and resumes. It passes against the production frontend bundle with the actual engine worker and browser QA persistence. This does not validate the iOS native bridge or every historical save.
+`smoke/save-compatibility.spec.ts` opens this compressed fixture through the DEV-only test-hooks boundary (same worker/store path as a native resume, no player control), advances a turn, waits for autosave, reloads the app and resumes. It passes against the production frontend bundle with the actual engine worker and browser QA persistence. This does not validate the iOS native bridge or every historical save.
 
 The refined contract harness passed 23 checks with zero errors in 7.2 seconds. It verifies the pinned source is clean before importing it. The relabeling probe is recorded as an observation rather than an always-passing assertion.
 

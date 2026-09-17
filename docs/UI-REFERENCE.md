@@ -51,7 +51,7 @@ prove parity. See [behavioral parity](BEHAVIORAL-PARITY.md) for the next slices.
 ## Landing globe (issue #142)
 
 Native home is now globe-led: a canvas orthographic dot globe anchors the hero,
-with the existing entry actions (New game, saves/continue, import, deletion
+with the existing entry actions (New game, saves/continue, deletion
 confirmation, Help/Settings, return to game, build label, loading/error flows)
 unchanged and still owned by App state. Starting or loading still enters
 Profile. Implementation: `src/ui/LandingScreen.tsx` (presentation only),
@@ -123,7 +123,7 @@ identity backend and no auth surface yet (see #149, independent).
 Rendered browser review covers 320x568, 390x844 and 1280x800. New game stays
 in the initial viewport, there is no horizontal overflow, real geography
 rotates locally and reduced motion stops it. The final polish replaces the
-hard halo with a soft atmosphere, styles the import control, aligns desktop
+hard halo with a soft atmosphere, removes the import control, aligns desktop
 actions and adds a sparse full-page starfield. The desktop window opens at
 1100x760; narrower windows retain the mobile layout.
 

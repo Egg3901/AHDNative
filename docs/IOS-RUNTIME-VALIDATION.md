@@ -7,7 +7,7 @@ The integrated browser smoke is not an iPhone or WKWebView result. No simulator,
 - React uses a dedicated `Worker` for the local engine. Vite emits its code as a separate bundled asset.
 - Native save/load commands run file work on Tauri's blocking executor. The frontend sends the original JSON save string; Rust validates the envelope and replaces a slot through a synced temporary file.
 - Completed new games, successful actions and turns are saved before their operation finishes. Save failure is visible and preserves the previous persisted slot. This reduces reliance on a background callback completing before suspension.
-- A failed worker can be replaced by loading a saved game. Failed imports are validated in a separate session before replacing the active session.
+- A failed worker can be replaced by loading a saved game. Failed loads are validated in a separate session before replacing the active session.
 
 ## What needs native proof
 

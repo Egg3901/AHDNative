@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
-import { gameReady, navigateGame } from './game-navigation';
+import { gameReady, navigateGame, loadFixture } from './game-navigation';
 
 test('saved party and regional rosters expose every page through compact phone controls', async ({ page }) => {
   const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-elected-1953-US.save.json.gz', import.meta.url)));
   await page.goto('/');
-  await page.getByLabel('Import saved game', { exact: true }).setInputFiles({ name: 'elected.json', mimeType: 'application/json', buffer: fixture });
+  await loadFixture(page, fixture);
   await gameReady(page);
   await page.context().setOffline(true);
   await navigateGame(page, 'Parties');

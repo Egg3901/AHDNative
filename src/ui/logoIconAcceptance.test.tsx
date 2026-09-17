@@ -63,7 +63,6 @@ describe("canonical AHD logo asset (#148)", () => {
         onSettings={() => {}}
         onReturn={() => {}}
         onReload={() => {}}
-        onImport={() => {}}
         onLoad={() => {}}
         onRequestDelete={() => {}}
         onCancelDelete={() => {}}

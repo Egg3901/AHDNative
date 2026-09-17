@@ -1,4 +1,4 @@
-import { navigateGame, gameReady, advanceGame, completeCharacterCreation } from './game-navigation';
+import { navigateGame, gameReady, advanceGame, completeCharacterCreation, loadFixture } from './game-navigation';
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -39,7 +39,7 @@ test('domestic shares can be bought, partly sold and retained across relaunch', 
 test('an elected player proposes a tax rate and reopens the actual bill after relaunch', async ({ page }) => {
   const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-elected-1953-US.save.json.gz', import.meta.url)));
   await page.goto('/');
-  await page.getByLabel('Import saved game', { exact: true }).setInputFiles({ name: 'elected.json', mimeType: 'application/json', buffer: fixture });
+  await loadFixture(page, fixture);
   await gameReady(page);
   await advanceGame(page); // The real saved sponsorship cooldown ends at turn 99.
   await gameReady(page);
