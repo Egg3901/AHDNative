@@ -8,6 +8,7 @@ import { GameScreen } from "./GameScreen";
 import { GameDrawer, MENU_GROUPS } from "./MobileNavigation";
 import { DEFAULT_PREFERENCES } from "../preferences";
 import type { ElectionView, FinanceView, GameView } from "../game/types";
+import type { ProfileView } from "../game/profileTypes";
 import { DEFAULT_WORLD_FEATURE_FLAGS } from "@ahdclient/engine";
 
 /**
@@ -107,7 +108,7 @@ function makeWorld(overrides: Partial<GameView> = {}): GameView {
   };
 }
 
-function profileFor(world: GameView) {
+function profileFor(world: GameView): ProfileView {
   return {
     name: world.player.name, bio: "", avatarUrl: null, campaignSongUrl: "", campaignSongAutoplay: false,
     country: { id: world.countryId, name: world.countryName }, homeRegion: null,
