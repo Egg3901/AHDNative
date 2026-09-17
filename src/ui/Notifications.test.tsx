@@ -271,11 +271,22 @@ describe("notification inbox dual-pane list/detail (#438)", () => {
     expect(document.querySelector(".ahd-dual-panes")).toBeNull();
     const root = document.querySelector(".ahd-inbox");
     expect(root).toHaveAttribute("data-view", "list");
+    // Landmarks stay unconditional (same convention as News/Markets), but
+    // never inside a pairing outside dual posture.
+    expect(document.querySelector('[data-pane="list"]')).not.toBeNull();
+    expect(document.querySelector(".ahd-dual-panes [data-pane]")).toBeNull();
     await user.click(screen.getByRole("button", { name: "Open notification: Filing open" }));
     expect(root).toHaveAttribute("data-view", "detail");
     expect(document.querySelector(".ahd-dual-panes")).toBeNull();
+    expect(document.querySelector(".ahd-dual-panes [data-pane]")).toBeNull();
+    // Both regions stay mounted while the detail is open: the narrow toggle
+    // hides one via the component's own non-dual body marker, and Back
+    // needs the list still there.
+    expect(document.querySelector('[data-pane="list"]')).not.toBeNull();
+    expect(screen.getByRole("region", { name: /notification detail/i })).toHaveAttribute("data-pane", "detail");
     await user.click(screen.getByRole("button", { name: /back to inbox/i }));
     expect(root).toHaveAttribute("data-view", "list");
+    expect(document.querySelector(".ahd-dual-panes [data-pane]")).toBeNull();
   });
 
   it("pairs the rows with the open notice sharing one selection when dual", async () => {
@@ -294,6 +305,8 @@ describe("notification inbox dual-pane list/detail (#438)", () => {
       expect(detail).not.toBeNull();
       expect(within(detail as HTMLElement).getByText("Funds arrived")).toBeInTheDocument();
       expect(document.querySelector('[data-pane="list"]')).not.toBeNull();
+      // Both landmarks sit inside the pairing only in dual posture.
+      expect(document.querySelectorAll(".ahd-dual-panes [data-pane]").length).toBe(2);
       expect(screen.getAllByRole("button", { name: /open notification:/i }).length).toBeGreaterThan(1);
     } finally {
       window.history.replaceState({}, "", "/");
