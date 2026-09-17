@@ -1174,6 +1174,23 @@ continue with every creation field intact) plus 4 rendered tests (warning
 show/clear, competitive-country silence, six subtitles); focused runs green
 (9 session, 35 CharacterCreationScreen).
 
+2026-09-17 #242 phone-first refinement slice (PR #370, rebased onto
+current main): the six steps keep their order, labels, validation rules and
+persisted submit contract and gain small-phone guidance — a Country summary
+card, background progress plus name-length hints, keyboard compass steppers
+with live axis labels, party cards with measured `compassDistance` platform
+gaps and a best-match badge (shown only after the compass is answered), an
+accessible stat-spend progressbar, and per-step Continue hints. The obsolete
+raw region select was dropped in favor of the newer `HomeRegionPicker`
+radiogroup; imperial-redirect panel, one-party warning, Dynamic Island safe
+areas, glass/material fallbacks and phone navigation are preserved. Evidence:
+`CharacterCreationRefinement.test.tsx` (country card, hints, background,
+picker choice, compass keyboard, distances/best-match, pre-compass silence,
+stat meter, 320/390px guards) plus the untouched `CharacterCreationScreen`,
+`HomeRegionPicker`, mobile-presentation and game
+create/act/advance/save/relaunch flow suites: 58 UI + 9 game tests green in
+focused runs.
+
 Remaining #242 acceptance gaps: the imperial *creation input* remains
 admin-only per the reference (`/create-imperial-character` is admin-gated), so
 Native renders the honest notice rather than an imperial form; a rendered
