@@ -34,6 +34,19 @@ describe("HelpPanel", () => {
     expect(screen.getByText(/the local guides above remain available offline/i)).toBeInTheDocument();
   });
 
+  it("advertises no save-game import control or file picker (#506)", () => {
+    render(<HelpPanel />);
+
+    expect(screen.queryByText(/import saved game/i)).toBeNull();
+    expect(screen.queryByText(/import a json save/i)).toBeNull();
+    expect(screen.queryByText(/json import/i)).toBeNull();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
+    // Native save/reload, confirmed deletion, and visible errors stay documented.
+    expect(screen.getByRole("heading", { name: "Saving and recovery" })).toBeInTheDocument();
+    expect(screen.getByText(/continue resumes a saved world/i)).toBeInTheDocument();
+    expect(screen.getByText(/confirmed deletion/i)).toBeInTheDocument();
+  });
+
   it("keeps authenticated account and feedback controls inside Multiplayer", () => {
     render(<HelpPanel />);
 
