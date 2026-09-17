@@ -145,7 +145,7 @@ export function BondMarketPanel({ market, busy, onAction, selectedId, onSelect }
       <h2 className="ahd-h2">Sovereign bonds</h2>
       <p className="ahd-help">Government debt issues, annual coupons and your holdings. Home-currency issues settle in personal cash; foreign issues settle in the matching foreign balance.</p>
       <p>Available cash: {formatFinanceMoney(market.playerCash, market.currency)}</p>
-      {Object.entries(market.balances).filter(([, amount]) => amount !== 0).map(([code, amount]) => (
+      {Object.entries(market.balances ?? {}).filter(([, amount]) => amount !== 0).map(([code, amount]) => (
         <p key={code}>Available {code} balance: {formatFinanceMoney(amount, code)}</p>
       ))}
       {market.bonds.length === 0 ? <p className="ahd-empty">No outstanding bond issues.</p> :

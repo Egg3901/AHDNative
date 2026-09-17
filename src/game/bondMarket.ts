@@ -14,7 +14,7 @@ export interface BondListing {
 export interface BondMarketView {
   turn: number; date: string; playerCountryId: string; playerCash: number;
   currency: string; /** Personal foreign balances by currency code (copy, JSON-safe). */
-  balances: Record<string, number>;
+  balances?: Record<string, number>;
   buy: BondTradeHint; sell: BondTradeHint; bonds: BondListing[];
 }
 
