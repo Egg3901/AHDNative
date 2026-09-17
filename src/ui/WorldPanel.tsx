@@ -31,6 +31,13 @@ export interface WorldPanelProps {
   onOpenParty?: (id: string) => void;
   onOpenElection?: (id: string) => void;
   /**
+   * Bounded drill for the home-region viewer rows. The state section reports
+   * itself as the return origin so Back restores the home region; without
+   * it the rows fall back to plain navigation. The nations section keeps
+   * plain navigation for its world-map link.
+   */
+  onDrill?: (origin: { route: DrawerRouteId; detailId?: string }, next: DrawerRouteId, id?: string) => void;
+  /**
    * Reports a nation-context switch from the Nations switcher. The selection is
    * a browse context only — it never changes the player's country — and the
    * owner keeps it across route changes so returning lands on the viewed nation.
@@ -519,7 +526,7 @@ function RegionOffice({ region, clock }: { region: WorldRegionView; clock: GameC
   );
 }
 
-function StateSection({ overview, onNavigate, onOpenParty, onOpenElection }: { overview: WorldOverviewView; onNavigate?: (route: DrawerRouteId, id?: string) => void; onOpenParty?: (id: string) => void; onOpenElection?: (id: string) => void }) {
+function StateSection({ overview, onNavigate, onDrill, onOpenParty, onOpenElection }: { overview: WorldOverviewView; onNavigate?: (route: DrawerRouteId, id?: string) => void; onDrill?: (origin: { route: DrawerRouteId; detailId?: string }, next: DrawerRouteId, id?: string) => void; onOpenParty?: (id: string) => void; onOpenElection?: (id: string) => void }) {
   const region = overview.homeRegion;
   if (region === null) {
     return (
@@ -558,7 +565,7 @@ function StateSection({ overview, onNavigate, onOpenParty, onOpenElection }: { o
           {region.countryId === "US" && <RegionMetric label="Senate classes" value={region.senateClasses ? region.senateClasses.join(", ") : "Not recorded"} />}
         </dl>
       </div>
-      <RegionViewerCard rows={region.viewer} onNavigate={onNavigate} clock={clock} />
+      <RegionViewerCard rows={region.viewer} onNavigate={onDrill ? (next, id) => onDrill({ route: "state" }, next, id) : onNavigate} clock={clock} />
       <div className="ahd-grid ahd-grid-2">
         <PartySupport region={region} onOpenParty={onOpenParty} />
         <div className="ahd-card ahd-card-pad">
@@ -586,8 +593,8 @@ function StateSection({ overview, onNavigate, onOpenParty, onOpenElection }: { o
   );
 }
 
-export function WorldPanel({ overview, section, initialId, onNavigate, onSelectNation, onOpenParty, onOpenElection }: WorldPanelProps) {
+export function WorldPanel({ overview, section, initialId, onNavigate, onDrill, onSelectNation, onOpenParty, onOpenElection }: WorldPanelProps) {
   return section === "nations"
     ? <NationsSection overview={overview} initialId={initialId} onSelectNation={onSelectNation} onNavigate={onNavigate} />
-    : <StateSection overview={overview} onNavigate={onNavigate} onOpenParty={onOpenParty} onOpenElection={onOpenElection} />;
+    : <StateSection overview={overview} onNavigate={onNavigate} onDrill={onDrill} onOpenParty={onOpenParty} onOpenElection={onOpenElection} />;
 }
