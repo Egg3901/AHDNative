@@ -187,7 +187,7 @@ function GovernmentSummary({ nation, clock }: { nation: WorldNationView; clock: 
 
 function NationDetail({ nation, current, clock, onNavigate }: { nation: WorldNationView; current: boolean; clock: GameClock; onNavigate?: (route: DrawerRouteId, id?: string) => void }) {
   return (
-    <article className="ahd-card ahd-card-pad" aria-label={nation.name}>
+    <article className="ahd-card ahd-card-pad" aria-label={nation.name} data-pane="detail">
       <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "flex-start", minWidth: 0 }}>
         <div style={{ minWidth: 0, flex: "1 1 auto" }}>
           <h2 className="ahd-h2" style={{ margin: 0, overflowWrap: "anywhere" }}>{nation.name}</h2>
@@ -309,6 +309,12 @@ function NationsSection({ overview, initialId, onSelectNation, onNavigate }: { o
       <p className="ahd-muted" style={{ margin: 0, fontSize: "0.76rem" }}>
         Browse the nations present in this save. Choosing a row only opens its details in this browse context and does not change your country.
       </p>
+      {/* Dual-pane list/detail pairing (#438): the nation directory and the
+          selected-nation detail share the existing selectedId browse context;
+          the shell places them on separate panes only when a hinge is
+          reported. Single-pane renders the same stack as before. */}
+      <div className="ahd-dual-panes">
+      <div data-pane="list" className="ahd-stack">
       <details className="ahd-card ahd-card-pad" open={directoryOpen ? true : undefined} onToggle={(event) => setDirectoryOpen(event.currentTarget.open)}>
         <summary
           style={{ minHeight: "44px", paddingBlock: "0.65rem", cursor: "pointer", fontWeight: 600 }}
@@ -360,7 +366,9 @@ function NationsSection({ overview, initialId, onSelectNation, onNavigate }: { o
         ) : <div className="ahd-empty" style={{ marginTop: "0.55rem" }}>No nations match this search.</div>}
       </details>
       <NationContextSwitcher overview={overview} selectedId={selectedNation?.id ?? selectedId} onSelect={selectNation} />
-      {selectedNation ? <NationDetail nation={selectedNation} current={selectedNation.id === overview.playerCountryId} clock={clock} onNavigate={onNavigate} /> : <div className="ahd-empty">No nations recorded.</div>}
+      </div>
+      {selectedNation ? <NationDetail nation={selectedNation} current={selectedNation.id === overview.playerCountryId} clock={clock} onNavigate={onNavigate} /> : <div className="ahd-empty" data-pane="detail">No nations recorded.</div>}
+      </div>
     </WorldLayout>
   );
 }

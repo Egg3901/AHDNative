@@ -396,6 +396,21 @@ describe("WorldPanel", () => {
   });
 });
 
+describe("WorldPanel dual-pane list/detail (#438)", () => {
+  it("exposes nation directory list and selected-nation detail panes sharing one selection", () => {
+    render(<WorldPanel overview={makeOverview()} section="nations" />);
+
+    const list = document.querySelector('[data-pane="list"]');
+    expect(list).not.toBeNull();
+    expect(within(list as HTMLElement).getByRole("searchbox", { name: "Search nations" })).toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "United States" })).toHaveAttribute("data-pane", "detail");
+    // One browse context drives both panes: picking another directory row moves the detail.
+    fireEvent.click(screen.getByText("Browse nations"));
+    fireEvent.click(screen.getByRole("button", { name: "View France details" }));
+    expect(screen.getByRole("article", { name: "France" })).toHaveAttribute("data-pane", "detail");
+  });
+});
+
 it('keeps US congressional labels out of a UK regional profile', () => {
   const world = createWorld({ era: '1953', countryId: 'UK', playerName: 'Alex', seed: 'uk-region' });
   render(<WorldPanel overview={projectWorldOverview(world)} section="state" />);
