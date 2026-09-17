@@ -412,6 +412,12 @@ button.ahd-profile-chip:disabled {
   letter-spacing: 0.02em;
 }
 
+/* 320px phones: the 100-unit viewBox scales quadrant labels to ~8px, too
+   small to read. Bump them phone-only; desktop keeps the 3.1px treatment. */
+@media (max-width: 380px) {
+  .ahd-compass-corner { font-size: 4px; }
+}
+
 .ahd-compass-glyph {
   fill: #fff;
   font-size: 5px;
