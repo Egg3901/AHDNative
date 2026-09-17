@@ -2,15 +2,14 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NewGameScreen } from "./NewGameScreen";
-import { partyMarkColor } from "./PartyMark";
 import type { EraChoice } from "../game/types";
 import { DEFAULT_WORLD_FEATURE_FLAGS, WORLD_FEATURE_FLAG_DEFINITIONS } from "@ahdclient/engine";
 
 type SetupCountry = EraChoice["countries"][number] & { regions: { id: string; name: string }[] };
 type SetupEra = Omit<EraChoice, "countries"> & { countries: SetupCountry[] };
 
-const REP = { id: "US_REP", name: "Republican Party", abbreviation: "REP", logoUrl: null as string | null };
-const LAB = { id: "UK_LAB", name: "Labour Party", abbreviation: "LAB", logoUrl: null as string | null };
+const REP = { id: "US_REP", name: "Republican Party", abbreviation: "REP", color: "#EF4444", logoUrl: null as string | null };
+const LAB = { id: "UK_LAB", name: "Labour Party", abbreviation: "LAB", color: "#E4003B", logoUrl: null as string | null };
 
 const ERAS: SetupEra[] = [
   { id: "1953", label: "1953", countries: [
@@ -280,7 +279,7 @@ describe("NewGameScreen world setup (#241)", () => {
     expect(mark).toHaveAttribute("data-party-mark", "REP");
     expect(mark).toHaveAttribute("aria-hidden", "true");
     expect(mark.querySelector(".ahd-mark-initials")?.textContent).toBe("REP");
-    expect(mark).toHaveStyle({ backgroundColor: partyMarkColor("us-US_REP") });
+    expect(mark).toHaveStyle({ backgroundColor: "#EF4444" });
   });
 
   it("keeps the country/name pair in the compact responsive grid at phone width", () => {
