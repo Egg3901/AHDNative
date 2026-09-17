@@ -111,7 +111,7 @@ fn is_online_origin(url: &Url) -> bool {
 }
 
 #[cfg(desktop)]
-fn is_online_navigation_allowed(url: &Url) -> bool {
+pub(crate) fn is_online_navigation_allowed(url: &Url) -> bool {
     let secure_default_port = url.scheme() == "https" && url.port_or_known_default() == Some(443);
     is_online_origin(url)
         || (secure_default_port
@@ -124,6 +124,9 @@ fn is_online_navigation_allowed(url: &Url) -> bool {
 async fn open_mp_auth_window(app: tauri::AppHandle, url: Url) -> Result<(), String> {
     if let Some(existing) = app.get_webview_window("online") {
         existing.navigate(url).map_err(|error| error.to_string())?;
+        // A cold-boot restore window is hidden: an explicit provider trip
+        // always brings it on screen before focusing it.
+        existing.show().map_err(|error| error.to_string())?;
         existing.set_focus().map_err(|error| error.to_string())?;
         return Ok(());
     }

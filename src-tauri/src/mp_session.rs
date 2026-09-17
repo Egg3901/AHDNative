@@ -32,9 +32,17 @@
 //! `remote-error:{status}:{retry_after_secs}:{body_prefix}` preserves the
 //! server status and message so the adapter can distinguish signed-out (401)
 //! from refusal (400/403/404), conflict (409), rate limit (429), and outage
-//! (5xx). `session-unavailable` means the online window is missing (signed
-//! out, never opened, or a single-view mobile build): the UI must offer the
-//! live-site sign-in path and retry, never invent data.
+//! (5xx). `session-unavailable` means no online window could be provided
+//! (creation failed, or a single-view mobile build with no session cookie):
+//! the UI must offer the live-site sign-in path and retry, never invent data.
+//!
+//! Desktop cold-boot restore (#149): after a full relaunch no online window
+//! exists yet, so the first call lazily provides a hidden persistent one at
+//! the pinned origin and waits (bounded) for first-party navigation before
+//! probing. A valid durable cookie then restores silently; only a real 401
+//! reports signed out. A window that never commits reports
+//! `session-transport` (offline with retry): neither failure is ever misread
+//! as signed out.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
@@ -915,6 +923,85 @@ async fn poll_for_outcome(
     Err(error::SESSION_TIMEOUT.to_string())
 }
 
+/// Cold-boot restore budget: how long the lazily created online window may
+/// take to commit its first-party navigation before a session call runs.
+/// Reads never proceed on an uncommitted window: evaluating the session
+/// script outside live-site context would answer 401 and misreport a valid
+/// durable session as signed out.
+#[cfg(desktop)]
+const MP_RESTORE_WINDOW_WAIT_ROUNDS: u32 = 50;
+#[cfg(desktop)]
+const MP_RESTORE_WINDOW_WAIT_INTERVAL_MS: u64 = 200;
+
+/// Whether a window URL is first-party live-site context: only then does the
+/// evaluated session script run same-origin with the platform cookie jar
+/// attached. Pure so the contract is unit-testable without a WebView.
+#[cfg(desktop)]
+fn online_window_url_ready(current: &tauri::Url) -> bool {
+    current.scheme() == MP_SESSION_SCHEME
+        && current.host_str() == Some(MP_SESSION_HOST)
+        && current.port_or_known_default() == Some(443)
+}
+
+/// Provide the persistent online window for one session call, creating it
+/// lazily on desktop cold boot (#149). After a full process relaunch no
+/// window exists yet, but the platform profile jar may still hold a valid
+/// durable server session: the hidden window restores first-party context so
+/// the auth-session probe answers honestly (200 restores, 401 stays signed
+/// out) instead of forcing a provider round trip. The window uses the
+/// platform's normal persistent jar (never incognito), loads only the pinned
+/// origin under the same navigation guard as the sign-in window, shows no UI,
+/// accepts no popups, and persists nothing itself.
+#[cfg(desktop)]
+fn ensure_online_window(app: &tauri::AppHandle) -> Result<tauri::WebviewWindow, String> {
+    if let Some(window) = app.get_webview_window(MP_SESSION_WINDOW_LABEL) {
+        return Ok(window);
+    }
+    let url: tauri::Url = session_origin()
+        .parse()
+        .map_err(|_| error::SESSION_UNAVAILABLE.to_string())?;
+    tauri::WebviewWindowBuilder::new(
+        app,
+        MP_SESSION_WINDOW_LABEL,
+        tauri::WebviewUrl::External(url),
+    )
+    .visible(false)
+    .on_navigation(|url| crate::is_online_navigation_allowed(url))
+    .on_new_window(|_url, _features| tauri::webview::NewWindowResponse::Deny)
+    .build()
+    .map_err(|_| error::SESSION_UNAVAILABLE.to_string())
+}
+
+/// Wait for a lazily created online window to commit first-party navigation.
+/// A window that never commits is a transport failure (offline with retry),
+/// never a signed-out verdict: only a real probe answer may expire a session.
+#[cfg(desktop)]
+async fn wait_for_online_window(window: &tauri::WebviewWindow) -> Result<(), String> {
+    for _ in 0..MP_RESTORE_WINDOW_WAIT_ROUNDS {
+        if window
+            .url()
+            .ok()
+            .is_some_and(|current| online_window_url_ready(&current))
+        {
+            return Ok(());
+        }
+        tauri::async_runtime::spawn_blocking(|| {
+            std::thread::sleep(Duration::from_millis(MP_RESTORE_WINDOW_WAIT_INTERVAL_MS));
+        })
+        .await
+        .map_err(|_| error::SESSION_TRANSPORT.to_string())?;
+    }
+    if window
+        .url()
+        .ok()
+        .is_some_and(|current| online_window_url_ready(&current))
+    {
+        Ok(())
+    } else {
+        Err(error::SESSION_TRANSPORT.to_string())
+    }
+}
+
 /// Run one allowlisted call in the persistent online window and resolve it
 /// per [`classify_outcome`]. Only the `online` window is ever touched: any
 /// other label (including the app's own main view) fails closed, so bridge
@@ -929,9 +1016,18 @@ async fn run_session_call(
     if !is_allowlisted_call(method, path_and_query) {
         return Err(error::UNSUPPORTED_OP.to_string());
     }
-    let window = app
-        .get_webview_window(MP_SESSION_WINDOW_LABEL)
-        .ok_or_else(|| error::SESSION_UNAVAILABLE.to_string())?;
+    let window = match app.get_webview_window(MP_SESSION_WINDOW_LABEL) {
+        Some(window) => window,
+        // No window yet after a cold boot: provide the hidden persistent
+        // restore window so a valid durable session probes 200 instead of
+        // forcing a provider round trip. Creation failure keeps the old
+        // `session-unavailable` verdict and the sign-in path.
+        None => {
+            let window = ensure_online_window(app)?;
+            wait_for_online_window(&window).await?;
+            window
+        }
+    };
     if window.label() != MP_SESSION_WINDOW_LABEL {
         return Err(error::SESSION_UNAVAILABLE.to_string());
     }
@@ -1186,6 +1282,42 @@ mod tests {
         assert_eq!((op.method(), op.path()), ("POST", "/api/actions/execute"));
         let op = MpMutateOp::NotificationRead;
         assert_eq!((op.method(), op.path()), ("PATCH", "/api/notifications"));
+    }
+
+    #[cfg(desktop)]
+    #[test]
+    fn restore_window_targets_the_pinned_first_party_origin() {
+        assert_eq!(session_origin(), "https://ahousedividedgame.com");
+    }
+
+    #[cfg(desktop)]
+    #[test]
+    fn restore_readiness_requires_first_party_live_site_context() {
+        use tauri::Url;
+        for ready in [
+            "https://ahousedividedgame.com/",
+            "https://ahousedividedgame.com/api/auth/session",
+        ] {
+            let url: Url = ready.parse().unwrap();
+            assert!(
+                online_window_url_ready(&url),
+                "{ready} must count as restored"
+            );
+        }
+        for cold in [
+            "about:blank",
+            "http://ahousedividedgame.com/",
+            "https://ahousedividedgame.com:444/",
+            "https://www.ahousedividedgame.com/",
+            "https://evil.com/",
+            "tauri://localhost/?view=mp",
+        ] {
+            let url: Url = cold.parse().unwrap();
+            assert!(
+                !online_window_url_ready(&url),
+                "{cold} must not count as restored"
+            );
+        }
     }
 
     #[test]
