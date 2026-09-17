@@ -1,5 +1,10 @@
-import { BUILD_LABEL } from '../buildIdentity';
-import type { Preferences, ReducedMotion, ReducedTransparency, TextSize } from "../preferences";
+import { BUILD_LABEL } from "../buildIdentity";
+import type {
+  Preferences,
+  ReducedMotion,
+  ReducedTransparency,
+  TextSize,
+} from "../preferences";
 import "./ui.css";
 
 export interface SettingsPanelProps {
@@ -33,7 +38,9 @@ function Choice({
         border: "1px solid var(--ahd-border)",
         borderRadius: "var(--ahd-radius-sm)",
         padding: "0.7rem",
-        background: checked ? "color-mix(in srgb, var(--ahd-primary) 10%, var(--ahd-card-elevated))" : "var(--ahd-card-elevated)",
+        background: checked
+          ? "color-mix(in srgb, var(--ahd-primary) 10%, var(--ahd-card-elevated))"
+          : "var(--ahd-card-elevated)",
         cursor: "pointer",
       }}
     >
@@ -47,18 +54,37 @@ function Choice({
         aria-describedby={descriptionId}
         style={{ marginTop: "0.18rem", flexShrink: 0 }}
       />
-      <span style={{ display: "flex", flexDirection: "column", gap: "0.18rem" }}>
+      <span
+        style={{ display: "flex", flexDirection: "column", gap: "0.18rem" }}
+      >
         <span style={{ fontSize: "0.82rem", fontWeight: 700 }}>{label}</span>
-        <span id={descriptionId} className="ahd-muted" style={{ fontSize: "0.74rem", lineHeight: 1.45 }}>{description}</span>
+        <span
+          id={descriptionId}
+          className="ahd-muted"
+          style={{ fontSize: "0.74rem", lineHeight: 1.45 }}
+        >
+          {description}
+        </span>
       </span>
     </label>
   );
 }
 
-function TextSizeChoices({ value, onChange }: { value: TextSize; onChange: (value: TextSize) => void }) {
+function TextSizeChoices({
+  value,
+  onChange,
+}: {
+  value: TextSize;
+  onChange: (value: TextSize) => void;
+}) {
   return (
-    <fieldset className="ahd-stack" style={{ border: 0, margin: 0, padding: 0, gap: "0.45rem" }}>
-      <legend className="ahd-label" style={{ marginBottom: "0.2rem" }}>Text size</legend>
+    <fieldset
+      className="ahd-stack"
+      style={{ border: 0, margin: 0, padding: 0, gap: "0.45rem" }}
+    >
+      <legend className="ahd-label" style={{ marginBottom: "0.2rem" }}>
+        Text size
+      </legend>
       <Choice
         name="settings-text-size"
         value="standard"
@@ -79,10 +105,21 @@ function TextSizeChoices({ value, onChange }: { value: TextSize; onChange: (valu
   );
 }
 
-function ReducedMotionChoices({ value, onChange }: { value: ReducedMotion; onChange: (value: ReducedMotion) => void }) {
+function ReducedMotionChoices({
+  value,
+  onChange,
+}: {
+  value: ReducedMotion;
+  onChange: (value: ReducedMotion) => void;
+}) {
   return (
-    <fieldset className="ahd-stack" style={{ border: 0, margin: 0, padding: 0, gap: "0.45rem" }}>
-      <legend className="ahd-label" style={{ marginBottom: "0.2rem" }}>Reduced motion</legend>
+    <fieldset
+      className="ahd-stack"
+      style={{ border: 0, margin: 0, padding: 0, gap: "0.45rem" }}
+    >
+      <legend className="ahd-label" style={{ marginBottom: "0.2rem" }}>
+        Reduced motion
+      </legend>
       <Choice
         name="settings-reduced-motion"
         value="system"
@@ -111,10 +148,21 @@ function ReducedMotionChoices({ value, onChange }: { value: ReducedMotion; onCha
   );
 }
 
-function ReducedTransparencyChoices({ value, onChange }: { value: ReducedTransparency; onChange: (value: ReducedTransparency) => void }) {
+function ReducedTransparencyChoices({
+  value,
+  onChange,
+}: {
+  value: ReducedTransparency;
+  onChange: (value: ReducedTransparency) => void;
+}) {
   return (
-    <fieldset className="ahd-stack" style={{ border: 0, margin: 0, padding: 0, gap: "0.45rem" }}>
-      <legend className="ahd-label" style={{ marginBottom: "0.2rem" }}>Transparency</legend>
+    <fieldset
+      className="ahd-stack"
+      style={{ border: 0, margin: 0, padding: 0, gap: "0.45rem" }}
+    >
+      <legend className="ahd-label" style={{ marginBottom: "0.2rem" }}>
+        Transparency
+      </legend>
       <Choice
         name="settings-reduced-transparency"
         value="system"
@@ -144,34 +192,79 @@ function ReducedTransparencyChoices({ value, onChange }: { value: ReducedTranspa
 }
 
 export function SettingsPanel({ value, onChange, error }: SettingsPanelProps) {
-  const update = (changes: Partial<Preferences>) => onChange({ ...value, ...changes });
+  const update = (changes: Partial<Preferences>) =>
+    onChange({ ...value, ...changes });
   return (
     <div className="ahd-stack" aria-label="Settings">
       <header className="ahd-card ahd-card-pad ahd-hero">
         <div className="ahd-eyebrow">Device settings</div>
-        <h1 className="ahd-h1" style={{ marginTop: "0.22rem" }}>Settings</h1>
-        <p className="ahd-muted" style={{ fontSize: "0.8rem", lineHeight: 1.5, margin: "0.4rem 0 0" }}>
-          These presentation choices apply to this app on this device. They do not change world rules, actions, saves, or account access.
+        <h1 className="ahd-h1" style={{ marginTop: "0.22rem" }}>
+          Settings
+        </h1>
+        <p
+          className="ahd-muted"
+          style={{ fontSize: "0.8rem", lineHeight: 1.5, margin: "0.4rem 0 0" }}
+        >
+          These presentation choices apply to this app on this device. They do
+          not change world rules, actions, saves, or account access.
         </p>
       </header>
 
-      <p className="ahd-muted" aria-label="Build version">{BUILD_LABEL}</p>
+      <p className="ahd-muted" aria-label="Build version">
+        {BUILD_LABEL}
+      </p>
 
-      {error ? <div className="ahd-alert" role="alert">{error}</div> : null}
+      {error ? (
+        <div className="ahd-alert" role="alert">
+          {error}
+        </div>
+      ) : null}
 
-      <section className="ahd-card ahd-card-pad" aria-labelledby="settings-appearance">
-        <h2 id="settings-appearance" className="ahd-h2">Appearance</h2>
-        <div className="ahd-stack" style={{ marginTop: "0.75rem", gap: "1rem" }}>
-          <TextSizeChoices value={value.textSize} onChange={(textSize) => update({ textSize })} />
-          <ReducedMotionChoices value={value.reducedMotion} onChange={(reducedMotion) => update({ reducedMotion })} />
-          <ReducedTransparencyChoices value={value.reducedTransparency} onChange={(reducedTransparency) => update({ reducedTransparency })} />
+      <section
+        className="ahd-card ahd-card-pad"
+        aria-labelledby="settings-appearance"
+      >
+        <h2 id="settings-appearance" className="ahd-h2">
+          Appearance
+        </h2>
+        <div
+          className="ahd-stack"
+          style={{ marginTop: "0.75rem", gap: "1rem" }}
+        >
+          <TextSizeChoices
+            value={value.textSize}
+            onChange={(textSize) => update({ textSize })}
+          />
+          <ReducedMotionChoices
+            value={value.reducedMotion}
+            onChange={(reducedMotion) => update({ reducedMotion })}
+          />
+          <ReducedTransparencyChoices
+            value={value.reducedTransparency}
+            onChange={(reducedTransparency) => update({ reducedTransparency })}
+          />
         </div>
       </section>
 
-      <section className="ahd-card ahd-card-pad" aria-labelledby="settings-world-map">
-        <h2 id="settings-world-map" className="ahd-h2">World map</h2>
-        <fieldset className="ahd-stack" style={{ border: 0, margin: "0.75rem 0 0", padding: 0, gap: "0.45rem" }}>
-          <legend className="ahd-label" style={{ marginBottom: "0.2rem" }}>Section shown first</legend>
+      <section
+        className="ahd-card ahd-card-pad"
+        aria-labelledby="settings-world-map"
+      >
+        <h2 id="settings-world-map" className="ahd-h2">
+          World map
+        </h2>
+        <fieldset
+          className="ahd-stack"
+          style={{
+            border: 0,
+            margin: "0.75rem 0 0",
+            padding: 0,
+            gap: "0.45rem",
+          }}
+        >
+          <legend className="ahd-label" style={{ marginBottom: "0.2rem" }}>
+            Section shown first
+          </legend>
           <Choice
             name="settings-world-map"
             value="nations"
@@ -191,19 +284,41 @@ export function SettingsPanel({ value, onChange, error }: SettingsPanelProps) {
         </fieldset>
       </section>
 
-      <section className="ahd-card ahd-card-pad" aria-labelledby="settings-media">
-        <h2 id="settings-media" className="ahd-h2">Profile media</h2>
-        <label style={{ display: "flex", alignItems: "flex-start", gap: "0.65rem", marginTop: "0.75rem" }}>
+      <section
+        className="ahd-card ahd-card-pad"
+        aria-labelledby="settings-media"
+      >
+        <h2 id="settings-media" className="ahd-h2">
+          Profile media
+        </h2>
+        <label
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "0.65rem",
+            marginTop: "0.75rem",
+          }}
+        >
           <input
             type="checkbox"
             checked={value.disableAutoplayOnOtherProfiles}
-            onChange={(event) => update({ disableAutoplayOnOtherProfiles: event.target.checked })}
+            onChange={(event) =>
+              update({ disableAutoplayOnOtherProfiles: event.target.checked })
+            }
             aria-label="Disable autoplay on other profiles"
           />
           <span>
-            <span style={{ display: "block", fontSize: "0.82rem", fontWeight: 700 }}>Disable autoplay on other profiles</span>
-            <span className="ahd-muted" style={{ fontSize: "0.74rem", lineHeight: 1.45 }}>
-              Campaign songs stay paused until you start them. This preference is stored on this device.
+            <span
+              style={{ display: "block", fontSize: "0.82rem", fontWeight: 700 }}
+            >
+              Disable autoplay on other profiles
+            </span>
+            <span
+              className="ahd-muted"
+              style={{ fontSize: "0.74rem", lineHeight: 1.45 }}
+            >
+              Campaign songs stay paused until you start them. This preference
+              is stored on this device.
             </span>
           </span>
         </label>

@@ -14,7 +14,10 @@ import { DetailQuery } from "./DetailQuery";
 import { WorldMapPanel } from "./WorldMapPanel";
 import type { DrawerRouteId } from "./MobileNavigation";
 
-const FULL_DIRECTORY: RegionsQuery = { directoryPage: 0, directoryPageSize: 100 };
+const FULL_DIRECTORY: RegionsQuery = {
+  directoryPage: 0,
+  directoryPageSize: 100,
+};
 
 export function WorldMapRoute({
   loadOverview,
@@ -31,11 +34,18 @@ export function WorldMapRoute({
   onSectionChange: (section: WorldMapSection) => void;
   onNavigate?: (route: DrawerRouteId, id?: string) => void;
 }) {
-  const loadDirectory = useCallback(() => loadRegions(FULL_DIRECTORY), [loadRegions]);
+  const loadDirectory = useCallback(
+    () => loadRegions(FULL_DIRECTORY),
+    [loadRegions],
+  );
   return (
     <DetailQuery load={loadOverview} revision={revision} label="World map">
       {(overview) => (
-        <DetailQuery load={loadDirectory} revision={revision} label="World map regions">
+        <DetailQuery
+          load={loadDirectory}
+          revision={revision}
+          label="World map regions"
+        >
           {(regions) => (
             <WorldMapPanel
               overview={overview}
