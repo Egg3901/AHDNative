@@ -119,6 +119,33 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     }
   }
 
+  /* Desktop post-callback restore (#149): the provider round trip finishes
+   * in the separate persistent online window, so coming back to the main
+   * window re-probes while the screen waits for a session. A completed
+   * callback lands without another click; cancellation, failure, and expiry
+   * keep the signed-out card with retry. Gated to needs-session phases so a
+   * focused ready or blocked screen never replays the load chain. Mirrors
+   * the AskPanel focus re-probe; one in-flight probe at a time. */
+  const focusProbeRef = useRef(false);
+  useEffect(() => {
+    const onFocus = () => {
+      const session = sessionRef.current!;
+      const phase = session.get().phase;
+      if (phase !== "signed-out" && phase !== "session-required" && phase !== "auth-expired") return;
+      if (focusProbeRef.current) return;
+      focusProbeRef.current = true;
+      setBusy(true);
+      void session.refresh().then((next) => {
+        setSnapshot(next);
+      }).finally(() => {
+        focusProbeRef.current = false;
+        setBusy(false);
+      });
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
+
   function runGeneral(operation: (session: MpModeSession) => Promise<MpSnapshot>) {
     setNoticeScope("general");
     void run(operation);
