@@ -184,8 +184,96 @@ describe("high-contrast preferences", () => {
     expect(forcedBlock).toContain("Highlight");
     expect(forcedBlock).toMatch(/:focus-visible[^}]*outline:\s*2px solid Highlight/);
     expect(forcedBlock).toMatch(/:focus-visible[^}]*box-shadow:\s*none/);
-    for (const control of [".ahd-bottomnav-item:focus-visible", ".ahd-drawer-item:focus-visible", ".ahd-status-btn:focus-visible", ".ahd-btn:focus-visible"]) {
+    // Every shipped control that suppresses its outline for a shadow ring
+    // must appear in the takeover, or Tab focus goes invisible there.
+    for (const control of [
+      ".ahd-btn:focus-visible",
+      ".ahd-input:focus-visible",
+      ".ahd-select:focus-visible",
+      ".ahd-status-identity-name:focus-visible",
+      ".ahd-status-btn:focus-visible",
+      ".ahd-bottomnav-item:focus-visible",
+      ".ahd-drawer-disclosure:focus-visible",
+      ".ahd-drawer-item:focus-visible",
+      ".ahd-creation-answer:focus-visible",
+      ".ahd-chip:focus-visible",
+      ".ahd-creation-progress-dot:focus-visible",
+      ".ahd-era-card:has(:focus-visible)",
+    ]) {
       expect(forcedBlock, `missing ${control}`).toContain(control);
+    }
+  });
+
+  it("reuses the reduced-transparency solid tokens instead of a divergent palette", () => {
+    const solidTokens: Record<string, string> = {
+      ".ahd-footer": "var(--ahd-bg)",
+      ".ahd-drawer": "var(--ahd-card)",
+      ".ahd-creation-actions": "var(--ahd-bg)",
+      ".ahd-resource-details": "var(--ahd-card-elevated)",
+      ".ahd-drawer-disclosure": "var(--ahd-card-elevated)",
+      ".ahd-resource-popover": "var(--ahd-card-elevated)",
+    };
+    const contrastStart = materialCss.indexOf("@media (prefers-contrast: more)");
+    const contrastBlock = materialCss.slice(contrastStart, materialCss.indexOf("End material system (issue #437)"));
+    const backgroundOf = (css: string, selector: string): string | null => {
+      const rule = css.match(new RegExp(`${selector.replace(/\./g, "\\.")}\\s*\\{([^}]*)\\}`));
+      const background = rule?.[1]?.match(/background:\s*([^;!]+)/);
+      return background?.[1]?.trim() ?? null;
+    };
+    for (const [surface, token] of Object.entries(solidTokens)) {
+      // The explicit player/data-attribute branch is the reference palette.
+      expect(backgroundOf(materialCss, `:root\\[data-reduced-transparency="on"\\] ${surface}`), `on-branch drift ${surface}`).toBe(token);
+      expect(backgroundOf(contrastBlock, surface), `contrast drift ${surface}`).toBe(token);
+    }
+    // The nested overlay section has no data-attribute branch of its own
+    // (the standalone details selector outranks it there); it must still
+    // resolve to the same elevated token under prefers-contrast.
+    expect(backgroundOf(contrastBlock, ".ahd-resource-popover .ahd-resource-details")).toBe("var(--ahd-card-elevated)");
+  });
+
+  it("keeps every solid fallback winning over later base rules that re-assert glass", () => {
+    // The sticky creation bar's base chrome rule ships after the material
+    // section and re-asserts translucency at equal specificity, which once
+    // silently defeated the forced-colors and prefers-contrast solids for
+    // that surface. A fallback either follows the last glass declaration
+    // in source order or carries !important; anything else regresses.
+    const endMarker = materialCss.indexOf("End material system (issue #437)");
+    const exactRules = (selector: string): { index: number; body: string }[] => {
+      const matches: { index: number; body: string }[] = [];
+      const headerPattern = /([^{}]+)\{/g;
+      let header: RegExpExecArray | null;
+      while ((header = headerPattern.exec(materialCss)) !== null) {
+        const lastSelector = header[1]!.split(",").pop()!.trim();
+        if (lastSelector !== selector) continue;
+        const bodyStart = header.index + header[0].length;
+        const bodyEnd = materialCss.indexOf("}", bodyStart);
+        matches.push({ index: header.index, body: materialCss.slice(bodyStart, bodyEnd) });
+      }
+      return matches;
+    };
+    const assertsGlass = (body: string): boolean =>
+      /background:\s*var\(--ahd-material-/.test(body) || /backdrop-filter:\s*blur\(/.test(body);
+    const assertsSolid = (body: string): boolean =>
+      /background:\s*var\(--ahd-(?!material-)/.test(body) && !/blur\(/.test(body);
+    for (const surface of [
+      ".ahd-footer",
+      ".ahd-drawer",
+      ".ahd-creation-actions",
+      ".ahd-resource-details",
+      ".ahd-drawer-disclosure",
+      ".ahd-resource-popover",
+    ]) {
+      const rules = exactRules(surface);
+      const glassRules = rules.filter((rule) => assertsGlass(rule.body));
+      const solidRules = rules.filter((rule) => rule.index < endMarker && assertsSolid(rule.body));
+      expect(solidRules.length, `no solid fallback for ${surface}`).toBeGreaterThan(0);
+      for (const glass of glassRules) {
+        const beaten = solidRules.some(
+          (solid) =>
+            solid.index > glass.index || /background:[^;]*!important/.test(solid.body),
+        );
+        expect(beaten, `${surface} glass at ${glass.index} beats every solid fallback`).toBe(true);
+      }
     }
   });
 });
