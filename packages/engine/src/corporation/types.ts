@@ -105,6 +105,19 @@ export interface Corporation {
   liquidCapital: number;
   /** Founding revenue (annualized) — used as the dissolution/reincorporation anchor. */
   foundingRevenue: number;
+  /**
+   * Country owner for state-owned / nationalized corporations.
+   * Source: corporation.ts `countryOwnerId`. Absent on private corps.
+   * Ported for the #307 corporate-bond issuer/owner slice; nationalization
+   * flows that write it remain out of scope.
+   */
+  countryOwnerId?: string;
+  /**
+   * Ownership lifecycle state. Absence means "private" for back-compat —
+   * use `isCorpStateOwned` (corporateBonds.ts), never branch on this field
+   * directly. Source: corporation.ts `ownershipState` + `isStateOwned()`.
+   */
+  ownershipState?: "private" | "stateOwned";
   foundedAtTurn: number;
   /** Turn persistent insolvency began; null when solvent. */
   insolventSinceTurn: number | null;

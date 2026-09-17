@@ -42,6 +42,7 @@ import type { ExtractableResource } from "../commodity/constants.js";
 import { depositToSavings, withdrawFromSavings, moveSavingsHolder } from "../finance/savingsActions.js";
 import { wireTransfer as wireTransferFn } from "../finance/wireTransfer.js";
 import { rollDebatePrep } from "../stats/debatePrep.js";
+import { validateBondIssuerIdentity } from "../bonds/corporateBonds.js";
 import { rngFromState } from "../rng.js";
 import { isOrderFlowPriceEligible } from "../market/orderFlow.js";
 
@@ -1506,6 +1507,8 @@ function executeActionInner(
   }
 
   // W13 bonds — player buy/sell sovereign bond units at mainline pricing.
+  // #307 extends the same seam to corporate issues with issuer/owner invariant
+  // enforcement above (corporate servicing itself is #308).
   // Ports src/app/api/bonds/[bondId]/buy+ sell (reserveBondUnitsForHolder) at neutral fee.
   // Pricing: cost = units × BOND_UNIT_FACE_VALUE × marketPrice (same as mainline's costLocal).
   // Forex blocker: cross-country sovereign holding is PORT-STUB — needs live FX (see sovereign.ts currencyCode) — blocked with named blocker "forex".
@@ -1533,6 +1536,15 @@ function executeActionInner(
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: `Bond ${bondId} is in default` };
+    }
+    // #307 issuer/owner invariants — corporate issues must name a live
+    // corporation with matching country, term, denomination, ownership, and
+    // conserved float; sovereign issues must not carry a corporationId.
+    const identityError = validateBondIssuerIdentity(world, bond);
+    if (identityError) {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: identityError };
     }
     const playerCountry = world.player.countryId;
     if (bond.countryId !== playerCountry) {
