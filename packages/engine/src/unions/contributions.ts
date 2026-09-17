@@ -111,6 +111,15 @@ const COUNTRY_CURRENCY_MAP: Record<string, string> = {
   BR: "BRL",
   CN: "CNY",
   NG: "NGN",
+  HU: "HUF",
+  PL: "PLZ",
+  RO: "ROL",
+  YU: "YUD",
+  BG: "BGL",
+  BLR: "SUR",
+  UKR: "SUR",
+  CS: "CSK",
+  BAL: "SUR",
   RU: "SUR",
   DD: "DDM",
   FR: "FRF",
@@ -121,6 +130,8 @@ const COUNTRY_CURRENCY_MAP: Record<string, string> = {
   GR: "GRD",
   AT: "ATS",
   FI: "FIM",
+  SCO: "GBP",
+  WAL: "GBP",
 };
 
 /** Payout currency for a union's country. Source: COUNTRY_CURRENCY_MAP[...] ?? "USD". */
@@ -280,8 +291,9 @@ export function applyUnionContributionPayouts(
   }
   if (payouts.length === 0) return { paid: 0, records: [] };
 
-  const ledger = unionContributionLedger(world);
-  const seenIds = new Set(ledger.map((record) => record.id));
+  // Payout shapes and recipient resolution validate BEFORE the ledger is
+  // touched, so a failed call on a ledger-absent world leaves the field
+  // absent and save bytes untouched.
   const batchIds = new Set<string>();
   for (const payout of payouts) {
     const row = payout as unknown as Record<string, unknown>;
@@ -297,10 +309,22 @@ export function applyUnionContributionPayouts(
       throw new Error(`Invalid union contribution recipient for ${unionId}:${recipientId}`);
     }
     const id = contributionRecordIdFor(unionId, turn, recipientId);
-    if (batchIds.has(id) || seenIds.has(id)) {
+    if (batchIds.has(id)) {
       throw new Error(`Duplicate union contribution payout ${id}`);
     }
     batchIds.add(id);
+  }
+
+  // Ledger access materializes absent-means-empty; a cross-ledger duplicate
+  // restores absence before throwing so failed calls never write.
+  const hadLedger = world.unionContributionLedger !== undefined;
+  const ledger = unionContributionLedger(world);
+  const seenIds = new Set(ledger.map((record) => record.id));
+  for (const id of batchIds) {
+    if (seenIds.has(id)) {
+      if (!hadLedger) delete world.unionContributionLedger;
+      throw new Error(`Duplicate union contribution payout ${id}`);
+    }
   }
 
   // All validation passed: move treasury, recipient balances, and ledger
@@ -339,6 +363,9 @@ export function applyUnionContributionPayouts(
     ledger.push(...records);
     return { paid, records };
   } catch (error) {
+    // A mid-apply throw restores every write, including ledger presence:
+    // worlds that carried no ledger carry none afterwards.
+    if (!hadLedger) delete world.unionContributionLedger;
     union.treasury = treasuryBefore;
     payouts.forEach((payout, i) => {
       const recipient = resolveContributionRecipient(world, payout.characterId)!;

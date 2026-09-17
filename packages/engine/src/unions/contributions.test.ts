@@ -284,6 +284,52 @@ describe("#321 atomic union contribution payouts", () => {
     expect(currencyCodeForCountry("XX")).toBe("USD");
   });
 
+  it("uses the verbatim reference currency table for every mapped country", () => {
+    // Pinned COUNTRY_CURRENCY_MAP (same table the finance modules carry):
+    // union ledger rows need only the code, never a rate.
+    expect(currencyCodeForCountry("HU")).toBe("HUF");
+    expect(currencyCodeForCountry("PL")).toBe("PLZ");
+    expect(currencyCodeForCountry("RO")).toBe("ROL");
+    expect(currencyCodeForCountry("YU")).toBe("YUD");
+    expect(currencyCodeForCountry("BG")).toBe("BGL");
+    expect(currencyCodeForCountry("BLR")).toBe("SUR");
+    expect(currencyCodeForCountry("UKR")).toBe("SUR");
+    expect(currencyCodeForCountry("CS")).toBe("CSK");
+    expect(currencyCodeForCountry("BAL")).toBe("SUR");
+    expect(currencyCodeForCountry("SCO")).toBe("GBP");
+    expect(currencyCodeForCountry("WAL")).toBe("GBP");
+  });
+
+  it("leaves absent ledgers absent when validation fails before any write", () => {
+    const world = createWorld(WORLD);
+    const [first] = usPair(world);
+    world.unions["US-manufacturing"]!.treasury = 1000;
+    expect(world.unionContributionLedger).toBeUndefined();
+    // Invalid recipient: shape validation must run before the ledger is
+    // materialized, so the failed call leaves save bytes untouched.
+    expect(() =>
+      applyUnionContributionPayouts(world, {
+        unionId: "US-manufacturing",
+        turn: world.meta.turn,
+        payouts: [{ characterId: "ghost", amount: 10 }],
+      }),
+    ).toThrow(/invalid union contribution/i);
+    expect(world.unionContributionLedger).toBeUndefined();
+    // Duplicate within one batch: same closed behavior, still no ledger.
+    expect(() =>
+      applyUnionContributionPayouts(world, {
+        unionId: "US-manufacturing",
+        turn: world.meta.turn,
+        payouts: [
+          { characterId: first, amount: 50 },
+          { characterId: first, amount: 50 },
+        ],
+      }),
+    ).toThrow(/uplicate/);
+    expect(world.unionContributionLedger).toBeUndefined();
+    expect(world.unions["US-manufacturing"]!.treasury).toBe(1000);
+  });
+
   it("rejects duplicate payouts without touching state", () => {
     const world = createWorld(WORLD);
     const [first, second] = usPair(world);
