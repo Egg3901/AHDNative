@@ -197,3 +197,70 @@ export const COMMODITY_HERO_FALLBACK_ALT = "Commodity hero image";
 export function commodityHeroAlt(commodity: string): string {
   return COMMODITY_HERO_ALT[commodity] ?? COMMODITY_HERO_FALLBACK_ALT;
 }
+
+/**
+ * Offline company hero art (#378, slice of #143).
+ *
+ * Native company listings carry engine corporation sector types
+ * (`CORPORATION_TYPES` in `packages/engine/src/corporation/types.ts`: 17
+ * values), while the bundled offline set is keyed by reference commodity
+ * types. Only `energy` and `retail` collide, so keying the company detail
+ * hero directly through `commodityHero()` left 15 of 17 reachable sectors
+ * on the generic Actions fallback. This layer maps each corporation sector
+ * to the already-bundled commodity file whose bytes depict that industry;
+ * no new binary asset, no remote fetch, no rights question. Four sectors
+ * have no bundled depiction (defense, extraction, real_estate,
+ * telecommunications) and keep the Actions fallback: the upstream
+ * `sector-*.webp` files exist in AHDGame `public/static/heroes/` but carry
+ * no upstream rights-manifest entry and would add ~2.5 MB, so they stay
+ * unported (recorded in `docs/UI-REFERENCE.md`).
+ */
+export const COMPANY_SECTOR_COMMODITY: Record<string, string> = {
+  agriculture: "food",
+  automobiles: "vehicles",
+  chemical_industries: "chemicals",
+  construction: "building_materials",
+  energy: "energy",
+  entertainment: "advertising",
+  financial: "financial_services",
+  healthcare: "pharmaceuticals",
+  logistics: "freight",
+  manufacturing: "steel",
+  media: "advertising",
+  retail: "retail",
+  technology: "electronics",
+};
+
+/** Nonempty accessible-name fallback for company sectors with no bundled art. */
+export const COMPANY_HERO_FALLBACK_ALT = "Company hero image";
+
+/**
+ * Company hero image for an engine corporation sector type. Exact-key
+ * lookup into the alias map, then through the commodity resolver (which
+ * itself falls back to the bundled Actions artwork): unmapped, unported
+ * and unknown keys render Actions art, never a broken image or a remote
+ * fetch.
+ */
+export function companyHero(sectorType: string): string {
+  return commodityHero(COMPANY_SECTOR_COMMODITY[sectorType] ?? sectorType);
+}
+
+/**
+ * Total alt-text resolver for the company hero: the aliased commodity alt
+ * describes the same bundled bytes, so it is reused verbatim. Total over
+ * strings — never undefined, never empty; exact-key, no case folding or
+ * trimming.
+ */
+export function companyHeroAlt(sectorType: string): string {
+  const mapped = COMPANY_SECTOR_COMMODITY[sectorType] ?? sectorType;
+  return COMMODITY_HERO_ALT[mapped] ?? COMPANY_HERO_FALLBACK_ALT;
+}
+
+/**
+ * Stock-market list band (#378). The reference has no dedicated markets
+ * hero file, so the list reuses the already-bundled NYSE financial-services
+ * art (byte-identical to AHDGame, same SHA-256 provenance as the commodity
+ * slice) instead of rendering with no hero band. Single source of truth so
+ * the panel and its tests cannot drift.
+ */
+export const MARKETS_LIST_HERO_IMAGE = "/static/heroes/commodity-financial-services.webp";
