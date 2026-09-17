@@ -518,7 +518,16 @@ evicts the whole card (no stale rows) and reconnect restores it; a 403
 refusal keeps standing intact with the server message and no refresh; a
 malformed capabilities payload reports honestly with no stale rows.
 
-Remaining gaps (issues #359 and #510 stay open): Native MP has no
-corporation, union, election, cabinet-office, or governor-office detail
-surface at all, so the card cannot navigate anywhere yet; per-screen
-action/data depth and physical-iPhone smoke remain as in section 8.
+Election slice (PR #543, issues #359 and #510 stay open): the
+active-election row now drills into an authoritative summary via the
+audited GET /api/elections?id={seatId ?? id}&view=summary read
+(`election-detail` fetch op, TS + Rust id validation, fail-closed
+projection, on-demand load with expiry eviction, read-only article with
+Back to Standing). Evidence: `src/mp/adapter.test.ts`,
+`src/mp/validators.test.ts`, `src/mp/endpoints.test.ts`, and
+`src/ui/MpElectionDetail543.test.tsx` (12 rendered at 320/390/1280px).
+
+Remaining gaps (issues #359 and #510 stay open): Native MP still has no
+corporation, union, cabinet-office, or governor-office detail surface;
+those four rows stay display-only. Per-screen action/data depth and
+physical-iPhone smoke remain as in section 8.

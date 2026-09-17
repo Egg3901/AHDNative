@@ -148,7 +148,7 @@ describe.each([320, 390, 1280])("MP election detail drill-in at %spx (#359)", (w
     await user.click(view);
     const detail = await screen.findByRole("article", { name: "Election detail" });
     // The seatId (live-site /elections/[seatId ?? id] target) is requested.
-    expect(calls.some((call) => call === `fetch:election-detail::::${SEAT_ID}`)).toBe(true);
+    expect(calls.some((call) => call === `fetch:election-detail:::${SEAT_ID}`)).toBe(true);
     expect(within(detail).getByText("Senate · PA")).toBeInTheDocument();
     expect(within(detail).getByText("General")).toBeInTheDocument();
     expect(within(detail).getByText("2 candidates")).toBeInTheDocument();

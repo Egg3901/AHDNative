@@ -518,7 +518,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
           * absent. Back returns to Standing, never into local SP state. */}
         {visibleElection && electionPhaseLabel && (
           <>
-          <section id="mp-election" className="ahd-card ahd-card-pad" aria-label="Election detail" tabIndex={-1}>
+          <article id="mp-election" className="ahd-card ahd-card-pad" aria-label="Election detail" tabIndex={-1}>
             <h2 className="ahd-h2">{snapshot.capabilities?.activeElectionLabel ?? `${visibleElection.electionType} · ${visibleElection.state ?? visibleElection.countryId}`}</h2>
             <dl className="ahd-mp-facts">
               <dt>Phase</dt><dd>{electionPhaseLabel}</dd>
@@ -529,7 +529,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
               {visibleElection.state && (<><dt>State</dt><dd>{visibleElection.state}</dd></>)}
               <dt>Cycle</dt><dd>{visibleElection.cycle}</dd>
             </dl>
-          </section>
+          </article>
           <div className="ahd-mp-row ahd-mp-back">
             <button
               className="ahd-btn ahd-btn-sm ahd-btn-ghost"

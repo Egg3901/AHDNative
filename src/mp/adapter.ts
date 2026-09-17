@@ -350,9 +350,10 @@ export class MpModeSession {
    * summary through the first-party session. The id is pre-checked against
    * the audited reference shape (24-hex or bounded seatId) and the Rust
    * bridge re-validates before anything is sent. Expiry evicts the detail
-   * with every other authed projection; other failures keep prior detail
-   * with an honest error, never stale success. Nothing here touches the
-   * local SP engine or saves.
+   * with every other authed projection; a 404 means the race is gone
+   * server-side and reports the server's message with prior detail kept;
+   * other failures keep prior detail with an honest error, never stale
+   * success. Nothing here touches the local SP engine or saves.
    */
   async loadElectionDetail(id: unknown): Promise<MpSnapshot> {
     if (!this.snapshot.userId) return this.enter();
@@ -362,6 +363,11 @@ export class MpModeSession {
     }
     this.set({ error: null, notice: null, retryAfter: null });
     const result = await mpFetch(this.host, "election-detail", undefined, undefined, validated.id);
+    if (result.kind === "remote" && result.http === 404) {
+      // The referenced race no longer resolves server-side: say so with the
+      // server's message and keep the last loaded detail, never blank it.
+      return this.set({ phase: "offline", error: result.message });
+    }
     if (result.kind !== "ok") return this.applyAuthedReadFailure(result);
     const electionDetail = parseElectionDetail(result.bodyText);
     if (!electionDetail) {
