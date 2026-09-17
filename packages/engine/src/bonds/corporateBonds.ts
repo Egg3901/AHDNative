@@ -17,9 +17,10 @@ import { BOND_UNIT_FACE_VALUE } from "./constants.js";
  * Scope: corporate issuance identity, owner/public-float representation,
  * denomination, and maturity terms, plus issuer/owner invariant enforcement at
  * the public engine seam. Explicitly out of scope: coupons, buybacks,
- * defaults, restructuring (#308) and phase writer/consumer timing (#309).
- * Corporate bonds are inert state until #308: the turn cash-flow phases skip
- * them (see bondTurn.ts).
+ * defaults, restructuring (now #308, see corporateBondServicing.ts) and
+ * phase writer/consumer timing (#309). The sovereign cash-flow phases in
+ * bondTurn.ts still skip corporate issues; the corporate servicing module
+ * runs at the same phase hook instead.
  */
 
 // ── Source-backed terms ─────────────────────────────────────────────

@@ -70,6 +70,11 @@ export interface Bond {
   defaultedAtTurn: number | null;
   /** Currency the face/coupon/price are denominated in. Source: bond.currencyCode (v0.2.6+). */
   currencyCode: string;
+  /**
+   * Last turn corporate coupon servicing ran (#308 idempotency stamp).
+   * Absent on pre-#308 docs and every sovereign bond — no migration.
+   */
+  lastCouponTurn?: number;
   createdAt: string;
   updatedAt: string;
 }

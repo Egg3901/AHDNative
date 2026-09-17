@@ -19,7 +19,13 @@
  */
 
 import type { TurnPhase } from "../phases/types.js";
-import { issueScheduledSovereignBonds, payCouponsAndUpdatePrices, settleMaturedBonds, runNpcHolderBehavior } from "./bondTurn.js";
+import {
+  issueScheduledSovereignBonds,
+  payCouponsAndUpdatePrices,
+  settleMaturedBonds,
+  runNpcHolderBehavior,
+} from "./bondTurn.js";
+import { processCorporateBondTurn } from "./corporateBondServicing.js";
 
 export const sovereignIssuancePhase: TurnPhase = {
   name: "sovereignIssuance",
@@ -35,6 +41,11 @@ export const bondCouponMaturityPhase: TurnPhase = {
     void payCouponsAndUpdatePrices(world);
     // Then settle maturities (principal repayment + holder cash)
     void settleMaturedBonds(world);
+    // Corporate servicing (coupons, maturity, buyback-independent default) at
+    // the same writer hook the source's processBondTurn provides. #309 owns
+    // any further phase reordering; relative order here changes nothing the
+    // sovereign path reads.
+    void processCorporateBondTurn(world);
   },
 };
 

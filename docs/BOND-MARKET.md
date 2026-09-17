@@ -38,6 +38,25 @@ maturity, buybacks, defaults) and #309 (phase timing). No save-envelope
 migration: all new fields are optional and old saves round-trip byte-stable.
 Focused evidence: `packages/engine/src/bonds/corporateBonds.test.ts`.
 
+## Corporate servicing slice (#308)
+
+`processCorporateBondTurn` (in `packages/engine/src/bonds/corporateBondServicing.ts`,
+wired into `bondCouponMaturityPhase`) applies per-turn coupons in the bond
+denomination (`couponRate x face / 48` per unit, source
+`corpBondCashflows.ts`), debits the issuer for every outstanding unit
+including the float, and settles face at `maturityTurn`. A private issuer that
+cannot cover the turn defaults atomically with zero flows (paper stamped
+`defaulted`, price 0.1, holdings frozen, trades already blocked); state-owned
+issuers are coupon-waived but never default (source: national corporations
+cannot be dissolved). `buybackCorporateBondUnits` retires float units at
+market price from issuer cash, closing a fully retired unheld series at par
+(source `buyback/route.ts`). Coupon/maturity flows are unrounded floats like
+the sovereign seam; only buyback rounds (whole-order 2dp). Repeated servicing
+at the same turn is idempotent (`lastCouponTurn` stamp plus
+matured/defaulted guards). Restructure, refinance, dissolution, credit-rating
+pricing, and any further phase reordering stay out (#309).
+Focused evidence: `packages/engine/src/bonds/corporateBondServicing.test.ts`.
+
 ## Validation boundary
 
 The genuine elected 1953 US save contains `bond-60-US` with 1000 face value,
