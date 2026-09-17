@@ -18,8 +18,8 @@ function GroupList({ groups, empty }: { groups: StoredPollView["topGroups"]; emp
   return (
     <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.3rem" }}>
       {groups.map((group) => (
-        <li key={group.id} style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", fontSize: "0.78rem" }}>
-          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+        <li key={group.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "0.5rem", fontSize: "0.78rem", minWidth: 0 }}>
+          <span style={{ flex: "1 1 auto", minWidth: 0, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
             {group.name}
             <span className="ahd-muted"> · appeal {group.appeal} · turnout {group.turnoutPct}%</span>
             {group.estimatedSharePct !== undefined ? (
