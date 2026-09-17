@@ -624,7 +624,7 @@ export function CharacterCreationScreen({
 
   return (
     <div className="ahd-screen">
-      <div className="ahd-container" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "2rem", maxWidth: "42rem" }}>
+      <div className="ahd-container" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "max(2rem, env(safe-area-inset-bottom))", maxWidth: "42rem" }}>
         <RouteHero image="/static/heroes/politicians.webp" alt="Politicians meeting in a national chamber" eyebrow="New candidate" title="Create your politician" className="ahd-creation-hero">
           <p className="ahd-muted" style={{ fontSize: "0.84rem", marginTop: "0.3rem", lineHeight: 1.5 }}>
             {selection.countryName}. Your choices are persisted and weighed by later primaries and

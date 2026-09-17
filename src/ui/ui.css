@@ -237,13 +237,13 @@ html, body { overflow-x: hidden; }
 @media (min-width: 1024px) {
   .ahd-main {
     max-width: 80rem;
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
+    padding-left: max(1.5rem, env(safe-area-inset-left));
+    padding-right: max(1.5rem, env(safe-area-inset-right));
   }
   .ahd-footer-inner {
     max-width: 80rem;
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
+    padding-left: max(1.5rem, env(safe-area-inset-left));
+    padding-right: max(1.5rem, env(safe-area-inset-right));
   }
 }
 .ahd-stack { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; }
@@ -307,6 +307,9 @@ html, body { overflow-x: hidden; }
   outline: none;
 }
 .ahd-input:focus, .ahd-select:focus { border-color: var(--ahd-primary); box-shadow: 0 0 0 1px var(--ahd-primary); }
+/* MP mail compose fields carry no .ahd-input class (behavior unchanged), so
+   the 16px iOS anti-zoom floor is pinned here too (#436 keyboard). */
+.ahd-mp-input input, .ahd-mp-input textarea { font-size: 16px; }
 .ahd-input:focus-visible, .ahd-select:focus-visible { border-color: var(--ahd-primary); box-shadow: var(--ahd-focus); }
 .ahd-input:disabled, .ahd-select:disabled { opacity: 0.6; }
 .ahd-error-text { color: var(--ahd-error); font-size: 0.76rem; }
@@ -853,7 +856,7 @@ html, body { overflow-x: hidden; }
 .ahd-landing-layout {
   max-width: 42rem;
   padding-top: max(0.9rem, env(safe-area-inset-top));
-  padding-bottom: 1.5rem;
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
@@ -1135,7 +1138,7 @@ html, body { overflow-x: hidden; }
    the fixed phone sheet above keeps its own rules for single-pane. */
 .ahd-screen[data-dual-pane="dual"] .ahd-drawer-docked {
   position: sticky; top: 0; left: auto; bottom: auto; z-index: 5;
-  width: auto; max-width: none; max-height: 100dvh; overflow-y: auto;
+  width: auto; max-width: none; max-height: 100vh; max-height: 100dvh; overflow-y: auto;
   animation: none; box-shadow: none;
   border: 1px solid var(--ahd-border); border-radius: var(--ahd-radius);
 }
