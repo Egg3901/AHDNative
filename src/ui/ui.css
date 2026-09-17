@@ -379,6 +379,13 @@ html, body { overflow-x: hidden; }
 }
 .ahd-pill { display:inline-flex; padding:0.14rem 0.4rem; border-radius:999px; font-size:0.68rem; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; }
 
+/* Notification inbox rows: a long title is the flex item that must shrink,
+   or it forces the row (and its Delete action) past a 320px viewport. The
+   unread dot keeps flexShrink 0 in markup; unconstrained desktop widths
+   render identically because wrapping only engages under constraint. */
+.ahd-notification-title { min-width: 0; }
+.ahd-notification-title-text { min-width: 0; overflow-wrap: anywhere; }
+
 /* Party identity mark (#244). Image path mirrors the reference PartyLogo;
    initials/color fallback is deterministic from the DTO identity. Shrinks
    (never grows) so it cannot push content into horizontal overflow. */

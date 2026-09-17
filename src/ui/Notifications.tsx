@@ -257,9 +257,9 @@ export function NotificationsInbox({ items, turn, busy, onRead, onDelete, onRead
           <span className="ahd-muted" style={{ fontSize: "0.66rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
             {categoryLabel(item)} · {formatGameDate(item.date, clock)}
           </span>
-          <span style={{ display: "flex", gap: "0.4rem", alignItems: "center", fontWeight: item.unread ? 750 : 500, fontSize: "0.84rem" }}>
+          <span className="ahd-notification-title" style={{ display: "flex", gap: "0.4rem", alignItems: "center", minWidth: 0, fontWeight: item.unread ? 750 : 500, fontSize: "0.84rem" }}>
             {item.unread ? <span style={{ width: "0.45rem", height: "0.45rem", borderRadius: 999, background: "var(--ahd-primary)", flexShrink: 0 }} aria-label="Unread" /> : null}
-            {item.title}
+            <span className="ahd-notification-title-text">{item.title}</span>
           </span>
           {item.unread && item.actionRequired ? <ActionMarker /> : null}
         </button>
