@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createWorld, serializeSave } from "@ahdclient/engine";
+import { createWorld, ensureScotusSeats, serializeSave } from "@ahdclient/engine";
 import { GameSession } from "./session";
-import { projectNominationList } from "./nominations";
+import { projectNominationList, projectScotusSponsor } from "./nominations";
 
 const HOS_US = { era: "1953", countryId: "US", seed: "nom-tdd-1", playerName: "President", mode: "hos" } as const;
 const CAREER_US = { era: "1953", countryId: "US", seed: "nom-tdd-1", playerName: "Alex" } as const;
@@ -97,11 +97,183 @@ describe("nomination projection and session commands (#273 bounded slice)", () =
     expect(resolved.tally.for + resolved.tally.against + resolved.tally.abstain).toBeGreaterThan(0);
   });
 
-  it("keeps SCOTUS sponsorship honestly unavailable without #270", () => {
+  it("keeps SCOTUS sponsorship unavailable to a non-President", () => {
     const session = new GameSession();
     session.create({ ...CAREER_US });
     const sponsor = session.view().legislature.scotusSponsor;
     expect(sponsor?.available).toBe(false);
-    expect(sponsor?.disabledReason).toMatch(/#270/);
+    expect(sponsor?.disabledReason).toBe("Only the President of this country can propose Supreme Court nominations");
+  });
+
+  it("projects a vacant SCOTUS seat with nominee options for the President", () => {
+    const world = createWorld({ ...HOS_US });
+    ensureScotusSeats(world);
+    const seat = world.supremeCourtSeats.find((candidate) => candidate.countryId === "US")!;
+    Object.assign(seat, {
+      justiceMode: null, justiceId: null, justiceName: null, justiceParty: null,
+      economicLean: null, socialLean: null, seatedAtTurn: null, divergentHazardStartsTurn: null,
+    });
+    const sponsor = projectScotusSponsor(world, "US");
+    expect(sponsor.available).toBe(true);
+    const option = sponsor.seats.find((entry) => entry.seatNumber === seat.seatNumber)!;
+    expect(option).toMatchObject({ vacant: true, hasActiveNomination: false, available: true });
+    expect(sponsor.nominees.length).toBeGreaterThan(0);
+  });
+
+  it("sponsors a SCOTUS nomination through the session and keeps it across save/reload", () => {
+    const world = createWorld({ ...HOS_US });
+    ensureScotusSeats(world);
+    const seat = world.supremeCourtSeats.find((candidate) => candidate.countryId === "US")!;
+    Object.assign(seat, {
+      justiceMode: null, justiceId: null, justiceName: null, justiceParty: null,
+      economicLean: null, socialLean: null, seatedAtTurn: null, divergentHazardStartsTurn: null,
+    });
+    const nominee = world.politicians.find((p) => p.countryId === "US")!;
+    const session = new GameSession();
+    session.load(serializeSave(world, SAVED_AT));
+    const result = session.act("sponsorScotusNomination", {
+      countryId: "US",
+      seatNumber: seat.seatNumber,
+      nomineeId: nominee.id,
+    });
+    expect(result.ok).toBe(true);
+    const nominations = session.view().legislature.nominations ?? [];
+    const pending = nominations.find((entry) => entry.kind === "scotus")!;
+    expect(pending).toMatchObject({
+      kind: "scotus",
+      seatNumber: seat.seatNumber,
+      status: "active",
+      chamber: "senate",
+      playerVote: null,
+    });
+    expect(session.nomination(pending.id)).toMatchObject({ id: pending.id, status: "active" });
+    const reloaded = new GameSession();
+    reloaded.load(session.serialize(SAVED_AT));
+    expect(reloaded.nomination(pending.id)).toMatchObject({ status: "active", seatNumber: seat.seatNumber });
+  });
+
+  it("refuses SCOTUS sponsorship with the engine's exact reasons and unchanged state", () => {
+    const world = createWorld({ ...HOS_US });
+    ensureScotusSeats(world);
+    const nominee = world.politicians.find((p) => p.countryId === "US")!;
+    const session = new GameSession();
+    session.load(serializeSave(world, SAVED_AT));
+    const occupied = world.supremeCourtSeats.find((candidate) => candidate.countryId === "US")!;
+    const before = session.serialize(SAVED_AT);
+    const refused = session.act("sponsorScotusNomination", {
+      countryId: "US",
+      seatNumber: occupied.seatNumber,
+      nomineeId: nominee.id,
+    });
+    expect(refused.ok).toBe(false);
+    if (refused.ok === false) expect(refused.error).toBe("Seat is not vacant");
+    expect(session.serialize(SAVED_AT)).toBe(before);
+  });
+
+  it("refuses SCOTUS sponsorship for a non-President with unchanged state", () => {
+    const world = createWorld({ ...HOS_US });
+    ensureScotusSeats(world);
+    const seat = world.supremeCourtSeats.find((candidate) => candidate.countryId === "US")!;
+    Object.assign(seat, {
+      justiceMode: null, justiceId: null, justiceName: null, justiceParty: null,
+      economicLean: null, socialLean: null, seatedAtTurn: null, divergentHazardStartsTurn: null,
+    });
+    const nominee = world.politicians.find((p) => p.countryId === "US")!;
+    world.executives.US!.presidentId = "US-1";
+    const session = new GameSession();
+    session.load(serializeSave(world, SAVED_AT));
+    const before = session.serialize(SAVED_AT);
+    const refused = session.act("sponsorScotusNomination", {
+      countryId: "US",
+      seatNumber: seat.seatNumber,
+      nomineeId: nominee.id,
+    });
+    expect(refused.ok).toBe(false);
+    if (refused.ok === false) {
+      expect(refused.error).toBe("Only the President of this country can propose Supreme Court nominations");
+    }
+    expect(session.serialize(SAVED_AT)).toBe(before);
+  });
+
+  it("refuses a duplicate SCOTUS nomination for the same seat with unchanged state", () => {
+    const world = createWorld({ ...HOS_US });
+    ensureScotusSeats(world);
+    const seat = world.supremeCourtSeats.find((candidate) => candidate.countryId === "US")!;
+    Object.assign(seat, {
+      justiceMode: null, justiceId: null, justiceName: null, justiceParty: null,
+      economicLean: null, socialLean: null, seatedAtTurn: null, divergentHazardStartsTurn: null,
+    });
+    const politicians = world.politicians.filter((p) => p.countryId === "US");
+    const session = new GameSession();
+    session.load(serializeSave(world, SAVED_AT));
+    expect(session.act("sponsorScotusNomination", {
+      countryId: "US",
+      seatNumber: seat.seatNumber,
+      nomineeId: politicians[0]!.id,
+    }).ok).toBe(true);
+    const before = session.serialize(SAVED_AT);
+    const refused = session.act("sponsorScotusNomination", {
+      countryId: "US",
+      seatNumber: seat.seatNumber,
+      nomineeId: politicians[1]!.id,
+    });
+    expect(refused.ok).toBe(false);
+    if (refused.ok === false) expect(refused.error).toBe("An active nomination for this seat already exists");
+    expect(session.serialize(SAVED_AT)).toBe(before);
+  });
+
+  it("refuses a SCOTUS nominee from another country with unchanged state", () => {
+    const world = createWorld({ ...HOS_US });
+    ensureScotusSeats(world);
+    const seat = world.supremeCourtSeats.find((candidate) => candidate.countryId === "US")!;
+    Object.assign(seat, {
+      justiceMode: null, justiceId: null, justiceName: null, justiceParty: null,
+      economicLean: null, socialLean: null, seatedAtTurn: null, divergentHazardStartsTurn: null,
+    });
+    const foreign = world.politicians.find((p) => p.countryId !== "US")!;
+    const session = new GameSession();
+    session.load(serializeSave(world, SAVED_AT));
+    const before = session.serialize(SAVED_AT);
+    const refused = session.act("sponsorScotusNomination", {
+      countryId: "US",
+      seatNumber: seat.seatNumber,
+      nomineeId: foreign.id,
+    });
+    expect(refused.ok).toBe(false);
+    if (refused.ok === false) expect(refused.error).toBe("Nominee not from US");
+    expect(session.serialize(SAVED_AT)).toBe(before);
+  });
+
+  it("seats a confirmed SCOTUS justice in the targeted seat through turn advancement", () => {
+    const world = createWorld({ ...HOS_US });
+    ensureScotusSeats(world);
+    const seat = world.supremeCourtSeats.find((candidate) => candidate.countryId === "US")!;
+    Object.assign(seat, {
+      justiceMode: null, justiceId: null, justiceName: null, justiceParty: null,
+      economicLean: null, socialLean: null, seatedAtTurn: null, divergentHazardStartsTurn: null,
+    });
+    world.player.legislativeSeat = { countryId: "US", chamberKey: "senate" };
+    const nominee = world.politicians.find((p) => p.countryId === "US" && p.partyId === "US_REP")!;
+    const session = new GameSession();
+    session.load(serializeSave(world, SAVED_AT));
+    expect(session.act("sponsorScotusNomination", {
+      countryId: "US",
+      seatNumber: seat.seatNumber,
+      nomineeId: nominee.id,
+    }).ok).toBe(true);
+    const pending = session.view().legislature.nominations!.find((entry) => entry.kind === "scotus")!;
+    expect(pending.votingEndsOnTurn).toBeGreaterThan(session.view().turn);
+    expect(session.act("voteScotusNomination", { nominationId: pending.id, vote: "for" }).ok).toBe(true);
+    const deadline = session.nomination(pending.id)!.votingEndsOnTurn;
+    for (let turn = session.view().turn; turn < deadline; turn += 1) session.advance();
+    const resolved = session.nomination(pending.id)!;
+    expect(resolved.status).toBe("confirmed");
+    expect(resolved).toMatchObject({ seatNumber: seat.seatNumber, chamber: "senate" });
+    const targeted = session.view().legislature.scotusSponsor!.seats
+      .find((entry) => entry.seatNumber === seat.seatNumber)!;
+    expect(targeted).toMatchObject({ vacant: false, hasActiveNomination: false, available: false });
+    const reloaded = new GameSession();
+    reloaded.load(session.serialize(SAVED_AT));
+    expect(reloaded.nomination(pending.id)).toMatchObject({ status: "confirmed", seatNumber: seat.seatNumber });
   });
 });

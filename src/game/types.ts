@@ -182,7 +182,7 @@ export interface LegislatureView {
   nominations?: NominationView[];
   /** Cabinet sponsorship surface for the appointing executive. */
   cabinetSponsor?: CabinetSponsorView;
-  /** SCOTUS sponsorship stays unavailable until #270. */
+  /** SCOTUS sponsorship surface for the appointing executive (#270). */
   scotusSponsor?: ScotusSponsorView;
 }
 /** One recorded player-wealth point from WorldState.history.playerWealth, oldest first. */
