@@ -1750,3 +1750,55 @@ ported; prime/APY rates omitted (no Native DTO); no physical-device run.
 - #320 stays open: drive crediting and organize commands land with #322,
   atomic payout ledger with #321, bargaining/strikes/phase timing with
   #322/#323; per-sector wage/unionization tables remain a documented gap.
+
+## Union organizer payout checkpoint, 2026-09-17 (#321 partial)
+
+- The union turn now pays the requested contribution to organizers atomically
+  (`applyUnionContributionPayouts` in
+  `packages/engine/src/unions/contributions.ts`): the pinned
+  `distributePoliticalContributions` split over `eligibleOrganizerShares`
+  filtered to resolvable recipients, so the treasury debit equals exactly
+  what real recipients are credited; stale organizer pointers are skipped,
+  never paid and never debited (issue #321 mandates debit-only-credited,
+  where the reference would still debit a ghost payout while its character
+  write matches nothing). Each payout credits the single local
+  campaign-funds balance (`Politician.funds`, or `player.funds` for the
+  reserved `"player"` organizer; Native has no forex-split campaign wallet)
+  and appends one `union_contribution` ledger row shaped like the reference
+  `financialTxLog` entry (`type`/`subjectType`/`subjectId`/`subjectName` with
+  the reference `"Unknown"` fallback, `amount`, union-country currency from
+  the verbatim `COUNTRY_CURRENCY_MAP` with USD fallback,
+  `counterpartyType: "system"`, `meta.source: "union_pac"`), with
+  deterministic `${unionId}:${turn}:${recipientId}` ids doubling as
+  idempotency keys: a same-union same-turn re-apply throws without touching
+  state. Validation runs before any write and a snapshot restores treasury,
+  recipients, ledger rows, and ledger presence together, so failed calls
+  leave absent ledgers absent and save bytes untouched.
+- Save shape stays additive with no version renumber:
+  `unionContributionLedger` is optional with absent-means-empty, load
+  validates without materializing, and present-but-invalid rows fail closed
+  at the save boundary. No bargaining, strikes, or #322/#323 behavior.
+- Focused evidence: `contributions.test.ts` (16: weighted split with
+  debit==credits==ledger conservation, fractional-split absorption with
+  cents treasury, recipient-id ordering, ineligible/stale skip without
+  debit, no-organizer surplus retention, suspension freeze, zero-rate and
+  zero-flow silence, player credit and `"Unknown"` naming, union-currency
+  rows with full verbatim currency table, same-turn duplicate rejection
+  with untouched state plus clean next-turn pay, 7-way invalid-recipient
+  rollback, per-turn accumulation, save round-trip with absent-defaults,
+  9-way corrupt-ledger refusal, absent-ledger failure silence) plus the
+  re-fixtured #320 split test on real politician ids, with unchanged
+  `organizers.test.ts` (9), `sectorAggregation.test.ts` (7) and
+  `unions.sim.test.ts` (28, incl. the mid-campaign round-trip), 60 total
+  green. Adversarial review against pinned AHDGame `e364c04`
+  (`turn/unions/index.ts` payout leg, `unionPoliticalContributions.ts`,
+  `COUNTRY_CURRENCY_MAP`, `financialTxLog` row shape) found and fixed two
+  defects red-first: 11 missing currency codes (HU/PL/RO/YU/BG/BLR/UKR/CS/
+  BAL/SCO/WAL fell back to USD) and ledger materialization on failed
+  validation. The v42 projection goldens still fail, byte-identical on
+  clean main and on this branch, so that is a pre-existing failure, not a
+  branch regression; no full typecheck, verify, or build per scope, queued
+  with the supervisor.
+- #321 stays open: every acceptance bullet has focused proof above, but the
+  shared-scheduler full validation (typecheck/verify) is still owed and the
+  merge decision sits with the supervisor.
