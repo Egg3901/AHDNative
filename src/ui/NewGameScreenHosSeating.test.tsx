@@ -7,9 +7,9 @@ import type { EraChoice } from "../game/types";
 type SetupCountry = EraChoice["countries"][number] & { regions: { id: string; name: string }[] };
 type SetupEra = Omit<EraChoice, "countries"> & { countries: SetupCountry[] };
 
-const REP = { id: "US_REP", name: "Republican Party", abbreviation: "REP", logoUrl: null as string | null };
-const LAB = { id: "UK_LAB", name: "Labour Party", abbreviation: "LAB", logoUrl: null as string | null };
-const SED = { id: "DD_SED", name: "Socialist Unity Party", abbreviation: "SED", logoUrl: null as string | null };
+const REP = { id: "US_REP", name: "Republican Party", abbreviation: "REP", color: "#EF4444", logoUrl: null as string | null };
+const LAB = { id: "UK_LAB", name: "Labour Party", abbreviation: "LAB", color: "#DC241F", logoUrl: null as string | null };
+const SED = { id: "DD_SED", name: "Socialist Unity Party", abbreviation: "SED", color: "#C00000", logoUrl: null as string | null };
 
 // Country ids are real registry keys covering all three systems (US
 // presidential, UK parliamentary monarchy, DD one-party state) so the notice
