@@ -542,6 +542,17 @@ html, body { overflow-x: hidden; }
   display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.2rem;
   min-width: 0;
 }
+/* Large dynamic text on 320-class phones: six 44px-minimum cells no longer
+   fit one row, so values fragment mid-number and the notification bell hangs
+   past its track instead of reflowing. Two rows of three keep every target
+   at 44px with values and the bell fully inside the footer; clearance follows
+   the measured footer height, so default-size, wider, and desktop layouts are
+   untouched. */
+@media (max-width: 360px) {
+  :root[data-text-size="large"] .ahd-status-resources {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 /* Reference status-bar "Profile" caption (#223): desktop-only in the
    reference (`hidden sm:inline`), so it stays display:none on phones and
    captions the resource grid's full row at the same sm breakpoint. The
