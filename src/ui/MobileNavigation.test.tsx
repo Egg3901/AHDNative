@@ -499,4 +499,37 @@ describe("MobileNavigation", () => {
     expect(css).toMatch(/\.ahd-drawer-item[^{]*\{[^}]*min-height:\s*44px/);
     expect(drawerRouteIds()).toHaveLength(32);
   });
+
+  it("truncates long/localized bottom-nav labels in place at 320px without losing routes", () => {
+    const css = readFileSync("src/ui/ui.css", "utf8");
+    const ref = createRef<HTMLButtonElement | null>();
+    render(
+      <BottomNav route="profile" menuOpen={false} menuButtonRef={ref} onNavigate={vi.fn()} onOpenMenu={vi.fn()} />,
+    );
+    // Every primary route stays reachable under its stable accessible name;
+    // the visible label rides in a span beside the icon.
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    expect(within(nav).getAllByRole("button")).toHaveLength(4);
+    for (const label of ["Profile", "Actions", "Ask", "Menu"]) {
+      const button = screen.getByRole("button", { name: label });
+      expect(within(button).getByText(label).tagName).toBe("SPAN");
+    }
+    // CSS contract: each column may shrink to its 1fr share (item min-width
+    // 0) while the label truncates in place, so a long localized string or
+    // large text cannot push neighbouring columns out at 320/390px.
+    const spanRule = css.match(/\.ahd-bottomnav-item\s*>\s*span\s*\{([^}]*)\}/);
+    expect(spanRule).not.toBeNull();
+    const spanBody = spanRule![1]!;
+    expect(spanBody).toMatch(/white-space:\s*nowrap/);
+    expect(spanBody).toMatch(/max-width:\s*100%/);
+    expect(spanBody).toMatch(/overflow:\s*hidden/);
+    expect(spanBody).toMatch(/text-overflow:\s*ellipsis/);
+    expect(css).toMatch(/\.ahd-bottomnav-item\s*\{[^}]*min-width:\s*0/);
+    // Geometry and desktop behavior preserved: four columns, 56px targets,
+    // no wrapping and no fixed widths, so truncation only engages under
+    // constraint and wide viewports render identically.
+    expect(css).toMatch(/\.ahd-bottomnav[^{]*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
+    expect(css).toMatch(/\.ahd-bottomnav-item[^{]*\{[^}]*min-height:\s*56px/);
+    expect(spanBody).not.toMatch(/\s(?:width|min-width)\s*:/);
+  });
 });
