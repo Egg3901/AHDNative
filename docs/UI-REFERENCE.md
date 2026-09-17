@@ -349,7 +349,9 @@ CSS was needed. Focused tests: `src/ui/CommodityHeroImagery.test.tsx`
 corrected alts, fallback accessible name, local webp container bytes,
 rendered local decode, error fallback, crop CSS) and
 `src/ui/MarketsPanel.test.tsx` (company-detail hero for a bundled sector and
-the Actions fallback with the fallback accessible name).
+the Actions fallback with the fallback accessible name; superseded by the
+company layer below, which now covers the hero, the media alias, and the
+defense fallback).
 
 SHA-256 provenance (left) and upstream Commons rights (right):
 
@@ -367,6 +369,36 @@ SHA-256 provenance (left) and upstream Commons rights (right):
 - `commodity-retail.webp` `28c1ac96456d2f4cbd8a1a9fe9317705709c7cc47bdaa436906dc3491654832b` - File:Macys dep store.JPG, CC BY 3.0 (Mike Strand)
 - `commodity-freight.webp` `1e2069e615d4144df1dde2d5f862ce821e356401d9115e7def9e61447e04bd9f` - File:Maersk container ship 002.JPG, CC BY-SA 3.0 (Yennen-Gas)
 - `commodity-consulting-services.webp` `23f8a6ee7030709e1e22f464cb699b4bf0051b044936d1f22e876097934a944d` - File:Booz Allen Hamilton in Washington D.C..jpg, CC BY 2.0 (Tony Webster, via Flickr)
+
+### Company hero layer and market list band (#378)
+
+Zero new binary bytes. Native company listings carry engine corporation
+sector types (17 `CORPORATION_TYPES`), while the bundled offline set is keyed
+by reference commodity types; only `energy` and `retail` collide, so the
+company detail hero showed generic Actions art on 15 of 17 reachable sectors.
+`COMPANY_SECTOR_COMMODITY` (`src/ui/RouteHero.tsx`) maps 13 sectors to the
+already-bundled commodity file depicting that industry (exact pairs such as
+`financial` to financial-services and `chemical_industries` to chemicals;
+depiction pairs such as `manufacturing` to the steel works, `media` and
+`entertainment` to the Times Square night scene, `healthcare` to blister
+packs, `technology` to the TSMC fab, `agriculture` to the harvester,
+`construction` to the building-materials site, `automobiles` to the assembly
+line, `logistics` to the container ship). `companyHero()` layers the alias
+over `commodityHero()` and `companyHeroAlt()` reuses the aliased commodity
+alt verbatim (it describes the same bytes), with the nonempty
+`COMPANY_HERO_FALLBACK_ALT` ("Company hero image") for the four sectors with
+no bundled depiction (defense, extraction, real_estate, telecommunications)
+plus unknown keys. Exact-key lookup, no case folding or trimming, never a
+remote URL. The stock-market list, which rendered with no hero band, reuses
+the bundled NYSE financial-services art through `RouteHero`
+(`MARKETS_LIST_HERO_IMAGE`) with the cash and phase lines as inherited-white
+children at 0.85 opacity, mirroring NationPanel. No new rights attach: every
+file was cleared in the commodity slice above. Focused tests:
+`src/ui/CompanyHeroArt.test.tsx` (17-sector coverage table, layered
+fallback, raw commodity keys, total alt, rendered decode, error fallback,
+list band, bundle-size bound pinning 25 files under 6 MB total and 1.5 MB
+per file) and `src/ui/MarketsPanel.test.tsx` (company hero, media alias,
+defense fallback).
 
 Explicitly not bundled: the other 14 reference commodity slugs have no local
 file upstream (remote-only; the offline app cannot fetch them). The 11

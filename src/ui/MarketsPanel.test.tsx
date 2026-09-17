@@ -10,7 +10,7 @@ import {
   type MarketsView,
   type SectorSummary,
 } from "../game/markets";
-import { COMMODITY_HERO_FALLBACK_ALT, commodityHeroAlt } from "./RouteHero";
+import { COMPANY_HERO_FALLBACK_ALT, companyHeroAlt } from "./RouteHero";
 
 function makeListing(overrides: Partial<MarketListing> = {}): MarketListing {
   return {
@@ -900,7 +900,7 @@ describe("MarketsPanel trend charts", () => {
 });
 
 describe("MarketsPanel company hero (#378)", () => {
-  it("renders the bundled commodity hero for a reachable sector with a nonempty exact-key alt", async () => {
+  it("renders the bundled company hero for a reachable sector with a nonempty exact-key alt", async () => {
     const MarketsPanel = await loadPanel();
     const user = userEvent.setup();
     const energy = makeListing({
@@ -912,22 +912,43 @@ describe("MarketsPanel company hero (#378)", () => {
     });
     render(<MarketsPanel markets={makeMarkets({ listings: [energy] })} busy={false} onAction={vi.fn()} />);
     await user.click(screen.getByRole("button", { name: /US\.ENRG US-energy/i }));
-    // Reachable bundled art: the energy sector keys the offline set.
-    const hero = screen.getByRole("img", { name: commodityHeroAlt("energy") });
+    // Reachable bundled art: the energy sector keys the offline company set.
+    const hero = screen.getByRole("img", { name: companyHeroAlt("energy") });
     expect(hero.getAttribute("src")).toBe("/static/heroes/commodity-energy.webp");
-    expect(commodityHeroAlt("energy").length).toBeGreaterThan(0);
+    expect(companyHeroAlt("energy").length).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { name: "US-energy" })).toBeInTheDocument();
   });
 
-  it("falls back to Actions art with the fallback accessible name outside the bundled set", async () => {
+  it("renders the aliased company hero for a sector outside the commodity keys", async () => {
     const MarketsPanel = await loadPanel();
     const user = userEvent.setup();
     render(<MarketsPanel markets={makeMarkets()} busy={false} onAction={vi.fn()} />);
     await user.click(screen.getByRole("button", { name: /US\.MEDI US-media/i }));
-    // Native sector "media" has no commodity key: fallback art, never a broken image.
-    const hero = screen.getByRole("img", { name: COMMODITY_HERO_FALLBACK_ALT });
-    expect(hero.getAttribute("src")).toBe("/static/heroes/actions.webp");
-    expect(COMMODITY_HERO_FALLBACK_ALT.length).toBeGreaterThan(0);
+    // Engine sector "media" aliases to the bundled advertising art, no longer
+    // the generic Actions fallback.
+    const hero = screen.getByRole("img", { name: companyHeroAlt("media") });
+    expect(hero.getAttribute("src")).toBe("/static/heroes/commodity-advertising.webp");
+    expect(companyHeroAlt("media").length).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { name: "US-media" })).toBeInTheDocument();
+  });
+
+  it("falls back to Actions art with the fallback accessible name outside the company set", async () => {
+    const MarketsPanel = await loadPanel();
+    const user = userEvent.setup();
+    const defense = makeListing({
+      id: "US-defense",
+      ticker: "US.DEFN",
+      name: "US-defense",
+      sectorType: "defense",
+      sectorLabel: "defense",
+    });
+    render(<MarketsPanel markets={makeMarkets({ listings: [defense] })} busy={false} onAction={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: /US\.DEFN US-defense/i }));
+    // Engine sector "defense" has no bundled depiction: fallback art, never a
+    // broken image.
+    const hero = screen.getByRole("img", { name: COMPANY_HERO_FALLBACK_ALT });
+    expect(hero.getAttribute("src")).toBe("/static/heroes/actions.webp");
+    expect(COMPANY_HERO_FALLBACK_ALT.length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "US-defense" })).toBeInTheDocument();
   });
 });

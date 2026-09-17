@@ -16,7 +16,7 @@ import {
   parseShareCount,
 } from "../game/shareTrade";
 import { SECTOR_BUY_ALREADY_OWNED, SECTOR_LIST_OWNER_ONLY, evaluateSectorBuy, parseSalePrice } from "../game/markets";
-import { commodityHero, commodityHeroAlt, RouteHero } from "./RouteHero";
+import { COMMODITY_HERO_ALT, MARKETS_LIST_HERO_IMAGE, RouteHero, companyHero, companyHeroAlt } from "./RouteHero";
 import type { MarketListing, MarketsView, SectorSummary, ShareholderKind } from "../game/markets";
 import type { GameScreenProps } from "../game/types";
 import { formatFinanceMoney } from "./FinancePanel";
@@ -679,16 +679,17 @@ function CompanyDetail({
       </div>
 
       {/*
-        Company hero (#378): the listing's recorded sectorType keys the
-        offline commodity set via `commodityHero()`; Native sector types
-        outside that set (e.g. media, manufacturing) fall back to the
+        Company hero (#378): the listing's recorded engine sectorType keys
+        the offline company set via `companyHero()` (corporation sector to
+        bundled commodity art); sectors with no bundled depiction (defense,
+        extraction, real_estate, telecommunications) fall back to the
         Actions artwork with the fallback accessible name, never a broken
         image. No new route or mechanic: key, label and art all come from
         the existing listing and the bundled set.
       */}
       <RouteHero
-        image={commodityHero(listing.sectorType)}
-        alt={commodityHeroAlt(listing.sectorType)}
+        image={companyHero(listing.sectorType)}
+        alt={companyHeroAlt(listing.sectorType)}
         eyebrow={listing.sectorLabel}
         title={listing.name}
       />
@@ -1121,22 +1122,33 @@ export function MarketsPanel({ markets, busy, onAction, onSectorSale, initialId 
 
   return (
     <div className="ahd-stack">
-      <div className="ahd-card ahd-card-pad ahd-hero">
-        <h2 className="ahd-h2">Stock market</h2>
-        <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.35rem 0 0" }}>
+      {/*
+        Stock-market list band (#378): the list previously rendered with no
+        hero band. The reference ships no dedicated markets hero, so the band
+        reuses the bundled NYSE financial-services art through `RouteHero`
+        (reference image-error gradient fallback). Cash and phase lines ride
+        as hero children in inherited white at 0.85 opacity, mirroring
+        NationPanel, so contrast never depends on the muted card palette.
+      */}
+      <RouteHero
+        image={MARKETS_LIST_HERO_IMAGE}
+        alt={COMMODITY_HERO_ALT["financial_services"]}
+        title="Stock market"
+      >
+        <p style={{ fontSize: "0.76rem", margin: "0.35rem 0 0", opacity: 0.85 }}>
           {markets.listings.length} listed companies. Cash {formatFinanceMoney(markets.playerCash, markets.playerCurrency)}.
         </p>
         {!markets.marketsPhaseEnabled ? (
-          <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: "0.35rem 0 0" }}>
+          <p style={{ fontSize: "0.74rem", margin: "0.35rem 0 0", opacity: 0.85 }}>
             Share prices are not updating this game.
           </p>
         ) : null}
         {!markets.economyPhaseEnabled ? (
-          <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: "0.35rem 0 0" }}>
+          <p style={{ fontSize: "0.74rem", margin: "0.35rem 0 0", opacity: 0.85 }}>
             The economy is not updating this game.
           </p>
         ) : null}
-      </div>
+      </RouteHero>
 
       {markets.listings.length === 0 ? (
         <div className="ahd-empty">No listed corporations.</div>
