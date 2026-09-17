@@ -74,6 +74,7 @@ describe("MobileNavigation", () => {
     const onNavigate = vi.fn();
     const onAdvanceTurn = vi.fn();
     const onSave = vi.fn();
+    const onExit = vi.fn();
     const onClose = vi.fn();
     const { container } = render(
       <GameDrawer
@@ -89,7 +90,7 @@ describe("MobileNavigation", () => {
         onNavigate={onNavigate}
         onAdvanceTurn={onAdvanceTurn}
         onSave={onSave}
-        onExit={vi.fn()}
+        onExit={onExit}
         onClose={onClose}
       />,
     );
@@ -126,6 +127,9 @@ describe("MobileNavigation", () => {
     expect(onClose).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Save game" }));
     expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Exit game" }));
+    expect(onExit).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Bills and proposals" }));
     expect(onNavigate).toHaveBeenCalledWith("legislationDetails");
@@ -364,6 +368,29 @@ describe("MobileNavigation", () => {
     expect(css).toMatch(/\.ahd-drawer-backdrop\s*\{[^}]*position:\s*fixed;\s*inset:\s*0/);
     expect(css).toMatch(/@media\s*\(max-width:\s*390px\)[\s\S]*?\.ahd-drawer-nav\s*\{[^}]*gap:\s*0\.2rem/);
     expect(css).toMatch(/\.ahd-drawer\s*\{[^}]*width:\s*min\(19rem,\s*calc\(100vw - 3\.5rem\)\)/);
+  });
+
+  it("traps Tab focus inside the drawer until it closes (#366)", async () => {
+    const user = userEvent.setup();
+    render(
+      <GameDrawer
+        open route="profile" busy={false} playerName="Ada" playerParty="Labor"
+        countryName="United States" turn={1} date="1953-01-08" menuButtonRef={createRef()}
+        onNavigate={vi.fn()} onAdvanceTurn={vi.fn()} onSave={vi.fn()}
+        onExit={vi.fn()} onClose={vi.fn()}
+      />,
+    );
+    const drawer = screen.getByRole("dialog", { name: "Game menu" });
+    const controls = within(drawer).getAllByRole("button");
+    expect(controls.length).toBeGreaterThan(2);
+    const first = controls[0]!;
+    const last = controls[controls.length - 1]!;
+    last.focus();
+    await user.keyboard("{Tab}");
+    expect(document.activeElement).toBe(first);
+    first.focus();
+    await user.keyboard("{Shift>}{Tab}{/Shift}");
+    expect(document.activeElement).toBe(last);
   });
 
   it("drawer busy state disables turn actions", () => {
