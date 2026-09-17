@@ -235,7 +235,9 @@ describe("NationPanel", () => {
     await user.click(within(approval).getByText("Details"));
     expect(within(approval).getByText("Recession")).toBeInTheDocument();
     expect(within(approval).getByText("-4")).toBeInTheDocument();
-    expect(within(approval).getByText(/Turn 1/)).toBeInTheDocument();
+    // The chart above Details also names Turn 1, so scope to the registry record.
+    const registryDetails = within(approval).getByText("Details").closest("details")!;
+    expect(within(registryDetails as HTMLElement).getByText(/Turn 1/)).toBeInTheDocument();
 
     const inflation = screen.getByRole("article", { name: "Inflation" });
     await user.click(within(inflation).getByText("Details"));
@@ -405,5 +407,94 @@ describe("NationPanel", () => {
     expect(screen.getByText("Receipts")).toBeInTheDocument();
     expect(screen.getByText("Health / NHS")).toBeInTheDocument();
     expect(screen.getByText("National Insurance")).toBeInTheDocument();
+  });
+});
+
+describe("NationPanel approval history chart (#385)", () => {
+  it("charts recorded approval history with turns and an accessible data table", () => {
+    render(<NationPanel nation={makeNation()} section="metrics" clock={CLOCK} />);
+
+    const approval = screen.getByRole("article", { name: "Government approval" });
+    const img = within(approval).getByRole("img", { name: /government approval trend/i });
+    // Two recorded points produce two vertices and nothing invented.
+    expect(img.querySelector('polyline[data-series="approval"]')!.getAttribute("points")!.trim().split(/\s+/)).toHaveLength(2);
+    const table = within(approval).getByRole("table", { name: /government approval trend data/i });
+    expect(table).toHaveTextContent("Turn 0");
+    expect(table).toHaveTextContent("56.30%");
+    expect(table).toHaveTextContent("Turn 1");
+    expect(table).toHaveTextContent("54.80%");
+  });
+
+  it("keeps the honest unavailable state when no approval history is recorded", () => {
+    const nation = makeNation();
+    const governance = nation.metrics.categories.find((category) => category.id === "governance")!;
+    const empty = makeNation({
+      metrics: {
+        total: nation.metrics.total,
+        categories: nation.metrics.categories.map((category) =>
+          category.id === "governance"
+            ? {
+              ...category,
+              metrics: category.metrics.map((metric) =>
+                metric.id === "governance.approval" ? { ...metric, history: [] } : metric,
+              ),
+            }
+            : category,
+        ),
+      },
+    });
+    expect(governance.metrics.some((metric) => metric.id === "governance.approval")).toBe(true);
+    render(<NationPanel nation={empty} section="metrics" clock={CLOCK} />);
+
+    const approval = screen.getByRole("article", { name: "Government approval" });
+    expect(within(approval).getByText("No approval history recorded.")).toBeInTheDocument();
+    expect(within(approval).queryByRole("img")).toBeNull();
+  });
+
+  it("renders a single recorded point as a marker, never an invented line", () => {
+    const nation = makeNation({
+      metrics: {
+        total: 1,
+        categories: [
+          {
+            id: "governance",
+            label: "Governance",
+            metrics: [
+              {
+                id: "governance.approval",
+                category: "governance",
+                label: "Government approval",
+                value: 56.3,
+                format: "percent",
+                history: [{ turn: 0, value: 56.3 }],
+                modifiers: [],
+                links: [],
+              },
+            ],
+          },
+        ],
+      },
+    });
+    render(<NationPanel nation={nation} section="metrics" clock={CLOCK} />);
+
+    const approval = screen.getByRole("article", { name: "Government approval" });
+    const img = within(approval).getByRole("img", { name: /government approval trend/i });
+    expect(img.querySelector("polyline")).toBeNull();
+    expect(img.querySelector('circle[data-point="approval-0"]')).not.toBeNull();
+    expect(within(approval).getByText(/one recorded point/i)).toBeInTheDocument();
+  });
+
+  it("holds at 320px and 390px with touch-safe chart controls", () => {
+    render(<NationPanel nation={makeNation()} section="metrics" clock={CLOCK} />);
+
+    const approval = screen.getByRole("article", { name: "Government approval" });
+    // No fixed pixel width anywhere in the card, so narrow phones cannot overflow.
+    expect(approval.innerHTML).not.toMatch(/width:\s*\d+px/);
+    expect(approval.innerHTML).not.toMatch(/min-width:\s*\d+(px|rem)/);
+    expect(within(approval).getByRole("img", { name: /government approval trend/i })).toHaveAttribute("width", "100%");
+    // The chart data disclosure stays usable by touch.
+    const disclosure = within(approval).getByText("Chart data table");
+    expect(disclosure.tagName.toLowerCase()).toBe("summary");
+    expect((disclosure as HTMLElement).style.minHeight).toBe("44px");
   });
 });

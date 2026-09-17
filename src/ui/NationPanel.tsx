@@ -8,6 +8,7 @@ import type {
 } from "../game/nation";
 import { formatGameDate, type GameClock } from "../game/gameDate";
 import { RouteHero, nationOverviewHero } from "./RouteHero";
+import { TrendChart } from "./TrendChart";
 
 export interface NationPanelProps {
   nation: NationView;
@@ -142,6 +143,13 @@ function MetricCard({ metric, onNavigate }: { metric: NationMetricView; onNaviga
     ? null
     : `${trend > 0 ? "+" : ""}${metric.format === "percent" ? trend.toFixed(2) : trend.toFixed(1)}`
       + (metric.format === "percent" ? "pt" : "");
+  // Government approval is the one governance series the engine stamps per
+  // turn (countryPolitics approvalHistory, reference ApprovalChart on the
+  // national metrics page). It reads through the shared TrendChart so the
+  // movement is glanceable with an accessible data table; every other metric
+  // keeps the compact sparkline. National statistics stay on this national
+  // surface; Profile never shows them.
+  const isApprovalTrend = metric.id === "governance.approval";
   const sparkValues = history.map((point) => point.value);
   const sparkMin = sparkValues.length ? Math.min(...sparkValues) : 0;
   const sparkMax = sparkValues.length ? Math.max(...sparkValues) : 0;
@@ -168,7 +176,28 @@ function MetricCard({ metric, onNavigate }: { metric: NationMetricView; onNaviga
         </span>
       </div>
       <div className="ahd-muted" style={{ fontSize: "0.68rem", marginTop: "0.2rem" }}>{metric.id} · {metric.category}</div>
-      {history.length >= 2 ? (
+      {isApprovalTrend ? (
+        <div style={{ marginTop: "0.5rem" }}>
+          <TrendChart
+            id="governance-approval-trend"
+            title="Government approval trend"
+            emptyMessage="No approval history recorded."
+            refLines={[
+              { value: 50, label: "50%" },
+              { value: 40, label: "40%" },
+            ]}
+            series={[
+              {
+                id: "approval",
+                label: "Approval",
+                points: metric.history.map((point) => ({ turn: point.turn, value: point.value })),
+                format: (value) => pointsPercent(value, 2),
+              },
+            ]}
+          />
+        </div>
+      ) : null}
+      {!isApprovalTrend && history.length >= 2 ? (
         <div className="ahd-spark" aria-hidden="true">
           {history.map((point) => (
             <span
