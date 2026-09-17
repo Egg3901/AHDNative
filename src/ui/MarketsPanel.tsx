@@ -16,6 +16,7 @@ import {
   parseShareCount,
 } from "../game/shareTrade";
 import { SECTOR_ACQUIRE_UNAVAILABLE, SECTOR_LIST_OWNER_ONLY, parseSalePrice } from "../game/markets";
+import { commodityHero, commodityHeroAlt, RouteHero } from "./RouteHero";
 import type { MarketListing, MarketsView, SectorSummary, ShareholderKind } from "../game/markets";
 import type { GameScreenProps } from "../game/types";
 import { formatFinanceMoney } from "./FinancePanel";
@@ -620,6 +621,21 @@ function CompanyDetail({
           Back
         </button>
       </div>
+
+      {/*
+        Company hero (#378): the listing's recorded sectorType keys the
+        offline commodity set via `commodityHero()`; Native sector types
+        outside that set (e.g. media, manufacturing) fall back to the
+        Actions artwork with the fallback accessible name, never a broken
+        image. No new route or mechanic: key, label and art all come from
+        the existing listing and the bundled set.
+      */}
+      <RouteHero
+        image={commodityHero(listing.sectorType)}
+        alt={commodityHeroAlt(listing.sectorType)}
+        eyebrow={listing.sectorLabel}
+        title={listing.name}
+      />
 
       <div className="ahd-card ahd-card-pad">
         <h2 className="ahd-h2">Company</h2>

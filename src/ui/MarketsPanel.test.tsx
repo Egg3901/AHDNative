@@ -9,6 +9,7 @@ import {
   type MarketsView,
   type SectorSummary,
 } from "../game/markets";
+import { COMMODITY_HERO_FALLBACK_ALT, commodityHeroAlt } from "./RouteHero";
 
 function makeListing(overrides: Partial<MarketListing> = {}): MarketListing {
   return {
@@ -814,5 +815,38 @@ describe("MarketsPanel trend charts", () => {
     expect(screen.getByText(/no recorded share-price history/i)).toBeInTheDocument();
     expect(screen.getByText(/no earnings recorded yet/i)).toBeInTheDocument();
     expect(screen.queryByRole("img", { name: /price trend/i })).not.toBeInTheDocument();
+  });
+});
+
+describe("MarketsPanel company hero (#378)", () => {
+  it("renders the bundled commodity hero for a reachable sector with a nonempty exact-key alt", async () => {
+    const MarketsPanel = await loadPanel();
+    const user = userEvent.setup();
+    const energy = makeListing({
+      id: "US-energy",
+      ticker: "US.ENRG",
+      name: "US-energy",
+      sectorType: "energy",
+      sectorLabel: "energy",
+    });
+    render(<MarketsPanel markets={makeMarkets({ listings: [energy] })} busy={false} onAction={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: /US\.ENRG US-energy/i }));
+    // Reachable bundled art: the energy sector keys the offline set.
+    const hero = screen.getByRole("img", { name: commodityHeroAlt("energy") });
+    expect(hero.getAttribute("src")).toBe("/static/heroes/commodity-energy.webp");
+    expect(commodityHeroAlt("energy").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "US-energy" })).toBeInTheDocument();
+  });
+
+  it("falls back to Actions art with the fallback accessible name outside the bundled set", async () => {
+    const MarketsPanel = await loadPanel();
+    const user = userEvent.setup();
+    render(<MarketsPanel markets={makeMarkets()} busy={false} onAction={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: /US\.MEDI US-media/i }));
+    // Native sector "media" has no commodity key: fallback art, never a broken image.
+    const hero = screen.getByRole("img", { name: COMMODITY_HERO_FALLBACK_ALT });
+    expect(hero.getAttribute("src")).toBe("/static/heroes/actions.webp");
+    expect(COMMODITY_HERO_FALLBACK_ALT.length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "US-media" })).toBeInTheDocument();
   });
 });
