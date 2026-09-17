@@ -73,7 +73,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | U06 | Interface | Done | U03,E05 | Expose election and news views | Real records and clear empty states |
 | U07 | Interface | Done | U03,S03 | Connect save browser and in-game lifecycle | New/resume/save/reload/exit and confirmed deletion pass browser smoke; native-device lifecycle remains I02/I03 and #44 |
 | U08 | Interface | In progress | U02,U07 | Verify mobile layout and accessibility | Small-screen overflow,touch,keyboard,focus and errors |
-| U11 | Interface | Partial | U03,U08 | Dual-pane and hinge-aware layout (#438) | Hinge primitives, docked nav/content and all five list/detail pairings (parties, elections, regions, legislation, markets) tested with shared selection state; single-pane phone flow intact; only foldable hardware posture acceptance remains |
+| U11 | Interface | Partial | U03,U08 | Dual-pane and hinge-aware layout (#438) | Hinge primitives, docked nav/content and six list/detail pairings (parties, elections, regions, legislation, markets, news article/event) tested with shared selection state; single-pane phone flow intact; only foldable hardware posture acceptance remains |
 | U09 | UI | Done | E02,U07 | Expose party membership and candidacy through real engine actions | Filing,withdrawal,save/reload and accessible race pagination |
 | U10 | UI | Done | U09,Q01 | Complete a seeded election-to-office loop and expose legislature actions | Genuine t95 fixture, election win,sponsor,vote,relaunch through production UI |
 | M01 | Mechanics | Done | G03 | Inventory phase/order and feature drift from AHDGame | Named differences,source refs,release blockers |

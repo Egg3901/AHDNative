@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { NewsView } from "../game/types";
 import { formatGameDate, type GameClock } from "../game/gameDate";
+import { useDualPaneLayout } from "./dualPane";
 
 interface StoredNewsState { selectedId: string | null; readIds: string[]; eventId: string | null; }
 
@@ -103,39 +104,14 @@ export function NewsPanel({ news, clock, storageKey, onCountry, onParty, onElect
     }
   }, [selected, event]);
 
-  if (event) {
-    return (
-      <article className="ahd-card ahd-card-pad ahd-stack" aria-label={event.name}>
-        <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={closeEvent}>{selected ? "Back to article" : "Back to news"}</button>
-        <div><span className="ahd-pill">Event</span><h2 className="ahd-h2" ref={eventHeadingRef} tabIndex={-1}>{event.name}</h2><p className="ahd-muted">{event.records.length} {event.records.length === 1 ? "article" : "articles"} in this save</p></div>
-        <nav aria-label="Related records" style={{ display: "flex", flexWrap: "wrap", gap: "0.45rem" }}>
-          {eventCountries.map(related => <button key={related.id} type="button" className="ahd-btn ahd-btn-sm" onClick={() => onCountry(related.id)}>View {related.name}</button>)}
-          {eventParties.map(related => <button key={related.id} type="button" className="ahd-btn ahd-btn-sm" onClick={() => onParty(related.id)}>View {related.name}</button>)}
-          {eventElections.map(related => <button key={related.id} type="button" className="ahd-btn ahd-btn-sm" onClick={() => onElection(related.id)}>View {related.name}</button>)}
-        </nav>
-        <div className="ahd-grid ahd-grid-3">{event.records.map(item => <article key={item.id} className="ahd-card ahd-card-pad" aria-label={`${item.title}${readIds.has(item.id) ? ", read" : ", unread"}`}><div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}><h3 style={{ margin: 0, fontSize: "0.86rem", fontWeight: 750 }}>{item.title}</h3>{readIds.has(item.id) ? <span className="ahd-pill">Read</span> : null}</div><p className="ahd-muted" style={{ fontSize: "0.72rem", margin: "0.15rem 0 0" }}>{item.category ?? "General"} · {formatGameDate(item.date, clock)}</p><button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => select(item.id)} aria-label={`Read ${item.title}`}>Read article</button></article>)}</div>
-      </article>
-    );
-  }
+  // Dual-pane list/detail pairing (#438): the article wire and the open
+  // article/event detail share the existing selectedId/eventId state; the
+  // shell places them on separate panes only when a hinge is reported.
+  // Single-pane renders the exact pre-existing detail-only phone journey.
+  const dual = useDualPaneLayout().mode === "dual";
 
-  if (selected) {
-    return (
-      <article className="ahd-card ahd-card-pad ahd-stack" aria-label={selected.title}>
-        <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => select(null)}>Back to news</button>
-        <div><span className="ahd-pill">Read</span><span className="ahd-pill">{selected.category ?? "General"}</span><h2 className="ahd-h2" ref={headingRef} tabIndex={-1}>{selected.title}</h2><p className="ahd-muted">{formatGameDate(selected.date, clock)}</p></div>
-        <p style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{selected.body}</p>
-        <nav aria-label="Related records" style={{ display: "flex", flexWrap: "wrap", gap: "0.45rem" }}>
-          {selected.country ? <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onCountry(selected.country!.id)}>View {selected.country.name}</button> : null}
-          {selected.party ? <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onParty(selected.party!.id)}>View {selected.party.name}</button> : null}
-          {selected.election ? <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onElection(selected.election!.id)}>View {selected.election.name}</button> : null}
-        </nav>
-        {selected.event ? <section role="region" aria-label="Event context" className="ahd-card ahd-card-pad"><h3 className="ahd-h3">Event context</h3><p>{selected.event.name}</p><button ref={eventButtonRef} type="button" className="ahd-btn ahd-btn-sm" onClick={() => openEvent(selected.event!.id)}>View {selected.event.name}</button></section> : null}
-      </article>
-    );
-  }
-
-  return (
-    <div className="ahd-stack">
+  const wire = (
+    <>
       <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">News</h2><p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>{filtered.length} of {news.length} items</p>
         {eventName ? <p style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.45rem", marginTop: "0.5rem" }}><span className="ahd-pill">Event: {eventName}</span><button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => setEventFilter("all")}>Clear event filter</button></p> : null}
@@ -146,6 +122,52 @@ export function NewsPanel({ news, clock, storageKey, onCountry, onParty, onElect
         </div>
       </div>
       {filtered.length === 0 ? <div className="ahd-empty">No news matches these filters.</div> : <div className="ahd-grid ahd-grid-3">{filtered.map(item => <article key={item.id} className="ahd-card ahd-card-pad" aria-label={`${item.title}${readIds.has(item.id) ? ", read" : ", unread"}`}><div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}><h3 style={{ margin: 0, fontSize: "0.86rem", fontWeight: 750 }}>{item.title}</h3>{readIds.has(item.id) ? <span className="ahd-pill">Read</span> : null}</div><p className="ahd-muted" style={{ fontSize: "0.72rem", margin: "0.15rem 0 0" }}>{item.category ?? "General"} · {formatGameDate(item.date, clock)}</p><button type="button" ref={node => { if (node) readButtonRefs.current.set(item.id, node); else readButtonRefs.current.delete(item.id); }} className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => select(item.id)} aria-label={`Read ${item.title}`}>Read article</button></article>)}</div>}
+    </>
+  );
+
+  const eventDetail = event ? (
+    <article className="ahd-card ahd-card-pad ahd-stack" aria-label={event.name} data-pane="detail">
+      <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={closeEvent}>{selected ? "Back to article" : "Back to news"}</button>
+      <div><span className="ahd-pill">Event</span><h2 className="ahd-h2" ref={eventHeadingRef} tabIndex={-1}>{event.name}</h2><p className="ahd-muted">{event.records.length} {event.records.length === 1 ? "article" : "articles"} in this save</p></div>
+      <nav aria-label="Related records" style={{ display: "flex", flexWrap: "wrap", gap: "0.45rem" }}>
+        {eventCountries.map(related => <button key={related.id} type="button" className="ahd-btn ahd-btn-sm" onClick={() => onCountry(related.id)}>View {related.name}</button>)}
+        {eventParties.map(related => <button key={related.id} type="button" className="ahd-btn ahd-btn-sm" onClick={() => onParty(related.id)}>View {related.name}</button>)}
+        {eventElections.map(related => <button key={related.id} type="button" className="ahd-btn ahd-btn-sm" onClick={() => onElection(related.id)}>View {related.name}</button>)}
+      </nav>
+      <div className="ahd-grid ahd-grid-3">{event.records.map(item => <article key={item.id} className="ahd-card ahd-card-pad" aria-label={`${item.title}${readIds.has(item.id) ? ", read" : ", unread"}`}><div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}><h3 style={{ margin: 0, fontSize: "0.86rem", fontWeight: 750 }}>{item.title}</h3>{readIds.has(item.id) ? <span className="ahd-pill">Read</span> : null}</div><p className="ahd-muted" style={{ fontSize: "0.72rem", margin: "0.15rem 0 0" }}>{item.category ?? "General"} · {formatGameDate(item.date, clock)}</p><button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => select(item.id)} aria-label={`Read ${item.title}`}>Read article</button></article>)}</div>
+    </article>
+  ) : null;
+
+  const articleDetail = selected ? (
+    <article className="ahd-card ahd-card-pad ahd-stack" aria-label={selected.title} data-pane="detail">
+      <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => select(null)}>Back to news</button>
+      <div><span className="ahd-pill">Read</span><span className="ahd-pill">{selected.category ?? "General"}</span><h2 className="ahd-h2" ref={headingRef} tabIndex={-1}>{selected.title}</h2><p className="ahd-muted">{formatGameDate(selected.date, clock)}</p></div>
+      <p style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{selected.body}</p>
+      <nav aria-label="Related records" style={{ display: "flex", flexWrap: "wrap", gap: "0.45rem" }}>
+        {selected.country ? <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onCountry(selected.country!.id)}>View {selected.country.name}</button> : null}
+        {selected.party ? <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onParty(selected.party!.id)}>View {selected.party.name}</button> : null}
+        {selected.election ? <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => onElection(selected.election!.id)}>View {selected.election.name}</button> : null}
+      </nav>
+      {selected.event ? <section role="region" aria-label="Event context" className="ahd-card ahd-card-pad"><h3 className="ahd-h3">Event context</h3><p>{selected.event.name}</p><button ref={eventButtonRef} type="button" className="ahd-btn ahd-btn-sm" onClick={() => openEvent(selected.event!.id)}>View {selected.event.name}</button></section> : null}
+    </article>
+  ) : null;
+
+  const detail = eventDetail ?? articleDetail;
+  if (detail && dual) {
+    return (
+      <div className="ahd-dual-panes">
+        <div data-pane="list" className="ahd-stack">{wire}</div>
+        {detail}
+      </div>
+    );
+  }
+  if (detail) {
+    return detail;
+  }
+
+  return (
+    <div className="ahd-stack">
+      <div data-pane="list" className="ahd-stack">{wire}</div>
     </div>
   );
 }
