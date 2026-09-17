@@ -18,6 +18,8 @@ export interface FinancePanelProps {
   section: "portfolio" | "banking";
   busy: boolean;
   onAction: GameScreenProps["onAction"];
+  /** Cross-links the two real finance destinations (wallet/portfolio and banking). */
+  onNavigate?: (route: "portfolio" | "banking") => void;
 }
 
 export function formatFinanceMoney(amount: number, currency: string): string {
@@ -39,11 +41,22 @@ function AvailabilityHint({ cost, available, disabledReason }: { cost: number; a
   return null;
 }
 
-function PortfolioSection({ finance }: { finance: FinanceView }) {
+function PortfolioSection({ finance, onNavigate }: { finance: FinanceView; onNavigate?: (route: "portfolio" | "banking") => void }) {
   return (
     <div className="ahd-stack">
       <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">Portfolio</h2>
+        <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.3rem 0 0" }}>
+          Wallet balances and recorded stock holdings.
+          {onNavigate ? (
+            <>
+              {" "}
+              <button type="button" className="ahd-profile-link" onClick={() => onNavigate("banking")} aria-label="Go to banking">
+                Go to Banking
+              </button>
+            </>
+          ) : null}
+        </p>
         <dl style={{ display: "flex", flexDirection: "column", gap: "0.35rem", margin: "0.5rem 0 0" }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
             <dt style={{ fontSize: "0.82rem" }}>Cash</dt>
@@ -90,7 +103,7 @@ function PortfolioSection({ finance }: { finance: FinanceView }) {
   );
 }
 
-function BankingSection({ finance, busy, onAction }: { finance: FinanceView; busy: boolean; onAction: GameScreenProps["onAction"] }) {
+function BankingSection({ finance, busy, onAction, onNavigate }: { finance: FinanceView; busy: boolean; onAction: GameScreenProps["onAction"]; onNavigate?: (route: "portfolio" | "banking") => void }) {
   const [amount, setAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -126,6 +139,14 @@ function BankingSection({ finance, busy, onAction }: { finance: FinanceView; bus
     <div className="ahd-stack">
       <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">Banking</h2>
+        {onNavigate ? (
+          <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.3rem 0 0" }}>
+            Savings deposits and withdrawals.{" "}
+            <button type="button" className="ahd-profile-link" onClick={() => onNavigate("portfolio")} aria-label="Go to portfolio">
+              Go to Portfolio
+            </button>
+          </p>
+        ) : null}
         <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", marginTop: "0.5rem" }}>
           <div style={{ fontSize: "0.82rem" }}>Cash</div>
           <div className="ahd-mono" style={{ fontSize: "0.82rem", fontWeight: 700 }}>
@@ -201,7 +222,7 @@ function BankingSection({ finance, busy, onAction }: { finance: FinanceView; bus
   );
 }
 
-export function FinancePanel({ finance, section, busy, onAction }: FinancePanelProps) {
-  if (section === "banking") return <BankingSection finance={finance} busy={busy} onAction={onAction} />;
-  return <PortfolioSection finance={finance} />;
+export function FinancePanel({ finance, section, busy, onAction, onNavigate }: FinancePanelProps) {
+  if (section === "banking") return <BankingSection finance={finance} busy={busy} onAction={onAction} onNavigate={onNavigate} />;
+  return <PortfolioSection finance={finance} onNavigate={onNavigate} />;
 }
