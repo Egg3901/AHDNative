@@ -1,5 +1,6 @@
 import type { LegislationDetailsQuery, LegislationSelection } from "./legislationDetails";
 import type { CabinetSponsorView, NominationView, ScotusSponsorView } from "./nominations";
+import type { LegislatureChamberPartySeats } from "./legislature";
 import type { Preferences } from "../preferences";
 import type { WorldOverviewView } from "./worldOverview";
 import type { NationView } from "./nation";
@@ -117,6 +118,10 @@ export interface LegislatureChamberView {
   description: string | null;
   activeCount: number;
   completedCount: number;
+  /** Party seat shares from the engine composition; absent when unrecorded. */
+  seatsByParty?: LegislatureChamberPartySeats[];
+  /** Vacant seats from the engine composition; absent when unrecorded. */
+  vacancies?: number;
 }
 /** Chamber committee plus the active bills referred to it. */
 export interface LegislatureCommitteeView {

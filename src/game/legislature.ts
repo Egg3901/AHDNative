@@ -130,6 +130,17 @@ export function nextProceduralStep(bill: Bill): ProceduralStep {
   }
 }
 
+/** Party seat share inside one chamber, projected with display fields. */
+export interface LegislatureChamberPartySeats {
+  partyId: string;
+  name: string;
+  /** Party color hex; null when the party record carries none. */
+  color: string | null;
+  /** Economic left (-5) to right (+5); null when the party record is missing. */
+  economicPosition: number | null;
+  seats: number;
+}
+
 export interface LegislatureChamberNavigation {
   key: string;
   name: string;
@@ -139,9 +150,26 @@ export interface LegislatureChamberNavigation {
   description: string | null;
   activeCount: number;
   completedCount: number;
+  /** Party seat shares from the engine composition; absent when unrecorded. */
+  seatsByParty?: LegislatureChamberPartySeats[];
+  /** Vacant seats from the engine composition; absent when unrecorded. */
+  vacancies?: number;
 }
 
-/** Chamber destinations and labels from the legislature configuration. */
+/** Coerce an engine seat count to a finite nonnegative integer; null when absent. */
+function sanitizedSeatCount(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.max(0, Math.floor(value));
+}
+
+/**
+ * Chamber destinations and labels from the legislature configuration, plus the
+ * engine seat composition (party shares with display fields, vacancies) that
+ * the seating diagram renders. Nothing is invented: unknown parties keep their
+ * id as the name with a null color, seat counts and vacancies are sanitized to
+ * finite nonnegative integers, and both fields stay absent when the engine
+ * recorded no composition so the diagram can render its unavailable state.
+ */
 export function buildChamberNavigation(world: WorldState, countryId: string): LegislatureChamberNavigation[] {
   const leg = world.legislatures[countryId];
   if (!leg) return [];
@@ -153,6 +181,33 @@ export function buildChamberNavigation(world: WorldState, countryId: string): Le
       if (ACTIVE_BILL_STATUSES.has(bill.status)) activeCount++;
       else completedCount++;
     }
+    const rawComposition = chamber.composition as
+      | { seatsByParty?: Record<string, unknown>; vacancies?: unknown }
+      | null
+      | undefined;
+    const rawShares = rawComposition?.seatsByParty;
+    const seatsByParty =
+      rawShares != null && typeof rawShares === "object"
+        ? Object.entries(rawShares)
+            .map(([partyId, seats]) => {
+              const party = world.parties[partyId];
+              return {
+                partyId,
+                name: party?.name ?? partyId,
+                color: party?.color ?? null,
+                economicPosition: typeof party?.economicPosition === "number" ? party.economicPosition : null,
+                seats: sanitizedSeatCount(seats) ?? 0,
+              } satisfies LegislatureChamberPartySeats;
+            })
+            .sort(
+              (left, right) =>
+                (left.economicPosition ?? 0) - (right.economicPosition ?? 0) ||
+                left.partyId.localeCompare(right.partyId),
+            )
+        : undefined;
+    const rawVacancies = rawComposition?.vacancies;
+    const vacancies =
+      rawVacancies === undefined ? undefined : (sanitizedSeatCount(rawVacancies) ?? 0);
     return {
       key: chamber.key,
       name: chamber.name,
@@ -162,6 +217,8 @@ export function buildChamberNavigation(world: WorldState, countryId: string): Le
       description: chamber.description ?? null,
       activeCount,
       completedCount,
+      ...(seatsByParty !== undefined ? { seatsByParty } : {}),
+      ...(vacancies !== undefined ? { vacancies } : {}),
     };
   });
 }
