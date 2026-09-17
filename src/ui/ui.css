@@ -627,6 +627,7 @@ html, body { overflow-x: hidden; }
   font-size: 0.66rem; font-weight: 650; letter-spacing: 0.01em;
   padding: 0.4rem 0.2rem; cursor: pointer; touch-action: manipulation; text-decoration: none;
   min-height: 56px; border-radius: var(--ahd-radius-sm);
+  min-width: 0;
 }
 .ahd-bottomnav-item svg { width: 22px; height: 22px; }
 .ahd-bottomnav-item[data-active="true"] { color: var(--ahd-fg); }
@@ -1028,10 +1029,18 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
   .ahd-landing-saves { max-width: none; }
 }
 
-/* Keep bottom labels intact when larger text meets a narrow phone. */
+/* Bottom labels truncate in place when long localization or larger text
+ * meets a narrow phone: the item yields to its 1fr column share (min-width
+ * 0 above) and the label ellipsizes instead of pushing neighbouring
+ * columns out. No wrapping, no fixed widths, so wide viewports render
+ * exactly as before; the button keeps its aria-label, so the accessible
+ * name is unchanged when the visible text truncates. */
 .ahd-bottomnav-item > span {
   white-space: nowrap;
   font-size: min(0.66rem, 3.75vw);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Notifications inbox: mobile list/detail views, desktop rail/read-pane. */
