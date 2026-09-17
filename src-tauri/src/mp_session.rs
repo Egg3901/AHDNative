@@ -57,8 +57,9 @@ const MP_SESSION_MAX_BODY_BYTES: usize = 256 * 1024;
 const MP_SESSION_FETCH_TIMEOUT_SECS: u64 = 15;
 const MP_SESSION_POLL_INTERVAL_MS: u64 = 120;
 const MP_SESSION_POLL_ROUNDS: u32 = 170;
-/// Server error bodies forwarded inside `remote-error` are capped; server
-/// refusal messages are short, and full pages must never cross the bridge.
+/// JSON server error bodies forwarded inside `remote-error` are capped;
+/// server refusal messages are short. Non-JSON error bodies (proxy or
+/// captive-portal markup) forward empty, so full pages never cross the bridge.
 const MP_SESSION_ERROR_BODY_CHARS: usize = 2000;
 /// Longest region/state identifier the server shape accepts
 /// (`MAX_REGION_ID_LENGTH` in AHDGame `src/lib/constants/states.ts`).
@@ -831,11 +832,21 @@ fn classify_outcome(outcome: &PageOutcome) -> Result<String, String> {
         return Err(error::UNEXPECTED_REDIRECT.to_string());
     }
     if !(200..300).contains(&call.status) {
-        let prefix: String = call
-            .body
-            .chars()
-            .take(MP_SESSION_ERROR_BODY_CHARS)
-            .collect();
+        // Error pages are not always the server's JSON refusal: proxies,
+        // captive portals, and HTML fallbacks answer with markup. Forward the
+        // body only when it is JSON so markup never crosses the bridge into
+        // UI text; the status and retry delay still map phases exactly (401
+        // expiry, 429 backoff, 409 conflict), and the adapter degrades an
+        // empty body to its generic refusal. Mirrors the mobile relay, which
+        // rejects non-JSON bodies before reading them.
+        let prefix: String = if content_type_is_json(call.content_type.as_deref()) {
+            call.body
+                .chars()
+                .take(MP_SESSION_ERROR_BODY_CHARS)
+                .collect()
+        } else {
+            String::new()
+        };
         return Err(format!(
             "remote-error:{}:{}:{prefix}",
             call.status,
@@ -1563,6 +1574,56 @@ mod tests {
         assert!(classify_outcome(&refused)
             .unwrap_err()
             .starts_with("remote-error:403:0:"));
+
+        // Non-JSON error bodies never cross the bridge: a proxy or
+        // captive-portal markup page keeps its status and retry mapping
+        // (so 401 still expires and 429 still backs off) but forwards an
+        // empty body, which the adapter degrades to its generic refusal.
+        // The reference 401 JSON body still forwards for signed-out mapping.
+        for (status, retry_after, content_type, body, expected) in [
+            (
+                401,
+                None,
+                Some("text/html"),
+                "<html><head><title>Login</title></head></html>",
+                "remote-error:401:0:",
+            ),
+            (
+                502,
+                None,
+                Some("text/html; charset=utf-8"),
+                "<html><body>Bad Gateway</body></html>",
+                "remote-error:502:0:",
+            ),
+            (
+                429,
+                Some("45".to_string()),
+                None,
+                "<html>limited</html>",
+                "remote-error:429:45:",
+            ),
+            (
+                401,
+                None,
+                Some("application/json"),
+                "{\"active\":false}",
+                "remote-error:401:0:{\"active\":false}",
+            ),
+        ] {
+            let outcome = PageOutcome {
+                done: true,
+                ok: true,
+                out: Some(PageCall {
+                    redirected: false,
+                    status,
+                    retry_after,
+                    content_type: content_type.map(str::to_string),
+                    oversize: false,
+                    body: body.to_string(),
+                }),
+            };
+            assert_eq!(classify_outcome(&outcome).unwrap_err(), expected);
+        }
 
         // Long error bodies are capped; redirects, wrong types, and oversize
         // fail closed with stable strings.
