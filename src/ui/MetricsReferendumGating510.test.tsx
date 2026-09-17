@@ -21,6 +21,8 @@ import type { GameView, ActionView } from "../game/types";
 import type { ProfileView } from "../game/profileTypes";
 import type { PoliticsView, PoliticsPartyDetail } from "../game/politics";
 import type { SearchResults } from "../game/search";
+import type { CaucusManagementView } from "../game/caucusManagement";
+import type { PartyManagementView } from "../game/partyManagement";
 import { DEFAULT_WORLD_FEATURE_FLAGS } from "@ahdclient/engine";
 
 function setViewport(width: number) {
@@ -113,7 +115,7 @@ function baseProps(world: GameView, searchResults?: SearchResults) {
       playerHomeRegionId: null, currency: "USD", directoryQuery: "", directoryPage: 0, directoryPageSize: 20,
       directoryTotal: 0, directoryPageCount: 1, directory: [], selected: null,
     }),
-    loadCaucusManagement: async () => ({
+    loadCaucusManagement: async (): Promise<CaucusManagementView> => ({
       countryId: "US", countryName: "United States", currency: "USD", playerPartyId: "p1",
       playerPartyName: "Labor", playerCaucusId: null, playerCaucusName: null, caucusCount: 0,
       create: { actionCost: 4, fundCost: 25000, fundsRequired: 25000, funds: 152000, actions: 9, cooldownRemaining: 0, taxMin: 0, taxMax: 5, nameMinLength: 3, available: true,
@@ -121,7 +123,7 @@ function baseProps(world: GameView, searchResults?: SearchResults) {
         consequences: [], action: action("createCaucus", true, 4) },
       caucuses: [],
     }),
-    loadPartyManagement: async () => ({
+    loadPartyManagement: async (): Promise<PartyManagementView> => ({
       countryId: "US", countryName: "United States", currency: "USD", playerPartyName: "Labor",
       partyCount: 1, foundedCount: 0, charterDeadlineTurns: 14,
       founding: { actionCost: 8, fundCost: 100000, fundsRequired: 100000, funds: 152000, actions: 9, cooldownRemaining: 0, charterDeadlineTurns: 14, available: true,
