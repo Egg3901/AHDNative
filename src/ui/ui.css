@@ -151,6 +151,13 @@
   --ahd-shadow-md: 0 4px 12px -1px rgb(0 0 0 / 0.6), 0 2px 4px -2px rgb(0 0 0 / 0.5);
   --ahd-focus: 0 0 0 2px var(--ahd-bg), 0 0 0 4px var(--ahd-primary);
 
+  /* iOS safe-area fallback (#436 WKWebView zero-env failure): published by
+     src/ui/iosSafeArea.ts. 0px unless the live env() probe reads ~zero on
+     an iPhone-class portrait webview (59px fail-safe floor). Every top
+     rule below composes it as max(<base>, var(...), env(...)), so it only
+     ever raises the floor and never lowers a working native inset. */
+  --ahd-safe-area-top-fallback: 0px;
+
   /* Material tokens (issue #437) — glass-inspired hierarchy on the AHD
      palette. Chrome: persistent footer/drawer. Elevated: resource details.
      Modal: popover dialogs. Content (.ahd-card) stays opaque by design.
@@ -518,7 +525,7 @@ html, body { overflow-x: hidden; }
  * no header control overlays the island because chrome is padded, never
  * absolutely positioned over it. */
 .ahd-main {
-  padding-top: max(0.7rem, env(safe-area-inset-top));
+  padding-top: max(0.7rem, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top));
   padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem);
 }
 
@@ -686,7 +693,7 @@ html, body { overflow-x: hidden; }
   box-shadow: var(--ahd-shadow-md);
   display: flex; flex-direction: column;
   overscroll-behavior: contain;
-  padding-top: max(0.7rem, env(safe-area-inset-top));
+  padding-top: max(0.7rem, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top));
   padding-bottom: max(0.7rem, env(safe-area-inset-bottom));
   padding-left: max(0, env(safe-area-inset-left));
   animation: ahd-drawer-in 0.18s ease-out;
@@ -975,8 +982,8 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
 }
 .ahd-resource-popover {
   position: absolute; bottom: calc(100% + 0.25rem); left: 0; right: 0;
-  max-height: calc(100vh - var(--ahd-footer-height, 9rem) - max(1rem, env(safe-area-inset-top)));
-  max-height: calc(100dvh - var(--ahd-footer-height, 9rem) - max(1rem, env(safe-area-inset-top)));
+  max-height: calc(100vh - var(--ahd-footer-height, 9rem) - max(1rem, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top)));
+  max-height: calc(100dvh - var(--ahd-footer-height, 9rem) - max(1rem, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top)));
   overflow-y: auto; overscroll-behavior: contain;
 }
 
@@ -1031,7 +1038,7 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
 }
 .ahd-landing-layout {
   max-width: 42rem;
-  padding-top: max(0.9rem, env(safe-area-inset-top));
+  padding-top: max(0.9rem, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top));
   padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
@@ -1384,7 +1391,7 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
 .ahd-bills-pager { flex-wrap: wrap; min-width: 0; }
 .ahd-bills-pager .ahd-btn { min-width: 0; max-width: 100%; }
 .ahd-bills-pager > span { min-width: 0; }
-.ahd-mp-layout { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; padding-top: max(1rem, env(safe-area-inset-top)); padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
+.ahd-mp-layout { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; padding-top: max(1rem, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top)); padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
 .ahd-mp-footer { z-index: 40; }
 .ahd-mp-bottomnav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .ahd-mp-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; min-width: 0; }
@@ -1430,7 +1437,7 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
    of viewport top, so the stuck pane never parks its headings and turn
    controls under the island on notched phones. */
 .ahd-screen[data-dual-pane="dual"] .ahd-drawer-docked {
-  position: sticky; top: max(0px, env(safe-area-inset-top)); left: auto; bottom: auto; z-index: 5;
+  position: sticky; top: max(0px, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top)); left: auto; bottom: auto; z-index: 5;
   width: auto; max-width: none; max-height: 100vh; max-height: 100dvh; overflow-y: auto;
   animation: none; box-shadow: none;
   border: 1px solid var(--ahd-border); border-radius: var(--ahd-radius);

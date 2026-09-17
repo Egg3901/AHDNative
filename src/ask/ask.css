@@ -363,7 +363,7 @@
    shell's insets and are untouched. env() is zero on desktop, and every
    max() floor preserves the shipped desktop padding. */
 .askview[data-surface="window"] {
-  padding-top: max(0px, env(safe-area-inset-top));
+  padding-top: max(0px, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top));
   padding-left: max(0px, env(safe-area-inset-left));
   padding-right: max(0px, env(safe-area-inset-right));
 }

@@ -153,7 +153,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
 
   return (
     <div className="ahd-screen">
-      <div className="ahd-container ahd-newgame" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))", maxWidth: "42rem" }}>
+      <div className="ahd-container ahd-newgame" style={{ paddingTop: "max(1rem, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top))", paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))", maxWidth: "42rem" }}>
         <header className="ahd-newgame-hero">
           <p className="ahd-eyebrow">Singleplayer</p>
           <h1 className="ahd-h1">A House Divided</h1>

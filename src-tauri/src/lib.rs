@@ -443,6 +443,38 @@ mod tests {
     }
 
     #[test]
+    fn ios_top_inset_fallback_needs_no_native_command() {
+        // #436 WKWebView failure: internal iOS 0.1.8 resolved the top
+        // inset env() to zero, so headings rendered under the status bar.
+        // There is deliberately no dedicated native view-inset command:
+        // the web-measured probe plus fail-safe floor in
+        // src/ui/iosSafeArea.ts is the chosen source because it reads the
+        // synchronous CSS truth the floor guards. (A native-derived value
+        // is reachable without new dependencies through the locked window
+        // position APIs, but that path is async and main-thread-bound, so
+        // it stays a possible follow-up, not the floor source.) This test
+        // pins that no native view-inset command exists, so adding one is
+        // a deliberate contract change.
+        // (Tokens are joined so this test never self-matches.)
+        let source = include_str!("lib.rs");
+        for banned in [
+            ["safe_", "area_insets"].join(""),
+            ["safe", "AreaInsets"].join(""),
+            ["safe", "-area"].join(""),
+        ] {
+            assert!(
+                !source.contains(&banned),
+                "native side must not grow a {banned} command without a contract change"
+            );
+        }
+        let capability = include_str!("../capabilities/default.json");
+        assert!(
+            !capability.contains(&["safe", "-area"].join("")),
+            "main capability must not grant view-inset permissions"
+        );
+    }
+
+    #[test]
     fn online_window_keeps_the_persistent_platform_profile() {
         // Session persistence across full process relaunches (#149): the
         // online window must use the platform's normal persistent
