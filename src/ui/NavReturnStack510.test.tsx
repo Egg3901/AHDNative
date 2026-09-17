@@ -840,6 +840,36 @@ describe("return-stack entry and staleness (#510)", () => {
     ).toBeInTheDocument();
   });
 
+  it("caps deep chains and still unwinds to the canonical list", async () => {
+    setViewport(390);
+    const user = userEvent.setup();
+    render(<GameScreen {...baseProps(makeWorld())} />);
+    await gotoDrawer(user, "Elections");
+    await user.click(
+      await screen.findByRole("button", { name: "View race details" }),
+    );
+    // Bounce race <-> politician past the 5-frame cap: each round trip
+    // pushes two frames, so the oldest (the elections list origin) drops.
+    for (let i = 0; i < 4; i += 1) {
+      await user.click(await screen.findByRole("button", { name: "Polly" }));
+      await user.click(
+        await screen.findByRole("button", { name: "View General Election" }),
+      );
+    }
+    // Unwind: every Back restores a live surface and the chain terminates at
+    // the canonical elections list instead of looping on evicted frames.
+    let backs = 0;
+    while (!screen.queryByRole("region", { name: "Elections" }) && backs < 10) {
+      await user.click(screen.getByRole("button", { name: /^Back to / }));
+      backs += 1;
+    }
+    expect(
+      screen.getByRole("region", { name: "Elections" }),
+    ).toBeInTheDocument();
+    // 5 capped pops plus the canonical fallback back to the list.
+    expect(backs).toBeLessThanOrEqual(6);
+  });
+
   it("skips return frames whose detail no longer exists", async () => {
     setViewport(390);
     const user = userEvent.setup();

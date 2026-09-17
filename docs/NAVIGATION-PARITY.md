@@ -329,10 +329,13 @@ Remaining gaps (issue #510 stays open):
 
 ## 9. Multi-level return stack (#510, follow-up to #517)
 
-Enforced by `src/ui/NavReturnStack510.test.tsx`: 8 rendered tests green at 320px,
+Enforced by `src/ui/NavReturnStack510.test.tsx`: 9 rendered tests green at 320px,
 390px, and 1280px (desktop). Generalizes the section-8 single slot to a bounded
 stack of at most 5 `{ route, detailId }` frames in shell state. No browser
-history; identical offline in SP and through MP adapters.
+history; identical offline in SP and through MP adapters. Cap eviction keeps
+the chain root (entry surface) and drops the oldest middle frame, so unwinding
+a capped chain always terminates at the entry surface instead of stranding a
+detail with no Back.
 
 Proven paths:
 
@@ -342,6 +345,7 @@ Proven paths:
 | Search -> result -> nested detail -> search | Back from the nested politician restores the race with Back to search still stacked; Back to search restores the query value, the "1 of 1 matches" list, and the Selected marker from the shell snapshot |
 | Notification entry from depth | A 3-frame chain cleared by inbox entry: the race keeps its canonical Back to elections |
 | Drawer entry from depth | A fresh party drill after drawer navigation keeps the canonical Back to parties |
+| Capped chain | A 9-push race <-> politician chain unwinds in 5 pops plus the canonical Back to elections; the evicted root is preserved so no detail is stranded without Back |
 | Stale frames | A race frame removed from the world is skipped to the live elections list (Back to elections); the stale race is never restored |
 
 Unchanged from section 8: drawer, deep-link, and notification entry clear the

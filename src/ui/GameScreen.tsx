@@ -219,7 +219,11 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   // surface as the next return-stack frame (news-reader deep-links record
   // none and reset the stack, so article links keep canonical parents).
   // Identical re-opens push nothing; the stack is capped so deep chains stay
-  // deterministic and the oldest frame drops first.
+  // deterministic. Eviction preserves the chain root (the entry surface)
+  // and drops the oldest middle frame, so unwinding always terminates at
+  // the surface the chain started from instead of stranding a detail
+  // (notably politicians, which stays chromeless with an empty stack) with
+  // no Back.
   const drill = (next: RouteId, id?: string) => {
     focusPage.current = true;
     if (route === "news") {
@@ -230,7 +234,8 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
         const top = prev[prev.length - 1];
         if (top && top.route === frame.route && top.detailId === frame.detailId) return prev;
         const pushed = [...prev, frame];
-        return pushed.length > MAX_RETURN_DEPTH ? pushed.slice(pushed.length - MAX_RETURN_DEPTH) : pushed;
+        if (pushed.length <= MAX_RETURN_DEPTH) return pushed;
+        return [pushed[0]!, ...pushed.slice(pushed.length - MAX_RETURN_DEPTH + 1)];
       });
     }
     if (id === undefined) setDetailId(undefined);
