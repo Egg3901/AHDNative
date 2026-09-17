@@ -84,15 +84,16 @@ function NationRow({
         borderRadius: "var(--ahd-radius-sm)",
         justifyContent: "space-between",
         textAlign: "left",
+        alignItems: "flex-start",
       }}
     >
-      <span style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.12rem" }}>
-        <span style={{ overflowWrap: "anywhere" }}>{nation.name}</span>
+      <span className="ahd-world-row-label" style={{ minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.12rem" }}>
+        <span className="ahd-world-row-label-text" style={{ overflowWrap: "anywhere" }}>{nation.name}</span>
         <span className="ahd-muted" style={{ fontSize: "0.68rem", fontWeight: 400 }}>
           {nation.id} · {nation.currency ?? "Currency not recorded"}
         </span>
       </span>
-      <span style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
+      <span className="ahd-world-row-badges" style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", justifyContent: "flex-end", minWidth: 0 }}>
         {isPlayer ? <span className="ahd-badge">Your country</span> : null}
         <span className="ahd-badge">{nation.playable ? "Playable" : "Not playable"}</span>
       </span>
@@ -120,16 +121,17 @@ function RegionRow({
         borderRadius: "var(--ahd-radius-sm)",
         justifyContent: "space-between",
         textAlign: "left",
+        alignItems: "flex-start",
       }}
     >
-      <span style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.12rem" }}>
-        <span style={{ overflowWrap: "anywhere" }}>{row.name}</span>
+      <span className="ahd-world-row-label" style={{ minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.12rem" }}>
+        <span className="ahd-world-row-label-text" style={{ overflowWrap: "anywhere" }}>{row.name}</span>
         <span className="ahd-muted" style={{ fontSize: "0.68rem", fontWeight: 400 }}>
           {row.id}
           {row.population !== null ? ` · pop. ${row.population.toLocaleString("en-US")}` : ""}
         </span>
       </span>
-      {row.isHome ? <span className="ahd-badge">Home</span> : null}
+      {row.isHome ? <span className="ahd-badge" style={{ flexShrink: 0 }}>Home</span> : null}
     </button>
   );
 }
