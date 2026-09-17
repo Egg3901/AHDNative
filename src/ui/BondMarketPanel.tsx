@@ -51,20 +51,14 @@ export function BondMarketPanel({ market, busy, onAction, selectedId, onSelect }
     return bondYieldToMaturityPercent(item.couponRate, item.marketPrice, remaining);
   };
   const maxYtm = market.bonds.reduce((peak, item) => Math.max(peak, comparableYtm(item.id) ?? 0), 0);
-  return <div className="ahd-stack">
-    <div className="ahd-card ahd-card-pad ahd-hero">
-      <h2 className="ahd-h2">Sovereign bonds</h2>
-      <p className="ahd-help">Government debt issues, annual coupons and your holdings. Trade domestic issues using personal cash.</p>
-      <p>Available cash: {formatFinanceMoney(market.playerCash, market.currency)}</p>
-      {market.bonds.length === 0 ? <p className="ahd-empty">No outstanding bond issues.</p> :
-        <label className="ahd-field"><span className="ahd-label">Bond issue</span>
-          <select className="ahd-input" aria-label="Bond issue" value={bond?.id} disabled={busy}
-            onChange={event => { setQuantity('1'); onSelect(event.target.value); }}>
-            {market.bonds.map(item => <option key={item.id} value={item.id}>{item.issuerName} · {item.couponRate}% · matures {formatGameTurn(item.maturityTurn, clock)}</option>)}
-          </select>
-        </label>}
-    </div>
-    {market.bonds.length > 1 && bond && <div className="ahd-card ahd-card-pad" style={{ maxWidth: '100%' }}>
+  // Dual-pane list/detail pairing (#438): the compare-issues list and the
+  // selected-bond detail (with its trade tickets) share the existing
+  // selectedId/onSelect state; the shell places them on separate panes only
+  // when a hinge is reported. Single-pane keeps the exact pre-existing
+  // stacked journey, order, and controls. A lone detail (single issue) stays
+  // unwrapped so it is never squeezed into one grid column.
+  const pairsAcrossHinge = market.bonds.length > 1 && bond !== undefined;
+  const compareCard = pairsAcrossHinge && bond ? <div className="ahd-card ahd-card-pad" data-pane="list" style={{ maxWidth: '100%' }}>
       <h2 className="ahd-h2">Compare issues</h2>
       <p className="ahd-help">Yield to maturity per outstanding issue, scaled to the highest in this market. Matured and defaulted issues show a dash.</p>
       <ul style={{ listStyle: 'none', margin: '0.5rem 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem', maxWidth: '100%' }}>
@@ -98,8 +92,8 @@ export function BondMarketPanel({ market, busy, onAction, selectedId, onSelect }
           </li>;
         })}
       </ul>
-    </div>}
-    {bond && <div className="ahd-card ahd-card-pad">
+    </div> : null;
+  const detailCard = bond ? <div className="ahd-card ahd-card-pad" data-pane="detail">
       <h2 className="ahd-h2">{bond.issuerName} bond</h2>
       <p style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', margin: '0.35rem 0 0' }}>
         <span className="ahd-badge">Sovereign</span>
@@ -143,6 +137,20 @@ export function BondMarketPanel({ market, busy, onAction, selectedId, onSelect }
           <p className="ahd-help">{quote.error ?? `Costs ${quote.cost} action${quote.cost === 1 ? '' : 's'}.`}</p>
         </div>;
       })}
-    </div>}
+    </div> : null;
+  return <div className="ahd-stack">
+    <div className="ahd-card ahd-card-pad ahd-hero">
+      <h2 className="ahd-h2">Sovereign bonds</h2>
+      <p className="ahd-help">Government debt issues, annual coupons and your holdings. Trade domestic issues using personal cash.</p>
+      <p>Available cash: {formatFinanceMoney(market.playerCash, market.currency)}</p>
+      {market.bonds.length === 0 ? <p className="ahd-empty">No outstanding bond issues.</p> :
+        <label className="ahd-field"><span className="ahd-label">Bond issue</span>
+          <select className="ahd-input" aria-label="Bond issue" value={bond?.id} disabled={busy}
+            onChange={event => { setQuantity('1'); onSelect(event.target.value); }}>
+            {market.bonds.map(item => <option key={item.id} value={item.id}>{item.issuerName} · {item.couponRate}% · matures {formatGameTurn(item.maturityTurn, clock)}</option>)}
+          </select>
+        </label>}
+    </div>
+    {compareCard && detailCard ? <div className="ahd-dual-panes">{compareCard}{detailCard}</div> : detailCard}
   </div>;
 }

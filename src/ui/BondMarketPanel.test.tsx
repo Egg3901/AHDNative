@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BondMarketPanel } from './BondMarketPanel';
 import type { BondMarketView } from '../game/bondMarket';
 
@@ -66,4 +66,48 @@ it('dashes the yield and bar for a defaulted issue instead of plotting a recover
 it('omits the comparison when a single issue is outstanding', () => {
   render(<BondMarketPanel market={market} busy={false} onAction={vi.fn()} onSelect={vi.fn()} />);
   expect(screen.queryByText('Compare issues')).not.toBeInTheDocument();
+});
+describe('BondMarketPanel dual-pane list/detail (#438)', () => {
+  const multi: BondMarketView = { ...market, bonds: [...market.bonds,
+    { id: 'bond-61-US', countryId: 'US', issuerName: 'United States Second', currency: 'USD', faceValue: 1000,
+      marketPrice: 0.9, couponRate: 5, maturityTurn: 146, publicFloat: 40, playerUnits: 0,
+      matured: false, defaulted: false, domestic: true }] };
+  it('pairs the compare list with the selected detail sharing one selection', async () => {
+    const user = userEvent.setup(); const onSelect = vi.fn();
+    render(<BondMarketPanel market={multi} busy={false} onAction={vi.fn()} onSelect={onSelect} />);
+    const panes = document.querySelector('.ahd-dual-panes');
+    expect(panes).not.toBeNull();
+    const list = document.querySelector('[data-pane="list"]');
+    const detail = document.querySelector('[data-pane="detail"]');
+    expect(list).not.toBeNull();
+    expect(detail).not.toBeNull();
+    expect(panes as HTMLElement).toContainElement(list as HTMLElement);
+    expect(panes as HTMLElement).toContainElement(detail as HTMLElement);
+    expect(within(list as HTMLElement).getByText('Compare issues')).toBeInTheDocument();
+    expect(within(list as HTMLElement).getByRole('button', { name: /select united states second/i })).toBeInTheDocument();
+    expect(within(detail as HTMLElement).getByText('Yield to maturity')).toBeInTheDocument();
+    // One selection drives both panes: no duplicate state, same callback.
+    await user.click(screen.getByRole('button', { name: /select united states second/i }));
+    expect(onSelect).toHaveBeenCalledWith('bond-61-US');
+    expect(document.querySelector('[data-pane="list"]')).not.toBeNull();
+  });
+  it('keeps the single-pane stacked journey with unchanged trade controls', async () => {
+    const user = userEvent.setup(); const onAction = vi.fn();
+    render(<BondMarketPanel market={multi} busy={false} onAction={onAction} onSelect={vi.fn()} />);
+    const list = document.querySelector('[data-pane="list"]') as HTMLElement;
+    const detail = document.querySelector('[data-pane="detail"]') as HTMLElement;
+    // Single-pane stacks the detail below the list in the same order as before.
+    expect(list.compareDocumentPosition(detail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Trade tickets still live in the detail and dispatch the selected issue.
+    await user.clear(within(detail).getByLabelText('Bond units'));
+    await user.type(within(detail).getByLabelText('Bond units'), '2');
+    await user.click(within(detail).getByRole('button', { name: 'Buy bond units' }));
+    expect(onAction).toHaveBeenCalledWith('buyBond', { bondId: 'bond-60-US', units: 2 });
+  });
+  it('leaves a lone detail unwrapped so a single issue never squeezes into one grid column', () => {
+    render(<BondMarketPanel market={market} busy={false} onAction={vi.fn()} onSelect={vi.fn()} />);
+    expect(document.querySelector('.ahd-dual-panes')).toBeNull();
+    expect(document.querySelector('[data-pane="list"]')).toBeNull();
+    expect(screen.getByText('Yield to maturity')).toBeInTheDocument();
+  });
 });
