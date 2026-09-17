@@ -41,11 +41,14 @@ export const CORPORATE_BOND_TERM_PREMIUMS: Record<BondMaturityTurns, number> = {
 };
 
 /**
- * Canonical state-ownership reader. Source: corporation.ts `isStateOwned()`
- * (absence of ownershipState means "private"). Never branch on the raw field.
+ * Canonical state-ownership reader. Source: nationalCorporation.ts
+ * `isStateOwned()` — state-owned when a countryOwnerId is present OR
+ * ownershipState is "stateOwned" (absence of ownershipState alone means
+ * "private" only when no countryOwnerId is set). Never branch on the raw
+ * field.
  */
-export function isCorpStateOwned(corp: Pick<Corporation, "ownershipState">): boolean {
-  return corp.ownershipState === "stateOwned";
+export function isCorpStateOwned(corp: Pick<Corporation, "countryOwnerId" | "ownershipState">): boolean {
+  return !!corp.countryOwnerId || corp.ownershipState === "stateOwned";
 }
 
 /**
@@ -86,9 +89,11 @@ function holderUnits(bond: Pick<Bond, "holders">): number {
 
 /**
  * Issuer/owner invariant check for one bond doc. Returns an error string, or
- * null when the bond's issuer identity is consistent. Covers both issuer
- * types so the public seam has a single entry point:
- *  - sovereign bonds must not carry a corporationId;
+ * null when the bond's issuer identity is consistent. Single entry point for
+ * the public seam:
+ *  - sovereign bonds are passthrough (source sovereign docs DO carry a
+ *    corporationId — sovereign.ts stamps the country corporation's id — so
+ *    the seam takes no opinion on that field);
  *  - corporate bonds must name an existing corporation in the same country,
  *    use a corporate issuance maturity with a matching maturityTurn, carry
  *    the issuer's home denomination, keep a consistent state-ownership pair,
@@ -99,9 +104,6 @@ export function validateBondIssuerIdentity(
   bond: Bond,
 ): string | null {
   if (bond.issuerType === "sovereign") {
-    if (bond.corporationId !== undefined && bond.corporationId !== "") {
-      return `Sovereign bond ${bond.id} must not carry corporationId ${bond.corporationId}`;
-    }
     return null;
   }
   if (bond.issuerType !== "corporation") {

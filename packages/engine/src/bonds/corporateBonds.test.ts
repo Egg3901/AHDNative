@@ -16,6 +16,11 @@ import {
 } from "./corporateBonds.js";
 import type { Bond } from "./types.js";
 import { executeAction } from "../actions/execute.js";
+import {
+  payCouponsAndUpdatePrices,
+  runNpcHolderBehavior,
+  settleMaturedBonds,
+} from "./bondTurn.js";
 
 const OPTS = { seed: "corp-bond-seed", playerName: "Tester", countryId: "US", era: "1953" } as const;
 
@@ -109,6 +114,24 @@ describe("corporate issuance (cite: bond.ts CORPORATE_BOND_MATURITY_ISSUANCE_OPT
     const res = issueCorporateBond(world, corpId, { totalUnits: 10, maturityTurns: 96 });
     expect(res.ok).toBe(true);
   });
+
+  it("reads a corp with only countryOwnerId as state-owned (source isStateOwned disjunct)", () => {
+    const world = createWorld(OPTS);
+    const corpId = usCorpId();
+    delete world.corporations[corpId]!.ownershipState;
+    world.corporations[corpId]!.countryOwnerId = "US";
+    expect(isCorpStateOwned(world.corporations[corpId]!)).toBe(true);
+    const res = issueCorporateBond(world, corpId, { totalUnits: 10, maturityTurns: 96 });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(validateBondIssuerIdentity(world, world.bonds[res.bondId]!)).toBeNull();
+  });
+
+  it("pins AAA-baseline coupon arithmetic to hardcoded source numbers (prime + 1.0 spread + term premium)", () => {
+    expect(getCorporateCouponRate(3.0, 96)).toBe(4.0);
+    expect(getCorporateCouponRate(3.0, 240)).toBe(5.0);
+    expect(getCorporateCouponRate(3.0, 336)).toBe(5.75);
+  });
 });
 
 // ── Invalid issuance (atomic: failures commit nothing) ──────────────
@@ -150,10 +173,10 @@ describe("issuance rejection", () => {
 
 // ── Issuer/owner invariants at the public seam ───────────────────────
 describe("issuer/owner invariants (cite: bond.ts Bond.corporationId, corporation.ts countryOwnerId/ownershipState)", () => {
-  it("rejects sovereign bonds carrying a corporationId", () => {
+  it("passes sovereign bonds through even when they carry a corporationId (source sovereign docs stamp one)", () => {
     const world = createWorld(OPTS);
-    world.bonds["bad-sov"] = {
-      id: "bad-sov",
+    world.bonds["src-shaped-sov"] = {
+      id: "src-shaped-sov",
       issuerType: "sovereign",
       corporationId: usCorpId(),
       countryId: "US",
@@ -174,11 +197,11 @@ describe("issuer/owner invariants (cite: bond.ts Bond.corporationId, corporation
       createdAt: world.meta.date,
       updatedAt: world.meta.date,
     };
-    expect(validateBondIssuerIdentity(world, world.bonds["bad-sov"]!)).toMatch(/must not carry corporationId/);
+    expect(validateBondIssuerIdentity(world, world.bonds["src-shaped-sov"]!)).toBeNull();
     world.player.cash = 1_000_000;
     world.player.actions = 10;
-    const res = executeAction(world, "player", "buyBond", { bondId: "bad-sov", units: 1 });
-    expect(res.ok).toBe(false);
+    const res = executeAction(world, "player", "buyBond", { bondId: "src-shaped-sov", units: 1 });
+    expect(res.ok).toBe(true);
   });
 
   it("rejects corporate bonds with unknown, mismatched, or mis-denominated issuers", () => {
@@ -215,6 +238,19 @@ describe("issuer/owner invariants (cite: bond.ts Bond.corporationId, corporation
     // Break conservation behind the seam's back: trade must now refuse.
     bond.publicFloat += 1;
     const bad = executeAction(world, "player", "buyBond", { bondId: bond.id, units: 1 });
+    expect(bad.ok).toBe(false);
+    expect((bad as { error: string }).error).toMatch(/does not conserve units/);
+  });
+
+  it("rejects sellBond on invariant-violating corporate bonds at the action seam", () => {
+    const world = createWorld(OPTS);
+    const corpId = usCorpId();
+    const bond = validCorporateBond(world, corpId);
+    world.player.cash = 1_000_000;
+    world.player.actions = 10;
+    expect(executeAction(world, "player", "buyBond", { bondId: bond.id, units: 5 }).ok).toBe(true);
+    bond.publicFloat += 1;
+    const bad = executeAction(world, "player", "sellBond", { bondId: bond.id, units: 1 });
     expect(bad.ok).toBe(false);
     expect((bad as { error: string }).error).toMatch(/does not conserve units/);
   });
@@ -257,6 +293,26 @@ describe("public float conservation", () => {
     expect(world.bonds[bond.id]!.publicFloat).toBe(100);
     expect(world.player.cash).toBe(cashBefore);
     expect(validateBondIssuerIdentity(world, world.bonds[bond.id]!)).toBeNull();
+  });
+
+  it("corporate issues stay inert past maturityTurn (no coupon/settlement/NPC drift until #308)", () => {
+    const world = createWorld(OPTS);
+    const corpId = usCorpId();
+    const bond = validCorporateBond(world, corpId);
+    const budgetBefore = world.budgets[bond.countryId]!.treasuryBalance;
+    const cashBefore = world.player.cash;
+    world.meta.turn = bond.maturityTurn + 5;
+    const coupons = payCouponsAndUpdatePrices(world);
+    const settled = settleMaturedBonds(world);
+    runNpcHolderBehavior(world);
+    expect(coupons.totalToPlayer).toBe(0);
+    expect(coupons.budgetCoupons[bond.countryId]).toBeUndefined();
+    expect(settled).toBe(0);
+    expect(world.bonds[bond.id]!.matured).toBe(false);
+    expect(world.bonds[bond.id]!.marketPrice).toBe(1.0);
+    expect(world.bonds[bond.id]!.publicFloat).toBe(100);
+    expect(world.player.cash).toBe(cashBefore);
+    expect(world.budgets[bond.countryId]!.treasuryBalance).toBe(budgetBefore);
   });
 });
 
