@@ -265,8 +265,8 @@
 .av-tbl-wrap { overflow-x: auto; margin: 0 0 0.9em; border: 1px solid var(--av-line); border-radius: 10px; }
 
 .av-table { border-collapse: collapse; width: 100%; font-size: 0.78rem; }
-.av-table th { background: var(--av-shade); text-align: left; padding: 6px 8px; white-space: nowrap; }
-.av-table td { border-top: 1px solid var(--av-line); padding: 6px 8px; vertical-align: top; }
+.av-table th { background: var(--av-shade); text-align: left; padding: 6px 8px; overflow-wrap: anywhere; }
+.av-table td { border-top: 1px solid var(--av-line); padding: 6px 8px; vertical-align: top; overflow-wrap: anywhere; }
 .av-table code { background: var(--av-shade); }
 
 .av-live-src { font-size: 0.75rem; color: var(--av-mute); margin: 0; }
