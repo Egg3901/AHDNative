@@ -1414,6 +1414,44 @@ and removed. The smoke helper now walks the conversation; no engine change.
 - #437 stays `status: partial` solely for named physical-device performance
   evidence; all software-verifiable acceptance is now covered.
 
+## Glass material consistency audit, 2026-09-17 (#437 partial)
+
+- Audited the PR #449 tokens and their application across persistent chrome,
+  elevated controls, drawers, modals, cards, disclosures, and resource
+  surfaces. Six inconsistencies closed, all background/border/fallback only,
+  no geometry, no new transitions, no proprietary assets:
+  (1) the creation sticky action bar was persistent chrome with an ad-hoc
+  92% tint and no blur or fallback; it now resolves chrome tokens with blur
+  and a solid app-bg fallback; (2) the drawer quick bar was an opaque card
+  strip seam inside glass chrome; it is transparent so drawer chrome shows
+  through; (3) drawer disclosures were a translucent tint with no fallback;
+  they stay blur-free over the already-blurred drawer (no nested backdrop
+  cost) and now resolve to solid elevated card in all three fallback
+  branches; (4) the drawer edge and inner chrome dividers used opaque or
+  doubled hairlines; outer chrome edges share the footer fg-18% translucent
+  treatment with inner dividers at fg-10%; (5) resource details carried an
+  opaque border; it now uses a translucent edge highlight in the modal-border
+  family; (6) `.ahd-empty` was a translucent placeholder; it is opaque
+  content. The drawer scrim stays unblurred by documented design.
+- Accessibility and restraint preserved: solid fallbacks unchanged, so the
+  contrast evidence (body 12.1-15.4, secondary 4.6-5.2, action label 4.8)
+  still holds; backdrop blur stays on five large containers only (footer,
+  drawer, creation bar, resource details, popover), never on small repeated
+  controls; the reduced-motion takeover is untouched.
+- Contract docs updated: the UI-REFERENCE material table now records the
+  shipped PR #449 values (78%/16px, 72%/22px, 68%/28px) instead of the stale
+  pre-#449 values, plus the full surface assignment.
+- Focused evidence: `src/ui/materials.test.ts` (14: token contract,
+  fallback branches incl. creation bar and disclosures, content opacity,
+  quick-bar transparency, divider depth, contrast, motion restraint),
+  `src/ui/DeviceChromeContracts.test.ts` (10: safe-area plus perceptible
+  glass with drawer and creation-bar chrome bindings),
+  `SafeAreaComposition`/`MobileNavigation`/`GameScreen` (98),
+  `SettingsPanel` transparency (6), `preferences` (4). No full typecheck,
+  verify, build, or smoke rerun per scope; shared-scheduler validation owed.
+- #437 stays `status: partial` solely for representative phone screenshots
+  and named physical-device performance evidence; no device claim is made.
+
 ## Dynamic Island safe-area composition checkpoint, 2026-09-16 (#436 partial)
 
 - Browser-geometry contract only. `env(safe-area-inset-*)` is now used

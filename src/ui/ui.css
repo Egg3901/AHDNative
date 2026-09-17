@@ -365,7 +365,7 @@ html, body { overflow-x: hidden; }
 .ahd-empty {
   border: 1px dashed var(--ahd-border); border-radius: var(--ahd-radius);
   padding: 0.9rem; color: var(--ahd-muted); font-size: 0.82rem; text-align: center;
-  background: color-mix(in srgb, var(--ahd-card) 70%, transparent);
+  background: var(--ahd-card);
 }
 .ahd-badge {
   display: inline-flex; align-items: center;
@@ -576,7 +576,7 @@ html, body { overflow-x: hidden; }
  * cutout or rounded corners. Portrait geometry is unchanged. */
 .ahd-bottomnav {
   display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-top: 1px solid var(--ahd-border);
+  border-top: 1px solid color-mix(in srgb, var(--ahd-fg) 10%, transparent);
   margin: 0.15rem calc(-1 * max(0.85rem, env(safe-area-inset-right))) 0 calc(-1 * max(0.85rem, env(safe-area-inset-left)));
   padding: 0.15rem max(0.4rem, env(safe-area-inset-right)) 0 max(0.4rem, env(safe-area-inset-left));
 }
@@ -610,7 +610,7 @@ html, body { overflow-x: hidden; }
   background: var(--ahd-material-chrome-bg);
   -webkit-backdrop-filter: blur(var(--ahd-material-chrome-blur));
   backdrop-filter: blur(var(--ahd-material-chrome-blur));
-  border-right: 1px solid var(--ahd-border);
+  border-right: 1px solid color-mix(in srgb, var(--ahd-fg) 18%, transparent);
   box-shadow: var(--ahd-shadow-md);
   display: flex; flex-direction: column;
   overscroll-behavior: contain;
@@ -662,8 +662,8 @@ html, body { overflow-x: hidden; }
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem;
   padding: 0.5rem 0.9rem 0;
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
-  border-top: 1px solid var(--ahd-border);
-  background: var(--ahd-card);
+  border-top: 1px solid color-mix(in srgb, var(--ahd-fg) 10%, transparent);
+  background: transparent;
 }
 .ahd-drawer-quick-btn { width: 100%; }
 /* Narrow phones (320/390px): squeeze section padding and item type so the
@@ -727,7 +727,7 @@ html, body { overflow-x: hidden; }
   background: var(--ahd-material-elevated-bg);
   -webkit-backdrop-filter: blur(var(--ahd-material-elevated-blur));
   backdrop-filter: blur(var(--ahd-material-elevated-blur));
-  border: 1px solid var(--ahd-border);
+  border: 1px solid color-mix(in srgb, var(--ahd-fg) 16%, var(--ahd-border));
   border-radius: var(--ahd-radius);
   box-shadow: var(--ahd-shadow-md);
   padding: 0.7rem;
@@ -744,7 +744,13 @@ html, body { overflow-x: hidden; }
  * heights) is owned by #436 and untouched: only backgrounds, blur,
  * borders and depth change here, and the system adds no transitions or
  * animations of its own (the existing reduced-motion takeover covers the
- * drawer/backdrop keyframes). Content cards (.ahd-card) stay opaque. */
+ * drawer/backdrop keyframes). Chrome: footer, drawer, creation sticky
+ * action bar. Elevated: resource details; drawer disclosures are a blur-free
+ * elevated tint over the already-blurred drawer (no nested backdrop cost)
+ * with a solid fallback. The drawer quick bar stays transparent so drawer
+ * chrome shows through. Content cards (.ahd-card) and empty placeholders
+ * (.ahd-empty) stay opaque. The drawer scrim stays an unblurred dim layer
+ * by design: blurring a full-screen scrim costs GPU for no hierarchy gain. */
 .ahd-resource-popover {
   background: var(--ahd-material-modal-bg);
   -webkit-backdrop-filter: blur(var(--ahd-material-modal-blur));
@@ -757,12 +763,16 @@ html, body { overflow-x: hidden; }
  * player choice wins; otherwise the device setting applies. */
 :root[data-reduced-transparency="on"] .ahd-footer { background: var(--ahd-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
 :root[data-reduced-transparency="on"] .ahd-drawer { background: var(--ahd-card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-reduced-transparency="on"] .ahd-creation-actions { background: var(--ahd-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
 :root[data-reduced-transparency="on"] .ahd-resource-details { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-reduced-transparency="on"] .ahd-drawer-disclosure { background: var(--ahd-card-elevated); }
 :root[data-reduced-transparency="on"] .ahd-resource-popover { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
 @media (prefers-reduced-transparency: reduce) {
   :root:not([data-reduced-transparency="off"]) .ahd-footer { background: var(--ahd-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
   :root:not([data-reduced-transparency="off"]) .ahd-drawer { background: var(--ahd-card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :root:not([data-reduced-transparency="off"]) .ahd-creation-actions { background: var(--ahd-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
   :root:not([data-reduced-transparency="off"]) .ahd-resource-details { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :root:not([data-reduced-transparency="off"]) .ahd-drawer-disclosure { background: var(--ahd-card-elevated); }
   :root:not([data-reduced-transparency="off"]) .ahd-resource-popover { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 /* Forced-colors mode: translucency and blur are meaningless, so every
@@ -770,7 +780,9 @@ html, body { overflow-x: hidden; }
 @media (forced-colors: active) {
   .ahd-footer { background: var(--ahd-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
   .ahd-drawer { background: var(--ahd-card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .ahd-creation-actions { background: var(--ahd-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
   .ahd-resource-details { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .ahd-drawer-disclosure { background: var(--ahd-card-elevated); }
   .ahd-resource-popover { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 /* End material system (issue #437) */
@@ -1069,8 +1081,10 @@ html, body { overflow-x: hidden; }
   position: sticky; bottom: 0; z-index: 5;
   display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;
   margin-top: 1rem; padding: 0.6rem 0 max(0.6rem, env(safe-area-inset-bottom));
-  background: color-mix(in srgb, var(--ahd-bg) 92%, transparent);
-  border-top: 1px solid var(--ahd-border);
+  background: var(--ahd-material-chrome-bg);
+  -webkit-backdrop-filter: blur(var(--ahd-material-chrome-blur));
+  backdrop-filter: blur(var(--ahd-material-chrome-blur));
+  border-top: 1px solid color-mix(in srgb, var(--ahd-fg) 18%, transparent);
 }
 .ahd-creation-actions .ahd-btn-primary { flex: 1 1 12rem; }
 @media (prefers-reduced-motion: reduce) {

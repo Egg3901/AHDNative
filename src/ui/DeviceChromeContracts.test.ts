@@ -91,6 +91,10 @@ describe("perceptible glass (#437)", () => {
   it("binds each shipped surface to its own level tokens", () => {
     expect(css).toMatch(/\.ahd-footer\s*\{[^}]*var\(--ahd-material-chrome-bg\)/);
     expect(css).toMatch(/\.ahd-footer\s*\{[^}]*var\(--ahd-material-chrome-blur\)/);
+    expect(css).toMatch(/\.ahd-drawer\s*\{[^}]*var\(--ahd-material-chrome-bg\)/);
+    expect(css).toMatch(/\.ahd-drawer\s*\{[^}]*var\(--ahd-material-chrome-blur\)/);
+    expect(css).toMatch(/\.ahd-creation-actions\s*\{[^}]*var\(--ahd-material-chrome-bg\)/);
+    expect(css).toMatch(/\.ahd-creation-actions\s*\{[^}]*var\(--ahd-material-chrome-blur\)/);
     expect(css).toMatch(/\.ahd-resource-details\s*\{[^}]*var\(--ahd-material-elevated-bg\)/);
     expect(css).toMatch(/\.ahd-resource-details\s*\{[^}]*var\(--ahd-material-elevated-blur\)/);
     expect(css).toMatch(/\.ahd-resource-popover\s*\{[^}]*var\(--ahd-material-modal-bg\)/);
