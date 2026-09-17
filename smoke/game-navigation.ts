@@ -84,8 +84,8 @@ export async function closeGameMenu(page: Page) {
 /**
  * Test-only fixture bootstrap (#506). Loads save bytes through the DEV-only
  * `window.__ahdTestHooks` boundary installed by the app (same worker/store
- * path as a native resume). The hook does not exist in production builds, so
- * this helper throws there instead of injecting anything.
+ * path as a native resume). The production smoke bundle is compiled with an
+ * explicit CI-only flag; ordinary production builds omit the hook.
  */
 export async function loadFixture(page: Page, fixture: Buffer) {
   await page.evaluate(async (saveText: string) => {

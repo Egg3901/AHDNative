@@ -183,7 +183,7 @@ export function App() {
     });
   }
   useEffect(() => {
-    if (!import.meta.env.DEV) return;
+    if (!import.meta.env.DEV && import.meta.env.VITE_AHD_SMOKE_FIXTURES !== '1') return;
     installTestHooks({ loadFixture: contents => loadFixtureContents(contents).then(() => undefined) });
     return () => clearTestHooks();
   });

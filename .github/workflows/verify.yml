@@ -36,6 +36,10 @@ jobs:
           RULES_REVISION: ${{ steps.rules.outputs.revision }}
         run: node scripts/shared-rules.mjs --check --source .reference-game --revision "$RULES_REVISION"
       - run: npm run verify
+        env:
+          # Compile the private fixture bridge only into this disposable CI
+          # bundle. Ordinary preview/release builds never set this flag.
+          VITE_AHD_SMOKE_FIXTURES: "1"
       - run: npm run test:ci --workspace @ahdclient/engine -- --maxWorkers 2
       - run: npm run test:ci --workspace @ahdclient/content -- --maxWorkers 1
       - run: npx playwright install --with-deps chromium

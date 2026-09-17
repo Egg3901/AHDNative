@@ -4,8 +4,9 @@
  * Smoke tests used to inject save fixtures through the player-facing
  * "Import saved game" file picker. That control is removed; fixtures now
  * enter through this hook instead. The hook is installed by `src/App.tsx`
- * only when `import.meta.env.DEV` is true, so production builds (Vite
- * replaces the flag statically and drops the branch) never install it,
+ * only in dev or an explicitly flagged disposable CI smoke bundle, so
+ * ordinary production builds (Vite replaces the flags statically and drops
+ * the branch) never install it,
  * never render it, and never expose it as callable. It adds no new
  * capabilities: the fixture bytes travel the same native/session path as a
  * normal resume (`GameClient.load` -> `deserializeSave` with compatibility
@@ -24,9 +25,9 @@ declare global {
   }
 }
 
-/** Install the hooks. No-op unless this is a DEV (non-production) build. */
+/** Install hooks only in dev or the explicitly flagged CI smoke bundle. */
 export function installTestHooks(hooks: AhdTestHooks): void {
-  if (!import.meta.env.DEV) return;
+  if (!import.meta.env.DEV && import.meta.env.VITE_AHD_SMOKE_FIXTURES !== '1') return;
   window.__ahdTestHooks = hooks;
 }
 
