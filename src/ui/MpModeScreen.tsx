@@ -8,14 +8,16 @@ import {
 import { MpModeSession, type MpSnapshot } from "../mp/adapter";
 import { tauriMpBridgeHost, type MpBridgeHost } from "../mp/bridge";
 import { MP_EXECUTE_ACTIONS, MP_NOTIFICATION_TYPES, MP_SNOOZE_MINUTES_DEFAULT } from "../mp/endpoints";
+import { MpAdminScreen } from "./MpAdminScreen";
 import "./ui.css";
 
 /* Native multiplayer mode screen (#359). Renders authoritative server state
  * through the shared React UI: the MpModeSession adapter loads the player,
  * turn, inbox, and on-demand player mail, sends explicitly modeled
  * mutations, and refreshes authoritative reads before claiming completion.
- * This screen never touches the local SP engine or saves: unsupported
- * actions are absent, not inert.
+ * Read-only admin status is a separate authority-gated surface. This
+ * screen never touches the local SP engine or saves: unsupported actions
+ * are absent, not inert.
  */
 
 export interface MpModeScreenProps {
@@ -68,6 +70,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   const [composeTo, setComposeTo] = useState("");
   const [composeSubject, setComposeSubject] = useState("");
   const [composeBody, setComposeBody] = useState("");
+  const [adminOpen, setAdminOpen] = useState(false);
 
   useEffect(() => {
     const session = sessionRef.current!;
@@ -144,6 +147,11 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
       }
     });
   }
+
+  if (adminOpen) {
+    return <MpAdminScreen host={host} onBack={() => setAdminOpen(false)} />;
+  }
+
   const phase = snapshot.phase;
   const needsSession = phase === "idle" || phase === "loading" || phase === "session-required" || phase === "signed-out" || phase === "auth-expired";
   const blocked = phase === "offline" || phase === "server-error" || phase === "rate-limited";
@@ -160,6 +168,9 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
           <div className="ahd-mp-row" style={{ marginLeft: "auto" }}>
             <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => void runGeneral((s) => s.refresh())}>
               Refresh
+            </button>
+            <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => setAdminOpen(true)}>
+              Admin status
             </button>
             <button className="ahd-btn ahd-btn-sm" onClick={onExit}>Exit multiplayer</button>
           </div>

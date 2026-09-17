@@ -447,6 +447,58 @@ export function validateMailId(id: unknown): { ok: true; id: string } | { ok: fa
   return { ok: true, id };
 }
 
+export interface MpClientNavPermissions {
+  isAdmin: boolean;
+  isModerator: boolean;
+}
+
+/**
+ * client-nav permission gate (#359 admin slice): the ONLY admin signal
+ * Native trusts. Both flags must be real booleans; a missing, numeric, or
+ * string flag never means admin — it means malformed.
+ */
+export function parseClientNavPermissions(bodyText: string): MpClientNavPermissions | null {
+  const record = asRecord(parseJsonBody(bodyText));
+  const user = record ? asRecord(record.user) : null;
+  if (!user) return null;
+  const isAdmin = asBoolean(user.isAdmin);
+  const isModerator = asBoolean(user.isModerator);
+  if (isAdmin === null || isModerator === null) return null;
+  return { isAdmin, isModerator };
+}
+
+export type MpMaintenanceMode = "off" | "partial" | "full";
+
+export interface MpMaintenanceStatus {
+  mode: MpMaintenanceMode;
+  enabled: boolean;
+  reason: string;
+  expectedEnd: string;
+  enabledBy: string;
+  enabledAt: string;
+}
+
+function asStringField(value: unknown): string | null {
+  return typeof value === "string" ? value.slice(0, 500) : null;
+}
+
+/** admin-maintenance GET: fixed six-field DTO; anything else is malformed. */
+export function parseMaintenanceStatus(bodyText: string): MpMaintenanceStatus | null {
+  const record = asRecord(parseJsonBody(bodyText));
+  if (!record) return null;
+  const mode = record.mode;
+  if (mode !== "off" && mode !== "partial" && mode !== "full") return null;
+  const enabled = asBoolean(record.enabled);
+  const reason = asStringField(record.reason);
+  const expectedEnd = asStringField(record.expectedEnd);
+  const enabledBy = asStringField(record.enabledBy);
+  const enabledAt = asStringField(record.enabledAt);
+  if (enabled === null || reason === null || expectedEnd === null || enabledBy === null || enabledAt === null) {
+    return null;
+  }
+  return { mode, enabled, reason, expectedEnd, enabledBy, enabledAt };
+}
+
 /**
  * Preference pre-check mirroring notificationPreferenceActionSchema (#361):
  * only mute/unmute with an allowlisted notification type. Preference

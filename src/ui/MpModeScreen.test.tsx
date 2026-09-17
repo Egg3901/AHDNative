@@ -409,4 +409,48 @@ describe("MpModeScreen on desktop", () => {
     await user.click(navigation.getByRole("button", { name: "Menu" }));
     expect(onExit).toHaveBeenCalledTimes(1);
   });
+
+  it("opens read-only admin status and returns to player mail without mutating", async () => {
+    setViewport(1280);
+    const user = userEvent.setup();
+    const { host, calls } = fakeHost({
+      fetch: {
+        "auth-session": [probe],
+        "character-me": [me(1000)],
+        "turn-status": [turn],
+        notifications: [inbox(1)],
+        "mail-inbox": [emptyMailInbox],
+        "mail-sent": [emptyMailSent],
+        "client-nav": [
+          JSON.stringify({ user: { id: "u1", username: "Ada", isAdmin: true, isModerator: true } }),
+        ],
+        "admin-maintenance": [
+          JSON.stringify({
+            mode: "partial",
+            enabled: true,
+            reason: "deploy",
+            expectedEnd: "",
+            enabledBy: "",
+            enabledAt: "",
+          }),
+        ],
+      },
+    });
+    render(<MpModeScreen host={host} onExit={() => {}} />);
+    await screen.findByRole("heading", { name: "Ada" });
+    expect(screen.getByRole("region", { name: "Player mail" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Admin status" }));
+    expect(await screen.findByRole("heading", { name: /site status/i })).toBeInTheDocument();
+    expect(screen.getByText("partial", { selector: "dd" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Player mail" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Primary" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /take (the )?site offline|set maintenance/i })).toBeNull();
+    expect(calls.filter((call) => call.startsWith("mutate:"))).toHaveLength(0);
+    expect(calls).toEqual(expect.arrayContaining(["fetch:mail-inbox", "fetch:mail-sent", "fetch:client-nav", "fetch:admin-maintenance"]));
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(await screen.findByRole("heading", { name: "Ada" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Player mail" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();
+  });
 });

@@ -97,6 +97,8 @@ pub enum MpFetchOp {
     MailInbox,
     /// Sent player mail page; same gate and paging, no unread count.
     MailSent,
+    /// Read-only site maintenance status; requireAdmin, 403 for non-admins.
+    AdminMaintenance,
 }
 
 impl MpFetchOp {
@@ -110,6 +112,7 @@ impl MpFetchOp {
             "notifications" => Some(Self::Notifications),
             "mail-inbox" => Some(Self::MailInbox),
             "mail-sent" => Some(Self::MailSent),
+            "admin-maintenance" => Some(Self::AdminMaintenance),
             _ => None,
         }
     }
@@ -124,6 +127,7 @@ impl MpFetchOp {
             Self::Notifications => "/api/notifications",
             Self::MailInbox => "/api/mail",
             Self::MailSent => "/api/mail/sent",
+            Self::AdminMaintenance => "/api/admin/maintenance",
         }
     }
 }
@@ -692,6 +696,7 @@ fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
         | ("GET", "/api/character/me")
         | ("GET", "/api/client-nav")
         | ("GET", "/api/game/turn/status")
+        | ("GET", "/api/admin/maintenance")
         | ("GET", "/api/game-time") => query.is_none(),
         ("GET", "/api/notifications") | ("GET", "/api/mail") | ("GET", "/api/mail/sent") => {
             match query {
@@ -1073,6 +1078,11 @@ mod tests {
             MpFetchOp::from_id("notifications"),
             Some(MpFetchOp::Notifications)
         );
+        assert_eq!(
+            MpFetchOp::from_id("admin-maintenance"),
+            Some(MpFetchOp::AdminMaintenance)
+        );
+        assert_eq!(MpFetchOp::AdminMaintenance.path(), "/api/admin/maintenance");
         assert_eq!(MpFetchOp::from_id("../admin"), None);
         assert_eq!(MpFetchOp::from_id("CHARACTER-ME"), None);
         assert_eq!(MpFetchOp::from_id(""), None);
@@ -1412,6 +1422,7 @@ mod tests {
             ("GET", "/api/client-nav"),
             ("GET", "/api/game/turn/status"),
             ("GET", "/api/game-time"),
+            ("GET", "/api/admin/maintenance"),
             ("GET", "/api/notifications?limit=25&offset=0"),
             ("GET", "/api/notifications?offset=10&limit=1"),
             ("POST", "/api/actions/execute"),
@@ -1437,6 +1448,9 @@ mod tests {
             ("GET", "/api/character/me?x=1"),
             ("POST", "/api/auth/login"),
             ("GET", "/api/admin/users"),
+            ("PATCH", "/api/admin/maintenance"),
+            ("POST", "/api/admin/maintenance"),
+            ("GET", "/api/admin/maintenance?x=1"),
         ] {
             assert!(
                 !is_allowlisted_call(denied.0, denied.1),
@@ -1697,8 +1711,8 @@ mod tests {
         assert_eq!(MpFetchOp::from_id("mail-sent"), Some(MpFetchOp::MailSent));
         assert_eq!(MpFetchOp::MailInbox.path(), "/api/mail");
         assert_eq!(MpFetchOp::MailSent.path(), "/api/mail/sent");
-        // No single-mail fetch exists server-side; channels and admin reads
-        // stay absent too.
+        // No single-mail fetch exists server-side. Staff mail-report ids stay
+        // absent; the separate admin-maintenance fetch is allowlisted above.
         for bad in [
             "mail",
             "mail-read",
@@ -1707,6 +1721,7 @@ mod tests {
             "",
             "../mail",
             "/api/mail",
+            "admin-mail-reports",
         ] {
             assert_eq!(MpFetchOp::from_id(bad), None, "{bad} must be rejected");
         }
