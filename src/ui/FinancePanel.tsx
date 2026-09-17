@@ -90,6 +90,58 @@ function CapabilityNote() {
   );
 }
 
+/** A non-finite price (missing market data, or NaN/null across the save
+ * interchange) must read as unknown, never as a $0.00 value: shares * null
+ * coerces to 0, which would misreport the holding as worthless. */
+function holdingPriceKnown(price: number): boolean {
+  return typeof price === "number" && Number.isFinite(price);
+}
+
+function HoldingSummaryValue({ name, ticker, shares, price, currency, layout = "row" }: { name: string; ticker: string; shares: number; price: number; currency: string; layout?: "row" | "stack" }) {
+  const known = holdingPriceKnown(price);
+  const value = known
+    ? <span className="ahd-muted ahd-mono" style={{ fontSize: "0.78rem", flexShrink: 0, overflowWrap: "anywhere", ...(layout === "row" ? { marginLeft: "auto" } : null) }}>
+      {formatFinanceMoney(shares * price, currency)}
+    </span>
+    : <span className="ahd-muted" style={{ fontSize: "0.78rem", flexShrink: 0, ...(layout === "row" ? { marginLeft: "auto" } : null) }}>
+      Price unavailable
+    </span>;
+  if (layout === "stack") {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem", minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: "0.84rem", overflowWrap: "anywhere" }}>
+          {name} <span className="ahd-muted">({ticker})</span>
+        </div>
+        {value}
+      </div>
+    );
+  }
+  return (
+    <>
+      <span style={{ fontWeight: 700, fontSize: "0.84rem", overflowWrap: "anywhere", minWidth: 0 }}>
+        {name} <span className="ahd-muted">({ticker})</span>
+      </span>
+      {value}
+    </>
+  );
+}
+
+function HoldingDetail({ shares, price, currency }: { shares: number; price: number; currency: string }) {
+  if (!holdingPriceKnown(price)) {
+    return (
+      <div className="ahd-muted ahd-mono" style={{ fontSize: "0.78rem", overflowWrap: "anywhere", marginTop: "0.25rem" }}>
+        {shares} shares · market price unavailable in {currency}
+      </div>
+    );
+  }
+  return (
+    <div className="ahd-muted ahd-mono" style={{ fontSize: "0.78rem", overflowWrap: "anywhere", marginTop: "0.25rem" }}>
+      {shares} shares · {formatFinanceMoney(price, currency)} per share ·{" "}
+      {formatFinanceMoney(shares * price, currency)} in {currency}
+    </div>
+  );
+}
+
 function PortfolioSection({ finance, onNavigate }: { finance: FinanceView; onNavigate?: (route: "portfolio" | "banking") => void }) {
   const multiHolding = finance.holdings.length > 1;
   return (
@@ -137,17 +189,9 @@ function PortfolioSection({ finance, onNavigate }: { finance: FinanceView; onNav
                     className="ahd-wallet-disclosure"
                     style={{ minHeight: "44px", display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", minWidth: 0 }}
                   >
-                    <span style={{ fontWeight: 700, fontSize: "0.84rem", overflowWrap: "anywhere", minWidth: 0 }}>
-                      {h.name} <span className="ahd-muted">({h.ticker})</span>
-                    </span>
-                    <span className="ahd-muted ahd-mono" style={{ marginLeft: "auto", fontSize: "0.78rem", flexShrink: 0, overflowWrap: "anywhere" }}>
-                      {formatFinanceMoney(h.shares * h.price, h.currency)}
-                    </span>
+                    <HoldingSummaryValue name={h.name} ticker={h.ticker} shares={h.shares} price={h.price} currency={h.currency} />
                   </summary>
-                  <div className="ahd-muted ahd-mono" style={{ fontSize: "0.78rem", overflowWrap: "anywhere", marginTop: "0.25rem" }}>
-                    {h.shares} shares · {formatFinanceMoney(h.price, h.currency)} per share ·{" "}
-                    {formatFinanceMoney(h.shares * h.price, h.currency)} in {h.currency}
-                  </div>
+                  <HoldingDetail shares={h.shares} price={h.price} currency={h.currency} />
                 </details>
               ))}
             </div>
@@ -158,13 +202,8 @@ function PortfolioSection({ finance, onNavigate }: { finance: FinanceView; onNav
                   key={h.id}
                   style={{ borderTop: "1px solid var(--ahd-border)", paddingTop: "0.5rem", minWidth: 0 }}
                 >
-                  <div style={{ fontWeight: 700, fontSize: "0.84rem", overflowWrap: "anywhere" }}>
-                    {h.name} <span className="ahd-muted">({h.ticker})</span>
-                  </div>
-                  <div className="ahd-muted ahd-mono" style={{ fontSize: "0.78rem", overflowWrap: "anywhere" }}>
-                    {h.shares} shares · {formatFinanceMoney(h.price, h.currency)} per share ·{" "}
-                    {formatFinanceMoney(h.shares * h.price, h.currency)} in {h.currency}
-                  </div>
+                  <HoldingSummaryValue name={h.name} ticker={h.ticker} shares={h.shares} price={h.price} currency={h.currency} layout="stack" />
+                  <HoldingDetail shares={h.shares} price={h.price} currency={h.currency} />
                 </li>
               ))}
             </ul>
