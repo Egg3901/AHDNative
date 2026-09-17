@@ -20,7 +20,7 @@ import { PoliticsRoute } from "./PoliticsRoute";
 import { ResourceBreakdown } from "./ResourceBreakdown";
 import { BottomNav, GameDrawer } from "./MobileNavigation";
 import type { DrawerRouteId, IdentityOrgLink } from "./MobileNavigation";
-import { useDualPaneLayout } from "./dualPane";
+import { hingeBounds, useDualPaneLayout, useViewportSegments, type ViewportSegment } from "./dualPane";
 import { ActionsHub, type ActionsCategoryFilter } from "./ActionsHub";
 import { PartyMark } from "./PartyMark";
 import { PollingPanel } from "./PollingPanel";
@@ -36,7 +36,7 @@ import { NewsPanel } from "./NewsPanel";
  *   (compact cards, primary #dc2626, bg #14141c, border #2a2a3d).
  * Public source Egg3901/AHDGame. Layout is original, responsive for Tauri web.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { GameScreenProps } from "../game/types";
 import { FinancePanel, formatFinanceMoney } from "./FinancePanel";
 import { LegislaturePanel } from "./LegislaturePanel";
@@ -143,6 +143,28 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   // explicit QA override. Single-pane keeps the phone navigation flow below.
   const dualPane = useDualPaneLayout();
   const dual = dualPane.mode === "dual";
+  // Segment-fitted geometry (#438): when dual-pane comes from the segments
+  // API alone, no spanning media drives the env()-fitted tracks, so the
+  // shell applies the reported rects itself. The fit engages only when the
+  // occlusion axis matches the resolved hinge; otherwise the fractional
+  // fallback grid (or the spanning-media tracks) stays in charge.
+  const segments: ViewportSegment[] | null = useViewportSegments();
+  // hingeBounds is null unless the rects are exactly two separated segments,
+  // so a non-null bound already proves the pair shape below.
+  const segmentHinge = hingeBounds(segments);
+  const segFit: { pane0: number; pane1: number; gap: number } | null =
+    dual && segmentHinge && segmentHinge.orientation === dualPane.hinge && segments
+      ? segmentHinge.orientation === "vertical"
+        ? { pane0: segments[0]!.width, pane1: segments[1]!.width, gap: segmentHinge.end - segmentHinge.start }
+        : { pane0: segments[0]!.height, pane1: segments[1]!.height, gap: segmentHinge.end - segmentHinge.start }
+      : null;
+  const shellStyle = segFit
+    ? ({
+      "--ahd-pane0": `${segFit.pane0}px`,
+      "--ahd-pane1": `${segFit.pane1}px`,
+      "--ahd-hinge-gap": `${segFit.gap}px`,
+    } as CSSProperties)
+    : undefined;
   const [openResource, setOpenResource] = useState<ResourceId | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [electionPage, setElectionPage] = useState(0);
@@ -403,6 +425,8 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
       data-dual-pane={dualPane.mode}
       data-hinge={dualPane.hinge ?? "none"}
       data-dual-capability={dualPane.capability}
+      data-segfit={segFit ? "true" : undefined}
+      style={shellStyle}
     >
       <div className="ahd-dual-body">
       {dual ? drawer : null}

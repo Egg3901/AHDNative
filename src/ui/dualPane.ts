@@ -158,6 +158,33 @@ function readInput(win: Window, explicitOverride?: DualPaneOverride | null): Dua
 }
 
 /**
+ * Live separated-segment geometry for the game shell. Returns the raw
+ * platform rects (or null) and re-reads on viewport resizes. The shell pairs
+ * this with {@link hingeBounds} to size panes and pin the footer/popovers
+ * exactly over the occlusion when dual-pane comes from the segments API
+ * alone (no spanning media to drive the env()-fitted tracks). Safe without
+ * a window (renders null).
+ */
+export function useViewportSegments(): ViewportSegment[] | null {
+  const [segments, setSegments] = useState<ViewportSegment[] | null>(() =>
+    typeof window === "undefined" ? null : readSegments(window),
+  );
+  useEffect(() => {
+    const update = () => setSegments(readSegments(window));
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    window.visualViewport?.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+      window.visualViewport?.removeEventListener("resize", update);
+    };
+  }, []);
+  return segments;
+}
+
+/**
  * Live posture hook for the game shell. Defaults to single-pane (phone
  * navigation intact) and re-resolves on viewport resizes and spanning
  * changes. Safe without a window (renders single-pane).

@@ -1307,6 +1307,74 @@ describe("GameScreen dual-pane posture completion (#438)", () => {
       delete (window as unknown as { getViewportSegments?: unknown }).getViewportSegments;
     }
   });
+
+  it("fits panes to reported vertical segments without spanning media", () => {
+    // Segments API alone: no spanning-media env() tracks apply, so the shell
+    // must carry the exact occlusion geometry for the hinge gutter, footer,
+    // and popovers instead of stretching the fractional fallback across it.
+    (window as unknown as { getViewportSegments: () => unknown }).getViewportSegments = () => [
+      { x: 0, y: 0, width: 400, height: 800 },
+      { x: 416, y: 0, width: 400, height: 800 },
+    ];
+    try {
+      renderShell(makeWorld());
+      const shell = document.querySelector(".ahd-screen") as HTMLElement;
+      expect(shell).toHaveAttribute("data-dual-pane", "dual");
+      expect(shell).toHaveAttribute("data-hinge", "vertical");
+      expect(shell).toHaveAttribute("data-segfit", "true");
+      expect(shell.style.getPropertyValue("--ahd-pane0")).toBe("400px");
+      expect(shell.style.getPropertyValue("--ahd-pane1")).toBe("400px");
+      expect(shell.style.getPropertyValue("--ahd-hinge-gap")).toBe("16px");
+    } finally {
+      delete (window as unknown as { getViewportSegments?: unknown }).getViewportSegments;
+    }
+  });
+
+  it("fits panes to reported horizontal segments without spanning media", () => {
+    (window as unknown as { getViewportSegments: () => unknown }).getViewportSegments = () => [
+      { x: 0, y: 0, width: 800, height: 400 },
+      { x: 0, y: 416, width: 800, height: 400 },
+    ];
+    try {
+      renderShell(makeWorld());
+      const shell = document.querySelector(".ahd-screen") as HTMLElement;
+      expect(shell).toHaveAttribute("data-dual-pane", "dual");
+      expect(shell).toHaveAttribute("data-hinge", "horizontal");
+      expect(shell).toHaveAttribute("data-segfit", "true");
+      expect(shell.style.getPropertyValue("--ahd-pane0")).toBe("400px");
+      expect(shell.style.getPropertyValue("--ahd-pane1")).toBe("400px");
+      expect(shell.style.getPropertyValue("--ahd-hinge-gap")).toBe("16px");
+    } finally {
+      delete (window as unknown as { getViewportSegments?: unknown }).getViewportSegments;
+    }
+  });
+
+  it("keeps the fractional fallback grid for override-only dual with no segments", () => {
+    // ?ahd-span exercises pane assignment with no reported rects, so there
+    // is no exact geometry to fit: the fractional fallback grid applies.
+    window.history.replaceState({}, "", "?ahd-span=vertical");
+    try {
+      renderShell(makeWorld());
+      const shell = document.querySelector(".ahd-screen") as HTMLElement;
+      expect(shell).toHaveAttribute("data-dual-pane", "dual");
+      expect(shell).toHaveAttribute("data-hinge", "vertical");
+      expect(shell).toHaveAttribute("data-dual-capability", "override");
+      expect(shell).not.toHaveAttribute("data-segfit");
+      expect(shell.style.getPropertyValue("--ahd-pane0")).toBe("");
+      expect(shell.style.getPropertyValue("--ahd-hinge-gap")).toBe("");
+    } finally {
+      window.history.replaceState({}, "", "/");
+    }
+  });
+
+  it("carries no segment fit in single-pane posture", () => {
+    delete (window as unknown as { getViewportSegments?: unknown }).getViewportSegments;
+    renderShell(makeWorld());
+    const shell = document.querySelector(".ahd-screen") as HTMLElement;
+    expect(shell).toHaveAttribute("data-dual-pane", "single");
+    expect(shell).not.toHaveAttribute("data-segfit");
+    expect(shell.style.getPropertyValue("--ahd-pane0")).toBe("");
+  });
 });
 
 describe("GameScreen menu keyboard flow", () => {

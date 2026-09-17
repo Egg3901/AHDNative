@@ -1437,6 +1437,42 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
   }
 }
 
+/* Segment-fitted tracks (issue #438). The shell sets data-segfit with exact
+   --ahd-pane0/--ahd-pane1/--ahd-hinge-gap pixel geometry when dual-pane
+   comes from getViewportSegments alone, where no spanning media drives the
+   env()-fitted tracks above. Same placement: navigation pane sized to the
+   first segment, gutter exactly over the occlusion, content in its own
+   segment. Override-only dual (no segments) keeps the fractional fallback
+   grid above. No safe-area or material tokens here. */
+.ahd-screen[data-dual-pane="dual"][data-hinge="vertical"][data-segfit="true"] .ahd-dual-body {
+  grid-template-columns: var(--ahd-pane0) var(--ahd-hinge-gap) minmax(0, 1fr);
+}
+.ahd-screen[data-dual-pane="dual"][data-hinge="vertical"][data-segfit="true"] .ahd-dual-body > aside { grid-column: 1; }
+.ahd-screen[data-dual-pane="dual"][data-hinge="vertical"][data-segfit="true"] .ahd-dual-body > main { grid-column: 3; }
+/* Fixed footer controls follow the content segment instead of crossing the hinge. */
+.ahd-screen[data-dual-pane="dual"][data-hinge="vertical"][data-segfit="true"] .ahd-footer-inner {
+  max-width: none; margin-left: calc(var(--ahd-pane0) + var(--ahd-hinge-gap) + 0.85rem); margin-right: 0.85rem;
+  padding-left: 0; padding-right: 0;
+}
+/* Transient overlays are direct children of the fixed footer (absolute,
+   left:0 right:0), so they would span the hinge exactly where the footer
+   controls above stop. Pin them to the same content-segment edges. */
+.ahd-screen[data-dual-pane="dual"][data-hinge="vertical"][data-segfit="true"] .ahd-resource-popover {
+  left: calc(var(--ahd-pane0) + var(--ahd-hinge-gap) + 0.85rem);
+  right: 0.85rem;
+}
+.ahd-screen[data-dual-pane="dual"][data-hinge="horizontal"][data-segfit="true"] .ahd-dual-body {
+  grid-template-rows: var(--ahd-pane0) var(--ahd-hinge-gap) minmax(0, 1fr);
+}
+.ahd-screen[data-dual-pane="dual"][data-hinge="horizontal"][data-segfit="true"] .ahd-dual-body > aside { grid-row: 1; }
+.ahd-screen[data-dual-pane="dual"][data-hinge="horizontal"][data-segfit="true"] .ahd-dual-body > main { grid-row: 3; }
+/* Transient overlays open upward from the fixed bottom footer, so a tall
+   popover would reach across the hinge into the top segment. Cap it at the
+   bottom segment minus the footer; overflow already scrolls in place. */
+.ahd-screen[data-dual-pane="dual"][data-hinge="horizontal"][data-segfit="true"] .ahd-resource-popover {
+  max-height: calc(var(--ahd-pane1) - var(--ahd-footer-height, 9rem));
+}
+
 /* Wallet/portfolio redesign (#507). Phone is a single touch-first column
    with progressive disclosure; desktop uses the width for overview, trend,
    holdings/accounts, and actionable detail side by side. Every surface is a
