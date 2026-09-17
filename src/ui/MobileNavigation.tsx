@@ -393,6 +393,7 @@ export function GameDrawer({
   docked,
   identityOrg,
   roleConditions,
+  cabinetAvailable,
 }: {
   open: boolean;
   /**
@@ -425,6 +426,14 @@ export function GameDrawer({
    */
   identityOrg?: IdentityOrgLink[];
   roleConditions?: DrawerRoleConditions;
+  /**
+   * Cabinet drawer gating (#510). False hides the Nation > Government
+   * "Cabinet office" row, matching the reference cabinet nav entry, which
+   * exists only for a seated member (AHDGame
+   * `resolveCabinetOfficeNavEntry`). Absent (or true) keeps today's
+   * unconditional row so pre-signal callers render unchanged.
+   */
+  cabinetAvailable?: boolean;
 }) {
   const drawerRef = useRef<HTMLElement | null>(null);
   const activeGroup = MENU_GROUPS.find((group) =>
@@ -572,12 +581,17 @@ export function GameDrawer({
           {MENU_GROUPS.map((group) => {
             const deep = Boolean(group.sections?.length);
             const expanded = !deep || expandedGroups.has(group.label);
+            // Cabinet gating (#510): without a seat the Government row drops
+            // out exactly as rendered, and the collapsed disclosure counts
+            // only the rows the player can actually open.
+            const visibleItems = (items: DrawerNavLink[]) =>
+              items.filter((item) => cabinetAvailable !== false || item.id !== "government");
             // Reference Nation/World sub-category counts, so the collapsed
             // disclosure tells the player how many destinations hide inside.
             // Conditional rows (#510) count exactly as rendered: the gated
             // presidential row drops out, member-only/candidacy rows add in.
             const visibleSectionItems = (items: DrawerNavLink[]) =>
-              items.filter((item) => roleConditions?.presidentialAvailable !== false || item.id !== "presidentialDetails");
+              visibleItems(items).filter((item) => roleConditions?.presidentialAvailable !== false || item.id !== "presidentialDetails");
             const deepCount = (group.sections ?? []).reduce((n, section) => n + visibleSectionItems(section.items).length, 0)
               + (group.label === "Nation" && roleConditions?.myParty ? 1 : 0);
             const sectionId = `ahd-drawer-section-${group.label.toLowerCase()}`;

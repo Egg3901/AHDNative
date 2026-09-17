@@ -371,12 +371,18 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
     return null;
   })();
 
+  // Cabinet drawer gating (#510): the authoritative seat signal. Null is a
+  // proven no-seat world, so the row hides; absent is a pre-signal
+  // projection (old fixtures), which keeps today's unconditional row.
+  const cabinetAvailable = world.cabinet === null ? false : true;
+
   const drawer = (
     <GameDrawer
       open={menuOpen}
       docked={dual || undefined}
       route={route}
       busy={busy}
+      cabinetAvailable={cabinetAvailable}
       playerName={world.player.name}
       playerParty={world.player.partyName || "Independent"}
       countryName={world.countryName}
@@ -629,7 +635,20 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           {route === "worldMap" && <WorldMapRoute loadOverview={loadWorldOverview} loadRegions={loadRegions} revision={world} section={preferences.worldMapSection} onSectionChange={(worldMapSection) => onPreferencesChange({ ...preferences, worldMapSection })} onNavigate={navigate} />}
           {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} revision={world} busy={busy} onNavigate={navigate} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
-          {route === "government" && (loadCabinetOffice && onIssueCabinetOrder ? (
+          {route === "government" && (world.cabinet === null ? (
+            // #510 honest no-seat state: the drawer hides this destination
+            // without a seat, but an in-flight route (seat lost between
+            // turns) or a programmatic arrival must say so and offer a way
+            // out, never a blank region.
+            <div className="ahd-stack">
+              <h2 className="ahd-h2">Cabinet office</h2>
+              <div className="ahd-empty" role="note">You hold no cabinet office in {world.countryName}, so there are no ministerial orders to issue. Your game is intact; continue elsewhere and return if a seat is confirmed.</div>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => go("profile")}>Go to profile</button>
+                <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => go("actions")}>Go to actions</button>
+              </div>
+            </div>
+          ) : loadCabinetOffice && onIssueCabinetOrder ? (
             <DetailQuery load={loadCabinetOffice} revision={world} label="Cabinet office">{office => <CabinetOfficePanel office={office} busy={busy} notice={error ? { kind: "error", text: error } : message ? { kind: "ok", text: message } : null} onIssue={onIssueCabinetOrder} />}</DetailQuery>
           ) : (
             // #510 honest unavailable state: the shell must say the cabinet
