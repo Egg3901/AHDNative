@@ -353,6 +353,25 @@ export interface IdentityOrgLink {
   detailId?: string;
 }
 
+/**
+ * Role/country/capability conditions for drawer rows (#510).
+ *
+ * Reference: AHDGame `ExperimentalMobileMenu.tsx` shows "My Party" only with
+ * a current party, "Presidential Election" only for a direct-election
+ * country with an active race (`nationDetailsSections.ts`), and "My
+ * Election" as a link to the active race or a disabled honest label
+ * otherwise (`state.myElectionNone`). The caller derives every field from
+ * save-backed signals only; absent prop keeps today's unconditional rows.
+ */
+export interface DrawerRoleConditions {
+  /** Member-only loose Nation link. Null hides the row. */
+  myParty?: { partyId: string; partyName: string } | null;
+  /** False hides the Politics "Presidential election" row. */
+  presidentialAvailable?: boolean;
+  /** Unresolved player candidacy. Null renders the disabled honest row. */
+  myElectionRaceId?: string | null;
+}
+
 export function GameDrawer({
   open,
   route,
@@ -373,6 +392,7 @@ export function GameDrawer({
   unreadCount,
   docked,
   identityOrg,
+  roleConditions,
 }: {
   open: boolean;
   /**
@@ -404,6 +424,7 @@ export function GameDrawer({
    * player has no linkable corporation or union capability.
    */
   identityOrg?: IdentityOrgLink[];
+  roleConditions?: DrawerRoleConditions;
 }) {
   const drawerRef = useRef<HTMLElement | null>(null);
   const activeGroup = MENU_GROUPS.find((group) =>
@@ -553,7 +574,12 @@ export function GameDrawer({
             const expanded = !deep || expandedGroups.has(group.label);
             // Reference Nation/World sub-category counts, so the collapsed
             // disclosure tells the player how many destinations hide inside.
-            const deepCount = (group.sections ?? []).reduce((n, section) => n + section.items.length, 0);
+            // Conditional rows (#510) count exactly as rendered: the gated
+            // presidential row drops out, member-only/candidacy rows add in.
+            const visibleSectionItems = (items: DrawerNavLink[]) =>
+              items.filter((item) => roleConditions?.presidentialAvailable !== false || item.id !== "presidentialDetails");
+            const deepCount = (group.sections ?? []).reduce((n, section) => n + visibleSectionItems(section.items).length, 0)
+              + (group.label === "Nation" && roleConditions?.myParty ? 1 : 0);
             const sectionId = `ahd-drawer-section-${group.label.toLowerCase()}`;
             return (
             <div key={group.label} role="group" aria-label={group.label} className="ahd-drawer-group">
@@ -579,12 +605,50 @@ export function GameDrawer({
               {group.items.map((item) => (
                 <DrawerNavButton key={item.id} item={item} route={route} unreadCount={unreadCount} onNavigate={onNavigate} />
               ))}
+              {/* #510 member-only loose link (reference Nation "My Party").
+                  Rendered only with a real membership AND the party-detail
+                  destination behind it; never a dead row. */}
+              {group.label === "Nation" && roleConditions?.myParty ? (
+                <button
+                  type="button"
+                  className="ahd-drawer-item"
+                  aria-current={route === "partyDetails" ? "page" : undefined}
+                  data-active={route === "partyDetails" ? "true" : undefined}
+                  onClick={() => onNavigate("partyDetails", roleConditions.myParty!.partyId)}
+                >
+                  <span className="ahd-drawer-item-label" title={`My party · ${roleConditions.myParty.partyName}`}>My party · {roleConditions.myParty.partyName}</span>
+                </button>
+              ) : null}
+              {/* #510 State "My Election": the reference always shows the row
+                  (link to the active race, disabled honest label otherwise).
+                  Same .ahd-drawer-item box either way so the hierarchy never
+                  shifts when the candidacy flips. */}
+              {group.label === "State" && roleConditions !== undefined ? (
+                roleConditions.myElectionRaceId ? (
+                  <button
+                    type="button"
+                    className="ahd-drawer-item"
+                    aria-current={route === "electionDetails" ? "page" : undefined}
+                    data-active={route === "electionDetails" ? "true" : undefined}
+                    onClick={() => onNavigate("electionDetails", roleConditions.myElectionRaceId!)}
+                  >
+                    <span className="ahd-drawer-item-label" title="My election">My election</span>
+                  </button>
+                ) : (
+                  <>
+                    <button type="button" className="ahd-drawer-item" disabled title="No active candidacy">
+                      <span className="ahd-drawer-item-label">My election</span>
+                    </button>
+                    <p className="ahd-help" style={{ margin: "0 0 0.2rem 0.55rem" }}>No active candidacy. Declare one from Elections.</p>
+                  </>
+                )
+              ) : null}
               {expanded && group.sections ? (
                 <div id={sectionId}>
                   {group.sections.map((section) => (
                     <div key={section.label} role="group" aria-label={section.label} className="ahd-drawer-section">
                       <div className="ahd-drawer-subheading" aria-hidden="true">{section.label}</div>
-                      {section.items.map((item) => (
+                      {visibleSectionItems(section.items).map((item) => (
                         <DrawerNavButton key={item.id} item={item} route={route} unreadCount={unreadCount} onNavigate={onNavigate} />
                       ))}
                     </div>
