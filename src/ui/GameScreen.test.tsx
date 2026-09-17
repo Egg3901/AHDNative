@@ -1239,6 +1239,76 @@ describe("GameScreen status footer", () => {
   });
 });
 
+describe("GameScreen dual-pane posture completion (#438)", () => {
+  function renderShell(world: GameView) {
+    return render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
+  }
+
+  it.each([320, 390])("keeps the single-pane phone flow at a %dpx viewport with no hinge signal", (width) => {
+    const previousWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { value: width, configurable: true });
+    try {
+      renderShell(makeWorld());
+      const shell = document.querySelector(".ahd-screen");
+      expect(shell).toHaveAttribute("data-dual-pane", "single");
+      expect(shell).toHaveAttribute("data-hinge", "none");
+      expect(shell).toHaveAttribute("data-dual-capability", "none");
+      // Phone navigation intact: bottom bar present, nothing docked, no modal.
+      expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();
+      expect(screen.queryByRole("complementary", { name: "Game navigation" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: "Game menu" })).not.toBeInTheDocument();
+      // Content carries no pane landmark in single-pane posture.
+      expect(document.querySelector("main[data-pane]")).toBeNull();
+    } finally {
+      Object.defineProperty(window, "innerWidth", { value: previousWidth, configurable: true });
+    }
+  });
+
+  it("assigns navigation and content to separate panes across a vertical hinge", () => {
+    (window as unknown as { getViewportSegments: () => unknown }).getViewportSegments = () => [
+      { x: 0, y: 0, width: 400, height: 800 },
+      { x: 416, y: 0, width: 400, height: 800 },
+    ];
+    try {
+      renderShell(makeWorld());
+      const shell = document.querySelector(".ahd-screen");
+      expect(shell).toHaveAttribute("data-dual-pane", "dual");
+      expect(shell).toHaveAttribute("data-hinge", "vertical");
+      expect(shell).toHaveAttribute("data-dual-capability", "segments");
+      const nav = screen.getByRole("complementary", { name: "Game navigation" });
+      expect(nav).toHaveAttribute("data-pane", "navigation");
+      const content = document.querySelector('main[data-pane="content"]');
+      expect(content).not.toBeNull();
+      expect(content).not.toBe(nav);
+      expect(screen.queryByRole("dialog", { name: "Game menu" })).not.toBeInTheDocument();
+    } finally {
+      delete (window as unknown as { getViewportSegments?: unknown }).getViewportSegments;
+    }
+  });
+
+  it("assigns navigation and content to separate panes across a horizontal hinge", () => {
+    (window as unknown as { getViewportSegments: () => unknown }).getViewportSegments = () => [
+      { x: 0, y: 0, width: 800, height: 400 },
+      { x: 0, y: 416, width: 800, height: 400 },
+    ];
+    try {
+      renderShell(makeWorld());
+      const shell = document.querySelector(".ahd-screen");
+      expect(shell).toHaveAttribute("data-dual-pane", "dual");
+      expect(shell).toHaveAttribute("data-hinge", "horizontal");
+      expect(shell).toHaveAttribute("data-dual-capability", "segments");
+      const nav = screen.getByRole("complementary", { name: "Game navigation" });
+      expect(nav).toHaveAttribute("data-pane", "navigation");
+      const content = document.querySelector('main[data-pane="content"]');
+      expect(content).not.toBeNull();
+      expect(content).not.toBe(nav);
+      expect(screen.queryByRole("dialog", { name: "Game menu" })).not.toBeInTheDocument();
+    } finally {
+      delete (window as unknown as { getViewportSegments?: unknown }).getViewportSegments;
+    }
+  });
+});
+
 describe("GameScreen menu keyboard flow", () => {
   it("focuses and moves between destinations, then focuses the selected page", async () => {
     const user = userEvent.setup();

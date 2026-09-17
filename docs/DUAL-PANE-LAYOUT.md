@@ -85,8 +85,15 @@ is list-only and routes into the paired elections section for detail.
   assignment, hinge bounds, override parsing, live hook adoption.
 - `MobileNavigation.test.tsx`: docked drawer renders destinations and turn
   controls with no modal behavior. `GameScreen.test.tsx`: single-pane
-  attributes/flow by default; docked navigation/content pairing with
-  reported segments. `PoliticsPanel.test.tsx`: list/detail landmarks share
+  attributes/flow by default; 320/390px viewports keep the single-pane
+  phone flow with no pane landmarks; docked navigation/content pairing
+  with reported vertical segments; navigation/content pane assignment
+  across reported vertical and horizontal segments with no modal dialog.
+  `src/ui/DualPaneTracks.test.ts` (4 cases): spanning-media grid drops a
+  gutter track over the occlusion with navigation and content pinned to
+  their own segment tracks, list/detail splits side by side only across a
+  reported vertical hinge, single-pane stacks, gutter defined on dual
+  posture only. `PoliticsPanel.test.tsx`: list/detail landmarks share
   one selection. `RegionsPanel`, `MarketsPanel`, `LegislationDetailsPanel`
   tests: directory/bill/browse lists paired with their details.
   `NominationsPanel.test.tsx`: nomination list paired with the selected
@@ -104,7 +111,14 @@ is list-only and routes into the paired elections section for detail.
   list-only surface whose rows route to the nations/regions detail routes,
   so pairing it would duplicate route navigation (same precedent as the
   GameScreen elections tab); the World state section is a single home-region
-  profile with no list, so there is nothing to pair.
+  profile with no list, so there is nothing to pair. The legislature tab
+  (`LegislaturePanel`) is a voting grid of self-contained bill cards plus a
+  sponsor-catalog form, not a shared-selection list/detail browsing
+  surface; pairing its sponsor select beside its description would invent a
+  desktop-only hierarchy, so legislation stays adopted through the
+  `LegislationDetailsPanel` route. Audit 2026-09-17 confirmed regions,
+  markets, legislation, and elections all adopted with no other genuine
+  in-place list/detail surface outstanding.
 - Emulator QA (`?ahd-span=vertical|horizontal`) covers single, spanned
   portrait/landscape assignment; folded/unfolded posture acceptance needs
   representative hardware and remains open, so #438 stays `status: partial`.
