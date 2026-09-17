@@ -73,6 +73,23 @@ describe("serverMessageFromBody", () => {
     expect(serverMessageFromBody("")).toBe("The server refused the request.");
     expect(serverMessageFromBody("x".repeat(5000)).length).toBeLessThanOrEqual(500);
   });
+
+  it("never surfaces markup error pages as UI text (#149)", () => {
+    // A non-JSON error body (proxy/captive-portal HTML page forwarded by an
+    // older bridge) must degrade to the generic refusal, never raw markup.
+    for (const body of [
+      "<html><head><title>502 Bad Gateway</title></head></html>",
+      "<!doctype html><html><body>Login</body></html>",
+      "<html><body>Session expired, sign in again</body></html>",
+    ]) {
+      expect(serverMessageFromBody(body)).toBe("The server refused the request.");
+    }
+    // Plain-text server refusals still pass through untouched.
+    expect(serverMessageFromBody("The game is currently paused: wait")).toBe(
+      "The game is currently paused: wait",
+    );
+    expect(serverMessageFromBody("a < b and c > d")).toBe("a < b and c > d");
+  });
 });
 
 describe("mpFetch/mpMutate", () => {

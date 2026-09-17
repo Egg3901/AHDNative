@@ -33,10 +33,21 @@ function isTransportCode(code: string): code is MpTransportCode {
 
 const REMOTE_ERROR_PATTERN = /^remote-error:(\d{1,3}):(\d+):([\s\S]*)$/;
 
+/**
+ * True when an error body is a markup page (proxy, captive-portal, or HTML
+ * fallback) rather than the server's JSON or plain-text refusal. Only a
+ * leading tag counts: JSON never starts with `<`, and stray comparisons in
+ * plain-text refusals must keep passing through.
+ */
+export function isMarkupErrorBody(prefix: string): boolean {
+  return /^<(!doctype\b|html\b|head\b|body\b|[a-zA-Z][^<>]*>)/i.test(prefix.trimStart());
+}
+
 /** Extract the server `{error}` message from a JSON body prefix, else plain text. */
 export function serverMessageFromBody(prefix: string): string {
   const trimmed = prefix.trim();
   if (!trimmed) return "The server refused the request.";
+  if (isMarkupErrorBody(trimmed)) return "The server refused the request.";
   try {
     const parsed: unknown = JSON.parse(trimmed);
     if (parsed && typeof parsed === "object") {
