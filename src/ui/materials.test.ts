@@ -186,6 +186,8 @@ describe("high-contrast preferences", () => {
     expect(forcedBlock).toMatch(/:focus-visible[^}]*box-shadow:\s*none/);
     // Every shipped control that suppresses its outline for a shadow ring
     // must appear in the takeover, or Tab focus goes invisible there.
+    // The profile chip/link live in profile.css (import order varies),
+    // so the takeover's !important carries them regardless of sheet order.
     for (const control of [
       ".ahd-btn:focus-visible",
       ".ahd-input:focus-visible",
@@ -198,6 +200,8 @@ describe("high-contrast preferences", () => {
       ".ahd-creation-answer:focus-visible",
       ".ahd-chip:focus-visible",
       ".ahd-creation-progress-dot:focus-visible",
+      "button.ahd-profile-chip:focus-visible",
+      ".ahd-profile-link:focus-visible",
       ".ahd-era-card:has(:focus-visible)",
     ]) {
       expect(forcedBlock, `missing ${control}`).toContain(control);

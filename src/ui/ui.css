@@ -911,13 +911,14 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
   .ahd-resource-popover { background: var(--ahd-card-elevated); -webkit-backdrop-filter: none; backdrop-filter: none; }
   .ahd-resource-popover .ahd-resource-details { background: var(--ahd-card-elevated); }
 }
-/* Forced-colors focus takeover (issue #437): every glass-chrome control
- * marks keyboard focus with a box-shadow ring and `outline: none`, and
+/* Forced-colors focus takeover (issue #437): every control that marks
+ * keyboard focus with a box-shadow ring and `outline: none` needs it, and
  * box-shadow is suppressed in forced-colors mode, which would leave Tab
- * focus invisible on the footer, drawer, bottom nav, and creation
- * controls. A real system-color outline keeps focus visible there.
- * `!important` mirrors the reduced-motion takeover below: the guarantee
- * must hold regardless of source order (creation rules ship later). */
+ * focus invisible on the footer, drawer, bottom nav, creation controls,
+ * and the Profile chip/link controls (profile.css). A real system-color
+ * outline keeps focus visible there. `!important` mirrors the
+ * reduced-motion takeover below: the guarantee must hold regardless of
+ * source order (creation rules ship later, profile.css order varies). */
 @media (forced-colors: active) {
   .ahd-btn:focus-visible,
   .ahd-input:focus-visible,
@@ -930,6 +931,8 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
   .ahd-creation-answer:focus-visible,
   .ahd-chip:focus-visible,
   .ahd-creation-progress-dot:focus-visible,
+  button.ahd-profile-chip:focus-visible,
+  .ahd-profile-link:focus-visible,
   .ahd-era-card:has(:focus-visible) { outline: 2px solid Highlight !important; outline-offset: 2px !important; box-shadow: none !important; }
 }
 /* Higher-contrast preference (issue #437): translucent glass over variable
