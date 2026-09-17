@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { LegislatureView } from "../game/types";
 import { NominationsPanel } from "./NominationsPanel";
@@ -57,5 +57,42 @@ describe("NominationsPanel", () => {
     await user.click(screen.getByRole("button", { name: /secretary of state: ada nominee/i }));
     await user.click(screen.getByRole("button", { name: /for on ada nominee/i }));
     expect(onAction).toHaveBeenCalledWith("voteCabinetNomination", { nominationId: "cab-1", vote: "for" });
+  });
+});
+
+describe("NominationsPanel dual-pane list/detail (#438)", () => {
+  it("pairs the nomination list with the selected detail sharing one selection", async () => {
+    const user = userEvent.setup();
+    render(<NominationsPanel legislature={makeLegislature()} busy={false} onAction={vi.fn()} />);
+    const list = document.querySelector('[data-pane="list"]');
+    expect(list).not.toBeNull();
+    expect(within(list as HTMLElement).getByRole("button", { name: /secretary of state: ada nominee/i })).toBeInTheDocument();
+    expect(document.querySelector('[data-pane="detail"]')).toBeNull();
+    // One selection drives both panes: expanding keeps the list mounted and
+    // lands the detail beside it.
+    await user.click(screen.getByRole("button", { name: /secretary of state: ada nominee/i }));
+    const detail = document.querySelector('[data-pane="detail"]');
+    expect(detail).not.toBeNull();
+    expect(within(detail as HTMLElement).getByText(/3 for · 1 against · 0 abstain/)).toBeInTheDocument();
+    expect(document.querySelector('[data-pane="list"]')).not.toBeNull();
+  });
+
+  it("keeps the single-pane stacked toggle journey with unchanged ballot semantics", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    render(<NominationsPanel legislature={makeLegislature()} busy={false} onAction={onAction} />);
+    await user.click(screen.getByRole("button", { name: /secretary of state: ada nominee/i }));
+    const list = document.querySelector('[data-pane="list"]') as HTMLElement;
+    const detail = document.querySelector('[data-pane="detail"]') as HTMLElement;
+    // Single-pane stacks the detail below the list in the same order as before.
+    expect(list.compareDocumentPosition(detail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Toggling the row off returns to the list-only stack, exactly as before.
+    await user.click(screen.getByRole("button", { name: /secretary of state: ada nominee/i }));
+    expect(document.querySelector('[data-pane="detail"]')).toBeNull();
+    expect(screen.getByRole("button", { name: /secretary of state: ada nominee/i })).toBeInTheDocument();
+    // Re-selecting restores the detail and ballots still route unchanged.
+    await user.click(screen.getByRole("button", { name: /secretary of state: ada nominee/i }));
+    await user.click(screen.getByRole("button", { name: /against on ada nominee/i }));
+    expect(onAction).toHaveBeenCalledWith("voteCabinetNomination", { nominationId: "cab-1", vote: "against" });
   });
 });

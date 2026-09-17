@@ -77,11 +77,16 @@ export function NominationsPanel({ legislature, busy, onAction }: {
   return (
     <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
       <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Nominations</h3>
-      {nominations.length === 0 ? (
-        <div className="ahd-empty">No nominations before the legislature.</div>
-      ) : (
-        <div style={{ display: "grid", gap: "0.4rem" }}>
-          {nominations.map((nomination) => (
+      {/* Dual-pane list/detail pairing (#438): the nomination list and the
+          selected-nomination detail share the existing selectedId state; the
+          shell places them on separate panes only when a hinge is reported.
+          Single-pane renders the same stack as before. */}
+      <div className="ahd-dual-panes">
+      <div data-pane="list" style={{ display: "grid", gap: "0.4rem" }}>
+        {nominations.length === 0 ? (
+          <div className="ahd-empty">No nominations before the legislature.</div>
+        ) : (
+          nominations.map((nomination) => (
             <button
               key={nomination.id}
               type="button"
@@ -94,12 +99,12 @@ export function NominationsPanel({ legislature, busy, onAction }: {
             >
               {nomination.statusLabel} · {nomination.office} · {nomination.nominee}
             </button>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
 
       {selected ? (
-        <article aria-label={`Nomination detail for ${selected.nominee}`} className="ahd-card ahd-card-pad">
+        <article aria-label={`Nomination detail for ${selected.nominee}`} data-pane="detail" className="ahd-card ahd-card-pad">
           <div style={{ fontWeight: 700, fontSize: "0.86rem" }}>{selected.office}</div>
           <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.15rem" }}>
             {selected.statusLabel} · {selected.chamberLabel} · Nominee {selected.nominee}
@@ -133,6 +138,7 @@ export function NominationsPanel({ legislature, busy, onAction }: {
           ) : null}
         </article>
       ) : null}
+      </div>
 
       <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: "0.3rem 0 0" }}>Sponsor a cabinet nomination</h3>
       {sponsor?.available ? (
