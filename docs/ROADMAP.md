@@ -1700,3 +1700,34 @@ verify/build/typecheck/Playwright run.
 Honest gaps: unbundled countries show honest generic art rather than
 their real central bank; the BankingHub icon/gradient composition is not
 ported; prime/APY rates omitted (no Native DTO); no physical-device run.
+
+## Union sector aggregation and organizer checkpoint, 2026-09-17 (#320 partial)
+
+- The union turn no longer builds dues from a synthetic total-labor-force x
+  1953-weight sector. Dues rows now come from the recorded #296
+  corporate-sector assets each union represents (`representedSectorsForUnion`
+  in `packages/engine/src/unions/sectorAggregation.ts`): stored headcount x
+  union density, country annual wage from current region labor and payroll.
+  Display headcount and dues headcount share one record and cannot drift.
+  The dues helpers are untouched, so arithmetic stays mainline-golden.
+- `UnionOrganizer` rows (`packages/engine/src/unions/organizers.ts`) port
+  the reference collection at seeded-roster granularity with deterministic
+  `${unionId}:${characterId}` ids, banked strength weighting leadership votes
+  and political-contribution payouts, 0.5%/turn decay on pools and banks
+  (suspended unions frozen), and the 100-strength election gate. Null-pointer
+  sectors adopt into their industry's seeded union; held shops are never
+  overwritten.
+- Save shape stays additive with no version renumber: `unionOrganizers` is
+  optional with absent-means-empty, `Union.strength` absent reads as zero,
+  and load validates without materializing either field, so a mid-campaign
+  save/load leaves union rows byte-identical. Present-but-invalid rows fail
+  closed at the save boundary.
+- Focused evidence: new `sectorAggregation.test.ts` (7) and
+  `organizers.test.ts` (9) green plus unchanged `unions.sim.test.ts` (28,
+  incl. the mid-campaign round-trip), 44 total. The v42 projection goldens
+  still fail, byte-identical on clean main and on this branch, so that is a
+  pre-existing failure, not a branch regression; no full typecheck, verify,
+  or build per scope, queued with the supervisor.
+- #320 stays open: drive crediting and organize commands land with #322,
+  atomic payout ledger with #321, bargaining/strikes/phase timing with
+  #322/#323; per-sector wage/unionization tables remain a documented gap.

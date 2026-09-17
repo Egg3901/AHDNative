@@ -5,15 +5,13 @@
  * plus the NPP behavior hook above, as two TurnPhase objects registered at the
  * END of the phase list before newsMaintenance.
  *
- * Membership bridge: mainline computes members from CorporateSector.workers *
- * unionization / 100. AHDClient has no per-sector workers table (single-sector
- * corp collapse, see corporation/types.ts). The bridge here derives members
- * from demographics/laborForce (W16) instead:
- *   1. Total country labor force = sum laborForces[regionId] for region.countryId == union.countryId
- *   2. Sector's workforce = totalLaborForce * (SECTOR_WEIGHTS_1953[country][sectorType]/100)
- *   3. Members = sectorWorkforce * (union.unionization / 100)
- *   This keeps dues arithmetic identical to mainline (via unionMembers etc.)
- *   while the only demographic input is the real laborForces map.
+ * Membership aggregation (#320): mainline computes members from
+ * CorporateSector.workers * unionization / 100 over the sectors each union
+ * represents. Native aggregates over the recorded #296 corporate-sector
+ * assets (see sectorAggregation.ts representedSectorsForUnion): one dues row
+ * per asset whose representingUnionId points at the union, with the stored
+ * headcount and the union's density. Display headcount and dues headcount
+ * therefore share one record and cannot drift apart.
  *
  * Wage bridge: mainline's averageAnnualWage uses wagePerWorker (daily) * GAME_DAYS_PER_YEAR.
  * AHDClient derives annualWage as:
@@ -22,14 +20,15 @@
  * budget/revenue.ts wagesAndSalaries = gdp * ratios.wagesAndSalaries).
  * Falls back to 0 when laborForce is 0 so duesBurdenRatio returns 0 rather
  * than dividing by zero (matches mainline's annualWage <=0 ->0 guard).
+ * Per-sector wage/unionization tables remain a #322 gap, not silent coverage.
  *
  * Treasury/services/approval math is verbatim from unionDues.ts:
  *  - duesRate = min(stored, maxDuesForWage(annualWage)) (re-clamped each turn)
  *  - duesIncome = duesIncomePerTurn(members, duesRate)
  *  - servicesCost floored to 0 when > treasury+duesIncome (lapses)
  *  - requested contribution = politicalContributionPerTurn(freeCashFlow, pct)
- *  - actual debit equals eligible organizer payouts; with no organizer state
- *    before #320/#321, Native retains the unpaid amount in treasury
+ *  - actual debit equals eligible organizer payouts (#320 organizer shares;
+ *    with no eligible organizers Native retains the unpaid amount in treasury)
  *  - treasury += duesIncome - servicesCost - contribution
  *  - approval trends toward approvalTarget
  *
@@ -61,50 +60,20 @@ import {
   unionApproval,
   unionMembers,
 } from "./dues.js";
-import { normalizeServiceIds, GAME_DAYS_PER_YEAR } from "./services.js";
+import { normalizeServiceIds } from "./services.js";
 import {
   clampPoliticalContributionPct,
   distributePoliticalContributions,
   freeCashFlowPerTurn,
   politicalContributionPerTurn,
 } from "./political.js";
+import { decayUnionStrength, eligibleOrganizerShares } from "./organizers.js";
+import {
+  adoptUnrepresentedSectors,
+  representedSectorsForUnion,
+  totalLaborForceForCountry,
+} from "./sectorAggregation.js";
 import { processNppUnionBehavior } from "./nppBehavior.js";
-
-function totalLaborForceForCountry(world: WorldState, countryId: string): number {
-  let total = 0;
-  for (const [rid, lf] of Object.entries(world.laborForces ?? {})) {
-    const region = world.regions[rid];
-    if (region?.countryId === countryId && Number.isFinite(lf) && lf > 0) total += lf;
-  }
-  // Fallback: derive from region population if laborForces empty (e.g. in stripped test world)
-  if (total === 0) {
-    for (const region of Object.values(world.regions)) {
-      if (region.countryId !== countryId) continue;
-      const pop = region.population ?? 0;
-      if (pop > 0) total += Math.round(pop * 0.58 * 0.625);
-    }
-  }
-  return total;
-}
-
-function annualWageForCountry(world: WorldState, countryId: string, totalLaborForce: number): number {
-  if (totalLaborForce <= 0) return 0;
-  const budget = world.budgets?.[countryId];
-  const wagesAndSalaries = budget?.taxBases?.wagesAndSalaries ?? budget?.revenue?.incomeTax ?? null;
-  // Use budget wagesAndSalaries if present and positive, else gdp * 0.35 (revenue.ts default ratio)
-  const annualPayroll =
-    typeof wagesAndSalaries === "number" && wagesAndSalaries > 0
-      ? (budget!.taxBases?.wagesAndSalaries ?? wagesAndSalaries * (1 / 0.3) * 0.35)
-      : (world.countries[countryId]?.economy.gdp ?? 0) * 1_000_000 * 0.35;
-  // Derive actual payroll from budgets if available, else from gdp proxy
-  let payroll = 0;
-  if (budget?.taxBases?.wagesAndSalaries && budget.taxBases.wagesAndSalaries > 0) {
-    payroll = budget.taxBases.wagesAndSalaries;
-  } else if (world.countries[countryId]) {
-    payroll = world.countries[countryId]!.economy.gdp * 1_000_000 * 0.35;
-  }
-  return payroll / totalLaborForce;
-}
 
 export const unionsTurnPhase: TurnPhase = {
   name: "unionsTurn",
@@ -112,6 +81,12 @@ export const unionsTurnPhase: TurnPhase = {
     const turn = world.meta.turn;
     const unions = world.unions as Record<string, import("./types.js").Union> | undefined;
     if (!unions || Object.keys(unions).length === 0) return;
+
+    // #320: strength decay and null-pointer adoption run before dues, same
+    // turn position as the reference (decay beside the dues pass, adoption
+    // before the represented-sectors query).
+    decayUnionStrength(world, turn);
+    adoptUnrepresentedSectors(world);
 
     for (const union of Object.values(unions)) {
       if (union.suspended) continue;
@@ -124,16 +99,13 @@ export const unionsTurnPhase: TurnPhase = {
       const totalLF = totalLaborForceForCountry(world, countryId);
       if (totalLF <= 0) continue;
 
-      const sectorWorkers = totalLF * (weight / 100);
-      const density = Math.max(0, Math.min(100, union.unionization ?? 0));
-      const annualWage = annualWageForCountry(world, countryId, totalLF);
-
-      // Bridge into the exact dues helpers via a single synthetic sector,
-      // so the dues math stays identical to mainline goldens.
-      const dailyWage = GAME_DAYS_PER_YEAR > 0 ? annualWage / GAME_DAYS_PER_YEAR : 0;
-      const sectors = [{ workers: sectorWorkers, unionization: density, wagePerWorker: dailyWage }];
+      // #320: dues rows come from the recorded corporate-sector assets this
+      // union represents (stored headcount x union density), not the old
+      // totalLF x weight synthetic sector. The dues helpers below are
+      // untouched, so the arithmetic stays identical to mainline goldens.
+      const sectors = representedSectorsForUnion(world, union);
       const members = unionMembers(sectors);
-      const avgWage = averageAnnualWage(sectors); // should equal annualWage when single sector
+      const avgWage = averageAnnualWage(sectors);
 
       const activeServices = normalizeServiceIds(union.activeServices);
       const duesRate = Math.min(Math.max(0, union.duesPerWorkerAnnual ?? 0), maxDuesForWage(avgWage));
@@ -144,11 +116,15 @@ export const unionsTurnPhase: TurnPhase = {
       const servicesCost = servicesLapsed ? 0 : fullServicesCost;
       const contributionPct = clampPoliticalContributionPct(union.politicalContributionPct);
       const freeCashFlow = freeCashFlowPerTurn(duesIncome, servicesCost);
-      // Mainline debits only the sum actually paid to eligible organizers. Native
-      // has no UnionOrganizer rows yet, so the eligible set is empty and the
-      // requested amount remains in treasury until #320/#321 add real recipients.
+      // Mainline debits only the sum actually paid to eligible organizers
+      // (#320 shares from banked organizer strength). With no eligible
+      // organizers the requested amount remains in treasury until #321 pays
+      // real recipients and records the ledger.
       const requestedContribution = politicalContributionPerTurn(freeCashFlow, contributionPct);
-      const payouts = distributePoliticalContributions(requestedContribution, []);
+      const payouts = distributePoliticalContributions(
+        requestedContribution,
+        eligibleOrganizerShares(world, union.id),
+      );
       const contribution = payouts.reduce((sum, payout) => sum + payout.amount, 0);
       const target = approvalTarget({
         duesPerWorkerAnnual: duesRate,
