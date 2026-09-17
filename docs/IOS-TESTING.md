@@ -28,7 +28,7 @@ Tauri imports the certificate and profile during signing. Codemagic uses the API
 
 1. Confirm the app record and explicit bundle ID exist in Apple Developer and App Store Connect, and all seven signing variables are configured in the app-scoped group.
 2. Keep Codemagic dashboards and artifacts private. Disable public sharing and automatic build triggers.
-3. After local checks pass, run `ios-private-testflight` manually with `AHD_REVIEW_COMMIT` set to the full reviewed Git commit, using a branch or tag pointing to that commit. It has a 20-minute cap and dependency caches. Review failure logs before retrying; never repeat a failed build unchanged or raise the cap without agreement.
+3. After local checks pass, start the build by hand only: Codemagic dashboard > AHDNative app > Start new build > workflow `ios-private-testflight` > pick the branch or tag pointing at the reviewed commit > under advanced settings add `AHD_REVIEW_COMMIT=<full 40-hex commit>` > Start. `codemagic.yaml` carries no `triggering` section by design, so webhook pushes never start this workflow, and the first step fails the build unless `HEAD` equals that pin. It has a 20-minute cap and dependency caches. Review failure logs before retrying; never repeat a failed build unchanged or raise the cap without agreement. These guards are locked by `scripts/testflight-workflow.test.mjs`.
 4. After Apple processes the upload, open AHDNative > TestFlight and answer export-compliance questions accurately. Add the build and your App Store Connect user to an internal testing group.
 5. Accept the invitation in TestFlight on your iPhone and install. No external beta review or App Store submission is requested by this workflow.
 
