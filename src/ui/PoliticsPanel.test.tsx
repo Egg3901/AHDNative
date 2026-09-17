@@ -897,6 +897,17 @@ describe("PoliticsPanel political metrics", () => {
       expect(screen.getByText(/No national metrics are recorded/)).toBeInTheDocument();
     });
   });
+
+  it("charts the recorded approval history through the reused registry view (#385)", () => {
+    const PoliticsPanel = renderPanel();
+    const nation = projectNation(createWorld({ era: "1953", countryId: "US", playerName: "Ada", seed: "politics-approval-chart" }));
+    return PoliticsPanel.then((Panel) => {
+      render(<Panel politics={makePolitics()} section="metrics" clock={CLOCK} busy={false} onAction={vi.fn()} nation={nation} />);
+      const approval = screen.getByRole("article", { name: "Government approval" });
+      expect(within(approval).getByRole("img", { name: /government approval trend/i })).toBeInTheDocument();
+      expect(within(approval).getByRole("table", { name: /government approval trend data/i })).toBeInTheDocument();
+    });
+  });
 });
 
 describe("PoliticsPanel dual-pane list/detail (#438)", () => {
