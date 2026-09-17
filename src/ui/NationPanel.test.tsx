@@ -166,6 +166,23 @@ describe("NationPanel", () => {
     expect(screen.getByText("2.75%")).toBeInTheDocument();
   });
 
+  it("keeps the macro-history table keyboard-reachable at phone widths", () => {
+    // The table declares a 32rem minimum width, so at 320/390px its trailing
+    // columns sit inside a horizontal scroll container. Touch users swipe;
+    // keyboard and switch-control users need a tab stop on that container,
+    // otherwise GDP/growth/inflation/unemployment/output-gap data is
+    // unreachable. jsdom performs no layout, so the case asserts the shipped
+    // focusable-region contract around the real table.
+    render(<NationPanel nation={makeNation()} section="economy" clock={CLOCK} />);
+
+    const region = screen.getByRole("region", { name: "Macro history table" });
+    expect(region).toHaveAttribute("tabindex", "0");
+    expect(within(region).getByRole("table")).toBeInTheDocument();
+    for (const name of ["Turn", "GDP", "Growth", "Inflation", "Unemployment", "Output gap"]) {
+      expect(within(region).getByRole("columnheader", { name })).toBeInTheDocument();
+    }
+  });
+
   it("renders budget flows and debt in absolute local currency", () => {
     render(<NationPanel nation={makeNation()} section="budget" clock={CLOCK} />);
 
