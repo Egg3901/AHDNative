@@ -966,7 +966,7 @@ fn ensure_online_window(app: &tauri::AppHandle) -> Result<tauri::WebviewWindow, 
         tauri::WebviewUrl::External(url),
     )
     .visible(false)
-    .on_navigation(|url| crate::is_online_navigation_allowed(url))
+    .on_navigation(crate::is_online_navigation_allowed)
     .on_new_window(|_url, _features| tauri::webview::NewWindowResponse::Deny)
     .build()
     .map_err(|_| error::SESSION_UNAVAILABLE.to_string())
