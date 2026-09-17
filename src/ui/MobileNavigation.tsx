@@ -336,6 +336,23 @@ function DrawerNavButton({
   );
 }
 
+/**
+ * One conditional organization row in the drawer identity (#84).
+ *
+ * Reference: AHDGame `profileNavItems.ts` shows "My Corporation" only when
+ * `myCorporationId != null` (href `/corporation/{id}`) and "My Union" only
+ * when `unionsEnabled && myUnionId != null` (href `/unions/{id}`). A Native
+ * entry is supplied only when BOTH the capability and a real Native
+ * destination exist — a capability without a destination never becomes a
+ * dead link. `detailId` deep-links the destination (e.g. a markets company).
+ */
+export interface IdentityOrgLink {
+  id: string;
+  label: string;
+  route: DrawerRouteId;
+  detailId?: string;
+}
+
 export function GameDrawer({
   open,
   route,
@@ -355,6 +372,7 @@ export function GameDrawer({
   onClose,
   unreadCount,
   docked,
+  identityOrg,
 }: {
   open: boolean;
   /**
@@ -374,12 +392,18 @@ export function GameDrawer({
   message?: string;
   error?: string;
   menuButtonRef: React.RefObject<HTMLButtonElement | null>;
-  onNavigate: (next: DrawerRouteId) => void;
+  onNavigate: (next: DrawerRouteId, id?: string) => void;
   onAdvanceTurn: () => void;
   onSave: () => void;
   onExit: () => void;
   onClose: () => void;
   unreadCount?: number;
+  /**
+   * Conditional org rows (reference profileOrgItems). Rendered only when the
+   * caller supplies entries with real destinations; empty/absent means the
+   * player has no linkable corporation or union capability.
+   */
+  identityOrg?: IdentityOrgLink[];
 }) {
   const drawerRef = useRef<HTMLElement | null>(null);
   const activeGroup = MENU_GROUPS.find((group) =>
@@ -466,9 +490,11 @@ export function GameDrawer({
           {/* Identity quick links mirror the reference profile card
               (ExperimentalMobileMenu.tsx:169-197: Profile / Notifications /
               Settings / Wallet plus conditional org rows). Profile, Actions
-              and Wallet all have real Native destinations; My Corporation /
-              My Union have no Native destination (no CEO/owner or member
-              record is projected), so no such row is rendered here. */}
+              and Wallet all have real Native destinations. Conditional org
+              rows come from `identityOrg`: the caller supplies an entry only
+              when the player holds that capability AND a real Native
+              destination exists for it, matching the reference
+              profileNavItems show conditions. */}
           <span className="ahd-drawer-identity-links" style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap", marginTop: "0.35rem" }}>
             <button type="button" className="ahd-profile-link" onClick={() => onNavigate("profile")} aria-label="Go to profile">
               Profile
@@ -479,6 +505,17 @@ export function GameDrawer({
             <button type="button" className="ahd-profile-link" onClick={() => onNavigate("portfolio")} aria-label="Go to wallet">
               Wallet
             </button>
+            {(identityOrg ?? []).map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                className="ahd-profile-link"
+                onClick={() => onNavigate(entry.route, entry.detailId)}
+                aria-label={`Go to ${entry.label}`}
+              >
+                {entry.label}
+              </button>
+            ))}
           </span>
         </div>
 

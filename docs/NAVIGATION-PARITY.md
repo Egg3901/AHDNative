@@ -165,6 +165,30 @@ Parties page, with real eligibility, a single 100k charge, automatic membership,
 charter display and save/reload. See [party management](PARTY-MANAGEMENT.md)
 for the remaining multi-founder and platform-action differences.
 
+## Identity capability gating slice (#84, #510)
+
+- `GameDrawer` accepts conditional `identityOrg` entries (reference
+  `profileNavItems.ts` show conditions: My Corporation only with
+  `myCorporationId`, My Union only with `unionsEnabled` plus `myUnionId`).
+  An entry renders only with a real Native destination behind it, reusing the
+  44px identity quick-link target; a capability without a destination never
+  becomes a dead link. The drawer `onNavigate` carries an optional detail id
+  so org rows deep-link (e.g. markets company detail).
+- Offline SP supplies no entries: stock holdings are positions rather than
+  owned corporations, player-owned sectors carry the recorded corporation id
+  rather than a player corporation identity, and union membership is not
+  projected and has no Native destination. Supplying rows from those signals
+  would invent ownership, so both rows stay omitted by construction.
+- Viewed-nation context survives finance detours: Nations (viewed) to
+  Portfolio to Banking to Stock market and back lands on the viewed nation
+  with the player-country note intact and save/turn state untouched.
+- Rendered evidence: `src/ui/IdentityOrg84.test.tsx` (7 tests: SP omission
+  with holdings present, supplied-capability deep-link args, empty-capability
+  omission, 44px/safe-area rules, finance-detour return, 320/390px identity
+  flow). Still open: a linkable SP owned-corporation or union-membership
+  source, a Native union destination, the full #510 route/destination matrix,
+  MP-mode drawer/identity parity, and physical-iPhone validation.
+
 
 Caucuses are reachable under Nation and from Parties. The roster, founding
 with initial tax, leave and join use the real action/session/save path.

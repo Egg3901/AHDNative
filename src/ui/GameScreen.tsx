@@ -19,7 +19,7 @@ import { MarketsRoute } from "./MarketsRoute";
 import { PoliticsRoute } from "./PoliticsRoute";
 import { ResourceBreakdown } from "./ResourceBreakdown";
 import { BottomNav, GameDrawer } from "./MobileNavigation";
-import type { DrawerRouteId } from "./MobileNavigation";
+import type { DrawerRouteId, IdentityOrgLink } from "./MobileNavigation";
 import { useDualPaneLayout } from "./dualPane";
 import { ActionsHub, type ActionsCategoryFilter } from "./ActionsHub";
 import { PartyMark } from "./PartyMark";
@@ -274,6 +274,16 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   // unknown offices keep the neutral executive fallback.
   const hosCopy = hosOfficeCopy(world.player.currentOffice);
 
+  // Conditional identity org rows (#84). The reference shows "My Corporation"
+  // only with myCorporationId and "My Union" only with unionsEnabled plus
+  // myUnionId (AHDGame profileNavItems.ts). Offline SP projects neither: stock
+  // holdings are positions, not owned corporations, and player-owned sectors
+  // carry the recorded corporation id rather than a player corporation
+  // identity (markets.ts), while union membership is not projected and has no
+  // Native destination. Supplying a row from either signal would invent
+  // ownership, so SP passes none and the drawer omits both rows.
+  const identityOrg: IdentityOrgLink[] = [];
+
   const drawer = (
     <GameDrawer
       open={menuOpen}
@@ -288,7 +298,8 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
       message={message}
       error={error}
       menuButtonRef={menuButtonRef}
-      onNavigate={go}
+      onNavigate={navigate}
+      identityOrg={identityOrg}
       onAdvanceTurn={onAdvanceTurn}
       onSave={onSave}
       onExit={onExit}
