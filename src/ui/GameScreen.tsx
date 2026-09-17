@@ -98,6 +98,13 @@ function isTabRoute(route: RouteId): route is TabId {
   return TABS.some((t) => t.id === route);
 }
 
+// #510 short return labels for the bounded origin set ("Back to X").
+function shortReturnLabel(target: RouteId): string {
+  const tab = TABS.find((t) => t.id === target);
+  const label = tab ? tab.label : REGION_LABELS[target as Exclude<RouteId, TabId>];
+  return label.toLowerCase();
+}
+
 function formatCount(v: number): string {
   return v.toLocaleString(undefined, { maximumFractionDigits: 1 });
 }
@@ -114,6 +121,16 @@ const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
 export function GameScreen({ loadProfile, loadProfileDestination, loadImperialProfile, onUpdateProfile, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, newsStorageKey, onAdvanceTurn, onSave, onExit, onAction, onSectorSale, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("profile");
   const [detailId, setDetailId] = useState<string>();
+  // #510 bounded return context: detail routes remember the browse surface
+  // that opened them ({ route, detailId }) so Back restores the actual
+  // origin — parties list, politicians selection, search snapshot — instead
+  // of a hard-coded parent. Single slot in React state only (never browser
+  // history), so it behaves identically offline in SP and through the MP
+  // navigation adapters. Drawer and deep-link navigation clear it; the
+  // transient news reader is never recorded as an origin (article links keep
+  // their long-pinned canonical parents).
+  type ReturnContext = { route: RouteId; detailId?: string };
+  const [returnContext, setReturnContext] = useState<ReturnContext | null>(null);
   // Selected hub category survives route changes so Profile/footer deep-links
   // and returns never lose the player's filter selection.
   const [actionsCategory, setActionsCategory] = useState<ActionsCategoryFilter>("all");
@@ -175,6 +192,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
 
   const go = (next: RouteId) => {
     focusPage.current = true;
+    setReturnContext(null);
     setDetailId(undefined);
     setRoute(next);
     setMenuOpen(false);
@@ -194,12 +212,22 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
     document.scrollingElement?.scrollTo?.({ top: 0 });
   }, [route, menuOpen, openResource, tabPanelId]);
 
-  const openParty = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("partyDetails"); };
-  const openElection = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("electionDetails"); };
-  const openCampaign = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("campaignDetails"); };
-  const openPolitician = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("politicians"); };
+  // #510 drill-down: open a detail route while remembering the current browse
+  // surface as the single-slot return context (news-reader deep-links record
+  // none and keep canonical parents).
+  const drill = (next: RouteId, id?: string) => {
+    focusPage.current = true;
+    setReturnContext(route === "news" ? null : { route, detailId });
+    if (id === undefined) setDetailId(undefined);
+    else setDetailId(id);
+    setRoute(next);
+  };
+  const openParty = (id: string) => drill("partyDetails", id);
+  const openElection = (id: string) => drill("electionDetails", id);
+  const openCampaign = (id: string) => drill("campaignDetails", id);
+  const openPolitician = (id: string) => drill("politicians", id);
   // #69: the dedicated presidential race destination, opened from the Elections surface.
-  const openPresidential = (id: string) => { setDetailId(id); focusPage.current = true; setRoute("presidentialDetails"); };
+  const openPresidential = (id: string) => drill("presidentialDetails", id);
 
   // Deep-links into Nations also re-point the shared browse context so the
   // viewed nation survives the round trip; the player country is never touched.
@@ -215,11 +243,14 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
     // Remember which result was opened so returning to Search keeps it marked.
     setSearchSnapshot(prev => ({ ...prev, opened: `${result.kind}:${result.id}` }));
     if (destinations[result.kind] === "nations") setNationContext(result.id);
-    setDetailId(result.id); focusPage.current = true; setRoute(destinations[result.kind]);
+    // A search hit is a browse-surface drill-down: Back restores the query,
+    // filters, and result list from the snapshot above.
+    drill(destinations[result.kind], result.id);
   };
 
   const openNotificationTarget = (target: { route: RouteId; detailId?: string }) => {
     focusPage.current = true;
+    setReturnContext(null);
     setDetailId(target.detailId);
     setRoute(target.route);
     setMenuOpen(false);
@@ -283,6 +314,45 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   // Native destination. Supplying a row from either signal would invent
   // ownership, so SP passes none and the drawer omits both rows.
   const identityOrg: IdentityOrgLink[] = [];
+
+  // #510 detail return: restore the recorded origin (route + detail id) when
+  // one exists, otherwise the long-standing canonical parent for that
+  // detail. Single-use: returning clears the slot. The politicians surface
+  // only shows Back when it was opened from a detail (race/campaign); plain
+  // drawer visits keep today's chromeless list.
+  const detailBack: { name: string; onBack: () => void } | null = (() => {
+    const restore = (fallbackRoute: RouteId, fallbackName: string, keepDetail: boolean) => {
+      const origin = returnContext;
+      if (origin && origin.route !== route) {
+        return {
+          name: `Back to ${shortReturnLabel(origin.route)}`,
+          onBack: () => {
+            focusPage.current = true;
+            setReturnContext(null);
+            setDetailId(origin.detailId);
+            setRoute(origin.route);
+          },
+        };
+      }
+      return {
+        name: fallbackName,
+        onBack: () => {
+          focusPage.current = true;
+          setReturnContext(null);
+          if (keepDetail) setRoute(fallbackRoute);
+          else go(fallbackRoute);
+        },
+      };
+    };
+    if (route === "partyDetails") return restore("parties", "Back to parties", false);
+    if (route === "electionDetails") return restore("elections", "Back to elections", false);
+    if (route === "campaignDetails") return restore("electionDetails", "Back to race", true);
+    if (route === "presidentialDetails") return restore("elections", "Back to elections", false);
+    if (route === "politicians" && returnContext && returnContext.route !== "politicians") {
+      return restore("politicians", "Back to politicians", false);
+    }
+    return null;
+  })();
 
   const drawer = (
     <GameDrawer
@@ -531,7 +601,20 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           {route === "worldMap" && <WorldMapRoute loadOverview={loadWorldOverview} loadRegions={loadRegions} revision={world} section={preferences.worldMapSection} onSectionChange={(worldMapSection) => onPreferencesChange({ ...preferences, worldMapSection })} onNavigate={navigate} />}
           {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} revision={world} busy={busy} onNavigate={navigate} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
-          {route === "government" && loadCabinetOffice && onIssueCabinetOrder && <DetailQuery load={loadCabinetOffice} revision={world} label="Cabinet office">{office => <CabinetOfficePanel office={office} busy={busy} notice={error ? { kind: "error", text: error } : message ? { kind: "ok", text: message } : null} onIssue={onIssueCabinetOrder} />}</DetailQuery>}
+          {route === "government" && (loadCabinetOffice && onIssueCabinetOrder ? (
+            <DetailQuery load={loadCabinetOffice} revision={world} label="Cabinet office">{office => <CabinetOfficePanel office={office} busy={busy} notice={error ? { kind: "error", text: error } : message ? { kind: "ok", text: message } : null} onIssue={onIssueCabinetOrder} />}</DetailQuery>
+          ) : (
+            // #510 honest unavailable state: the shell must say the cabinet
+            // service is not connected and offer a way out, never a blank region.
+            <div className="ahd-stack">
+              <h2 className="ahd-h2">Cabinet office</h2>
+              <div className="ahd-empty" role="note">The cabinet office is unavailable because its service is not connected. Your game is intact; continue elsewhere and return once the service is wired.</div>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => go("profile")}>Go to profile</button>
+                <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => go("actions")}>Go to actions</button>
+              </div>
+            </div>
+          ))}
           {route === "bonds" && <BondMarketRoute initialId={detailId} load={loadBondMarket} revision={world} busy={busy} onAction={onAction} />}
           {route === "partyManagement" && <DetailQuery load={loadPartyManagement} revision={world} label="Party management">{management => <PartyManagementPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "search" && <SearchPanel load={search} revision={world} onOpen={openSearchResult} snapshot={searchSnapshot} onSnapshot={updateSearchSnapshot} />}
@@ -552,8 +635,8 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
             navigate(next, id);
           }} /> : null}
           {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} onNavigate={(next) => go(next)} /> : null}
-          {(route === "partyDetails" || route === "electionDetails" || route === "campaignDetails") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => route === "campaignDetails" ? setRoute("electionDetails") : go(route === "partyDetails" ? "parties" : "elections")}>Back to {route === "partyDetails" ? "parties" : route === "campaignDetails" ? "race" : "elections"}</button>}
-          {(route === "presidentialDetails" || route === "politicalMetrics") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => go("elections")}>Back to elections</button>}
+          {detailBack && (route === "partyDetails" || route === "electionDetails" || route === "campaignDetails" || route === "presidentialDetails" || route === "politicians") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={detailBack.onBack}>{detailBack.name}</button>}
+          {route === "politicalMetrics" && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => go("elections")}>Back to elections</button>}
           {route === "partyDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="parties" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
           {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} onOpenCampaign={openCampaign} onOpenPolitician={openPolitician} onOpenPresidential={openPresidential} busy={busy} onAction={onAction} clock={clock} />}
           {route === "presidentialDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="presidential" initialId={detailId} onOpenCampaign={openCampaign} onOpenPolitician={openPolitician} busy={busy} onAction={onAction} clock={clock} />}

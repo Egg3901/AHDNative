@@ -219,3 +219,42 @@ Save and Exit lives in the side drawer. See [mobile navigation](MOBILE-NAVIGATIO
 - Hall of Fame / leaderboards have no offline SP source and render an explicit unavailable note
   tracked in issue #73, never a table. Country/region map depth beyond the directory (plotted
   geography, crises, diplomacy extras) remains open, so #73 stays open.
+
+## 8. Route-matrix evidence (#510)
+
+Enforced by `src/ui/RouteMatrix510.test.tsx`: 18 rendered tests green at 320px,
+390px, and 1280px (desktop). The two broad loops (full-destination render sweep;
+party/race drill-down) carry explicit 120s timeouts; every other test runs under
+the default budget.
+
+Proven rows:
+
+| Area | Proven behavior |
+|---|---|
+| Drawer reachability | All 32 drawer destinations exposed as labelled buttons (`drawerRouteIds().length > 20` asserted); Nation/World collapsible groups expand to every nested label |
+| Real screens | Every drawer destination renders at least one heading with non-empty content; Ask renders its labelled composer instead of a heading |
+| Detail drill-down | Parties list opens party detail, Elections list opens race detail, each with a visible Back path |
+| Cabinet honesty | With `loadCabinetOffice`/`onIssueCabinetOrder` absent, Cabinet office renders a heading, an explicit unavailable note, and Go-to-profile/actions recovery instead of a blank region |
+| Cabinet capability | With offices wired, the Cabinet office heading and position option render |
+| SP/MP separation | SP drawer shows no Multiplayer/Sign-in entries and keeps local End turn + Save game; ready MP screen shows no End turn/Save game at any width |
+| Return to context | Race opened from Politicians returns via Back to politicians with the Politicians region restored; party opened from Parties returns via Back to parties; search hits record the search surface so Back restores query/filters/results |
+| MP account states | Expired session renders Session-expired heading with a Discord reconnect path and a safe Back |
+
+Return-context model: single-slot `{ route, detailId }` in shell state, captured
+by browse-surface drill-downs, cleared by drawer/deep-link/notification
+navigation, restored once by Back with canonical-parent fallbacks (parties,
+elections, race). No browser history; identical offline in SP and through MP
+adapters. The transient news reader never records an origin, so article links
+keep their pinned canonical parents.
+
+Remaining gaps (issue #510 stays open):
+
+- Role/country/capability conditions across the full reference matrix are not
+  matrix-tested beyond the cabinet loader/wiring case; office-holder, governor,
+  devolution, and legacy-route conditions remain unproven.
+- No rendered SP-to-MP switching test; the MP shell is covered only standalone.
+- Deep-link, selection-restore, and multi-level (race to politician to race)
+  returns are single-slot only and untested beyond one level.
+- Matrix asserts headings/content per destination, not per-screen action/data depth.
+- Physical-iPhone smoke (Dynamic Island/safe-area, Liquid Glass readability)
+  for the complete navigation loop is still owed; all evidence here is Linux jsdom.
