@@ -66,7 +66,9 @@ is list-only and routes into the paired elections section for detail.
   `env(viewport-segment-*)`. Unsupported browsers ignore those blocks.
 - Footer controls follow the content segment under vertical spanning instead
   of crossing the hinge. Resource popovers and the notification preview stay
-  transient dialogs above the content pane.
+  transient dialogs above the content pane: vertical spanning pins them to
+  the content-segment edges, horizontal spanning caps them at the bottom
+  segment minus the footer (overflow scrolls in place).
 - Drawer turn controls, resource buttons, and bottom-nav targets keep their
   44px minimums; no interactive surface is placed under the occlusion.
 
