@@ -92,6 +92,29 @@ describe("PollingPanel", () => {
     }
   });
 
+  it("keeps a long group label on one ellipsis line without squeezing the count at 320px", () => {
+    const longName = "Super-Long Voter Group Name ".repeat(6).trim();
+    const snapshot: StoredPollView = {
+      ...quick,
+      topGroups: [
+        { id: "long-0", name: longName, appeal: 42, weightedPotential: 9876, turnoutPct: 61, estimatedSharePct: 12.5 },
+      ],
+      bottomGroups: [],
+    };
+    render(<PollingPanel polls={{ quick: snapshot, full: null } satisfies PollingView} />);
+    const card = screen.getByRole("article", { name: "Quick Poll" });
+    const label = within(card).getByText(/Super-Long Voter Group Name/, { exact: false });
+    const ellipsis = label.closest("span")!;
+    expect(ellipsis.tagName).toBe("SPAN");
+    expect(ellipsis).toHaveStyle({ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" });
+    const row = label.closest("li")!;
+    expect(row.tagName).toBe("LI");
+    expect(row).toHaveStyle({ display: "flex", justifyContent: "space-between" });
+    const count = within(card).getByText("9,876");
+    expect(count.tagName).toBe("STRONG");
+    expect(count).toHaveStyle({ flexShrink: "0" });
+  });
+
   it("renders both polls when both exist", () => {
     render(<PollingPanel polls={{ quick, full } satisfies PollingView} />);
     expect(screen.getByRole("article", { name: "Quick Poll" })).toBeInTheDocument();
