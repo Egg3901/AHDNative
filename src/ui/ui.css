@@ -392,6 +392,16 @@ html, body { overflow-x: hidden; }
 .ahd-notification-title { min-width: 0; }
 .ahd-notification-title-text { min-width: 0; overflow-wrap: anywhere; }
 
+/* World map directory rows: the label column is the flex item that must
+   shrink, or a long nation/region name plus its badge cluster forces the
+   row past a 320px viewport. The nation badge cluster wraps internally and
+   keeps min-width 0 so it yields instead of overflowing; the single region
+   badge keeps flexShrink 0 in markup. Single-line desktop rows render
+   identically because wrapping only engages under constraint. */
+.ahd-world-row-label { min-width: 0; flex: 1 1 auto; }
+.ahd-world-row-label-text { min-width: 0; overflow-wrap: anywhere; }
+.ahd-world-row-badges { min-width: 0; }
+
 /* Party identity mark (#244). Image path mirrors the reference PartyLogo;
    initials/color fallback is deterministic from the DTO identity. Shrinks
    (never grows) so it cannot push content into horizontal overflow. */
