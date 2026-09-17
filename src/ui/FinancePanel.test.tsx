@@ -176,3 +176,35 @@ describe("FinancePanel 320px balance-row contract", () => {
   });
 });
 
+describe("FinancePanel portfolio trend", () => {
+  const wealthHistory = [
+    { turn: 1, cash: 8000, savings: 2000, funds: 100, bondsValue: 0, sharesValue: 0, netWorth: 10100 },
+    { turn: 2, cash: 8500, savings: 2000, funds: 120, bondsValue: 0, sharesValue: 774, netWorth: 11394 },
+  ];
+
+  it("charts recorded wealth history with touch-safe series switching and a data table", async () => {
+    const user = userEvent.setup();
+    const FinancePanel = await renderPanel();
+    render(
+      <FinancePanel
+        finance={makeFinance({ wealthHistory })}
+        section="portfolio"
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("img", { name: /portfolio trend/i })).toBeInTheDocument();
+    const netWorth = screen.getByRole("button", { name: /net worth/i });
+    expect(netWorth.style.minHeight).toBe("44px");
+    expect(netWorth).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: /^savings/i }));
+    expect(screen.getByRole("table", { name: /portfolio trend data/i })).toHaveTextContent("Turn 2");
+  });
+
+  it("shows an explicit unavailable state when no wealth history is recorded", async () => {
+    const FinancePanel = await renderPanel();
+    render(<FinancePanel finance={makeFinance()} section="portfolio" busy={false} onAction={vi.fn()} />);
+    expect(screen.getByText(/no portfolio history recorded yet/i)).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /portfolio trend/i })).not.toBeInTheDocument();
+  });
+});

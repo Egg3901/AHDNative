@@ -185,10 +185,17 @@ export interface LegislatureView {
   /** SCOTUS sponsorship stays unavailable until #270. */
   scotusSponsor?: ScotusSponsorView;
 }
+/** One recorded player-wealth point from WorldState.history.playerWealth, oldest first. */
+export interface FinanceWealthHistoryPoint {
+  turn: number; cash: number; savings: number; funds: number;
+  bondsValue: number; sharesValue: number; netWorth: number;
+}
 export interface FinanceView {
   cash: number; savings: number; currency: string; savingsHolder: string;
   holdings: { id: string; name: string; ticker: string; shares: number; price: number; currency: string }[];
   deposit: ActionView; withdraw: ActionView;
+  /** Recorded wealth series for the portfolio trend chart. Absent on older projections; empty before the first turn. */
+  wealthHistory?: FinanceWealthHistoryPoint[];
 }
 export interface GameView {
   turn: number; date: string; era: string; countryId: string; countryName: string;
