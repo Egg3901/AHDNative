@@ -60,6 +60,23 @@ describe("PartyPlatformComparison", () => {
     expect(onSelect).toHaveBeenCalledWith("US_REP");
   });
 
+  it("keeps the platforms table keyboard-reachable at phone widths", () => {
+    // Party names and axis labels exceed the 320/390px viewport, so the
+    // trailing table columns sit inside a horizontal scroll container. Touch
+    // users swipe; keyboard and switch-control users need a tab stop on that
+    // container, otherwise the Economic/Social columns are unreachable.
+    // jsdom performs no layout, so the case asserts the shipped
+    // focusable-region contract around the real table.
+    render(<PartyPlatformComparison parties={PARTIES} selectedId="US_DEM" onSelect={() => {}} />);
+
+    const region = screen.getByRole("region", { name: "Party platforms table" });
+    expect(region).toHaveAttribute("tabindex", "0");
+    expect(within(region).getByRole("table")).toBeInTheDocument();
+    for (const name of ["Party", "Economic", "Social"]) {
+      expect(within(region).getByRole("columnheader", { name })).toBeInTheDocument();
+    }
+  });
+
   it("renders nothing when the projection carries no parties", () => {
     const { container } = render(<PartyPlatformComparison parties={[]} selectedId="" onSelect={() => {}} />);
     expect(container).toBeEmptyDOMElement();
