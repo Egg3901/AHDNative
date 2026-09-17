@@ -29,6 +29,8 @@ const inbox = (unread: number) =>
     total: 1,
     hasMore: false,
   });
+const emptyMailInbox = JSON.stringify({ mails: [], unreadCount: 0, total: 0, hasMore: false });
+const emptyMailSent = JSON.stringify({ mails: [], total: 0, hasMore: false });
 
 function setViewport(width: number) {
   Object.defineProperty(window, "innerWidth", { value: width, configurable: true });
@@ -74,7 +76,16 @@ function fakeHost(script: Script): { host: MpBridgeHost; calls: string[] } {
 }
 
 function readyScript(): Script {
-  return { fetch: { "auth-session": [probe], "character-me": [me(1000)], "turn-status": [turn], notifications: [inbox(1)] } };
+  return {
+    fetch: {
+      "auth-session": [probe],
+      "character-me": [me(1000)],
+      "turn-status": [turn],
+      notifications: [inbox(1)],
+      "mail-inbox": [emptyMailInbox],
+      "mail-sent": [emptyMailSent],
+    },
+  };
 }
 
 describe("MpModeScreen at 320px", () => {
@@ -104,6 +115,7 @@ describe("MpModeScreen at 320px", () => {
     expect(within(actions).getByPlaceholderText("e.g. CA")).toBeInTheDocument();
 
     expect(screen.getByRole("region", { name: "Notifications" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Player mail" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Mark all read" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Refresh" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Exit multiplayer" })).toBeInTheDocument();
@@ -129,6 +141,8 @@ describe("MpModeScreen at 320px", () => {
         "character-me": [me(1000), me(900)],
         "turn-status": [turn, turn],
         notifications: [inbox(1), inbox(1)],
+        "mail-inbox": [emptyMailInbox],
+        "mail-sent": [emptyMailSent],
       },
       mutate: { "execute-action": [JSON.stringify({ success: true, message: "Ran 5 fundraisers!" })] },
     });
@@ -166,6 +180,7 @@ describe("MpModeScreen at 320px", () => {
     expect(css).toMatch(/\.ahd-mp-row[^{]*\{[^}]*flex-wrap:\s*wrap/);
     expect(css).toMatch(/\.ahd-mp-input\s+input\s*\{[^}]*min-width:\s*0/);
     expect(css).toMatch(/\.ahd-mp-input\s+select\s*\{[^}]*min-width:\s*0/);
+    expect(css).toMatch(/\.ahd-mp-input\s+textarea\s*\{[^}]*min-width:\s*0/);
     const mpRules = css.split("@media")[0] ?? "";
     for (const match of mpRules.match(/\.ahd-mp-[^{]*\{[^}]*\}/g) ?? []) {
       expect(match).not.toMatch(/width:\s*\d+px/);
@@ -183,6 +198,8 @@ describe("MpModeScreen at 390px", () => {
         "character-me": [me(1000)],
         "turn-status": [turn],
         notifications: [inbox(0)],
+        "mail-inbox": [emptyMailInbox],
+        "mail-sent": [emptyMailSent],
       },
     });
     render(<MpModeScreen host={host} onExit={() => {}} />);
@@ -202,6 +219,8 @@ describe("MpModeScreen at 390px", () => {
         "character-me": [me(1000), me(1000), me(1000), me(1000)],
         "turn-status": [turn, turn, turn, turn],
         notifications: [inbox(1), inbox(1), inbox(1), inbox(1)],
+        "mail-inbox": [emptyMailInbox],
+        "mail-sent": [emptyMailSent],
       },
       mutate: {
         "notification-snooze": [JSON.stringify({ success: true })],
@@ -233,6 +252,8 @@ describe("MpModeScreen at 390px", () => {
         "character-me": [me(1000), me(1000)],
         "turn-status": [turn, turn],
         notifications: [inbox(1), inbox(1)],
+        "mail-inbox": [emptyMailInbox],
+        "mail-sent": [emptyMailSent],
       },
       mutate: { "notification-preference": [JSON.stringify({ success: true })] },
     });
@@ -270,6 +291,8 @@ describe("MpModeScreen on desktop", () => {
         "character-me": [me(1000), me(1250)],
         "turn-status": [turn, turn],
         notifications: [inbox(1), inbox(0)],
+        "mail-inbox": [emptyMailInbox],
+        "mail-sent": [emptyMailSent],
       },
       mutate: { "execute-action": [JSON.stringify({ success: true, message: "Raised 250 from donors!" })] },
     });
@@ -288,7 +311,14 @@ describe("MpModeScreen on desktop", () => {
     setViewport(1280);
     const user = userEvent.setup();
     const { host, calls } = fakeHost({
-      fetch: { "auth-session": [probe], "character-me": [me(1000)], "turn-status": [turn], notifications: [inbox(1)] },
+      fetch: {
+        "auth-session": [probe],
+        "character-me": [me(1000)],
+        "turn-status": [turn],
+        notifications: [inbox(1)],
+        "mail-inbox": [emptyMailInbox],
+        "mail-sent": [emptyMailSent],
+      },
       mutate: { "execute-action": [{ reject: 'remote-error:403:0:{"error":"Automated access is not permitted for this endpoint."}' }] },
     });
     render(<MpModeScreen host={host} onExit={() => {}} />);
@@ -307,7 +337,14 @@ describe("MpModeScreen on desktop", () => {
       <MpModeScreen
         host={
           fakeHost({
-            fetch: { "auth-session": [probe], "character-me": [me(1000)], "turn-status": [turn], notifications: [inbox(1)] },
+            fetch: {
+              "auth-session": [probe],
+              "character-me": [me(1000)],
+              "turn-status": [turn],
+              notifications: [inbox(1)],
+              "mail-inbox": [emptyMailInbox],
+              "mail-sent": [emptyMailSent],
+            },
             mutate: { "execute-action": [{ reject: 'remote-error:429:45:{"error":"too quick","code":"rate_limited"}' }] },
           }).host
         }
@@ -329,6 +366,8 @@ describe("MpModeScreen on desktop", () => {
         "character-me": [me(1000), me(1000)],
         "turn-status": [turn, turn],
         notifications: [inbox(1), inbox(0)],
+        "mail-inbox": [emptyMailInbox],
+        "mail-sent": [emptyMailSent],
       },
       mutate: { "notification-read": [JSON.stringify({ success: true })] },
     });

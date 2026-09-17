@@ -51,6 +51,8 @@ function readyHost(): MpBridgeHost {
       if (op === "character-me") return me;
       if (op === "turn-status") return turn;
       if (op === "notifications") return inbox;
+      if (op === "mail-inbox") return JSON.stringify({ mails: [], unreadCount: 0, total: 0, hasMore: false });
+      if (op === "mail-sent") return JSON.stringify({ mails: [], total: 0, hasMore: false });
       throw new Error(`unexpected fetch ${op}`);
     },
     mutate: async () => {

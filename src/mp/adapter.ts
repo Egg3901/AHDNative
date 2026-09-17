@@ -3,15 +3,21 @@ import {
   parseCharacterMe,
   parseExecuteResult,
   parseInbox,
+  parseMailInbox,
+  parseMailSent,
   parseMutationAck,
   parseSessionProbe,
   parseTurnStatus,
   validateExecuteArgs,
+  validateMailId,
+  validateMailSend,
   validateNotificationId,
   validateNotificationPreference,
   validateSnoozeMinutes,
   type MpCharacterView,
   type MpInboxView,
+  type MpMailInbox,
+  type MpMailSent,
   type MpTurnView,
 } from "./validators";
 import type { MpMutateOpId } from "./endpoints";
@@ -43,6 +49,10 @@ export interface MpSnapshot {
   character: MpCharacterView | null;
   turn: MpTurnView | null;
   inbox: MpInboxView | null;
+  /** Received player mail page; loaded on demand, never on enter. */
+  mailInbox: MpMailInbox | null;
+  /** Sent player mail page; loaded on demand, never on enter. */
+  mailSent: MpMailSent | null;
   /** Last server-confirmed notice (action result); cleared on next load. */
   notice: string | null;
   /** Last human-readable failure; cleared when a call succeeds. */
@@ -58,6 +68,8 @@ const INITIAL_SNAPSHOT: MpSnapshot = {
   character: null,
   turn: null,
   inbox: null,
+  mailInbox: null,
+  mailSent: null,
   notice: null,
   error: null,
   retryAfter: null,
@@ -65,8 +77,15 @@ const INITIAL_SNAPSHOT: MpSnapshot = {
 
 export const MP_INBOX_LIMIT = 25;
 
-function emptyAuthed(): Pick<MpSnapshot, "character" | "turn" | "inbox"> {
-  return { character: null, turn: null, inbox: null };
+/**
+ * Audited mail page size (#359 chat slice): the mail routes accept limit
+ * 1..50, and Native always reads the widest page so the inbox/sent views
+ * match the reference without paging controls.
+ */
+export const MP_MAIL_LIMIT = 50;
+
+function emptyAuthed(): Pick<MpSnapshot, "character" | "turn" | "inbox" | "mailInbox" | "mailSent"> {
+  return { character: null, turn: null, inbox: null, mailInbox: null, mailSent: null };
 }
 
 export class MpModeSession {
@@ -200,6 +219,127 @@ export class MpModeSession {
       return this.set({ notice: "All notifications marked as read." });
     }
     return this.applyRemoteFailure(result, "action");
+  }
+
+  /**
+   * Load both player-mail pages on demand (#359 chat slice). Enter and
+   * refresh never fetch mail: the inbox/sent pages load here, and every
+   * mail mutation refreshes them before claiming completion.
+   */
+  async loadMail(): Promise<MpSnapshot> {
+    if (!this.snapshot.userId) return this.enter();
+    this.set({ error: null, notice: null, retryAfter: null });
+    const inboxResult = await mpFetch(this.host, "mail-inbox", MP_MAIL_LIMIT, 0);
+    if (inboxResult.kind !== "ok") return this.applyMailReadFailure(inboxResult);
+    const mailInbox = parseMailInbox(inboxResult.bodyText);
+    if (!mailInbox) {
+      return this.set({ phase: "server-error", mailInbox: null, error: "The mail inbox answered in an unexpected shape." });
+    }
+    const sentResult = await mpFetch(this.host, "mail-sent", MP_MAIL_LIMIT, 0);
+    if (sentResult.kind !== "ok") {
+      // The inbox page parsed but the sent page failed: keep the fresh inbox
+      // unless the session itself expired, and report honestly.
+      if (sentResult.kind === "remote" && sentResult.http === 401) {
+        return this.applyMailReadFailure(sentResult);
+      }
+      const failure = this.applyMailReadFailure(sentResult);
+      return this.set({ ...failure, mailInbox });
+    }
+    const mailSent = parseMailSent(sentResult.bodyText);
+    if (!mailSent) {
+      return this.set({ phase: "server-error", mailSent: null, error: "The sent mail answered in an unexpected shape." });
+    }
+    return this.set({ phase: "ready", mailInbox, mailSent, error: null, retryAfter: null });
+  }
+
+  /**
+   * Send player mail, then refresh both mail pages before claiming
+   * completion. No optimistic send is modeled.
+   */
+  async sendMail(args: { toCharacterId: unknown; subject: unknown; body: unknown }): Promise<MpSnapshot> {
+    if (!this.snapshot.userId) return this.enter();
+    const validated = validateMailSend(args);
+    if (!validated.ok) {
+      return this.set({ error: validated.reason });
+    }
+    this.set({ error: null, notice: null, retryAfter: null });
+    const result = await mpMutate(this.host, "mail-send", validated.body);
+    if (result.kind === "ok") {
+      if (!parseMutationAck(result.bodyText)) {
+        return this.set({ phase: "server-error", error: "The server answered in an unexpected shape." });
+      }
+      const refreshed = await this.loadMail();
+      if (refreshed.phase !== "ready") return refreshed;
+      return this.set({ notice: "Mail sent." });
+    }
+    return this.applyRemoteFailure(result, "action");
+  }
+
+  /** Mark one received mail read, then refresh before claiming completion. */
+  async markMailRead(id: unknown): Promise<MpSnapshot> {
+    return this.mailIdMutation("mail-read", id, "Mail marked as read.");
+  }
+
+  /** Soft-delete the recipient copy of one received mail, then refresh. */
+  async deleteMail(id: unknown): Promise<MpSnapshot> {
+    return this.mailIdMutation("mail-delete", id, "Mail deleted.");
+  }
+
+  /** Soft-delete the sender copy of one sent mail, then refresh. */
+  async deleteSentMail(id: unknown): Promise<MpSnapshot> {
+    return this.mailIdMutation("mail-sent-delete", id, "Sent mail deleted.");
+  }
+
+  /** Report one received mail for moderator review, then refresh. */
+  async reportMail(id: unknown): Promise<MpSnapshot> {
+    return this.mailIdMutation("mail-report", id, "Mail reported. Moderators will review it.");
+  }
+
+  /** One ack-shaped mail mutation with the same mutate-then-refresh contract. */
+  private async mailIdMutation(
+    op: "mail-read" | "mail-delete" | "mail-sent-delete" | "mail-report",
+    id: unknown,
+    notice: string,
+  ): Promise<MpSnapshot> {
+    if (!this.snapshot.userId) return this.enter();
+    const validated = validateMailId(id);
+    if (!validated.ok) {
+      return this.set({ error: validated.reason });
+    }
+    this.set({ error: null, notice: null, retryAfter: null });
+    const result = await mpMutate(this.host, op, { id: validated.id });
+    if (result.kind === "ok") {
+      if (!parseMutationAck(result.bodyText)) {
+        return this.set({ phase: "server-error", error: "The server answered in an unexpected shape." });
+      }
+      const refreshed = await this.loadMail();
+      if (refreshed.phase !== "ready") return refreshed;
+      return this.set({ notice });
+    }
+    return this.applyRemoteFailure(result, "action");
+  }
+
+  /** Map a mail-read failure without claiming any state change. */
+  private applyMailReadFailure(result: MpCallResult): MpSnapshot {
+    if (result.kind === "remote" && result.http === 401) {
+      // Auth expired mid-session: drop authed state, keep the last identity
+      // label out of the authed views.
+      return this.set({ ...emptyAuthed(), phase: "auth-expired", error: "Your multiplayer session expired. Reconnect to continue." });
+    }
+    if (result.kind === "remote" && result.http === 429) {
+      return this.set({
+        phase: "rate-limited",
+        retryAfter: result.retryAfter || null,
+        error: `Rate limited: ${result.message}`,
+      });
+    }
+    if (result.kind === "remote" && result.http >= 500) {
+      return this.set({ phase: "server-error", error: result.message });
+    }
+    if (result.kind === "transport" && result.code === "session-unavailable") {
+      return this.set({ phase: "offline", error: "The live-site session closed. Reconnect to continue." });
+    }
+    return this.set({ phase: "offline", error: "Multiplayer is unreachable. Check your connection and retry." });
   }
 
   private async notificationIdMutation(

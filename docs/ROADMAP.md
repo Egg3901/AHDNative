@@ -93,7 +93,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | I02 | iOS | Queued | I01 | Install and smoke on iPhone | Real install,launch,world,turn,save/relaunch |
 | I03 | iOS | Queued | I02 | Validate lifecycle and memory/performance | Background,lock,interruption,low memory,named-device measurements |
 | I04 | Release | Queued | I03,G06 | Cut private 1.0.0 when release gates pass | Version consistency,private artifact,release notes,known risks |
-| P01 | Multiplayer | In progress | I04 | Adapt shared screens to authoritative MP transport | Slice 1 in [#359](https://github.com/Egg3901/AHDNative/issues/359): session bridge, 9 single-run actions, inbox triage; batch/mobile/device acceptance split out |
+| P01 | Multiplayer | In progress | I04 | Adapt shared screens to authoritative MP transport | Slice 1 in [#359](https://github.com/Egg3901/AHDNative/issues/359): session bridge, 9 single-run actions, inbox triage, native player mail; batch/mobile/device acceptance split out |
 | P02 | Multiplayer | In progress | P01 | Validate reconnect, mode separation and mutation safety | SP remains offline; MP mutations run server-side only, unsupported actions absent; device gate still open |
 | A01 | Platforms | In progress | owner preview approval | Bring up Android shell and lifecycle | Local ARM64 APK built; signature and 16 KB binary/package checks pass. Device smoke/performance remain #44/#43/#126 |
 | A02 | Platforms | In progress | owner preview approval | Adapt desktop navigation and packaging | Local Windows x64 portable EXE built with shared UI. Windows launch,keyboard/window state and save checks remain unverified |

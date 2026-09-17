@@ -5,6 +5,8 @@ import {
   MP_EXECUTE_COUNTS,
   MP_NOTIFICATION_TYPES,
   MP_ORIGIN,
+  MP_MAIL_BODY_MAX,
+  MP_MAIL_SUBJECT_MAX,
   MP_SNOOZE_MINUTES_DEFAULT,
   MP_SNOOZE_MINUTES_MAX,
   MP_SNOOZE_MINUTES_MIN,
@@ -111,5 +113,12 @@ describe("MP batch + inbox pins (#361)", () => {
     for (const type of MP_NOTIFICATION_TYPES) {
       expect(type).toMatch(/^[a-z0-9_]+$/);
     }
+  });
+});
+
+describe("MP player-mail pins (#359 chat slice)", () => {
+  it("pins sendMailSchema UTF-16 length limits", () => {
+    expect(MP_MAIL_SUBJECT_MAX).toBe(80);
+    expect(MP_MAIL_BODY_MAX).toBe(1000);
   });
 });
