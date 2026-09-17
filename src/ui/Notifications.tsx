@@ -17,6 +17,7 @@ import {
   type ResolvedDestination,
 } from "../game/notifications";
 import { formatGameDate, type GameClock } from "../game/gameDate";
+import { useDualPaneLayout } from "./dualPane";
 
 export interface NotificationTarget {
   route: NotificationRoute;
@@ -180,6 +181,11 @@ export function NotificationsInbox({ items, turn, busy, onRead, onDelete, onRead
   /** World clock used to render each notice's game date on the reference calendar (#226). */
   clock: GameClock;
 }) {
+  // Dual-pane list/detail pairing (#438): the inbox rows and the open notice
+  // share the existing selectedId state; the shell places them on separate
+  // panes only when a hinge is reported. Single-pane keeps the exact
+  // pre-existing list/detail toggle journey below.
+  const dual = useDualPaneLayout().mode === "dual";
   const [segment, setSegment] = useState<"all" | "action">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -300,8 +306,8 @@ export function NotificationsInbox({ items, turn, busy, onRead, onDelete, onRead
       {visible.length === 0 && !selected ? (
         <div className="ahd-empty">{segment === "action" ? "Nothing needs you right now." : "No notifications yet."}</div>
       ) : (
-        <div className="ahd-inbox-body">
-          <div className="ahd-inbox-list ahd-stack">
+        <div className={dual ? "ahd-inbox-body ahd-dual-panes" : "ahd-inbox-body"}>
+          <div className="ahd-inbox-list ahd-stack" data-pane="list">
             {visible.length === 0 ? (
               <div className="ahd-empty">{segment === "action" ? "Nothing needs you right now." : "No notifications yet."}</div>
             ) : null}
@@ -329,7 +335,7 @@ export function NotificationsInbox({ items, turn, busy, onRead, onDelete, onRead
             ) : null}
           </div>
           {selected && resolved ? (
-            <section role="region" aria-label="Notification detail" className="ahd-card ahd-card-pad ahd-inbox-detail">
+            <section role="region" aria-label="Notification detail" className="ahd-card ahd-card-pad ahd-inbox-detail" data-pane="detail">
               <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm ahd-inbox-back" onClick={backToList}>
                 <span aria-hidden="true">←</span> Back to inbox
               </button>

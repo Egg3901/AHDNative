@@ -1095,9 +1095,19 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
 .ahd-inbox-list { min-width: 0; }
 .ahd-inbox-detail { min-width: 0; }
 @media (max-width: 899px) {
-  .ahd-inbox[data-view="list"] .ahd-inbox-detail { display: none; }
-  .ahd-inbox[data-view="detail"] .ahd-inbox-list { display: none; }
+  /* Single-pane phone journey: list/detail toggle. The body carries
+     .ahd-dual-panes only when a hinge is reported (issue #438), so the
+     toggle hides nothing in dual posture. Scoped to the component's own
+     marker instead of the shell ancestor, so standalone and embedded
+     inbox renders keep the toggle journey too. */
+  .ahd-inbox[data-view="list"] .ahd-inbox-body:not(.ahd-dual-panes) .ahd-inbox-detail { display: none; }
+  .ahd-inbox[data-view="detail"] .ahd-inbox-body:not(.ahd-dual-panes) .ahd-inbox-list { display: none; }
 }
+/* Dual-pane inbox pairing (issue #438): rows on the list pane share one
+   selection with the open notice on the detail pane. The Back control is a
+   single-pane toggle affordance, hidden wherever both panes show, exactly
+   like the desktop rail below. */
+.ahd-inbox-body.ahd-dual-panes .ahd-inbox-back { display: none; }
 @media (min-width: 900px) {
   .ahd-inbox-body {
     display: grid; grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);

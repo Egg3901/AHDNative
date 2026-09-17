@@ -252,3 +252,64 @@ describe("review findings", () => {
     expect(onOpen).toHaveBeenCalledWith({ route: "partyDetails", detailId: "p9" });
   });
 });
+
+describe("notification inbox dual-pane list/detail (#438)", () => {
+  const dualInbox = [
+    item({ id: "t3-a", key: "a", turn: 3, title: "Filing open", actionRequired: true }),
+    item({ id: "t3-b", key: "b", turn: 3, title: "Funds arrived", category: "treasury", actionRequired: false }),
+  ];
+
+  function renderDualInbox() {
+    return render(<NotificationsInbox items={dualInbox} turn={3} clock={CLOCK} busy={false}
+      onRead={props.onRead} onDelete={props.onDelete} onReadAll={vi.fn()} onOpen={props.onOpen}
+      index={{ elections: [{ id: "e7" }], parties: [], bills: [] }} />);
+  }
+
+  it("keeps the single-pane toggle journey with no paired panes", async () => {
+    const user = userEvent.setup();
+    renderDualInbox();
+    expect(document.querySelector(".ahd-dual-panes")).toBeNull();
+    const root = document.querySelector(".ahd-inbox");
+    expect(root).toHaveAttribute("data-view", "list");
+    // Landmarks stay unconditional (same convention as News/Markets), but
+    // never inside a pairing outside dual posture.
+    expect(document.querySelector('[data-pane="list"]')).not.toBeNull();
+    expect(document.querySelector(".ahd-dual-panes [data-pane]")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Open notification: Filing open" }));
+    expect(root).toHaveAttribute("data-view", "detail");
+    expect(document.querySelector(".ahd-dual-panes")).toBeNull();
+    expect(document.querySelector(".ahd-dual-panes [data-pane]")).toBeNull();
+    // Both regions stay mounted while the detail is open: the narrow toggle
+    // hides one via the component's own non-dual body marker, and Back
+    // needs the list still there.
+    expect(document.querySelector('[data-pane="list"]')).not.toBeNull();
+    expect(screen.getByRole("region", { name: /notification detail/i })).toHaveAttribute("data-pane", "detail");
+    await user.click(screen.getByRole("button", { name: /back to inbox/i }));
+    expect(root).toHaveAttribute("data-view", "list");
+    expect(document.querySelector(".ahd-dual-panes [data-pane]")).toBeNull();
+  });
+
+  it("pairs the rows with the open notice sharing one selection when dual", async () => {
+    // Dual posture via the documented QA override; single-pane keeps the
+    // exact pre-existing toggle journey (covered above).
+    window.history.replaceState({}, "", "?ahd-span=vertical");
+    try {
+      const user = userEvent.setup();
+      renderDualInbox();
+      expect(document.querySelector(".ahd-dual-panes")).not.toBeNull();
+      expect(document.querySelector('[data-pane="list"]')).not.toBeNull();
+      // One selection drives both panes: opening another row keeps the list
+      // mounted and lands its notice on the detail pane.
+      await user.click(screen.getByRole("button", { name: "Open notification: Funds arrived" }));
+      const detail = document.querySelector('[data-pane="detail"]');
+      expect(detail).not.toBeNull();
+      expect(within(detail as HTMLElement).getByText("Funds arrived")).toBeInTheDocument();
+      expect(document.querySelector('[data-pane="list"]')).not.toBeNull();
+      // Both landmarks sit inside the pairing only in dual posture.
+      expect(document.querySelectorAll(".ahd-dual-panes [data-pane]").length).toBe(2);
+      expect(screen.getAllByRole("button", { name: /open notification:/i }).length).toBeGreaterThan(1);
+    } finally {
+      window.history.replaceState({}, "", "/");
+    }
+  });
+});
