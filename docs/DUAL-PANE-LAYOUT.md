@@ -40,8 +40,11 @@ destinations, turn/save/exit controls, and `onNavigate` handler; it adds no
 backdrop, focus trap, or scroll lock.
 
 List/detail pairing: routed surfaces opt in with `.ahd-dual-panes` and
-`data-pane="list"` / `data-pane="detail"` landmarks. Adopted by eight
-player-flow surfaces: parties (`PoliticsPanel` parties section), elections
+`data-pane="list"` / `data-pane="detail"` landmarks. Adopted by nine
+player-flow surfaces: nations (`WorldPanel` nations section: directory
+beside the selected-nation detail, sharing the existing browse context;
+single-pane keeps the same stacked directory/switcher/detail journey),
+parties (`PoliticsPanel` parties section), elections
 (`PoliticsPanel` elections section: race filters/select beside the
 selected-race detail), regions (`RegionsPanel`: directory beside the
 selected region), legislation (`LegislationDetailsPanel`: chamber bill lists
@@ -88,12 +91,20 @@ is list-only and routes into the paired elections section for detail.
   tests: directory/bill/browse lists paired with their details.
   `NominationsPanel.test.tsx`: nomination list paired with the selected
   detail sharing one selection; single-pane keeps the stacked toggle
-  journey with unchanged ballot routing. `NewsPanel.test.tsx`: article wire
+  journey with unchanged ballot routing. `WorldPanel.test.tsx`: nation
+  directory list paired with the selected-nation detail sharing one browse
+  context; single-pane keeps the closed-directory stacked journey with
+  unchanged nation-context reporting. `NewsPanel.test.tsx`: article wire
   paired with the open article and with the open event detail sharing one
   selection; single-pane keeps the detail-only phone journey with no list
   pane. `Notifications.test.tsx`: inbox rows paired with the open notice
   sharing one selection in dual posture; single-pane keeps the list/detail
   toggle journey with no paired panes.
+- Deliberate non-candidates: the World map route (`WorldMapPanel`) is a
+  list-only surface whose rows route to the nations/regions detail routes,
+  so pairing it would duplicate route navigation (same precedent as the
+  GameScreen elections tab); the World state section is a single home-region
+  profile with no list, so there is nothing to pair.
 - Emulator QA (`?ahd-span=vertical|horizontal`) covers single, spanned
   portrait/landscape assignment; folded/unfolded posture acceptance needs
   representative hardware and remains open, so #438 stays `status: partial`.
