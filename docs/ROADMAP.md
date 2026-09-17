@@ -1455,6 +1455,20 @@ and removed. The smoke helper now walks the conversation; no engine change.
   screenshot was captured. #436 stays open with `status: partial` only for
   the named physical Dynamic Island device pass. Probe screenshots removed;
   no product code changed in this follow-up.
+- Gap-closure follow-up, 2026-09-17 (CSS/layout only, on top of merged #449,
+  no navigation/mail behavior change): the landing entry shell now clears the
+  home indicator (`max(1.5rem, env(safe-area-inset-bottom))`); the standalone
+  help/settings/ask (`src/App.tsx`) and character-creation
+  (`src/ui/CharacterCreationScreen.tsx`) shells clear it the same way the
+  NewGameScreen shell already did (`max(2rem, env(...))`); the 1024px
+  reading-width override keeps side insets on `.ahd-main`/`.ahd-footer-inner`
+  (`max(1.5rem, env(...))`) so wide landscape keeps rounded-corner/cutout
+  clearance; bare MP mail compose inputs/textarea hold the 16px iOS anti-zoom
+  floor without restyling; the docked drawer gains a `100vh` fallback ahead of
+  `100dvh`. Evidence: new `src/ui/SafeAreaGaps.test.ts` (5 cases) plus
+  neighboring `DeviceChromeContracts` (10), `SafeAreaComposition`,
+  `MobileNavigation`, `MpModeScreenNav` suites green. #436 stays open with
+  `status: partial` for the named physical-device pass; no device claim made.
 
 ## Dual-pane and hinge-aware layout checkpoint, 2026-09-16 (#438 partial)
 
