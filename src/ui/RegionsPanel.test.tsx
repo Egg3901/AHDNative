@@ -220,11 +220,16 @@ describe("RegionsPanel dual-pane list/detail (#438)", () => {
 
   it("marks the regions hero and the selected region with the offline identity", () => {
     const world = createWorld({ era: "1979", countryId: "RU", playerName: "Alex", seed: "regions-panel-flag" });
-    const { container } = render(<RegionsPanel query={projectRegions(world)} onQueryChange={vi.fn()} directoryOpen={false} onDirectoryOpenChange={vi.fn()} />);
+    const query = projectRegions(world);
+    const { container } = render(<RegionsPanel query={query} onQueryChange={vi.fn()} directoryOpen={false} onDirectoryOpenChange={vi.fn()} />);
     const hero = container.querySelector(".ahd-hero");
     expect(hero?.querySelector("[data-country-flag]")).not.toBeNull();
-    const detail = screen.getByRole("article", { name: "Moscow" });
+    // The default selection is the player's home region for this seed (not
+    // necessarily Moscow), so resolve its name from the projection.
+    const detail = screen.getByRole("article", { name: query.selected!.name });
     expect(detail.querySelector("[data-country-flag]")).not.toBeNull();
+    // RU-1979 resolves to the Soviet identity on this surface too.
+    expect(detail.querySelector('[data-country-flag="SU"]')).not.toBeNull();
     const marks = container.querySelectorAll("[data-country-flag]");
     marks.forEach((mark) => expect(mark.getAttribute("aria-hidden")).toBe("true"));
     expect(container.innerHTML).not.toContain("flagcdn");
