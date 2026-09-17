@@ -2,13 +2,16 @@
 
 > Status: evidence template for the `preview/0.1.8-1` source prerelease.
 > Placeholders below are unresolved. Do not cut the release until they are
-> replaced with real evidence.
+> replaced with real evidence in the GitHub release notes. Do not commit the
+> resolved values into this file: embedding the final candidate SHA here
+> would change the SHA itself, so the supervisor resolves every placeholder
+> at publication time.
 
 This is a **source** development preview for **private owner feedback**.
 It is not a 1.0.0 release or a store submission: no App Store review, no
-TestFlight external beta, no public download.
+TestFlight external beta, no public download. It ships no binaries.
 
-## Included (merged through `39b62fc`)
+## Included (merged through `07655dc`)
 
 - Accessible glass hierarchy (#437, partial): a restrained four-level material
   contract (chrome, elevated, modal, opaque content) on the established AHD
@@ -49,21 +52,34 @@ TestFlight external beta, no public download.
   metrics surface.
 - Central-bank hero (#386, #496): the Native banking surface renders a
   source-grounded central-bank hero.
+- Engine-backed legislature seating (#374, #497; supersedes #384): the
+  legislature chamber view renders an offline pure-SVG seating diagram from
+  engine seat data, hemicycle by default, benches for the UK commons/lords,
+  horseshoe for the IE dail, with party colors left to right, vacant fill,
+  accessible totals, and explicit empty/unavailable states.
+- Offline era-aware nation identity marks (#373, #498): an offline-only
+  `CountryFlag` mark (deterministic initials tile, no remote fetch or bundled
+  raster) on Nation heroes, World directory rows, the detail header,
+  nation-context notes, the home-region card, the Regions hero and selected
+  region, the Profile identity row, and political metrics via `world.era`.
+  RU resolves to SU in the 1953/1979 Soviet eras. Marks stay decorative
+  beside accessible country names.
 
-### Explicitly not included (pending PRs, unmerged)
+## Evidence (placeholders: resolved at publication time, not in this file)
 
-- Era-aware flags in nation context (#397, open).
-- Legislature seating diagrams (#384, open) and engine-composition seating
-  (#497, open).
-
-## Evidence (placeholders: replace before release)
-
-- Source commit: `<CANDIDATE_SHA>` (final merged HEAD after the pending
-  flags/seating PRs land; record the full 40-hex SHA, never an empty value).
-- Hosted `verify` run `<VERIFY_RUN_ID>`: `<VERIFY_RUN_URL>` (must be the run
-  on the candidate SHA above, green across every job step).
-- Windows xwin cross-target check: `<XWIN_EVIDENCE>` (run URL or local
-  `scripts/review-windows.sh` result on the candidate SHA; see gates below).
+- Source commit: `<CANDIDATE_SHA>` (final merged main HEAD at tag time;
+  record the full 40-hex SHA in the release notes, never an empty value).
+- Final hosted `verify` run on the candidate SHA: `<VERIFY_RUN_URL>` (must
+  be a run on the candidate SHA above, green across every job step; a
+  PR-branch run does not satisfy this).
+- Integration evidence, not the final-main run: PR #498 full hosted verify
+  run 35230994967, green across npm verify, engine/content, production
+  smoke, rustfmt, clippy `-D warnings`, and Rust tests. This ran on the PR
+  branch before merge and must not be presented as the final-main run.
+- Windows xwin cross-target check: NOT RUN. This production host has no
+  `cargo-xwin` binary, no `x86_64-pc-windows-msvc` target, and no approved
+  pre-existing `XWIN_CACHE_DIR`, so no xwin pass was attempted and none may
+  be claimed. No Windows binary ships with this source prerelease.
 
 ## Final gates
 
@@ -73,10 +89,13 @@ TestFlight external beta, no public download.
    `SMOKE_PRODUCTION=1`), and the Rust gate (`cargo fmt --check`, `cargo
    clippy --locked --all-targets` with `-D warnings`, `cargo test --locked`).
    See [.github/workflows/verify.yml](../.github/workflows/verify.yml).
-2. Windows xwin cross-target check if not covered by the hosted workflow:
-   `scripts/review-windows.sh` against the candidate SHA (local script,
+   The qualifying run must be on the candidate SHA, not on a PR branch.
+2. Windows xwin cross-target check: not run and not required for this
+   source-only prerelease, which ships no Windows binary. It applies only
+   to a separately authorized Windows binary track, where
+   `scripts/review-windows.sh` runs against the candidate SHA (local script,
    requires an existing `cargo-xwin` cache; it signs, uploads, and starts
-   nothing).
+   nothing). No xwin claim belongs in the prerelease notes.
 3. Physical-device limitations (no pass claimed): named-device
    portrait/landscape, keyboard, large-text, orientation-change, and
    performance acceptance stay open, as do foldable posture checks on
@@ -89,7 +108,7 @@ TestFlight external beta, no public download.
 
 - The GitHub `preview/0.1.8-1` release is a **source prerelease** (release
   `prerelease` flag set): notes plus a tag on the candidate commit. It ships
-  no binaries.
+  no binaries: no Windows binary, no TestFlight build.
 - Any private Windows binary or TestFlight delivery is a separate,
   separately authorized track. No artifact claim belongs in the prerelease
   notes unless the artifact and its evidence exist.
@@ -97,10 +116,13 @@ TestFlight external beta, no public download.
 ## Supervisor release inputs (only after placeholders are resolved)
 
 Preconditions: tag `preview/0.1.8-1` must not exist yet (check with
-`gh release view preview/0.1.8-1`, expecting "release not found"), and every
-`<PLACEHOLDER>` below must be replaced with real evidence. Compose the final
-notes from this document's Included and Evidence sections only; omit the
-status callout, the gates checklist, and this supervisor block.
+`gh release view preview/0.1.8-1`, expecting "release not found"); the final
+hosted `verify` run must be on the candidate SHA and green across every job
+step; and every `<PLACEHOLDER>` below must be replaced with real evidence in
+the release notes themselves, never committed into this file. Compose the
+final notes from this document's Included and Evidence sections only; omit
+the status callout, the gates checklist, and this supervisor block. Claim no
+Windows/xwin pass and no physical-device or foldable-hardware evidence.
 
 ```sh
 gh release create preview/0.1.8-1 \
