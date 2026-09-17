@@ -40,15 +40,18 @@ destinations, turn/save/exit controls, and `onNavigate` handler; it adds no
 backdrop, focus trap, or scroll lock.
 
 List/detail pairing: routed surfaces opt in with `.ahd-dual-panes` and
-`data-pane="list"` / `data-pane="detail"` landmarks. Adopted by all five
+`data-pane="list"` / `data-pane="detail"` landmarks. Adopted by six
 player-flow surfaces: parties (`PoliticsPanel` parties section), elections
 (`PoliticsPanel` elections section: race filters/select beside the
 selected-race detail), regions (`RegionsPanel`: directory beside the
 selected region), legislation (`LegislationDetailsPanel`: chamber bill lists
-beside the selected-bill detail and sponsor catalog), and markets
+beside the selected-bill detail and sponsor catalog), markets
 (`MarketsPanel`: browse list beside the selected-company detail, paired only
 in dual posture so the single-pane selected view stays exactly the
-detail-only phone flow with Back). Every pairing shares the existing
+detail-only phone flow with Back), and news (`NewsPanel`: article wire
+beside the open article or event detail, paired only in dual posture so the
+single-pane open article/event stays exactly the detail-only phone flow
+with Back). Every pairing shares the existing
 selection/query state; no surface duplicates it. The GameScreen elections tab
 is list-only and routes into the paired elections section for detail.
 
@@ -72,7 +75,11 @@ is list-only and routes into the paired elections section for detail.
   controls with no modal behavior. `GameScreen.test.tsx`: single-pane
   attributes/flow by default; docked navigation/content pairing with
   reported segments. `PoliticsPanel.test.tsx`: list/detail landmarks share
-  one selection.
+  one selection. `RegionsPanel`, `MarketsPanel`, `LegislationDetailsPanel`
+  tests: directory/bill/browse lists paired with their details.
+  `NewsPanel.test.tsx`: article wire paired with the open article and with
+  the open event detail sharing one selection; single-pane keeps the
+  detail-only phone journey with no list pane.
 - Emulator QA (`?ahd-span=vertical|horizontal`) covers single, spanned
   portrait/landscape assignment; folded/unfolded posture acceptance needs
   representative hardware and remains open, so #438 stays `status: partial`.

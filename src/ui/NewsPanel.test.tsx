@@ -208,3 +208,65 @@ describe("NewsPanel article detail", () => {
     fetchSpy.mockRestore();
   });
 });
+
+describe("NewsPanel dual-pane list/detail (#438)", () => {
+  it("keeps the detail-only phone journey with no list pane in single-pane", async () => {
+    const user = userEvent.setup();
+    renderPanel([linked, unlinked], "news-single-pane");
+    expect(document.querySelector('[data-pane="list"]')).not.toBeNull();
+    await user.click(screen.getByRole("button", { name: "Read General election called" }));
+    // The open article replaces the wire, exactly as before: no list pane.
+    expect(document.querySelector('[data-pane="list"]')).toBeNull();
+    expect(screen.getByRole("article", { name: "General election called" })).toHaveAttribute("data-pane", "detail");
+    await user.click(screen.getByRole("button", { name: "Back to news" }));
+    expect(document.querySelector('[data-pane="list"]')).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Read General election called" })).toBeInTheDocument();
+  });
+
+  it("pairs the article wire with the selected article sharing one selection", async () => {
+    // Dual posture via the documented QA override; single-pane keeps the
+    // exact pre-existing detail-only journey (covered above and by the
+    // suites above).
+    window.history.replaceState({}, "", "?ahd-span=vertical");
+    try {
+      const user = userEvent.setup();
+      renderPanel([linked, unlinked], "news-dual-pane");
+      const list = document.querySelector('[data-pane="list"]');
+      expect(list).not.toBeNull();
+      expect(within(list as HTMLElement).getByRole("combobox", { name: "News category" })).toBeInTheDocument();
+      expect(document.querySelector('[data-pane="detail"]')).toBeNull();
+      // One selection drives both panes: opening an article keeps the wire mounted.
+      await user.click(screen.getByRole("button", { name: "Read General election called" }));
+      const detail = document.querySelector('[data-pane="detail"]');
+      expect(detail).not.toBeNull();
+      expect(within(detail as HTMLElement).getByRole("heading", { name: "General election called" })).toBeInTheDocument();
+      expect(within(document.querySelector('[data-pane="list"]') as HTMLElement).getByRole("combobox", { name: "News category" })).toBeInTheDocument();
+      // The journey is unchanged: Back clears the selection.
+      await user.click(screen.getByRole("button", { name: "Back to news" }));
+      expect(document.querySelector('[data-pane="detail"]')).toBeNull();
+      expect(screen.getByRole("button", { name: "Read General election called" })).toBeInTheDocument();
+    } finally {
+      window.history.replaceState({}, "", "/");
+    }
+  });
+
+  it("pairs the article wire with the open event detail", async () => {
+    window.history.replaceState({}, "", "?ahd-span=vertical");
+    try {
+      const user = userEvent.setup();
+      renderPanel([linked, followup, unlinked], "news-dual-event");
+      await user.click(screen.getByRole("button", { name: "Read General election called" }));
+      await user.click(screen.getByRole("button", { name: "View Election call" }));
+      const detail = document.querySelector('[data-pane="detail"]');
+      expect(detail).not.toBeNull();
+      expect(within(detail as HTMLElement).getByRole("heading", { name: "Election call" })).toBeInTheDocument();
+      expect(within(document.querySelector('[data-pane="list"]') as HTMLElement).getByRole("button", { name: "Read Markets rally" })).toBeInTheDocument();
+      // Closing the event returns to the paired article, wire still mounted.
+      await user.click(screen.getByRole("button", { name: "Back to article" }));
+      expect(screen.getByRole("article", { name: "General election called" })).toHaveAttribute("data-pane", "detail");
+      expect(document.querySelector('[data-pane="list"]')).not.toBeNull();
+    } finally {
+      window.history.replaceState({}, "", "/");
+    }
+  });
+});
