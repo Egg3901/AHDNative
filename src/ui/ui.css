@@ -1101,6 +1101,16 @@ html, body { overflow-x: hidden; }
 .ahd-route-hero-shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(8,8,14,.96), rgba(8,8,14,.42) 62%, rgba(8,8,14,.12)); }
 .ahd-route-hero-content { position: relative; z-index: 1; min-height: 172px; display: flex; flex-direction: column; justify-content: flex-end; padding: 1rem; color: #fff; text-shadow: 0 1px 3px #000; }
 @media (min-width: 700px) { .ahd-route-hero, .ahd-route-hero-content { min-height: 220px; } .ahd-route-hero-content { padding: 1.35rem 1.5rem; } }
+/* Short landscape phones (667x375, 844x390 with the side cutout): the viewport
+ * is wide enough to trip the roomier 700px hero, but only ~375-390px tall, so
+ * a 172-220px banner plus the fixed footer leaves no first-viewport room for
+ * the route actions below it. Cap the hero and tighten its padding here; the
+ * equal-specificity rule sits later in source so it wins over both taller
+ * rules. Portrait and tall-landscape rendering is untouched. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .ahd-route-hero, .ahd-route-hero-content { min-height: 120px; }
+  .ahd-route-hero-content { padding: 0.75rem 1rem; }
+}
 /* Elections hub stat strip (#377): Races / Contested / Next-to-close under the
    hero band. Grid tiles keep their own minimum width at zero so long deadline
    values wrap instead of overflowing at 320px. */
