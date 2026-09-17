@@ -62,6 +62,16 @@ export interface Union {
   ownerType?: "npp" | null;
   /** Politician id of the NPP leader, or null if vacant. */
   ownerId?: string | null;
+  /**
+   * Uncapped organizing power, the sum of every organize drive run on this
+   * union less 0.5%/turn decay (#320). Gates the leadership election and
+   * weights organizer votes; absent reads as zero (the reference's own
+   * absent-means-zero rule for pre-organizing-v2 documents). Drive
+   * crediting lands with the organize commands (#322); the turn already
+   * decays this pool alongside organizer banks.
+   * Source: src/lib/db/types/union.ts Union.strength.
+   */
+  strength?: number;
   createdAtTurn: number;
   updatedAtTurn: number;
 }

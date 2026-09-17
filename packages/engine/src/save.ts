@@ -32,6 +32,7 @@ import {
   initialRepresentingUnionId,
   validateCorporateSectorAssets,
 } from "./corporation/corporateSectorAssets.js";
+import { validateUnionOrganizers } from "./unions/organizers.js";
 
 /**
  * Save file = versioned JSON envelope around the full WorldState. Older
@@ -2622,6 +2623,24 @@ export function deserializeSave(raw: string): WorldState {
   if (save.world.corporateSectors !== undefined) {
     backfillSectorOwner(save.world.corporateSectors);
     validateCorporateSectorAssets(save.world, save.world.corporateSectors);
+  }
+  // #320: union organizer rows. Saves written before the organizer slice
+  // carry no map; missing degrades to empty (no drives run) and every
+  // loaded row is kept explicit — same additive shape as the spendStock
+  // backfill above, so no version renumber is needed. Present-but-invalid
+  // rows fail closed through validateUnionOrganizers. Union strength keeps
+  // the reference absent-means-zero rule explicitly.
+  if (save.world.unionOrganizers !== undefined) {
+    validateUnionOrganizers(save.world, save.world.unionOrganizers);
+  }
+  // Union strength keeps the reference absent-means-zero rule WITHOUT
+  // materializing the field: a mid-campaign save/load must leave union rows
+  // byte-identical (see unions.sim.test.ts round-trip), so absent stays
+  // absent and only a present-but-invalid pool fails closed.
+  for (const union of Object.values(save.world.unions)) {
+    if (union.strength !== undefined && (!Number.isFinite(union.strength) || union.strength < 0)) {
+      throw new Error(`Union ${union.id} has an invalid strength`);
+    }
   }
   return save.world;
 }

@@ -6,15 +6,14 @@
  * BASE_APPROVAL 55, APPROVAL_DUES_PENALTY_PER_UNIT 500, APPROVAL_TREND_STEP_PER_TURN 1.5
  * are taken directly from the source file.
  *
- * Membership bridge (see phases.ts file doc): mainline's unionMembers(sectors)
- * counts workers * unionization/100 per CorporateSector. AHDClient has no
- * per-sector workers table yet (see corporation/types.ts single-sector collapse),
- * so this module keeps the same signature — unionMembers(UnionMemberSector[]) —
- * and the turn phase translates laborForces+sectorWeights into the
- * UnionMemberSector[] shape before calling it. That keeps this file's arithmetic
- * identical to mainline (and therefore test-golden-identical) while the
- * demographic bridge lives in one place (phases.ts) instead of being baked
- * into every formula.
+ * Membership aggregation (see sectorAggregation.ts): mainline's
+ * unionMembers(sectors) counts workers * unionization/100 per CorporateSector.
+ * This module keeps the same signature — unionMembers(UnionMemberSector[]) —
+ * and the aggregation builds the UnionMemberSector[] rows from the recorded
+ * #296 corporate-sector assets before calling it. That keeps this file's
+ * arithmetic identical to mainline (and therefore test-golden-identical)
+ * while the aggregation lives in one place (sectorAggregation.ts) instead
+ * of being baked into every formula.
  *
  * Source: <mainline-checkout>/src/lib/unions/unionDues.ts
  *         <mainline-checkout>/src/lib/unions/unionServices.ts (annualWageFromDaily, services*)

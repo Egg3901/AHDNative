@@ -323,6 +323,17 @@ export interface WorldState {
    */
   unions: Record<string, import("./unions/types.js").Union>;
   /**
+   * Union organizers, keyed `${unionId}:${characterId}`. Ports mainline's
+   * UnionOrganizer collection (src/lib/db/types/union.ts) at the seeded-roster
+   * granularity: banked per-organizer strength weights leadership votes and
+   * political-contribution payouts (#320). Optional with absent-means-empty —
+   * pre-#320 saves carry no map and fresh worlds start with no drives run —
+   * backfilled on load and strict-validated at the save boundary (see
+   * unions/organizers.ts). No schema bump: same additive pattern as the
+   * campaign spend-stock backfill.
+   */
+  unionOrganizers?: Record<string, import("./unions/organizers.js").UnionOrganizer>;
+  /**
    * Sovereign bonds, keyed by bond id. Ports src/lib/db/types/bond.ts (sovereign
    * subset) + src/lib/bonds/sovereign.ts issuance/maturity bookkeeping. One row
    * per quarterly auction tranche (single 48t maturity this wave); holders are
