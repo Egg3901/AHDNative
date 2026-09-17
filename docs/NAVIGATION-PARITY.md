@@ -366,3 +366,40 @@ Remaining gaps (issue #510 stays open):
 - Role/country/capability conditions beyond #514/#520, SP-MP switching beyond
   #521, per-screen action/data depth, and physical-iPhone smoke remain as in
   section 8.
+
+## 10. Search-originated detail returns (#510, follow-up to #524)
+
+Enforced by `src/ui/NavSearchReturn510.test.tsx`: 11 rendered tests green
+(company/bill/bond/region/nation/referendum at 390px, company spot-checked at
+320px and 1280px desktop). Reuses the section-9 bounded stack unchanged: the
+six detail routes (`markets`, `legislationDetails`, `bonds`, `regions`,
+`nations`, `referendums`) show Back only when a live frame is stacked, and it
+pops exactly one level, so a search hit returns to the preserved query value,
+result-kind filter, match list, and Selected marker from the shell snapshot.
+No browser history; identical offline in SP and through MP adapters. Stale
+result ids are safe by construction: the detail panels already fall back
+(markets clears the unknown company, bonds falls back to the first issue,
+legislation/regions/nations/referendums render their empty states), and Back
+to search stays live above the fallback.
+
+Proven paths:
+
+| Chain | Proven behavior |
+|---|---|
+| Search -> company/bill/bond/region/nation/referendum -> search | Back to search restores the query, the "6 of 6 matches" list, and the Selected marker for each of the six kinds |
+| Drawer -> any of the six details | No Back to search is rendered; the chromeless surface stands, so no invented canonical parent |
+| Search -> dissolved company | The market empty state renders without a crash and Back to search still restores the ghost query/results/selection |
+| Search (kind filter) -> company -> search | The selected Companies filter survives the round trip |
+
+Remaining gaps (issue #510 stays open):
+
+- Politician frames are trusted unverified, as in section 9.
+- Campaign/presidential nesting is stack-compatible but has no rendered
+  multi-level test, as in section 9.
+- `RouteMatrix510` "returns from a race to the politicians surface that
+  opened it" fails on the section-9 base as well as here (verified by stashing
+  this section's changes); it is a pre-existing residual on PR #524, not a
+  regression from this section.
+- Role/country/capability conditions beyond #514/#520, SP-MP switching beyond
+  #521, per-screen action/data depth, and physical-iPhone smoke remain as in
+  section 8.

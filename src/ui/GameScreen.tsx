@@ -385,7 +385,10 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   // chains unwind step by step with each surface's selection intact. Frames
   // whose detail id left the world are skipped, never restored stale; the
   // politicians surface only shows Back when a live frame exists (plain
-  // drawer visits keep today's chromeless list).
+  // drawer visits keep today's chromeless list). Search-originated
+  // markets/legislation/bonds/regions/nations/referendums details show Back
+  // to the stacked search snapshot only when one is live, with the same
+  // chromeless rule for non-search entry.
   const detailBack: { name: string; onBack: () => void } | null = (() => {
     // A frame is live when its route differs from the current one and its
     // recorded detail still exists. List surfaces (no detail id) and routes
@@ -435,6 +438,16 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
     if (route === "presidentialDetails") return restore("elections", "Back to elections", false);
     if (route === "politicians" && live) {
       return restore("politicians", "Back to politicians", false);
+    }
+    // #510 search-originated company/bill/bond/region/nation/referendum
+    // details return to the stacked search snapshot when one is live, so the
+    // query, filters, results, and selection survive the round trip. Plain
+    // drawer/deep-link/notification visits keep today's chromeless surface:
+    // no invented canonical parent is added for non-search entry.
+    if (route === "markets" || route === "legislationDetails" || route === "bonds" ||
+      route === "regions" || route === "nations" || route === "referendums") {
+      if (!live) return null;
+      return restore("search", "Back to search", false);
     }
     return null;
   })();
@@ -752,7 +765,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
             navigate(next, id);
           }} /> : null}
           {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} onNavigate={(next) => go(next)} /> : null}
-          {detailBack && (route === "partyDetails" || route === "electionDetails" || route === "campaignDetails" || route === "presidentialDetails" || route === "politicians") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={detailBack.onBack}>{detailBack.name}</button>}
+          {detailBack && (route === "partyDetails" || route === "electionDetails" || route === "campaignDetails" || route === "presidentialDetails" || route === "politicians" || route === "markets" || route === "legislationDetails" || route === "bonds" || route === "regions" || route === "nations" || route === "referendums") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={detailBack.onBack}>{detailBack.name}</button>}
           {route === "politicalMetrics" && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => go("elections")}>Back to elections</button>}
           {route === "partyDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="parties" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
           {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} onOpenCampaign={openCampaign} onOpenPolitician={openPolitician} onOpenPresidential={openPresidential} busy={busy} onAction={onAction} clock={clock} />}
