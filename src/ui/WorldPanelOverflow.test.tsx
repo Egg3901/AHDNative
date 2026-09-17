@@ -140,9 +140,12 @@ describe("world panel long-name row containment", () => {
     render(<WorldPanel overview={makeOverview()} section="nations" initialId="LN" />);
 
     const detail = screen.getByRole("article", { name: LONG_NAME });
-    const header = screen.getByRole("heading", { name: LONG_NAME }).closest("div")?.parentElement as HTMLElement;
+    // The flag mark sits beside a stacked name/code block inside the flex
+    // name block, so the heading is one div deeper than before that change.
+    const heading = screen.getByRole("heading", { name: LONG_NAME });
+    const header = heading.closest("div")?.parentElement?.parentElement as HTMLElement;
     expect(header).toHaveStyle({ justifyContent: "space-between" });
-    const nameBlock = screen.getByRole("heading", { name: LONG_NAME }).closest("div") as HTMLElement;
+    const nameBlock = heading.closest("div")?.parentElement as HTMLElement;
     expect(nameBlock).toHaveStyle({ minWidth: "0", flex: "1 1 auto" });
     const badges = within(detail).getByText("Not playable").closest("span")?.parentElement as HTMLElement;
     expect(badges).toHaveStyle({ minWidth: "0" });
