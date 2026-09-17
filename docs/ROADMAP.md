@@ -1082,12 +1082,14 @@ is blister packs of pills, not a manufacturing line).
   takes the Actions fallback with the fallback accessible name. No route,
   mechanic, or sector mapping was invented.
 
-Honest gaps: the corporation, central-bank, IMF, and cabinet surfaces from
-#378 stay open (no Native consumer or rights manifest yet), the other 14
-commodity slugs stay remote-only, and the reference commodity browse
-surface has no Native equivalent. The issue stays open with
-`status: partial`, acceptance checklist unchanged. Full #378 acceptance
-(corporation/central-bank/IMF/cabinet heroes, plus rendered
+Honest gaps: the corporation, IMF, and cabinet surfaces from #378 stay
+open (no Native consumer or rights manifest yet); the central-bank slice
+has since landed separately on `main` (#386: `BANKING_HERO_IMAGE` with
+federal-reserve/bank-of-england/bank-of-japan art, preserved by this
+branch's rebase). The other 14 commodity slugs stay remote-only, and the
+reference commodity browse surface has no Native equivalent. The issue
+stays open with `status: partial`, acceptance checklist unchanged. Full
+#378 acceptance (corporation/IMF/cabinet heroes, plus rendered
 overflow/external-request proof at 320px, 390px and desktop like
 `smoke/route-heroes.spec.ts`; this slice asserts the crop CSS text only)
 remains open under parent #143.

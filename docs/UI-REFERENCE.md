@@ -366,23 +366,26 @@ Explicitly not bundled: the other 14 reference commodity slugs have no local
 file upstream (remote-only; the offline app cannot fetch them). The 11
 `sector-*.webp` files carry no upstream source manifest (no credit, URL, or
 licence recorded in AHDGame), so rights cannot be audited and they stay out
-per the issue's fair-use/proprietary exclusion. `cabinet`, `bank-of-england`,
-`bank-of-japan`, `federal-reserve`, `imf` and `imf-logo` have recorded Commons
-sources in the hero route but no Native consumer surface yet (Native has no
-central-bank, IMF, cabinet, or commodity destination; corporation model and
-market lifecycles stay with #80/#211/#77), so they are staged with the
-surface rather than shipped as dead weight. One Native surface consumes the
+per the issue's fair-use/proprietary exclusion. `cabinet`, `imf` and
+`imf-logo` have recorded Commons sources in the hero route but no Native
+consumer surface yet (Native has no IMF, cabinet, or commodity destination;
+corporation model and market lifecycles stay with #80/#211/#77), so they
+are staged with the surface rather than shipped as dead weight. (The
+`bank-of-england`, `bank-of-japan`, and `federal-reserve` bank heroes
+formerly in this waiting list have since shipped on `main` via the
+central-bank slice #386 with a Native banking consumer; see the banking
+hero section below.) One Native surface consumes the
 commodity set: Markets company detail (`CompanyDetail` in
 `src/ui/MarketsPanel.tsx`) renders a `RouteHero` keyed by the listing's
 recorded `sectorType` with `commodityHero()` / `commodityHeroAlt()`. Only
 the `energy` and `retail` Native sectors hit bundled art (the 17
 `CorporationType` sector keys otherwise miss the 14 commodity keys and take
 the Actions fallback with the fallback accessible name); no route, mechanic,
-or sector mapping was invented. Partial: the corporation, central-bank, IMF,
-and cabinet surfaces from #378 stay open (no Native consumer or rights
-manifest yet), the other 14 commodity slugs stay remote-only, and the
-reference commodity browse surface has no Native equivalent. The issue stays
-open with `status: partial`.
+or sector mapping was invented. Partial: the corporation, IMF, and cabinet
+surfaces from #378 stay open (no Native consumer or rights manifest yet;
+central-bank has since shipped via #386), the other 14 commodity slugs stay
+remote-only, and the reference commodity browse surface has no Native
+equivalent. The issue stays open with `status: partial`.
 
 Full destination/conditional-menu inventory lives in
 [navigation parity](NAVIGATION-PARITY.md); this table only maps each Native
