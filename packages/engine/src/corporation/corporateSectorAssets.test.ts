@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { deserializeSave, serializeSave } from "../save.js";
 import { createWorld } from "../world.js";
-import { corporateSectorAssets, projectCorporateSector, validateSectorForSale } from "./corporateSectorAssets.js";
+import { backfillSectorOwner, corporateSectorAssets, projectCorporateSector, validateSectorForSale, validateSectorOwner } from "./corporateSectorAssets.js";
 
 const PINNED_1953_ASSET_VECTOR = "DD:agriculture,DD:automobiles,DD:chemical_industries,DD:construction,DD:defense,DD:energy,DD:entertainment,DD:extraction,DD:financial,DD:healthcare,DD:logistics,DD:manufacturing,DD:media,DD:real_estate,DD:retail,DD:technology,DD:telecommunications,RU:agriculture,RU:chemical_industries,RU:construction,RU:defense,RU:energy,RU:extraction,RU:financial,RU:healthcare,RU:logistics,RU:manufacturing,RU:media,RU:real_estate,RU:retail,RU:telecommunications,UK:agriculture,UK:automobiles,UK:chemical_industries,UK:construction,UK:defense,UK:energy,UK:entertainment,UK:extraction,UK:financial,UK:healthcare,UK:logistics,UK:manufacturing,UK:media,UK:real_estate,UK:retail,UK:telecommunications,US:agriculture,US:automobiles,US:chemical_industries,US:construction,US:defense,US:energy,US:entertainment,US:extraction,US:financial,US:healthcare,US:logistics,US:manufacturing,US:media,US:real_estate,US:retail,US:telecommunications";
 
@@ -84,5 +84,25 @@ describe("#293 corporate-sector asset core", () => {
       corrupt(candidate);
       expect(() => deserializeSave(JSON.stringify(candidate))).toThrow(/Corporate sector|Duplicate corporate sector/);
     }
+  });
+
+  it("seeds the corporation default owner, rejects invalid owners, and backfills pre-#295 saves", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "issue-295-owner", playerName: "Alex" });
+    const assets = corporateSectorAssets(world);
+    expect(Object.values(assets).every((asset) => asset.owner === "corporation")).toBe(true);
+    const asset = Object.values(assets)[0]!;
+    expect(() => validateSectorOwner({ ...asset, owner: "player" })).not.toThrow();
+    for (const owner of [undefined, null, "", "corporation ", "npc", "state"]) {
+      expect(() => validateSectorOwner({ ...asset, owner: owner as never })).toThrow(/invalid owner/i);
+    }
+    // Missing degrades to the #293 default; present-but-invalid still fails closed.
+    const missing = { ...asset } as { owner?: unknown };
+    delete missing.owner;
+    const records = { [asset.id]: missing };
+    backfillSectorOwner(records as never);
+    expect(records[asset.id]!.owner).toBe("corporation");
+    const invalid = { [asset.id]: { ...asset, owner: "npc" } };
+    backfillSectorOwner(invalid as never);
+    expect(invalid[asset.id]!.owner).toBe("npc");
   });
 });

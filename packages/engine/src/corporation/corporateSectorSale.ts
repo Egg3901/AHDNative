@@ -111,7 +111,10 @@ function liveValuation(world: WorldState, corporationId: string): SectorSaleValu
 /**
  * List a sector at its live computed anchor. Refuses (atomically: no state
  * touched) when the asset is unknown, the actor holds no recorded shares,
- * the sector is already listed, or the computed price is not positive.
+ * the player already owns the sector (#295: the operating corporation no
+ * longer owns what the player bought, so it cannot be relisted — otherwise
+ * the listing could never be bought), the sector is already listed, or the
+ * computed price is not positive.
  */
 export function listCorporateSectorForSale(
   world: WorldState,
@@ -122,6 +125,7 @@ export function listCorporateSectorForSale(
   if (!resolved.ok) return resolved;
   const assets = corporateSectorAssets(world);
   const asset = assets[resolved.assetId]!;
+  if (asset.owner === "player") return { ok: false, error: `You already own this sector: ${asset.id}` };
   if (asset.forSale) return { ok: false, error: `Sector listing is already for sale: ${asset.id}` };
   const valuation = liveValuation(world, asset.corporationId);
   if (!Number.isFinite(valuation.priceAnchor) || valuation.priceAnchor <= 0) {
@@ -145,6 +149,7 @@ export function updateCorporateSectorListing(
   if (!resolved.ok) return resolved;
   const assets = corporateSectorAssets(world);
   const asset = assets[resolved.assetId]!;
+  if (asset.owner === "player") return { ok: false, error: `You already own this sector: ${asset.id}` };
   if (!asset.forSale) return { ok: false, error: `Sector listing is not currently for sale: ${asset.id}` };
   if (priceAnchor === undefined) {
     const valuation = liveValuation(world, asset.corporationId);

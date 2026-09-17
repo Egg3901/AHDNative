@@ -109,6 +109,7 @@ export * from "./cabinet/nominationLifecycle.js";
 export * from "./cabinet/transition.js";
 export * from "./corporation/corporateSectorAssets.js";
 export * from "./corporation/corporateSectorSale.js";
+export * from "./corporation/corporateSectorAcquire.js";
 export * from "./ministerialOrders/catalog.js";
 export * from "./ministerialOrders/issue.js";
 export * from "./ministerialOrders/lifecycle.js";

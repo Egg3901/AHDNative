@@ -14,6 +14,7 @@ import {
   ACTION_CATALOG,
   getActionCost,
   seedCorporateSectorAssets,
+  type CorporateSectorOwner,
   type WorldState,
 } from "@ahdclient/engine";
 
@@ -62,8 +63,11 @@ export interface MarketCountry {
  * (#293) except `scope`/`regionName`/`unionName`, which resolve the recorded
  * `stateId`/`representingUnionId` references against the recorded region and
  * union tables on read. Nothing is derived beyond those joins: workers,
- * union, and for-sale state are projected exactly as recorded. `forSale`
- * reads null until the #294 session commands list the sector.
+ * union, for-sale, and owner state are projected exactly as recorded.
+ * `forSale` reads null until the #294 session commands list the sector;
+ * `owner` reads "corporation" until the #295 buy command records the player.
+ * Rows materialized before #295 predate the owner field and read as the
+ * corporation default, matching the save-boundary backfill.
  */
 export interface MarketSectorAsset {
   id: string;
@@ -84,6 +88,11 @@ export interface MarketSectorAsset {
   unionName: string | null;
   /** Recorded sale listing verbatim; null when unlisted (#294 session commands write it). */
   forSale: { priceAnchor: number } | null;
+  /**
+   * Recorded sector owner verbatim (#295 writes "player" on acquisition).
+   * Pre-#295 materialized rows without the field read as "corporation".
+   */
+  owner: CorporateSectorOwner;
 }
 
 export interface MarketListing {
@@ -213,13 +222,54 @@ export interface SectorSummary {
 }
 
 /**
- * Honest disabled reason for the sector purchase control. Listing commands
- * are live (#294), but buying a listed sector needs the acquisition commands
- * landing in #295, so until then the UI holds the button disabled with this
- * reason instead of hiding the action.
+ * Buy availability for one listing's recorded sector asset (#295). The panel
+ * calls this with the same projection the engine buy command validates, so
+ * an enabled Buy control means the session command can proceed: listed at a
+ * recorded anchor, not already player-owned, same-currency cash (Native has
+ * no FX, mirroring the share-trade currency gate), and enough personal cash
+ * to cover the anchor. Every refusal carries the reason the control shows.
  */
-export const SECTOR_ACQUIRE_UNAVAILABLE =
-  "Buying a sector is not available yet. It needs the acquisition commands landing in #295.";
+export interface SectorBuyEvaluation {
+  available: boolean;
+  disabledReason?: string;
+  /** Recorded asking price when listed; null when there is nothing to buy. */
+  priceAnchor: number | null;
+}
+
+/** Shown when the asset carries no live listing. */
+export const SECTOR_BUY_NOT_LISTED = "This sector is not listed for sale.";
+
+/** Shown when the player already holds the asset. */
+export const SECTOR_BUY_ALREADY_OWNED = "You already own this sector.";
+
+export function evaluateSectorBuy(
+  listing: Pick<MarketListing, "cashCurrencyMatches"> & {
+    sectorAsset: Pick<MarketSectorAsset, "forSale" | "owner">;
+  },
+  view: Pick<MarketsView, "playerCash">,
+): SectorBuyEvaluation {
+  // Owner first, matching the engine buy gate order: a player-owned asset
+  // reports "already owned" even when its listing was cleared on purchase.
+  if (listing.sectorAsset.owner === "player") {
+    const priceAnchor = listing.sectorAsset.forSale?.priceAnchor ?? null;
+    return { available: false, priceAnchor, disabledReason: SECTOR_BUY_ALREADY_OWNED };
+  }
+  const forSale = listing.sectorAsset.forSale;
+  if (forSale == null) {
+    return { available: false, priceAnchor: null, disabledReason: SECTOR_BUY_NOT_LISTED };
+  }
+  if (!listing.cashCurrencyMatches) {
+    return { available: false, priceAnchor: forSale.priceAnchor, disabledReason: CROSS_CURRENCY_UNAVAILABLE };
+  }
+  if (view.playerCash < forSale.priceAnchor) {
+    return {
+      available: false,
+      priceAnchor: forSale.priceAnchor,
+      disabledReason: `Not enough cash. Required: ${forSale.priceAnchor}, Available: ${view.playerCash}`,
+    };
+  }
+  return { available: true, priceAnchor: forSale.priceAnchor };
+}
 
 /**
  * Owner gate for the listing controls (#294). The engine authorizes only a
@@ -350,6 +400,7 @@ export function projectMarkets(world: WorldState): MarketsView {
       unionId,
       unionName: union?.name ?? null,
       forSale: recorded?.forSale ? { priceAnchor: recorded.forSale.priceAnchor } : null,
+      owner: recorded?.owner ?? "corporation",
     };
   };
   const listings: MarketListing[] = Object.values(world.corporations).map((corp) => {
