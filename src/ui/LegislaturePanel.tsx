@@ -234,11 +234,11 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
           {visibleBills.length} bills{selectedChamber ? ` in the ${selectedChamber.name}` : ""}
         </p>
         {billPageCount > 1 ? (
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "0.4rem" }}>
+          <div className="ahd-bills-pager" style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap", minWidth: 0, marginTop: "0.4rem" }}>
             <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => setBillPage(safeBillPage - 1)} disabled={busy || safeBillPage === 0} aria-label="Previous page">
               Previous
             </button>
-            <span className="ahd-muted" style={{ fontSize: "0.74rem" }} aria-live="polite">Page {safeBillPage + 1} of {billPageCount}</span>
+            <span className="ahd-muted" style={{ fontSize: "0.74rem", minWidth: 0, overflowWrap: "anywhere" }} aria-live="polite">Page {safeBillPage + 1} of {billPageCount}</span>
             <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => setBillPage(safeBillPage + 1)} disabled={busy || safeBillPage >= billPageCount - 1} aria-label="Next page">
               Next
             </button>
