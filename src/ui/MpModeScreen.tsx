@@ -128,7 +128,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
    * the AskPanel focus re-probe; one in-flight probe at a time. */
   const focusProbeRef = useRef(false);
   useEffect(() => {
-    const onFocus = () => {
+    const probeReturn = () => {
       const session = sessionRef.current!;
       const phase = session.get().phase;
       if (phase !== "signed-out" && phase !== "session-required" && phase !== "auth-expired") return;
@@ -142,8 +142,19 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
         setBusy(false);
       });
     };
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    // Single-view phones suspend the webview for the provider step, so the
+    // foreground return surfaces as visibilitychange (visible), not window
+    // focus. Both events share one in-flight probe.
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      probeReturn();
+    };
+    window.addEventListener("focus", probeReturn);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", probeReturn);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
   function runGeneral(operation: (session: MpModeSession) => Promise<MpSnapshot>) {
