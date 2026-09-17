@@ -85,7 +85,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | M07 | Mechanics | In progress | M01 | Consume authoritative Game-owned rules one action/system at a time | Fundraise shared cost/yield/eligibility first; [per-action character audit](CHARACTER-ACTION-PARITY.md) covers the 11 ActionsHub entries at `cd99794` (#91, partial, no runtime claim); gdpScalar, RPG stat multipliers and frozen campaign currency still unwired; preserve complete stat/currency context before parity signoff; [Game #1724](https://github.com/Egg3901/AHDGame/issues/1724) |
 | M08 | Mechanics | In progress | M01,M07 | Detect upstream drift and gate consumer updates | Immutable source checks first; complete source coverage, update PRs and ruleset/save policy in [#120](https://github.com/Egg3901/AHDNative/issues/120) |
 | Q01 | Validation | Done | E03,S02,U07 | Integrated gameplay smoke through actual UI | Create,country,action,turn,save,close,reload,continue |
-| Q02 | Validation | Done | Q01 | Exercise error and concurrency smoke | Corrupt import,double-click turn,save failure/recovery and worker startup failure pass integrated smoke at fc87a991 |
+| Q02 | Validation | Done | Q01 | Exercise error and concurrency smoke | Corrupt-save recovery,double-click turn,save failure/recovery and worker startup failure pass integrated smoke at fc87a991 |
 | Q03 | Validation | In progress | Q01,U08 | Capture representative UI evidence | Desktop and mobile screenshots from real running world |
 | Q04 | Validation | Done | E06,E07,Q02,Q03 | Run batched regression gate | Focused changes first; full suite only integration checkpoint |
 | Q05 | Validation | Queued | Q04,M06,S05 | Assess 1.0.0 candidate readiness | Exact commit/results/remaining limitations; no placeholder success |
@@ -138,7 +138,7 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 
 ## Follow-up checkpoint, 2026-09-10 11:50 UTC
 
-- Production bundle: 5 integrated browser smoke tests pass. They cover meaningful action/turn/save/relaunch, corrupt import recovery, duplicate-click turn protection, autosave and injected storage failure preserving the preceding save, and a visible recovery screen when worker startup is denied.
+- Production bundle: 5 integrated browser smoke tests pass. They cover meaningful action/turn/save/relaunch, corrupt-save recovery, duplicate-click turn protection, autosave and injected storage failure preserving the preceding save, and a visible recovery screen when worker startup is denied.
 - Regression batch: 740 engine tests, 41 content tests, 7 session/worker tests, 28 UI tests and 10 native storage tests pass. Rust clippy and formatting pass. Long simulation suites were not repeated.
 - All 21 imported era/country combinations pass scripted action and save/reload replay. 126 checkpoint hashes match the pinned AHDClient oracle. See [world validation](WORLD-VALIDATION.md); this does not establish AHDGame parity.
 - Rate formatting and keyboard/form/focus behavior are corrected. A 390 x 844 running-world screenshot has no horizontal overflow. Native visual comparison remains open.

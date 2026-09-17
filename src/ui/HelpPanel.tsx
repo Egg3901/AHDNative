@@ -75,7 +75,7 @@ export function HelpPanel({ openExternal = openSupportDestination }: HelpPanelPr
           Save writes the current world to this device. Starting a world, successful actions, and successful turns also save automatically. Exit saves before returning to the home screen. Continue resumes a saved world; Delete removes the selected saved world after confirmation.
         </p>
         <p style={{ margin: 0 }}>
-          Import a JSON save from the home screen. If an import cannot be read, the app shows an error and keeps the current game open. If a save or local game operation fails, read the message, try again, or return to a known saved world.
+          If a saved world cannot be read, the app shows an error and keeps the current game open. If a save or local game operation fails, read the message, try again, or return to a known saved world.
         </p>
       </HelpSection>
 
@@ -83,7 +83,7 @@ export function HelpPanel({ openExternal = openSupportDestination }: HelpPanelPr
         <ul style={{ margin: 0, paddingLeft: "1.15rem" }}>
           <li>Offline world creation for the eras and playable countries shown by the app.</li>
           <li>Local actions, turn advancement, economic and budget details, parties, candidacy, elections, legislature, world browsing, local search, news, banking, portfolio and stock market views.</li>
-          <li>Device saves, resume, JSON import, confirmed deletion, and visible recovery errors.</li>
+          <li>Device saves, resume, confirmed deletion, and visible recovery errors.</li>
           <li>Local notification inbox with a five-item preview, unread badge, mark-read and delete, and action-required flags for elections, bills, party changes, finances, and saves.</li>
         </ul>
       </HelpSection>
