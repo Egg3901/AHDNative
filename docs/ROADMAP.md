@@ -1423,6 +1423,27 @@ and removed. The smoke helper now walks the conversation; no engine change.
   (nominations/legislature/session, 32 tests) and UI trio
   (NominationsPanel/LegislaturePanel/LegislationDetailsPanel, 24 tests) green.
 
+## Nomination commands and player flow checkpoint, 2026-09-17 (#272 / #273)
+
+- Session sponsor/vote commands now carry exact engine rejection strings with
+  clone-discarded atomicity for cabinet non-President and duplicate
+  sponsorship as well as the SCOTUS quartet; VP nominations route both
+  chambers with House and Senate ballots kept across save/reload; withdrawn
+  nominations project at the session boundary; deterministic 1953 Senate
+  composition proves minority-party rejection with no seating and
+  majority-party confirmation with seating; create/action/save/reload/turn/
+  continue runs through the real session boundary.
+- The Legislature panel renders the live session loop (sponsored detail with
+  nominee, sponsor, office/seat, deadline, status, tally, and player vote;
+  ballot through the session command; save/reload and turn-boundary
+  stability) at 320px, 390px, and desktop widths, plus empty,
+  ineligible-ballot, and resolved states. No production code changed.
+- Focused evidence: `src/game/nominations.test.ts` (20 cases green) and
+  `src/ui/NominationsPanel.test.tsx` (11 cases green); neighbors
+  `src/game/legislature.test.ts` + `src/game/client.test.ts` (16) green.
+  Full typecheck/verify/build remain queued with the supervisor. No
+  physical-device evidence is claimed; parent #63 stays open.
+
 ## Glass material system checkpoint, 2026-09-16 (#437 partial)
 
 - The Native material contract now lives in `src/ui/materials.ts`: a

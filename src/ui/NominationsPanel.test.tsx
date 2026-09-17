@@ -1,8 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { createWorld, serializeSave } from "@ahdclient/engine";
+import { GameSession } from "../game/session";
 import type { LegislatureView } from "../game/types";
 import { NominationsPanel } from "./NominationsPanel";
+
+const SAVED_AT = "2026-09-15T00:00:00.000Z";
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function makeLegislature(): LegislatureView {
   return {
@@ -206,5 +214,117 @@ describe("NominationsPanel dual-pane list/detail (#438)", () => {
     await user.click(screen.getByRole("button", { name: /secretary of state: ada nominee/i }));
     await user.click(screen.getByRole("button", { name: /against on ada nominee/i }));
     expect(onAction).toHaveBeenCalledWith("voteCabinetNomination", { nominationId: "cab-1", vote: "against" });
+  });
+});
+
+describe("NominationsPanel live session flow (#272/#273)", () => {
+  function liveSession() {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "nom-ui-1", playerName: "President", mode: "hos" });
+    world.player.legislativeSeat = { countryId: "US", chamberKey: "senate" };
+    const nominee = world.politicians.find((p) => p.countryId === "US")!;
+    const session = new GameSession();
+    session.load(serializeSave(world, SAVED_AT));
+    const sponsored = session.act("sponsorCabinetNomination", {
+      countryId: "US",
+      positionId: "secretary_of_state",
+      nomineeId: nominee.id,
+    });
+    expect(sponsored.ok).toBe(true);
+    return { session, nominationId: session.view().legislature.nominations![0]!.id, nomineeName: nominee.name };
+  }
+
+  it("renders the sponsored detail, casts a ballot through the session, and keeps it across save/reload and a turn at 320/390/desktop widths", async () => {
+    const user = userEvent.setup();
+    const { session, nominationId, nomineeName } = liveSession();
+    const onAction = vi.fn((id: string, params?: Record<string, string | number>) => {
+      session.act(id, params as never);
+    });
+
+    const rowName = new RegExp(`secretary of state: ${escapeRegExp(nomineeName)}`, "i");
+    const ballotName = new RegExp(`for on ${escapeRegExp(nomineeName)}`, "i");
+    for (const width of [320, 390, 1280]) {
+      const { unmount } = render(
+        <div style={{ width }}>
+          <NominationsPanel legislature={session.view().legislature} busy={false} onAction={onAction} />
+        </div>,
+      );
+      await user.click(screen.getByRole("button", { name: rowName }));
+      const detail = document.querySelector('[data-pane="detail"]') as HTMLElement;
+      expect(within(detail).getByText("Secretary of State")).toBeInTheDocument();
+      expect(within(detail).getByText(/senate/i)).toBeInTheDocument();
+      expect(within(detail).getByText(/vote closes turn/i)).toBeInTheDocument();
+      expect(within(detail).getByText(/sponsored by/i)).toBeInTheDocument();
+      expect(within(detail).getByText(new RegExp(escapeRegExp(nomineeName), "i"))).toBeInTheDocument();
+      unmount();
+    }
+
+    const { rerender } = render(
+      <NominationsPanel legislature={session.view().legislature} busy={false} onAction={onAction} />,
+    );
+    await user.click(screen.getByRole("button", { name: rowName }));
+    await user.click(screen.getByRole("button", { name: ballotName }));
+    expect(onAction).toHaveBeenCalledWith("voteCabinetNomination", { nominationId, vote: "for" });
+    rerender(<NominationsPanel legislature={session.view().legislature} busy={false} onAction={onAction} />);
+    expect(screen.getByText(/your vote: for/i)).toBeInTheDocument();
+
+    // Save/reload keeps the rendered ballot; one turn boundary keeps the
+    // nomination pending with the vote intact.
+    const reloaded = new GameSession();
+    reloaded.load(session.serialize(SAVED_AT));
+    rerender(<NominationsPanel legislature={reloaded.view().legislature} busy={false} onAction={onAction} />);
+    expect(screen.getByText(/your vote: for/i)).toBeInTheDocument();
+    reloaded.advance();
+    rerender(<NominationsPanel legislature={reloaded.view().legislature} busy={false} onAction={onAction} />);
+    expect(screen.getAllByText(/vote open/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/your vote: for/i)).toBeInTheDocument();
+  }, 120000);
+
+  it("shows empty, ineligible-ballot, and resolved states", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+
+    const empty = makeLegislature();
+    empty.nominations = [];
+    const { unmount } = render(<NominationsPanel legislature={empty} busy={false} onAction={onAction} />);
+    expect(screen.getByText("No nominations before the legislature.")).toBeInTheDocument();
+    unmount();
+
+    const gated = makeLegislature();
+    const gatedNomination = gated.nominations?.[0];
+    expect(gatedNomination).toBeDefined();
+    gated.nominations = [{
+      ...gatedNomination!,
+      voting: { available: false, disabledReason: "Only Senators can vote on cabinet nominations" },
+    }];
+    const { unmount: unmountGated } = render(
+      <NominationsPanel legislature={gated} busy={false} onAction={onAction} />,
+    );
+    await user.click(screen.getByRole("button", { name: /secretary of state: ada nominee/i }));
+    expect(screen.getByText("Only Senators can vote on cabinet nominations")).toBeInTheDocument();
+    for (const control of screen.getAllByRole("button", { name: /for on ada nominee|against on ada nominee|abstain on ada nominee/i })) {
+      expect(control).toBeDisabled();
+    }
+    expect(onAction).not.toHaveBeenCalled();
+    unmountGated();
+
+    const resolved = makeLegislature();
+    const resolvedNomination = resolved.nominations?.[0];
+    expect(resolvedNomination).toBeDefined();
+    resolved.nominations = [{
+      ...resolvedNomination!,
+      status: "confirmed",
+      statusLabel: "Confirmed",
+      resolvedAtTurn: 24,
+      playerVote: "for",
+      voting: { available: false, disabledReason: "Nomination not found or voting closed" },
+    }];
+    const { unmount: unmountResolved } = render(
+      <NominationsPanel legislature={resolved} busy={false} onAction={onAction} />,
+    );
+    expect(screen.getByRole("button", { name: /secretary of state: ada nominee, confirmed/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /secretary of state: ada nominee, confirmed/i }));
+    expect(screen.getByText(/your vote: for/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /for on ada nominee/i })).not.toBeInTheDocument();
+    unmountResolved();
   });
 });
