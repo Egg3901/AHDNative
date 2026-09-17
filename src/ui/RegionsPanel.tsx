@@ -282,18 +282,19 @@ function Directory({
                       borderRadius: "var(--ahd-radius-sm)",
                       justifyContent: "space-between",
                       textAlign: "left",
+                      alignItems: "flex-start",
                       background: selected ? "color-mix(in srgb, var(--ahd-primary) 10%, var(--ahd-card-elevated))" : undefined,
                     }}
                     aria-label={`View ${row.name} details`}
                   >
-                    <span style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.12rem" }}>
-                      <span style={{ overflowWrap: "anywhere" }}>{row.name}</span>
+                    <span style={{ minWidth: 0, flex: "1 1 auto", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.12rem" }}>
+                      <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{row.name}</span>
                       <span className="ahd-muted" style={{ fontSize: "0.68rem", fontWeight: 400 }}>
                         {row.id}
                         {row.population !== null ? ` · pop. ${number(row.population)}` : ""}
                       </span>
                     </span>
-                    {row.isHome ? <span className="ahd-badge">Home</span> : null}
+                    {row.isHome ? <span className="ahd-badge" style={{ flexShrink: 0 }}>Home</span> : null}
                   </button>
                 );
               })}
