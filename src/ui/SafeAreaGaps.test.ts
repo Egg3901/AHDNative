@@ -48,4 +48,12 @@ describe("safe-area gap closures (#436, post-#449)", () => {
       /\.ahd-drawer-docked\s*\{[^}]*max-height:\s*100vh;\s*max-height:\s*100dvh/,
     );
   });
+
+  it("sticks the docked drawer below the island instead of viewport top", () => {
+    const rule = css.match(/\.ahd-drawer-docked\s*\{[^}]*\}/);
+    expect(rule, "missing docked drawer rule").toBeTruthy();
+    expect(rule![0]).toMatch(/position:\s*sticky/);
+    expect(rule![0]).toMatch(/top:\s*max\([^}]*env\(safe-area-inset-top\)/);
+    expect(rule![0]).not.toMatch(/top:\s*0;/);
+  });
 });
