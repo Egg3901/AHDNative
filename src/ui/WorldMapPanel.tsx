@@ -40,11 +40,7 @@ function SectionToggle({
   onSectionChange: (section: WorldMapSection) => void;
 }) {
   return (
-    <div
-      role="group"
-      aria-label="World map section"
-      style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap" }}
-    >
+    <div role="group" aria-label="World map section" style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap" }}>
       {(["nations", "regions"] as const).map((candidate) => {
         const selected = section === candidate;
         return (
@@ -90,35 +86,15 @@ function NationRow({
         textAlign: "left",
       }}
     >
-      <span
-        style={{
-          minWidth: 0,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-start",
-          gap: "0.12rem",
-        }}
-      >
+      <span style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.12rem" }}>
         <span style={{ overflowWrap: "anywhere" }}>{nation.name}</span>
-        <span
-          className="ahd-muted"
-          style={{ fontSize: "0.68rem", fontWeight: 400 }}
-        >
+        <span className="ahd-muted" style={{ fontSize: "0.68rem", fontWeight: 400 }}>
           {nation.id} · {nation.currency ?? "Currency not recorded"}
         </span>
       </span>
-      <span
-        style={{
-          display: "flex",
-          gap: "0.3rem",
-          flexWrap: "wrap",
-          justifyContent: "flex-end",
-        }}
-      >
+      <span style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
         {isPlayer ? <span className="ahd-badge">Your country</span> : null}
-        <span className="ahd-badge">
-          {nation.playable ? "Playable" : "Not playable"}
-        </span>
+        <span className="ahd-badge">{nation.playable ? "Playable" : "Not playable"}</span>
       </span>
     </button>
   );
@@ -146,24 +122,11 @@ function RegionRow({
         textAlign: "left",
       }}
     >
-      <span
-        style={{
-          minWidth: 0,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-start",
-          gap: "0.12rem",
-        }}
-      >
+      <span style={{ minWidth: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.12rem" }}>
         <span style={{ overflowWrap: "anywhere" }}>{row.name}</span>
-        <span
-          className="ahd-muted"
-          style={{ fontSize: "0.68rem", fontWeight: 400 }}
-        >
+        <span className="ahd-muted" style={{ fontSize: "0.68rem", fontWeight: 400 }}>
           {row.id}
-          {row.population !== null
-            ? ` · pop. ${row.population.toLocaleString("en-US")}`
-            : ""}
+          {row.population !== null ? ` · pop. ${row.population.toLocaleString("en-US")}` : ""}
         </span>
       </span>
       {row.isHome ? <span className="ahd-badge">Home</span> : null}
@@ -186,18 +149,15 @@ export function WorldMapPanel({
   const regionNeedle = regionQuery.trim().toLocaleLowerCase();
   const nations = overview.nations.filter((nation) => {
     if (nationNeedle.length === 0) return true;
-    return `${nation.name} ${nation.id} ${nation.currency ?? ""}`
-      .toLocaleLowerCase()
-      .includes(nationNeedle);
+    return `${nation.name} ${nation.id} ${nation.currency ?? ""}`.toLocaleLowerCase().includes(nationNeedle);
   });
   const filteredRegions = regions.filter((row) => {
     if (regionNeedle.length === 0) return true;
     return `${row.name} ${row.id}`.toLocaleLowerCase().includes(regionNeedle);
   });
-  const ordered =
-    section === "nations"
-      ? (["nations", "regions"] as const)
-      : (["regions", "nations"] as const);
+  const ordered = section === "nations"
+    ? (["nations", "regions"] as const)
+    : (["regions", "nations"] as const);
 
   return (
     <div className="ahd-stack" aria-label="World map">
@@ -207,139 +167,81 @@ export function WorldMapPanel({
         eyebrow={`${overview.era} · Turn ${overview.turn}`}
         title="World map"
       >
-        <p
-          className="ahd-muted"
-          style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}
-        >
-          {overview.nations.length} nations · {regionsTotal} regions in{" "}
-          {regionsCountryName}
+        <p className="ahd-muted" style={{ fontSize: "0.76rem", marginTop: "0.25rem" }}>
+          {overview.nations.length} nations · {regionsTotal} regions in {regionsCountryName}
         </p>
         <p className="ahd-help" role="note" style={{ marginTop: "0.3rem" }}>
-          Positions are not plotted: the save records no coordinates, so this
-          route is a directory of the actual nations and regions in this world.
-          Choosing a row opens its existing details.
+          Positions are not plotted: the save records no coordinates, so this route is a directory of the
+          actual nations and regions in this world. Choosing a row opens its existing details.
         </p>
       </RouteHero>
 
       <SectionToggle section={section} onSectionChange={onSectionChange} />
 
-      {ordered.map((part) =>
-        part === "nations" ? (
-          <section
-            key="nations"
-            className="ahd-card ahd-card-pad"
-            aria-label="Nations on the world map"
-          >
-            <h2 className="ahd-h2">Nations</h2>
-            <label className="ahd-field" style={{ marginTop: "0.65rem" }}>
-              <span className="ahd-label">Search nations</span>
-              <input
-                className="ahd-input"
-                type="search"
-                value={nationQuery}
-                onChange={(event) => setNationQuery(event.target.value)}
-                placeholder="Name, ID, or currency"
-                aria-label="Search nations on the world map"
-              />
-            </label>
-            <div
-              className="ahd-muted"
-              style={{ fontSize: "0.72rem", marginTop: "0.45rem" }}
-              aria-live="polite"
-            >
-              {nations.length} of {overview.nations.length} nations
+      {ordered.map((part) => part === "nations" ? (
+        <section key="nations" className="ahd-card ahd-card-pad" aria-label="Nations on the world map">
+          <h2 className="ahd-h2">Nations</h2>
+          <label className="ahd-field" style={{ marginTop: "0.65rem" }}>
+            <span className="ahd-label">Search nations</span>
+            <input
+              className="ahd-input"
+              type="search"
+              value={nationQuery}
+              onChange={(event) => setNationQuery(event.target.value)}
+              placeholder="Name, ID, or currency"
+              aria-label="Search nations on the world map"
+            />
+          </label>
+          <div className="ahd-muted" style={{ fontSize: "0.72rem", marginTop: "0.45rem" }} aria-live="polite">
+            {nations.length} of {overview.nations.length} nations
+          </div>
+          {nations.length === 0 ? (
+            <div className="ahd-empty" style={{ marginTop: "0.55rem" }}>No nations match this search.</div>
+          ) : (
+            <div role="group" aria-label="World nation directory" style={{ display: "flex", flexDirection: "column", gap: "0.35rem", marginTop: "0.55rem" }}>
+              {nations.map((nation) => (
+                <NationRow key={nation.id} nation={nation} playerCountryId={overview.playerCountryId} onNavigate={onNavigate} />
+              ))}
             </div>
-            {nations.length === 0 ? (
-              <div className="ahd-empty" style={{ marginTop: "0.55rem" }}>
-                No nations match this search.
-              </div>
-            ) : (
-              <div
-                role="group"
-                aria-label="World nation directory"
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.35rem",
-                  marginTop: "0.55rem",
-                }}
-              >
-                {nations.map((nation) => (
-                  <NationRow
-                    key={nation.id}
-                    nation={nation}
-                    playerCountryId={overview.playerCountryId}
-                    onNavigate={onNavigate}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
-        ) : (
-          <section
-            key="regions"
-            className="ahd-card ahd-card-pad"
-            aria-label="Regions on the world map"
-          >
-            <h2 className="ahd-h2">Regions</h2>
-            <p
-              className="ahd-muted"
-              style={{ margin: "0.35rem 0 0", fontSize: "0.76rem" }}
-            >
-              Regions in {regionsCountryName}. Choosing a row opens its details
-              and does not change your home region.
-            </p>
-            <label className="ahd-field" style={{ marginTop: "0.65rem" }}>
-              <span className="ahd-label">Search regions</span>
-              <input
-                className="ahd-input"
-                type="search"
-                value={regionQuery}
-                onChange={(event) => setRegionQuery(event.target.value)}
-                placeholder="Name or ID"
-                aria-label="Search regions on the world map"
-              />
-            </label>
-            <div
-              className="ahd-muted"
-              style={{ fontSize: "0.72rem", marginTop: "0.45rem" }}
-              aria-live="polite"
-            >
-              {filteredRegions.length} of {regionsTotal} regions
+          )}
+        </section>
+      ) : (
+        <section key="regions" className="ahd-card ahd-card-pad" aria-label="Regions on the world map">
+          <h2 className="ahd-h2">Regions</h2>
+          <p className="ahd-muted" style={{ margin: "0.35rem 0 0", fontSize: "0.76rem" }}>
+            Regions in {regionsCountryName}. Choosing a row opens its details and does not change your home region.
+          </p>
+          <label className="ahd-field" style={{ marginTop: "0.65rem" }}>
+            <span className="ahd-label">Search regions</span>
+            <input
+              className="ahd-input"
+              type="search"
+              value={regionQuery}
+              onChange={(event) => setRegionQuery(event.target.value)}
+              placeholder="Name or ID"
+              aria-label="Search regions on the world map"
+            />
+          </label>
+          <div className="ahd-muted" style={{ fontSize: "0.72rem", marginTop: "0.45rem" }} aria-live="polite">
+            {filteredRegions.length} of {regionsTotal} regions
+          </div>
+          {filteredRegions.length === 0 ? (
+            <div className="ahd-empty" style={{ marginTop: "0.55rem" }}>No regions match this search.</div>
+          ) : (
+            <div role="group" aria-label="World region directory" style={{ display: "flex", flexDirection: "column", gap: "0.35rem", marginTop: "0.55rem" }}>
+              {filteredRegions.map((row) => (
+                <RegionRow key={row.id} row={row} onNavigate={onNavigate} />
+              ))}
             </div>
-            {filteredRegions.length === 0 ? (
-              <div className="ahd-empty" style={{ marginTop: "0.55rem" }}>
-                No regions match this search.
-              </div>
-            ) : (
-              <div
-                role="group"
-                aria-label="World region directory"
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.35rem",
-                  marginTop: "0.55rem",
-                }}
-              >
-                {filteredRegions.map((row) => (
-                  <RegionRow key={row.id} row={row} onNavigate={onNavigate} />
-                ))}
-              </div>
-            )}
-          </section>
-        ),
-      )}
+          )}
+        </section>
+      ))}
 
-      <section
-        className="ahd-card ahd-card-pad"
-        aria-label="Hall of Fame status"
-      >
+      <section className="ahd-card ahd-card-pad" aria-label="Hall of Fame status">
         <h2 className="ahd-h2">Hall of Fame</h2>
         <div className="ahd-empty" style={{ marginTop: "0.65rem" }}>
-          Hall of Fame and leaderboards are not available offline. There is no
-          recorded player or era leaderboard in this save, so no standings are
-          shown. This remains tracked in issue #73.
+          Hall of Fame and leaderboards are not available offline. There is no recorded player or era
+          leaderboard in this save, so no standings are shown. This remains tracked in issue #73.
         </div>
       </section>
     </div>

@@ -2,41 +2,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { formatGameDate } from "../game/gameDate";
 
 export type DrawerRouteId =
-  | "actions"
-  | "parties"
-  | "legislature"
-  | "elections"
-  | "news"
-  | "profile"
-  | "portfolio"
-  | "banking"
-  | "partyDetails"
-  | "electionDetails"
-  | "campaignDetails"
-  | "politicians"
-  | "presidentialDetails"
-  | "politicalMetrics"
-  | "economy"
-  | "budget"
-  | "policy"
-  | "metrics"
-  | "nations"
-  | "worldMap"
-  | "state"
-  | "government"
-  | "help"
-  | "settings"
-  | "legislationDetails"
-  | "markets"
-  | "search"
-  | "partyManagement"
-  | "bonds"
-  | "caucuses"
-  | "regions"
-  | "notifications"
-  | "referendums"
-  | "worldSettings"
-  | "ask";
+  | "actions" | "parties" | "legislature" | "elections" | "news"
+  | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "campaignDetails"
+  | "politicians" | "presidentialDetails" | "politicalMetrics"
+  | "economy" | "budget" | "policy" | "metrics" | "nations" | "worldMap" | "state" | "government"
+  | "help" | "settings" | "legislationDetails" | "markets" | "search"
+  | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications" | "referendums"
+  | "worldSettings" | "ask";
 
 export type BottomTabId = "profile" | "actions" | "ask";
 
@@ -204,9 +176,7 @@ export const MENU_GROUPS: DrawerNavGroup[] = [
 export function drawerRouteIds(): DrawerRouteId[] {
   return MENU_GROUPS.flatMap((group) => [
     ...group.items.map((item) => item.id),
-    ...(group.sections ?? []).flatMap((section) =>
-      section.items.map((item) => item.id),
-    ),
+    ...(group.sections ?? []).flatMap((section) => section.items.map((item) => item.id)),
   ]);
 }
 
@@ -244,8 +214,7 @@ export const BOTTOM_TABS: { id: BottomTabId; label: string; path: string }[] = [
 // now files Stock market and Bonds under the reference World group.
 function bottomDestination(route: DrawerRouteId): BottomTabId | "menu" {
   if (route === "actions") return "actions";
-  if (["profile", "portfolio", "markets", "bonds"].includes(route))
-    return "profile";
+  if (["profile", "portfolio", "markets", "bonds"].includes(route)) return "profile";
   if (route === "ask") return "ask";
   return "menu";
 }
@@ -257,18 +226,7 @@ function bottomDestination(route: DrawerRouteId): BottomTabId | "menu" {
  */
 export function NavIcon({ path, label }: { path: string; label: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width="22"
-      height="22"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-    >
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
       <title>{label}</title>
       <path d={path} />
     </svg>
@@ -292,23 +250,14 @@ export function BottomNav({
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
-    const order: (BottomTabId | "menu")[] = [
-      "profile",
-      "actions",
-      "ask",
-      "menu",
-    ];
+    const order: (BottomTabId | "menu")[] = ["profile", "actions", "ask", "menu"];
     const buttons = Array.from(e.currentTarget.querySelectorAll("button"));
-    const focused = buttons.indexOf(
-      document.activeElement as HTMLButtonElement,
-    );
+    const focused = buttons.indexOf(document.activeElement as HTMLButtonElement);
     const idx = focused >= 0 ? focused : order.indexOf(destination);
-    const next =
-      order[
-        (idx + (e.key === "ArrowRight" ? 1 : order.length - 1)) % order.length
-      ];
+    const next = order[(idx + (e.key === "ArrowRight" ? 1 : order.length - 1)) % order.length];
     if (next === "menu") {
       onOpenMenu();
+
     } else {
       onNavigate(next);
       requestAnimationFrame(() => {
@@ -328,9 +277,7 @@ export function BottomNav({
             type="button"
             className="ahd-bottomnav-item"
             aria-label={t.label}
-            aria-current={
-              active ? (route === t.id ? "page" : "location") : undefined
-            }
+            aria-current={active ? (route === t.id ? "page" : "location") : undefined}
             data-active={active ? "true" : undefined}
             onClick={() => onNavigate(t.id)}
           >
@@ -379,15 +326,7 @@ function DrawerNavButton({
     >
       {item.label}
       {item.id === "notifications" && (unreadCount ?? 0) > 0 ? (
-        <span
-          className="ahd-badge"
-          aria-hidden="true"
-          style={{
-            marginLeft: "0.4rem",
-            background: "var(--ahd-primary)",
-            color: "white",
-          }}
-        >
+        <span className="ahd-badge" aria-hidden="true" style={{ marginLeft: "0.4rem", background: "var(--ahd-primary)", color: "white" }}>
           {unreadCount! > 99 ? "99+" : unreadCount}
         </span>
       ) : null}
@@ -442,18 +381,11 @@ export function GameDrawer({
 }) {
   const drawerRef = useRef<HTMLElement | null>(null);
   const activeGroup = MENU_GROUPS.find((group) =>
-    [
-      ...group.items,
-      ...(group.sections ?? []).flatMap((section) => section.items),
-    ].some((item) => item.id === route),
+    [...group.items, ...(group.sections ?? []).flatMap((section) => section.items)]
+      .some((item) => item.id === route),
   )?.label;
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-    () =>
-      new Set(
-        activeGroup && ["Nation", "World"].includes(activeGroup)
-          ? [activeGroup]
-          : [],
-      ),
+    () => new Set(activeGroup && ["Nation", "World"].includes(activeGroup) ? [activeGroup] : []),
   );
   // #366: the drawer stays mounted while closed, so routes reached without it
   // (search results, notification targets, resource links) would leave a stale
@@ -465,16 +397,9 @@ export function GameDrawer({
   // it again before the destination receives the tap.
   useLayoutEffect(() => {
     if (!open) return;
-    const deflated =
-      activeGroup && ["Nation", "World"].includes(activeGroup)
-        ? [activeGroup]
-        : [];
+    const deflated = activeGroup && ["Nation", "World"].includes(activeGroup) ? [activeGroup] : [];
     setExpandedGroups((current) => {
-      if (
-        current.size === deflated.length &&
-        deflated.every((group) => current.has(group))
-      )
-        return current;
+      if (current.size === deflated.length && deflated.every((group) => current.has(group))) return current;
       return new Set(deflated);
     });
   }, [open, activeGroup]);
@@ -486,11 +411,7 @@ export function GameDrawer({
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const drawer = drawerRef.current;
-    drawer
-      ?.querySelector<HTMLButtonElement>(
-        '.ahd-drawer-nav [aria-current="page"], .ahd-drawer-nav button',
-      )
-      ?.focus();
+    drawer?.querySelector<HTMLButtonElement>('.ahd-drawer-nav [aria-current="page"], .ahd-drawer-nav button')?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
@@ -498,9 +419,7 @@ export function GameDrawer({
         return;
       }
       if (e.key !== "Tab" || !drawer) return;
-      const items = Array.from(
-        drawer.querySelectorAll<HTMLElement>("button:not([disabled])"),
-      );
+      const items = Array.from(drawer.querySelectorAll<HTMLElement>("button:not([disabled])"));
       if (items.length === 0) return;
       const first = items[0];
       const last = items[items.length - 1];
@@ -524,13 +443,7 @@ export function GameDrawer({
 
   return (
     <>
-      {docked ? null : (
-        <div
-          className="ahd-drawer-backdrop"
-          aria-hidden="true"
-          onClick={onClose}
-        />
-      )}
+      {docked ? null : <div className="ahd-drawer-backdrop" aria-hidden="true" onClick={onClose} />}
       <aside
         ref={drawerRef}
         id={docked ? "ahd-drawer-docked" : "ahd-drawer"}
@@ -545,55 +458,23 @@ export function GameDrawer({
             tightened to two truncated lines so the 320px first viewport keeps
             turn controls and primary destinations above the fold. */}
         <div className="ahd-drawer-identity">
-          <strong className="ahd-drawer-identity-name" title={playerName}>
-            {playerName}
-          </strong>
-          <span
-            className="ahd-muted ahd-drawer-identity-meta"
-            title={`${playerParty} · ${countryName}`}
-          >
-            {playerParty} · {countryName}
-          </span>
-          <span className="ahd-muted ahd-drawer-identity-meta">
-            Turn {turn} · {formatGameDate(date, { turn, date })}
-          </span>
+          <strong className="ahd-drawer-identity-name" title={playerName}>{playerName}</strong>
+          <span className="ahd-muted ahd-drawer-identity-meta" title={`${playerParty} · ${countryName}`}>{playerParty} · {countryName}</span>
+          <span className="ahd-muted ahd-drawer-identity-meta">Turn {turn} · {formatGameDate(date, { turn, date })}</span>
           {/* Identity quick links mirror the reference profile card
               (ExperimentalMobileMenu.tsx:169-197: Profile / Notifications /
               Settings / Wallet plus conditional org rows). Profile, Actions
               and Wallet all have real Native destinations; My Corporation /
               My Union have no Native destination (no CEO/owner or member
               record is projected), so no such row is rendered here. */}
-          <span
-            className="ahd-drawer-identity-links"
-            style={{
-              display: "flex",
-              gap: "0.45rem",
-              flexWrap: "wrap",
-              marginTop: "0.35rem",
-            }}
-          >
-            <button
-              type="button"
-              className="ahd-profile-link"
-              onClick={() => onNavigate("profile")}
-              aria-label="Go to profile"
-            >
+          <span className="ahd-drawer-identity-links" style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap", marginTop: "0.35rem" }}>
+            <button type="button" className="ahd-profile-link" onClick={() => onNavigate("profile")} aria-label="Go to profile">
               Profile
             </button>
-            <button
-              type="button"
-              className="ahd-profile-link"
-              onClick={() => onNavigate("actions")}
-              aria-label="Go to actions"
-            >
+            <button type="button" className="ahd-profile-link" onClick={() => onNavigate("actions")} aria-label="Go to actions">
               Actions
             </button>
-            <button
-              type="button"
-              className="ahd-profile-link"
-              onClick={() => onNavigate("portfolio")}
-              aria-label="Go to wallet"
-            >
+            <button type="button" className="ahd-profile-link" onClick={() => onNavigate("portfolio")} aria-label="Go to wallet">
               Wallet
             </button>
           </span>
@@ -612,133 +493,67 @@ export function GameDrawer({
             End turn
           </button>
           <div className="ahd-drawer-turnrow">
-            <button
-              type="button"
-              className="ahd-btn ahd-btn-sm"
-              onClick={onSave}
-              disabled={busy}
-              aria-busy={busy}
-              aria-label="Save game"
-            >
+            <button type="button" className="ahd-btn ahd-btn-sm" onClick={onSave} disabled={busy} aria-busy={busy} aria-label="Save game">
               {busy ? <span className="ahd-spinner" aria-hidden /> : null}
               Save
             </button>
-            <button
-              type="button"
-              className="ahd-btn ahd-btn-ghost ahd-btn-sm"
-              onClick={onExit}
-              disabled={busy}
-              aria-label="Exit game"
-            >
+            <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={onExit} disabled={busy} aria-label="Exit game">
               Exit
             </button>
-            <button
-              type="button"
-              className="ahd-btn ahd-btn-ghost ahd-btn-sm"
-              onClick={onClose}
-              aria-label="Close menu"
-            >
+            <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={onClose} aria-label="Close menu">
               Close
             </button>
           </div>
         </div>
 
-        {error ? (
-          <p className="ahd-alert ahd-drawer-feedback" role="alert">
-            {error}
-          </p>
-        ) : message ? (
-          <p className="ahd-notice ahd-drawer-feedback" role="status">
-            {message}
-          </p>
-        ) : null}
+        {error ? <p className="ahd-alert ahd-drawer-feedback" role="alert">{error}</p>
+          : message ? <p className="ahd-notice ahd-drawer-feedback" role="status">{message}</p> : null}
         <nav aria-label="Game sections" className="ahd-drawer-nav">
           {MENU_GROUPS.map((group) => {
             const deep = Boolean(group.sections?.length);
             const expanded = !deep || expandedGroups.has(group.label);
             // Reference Nation/World sub-category counts, so the collapsed
             // disclosure tells the player how many destinations hide inside.
-            const deepCount = (group.sections ?? []).reduce(
-              (n, section) => n + section.items.length,
-              0,
-            );
+            const deepCount = (group.sections ?? []).reduce((n, section) => n + section.items.length, 0);
             const sectionId = `ahd-drawer-section-${group.label.toLowerCase()}`;
             return (
-              <div
-                key={group.label}
-                role="group"
-                aria-label={group.label}
-                className="ahd-drawer-group"
-              >
-                {deep ? (
-                  <button
-                    type="button"
-                    className="ahd-drawer-heading ahd-drawer-disclosure"
-                    aria-expanded={expanded}
-                    aria-controls={sectionId}
-                    onClick={() =>
-                      setExpandedGroups((current) => {
-                        const next = new Set(current);
-                        if (next.has(group.label)) next.delete(group.label);
-                        else next.add(group.label);
-                        return next;
-                      })
-                    }
-                  >
-                    <span>{group.label}</span>
-                    <span
-                      aria-hidden="true"
-                      className="ahd-drawer-disclosure-meta"
-                    >
-                      <span className="ahd-drawer-count">{deepCount}</span>
-                      <span>{expanded ? "−" : "+"}</span>
-                    </span>
-                  </button>
-                ) : (
-                  <div className="ahd-drawer-heading" aria-hidden="true">
-                    {group.label}
-                  </div>
-                )}
-                {group.items.map((item) => (
-                  <DrawerNavButton
-                    key={item.id}
-                    item={item}
-                    route={route}
-                    unreadCount={unreadCount}
-                    onNavigate={onNavigate}
-                  />
-                ))}
-                {expanded && group.sections ? (
-                  <div id={sectionId}>
-                    {group.sections.map((section) => (
-                      <div
-                        key={section.label}
-                        role="group"
-                        aria-label={section.label}
-                        className="ahd-drawer-section"
-                      >
-                        <div
-                          className="ahd-drawer-subheading"
-                          aria-hidden="true"
-                        >
-                          {section.label}
-                        </div>
-                        {section.items.map((item) => (
-                          <DrawerNavButton
-                            key={item.id}
-                            item={item}
-                            route={route}
-                            unreadCount={unreadCount}
-                            onNavigate={onNavigate}
-                          />
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
+            <div key={group.label} role="group" aria-label={group.label} className="ahd-drawer-group">
+              {deep ? (
+                <button
+                  type="button"
+                  className="ahd-drawer-heading ahd-drawer-disclosure"
+                  aria-expanded={expanded}
+                  aria-controls={sectionId}
+                  onClick={() => setExpandedGroups((current) => {
+                    const next = new Set(current);
+                    if (next.has(group.label)) next.delete(group.label); else next.add(group.label);
+                    return next;
+                  })}
+                >
+                  <span>{group.label}</span>
+                  <span aria-hidden="true" className="ahd-drawer-disclosure-meta">
+                    <span className="ahd-drawer-count">{deepCount}</span>
+                    <span>{expanded ? "−" : "+"}</span>
+                  </span>
+                </button>
+              ) : <div className="ahd-drawer-heading" aria-hidden="true">{group.label}</div>}
+              {group.items.map((item) => (
+                <DrawerNavButton key={item.id} item={item} route={route} unreadCount={unreadCount} onNavigate={onNavigate} />
+              ))}
+              {expanded && group.sections ? (
+                <div id={sectionId}>
+                  {group.sections.map((section) => (
+                    <div key={section.label} role="group" aria-label={section.label} className="ahd-drawer-section">
+                      <div className="ahd-drawer-subheading" aria-hidden="true">{section.label}</div>
+                      {section.items.map((item) => (
+                        <DrawerNavButton key={item.id} item={item} route={route} unreadCount={unreadCount} onNavigate={onNavigate} />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          )})}
         </nav>
         {/* #366 composition: persistent Ask/Actions quick bar. The reference
             keeps Actions a top-level tab (ExperimentalNavbar.tsx:279) and
@@ -746,11 +561,7 @@ export function GameDrawer({
             hierarchy above, so this bar duplicates no destination and removes
             none. It stays pinned while the section list scrolls, so the two
             primary workflows survive an expanded Nation/World on 320px. */}
-        <div
-          className="ahd-drawer-quick"
-          role="group"
-          aria-label="Quick actions"
-        >
+        <div className="ahd-drawer-quick" role="group" aria-label="Quick actions">
           {(["actions", "ask"] as const).map((id) => (
             <button
               key={id}

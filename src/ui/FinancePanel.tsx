@@ -30,102 +30,43 @@ export function formatFinanceMoney(amount: number, currency: string): string {
       currency,
     }).format(amount);
   } catch {
-    const plain = new Intl.NumberFormat(undefined, {
-      maximumFractionDigits: 2,
-    }).format(amount);
+    const plain = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(amount);
     return `${plain} ${currency}`;
   }
 }
 
-function AvailabilityHint({
-  cost,
-  available,
-  disabledReason,
-}: {
-  cost: number;
-  available: boolean;
-  disabledReason?: string;
-}) {
-  if (!available)
-    return (
-      <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
-        {disabledReason ?? "Unavailable"}
-      </span>
-    );
-  if (cost > 0)
-    return (
-      <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
-        Cost {cost} actions
-      </span>
-    );
+function AvailabilityHint({ cost, available, disabledReason }: { cost: number; available: boolean; disabledReason?: string }) {
+  if (!available) return <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>{disabledReason ?? "Unavailable"}</span>;
+  if (cost > 0) return <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>Cost {cost} actions</span>;
   return null;
 }
 
-function PortfolioSection({
-  finance,
-  onNavigate,
-}: {
-  finance: FinanceView;
-  onNavigate?: (route: "portfolio" | "banking") => void;
-}) {
+function PortfolioSection({ finance, onNavigate }: { finance: FinanceView; onNavigate?: (route: "portfolio" | "banking") => void }) {
   return (
     <div className="ahd-stack">
       <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">Portfolio</h2>
-        <p
-          className="ahd-muted"
-          style={{ fontSize: "0.76rem", margin: "0.3rem 0 0" }}
-        >
+        <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.3rem 0 0" }}>
           Wallet balances and recorded stock holdings.
           {onNavigate ? (
             <>
               {" "}
-              <button
-                type="button"
-                className="ahd-profile-link"
-                onClick={() => onNavigate("banking")}
-                aria-label="Go to banking"
-              >
+              <button type="button" className="ahd-profile-link" onClick={() => onNavigate("banking")} aria-label="Go to banking">
                 Go to Banking
               </button>
             </>
           ) : null}
         </p>
-        <dl
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.35rem",
-            margin: "0.5rem 0 0",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "0.5rem",
-            }}
-          >
+        <dl style={{ display: "flex", flexDirection: "column", gap: "0.35rem", margin: "0.5rem 0 0" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
             <dt style={{ fontSize: "0.82rem" }}>Cash</dt>
-            <dd
-              className="ahd-mono"
-              style={{ margin: 0, fontSize: "0.82rem", fontWeight: 700 }}
-            >
+            <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem", fontWeight: 700 }}>
               {formatFinanceMoney(finance.cash, finance.currency)}
             </dd>
           </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "0.5rem",
-            }}
-          >
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
             <dt style={{ fontSize: "0.82rem" }}>Savings</dt>
-            <dd
-              className="ahd-mono"
-              style={{ margin: 0, fontSize: "0.82rem", fontWeight: 700 }}
-            >
+            <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem", fontWeight: 700 }}>
               {formatFinanceMoney(finance.savings, finance.currency)}
             </dd>
           </div>
@@ -133,51 +74,28 @@ function PortfolioSection({
       </div>
 
       <div className="ahd-card ahd-card-pad">
-        <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>
-          Stock holdings
-        </h3>
+        <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Stock holdings</h3>
         {finance.holdings.length === 0 ? (
           <div className="ahd-empty">No holdings.</div>
         ) : (
-          <ul
-            className="ahd-grid ahd-grid-2"
-            style={{ listStyle: "none", margin: "0.55rem 0 0", padding: 0 }}
-          >
+          <ul className="ahd-grid ahd-grid-2" style={{ listStyle: "none", margin: "0.55rem 0 0", padding: 0 }}>
             {finance.holdings.map((h) => (
               <li
                 key={h.id}
-                style={{
-                  borderTop: "1px solid var(--ahd-border)",
-                  paddingTop: "0.5rem",
-                  minWidth: 0,
-                }}
+                style={{ borderTop: "1px solid var(--ahd-border)", paddingTop: "0.5rem", minWidth: 0 }}
               >
-                <div
-                  style={{
-                    fontWeight: 700,
-                    fontSize: "0.84rem",
-                    overflowWrap: "anywhere",
-                  }}
-                >
+                <div style={{ fontWeight: 700, fontSize: "0.84rem", overflowWrap: "anywhere" }}>
                   {h.name} <span className="ahd-muted">({h.ticker})</span>
                 </div>
-                <div
-                  className="ahd-muted ahd-mono"
-                  style={{ fontSize: "0.78rem", overflowWrap: "anywhere" }}
-                >
-                  {h.shares} shares · {formatFinanceMoney(h.price, h.currency)}{" "}
-                  per share ·{" "}
-                  {formatFinanceMoney(h.shares * h.price, h.currency)} in{" "}
-                  {h.currency}
+                <div className="ahd-muted ahd-mono" style={{ fontSize: "0.78rem", overflowWrap: "anywhere" }}>
+                  {h.shares} shares · {formatFinanceMoney(h.price, h.currency)} per share ·{" "}
+                  {formatFinanceMoney(h.shares * h.price, h.currency)} in {h.currency}
                 </div>
               </li>
             ))}
           </ul>
         )}
-        <p
-          className="ahd-muted"
-          style={{ fontSize: "0.74rem", margin: "0.55rem 0 0" }}
-        >
+        <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: "0.55rem 0 0" }}>
           Values are shown in each holding&apos;s own currency.
         </p>
       </div>
@@ -185,17 +103,7 @@ function PortfolioSection({
   );
 }
 
-function BankingSection({
-  finance,
-  busy,
-  onAction,
-  onNavigate,
-}: {
-  finance: FinanceView;
-  busy: boolean;
-  onAction: GameScreenProps["onAction"];
-  onNavigate?: (route: "portfolio" | "banking") => void;
-}) {
+function BankingSection({ finance, busy, onAction, onNavigate }: { finance: FinanceView; busy: boolean; onAction: GameScreenProps["onAction"]; onNavigate?: (route: "portfolio" | "banking") => void }) {
   const [amount, setAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -212,15 +120,11 @@ function BankingSection({
       return;
     }
     if (kind === "deposit" && n > finance.cash) {
-      setError(
-        `Amount exceeds cash balance of ${formatFinanceMoney(finance.cash, finance.currency)}.`,
-      );
+      setError(`Amount exceeds cash balance of ${formatFinanceMoney(finance.cash, finance.currency)}.`);
       return;
     }
     if (kind === "withdraw" && n > finance.savings) {
-      setError(
-        `Amount exceeds savings balance of ${formatFinanceMoney(finance.savings, finance.currency)}.`,
-      );
+      setError(`Amount exceeds savings balance of ${formatFinanceMoney(finance.savings, finance.currency)}.`);
       return;
     }
     setError(null);
@@ -236,69 +140,31 @@ function BankingSection({
       <div className="ahd-card ahd-card-pad ahd-hero">
         <h2 className="ahd-h2">Banking</h2>
         {onNavigate ? (
-          <p
-            className="ahd-muted"
-            style={{ fontSize: "0.76rem", margin: "0.3rem 0 0" }}
-          >
+          <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.3rem 0 0" }}>
             Savings deposits and withdrawals.{" "}
-            <button
-              type="button"
-              className="ahd-profile-link"
-              onClick={() => onNavigate("portfolio")}
-              aria-label="Go to portfolio"
-            >
+            <button type="button" className="ahd-profile-link" onClick={() => onNavigate("portfolio")} aria-label="Go to portfolio">
               Go to Portfolio
             </button>
           </p>
         ) : null}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: "0.5rem",
-            marginTop: "0.5rem",
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", marginTop: "0.5rem" }}>
           <div style={{ fontSize: "0.82rem" }}>Cash</div>
-          <div
-            className="ahd-mono"
-            style={{ fontSize: "0.82rem", fontWeight: 700 }}
-          >
+          <div className="ahd-mono" style={{ fontSize: "0.82rem", fontWeight: 700 }}>
             {formatFinanceMoney(finance.cash, finance.currency)}
           </div>
         </div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: "0.5rem",
-            marginTop: "0.25rem",
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", marginTop: "0.25rem" }}>
           <div style={{ fontSize: "0.82rem" }}>Savings</div>
-          <div
-            className="ahd-mono"
-            style={{ fontSize: "0.82rem", fontWeight: 700 }}
-          >
+          <div className="ahd-mono" style={{ fontSize: "0.82rem", fontWeight: 700 }}>
             {formatFinanceMoney(finance.savings, finance.currency)}
           </div>
         </div>
-        <p
-          className="ahd-muted"
-          style={{
-            fontSize: "0.78rem",
-            margin: "0.4rem 0 0",
-            overflowWrap: "anywhere",
-          }}
-        >
+        <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: "0.4rem 0 0", overflowWrap: "anywhere" }}>
           {finance.savingsHolder}
         </p>
       </div>
 
-      <div
-        className="ahd-card ahd-card-pad"
-        style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}
-      >
+      <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
         <label className="ahd-field" style={{ maxWidth: "16rem" }}>
           <span className="ahd-label">Amount</span>
           <input
@@ -317,20 +183,14 @@ function BankingSection({
             aria-describedby={error ? "finance-amount-error" : undefined}
           />
           {error ? (
-            <span
-              id="finance-amount-error"
-              className="ahd-error-text"
-              role="alert"
-            >
+            <span id="finance-amount-error" className="ahd-error-text" role="alert">
               {error}
             </span>
           ) : null}
         </label>
 
         <div style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap" }}>
-          <div
-            style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}
-          >
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
             <button
               type="button"
               className="ahd-btn ahd-btn-primary ahd-btn-sm"
@@ -341,15 +201,9 @@ function BankingSection({
             >
               Deposit
             </button>
-            <AvailabilityHint
-              cost={finance.deposit.cost}
-              available={finance.deposit.available}
-              disabledReason={finance.deposit.disabledReason}
-            />
+            <AvailabilityHint cost={finance.deposit.cost} available={finance.deposit.available} disabledReason={finance.deposit.disabledReason} />
           </div>
-          <div
-            style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}
-          >
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
             <button
               type="button"
               className="ahd-btn ahd-btn-sm"
@@ -360,11 +214,7 @@ function BankingSection({
             >
               Withdraw
             </button>
-            <AvailabilityHint
-              cost={finance.withdraw.cost}
-              available={finance.withdraw.available}
-              disabledReason={finance.withdraw.disabledReason}
-            />
+            <AvailabilityHint cost={finance.withdraw.cost} available={finance.withdraw.available} disabledReason={finance.withdraw.disabledReason} />
           </div>
         </div>
       </div>
@@ -372,21 +222,7 @@ function BankingSection({
   );
 }
 
-export function FinancePanel({
-  finance,
-  section,
-  busy,
-  onAction,
-  onNavigate,
-}: FinancePanelProps) {
-  if (section === "banking")
-    return (
-      <BankingSection
-        finance={finance}
-        busy={busy}
-        onAction={onAction}
-        onNavigate={onNavigate}
-      />
-    );
+export function FinancePanel({ finance, section, busy, onAction, onNavigate }: FinancePanelProps) {
+  if (section === "banking") return <BankingSection finance={finance} busy={busy} onAction={onAction} onNavigate={onNavigate} />;
   return <PortfolioSection finance={finance} onNavigate={onNavigate} />;
 }

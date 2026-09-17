@@ -56,31 +56,21 @@ export function parsePreferences(value: unknown): Preferences {
   const parsed = decode(value);
   if (!isRecord(parsed)) return { ...DEFAULT_PREFERENCES };
   return {
-    textSize:
-      parsed.textSize === "large" || parsed.textSize === "standard"
-        ? parsed.textSize
-        : DEFAULT_PREFERENCES.textSize,
-    reducedMotion:
-      parsed.reducedMotion === "system" ||
-      parsed.reducedMotion === "on" ||
-      parsed.reducedMotion === "off"
-        ? parsed.reducedMotion
-        : DEFAULT_PREFERENCES.reducedMotion,
-    reducedTransparency:
-      parsed.reducedTransparency === "system" ||
-      parsed.reducedTransparency === "on" ||
-      parsed.reducedTransparency === "off"
-        ? parsed.reducedTransparency
-        : DEFAULT_PREFERENCES.reducedTransparency,
-    disableAutoplayOnOtherProfiles:
-      typeof parsed.disableAutoplayOnOtherProfiles === "boolean"
-        ? parsed.disableAutoplayOnOtherProfiles
-        : DEFAULT_PREFERENCES.disableAutoplayOnOtherProfiles,
-    worldMapSection:
-      parsed.worldMapSection === "nations" ||
-      parsed.worldMapSection === "regions"
-        ? parsed.worldMapSection
-        : DEFAULT_PREFERENCES.worldMapSection,
+    textSize: parsed.textSize === "large" || parsed.textSize === "standard"
+      ? parsed.textSize
+      : DEFAULT_PREFERENCES.textSize,
+    reducedMotion: parsed.reducedMotion === "system" || parsed.reducedMotion === "on" || parsed.reducedMotion === "off"
+      ? parsed.reducedMotion
+      : DEFAULT_PREFERENCES.reducedMotion,
+    reducedTransparency: parsed.reducedTransparency === "system" || parsed.reducedTransparency === "on" || parsed.reducedTransparency === "off"
+      ? parsed.reducedTransparency
+      : DEFAULT_PREFERENCES.reducedTransparency,
+    disableAutoplayOnOtherProfiles: typeof parsed.disableAutoplayOnOtherProfiles === "boolean"
+      ? parsed.disableAutoplayOnOtherProfiles
+      : DEFAULT_PREFERENCES.disableAutoplayOnOtherProfiles,
+    worldMapSection: parsed.worldMapSection === "nations" || parsed.worldMapSection === "regions"
+      ? parsed.worldMapSection
+      : DEFAULT_PREFERENCES.worldMapSection,
   };
 }
 
@@ -93,9 +83,7 @@ function browserStorage(): PreferenceStorage | null {
   }
 }
 
-export function loadPreferences(
-  storage?: PreferenceStorage | null,
-): PreferenceResult {
+export function loadPreferences(storage?: PreferenceStorage | null): PreferenceResult {
   const source = storage === undefined ? browserStorage() : storage;
   if (!source) {
     return {
@@ -104,30 +92,22 @@ export function loadPreferences(
     };
   }
   try {
-    return {
-      value: parsePreferences(source.getItem(PREFERENCES_STORAGE_KEY)),
-      error: null,
-    };
+    return { value: parsePreferences(source.getItem(PREFERENCES_STORAGE_KEY)), error: null };
   } catch {
     return {
       value: { ...DEFAULT_PREFERENCES },
-      error:
-        "Device preferences could not be loaded. Default settings are in use.",
+      error: "Device preferences could not be loaded. Default settings are in use.",
     };
   }
 }
 
-export function savePreferences(
-  value: Preferences,
-  storage?: PreferenceStorage | null,
-): PreferenceResult {
+export function savePreferences(value: Preferences, storage?: PreferenceStorage | null): PreferenceResult {
   const normalized = parsePreferences(value);
   const source = storage === undefined ? browserStorage() : storage;
   if (!source) {
     return {
       value: normalized,
-      error:
-        "Device preferences are unavailable. Your choice is active for this session.",
+      error: "Device preferences are unavailable. Your choice is active for this session.",
     };
   }
   try {
@@ -136,22 +116,16 @@ export function savePreferences(
   } catch {
     return {
       value: normalized,
-      error:
-        "Device preferences could not be saved. Your choice is active for this session.",
+      error: "Device preferences could not be saved. Your choice is active for this session.",
     };
   }
 }
 
 /** Applies the data attributes consumed by the app's presentation styles. */
-export function applyPreferencesToDocument(
-  preferences: Preferences,
-  target?: PreferencesDocument,
-): void {
-  const destination =
-    target ?? (typeof document === "undefined" ? null : document);
+export function applyPreferencesToDocument(preferences: Preferences, target?: PreferencesDocument): void {
+  const destination = target ?? (typeof document === "undefined" ? null : document);
   if (!destination) return;
   destination.documentElement.dataset.textSize = preferences.textSize;
   destination.documentElement.dataset.reducedMotion = preferences.reducedMotion;
-  destination.documentElement.dataset.reducedTransparency =
-    preferences.reducedTransparency;
+  destination.documentElement.dataset.reducedTransparency = preferences.reducedTransparency;
 }
