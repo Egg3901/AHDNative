@@ -23,7 +23,7 @@ Owner direction: mobile-first layout can differ, but navigation and footer funct
 | N06 | In progress | Nation executive, policy, budget and economy | Actual local queries/actions, country-specific conditions and meaningful panels |
 | N07 | In progress | World navigation | Nations, map, corporations, sectors, markets, exchange, trade, unions, organizations and crises mapped to SP capabilities |
 | N08 | In progress | Full footer resource breakdowns | Action/income components, election projections/history and conditional corporation controls supported by actual engine evidence |
-| N09 | In progress | Help, settings, search and notifications | Offline guidance and preferences, real search and notifications, native-safe network resources, and account or feedback routes delegated to the authenticated AHDGame surface; centralized native reachability verification pending |
+| N09 | In progress | Help, settings, search and notifications | Offline guidance and preferences, real search and notifications, native-safe network resources, and account or feedback routes delegated to the authenticated AHDGame surface; help-destination reachability verified centrally, 8/8, in the current batch |
 | N10 | Queued | Complete functional parity review | Each inventory row demonstrated through the integrated UI, including relevant country/role conditions; named remaining gaps block parity claims |
 
 This priority guides UI work within the complete roadmap. The owner has explicitly reaffirmed that gameplay, mechanics, save compatibility, lifecycle and performance work continue alongside it. Existing mechanics, save compatibility and physical-device release gates remain binding. N07 and N09 are not blanket multiplayer deferrals.
@@ -268,6 +268,11 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Pure presentation helpers are separated from engine runtime imports. This brought the initial integrated main bundle from 731 KB to 349 KB without moving simulation onto the UI thread. This is a bundle-size observation, not device performance evidence.
 - Independent next work covers UK electoral careers, referendum lifecycle and bidirectional v42 compatibility. No paid build has run; mechanics, save interchange and physical-device candidate gates remain open.
 - Validation: production build, 71 session/query/preferences/save/CLI tests, 109 UI tests and fixture integrity passed. The production-browser batch passed 17 of 18 scenarios and exposed the player-chamber default bug. After fixing it, all four affected market/legislature browser flows passed, alongside 9 focused session/query and 46 UI checks. Existing engine/content/native code was unchanged in this batch, so those broader suites were left to CI. No campaign fixture regeneration or paid build ran.
+
+## Help reachability checkpoint, 2026-09-16
+
+- Centralized native reachability gate for issue #82 passes: `src/ui/HelpReachability.test.tsx` renders every one of the 8 reference help destinations with a network-required mark, routes each through the native opener, pins all 8 URLs against the AHDGame `HelpDropdown` constants, and covers the opener-failure alert. The Rust allowlist test now asserts all 8 exact destination URLs and rejects raw URLs plus `feedback`/`account` identifiers.
+- Focused evidence only: 10 UI tests (HelpReachability, HelpPanel, SettingsPanel), 4 preferences tests, and 1 Rust allowlist test passed. No full typecheck, verify, engine suite, Playwright, native build, or paid build ran; those belong to CI and the device gate.
 
 ## Referendum campaign checkpoint
 
