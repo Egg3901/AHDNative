@@ -183,10 +183,16 @@ launcher command navigates the main WebView to the same live site, preserving
 the platform's normal persistent cookie and storage profile.
 
 Local tests cover launcher reachability, recoverable open failure, exact-host
-classification and the explicit capability boundary. Real provider callbacks,
-cookie restoration across relaunch, logout/expiry, cancellation, network
-failure presentation and desktop/mobile lifecycle remain runtime acceptance
-checks. Source and unit evidence alone do not complete #149.
+classification and the explicit capability boundary. Unlink runs through the
+real server contract (POST /api/auth/logout, empty body): the server clears
+the cookie and revokes issued tokens, Native drops every authed view and
+returns to the sign-in card, and mobile additionally evicts the recognized
+session cookie names from the platform jar since the relay cannot receive
+the server's Set-Cookie expiry. Failed unlink keeps the signed-in session
+with retry. Real provider callbacks, cookie restoration across relaunch,
+logout/expiry, cancellation, network failure presentation and
+desktop/mobile lifecycle remain runtime acceptance checks. Source and unit
+evidence alone do not complete #149.
 
 ## Route-level visual inventory (issue #143, compact)
 

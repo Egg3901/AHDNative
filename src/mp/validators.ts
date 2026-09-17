@@ -241,6 +241,12 @@ export function parseMutationAck(bodyText: string): boolean {
   return record?.success === true;
 }
 
+/** POST /api/auth/logout answers 200 {ok:true} (not {success:true}). */
+export function parseLogoutAck(bodyText: string): boolean {
+  const record = asRecord(parseJsonBody(bodyText));
+  return record?.ok === true;
+}
+
 export interface MpExecuteArgs {
   actionType: MpExecuteActionType;
   targetState?: string;
