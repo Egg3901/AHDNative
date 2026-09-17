@@ -360,7 +360,7 @@ html, body { overflow-x: hidden; }
 /* Metric, party, list rows */
 .ahd-kv { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.8rem; overflow-wrap: anywhere; }
 .ahd-kv dt { color: var(--ahd-muted); }
-.ahd-kv dd { font-weight: 650; }
+.ahd-kv dd { font-weight: 650; margin: 0; min-width: 0; }
 .ahd-divider { height: 1px; background: var(--ahd-border); }
 .ahd-empty {
   border: 1px dashed var(--ahd-border); border-radius: var(--ahd-radius);
