@@ -113,6 +113,37 @@ describe("CharacterCreationScreen mobile presentation (#335)", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Step 1 of 6: Country");
   });
 
+  it("scrolls the new current progress pill into view on step change", async () => {
+    const user = userEvent.setup();
+    const seen: { pill: Element; args: unknown }[] = [];
+    const proto = Element.prototype as unknown as { scrollIntoView?: (...args: unknown[]) => void };
+    const original = proto.scrollIntoView;
+    // jsdom has no layout engine, so scrollIntoView is a stub target here; the
+    // contract under test is which pill scrolls and with what alignment.
+    proto.scrollIntoView = function (this: Element, ...args: unknown[]) {
+      seen.push({ pill: this, args: args[0] });
+    };
+    try {
+      render(<CharacterCreationScreen {...props()} />);
+      // Mount never scrolls.
+      expect(seen).toHaveLength(0);
+
+      await user.click(screen.getByRole("button", { name: /Continue to The politician/i }));
+      const current = screen.getByRole("button", { name: "Current step, step 2 of 6: The politician" });
+      const calls = seen.filter((entry) => entry.pill === current);
+      expect(calls).toHaveLength(1);
+      expect(calls[0]!.args).toEqual({ block: "nearest", inline: "nearest" });
+
+      // Keyboard-only jump back scrolls that pill instead.
+      screen.getByRole("button", { name: /Go to step 1 of 6: Country/ }).focus();
+      await user.keyboard("{Enter}");
+      const country = screen.getByRole("button", { name: "Current step, step 1 of 6: Country" });
+      expect(seen.filter((entry) => entry.pill === country)).toHaveLength(1);
+    } finally {
+      proto.scrollIntoView = original;
+    }
+  });
+
   it.each([320, 390])("renders the full touch flow identically at a %dpx viewport", async (width) => {
     const user = userEvent.setup();
     setViewportWidth(width);

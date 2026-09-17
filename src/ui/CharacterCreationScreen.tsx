@@ -473,6 +473,9 @@ export function CharacterCreationScreen({
   // reader users land at the start of the fresh prompt instead of on a
   // removed Continue button. Mount never steals focus.
   const headingRefs = useRef<(HTMLHeadingElement | null)[]>([]);
+  // Progress-strip buttons in step order. At 320/390px only ~2 of the six
+  // pills fit, so the new current pill is scrolled into view on step change.
+  const progressRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const mountedRef = useRef(false);
   useEffect(() => {
     if (!mountedRef.current) {
@@ -481,6 +484,12 @@ export function CharacterCreationScreen({
     }
     if (reviewAll) return;
     headingRefs.current[activeStep - 1]?.focus();
+    // block: nearest keeps the heading-driven vertical scroll where focus put
+    // it; only the horizontal strip moves. Guarded for non-DOM renderers.
+    const pill = progressRefs.current[activeStep - 1];
+    if (pill && typeof pill.scrollIntoView === "function") {
+      pill.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
   }, [activeStep, reviewAll]);
 
   useEffect(() => { setHomeRegionId(initialHomeRegionId ?? regions[0]?.id ?? ""); }, [initialHomeRegionId, regions]);
@@ -645,6 +654,7 @@ export function CharacterCreationScreen({
                 <li key={step}>
                   <button
                     type="button"
+                    ref={(element) => { progressRefs.current[index] = element; }}
                     disabled={!reached}
                     aria-current={isActive ? "step" : undefined}
                     aria-label={
