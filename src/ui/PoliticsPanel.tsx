@@ -154,7 +154,14 @@ function ideologyLabel(value: number, axis: "econ" | "social"): string {
 }
 
 function PartiesSection({ politics, busy, onAction, initialId }: Omit<PoliticsPanelProps, "section">) {
-  const [selectedId, setSelectedId] = useState(initialId ?? politics.parties[0]?.id ?? "");
+  // A stale recorded id (e.g. a home-region row pointing at a removed party)
+  // falls back to the first live party on first paint, not one effect late:
+  // otherwise the detail card is absent until the correction re-render and a
+  // sync assertion (or a real stale deep link) sees the list with no selection.
+  const [selectedId, setSelectedId] = useState(() =>
+    initialId && politics.parties.some((p) => p.id === initialId)
+      ? initialId
+      : politics.parties[0]?.id ?? "");
   useEffect(() => {
     if (!politics.parties.some((p) => p.id === selectedId)) setSelectedId(politics.parties[0]?.id ?? "");
   }, [politics.parties, selectedId]);
