@@ -27,6 +27,13 @@ export interface MpModeScreenProps {
   onExit: () => void;
 }
 
+/* Presence freshness cadence (#359 presence slice): mirrors the reference
+ * StatusBar, which re-polls GET /api/players/online every 5 minutes plus on
+ * visibility return. loadPresence never touches phase or error state, so a
+ * failed poll stays absent without disturbing the session; the adapter
+ * no-ops entirely without a signed-in session. */
+const PRESENCE_POLL_MS = 300_000;
+
 const IDLE: MpSnapshot = {
   phase: "idle",
   userId: null,
@@ -163,6 +170,34 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     return () => {
       window.removeEventListener("focus", probeReturn);
       document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
+  /* Presence re-poll (#359 presence slice): the mount chain loads presence
+   * once, but a long-open screen would otherwise go stale. Like the
+   * reference StatusBar this re-polls on a visible-only interval plus on
+   * foreground return, including in the ready phase (the focus re-probe
+   * above only fires while waiting for a session). loadPresence keeps the
+   * last good value on any failure, so these polls can never disturb the
+   * session or its views. */
+  useEffect(() => {
+    const session = sessionRef.current!;
+    let live = true;
+    const pollPresence = () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      void session.loadPresence().then((next) => {
+        if (live) setSnapshot(next);
+      });
+    };
+    const onVisiblePresence = () => {
+      if (document.visibilityState === "visible") pollPresence();
+    };
+    const intervalId = setInterval(pollPresence, PRESENCE_POLL_MS);
+    document.addEventListener("visibilitychange", onVisiblePresence);
+    return () => {
+      live = false;
+      clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisiblePresence);
     };
   }, []);
 

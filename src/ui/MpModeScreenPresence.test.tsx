@@ -10,7 +10,7 @@
  * 390px, and desktop widths.
  */
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MpModeScreen } from "./MpModeScreen";
 import type { MpBridgeHost } from "../mp/bridge";
@@ -216,6 +216,98 @@ describe("MpModeScreen turn states at desktop widths", () => {
     const card = worldTurnCard();
     expect(within(card).getByText("Paused")).toBeInTheDocument();
     expect(within(card).queryByText("Player paced")).toBeNull();
+  });
+});
+
+describe("MpModeScreen presence re-poll", () => {
+  function setVisibility(state: "visible" | "hidden") {
+    Object.defineProperty(document, "visibilityState", { value: state, configurable: true });
+  }
+
+  function pollScript(counts: number[]): Script {
+    return {
+      fetch: {
+        "auth-session": [probe],
+        "character-me": [me],
+        "turn-status": [JSON.stringify(turnBase)],
+        notifications: [inbox],
+        "mail-inbox": [emptyMailInbox],
+        "mail-sent": [emptyMailSent],
+        "players-online": counts.map((online) => presence(online)),
+      },
+    };
+  }
+
+  /* The mount chain is promise-only (no timers), so under fake timers a
+   * bounded microtask drain settles it without touching the clock. */
+  async function settleMount() {
+    await act(async () => {
+      for (let i = 0; i < 200; i++) {
+        await Promise.resolve();
+      }
+    });
+  }
+
+  it("re-polls presence every 5 minutes while visible, like the reference StatusBar", async () => {
+    setViewport(1280);
+    setVisibility("visible");
+    vi.useFakeTimers();
+    try {
+      const { host, calls } = fakeHost(pollScript([10, 11]));
+      render(<MpModeScreen host={host} onExit={() => {}} />);
+      await settleMount();
+      expect(screen.getByText("10 players online")).toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(300_000);
+      });
+      expect(screen.getByText("11 players online")).toBeInTheDocument();
+      expect(calls.filter((call) => call === "fetch:players-online")).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+      setVisibility("visible");
+    }
+  });
+
+  it("re-polls presence on foreground return while ready", async () => {
+    setViewport(1280);
+    setVisibility("visible");
+    vi.useFakeTimers();
+    try {
+      const { host, calls } = fakeHost(pollScript([10, 11]));
+      render(<MpModeScreen host={host} onExit={() => {}} />);
+      await settleMount();
+      expect(screen.getByText("10 players online")).toBeInTheDocument();
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+      expect(screen.getByText("11 players online")).toBeInTheDocument();
+      expect(calls.filter((call) => call === "fetch:players-online")).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+      setVisibility("visible");
+    }
+  });
+
+  it("skips the interval poll while the document is hidden", async () => {
+    setViewport(1280);
+    setVisibility("hidden");
+    vi.useFakeTimers();
+    try {
+      const { host, calls } = fakeHost(pollScript([10, 11]));
+      render(<MpModeScreen host={host} onExit={() => {}} />);
+      await settleMount();
+      // The mount load is unconditional; only the re-poll is visible-gated.
+      expect(screen.getByText("10 players online")).toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(2 * 300_000);
+      });
+      expect(screen.getByText("10 players online")).toBeInTheDocument();
+      expect(screen.queryByText("11 players online")).toBeNull();
+      expect(calls.filter((call) => call === "fetch:players-online")).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+      setVisibility("visible");
+    }
   });
 });
 
