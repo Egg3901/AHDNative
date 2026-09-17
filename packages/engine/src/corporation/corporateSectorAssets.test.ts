@@ -23,8 +23,11 @@ describe("#293 corporate-sector asset core", () => {
         profitMargin: corporation.profitMargin,
         targetGrowthRate: corporation.targetGrowthRate,
         currentGrowthRate: corporation.currentGrowthRate,
-        workers: 0,
-        representingUnionId: null,
+        // #296 grounds the workforce substrate: headcount derives from
+        // recorded revenue (neutral skill, integer, minimum 1) and the
+        // representing union adopts the seeded union for the pair.
+        workers: Math.max(1, Math.round(corporation.revenue / 2000)),
+        representingUnionId: `${corporation.countryId}-${corporation.sectorType}`,
         forSale: null,
       });
       expect(asset.stateId).toBeNull();

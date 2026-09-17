@@ -462,15 +462,18 @@ describe("sector metrics and ownership", () => {
   });
 
   it("surfaces recorded corporate-sector asset state verbatim and invents no other labor or sale state (#299)", () => {
-    // #293 records workers (0), representingUnionId (null), and forSale
-    // (null) on CorporateSectorAsset; #299 projects those recorded values
-    // instead of hiding them. Anything beyond them is still invented.
-    const view = projectMarkets(createWorld(US));
+    // #296 grounds the #293 placeholders: workers derives from recorded
+    // revenue and representingUnionId adopts the seeded union for the pair.
+    // #299 projects those recorded values instead of hiding them. Anything
+    // beyond them is still invented.
+    const world = createWorld(US);
+    const view = projectMarkets(world);
     expect(view.sectors.every((sector) => sector.forSale === null)).toBe(true);
     for (const listing of view.listings) {
-      expect(listing.sectorAsset.workers).toBe(0);
-      expect(listing.sectorAsset.unionId).toBeNull();
-      expect(listing.sectorAsset.unionName).toBeNull();
+      const corp = world.corporations[listing.id]!;
+      expect(listing.sectorAsset.workers).toBe(Math.max(1, Math.round(corp.revenue / 2000)));
+      expect(listing.sectorAsset.unionId).toBe(`${corp.countryId}-${corp.sectorType}`);
+      expect(listing.sectorAsset.unionName).toBe(world.unions[`${corp.countryId}-${corp.sectorType}`]!.name);
       expect(listing.sectorAsset.forSale).toBeNull();
     }
     expect(JSON.stringify(view)).not.toMatch(/employee|staff|headcount|ceo|chief executive/i);

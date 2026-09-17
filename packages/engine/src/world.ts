@@ -145,11 +145,13 @@ import { startingCashFor } from "./stats/characterWealth.js";
 // v45: regional policy metric values (world.regionalMetrics); see save.ts.
 // v46: market pressure multipliers, trade windows, and compact price history;
 // see save.ts.
+// v47: grounded corporate-sector workforce (workers, representingUnionId);
+// see save.ts.
 // Issues #334/#345 difficulty and autonomy carry no schema version of
 // their own: both are optional axes with absent-means-default (see
 // WorldState.difficulty/nppAutonomyLevel), so default worlds keep the
 // schema 46 bytes.
-export const SCHEMA_VERSION = 46;
+export const SCHEMA_VERSION = 47;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
