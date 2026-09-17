@@ -476,11 +476,12 @@ describe("player buy/sell bond actions (cite: bonds purchase at marketPrice × f
     expect(world.bonds["sell-1"]!.holders.find((h) => h.holderId === "player")!.units).toBe(15);
   });
 
-  it("PORT-STUB: cross-currency buy is blocked with named blocker forex", () => {
+  it("#306: cross-currency buy settles in the bond denomination, not home cash", () => {
     const world = createWorld(OPTS);
     world.player.actions = 10;
     world.player.cash = 1_000_000;
-    // Bond in UK (GBP) while player is US (USD) — should be blocked
+    world.player.currencyBalances = { personal: { GBP: 5_000 } };
+    // Bond in UK (GBP) while player is US (USD) — debits the GBP balance
     world.bonds["fx-1"] = {
       id: "fx-1",
       issuerType: "sovereign",
@@ -503,8 +504,11 @@ describe("player buy/sell bond actions (cite: bonds purchase at marketPrice × f
       updatedAt: world.meta.date,
     };
     const res = executeAction(world, "player", "buyBond", { bondId: "fx-1", units: 1 });
-    expect(res.ok).toBe(false);
-    expect((res as { error: string }).error).toMatch(/forex/);
+    expect(res.ok).toBe(true);
+    expect(world.player.cash).toBe(1_000_000);
+    expect(world.player.currencyBalances?.personal.GBP).toBe(4_000);
+    expect(world.bonds["fx-1"]!.holders.find((h) => h.holderId === "player")!.units).toBe(1);
+    expect(world.bonds["fx-1"]!.publicFloat).toBe(4999);
   });
 
   it("rejects buying more than public float", () => {

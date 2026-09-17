@@ -18,6 +18,7 @@ import * as Caucus from "../caucus.js";
 import * as Endorsement from "../endorsement.js";
 import * as Candidacy from "../elections/candidacy.js";
 import { commissionPoll } from "./polling.js";
+import { resolveBondCurrency, resolveCountryCurrency } from "../bonds/denomination.js";
 import * as CampaignUpgrade from "./campaignUpgrade.js";
 import * as CampaignRally from "./campaignRally.js";
 import * as CampaignRallyTour from "./campaignRallyTour.js";
@@ -1508,10 +1509,18 @@ function executeActionInner(
 
   // W13 bonds — player buy/sell sovereign bond units at mainline pricing.
   // #307 extends the same seam to corporate issues with issuer/owner invariant
-  // enforcement above (corporate servicing itself is #308).
-  // Ports src/app/api/bonds/[bondId]/buy+ sell (reserveBondUnitsForHolder) at neutral fee.
-  // Pricing: cost = units × BOND_UNIT_FACE_VALUE × marketPrice (same as mainline's costLocal).
-  // Forex blocker: cross-country sovereign holding is PORT-STUB — needs live FX (see sovereign.ts currencyCode) — blocked with named blocker "forex".
+  // enforcement below (corporate servicing itself is #308).
+  // Ports src/app/api/bonds/[bondId]/buy + sell (reserveBondUnitsForHolder) at neutral fee.
+  // Pricing: cost = units × faceValue × marketPrice, rounded once (same as mainline's costLocal).
+  // Denomination (#306): the debit/credit balance is named by the bond's authoritative
+  // currencyCode (Task-18B canonical key; legacy fallback country currency then USD — the
+  // same resolver as the coupon/maturity path in bonds/bondTurn.ts). Home-currency bonds
+  // move player.cash (preserves domestic behavior and old saves); foreign bonds move
+  // currencyBalances.personal[ccy] (optional, JSON-safe; absent means zero). No FX
+  // conversion — the solo engine has no FX system, so a foreign bond needs a pre-funded
+  // foreign balance (coupons/maturities from #305 are one way to fund it). Corporate
+  // bond lifecycle/servicing stays out of scope (#307/#308); corporate issues carrying
+  // an explicit denomination settle through this same path.
   if (actionId === "buyBond" || actionId === "sellBond") {
     if (found.kind !== "player") return { ok: false, error: "Only the player trades bonds" };
     const bondId = params.bondId;
@@ -1546,27 +1555,48 @@ function executeActionInner(
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: identityError };
     }
-    const playerCountry = world.player.countryId;
-    if (bond.countryId !== playerCountry) {
-      actor.actions += cost;
-      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
-      return { ok: false, error: `Blocked: forex — cross-currency bond ${bondId} (${bond.countryId} ${bond.currencyCode} vs player ${playerCountry}) requires FX system (unported)` };
-    }
+    const bondCurrency = resolveBondCurrency(world, bond);
+    const homeCurrency = resolveCountryCurrency(world, world.player.countryId);
+    const domestic = bondCurrency === homeCurrency;
+    // Read-only lookup: never creates currencyBalances, so a refusal changes
+    // neither cash/currency balances, holdings, nor public float.
+    const denominationBalance = (): number =>
+      domestic ? (world.player.cash ?? 0) : (world.player.currencyBalances?.personal?.[bondCurrency] ?? 0);
     const pricePerUnit = Math.round(bond.faceValue * bond.marketPrice * 100) / 100;
     const notional = Math.round(units * bond.faceValue * bond.marketPrice * 100) / 100;
-    const player = world.player as unknown as { cash: number };
+    const debitDenomination = (amount: number): void => {
+      if (domestic) {
+        world.player.cash -= amount;
+      } else {
+        const balances = (world.player.currencyBalances ??= { personal: {} }).personal;
+        balances[bondCurrency] = (balances[bondCurrency] ?? 0) - amount;
+      }
+    };
+    const creditDenomination = (amount: number): void => {
+      if (domestic) {
+        world.player.cash = (world.player.cash ?? 0) + amount;
+      } else {
+        const balances = (world.player.currencyBalances ??= { personal: {} }).personal;
+        balances[bondCurrency] = (balances[bondCurrency] ?? 0) + amount;
+      }
+    };
     if (actionId === "buyBond") {
       if (bond.publicFloat < units) {
         actor.actions += cost;
         if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
         return { ok: false, error: `Only ${bond.publicFloat} units available in ${bond.id}'s public float` };
       }
-      if ((player.cash ?? 0) < notional) {
+      const available = denominationBalance();
+      if (available < notional) {
         actor.actions += cost;
         if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
-        return { ok: false, error: `Not enough cash. Required: ${notional}, Available: ${player.cash}` };
+        return domestic
+          ? { ok: false, error: `Not enough cash. Required: ${notional}, Available: ${world.player.cash}` }
+          : { ok: false, error: `Not enough ${bondCurrency} balance. Required: ${notional}, Available: ${available}` };
       }
-      player.cash -= notional;
+      // Single action transition: balance, holding, and public-float changes
+      // commit together. Every refusal above returns before this point.
+      debitDenomination(notional);
       bond.publicFloat -= units;
       let holding = bond.holders.find((h) => h.holderId === "player");
       if (!holding) {
@@ -1575,7 +1605,7 @@ function executeActionInner(
       }
       holding.units += units;
       bond.updatedAt = world.meta.date;
-      return { ok: true, message: `Bought ${units} units of ${bond.id} for ${notional} (${bond.currencyCode})` };
+      return { ok: true, message: `Bought ${units} units of ${bond.id} for ${notional} (${bondCurrency})` };
     }
     const holding = bond.holders.find((h) => h.holderId === "player");
     if (!holding || holding.units < units) {
@@ -1583,12 +1613,14 @@ function executeActionInner(
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: `You only own ${holding?.units ?? 0} units of ${bond.id}` };
     }
+    // Single action transition: holding, public float, and balance credit
+    // commit together (mirrors the mainline sell's pool-debit + holder + credit).
     holding.units -= units;
     if (holding.units === 0) bond.holders = bond.holders.filter((h) => h !== holding);
     bond.publicFloat += units;
-    player.cash = (player.cash ?? 0) + notional;
+    creditDenomination(notional);
     bond.updatedAt = world.meta.date;
-    return { ok: true, message: `Sold ${units} units of ${bond.id} for ${notional} (${bond.currencyCode})` };
+    return { ok: true, message: `Sold ${units} units of ${bond.id} for ${notional} (${bondCurrency})` };
   }
 
   // W31 crisis action hooks — player responses to active crises.
