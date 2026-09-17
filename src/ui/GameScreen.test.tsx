@@ -767,6 +767,29 @@ describe("GameScreen", () => {
     expect(screen.getAllByText(/cooldown/i).length).toBeGreaterThan(0);
   });
 
+  it("party card header wraps a long player-party name instead of squeezing the Yours badge", async () => {
+    const user = userEvent.setup();
+    const longName = "National Democratic Alliance for Progress and Prosperity";
+    const world = makeWorld({
+      parties: [{ id: "p9", name: longName, abbreviation: "NDAPP", color: "#1d4ed8", logoUrl: null, members: 80, treasury: 4000, isPlayerParty: true }],
+      actions: [{ id: "leaveParty", name: "Leave Party", description: "Leave", cost: 0, available: true }],
+    });
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
+    await navigate(user, "Parties");
+    const badge = screen.getByText("Yours");
+    const header = badge.parentElement as HTMLElement;
+    expect(header.style.display).toBe("flex");
+    expect(header.style.justifyContent).toBe("space-between");
+    expect(header.style.flexWrap).toBe("wrap");
+    expect(badge.style.flexShrink).toBe("0");
+    const card = badge.closest(".ahd-card") as HTMLElement;
+    const nameEl = card.querySelector("strong") as HTMLElement;
+    expect(nameEl.textContent).toContain(longName);
+    expect(nameEl.style.overflowWrap).toBe("anywhere");
+    expect(nameEl.style.minWidth).toBe("0");
+    expect(screen.getByRole("button", { name: new RegExp(`leave ${longName}`, "i") })).toBeInTheDocument();
+  });
+
   it("deep-links from Profile finances into Fundraising and preserves the filter on return", async () => {
     const user = userEvent.setup();
     const world = makeWorld({
