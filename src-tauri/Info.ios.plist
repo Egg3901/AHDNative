@@ -4,5 +4,20 @@
 <dict>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
+    <!-- #436 runtime: dark chrome owns the status bar, so keep light status
+         content app-wide instead of the iOS dark-text default. View-controller
+         opt-out is required for UIStatusBarStyle to apply under Tauri/wry. -->
+    <key>UIViewControllerBasedStatusBarAppearance</key>
+    <false/>
+    <key>UIStatusBarStyle</key>
+    <string>UIStatusBarStyleLightContent</string>
+    <!-- #436 runtime: portrait and both landscape orientations are supported;
+         upside-down portrait stays off per iPhone convention. -->
+    <key>UISupportedInterfaceOrientations~iphone</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
 </dict>
 </plist>

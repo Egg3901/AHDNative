@@ -16,10 +16,16 @@ import { GameScreen } from './ui/GameScreen';
 import { LandingScreen } from './ui/LandingScreen';
 import { MpModeScreen } from './ui/MpModeScreen';
 import { AskPanel } from './ask/AskPanel';
+import { installIosViewport } from './ui/iosViewport';
 
 export function App() {
   const [presentation, setPresentation] = useState(loadPreferences);
   useEffect(() => applyPreferencesToDocument(presentation.value), [presentation.value]);
+  // #436 runtime: publish keyboard/visualViewport facts as CSS variables.
+  useEffect(() => {
+    const viewport = installIosViewport();
+    return () => viewport.uninstall();
+  }, []);
   const changePreferences = useCallback((value: Preferences) => setPresentation(savePreferences(value)), []);
   const client = useRef<GameClient | null>(null);
   const locked = useRef(false);
