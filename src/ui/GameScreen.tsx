@@ -109,6 +109,28 @@ function formatCount(v: number): string {
   return v.toLocaleString(undefined, { maximumFractionDigits: 1 });
 }
 
+// #510 honest unavailable state for metrics deep links with the flag off.
+// A frozen registry must not pose as live data: the shell says metrics are
+// off, points at World settings to re-enable them, and offers a way out,
+// never a blank region. Mirrors the cabinet-office fallback.
+function MetricsUnavailable({ title, secondaryLabel, onWorldSettings, onSecondary }: {
+  title: string;
+  secondaryLabel: string;
+  onWorldSettings: () => void;
+  onSecondary: () => void;
+}) {
+  return (
+    <div className="ahd-stack">
+      <h2 className="ahd-h2">{title}</h2>
+      <div className="ahd-empty" role="note">National metrics are turned off for this world, so there is no live registry to show. Your game is intact; re-enable them under World settings or continue elsewhere.</div>
+      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+        <button type="button" className="ahd-btn ahd-btn-sm" onClick={onWorldSettings}>Go to World settings</button>
+        <button type="button" className="ahd-btn ahd-btn-sm" onClick={onSecondary}>{secondaryLabel}</button>
+      </div>
+    </div>
+  );
+}
+
 type ResourceId = "ap" | "funds" | "cash" | "influence" | "favorability";
 const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
   { id: "ap", short: "AP", label: "Action points" },
@@ -475,6 +497,8 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
       onNavigate={navigate}
       identityOrg={identityOrg}
       roleConditions={roleConditions}
+      metricsAvailable={world.capabilityNav?.metricsAvailable}
+      referendumsAvailable={world.capabilityNav?.referendumsAvailable}
       onAdvanceTurn={onAdvanceTurn}
       onSave={onSave}
       onExit={onExit}
@@ -705,7 +729,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           tabIndex={0}
           style={{ outline: "none" }}
         >
-          {(route === "economy" || route === "budget" || route === "policy" || route === "metrics") && (
+          {(route === "economy" || route === "budget" || route === "policy") && (
             <NationPanel
               nation={world.nation}
               section={route}
@@ -714,6 +738,17 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
               onNavigate={navigate}
             />
           )}
+          {route === "metrics" && (world.capabilityNav?.metricsAvailable === false ? (
+            <MetricsUnavailable title="National metrics" secondaryLabel="Go to economy" onWorldSettings={() => go("worldSettings")} onSecondary={() => go("economy")} />
+          ) : (
+            <NationPanel
+              nation={world.nation}
+              section={route}
+              clock={clock}
+              era={world.era}
+              onNavigate={navigate}
+            />
+          ))}
           {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={route === "nations" ? (detailId ?? nationContext) : detailId} onSelectNation={route === "nations" ? (id) => { setDetailId(undefined); setNationContext(id); } : undefined} onNavigate={navigate} />}</DetailQuery>}
           {route === "worldMap" && <WorldMapRoute loadOverview={loadWorldOverview} loadRegions={loadRegions} revision={world} section={preferences.worldMapSection} onSectionChange={(worldMapSection) => onPreferencesChange({ ...preferences, worldMapSection })} onNavigate={navigate} />}
           {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} revision={world} busy={busy} onNavigate={navigate} />}
@@ -766,11 +801,15 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           }} /> : null}
           {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} onNavigate={(next) => go(next)} /> : null}
           {detailBack && (route === "partyDetails" || route === "electionDetails" || route === "campaignDetails" || route === "presidentialDetails" || route === "politicians" || route === "markets" || route === "legislationDetails" || route === "bonds" || route === "regions" || route === "nations" || route === "referendums") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={detailBack.onBack}>{detailBack.name}</button>}
-          {route === "politicalMetrics" && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => go("elections")}>Back to elections</button>}
+          {route === "politicalMetrics" && world.capabilityNav?.metricsAvailable !== false && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => go("elections")}>Back to elections</button>}
           {route === "partyDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="parties" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
           {route === "electionDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="elections" initialId={detailId} onOpenCampaign={openCampaign} onOpenPolitician={openPolitician} onOpenPresidential={openPresidential} busy={busy} onAction={onAction} clock={clock} />}
           {route === "presidentialDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="presidential" initialId={detailId} onOpenCampaign={openCampaign} onOpenPolitician={openPolitician} busy={busy} onAction={onAction} clock={clock} />}
-          {route === "politicalMetrics" && <PoliticsRoute load={loadPolitics} revision={world} section="metrics" nation={world.nation} era={world.era} onNavigate={navigate} busy={busy} onAction={onAction} clock={clock} />}
+          {route === "politicalMetrics" && (world.capabilityNav?.metricsAvailable === false ? (
+            <MetricsUnavailable title="Political metrics" secondaryLabel="Go to elections" onWorldSettings={() => go("worldSettings")} onSecondary={() => go("elections")} />
+          ) : (
+            <PoliticsRoute load={loadPolitics} revision={world} section="metrics" nation={world.nation} era={world.era} onNavigate={navigate} busy={busy} onAction={onAction} clock={clock} />
+          ))}
           {route === "campaignDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="campaign" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
           {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} clock={clock} />}
           {route === "referendums" && <PoliticsRoute load={loadPolitics} revision={world} section="referendums" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}

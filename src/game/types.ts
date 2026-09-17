@@ -1,3 +1,4 @@
+import type { CapabilityNavSupport } from "./capabilityNav";
 import type { LegislationDetailsQuery, LegislationSelection } from "./legislationDetails";
 import type { CabinetSponsorView, NominationView, ScotusSponsorView } from "./nominations";
 import type { LegislatureChamberPartySeats } from "./legislature";
@@ -221,6 +222,11 @@ export interface GameView {
   autonomyLevel: NppAutonomyLevel;
   /** Live simulation rule map for the in-game World settings surface (#352). */
   featureFlags: WorldFeatureFlags;
+  /**
+   * Projected drawer/screen support for metrics and referendums (#510).
+   * Absent on pre-signal projections; callers then keep today's rows.
+   */
+  capabilityNav?: CapabilityNavSupport;
   player: { name: string; cash: number; funds: number; actions: number; influence: number; favorability: number; partyName: string; mode: SingleplayerMode; hosPartyId: string | null; homeRegionId: string | null; permanentHeadOfState?: boolean; currentOffice?: string | null; };
   legislature: LegislatureView;
   finance: FinanceView;

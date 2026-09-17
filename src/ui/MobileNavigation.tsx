@@ -394,6 +394,8 @@ export function GameDrawer({
   identityOrg,
   roleConditions,
   cabinetAvailable,
+  metricsAvailable,
+  referendumsAvailable,
 }: {
   open: boolean;
   /**
@@ -434,6 +436,13 @@ export function GameDrawer({
    * unconditional row so pre-signal callers render unchanged.
    */
   cabinetAvailable?: boolean;
+  /**
+   * Capability-gated rows (#510). Consumes the projected
+   * `GameView.capabilityNav` signal only: false hides the row, absent
+   * (pre-signal saves) keeps today's rows. No overlap with #520 role rows.
+   */
+  metricsAvailable?: boolean;
+  referendumsAvailable?: boolean;
 }) {
   const drawerRef = useRef<HTMLElement | null>(null);
   const activeGroup = MENU_GROUPS.find((group) =>
@@ -496,6 +505,21 @@ export function GameDrawer({
   }, [open, menuButtonRef]);
 
   if (!open && !docked) return null;
+
+  // #510 capability-gated rows. The reference omits (never disables) the
+  // Political Metrics row outside the playable pipeline and the Referendums
+  // row without an active campaign; Native omits on the projected signal.
+  // Absent props keep today's rows for pre-signal saves.
+  const capabilityHidden = (id: DrawerRouteId): boolean =>
+    ((id === "politicalMetrics" || id === "metrics") && metricsAvailable === false)
+    || (id === "referendums" && referendumsAvailable === false);
+  const visibleGroups = MENU_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !capabilityHidden(item.id)),
+    sections: group.sections
+      ?.map((section) => ({ ...section, items: section.items.filter((item) => !capabilityHidden(item.id)) }))
+      .filter((section) => section.items.length > 0),
+  }));
 
   return (
     <>
@@ -578,7 +602,7 @@ export function GameDrawer({
         {error ? <p className="ahd-alert ahd-drawer-feedback" role="alert">{error}</p>
           : message ? <p className="ahd-notice ahd-drawer-feedback" role="status">{message}</p> : null}
         <nav aria-label="Game sections" className="ahd-drawer-nav">
-          {MENU_GROUPS.map((group) => {
+          {visibleGroups.map((group) => {
             const deep = Boolean(group.sections?.length);
             const expanded = !deep || expandedGroups.has(group.label);
             // Cabinet gating (#510): without a seat the Government row drops

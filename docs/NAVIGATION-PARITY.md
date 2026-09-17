@@ -367,6 +367,20 @@ Remaining gaps (issue #510 stays open):
   #521, per-screen action/data depth, and physical-iPhone smoke remain as in
   section 8.
 
+## 11. Metrics/referendum capability gating (#510)
+
+- `projectCapabilityNav` projects support from saved domain state: the
+  `metrics` feature flag, UK request applicability, and active referendum
+  campaigns for the player country. Foreign or inactive records do not unlock
+  the row; pre-signal saves keep existing navigation.
+- `GameDrawer` omits unsupported metrics/referendum rows while composing with
+  role and cabinet gates. UK worlds keep Referendums discoverable before a
+  campaign exists so the player can start a supported request.
+- Metrics deep links with the feature disabled render an honest unavailable
+  state and recovery path. Hidden referendum routes remain search-reachable.
+- Focused evidence: `capabilityNav.test.ts` (6 tests) and
+  `MetricsReferendumGating510.test.tsx` (12 rendered tests at phone/desktop).
+
 ## 10. Search-originated detail returns (#510, follow-up to #524)
 
 Enforced by `src/ui/NavSearchReturn510.test.tsx`: 11 rendered tests green

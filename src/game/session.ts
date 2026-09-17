@@ -16,6 +16,7 @@ import { buildChamberNavigation, buildCommitteeNavigation, buildFloorSchedule } 
 import { projectCabinetSponsor, projectNominationDetail, projectNominationList, projectScotusSponsor } from "./nominations";
 import { projectWorldOverview } from "./worldOverview";
 import { projectNation } from "./nation";
+import { projectCapabilityNav } from "./capabilityNav";
 import { projectPolitics, projectPartyMembership } from "./politics";
 import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
@@ -675,6 +676,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
   const country = world.countries[world.player.countryId];
   if (!country || !country.playable) throw new Error("The save does not contain the player's playable country.");
   const player = world.player;
+  const capabilityNav = projectCapabilityNav(world);
   return {
     turn: world.meta.turn, date: world.meta.date, era: world.meta.era,
     foundingActive: isFoundingActive(world.elections),
@@ -687,6 +689,9 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     difficulty: resolveSingleplayerDifficulty(world.difficulty),
     autonomyLevel: resolveNppAutonomyLevel(world.nppAutonomyLevel),
     featureFlags: { ...world.featureFlags },
+    // #510: projected drawer/screen support. Pre-signal worlds omit the key
+    // so the shell keeps today's rows (old-save compatibility).
+    ...(capabilityNav ? { capabilityNav } : {}),
     player: { name: player.name, cash: player.cash, funds: player.funds, actions: player.actions,
       influence: player.politicalInfluence, favorability: player.favorability,
       partyName: player.partyId ? world.parties[player.partyId]?.name ?? "Independent" : "Independent",
