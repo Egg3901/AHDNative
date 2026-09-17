@@ -948,6 +948,15 @@ pub(crate) fn has_account_session(app: &tauri::AppHandle) -> bool {
     account_session_header(app).is_some()
 }
 
+/// Mobile transport (#362): the single webview cannot host a persistent
+/// first-party online window, so the bridge reads only the current account
+/// cookie from the platform-owned jar and relays the same allowlisted calls
+/// directly. The cookie value never reaches JavaScript, is never persisted,
+/// and is sent only to the pinned origin. These requests are not browser
+/// fetches (no CORS preflight, no automatic Origin), so each operation's
+/// server acceptance must be proven on a real signed build (#363). Refusals
+/// surface as `remote-error` through the same contract; the bridge never
+/// invents data.
 #[cfg(mobile)]
 async fn run_session_call(
     app: &tauri::AppHandle,

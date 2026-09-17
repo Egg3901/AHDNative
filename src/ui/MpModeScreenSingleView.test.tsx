@@ -175,4 +175,26 @@ describe("MpModeScreen single-view sign-in at 390px", () => {
     await user.click(screen.getByRole("button", { name: "Back" }));
     expect(onExit).toHaveBeenCalledTimes(1);
   });
+
+  it("never strands the user after starting sign-in: return paths stay put", async () => {
+    setViewport(390);
+    const user = userEvent.setup();
+    const { host, calls } = fakeHost({
+      fetch: { "auth-session": [{ reject: "session-unavailable" }, { reject: "session-unavailable" }] },
+    });
+    const onExit = vi.fn();
+    render(<MpModeScreen host={host} onExit={onExit} />);
+    await screen.findByRole("heading", { name: "Sign in to play multiplayer" });
+
+    // Starting sign-in borrows the only webview on device; the screen must
+    // still offer the safe return path instead of a dead end.
+    await user.click(screen.getByRole("button", { name: "Continue with Discord" }));
+    expect(calls).toContain("sign-in:discord");
+    expect(await screen.findByRole("heading", { name: "Sign in to play multiplayer" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
 });

@@ -123,6 +123,28 @@ describe("MpModeSession enter", () => {
     expect((await new MpModeSession(host).enter()).phase).toBe("session-required");
   });
 
+  it("keeps entry session-required distinct from a mid-session single-view loss", async () => {
+    // Single-view entry with no session: sign-in path, not data.
+    const { host: entryHost } = scriptedHost({ fetch: { "auth-session": [{ reject: "session-unavailable" }] } });
+    expect((await new MpModeSession(entryHost).enter()).phase).toBe("session-required");
+    // The same rejection after a signed-in probe: offline, prior state intact.
+    const { host } = scriptedHost({
+      fetch: {
+        "auth-session": [probeA, probeA],
+        "character-me": [meA(1000), { reject: "session-unavailable" }],
+        "turn-status": [turn()],
+        "client-nav": [caps()],
+        notifications: [inbox()],
+      },
+    });
+    const session = new MpModeSession(host);
+    expect((await session.enter()).phase).toBe("ready");
+    const snapshot = await session.refresh();
+    expect(snapshot.phase).toBe("offline");
+    expect(snapshot.error).toMatch(/live-site session closed/i);
+    expect(snapshot.character?.cashOnHand).toBe(1000);
+  });
+
   it("reports server-error on a malformed probe", async () => {
     const { host } = scriptedHost({ fetch: { "auth-session": ["{oops"] } });
     expect((await new MpModeSession(host).enter()).phase).toBe("server-error");
