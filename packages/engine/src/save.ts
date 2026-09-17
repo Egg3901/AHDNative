@@ -26,7 +26,7 @@ import {
 import { seedCapitalStock } from "./economy/capitalStock.js";
 import { seedStateResourceCapacities } from "./extraction/founding.js";
 import { seedCountryPolitics } from "./countryPolitics/overview.js";
-import { validateCorporateSectorAssets } from "./corporation/corporateSectorAssets.js";
+import { backfillSectorOwner, validateCorporateSectorAssets } from "./corporation/corporateSectorAssets.js";
 
 /**
  * Save file = versioned JSON envelope around the full WorldState. Older
@@ -2584,6 +2584,15 @@ export function deserializeSave(raw: string): WorldState {
     if (typeof campaign.campaignStrength !== "number") campaign.campaignStrength = 0;
   }
   assertCurrentWorldState(save.world);
-  if (save.world.corporateSectors !== undefined) validateCorporateSectorAssets(save.world, save.world.corporateSectors);
+  // #295: persisted sector-owner default. Saves written before the
+  // acquisition slice carry materialized assets without the field; missing
+  // degrades to the #293 default ("corporation") and keeps every loaded row
+  // explicit. Applies to current-schema saves too, so no version renumber
+  // is needed. Present-but-invalid values are left for the validator below
+  // to fail closed on.
+  if (save.world.corporateSectors !== undefined) {
+    backfillSectorOwner(save.world.corporateSectors);
+    validateCorporateSectorAssets(save.world, save.world.corporateSectors);
+  }
   return save.world;
 }
