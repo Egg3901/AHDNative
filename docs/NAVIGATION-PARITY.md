@@ -443,7 +443,7 @@ Remaining gaps (issue #510 stays open):
   #521, per-screen action/data depth, and physical-iPhone smoke remain as in
   section 8.
 
-## 12. Home-region viewer-row returns (#510)
+## 13. Home-region viewer-row returns (#510)
 
 Enforced by `src/ui/RegionViewerReturn510.test.tsx`: 12 rendered tests green
 at 320px, 390px, and 1280px (desktop). The Governor Office (office-holder)
@@ -485,7 +485,7 @@ Remaining gaps (issue #510 stays open):
 - Role/country/capability conditions beyond this slice, SP-MP switching,
   per-screen action/data depth, and physical-iPhone smoke remain as in
   section 8.
-## 13. MP Standing capability audit (#359/#510)
+## 14. MP Standing capability audit (#359/#510)
 
 Audited the authoritative multiplayer Standing card (corporation, union,
 active election, cabinet, governor) against current AHDGame main. Reference
