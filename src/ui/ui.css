@@ -716,8 +716,19 @@ html, body { overflow-x: hidden; }
   font-size: 0.84rem; font-weight: 600; text-align: left;
   padding: 0.5rem 0.55rem; border-radius: 0 var(--ahd-radius-sm) var(--ahd-radius-sm) 0;
   cursor: pointer; touch-action: manipulation;
-  min-height: 44px; display: flex; align-items: center;
+  min-height: 44px; display: flex; align-items: center; gap: 0.4rem;
+  min-width: 0;
 }
+/* Long/localized drawer labels (e.g. "Presidential election", "Bills and
+ * proposals") truncate in place inside the 320px sheet instead of pushing
+ * the unread badge out of the row. The badge keeps its own flex box so it
+ * is never squeezed or wrapped below the label. Row height and the compact
+ * 44px hierarchy are unchanged. */
+.ahd-drawer-item-label {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ahd-drawer-item .ahd-badge { flex: 0 0 auto; }
 .ahd-drawer-item:hover { background: var(--ahd-card-elevated); }
 .ahd-drawer-item:focus-visible { outline: none; box-shadow: var(--ahd-focus); }
 .ahd-drawer-item[data-active="true"] {

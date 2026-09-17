@@ -324,9 +324,11 @@ function DrawerNavButton({
       data-active={route === item.id ? "true" : undefined}
       onClick={() => onNavigate(item.id)}
     >
-      {item.label}
+      {/* Label truncates in place at 320px (long/localized strings); the
+          badge keeps its own box so it is never squeezed or wrapped away. */}
+      <span className="ahd-drawer-item-label" title={item.label}>{item.label}</span>
       {item.id === "notifications" && (unreadCount ?? 0) > 0 ? (
-        <span className="ahd-badge" aria-hidden="true" style={{ marginLeft: "0.4rem", background: "var(--ahd-primary)", color: "white" }}>
+        <span className="ahd-badge" aria-hidden="true" style={{ background: "var(--ahd-primary)", color: "white" }}>
           {unreadCount! > 99 ? "99+" : unreadCount}
         </span>
       ) : null}
