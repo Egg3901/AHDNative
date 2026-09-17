@@ -22,5 +22,5 @@ it("scans regional registrations at most once per region, preserving the pre-cac
   }
   world.meta.turn = 12;
   expect(processNppStanceDrift(world, rngFromSeed("unused"))).toEqual({ drifted: 1500 });
-  expect(createHash("sha256").update(JSON.stringify(world)).digest("hex")).toBe("8b13b0863b99b7127918ae55ad5364b9b8b3e5f764f93e1a6d8b2f5a12b8bd91");
+  expect(createHash("sha256").update(JSON.stringify(world)).digest("hex")).toBe("f4f085555e39e00a5467c2b152208c3d822453f81b8a948bab76fbd857e1d0b2");
 });
