@@ -33,6 +33,7 @@ import {
   validateCorporateSectorAssets,
 } from "./corporation/corporateSectorAssets.js";
 import { validateUnionOrganizers } from "./unions/organizers.js";
+import { validateUnionContributionLedger } from "./unions/contributions.js";
 
 /**
  * Save file = versioned JSON envelope around the full WorldState. Older
@@ -2632,6 +2633,15 @@ export function deserializeSave(raw: string): WorldState {
   // the reference absent-means-zero rule explicitly.
   if (save.world.unionOrganizers !== undefined) {
     validateUnionOrganizers(save.world, save.world.unionOrganizers);
+  }
+  // #321: union contribution ledger. Saves written before the payout slice
+  // carry no rows; missing degrades to empty and every loaded row is kept
+  // explicit — same additive shape as the organizer backfill above, so no
+  // version renumber is needed. Present-but-invalid rows fail closed.
+  // Absent stays absent (no materialization), so a mid-campaign save/load
+  // leaves untouched worlds byte-identical.
+  if (save.world.unionContributionLedger !== undefined) {
+    validateUnionContributionLedger(save.world, save.world.unionContributionLedger);
   }
   // Union strength keeps the reference absent-means-zero rule WITHOUT
   // materializing the field: a mid-campaign save/load must leave union rows

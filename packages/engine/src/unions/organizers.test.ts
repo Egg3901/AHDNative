@@ -144,9 +144,15 @@ describe("#320 union organizer identity and strength", () => {
     const union = world.unions["US-manufacturing"]!;
     union.duesPerWorkerAnnual = 5;
     union.politicalContributionPct = 0.5;
+    // #321: payouts credit real recipients (stale pointers are skipped, not
+    // paid), so the split fixtures use resolvable politician identities.
+    const [first, second] = world.politicians
+      .filter((p) => p.countryId === "US")
+      .map((p) => p.id)
+      .sort();
     world.unionOrganizers = {
-      "US-manufacturing:char-a": { ...organizer(world, "US-manufacturing", "char-a"), strength: 30 },
-      "US-manufacturing:char-b": { ...organizer(world, "US-manufacturing", "char-b"), strength: 10 },
+      [`US-manufacturing:${first}`]: { ...organizer(world, "US-manufacturing", first!), strength: 30 },
+      [`US-manufacturing:${second}`]: { ...organizer(world, "US-manufacturing", second!), strength: 10 },
     };
     // Independent restatement of the turn's dues math before the turn runs.
     const rows = representedSectorsForUnion(world, union);
@@ -162,12 +168,12 @@ describe("#320 union organizer identity and strength", () => {
     // Strength decay ran first, so the paid split follows the decayed 3:1 weights exactly.
     const decayed = 1 - UNION_STRENGTH_DECAY_PER_TURN;
     const shares = eligibleOrganizerShares(world, "US-manufacturing");
-    expect(shares.map((s) => s.characterId)).toEqual(["char-a", "char-b"]);
+    expect(shares.map((s) => s.characterId)).toEqual([first, second]);
     expect(shares[0]!.strength).toBeCloseTo(30 * decayed, 10);
     expect(shares[1]!.strength).toBeCloseTo(10 * decayed, 10);
     const payouts = distributePoliticalContributions(requested, [
-      { characterId: "char-a", strength: 30 * decayed },
-      { characterId: "char-b", strength: 10 * decayed },
+      { characterId: first!, strength: 30 * decayed },
+      { characterId: second!, strength: 10 * decayed },
     ]);
     const paid = payouts.reduce((sum, payout) => sum + payout.amount, 0);
     expect(paid).toBeCloseTo(requested, 10);

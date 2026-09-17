@@ -27,8 +27,10 @@
  *  - duesIncome = duesIncomePerTurn(members, duesRate)
  *  - servicesCost floored to 0 when > treasury+duesIncome (lapses)
  *  - requested contribution = politicalContributionPerTurn(freeCashFlow, pct)
- *  - actual debit equals eligible organizer payouts (#320 organizer shares;
- *    with no eligible organizers Native retains the unpaid amount in treasury)
+ *  - actual debit equals the paid organizer payouts (#320 organizer shares
+ *    filtered to resolvable recipients, #321 atomic payout leg crediting
+ *    recipient campaign funds with one union_contribution ledger row each;
+ *    with no payable organizers Native retains the unpaid amount in treasury)
  *  - treasury += duesIncome - servicesCost - contribution
  *  - approval trends toward approvalTarget
  *
@@ -68,6 +70,7 @@ import {
   politicalContributionPerTurn,
 } from "./political.js";
 import { decayUnionStrength, eligibleOrganizerShares } from "./organizers.js";
+import { applyUnionContributionPayouts, resolveContributionRecipient } from "./contributions.js";
 import {
   adoptUnrepresentedSectors,
   representedSectorsForUnion,
@@ -117,15 +120,24 @@ export const unionsTurnPhase: TurnPhase = {
       const contributionPct = clampPoliticalContributionPct(union.politicalContributionPct);
       const freeCashFlow = freeCashFlowPerTurn(duesIncome, servicesCost);
       // Mainline debits only the sum actually paid to eligible organizers
-      // (#320 shares from banked organizer strength). With no eligible
-      // organizers the requested amount remains in treasury until #321 pays
-      // real recipients and records the ledger.
+      // (#320 shares from banked organizer strength, split by the verbatim
+      // distributePoliticalContributions rule). #321: shares whose organizer
+      // identity resolves to no recipient record are excluded BEFORE the
+      // split, so the debit equals exactly what real recipients are
+      // credited; with no payable organizers the requested amount remains
+      // in treasury. The payout leg below is atomic: treasury, recipient
+      // campaign funds, and ledger rows move together, and any invalid
+      // recipient throws before mutating anything.
       const requestedContribution = politicalContributionPerTurn(freeCashFlow, contributionPct);
       const payouts = distributePoliticalContributions(
         requestedContribution,
-        eligibleOrganizerShares(world, union.id),
+        eligibleOrganizerShares(world, union.id).filter(
+          (share) => resolveContributionRecipient(world, share.characterId) !== null,
+        ),
       );
-      const contribution = payouts.reduce((sum, payout) => sum + payout.amount, 0);
+      if (payouts.length > 0) {
+        applyUnionContributionPayouts(world, { unionId: union.id, turn, payouts });
+      }
       const target = approvalTarget({
         duesPerWorkerAnnual: duesRate,
         annualWage: avgWage,
@@ -135,7 +147,10 @@ export const unionsTurnPhase: TurnPhase = {
       });
       const nextApproval = trendApproval(unionApproval(union), target);
 
-      union.treasury = union.treasury + duesIncome - servicesCost - contribution;
+      // The contribution leg already left treasury inside
+      // applyUnionContributionPayouts (debit == paid exactly); only dues in
+      // and services out remain here.
+      union.treasury = union.treasury + duesIncome - servicesCost;
       // Clamp treasury to non-negative defensively (mainline never lets services push negative; contributions can still)
       if (union.treasury < 0) union.treasury = 0;
       // Round treasury to cents

@@ -334,6 +334,17 @@ export interface WorldState {
    */
   unionOrganizers?: Record<string, import("./unions/organizers.js").UnionOrganizer>;
   /**
+   * Paid union political-contribution ledger, oldest first. Ports mainline's
+   * `union_contribution` financialTxLog rows (src/lib/turn/unions/index.ts +
+   * src/lib/db/types/financialTxLog.ts) at seeded-roster granularity: one row
+   * per organizer payout with the reference type/counterparty/meta shape
+   * (see unions/contributions.ts). Optional with absent-means-empty —
+   * pre-#321 saves carry no rows — backfilled on load and strict-validated
+   * at the save boundary. No schema bump: same additive pattern as the
+   * campaign spend-stock backfill.
+   */
+  unionContributionLedger?: Array<import("./unions/contributions.js").UnionContributionRecord>;
+  /**
    * Sovereign bonds, keyed by bond id. Ports src/lib/db/types/bond.ts (sovereign
    * subset) + src/lib/bonds/sovereign.ts issuance/maturity bookkeeping. One row
    * per quarterly auction tranche (single 48t maturity this wave); holders are
