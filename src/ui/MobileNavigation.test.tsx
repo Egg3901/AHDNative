@@ -217,6 +217,32 @@ describe("MobileNavigation", () => {
     expect(css).toMatch(/\.ahd-footer[^{]*\{[^}]*env\(safe-area-inset-bottom\)/);
   });
 
+  it("gives the footer identity link a 24px hit area without growing the compact footer", () => {
+    const css = readFileSync("src/ui/ui.css", "utf8");
+    // The Profile identity button is an inline text target (~14px tall) between
+    // truncated context text: the only footer control below the WCAG 2.5.8
+    // minimum while resource buttons (44px) and bottom nav (56px) comply.
+    // Hit padding with equal negative margins expands the tap area to 24px+
+    // with zero net layout growth, so the 160px footer budget is untouched.
+    const rule = css.match(/\.ahd-status-identity-name\s*\{([^}]*)\}/);
+    expect(rule).not.toBeNull();
+    const body = rule![1]!;
+    const padding = body.match(/padding:\s*([\d.]+)rem\s+([\d.]+)rem/);
+    const margin = body.match(/margin:\s*(-?[\d.]+)rem\s+(-?[\d.]+)rem/);
+    expect(padding).not.toBeNull();
+    expect(margin).not.toBeNull();
+    // 0.72rem type at 1.2 line-height is ~13.8px; 2 x 0.35rem hit padding
+    // reaches ~25px tall, clearing the 24px minimum at the default root size.
+    expect(parseFloat(padding![1]!)).toBeGreaterThanOrEqual(0.35);
+    // Negative margins cancel the hit padding exactly: no layout growth.
+    expect(parseFloat(margin![1]!)).toBeCloseTo(-parseFloat(padding![1]!), 5);
+    expect(parseFloat(margin![2]!)).toBeCloseTo(-parseFloat(padding![2]!), 5);
+    // Long names still truncate in place: the fix must not unwrap or widen.
+    expect(body).toMatch(/white-space:\s*nowrap/);
+    expect(body).toMatch(/text-overflow:\s*ellipsis/);
+    expect(body).toMatch(/max-width:\s*9rem/);
+  });
+
   it("renders a compact identity header with every fact truncated (#366)", () => {
     const css = readFileSync("src/ui/ui.css", "utf8");
     const ref = createRef<HTMLButtonElement | null>();

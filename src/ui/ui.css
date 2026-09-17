@@ -512,14 +512,18 @@ html, body { overflow-x: hidden; }
   overflow-wrap: anywhere;
 }
 /* Reference status-bar identity (#223): the character name links to Profile,
-   followed by the party · country context. Inline (no 44px touch box) so the
-   compact footer keeps its height budget on 320px. */
+   followed by the party · country context. The name stays visually inline so
+   the compact footer keeps its height budget on 320px, but the text alone is
+   a ~14px tap target: the only footer control below the WCAG 2.5.8 minimum
+   while resource buttons (44px) and bottom nav (56px) comply. Hit padding
+   with equal negative margins expands the tap area to 24px+ with zero net
+   layout growth, so truncation and the 160px footer budget are untouched. */
 .ahd-status-identity {
   display: inline-flex; align-items: baseline; flex-wrap: nowrap; gap: 0.15rem 0.35rem;
   min-width: 0; max-width: 100%; overflow: hidden;
 }
 .ahd-status-identity-name {
-  appearance: none; border: none; background: transparent; padding: 0; margin: 0;
+  appearance: none; border: none; background: transparent; padding: 0.35rem 0.25rem; margin: -0.35rem -0.25rem;
   font: inherit; font-weight: 650; color: var(--ahd-fg);
   cursor: pointer; touch-action: manipulation; text-align: left;
   border-radius: var(--ahd-radius-sm);
