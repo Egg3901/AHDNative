@@ -40,7 +40,7 @@ destinations, turn/save/exit controls, and `onNavigate` handler; it adds no
 backdrop, focus trap, or scroll lock.
 
 List/detail pairing: routed surfaces opt in with `.ahd-dual-panes` and
-`data-pane="list"` / `data-pane="detail"` landmarks. Adopted by seven
+`data-pane="list"` / `data-pane="detail"` landmarks. Adopted by eight
 player-flow surfaces: parties (`PoliticsPanel` parties section), elections
 (`PoliticsPanel` elections section: race filters/select beside the
 selected-race detail), regions (`RegionsPanel`: directory beside the
@@ -54,7 +54,11 @@ in dual posture so the single-pane selected view stays exactly the
 detail-only phone flow with Back), and news (`NewsPanel`: article wire
 beside the open article or event detail, paired only in dual posture so the
 single-pane open article/event stays exactly the detail-only phone flow
-with Back). Every pairing shares the existing
+with Back), and notifications (`NotificationsInbox`: inbox rows beside the
+open notice, paired only in dual posture so the single-pane list/detail
+toggle journey with Back stays exactly as before; the narrow-viewport
+toggle hiding is gated on single-pane so it never hides a pane once a
+hinge is reported). Every pairing shares the existing
 selection/query state; no surface duplicates it. The GameScreen elections tab
 is list-only and routes into the paired elections section for detail.
 
@@ -85,7 +89,9 @@ is list-only and routes into the paired elections section for detail.
   journey with unchanged ballot routing. `NewsPanel.test.tsx`: article wire
   paired with the open article and with the open event detail sharing one
   selection; single-pane keeps the detail-only phone journey with no list
-  pane.
+  pane. `Notifications.test.tsx`: inbox rows paired with the open notice
+  sharing one selection in dual posture; single-pane keeps the list/detail
+  toggle journey with no paired panes.
 - Emulator QA (`?ahd-span=vertical|horizontal`) covers single, spanned
   portrait/landscape assignment; folded/unfolded posture acceptance needs
   representative hardware and remains open, so #438 stays `status: partial`.
