@@ -1102,7 +1102,8 @@ pub(crate) fn has_account_session(app: &tauri::AppHandle) -> bool {
 /// session — a leftover dead cookie only ever probes 401 (signed out).
 #[cfg(mobile)]
 fn evict_account_session_cookies(app: &tauri::AppHandle) {
-    let Ok(url) = format!("{}/api/auth/session", session_origin()).parse() else {
+    let Ok(url): Result<tauri::Url, _> = format!("{}/api/auth/session", session_origin()).parse()
+    else {
         return;
     };
     for label in ["online", "main"] {
