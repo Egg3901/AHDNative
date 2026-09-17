@@ -44,6 +44,23 @@
  * - notifications     /api/notifications       requireBasicAuth; 401
  *   query limit (default 50, hard max 100), offset; response {notifications[]
  *   (string _id/userId), unreadCount, total, hasMore, ...}
+ * - election-detail   /api/elections?id={id}&view=summary  GET, optional auth
+ *   (AHDGame src/app/api/elections/route.ts single mode; the page shell at
+ *   src/app/elections/[id]/page.tsx and ElectionDetailClient poll the same
+ *   `?id=&view=full` shape, Native reads the summary view). The id accepts a
+ *   24-hex ObjectId or a seatId (e.g. US-senate-PA-1); client-nav
+ *   `activeElection` carries both (`seatId ?? id` is the live-site target).
+ *   Optional auth via the first-party session cookie: signed-in readers get
+ *   the fog-of-war personalization, signed-out readers get the public shape.
+ *   Cache: no-store — resolveElection personalizes by userId/character, so
+ *   the response must never be shared-cached (the route answers conditional
+ *   ETag/304 for its own 60s poll; Native keeps no copy beyond memory).
+ *   Errors: 400 missing/invalid id (or country/cycle on sibling modes),
+ *   404 election not found, generic { error } envelope (src/lib/api/errors).
+ *   No per-route rate limit is documented; a 429 still maps through the
+ *   shared remote-error contract. Native projects identity + phase + field
+ *   size + leader only; candidacy, campaigns, endorsements, and every write
+ *   stay absent.
  *
  * Audited writes:
  * - execute-action    POST /api/actions/execute  requireHumanSession
@@ -172,7 +189,8 @@ export type MpFetchOpId =
   | "notifications"
   | "mail-inbox"
   | "mail-sent"
-  | "admin-maintenance";
+  | "admin-maintenance"
+  | "election-detail";
 
 export type MpMutateOpId =
   | "execute-action"

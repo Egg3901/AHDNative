@@ -2,6 +2,7 @@ import { mpFetch, mpMutate, type MpBridgeHost, type MpCallResult } from "./bridg
 import {
   parseCharacterMe,
   parseClientNav,
+  parseElectionDetail,
   parseExecuteResult,
   parseInbox,
   parseLogoutAck,
@@ -11,6 +12,7 @@ import {
   parsePlayersOnline,
   parseSessionProbe,
   parseTurnStatus,
+  validateElectionId,
   validateExecuteArgs,
   validateMailId,
   validateMailSend,
@@ -19,6 +21,7 @@ import {
   validateSnoozeMinutes,
   type MpCapabilitiesView,
   type MpCharacterView,
+  type MpElectionDetailView,
   type MpInboxView,
   type MpMailInbox,
   type MpMailSent,
@@ -55,6 +58,8 @@ export interface MpSnapshot {
   turn: MpTurnView | null;
   /** Server-derived navigation capabilities (client-nav projection). */
   capabilities: MpCapabilitiesView | null;
+  /** Active-election detail; loaded on demand, never on enter or refresh. */
+  electionDetail: MpElectionDetailView | null;
   inbox: MpInboxView | null;
   /** Received player mail page; loaded on demand, never on enter. */
   mailInbox: MpMailInbox | null;
@@ -82,6 +87,7 @@ const INITIAL_SNAPSHOT: MpSnapshot = {
   character: null,
   turn: null,
   capabilities: null,
+  electionDetail: null,
   inbox: null,
   mailInbox: null,
   mailSent: null,
@@ -102,9 +108,9 @@ export const MP_MAIL_LIMIT = 50;
 
 function emptyAuthed(): Pick<
   MpSnapshot,
-  "character" | "turn" | "capabilities" | "inbox" | "mailInbox" | "mailSent" | "presence"
+  "character" | "turn" | "capabilities" | "electionDetail" | "inbox" | "mailInbox" | "mailSent" | "presence"
 > {
-  return { character: null, turn: null, capabilities: null, inbox: null, mailInbox: null, mailSent: null, presence: null };
+  return { character: null, turn: null, capabilities: null, electionDetail: null, inbox: null, mailInbox: null, mailSent: null, presence: null };
 }
 
 export class MpModeSession {
@@ -335,6 +341,33 @@ export class MpModeSession {
     } catch {
       return this.get();
     }
+  }
+
+  /**
+   * Load the Standing active-election detail on demand (#359 election
+   * slice). Enter and refresh never fetch it: the Standing row offers the
+   * drill-in, and this reads GET /api/elections?id={seatId ?? id}&view=
+   * summary through the first-party session. The id is pre-checked against
+   * the audited reference shape (24-hex or bounded seatId) and the Rust
+   * bridge re-validates before anything is sent. Expiry evicts the detail
+   * with every other authed projection; other failures keep prior detail
+   * with an honest error, never stale success. Nothing here touches the
+   * local SP engine or saves.
+   */
+  async loadElectionDetail(id: unknown): Promise<MpSnapshot> {
+    if (!this.snapshot.userId) return this.enter();
+    const validated = validateElectionId(id);
+    if (!validated.ok) {
+      return this.set({ error: validated.reason });
+    }
+    this.set({ error: null, notice: null, retryAfter: null });
+    const result = await mpFetch(this.host, "election-detail", undefined, undefined, validated.id);
+    if (result.kind !== "ok") return this.applyAuthedReadFailure(result);
+    const electionDetail = parseElectionDetail(result.bodyText);
+    if (!electionDetail) {
+      return this.set({ phase: "server-error", electionDetail: null, error: "The election record answered in an unexpected shape." });
+    }
+    return this.set({ phase: "ready", electionDetail, error: null, retryAfter: null });
   }
 
   /**

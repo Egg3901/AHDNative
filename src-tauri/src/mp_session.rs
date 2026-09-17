@@ -86,7 +86,9 @@ pub mod error {
 }
 
 /// Authenticated GET reads the native multiplayer mode may perform. Every
-/// variant maps to one pinned path; see [`fetch_path_and_query`].
+/// variant maps to one pinned path; see [`fetch_path_and_query`]. The
+/// election detail read takes an id parameter instead; see
+/// [`fetch_election_path`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MpFetchOp {
     /// Legacy read-only session probe; 200 `{active:true,...}` signed in,
@@ -114,6 +116,10 @@ pub enum MpFetchOp {
     MailSent,
     /// Read-only site maintenance status; requireAdmin, 403 for non-admins.
     AdminMaintenance,
+    /// Standing active-election detail; GET /api/elections single mode with
+    /// `view=summary` (optional auth, 404 when the race is gone). The id is
+    /// a 24-hex ObjectId or a bounded seatId; see [`is_election_id`].
+    ElectionDetail,
 }
 
 impl MpFetchOp {
@@ -129,6 +135,7 @@ impl MpFetchOp {
             "mail-inbox" => Some(Self::MailInbox),
             "mail-sent" => Some(Self::MailSent),
             "admin-maintenance" => Some(Self::AdminMaintenance),
+            "election-detail" => Some(Self::ElectionDetail),
             _ => None,
         }
     }
@@ -145,6 +152,7 @@ impl MpFetchOp {
             Self::MailInbox => "/api/mail",
             Self::MailSent => "/api/mail/sent",
             Self::AdminMaintenance => "/api/admin/maintenance",
+            Self::ElectionDetail => "/api/elections",
         }
     }
 }
@@ -426,6 +434,33 @@ fn is_hex_object_id(value: &str) -> bool {
     value.len() == 24 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
+/// Election reference accepted by GET /api/elections single mode: a 24-hex
+/// ObjectId or a seatId such as `US-senate-PA-1` (mirrors `isSeatId` in
+/// AHDGame `src/lib/elections/resolveElection.ts`, bounded so the id stays
+/// URL-safe without encoding and cannot smuggle query text: only ASCII
+/// alphanumerics and dashes, at most 64 chars).
+fn is_election_id(value: &str) -> bool {
+    if value.is_empty() || value.len() > 64 {
+        return false;
+    }
+    if is_hex_object_id(value) {
+        return true;
+    }
+    let mut parts = value.split('-');
+    match parts.next() {
+        Some(country) if country.len() == 2 && country.bytes().all(|byte| byte.is_ascii_alphabetic()) => {}
+        _ => return false,
+    }
+    let mut segments = 0;
+    for part in parts {
+        if part.is_empty() || part.len() > 16 || !part.bytes().all(|byte| byte.is_ascii_alphanumeric()) {
+            return false;
+        }
+        segments += 1;
+    }
+    segments >= 1
+}
+
 /// Length in UTF-16 code units, matching the server's zod string limits.
 fn utf16_len(value: &str) -> usize {
     value.encode_utf16().count()
@@ -473,6 +508,20 @@ fn fetch_path_and_query(
             Ok(op.path().to_string())
         }
     }
+}
+
+/// Build the exact election detail request path+query from a validated id.
+/// The summary view keeps the body small and stable; the id charset is
+/// URL-safe by construction ([`is_election_id`]), so no encoding step can
+/// smuggle extra query pairs. Pagination never applies to this read.
+fn fetch_election_path(election_id: &str) -> Result<String, String> {
+    if !is_election_id(election_id) {
+        return Err(error::BAD_ARG.to_string());
+    }
+    Ok(format!(
+        "{}?id={election_id}&view=summary",
+        MpFetchOp::ElectionDetail.path()
+    ))
 }
 
 /// Validate a mutation payload and return the canonical body to send. Unknown
@@ -717,9 +766,37 @@ fn is_paged_query(query: &str) -> bool {
     limit_ok && offset_ok
 }
 
+/// Election detail query: exactly `id=<validated>` plus `view=summary`,
+/// in either order, nothing else. The summary pin is load-bearing: the
+/// default full view is a far larger per-user body Native never projects.
+fn is_election_query(query: &str) -> bool {
+    let mut id_ok = false;
+    let mut view_ok = false;
+    for pair in query.split('&') {
+        let (key, value) = pair.split_once('=').unwrap_or(("", ""));
+        match key {
+            "id" => {
+                if id_ok || !is_election_id(value) {
+                    return false;
+                }
+                id_ok = true;
+            }
+            "view" => {
+                if view_ok || value != "summary" {
+                    return false;
+                }
+                view_ok = true;
+            }
+            _ => return false,
+        }
+    }
+    id_ok && view_ok
+}
+
 /// Re-check a fully formed method+path+query against the allowlist. Defense
-/// in depth: the call is built by [`fetch_path_and_query`]/[`mutate_path`],
-/// but the transport re-validates so a future refactor cannot bypass the pin.
+/// in depth: the call is built by [`fetch_path_and_query`]/[`mutate_path`]
+/// or [`fetch_election_path`], but the transport re-validates so a future
+/// refactor cannot bypass the pin.
 fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
     let (path, query) = match path_and_query.split_once('?') {
         Some((path, query)) => (path, Some(query)),
@@ -739,6 +816,10 @@ fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
                 None => false,
             }
         }
+        ("GET", "/api/elections") => match query {
+            Some(query) => is_election_query(query),
+            None => false,
+        },
         ("POST", "/api/actions/execute") | ("PATCH", "/api/notifications") => query.is_none(),
         ("PUT", "/api/notifications/preferences") => query.is_none(),
         ("POST", "/api/mail") | ("POST", "/api/auth/logout") => query.is_none(),
@@ -1224,15 +1305,34 @@ async fn run_session_call(
 
 /// Fetch one allowlisted read through the live-site session. Resolves with
 /// the raw JSON body; the TypeScript adapter validates and projects it.
+/// `election_id` serves the election detail read only: it must be absent on
+/// every other op and present (validated) on that one.
 #[tauri::command(rename_all = "camelCase")]
 pub async fn mp_session_fetch(
     app: tauri::AppHandle,
     op_id: String,
     limit: Option<u32>,
     offset: Option<u32>,
+    election_id: Option<String>,
 ) -> Result<String, String> {
     let op = MpFetchOp::from_id(op_id.trim()).ok_or_else(|| error::UNSUPPORTED_OP.to_string())?;
-    let path_and_query = fetch_path_and_query(op, limit, offset)?;
+    let path_and_query = match op {
+        MpFetchOp::ElectionDetail => {
+            if limit.is_some() || offset.is_some() {
+                return Err(error::UNSUPPORTED_OP.to_string());
+            }
+            let id = election_id
+                .as_deref()
+                .ok_or_else(|| error::BAD_ARG.to_string())?;
+            fetch_election_path(id)?
+        }
+        _ => {
+            if election_id.is_some() {
+                return Err(error::BAD_ARG.to_string());
+            }
+            fetch_path_and_query(op, limit, offset)?
+        }
+    };
     run_session_call(&app, "GET", &path_and_query, None).await
 }
 
@@ -1754,6 +1854,82 @@ mod tests {
         assert_eq!(MP_SESSION_SCHEME, "https");
         assert_eq!(MP_SESSION_HOST, "ahousedividedgame.com");
         assert_eq!(session_origin(), "https://ahousedividedgame.com");
+    }
+
+    #[test]
+    fn election_detail_resolves_to_the_pinned_summary_read() {
+        assert_eq!(
+            MpFetchOp::from_id("election-detail"),
+            Some(MpFetchOp::ElectionDetail)
+        );
+        assert_eq!(MpFetchOp::ElectionDetail.path(), "/api/elections");
+        assert_eq!(MpFetchOp::from_id("ELECTION-DETAIL"), None);
+        assert_eq!(MpFetchOp::from_id("elections"), None);
+        // Valid references build the exact summary query; pagination never
+        // applies to this read.
+        assert_eq!(
+            fetch_election_path("68a000000000000000000001").unwrap(),
+            "/api/elections?id=68a000000000000000000001&view=summary"
+        );
+        assert_eq!(
+            fetch_election_path("US-senate-PA-1").unwrap(),
+            "/api/elections?id=US-senate-PA-1&view=summary"
+        );
+        // Traversal, query smuggling, and drift all fail closed.
+        for bad in [
+            "",
+            "e1",
+            "seat-9",
+            "US",
+            "US-",
+            "-senate-PA",
+            "US--PA",
+            "US-senate-PA-1!",
+            "US senate",
+            "68a000000000000000000001&view=full",
+            "US-senate-PA-1&view=full",
+            "../../admin/maintenance",
+            "/api/elections?id=x",
+            "US-senate-PA-1?view=full",
+            "classifier-that-is-far-too-long-for-any-real-seat-identifier-x",
+        ] {
+            assert!(
+                fetch_election_path(bad).is_err(),
+                "{bad:?} must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn election_allowlist_pins_summary_view_and_validated_id() {
+        for allowed in [
+            "/api/elections?id=68a000000000000000000001&view=summary",
+            "/api/elections?id=US-senate-PA-1&view=summary",
+            "/api/elections?view=summary&id=US-senate-PA-1",
+        ] {
+            assert!(
+                is_allowlisted_call("GET", allowed),
+                "{allowed} must be allowed"
+            );
+        }
+        for denied in [
+            "/api/elections",
+            "/api/elections?id=68a000000000000000000001",
+            "/api/elections?view=summary",
+            "/api/elections?id=68a000000000000000000001&view=full",
+            "/api/elections?id=US-senate-PA-1&view=summary&cycle=3",
+            "/api/elections?id=e1&view=summary",
+            "/api/elections?id=US-senate-PA-1&view=summary&id=US-senate-PA-1",
+            "/api/elections?id=US-senate-PA-1&view=Summary",
+            "https://ahousedividedgame.com/api/elections?id=US-senate-PA-1&view=summary",
+        ] {
+            assert!(
+                !is_allowlisted_call("GET", denied),
+                "{denied} must be rejected"
+            );
+        }
+        assert!(!is_allowlisted_call("POST", "/api/elections?id=US-senate-PA-1&view=summary"));
+        assert!(!is_allowlisted_call("PATCH", "/api/elections?id=US-senate-PA-1&view=summary"));
     }
 
     #[test]

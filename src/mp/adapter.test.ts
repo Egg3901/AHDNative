@@ -190,6 +190,7 @@ describe("MpModeSession enter", () => {
       character: null,
       turn: null,
       capabilities: null,
+      electionDetail: null,
       inbox: null,
       mailInbox: null,
       mailSent: null,
@@ -621,6 +622,137 @@ describe("MpModeSession capabilities", () => {
     const snapshot = await new MpModeSession(host).enter();
     expect(snapshot.phase).toBe("ready");
     expect(snapshot.capabilities).toMatchObject({ hasCharacter: false });
+  });
+});
+
+describe("MpModeSession election detail (#359 election slice)", () => {
+  const HEX_ID = "68a000000000000000000001";
+  const SEAT_ID = "US-senate-PA-1";
+  const summary = () =>
+    JSON.stringify({
+      election: {
+        id: HEX_ID,
+        seatId: SEAT_ID,
+        electionType: "senate",
+        state: "PA",
+        countryId: "US",
+        cycle: 4,
+        status: "active",
+        inPrimary: false,
+        isEnded: false,
+        isUpcoming: false,
+        inGeneral: true,
+        candidates: [{}, {}],
+        polling: { leaderName: "Ada", leaderParty: "Labor" },
+        incumbent: null,
+      },
+    });
+
+  function enteredHost(extraFetch: Record<string, Array<string | { reject: string }>>) {
+    return scriptedHost({
+      fetch: {
+        "auth-session": [probeA],
+        "character-me": [meA(1000)],
+        "turn-status": [turn()],
+        "client-nav": [caps()],
+        notifications: [inbox()],
+        ...extraFetch,
+      },
+    });
+  }
+
+  it("loads the summary on demand with the validated id, never on enter", async () => {
+    const { host, calls } = enteredHost({ "election-detail": [summary()] });
+    const session = new MpModeSession(host);
+    const entered = await session.enter();
+    expect(entered.phase).toBe("ready");
+    expect(entered.electionDetail).toBeNull();
+    expect(calls.some((call) => call.op === "election-detail")).toBe(false);
+    const loaded = await session.loadElectionDetail(SEAT_ID);
+    expect(loaded.phase).toBe("ready");
+    expect(loaded.electionDetail).toMatchObject({
+      id: HEX_ID,
+      seatId: SEAT_ID,
+      inGeneral: true,
+      candidateCount: 2,
+      leaderName: "Ada",
+    });
+    expect(host.fetch).toHaveBeenCalledWith("election-detail", undefined, undefined, SEAT_ID);
+  });
+
+  it("rejects bad references client-side without a bridge call", async () => {
+    const { host, calls } = enteredHost({});
+    const session = new MpModeSession(host);
+    await session.enter();
+    calls.length = 0;
+    for (const bad of ["e1", "seat-9", "", null, `${SEAT_ID}&view=full`]) {
+      const snapshot = await session.loadElectionDetail(bad);
+      expect(snapshot.error, JSON.stringify(bad)).toMatch(/election reference is invalid/);
+    }
+    expect(calls).toHaveLength(0);
+    expect(session.get().electionDetail).toBeNull();
+  });
+
+  it("fails closed on malformed bodies and keeps prior detail on remote failures", async () => {
+    const { host } = enteredHost({
+      "election-detail": [
+        summary(),
+        "{oops",
+        summary(),
+        { reject: "remote-error:404:0:{\"error\":\"Election not found\"}" },
+        { reject: "remote-error:500:0:{\"error\":\"boom\"}" },
+      ],
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+    expect((await session.loadElectionDetail(HEX_ID)).electionDetail?.candidateCount).toBe(2);
+    const malformed = await session.loadElectionDetail(HEX_ID);
+    expect(malformed.phase).toBe("server-error");
+    expect(malformed.error).toMatch(/election record/);
+    expect(malformed.electionDetail).toBeNull();
+    expect((await session.loadElectionDetail(HEX_ID)).phase).toBe("ready");
+    const missing = await session.loadElectionDetail(HEX_ID);
+    expect(missing.phase).toBe("offline");
+    expect(missing.error).toMatch(/Election not found/);
+    expect(missing.electionDetail?.candidateCount).toBe(2);
+    const outage = await session.loadElectionDetail(HEX_ID);
+    expect(outage.phase).toBe("server-error");
+    expect(outage.error).toMatch(/boom/);
+    expect(outage.electionDetail?.candidateCount).toBe(2);
+  });
+
+  it("evicts the detail with standing on auth expiry and clears it on exit", async () => {
+    const { host } = enteredHost({
+      "election-detail": [summary(), { reject: "remote-error:401:0:{\"error\":\"Unauthorized\"}" }],
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+    await session.loadElectionDetail(SEAT_ID);
+    expect(session.get().electionDetail?.id).toBe(HEX_ID);
+    const expired = await session.loadElectionDetail(SEAT_ID);
+    expect(expired.phase).toBe("auth-expired");
+    expect(expired.electionDetail).toBeNull();
+    expect(expired.capabilities).toBeNull();
+    session.exit();
+    expect(session.get().electionDetail).toBeNull();
+  });
+
+  it("leaves the detail alone on refresh and never touches SP state", async () => {
+    const { host } = enteredHost({
+      "auth-session": [probeA, probeA],
+      "character-me": [meA(1000), meA(1000)],
+      "turn-status": [turn(), turn()],
+      "client-nav": [caps(), caps()],
+      notifications: [inbox(), inbox()],
+      "election-detail": [summary()],
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+    await session.loadElectionDetail(SEAT_ID);
+    const refreshed = await session.refresh();
+    expect(refreshed.phase).toBe("ready");
+    expect(refreshed.electionDetail?.seatId).toBe(SEAT_ID);
+    expect(JSON.stringify(refreshed)).not.toMatch(/sp_|singleplayer|localSave/i);
   });
 });
 
