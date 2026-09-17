@@ -379,7 +379,8 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           onBack: () => {
             focusPage.current = true;
             // Pop the restored frame and every stale frame above it.
-            const at = returnStack.findLastIndex((frame) => frame === live);
+            let at = returnStack.length - 1;
+            while (at >= 0 && returnStack[at] !== live) at -= 1;
             setReturnStack(returnStack.slice(0, at));
             setDetailId(live.detailId);
             setRoute(live.route);
