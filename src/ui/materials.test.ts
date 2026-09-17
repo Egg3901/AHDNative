@@ -127,6 +127,26 @@ describe("surface consistency audit (#437)", () => {
     expect(block).toMatch(/\.ahd-drawer-disclosure\s*\{[^}]*background:\s*var\(--ahd-card-elevated\)/);
   });
 
+  it("paints one glass surface for the nested resource overlay instead of stacking blurs", () => {
+    // .ahd-resource-details renders only nested inside the modal popover
+    // (GameScreen): the nested section must not carry its own blur,
+    // background, edge, or depth, or every overlay opening stacks two
+    // backdrop blurs behind a double frame at ~91% combined opacity.
+    const rule = materialCss.match(/\.ahd-resource-popover\s+\.ahd-resource-details\s*\{[^}]*\}/);
+    expect(rule, "missing nested single-surface rule").toBeTruthy();
+    expect(rule![0]).toMatch(/background:\s*transparent/);
+    expect(rule![0]).toMatch(/backdrop-filter:\s*none/);
+    expect(rule![0]).not.toMatch(/blur\(/);
+    expect(rule![0]).toMatch(/border-color:\s*transparent/);
+    expect(rule![0]).toMatch(/box-shadow:\s*none/);
+    // The standalone elevated tokens stay shipped for the surface binding,
+    // and every fallback branch still pins the details surface solid.
+    expect(materialCss).toMatch(/\.ahd-resource-details\s*\{[^}]*var\(--ahd-material-elevated-bg\)/);
+    const block = materialBlock();
+    expect(block).toContain(".ahd-resource-details");
+    expect(block.match(/\.ahd-resource-popover\s+\.ahd-resource-details\s*\{[^}]*var\(--ahd-card-elevated\)/)).toBeTruthy();
+  });
+
   it("unifies edge depth on chrome dividers instead of stacking opaque hairlines", () => {
     expect(materialCss).toMatch(/\.ahd-footer\s*\{[^}]*color-mix\(in srgb,\s*var\(--ahd-fg\)\s*18%,\s*transparent\)/);
     expect(materialCss).toMatch(/\.ahd-drawer\s*\{[^}]*color-mix\(in srgb,\s*var\(--ahd-fg\)\s*18%,\s*transparent\)/);
