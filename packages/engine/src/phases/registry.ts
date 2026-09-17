@@ -307,18 +307,11 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   cabinetNominationLifecyclePhase,
   scotusTurnPhase,
   ukJrSurpriseTurnPhase,
-  // W10 markets (share price, stock exchange) at END before newsMaintenance -
-  // same rng-stream-stability rule as every other tail cluster above
-  // (mainline runs recomputeSharePrices mid-pipeline, right after bondTurn;
-  // inserting it there would shift every downstream rng draw for existing
-  // goldens - see market/recomputeSharePrices.ts file doc). This phase draws
-  // no rng itself either way (pure repricing). Placed as the LAST phase
-  // before newsMaintenance, after every other tail cluster, so it always
-  // runs strictly after corporationTurnPhase (whose earningsHistory/
-  // liquidCapital/currentGrowthRate writes it reads this same turn) - no
-  // other phase in this worktree mutates world.corporations, so nothing
-  // between the two matters to the ordering.
-  recomputeSharePricesPhase,
+  // W10 markets note: recomputeSharePricesPhase used to be registered here.
+  // #309 moved the entry to right after the W13 bond cluster below so the
+  // repricing reads post-coupon/post-loan-service issuer capital the same
+  // turn, matching mainline (turnPhaseNames.ts: bondTurn 18 <
+  // recomputeSharePrices 22). Rationale lives at the new slot.
   // W31 events cluster at END before newsMaintenance - ordering deviation:
   // Mainline runs worldEventsMaintenance (53) and worldEventsScheduler (54)
   // alongside playerRandomEvents (52) and crisisTurn (Group 11, Effects) mid-
@@ -413,9 +406,23 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // npcBondHolder (NPP holder behavior drift on the float). All three are
   // rng-free so tail placement has no downstream RNG stream effect beyond
   // the ordering deviation itself, which a dedicated re-golden will restore.
+  // #309: recomputeSharePricesPhase follows the cluster (see slot below) so
+  // the mainline bondTurn < recomputeSharePrices consumer edge holds.
   sovereignIssuancePhase,
   bondCouponMaturityPhase,
   npcBondHolderPhase,
+  // #309: recomputeSharePricesPhase runs here — immediately after the bond
+  // cluster — so this turn's repricing reads post-coupon issuer capital,
+  // matching mainline (turnPhaseNames.ts: bondTurn 18 < recomputeSharePrices
+  // 22; the source even keeps a dedicated recomputeSharePricesAfterBondTurn
+  // for exactly this edge). This also preserves mainline's bankingTurn (13)
+  // < bondTurn (18) < recomputeSharePrices (22) chain: bankingTurnPhase and
+  // bankSolvencyTurnPhase both sit earlier in this tail, so loan-service
+  // debits to corp.liquidCapital land before the repricing too. The move is
+  // RNG-free (neither the bond phases nor the repricing draw from WorldRng),
+  // still strictly after corporationTurnPhase above, and before every
+  // downstream reader of share prices (metrics, recordWorldHistory).
+  recomputeSharePricesPhase,
   // W4 forex at END before newsMaintenance — ordering deviation:
   // Mainline runs ledgerPreForexSnapshot immediately BEFORE forexTurn
   // (stateEffectsPhase.ts: writePreForexBalanceCheckpoint then
