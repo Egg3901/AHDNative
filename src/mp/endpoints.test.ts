@@ -125,6 +125,20 @@ describe("MP player-mail pins (#359 chat slice)", () => {
   });
 });
 
+describe("MP players-online pin (#359 presence slice)", () => {
+  it("models the public GET as a fetch op with absent-on-failure semantics", () => {
+    const op: MpFetchOpId = "players-online";
+    expect(op).toBe("players-online");
+    const source = readFileSync(new URL("./endpoints.ts", import.meta.url), "utf8");
+    expect(source).toMatch(/GET \/api\/players\/online/);
+    expect(source).toMatch(/absent, never zero/);
+    const fetchBlock = source.slice(source.indexOf("export type MpFetchOpId"), source.indexOf("export type MpMutateOpId"));
+    expect(fetchBlock).toMatch(/players-online/);
+    const mutateBlock = source.slice(source.indexOf("export type MpMutateOpId"), source.indexOf("export type MpExecuteActionType"));
+    expect(mutateBlock).not.toMatch(/players-online/);
+  });
+});
+
 describe("MP admin-maintenance pin (#359)", () => {
   it("models the GET as a fetch op and keeps the PATCH sibling absent", () => {
     const op: MpFetchOpId = "admin-maintenance";

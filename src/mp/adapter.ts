@@ -8,6 +8,7 @@ import {
   parseMailInbox,
   parseMailSent,
   parseMutationAck,
+  parsePlayersOnline,
   parseSessionProbe,
   parseTurnStatus,
   validateExecuteArgs,
@@ -21,6 +22,7 @@ import {
   type MpInboxView,
   type MpMailInbox,
   type MpMailSent,
+  type MpPresenceView,
   type MpTurnView,
 } from "./validators";
 import type { MpMutateOpId } from "./endpoints";
@@ -58,6 +60,13 @@ export interface MpSnapshot {
   mailInbox: MpMailInbox | null;
   /** Sent player mail page; loaded on demand, never on enter. */
   mailSent: MpMailSent | null;
+  /**
+   * Players-online presence (#359 presence slice). Loaded independently via
+   * loadPresence, never as part of enter/refresh: like the reference
+   * StatusBar, a failed presence fetch keeps the last good value (or stays
+   * absent) without touching phase or error state.
+   */
+  presence: MpPresenceView | null;
   /** Last server-confirmed notice (action result); cleared on next load. */
   notice: string | null;
   /** Last human-readable failure; cleared when a call succeeds. */
@@ -76,6 +85,7 @@ const INITIAL_SNAPSHOT: MpSnapshot = {
   inbox: null,
   mailInbox: null,
   mailSent: null,
+  presence: null,
   notice: null,
   error: null,
   retryAfter: null,
@@ -92,9 +102,9 @@ export const MP_MAIL_LIMIT = 50;
 
 function emptyAuthed(): Pick<
   MpSnapshot,
-  "character" | "turn" | "capabilities" | "inbox" | "mailInbox" | "mailSent"
+  "character" | "turn" | "capabilities" | "inbox" | "mailInbox" | "mailSent" | "presence"
 > {
-  return { character: null, turn: null, capabilities: null, inbox: null, mailInbox: null, mailSent: null };
+  return { character: null, turn: null, capabilities: null, inbox: null, mailInbox: null, mailSent: null, presence: null };
 }
 
 export class MpModeSession {
@@ -302,6 +312,29 @@ export class MpModeSession {
       return this.set({ phase: "server-error", mailSent: null, error: "The sent mail answered in an unexpected shape." });
     }
     return this.set({ phase: "ready", mailInbox, mailSent, error: null, retryAfter: null });
+  }
+
+  /**
+   * Load players-online presence on its own cadence (#359 presence slice).
+   * Deliberately outside enter/refresh: the endpoint is public, its failures
+   * (refusal, rate limit, malformed, offline, even a surprising 401) mean
+   * absent, never zero, and must never expire the session or touch phase,
+   * error, or the other views. A failed load keeps the last good value so a
+   * reconnect shows stale-or-absent honestly; the screen re-calls this on
+   * mount, manual refresh, reconnect, and foreground return for freshness.
+   * Never throws: an unexpected host failure keeps the current snapshot.
+   */
+  async loadPresence(): Promise<MpSnapshot> {
+    if (!this.snapshot.userId) return this.get();
+    try {
+      const result = await mpFetch(this.host, "players-online");
+      if (result.kind !== "ok") return this.get();
+      const presence = parsePlayersOnline(result.bodyText);
+      if (!presence) return this.get();
+      return this.set({ presence });
+    } catch {
+      return this.get();
+    }
   }
 
   /**

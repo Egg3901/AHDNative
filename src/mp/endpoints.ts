@@ -31,6 +31,15 @@
  * - turn-status       /api/game/turn/status    public; 404 uninitialized
  *   {singleplayer,currentTurn,currentYear,isActive,isProcessing,
  *   nextScheduledTurn|null,processingPhaseLabel,...}
+ * - players-online    GET /api/players/online    public, no session required.
+ *   Count of non-banned players active within the last hour
+ *   (src/app/api/players/online/route.ts): 200 {online: number, asOf: ISO}.
+ *   Cache: public, max-age=120, s-maxage=120, stale-while-revalidate=60.
+ *   No documented rate limit or error envelope: every failure (including a
+ *   surprising 401) means absent, never zero, and never expires the session.
+ *   The reference StatusBar polls it every 5 minutes plus on visibility and
+ *   renders nothing until a fetch succeeds; Native mirrors that posture with
+ *   an independent loadPresence that never touches phase or error state.
  * - game-time         /api/game-time           public fallback
  * - notifications     /api/notifications       requireBasicAuth; 401
  *   query limit (default 50, hard max 100), offset; response {notifications[]
@@ -158,6 +167,7 @@ export type MpFetchOpId =
   | "character-me"
   | "client-nav"
   | "turn-status"
+  | "players-online"
   | "game-time"
   | "notifications"
   | "mail-inbox"
