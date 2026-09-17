@@ -195,6 +195,18 @@ function expectRealScreen(label: string) {
   expect(main.textContent?.trim().length, `content on ${label}`).toBeGreaterThan(0);
 }
 
+/**
+ * Eventual variant for the broad loops: loader-backed routes (DetailQuery
+ * chains such as the world map) resolve over several async rounds, which
+ * parallel workers can delay. Same assertions, waited on.
+ */
+async function expectRealScreenEventually(label: string) {
+  const main = mainRegion();
+  const headings = await within(main).findAllByRole("heading", undefined, { timeout: 15000 });
+  expect(headings.length, `headings on ${label}`).toBeGreaterThan(0);
+  expect(main.textContent?.trim().length, `content on ${label}`).toBeGreaterThan(0);
+}
+
 const DRAWER_LABELS = MENU_GROUPS.flatMap((group) => [
   ...group.items.map((item) => item.label),
   ...(group.sections ?? []).flatMap((section) => section.items.map((item) => item.label)),
@@ -233,7 +245,7 @@ describe.each([320, 390, 1280])("SP route matrix at %spx (#510)", (width) => {
         expect(screen.getByRole("textbox", { name: "Ask a question" })).toBeInTheDocument();
         continue;
       }
-      expectRealScreen(label);
+      await expectRealScreenEventually(label);
     }
   }, 120000);
 
@@ -244,12 +256,12 @@ describe.each([320, 390, 1280])("SP route matrix at %spx (#510)", (width) => {
     const world = makeWorld();
     render(<GameScreen {...baseProps(world)} />);
     await gotoDrawer(user, "Parties");
-    await user.click(screen.getByRole("button", { name: "View Labor details" }));
-    expectRealScreen("partyDetails");
+    await user.click(await screen.findByRole("button", { name: "View Labor details" }, { timeout: 15000 }));
+    await expectRealScreenEventually("partyDetails");
     expect(screen.getByRole("button", { name: /^back to /i })).toBeInTheDocument();
     await gotoDrawer(user, "Elections");
-    await user.click(screen.getByRole("button", { name: "View race details" }));
-    expectRealScreen("electionDetails");
+    await user.click(await screen.findByRole("button", { name: "View race details" }, { timeout: 15000 }));
+    await expectRealScreenEventually("electionDetails");
     expect(screen.getByRole("button", { name: /^back to /i })).toBeInTheDocument();
   }, 120000);
 });
