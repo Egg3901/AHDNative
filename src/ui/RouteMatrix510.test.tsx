@@ -316,7 +316,7 @@ describe("SP return-to-context (#510)", () => {
     render(<GameScreen {...baseProps(makeWorld())} />);
     await gotoDrawer(user, "Politicians");
     // The first politician auto-selects; their active race links into the race detail.
-    await user.click(screen.getByRole("button", { name: "View e1" }));
+    await user.click(await screen.findByRole("button", { name: "View e1" }));
     expect(screen.getByRole("button", { name: "Back to politicians" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Back to politicians" }));
     expect(screen.getByRole("region", { name: "Politicians" })).toBeInTheDocument();
