@@ -95,7 +95,6 @@ function emptyAuthed(): Pick<
 > {
   return { character: null, turn: null, capabilities: null, inbox: null, mailInbox: null, mailSent: null };
 }
-}
 
 export class MpModeSession {
   private snapshot: MpSnapshot = { ...INITIAL_SNAPSHOT };

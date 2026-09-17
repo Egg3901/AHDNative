@@ -431,7 +431,20 @@ describe("MpModeScreen on desktop", () => {
         "mail-inbox": [emptyMailInbox],
         "mail-sent": [emptyMailSent],
         "client-nav": [
-          JSON.stringify({ user: { id: "u1", username: "Ada", isAdmin: true, isModerator: true } }),
+          JSON.stringify({
+            user: { id: "u1", username: "Ada", isAdmin: true, isModerator: true },
+            hasCharacter: true,
+            characterName: "Ada",
+            characterCountryId: "US",
+            unreadMailCount: 1,
+          }),
+          JSON.stringify({
+            user: { id: "u1", username: "Ada", isAdmin: true, isModerator: true },
+            hasCharacter: true,
+            characterName: "Ada",
+            characterCountryId: "US",
+            unreadMailCount: 1,
+          }),
         ],
         "admin-maintenance": [
           JSON.stringify({

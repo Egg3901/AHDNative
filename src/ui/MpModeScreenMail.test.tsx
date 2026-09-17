@@ -20,6 +20,20 @@ const MAIL_B = "607f1f77bcf86cd799439012";
 const probe = JSON.stringify({ active: true, sub: USER, username: "Ada" });
 const me = JSON.stringify({ character: { _id: "c1", name: "Ada" }, corporation: null });
 const turn = JSON.stringify({ currentTurn: 12, currentYear: 1862 });
+const caps = JSON.stringify({
+  user: { id: USER, username: "Ada", isAdmin: false, isModerator: false },
+  hasCharacter: true,
+  characterName: "Ada",
+  characterCountryId: "US",
+  unreadMailCount: 1,
+});
+const adminCaps = JSON.stringify({
+  user: { id: "u1", username: "Ada", isAdmin: true, isModerator: true },
+  hasCharacter: true,
+  characterName: "Ada",
+  characterCountryId: "US",
+  unreadMailCount: 1,
+});
 const notes = JSON.stringify({ notifications: [], unreadCount: 0, total: 0, hasMore: false });
 const ACK = JSON.stringify({ success: true });
 
@@ -119,6 +133,7 @@ function mailScript(extra: Script = {}): Script {
       "auth-session": [probe],
       "character-me": [me],
       "turn-status": [turn],
+      "client-nav": [caps],
       notifications: [notes],
       "mail-inbox": [received()],
       "mail-sent": [sentBox()],
@@ -223,7 +238,7 @@ describe("MpModeScreen player mail at 390px", () => {
         fetch: {
           "mail-inbox": [received()],
           "mail-sent": [sentBox()],
-          "client-nav": [JSON.stringify({ user: { id: "u1", username: "Ada", isAdmin: true, isModerator: true } })],
+          "client-nav": [adminCaps, adminCaps],
           "admin-maintenance": [
             JSON.stringify({ mode: "off", enabled: false, reason: "", expectedEnd: "", enabledBy: "", enabledAt: "" }),
           ],
