@@ -4,6 +4,7 @@ import {
   parseClientNav,
   parseExecuteResult,
   parseInbox,
+  parseLogoutAck,
   parseMailInbox,
   parseMailSent,
   parseMutationAck,
@@ -140,6 +141,49 @@ export class MpModeSession {
       return this.set({ phase: "offline", error: "Sign-in could not be started. Check your connection and try again." });
     }
     return this.enter();
+  }
+
+  /**
+   * Unlink the current account (#149 mobile unlink). The server owns the
+   * session, so local state clears only once POST /api/auth/logout confirms
+   * (or proves the session already dead: 401, or no bridge session at all).
+   * A failed unlink keeps the signed-in session with retry: clearing
+   * locally while the server session lives would strand the player signed
+   * out here yet still linked on the device. Clearing drops every authed
+   * view; the sign-in card (switch-account path) is what remains. Nothing
+   * here touches the local SP engine or saves.
+   */
+  async signOut(): Promise<MpSnapshot> {
+    if (!this.snapshot.userId) {
+      return this.set({ ...emptyAuthed(), userId: null, username: null, phase: "signed-out", notice: null, error: null, retryAfter: null });
+    }
+    this.set({ error: null, notice: null, retryAfter: null });
+    const result = await mpMutate(this.host, "auth-logout", {});
+    if (result.kind === "ok") {
+      if (!parseLogoutAck(result.bodyText)) {
+        return this.set({ phase: "server-error", error: "The sign-out answered in an unexpected shape. State was kept; check before retrying." });
+      }
+      return this.set({ ...emptyAuthed(), userId: null, username: null, phase: "signed-out", notice: "Signed out. Choose a provider to link a different account.", error: null, retryAfter: null });
+    }
+    if (result.kind === "remote" && result.http === 401) {
+      // The session is already dead server-side: unlink achieved.
+      return this.set({ ...emptyAuthed(), userId: null, username: null, phase: "signed-out", notice: "Signed out. Choose a provider to link a different account.", error: null, retryAfter: null });
+    }
+    if (result.kind === "transport" && result.code === "session-unavailable") {
+      // No bridge session to end (jar already empty): unlink locally.
+      return this.set({ ...emptyAuthed(), userId: null, username: null, phase: "signed-out", notice: "Signed out. Choose a provider to link a different account.", error: null, retryAfter: null });
+    }
+    if (result.kind === "remote" && result.http === 429) {
+      return this.set({
+        phase: "rate-limited",
+        retryAfter: result.retryAfter || null,
+        error: `Rate limited: ${result.message}`,
+      });
+    }
+    if (result.kind === "remote" && result.http >= 500) {
+      return this.set({ phase: "server-error", error: result.message });
+    }
+    return this.set({ phase: "offline", error: "Sign-out failed. Your account is still linked; check your connection and try again." });
   }
 
   async performAction(args: {

@@ -69,6 +69,14 @@
  *   (notificationPreferenceActionSchema; preference snooze/unsnooze and
  *   DELETE exist server-side, not modeled: absent).
  *   requireBasicAuth; 30/min -> 429; 200 {success:true}.
+ * - auth-logout  POST /api/auth/logout  public (verifyAuth optional), empty
+ *   body. Clears the auth cookie (Set-Cookie expiry) and revokes issued
+ *   tokens via authRevokedAt, answering 200 {ok:true}. This is the only
+ *   bridge call that ends an account link: login, register, password, and
+ *   delete-account surfaces stay absent, never sent. Neighboring logout
+ *   semantics: no rate limit documented; 401 means the session is already
+ *   dead (unlink achieved), anything else surfaces through the shared
+ *   remote-error contract.
  *
  * Audited admin reads (#359 admin slice; GET only, no mutations modeled):
  * - client-nav (above) doubles as the authoritative permission gate: the
@@ -169,7 +177,8 @@ export type MpMutateOpId =
   | "mail-read"
   | "mail-delete"
   | "mail-sent-delete"
-  | "mail-report";
+  | "mail-report"
+  | "auth-logout";
 
 export type MpExecuteActionType =
   | "fundraise"

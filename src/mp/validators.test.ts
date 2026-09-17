@@ -4,6 +4,7 @@ import {
   parseClientNav,
   parseExecuteResult,
   parseInbox,
+  parseLogoutAck,
   parseMutationAck,
   parseSessionProbe,
   parseTurnStatus,
@@ -240,6 +241,18 @@ describe("parseExecuteResult/parseMutationAck", () => {
     expect(parseMutationAck(JSON.stringify({ success: true }))).toBe(true);
     expect(parseMutationAck(JSON.stringify({ success: false }))).toBe(false);
     expect(parseMutationAck("junk")).toBe(false);
+  });
+});
+
+describe("parseLogoutAck", () => {
+  it("accepts the logout {ok:true} shape only", () => {
+    expect(parseLogoutAck(JSON.stringify({ ok: true }))).toBe(true);
+    expect(parseLogoutAck(JSON.stringify({ ok: false }))).toBe(false);
+    // The mutation ack shape is not a logout ack: each endpoint keeps its
+    // own contract.
+    expect(parseLogoutAck(JSON.stringify({ success: true }))).toBe(false);
+    expect(parseLogoutAck("junk")).toBe(false);
+    expect(parseLogoutAck("")).toBe(false);
   });
 });
 

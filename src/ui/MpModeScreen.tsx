@@ -212,6 +212,14 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
             <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => setAdminOpen(true)}>
               Admin status
             </button>
+            <button
+              className="ahd-btn ahd-btn-sm"
+              disabled={busy}
+              title="Unlink this account on this device. The next sign-in can link a different account."
+              onClick={() => void runGeneral((s) => s.signOut())}
+            >
+              Sign out
+            </button>
             <button className="ahd-btn ahd-btn-sm" onClick={onExit}>Exit multiplayer</button>
           </div>
         </header>

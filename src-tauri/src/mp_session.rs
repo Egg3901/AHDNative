@@ -168,6 +168,12 @@ pub enum MpMutateOp {
     MailSentDelete,
     /// POST /api/mail/{id}/report — one moderator report (empty body).
     MailReport,
+    /// POST /api/auth/logout — unlink the current account (empty body).
+    /// Public route: clears the auth cookie and revokes issued tokens
+    /// server-side (`authRevokedAt`), answering 200 `{ok:true}`. This is the
+    /// only bridge call that ends an account link; everything else reads or
+    /// acts through the live session.
+    AuthLogout,
 }
 
 impl MpMutateOp {
@@ -186,13 +192,14 @@ impl MpMutateOp {
             "mail-delete" => Some(Self::MailDelete),
             "mail-sent-delete" => Some(Self::MailSentDelete),
             "mail-report" => Some(Self::MailReport),
+            "auth-logout" => Some(Self::AuthLogout),
             _ => None,
         }
     }
 
     fn method(self) -> &'static str {
         match self {
-            Self::ExecuteAction | Self::MailSend | Self::MailReport => "POST",
+            Self::ExecuteAction | Self::MailSend | Self::MailReport | Self::AuthLogout => "POST",
             Self::NotificationPreference => "PUT",
             Self::MailDelete | Self::MailSentDelete => "DELETE",
             Self::NotificationRead
@@ -220,6 +227,7 @@ impl MpMutateOp {
             | Self::NotificationUnarchive => "/api/notifications",
             Self::MailSend | Self::MailRead | Self::MailDelete | Self::MailReport => "/api/mail",
             Self::MailSentDelete => "/api/mail/sent",
+            Self::AuthLogout => "/api/auth/logout",
         }
     }
 }
@@ -619,6 +627,15 @@ fn mutate_body(op: MpMutateOp, payload: &serde_json::Value) -> Result<serde_json
             mail_id_from(payload)?;
             Ok(serde_json::json!({}))
         }
+        MpMutateOp::AuthLogout => {
+            // Unlink takes no arguments: the live session cookie is the
+            // identity. The payload must still be an object so stray fields
+            // are stripped rather than forwarded.
+            payload
+                .as_object()
+                .ok_or_else(|| error::BAD_ARG.to_string())?;
+            Ok(serde_json::json!({}))
+        }
     }
 }
 
@@ -706,7 +723,7 @@ fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
         }
         ("POST", "/api/actions/execute") | ("PATCH", "/api/notifications") => query.is_none(),
         ("PUT", "/api/notifications/preferences") => query.is_none(),
-        ("POST", "/api/mail") => query.is_none(),
+        ("POST", "/api/mail") | ("POST", "/api/auth/logout") => query.is_none(),
         ("PATCH", path) if is_mail_item_path(path) => query.is_none(),
         ("DELETE", path) if is_mail_item_path(path) || is_mail_sent_item_path(path) => {
             query.is_none()
@@ -948,6 +965,36 @@ pub(crate) fn has_account_session(app: &tauri::AppHandle) -> bool {
     account_session_header(app).is_some()
 }
 
+/// Drop recognized account-session cookies from the platform jar after the
+/// server confirms logout. The mobile relay sends the session as an explicit
+/// `Cookie` header through its own ephemeral client, so the server's
+/// `Set-Cookie` expiry never reaches the platform jar: without this step a
+/// revoked (dead) token value would linger on the device. Only names the
+/// [`crate::is_account_session_cookie`] filter recognizes are touched;
+/// every other cookie (OAuth flow state, analytics, character gate) stands.
+/// Values never leave the jar: deletion reuses the cookie objects read from
+/// it, and failures are ignored because the server already revoked the
+/// session — a leftover dead cookie only ever probes 401 (signed out).
+#[cfg(mobile)]
+fn evict_account_session_cookies(app: &tauri::AppHandle) {
+    let Ok(url) = format!("{}/api/auth/session", session_origin()).parse() else {
+        return;
+    };
+    for label in ["online", "main"] {
+        let Some(view) = app.get_webview_window(label) else {
+            continue;
+        };
+        let Ok(cookies) = view.cookies_for_url(url.clone()) else {
+            continue;
+        };
+        for cookie in cookies {
+            if crate::is_account_session_cookie(cookie.name()) {
+                let _ = view.delete_cookie(cookie);
+            }
+        }
+    }
+}
+
 /// Mobile transport (#362): the single webview cannot host a persistent
 /// first-party online window, so the bridge reads only the current account
 /// cookie from the platform-owned jar and relays the same allowlisted calls
@@ -1022,6 +1069,13 @@ async fn run_session_call(
     let text =
         String::from_utf8(bytes.to_vec()).map_err(|_| error::UNEXPECTED_CONTENT.to_string())?;
     if (200..300).contains(&status) {
+        // Confirmed unlink: the server revoked the session, so evict the
+        // now-dead cookie value from the platform jar. Desktop needs no
+        // equivalent step: its first-party fetch lets the server's
+        // Set-Cookie expiry clear the online window jar directly.
+        if path_and_query == "/api/auth/logout" {
+            evict_account_session_cookies(app);
+        }
         Ok(text)
     } else {
         Err(format!(
@@ -1421,6 +1475,45 @@ mod tests {
         ));
         assert!(!is_allowlisted_call("PUT", "/api/notifications"));
         assert!(!is_allowlisted_call("DELETE", "/api/notifications"));
+    }
+
+    #[test]
+    fn auth_logout_unlinks_through_the_pinned_endpoint_only() {
+        // Unlink (#149) is one POST with an empty body: the live session
+        // cookie is the identity, so there is nothing to validate or embed.
+        assert_eq!(
+            MpMutateOp::from_id("auth-logout"),
+            Some(MpMutateOp::AuthLogout)
+        );
+        assert_eq!(MpMutateOp::from_id("AUTH-LOGOUT"), None);
+        assert_eq!(MpMutateOp::from_id("logout"), None);
+        let op = MpMutateOp::AuthLogout;
+        assert_eq!((op.method(), op.path()), ("POST", "/api/auth/logout"));
+        assert_eq!(
+            mutate_path(op, &serde_json::json!({})).unwrap(),
+            "/api/auth/logout"
+        );
+        // Stray fields are stripped, never forwarded; non-objects fail.
+        assert_eq!(
+            mutate_body(
+                MpMutateOp::AuthLogout,
+                &serde_json::json!({ "userId": "x", "token": "y" }),
+            )
+            .unwrap(),
+            serde_json::json!({})
+        );
+        assert_eq!(
+            mutate_body(MpMutateOp::AuthLogout, &serde_json::Value::Null).unwrap_err(),
+            error::BAD_ARG
+        );
+        // The allowlist admits exactly this call: no query, no GET sibling,
+        // and no neighboring auth surface (login/register/delete-account
+        // stay absent, never sent).
+        assert!(is_allowlisted_call("POST", "/api/auth/logout"));
+        assert!(!is_allowlisted_call("POST", "/api/auth/logout?x=1"));
+        assert!(!is_allowlisted_call("GET", "/api/auth/logout"));
+        assert!(!is_allowlisted_call("POST", "/api/auth/login"));
+        assert!(!is_allowlisted_call("POST", "/api/auth/delete-account"));
     }
 
     #[test]
