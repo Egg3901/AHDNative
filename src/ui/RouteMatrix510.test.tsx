@@ -17,6 +17,7 @@ import { DEFAULT_PREFERENCES } from "../preferences";
 import type { GameView, ActionView } from "../game/types";
 import type { ProfileView } from "../game/profileTypes";
 import type { PoliticsView, PoliticsPartyDetail } from "../game/politics";
+import type { CaucusManagementView } from "../game/caucusManagement";
 import { DEFAULT_WORLD_FEATURE_FLAGS } from "@ahdclient/engine";
 
 function setViewport(width: number) {
@@ -113,7 +114,7 @@ const loadRegions = async () => ({
   directory: [{ id: "CA", name: "California", isHome: false, population: null, gdpMillions: null }],
   selected: null,
 });
-const loadCaucusManagement = async () => ({
+const loadCaucusManagement = async (): Promise<CaucusManagementView> => ({
   countryId: "US", countryName: "United States", currency: "USD", playerPartyId: "p1",
   playerPartyName: "Labor", playerCaucusId: null, playerCaucusName: null, caucusCount: 0,
   create: { actionCost: 4, fundCost: 25000, fundsRequired: 25000, funds: 152000, actions: 9, cooldownRemaining: 0, taxMin: 0, taxMax: 5, nameMinLength: 3, available: true,
