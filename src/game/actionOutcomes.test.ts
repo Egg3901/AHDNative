@@ -70,7 +70,10 @@ describe("action outcomes through the session boundary", () => {
   });
 
   it("returns prerequisite failures without partial spend or history", () => {
-    const session = new GameSession(); session.create(options);
+    const seeded = new GameSession(); seeded.create(options);
+    const envelope = JSON.parse(seeded.serialize(savedAt)) as { world: { player: { funds: number } } };
+    envelope.world.player.funds = 0;
+    const session = new GameSession(); session.load(JSON.stringify(envelope));
     const before = session.view();
     const failed = session.act("campaign", {});
     expect(failed).toMatchObject({ ok: false });

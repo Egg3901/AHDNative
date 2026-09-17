@@ -39,7 +39,7 @@ test("a player receives the quoted Fundraise yield and continues after relaunch"
   ).toContainText("22 / 200");
   await expect(
     page.getByText("Campaign funds", { exact: true }).locator(".."),
-  ).toContainText("42,640");
+  ).toContainText("292,640");
   await page.reload();
   await page
     .getByRole("button", { name: "Continue Donor Player", exact: true })
@@ -47,7 +47,7 @@ test("a player receives the quoted Fundraise yield and continues after relaunch"
   await gameReady(page);
   await expect(
     page.getByText("Campaign funds", { exact: true }).locator(".."),
-  ).toContainText("42,640");
+  ).toContainText("292,640");
   await navigateGame(page, "Actions");
   await expect(
     page.getByText("Raises 42,640 campaign funds", { exact: true }),
@@ -62,5 +62,5 @@ test("a player receives the quoted Fundraise yield and continues after relaunch"
   ).toContainText("19 / 200");
   await expect(
     page.getByText("Campaign funds", { exact: true }).locator(".."),
-  ).toContainText("85,280");
+  ).toContainText("335,280");
 });

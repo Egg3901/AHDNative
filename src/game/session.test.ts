@@ -178,9 +178,9 @@ describe("actions hub projection", () => {
     expect(session.view().actions.find((a) => a.id === "poll")).toMatchObject({ category: "intelligence", cost: 2, fundCost: 25_000 });
     expect(session.view().actions.find((a) => a.id === "pollLarge")).toMatchObject({ category: "intelligence", cost: 6, fundCost: 75_000 });
     expect(session.view().polls).toEqual({ quick: null, full: null });
-    // New players start without campaign funds, but the donor floor lets them
-    // raise funds without first spending funds.
-    expect(session.view().actions.find((a) => a.id === "poll")).toMatchObject({ available: false });
+    // Reference creation endowment (gameConfig.startingFunds 250_000): the
+    // quick poll is affordable on arrival, and Fundraise stays executable.
+    expect(session.view().actions.find((a) => a.id === "poll")).toMatchObject({ available: true });
     expect(session.act("fundraise").ok).toBe(true);
     expect(session.view().actions.find((a) => a.id === "poll")).toMatchObject({ available: true });
     const result = session.act("poll");

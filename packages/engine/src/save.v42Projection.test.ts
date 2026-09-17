@@ -22,8 +22,8 @@ import {
 
 const SAVED_AT = "2026-09-10T00:00:00.000Z";
 const FIXTURE_SHA = "471352be87c8887dcc6ae02f465b898272f62843b5e0861a45138c2de7f58cdc";
-const NATIVE_FRESH_KEEP_HOME_SHA = "357995ba43adef2584792ccad55ba1a44666cd4eb4a314060f829bdf2bd704c7";
-const NATIVE_FRESH_CONVERT_KEEP_HOME_SHA = "b88f68de461100295005b8a9cf6369a42f8d66d453ee363d1df94e8013413dee";
+const NATIVE_FRESH_KEEP_HOME_SHA = "404370ac2e43de737ce3e664fafde05f34a8298bb51db2de9de8ae6de6c59b03";
+const NATIVE_FRESH_CONVERT_KEEP_HOME_SHA = "389c8c242abe894a494b43d226387651aa62c46663d7ae98e374781a53f62065";
 const FIXTURE_GZ = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures/v42-1953-US.save.json.gz");
 const WORLD_OPTS = { seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" } as const;
 
