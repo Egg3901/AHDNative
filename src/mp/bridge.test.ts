@@ -100,7 +100,15 @@ describe("mpFetch/mpMutate", () => {
       kind: "ok",
       bodyText: '{"active":true}',
     });
-    expect(fetch).toHaveBeenCalledWith("notifications", 25, 0, undefined);
+    expect(fetch).toHaveBeenCalledWith("notifications", 25, 0, undefined, undefined);
+
+    const corpFetch = vi.fn(async () => '{"corporation":{}}');
+    const corpHost = hostWith({ fetch: corpFetch });
+    expect(await mpFetch(corpHost, "corporation-detail", undefined, undefined, undefined, "42")).toEqual({
+      kind: "ok",
+      bodyText: '{"corporation":{}}',
+    });
+    expect(corpFetch).toHaveBeenCalledWith("corporation-detail", undefined, undefined, undefined, "42");
 
     const mutate = vi.fn(async () => '{"success":true}');
     const host2 = hostWith({ mutate });

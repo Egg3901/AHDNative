@@ -2,6 +2,7 @@ import { mpFetch, mpMutate, type MpBridgeHost, type MpCallResult } from "./bridg
 import {
   parseCharacterMe,
   parseClientNav,
+  parseCorporationDetail,
   parseElectionDetail,
   parseExecuteResult,
   parseInbox,
@@ -12,6 +13,7 @@ import {
   parsePlayersOnline,
   parseSessionProbe,
   parseTurnStatus,
+  validateCorporationId,
   validateElectionId,
   validateExecuteArgs,
   validateMailId,
@@ -21,6 +23,7 @@ import {
   validateSnoozeMinutes,
   type MpCapabilitiesView,
   type MpCharacterView,
+  type MpCorporationDetailView,
   type MpElectionDetailView,
   type MpInboxView,
   type MpMailInbox,
@@ -60,6 +63,8 @@ export interface MpSnapshot {
   capabilities: MpCapabilitiesView | null;
   /** Active-election detail; loaded on demand, never on enter or refresh. */
   electionDetail: MpElectionDetailView | null;
+  /** Standing corporation detail; loaded on demand, never on enter or refresh. */
+  corporationDetail: MpCorporationDetailView | null;
   inbox: MpInboxView | null;
   /** Received player mail page; loaded on demand, never on enter. */
   mailInbox: MpMailInbox | null;
@@ -88,6 +93,7 @@ const INITIAL_SNAPSHOT: MpSnapshot = {
   turn: null,
   capabilities: null,
   electionDetail: null,
+  corporationDetail: null,
   inbox: null,
   mailInbox: null,
   mailSent: null,
@@ -108,9 +114,9 @@ export const MP_MAIL_LIMIT = 50;
 
 function emptyAuthed(): Pick<
   MpSnapshot,
-  "character" | "turn" | "capabilities" | "electionDetail" | "inbox" | "mailInbox" | "mailSent" | "presence"
+  "character" | "turn" | "capabilities" | "electionDetail" | "corporationDetail" | "inbox" | "mailInbox" | "mailSent" | "presence"
 > {
-  return { character: null, turn: null, capabilities: null, electionDetail: null, inbox: null, mailInbox: null, mailSent: null, presence: null };
+  return { character: null, turn: null, capabilities: null, electionDetail: null, corporationDetail: null, inbox: null, mailInbox: null, mailSent: null, presence: null };
 }
 
 export class MpModeSession {
@@ -374,6 +380,39 @@ export class MpModeSession {
       return this.set({ phase: "server-error", electionDetail: null, error: "The election record answered in an unexpected shape." });
     }
     return this.set({ phase: "ready", electionDetail, error: null, retryAfter: null });
+  }
+
+  /**
+   * Load the Standing corporation detail on demand (#359 corporation
+   * slice). Enter and refresh never fetch it: the Standing row offers the
+   * drill-in, and this reads GET /api/corporations/[id] through the
+   * first-party session. The id is pre-checked against the audited reference
+   * shape (sequential numeric id or 24-hex ObjectId) and the Rust bridge
+   * re-validates before anything is sent. Expiry evicts the detail with
+   * every other authed projection; a 404 means the company is gone
+   * server-side and reports the server's message with prior detail kept;
+   * other failures keep prior detail with an honest error, never stale
+   * success. Nothing here touches the local SP engine or saves.
+   */
+  async loadCorporationDetail(id: unknown): Promise<MpSnapshot> {
+    if (!this.snapshot.userId) return this.enter();
+    const validated = validateCorporationId(id);
+    if (!validated.ok) {
+      return this.set({ error: validated.reason });
+    }
+    this.set({ error: null, notice: null, retryAfter: null });
+    const result = await mpFetch(this.host, "corporation-detail", undefined, undefined, undefined, validated.id);
+    if (result.kind === "remote" && result.http === 404) {
+      // The referenced company no longer resolves server-side: say so with
+      // the server's message and keep the last loaded detail, never blank it.
+      return this.set({ phase: "offline", error: result.message });
+    }
+    if (result.kind !== "ok") return this.applyAuthedReadFailure(result);
+    const corporationDetail = parseCorporationDetail(result.bodyText);
+    if (!corporationDetail) {
+      return this.set({ phase: "server-error", corporationDetail: null, error: "The corporation record answered in an unexpected shape." });
+    }
+    return this.set({ phase: "ready", corporationDetail, error: null, retryAfter: null });
   }
 
   /**

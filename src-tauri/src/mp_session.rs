@@ -88,7 +88,8 @@ pub mod error {
 /// Authenticated GET reads the native multiplayer mode may perform. Every
 /// variant maps to one pinned path; see [`fetch_path_and_query`]. The
 /// election detail read takes an id parameter instead; see
-/// [`fetch_election_path`].
+/// [`fetch_election_path`]. The corporation detail read takes an id
+/// parameter instead; see [`fetch_corporation_path`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MpFetchOp {
     /// Legacy read-only session probe; 200 `{active:true,...}` signed in,
@@ -120,6 +121,11 @@ pub enum MpFetchOp {
     /// `view=summary` (optional auth, 404 when the race is gone). The id is
     /// a 24-hex ObjectId or a bounded seatId; see [`is_election_id`].
     ElectionDetail,
+    /// Standing corporation detail; GET /api/corporations/[id] (public with
+    /// optional auth, 400 on an invalid id, 404 when the company is gone).
+    /// The id is a sequential numeric id or a 24-hex ObjectId; see
+    /// [`is_corporation_id`].
+    CorporationDetail,
 }
 
 impl MpFetchOp {
@@ -136,6 +142,7 @@ impl MpFetchOp {
             "mail-sent" => Some(Self::MailSent),
             "admin-maintenance" => Some(Self::AdminMaintenance),
             "election-detail" => Some(Self::ElectionDetail),
+            "corporation-detail" => Some(Self::CorporationDetail),
             _ => None,
         }
     }
@@ -153,6 +160,7 @@ impl MpFetchOp {
             Self::MailSent => "/api/mail/sent",
             Self::AdminMaintenance => "/api/admin/maintenance",
             Self::ElectionDetail => "/api/elections",
+            Self::CorporationDetail => "/api/corporations",
         }
     }
 }
@@ -528,6 +536,35 @@ fn fetch_election_path(election_id: &str) -> Result<String, String> {
     ))
 }
 
+/// Corporation reference accepted by GET /api/corporations/[id]: a
+/// sequential numeric id (what client-nav `myCorporationId` carries) or a
+/// 24-hex ObjectId (mirrors `corporationQueryFromParamId` in AHDGame
+/// `src/lib/api/corporations/resolveQuery.ts`, where the ObjectId check
+/// runs first). Bounded and URL-safe by construction, so the id embeds in
+/// the path with no encoding step that could smuggle query text.
+fn is_corporation_id(value: &str) -> bool {
+    if value.is_empty() || value.len() > 24 {
+        return false;
+    }
+    if is_hex_object_id(value) {
+        return true;
+    }
+    !value.is_empty() && value.len() <= 10 && value.bytes().all(|byte| byte.is_ascii_digit())
+}
+
+/// Build the exact corporation detail request path from a validated id.
+/// The id is a path segment (never a query pair) and carries no pagination.
+fn fetch_corporation_path(corporation_id: &str) -> Result<String, String> {
+    if !is_corporation_id(corporation_id) {
+        return Err(error::BAD_ARG.to_string());
+    }
+    Ok(format!(
+        "{}/{}",
+        MpFetchOp::CorporationDetail.path(),
+        corporation_id
+    ))
+}
+
 /// Validate a mutation payload and return the canonical body to send. Unknown
 /// fields are stripped; the server ignores them, and the bridge never
 /// forwards what it did not explicitly model.
@@ -797,10 +834,21 @@ fn is_election_query(query: &str) -> bool {
     id_ok && view_ok
 }
 
+/// Corporation detail path: exactly `/api/corporations/<validated id>`
+/// with no query string. The id segment re-validates here so a future
+/// refactor of [`fetch_corporation_path`] cannot widen the pin.
+fn is_corporation_path(path: &str) -> bool {
+    let id = path.strip_prefix("/api/corporations/");
+    match id {
+        Some(id) => !id.is_empty() && !id.contains('/') && is_corporation_id(id),
+        None => false,
+    }
+}
+
 /// Re-check a fully formed method+path+query against the allowlist. Defense
-/// in depth: the call is built by [`fetch_path_and_query`]/[`mutate_path`]
-/// or [`fetch_election_path`], but the transport re-validates so a future
-/// refactor cannot bypass the pin.
+/// in depth: the call is built by [`fetch_path_and_query`]/[`mutate_path`],
+/// [`fetch_election_path`], or [`fetch_corporation_path`], but the transport
+/// re-validates so a future refactor cannot bypass the pin.
 fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
     let (path, query) = match path_and_query.split_once('?') {
         Some((path, query)) => (path, Some(query)),
@@ -824,6 +872,9 @@ fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
             Some(query) => is_election_query(query),
             None => false,
         },
+        ("GET", path) if path.starts_with("/api/corporations/") => {
+            query.is_none() && is_corporation_path(path)
+        }
         ("POST", "/api/actions/execute") | ("PATCH", "/api/notifications") => query.is_none(),
         ("PUT", "/api/notifications/preferences") => query.is_none(),
         ("POST", "/api/mail") | ("POST", "/api/auth/logout") => query.is_none(),
@@ -1309,8 +1360,9 @@ async fn run_session_call(
 
 /// Fetch one allowlisted read through the live-site session. Resolves with
 /// the raw JSON body; the TypeScript adapter validates and projects it.
-/// `election_id` serves the election detail read only: it must be absent on
-/// every other op and present (validated) on that one.
+/// `election_id` serves the election detail read only and `corporation_id`
+/// serves the corporation detail read only: each must be absent on every
+/// other op and present (validated) on its own.
 #[tauri::command(rename_all = "camelCase")]
 pub async fn mp_session_fetch(
     app: tauri::AppHandle,
@@ -1318,11 +1370,12 @@ pub async fn mp_session_fetch(
     limit: Option<u32>,
     offset: Option<u32>,
     election_id: Option<String>,
+    corporation_id: Option<String>,
 ) -> Result<String, String> {
     let op = MpFetchOp::from_id(op_id.trim()).ok_or_else(|| error::UNSUPPORTED_OP.to_string())?;
     let path_and_query = match op {
         MpFetchOp::ElectionDetail => {
-            if limit.is_some() || offset.is_some() {
+            if limit.is_some() || offset.is_some() || corporation_id.is_some() {
                 return Err(error::UNSUPPORTED_OP.to_string());
             }
             let id = election_id
@@ -1330,8 +1383,17 @@ pub async fn mp_session_fetch(
                 .ok_or_else(|| error::BAD_ARG.to_string())?;
             fetch_election_path(id)?
         }
+        MpFetchOp::CorporationDetail => {
+            if limit.is_some() || offset.is_some() || election_id.is_some() {
+                return Err(error::UNSUPPORTED_OP.to_string());
+            }
+            let id = corporation_id
+                .as_deref()
+                .ok_or_else(|| error::BAD_ARG.to_string())?;
+            fetch_corporation_path(id)?
+        }
         _ => {
-            if election_id.is_some() {
+            if election_id.is_some() || corporation_id.is_some() {
                 return Err(error::BAD_ARG.to_string());
             }
             fetch_path_and_query(op, limit, offset)?
@@ -1940,6 +2002,87 @@ mod tests {
             "PATCH",
             "/api/elections?id=US-senate-PA-1&view=summary"
         ));
+    }
+
+    #[test]
+    fn corporation_detail_resolves_to_the_pinned_company_read() {
+        assert_eq!(
+            MpFetchOp::from_id("corporation-detail"),
+            Some(MpFetchOp::CorporationDetail)
+        );
+        assert_eq!(MpFetchOp::CorporationDetail.path(), "/api/corporations");
+        assert_eq!(MpFetchOp::from_id("CORPORATION-DETAIL"), None);
+        assert_eq!(MpFetchOp::from_id("corporations"), None);
+        assert_eq!(MpFetchOp::from_id("corporation"), None);
+        // Sequential ids and hex ObjectIds build the exact item path;
+        // pagination never applies to this read.
+        assert_eq!(
+            fetch_corporation_path("42").unwrap(),
+            "/api/corporations/42"
+        );
+        assert_eq!(
+            fetch_corporation_path("68a000000000000000000001").unwrap(),
+            "/api/corporations/68a000000000000000000001"
+        );
+        // Traversal, query smuggling, and drift all fail closed.
+        for bad in [
+            "",
+            "e1",
+            "corp-42",
+            "42 ",
+            " 42",
+            "4.5",
+            "-1",
+            "0x2A",
+            "42&view=full",
+            "42?view=full",
+            "42/sectors",
+            "../admin/maintenance",
+            "/api/corporations/42",
+            "68a000000000000000000001&view=full",
+            "0000000000000000000000000",
+            "99999999999999999999999999",
+        ] {
+            assert!(
+                fetch_corporation_path(bad).is_err(),
+                "{bad:?} must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn corporation_allowlist_pins_item_path_and_validated_id() {
+        for allowed in [
+            "/api/corporations/42",
+            "/api/corporations/0",
+            "/api/corporations/68a000000000000000000001",
+        ] {
+            assert!(
+                is_allowlisted_call("GET", allowed),
+                "{allowed} must be allowed"
+            );
+        }
+        for denied in [
+            "/api/corporations",
+            "/api/corporations/",
+            "/api/corporations/42/",
+            "/api/corporations/e1",
+            "/api/corporations/corp-42",
+            "/api/corporations/42?view=summary",
+            "/api/corporations/42?limit=1&offset=0",
+            "/api/corporations/42/sectors",
+            "/api/corporations/42/../43",
+            "/api/corporations/68a000000000000000000001&view=full",
+            "https://ahousedividedgame.com/api/corporations/42",
+        ] {
+            assert!(
+                !is_allowlisted_call("GET", denied),
+                "{denied} must be rejected"
+            );
+        }
+        assert!(!is_allowlisted_call("POST", "/api/corporations/42"));
+        assert!(!is_allowlisted_call("PATCH", "/api/corporations/42"));
+        assert!(!is_allowlisted_call("DELETE", "/api/corporations/42"));
     }
 
     #[test]

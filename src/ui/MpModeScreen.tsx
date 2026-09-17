@@ -7,7 +7,7 @@ import {
 } from "./MobileNavigation";
 import { MpModeSession, type MpSnapshot } from "../mp/adapter";
 import { tauriMpBridgeHost, type MpBridgeHost } from "../mp/bridge";
-import { isElectionId } from "../mp/validators";
+import { isCorporationId, isElectionId } from "../mp/validators";
 import { MP_EXECUTE_ACTIONS, MP_NOTIFICATION_TYPES, MP_SNOOZE_MINUTES_DEFAULT } from "../mp/endpoints";
 import { formatTurnCountdown } from "../mp/validators";
 import { MpAdminScreen } from "./MpAdminScreen";
@@ -43,6 +43,7 @@ const IDLE: MpSnapshot = {
   turn: null,
   capabilities: null,
   electionDetail: null,
+  corporationDetail: null,
   inbox: null,
   mailInbox: null,
   mailSent: null,
@@ -100,6 +101,9 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   /* Election detail drill-in (#359 election slice): opened only with a loaded
    * detail behind it, closed by the Back row or by auth expiry. */
   const [electionOpen, setElectionOpen] = useState(false);
+  /* Corporation detail drill-in (#359 corporation slice): same contract as
+   * the election panel, one company at a time. */
+  const [corporationOpen, setCorporationOpen] = useState(false);
 
   useEffect(() => {
     const session = sessionRef.current!;
@@ -222,6 +226,17 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     return target !== null && isElectionId(target) ? target : null;
   })();
 
+  /* Standing corporation drill-in target: the live-site /corporation/[id]
+   * reference, gated on a valid corporation id. An invalid or absent
+   * reference keeps the row display-only: no control, no request. The
+   * adapter and the Rust bridge re-validate before sending. */
+  const corporationTarget = (() => {
+    const raw = snapshot.capabilities?.corporationId ?? null;
+    if (raw === null) return null;
+    const target = String(raw);
+    return isCorporationId(target) ? target : null;
+  })();
+
   /* The detail panel opens only once the authoritative summary is loaded;
    * failures stay on the shared error display with Standing intact. */
   function openElection(target: string) {
@@ -230,6 +245,18 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
       if (next?.electionDetail) {
         setElectionOpen(true);
         window.setTimeout(() => jumpTo("mp-election"), 0);
+      }
+    });
+  }
+
+  /* The company panel opens only once the authoritative summary is loaded;
+   * failures stay on the shared error display with Standing intact. */
+  function openCorporation(target: string) {
+    setNoticeScope("general");
+    void run((s) => s.loadCorporationDetail(target)).then((next) => {
+      if (next?.corporationDetail) {
+        setCorporationOpen(true);
+        window.setTimeout(() => jumpTo("mp-corporation"), 0);
       }
     });
   }
@@ -274,12 +301,15 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   const phase = snapshot.phase;
   const needsSession = phase === "idle" || phase === "loading" || phase === "session-required" || phase === "signed-out" || phase === "auth-expired";
 
-  /* Auth expiry evicts the detail with every other authed projection, so the
-   * open panel closes itself instead of showing a stale race. Above the
-   * admin early-return: every render runs the same hooks. */
+  /* Auth expiry evicts the details with every other authed projection, so
+   * an open panel closes itself instead of showing a stale race or company.
+   * Above the admin early-return: every render runs the same hooks. */
   useEffect(() => {
     if (needsSession && electionOpen) setElectionOpen(false);
   }, [needsSession, electionOpen]);
+  useEffect(() => {
+    if (needsSession && corporationOpen) setCorporationOpen(false);
+  }, [needsSession, corporationOpen]);
 
   if (adminOpen) {
     return <MpAdminScreen host={host} onBack={() => setAdminOpen(false)} />;
@@ -298,6 +328,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     && snapshot.turn.isActive !== false;
 
   const visibleElection = !needsSession && electionOpen ? snapshot.electionDetail : null;
+  const visibleCorporation = !needsSession && corporationOpen ? snapshot.corporationDetail : null;
   const electionPhaseLabel = visibleElection
     ? visibleElection.isEnded
       ? "Ended"
@@ -438,12 +469,13 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
               * /unions/[id], My election -> /elections/[seatId ?? id],
               * cabinet -> /country/[cc]/executive/cabinet/[position]/office,
               * governor -> /country/[cc]/region/[state]/office). The
-              * election row is a real drill-in: the election-detail read
-              * (GET /api/elections?id=&view=summary) is allowlisted and has
-              * a Native MP surface below. The other four rows stay
-              * display-only: no dead controls, no links into local SP
-              * state. A row becomes actionable only with a supported
-              * authoritative MP destination behind it. */}
+              * election and corporation rows are real drill-ins: the
+              * election-detail read (GET /api/elections?id=&view=summary)
+              * and the corporation-detail read (GET /api/corporations/[id])
+              * are allowlisted and have Native MP surfaces below. The other
+              * three rows stay display-only: no dead controls, no links
+              * into local SP state. A row becomes actionable only with a
+              * supported authoritative MP destination behind it. */}
             {snapshot.capabilities && (
               <article className="ahd-card ahd-card-pad" aria-label="Standing">
                 <h2 className="ahd-h2">Standing</h2>
@@ -453,7 +485,23 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                   snapshot.capabilities.cabinetOffice ||
                   snapshot.capabilities.governorOffice) ? (
                   <dl className="ahd-mp-facts">
-                    {snapshot.capabilities.corporationId !== null && (<><dt>Corporation</dt><dd>#{snapshot.capabilities.corporationId}</dd></>)}
+                    {snapshot.capabilities.corporationId !== null && (
+                      <><dt>Corporation</dt><dd>
+                        #{snapshot.capabilities.corporationId}
+                        {corporationTarget && (
+                          <>
+                            {" "}
+                            <button
+                              className="ahd-btn ahd-btn-sm"
+                              disabled={busy}
+                              onClick={() => openCorporation(corporationTarget)}
+                            >
+                              View company
+                            </button>
+                          </>
+                        )}
+                      </dd></>
+                    )}
                     {snapshot.capabilities.unionId && (<><dt>Union</dt><dd>{snapshot.capabilities.unionId}</dd></>)}
                     {snapshot.capabilities.activeElectionLabel && (
                       <><dt>Election</dt><dd>
@@ -537,6 +585,40 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
               className="ahd-btn ahd-btn-sm ahd-btn-ghost"
               onClick={() => {
                 setElectionOpen(false);
+                jumpTo("mp-profile");
+              }}
+            >
+              Back to Standing
+            </button>
+          </div>
+          </>
+        )}
+
+        {/* Corporation detail drill-in (#359 corporation slice):
+          * authoritative summary for the Standing corporation, opened only
+          * with data loaded. Read-only: financials, the balance sheet, and
+          * every write stay absent. Back returns to Standing, never into
+          * local SP state. */}
+        {visibleCorporation && (
+          <>
+          <article id="mp-corporation" className="ahd-card ahd-card-pad" aria-label="Corporation detail" tabIndex={-1}>
+            <h2 className="ahd-h2">{visibleCorporation.name}</h2>
+            <dl className="ahd-mp-facts">
+              {visibleCorporation.tickerSymbol && (<><dt>Ticker</dt><dd>{visibleCorporation.tickerSymbol}</dd></>)}
+              {visibleCorporation.typeLabel && (<><dt>Type</dt><dd>{visibleCorporation.typeLabel}</dd></>)}
+              {visibleCorporation.headquarters && (<><dt>Headquarters</dt><dd>{visibleCorporation.headquarters}</dd></>)}
+              <dt>Country</dt><dd>{visibleCorporation.countryId}</dd>
+              <dt>Ownership</dt><dd>{visibleCorporation.isPrivate === true ? "Private" : visibleCorporation.isPrivate === false ? "Public" : "Unknown"}</dd>
+              <dt>CEO</dt><dd>{visibleCorporation.ceoName ?? "Vacant or undisclosed"}</dd>
+              <dt>Scale</dt><dd>{visibleCorporation.sectorCount === 1 ? "1 sector" : `${visibleCorporation.sectorCount} sectors`}</dd>
+              {visibleCorporation.sequentialId !== null && (<><dt>Company no.</dt><dd>#{visibleCorporation.sequentialId}</dd></>)}
+            </dl>
+          </article>
+          <div className="ahd-mp-row ahd-mp-back">
+            <button
+              className="ahd-btn ahd-btn-sm ahd-btn-ghost"
+              onClick={() => {
+                setCorporationOpen(false);
                 jumpTo("mp-profile");
               }}
             >

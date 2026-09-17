@@ -61,6 +61,25 @@
  *   shared remote-error contract. Native projects identity + phase + field
  *   size + leader only; candidacy, campaigns, endorsements, and every write
  *   stay absent.
+ * - corporation-detail  GET /api/corporations/[id]  public with optional auth
+ *   (AHDGame src/app/api/corporations/[id]/route.ts; the page shell at
+ *   src/app/corporation/[id]/page.tsx reads the same shape via
+ *   fetch(`/api/corporations/${id}`)). The id accepts a sequential numeric
+ *   id (client-nav `myCorporationId`, the live-site /corporation/[id]
+ *   target) or a 24-hex ObjectId (see corporationQueryFromParamId in
+ *   src/lib/api/corporations/resolveQuery.ts). Optional auth via the
+ *   first-party session cookie: signed-in readers get the insider/redaction
+ *   personalization, signed-out readers get the public shape (private corps
+ *   redact financials, public corps fog them for outsiders). Cache: no-store
+ *   — the response personalizes by viewer, so it must never be shared-cached
+ *   and Native keeps no copy beyond memory. Errors: 400 invalid id,
+ *   404 corporation not found, generic { error } envelope
+ *   (src/lib/api/errors handleRouteError). No per-route rate limit is
+ *   documented; a 429 still maps through the shared remote-error contract.
+ *   Native projects identity + leadership + scale only (name, ticker, type,
+ *   headquarters, CEO, sector count, public/private); financials, balance
+ *   sheet, and every write stay absent, so fog/redaction drift cannot leak
+ *   into exact figures.
  *
  * Audited writes:
  * - execute-action    POST /api/actions/execute  requireHumanSession
@@ -190,7 +209,8 @@ export type MpFetchOpId =
   | "mail-inbox"
   | "mail-sent"
   | "admin-maintenance"
-  | "election-detail";
+  | "election-detail"
+  | "corporation-detail";
 
 export type MpMutateOpId =
   | "execute-action"

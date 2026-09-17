@@ -87,20 +87,21 @@ export function parseBridgeBody(bodyText: string): MpCallResult {
 
 /** Seams the adapter needs from the shell. Fakes implement this in tests. */
 export interface MpBridgeHost {
-  fetch: (op: MpFetchOpId, limit?: number, offset?: number, electionId?: string) => Promise<string>;
+  fetch: (op: MpFetchOpId, limit?: number, offset?: number, electionId?: string, corporationId?: string) => Promise<string>;
   mutate: (op: MpMutateOpId, payload: Record<string, unknown>) => Promise<string>;
   beginSignIn: (provider: "discord" | "google") => Promise<void>;
 }
 
 export function tauriMpBridgeHost(): MpBridgeHost {
   return {
-    fetch: async (op, limit, offset, electionId) => {
+    fetch: async (op, limit, offset, electionId, corporationId) => {
       const { invoke } = await import("@tauri-apps/api/core");
       return (await invoke("mp_session_fetch", {
         opId: op,
         limit: limit ?? null,
         offset: offset ?? null,
         electionId: electionId ?? null,
+        corporationId: corporationId ?? null,
       })) as string;
     },
     mutate: async (op, payload) => {
@@ -120,9 +121,10 @@ export async function mpFetch(
   limit?: number,
   offset?: number,
   electionId?: string,
+  corporationId?: string,
 ): Promise<MpCallResult> {
   try {
-    return parseBridgeBody(await host.fetch(op, limit, offset, electionId));
+    return parseBridgeBody(await host.fetch(op, limit, offset, electionId, corporationId));
   } catch (reason) {
     return classifyBridgeError(reason);
   }
