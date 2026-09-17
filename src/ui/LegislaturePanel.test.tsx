@@ -269,6 +269,62 @@ describe("LegislaturePanel", () => {
     // exceed the 5s default on loaded hosts (transform cost, not behavior).
   }, 20000);
 
+  const houseSeats = {
+    seatsByParty: [
+      { partyId: "LEFT", name: "Left Party", color: "#1d4ed8", economicPosition: -4, seats: 200 },
+      { partyId: "RIGHT", name: "Right Party", color: "#dc2626", economicPosition: 4, seats: 230 },
+    ],
+    vacancies: 5,
+  };
+  const senateSeats = {
+    seatsByParty: [
+      { partyId: "LEFT", name: "Left Party", color: "#1d4ed8", economicPosition: -4, seats: 47 },
+      { partyId: "RIGHT", name: "Right Party", color: "#dc2626", economicPosition: 4, seats: 53 },
+    ],
+    vacancies: 0,
+  };
+
+  it("draws the seating diagram for the chamber view from engine seat data", async () => {
+    const user = userEvent.setup();
+    const LegislaturePanel = await renderPanel();
+    const { container } = render(<LegislaturePanel
+      legislature={makeLegislature({
+        countryId: "US",
+        chambers: [
+          { ...houseChamber, ...houseSeats },
+          { ...senateChamber, ...senateSeats },
+        ],
+        bills: [chamberBill("h1", "House Bill", "house", "House of Representatives"), chamberBill("s1", "Senate Bill", "senate", "Senate")],
+      })}
+      clock={CLOCK} busy={false}
+      onAction={vi.fn()}
+    />);
+    // Defaults to the first chamber: 200 + 230 party seats plus 5 vacant.
+    expect(container.querySelectorAll("circle[data-seat]").length).toBe(435);
+    expect(container.querySelectorAll('circle[data-seat][fill="#cbd5e1"]').length).toBe(5);
+    expect(container.querySelectorAll('circle[data-seat][fill="#1d4ed8"]').length).toBe(200);
+    expect(screen.getByRole("img", { name: /house of representatives seating/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Show Senate bills" }));
+    expect(container.querySelectorAll("circle[data-seat]").length).toBe(100);
+    expect(container.querySelectorAll('circle[data-seat][fill="#cbd5e1"]').length).toBe(0);
+    expect(screen.getByRole("img", { name: /senate seating/i })).toBeInTheDocument();
+  });
+
+  it("shows an explicit empty state for a chamber with no seats", async () => {
+    const LegislaturePanel = await renderPanel();
+    const { container } = render(<LegislaturePanel
+      legislature={makeLegislature({
+        countryId: "US",
+        chambers: [{ ...houseChamber, seats: 0, seatsByParty: [], vacancies: 0 }],
+        bills: [],
+      })}
+      clock={CLOCK} busy={false}
+      onAction={vi.fn()}
+    />);
+    expect(container.querySelectorAll("circle[data-seat]").length).toBe(0);
+    expect(screen.getByText(/no seats recorded/i)).toBeInTheDocument();
+  });
+
   it("restores the persisted chamber context across a reload", async () => {
     window.localStorage.setItem(LEGISLATURE_NAV_STORAGE_KEY, JSON.stringify({ US: { chamberKey: "senate", billId: null } }));
     const LegislaturePanel = await renderPanel();
