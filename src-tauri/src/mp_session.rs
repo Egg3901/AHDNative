@@ -448,12 +448,16 @@ fn is_election_id(value: &str) -> bool {
     }
     let mut parts = value.split('-');
     match parts.next() {
-        Some(country) if country.len() == 2 && country.bytes().all(|byte| byte.is_ascii_alphabetic()) => {}
+        Some(country)
+            if country.len() == 2 && country.bytes().all(|byte| byte.is_ascii_alphabetic()) => {}
         _ => return false,
     }
     let mut segments = 0;
     for part in parts {
-        if part.is_empty() || part.len() > 16 || !part.bytes().all(|byte| byte.is_ascii_alphanumeric()) {
+        if part.is_empty()
+            || part.len() > 16
+            || !part.bytes().all(|byte| byte.is_ascii_alphanumeric())
+        {
             return false;
         }
         segments += 1;
@@ -1928,8 +1932,14 @@ mod tests {
                 "{denied} must be rejected"
             );
         }
-        assert!(!is_allowlisted_call("POST", "/api/elections?id=US-senate-PA-1&view=summary"));
-        assert!(!is_allowlisted_call("PATCH", "/api/elections?id=US-senate-PA-1&view=summary"));
+        assert!(!is_allowlisted_call(
+            "POST",
+            "/api/elections?id=US-senate-PA-1&view=summary"
+        ));
+        assert!(!is_allowlisted_call(
+            "PATCH",
+            "/api/elections?id=US-senate-PA-1&view=summary"
+        ));
     }
 
     #[test]
