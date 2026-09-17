@@ -458,4 +458,45 @@ describe("MobileNavigation", () => {
     }
     expect(ids).toContain("worldMap");
   });
+
+  it("contains long/localized drawer labels without losing the badge at 320px", async () => {
+    const user = userEvent.setup();
+    const css = readFileSync("src/ui/ui.css", "utf8");
+    const ref = createRef<HTMLButtonElement | null>();
+    render(
+      <GameDrawer
+        open route="profile" busy={false} playerName="Ada" playerParty="Labor"
+        countryName="United States" turn={1} date="1953-01-08"
+        menuButtonRef={ref} onNavigate={vi.fn()} onAdvanceTurn={vi.fn()}
+        onSave={vi.fn()} onExit={vi.fn()} onClose={vi.fn()} unreadCount={12}
+      />,
+    );
+    // Expand the deep groups so every row (including long labels like
+    // "Presidential election" and "Bills and proposals") is covered.
+    await user.click(screen.getByRole("button", { name: "Nation" }));
+    await user.click(screen.getByRole("button", { name: "World" }));
+    // Every drawer row carries its label in a truncating span with a hover
+    // title, so long/localized strings cannot push neighbouring content out.
+    const rows = document.querySelectorAll("#ahd-drawer .ahd-drawer-item");
+    expect(rows.length).toBe(32);
+    for (const row of Array.from(rows)) {
+      const label = row.querySelector(":scope > .ahd-drawer-item-label");
+      expect(label).not.toBeNull();
+      expect(label!.textContent!.length).toBeGreaterThan(0);
+      expect(label!.getAttribute("title")).toBe(label!.textContent);
+    }
+    // The unread badge keeps its own flex box beside the truncating label:
+    // same accessible entry name as before, count still visible, never
+    // squeezed away by a long label.
+    const entry = screen.getByRole("button", { name: "Notifications" });
+    const badge = within(entry).getByText("12");
+    expect(badge).toHaveClass("ahd-badge");
+    expect(badge).toHaveAttribute("aria-hidden", "true");
+    // CSS contract: label truncates in place, badge is inflexible, row keeps
+    // its 44px compact height and every route stays rendered.
+    expect(css).toMatch(/\.ahd-drawer-item-label\s*\{[^}]*flex:\s*1 1 auto[^}]*min-width:\s*0[^}]*text-overflow:\s*ellipsis[^}]*white-space:\s*nowrap/);
+    expect(css).toMatch(/\.ahd-drawer-item\s+\.ahd-badge\s*\{[^}]*flex:\s*0 0 auto/);
+    expect(css).toMatch(/\.ahd-drawer-item[^{]*\{[^}]*min-height:\s*44px/);
+    expect(drawerRouteIds()).toHaveLength(32);
+  });
 });
