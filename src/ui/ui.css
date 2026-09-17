@@ -678,6 +678,12 @@ html, body { overflow-x: hidden; }
   display: flex; flex-direction: column; gap: 0.25rem;
   min-height: 0;
   -webkit-overflow-scrolling: touch;
+  /* Keyboard focus stays inside the scrollport: Tab scrolls stop the focused
+   * row 0.5rem clear of the scrollport edges, so the 4px focus ring is never
+   * clipped flush and the row never parks against the identity/turn header
+   * above or the pinned quick bar below. Scroll padding affects scroll
+   * alignment only; pointer layout and desktop geometry are unchanged. */
+  scroll-padding-block: 0.5rem;
 }
 .ahd-drawer-group { display: flex; flex-direction: column; gap: 0.05rem; }
 /* Clearer grouped destinations: a hairline between groups so Profile /
@@ -752,6 +758,16 @@ html, body { overflow-x: hidden; }
   border-left-color: var(--ahd-primary);
   background: color-mix(in srgb, var(--ahd-primary) 12%, transparent);
 }
+/* Focused-target and viewport scroll clearance for keyboard navigation.
+ * Per-target scroll margins keep Tab/programmatic focus clear of the
+ * drawer chrome even when a scrollIntoView call bypasses the scrollport
+ * padding above; the document scroll padding keeps page-content focus
+ * clear of the fixed footer (same clearance formula as .ahd-main's
+ * bottom padding). All three properties steer scroll alignment only:
+ * no margin, padding, position, or display change, so pointer hit areas
+ * and desktop layout are untouched. */
+.ahd-drawer-item, .ahd-drawer-disclosure { scroll-margin-block: 0.5rem; }
+html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
 
 /* Nonmodal resource details above the footer */
 .ahd-resource-details {
