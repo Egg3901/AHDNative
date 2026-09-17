@@ -960,7 +960,7 @@ fn ensure_online_window(app: &tauri::AppHandle) -> Result<tauri::WebviewWindow, 
     let url: tauri::Url = session_origin()
         .parse()
         .map_err(|_| error::SESSION_UNAVAILABLE.to_string())?;
-    tauri::WebviewWindowBuilder::new(
+    let built = tauri::WebviewWindowBuilder::new(
         app,
         MP_SESSION_WINDOW_LABEL,
         tauri::WebviewUrl::External(url),
@@ -968,8 +968,16 @@ fn ensure_online_window(app: &tauri::AppHandle) -> Result<tauri::WebviewWindow, 
     .visible(false)
     .on_navigation(crate::is_online_navigation_allowed)
     .on_new_window(|_url, _features| tauri::webview::NewWindowResponse::Deny)
-    .build()
-    .map_err(|_| error::SESSION_UNAVAILABLE.to_string())
+    .build();
+    match built {
+        Ok(window) => Ok(window),
+        // Concurrent first calls can race creation: the loser hits a
+        // duplicate-label build error, so recover the winner instead of
+        // reporting the session missing.
+        Err(_) => app
+            .get_webview_window(MP_SESSION_WINDOW_LABEL)
+            .ok_or_else(|| error::SESSION_UNAVAILABLE.to_string()),
+    }
 }
 
 /// Wait for a lazily created online window to commit first-party navigation.
@@ -1016,20 +1024,30 @@ async fn run_session_call(
     if !is_allowlisted_call(method, path_and_query) {
         return Err(error::UNSUPPORTED_OP.to_string());
     }
+    // No window yet after a cold boot: provide the hidden persistent
+    // restore window so a valid durable session probes 200 instead of
+    // forcing a provider round trip. Creation failure keeps the old
+    // `session-unavailable` verdict and the sign-in path.
     let window = match app.get_webview_window(MP_SESSION_WINDOW_LABEL) {
         Some(window) => window,
-        // No window yet after a cold boot: provide the hidden persistent
-        // restore window so a valid durable session probes 200 instead of
-        // forcing a provider round trip. Creation failure keeps the old
-        // `session-unavailable` verdict and the sign-in path.
-        None => {
-            let window = ensure_online_window(app)?;
-            wait_for_online_window(&window).await?;
-            window
-        }
+        None => ensure_online_window(app)?,
     };
     if window.label() != MP_SESSION_WINDOW_LABEL {
         return Err(error::SESSION_UNAVAILABLE.to_string());
+    }
+    // Gate every call on first-party commit, not just the creation path: a
+    // pre-existing window may still be uncommitted (a previous restore timed
+    // out offline and left it at about:blank, or a provider trip is
+    // mid-flight on an auxiliary host). Evaluating outside live-site context
+    // would answer 401 and misreport a valid durable session as signed out,
+    // so wait (bounded) first; a window that never commits stays a
+    // transport failure with retry.
+    if !window
+        .url()
+        .ok()
+        .is_some_and(|current| online_window_url_ready(&current))
+    {
+        wait_for_online_window(&window).await?;
     }
     let (script, request_id) = start_script(method, path_and_query, body);
     window

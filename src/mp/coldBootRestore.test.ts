@@ -162,6 +162,30 @@ describe("cold-boot restore bridge contract", () => {
     expect(production).not.toContain("document.cookie");
   });
 
+  it("gates pre-existing windows on first-party commit before probing", () => {
+    // A window left behind by a timed-out offline restore sits at
+    // about:blank, and a mid-flight provider trip sits on an auxiliary
+    // host. Evaluating the session script in either context would answer
+    // 401 and misreport a valid durable session as signed out, so the
+    // bounded wait must apply after the label check on every call, not
+    // only inside the creation arm.
+    const production = bridge.split("#[cfg(test)]")[0] ?? "";
+    const labelCheck = production.indexOf("window.label() != MP_SESSION_WINDOW_LABEL");
+    const gate = production.indexOf("wait_for_online_window(&window).await");
+    expect(labelCheck).toBeGreaterThan(-1);
+    expect(gate).toBeGreaterThan(labelCheck);
+  });
+
+  it("recovers the winning window when concurrent restores race creation", () => {
+    // Two first calls racing both see no window; the loser hits a
+    // duplicate-label build error and must reuse the winner, never report
+    // the session missing.
+    const production = bridge.split("#[cfg(test)]")[0] ?? "";
+    const lookups =
+      production.match(/get_webview_window\(MP_SESSION_WINDOW_LABEL\)/g) ?? [];
+    expect(lookups.length).toBeGreaterThanOrEqual(3);
+  });
+
   it("keeps the restore path out of the SP engine", () => {
     for (const file of ["adapter.ts", "bridge.ts"]) {
       const source = readFileSync(new URL(`./${file}`, import.meta.url), "utf8");
