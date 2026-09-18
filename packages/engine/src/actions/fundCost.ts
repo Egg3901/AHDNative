@@ -66,7 +66,12 @@ export function actionFundCost(input: FundCostInput): number {
     const fundraising = input.stats?.fundraising ?? NEUTRAL_STAT;
     cost = Math.round(cost / statMultiplier(fundraising));
   }
-  if (input.actionId === "poll" || input.actionId === "pollLarge") {
+  // Reference boundary (AHDGame src/lib/actions/commands/executeAction.ts):
+  // every campaign-fund effect is anchor and converts to local at the frozen
+  // base rate. buildDonorBase joins the already-converted poll/pollLarge here;
+  // campaign/advertise and the fundraise-yield credit still debit/credit anchor
+  // as local (see docs/CHARACTER-ACTION-PARITY.md) and stay untouched.
+  if (input.actionId === "poll" || input.actionId === "pollLarge" || input.actionId === "buildDonorBase") {
     cost = campaignAnchorToLocal(cost, input.countryId ?? "US");
   }
   return cost;
