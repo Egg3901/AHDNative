@@ -841,7 +841,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           {route === "profile" ? <ProfileRoute load={loadProfile} loadDestination={loadProfileDestination} loadImperial={loadImperialProfile} revision={world} era={world.era} busy={busy} onUpdateProfile={onUpdateProfile} onSelectConstituency={onSelectConstituency} viewerDisablesAutoplay={preferences.disableAutoplayOnOtherProfiles} onNavigate={(next, id) => {
             // Profile deep-links into the hub carry the hub category in `id`;
             // detail ids only apply to non-actions destinations.
-            if (next === "actions" && (id === "influence" || id === "fundraising" || id === "intelligence")) {
+            if (next === "actions" && (id === "influence" || id === "fundraising" || id === "intelligence" || id === "executive")) {
               setActionsCategory(id);
               go(next);
               return;

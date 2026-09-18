@@ -1683,6 +1683,8 @@ function executeActionInner(
   // HOS_PARTY_BYPASS_ACTIONS party-membership swap. Each mutates budget
   // state at the next turn boundary through fiscalDirectivesPhase, which calls
   // the same pure budget calculators and preserves the surplus invariant.
+  // Tax directives phase in through budget.taxRatePhaseIn exactly like federal
+  // tax legislation (issue #93); spending directives enact at the boundary.
   if (actionId === "adjustBudgetSpending" || actionId === "adjustTaxRate") {
     if (found.kind !== "player") return { ok: false, error: "Only the player directs the budget" };
     const player = world.player as unknown as { mode: string };

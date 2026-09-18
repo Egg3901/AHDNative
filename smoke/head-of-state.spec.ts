@@ -21,7 +21,11 @@ test('Head of State seats, directs tax policy, advances, saves and resumes', asy
 
   await advanceGame(page);
   await navigateGame(page, 'Policy');
-  await expect(page.getByText('Income tax').locator('..')).toContainText('25.0%');
+  // HoS tax directives now follow the persisted one-point-per-phase-in path
+  // used by enacted tax law. The deterministic 1953 US fixture starts at 35%
+  // and is 33% after the first boundary; it converges to the requested 25%
+  // over subsequent turns rather than jumping immediately.
+  await expect(page.getByText('Income tax').locator('..')).toContainText('33.0%');
   await saveGame(page);
   await page.reload();
   await page.getByRole('button', { name: 'Continue Executive Player', exact: true }).click();

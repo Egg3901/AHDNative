@@ -662,7 +662,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   adjustTaxRate: {
     id: "adjustTaxRate",
     name: "Set Tax Rate",
-    description: "Direct a federal tax rate from 0 to 100%. The costed proposal enacts at the next turn boundary. Head of State mode only. Cost 3 AP.",
+    description: "Direct a federal tax rate from 0 to 100%. The costed proposal phases in from the next turn boundary like enacted tax law (max 1 point per turn). Head of State mode only. Cost 3 AP.",
     baseCost: 3,
     cooldown: 0,
     fundCost: 0,

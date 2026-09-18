@@ -225,16 +225,22 @@ describe("M1: economic-direction levers (HoS-only, call existing budget function
     expect(world.pendingFiscalDirectives).toEqual([]);
   });
 
-  it("HoS tax direction queues, then enacts on the next turn boundary", () => {
+  it("HoS tax direction queues, then phases in from the next turn boundary (#93)", () => {
     const world = createWorld(HOS_OPTS);
     const before = world.budgets.US!.taxRates.incomeTax;
-    const res = executeAction(world, "player", "adjustTaxRate", { taxField: "incomeTax", taxRate: 25 });
+    const target = before > 15 ? before - 10 : before + 10;
+    const res = executeAction(world, "player", "adjustTaxRate", { taxField: "incomeTax", taxRate: target });
     expect(res.ok).toBe(true);
     expect(world.budgets.US!.taxRates.incomeTax).toBe(before);
     advanceTurn(world);
     const budget = world.budgets["US"]!;
-    expect(budget.taxRates.incomeTax).toBe(25);
+    // Same persisted phase-in path as enacted federal tax law: the rate steps
+    // toward the target instead of jumping, with the remainder queued.
+    expect(Math.abs(budget.taxRates.incomeTax - target)).toBeLessThan(Math.abs(before - target));
+    expect(budget.taxRatePhaseIn?.incomeTax).toBe(target);
     expect(budget.surplus).toBe(budget.revenue.total - budget.spending.total);
+    for (let turn = 0; turn < 14 && budget.taxRates.incomeTax !== target; turn++) advanceTurn(world);
+    expect(world.budgets["US"]!.taxRates.incomeTax).toBe(target);
   });
 
   it("subsidy and command-economy levers stay honestly unavailable (PORT-STUB)", () => {
