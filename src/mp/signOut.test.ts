@@ -31,7 +31,10 @@ interface Script {
   mutate?: Record<string, Array<string | { reject: string }>>;
 }
 
-function fakeHost(script: Script): { host: MpBridgeHost; mutateSpy: ReturnType<typeof vi.fn> } {
+function fakeHost(
+  script: Script,
+  beginSignIn: MpBridgeHost["beginSignIn"] = async () => {},
+): { host: MpBridgeHost; mutateSpy: ReturnType<typeof vi.fn>; beginSpy: ReturnType<typeof vi.fn> } {
   const fetchQueues = new Map<string, Array<string | { reject: string }>>();
   for (const [op, items] of Object.entries(script.fetch ?? {})) fetchQueues.set(`fetch:${op}`, [...items]);
   const mutateQueues = new Map<string, Array<string | { reject: string }>>();
@@ -42,8 +45,10 @@ function fakeHost(script: Script): { host: MpBridgeHost; mutateSpy: ReturnType<t
     if (item) throw new Error(item.reject);
     throw new Error(`unexpected mutate ${op}`);
   });
+  const beginSpy = vi.fn(beginSignIn);
   return {
     mutateSpy,
+    beginSpy,
     host: {
       fetch: async (op: string) => {
         const item = fetchQueues.get(`fetch:${op}`)?.shift();
@@ -52,7 +57,7 @@ function fakeHost(script: Script): { host: MpBridgeHost; mutateSpy: ReturnType<t
         throw new Error(`unexpected fetch ${op}`);
       },
       mutate: mutateSpy,
-      beginSignIn: async () => {},
+      beginSignIn: beginSpy,
     },
   };
 }
@@ -156,5 +161,86 @@ describe("MpModeSession signOut unlink", () => {
     expect(mutateSpy).not.toHaveBeenCalled();
     expect(next.phase).toBe("signed-out");
     expect(next.userId).toBeNull();
+  });
+});
+
+/* Unlink-to-switch acceptance (#149, #363): unlinking must end in a state
+ * from which a different account can link on the same session object with
+ * no residue from the previous identity — no stale userId, character,
+ * capabilities, or inbox, and no leftover notice or error. A failed switch
+ * trip must keep the signed-out state with retry instead of stranding or
+ * partially linking.
+ */
+describe("MpModeSession unlink-to-switch acceptance", () => {
+  const USER_B = "507f1f77bcf86cd799439012";
+  const probeBo = JSON.stringify({ active: true, sub: USER_B, username: "Bo" });
+  const meBo = JSON.stringify({
+    character: { _id: "c2", name: "Bo", party: "Whig", homeState: "NY", cashOnHand: 5, actions: 2, countryId: "US" },
+    corporation: null,
+  });
+  const capsBo = JSON.stringify({ user: { id: USER_B, username: "Bo", isAdmin: false }, hasCharacter: true });
+  const inboxBo = JSON.stringify({ notifications: [], unreadCount: 0, total: 0, hasMore: false });
+
+  function switchScript(): Script {
+    return {
+      fetch: {
+        "auth-session": [probe, probeBo],
+        "character-me": [me, meBo],
+        "turn-status": [turn, turn],
+        "client-nav": [caps, capsBo],
+        notifications: [inbox, inboxBo],
+      },
+      mutate: { "auth-logout": [logoutAck] },
+    };
+  }
+
+  it("unlink then link as a different account carries no state across the switch", async () => {
+    const { host, beginSpy } = fakeHost(switchScript(), async () => {});
+    const session = new MpModeSession(host);
+    const entered = await session.enter();
+    expect(entered.phase).toBe("ready");
+    expect(entered.username).toBe("Ada");
+
+    const unlinked = await session.signOut();
+    expect(unlinked.phase).toBe("signed-out");
+    expect(unlinked.userId).toBeNull();
+
+    const switched = await session.signIn("google");
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(beginSpy).toHaveBeenCalledWith("google");
+    expect(switched.phase).toBe("ready");
+    expect(switched.userId).toBe(USER_B);
+    expect(switched.username).toBe("Bo");
+    expect(switched.character?.name).toBe("Bo");
+    expect(switched.character?.cashOnHand).toBe(5);
+    expect(switched.inbox?.unreadCount).toBe(0);
+    expect(switched.notice).toBeNull();
+    expect(switched.error).toBeNull();
+  });
+
+  it("failed switch trip after unlink stays signed out with retry", async () => {
+    const { host, beginSpy } = fakeHost(switchScript(), async () => {
+      throw new Error("main webview is unavailable");
+    });
+    const session = new MpModeSession(host);
+    expect((await session.enter()).username).toBe("Ada");
+    expect((await session.signOut()).phase).toBe("signed-out");
+
+    const failed = await session.signIn("google");
+    expect(beginSpy).toHaveBeenCalledWith("google");
+    expect(failed.phase).toBe("offline");
+    expect(failed.userId).toBeNull();
+    expect(failed.character).toBeNull();
+    expect(failed.error).toBeTruthy();
+
+    // Retry links the new account cleanly: no probe was spent on the failed
+    // trip, so the queued session answers the retry.
+    beginSpy.mockImplementationOnce(async () => {});
+    const retried = await session.signIn("discord");
+    expect(retried.phase).toBe("ready");
+    expect(retried.userId).toBe(USER_B);
+    expect(retried.username).toBe("Bo");
+    expect(retried.character?.name).toBe("Bo");
+    expect(retried.error).toBeNull();
   });
 });
