@@ -419,6 +419,28 @@ describe("#322 labour-relations turn pass", () => {
     const revenueAfter = Object.values(world.corporations).reduce((sum, corp) => sum + corp.revenue, 0);
     expect(revenueAfter).toBe(revenueBefore);
   });
+
+  it("autoplay still opens when the demand ceiling binds and grievance reads zero", () => {
+    // Reference parity: the open gate is the mandate floors, not grievance.
+    // At ceiling wages the claim caps at 1.5 and no local sits below it, so
+    // every candidate's grievance is exactly zero — but full coverage still
+    // carries the mandate (support = coverage * 0.6 + law * 0.1).
+    const world = createWorld(WORLD);
+    advanceTurn(world);
+    const assets = corporateSectorAssets(world);
+    for (const asset of Object.values(assets)) {
+      asset.unionization = 100;
+      asset.wageLevel = 1.5;
+    }
+    for (const union of Object.values(world.unions)) {
+      if (union.ownerType === "npp" && union.ownerId != null) {
+        union.treasury = 5000;
+        union.unionization = 100;
+      }
+    }
+    const result = processLabourRelationsTurn(world, world.meta.turn + 1);
+    expect(result.campaignsOpened).toBeGreaterThan(0);
+  });
 });
 
 describe("#322 deterministic employer policy", () => {

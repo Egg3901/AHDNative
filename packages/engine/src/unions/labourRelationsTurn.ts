@@ -390,8 +390,13 @@ function openNppCampaigns(
           right.workers - left.workers ||
           (left.employerId < right.employerId ? -1 : 1)
       );
+    // No grievance gate here, matching the reference: it opens whenever a
+    // candidate exists and lets the mandate floors inside
+    // openBargainingCampaignAction refuse. (With finite wages the claim
+    // exceeds the scope average by construction, so the winner's grievance
+    // is positive anyway; the gate could only bite on non-finite input.)
     const candidate = candidates[0];
-    if (!candidate || candidate.grievance <= 0) continue;
+    if (!candidate) continue;
     try {
       openBargainingCampaignAction(world, {
         unionId: union.id,
@@ -423,6 +428,9 @@ function answerNppCampaigns(world: WorldState, turn: number, result: LabourRelat
     const locals = scopedExistingAssets(world, campaign);
     if (!union || !employer || locals.length === 0) continue;
     const employerWageLevel = workerWeightedAverage(locals, (local) => local.wageLevel ?? 1);
+    // Native adaptation: the reference weights sector profitMargin readings,
+    // but Native sector assets carry no margin field, so the corporation's
+    // own margin is the only read. Same percentage-points unit the policy takes.
     const employerProfitMargin = employer.profitMargin;
     const unionIsNpp = union.ownerType === "npp" && union.ownerId != null;
 

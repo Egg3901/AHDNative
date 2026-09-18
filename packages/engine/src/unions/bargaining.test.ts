@@ -261,7 +261,32 @@ describe("#322 escalation ladder", () => {
     expect(plan.newStrikeLocalIds).toEqual([]);
     expect(plan.cashCost).toBe(0);
     expect(plan.upkeepPerTurn).toBe(40);
+    expect(plan.heldUpkeepPerTurn).toBe(0);
     expect(plan.blockedReason).toBeNull();
+  });
+
+  it("reports the held ban upkeep alongside the next rung (reference heldUpkeepPerTurn)", () => {
+    const campaign = { ...disputedWithSupport(70), escalationLevel: "overtime_ban" as const, sectorIds: ["s1", "s2", "s3"] };
+    const locals = ["s1", "s2", "s3"].map((id) => ({
+      id,
+      unionization: 70,
+      strikeStartedAtTurn: null,
+      strikeCooldownUntilTurn: null,
+    }));
+    const plan = buildBargainingEscalationPlan(campaign, locals, 3, { treasury: 5000, lastCalledStrikeTurn: null });
+    expect(plan.nextLevel).toBe("selective_strike");
+    expect(plan.upkeepPerTurn).toBe(0);
+    // The ban being held costs 40 per resolving local: the preview agrees
+    // with what the turn pass will actually debit.
+    expect(plan.heldUpkeepPerTurn).toBe(120);
+    // A sold local drops out of scope and out of the held cost.
+    const partial = buildBargainingEscalationPlan(
+      { ...campaign, sectorIds: ["s1", "s2"] },
+      locals,
+      3,
+      { treasury: 5000, lastCalledStrikeTurn: null },
+    );
+    expect(partial.heldUpkeepPerTurn).toBe(80);
   });
 
   it("selective strikes hit half the eligible locals; industry hits all eligible", () => {

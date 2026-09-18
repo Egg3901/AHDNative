@@ -467,6 +467,15 @@ export interface BargainingEscalationPlan {
   newStrikeLocalIds: string[];
   cashCost: number;
   upkeepPerTurn: number;
+  /**
+   * Upkeep the CURRENT level is already costing per turn, scoped to locals
+   * that still resolve — exactly as the labour-relations turn charges it, so
+   * a preview of the runway never disagrees with the coming debit. Counting
+   * raw sectorIds instead would overstate the cost for a campaign whose
+   * locals have since been sold or destroyed. Source: reference
+   * buildBargainingEscalationPlan heldUpkeepPerTurn.
+   */
+  heldUpkeepPerTurn: number;
   strikeCooldownUntilTurn: number | null;
   blockedReason: string | null;
   blockedCode: "no_target" | "strike_cooldown" | "insufficient_funds" | null;
@@ -492,6 +501,7 @@ export function buildBargainingEscalationPlan(
       newStrikeLocalIds: [],
       cashCost: 0,
       upkeepPerTurn: 0,
+      heldUpkeepPerTurn: escalationUpkeepPerTurn(campaign.escalationLevel, 0),
       strikeCooldownUntilTurn: null,
       blockedReason: null,
       blockedCode: null,
@@ -552,6 +562,7 @@ export function buildBargainingEscalationPlan(
     newStrikeLocalIds: newStrikeLocals.map((local) => local.id),
     cashCost,
     upkeepPerTurn: escalationUpkeepPerTurn(nextLevel, scoped.length),
+    heldUpkeepPerTurn: escalationUpkeepPerTurn(campaign.escalationLevel, scoped.length),
     strikeCooldownUntilTurn,
     blockedReason,
     blockedCode,
