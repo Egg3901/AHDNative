@@ -369,18 +369,18 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // bankingTurn/bankSolvencyTurn mid-pipeline, immediately after
   // savingsInterestTurn / recomputeSharePrices respectively; inserting them
   // there would shift every downstream rng draw for existing goldens - and
-  // in solo's case both phases are RNG-free regardless, so the real reason
-  // is the same append-only-tail rule recomputeSharePricesPhase's own
+  // in solo's case the banking phases are RNG-free regardless, so the real
+  // reason is the same append-only-tail rule recomputeSharePricesPhase's own
   // comment states, not an rng argument). playerSavingsInterestPhase handles
   // only central-bank-held savings and runs before bankingTurnPhase, which
   // exclusively handles private-bank-held savings. bankingTurnPhase before
   // bankSolvencyTurnPhase mirrors mainline's real relative order (a bank's
   // deposit/loan/interest flows settle before that same turn's solvency
-  // pass evaluates the resulting cash position) and mainline's own stated
-  // intent that bankSolvencyTurn runs "immediately after recomputeShare
-  // Prices" (bankSolvencyTurn.ts file doc) - solo drops the prop-book mark-
-  // to-market this ordering exists for (see banking/types.ts file doc: no
-  // investment-bank charter type ported), but keeps the same slot.
+  // pass evaluates the resulting cash position); bankSolvencyTurnPhase
+  // itself runs after recomputeSharePricesPhase below, matching mainline's
+  // stated order that bankSolvencyTurn runs "immediately after
+  // recomputeSharePrices" (turnPhaseRegistry.ts) so the #328 prop-book
+  // mark lands on fresh prices.
   playerSavingsInterestPhase,
   bankingTurnPhase,
   // #327 discount-window interest servicing, immediately after bankingTurn
@@ -396,7 +396,6 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // payment reads the wallet this turn's banking flows already settled.
   // RNG-free, so tail placement shifts no downstream rng draws.
   playerLineOfCreditPhase,
-  bankSolvencyTurnPhase,
   // W30 governor cluster at END before newsMaintenance, after the W12
   // banking cluster (merged in ahead of this wave - see world.ts
   // SCHEMA_VERSION file doc; the two clusters don't read/write any shared
@@ -454,13 +453,22 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // matching mainline (turnPhaseNames.ts: bondTurn 18 < recomputeSharePrices
   // 22; the source even keeps a dedicated recomputeSharePricesAfterBondTurn
   // for exactly this edge). This also preserves mainline's bankingTurn (13)
-  // < bondTurn (18) < recomputeSharePrices (22) chain: bankingTurnPhase and
-  // bankSolvencyTurnPhase both sit earlier in this tail, so loan-service
-  // debits to corp.liquidCapital land before the repricing too. The move is
+  // < bondTurn (18) < recomputeSharePrices (22) chain: bankingTurnPhase
+  // sits earlier in this tail, so loan-service debits to
+  // corp.liquidCapital land before the repricing too. The move is
   // RNG-free (neither the bond phases nor the repricing draw from WorldRng),
   // still strictly after corporationTurnPhase above, and before every
   // downstream reader of share prices (metrics, recordWorldHistory).
   recomputeSharePricesPhase,
+  // #328: bankSolvencyTurnPhase immediately after the repricing, exactly
+  // as mainline orders bankSolvencyTurn after recomputeSharePrices (see
+  // turnPhaseRegistry.ts: "AFTER recomputeSharePrices so prop-book marking
+  // can land against fresh prices"). The mark, forced-liquidation shrink,
+  // and investment-bank failure test all read this turn's fresh prices;
+  // the retail-bank math (confidence, flight, run failure) reads no share
+  // prices, so seeded retail-only worlds are unaffected by the slot. Both
+  // phases are RNG-free, so no downstream rng stream shifts.
+  bankSolvencyTurnPhase,
   // W4 forex at END before newsMaintenance — ordering deviation:
   // Mainline runs ledgerPreForexSnapshot immediately BEFORE forexTurn
   // (stateEffectsPhase.ts: writePreForexBalanceCheckpoint then

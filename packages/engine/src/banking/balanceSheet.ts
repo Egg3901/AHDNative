@@ -2,6 +2,13 @@
  * Canonical pure accounting for bank borrowings and shareholder capital.
  * Ports AHDGame `src/lib/banking/rules/balanceSheet.ts` at pinned revision
  * e364c04954ed628beef73a993a8e9e156650a31e.
+ *
+ * #328 note: the prop-book mark is deliberately NOT an input here. The
+ * source prices the book for leverage (`computePropEquityBase` in
+ * propTrading.ts) but never lets the volatile mark distribute as equity —
+ * bankEquity/regulatoryCapital read only cash, loans, deposits and
+ * borrowings, so prop gains cannot leak into deposit ceilings or
+ * distributions. A dedicated test pins the exclusion.
  */
 
 export interface BankBorrowings {

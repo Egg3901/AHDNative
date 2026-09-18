@@ -65,9 +65,14 @@ export function seedNpcBanks(world: WorldState): SeedNpcBanksResult {
 
     const charter: BankCharter = {
       status: "active",
+      // #328: seeded banks are retail (no prop book). Investment/universal
+      // charters arrive with a future charter wave, never by migration.
+      charterType: "retail",
+      propBook: [],
       charteredTurn: world.meta.turn,
       postedCapital: posted,
       cashReserves: posted,
+      propBookMarkValue: 0,
       npcDeposits: 0,
       totalDeposits: 0,
       totalLoans: 0,

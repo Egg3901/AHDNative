@@ -198,6 +198,15 @@ describe("computeConfidence", () => {
     expect(CONFIDENCE_BAND_GREEN_MIN).toBe(0.7);
     expect(CONFIDENCE_BAND_AMBER_MIN).toBe(0.4);
   });
+  it("forced liquidation subtracts the flat 0.15 penalty and defaults to off (#328)", () => {
+    const input = { cashReserves: 1000, cashBackedDeposits: 1000, totalLoans: 0, reserveRatioRequired: 0.2, arrearsOutstanding: 0, defaultsLastTurn: 0, panicTurns: 0 };
+    const base = computeConfidence(input);
+    const forced = computeConfidence({ ...input, forcedLiquidation: true });
+    expect(base.confidence).toBe(1);
+    expect(forced.confidence).toBeCloseTo(0.85, 6);
+    expect(forced.band).toBe("green");
+    expect(base.confidence - forced.confidence).toBeCloseTo(0.15, 6);
+  });
   it("panic turns penalize confidence, capped at 4 turns", () => {
     const base = computeConfidence({
       cashReserves: 1000,

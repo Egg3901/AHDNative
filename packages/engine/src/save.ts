@@ -36,6 +36,8 @@ import {
 import { validateUnionOrganizers } from "./unions/organizers.js";
 import { validateUnionContributionLedger } from "./unions/contributions.js";
 import { validatePlayerLineOfCredit } from "./finance/playerLineOfCredit.js";
+import type { BankCharter } from "./banking/types.js";
+import { sumPositionMarks } from "./banking/propTrading.js";
 import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
 import {
   validateBargainingCampaigns,
@@ -332,6 +334,35 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
         error: `Corporation ${corpId} has price history that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}`,
       };
     }
+    // #328: bank proprietary-book state. A default retail charter with an
+    // empty book and a zero mark projects cleanly (dropped below; absent
+    // reloads as the identical default). Any live prop state cannot
+    // round-trip through schema 42 and is refused, same class as market
+    // pressure above.
+    const charter = value["bankCharter"];
+    if (isRecord(charter)) {
+      const charterType = charter["charterType"];
+      if (charterType !== undefined && charterType !== "retail") {
+        return {
+          ok: false,
+          error: `Corporation ${corpId} has a ${String(charterType)} bank charter that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}`,
+        };
+      }
+      const propBook = charter["propBook"];
+      if (propBook !== undefined && (!Array.isArray(propBook) || propBook.length > 0)) {
+        return {
+          ok: false,
+          error: `Corporation ${corpId} has proprietary positions that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}`,
+        };
+      }
+      const propBookMarkValue = charter["propBookMarkValue"];
+      if (propBookMarkValue !== undefined && propBookMarkValue !== 0) {
+        return {
+          ok: false,
+          error: `Corporation ${corpId} has a proprietary mark that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}`,
+        };
+      }
+    }
   }
 
   const candidateSave = structuredClone(save);
@@ -354,6 +385,15 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     delete corp["orderFlowWindowBuyValue"];
     delete corp["orderFlowWindowSellValue"];
     delete corp["priceHistory"];
+    // #328: default prop-book state is dropped so the projected bytes stay
+    // identical to an authentic schema 42 document; the reload backfill
+    // re-seeds the same retail charter, empty book, and zero mark.
+    const candidateCharter = corp["bankCharter"];
+    if (isRecord(candidateCharter)) {
+      delete candidateCharter["charterType"];
+      delete candidateCharter["propBook"];
+      delete candidateCharter["propBookMarkValue"];
+    }
   }
   if (typeof candidatePlayer["homeRegionId"] !== "string") {
     delete candidatePlayer["homeRegionId"];
@@ -643,6 +683,45 @@ function assertCountryPolitics(value: unknown): void {
     if (!Number.isInteger(entry["updatedTurn"]) || (entry["updatedTurn"] as number) < 0) {
       throw new Error(`Not a valid save file: invalid countryPolitics["${countryId}"].updatedTurn`);
     }
+  }
+}
+
+/**
+ * #328 load-time normalization for bank charter prop state. Absent fields
+ * take the seeded shape (retail, empty book, zero mark); a present-but-absent
+ * mark is recomputed from the rows so the cached aggregate stays
+ * self-consistent. Anything present-but-invalid fails closed.
+ */
+function normalizeBankCharterPropBook(corpId: string, charter: BankCharter): void {
+  if (charter.charterType === undefined) {
+    charter.charterType = "retail";
+  } else if (charter.charterType !== "retail" && charter.charterType !== "investment" && charter.charterType !== "universal") {
+    throw new Error(`Not a valid save file: corporation ${corpId} has an invalid bank charter type`);
+  }
+  if (charter.propBook === undefined) {
+    charter.propBook = [];
+  } else {
+    if (!Array.isArray(charter.propBook)) {
+      throw new Error(`Not a valid save file: corporation ${corpId} has an invalid bank prop book`);
+    }
+    for (const row of charter.propBook) {
+      if (typeof row !== "object" || row === null) {
+        throw new Error(`Not a valid save file: corporation ${corpId} has an invalid bank prop position`);
+      }
+      const asset = (row as { asset?: unknown }).asset;
+      const ref = (row as { ref?: unknown }).ref;
+      const units = (row as { units?: unknown }).units;
+      const costBasis = (row as { costBasis?: unknown }).costBasis;
+      const markValue = (row as { markValue?: unknown }).markValue;
+      if (asset !== "equity" || typeof ref !== "string" || ref.length === 0 || typeof units !== "number" || !Number.isFinite(units) || !(units > 0) || typeof costBasis !== "number" || !Number.isFinite(costBasis) || costBasis < 0 || (markValue !== undefined && (typeof markValue !== "number" || !Number.isFinite(markValue) || markValue < 0))) {
+        throw new Error(`Not a valid save file: corporation ${corpId} has an invalid bank prop position`);
+      }
+    }
+  }
+  if (charter.propBookMarkValue === undefined) {
+    charter.propBookMarkValue = sumPositionMarks(charter.propBook);
+  } else if (typeof charter.propBookMarkValue !== "number" || !Number.isFinite(charter.propBookMarkValue) || charter.propBookMarkValue < 0) {
+    throw new Error(`Not a valid save file: corporation ${corpId} has an invalid bank prop mark`);
   }
 }
 
@@ -2706,6 +2785,15 @@ export function deserializeSave(raw: string): WorldState {
   }
   if (save.world.collectiveAgreements !== undefined) {
     validateCollectiveAgreements(save.world, save.world.collectiveAgreements);
+  }
+  // #328: bank proprietary-book state. Saves written before the slice carry
+  // no charterType/propBook/propBookMarkValue; absent degrades to the
+  // seeded shape (retail charter, empty book, zero mark), so no version
+  // renumber is needed. Present-but-invalid state fails closed.
+  for (const corp of Object.values(save.world.corporations)) {
+    if (corp.bankCharter !== undefined) {
+      normalizeBankCharterPropBook(corp.id, corp.bankCharter);
+    }
   }
   // Union strength keeps the reference absent-means-zero rule WITHOUT
   // materializing the field: a mid-campaign save/load must leave union rows

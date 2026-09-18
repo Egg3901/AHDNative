@@ -308,6 +308,8 @@ export const CONFIDENCE_ARREARS_PENALTY = 0.7;
 export const CONFIDENCE_DEFAULTS_PENALTY = 0.3;
 export const CONFIDENCE_PANIC_PENALTY_PER_TURN = 0.12;
 export const CONFIDENCE_PANIC_TURNS_CAP = 4;
+/** Source: rules/confidence.ts CONFIDENCE_FORCED_LIQUIDATION_PENALTY (verbatim). Applied only when bankSolvencyTurn forced a prop-book leverage liquidation this turn (#328). */
+export const CONFIDENCE_FORCED_LIQUIDATION_PENALTY = 0.15;
 export const CONFIDENCE_BAND_GREEN_MIN = 0.7;
 export const CONFIDENCE_BAND_AMBER_MIN = 0.4;
 
@@ -326,6 +328,8 @@ export interface ConfidenceInput {
    * Source: rules/confidence.ts ConfidenceInput.discountWindowStigma.
    */
   discountWindowStigma?: number;
+  /** True when bankSolvencyTurn forced a prop-book leverage liquidation this turn (#328). Source: ConfidenceInput.forcedLiquidation. */
+  forcedLiquidation?: boolean;
 }
 export interface ConfidenceResult {
   confidence: number;
@@ -334,9 +338,10 @@ export interface ConfidenceResult {
 export type ConfidenceBand = "green" | "amber" | "red";
 
 /**
- * Source: confidence.ts computeConfidence. The forcedLiquidation penalty stays
- * out of scope (prop trading, #328 — see types.ts file doc); the
- * discountWindowStigma penalty is live (#327).
+ * Source: rules/confidence.ts computeConfidence. Both the
+ * discountWindowStigma penalty (#327) and the forcedLiquidation penalty
+ * (#328) are live; banks that never drew and had no forced liquidation
+ * this turn score exactly as before.
  */
 export function computeConfidence(input: ConfidenceInput): ConfidenceResult {
   const cash = Math.max(0, input.cashReserves);
@@ -367,8 +372,7 @@ export function computeConfidence(input: ConfidenceInput): ConfidenceResult {
     typeof input.discountWindowStigma === "number" && Number.isFinite(input.discountWindowStigma)
       ? Math.max(0, input.discountWindowStigma)
       : 0;
-  const penalized =
-    raw - CONFIDENCE_PANIC_PENALTY_PER_TURN * Math.min(panicTurns, CONFIDENCE_PANIC_TURNS_CAP) - stigma;
+  const penalized = raw - CONFIDENCE_PANIC_PENALTY_PER_TURN * Math.min(panicTurns, CONFIDENCE_PANIC_TURNS_CAP) - stigma - (input.forcedLiquidation === true ? CONFIDENCE_FORCED_LIQUIDATION_PENALTY : 0);
   const confidence = clamp(penalized, 0, 1);
   const band: ConfidenceBand =
     confidence >= CONFIDENCE_BAND_GREEN_MIN ? "green" : confidence >= CONFIDENCE_BAND_AMBER_MIN ? "amber" : "red";

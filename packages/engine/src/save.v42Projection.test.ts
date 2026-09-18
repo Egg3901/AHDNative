@@ -162,6 +162,21 @@ describe("projectSaveToV42 public envelope", () => {
     expect(projected.error).toMatch(/market pressure/);
   });
 
+  it("refuses a Native world with live prop-book state that schema 42 cannot carry (#328)", () => {
+    const world = createWorld(WORLD_OPTS);
+    const doc = JSON.parse(serializeSave(world, SAVED_AT)) as {
+      world: { corporations: Record<string, { bankCharter?: Record<string, unknown> }> };
+    };
+    const charter = doc.world.corporations["US-financial"]!.bankCharter!;
+    charter["charterType"] = "investment";
+    charter["propBook"] = [{ asset: "equity", ref: "US-manufacturing", units: 10, costBasis: 100, markValue: 110 }];
+    charter["propBookMarkValue"] = 110;
+    const projected = projectSaveToV42(JSON.stringify(doc));
+    expect(projected.ok).toBe(false);
+    if (projected.ok) throw new Error("expected prop-book refusal");
+    expect(projected.error).toMatch(/charter|proprietary|schema 42/);
+  });
+
   it("projects a Native-fresh envelope whose record keys are reversed", () => {
     const world = createWorld(WORLD_OPTS);
     const original = JSON.parse(serializeSave(world, SAVED_AT)) as Record<string, unknown>;

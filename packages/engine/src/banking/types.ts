@@ -8,22 +8,25 @@
  * banking/bankSolvencyTurn.ts file docs for the full scope-cut rationale).
  *
  * Scope cut (cited, not silently dropped): mainline's BankCharter also
- * carries investment/universal charter capabilities, proprietary positions,
- * InterbankLoan rows, the central-bank margin facility, and their idempotency
- * fields. #325 adds the optional aggregate debts and proprietary mark needed
- * for canonical accounting; #327 ports the discount-window lifecycle
- * (discountWindow.ts); interbank and proprietary lifecycles remain #326/#328.
- * Regulation Q rate corridors, charter-switch cooldowns, a blacklist, opt-in
- * loan approval, and B7 supervisory capital-adequacy stress testing
- * (capitalStanding, appliedStressLossFraction, undercapitalizedSinceTurn).
- * All of that sits behind mainline's SEPARATE `bankPropTradingEnabled` kill
+ * carries InterbankLoan rows, the central-bank margin facility, and their
+ * idempotency fields. #325 adds the optional aggregate debts and
+ * proprietary mark needed for canonical accounting; #327 ports the
+ * discount-window lifecycle (discountWindow.ts); #328 adds the equity
+ * prop-book lifecycle (open/close/mark/forced liquidation) on
+ * investment/universal charters. Regulation Q rate
+ * corridors, charter-switch cooldowns, a blacklist, opt-in loan approval, and
+ * B7 supervisory capital-adequacy stress testing (capitalStanding,
+ * appliedStressLossFraction, undercapitalizedSinceTurn). All of that sits
+ * behind mainline's SEPARATE `bankPropTradingEnabled` kill
  * switch (src/lib/banking/featureFlag.ts isBankPropTradingEnabled) or is
  * player-console UX with no origination action ported yet in AHDClient (no
  * "request a bank loan" / "open an investment charter" action exists). W12
  * ports the retail/deposit-taking core only: one bank per playable country
  * (see npcBanks.ts), NPC household deposits + interest, the NPC household
- * bulk loan book, deposit insurance, and solvency/failure. Prop transactions,
- * the margin facility, charter switching, Regulation Q,
+ * bulk loan book, deposit insurance, and solvency/failure. #328 adds the
+ * prop-book lifecycle on investment/universal charters (which no wave
+ * issues yet - seeded banks stay retail). Prop transactions beyond that
+ * lifecycle, the margin facility, charter switching, Regulation Q,
  * supervision and loan approval are out of scope for this wave — flagged for
  * operator review, not silently ported partial. Interbank lend/repay/interest
  * servicing used to sit in that list; #326 ports it (see banking/interbank.ts).
@@ -31,6 +34,29 @@
 
 /** Solo charters only the deposit-taking type; see file doc for the cut. */
 export type BankCharterStatus = "active" | "failed";
+
+/**
+ * Charter business model. Source: db/types/bank.ts BankCharterType
+ * (verbatim). Seeded solo banks are all "retail"; investment/universal
+ * charters exist only where a test (or a future charter wave) sets them —
+ * they are what carry the proprietary-trading capability (#328).
+ * Absent means "retail" (pre-#328 saves carry no type).
+ */
+export type BankCharterType = "retail" | "investment" | "universal";
+
+/**
+ * One proprietary-trading position. Source: db/types/bank.ts PropPosition
+ * (equity subset — bond/indexUnit/forex refs have no solo pricing
+ * substrate; see banking/propTrading.ts file doc).
+ */
+export interface PropPosition {
+  asset: "equity";
+  /** Corporation id of the held equity. */
+  ref: string;
+  units: number;
+  costBasis: number;
+  markValue?: number;
+}
 
 /**
  * Household credit rating bands, best credit first.
@@ -52,6 +78,20 @@ export type ConfidenceBand = "green" | "amber" | "red";
  */
 export interface BankCharter {
   status: BankCharterStatus;
+  /**
+   * Charter business model (#328). Absent means "retail" — see
+   * propTrading.charterTypeOf. Only investment/universal charters may run
+   * a proprietary book (source: src/lib/banking/rules/capabilities.ts
+   * BY_TYPE). Persisted as `charterType`; the source names this field
+   * `type`.
+   */
+  charterType?: BankCharterType;
+  /**
+   * Proprietary-trading book (#328, investment/universal only). Marked each
+   * bankSolvencyTurn; cash legs settle against the market counterparty.
+   * Source: BankCharter.propBook.
+   */
+  propBook?: PropPosition[];
   charteredTurn: number;
   /** Capital posted at charter; absorbs losses before depositors do. Source: BankCharter.postedCapital. */
   postedCapital: number;
@@ -72,7 +112,11 @@ export interface BankCharter {
   cbMarginArrears?: number;
   /** Outstanding principal borrowed from other banks. */
   interbankDebt?: number;
-  /** Latest marked value of the proprietary book, not distributable equity. */
+  /**
+   * Cached sum of prop-book mark values (#328); refreshed every
+   * bankSolvencyTurn, not distributable equity (see balanceSheet.ts).
+   * Source: BankCharter.propBookMarkValue.
+   */
   propBookMarkValue?: number;
   /** CEO-set offsets against prime; solo has no rate-console action, so these stay at their charter default (0). Source: BankCharter.depositOffset/lendingOffset. */
   depositOffset: number;

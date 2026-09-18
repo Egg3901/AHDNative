@@ -1441,6 +1441,23 @@ and removed. The smoke helper now walks the conversation; no engine change.
   `src/game/discountWindowSession.test.ts` (advance-seam servicing, reload,
   debt-free no-op). #327 acceptance is met; #326/#328 lifecycles and the full
   multi-claim waterfall (margin/interbank senior legs) remain open under #329.
+## Proprietary bank positions checkpoint, 2026-09-18 (#328 / #109)
+
+- Investment and universal charters run an equity proprietary book: opens debit
+  ring-fenced cash at the live mark into cost basis, closes credit proceeds
+  with pro-rata realized P&L, and every refusal lands before mutation so the
+  charter is untouched. Seeded banks stay retail; the desk is reachable only
+  through a synthetic (or future charter-wave) investment/universal charter.
+- Each solvency turn marks the book before confidence, shrinks leverage
+  breaches proportionally at those marks (with the 0.15 confidence penalty),
+  fails a red investment bank with no equity behind its book, and clears the
+  book on failure. Contagion still stamps peers only on a deposit-taker
+  failure, and the prop mark still cannot leak into equity or deposit
+  ceilings. Pre-#328 saves load as retail with an empty book, and
+  present-but-invalid prop state fails closed.
+- Cut for a later wave, not silently dropped: bond/indexUnit/forex assets (no
+  solo pricing substrate), the B7 supervisory open gate, ref resolution by
+  ticker or name, and interbank/margin servicing (#326/#327).
 
 ## Canonical logo/icon Linux re-verification checkpoint, 2026-09-15 (#148 partial)
 
