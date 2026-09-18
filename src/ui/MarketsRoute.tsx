@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { GameScreenProps } from '../game/types';
 import { DetailQuery } from './DetailQuery';
 import { MarketsPanel } from './MarketsPanel';
@@ -19,6 +19,14 @@ export function MarketsRoute({ load, revision, busy, onAction, onSectorSale, ini
 }) {
   // Keep the current company when a completed trade refreshes its balances.
   const [companyId, setCompanyId] = useState<string | null>(initialId ?? null);
+  // A same-route deep link (the drawer "My Corporation" row while the market
+  // is already open) re-points the selection without remounting the route, so
+  // follow a newly supplied id the way the Nations surface follows its browse
+  // context. An absent id keeps the current browse selection; a stale id
+  // falls back to the market list through the existing panel guard.
+  useEffect(() => {
+    if (initialId !== undefined) setCompanyId(initialId);
+  }, [initialId]);
   // #510 company-to-region entry: a recorded regional asset opens the
   // existing Regions detail with the selected company id as the return frame,
   // so Back restores the company instead of falling to the market list.
