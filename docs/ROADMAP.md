@@ -1219,6 +1219,24 @@ stat meter, 320/390px guards) plus the untouched `CharacterCreationScreen`,
 create/act/advance/save/relaunch flow suites: 58 UI + 9 game tests green in
 focused runs.
 
+2026-09-18 #242 compass-legend slice: the Where-you-stand step now reads
+the plot back in words starting with the home electorate, mirroring the
+reference `CompassLegend` (`src/app/create-character/CompassLegend.tsx`):
+`{Region} electorate` plus the `compassDistance` gap with its
+`alignmentBand` label once the compass is answered, `lean not yet derived`
+for an underived lean (the `HomeRegionPicker` vocabulary), and the
+reference-exact `Pick a home {regionNoun} to plot its electorate.` prompt
+when no region exists. The lean stays display-only context; only
+`homeRegionId` and the compass axes persist. The compass subtitle is now
+word-identical to the reference (`...elections actually measure.`).
+Evidence: new `src/ui/CharacterCreationCompassElectorate.test.tsx` (6:
+pre-measure silence, 2.0/Close measurement, null-lean honesty, empty-regions
+fallback, 320/390px wrapping guards) plus one session save/relaunch test pinning
+the row's persisted inputs; focused runs green (41 UI incl. the updated
+subtitle test, 10 game, 23 adjacent presentation/picker). No engine numbers
+changed; no server data invented. Phone layout is structural (no fixed widths,
+no nowrap); no physical-device run.
+
 Remaining #242 acceptance gaps: the imperial *creation input* remains
 admin-only per the reference (`/create-imperial-character` is admin-gated), so
 Native renders the honest notice rather than an imperial form; a rendered

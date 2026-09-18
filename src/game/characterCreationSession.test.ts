@@ -93,6 +93,21 @@ describe("character-creation session contract (#242)", () => {
     expect(profile.stats).toBeNull();
   });
 
+  it("keeps the electorate-row inputs (home region + compass) through save/relaunch", () => {
+    const session = new GameSession();
+    session.create({
+      ...setup,
+      homeRegionId: "NY",
+      creation: { ...creation, homeRegionId: "CA", policies: { economic: 1, social: -1 } },
+    });
+    const loaded = new GameSession();
+    loaded.load(session.serialize(stamp));
+    // The compass electorate row derives from these persisted fields, so the
+    // row re-renders identically after relaunch without persisting the lean.
+    expect(loaded.profile().homeRegion?.id).toBe("CA");
+    expect(loaded.profile().policies).toEqual({ economic: 1, social: -1 });
+  });
+
   it("carries the optional portrait and header through save/relaunch", () => {
     const session = new GameSession();
     session.create({

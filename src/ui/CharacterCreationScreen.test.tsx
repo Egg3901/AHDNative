@@ -359,7 +359,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
         "Sets your offices, parties, currency, and electoral rules.",
         "Voter groups weigh these when they decide whether you are one of them.",
         "Your first constituency. Its electorate decides your early races.",
-        "Drag your pin. Distance to a platform is what primaries and general elections measure.",
+        "Drag your pin. Distance to a platform is what primaries and general elections actually measure.",
         "A party gives you ballot access, a primary, and a machine. Independent is a real choice, not a default, so pick one deliberately.",
         "Every stat starts at 1. Spend 21 points on top of that. These shift as you play.",
       ]) {
