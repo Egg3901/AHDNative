@@ -6,7 +6,7 @@ export type DrawerRouteId =
   | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "campaignDetails"
   | "politicians" | "presidentialDetails" | "politicalMetrics"
   | "economy" | "budget" | "policy" | "metrics" | "nations" | "worldMap" | "state" | "government"
-  | "help" | "settings" | "legislationDetails" | "markets" | "search"
+  | "help" | "settings" | "legislationDetails" | "markets" | "sectors" | "search"
   | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications" | "referendums"
   | "worldSettings" | "ask";
 
@@ -143,6 +143,7 @@ export const MENU_GROUPS: DrawerNavGroup[] = [
         label: "Economy",
         items: [
           { id: "markets", label: "Stock market" },
+          { id: "sectors", label: "Sectors" },
           { id: "bonds", label: "Bonds" },
           { id: "banking", label: "Banking" },
         ],

@@ -16,6 +16,7 @@ import { NationPanel } from "./NationPanel";
 import { EMPTY_SEARCH_SNAPSHOT, SearchPanel, type SearchPanelSnapshot } from "./SearchPanel";
 import type { SearchResult } from "../game/search";
 import { MarketsRoute } from "./MarketsRoute";
+import { SectorsRoute } from "./SectorsRoute";
 import { PoliticsRoute } from "./PoliticsRoute";
 import { ResourceBreakdown } from "./ResourceBreakdown";
 import { BottomNav, GameDrawer } from "./MobileNavigation";
@@ -78,6 +79,7 @@ const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
   economy: "Economy", budget: "Budget", metrics: "National metrics", policy: "Policy",
   legislationDetails: "Legislation details",
   markets: "Stock market",
+  sectors: "Sectors",
   bonds: "Bond market",
   search: "Search",
   partyManagement: "Party management",
@@ -828,6 +830,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           {route === "partyManagement" && <DetailQuery load={loadPartyManagement} revision={world} label="Party management">{management => <PartyManagementPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "search" && <SearchPanel load={search} revision={world} onOpen={openSearchResult} snapshot={searchSnapshot} onSnapshot={updateSearchSnapshot} />}
           {route === "markets" && <MarketsRoute initialId={detailId} load={loadMarkets} revision={world} busy={busy} onAction={onAction} onSectorSale={onSectorSale} />}
+          {route === "sectors" && <SectorsRoute load={loadMarkets} revision={world} busy={busy} onSectorSale={onSectorSale} onOpenCompany={(id) => drill("markets", id)} onOpenRegion={(id) => drill("regions", id)} />}
           {route === "legislationDetails" && <LegislationRoute initialId={detailId} countryId={world.countryId} load={loadLegislation} revision={world} busy={busy} onAction={onAction} />}
           {route === "help" && <HelpPanel />}
           {route === "settings" && <SettingsPanel value={preferences} onChange={onPreferencesChange} error={preferencesError} />}

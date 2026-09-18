@@ -155,6 +155,7 @@ The tables above preserve the initial audit at `fbc9e90`. Current execution stat
 | Nation and region | Economy/history, budget, enacted policies, nation directory, home-region profile/support/elections | Maps, deep regional government and country-specific systems |
 | Bonds | Domestic sovereign issue details, buy/sell, remaining units and save/reload | Dealer pools/spreads, FX, corporate issuance, default lifecycle |
 | Stock market | Search/filter, company details, buy/sell in player cash currency, save/reload holdings, per-turn live price history | FX settlement, order books, corporation management |
+| Sectors (#89) | World > Economy directory over the recorded markets projection: Unowned/Owned/For Sale tabs with counts, country + sector-type filters, search, reference sort set with direction, paging, explicit empty/removed-country states, company + region links, Buy via the #295 engine command with fail-closed gating | Per-state sector roster (engine keeps one corporation per country/sector), sector-type preselect from a player corporation type |
 | Resource footer | Persistent resources, current engine income/action breakdowns, recorded balance history and links | Full office/corporation/election calculations and controls |
 | Help/settings/search | Offline guide, persistent large text and reduced motion, storage-error handling, local search with working detail links | Remaining search entity types, notifications, full account/help destinations |
 
@@ -388,7 +389,7 @@ ids do not resolve in the player-country politics projection, so its party
 support and election rows stay unlinked), RegionViewerCard-adjacent office
 holder links, and the no-destination rows (Executive, SCOTUS, US Political
 Operations, charters surface, unions, Hall of Fame, crises, conflicts,
-international orgs, sectors surface, forex, trade, IMF). The RouteMatrix510
+international orgs, forex, trade, IMF). The RouteMatrix510
 politicians-return residual noted under section 10 now passes (verified
 2026-09-17 on the 0.1.9 base). No physical-iPhone evidence is claimed.
 
