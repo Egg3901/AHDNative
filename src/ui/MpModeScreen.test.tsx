@@ -98,7 +98,9 @@ describe("MpModeScreen at 320px", () => {
     render(<MpModeScreen host={fakeHost(readyScript()).host} onExit={() => {}} />);
     expect(await screen.findByRole("heading", { name: "Ada" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Turn 12 · 1862/ })).toBeInTheDocument();
-    expect(screen.getByText("1000")).toBeInTheDocument();
+    // The authoritative cash figure projects twice: the Player card and the
+    // Wallet section (#507 reachability slice), both from character-me.
+    expect(screen.getAllByText("1000")).toHaveLength(2);
 
     const actions = screen.getByRole("region", { name: "Player actions" });
     const runsGroup = within(actions).getByRole("group", { name: "Batch runs" });
@@ -161,7 +163,7 @@ describe("MpModeScreen at 320px", () => {
     calls.length = 0;
     await user.click(screen.getByRole("button", { name: /Fundraise/ }));
     expect(await screen.findByText("Ran 5 fundraisers!")).toBeInTheDocument();
-    expect(screen.getByText("900")).toBeInTheDocument();
+    expect(screen.getAllByText("900")).toHaveLength(2);
     expect(calls[0]).toMatch(/^mutate:execute-action:.*"count":5/);
     expect(calls.slice(1, 6)).toEqual(["fetch:auth-session", "fetch:character-me", "fetch:turn-status", "fetch:client-nav", "fetch:notifications"]);
   });
@@ -305,7 +307,7 @@ describe("MpModeScreen on desktop", () => {
     calls.length = 0;
     await user.click(screen.getByRole("button", { name: /Fundraise/ }));
     expect(await screen.findByText("Raised 250 from donors!")).toBeInTheDocument();
-    expect(screen.getByText("1250")).toBeInTheDocument();
+    expect(screen.getAllByText("1250")).toHaveLength(2);
     // Mutation first, authoritative refresh after: the UI never claims early.
     expect(calls[0]).toMatch(/^mutate:execute-action:/);
     expect(calls.slice(1, 6)).toEqual([
@@ -335,7 +337,7 @@ describe("MpModeScreen on desktop", () => {
     await screen.findByRole("heading", { name: "Ada" });
     await user.click(screen.getByRole("button", { name: /Rest/ }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Automated access is not permitted");
-    expect(screen.getByText("1000")).toBeInTheDocument();
+    expect(screen.getAllByText("1000")).toHaveLength(2);
     expect(screen.queryByRole("status")).toBeNull();
     expect(calls.filter((call) => call.startsWith("fetch:character-me"))).toHaveLength(1);
   });
@@ -436,7 +438,7 @@ describe("MpModeScreen on desktop", () => {
     await screen.findByRole("heading", { name: "Ada" });
     await user.click(screen.getByRole("button", { name: /Rest/ }));
     expect(await screen.findByRole("alert")).toHaveTextContent("The game is currently paused.");
-    expect(screen.getByText("1000")).toBeInTheDocument();
+    expect(screen.getAllByText("1000")).toHaveLength(2);
     expect(screen.queryByRole("status")).toBeNull();
     // Conflict refuses without an authoritative refresh: only the initial load ran.
     expect(calls.filter((call) => call.startsWith("fetch:character-me"))).toHaveLength(1);
