@@ -54,6 +54,13 @@ function makeListing(overrides: Partial<MarketListing> = {}): MarketListing {
     npcShares: 5_100_000,
     shareholders: [{ holder: "npc", shares: 5_100_000, avgCostPerShare: null }],
     controllingHolder: "npc",
+    orderFlow: {
+      buyWindow: 0,
+      sellWindow: 0,
+      flowMultiplier: 1,
+      sentimentMultiplier: 1,
+      insolventSinceTurn: null,
+    },
     earningsHistory: [],
     priceHistory: [],
     buy: { id: "buyShares", name: "Buy Shares", cost: 0, available: true },
@@ -99,6 +106,24 @@ function makeMarkets(overrides: Partial<MarketsView> = {}): MarketsView {
     ],
     listings,
     sectors: [],
+    tradeRoutes: [
+      {
+        countryId: "US",
+        countryName: "United States",
+        currency: "USD",
+        listingCount: 1,
+        tradeGrowth: 2.5,
+        fx: { available: true, rate: 1, baseRate: 1, regime: "pegged", updatedTurn: 0 },
+      },
+      {
+        countryId: "UK",
+        countryName: "United Kingdom",
+        currency: "GBP",
+        listingCount: 1,
+        tradeGrowth: 1.5,
+        fx: { available: true, rate: 0.357, baseRate: 0.357, regime: "pegged", updatedTurn: 0 },
+      },
+    ],
     ...overrides,
   };
 }
@@ -950,5 +975,139 @@ describe("MarketsPanel company hero (#378)", () => {
     expect(hero.getAttribute("src")).toBe("/static/heroes/actions.webp");
     expect(COMPANY_HERO_FALLBACK_ALT.length).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { name: "US-defense" })).toBeInTheDocument();
+  });
+});
+
+describe("MarketsPanel trade routes (#77)", () => {
+  it("lists recorded routes with trade growth and FX, following the country filter", async () => {
+    const MarketsPanel = await loadPanel();
+    const user = userEvent.setup();
+    render(<MarketsPanel markets={makeMarkets()} busy={false} onAction={vi.fn()} />);
+
+    expect(screen.getByRole("heading", { name: "Trade routes" })).toBeInTheDocument();
+    // Default context is the player's country (US).
+    expect(screen.getByLabelText("United States trade route")).toBeInTheDocument();
+    expect(screen.queryByLabelText("United Kingdom trade route")).not.toBeInTheDocument();
+    expect(screen.getByText(/Trade growth: 2\.5%/)).toBeInTheDocument();
+    expect(screen.getByText(/FX: 1 USD per anchor/)).toBeInTheDocument();
+    // Read-only: no bid/ask, spread, quote, or settlement affordance.
+    expect(screen.queryByRole("button", { name: /convert|settle|quote|order book/i })).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Country"), "all");
+    expect(screen.getByLabelText("United States trade route")).toBeInTheDocument();
+    expect(screen.getByLabelText("United Kingdom trade route")).toBeInTheDocument();
+    expect(screen.getByText(/FX: 0\.357 GBP per anchor/)).toBeInTheDocument();
+  });
+
+  it("shows explicit unavailable copy for missing growth and FX rows", async () => {
+    const MarketsPanel = await loadPanel();
+    render(
+      <MarketsPanel
+        markets={makeMarkets({
+          tradeRoutes: [
+            {
+              countryId: "US",
+              countryName: "United States",
+              currency: "USD",
+              listingCount: 1,
+              tradeGrowth: null,
+              fx: { available: false, rate: null, baseRate: null, regime: null, updatedTurn: null },
+            },
+          ],
+        })}
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/No trade growth recorded/)).toBeInTheDocument();
+    expect(screen.getByText(/No FX record/)).toBeInTheDocument();
+  });
+
+  it("shows an explicit empty state when the filtered country has no routes", async () => {
+    const MarketsPanel = await loadPanel();
+    const user = userEvent.setup();
+    const usOnly = (makeMarkets().tradeRoutes ?? []).filter((route) => route.countryId === "US");
+    render(<MarketsPanel markets={makeMarkets({ tradeRoutes: usOnly })} busy={false} onAction={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText("Country"), "UK");
+    expect(screen.getByText(/No trade routes recorded in United Kingdom/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("United States trade route")).not.toBeInTheDocument();
+  });
+
+  it("shows an explicit empty state when the DTO records no routes at all", async () => {
+    const MarketsPanel = await loadPanel();
+    render(
+      <MarketsPanel
+        markets={makeMarkets({ tradeRoutes: [] })}
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+    // Default context is the player's country, so the empty state names it.
+    expect(screen.getByText(/No trade routes recorded in United States/)).toBeInTheDocument();
+  });
+});
+
+describe("MarketsPanel recorded trade context (#77)", () => {
+  it("shows executed flow, fundamental price, multipliers, and solvency without touching trade actions", async () => {
+    const MarketsPanel = await loadPanel();
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const flowed = makeListing({
+      fundamentalSharePrice: 700,
+      orderFlow: {
+        buyWindow: 1548,
+        sellWindow: 0,
+        flowMultiplier: 1.02,
+        sentimentMultiplier: 0.98,
+        insolventSinceTurn: null,
+      },
+    });
+    render(<MarketsPanel markets={makeMarkets({ listings: [flowed] })} busy={false} onAction={onAction} />);
+    await user.click(screen.getByRole("button", { name: /US\.MEDI US-media/i }));
+    expect(screen.getByRole("heading", { name: "Recorded trade context" })).toBeInTheDocument();
+    expect(screen.getByText(/Executed-trade notionals await the next market phase/)).toBeInTheDocument();
+    expect(screen.getByText(/Solvent \(no insolvency recorded\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/bid\/ask book is recorded\./)).toBeInTheDocument();
+    // Trade actions stay exactly as before.
+    expect(screen.getByRole("button", { name: /buy shares/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sell shares/i })).toBeInTheDocument();
+  });
+
+  it("states the zero-flow and insolvent states plainly", async () => {
+    const MarketsPanel = await loadPanel();
+    const user = userEvent.setup();
+    const insolvent = makeListing({
+      insolvent: true,
+      orderFlow: {
+        buyWindow: 0,
+        sellWindow: 0,
+        flowMultiplier: 1,
+        sentimentMultiplier: 1,
+        insolventSinceTurn: 7,
+      },
+    });
+    render(<MarketsPanel markets={makeMarkets({ listings: [insolvent] })} busy={false} onAction={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: /US\.MEDI US-media/i }));
+    expect(screen.getByText(/No executed trades are awaiting the market phase yet/)).toBeInTheDocument();
+    expect(screen.getByText(/Insolvent since turn 7/)).toBeInTheDocument();
+  });
+
+  it("states plainly when no flow was ever recorded", async () => {
+    const MarketsPanel = await loadPanel();
+    const user = userEvent.setup();
+    const unrecorded = makeListing({
+      orderFlow: {
+        buyWindow: null,
+        sellWindow: null,
+        flowMultiplier: null,
+        sentimentMultiplier: null,
+        insolventSinceTurn: null,
+      },
+    });
+    render(<MarketsPanel markets={makeMarkets({ listings: [unrecorded] })} busy={false} onAction={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: /US\.MEDI US-media/i }));
+    expect(screen.getByText(/No executed trade flow recorded yet/)).toBeInTheDocument();
+    expect(screen.getAllByText("Not recorded").length).toBe(2);
+    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 });
