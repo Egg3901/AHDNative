@@ -94,3 +94,112 @@ describe("MpModeScreen sign out", () => {
     expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
   });
 });
+
+/**
+ * Unlink-to-switch screen residue (#149, #363): the reference logs out to
+ * `/`, dropping every in-memory draft with the navigation. Native keeps the
+ * MP screen mounted across unlink and switch, so per-account screen state
+ * (mail reader selection, compose draft) must reset when the linked account
+ * ends. Otherwise the next account on a shared phone reads the previous
+ * player's mail body and draft. The same mail id is reused for both
+ * accounts so a stale reader selection would visibly reopen on Bo's row.
+ */
+describe("MpModeScreen unlink-to-switch residue", () => {
+  const USER_B = "507f1f77bcf86cd799439012";
+  const CHAR_B = "507f1f77bcf86cd799439013";
+  const TO_CHAR = "507f1f77bcf86cd799439014";
+  const SHARED_MAIL = "607f1f77bcf86cd799439099";
+
+  const probeBo = JSON.stringify({ active: true, sub: USER_B, username: "Bo" });
+  const meBo = JSON.stringify({
+    character: { _id: "c2", name: "Bo", party: "Whig", homeState: "NY", cashOnHand: 5, actions: 2, countryId: "US" },
+    corporation: null,
+  });
+  const capsBo = JSON.stringify({ user: { id: USER_B, username: "Bo", isAdmin: false }, hasCharacter: true });
+
+  function accountMail(subject: string, body: string, fromName: string): string {
+    return JSON.stringify({
+      mails: [
+        {
+          _id: SHARED_MAIL,
+          fromCharacterId: CHAR_B,
+          fromCharacterName: fromName,
+          toUserId: USER,
+          toCharacterId: TO_CHAR,
+          toCharacterName: "Ada",
+          subject,
+          body,
+          read: false,
+          deletedByRecipient: false,
+          deletedBySender: false,
+          createdAt: "2026-09-01T00:00:00.000Z",
+        },
+      ],
+      unreadCount: 1,
+      total: 1,
+      hasMore: false,
+    });
+  }
+
+  function switchingHost(): { host: MpBridgeHost; beginSpy: ReturnType<typeof vi.fn> } {
+    const queues = new Map<string, string[]>([
+      ["auth-session", [probe, probeBo]],
+      ["character-me", [me, meBo]],
+      ["turn-status", [turn, turn]],
+      ["client-nav", [caps, capsBo]],
+      ["notifications", [inbox, inbox]],
+      ["mail-inbox", [accountMail("Ada secret thread", "Ada private body", "Bo"), accountMail("Bo thread", "Bo body", "Al"), accountMail("Bo thread", "Bo body", "Al")]],
+      ["mail-sent", [emptyMailSent, emptyMailSent, emptyMailSent]],
+    ]);
+    const beginSpy = vi.fn(async () => {});
+    return {
+      beginSpy,
+      host: {
+        fetch: async (op: string) => {
+          const next = queues.get(op)?.shift();
+          if (next !== undefined) return next;
+          throw new Error(`unexpected fetch ${op}`);
+        },
+        mutate: async (op: string) => {
+          if (op === "auth-logout") return logoutAck;
+          throw new Error(`unexpected mutate ${op}`);
+        },
+        beginSignIn: beginSpy,
+      },
+    };
+  }
+
+  it("unlink then switch leaves no mail reader or compose draft behind", async () => {
+    const user = userEvent.setup();
+    const { host, beginSpy } = switchingHost();
+    render(<MpModeScreen host={host} onExit={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Playing as Ada")).toBeInTheDocument());
+
+    // Ada opens her mail and starts a draft.
+    await user.click(screen.getByRole("button", { name: /open ada secret thread/i }));
+    await waitFor(() => expect(screen.getByLabelText("Open mail")).toBeInTheDocument());
+    expect(screen.getByText("Ada private body")).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText("Subject"), "Ada draft subject");
+    expect((screen.getByPlaceholderText("Subject") as HTMLInputElement).value).toBe("Ada draft subject");
+
+    // Unlink: the sign-in card (switch path) replaces the authed views.
+    await user.click(screen.getByRole("button", { name: /sign out/i }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: /sign in to play multiplayer/i })).toBeInTheDocument());
+
+    // Switch: Bo links on the same mounted screen.
+    await user.click(screen.getByRole("button", { name: /continue with google/i }));
+    expect(beginSpy).toHaveBeenCalledWith("google");
+    await waitFor(() => expect(screen.getByText("Playing as Bo")).toBeInTheDocument());
+
+    // Bo loads his mail on the same reused mail id: a stale reader
+    // selection would visibly reopen here on Bo's row.
+    await user.click(screen.getByRole("button", { name: /refresh mail/i }));
+    await waitFor(() => expect(screen.getAllByText("Bo thread").length).toBeGreaterThan(0));
+
+    // No reader reopened on the reused mail id, no Ada content, no draft.
+    expect(screen.queryByLabelText("Open mail")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ada private body")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ada secret thread")).not.toBeInTheDocument();
+    expect((screen.getByPlaceholderText("Subject") as HTMLInputElement).value).toBe("");
+  }, 30000);
+});
