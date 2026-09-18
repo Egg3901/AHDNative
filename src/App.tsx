@@ -234,7 +234,10 @@ export function App() {
   if (screen === 'ask') return <main className="ahd-screen"><div className="ahd-container" style={{ maxWidth: '42rem', paddingTop: 'max(1rem, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top))', paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
     <button className="ahd-btn" onClick={() => setScreen(askReturn.current)} autoFocus>Back</button>
     <div className="ahd-ask-embed" style={{ marginTop: '0.75rem' }}>
-      <AskPanel surface="main" onBeforeSignIn={() => { if (world) void run(save); }} />
+      {/* #149: the panel awaits this hook before the provider bounce, so the
+          save must settle here, not merely start. run() never rejects (save
+          failures surface on the shell error banner), so sign-in proceeds. */}
+      <AskPanel surface="main" onBeforeSignIn={async () => { if (world) await run(save); }} />
     </div>
   </div></main>;
   if (screen === 'mp') return <MpModeScreen onAsk={() => { askReturn.current = 'mp'; setScreen('ask'); }} onExit={() => setScreen('home')} preferences={presentation.value} onPreferencesChange={changePreferences} preferencesError={presentation.error} />;
@@ -292,7 +295,10 @@ export function App() {
         setMessage(op === "list" ? "Sector listed for sale." : op === "update" ? "Sale listing updated." : op === "buy" ? "Sector acquired." : "Sector unlisted.");
       } else setError(response.result.error);
     })}
-    onSave={() => void run(save)}
+    // #149: GameScreen reuses this as AskPanel onBeforeSignIn, which the panel
+    // awaits before the provider bounce. Return the settled save (not void)
+    // so the bounce cannot open mid-write. run() never rejects.
+    onSave={() => run(save).then(() => undefined)}
     onExit={() => void run(async () => {
       if (!client.current?.isClosed) await save();
       setScreen('home'); setSaves(await saveRepository.list());

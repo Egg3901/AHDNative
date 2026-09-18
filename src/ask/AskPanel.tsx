@@ -43,7 +43,8 @@ export interface AskPanelProps {
   surface?: "main" | "window";
   /** Runs before the sign-in surface opens (the game shell saves first so
    * the mobile sign-in bounce, which borrows the main webview, loses no
-   * progress). */
+   * progress). The panel awaits the returned promise, so the hook must
+   * settle the save, not merely start it. */
   onBeforeSignIn?: () => void | Promise<void>;
   onSignIn?: () => Promise<void>;
   onOpenLink?: (url: string) => Promise<void>;

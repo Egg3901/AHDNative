@@ -208,3 +208,76 @@ describe("AskPanel account-link action", () => {
     }
   });
 });
+
+/* Pre-sign-in save handshake (#149): the mobile provider bounce borrows the
+ * main webview, so the shell save must SETTLE before the bounce opens, not
+ * merely start. The panel awaits onBeforeSignIn; the shell hooks must return
+ * that settlement (App and GameScreen both fired-and-forgot it with void).
+ * Sign-in is never blocked by storage: a failed save surfaces on the shell
+ * and the bounce still proceeds. No hook means no save (no world, SP play
+ * needs no account), and the bounce opens directly. */
+describe("AskPanel pre-sign-in save handshake", () => {
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  }
+
+  it("holds the provider bounce until the shell save settles", async () => {
+    const user = userEvent.setup();
+    const order: string[] = [];
+    const save = deferred<void>();
+    const hook = vi.fn(() => {
+      order.push("hook-start");
+      return save.promise.then(() => {
+        order.push("save-done");
+      });
+    });
+    routeInvoke({ "/api/me": { status: 401, body: '{"error":"no session"}' } }, () => {
+      order.push("bounce");
+      return Promise.resolve(undefined);
+    });
+    render(<AskPanel onBeforeSignIn={hook} />);
+    await user.click(await screen.findByRole("button", { name: "Sign in" }));
+    await waitFor(() => expect(hook).toHaveBeenCalledTimes(1));
+    // The save is still in flight: the bounce must not have opened yet. A
+    // fire-and-forget hook (void return) opens the bounce here instead.
+    expect(order).toEqual(["hook-start"]);
+    expect(invoke).not.toHaveBeenCalledWith("open_ask_window");
+    save.resolve();
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("open_ask_window"));
+    expect(order).toEqual(["hook-start", "save-done", "bounce"]);
+  });
+
+  it("still opens the bounce after a failed save settles", async () => {
+    // Mirrors the shell run(): the failure surfaces on the shell error
+    // banner and the hook resolves, so sign-in is never held hostage by
+    // storage. Progress already in the store is intact; retry stays up.
+    const user = userEvent.setup();
+    const saveFailed = vi.fn();
+    routeInvoke({ "/api/me": { status: 401, body: '{"error":"no session"}' } });
+    render(
+      <AskPanel
+        onBeforeSignIn={async () => {
+          saveFailed();
+        }}
+      />,
+    );
+    await user.click(await screen.findByRole("button", { name: "Sign in" }));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("open_ask_window"));
+    expect(saveFailed).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it("opens the bounce directly with no hook: no world, and SP needs no account", async () => {
+    const user = userEvent.setup();
+    routeInvoke({ "/api/me": { status: 401, body: '{"error":"no session"}' } });
+    render(<AskPanel />);
+    await user.click(await screen.findByRole("button", { name: "Sign in" }));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("open_ask_window"));
+  });
+});
