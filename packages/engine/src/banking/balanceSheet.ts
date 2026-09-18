@@ -5,7 +5,7 @@
  *
  * #328 note: the prop-book mark is deliberately NOT an input here. The
  * source prices the book for leverage (`computePropEquityBase` in
- * propTrading.ts) but never lets the volatile mark distribute as equity -
+ * propTrading.ts) but never lets the volatile mark distribute as equity —
  * bankEquity/regulatoryCapital read only cash, loans, deposits and
  * borrowings, so prop gains cannot leak into deposit ceilings or
  * distributions. A dedicated test pins the exclusion.
@@ -27,9 +27,7 @@ export interface BankBalanceSheetInput extends BankBorrowings {
 }
 
 function nonNegative(value: number | undefined): number {
-  return typeof value === "number" && Number.isFinite(value)
-    ? Math.max(0, value)
-    : 0;
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, value) : 0;
 }
 
 function finite(value: number | undefined): number {
@@ -50,8 +48,7 @@ export function totalBorrowings(borrowings: BankBorrowings): number {
 /** Shareholder claim after cash-backed deposits and all borrowings are paid. */
 export function bankEquity(charter: BankBalanceSheetInput): number {
   const assets = finite(charter.cashReserves) + nonNegative(charter.totalLoans);
-  const liabilities =
-    nonNegative(charter.npcDeposits) + totalBorrowings(charter);
+  const liabilities = nonNegative(charter.npcDeposits) + totalBorrowings(charter);
   return assets - liabilities;
 }
 

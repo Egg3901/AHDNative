@@ -13,18 +13,18 @@ a new game hierarchy. The national Overview landing is superseded by Profile.
 
 Owner direction: mobile-first layout can differ, but navigation and footer functionality must match the MP/SP feature surface. The [source inventory](NAVIGATION-PARITY.md) records destinations, submenus, conditional entries and status-bar interactions against AHDGame. A label or empty page is not completion.
 
-| ID  | Status      | Slice                                           | Acceptance                                                                                                                                                                                                                                                 |
-| --- | ----------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| N01 | Done        | Inventory AHDGame nav and persistent status bar | Named source revision, conditions, destination behavior and honest missing-feature matrix                                                                                                                                                                  |
-| N02 | Done        | Grouped mobile menu and basic resource footer   | Real destination routes, resource details/links, keyboard and touch access, safe-area clearance                                                                                                                                                            |
-| N03 | Done        | Portfolio and banking                           | Real balances/holdings; deposit and withdrawal through engine; save/reload smoke                                                                                                                                                                           |
-| N04 | In progress | Party and election detail                       | Full list-to-detail flow, candidacy controls, active-race links and reference-backed election information                                                                                                                                                  |
-| N05 | In progress | State and legislature navigation depth          | Regional overview, chambers, schedule, office-dependent entries and working details                                                                                                                                                                        |
-| N06 | In progress | Nation executive, policy, budget and economy    | Actual local queries/actions, country-specific conditions and meaningful panels                                                                                                                                                                            |
-| N07 | In progress | World navigation                                | Nations, map, corporations, sectors, markets, exchange, trade, unions, organizations and crises mapped to SP capabilities                                                                                                                                  |
-| N08 | In progress | Full footer resource breakdowns                 | Action/income components, election projections/history and conditional corporation controls supported by actual engine evidence                                                                                                                            |
-| N09 | In progress | Help, settings, search and notifications        | Offline guidance and preferences, real search and notifications, native-safe network resources, and account or feedback routes delegated to the authenticated AHDGame surface; help-destination reachability verified centrally, 8/8, in the current batch |
-| N10 | Queued      | Complete functional parity review               | Each inventory row demonstrated through the integrated UI, including relevant country/role conditions; named remaining gaps block parity claims                                                                                                            |
+| ID | Status | Slice | Acceptance |
+|---|---|---|---|
+| N01 | Done | Inventory AHDGame nav and persistent status bar | Named source revision, conditions, destination behavior and honest missing-feature matrix |
+| N02 | Done | Grouped mobile menu and basic resource footer | Real destination routes, resource details/links, keyboard and touch access, safe-area clearance |
+| N03 | Done | Portfolio and banking | Real balances/holdings; deposit and withdrawal through engine; save/reload smoke |
+| N04 | In progress | Party and election detail | Full list-to-detail flow, candidacy controls, active-race links and reference-backed election information |
+| N05 | In progress | State and legislature navigation depth | Regional overview, chambers, schedule, office-dependent entries and working details |
+| N06 | In progress | Nation executive, policy, budget and economy | Actual local queries/actions, country-specific conditions and meaningful panels |
+| N07 | In progress | World navigation | Nations, map, corporations, sectors, markets, exchange, trade, unions, organizations and crises mapped to SP capabilities |
+| N08 | In progress | Full footer resource breakdowns | Action/income components, election projections/history and conditional corporation controls supported by actual engine evidence |
+| N09 | In progress | Help, settings, search and notifications | Offline guidance and preferences, real search and notifications, native-safe network resources, and account or feedback routes delegated to the authenticated AHDGame surface; help-destination reachability verified centrally, 8/8, in the current batch |
+| N10 | Queued | Complete functional parity review | Each inventory row demonstrated through the integrated UI, including relevant country/role conditions; named remaining gaps block parity claims |
 
 This priority guides UI work within the complete roadmap. The owner has explicitly reaffirmed that gameplay, mechanics, save compatibility, lifecycle and performance work continue alongside it. Existing mechanics, save compatibility and physical-device release gates remain binding. N07 and N09 are not blanket multiplayer deferrals.
 
@@ -43,65 +43,65 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 
 ## Work inventory
 
-| ID  | Track            | Status      | Depends on                 | Work                                                                     | Acceptance evidence                                                                                                                                                                                                                                                                                                                                                                             |
-| --- | ---------------- | ----------- | -------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| G01 | Evidence         | Done        | -                          | Record unified SP/MP architecture and iOS-first delivery                 | Standing rules committed                                                                                                                                                                                                                                                                                                                                                                        |
-| G02 | Evidence         | Done        | G01                        | Bootstrap React/Tauri shell and private signing setup                    | Local compile; encrypted signing; no device claim                                                                                                                                                                                                                                                                                                                                               |
-| G03 | Evidence         | Done        | G01                        | Pin historical engine and identify reuse limits                          | Provenance and known mechanics differences recorded                                                                                                                                                                                                                                                                                                                                             |
-| G04 | Evidence         | Done        | G03                        | Audit production RNG and imported source publication                     | [Determinism audit](DETERMINISM-AUDIT.md) at `f61c28f`; no unseeded runtime randomness or secret/ops material in non-test engine/content. Rust/device float parity is not established                                                                                                                                                                                                           |
-| G05 | Evidence         | Blocked     | G03,I01                    | Measure named physical iOS device late-turn performance                  | Eligible build 0.1.0 (1.6) exists; named-device p95,worst-turn,memory and thermal measurements remain #43                                                                                                                                                                                                                                                                                       |
-| G06 | Evidence         | Queued      | G05                        | Record TS optimization versus Rust go/no-go                              | Device evidence determines rewrite; no speculative bulk port                                                                                                                                                                                                                                                                                                                                    |
-| E01 | Engine           | Done        | G04                        | Import pinned reusable engine/content without UI/history                 | Unchanged formulas; source manifest; proprietary notice                                                                                                                                                                                                                                                                                                                                         |
-| E02 | Engine           | Done        | E01                        | Implement world session through public engine contract                   | Create,actions,turn,serialize,load behavior tests                                                                                                                                                                                                                                                                                                                                               |
-| E03 | Engine           | Done        | E02                        | Move simulation into dedicated worker                                    | UI responsive; ordered commands; no duplicate turns                                                                                                                                                                                                                                                                                                                                             |
-| E04 | Engine           | Done        | E03                        | Handle worker errors, interruption and disposal                          | Failure preserves last good state; promises settle                                                                                                                                                                                                                                                                                                                                              |
-| E05 | Engine           | Done        | E02                        | Produce stable display queries from real world                           | Economy/player/party/election/news views use engine state                                                                                                                                                                                                                                                                                                                                       |
-| E06 | Engine           | Done        | E02                        | Validate supported era/country matrix                                    | All shipped imported combinations create,act,turn,save/reload                                                                                                                                                                                                                                                                                                                                   |
-| E07 | Engine           | Done        | E02                        | Run independent seeded replay and save-boundary comparison               | Exact checkpoint hash; record reference commit                                                                                                                                                                                                                                                                                                                                                  |
-| E08 | Engine           | In progress | E07                        | Audit long-world election memory and turn spikes                         | Profile once per changed performance concern; no pruning without compatibility proof                                                                                                                                                                                                                                                                                                            |
-| S01 | Saves            | Done        | G02                        | Build native atomic save-slot storage with TDD                           | Fresh instance reads saved data; failed replacement preserves prior data                                                                                                                                                                                                                                                                                                                        |
-| S02 | Saves            | In progress | S01,E02                    | Connect native save and reload commands                                  | Raw engine envelope retained; completion and errors visible                                                                                                                                                                                                                                                                                                                                     |
-| S03 | Saves            | Done        | S02                        | Implement slot list,delete and replacement confirmation                  | No traversal; deliberate overwrite/delete; deterministic metadata                                                                                                                                                                                                                                                                                                                               |
-| S04 | Saves            | In progress | S02                        | Provide save import/export interchange                                   | Real fixture both directions; no silent version downgrade                                                                                                                                                                                                                                                                                                                                       |
-| S05 | Saves            | In progress | S04                        | Resolve v42/v43 compatibility explicitly                                 | Fixture-backed policy; no promise of roundtrip until verified                                                                                                                                                                                                                                                                                                                                   |
-| S06 | Saves            | In progress | S02                        | Recover after close,crash and partial write                              | Last completed save survives; no false saved status                                                                                                                                                                                                                                                                                                                                             |
-| U01 | Interface        | In progress | G01                        | Extract actual MP/SP visual and navigation baseline                      | Reference source/screens; no historical client redesign                                                                                                                                                                                                                                                                                                                                         |
-| U02 | Interface        | Done        | U01                        | Build new-game era/country/player flow                                   | Accessible form; real content choices; validation                                                                                                                                                                                                                                                                                                                                               |
-| U03 | Interface        | In progress | U01,E05                    | Port shared game chrome and character-first entry                        | Actual MP/SP hierarchy; compact mobile navigation                                                                                                                                                                                                                                                                                                                                               |
-| U04 | Interface        | Done        | U03,E05                    | Expose real character and action flow                                    | Costs,target input,result/errors; no fake actions                                                                                                                                                                                                                                                                                                                                               |
-| U05 | Interface        | Done        | U03,E05                    | Expose party membership and party views                                  | Basic join/leave/detail flow is wired and tested in PRs #7/#15; full platform/charter/coalition work remains #59                                                                                                                                                                                                                                                                                |
-| U06 | Interface        | Done        | U03,E05                    | Expose election and news views                                           | Real records and clear empty states                                                                                                                                                                                                                                                                                                                                                             |
-| U07 | Interface        | Done        | U03,S03                    | Connect save browser and in-game lifecycle                               | New/resume/save/reload/exit and confirmed deletion pass browser smoke; native-device lifecycle remains I02/I03 and #44                                                                                                                                                                                                                                                                          |
-| U08 | Interface        | In progress | U02,U07                    | Verify mobile layout and accessibility                                   | Small-screen overflow,touch,keyboard,focus and errors                                                                                                                                                                                                                                                                                                                                           |
-| U11 | Interface        | Partial     | U03,U08                    | Dual-pane and hinge-aware layout (#438)                                  | Hinge primitives, docked nav/content and seven list/detail pairings (parties, elections, regions, legislation, nominations, markets, news article/event) tested with shared selection state; single-pane phone flow intact; only foldable hardware posture acceptance remains                                                                                                                   |
-| U09 | UI               | Done        | E02,U07                    | Expose party membership and candidacy through real engine actions        | Filing,withdrawal,save/reload and accessible race pagination                                                                                                                                                                                                                                                                                                                                    |
-| U10 | UI               | Done        | U09,Q01                    | Complete a seeded election-to-office loop and expose legislature actions | Genuine t95 fixture, election win,sponsor,vote,relaunch through production UI                                                                                                                                                                                                                                                                                                                   |
-| M01 | Mechanics        | Done        | G03                        | Inventory phase/order and feature drift from AHDGame                     | Named differences,source refs,release blockers                                                                                                                                                                                                                                                                                                                                                  |
-| M02 | Mechanics        | In progress | M01                        | Close referendum lifecycle omissions                                     | Behavioral parity scenarios through public actions/turns                                                                                                                                                                                                                                                                                                                                        |
-| M03 | Mechanics        | In progress | M01                        | Resolve war abstraction mismatch                                         | Actual authoritative rules; no rebalancing or blanket waiver                                                                                                                                                                                                                                                                                                                                    |
-| M04 | Mechanics        | In progress | M01                        | Close phase order and TFP differences                                    | Reference-driven tests; impacts traced                                                                                                                                                                                                                                                                                                                                                          |
-| M05 | Mechanics        | In progress | M01                        | Close electoral and content omissions                                    | National/subnational lifecycle and all supported content                                                                                                                                                                                                                                                                                                                                        |
-| M06 | Mechanics        | Queued      | M02,M03,M04,M05,M07,M08    | Sign off reference mechanics coverage                                    | No unacknowledged mechanics gaps in 1.0 candidate                                                                                                                                                                                                                                                                                                                                               |
-| M07 | Mechanics        | In progress | M01                        | Consume authoritative Game-owned rules one action/system at a time       | Fundraise shared cost/yield/eligibility first; [per-action character audit](CHARACTER-ACTION-PARITY.md) covers the 11 ActionsHub entries at `cd99794` (#91, partial, no runtime claim); gdpScalar, RPG stat multipliers and frozen campaign currency still unwired; preserve complete stat/currency context before parity signoff; [Game #1724](https://github.com/Egg3901/AHDGame/issues/1724) |
-| M08 | Mechanics        | In progress | M01,M07                    | Detect upstream drift and gate consumer updates                          | Immutable source checks first; complete source coverage, update PRs and ruleset/save policy in [#120](https://github.com/Egg3901/AHDNative/issues/120)                                                                                                                                                                                                                                          |
-| Q01 | Validation       | Done        | E03,S02,U07                | Integrated gameplay smoke through actual UI                              | Create,country,action,turn,save,close,reload,continue                                                                                                                                                                                                                                                                                                                                           |
-| Q02 | Validation       | Done        | Q01                        | Exercise error and concurrency smoke                                     | Corrupt-save recovery,double-click turn,save failure/recovery and worker startup failure pass integrated smoke at fc87a991                                                                                                                                                                                                                                                                      |
-| Q03 | Validation       | In progress | Q01,U08                    | Capture representative UI evidence                                       | Desktop and mobile screenshots from real running world                                                                                                                                                                                                                                                                                                                                          |
-| Q04 | Validation       | Done        | E06,E07,Q02,Q03            | Run batched regression gate                                              | Focused changes first; full suite only integration checkpoint                                                                                                                                                                                                                                                                                                                                   |
-| Q05 | Validation       | Queued      | Q04,M06,S05                | Assess 1.0.0 candidate readiness                                         | Exact commit/results/remaining limitations; no placeholder success                                                                                                                                                                                                                                                                                                                              |
-| I01 | iOS              | Done        | Q04,owner preview approval | Build first private signed feedback preview                              | 0.1.0 (1.6) exported, Apple VALID/INTERNAL_ONLY, attached to Owner review; #124. Full 1.0 gate remains Q05/I04                                                                                                                                                                                                                                                                                  |
-| I02 | iOS              | Queued      | I01                        | Install and smoke on iPhone                                              | Real install,launch,world,turn,save/relaunch                                                                                                                                                                                                                                                                                                                                                    |
-| I03 | iOS              | Queued      | I02                        | Validate lifecycle and memory/performance                                | Background,lock,interruption,low memory,named-device measurements                                                                                                                                                                                                                                                                                                                               |
-| I04 | Release          | Queued      | I03,G06                    | Cut private 1.0.0 when release gates pass                                | Version consistency,private artifact,release notes,known risks                                                                                                                                                                                                                                                                                                                                  |
-| P01 | Multiplayer      | In progress | I04                        | Adapt shared screens to authoritative MP transport                       | Slice 1 in [#359](https://github.com/Egg3901/AHDNative/issues/359): session bridge, 9 single-run actions, inbox triage, native player mail; batch/mobile/device acceptance split out                                                                                                                                                                                                            |
-| P02 | Multiplayer      | In progress | P01                        | Validate reconnect, mode separation and mutation safety                  | SP remains offline; MP mutations run server-side only, unsupported actions absent; device gate still open                                                                                                                                                                                                                                                                                       |
-| A01 | Platforms        | In progress | owner preview approval     | Bring up Android shell and lifecycle                                     | Local ARM64 APK built; signature and 16 KB binary/package checks pass. Device smoke/performance remain #44/#43/#126                                                                                                                                                                                                                                                                             |
-| A02 | Platforms        | In progress | owner preview approval     | Adapt desktop navigation and packaging                                   | Local Windows x64 portable EXE built with shared UI. Windows launch,keyboard/window state and save checks remain unverified                                                                                                                                                                                                                                                                     |
-| R01 | Conditional Rust | Conditional | G06                        | Port exact RNG and save model                                            | Only if rewrite activated; TS vectors and fixture parity                                                                                                                                                                                                                                                                                                                                        |
-| R02 | Conditional Rust | Conditional | R01,E07                    | Port integer-clean systems in phase order                                | One bounded slice with phase hash gate                                                                                                                                                                                                                                                                                                                                                          |
-| R03 | Conditional Rust | Conditional | R02                        | Port transcendental-heavy systems                                        | Exact first; documented proven tolerance only                                                                                                                                                                                                                                                                                                                                                   |
-| R04 | Conditional Rust | Conditional | R03                        | Integrate native contract after replay gate                              | Complete reference replay before shell engine switch                                                                                                                                                                                                                                                                                                                                            |
-| W01 | Deferred         | Deferred    | I04                        | Web/WASM                                                                 | Separate approval; not initial release. Mechanics drift is M08 and does not wait for web.                                                                                                                                                                                                                                                                                                       |
+| ID | Track | Status | Depends on | Work | Acceptance evidence |
+|---|---|---|---|---|---|
+| G01 | Evidence | Done | - | Record unified SP/MP architecture and iOS-first delivery | Standing rules committed |
+| G02 | Evidence | Done | G01 | Bootstrap React/Tauri shell and private signing setup | Local compile; encrypted signing; no device claim |
+| G03 | Evidence | Done | G01 | Pin historical engine and identify reuse limits | Provenance and known mechanics differences recorded |
+| G04 | Evidence | Done | G03 | Audit production RNG and imported source publication | [Determinism audit](DETERMINISM-AUDIT.md) at `f61c28f`; no unseeded runtime randomness or secret/ops material in non-test engine/content. Rust/device float parity is not established |
+| G05 | Evidence | Blocked | G03,I01 | Measure named physical iOS device late-turn performance | Eligible build 0.1.0 (1.6) exists; named-device p95,worst-turn,memory and thermal measurements remain #43 |
+| G06 | Evidence | Queued | G05 | Record TS optimization versus Rust go/no-go | Device evidence determines rewrite; no speculative bulk port |
+| E01 | Engine | Done | G04 | Import pinned reusable engine/content without UI/history | Unchanged formulas; source manifest; proprietary notice |
+| E02 | Engine | Done | E01 | Implement world session through public engine contract | Create,actions,turn,serialize,load behavior tests |
+| E03 | Engine | Done | E02 | Move simulation into dedicated worker | UI responsive; ordered commands; no duplicate turns |
+| E04 | Engine | Done | E03 | Handle worker errors, interruption and disposal | Failure preserves last good state; promises settle |
+| E05 | Engine | Done | E02 | Produce stable display queries from real world | Economy/player/party/election/news views use engine state |
+| E06 | Engine | Done | E02 | Validate supported era/country matrix | All shipped imported combinations create,act,turn,save/reload |
+| E07 | Engine | Done | E02 | Run independent seeded replay and save-boundary comparison | Exact checkpoint hash; record reference commit |
+| E08 | Engine | In progress | E07 | Audit long-world election memory and turn spikes | Profile once per changed performance concern; no pruning without compatibility proof |
+| S01 | Saves | Done | G02 | Build native atomic save-slot storage with TDD | Fresh instance reads saved data; failed replacement preserves prior data |
+| S02 | Saves | In progress | S01,E02 | Connect native save and reload commands | Raw engine envelope retained; completion and errors visible |
+| S03 | Saves | Done | S02 | Implement slot list,delete and replacement confirmation | No traversal; deliberate overwrite/delete; deterministic metadata |
+| S04 | Saves | In progress | S02 | Provide save import/export interchange | Real fixture both directions; no silent version downgrade |
+| S05 | Saves | In progress | S04 | Resolve v42/v43 compatibility explicitly | Fixture-backed policy; no promise of roundtrip until verified |
+| S06 | Saves | In progress | S02 | Recover after close,crash and partial write | Last completed save survives; no false saved status |
+| U01 | Interface | In progress | G01 | Extract actual MP/SP visual and navigation baseline | Reference source/screens; no historical client redesign |
+| U02 | Interface | Done | U01 | Build new-game era/country/player flow | Accessible form; real content choices; validation |
+| U03 | Interface | In progress | U01,E05 | Port shared game chrome and character-first entry | Actual MP/SP hierarchy; compact mobile navigation |
+| U04 | Interface | Done | U03,E05 | Expose real character and action flow | Costs,target input,result/errors; no fake actions |
+| U05 | Interface | Done | U03,E05 | Expose party membership and party views | Basic join/leave/detail flow is wired and tested in PRs #7/#15; full platform/charter/coalition work remains #59 |
+| U06 | Interface | Done | U03,E05 | Expose election and news views | Real records and clear empty states |
+| U07 | Interface | Done | U03,S03 | Connect save browser and in-game lifecycle | New/resume/save/reload/exit and confirmed deletion pass browser smoke; native-device lifecycle remains I02/I03 and #44 |
+| U08 | Interface | In progress | U02,U07 | Verify mobile layout and accessibility | Small-screen overflow,touch,keyboard,focus and errors |
+| U11 | Interface | Partial | U03,U08 | Dual-pane and hinge-aware layout (#438) | Hinge primitives, docked nav/content and seven list/detail pairings (parties, elections, regions, legislation, nominations, markets, news article/event) tested with shared selection state; single-pane phone flow intact; only foldable hardware posture acceptance remains |
+| U09 | UI | Done | E02,U07 | Expose party membership and candidacy through real engine actions | Filing,withdrawal,save/reload and accessible race pagination |
+| U10 | UI | Done | U09,Q01 | Complete a seeded election-to-office loop and expose legislature actions | Genuine t95 fixture, election win,sponsor,vote,relaunch through production UI |
+| M01 | Mechanics | Done | G03 | Inventory phase/order and feature drift from AHDGame | Named differences,source refs,release blockers |
+| M02 | Mechanics | In progress | M01 | Close referendum lifecycle omissions | Behavioral parity scenarios through public actions/turns |
+| M03 | Mechanics | In progress | M01 | Resolve war abstraction mismatch | Actual authoritative rules; no rebalancing or blanket waiver |
+| M04 | Mechanics | In progress | M01 | Close phase order and TFP differences | Reference-driven tests; impacts traced |
+| M05 | Mechanics | In progress | M01 | Close electoral and content omissions | National/subnational lifecycle and all supported content |
+| M06 | Mechanics | Queued | M02,M03,M04,M05,M07,M08 | Sign off reference mechanics coverage | No unacknowledged mechanics gaps in 1.0 candidate |
+| M07 | Mechanics | In progress | M01 | Consume authoritative Game-owned rules one action/system at a time | Fundraise shared cost/yield/eligibility first; [per-action character audit](CHARACTER-ACTION-PARITY.md) covers the 11 ActionsHub entries at `cd99794` (#91, partial, no runtime claim); gdpScalar, RPG stat multipliers and frozen campaign currency still unwired; preserve complete stat/currency context before parity signoff; [Game #1724](https://github.com/Egg3901/AHDGame/issues/1724) |
+| M08 | Mechanics | In progress | M01,M07 | Detect upstream drift and gate consumer updates | Immutable source checks first; complete source coverage, update PRs and ruleset/save policy in [#120](https://github.com/Egg3901/AHDNative/issues/120) |
+| Q01 | Validation | Done | E03,S02,U07 | Integrated gameplay smoke through actual UI | Create,country,action,turn,save,close,reload,continue |
+| Q02 | Validation | Done | Q01 | Exercise error and concurrency smoke | Corrupt-save recovery,double-click turn,save failure/recovery and worker startup failure pass integrated smoke at fc87a991 |
+| Q03 | Validation | In progress | Q01,U08 | Capture representative UI evidence | Desktop and mobile screenshots from real running world |
+| Q04 | Validation | Done | E06,E07,Q02,Q03 | Run batched regression gate | Focused changes first; full suite only integration checkpoint |
+| Q05 | Validation | Queued | Q04,M06,S05 | Assess 1.0.0 candidate readiness | Exact commit/results/remaining limitations; no placeholder success |
+| I01 | iOS | Done | Q04,owner preview approval | Build first private signed feedback preview | 0.1.0 (1.6) exported, Apple VALID/INTERNAL_ONLY, attached to Owner review; #124. Full 1.0 gate remains Q05/I04 |
+| I02 | iOS | Queued | I01 | Install and smoke on iPhone | Real install,launch,world,turn,save/relaunch |
+| I03 | iOS | Queued | I02 | Validate lifecycle and memory/performance | Background,lock,interruption,low memory,named-device measurements |
+| I04 | Release | Queued | I03,G06 | Cut private 1.0.0 when release gates pass | Version consistency,private artifact,release notes,known risks |
+| P01 | Multiplayer | In progress | I04 | Adapt shared screens to authoritative MP transport | Slice 1 in [#359](https://github.com/Egg3901/AHDNative/issues/359): session bridge, 9 single-run actions, inbox triage, native player mail; batch/mobile/device acceptance split out |
+| P02 | Multiplayer | In progress | P01 | Validate reconnect, mode separation and mutation safety | SP remains offline; MP mutations run server-side only, unsupported actions absent; device gate still open |
+| A01 | Platforms | In progress | owner preview approval | Bring up Android shell and lifecycle | Local ARM64 APK built; signature and 16 KB binary/package checks pass. Device smoke/performance remain #44/#43/#126 |
+| A02 | Platforms | In progress | owner preview approval | Adapt desktop navigation and packaging | Local Windows x64 portable EXE built with shared UI. Windows launch,keyboard/window state and save checks remain unverified |
+| R01 | Conditional Rust | Conditional | G06 | Port exact RNG and save model | Only if rewrite activated; TS vectors and fixture parity |
+| R02 | Conditional Rust | Conditional | R01,E07 | Port integer-clean systems in phase order | One bounded slice with phase hash gate |
+| R03 | Conditional Rust | Conditional | R02 | Port transcendental-heavy systems | Exact first; documented proven tolerance only |
+| R04 | Conditional Rust | Conditional | R03 | Integrate native contract after replay gate | Complete reference replay before shell engine switch |
+| W01 | Deferred | Deferred | I04 | Web/WASM | Separate approval; not initial release. Mechanics drift is M08 and does not wait for web. |
 
 ## Current release blockers
 
@@ -175,6 +175,7 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Twenty-three contract checks pass for authentic load, deterministic continuation and the old reader's rejection of new schema-v43 saves. The actual import/turn/autosave/reload UI smoke also passes.
 - This closes the missing-authentic-fixture evidence gap, not bidirectional save portability. No compatibility writer or silent downgrade was added. See [save compatibility](SAVE-COMPATIBILITY.md).
 
+
 ## Candidacy checkpoint
 
 - Added party join/leave controls and real engine candidacy actions, with filing dates, action costs, availability reasons, candidate/winner names and 20-race pagination. Removed the old 40-race projection cap so open races remain reachable. The active player race appears first.
@@ -182,6 +183,7 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - The new production smoke creates a real 1953 US world, joins the Democratic Party, advances to scheduled races, files, saves, relaunches, checks candidacy and withdraws. Existing save import/deletion/error/concurrency smoke remains green.
 - No engine formulas changed. Existing engine/content/Rust suites were not repeated locally for this adapter/UI-only batch; CI retains the full verify gate. No Codemagic build or paid minutes used.
 - Next: complete an election-to-office scenario, expose necessary campaign/officeholder actions, and compare the resulting mobile screens against actual MP/SP references. Mechanics parity, bidirectional v42 output, and physical device validation remain release blockers. See [career evidence](CAREER-VALIDATION.md).
+
 
 ## Election-to-office checkpoint
 
@@ -191,6 +193,7 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Validation batch: production build, 12 session/worker tests, 42 UI tests, fixture integrity and 12 browser smoke tests passed. After screenshot-driven tally/formatting refinements, the affected session/UI tests and both legislature smoke scenarios were rechecked. Routine fixture validation does not rerun the full campaign.
 - Screenshot inspection corrected long floating-point display, duplicate availability text, live tally delay and completed Senate cards showing House totals. Closed bills omit voting controls. Layout follows AHDGame BillCard/BillVoteIndicator hierarchy; complete MP/SP visual parity remains unverified.
 - No engine formulas, native storage or signing configuration changed. No paid build ran. Next gaps: campaign management depth, legislative effect/end-of-term scenarios, current mechanics drift and bidirectional save compatibility. See [playthrough evidence](CAREER-PLAYTHROUGH.md).
+
 
 ## Navigation, resource footer and repository presentation checkpoint
 
@@ -207,6 +210,7 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
   Credit, pensions, cross-border wires and integrated ordering remain #314-#317.
 - Validation: production build, 18 session/worker tests, 63 initial UI tests and fixture integrity passed; a keyboard-focus regression was then added and fixed, bringing UI coverage to 64. All 12 pre-existing browser scenarios passed. The new banking/menu/footer flow passed after correcting its expected action-result message; the five core SP smokes also passed after the focus changes. Screenshot review at 390 and 320 pixels caught and corrected header label wrapping. Focused verification follows changes; full engine/content/Rust simulations were not repeated locally for this adapter/UI batch.
 - No Codemagic build or paid minutes used. Current mechanics drift, bidirectional v42 output and physical-device validation remain release blockers. N04-N10 track the remaining navigation/footer features; this batch does not claim complete feature parity.
+
 
 ## Full feature depth checkpoint, 2026-09-10
 
@@ -253,6 +257,7 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Verification: production build; 41 session/query/save/CLI tests after focused eligibility-copy correction; 84 UI tests after country-label correction; 765 engine tests including the short referendum suite; career fixture integrity. The 13 existing browser flows passed, then both the extended US directory/banking flow and new UK detail/economy/policy/world/resource/reload flow passed after correcting the empty-UK-roster expectation. Screenshot inspection drove the country-specific label fix. No long career generator, native rebuild or paid build was repeated.
 - Next batch is already active: real market trading, deeper legislative proposals/bills, and offline help/presentation settings. Hub project-filter/archive issues remain open; supported board clearing is still unavailable, so no Hub status-update claim is made.
 
+
 ## Actions and presentation checkpoint, 2026-09-10
 
 - The preceding feature-depth batch merged as PR #10 (`b1cedbf`); its full verify CI passed.
@@ -276,11 +281,13 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Public turn/save tests cover the campaign boundary through resolution, one transition per turn, absent closing dates and stale scalar values on both sides of the pass threshold. Complete serialized worlds match at every replay checkpoint after a mid-campaign reload. The local short engine suite passes 795 tests and engine typecheck passes.
 - Request/grant actions, campaign spending/ground-game writers, consent bills and actuation remain incomplete. Passed votes still wait at actuation. This closes a bounded calculation/lifecycle slice, not M02 as a whole. No paid build, long simulation or UI/native rebuild was run for this engine slice.
 
+
 ## UK initialization checkpoint
 
 - Added an explicit engine `historical` initialization option for the source-backed 1953/1979 UK synthetic winner roster. Regional magnitudes and largest-remainder allocation preserve 625/650 Commons seats and allow government formation on the first turn.
 - `founding` remains the default. Historical UK politicians consume the shared creation RNG even when playing another country, so changing the app default is held for a controlled rollout with cross-world replay evidence. The new-game form has not changed and loaded saves are never reseeded.
 - Nineteen focused UK/politician tests and engine typecheck passed. Tests include complete-world equality for omitted versus explicit founding and exact historical save/reload, alongside seat totals and government formation. Full regional constituencies, campaign eligibility and a UK career playthrough remain open. No paid build or long simulation ran.
+
 
 ## Offline discovery checkpoint
 
@@ -550,6 +557,7 @@ no formula and does not claim runtime parity. Current
 AHDClient desktop SP already runs Game's packaged server; its provenance fix is
 [AHDClient #56](https://github.com/Egg3901/AHDClient/pull/56).
 
+
 ## Private feedback preview, 2026-09-10
 
 The owner authorized a development 0.1.0 feedback build for iOS, Windows and
@@ -599,6 +607,7 @@ These require rendered comparison with AHDGame/AHDClient, beyond matching colors
 and functional controls. The shared React/Tauri app and TypeScript engine remain;
 Rust implementation stays conditional on representative device profiling.
 
+
 ## Windows 0.1.1 visual review candidate
 
 The owner requested a more ethereal space landing, a minimal globe and an
@@ -622,6 +631,7 @@ Release evidence records the final source revision and private delivery outside
 GitHub. No Codemagic build is part of this batch. Windows execution, device
 performance, broader imagery #143 and unresolved mechanics remain open.
 
+
 ### Verified Windows review checkpoint, 2026-09-11
 
 PR [#146](https://github.com/Egg3901/AHDNative/pull/146) merged as `a9bbd05b`.
@@ -639,6 +649,7 @@ GitHub scope after closure: 92 open and 15 closed issues. Open does not mean
 untouched. The Hub board remains blocked by LakesideHub #4; no Hub sync is
 claimed. The remaining original five (#39/#40/#67/#68/#92) and the related live
 election distributor #141 continue under source-backed review.
+
 
 ### Next owner priorities and handoff, 2026-09-11
 
@@ -662,10 +673,12 @@ A handoff audit updated the affected issue bodies/checklists and confirmed that
 #30/#31/#32/#56/#85/#142 remain closed. Do not rerun paid builds for this
 handoff or claim local mechanics branches are already shipped.
 
+
 After adding the two explicit owner requirements, GitHub scope is 94 open and
 15 closed: 55 partial, 33 not delivered, two device gates, two deferred MP and
 two trackers. Six unmerged implementation slices carry `work: review`.
 Account auth #149 is active; only the remaining MP integration in #86 is deferred.
+
 
 Source inspection of AHDClient `378126dc` confirms live-site authentication:
 desktop opens a dedicated online WebView, mobile navigates the main WebView,
@@ -673,6 +686,7 @@ and AHDGame owns login and the cookie session. Preserve persistent WebView
 storage, auth navigation handling and isolation from native/local-save powers.
 SP has no network or account requirement. Native currently has no auth path;
 #149 needs runtime validation of the existing flow, not a second identity store.
+
 
 ## Election race hub and primary views checkpoint
 
@@ -691,6 +705,8 @@ cover the stage grouping, primary ledgers, phase label and winner/profile links;
 `smoke/elections-stages.spec.ts` opens a race detail, saves, reloads and reopens
 the same race with its stage ledger intact. Non-US primaries stay out of scope
 under #96 and the reference campaign projection stays open under #68.
+
+
 
 ## Founding election lifecycle checkpoint (#223)
 
@@ -746,6 +762,7 @@ vote/margin/seat chips (#68) remain open, so #83 stays partial. Evidence:
 `smoke/resource-breakdown.spec.ts` at 320px and 390px. No mechanics formula
 changed.
 
+
 ## Referendum player surface checkpoint
 
 #70: the Nation drawer's Referendums destination now renders the persisted W25
@@ -760,6 +777,7 @@ Remaining: player referendum campaign writers (spending, ground game, positions)
 do not exist in the engine, so #70 stays open for those. Evidence:
 `src/game/politics.test.ts`, `PoliticsPanel.test.tsx`,
 `smoke/referendums.spec.ts`. No mechanics formula changed.
+
 
 ## Campaign strength and strength projection checkpoint
 
@@ -1041,6 +1059,7 @@ across the eight named specs (`singleplayer`, `actions-hub`, `party-founding`,
 `mobile-navigation`, `ui-rosters`, `candidacy`, `feature-depth`,
 `ui-navigation-depth`), all 17 passing against the installed Chromium build.
 
+
 ## Profile hero and identity composition checkpoint, 2026-09-15 (#371)
 
 #371 done as a bounded Native UI slice; no engine, session, DTO, signing,
@@ -1200,7 +1219,7 @@ stat meter, 320/390px guards) plus the untouched `CharacterCreationScreen`,
 create/act/advance/save/relaunch flow suites: 58 UI + 9 game tests green in
 focused runs.
 
-Remaining #242 acceptance gaps: the imperial _creation input_ remains
+Remaining #242 acceptance gaps: the imperial *creation input* remains
 admin-only per the reference (`/create-imperial-character` is admin-gated), so
 Native renders the honest notice rather than an imperial form; a rendered
 AHDGame-vs-Native creation screenshot comparison and physical-device run were
@@ -1533,7 +1552,7 @@ and removed. The smoke helper now walks the conversation; no engine change.
   with no blur. Large text keeps chrome and overlays reachable; Settings
   reduced motion removes the drawer animation.
 - Rendered evidence (local, gitignored): `artifacts/smoke/material-{game,
-overlay, drawer, solid, large-text}-{320,390}.png`. One probe finding was
+  overlay, drawer, solid, large-text}-{320,390}.png`. One probe finding was
   a test-timing artifact, not a product defect: drawer screenshots caught
   the 0.18s slide-in mid-flight, so the spec now polls the drawer to its
   resting x before asserting geometry or capturing.

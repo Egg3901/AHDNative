@@ -58,17 +58,11 @@ describe("npcFlowDelta", () => {
 
 describe("computeNpcDepositShare", () => {
   it("base share at parity with the CB comparison rate", () => {
-    const shares = computeNpcDepositShare(
-      [{ bankId: "A", effectiveDepositRatePercent: 2 }],
-      2,
-    );
+    const shares = computeNpcDepositShare([{ bankId: "A", effectiveDepositRatePercent: 2 }], 2);
     expect(shares[0]!.share).toBeCloseTo(0.08, 6); // premiumRatio 0 -> base share
   });
   it("caps a single bank at NPC_DEPOSIT_MAX_SHARE_PER_BANK (0.25)", () => {
-    const shares = computeNpcDepositShare(
-      [{ bankId: "A", effectiveDepositRatePercent: 100 }],
-      2,
-    );
+    const shares = computeNpcDepositShare([{ bankId: "A", effectiveDepositRatePercent: 100 }], 2);
     expect(shares[0]!.share).toBe(0.25);
   });
   it("scales every bank down proportionally when the combined total exceeds 0.6", () => {
@@ -135,9 +129,7 @@ describe("computeInsurancePremium", () => {
 
 describe("sumInsuredPlayerDeposits", () => {
   it("caps each balance at insuredCap and sums", () => {
-    expect(sumInsuredPlayerDeposits([100, 5000, 200], 1000)).toBe(
-      100 + 1000 + 200,
-    );
+    expect(sumInsuredPlayerDeposits([100, 5000, 200], 1000)).toBe(100 + 1000 + 200);
   });
   it("ignores non-positive balances", () => {
     expect(sumInsuredPlayerDeposits([0, -50, 300], 1000)).toBe(300);
@@ -158,17 +150,10 @@ describe("bandsForProfile / bandRatePercent", () => {
     expect(bands).toEqual(["AAA", "AA", "A"]);
   });
   it("balanced opens through BBB", () => {
-    expect(bandsForProfile("balanced").map((b) => b.id)).toEqual([
-      "AAA",
-      "AA",
-      "A",
-      "BBB",
-    ]);
+    expect(bandsForProfile("balanced").map((b) => b.id)).toEqual(["AAA", "AA", "A", "BBB"]);
   });
   it("aggressive opens every band", () => {
-    expect(bandsForProfile("aggressive").map((b) => b.id)).toEqual(
-      CREDIT_BANDS.map((b) => b.id),
-    );
+    expect(bandsForProfile("aggressive").map((b) => b.id)).toEqual(CREDIT_BANDS.map((b) => b.id));
   });
   it("bandRatePercent adds the band premium, floored at 0", () => {
     expect(bandRatePercent(getCreditBand("AAA"), 5)).toBe(3.5); // 5 + (-1.5)
@@ -213,6 +198,15 @@ describe("computeConfidence", () => {
     expect(CONFIDENCE_BAND_GREEN_MIN).toBe(0.7);
     expect(CONFIDENCE_BAND_AMBER_MIN).toBe(0.4);
   });
+  it("forced liquidation subtracts the flat 0.15 penalty and defaults to off (#328)", () => {
+    const input = { cashReserves: 1000, cashBackedDeposits: 1000, totalLoans: 0, reserveRatioRequired: 0.2, arrearsOutstanding: 0, defaultsLastTurn: 0, panicTurns: 0 };
+    const base = computeConfidence(input);
+    const forced = computeConfidence({ ...input, forcedLiquidation: true });
+    expect(base.confidence).toBe(1);
+    expect(forced.confidence).toBeCloseTo(0.85, 6);
+    expect(forced.band).toBe("green");
+    expect(base.confidence - forced.confidence).toBeCloseTo(0.15, 6);
+  });
   it("panic turns penalize confidence, capped at 4 turns", () => {
     const base = computeConfidence({
       cashReserves: 1000,
@@ -233,23 +227,6 @@ describe("computeConfidence", () => {
       panicTurns: 10,
     });
     expect(base.confidence - panicked.confidence).toBeCloseTo(0.12 * 4, 6); // capped at 4 turns
-  });
-  it("forced liquidation subtracts the flat 0.15 penalty and defaults to off (#328)", () => {
-    const input = {
-      cashReserves: 1000,
-      cashBackedDeposits: 1000,
-      totalLoans: 0,
-      reserveRatioRequired: 0.2,
-      arrearsOutstanding: 0,
-      defaultsLastTurn: 0,
-      panicTurns: 0,
-    };
-    const base = computeConfidence(input);
-    const forced = computeConfidence({ ...input, forcedLiquidation: true });
-    expect(base.confidence).toBe(1);
-    expect(forced.confidence).toBeCloseTo(0.85, 6);
-    expect(forced.band).toBe("green");
-    expect(base.confidence - forced.confidence).toBeCloseTo(0.15, 6);
   });
   it("no cash, no loans -> capitalCover 0, reserveCover 0 -> confidence from assetQuality only", () => {
     const { confidence, band } = computeConfidence({

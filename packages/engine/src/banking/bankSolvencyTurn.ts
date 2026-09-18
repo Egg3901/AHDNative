@@ -1,5 +1,5 @@
 /**
- * Bank solvency turn phase - W12 port of src/lib/turn/bankSolvencyTurn.ts
+ * Bank solvency turn phase — W12 port of src/lib/turn/bankSolvencyTurn.ts
  * processBankSolvencyTurn (+ evaluateOneBank).
  *
  * Confidence/warning-band scoring, NPC deposit flight on amber/red, the
@@ -7,7 +7,7 @@
  * depositor resolution.
  *
  * Scope vs mainline (see banking/types.ts file doc): #328 ports the
- * prop-book leg - mark-to-market before confidence, proportional
+ * prop-book leg — mark-to-market before confidence, proportional
  * forced liquidation past the leverage multiple (with the confidence
  * penalty and the forcedLiquidations count), the investment-bank
  * `red && equityBase <= 0` failure test, and clearing the book on
@@ -21,7 +21,7 @@
  * insurance fund is exhausted (insurance.ts DEPOSIT_INSURANCE_SPENDING_KEY,
  * depositBookReturn.ts). AHDClient's budget module (W2) has no live spending
  * hook wired for this, and adding one risks the budget invariants a
- * different wave owns - see this file's `resolveFailedBank` for the honest
+ * different wave owns — see this file's `resolveFailedBank` for the honest
  * alternative: an uninsured excess is money that already left the bank's
  * books when it failed and is not returned to the household pool. It is
  * accounted (visible in the returned summary), not silently dropped.
@@ -74,10 +74,7 @@ export const bankSolvencyTurnPhase: TurnPhase = {
     };
 
     const candidates = Object.values(world.corporations).filter(
-      (c) =>
-        c.bankCharter &&
-        c.bankCharter.status === "active" &&
-        c.bankCharter.lastSolvencyTurn !== turn,
+      (c) => c.bankCharter && c.bankCharter.status === "active" && c.bankCharter.lastSolvencyTurn !== turn,
     );
     if (candidates.length === 0) return;
 
@@ -85,12 +82,7 @@ export const bankSolvencyTurnPhase: TurnPhase = {
     const evaluated: { corp: Corporation; failed: boolean }[] = [];
 
     for (const corp of candidates) {
-      const { failed, forcedLiquidation, depositTaking } = evaluateOneBank(
-        world,
-        corp,
-        turn,
-        summary,
-      );
+      const { failed, forcedLiquidation, depositTaking } = evaluateOneBank(world, corp, turn, summary);
       evaluated.push({ corp, failed });
       summary.banksEvaluated += 1;
       if (forcedLiquidation) summary.forcedLiquidations += 1;
@@ -109,13 +101,12 @@ export const bankSolvencyTurnPhase: TurnPhase = {
     if (failedThisTurnByCountry.size > 0) {
       for (const { corp, failed } of evaluated) {
         if (failed) continue;
+        // Source: only a deposit-taking peer receives the panic bump.
+        if (!isDepositTakingCharter(corp.bankCharter)) continue;
         const failedPeers = failedThisTurnByCountry.get(corp.countryId);
         if (!failedPeers || failedPeers.length === 0) continue;
         const charter = corp.bankCharter!;
-        charter.panicTurns = Math.max(
-          charter.panicTurns,
-          CONTAGION_PANIC_TURNS,
-        );
+        charter.panicTurns = Math.max(charter.panicTurns, CONTAGION_PANIC_TURNS);
         summary.contagionTriggered += 1;
       }
     }
@@ -177,10 +168,7 @@ function evaluateOneBank(
   const priorBand = charter.warningBand;
   if (depositTaking && (priorBand === "amber" || priorBand === "red")) {
     const rate = FLIGHT_RATE_BY_BAND[priorBand];
-    const outflow = Math.min(
-      charter.npcDeposits * rate,
-      Math.max(0, charter.cashReserves),
-    );
+    const outflow = Math.min(charter.npcDeposits * rate, Math.max(0, charter.cashReserves));
     if (outflow > 0) {
       charter.cashReserves = Math.max(0, charter.cashReserves - outflow);
       charter.npcDeposits = Math.max(0, charter.npcDeposits - outflow);
@@ -192,17 +180,12 @@ function evaluateOneBank(
   let fails: boolean;
   if (depositTaking) {
     const requiredLiquidity = RESERVE_REQUIREMENT * charter.npcDeposits;
-    fails =
-      priorBand === "red" &&
-      charter.cashReserves < RUN_FAILURE_COVER_FRACTION * requiredLiquidity;
+    fails = priorBand === "red" && charter.cashReserves < RUN_FAILURE_COVER_FRACTION * requiredLiquidity;
   } else if (propRunning) {
     // Source: an investment bank fails when red with no equity left behind
-    // its book. Deposit flight and the run line do not apply - it holds no
+    // its book. Deposit flight and the run line do not apply — it holds no
     // household deposits to run on.
-    fails = propBankFails({
-      band,
-      equityBase: computePropEquityBase(charter.cashReserves, charter),
-    });
+    fails = propBankFails({ band, equityBase: computePropEquityBase(charter.cashReserves, charter) });
   } else {
     fails = false;
   }
@@ -217,7 +200,7 @@ function evaluateOneBank(
     charter.failedTurn = turn;
     charter.confidence = confidence;
     charter.warningBand = band;
-    // Source: a failed estate holds no book - positions are gone with the bank.
+    // Source: a failed estate holds no book — positions are gone with the bank.
     charter.propBook = [];
     charter.propBookMarkValue = 0;
     charter.lastSolvencyTurn = turn;
@@ -229,22 +212,13 @@ function evaluateOneBank(
   return { failed: false, forcedLiquidation, depositTaking };
 }
 
-function sumLoanOutstanding(
-  world: WorldState,
-  bankCorpId: string,
-  status: "arrears" | "defaulted",
-  lastProcessedTurn?: number,
-): number {
+function sumLoanOutstanding(world: WorldState, bankCorpId: string, status: "arrears" | "defaulted", lastProcessedTurn?: number): number {
   let total = 0;
   for (const loan of world.bankLoans) {
     if (loan.bankCorpId !== bankCorpId) continue;
     if (loan.borrowerType === "npcBulk") continue;
     if (loan.status !== status) continue;
-    if (
-      lastProcessedTurn !== undefined &&
-      loan.lastProcessedTurn !== lastProcessedTurn
-    )
-      continue;
+    if (lastProcessedTurn !== undefined && loan.lastProcessedTurn !== lastProcessedTurn) continue;
     total += Math.max(0, loan.outstanding);
   }
   return total;
@@ -264,7 +238,7 @@ function sumLoanOutstanding(
  *
  * Player savings are a POINTER (see constants.ts / balanceSheet.ts doc): no
  * cash ever left `player.savings` for a deposit, so failure costs the
- * player the counterparty and future yield, never the principal - the
+ * player the counterparty and future yield, never the principal — the
  * holder simply flips back to "centralBank", exactly mirroring mainline's
  * documented player-savings failure behavior.
  *
@@ -274,12 +248,7 @@ function sumLoanOutstanding(
  * (`returnDepositBook`); those creditor rows belong to the unmerged
  * #326/#327 servicing waves, so there is no one to pay here.
  */
-function resolveFailedBank(
-  world: WorldState,
-  corp: Corporation,
-  turn: number,
-  summary: BankSolvencyTurnSummary,
-): void {
+function resolveFailedBank(world: WorldState, corp: Corporation, turn: number, summary: BankSolvencyTurnSummary): void {
   const charter = corp.bankCharter!;
   const bank = world.centralBanks[corp.countryId];
   if (charter.depositorsResolvedTurn !== null) return;
@@ -309,8 +278,7 @@ function resolveFailedBank(
   const fromCash = Math.min(available, npcClaim);
   available -= fromCash;
   npcClaim -= fromCash;
-  if (bank)
-    bank.externalBroadMoney = Math.max(0, bank.externalBroadMoney + fromCash);
+  if (bank) bank.externalBroadMoney = Math.max(0, bank.externalBroadMoney + fromCash);
 
   const insuredCap = charter.postedCapital * INSURED_CAP_CAPITAL_MULTIPLE;
   const fund = world.depositInsurance[corp.countryId];
@@ -319,21 +287,14 @@ function resolveFailedBank(
     if (fromFund > 0) {
       fund.balance -= fromFund;
       fund.payoutsLifetime += fromFund;
-      if (bank)
-        bank.externalBroadMoney = Math.max(
-          0,
-          bank.externalBroadMoney + fromFund,
-        );
+      if (bank) bank.externalBroadMoney = Math.max(0, bank.externalBroadMoney + fromFund);
       npcClaim -= fromFund;
       summary.insurancePaid += fromFund;
     }
   }
   if (npcClaim > 0) summary.uninsuredLoss += npcClaim;
 
-  if (
-    world.player.countryId === corp.countryId &&
-    world.player.savingsHolder === corp.id
-  ) {
+  if (world.player.countryId === corp.countryId && world.player.savingsHolder === corp.id) {
     world.player.savingsHolder = "centralBank";
   }
 

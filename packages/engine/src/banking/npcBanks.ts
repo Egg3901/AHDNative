@@ -1,5 +1,5 @@
 /**
- * NPC bank charter seeding - W12 port of src/lib/banking/npcBanks.ts
+ * NPC bank charter seeding — W12 port of src/lib/banking/npcBanks.ts
  * seedNpcBanks.
  *
  * Deviation from mainline (cited in constants.ts NPC_BANKS_PER_COUNTRY doc):
@@ -8,17 +8,17 @@
  * legalCharterTypes eligibility gate, an NPP_CAPITAL_STATES headquarters
  * check). AHDClient's W9 corporation founding already seeds exactly ONE
  * "financial" sector NPC corporation per playable country unconditionally
- * (corporation/founding.ts - every playable country in every shipped era
+ * (corporation/founding.ts — every playable country in every shipped era
  * pack has a nonzero financial weight, see sectorSeedWeights1953.ts), so
  * this module charters THAT corp rather than spawning new ones. There is
  * therefore no eligibility gate to port (issueCharter's legalCharterTypes/
- * NPP_CAPITAL_STATES checks - mainline's own reasons for those, era Glass-
+ * NPP_CAPITAL_STATES checks — mainline's own reasons for those, era Glass-
  * Steagall separation and having no HQ state configured, do not apply: the
  * corp already exists and is always chartered retail-only).
  *
  * Capital: real cash moves from the corp's own `liquidCapital` into the new
  * `bankCharter.postedCapital`/`cashReserves` (see constants.ts
- * CHARTER_CAPITAL_LIQUID_CAPITAL_FRACTION doc) - conservation-respecting,
+ * CHARTER_CAPITAL_LIQUID_CAPITAL_FRACTION doc) — conservation-respecting,
  * unlike mainline's FX-anchored fixed requirement which this module cannot
  * reproduce without an FX/anchor system (see constants.ts file doc).
  *
@@ -26,16 +26,13 @@
  * Regulation Q corridor midpoint) is NOT ported: solo charters every bank
  * with depositOffset/lendingOffset = 0 and has no rate-console action to
  * move them away from that, so there is nothing for a policy pass to correct
- * - see types.ts BankCharter file doc for the Regulation Q scope cut.
+ * — see types.ts BankCharter file doc for the Regulation Q scope cut.
  */
 
 import type { WorldState } from "../types.js";
 import type { Corporation } from "../corporation/types.js";
 import type { BankCharter } from "./types.js";
-import {
-  CHARTER_CAPITAL_LIQUID_CAPITAL_FRACTION,
-  DEFAULT_LENDING_PROFILE,
-} from "./constants.js";
+import { CHARTER_CAPITAL_LIQUID_CAPITAL_FRACTION, DEFAULT_LENDING_PROFILE } from "./constants.js";
 
 export interface SeedNpcBanksResult {
   chartered: number;
@@ -49,16 +46,11 @@ export interface SeedNpcBanksResult {
  * charter). Called once at world creation (see world.ts createWorld).
  */
 export function seedNpcBanks(world: WorldState): SeedNpcBanksResult {
-  const result: SeedNpcBanksResult = {
-    chartered: 0,
-    skippedExisting: 0,
-    skippedNoFinancialCorp: 0,
-  };
+  const result: SeedNpcBanksResult = { chartered: 0, skippedExisting: 0, skippedNoFinancialCorp: 0 };
 
   for (const country of Object.values(world.countries)) {
     if (!country.playable) continue;
-    const corp: Corporation | undefined =
-      world.corporations[`${country.id}-financial`];
+    const corp: Corporation | undefined = world.corporations[`${country.id}-financial`];
     if (!corp) {
       result.skippedNoFinancialCorp += 1;
       continue;
@@ -68,10 +60,7 @@ export function seedNpcBanks(world: WorldState): SeedNpcBanksResult {
       continue;
     }
 
-    const posted = Math.max(
-      0,
-      Math.round(corp.liquidCapital * CHARTER_CAPITAL_LIQUID_CAPITAL_FRACTION),
-    );
+    const posted = Math.max(0, Math.round(corp.liquidCapital * CHARTER_CAPITAL_LIQUID_CAPITAL_FRACTION));
     corp.liquidCapital = Math.max(0, corp.liquidCapital - posted);
 
     const charter: BankCharter = {

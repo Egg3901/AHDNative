@@ -1,9 +1,9 @@
 /**
- * Private banking types - W12 port of mainline's chartered-bank subdocument
+ * Private banking types — W12 port of mainline's chartered-bank subdocument
  * and its satellite collections.
  *
  * Source: <mainline-checkout>/src/lib/db/types/bank.ts (BankCharter,
- * BankLoan, DepositInsuranceFund - fields kept are the subset this wave's
+ * BankLoan, DepositInsuranceFund — fields kept are the subset this wave's
  * scope actually reads/writes; see banking/bankingTurn.ts and
  * banking/bankSolvencyTurn.ts file docs for the full scope-cut rationale).
  *
@@ -38,7 +38,7 @@ export type BankCharterStatus = "active" | "failed";
 /**
  * Charter business model. Source: db/types/bank.ts BankCharterType
  * (verbatim). Seeded solo banks are all "retail"; investment/universal
- * charters exist only where a test (or a future charter wave) sets them -
+ * charters exist only where a test (or a future charter wave) sets them —
  * they are what carry the proprietary-trading capability (#328).
  * Absent means "retail" (pre-#328 saves carry no type).
  */
@@ -46,7 +46,7 @@ export type BankCharterType = "retail" | "investment" | "universal";
 
 /**
  * One proprietary-trading position. Source: db/types/bank.ts PropPosition
- * (equity subset - bond/indexUnit/forex refs have no solo pricing
+ * (equity subset — bond/indexUnit/forex refs have no solo pricing
  * substrate; see banking/propTrading.ts file doc).
  */
 export interface PropPosition {
@@ -62,23 +62,11 @@ export interface PropPosition {
  * Household credit rating bands, best credit first.
  * Source: src/lib/banking/creditBands.ts CREDIT_BAND_IDS (verbatim order).
  */
-export const CREDIT_BAND_IDS = [
-  "AAA",
-  "AA",
-  "A",
-  "BBB",
-  "BB",
-  "B",
-  "CCC",
-] as const;
+export const CREDIT_BAND_IDS = ["AAA", "AA", "A", "BBB", "BB", "B", "CCC"] as const;
 export type CreditBandId = (typeof CREDIT_BAND_IDS)[number];
 
 /** Source: creditBands.ts LENDING_PROFILE_IDS (verbatim). */
-export const LENDING_PROFILE_IDS = [
-  "conservative",
-  "balanced",
-  "aggressive",
-] as const;
+export const LENDING_PROFILE_IDS = ["conservative", "balanced", "aggressive"] as const;
 export type LendingProfileId = (typeof LENDING_PROFILE_IDS)[number];
 
 /** Source: src/lib/banking/confidence.ts ConfidenceBand (verbatim). */
@@ -86,15 +74,16 @@ export type ConfidenceBand = "green" | "amber" | "red";
 
 /**
  * Sub-document on Corporation. Source: db/types/bank.ts BankCharter (retail
- * subset - see file doc).
+ * subset — see file doc).
  */
 export interface BankCharter {
   status: BankCharterStatus;
   /**
-   * Charter business model (#328). Absent means "retail" - see
+   * Charter business model (#328). Absent means "retail" — see
    * propTrading.charterTypeOf. Only investment/universal charters may run
-   * a proprietary book (source: capabilities.ts BY_TYPE). Persisted as
-   * `charterType`; the source names this field `type`.
+   * a proprietary book (source: src/lib/banking/rules/capabilities.ts
+   * BY_TYPE). Persisted as `charterType`; the source names this field
+   * `type`.
    */
   charterType?: BankCharterType;
   /**
@@ -159,7 +148,7 @@ export interface BankCharter {
 /**
  * One named loan or one NPC household credit-band tranche.
  * Source: db/types/bank.ts BankLoan (subset: `pending`/`rejected` loan-approval
- * states dropped - no opt-in approval console ported; see file doc).
+ * states dropped — no opt-in approval console ported; see file doc).
  */
 export interface BankLoan {
   id: string;
@@ -167,7 +156,7 @@ export interface BankLoan {
   /**
    * "player" is AHDClient's single named character (WorldState.player);
    * "corporation" is a Corporation.id. Neither has an origination action
-   * yet (see file doc) - this array is empty at runtime absent a future
+   * yet (see file doc) — this array is empty at runtime absent a future
    * wave's "request a bank loan" action, and is exercised by tests with
    * synthetic loan records. "npcBulk" is the only kind ever created by the
    * engine itself, by bankingTurn's household book.
@@ -188,7 +177,7 @@ export interface BankLoan {
 
 /**
  * One per country (solo has no multi-currency FX system wired into
- * WorldState - see banking/constants.ts file doc). Source: db/types/bank.ts
+ * WorldState — see banking/constants.ts file doc). Source: db/types/bank.ts
  * DepositInsuranceFund, keyed by countryId instead of CurrencyCode.
  */
 export interface DepositInsuranceFund {

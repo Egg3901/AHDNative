@@ -98,7 +98,7 @@ export function charterTypeOf(
 /**
  * Source: isPropCharter (charterMay "proprietaryTrading") - investment and
  * universal charters only, and active. Retail charters never carry the
- * capability (see capabilities.ts BY_TYPE).
+ * capability (source: src/lib/banking/rules/capabilities.ts BY_TYPE).
  */
 export function isPropCharter(
   charter: BankCharter | undefined,

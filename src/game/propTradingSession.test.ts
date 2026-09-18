@@ -54,12 +54,12 @@ describe("prop-book session seam (#328)", () => {
     expect(charter.propBook).toHaveLength(1);
     expect(charter.propBook[0].ref).toBe(targetId);
     // Marked at the live price during bankSolvencyTurn, then reloaded intact.
-    expect(charter.propBookMarkValue).toBe(
-      100 * world.corporations[targetId].sharePrice,
-    );
-    expect(charter.propBook[0].markValue).toBe(
-      100 * world.corporations[targetId].sharePrice,
-    );
+    // The advance reprices equities, so compare against the post-advance
+    // price with the engine's roundMoney (cent) convention.
+    const livePrice = world.corporations[targetId].sharePrice;
+    const expectedMark = Math.round(100 * livePrice * 100) / 100;
+    expect(charter.propBookMarkValue).toBe(expectedMark);
+    expect(charter.propBook[0].markValue).toBe(expectedMark);
   });
 
   it("refuses an invalid prop book at the load boundary and leaves the loading session untouched", () => {
