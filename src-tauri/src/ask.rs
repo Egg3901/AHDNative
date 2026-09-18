@@ -48,6 +48,22 @@ fn is_ask_session_cookie(name: &str) -> bool {
     ASK_SESSION_COOKIES.contains(&name)
 }
 
+/// Choose the session value to attach when the jar holds several cookies.
+/// `__Host-ask_session` is the current contract; the legacy name stays for
+/// compatibility but must never shadow it — a stale legacy value would ride
+/// on every proxied call and read as signed out with the account linked.
+fn select_ask_session_cookie(cookies: &[(&str, &str)]) -> Option<String> {
+    cookies
+        .iter()
+        .find(|(name, value)| *name == "__Host-ask_session" && !value.is_empty())
+        .or_else(|| {
+            cookies
+                .iter()
+                .find(|(name, value)| *name == "ask_session" && !value.is_empty())
+        })
+        .map(|(name, value)| format!("{name}={value}"))
+}
+
 fn ask_auth_url() -> Url {
     ASK_NATIVE_AUTH_URL.parse().expect("static Ask auth URL")
 }
@@ -75,10 +91,13 @@ fn ask_session_cookie(app: &AppHandle) -> Option<String> {
         let Ok(cookies) = view.cookies_for_url(url.clone()) else {
             continue;
         };
-        for cookie in cookies {
-            if is_ask_session_cookie(cookie.name()) && !cookie.value().is_empty() {
-                return Some(format!("{}={}", cookie.name(), cookie.value()));
-            }
+        let pairs: Vec<(&str, &str)> = cookies
+            .iter()
+            .filter(|cookie| is_ask_session_cookie(cookie.name()))
+            .map(|cookie| (cookie.name(), cookie.value()))
+            .collect();
+        if let Some(header) = select_ask_session_cookie(&pairs) {
+            return Some(header);
         }
     }
     None
@@ -693,7 +712,7 @@ mod tests {
     use super::ask_dock_origin;
     use super::{
         ask_api_allowed, ask_auth_url, ask_signin_return_home, ask_signin_watch_done,
-        is_ask_session_cookie, SseParser,
+        is_ask_session_cookie, select_ask_session_cookie, SseParser,
     };
 
     #[test]
@@ -806,6 +825,23 @@ mod tests {
         // Player came back on their own (or never left): never yank the view.
         assert!(!ask_signin_return_home(false, true));
         assert!(!ask_signin_return_home(true, true));
+    }
+
+    #[test]
+    fn ask_session_prefers_the_current_cookie_contract() {
+        // A stale legacy cookie must never shadow the live session: every
+        // proxy call would attach the expired value and read as signed out
+        // even with the account linked (#358 physical-device loop).
+        let live =
+            select_ask_session_cookie(&[("ask_session", "stale"), ("__Host-ask_session", "live")]);
+        assert_eq!(live.as_deref(), Some("__Host-ask_session=live"));
+        let legacy_only = select_ask_session_cookie(&[("ask_session", "legacy")]);
+        assert_eq!(legacy_only.as_deref(), Some("ask_session=legacy"));
+        let empty_is_absent =
+            select_ask_session_cookie(&[("__Host-ask_session", ""), ("ask_session", "legacy")]);
+        assert_eq!(empty_is_absent.as_deref(), Some("ask_session=legacy"));
+        let none: &[(&str, &str)] = &[];
+        assert_eq!(select_ask_session_cookie(none), None);
     }
 
     #[test]
