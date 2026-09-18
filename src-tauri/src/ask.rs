@@ -459,6 +459,33 @@ fn ask_signin_return_home(gave_up: bool, on_app_origin: bool) -> bool {
     gave_up && !on_app_origin
 }
 
+/// Single-flight claim for the mobile Ask sign-in watch: the link action
+/// borrows the only webview, so concurrent taps must open one bounce. The
+/// TypeScript guard evaporates when the bounce navigates the webview away
+/// (the JS context is destroyed), so the claim lives here and survives the
+/// bounce. A refused claim means an earlier bounce already watches the
+/// single webview, and the late tap just joins it. Mirrors the multiplayer
+/// `mp_signin_watch_claim` twin in `lib.rs`.
+#[cfg(any(mobile, test))]
+fn ask_signin_watch_claim(active: &AtomicBool) -> bool {
+    active
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_ok()
+}
+
+/// Release a watch claim; the watcher calls this once on every exit path.
+/// A stuck claim would wedge Sign in (later taps join a dead watch), so
+/// each early error return releases before reporting the failure.
+#[cfg(any(mobile, test))]
+fn ask_signin_watch_release(active: &AtomicBool) {
+    active.store(false, Ordering::Release);
+}
+
+/// At most one mobile Ask watch runs at a time (see
+/// [`ask_signin_watch_claim`]).
+#[cfg(mobile)]
+static ASK_SIGNIN_WATCH_ACTIVE: AtomicBool = AtomicBool::new(false);
+
 /// Open the native Ask sign-in surface. Desktop focuses the local panel when
 /// a session already exists and otherwise opens the zero-capability auth
 /// window, which closes itself the moment the session lands. Mobile has a
@@ -503,11 +530,21 @@ pub(crate) async fn open_ask_window(app: AppHandle) -> Result<(), String> {
     if ask_session_cookie(&app).is_some() {
         return Ok(());
     }
+    // Single-flight: an earlier bounce already watches the single webview,
+    // so a concurrent tap joins it instead of racing a second navigate.
+    // Mirrors the multiplayer twin in `lib.rs`.
+    if !ask_signin_watch_claim(&ASK_SIGNIN_WATCH_ACTIVE) {
+        return Ok(());
+    }
     let url = ask_auth_url();
-    let main = app
-        .get_webview_window("main")
-        .ok_or_else(|| "main webview is unavailable".to_string())?;
-    main.navigate(url).map_err(|error| error.to_string())?;
+    let Some(main) = app.get_webview_window("main") else {
+        ask_signin_watch_release(&ASK_SIGNIN_WATCH_ACTIVE);
+        return Err("main webview is unavailable".to_string());
+    };
+    if let Err(error) = main.navigate(url) {
+        ask_signin_watch_release(&ASK_SIGNIN_WATCH_ACTIVE);
+        return Err(error.to_string());
+    }
     let watch_app = app.clone();
     std::thread::spawn(move || {
         let mut gave_up = true;
@@ -534,6 +571,7 @@ pub(crate) async fn open_ask_window(app: AppHandle) -> Result<(), String> {
                 let _ = main.navigate(mobile_launcher_home());
             }
         }
+        ask_signin_watch_release(&ASK_SIGNIN_WATCH_ACTIVE);
     });
     Ok(())
 }
@@ -811,6 +849,22 @@ mod tests {
         assert!(ask_signin_watch_done(false, true));
         assert!(ask_signin_watch_done(true, true));
         assert!(!ask_signin_watch_done(false, false));
+    }
+
+    #[test]
+    fn mobile_signin_watch_claim_is_single_flight() {
+        use super::{ask_signin_watch_claim, ask_signin_watch_release};
+        use std::sync::atomic::AtomicBool;
+        let active = AtomicBool::new(false);
+        // The first tap claims the single webview; a concurrent tap joins
+        // the running watch instead of racing a second bounce over it.
+        // Mirrors the multiplayer twin in `lib.rs`.
+        assert!(ask_signin_watch_claim(&active));
+        assert!(!ask_signin_watch_claim(&active));
+        // The watcher releases once on exit, so the next link can bounce.
+        ask_signin_watch_release(&active);
+        assert!(ask_signin_watch_claim(&active));
+        ask_signin_watch_release(&active);
     }
 
     #[test]
