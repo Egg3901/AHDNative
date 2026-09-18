@@ -3,6 +3,7 @@ import {
   IOS_SAFE_AREA_VARS,
   NATIVE_TOP_MIN_PX,
   SAFE_AREA_ATTRIBUTE,
+  SAFE_AREA_BOTTOM_FALLBACK_PX,
   SAFE_AREA_TOP_FALLBACK_PX,
   decideSafeAreaTopMode,
   installIosSafeArea,
@@ -106,10 +107,18 @@ describe("fallback constants (#436)", () => {
     expect(IOS_SAFE_AREA_VARS.topFallback).toBe("--ahd-safe-area-top-fallback");
   });
 
+  it("publishes the bottom-branch variable name", () => {
+    expect(IOS_SAFE_AREA_VARS.bottomFallback).toBe("--ahd-safe-area-bottom-fallback");
+  });
+
   it("holds a 59px Dynamic Island portrait floor above the 20px native minimum", () => {
     expect(SAFE_AREA_TOP_FALLBACK_PX).toBe(59);
     expect(NATIVE_TOP_MIN_PX).toBe(20);
     expect(SAFE_AREA_TOP_FALLBACK_PX).toBeGreaterThan(NATIVE_TOP_MIN_PX);
+  });
+
+  it("holds an exact 34px home-indicator bottom floor", () => {
+    expect(SAFE_AREA_BOTTOM_FALLBACK_PX).toBe(34);
   });
 });
 
@@ -189,14 +198,18 @@ describe("installIosSafeArea", () => {
     const handle = installIosSafeArea(root, {
       win,
       readTopInsetPx: () => 0,
+      readBottomInsetPx: () => 0,
       report: (d) => reports.push(d),
     });
     expect(root.props.get(IOS_SAFE_AREA_VARS.topFallback)).toBe("59px");
+    expect(root.props.get(IOS_SAFE_AREA_VARS.bottomFallback)).toBe("34px");
     expect(root.attrs.get(SAFE_AREA_ATTRIBUTE)).toBe("fallback");
     expect(handle.diagnostic()).toEqual({
       mode: "fallback",
       measuredTopPx: 0,
       fallbackPx: 59,
+      measuredBottomPx: 0,
+      fallbackBottomPx: 34,
       orientation: "portrait",
       iphoneClass: true,
     });
@@ -207,11 +220,39 @@ describe("installIosSafeArea", () => {
   it("stays env-only when the native inset works", () => {
     const root = makeRoot();
     const win = makeWindow({ navigator: IPHONE_NAV, portrait: true });
-    const handle = installIosSafeArea(root, { win, readTopInsetPx: () => 59 });
+    const handle = installIosSafeArea(root, { win, readTopInsetPx: () => 59, readBottomInsetPx: () => 34 });
     expect(root.props.get(IOS_SAFE_AREA_VARS.topFallback)).toBe("0px");
+    expect(root.props.get(IOS_SAFE_AREA_VARS.bottomFallback)).toBe("0px");
     expect(root.attrs.get(SAFE_AREA_ATTRIBUTE)).toBe("native");
     expect(handle.diagnostic().mode).toBe("native");
     handle.uninstall();
+  });
+
+  it("drives the bottom floor from the shared gate, never the bottom reading", () => {
+    // A working native bottom inset under a broken top still takes the
+    // fail-safe floor: one env() implementation reports every inset, so a
+    // ~zero top on iPhone-class portrait proves the bottom is misreported
+    // too. Conversely a transient bottom misread under a working top moves
+    // nothing, because the gate only reads the top.
+    const gated = makeRoot();
+    const gatedWin = makeWindow({ navigator: IPHONE_NAV, portrait: true });
+    const gatedHandle = installIosSafeArea(gated, {
+      win: gatedWin,
+      readTopInsetPx: () => 0,
+      readBottomInsetPx: () => 34,
+    });
+    expect(gated.props.get(IOS_SAFE_AREA_VARS.bottomFallback)).toBe("34px");
+    expect(gatedHandle.diagnostic().measuredBottomPx).toBe(34);
+    gatedHandle.uninstall();
+    const ungated = makeRoot();
+    const ungatedWin = makeWindow({ navigator: IPHONE_NAV, portrait: true });
+    const ungatedHandle = installIosSafeArea(ungated, {
+      win: ungatedWin,
+      readTopInsetPx: () => 59,
+      readBottomInsetPx: () => 0,
+    });
+    expect(ungated.props.get(IOS_SAFE_AREA_VARS.bottomFallback)).toBe("0px");
+    ungatedHandle.uninstall();
   });
 
   it("leaves desktop, landscape, and genuine-zero devices at a zero floor", () => {
@@ -221,8 +262,9 @@ describe("installIosSafeArea", () => {
       makeWindow({ portrait: true }),
     ]) {
       const root = makeRoot();
-      const handle = installIosSafeArea(root, { win, readTopInsetPx: () => 0 });
+      const handle = installIosSafeArea(root, { win, readTopInsetPx: () => 0, readBottomInsetPx: () => 0 });
       expect(root.props.get(IOS_SAFE_AREA_VARS.topFallback)).toBe("0px");
+      expect(root.props.get(IOS_SAFE_AREA_VARS.bottomFallback)).toBe("0px");
       expect(root.attrs.get(SAFE_AREA_ATTRIBUTE)).toBe("zero");
       handle.uninstall();
     }

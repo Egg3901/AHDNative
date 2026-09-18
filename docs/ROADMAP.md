@@ -1814,6 +1814,37 @@ and removed. The smoke helper now walks the conversation; no engine change.
   (36 cases). No physical-device pass; full typecheck/verify/build owed via
   the shared scheduler. #436 stays open with `status: partial`; no device
   claim made.
+- Bottom-floor follow-up, 2026-09-18 (zero-env home-indicator clearance):
+  the WKWebView fail-safe floored only the top inset, so on a zero-env phone
+  webview the fixed footer (`max(0.35rem, env(bottom))`), creation sticky bar
+  (`0.6rem`), drawer chrome (`0.7rem`) and quick bar (`0.5rem`), and the Ask
+  window composer (`10px`) all fell back to bases under the 34px home
+  indicator. One env() implementation reports every inset, so the same
+  iPhone-class portrait + ~zero-top gate now also publishes a 34px
+  `--ahd-safe-area-bottom-fallback`, composed as
+  `max(<base>, var(...), env(...))` into those five persistent bottom rules;
+  a working native bottom inset always wins the max(), and desktop, Android,
+  iPad, landscape, and home-button iPhones (working top reads 20px, gate
+  closed) stay byte-identical. The floor follows the gate, never the bottom
+  probe, so a transient bottom misread moves nothing; the probe reading is
+  diagnostic-only (`measuredBottomPx`/`fallbackBottomPx` in
+  `window.__AHD_SAFE_AREA__`). Scrolling content shells (landing 1.5rem,
+  entry/creation 2rem bases) are intentionally untouched: their content
+  scrolls clear rather than parking controls under the indicator. Liquid
+  Glass styling untouched (padding-bottom lines only). Evidence: extended
+  `src/ui/iosSafeArea` (bottom var, 34px constant, single-gate refresh) with
+  updated `iosSafeArea` cases plus new `src/ui/SafeAreaBottomFallback.test.ts`
+  (token default, four-control + composer composition with bases intact,
+  landscape env-only, 390px-phone vs 1280px-desktop gate publication,
+  keyboard `scroll-padding-bottom`/drawer focus-ring coexistence) and the
+  Ask composer contract extended to the new composition. Focused runs green
+  on both vitest configs (47 UI incl. neighbors) plus 63 neighboring chrome
+  cases (`DeviceChromeContracts`, `SafeAreaComposition`, `SafeAreaGaps`,
+  `SafeAreaEntryShells`, `FocusScrollContracts`, `FooterClearanceRoot`,
+  `MpFooterClearance`, `DualPaneTracks`); node config 41. No full typecheck,
+  verify, build, or device pass; owed via the shared scheduler. #436 stays
+  open with `status: partial` for the named physical-device pass reading the
+  extended diagnostic; no device claim made.
 
 ## Dual-pane and hinge-aware layout checkpoint, 2026-09-16 (#438 partial)
 

@@ -358,15 +358,16 @@
 /* Standalone window surface (#436): the dedicated Ask window renders
    .askview with no game-shell wrapper, so the panel owns the Dynamic
    Island safe areas itself. The header starts below the island/cutout,
-   the composer clears the home indicator, and the sides clear rounded
-   corners and the landscape cutout. Embedded surfaces inherit their
-   shell's insets and are untouched. env() is zero on desktop, and every
-   max() floor preserves the shipped desktop padding. */
+   the composer clears the home indicator (including the zero-env
+   WKWebView bottom fail-safe floor published by src/ui/iosSafeArea.ts),
+   and the sides clear rounded corners and the landscape cutout. Embedded
+   surfaces inherit their shell's insets and are untouched. env() is zero
+   on desktop, and every max() floor preserves the shipped desktop padding. */
 .askview[data-surface="window"] {
   padding-top: max(0px, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top));
   padding-left: max(0px, env(safe-area-inset-left));
   padding-right: max(0px, env(safe-area-inset-right));
 }
 .askview[data-surface="window"] .av-composer {
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  padding-bottom: max(10px, var(--ahd-safe-area-bottom-fallback, 0px), env(safe-area-inset-bottom));
 }
