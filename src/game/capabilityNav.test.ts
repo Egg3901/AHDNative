@@ -93,9 +93,11 @@ describe("projectCapabilityNav", () => {
 
   // Session wiring (`GameView.capabilityNav` in session projectWorld) is
   // covered at the shell boundary by MetricsReferendumGating510, which feeds
-  // hand-built views through GameScreen. A live GameSession.create assertion
-  // cannot run in this worktree: node_modules resolves @ahdclient/engine to
-  // the main checkout's older engine (missing headOfStateOfficeForCountry),
-  // so every session-level suite fails worktree-wide, including committed
-  // politics.test.ts (29/29). Pre-existing env finding, also noted in #523.
+  // hand-built views through GameScreen. Note: if node_modules resolves
+  // @ahdclient/engine outside this worktree (e.g. a link to the main
+  // checkout's older engine, missing headOfStateOfficeForCountry), every
+  // session-level suite fails worktree-wide, including committed
+  // politics.test.ts. Run the repo's normal install inside the worktree so
+  // the workspace engine resolves locally; verified 2026-09-18 with
+  // profileOnboarding/politics suites green on the worktree engine.
 });

@@ -58,6 +58,12 @@ export function projectProfile(world: WorldState): ProfileView {
       }
     : null;
   const savedSong = typeof player.campaignSongUrl === 'string' ? campaignSongId(player.campaignSongUrl) : '';
+  // #48: prompt lifecycle. Onboarding shows exactly while not dismissed (the
+  // reference NewPlayerBanner gate); the replay prompt stays applicable until
+  // marked complete or dismissed. Absent flags read as unresolved.
+  const onboardingDismissed = player.onboardingDismissed === true;
+  const tutorialCompleted = player.tutorialCompleted === true;
+  const tutorialDismissed = player.tutorialDismissed === true;
   // #242: the full stat block is surfaced when any stat is recorded. Legacy
   // saves with only energy/debate still report those keys.
   const stats = player.stats && Object.keys(player.stats).length > 0
@@ -120,6 +126,12 @@ export function projectProfile(world: WorldState): ProfileView {
     policies: player.policies
       ? { economic: player.policies.economic, social: player.policies.social }
       : null,
+    onboarding: { dismissed: onboardingDismissed, showPrompt: !onboardingDismissed },
+    tutorial: {
+      completed: tutorialCompleted,
+      dismissed: tutorialDismissed,
+      showPrompt: !tutorialCompleted && !tutorialDismissed,
+    },
     stats,
     demographics,
     profileHeaderUrl,
