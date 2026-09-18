@@ -177,54 +177,6 @@ export const UNAVAILABLE_LAW_INVENTORY = [
     "sourceMatch": "matched"
   },
   {
-    "id": "br_income_tax_rate",
-    "countryId": "BR",
-    "nativeScope": "national",
-    "sourceScope": "national",
-    "prerequisites": [
-      "chamber:chamber_chair",
-      "chamber:chamber_vice"
-    ],
-    "authoredTargets": [
-      "economic.medianIncome",
-      "social.incomeInequality",
-      "governance.budgetBalance"
-    ],
-    "taxRateChange": {
-      "scope": "federal",
-      "taxType": "incomeTax"
-    },
-    "authoredRateOptions": [
-      {
-        "id": "br_income_tax_rate_opt_0",
-        "rate": 0
-      },
-      {
-        "id": "br_income_tax_rate_opt_1",
-        "rate": 8
-      },
-      {
-        "id": "br_income_tax_rate_opt_2",
-        "rate": 13
-      },
-      {
-        "id": "br_income_tax_rate_opt_3",
-        "rate": 18
-      },
-      {
-        "id": "br_income_tax_rate_opt_4",
-        "rate": 24
-      },
-      {
-        "id": "br_income_tax_rate_opt_5",
-        "rate": 30
-      }
-    ],
-    "blockingSystem": "budget/taxRateLadder",
-    "sourcePath": "src/lib/seeds/br/brLegislationTypes.ts",
-    "sourceMatch": "matched"
-  },
-  {
     "id": "br_infrastructure_investment",
     "countryId": "BR",
     "nativeScope": "national",
