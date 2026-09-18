@@ -5,6 +5,7 @@ import {
   hingeBounds,
   parseDualPaneOverride,
   resolveDualPaneLayout,
+  segmentPaneGeometry,
   useDualPaneLayout,
   useViewportSegments,
 } from "./dualPane";
@@ -37,6 +38,33 @@ describe("dualPane posture resolution (#438)", () => {
       segments: [
         { x: 0, y: 0, width: 800, height: 400 },
         { x: 0, y: 416, width: 800, height: 400 },
+      ],
+    });
+    expect(layout.mode).toBe("dual");
+    expect(layout.hinge).toBe("horizontal");
+    expect(layout.capability).toBe("segments");
+  });
+
+  it("detects a vertical hinge regardless of reported rect order", () => {
+    // The platform does not promise left-first order. A right-first pair
+    // must still resolve dual, or single-pane stacking would cross the
+    // occlusion with no gutter.
+    const layout = resolveDualPaneLayout({
+      segments: [
+        { x: 416, y: 0, width: 400, height: 800 },
+        { x: 0, y: 0, width: 400, height: 800 },
+      ],
+    });
+    expect(layout.mode).toBe("dual");
+    expect(layout.hinge).toBe("vertical");
+    expect(layout.capability).toBe("segments");
+  });
+
+  it("detects a horizontal hinge regardless of reported rect order", () => {
+    const layout = resolveDualPaneLayout({
+      segments: [
+        { x: 0, y: 416, width: 800, height: 400 },
+        { x: 0, y: 0, width: 800, height: 400 },
       ],
     });
     expect(layout.mode).toBe("dual");
@@ -102,6 +130,49 @@ describe("dualPane hinge bounds (#438)", () => {
   it("reports null without separated segments", () => {
     expect(hingeBounds(null)).toBeNull();
     expect(hingeBounds([{ x: 0, y: 0, width: 800, height: 600 }])).toBeNull();
+  });
+
+  it("reports the same occlusion gap for reversed rect order", () => {
+    expect(
+      hingeBounds([
+        { x: 416, y: 0, width: 400, height: 800 },
+        { x: 0, y: 0, width: 400, height: 800 },
+      ]),
+    ).toEqual({ orientation: "vertical", start: 400, end: 416 });
+    expect(
+      hingeBounds([
+        { x: 0, y: 416, width: 800, height: 400 },
+        { x: 0, y: 0, width: 800, height: 400 },
+      ]),
+    ).toEqual({ orientation: "horizontal", start: 400, end: 416 });
+  });
+
+  it("sizes panes from the canonical order, not the reported order", () => {
+    // Asymmetric panes prove pane 0 is the left/top segment even when the
+    // platform reports the right/bottom rect first.
+    expect(
+      segmentPaneGeometry([
+        { x: 466, y: 0, width: 450, height: 800 },
+        { x: 0, y: 0, width: 350, height: 800 },
+      ]),
+    ).toEqual({ orientation: "vertical", pane0: 350, pane1: 450, gap: 116 });
+    expect(
+      segmentPaneGeometry([
+        { x: 0, y: 466, width: 800, height: 450 },
+        { x: 0, y: 0, width: 800, height: 350 },
+      ]),
+    ).toEqual({ orientation: "horizontal", pane0: 350, pane1: 450, gap: 116 });
+  });
+
+  it("reports null pane geometry without separated segments", () => {
+    expect(segmentPaneGeometry(null)).toBeNull();
+    expect(segmentPaneGeometry([{ x: 0, y: 0, width: 800, height: 600 }])).toBeNull();
+    expect(
+      segmentPaneGeometry([
+        { x: 0, y: 0, width: 800, height: 600 },
+        { x: 0, y: 0, width: 800, height: 600 },
+      ]),
+    ).toBeNull();
   });
 });
 

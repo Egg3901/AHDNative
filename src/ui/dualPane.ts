@@ -65,9 +65,21 @@ export interface HingeBounds {
   end: number;
 }
 
+/**
+ * Canonical segment order (issue #438). The platform reports one rect per
+ * separated display region but does not promise left-first/top-first order,
+ * so every geometric read sorts a copy by x then y before measuring. Without
+ * this, a right-first rect pair computes a negative gap, misses the hinge,
+ * and silently falls back to single-pane with content crossing the occlusion.
+ */
+function orderedSegmentPair(segments: ViewportSegment[]): [ViewportSegment, ViewportSegment] {
+  const [a, b] = segments as [ViewportSegment, ViewportSegment];
+  return a.x < b.x || (a.x === b.x && a.y <= b.y) ? [a, b] : [b, a];
+}
+
 function isSeparatedPair(segments: ViewportSegment[]): HingeOrientation | null {
   if (segments.length !== 2) return null;
-  const [a, b] = segments as [ViewportSegment, ViewportSegment];
+  const [a, b] = orderedSegmentPair(segments);
   const verticalGap = b.x - (a.x + a.width);
   const horizontalGap = b.y - (a.y + a.height);
   const rowsOverlap = a.y < b.y + b.height && b.y < a.y + a.height;
@@ -115,12 +127,41 @@ export function assignPanes(layout: DualPaneLayout): PaneAssignment {
 /** Occlusion interval between two separated segments, or null. */
 export function hingeBounds(segments: ViewportSegment[] | null | undefined): HingeBounds | null {
   if (!segments || segments.length !== 2) return null;
-  const [a, b] = segments as [ViewportSegment, ViewportSegment];
   const orientation = isSeparatedPair(segments);
   if (!orientation) return null;
+  const [a, b] = orderedSegmentPair(segments);
   return orientation === "vertical"
     ? { orientation, start: a.x + a.width, end: b.x }
     : { orientation, start: a.y + a.height, end: b.y };
+}
+
+export interface SegmentPaneGeometry {
+  orientation: HingeOrientation;
+  /** First-segment extent along the hinge axis (pane 0 width or height). */
+  pane0: number;
+  /** Second-segment extent along the hinge axis (pane 1 width or height). */
+  pane1: number;
+  /** Occlusion width between the segments, in CSS pixels. */
+  gap: number;
+}
+
+/**
+ * Canonical pane geometry for the game shell (issue #438). Sizes both panes
+ * from the canonically ordered segments, so the segfit gutter lands over the
+ * occlusion regardless of the order the platform reported the rects in.
+ * Returns null unless the rects are exactly two separated segments.
+ */
+export function segmentPaneGeometry(
+  segments: ViewportSegment[] | null | undefined,
+): SegmentPaneGeometry | null {
+  if (!segments || segments.length !== 2) return null;
+  const orientation = isSeparatedPair(segments);
+  const bounds = hingeBounds(segments);
+  if (!orientation || !bounds) return null;
+  const [a, b] = orderedSegmentPair(segments);
+  return orientation === "vertical"
+    ? { orientation, pane0: a.width, pane1: b.width, gap: bounds.end - bounds.start }
+    : { orientation, pane0: a.height, pane1: b.height, gap: bounds.end - bounds.start };
 }
 
 /** Parse the documented QA override (`?ahd-span=vertical|horizontal|single`). */
@@ -160,7 +201,7 @@ function readInput(win: Window, explicitOverride?: DualPaneOverride | null): Dua
 /**
  * Live separated-segment geometry for the game shell. Returns the raw
  * platform rects (or null) and re-reads on viewport resizes. The shell pairs
- * this with {@link hingeBounds} to size panes and pin the footer/popovers
+ * this with {@link segmentPaneGeometry} to size panes and pin the footer/popovers
  * exactly over the occlusion when dual-pane comes from the segments API
  * alone (no spanning media to drive the env()-fitted tracks). Safe without
  * a window (renders null).

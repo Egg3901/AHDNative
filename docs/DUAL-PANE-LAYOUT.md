@@ -75,12 +75,20 @@ is list-only and routes into the paired elections section for detail.
   to drive the env-fitted tracks), the shell applies the reported rects
   itself: `GameScreen` sets `data-segfit` with exact `--ahd-pane0` /
   `--ahd-pane1` / `--ahd-hinge-gap` pixel geometry (via `useViewportSegments`
-  + `hingeBounds`), and the segfit tracks repeat the same placement
+  + `segmentPaneGeometry`), and the segfit tracks repeat the same placement
   (navigation pane to the first segment, gutter over the occlusion, footer
   and popovers pinned to the content/bottom segment). Override-only dual
   (no rects) keeps the fractional fallback grid. Previously the shell read
   the segments for posture but never applied them, so the fixed footer and
   popovers stretched across the occlusion in exactly this configuration.
+- Segment order is a platform detail: `resolveDualPaneLayout`,
+  `hingeBounds`, and `segmentPaneGeometry` (`src/ui/dualPane.ts`) sort a copy
+  of the pair by x then y before measuring, so a right-first or
+  bottom-first rect list resolves the same dual posture, occlusion gap, and
+  pane sizes as the ordered list. Unsorted, a reversed pair computed a
+  negative gap and silently fell back to single-pane stacking across the
+  occlusion. Viewport width still never participates; safe-area (#436) and
+  material rules are untouched.
 - Footer controls follow the content segment under vertical spanning instead
   of crossing the hinge. Resource popovers and the notification preview stay
   transient dialogs above the content pane: vertical spanning pins them to
@@ -91,8 +99,10 @@ is list-only and routes into the paired elections section for detail.
 
 ## Verification and remainder
 
-- `src/ui/dualPane.test.tsx` (18 cases): posture resolution, pane
-  assignment, hinge bounds, override parsing, live hook adoption, live
+- `src/ui/dualPane.test.tsx` (23 cases): posture resolution, pane
+  assignment, hinge bounds, canonical segment order (reversed vertical and
+  horizontal posture, identical occlusion gaps, asymmetric pane sizing,
+  null geometry), override parsing, live hook adoption, live
   segment geometry (default null, adoption, resize re-read, throwing
   getter).
 - `MobileNavigation.test.tsx`: docked drawer renders destinations and turn
@@ -101,7 +111,10 @@ is list-only and routes into the paired elections section for detail.
   phone flow with no pane landmarks; docked navigation/content pairing
   with reported vertical segments; navigation/content pane assignment
   across reported vertical and horizontal segments with no modal dialog.
-  `src/ui/DualPaneTracks.test.ts` (7 cases): spanning-media grid drops a
+  reversed-order segfit (right-first vertical pair still fits the exact
+  400/400/16 geometry with navigation/content pairing; 1440px desktop
+  viewport with no hinge signal stays single with no fit and no pane
+  landmarks). `src/ui/DualPaneTracks.test.ts` (7 cases): spanning-media grid drops a
   gutter track over the occlusion with navigation and content pinned to
   their own segment tracks, list/detail splits side by side only across a
   reported vertical hinge, single-pane stacks, gutter defined on dual
