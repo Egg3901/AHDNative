@@ -938,6 +938,19 @@ reload. The generator now owns the one-row availability allowlist and leaves
 the other 268 catalog rows unavailable with named blockers. This is not a claim
 of full Japan catalog parity.
 
+#288 partial. Brazil's Imposto de Renda Statute is the first bounded executable
+BR row from that inventory. Its national scope, exact 6 authored rate options
+(0/8/13/18/24/30), economic values, income-tax destination, and weighted
+political targets come from the pinned Brazil seed at e364c049. Sponsorship
+rejects unauthored rates and records the source option plus the direction of
+the move from the current budget rate. The public legislation flow covers
+proposal, both National Congress chamber votes, pocket-sign enactment, gradual
+tax-rate effect, replacement, repeal back toward the catalog baseline, and save
+reload, all driven in-country because BR is playable in the 1991 pack. The
+generator allowlist now owns two executable rows and leaves the other 267
+catalog rows unavailable with named blockers. This is not a claim of full
+Brazil catalog parity: the remaining 13 BR rows stay unavailable.
+
 #241 complete. `NewGameScreen` captures the reference world-setup fields and
 carries them through `NewGameOptions` into the engine `NewWorldOptions`:
 `mode` (`career` | `hos`), `homeRegionId`, and `initialization`

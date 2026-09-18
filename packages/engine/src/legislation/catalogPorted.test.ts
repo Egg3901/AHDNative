@@ -29,7 +29,7 @@ describe("ported legislation catalogs (JP/DE/IE/CN/BR)", () => {
     // (they act through taxPolicy / immediate effect); the generator's rule is
     // stricter and applies to the five generated catalogs only.
     for (const e of CATALOG.filter((x) => ["JP", "DE", "IE", "CN", "BR"].includes(x.countryId))) {
-      if (e.id === "jp_consumption_tax") {
+      if (e.id === "jp_consumption_tax" || e.id === "br_income_tax_rate") {
         expect(e.status).toBe("available");
         expect(e.blockingSystem).toBeUndefined();
         continue;
