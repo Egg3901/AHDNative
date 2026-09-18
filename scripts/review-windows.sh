@@ -17,10 +17,30 @@ need cargo
 need rg
 need rustc
 need npm
+need git
+need sha256sum
 need cargo-xwin
 need llvm-rc
 need lld-link
 need rustup
+
+# Pin the exact reviewed main SHA. The exe filename carries no version or
+# revision, so a build from any other commit is a mislabeled artifact.
+# Mirrors the AHD_REVIEW_COMMIT gate in codemagic.yaml. Fails before any
+# host provisioning check so the wrong source never reaches the compiler.
+if [[ ! "${AHD_REVIEW_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]]; then
+  printf 'set AHD_REVIEW_COMMIT to the full 40-hex reviewed main SHA\n' >&2
+  exit 1
+fi
+actual="$(git rev-parse HEAD)"
+if [[ "$actual" != "$AHD_REVIEW_COMMIT" ]]; then
+  printf 'HEAD (%s) does not match AHD_REVIEW_COMMIT (%s)\n' "$actual" "$AHD_REVIEW_COMMIT" >&2
+  exit 1
+fi
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  printf 'tracked tree is dirty; commit or discard changes so the exe matches %s\n' "$actual" >&2
+  exit 1
+fi
 
 if [[ ! -d node_modules ]]; then
   printf 'run npm ci in this tree first\n' >&2
@@ -48,5 +68,9 @@ npm run tauri -- build --ci --no-sign \
   --target x86_64-pc-windows-msvc \
   --no-bundle
 
-printf 'portable exe: src-tauri/target/x86_64-pc-windows-msvc/release/ahdnative.exe\n'
+exe='src-tauri/target/x86_64-pc-windows-msvc/release/ahdnative.exe'
+sha256sum "$exe" | tee "$exe.sha256"
+printf 'commit: %s\n' "$actual"
+printf 'portable exe: %s\n' "$exe"
+printf 'checksum: %s.sha256\n' "$exe"
 printf 'unsigned; no GitHub or Codemagic publication\n'
