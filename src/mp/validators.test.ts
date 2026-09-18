@@ -259,6 +259,19 @@ describe("parseClientNav", () => {
       ),
     ).toMatchObject({ hasCharacter: true, activeElectionLabel: null, cabinetOffice: null });
   });
+
+  it("projects only integer corporation ids, including sequential zero", () => {
+    const caps = (myCorporationId: unknown) =>
+      parseClientNav(JSON.stringify({ hasCharacter: true, myCorporationId }));
+    expect(caps(42)).toMatchObject({ corporationId: 42 });
+    // Sequential zero is a real reference (live `corporationPathIdFromDoc`
+    // prefers it over the ObjectId), so it must project, not null out.
+    expect(caps(0)).toMatchObject({ corporationId: 0 });
+    expect(caps(9_999_999_999)).toMatchObject({ corporationId: 9_999_999_999 });
+    for (const bad of [4.5, -1, 10_000_000_000, "42", Number.NaN]) {
+      expect(caps(bad), JSON.stringify(bad)).toMatchObject({ corporationId: null });
+    }
+  });
 });
 
 describe("election-detail reference and payload (#359 election slice)", () => {
@@ -395,6 +408,18 @@ describe("corporation-detail reference and payload (#359 corporation slice)", ()
     expect(validateCorporationId(42)).toEqual({ ok: true, id: "42" });
     expect(validateCorporationId("42")).toEqual({ ok: true, id: "42" });
     expect(validateCorporationId(HEX_ID)).toEqual({ ok: true, id: HEX_ID });
+  });
+
+  it("shares one numeric/string boundary with the Rust bridge", () => {
+    // Up to 10 digits in either form (the Rust `is_corporation_id` segment
+    // bound); an 11-digit reference never leaves the UI in either form.
+    expect(isCorporationId(9_999_999_999)).toBe(true);
+    expect(isCorporationId("9999999999")).toBe(true);
+    expect(validateCorporationId(9_999_999_999)).toEqual({ ok: true, id: "9999999999" });
+    for (const bad of [10_000_000_000, "10000000000", "12345678901", 1e15]) {
+      expect(isCorporationId(bad), JSON.stringify(bad)).toBe(false);
+      expect(validateCorporationId(bad).ok).toBe(false);
+    }
   });
 
   const detail = (overrides: Record<string, unknown> = {}) =>

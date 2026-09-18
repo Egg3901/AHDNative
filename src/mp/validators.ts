@@ -234,6 +234,17 @@ export function parseInbox(bodyText: string): MpInboxView | null {
   };
 }
 
+/**
+ * client-nav `myCorporationId` is a sequential numeric id (or null when the
+ * player holds no company). Only an integer in the shared corporation-id
+ * boundary projects: a fractional or out-of-range value signals a drifting
+ * payload and degrades to null so the Standing row stays display-only.
+ */
+function asCorporationCapabilityId(value: unknown): number | null {
+  if (value === undefined || value === null) return null;
+  return isCorporationId(value) && typeof value === "number" ? value : null;
+}
+
 export interface MpCapabilitiesView {
   hasCharacter: boolean;
   characterName: string | null;
@@ -272,7 +283,7 @@ export function parseClientNav(bodyText: string): MpCapabilitiesView | null {
     characterName: asTrimmedString(record.characterName ?? null),
     characterCountryId: asTrimmedString(record.characterCountryId ?? null),
     unreadMailCount: record.unreadMailCount === undefined ? null : asNumber(record.unreadMailCount),
-    corporationId: record.myCorporationId === undefined ? null : asNumber(record.myCorporationId),
+    corporationId: asCorporationCapabilityId(record.myCorporationId),
     unionId: asTrimmedString(record.myUnionId ?? null),
     activeElectionLabel: election ? asTrimmedString(election.label ?? null) : null,
     activeElectionId: election ? asTrimmedString(election.id ?? null) : null,
@@ -380,8 +391,12 @@ export function parseElectionDetail(bodyText: string): MpElectionDetailView | nu
  * without encoding and never carry query smuggling.
  */
 export function isCorporationId(value: unknown): value is number | string {
+  // Numeric and string forms share one boundary: up to 10 digits, matching
+  // the Rust bridge (`is_corporation_id` accepts a <=10-digit id segment).
+  // The live route accepts unbounded digits; Native stays fail-closed above
+  // this bound and the server 404s unknown ids below it.
   if (typeof value === "number") {
-    return Number.isInteger(value) && value >= 0 && value <= 999_999_999;
+    return Number.isInteger(value) && value >= 0 && value <= 9_999_999_999;
   }
   if (typeof value !== "string" || !value) return false;
   if (HEX_OBJECT_ID.test(value)) return true;

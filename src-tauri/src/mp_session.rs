@@ -2024,6 +2024,14 @@ mod tests {
             fetch_corporation_path("68a000000000000000000001").unwrap(),
             "/api/corporations/68a000000000000000000001"
         );
+        // The digit bound is ten digits in every layer (shared with the TS
+        // `isCorporationId` number/string forms); an 11-digit reference
+        // never leaves the bridge even though the live route is unbounded.
+        assert_eq!(
+            fetch_corporation_path("9999999999").unwrap(),
+            "/api/corporations/9999999999"
+        );
+        assert!(fetch_corporation_path("12345678901").is_err());
         // Traversal, query smuggling, and drift all fail closed.
         for bad in [
             "",
@@ -2055,6 +2063,7 @@ mod tests {
         for allowed in [
             "/api/corporations/42",
             "/api/corporations/0",
+            "/api/corporations/9999999999",
             "/api/corporations/68a000000000000000000001",
         ] {
             assert!(
@@ -2066,6 +2075,7 @@ mod tests {
             "/api/corporations",
             "/api/corporations/",
             "/api/corporations/42/",
+            "/api/corporations/12345678901",
             "/api/corporations/e1",
             "/api/corporations/corp-42",
             "/api/corporations/42?view=summary",
