@@ -122,7 +122,7 @@ describe("MP footer measurement (#436)", () => {
     const footer = screen.getByRole("contentinfo", {
       name: "Multiplayer navigation",
     });
-    const screenEl = footer.closest("main.ahd-screen");
+    const screenEl = footer.closest("main.ahd-screen") as HTMLElement | null;
     expect(screenEl, "missing MP screen element").toBeTruthy();
     expect(screenEl!.style.getPropertyValue("--ahd-footer-height")).toBe(
       "111px",
