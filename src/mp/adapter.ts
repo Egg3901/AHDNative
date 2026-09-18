@@ -654,6 +654,17 @@ export class MpModeSession {
       }
       return "not-signed-in";
     }
+    if (result.kind === "remote" && result.http === 429) {
+      // The session may be valid while the probe itself is throttled: keep
+      // loaded state (cold boot has none) and surface the server backoff so
+      // the screen can offer retry, never an unreachable-device claim.
+      this.set({
+        phase: "rate-limited",
+        retryAfter: result.retryAfter || null,
+        error: `Rate limited: ${result.message}`,
+      });
+      return "not-signed-in";
+    }
     if (result.kind === "remote" && result.http >= 500) {
       this.set({ phase: "server-error", error: result.message });
       return "not-signed-in";
