@@ -221,13 +221,20 @@ Covered, rendered-verified in `src/ui/DrawerRoleConditions510.test.tsx`
   Political Operations as reference-only legacy congress routes on the
   Elections surface. Non-US saves carry no note (upcoming races + candidate
   directory is already the complete reference surface there).
+- Cabinet-office drawer gating, closed by #523 (reference office-holder
+  only, `resolveCabinetOfficeNavEntry` over `myCabinetMember`): the
+  session projects the player's validated seat into `GameView.cabinet`
+  (`src/game/cabinetSeat.ts`, country-scoped position-list check, stale
+  rows and seatless worlds project null, pre-signal projections stay
+  absent and keep the unconditional row). The drawer hides the Cabinet
+  office row on a proven no-seat world; an in-flight or programmatic
+  arrival without a seat renders the honest no-seat recovery with
+  Go-to-profile/actions return. Covered by `src/game/cabinetSeat.test.ts`
+  (6 projection tests) and `src/ui/CabinetGating510.test.tsx` (6 rendered
+  tests). PR #517 owns the loader-absent fallback; untouched.
 
 Explicitly not done, no signal invented:
 
-- Cabinet-office drawer gating (reference office-holder only): GameView
-  carries no cabinet-membership signal, and the government route is a
-  positions overview meaningful to non-holders. Row stays unconditional.
-  PR #517 owns the loader-absent fallback; this slice does not touch it.
 - Political Metrics / Referendums drawer gating (reference playable-pipeline
   / active-campaign only): no synchronous GameView signal; both routes keep
   their honest empty states. Needs a projected support flag first.
@@ -268,9 +275,8 @@ slice adds rendered regression coverage instead of new behavior:
   the session (`session.exit()` clears remote state), and the `src/mp` layer
   plus `MpModeScreen` never touch the SP save store or web storage.
 
-Still owed for #510: role/country capability rows beyond #514/#520, cabinet
-drawer gating on a GameView membership signal, multi-level returns, and the
-physical-iPhone smoke pass.
+Still owed for #510: role/country capability rows beyond #514/#520/#523,
+multi-level returns, and the physical-iPhone smoke pass.
 
 ## World map directory slice (#73, first vertical slice)
 

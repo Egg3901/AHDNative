@@ -419,9 +419,9 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   // label otherwise. Native derives each from save-backed signals only: party
   // membership from the projected party list, a recorded presidential race
   // (which implies a country that runs one), and the unresolved player
-  // candidacy above. Cabinet-office drawer gating stays out: GameView carries
-  // no cabinet-membership signal, and the government route is a meaningful
-  // positions overview for non-holders rather than a personal office page.
+  // candidacy above. Cabinet-office drawer gating rides its own signal
+  // (GameView.cabinet from projectCabinetMembership, #510/#523) and is
+  // applied at the drawer below; it stays out of roleConditions.
   const playerParty = world.parties.find((p) => p.isPlayerParty) ?? null;
   const roleConditions = {
     myParty: playerParty ? { partyId: playerParty.id, partyName: playerParty.name } : null,
