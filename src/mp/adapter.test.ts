@@ -1178,6 +1178,179 @@ describe("MpModeSession cabinet briefing (#359 cabinet slice)", () => {
   });
 });
 
+describe("MpModeSession governor office (#359 governor slice)", () => {
+  const roster = (overrides: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      state: "CA",
+      stateName: "California",
+      countryId: "US",
+      officials: {
+        senators: [],
+        governor: {
+          officeType: "governor",
+          state: "CA",
+          characterId: "507f1f77bcf86cd799439011",
+          characterName: "Ada",
+          party: "3",
+        },
+        houseRepresentatives: [],
+        stateSenators: [],
+        mps: [],
+      },
+      ...overrides,
+    });
+
+  function enteredGovernorHost(extraFetch: Record<string, Array<string | { reject: string }>>) {
+    return scriptedHost({
+      fetch: {
+        "auth-session": [probeA],
+        "character-me": [meA(1000)],
+        "turn-status": [turn()],
+        "client-nav": [caps()],
+        notifications: [inbox()],
+        ...extraFetch,
+      },
+    });
+  }
+
+  it("loads the roster on demand with the validated pair, never on enter", async () => {
+    const { host, calls } = enteredGovernorHost({ "governor-detail": [roster()] });
+    const session = new MpModeSession(host);
+    const entered = await session.enter();
+    expect(entered.phase).toBe("ready");
+    expect(entered.governorDetail).toBeNull();
+    expect(entered.electionDetail).toBeNull();
+    expect(entered.corporationDetail).toBeNull();
+    expect(entered.unionDetail).toBeNull();
+    expect(entered.cabinetDetail).toBeNull();
+    expect(calls.some((call) => call.op === "governor-detail")).toBe(false);
+    const loaded = await session.loadGovernorDetail("us", "CA");
+    expect(loaded.phase).toBe("ready");
+    expect(loaded.governorDetail).toMatchObject({
+      state: "CA",
+      stateName: "California",
+      countryId: "US",
+      officeType: "governor",
+      holderName: "Ada",
+    });
+    expect(host.fetch).toHaveBeenCalledWith(
+      "governor-detail",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "us",
+      "CA",
+    );
+  });
+
+  it("rejects bad references client-side without a bridge call", async () => {
+    const { host, calls } = enteredGovernorHost({});
+    const session = new MpModeSession(host);
+    await session.enter();
+    calls.length = 0;
+    for (const bad of [
+      ["ussr", "CA"],
+      ["u1", "CA"],
+      ["us", "C-A"],
+      ["us", "CA/los"],
+      ["us", "CA/../fire"],
+      ["us", ""],
+      ["", "CA"],
+      [null, "CA"],
+      ["us", null],
+      [42, "CA"],
+    ]) {
+      const snapshot = await session.loadGovernorDetail(bad[0], bad[1]);
+      expect(snapshot.error, JSON.stringify(bad)).toMatch(/governor office reference is invalid/);
+    }
+    expect(calls).toHaveLength(0);
+    expect(session.get().governorDetail).toBeNull();
+  });
+
+  it("keeps a vacant seat as data, fails closed on drift and outages", async () => {
+    const vacant = roster({ officials: {} });
+    const { host } = enteredGovernorHost({
+      "governor-detail": [
+        roster(),
+        vacant,
+        "{oops",
+        roster(),
+        { reject: "remote-error:404:0:{\\\"error\\\":\\\"State not found\\\"}" },
+        { reject: "remote-error:500:0:{\\\"error\\\":\\\"boom\\\"}" },
+        { reject: "remote-error:429:30:{\\\"error\\\":\\\"slow down\\\"}" },
+        { reject: "session-transport" },
+      ],
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+    expect((await session.loadGovernorDetail("us", "CA")).governorDetail?.holderName).toBe("Ada");
+    // A seat with no governor record is data: the state stands, no holder
+    // is named.
+    const empty = await session.loadGovernorDetail("us", "CA");
+    expect(empty.phase).toBe("ready");
+    expect(empty.governorDetail?.holderName).toBeNull();
+    const malformed = await session.loadGovernorDetail("us", "CA");
+    expect(malformed.phase).toBe("server-error");
+    expect(malformed.error).toMatch(/governor roster/);
+    expect(malformed.governorDetail).toBeNull();
+    expect((await session.loadGovernorDetail("us", "CA")).phase).toBe("ready");
+    const missing = await session.loadGovernorDetail("us", "CA");
+    expect(missing.phase).toBe("offline");
+    expect(missing.error).toMatch(/State not found/);
+    expect(missing.governorDetail?.state).toBe("CA");
+    const outage = await session.loadGovernorDetail("us", "CA");
+    expect(outage.phase).toBe("server-error");
+    expect(outage.error).toMatch(/boom/);
+    expect(outage.governorDetail?.state).toBe("CA");
+    // The shared contract covers the rest: a 429 stays rate-limited with
+    // the server's backoff, a dead transport stays offline.
+    const limited = await session.loadGovernorDetail("us", "CA");
+    expect(limited.phase).toBe("rate-limited");
+    expect(limited.retryAfter).toBe(30);
+    const down = await session.loadGovernorDetail("us", "CA");
+    expect(down.phase).toBe("offline");
+    expect(down.error).toMatch(/live-site session closed/);
+  });
+
+  it("evicts the roster with standing on auth expiry and clears it on exit", async () => {
+    const { host } = enteredGovernorHost({
+      "governor-detail": [roster(), { reject: "remote-error:401:0:{\\\"error\\\":\\\"Unauthorized\\\"}" }],
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+    await session.loadGovernorDetail("us", "CA");
+    expect(session.get().governorDetail?.state).toBe("CA");
+    const expired = await session.loadGovernorDetail("us", "CA");
+    expect(expired.phase).toBe("auth-expired");
+    expect(expired.governorDetail).toBeNull();
+    expect(expired.capabilities).toBeNull();
+    session.exit();
+    expect(session.get().governorDetail).toBeNull();
+  });
+
+  it("leaves the roster alone on refresh and never touches SP state", async () => {
+    const { host } = enteredGovernorHost({
+      "auth-session": [probeA, probeA],
+      "character-me": [meA(1000), meA(1000)],
+      "turn-status": [turn(), turn()],
+      "client-nav": [caps(), caps()],
+      notifications: [inbox(), inbox()],
+      "governor-detail": [roster()],
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+    await session.loadGovernorDetail("us", "CA");
+    const refreshed = await session.refresh();
+    expect(refreshed.phase).toBe("ready");
+    expect(refreshed.governorDetail?.holderName).toBe("Ada");
+    expect(JSON.stringify(refreshed)).not.toMatch(/sp_|singleplayer|localSave/i);
+  });
+});
+
 describe("MpModeSession refresh isolation", () => {
   it("detects an account switch on refresh, not just enter", async () => {
     const { host } = scriptedHost({

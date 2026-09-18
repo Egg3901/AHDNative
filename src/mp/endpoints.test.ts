@@ -211,6 +211,21 @@ describe("MP admin-maintenance pin (#359)", () => {
     expect(mutateBlock).not.toMatch(/cabinet/i);
   });
 
+  it("pins the governor-detail read on the public region officials route", () => {
+    const op: MpFetchOpId = "governor-detail";
+    expect(op).toBe("governor-detail");
+    const source = readFileSync(new URL("./endpoints.ts", import.meta.url), "utf8");
+    const fetchBlock = source.slice(source.indexOf("export type MpFetchOpId"), source.indexOf("export type MpMutateOpId"));
+    expect(fetchBlock).toMatch(/governor-detail/);
+    const docBlock = source.slice(0, source.indexOf("export const MP_AUDIT_REVISION"));
+    expect(docBlock).toMatch(/governor-detail/);
+    expect(docBlock).toMatch(/\/api\/country\/\[code\]\/region\/\[id\]\/officials/);
+    expect(docBlock).toMatch(/400/);
+    expect(docBlock).toMatch(/404/);
+    const mutateBlock = source.slice(source.indexOf("export type MpMutateOpId"), source.indexOf("export type MpExecuteActionType"));
+    expect(mutateBlock).not.toMatch(/governor/i);
+  });
+
   it("keeps player mail fetch ops next to the admin-maintenance read", () => {
     const source = readFileSync(new URL("./endpoints.ts", import.meta.url), "utf8");
     const fetchBlock = source.slice(source.indexOf("export type MpFetchOpId"), source.indexOf("export type MpMutateOpId"));

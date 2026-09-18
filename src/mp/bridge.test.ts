@@ -146,6 +146,29 @@ describe("mpFetch/mpMutate", () => {
       undefined,
       "us",
       "secretary_of_state",
+      undefined,
+      undefined,
+    );
+
+    const governorFetch = vi.fn(async () => '{"officials":{}}');
+    const governorHost = hostWith({ fetch: governorFetch });
+    expect(
+      await mpFetch(governorHost, "governor-detail", undefined, undefined, undefined, undefined, undefined, undefined, undefined, "us", "CA"),
+    ).toEqual({
+      kind: "ok",
+      bodyText: '{"officials":{}}',
+    });
+    expect(governorFetch).toHaveBeenCalledWith(
+      "governor-detail",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "us",
+      "CA",
     );
 
     const mutate = vi.fn(async () => '{"success":true}');
