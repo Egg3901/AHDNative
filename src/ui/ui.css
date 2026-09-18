@@ -841,11 +841,16 @@ html, body { overflow-x: hidden; }
  * drawer chrome even when a scrollIntoView call bypasses the scrollport
  * padding above; the document scroll padding keeps page-content focus
  * clear of the fixed footer (same clearance formula as .ahd-main's
- * bottom padding). All three properties steer scroll alignment only:
- * no margin, padding, position, or display change, so pointer hit areas
- * and desktop layout are untouched. */
+ * bottom padding) and below the Dynamic Island / status bar (same
+ * fail-safe floor as .ahd-main's top padding, so a zero-env WKWebView
+ * still parks focus below the status bar). All scroll properties steer
+ * scroll alignment only: no margin, padding, position, or display change,
+ * so pointer hit areas and desktop layout are untouched. */
 .ahd-drawer-item, .ahd-drawer-disclosure { scroll-margin-block: 0.5rem; }
-html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
+html {
+  scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem);
+  scroll-padding-top: max(0px, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top));
+}
 
 /* Nonmodal resource details above the footer */
 .ahd-resource-details {

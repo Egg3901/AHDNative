@@ -225,7 +225,7 @@ describe("installFooterClearance helper (#436)", () => {
 
 describe("document scroll-padding consumer (#436)", () => {
   it("reads the same variable the helper publishes", () => {
-    expect(css).toContain(`html { scroll-padding-bottom: calc(var(${FOOTER_HEIGHT_VAR}, 9rem) + 1rem); }`);
+    expect(css).toContain(`scroll-padding-bottom: calc(var(${FOOTER_HEIGHT_VAR}, 9rem) + 1rem);`);
   });
 });
 
