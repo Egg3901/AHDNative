@@ -129,6 +129,18 @@ describe("persistent bottom-control composition (#436)", () => {
     expect(rule![0]).toContain(BOTTOM_INSET);
   });
 
+  it("floors the landing entry shell above the indicator without moving its base", () => {
+    // The landing top rule already composes the top fail-safe, but the bottom
+    // rule shipped env()-only: on the zero-env WKWebView shape the entry
+    // shell falls back to its 1.5rem base (24px), under the 34px home
+    // indicator, so Help/Settings/saved games can park beneath it.
+    const rule = css.match(/\.ahd-landing-layout\s*\{[^}]*\}/);
+    expect(rule, "missing landing layout rule").toBeTruthy();
+    expect(rule![0], "landing lost its desktop base").toContain("1.5rem");
+    expect(rule![0], "landing missing bottom fallback").toContain(FALLBACK);
+    expect(rule![0], "landing missing env() composition").toContain(BOTTOM_INSET);
+  });
+
   it("keeps the landscape footer on env()-only geometry", () => {
     const landscape = css.match(/@media\s*\(orientation:\s*landscape\)\s*\{[\s\S]*?\.ahd-footer\s*\{[^}]*\}/);
     expect(landscape, "missing landscape footer rule").toBeTruthy();
