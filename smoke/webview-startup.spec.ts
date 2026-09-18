@@ -18,6 +18,11 @@ test('new game and fixture loading remain usable when a webview has no randomUUI
   await page.getByRole('button', { name: 'Continue Webview Player', exact: true }).click();
   await gameReady(page);
   await exitGame(page);
+  // The exit save still holds the app operation lock until the saves list
+  // refreshes (singleplayer.spec.ts synchronizes the same way). Loading the
+  // fixture earlier silently no-ops and strands the next gameReady with no
+  // drawer button.
+  await expect(page.getByRole('button', { name: 'Continue Webview Player', exact: true })).toBeVisible();
   await loadFixture(page, gunzipSync(readFileSync('fixtures/v42-1953-US.save.json.gz')));
   await gameReady(page);
   await expect(page.getByRole('region', { name: 'Profile', exact: true })).toContainText('Validator');
