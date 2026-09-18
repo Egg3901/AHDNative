@@ -11,6 +11,7 @@ import { isCabinetCountryCode, isCabinetPositionId, isCorporationId, isElectionI
 import { MP_EXECUTE_ACTIONS, MP_NOTIFICATION_TYPES, MP_SNOOZE_MINUTES_DEFAULT } from "../mp/endpoints";
 import { formatTurnCountdown } from "../mp/validators";
 import { MpAdminScreen } from "./MpAdminScreen";
+import { installFooterClearance } from "./footerClearance";
 import "./ui.css";
 
 /* Native multiplayer mode screen (#359). Renders authoritative server state
@@ -450,19 +451,13 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   useEffect(() => {
     // MP content clearance (#436): the fixed footer grows with the home
     // indicator and large text, so publish its measured height for
-    // .ahd-mp-layout to clear. Same contract as GameScreen; the measurement
-    // includes the footer's own safe-area padding, so the layout adds only
-    // breathing room on top of it. Re-runs on adminOpen because Admin
-    // status swaps the whole main element out and Back mounts a fresh one
-    // a mount-only effect would never measure.
-    const footer = footerRef.current;
-    if (!footer) return;
-    const measure = () => screenRef.current?.style.setProperty("--ahd-footer-height", `${footer.getBoundingClientRect().height}px`);
-    measure();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(footer);
-    return () => observer.disconnect();
+    // .ahd-mp-layout to clear via the shared footerClearance helper (also
+    // publishes to documentElement for the document scroll-padding rule).
+    // The measurement includes the footer's own safe-area padding, so the
+    // layout adds only breathing room on top of it. Re-runs on adminOpen
+    // because Admin status swaps the whole main element out and Back mounts
+    // a fresh one a mount-only effect would never measure.
+    return installFooterClearance(footerRef.current, screenRef.current);
   }, [adminOpen]);
 
   if (adminOpen) {
