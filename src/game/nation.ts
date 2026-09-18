@@ -198,6 +198,31 @@ export interface NationPolicyView {
   taxRates: NationTaxRateView[];
   /** Current national laws only. Regional laws are outside this nation surface. */
   enacted: NationPolicySetting[];
+  /**
+   * Costed HoS fiscal directives awaiting the next turn boundary
+   * (world.pendingFiscalDirectives for this country). Optional so saves and
+   * fixtures that predate the projection keep typechecking; absent means none.
+   */
+  pending?: NationPendingDirective[];
+}
+
+/**
+ * A costed Head of State fiscal directive queued through the executive
+ * actions (adjustTaxRate/adjustBudgetSpending) and awaiting enactment at the
+ * next turn boundary (engine fiscalDirectivesPhase). Read-only projection of
+ * engine state: the player verifies what is pending before it lands.
+ */
+export interface NationPendingDirective {
+  id: string;
+  kind: "spending" | "tax";
+  /** Budget category (spending) or tax field (tax) the directive targets. */
+  field: string;
+  /** Country-vocabulary label when recorded, otherwise the stored field id. */
+  label: string;
+  /** Directed target: percent points for tax, absolute currency units for spending. */
+  value: number;
+  /** Turn the directive was proposed; it enacts at the next boundary. */
+  proposedTurn: number;
 }
 
 export interface NationPolicySetting {
@@ -853,6 +878,41 @@ function activePolicyCandidates(world: WorldState, countryId: string): PolicyCan
   return candidates.filter((candidate) => !candidate.repealed && !candidate.expired);
 }
 
+/**
+ * Costed HoS directives queued for the next turn boundary, scoped to the
+ * player's country. Malformed or foreign-country rows are dropped, never
+ * repaired: the projection reports what the engine will enact, nothing more.
+ */
+function projectPendingDirectives(
+  world: WorldState,
+  countryId: string,
+  labels: CountryBudgetLabelSet,
+): NationPendingDirective[] {
+  const stored = world.pendingFiscalDirectives ?? [];
+  const directives: NationPendingDirective[] = [];
+  for (const entry of stored) {
+    if (!entry || typeof entry !== "object") continue;
+    if (entry.countryId !== countryId) continue;
+    if (entry.kind !== "spending" && entry.kind !== "tax") continue;
+    if (typeof entry.id !== "string" || !entry.id) continue;
+    if (typeof entry.field !== "string" || !entry.field) continue;
+    if (!Number.isFinite(entry.value) || !Number.isFinite(entry.proposedTurn)) continue;
+    const label =
+      entry.kind === "tax"
+        ? (labels.revenue[entry.field] ?? REVENUE_LABELS[entry.field] ?? entry.field)
+        : (labels.spending[entry.field] ?? entry.field);
+    directives.push({
+      id: entry.id,
+      kind: entry.kind,
+      field: entry.field,
+      label,
+      value: entry.value,
+      proposedTurn: entry.proposedTurn,
+    });
+  }
+  return directives.sort((left, right) => left.proposedTurn - right.proposedTurn || left.id.localeCompare(right.id));
+}
+
 function projectPolicies(world: WorldState, countryId: string): NationPolicySetting[] {
   const current = new Map<string, PolicyCandidate>();
   for (const candidate of activePolicyCandidates(world, countryId)) {
@@ -962,6 +1022,7 @@ export function projectNation(world: WorldState): NationView {
     policy: {
       taxRates,
       enacted: projectPolicies(world, countryId),
+      pending: projectPendingDirectives(world, countryId, labels),
     },
   };
 }

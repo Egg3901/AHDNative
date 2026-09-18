@@ -3,6 +3,7 @@ import type {
   NationLinkView,
   NationMetricView,
   NationMoneyLine,
+  NationPendingDirective,
   NationPolicySetting,
   NationView,
 } from "../game/nation";
@@ -552,8 +553,29 @@ function PolicyCard({ policy, clock }: { policy: NationPolicySetting; clock: Gam
   );
 }
 
+function PendingDirectiveCard({ directive, currency }: { directive: NationPendingDirective; currency: string }) {
+  const target = directive.kind === "tax" ? `${directive.value.toFixed(1)}%` : money(directive.value, currency);
+  return (
+    <article className="ahd-card ahd-card-pad" aria-label={`Pending ${directive.label}`}>
+      <div style={{ display: "flex", gap: "0.55rem", justifyContent: "space-between", alignItems: "flex-start", minWidth: 0 }}>
+        <div style={{ minWidth: 0, flex: "1 1 auto" }}>
+          <h3 style={{ margin: 0, fontSize: "0.86rem", overflowWrap: "anywhere", minWidth: 0 }}>{directive.label}</h3>
+          <div className="ahd-muted" style={{ fontSize: "0.7rem", marginTop: "0.25rem" }}>
+            {directive.kind === "tax" ? "Tax directive" : "Spending directive"} · proposed turn {directive.proposedTurn}
+          </div>
+        </div>
+        <span className="ahd-badge" style={{ flex: "0 0 auto", whiteSpace: "nowrap" }}>Pending</span>
+      </div>
+      <dl className="ahd-stack" style={{ marginTop: "0.65rem", gap: "0.42rem" }}>
+        <KeyValue label="Directed target" value={target} note={directive.kind === "tax" ? "phases in from the next turn" : "enacts at the next turn"} />
+      </dl>
+    </article>
+  );
+}
+
 function PolicySection({ nation, clock, era }: { nation: NationView; clock: GameClock; era?: string | null }) {
   const { policy } = nation;
+  const pending = policy.pending ?? [];
   return (
     <Layout nation={nation} title="Policy" era={era}>
       <div className="ahd-card ahd-card-pad">
@@ -564,6 +586,20 @@ function PolicySection({ nation, clock, era }: { nation: NationView; clock: Game
           <dl className="ahd-kv-grid" style={{ marginTop: "0.65rem" }}>
             {policy.taxRates.map((tax) => <KeyValue key={tax.id} label={tax.label} value={`${tax.ratePercent.toFixed(1)}%`} note="current rate" />)}
           </dl>
+        )}
+      </div>
+
+      <div className="ahd-stack">
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "baseline" }}>
+          <h2 className="ahd-h2">Pending directives</h2>
+          <span className="ahd-muted" style={{ fontSize: "0.68rem" }}>enacts next turn</span>
+        </div>
+        {pending.length === 0 ? (
+          <div className="ahd-empty">No pending directives recorded.</div>
+        ) : (
+          <div className="ahd-grid ahd-grid-3">
+            {pending.map((directive) => <PendingDirectiveCard key={directive.id} directive={directive} currency={nation.currency} />)}
+          </div>
         )}
       </div>
 
