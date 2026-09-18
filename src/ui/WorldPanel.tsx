@@ -273,6 +273,19 @@ function NationContextSwitcher({
   selectedId: string;
   onSelect: (id: string) => void;
 }) {
+  // Empty save: no recorded nation exists to view, so the switcher offers an
+  // explicit unavailable state instead of an empty select that would claim a
+  // viewed nation with no record behind it.
+  if (overview.nations.length === 0) {
+    return (
+      <div className="ahd-card ahd-card-pad" role="group" aria-label="Nation context">
+        <div className="ahd-eyebrow">Nation context</div>
+        <p role="note" className="ahd-muted" style={{ margin: "0.4rem 0 0", fontSize: "0.76rem" }}>
+          No nations are recorded for this save, so the nation view is unavailable. Your game is intact.
+        </p>
+      </div>
+    );
+  }
   const playerId = overview.playerCountryId;
   const playerNation = overview.nations.find((nation) => nation.id === playerId) ?? null;
   const playerName = playerNation?.name ?? playerId;
