@@ -250,8 +250,12 @@ export function ActionsHub({
           <h3 className="ahd-h2">Recent results</h3>
           <div className="ahd-stack" style={{ marginTop: "0.55rem" }}>
             {outcomes.slice(0, 5).map(outcome => (
-              <article key={outcome.id} style={{ borderTop: "1px solid var(--ahd-border)", paddingTop: "0.5rem" }}>
-                <strong>{outcome.title}</strong>
+              <article key={outcome.id} aria-label={`${outcome.title}: succeeded`} style={{ borderTop: "1px solid var(--ahd-border)", paddingTop: "0.5rem" }}>
+                <div style={{ display: "flex", gap: "0.45rem", alignItems: "baseline", flexWrap: "wrap" }}>
+                  <strong>{outcome.title}</strong>
+                  <span className="ahd-badge">Succeeded</span>
+                </div>
+                <div className="ahd-help">{outcome.message}</div>
                 {outcome.target ? <div className="ahd-help">Target: <span>{outcome.target.label}</span></div> : null}
                 {outcome.changes.map(change => <div key={change.field} className="ahd-help">
                   {change.label}: {String(change.before)} to {String(change.after)}

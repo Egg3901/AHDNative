@@ -133,6 +133,41 @@ describe("ActionsHub", () => {
     expect(within(history).getByText(/use Campaign again this turn/i)).toBeInTheDocument();
   });
 
+  it("exposes explicit success status and result copy on each history entry", () => {
+    render(<ActionsHub actions={actions} {...props} category="all" onCategoryChange={() => {}} outcomes={[{
+      id: "t0-action:fundraise:1", actionId: "fundraise", title: "Fundraiser complete", message: "Raised 1,200 from donors.",
+      turn: 0, date: "1953-01-01", destination: { route: "actions" },
+      changes: [
+        { field: "actions", label: "Actions", before: 25, after: 22, delta: -3 },
+        { field: "funds", label: "Campaign funds", before: 5_000, after: 6_200, delta: 1_200 },
+      ],
+      followUps: ["No cooldown. You can use Fundraise again this turn."],
+    }]} />);
+    const history = screen.getByRole("region", { name: "Recent action results" });
+    const entry = within(history).getByRole("article", { name: /fundraiser complete: succeeded/i });
+    expect(within(entry).getByText("Succeeded")).toBeInTheDocument();
+    expect(within(entry).getByText("Raised 1,200 from donors.")).toBeInTheDocument();
+    expect(within(entry).getByText(/Campaign funds.*\+1200/)).toBeInTheDocument();
+  });
+
+  it("omits the history section when no outcomes are recorded", () => {
+    render(<ActionsHub actions={actions} {...props} category="all" onCategoryChange={() => {}} outcomes={[]} />);
+    expect(screen.queryByRole("region", { name: "Recent action results" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the history compact at five entries", () => {
+    const entry = (n: number) => ({
+      id: `t0-action:campaign:${n}`, actionId: "campaign", title: `Campaign ${n}`, message: `Campaigned ${n}.`,
+      turn: 0, date: "1953-01-01", destination: { route: "actions" as const },
+      changes: [{ field: "actions", label: "Actions", before: 25, after: 24, delta: -1 }],
+      followUps: ["No cooldown."],
+    });
+    render(<ActionsHub actions={actions} {...props} category="all" onCategoryChange={() => {}} outcomes={[1, 2, 3, 4, 5, 6].map(entry)} />);
+    const history = screen.getByRole("region", { name: "Recent action results" });
+    expect(within(history).getAllByRole("article")).toHaveLength(5);
+    expect(within(history).queryByText("Campaigned 6.")).not.toBeInTheDocument();
+  });
+
   it("renders Debate Prep from the live session projection under Intelligence (#37)", async () => {
     const session = new GameSession();
     session.create({ era: "1953", countryId: "US", seed: "debate-hub-seed", playerName: "Alex" });
