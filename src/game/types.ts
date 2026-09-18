@@ -1,4 +1,5 @@
 import type { CapabilityNavSupport } from "./capabilityNav";
+import type { MyCorporationLink } from "./identityOrg";
 import type { LegislationDetailsQuery, LegislationSelection } from "./legislationDetails";
 import type { CabinetSponsorView, NominationView, ScotusSponsorView } from "./nominations";
 import type { LegislatureChamberPartySeats } from "./legislature";
@@ -227,6 +228,14 @@ export interface GameView {
    * Absent on pre-signal projections; callers then keep today's rows.
    */
   capabilityNav?: CapabilityNavSupport;
+  /**
+   * Recorded player-owned corporation for the drawer "My Corporation"
+   * identity row (#51, #84 P04). Present only while at least one sector
+   * asset is recorded player-owned; absent otherwise, and the drawer omits
+   * the row. Links the first owned listing in markets-projection order —
+   * the Profile card lists every owned corporation.
+   */
+  myCorporation?: MyCorporationLink;
   player: { name: string; cash: number; funds: number; actions: number; influence: number; favorability: number; partyName: string; mode: SingleplayerMode; hosPartyId: string | null; homeRegionId: string | null; permanentHeadOfState?: boolean; currentOffice?: string | null; };
   legislature: LegislatureView;
   finance: FinanceView;

@@ -17,6 +17,7 @@ import { projectCabinetSponsor, projectNominationDetail, projectNominationList, 
 import { projectWorldOverview } from "./worldOverview";
 import { projectNation } from "./nation";
 import { projectCapabilityNav } from "./capabilityNav";
+import { projectMyCorporation } from "./identityOrg";
 import { projectPolitics, projectPartyMembership } from "./politics";
 import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
@@ -711,6 +712,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
   if (!country || !country.playable) throw new Error("The save does not contain the player's playable country.");
   const player = world.player;
   const capabilityNav = projectCapabilityNav(world);
+  const myCorporation = projectMyCorporation(world);
   return {
     turn: world.meta.turn, date: world.meta.date, era: world.meta.era,
     foundingActive: isFoundingActive(world.elections),
@@ -726,6 +728,9 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     // #510: projected drawer/screen support. Pre-signal worlds omit the key
     // so the shell keeps today's rows (old-save compatibility).
     ...(capabilityNav ? { capabilityNav } : {}),
+    // #51/#84: drawer "My Corporation" signal. Omitted (not null) without a
+    // recorded player-owned sector, so the shell omits the row entirely.
+    ...(myCorporation ? { myCorporation } : {}),
     player: { name: player.name, cash: player.cash, funds: player.funds, actions: player.actions,
       influence: player.politicalInfluence, favorability: player.favorability,
       partyName: player.partyId ? world.parties[player.partyId]?.name ?? "Independent" : "Independent",
