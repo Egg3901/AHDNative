@@ -279,4 +279,42 @@ describe("debatePrep character action (#37)", () => {
     expect(exhausted.ok).toBe(false);
     if (!exhausted.ok) expect(exhausted.error).toMatch(/action points/i);
   });
+  it("records the AP debit and debate gain in the returned outcome and result history", () => {
+    const session = createAllocatedSession("debate-seed-2");
+    const response = session.act("debatePrep");
+    expect(response).toMatchObject({ ok: true, outcome: { actionId: "debatePrep" } });
+    if (!response.ok) throw new Error("expected debatePrep to succeed");
+    expect(response.outcome.changes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: "actions", delta: -1 }),
+      expect.objectContaining({ field: "debate", before: 1, after: 2, delta: 1 }),
+    ]));
+    const history = session.view().actionHistory ?? [];
+    expect(history[0]).toMatchObject({ actionId: "debatePrep", turn: 0,
+      message: "Breakthrough in the briefing room: your Debate skill improved (+1).",
+      changes: expect.arrayContaining([expect.objectContaining({ field: "debate", after: 2 })]) });
+    const stamp = "2026-09-10T00:00:00.000Z";
+    const loaded = new GameSession();
+    loaded.load(session.serialize(stamp));
+    expect(loaded.view().actionHistory?.[0]).toMatchObject({ actionId: "debatePrep",
+      changes: expect.arrayContaining([expect.objectContaining({ field: "debate", before: 1, after: 2 })]) });
+  });
+  it("records a failed roll in history without a debate change", () => {
+    const session = createAllocatedSession("debate-seed-0");
+    const response = session.act("debatePrep");
+    expect(response).toMatchObject({ ok: true });
+    if (!response.ok) throw new Error("expected debatePrep to succeed");
+    expect(response.outcome.changes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: "actions", delta: -1 }),
+    ]));
+    expect(response.outcome.changes.some((change) => change.field === "debate")).toBe(false);
+    expect(session.view().actionHistory?.[0]).toMatchObject({ actionId: "debatePrep",
+      message: "You studied hard, but no breakthrough this time." });
+  });
+  it("writes no history entry when the unallocated-stat refusal fires", () => {
+    const session = new GameSession(); session.create(options);
+    expect(session.view().actionHistory ?? []).toEqual([]);
+    const response = session.act("debatePrep");
+    expect(response.ok).toBe(false);
+    expect(session.view().actionHistory ?? []).toEqual([]);
+  });
 });
