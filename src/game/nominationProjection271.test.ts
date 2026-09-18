@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  castCabinetNominationVote,
   clearCabinetOnTransition,
   createWorld,
   ensureScotusSeats,
@@ -8,6 +9,7 @@ import {
 } from "@ahdclient/engine";
 import { GameSession } from "./session";
 import {
+  nominationVoteEligibility,
   nomineePartyName,
   projectNominationDetail,
   projectNominationList,
@@ -169,6 +171,34 @@ describe("unified nomination list/detail projection (#271)", () => {
       available: false,
       disabledReason: "Only Senators can vote on Justice nominations",
     });
+  });
+
+  it("matches the engine refusal for a VP ballot from outside both chambers", () => {
+    // Engine-direct world: avoids the session commit path so this parity
+    // check stays independent of unrelated projection breakage.
+    const world = createWorld({ ...HOS_US });
+    const nominee = world.politicians.find((p) => p.countryId === "US")!;
+    const nomination = sponsorCabinetNomination(world, {
+      countryId: "US", positionId: "vicePresident", nomineeId: nominee.id,
+    });
+    world.player.legislativeSeat = { countryId: "US", chamberKey: "council" };
+    // The engine refusal is the oracle: the projection must quote it exactly.
+    let engineError: string | null = null;
+    try {
+      castCabinetNominationVote(world, nomination.id, "for");
+    } catch (error) {
+      engineError = error instanceof Error ? error.message : String(error);
+    }
+    expect(engineError).toBe("Only Senators can vote on cabinet nominations");
+    expect(nominationVoteEligibility(world, "cabinet", nomination)).toEqual({
+      available: false,
+      disabledReason: engineError!,
+    });
+    // The list/detail projection carries the same reason at the boundary.
+    const entry = projectNominationList(world, "US").find((candidate) => candidate.id === nomination.id)!;
+    expect(entry).toMatchObject({ kind: "cabinet", chamber: "both" });
+    expect(entry.voting).toEqual({ available: false, disabledReason: engineError! });
+    expect(projectNominationDetail(world, nomination.id)?.voting).toEqual(entry.voting);
   });
 
   it("keeps a recorded ballot in list and detail across save/reload and turns", () => {

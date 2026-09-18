@@ -3,6 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWorld, ensureScotusSeats, serializeSave } from "@ahdclient/engine";
 import { GameSession } from "../game/session";
+import type { NominationView } from "../game/nominations";
 import { NominationsPanel } from "./NominationsPanel";
 
 const SAVED_AT = "2026-09-15T00:00:00.000Z";
@@ -135,5 +136,62 @@ describe("Nomination list/detail unified projection (#271)", () => {
     reloaded.load(session.serialize(SAVED_AT));
     rerender(<NominationsPanel legislature={reloaded.view().legislature} busy={false} onAction={onAction} />);
     expect(screen.getByText(/your vote: for/i)).toBeInTheDocument();
+  });
+
+  it("recovers to the list when the selected nomination leaves the projection", async () => {
+    // Fixture-built legislature: avoids the session commit path so this
+    // recovery check stays independent of unrelated projection breakage.
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const entry = (id: string, nominee: string): NominationView => ({
+      id,
+      kind: "cabinet",
+      countryId: "US",
+      chamber: "senate",
+      chamberLabel: "Senate",
+      office: "Secretary of State",
+      positionId: "secretary_of_state",
+      nominee,
+      nomineeParty: "US_REP",
+      nomineePartyName: "Republican",
+      sponsor: "President",
+      status: "active",
+      statusLabel: "Vote Open",
+      proposedAtTurn: 1,
+      votingEndsOnTurn: 25,
+      resolvedAtTurn: null,
+      tally: { for: 1, against: 0, abstain: 0 },
+      playerVote: null,
+      voting: { available: true },
+    });
+    const legislature = {
+      office: null,
+      countryId: "US",
+      proposals: [],
+      sponsor: { id: "sponsorBill", name: "Sponsor", description: "", cost: 0, available: false },
+      bills: [],
+      nominations: [entry("nom-a", "Alice Example"), entry("nom-b", "Bob Example")],
+    };
+    const { rerender } = render(
+      <NominationsPanel legislature={legislature} busy={false} onAction={onAction} />,
+    );
+    await user.click(screen.getByRole("button", { name: /alice example/i }));
+    expect(document.querySelector('[data-pane="detail"]')).not.toBeNull();
+
+    // The selection goes stale (turn resolution withdrew it): no stale detail,
+    // and the remaining list stays usable.
+    const withoutSelected = {
+      ...legislature,
+      nominations: legislature.nominations.filter((candidate) => candidate.id !== "nom-a"),
+    };
+    rerender(<NominationsPanel legislature={withoutSelected} busy={false} onAction={onAction} />);
+    expect(document.querySelector('[data-pane="detail"]')).toBeNull();
+    await user.click(screen.getByRole("button", { name: /bob example/i }));
+    expect(document.querySelector('[data-pane="detail"]')).not.toBeNull();
+
+    // An emptied projection recovers to the honest empty state.
+    rerender(<NominationsPanel legislature={{ ...legislature, nominations: [] }} busy={false} onAction={onAction} />);
+    expect(document.querySelector('[data-pane="detail"]')).toBeNull();
+    expect(screen.getByText("No nominations before the legislature.")).toBeInTheDocument();
   });
 });
