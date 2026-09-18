@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
 import { rngFromSeed } from "../rng.js";
+import { deserializeSave, serializeSave } from "../save.js";
 import { bankSolvencyTurnPhase } from "./bankSolvencyTurn.js";
+import type { InterbankLoan } from "./interbank.js";
 import { CONTAGION_PANIC_TURNS, FLIGHT_RATE_BY_BAND, RUN_FAILURE_COVER_FRACTION } from "./constants.js";
+
+const STAMP = "2026-09-18T00:00:00.000Z";
 
 const OPTS = { seed: "solvency-test", playerName: "P", countryId: "US", era: "1953" };
 const RNG = rngFromSeed("solvency-rng");
@@ -210,6 +214,201 @@ describe("bankSolvencyTurnPhase — contagion", () => {
     world.meta.turn = 1;
     run(world);
     expect(peer.bankCharter!.panicTurns).toBe(CONTAGION_PANIC_TURNS);
+  });
+});
+
+describe("bankSolvencyTurnPhase — failed-estate interbank recovery (#329)", () => {
+  function failingInvestmentBorrower(
+    world: ReturnType<typeof createWorld>,
+    opts: { cash: number; markUnits: number; interbankDebt: number },
+  ): { borrowerId: string; targetId: string } {
+    const borrower = world.corporations["US-financial"]!;
+    const charter = borrower.bankCharter!;
+    charter.charterType = "investment";
+    charter.cashReserves = opts.cash;
+    charter.npcDeposits = 0;
+    charter.totalDeposits = 0;
+    charter.totalLoans = 0;
+    charter.postedCapital = 0;
+    charter.interbankDebt = opts.interbankDebt;
+    charter.warningBand = "red";
+    charter.panicTurns = 4;
+    const target = Object.values(world.corporations).find(
+      (c) => c.id !== borrower.id && c.sharePrice > 0,
+    )!;
+    target.sharePrice = 100;
+    charter.propBook = [
+      { asset: "equity", ref: target.id, units: opts.markUnits, costBasis: opts.markUnits * 100 },
+    ];
+    charter.propBookMarkValue = 0; // stale cache; the turn re-marks first
+    return { borrowerId: borrower.id, targetId: target.id };
+  }
+
+  function liveLender(
+    world: ReturnType<typeof createWorld>,
+    id: string,
+    cash: number,
+  ): void {
+    const seed = world.corporations["US-financial"]!;
+    world.corporations[id] = {
+      ...seed,
+      id,
+      bankCharter: { ...seed.bankCharter!, cashReserves: cash },
+    };
+  }
+
+  function estateLoan(
+    world: ReturnType<typeof createWorld>,
+    lenderCorpId: string,
+    borrowerCorpId: string,
+    outstanding: number,
+  ): void {
+    const loan: InterbankLoan = {
+      id: `ib-${lenderCorpId}-${borrowerCorpId}-0`,
+      lenderCorpId,
+      borrowerCorpId,
+      principal: outstanding,
+      outstanding,
+      ratePercent: 5,
+      originatedTurn: 0,
+      status: "current",
+      arrearsTurns: 0,
+      lastProcessedTurn: null,
+    };
+    world.interbankLoans.push(loan);
+  }
+
+  it("pays live interbank lenders pro rata from the estate cash left after depositors", () => {
+    const world = createWorld(OPTS);
+    // Cash 100k + 20k of marks liquidates to exactly the 120k owed, so the
+    // red/no-equity failure test fires and the estate covers every lender.
+    liveLender(world, "US-lender-a", 10_000);
+    liveLender(world, "US-lender-b", 10_000);
+    const { borrowerId } = failingInvestmentBorrower(world, {
+      cash: 100_000,
+      markUnits: 200,
+      interbankDebt: 120_000,
+    });
+    estateLoan(world, "US-lender-a", borrowerId, 70_000);
+    estateLoan(world, "US-lender-b", borrowerId, 50_000);
+    world.meta.turn = 1;
+    run(world);
+
+    const charter = world.corporations[borrowerId]!.bankCharter!;
+    expect(charter.status).toBe("failed");
+    // Source tier 3 (depositBookReturn.ts): every lender paid in full, the
+    // estate cash retired, the borrower-side debt extinguished.
+    expect(world.corporations["US-lender-a"]!.bankCharter!.cashReserves).toBe(80_000);
+    expect(world.corporations["US-lender-b"]!.bankCharter!.cashReserves).toBe(60_000);
+    for (const loan of world.interbankLoans) {
+      expect(loan.status).toBe("repaid");
+      expect(loan.outstanding).toBe(0);
+      expect(loan.lastProcessedTurn).toBe(1);
+    }
+    expect(charter.interbankDebt).toBe(0);
+    expect(charter.cashReserves).toBe(0);
+
+    // Reload boundary: the settled loans and cleared debt survive the save
+    // envelope through the existing interbankLoans persistence.
+    const loaded = deserializeSave(serializeSave(world, STAMP));
+    expect(loaded.interbankLoans.map((l) => l.status)).toEqual(["repaid", "repaid"]);
+    expect(loaded.corporations[borrowerId]!.bankCharter!.interbankDebt).toBe(0);
+    expect(loaded.corporations["US-lender-a"]!.bankCharter!.cashReserves).toBe(80_000);
+  });
+
+  it("records the unpaid remainder as a lender loss and still clears the estate claim on shortfall", () => {
+    const world = createWorld(OPTS);
+    // Cash 0 + 100k of marks liquidates to 100k against 200k owed: half paid.
+    liveLender(world, "US-lender-a", 10_000);
+    liveLender(world, "US-lender-b", 10_000);
+    const { borrowerId } = failingInvestmentBorrower(world, {
+      cash: 0,
+      markUnits: 1000,
+      interbankDebt: 200_000,
+    });
+    estateLoan(world, "US-lender-a", borrowerId, 120_000);
+    estateLoan(world, "US-lender-b", borrowerId, 80_000);
+    world.meta.turn = 1;
+    run(world);
+
+    const charter = world.corporations[borrowerId]!.bankCharter!;
+    expect(charter.status).toBe("failed");
+    expect(world.corporations["US-lender-a"]!.bankCharter!.cashReserves).toBe(70_000);
+    expect(world.corporations["US-lender-b"]!.bankCharter!.cashReserves).toBe(50_000);
+    const byLender = new Map(world.interbankLoans.map((l) => [l.lenderCorpId, l]));
+    expect(byLender.get("US-lender-a")!.outstanding).toBe(60_000);
+    expect(byLender.get("US-lender-b")!.outstanding).toBe(40_000);
+    for (const loan of world.interbankLoans) {
+      expect(loan.status).toBe("defaulted");
+      expect(loan.lastProcessedTurn).toBe(1);
+    }
+    // Source creditorClaimProjections: the claim cannot outlive the estate.
+    expect(charter.interbankDebt).toBe(0);
+  });
+
+  it("routes a resolved lender's share to the insurance fund standing behind it", () => {
+    const world = createWorld(OPTS);
+    liveLender(world, "US-lender-a", 10_000);
+    liveLender(world, "US-lender-dead", 0);
+    const { borrowerId } = failingInvestmentBorrower(world, {
+      cash: 100_000,
+      markUnits: 200,
+      interbankDebt: 120_000,
+    });
+    // Failed AND resolved: its estate is closed, so recovery belongs to the
+    // insurer that stood behind it (source interbankRecoveryTarget).
+    world.corporations["US-lender-dead"]!.bankCharter!.status = "failed";
+    world.corporations["US-lender-dead"]!.bankCharter!.depositorsResolvedTurn = 0;
+    estateLoan(world, "US-lender-a", borrowerId, 70_000);
+    estateLoan(world, "US-lender-dead", borrowerId, 50_000);
+    world.depositInsurance["US"] = {
+      countryId: "US",
+      balance: 5_000,
+      insuredCap: 1_000_000,
+      premiumsCollectedLifetime: 0,
+      payoutsLifetime: 0,
+    };
+    world.meta.turn = 1;
+    run(world);
+
+    expect(world.corporations[borrowerId]!.bankCharter!.status).toBe("failed");
+    expect(world.corporations["US-lender-a"]!.bankCharter!.cashReserves).toBe(80_000);
+    expect(world.corporations["US-lender-dead"]!.bankCharter!.cashReserves).toBe(0);
+    expect(world.depositInsurance["US"]!.balance).toBe(55_000);
+    expect(world.corporations[borrowerId]!.bankCharter!.interbankDebt).toBe(0);
+  });
+});
+
+describe("bankSolvencyTurnPhase — deposit aggregates follow the cash (#329)", () => {
+  it("deposit flight reduces totalDeposits with npcDeposits", () => {
+    const world = createWorld(OPTS);
+    const charter = world.corporations["US-financial"]!.bankCharter!;
+    charter.warningBand = "red";
+    charter.npcDeposits = 100;
+    charter.totalDeposits = 100;
+    charter.cashReserves = 1_000_000;
+    world.meta.turn = 1;
+    run(world);
+    // Source flight projection decrements both aggregates, never the NPC leg
+    // alone (depositBookReturn/bankSolvencyTurn $inc pair).
+    expect(charter.npcDeposits).toBeCloseTo(100 * (1 - FLIGHT_RATE_BY_BAND.red), 6);
+    expect(charter.totalDeposits).toBeCloseTo(100 * (1 - FLIGHT_RATE_BY_BAND.red), 6);
+    expect(charter.status).toBe("active");
+  });
+
+  it("failure resolution clears totalDeposits with npcDeposits", () => {
+    const world = createWorld(OPTS);
+    const charter = world.corporations["US-financial"]!.bankCharter!;
+    charter.warningBand = "red";
+    charter.npcDeposits = 1_000_000;
+    charter.totalDeposits = 1_000_000;
+    charter.cashReserves = 10_000;
+    charter.postedCapital = 50_000;
+    world.meta.turn = 1;
+    run(world);
+    expect(charter.status).toBe("failed");
+    expect(charter.npcDeposits).toBe(0);
+    expect(charter.totalDeposits).toBe(0);
   });
 });
 
