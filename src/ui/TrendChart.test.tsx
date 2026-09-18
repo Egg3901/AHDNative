@@ -256,6 +256,66 @@ describe("TrendChart unavailable series recovery", () => {
   });
 });
 
+describe("TrendChart dense data table", () => {
+  // Wallet "All series" renders seven columns (#507): at 320px the table
+  // used to crush cells until currency values wrapped mid-number
+  // ("$10,1 00.00", confirmed in headless Chromium), while the
+  // overflow-x wrapper never engaged because the table stayed width 100%.
+  const sixSeries: TrendSeries[] = [
+    "Net worth",
+    "Cash",
+    "Savings",
+    "Shares value",
+    "Bonds value",
+    "Funds",
+  ].map((label, i) => ({
+    id: label.toLowerCase().replace(/ /g, "-"),
+    label,
+    points: [
+      { turn: 1, value: 10100 + i },
+      { turn: 2, value: 11394 + i },
+      { turn: 3, value: 2233445566.77 },
+    ],
+    format: (v: number) => `$${v.toFixed(2)}`,
+  }));
+
+  it("sizes the table to its content with values on one line instead of crushing cells", () => {
+    render(
+      <TrendChart
+        id="portfolio-trend"
+        title="Portfolio trend"
+        defaultSeriesId="all"
+        series={sixSeries}
+        emptyMessage="No portfolio history recorded yet."
+      />,
+    );
+    const table = screen.getByRole("table", { name: /portfolio trend data/i });
+    expect(table.style.minWidth).toBe("max-content");
+    for (const cell of Array.from(table.querySelectorAll("td"))) {
+      expect((cell as HTMLElement).style.whiteSpace).toBe("nowrap");
+    }
+    expect(table).toHaveTextContent("$2233445566.77");
+  });
+
+  it("exposes the scroll container as a labelled tab stop so clipped columns stay keyboard-reachable", () => {
+    render(
+      <TrendChart
+        id="portfolio-trend"
+        title="Portfolio trend"
+        defaultSeriesId="all"
+        series={sixSeries}
+        emptyMessage="No portfolio history recorded yet."
+      />,
+    );
+    const table = screen.getByRole("table", { name: /portfolio trend data/i });
+    const region = table.parentElement as HTMLElement;
+    expect(region.getAttribute("role")).toBe("region");
+    expect(region.getAttribute("aria-label")).toMatch(/portfolio trend data table/i);
+    expect(region.tabIndex).toBe(0);
+    expect(region.style.overflowX).toBe("auto");
+  });
+});
+
 describe("TrendChart responsive behavior", () => {
   it("scales the SVG fluidly inside a width-constrained wrapper", () => {
     const { container } = render(
