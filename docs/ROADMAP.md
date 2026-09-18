@@ -1832,23 +1832,29 @@ ported; prime/APY rates omitted (no Native DTO); no physical-device run.
   phase sits immediately after `unionsTurnPhase` (corporationTurn < unionsTurn
   < pensionTurn, matching the reference relative order).
 - Focused evidence: `pension.test.ts` (30 rules/validator tests) plus new
-  `pensionTurn.sim.test.ts` (18 turn/session tests: twin-differenced funded
-  conservation, top-up emergence, shortfall-with-accrual, retirement ordering,
+  `pensionTurn.sim.test.ts` (19 turn/session tests: twin-differenced funded
+  conservation, top-up emergence, shortfall-with-accrual, partial-affordability
+  no-overdraw with contribution priority, retirement ordering,
   pro-rata cut with no-overdraw, duplicate refusal with total rollback,
   idempotent re-run, sorted deterministic ordering, suspension freeze with
   benefits, phase position and RNG-freedom, mid-campaign round-trip, old-save
   onboarding, 3-way corrupt-save refusal, post-rename load, static currency
   pin), with unchanged `contributions.test.ts` (16), `organizers.test.ts`
   (9), `sectorAggregation.test.ts` (7) and `unions.sim.test.ts` (28),
-  108 total green. Adversarial review against the pinned reference found and
-  fixed four defects, two red-first: benefit-leg ids baked the `system` sink
+  109 total green. Adversarial review against the pinned reference found and
+  fixed five defects, three red-first: benefit-leg ids baked the `system` sink
   while the validator recomputed with `""` (every benefit save failed to
   reload); ledger `unionName` equality rejected valid history after a union
   rename (now display text, identity rides the deterministic id); ledger
   currency read mutable budget/forex rows instead of the static union-country
   map shared with `contributions.ts`; a refused plan created its scheme row
   before validating (now plans against the prior position and creates only
-  after validation).
+  after validation); the top-up affordability check ran against the same
+  pre-debit balance as the contribution, so an employer covering each charge
+  alone but not both was driven negative (now checked against the
+  post-contribution balance with contribution priority, matching the
+  reference sequential-debit order; the ledger array is likewise created at
+  apply time so a refused plan leaves no trace at all).
 - Explicit residuals, not gaps in the delivered acceptance: the bargaining
   writer that settles `pensionContributionRate` is #322 (the turn charges only
   unions already carrying a rate); there is no index-fund substrate, so the

@@ -196,6 +196,69 @@ describe("funded contributions and benefits at the public turn seam", () => {
       expect(corp.liquidCapital).toBeGreaterThanOrEqual(0);
     }
   });
+
+  it("an employer that covers each charge alone but not both is shorted, never overdrawn", () => {
+    const world = createWorld(OPTS);
+    const [unionId] = usUnions(world);
+    world.unions[unionId!]!.pensionContributionRate = 0.1;
+    // Deep deficit: the 5%-of-shortfall top-up asked on top of the
+    // contribution dwarfs a one-cent headroom.
+    world.pensionSchemes = {
+      [unionId!]: {
+        id: unionId!,
+        countryId: "US",
+        unionName: world.unions[unionId!]!.name,
+        assets: 0,
+        liabilities: 30_000_000,
+        totalContributions: 0,
+        totalTopUps: 0,
+        createdAtTurn: 0,
+      } satisfies PensionScheme,
+    };
+    const wages = coveredWageByEmployer(world, unionId!, "US");
+    expect(wages.size).toBeGreaterThan(0);
+    // Richest employer by covered wage keeps its full contribution plus one
+    // cent: the contribution alone fits, the top-up share alone fits, both
+    // together do not. Every other employer is starved.
+    let richest = "";
+    let richestWage = -1;
+    for (const [employerId, wage] of wages) {
+      if (wage > richestWage) {
+        richestWage = wage;
+        richest = employerId;
+      }
+    }
+    const contribution = Math.round(richestWage * 0.1 * 100) / 100;
+    expect(contribution).toBeGreaterThan(0);
+    for (const employerId of wages.keys()) {
+      world.corporations[employerId]!.liquidCapital =
+        employerId === richest ? contribution + 0.01 : 0;
+    }
+    const drained = wages.size - 1;
+
+    world.meta.turn += 1;
+    const result = runPensionTurn(world, world.meta.turn);
+
+    // The contribution has priority (reference debit order): it lands in
+    // full, the top-up share is refused and recorded, and no balance goes
+    // negative. Shortfalls exceed the drained count, proving the top-up
+    // refusal was counted rather than debited.
+    const scheme = world.pensionSchemes?.[unionId!];
+    expect(scheme!.totalContributions).toBeCloseTo(contribution, 2);
+    expect(scheme!.totalTopUps).toBe(0);
+    expect(result.shortfalls).toBeGreaterThan(drained);
+    for (const corp of Object.values(world.corporations)) {
+      expect(Number.isFinite(corp.liquidCapital)).toBe(true);
+      expect(corp.liquidCapital).toBeGreaterThanOrEqual(0);
+    }
+    expect(world.corporations[richest]!.liquidCapital).toBeCloseTo(0.01, 2);
+    // Conservation: what left corporate cash sits in the scheme or was paid out.
+    const moved = scheme!.totalContributions + scheme!.totalTopUps;
+    expect(Math.round((scheme!.assets + (scheme!.totalBenefitsPaid ?? 0)) * 100) / 100).toBeCloseTo(
+      moved,
+      2,
+    );
+  });
 });
 
 describe("retirement ordering and pro-rata cuts", () => {

@@ -282,7 +282,13 @@ export function runPensionTurn(world: WorldState, currentTurn: number): PensionT
             continue;
           }
           const corp = world.corporations[employerId]!;
-          if (!Number.isFinite(corp.liquidCapital) || corp.liquidCapital < share) {
+          // Against the post-contribution balance: the contribution above
+          // debits first (reference order), so approving both against the
+          // same pre-debit balance could drive cash negative. A top-up that
+          // no longer fits is refused and counted, exactly like a failed
+          // reference atomic debit.
+          const committed = paidByEmployer.get(employerId) ?? 0;
+          if (!Number.isFinite(corp.liquidCapital) || corp.liquidCapital - committed < share) {
             result.shortfalls += 1;
             topUpByEmployer.set(employerId, 0);
             continue;
@@ -302,7 +308,8 @@ export function runPensionTurn(world: WorldState, currentTurn: number): PensionT
           roundMoney((paidByEmployer.get(employerId) ?? 0) + (topUpByEmployer.get(employerId) ?? 0)),
         );
       }
-      const ledger = world.pensionLedger ?? (world.pensionLedger = []);
+      // No world writes yet: the ledger array itself is created at apply
+      // time, so a refused plan leaves no trace, not even an empty row.
       const newRows: PensionLedgerRecord[] = [];
       // Same static union-country currency as the union contribution ledger
       // (contributions.ts), not the mutable budget/forex rows.
@@ -357,7 +364,8 @@ export function runPensionTurn(world: WorldState, currentTurn: number): PensionT
       const snapshot = structuredClone({
         corporations: employerIds.map((id) => [id, world.corporations[id]!.liquidCapital] as const),
         scheme: { ...scheme },
-        ledgerLength: ledger.length,
+        ledgerLength: world.pensionLedger?.length ?? 0,
+        hadLedger: world.pensionLedger !== undefined,
       });
       try {
         for (const employerId of employerIds) {
@@ -373,13 +381,20 @@ export function runPensionTurn(world: WorldState, currentTurn: number): PensionT
         scheme.totalContributions = roundMoney(scheme.totalContributions + paidTotal);
         scheme.totalTopUps = roundMoney(scheme.totalTopUps + topUpCharged);
         scheme.lastChargedTurn = currentTurn;
-        ledger.push(...newRows);
+        if (newRows.length > 0) {
+          const ledger = world.pensionLedger ?? (world.pensionLedger = []);
+          ledger.push(...newRows);
+        }
       } catch (err) {
         for (const [id, liquidCapital] of snapshot.corporations) {
           world.corporations[id]!.liquidCapital = liquidCapital;
         }
         Object.assign(scheme, snapshot.scheme);
-        ledger.length = snapshot.ledgerLength;
+        if (!snapshot.hadLedger) {
+          delete world.pensionLedger;
+        } else {
+          world.pensionLedger!.length = snapshot.ledgerLength;
+        }
         throw err;
       }
 
@@ -435,7 +450,6 @@ export function runPensionBenefitsTurn(world: WorldState, currentTurn: number): 
 
       // Same static scheme-country currency as the contribution legs above.
       const currencyCode = pensionCurrencyForCountry(scheme.countryId);
-      const ledger = world.pensionLedger ?? (world.pensionLedger = []);
       let benefitRow: PensionLedgerRecord | null = null;
       if (payment.paid > 0) {
         const schemeName = schemeDisplayName(world, scheme.id);
@@ -462,7 +476,8 @@ export function runPensionBenefitsTurn(world: WorldState, currentTurn: number): 
 
       const snapshot = structuredClone({
         scheme: { ...scheme },
-        ledgerLength: ledger.length,
+        ledgerLength: world.pensionLedger?.length ?? 0,
+        hadLedger: world.pensionLedger !== undefined,
       });
       try {
         // Paying a benefit discharges the claim: without this the funding
@@ -476,10 +491,17 @@ export function runPensionBenefitsTurn(world: WorldState, currentTurn: number): 
         );
         scheme.lastBenefitTurn = currentTurn;
         scheme.lastBenefitCutFraction = payment.cutFraction;
-        if (benefitRow) ledger.push(benefitRow);
+        if (benefitRow) {
+          const ledger = world.pensionLedger ?? (world.pensionLedger = []);
+          ledger.push(benefitRow);
+        }
       } catch (err) {
         Object.assign(scheme, snapshot.scheme);
-        ledger.length = snapshot.ledgerLength;
+        if (!snapshot.hadLedger) {
+          delete world.pensionLedger;
+        } else {
+          world.pensionLedger!.length = snapshot.ledgerLength;
+        }
         throw err;
       }
 
