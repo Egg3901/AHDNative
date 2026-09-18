@@ -147,11 +147,12 @@ import { startingCashFor } from "./stats/characterWealth.js";
 // see save.ts.
 // v47: grounded corporate-sector workforce (workers, representingUnionId);
 // see save.ts.
+// v48: interbank loan book (world.interbankLoans); see save.ts.
 // Issues #334/#345 difficulty and autonomy carry no schema version of
 // their own: both are optional axes with absent-means-default (see
 // WorldState.difficulty/nppAutonomyLevel), so default worlds keep the
 // schema 46 bytes.
-export const SCHEMA_VERSION = 47;
+export const SCHEMA_VERSION = 48;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -1068,6 +1069,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
     stateBills: [],
     news: [{ turn: 0, date: pack.era.startDate, headline: "A new game begins." }],
     bankLoans: [],
+    interbankLoans: [],
     depositInsurance: {},
     unions,
     bonds: {},

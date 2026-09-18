@@ -110,6 +110,23 @@ export * from "./cabinet/transition.js";
 export * from "./corporation/corporateSectorAssets.js";
 export * from "./corporation/corporateSectorSale.js";
 export * from "./corporation/corporateSectorAcquire.js";
+// Issue #326: atomic interbank lending and servicing. Types travel through
+// `export type * from "./types.js"` (WorldState.interbankLoans); these are
+// the commands, quote, and turn servicing the banking phases share with the
+// session seam so a displayed quote can never disagree with the debit.
+export {
+  INTERBANK_MAX_SHARE_OF_LENDABLE,
+  interbankHeadroom,
+  interbankInterestDue,
+  lenderInterbankOutstanding,
+  lendInterbank,
+  quoteInterbankMax,
+  repayInterbank,
+  serviceInterbankLoans,
+  sumInterbankDefaultsLastTurn,
+  writeOffLenderSideInterbankOnFailure,
+} from "./banking/interbank.js";
+export type { InterbankLoan, InterbankQuote, InterbankResult, InterbankServiceSummary } from "./banking/interbank.js";
 export * from "./ministerialOrders/catalog.js";
 export * from "./ministerialOrders/issue.js";
 export * from "./ministerialOrders/lifecycle.js";

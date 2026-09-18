@@ -404,7 +404,7 @@ const REQUIRED_WORLD_ARRAYS = [
   "statePartyElections", "nationalPartyElections", "nationalCommitteeElections", "coalitions",
   "cabinetMembers", "cabinetNominations", "supremeCourtSeats", "scotusNominations", "docketCases",
   "ukJudicialReviewCases", "activeWorldModifiers", "crises", "playerEventLog", "governorAddresses",
-  "governorOrders", "bills", "committees", "enactedLaws", "stateBills", "news", "bankLoans",
+  "governorOrders", "bills", "committees", "enactedLaws", "stateBills", "news", "bankLoans", "interbankLoans",
   "vitalSignsHistory", "ministerialOrders", "conflicts", "settlements", "subsidies",
 ] as const;
 
@@ -2585,6 +2585,16 @@ export function deserializeSave(raw: string): WorldState {
       }
     }
     save.world.meta.schemaVersion = 47;
+  }
+  // v47 -> v48: interbank loan book (#326). Pre-#326 saves have no
+  // world.interbankLoans array; backfill it empty (no bank ever originated
+  // an interbank loan before this wave, so empty is the true history, not a
+  // default). Charter.interbankDebt already existed as an optional balance-
+  // sheet field and needs no migration. No RNG is consumed.
+  if (save.schemaVersion < 48) {
+    const w = save.world as unknown as Record<string, unknown>;
+    if (!Array.isArray(w["interbankLoans"])) w["interbankLoans"] = [];
+    save.world.meta.schemaVersion = 48;
   }
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
