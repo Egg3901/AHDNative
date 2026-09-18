@@ -277,6 +277,33 @@ describe("WorldPanel", () => {
     expect(within(usa).getByText("Your country")).toBeInTheDocument();
   });
 
+  it("shows an explicit unavailable nation-context state when no nations are recorded", () => {
+    const overview = makeOverview({ nations: [] });
+    render(<WorldPanel overview={overview} section="nations" />);
+
+    // The context surface stays discoverable but offers no view to switch to,
+    // instead of an empty select claiming a viewed nation with no record.
+    const context = screen.getByRole("group", { name: "Nation context" });
+    expect(within(context).queryByRole("combobox", { name: "Nation view" })).not.toBeInTheDocument();
+    const note = within(context).getByRole("note");
+    expect(note).toHaveTextContent("No nations are recorded for this save");
+    expect(note).toHaveTextContent("nation view is unavailable");
+    expect(screen.getByText("No nations recorded.")).toBeInTheDocument();
+    expect(overview.playerCountryId).toBe("US");
+  });
+
+  it("keeps the nation view an enabled, labelled control at phone and desktop widths", () => {
+    render(<WorldPanel overview={makeOverview()} section="nations" />);
+
+    const select = screen.getByRole("combobox", { name: "Nation view" });
+    expect(select).toBeEnabled();
+    expect(select).toBeVisible();
+    // Native select: keyboard-focusable and touch-sized by the platform; the
+    // surrounding layout must not hide it behind the footer at either width.
+    select.focus();
+    expect(select).toHaveFocus();
+  });
+
   it("never mutates the player country when the nation view is switched", () => {
     const overview = makeOverview();
     render(<WorldPanel overview={overview} section="nations" />);
