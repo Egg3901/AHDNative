@@ -193,14 +193,15 @@ describe("#296 corporate-sector workers and union representation", () => {
     corporateSectorAssets(world);
     const raw = JSON.parse(serializeSave(world, SAVED_AT)) as any;
     const key = Object.keys(raw.world.corporateSectors)[0]!;
+    // Present-but-invalid rows fail closed. Missing fields are NOT in this
+    // list: the backfill adopts defaults for them (see the backfill test
+    // above and the adoption test below).
     const corruptions = [
       (save: any) => { save.world.corporateSectors[key].workers = -1; },
       (save: any) => { save.world.corporateSectors[key].workers = 1.5; },
       (save: any) => { save.world.corporateSectors[key].workers = "100"; },
-      (save: any) => { delete save.world.corporateSectors[key].workers; },
       (save: any) => { save.world.corporateSectors[key].representingUnionId = "US-nonexistent"; },
       (save: any) => { save.world.corporateSectors[key].representingUnionId = "UK-media"; },
-      (save: any) => { delete save.world.corporateSectors[key].representingUnionId; },
     ];
     for (const corrupt of corruptions) {
       const candidate = structuredClone(raw);
@@ -209,5 +210,22 @@ describe("#296 corporate-sector workers and union representation", () => {
         /Corporate sector|Duplicate corporate sector/,
       );
     }
+  });
+
+  it("adopts defaults for missing workforce fields at the save boundary", () => {
+    const world = createWorld(WORLD);
+    const assets = corporateSectorAssets(world);
+    const raw = JSON.parse(serializeSave(world, SAVED_AT)) as any;
+    const key = Object.keys(raw.world.corporateSectors)[0]!;
+    const before = assets[key]!;
+    delete raw.world.corporateSectors[key].workers;
+    delete raw.world.corporateSectors[key].representingUnionId;
+    const loaded = deserializeSave(JSON.stringify(raw));
+    expect(loaded.corporateSectors![key]!.workers).toBe(
+      calculateSectorWorkers(world.corporations[before.corporationId]!.revenue, null),
+    );
+    expect(loaded.corporateSectors![key]!.representingUnionId).toBe(
+      `${before.countryId}-${before.sectorType}`,
+    );
   });
 });

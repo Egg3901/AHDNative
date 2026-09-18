@@ -1914,3 +1914,60 @@ ported; prime/APY rates omitted (no Native DTO); no physical-device run.
   employer across agreements, pending a real employer-console caller.
 - #315 stays open until the supervisor merges: shared-scheduler full
   validation (typecheck/verify/build) is queued, not run locally per scope.
+## Union bargaining checkpoint, 2026-09-18 (#322 partial)
+
+- Bargaining campaigns run the full lifecycle against pinned AHDGame
+  `e364c04`: mandate-gated open over the employer's country+industry locals,
+  employer accept/counter/reject, union accept (member ballot when organizers
+  hold strength, direct settlement on an empty electorate), counter, withdraw,
+  and one-rung-per-turn escalation (overtime ban 35 / selective 50 / industry
+  65 support, 400-per-local strike fund, 40-per-local ban upkeep) in
+  `packages/engine/src/unions/actions.ts` over the pure rules in
+  `bargaining.ts` and state in `campaigns.ts`. Every action validates before
+  mutating and restores snapshots on a mid-write throw; same-turn double acts
+  refuse with the reference reload message.
+- Economic enforcement lands exactly once in `corporationTurn`
+  (`corporation/corporationLabour.ts`): turn-start strike state folds into a
+  worker-weighted output factor (0.75 striking, 0.96 ban) plus a transient
+  -8pp margin hit, applied in the corp math, then strike stepping
+  (concession / waitout with the +10 bump capped at 100 / ban / agreement)
+  runs after it. The unions pass never touches revenue, margin, or output;
+  a settled agreement suppresses the hit through its no-strike window, and
+  the penalty leaves with the strike. NPP employers and NPP unions answer
+  through the deterministic policy in `employerPolicy.ts`; worker political
+  feedback is computed from live campaign state through the verbatim
+  provider (dispute drag, settlement lift, suspended excluded).
+- Save shape stays additive with no version renumber:
+  `bargainingCampaigns` / `collectiveAgreements` are optional with
+  absent-means-empty, load validates without materializing, and
+  present-but-invalid rows fail closed at the save boundary; pre-#322 saves
+  round-trip byte-identical. The corp-turn labour read validates present
+  rows without materializing, so idle worlds stay map-free.
+- Focused evidence: `bargaining.test.ts` (25: audited constants, mandate
+  gates, terms, open/counter/dispute, ladder rungs and strike-plan targeting
+  with no-target/cooldown/funds blocks, settlement windows, lapse/reopen,
+  ballot open/tally/close rules, strike machine ignition/hysteresis/
+  resolution paths), `labourRelations.test.ts` (28: public open/answer/
+  ballot/re-vote flows, escalation with single fund debit, withdraw cooldown,
+  refusals and no-row-left failure silence, deadline/expiry/lapse clocks,
+  upkeep funding and defunded-ban end, suspended-treasury freeze, mandate
+  refresh, NPP autoplay without revenue touch, settlement math and policy
+  decisions, nudge drag/lift, advanceTurn seam, mid-campaign reload, old-save
+  byte stability, corrupt-map refusal), `corporationLabour.test.ts` (15:
+  idle/ban/strike/agreement factors, single-application revenue and margin
+  proof, waitout/concession/agreement/ban resolution, no manufactured
+  strikes, map-free corp turns, deterministic twins), 68 total green, with
+  neighboring `unions.sim` / `contributions` / `organizers` /
+  `sectorAggregation` / `corporateSector*` / `corporationTurn.sim` suites
+  green. Red-first fixes: `castRatificationBallot` crashed on a missing
+  `ratificationWeightFor` import (any ballot cast threw `ReferenceError`),
+  suspended unions were debited overtime upkeep against the frozen-treasury
+  contract, and the corp-turn labour read silently tolerated corrupt rows.
+- #322 stays open: shared-scheduler full validation (typecheck/verify) is
+  still owed and the merge decision sits with the supervisor. Documented
+  source gaps, not silent omissions: government mediation intervention
+  (#127 crisis path) is not ported, organic grievance strikes never ignite
+  (the corp turn resolves union-called strikes only), agreement wage floors
+  have no Native consumer yet (no-strike window only), and the
+  `labourNudgesForTurn` feedback has no metric-engine writer (the write
+  itself stays a documented blocker).

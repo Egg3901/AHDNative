@@ -12,8 +12,12 @@
  *  4. Respond to campaign offers / mediate / escalate
  *
  * AHDClient BLOCKERS (PORT-STUB, named):
- *  - Bargaining campaigns: no bargainingCampaigns/CollectiveAgreements collections yet
- *    (requires W?? bargaining wave). Open/respond/escalate/settlement are stubbed.
+ *  - Bargaining campaigns: collections landed in #322
+ *    (bargainingCampaigns/collectiveAgreements). Open/respond/escalate run
+ *    in the #322 labour-relations pass inside unionsTurn
+ *    (labourRelationsTurn.ts runNppBargainingAutoplay), not here, so the two
+ *    never double-act. Mediation request/response stays out (government
+ *    mediation is a documented #322 residual).
  *  - Mainline NPP collection is `npps`; AHDClient has no separate NPP collection —
  *    vacant leadership is filled from Politicians in the same country using the
  *    same militancy scoring, deterministic pick by union id hash.
@@ -140,10 +144,10 @@ export function processNppUnionBehavior(world: WorldState): NppUnionBehaviorResu
   }
 
   // --- 3. Bargaining campaign open + dispute handling ---
-  // BLOCKER: requires bargainingCampaigns collection and sector unionization data
-  // per employer (mainline src/lib/turn/unions/nppBargainingPolicy.ts).
-  // AHDClient has no bargaining wave yet, so these counters remain 0.
-  // The constants above are still exported and tested via goldens.
+  // Lives in the #322 labour-relations pass (runNppBargainingAutoplay), not
+  // here: opening/answering in both phases would double-act the same turn.
+  // These counters remain 0 by design. The demand constants above are still
+  // exported and tested via goldens.
 
   return result;
 }

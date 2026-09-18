@@ -69,6 +69,7 @@ import {
   freeCashFlowPerTurn,
   politicalContributionPerTurn,
 } from "./political.js";
+import { processLabourRelationsTurn } from "./labourRelationsTurn.js";
 import { decayUnionStrength, eligibleOrganizerShares } from "./organizers.js";
 import { applyUnionContributionPayouts, resolveContributionRecipient } from "./contributions.js";
 import {
@@ -159,14 +160,22 @@ export const unionsTurnPhase: TurnPhase = {
       union.duesPerWorkerAnnual = duesRate;
       union.updatedAtTurn = turn;
     }
+
+    // #322: deadline/expiry/ballot/lapse clocks, mandate refreshes, overtime
+    // upkeep, and NPP autonomous bargaining run after the dues pass, same
+    // turn position as the reference's labour-relations leg. The pass is
+    // RNG-free and never touches revenue, margin, or output: economic
+    // enforcement lives exactly once in corporationTurn.
+    processLabourRelationsTurn(world, turn);
   },
 };
 
 export const nppUnionBehaviorPhase: TurnPhase = {
   name: "nppUnionBehavior",
   run(world: WorldState) {
-    // Deterministic NPP leadership filling + orphan cleanup. Campaign/bargaining
-    // counters are PORT-STUB at 0 until bargainingCampaigns lands.
+    // Deterministic NPP leadership filling + orphan cleanup. Autonomous
+    // bargaining (open/answer/escalate) lives in the #322 labour-relations
+    // pass inside unionsTurn below, not here, so the two never double-act.
     processNppUnionBehavior(world);
   },
 };

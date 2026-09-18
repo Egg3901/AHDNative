@@ -159,6 +159,21 @@ describe("union political nudge goldens (src/lib/unions/labourRelationsPolitical
     expect(at0).toBeCloseTo(-2.25, 4);
     expect(at1).toBeCloseTo(-2.025, 4);
   });
+
+  it("treats null dispute timing anchors as starting now", () => {
+    const dispute = [{
+      countryId: "US",
+      status: "dispute",
+      escalationLevel: "industry_strike",
+      mandate: { leverage: 50 },
+      disputeStartedAtTurn: null,
+      escalationStartedAtTurn: null,
+    }];
+    const nudge = buildLabourRelationsPoliticalNudges(dispute, 7, [])
+      .get("US")
+      ?.get("economy.workerSecurity");
+    expect(nudge).toBeCloseTo(-2.25, 4);
+  });
 });
 
 describe("industrial relations balance scenarios (src/simulation/industrialRelationsBalance.ts)", () => {

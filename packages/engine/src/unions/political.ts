@@ -12,11 +12,12 @@
  * The provider's `economy.workerSecurity` channel is services-driven
  * (servicesWorkerSecurityNudge via the same add()+clamp pipeline as the
  * bargaining campaign contribution, one capped total, not a second uncapped
- * channel). W15 has no BargainingCampaign collection yet (that wave lands
- * separately), so the turn phase below calls the services-only path of
- * buildLabourRelationsPoliticalNudges; the campaign+dispute coefficients are
- * preserved in the helper for completeness and tested via goldens, but are
- * PORT-STUB at the phase level until bargaining lands.
+ * channel). Since #322 the campaign+dispute coefficients are live input:
+ * labourRelationsTurn.ts labourNudgesForTurn feeds open disputes and fresh
+ * settlements into buildLabourRelationsPoliticalNudges alongside the
+ * services slate. The metric-engine write itself stays a documented
+ * blocker (see below): the helper computes the nudges, no phase writes
+ * them into political state yet.
  *
  * Wire note (mainline→AHDClient bridge): mainline's LABOUR_POLITICAL_CAPS feed
  * src/lib/politicalMetrics via buildLabourRelationsPoliticalNudges → metricEngine.
@@ -132,8 +133,8 @@ type LabourPoliticalCampaign = {
   status: string;
   escalationLevel: string;
   mandate: { leverage: number };
-  disputeStartedAtTurn?: number;
-  escalationStartedAtTurn?: number;
+  disputeStartedAtTurn?: number | null;
+  escalationStartedAtTurn?: number | null;
   endedAtTurn?: number | null;
 };
 
@@ -147,7 +148,7 @@ function clamp(value: number, limit: number): number {
   return Math.max(-limit, Math.min(limit, value));
 }
 
-function ageSince(currentTurn: number, anchor: number | undefined): number {
+function ageSince(currentTurn: number, anchor: number | null | undefined): number {
   return Math.max(0, currentTurn - (anchor ?? currentTurn));
 }
 

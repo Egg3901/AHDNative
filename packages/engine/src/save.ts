@@ -28,6 +28,7 @@ import { seedStateResourceCapacities } from "./extraction/founding.js";
 import { seedCountryPolitics } from "./countryPolitics/overview.js";
 import {
   backfillSectorOwner,
+  backfillSectorWorkforce,
   calculateSectorWorkers,
   initialRepresentingUnionId,
   validateCorporateSectorAssets,
@@ -36,6 +37,10 @@ import { validateUnionOrganizers } from "./unions/organizers.js";
 import { validateUnionContributionLedger } from "./unions/contributions.js";
 import { validatePlayerLineOfCredit } from "./finance/playerLineOfCredit.js";
 import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
+import {
+  validateBargainingCampaigns,
+  validateCollectiveAgreements,
+} from "./unions/campaigns.js";
 
 /**
  * Save file = versioned JSON envelope around the full WorldState. Older
@@ -2625,6 +2630,13 @@ export function deserializeSave(raw: string): WorldState {
   // to fail closed on.
   if (save.world.corporateSectors !== undefined) {
     backfillSectorOwner(save.world.corporateSectors);
+    // #322: pre-existing materialized rows predate the shop-floor
+    // labor-relations fields. Missing density/wage/expectation/strike
+    // markers degrade to their read defaults (same absent-means-default
+    // rule as the owner backfill above); present-but-invalid values are
+    // left for the validator below to fail closed on. Applies to
+    // current-schema saves too, so no version renumber is needed.
+    backfillSectorWorkforce(save.world, save.world.corporateSectors);
     validateCorporateSectorAssets(save.world, save.world.corporateSectors);
   }
   // #320: union organizer rows. Saves written before the organizer slice
@@ -2652,6 +2664,19 @@ export function deserializeSave(raw: string): WorldState {
   // save/load leaves untouched worlds byte-identical.
   if (save.world.player.lineOfCredit !== undefined) {
     validatePlayerLineOfCredit(save.world.player.lineOfCredit);
+  }
+  // #322: bargaining campaigns + collective agreements. Saves written before
+  // the bargaining slice carry no maps; missing degrades to empty (no open
+  // campaigns, no enforceable agreements) and every loaded row is kept
+  // explicit (same additive shape as the organizer/ledger backfills above),
+  // so no version renumber is needed. Present-but-invalid rows fail closed.
+  // Absent stays absent (no materialization), so a pre-#322 save/load
+  // leaves untouched worlds byte-identical.
+  if (save.world.bargainingCampaigns !== undefined) {
+    validateBargainingCampaigns(save.world, save.world.bargainingCampaigns);
+  }
+  if (save.world.collectiveAgreements !== undefined) {
+    validateCollectiveAgreements(save.world, save.world.collectiveAgreements);
   }
   // Union strength keeps the reference absent-means-zero rule WITHOUT
   // materializing the field: a mid-campaign save/load must leave union rows

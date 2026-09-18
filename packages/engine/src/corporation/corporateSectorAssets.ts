@@ -30,6 +30,49 @@ export interface CorporateSectorAsset {
   workers: number;
   /** Seeded-union owner for the (countryId, sectorType) pair, or null when unrepresented (#296). */
   representingUnionId: string | null;
+  /**
+   * Shop-floor union density, 0-100 (#322). Ports CorporateSector.unionization:
+   * the mandate coverage term, the escalation eligibility gate
+   * (STRIKE_CALL_MIN_UNIONIZATION), and the raid/organize surface all read
+   * this field, not the union's worker-weighted density (which stays the
+   * dues/display figure per #320). Backfilled from the representing union's
+   * density (represented) or 0 (unrepresented); present-but-invalid fails
+   * closed. Source: db/types/corporation.ts CorporateSector.unionization.
+   */
+  unionization?: number;
+  /**
+   * Employer-set wage level, unitless index (#322). Ports
+   * CorporateSector.wageLevel: the mandate grievance term and the NPP
+   * settlement policy read this. Defaults to 1 (the reference's own
+   * `?? 1` read default). Source: db/types/corporation.ts
+   * CorporateSector.wageLevel.
+   */
+  wageLevel?: number;
+  /**
+   * Slow-moving worker pay expectation the grievance term trends against
+   * (#322). Ports CorporateSector.workerExpectationIndex: absent until the
+   * first observation initializes it AT the real wage (reference
+   * trendWorkerExpectations first-turn rule), so there is no spurious
+   * opening gap. Escalation records the pre-strike value on the campaign so
+   * settlement/lapse can restore it. Source: labour/strikes.ts
+   * trendWorkerExpectation.
+   */
+  workerExpectationIndex?: number | null;
+  /**
+   * Turn a union-called strike started on this sector, null when not
+   * striking (#322). Ports CorporateSector.strikeStartedAtTurn: the
+   * corporation turn throttles revenue while set (exactly once — the unions
+   * turn never touches revenue) and clears it through the strike resolution
+   * paths. Source: labour/strikes.ts StrikeState.
+   */
+  strikeStartedAtTurn?: number | null;
+  /**
+   * Turn before which this sector cannot strike again, null when clear
+   * (#322). Ports CorporateSector.strikeCooldownUntilTurn: planted on every
+   * resolution path (concession, waitout, ban, agreement). Source:
+   * labour/strikes.ts STRIKE_COOLDOWN_TURNS.
+   */
+  strikeCooldownUntilTurn?: number | null;
   forSale: { priceAnchor: number } | null;
   owner: CorporateSectorOwner;
 }
@@ -129,6 +172,9 @@ export function seedCorporateSectorAssets(world: WorldState): Record<string, Cor
   const assets: Record<string, CorporateSectorAsset> = {};
   for (const corporation of Object.values(world.corporations).sort((a, b) => a.id.localeCompare(b.id))) {
     const id = `corporate-sector:${corporation.countryId}:${corporation.sectorType}:${corporation.id}`;
+    const representingUnionId = initialRepresentingUnionId(world, corporation.countryId, corporation.sectorType);
+    const union = representingUnionId ? world.unions[representingUnionId] : undefined;
+    const density = union && Number.isFinite(union.unionization) ? union.unionization : 0;
     assets[id] = {
       id,
       corporationId: corporation.id,
@@ -136,7 +182,12 @@ export function seedCorporateSectorAssets(world: WorldState): Record<string, Cor
       stateId: null,
       sectorType: corporation.sectorType,
       workers: calculateSectorWorkers(corporation.revenue, null),
-      representingUnionId: initialRepresentingUnionId(world, corporation.countryId, corporation.sectorType),
+      representingUnionId,
+      unionization: Math.max(0, Math.min(100, density)),
+      wageLevel: 1,
+      workerExpectationIndex: null,
+      strikeStartedAtTurn: null,
+      strikeCooldownUntilTurn: null,
       forSale: null,
       owner: "corporation",
     };
@@ -167,6 +218,7 @@ export function validateCorporateSectorAssets(
     validateSectorOwner(asset);
     validateSectorWorkers(asset);
     validateSectorUnionReference(world, asset);
+    validateSectorLaborRelations(asset);
     const tuple = `${asset.corporationId}\u0000${asset.countryId}\u0000${asset.stateId ?? "national"}\u0000${asset.sectorType}`;
     if (tuples.has(tuple)) throw new Error(`Duplicate corporate sector identity: ${asset.id}`);
     tuples.add(tuple);
@@ -224,6 +276,36 @@ export function validateSectorWorkers(asset: CorporateSectorAsset): void {
 }
 
 /**
+ * Strict labor-relations validation (#322). All five fields are optional on
+ * pre-#322 rows and degrade to their read defaults (density 0 / wage 1 /
+ * expectation unset / no strike / no cooldown); a present-but-invalid value
+ * is corruption and fails closed. Density stays 0-100 like the union table;
+ * the wage is a finite non-negative index; strike/cooldown markers are null
+ * or integer turns >= 0.
+ */
+export function validateSectorLaborRelations(asset: CorporateSectorAsset): void {
+  const row = asset as unknown as Record<string, unknown>;
+  const unionization = row["unionization"];
+  if (unionization !== undefined && (typeof unionization !== "number" || !Number.isFinite(unionization) || unionization < 0 || unionization > 100)) {
+    throw new Error(`Corporate sector ${asset.id} has an invalid unionization`);
+  }
+  const wageLevel = row["wageLevel"];
+  if (wageLevel !== undefined && (typeof wageLevel !== "number" || !Number.isFinite(wageLevel) || wageLevel < 0)) {
+    throw new Error(`Corporate sector ${asset.id} has an invalid wage level`);
+  }
+  const expectation = row["workerExpectationIndex"];
+  if (expectation !== undefined && expectation !== null && (typeof expectation !== "number" || !Number.isFinite(expectation) || expectation <= 0)) {
+    throw new Error(`Corporate sector ${asset.id} has an invalid worker expectation index`);
+  }
+  for (const key of ["strikeStartedAtTurn", "strikeCooldownUntilTurn"] as const) {
+    const value = row[key];
+    if (value !== undefined && value !== null && (typeof value !== "number" || !Number.isInteger(value) || value < 0)) {
+      throw new Error(`Corporate sector ${asset.id} has an invalid ${key}`);
+    }
+  }
+}
+
+/**
  * Backfill pre-#295 materialized assets that predate the owner field. Missing
  * degrades to the #293 default ("corporation"); a present but invalid value
  * is left for validateSectorOwner to fail closed on.
@@ -274,6 +356,22 @@ export function backfillSectorWorkforce(world: WorldState, assets: Record<string
     if ((asset as { representingUnionId?: unknown }).representingUnionId === undefined) {
       asset.representingUnionId = initialRepresentingUnionId(world, asset.countryId, asset.sectorType);
     }
+    // #322: pre-existing materialized rows predate the shop-floor
+    // labor-relations fields. Missing density degrades to the representing
+    // union's current density (represented) or 0 (unrepresented) — the same
+    // figure #320 dues rows already read — and the wage to the reference's
+    // own `?? 1` read default. Expectation and strike markers stay
+    // absent/null (no strike in flight, no observed expectation yet).
+    // Present-but-invalid values are left for the strict validators.
+    if (asset.unionization === undefined) {
+      const union = asset.representingUnionId ? world.unions[asset.representingUnionId] : undefined;
+      const density = union && Number.isFinite(union.unionization) ? union.unionization : 0;
+      asset.unionization = Math.max(0, Math.min(100, density));
+    }
+    if (asset.wageLevel === undefined) asset.wageLevel = 1;
+    if (asset.workerExpectationIndex === undefined) asset.workerExpectationIndex = null;
+    if (asset.strikeStartedAtTurn === undefined) asset.strikeStartedAtTurn = null;
+    if (asset.strikeCooldownUntilTurn === undefined) asset.strikeCooldownUntilTurn = null;
   }
 }
 
