@@ -669,3 +669,22 @@ Focused evidence: `src/ui/MpAskAvailability510.test.tsx` (6 rendered
 tests: disabled Ask with title plus intact Profile/Actions/Menu at
 320/390/1280px, enabled Ask routing at 390px, SP composer reachability at
 390/1280px). No physical-iPhone evidence is claimed.
+## 18. Markets company to region entry (#510, economy/regions audit)
+
+The Sectors directory and the Regions detail both linked to the markets
+company detail, but the company detail rendered its recorded sector-asset
+region as inert text: a regional company was a dead end with no entry into
+the Regions destination. The company detail now shows a `View {region}
+region` button when the listing records a `sectorAsset.regionId`
+(`MarketsPanel` optional `onOpenRegion`, read-only fact otherwise; national
+assets keep `No region recorded` with no dead link). `MarketsRoute` drills
+through the shell with the selected company id as the return frame, so Back
+shows `Back to stock market` and restores the company; a stale region id
+falls back to the regions directory (`No region selected`, never stranded).
+The MP shell has no economy/regions surfaces (server reads only, none
+added), so this slice is SP entry/return only.
+
+Focused evidence: `src/ui/MarketsRegionLink510.test.tsx` (6 rendered
+tests: regional company round trip with company restore, national-asset
+read-only honesty, at 320/390/1280px). No physical-iPhone evidence is
+claimed.

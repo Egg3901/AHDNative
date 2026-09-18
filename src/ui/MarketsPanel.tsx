@@ -30,6 +30,8 @@ export interface MarketsPanelProps {
   busy: boolean;
   onAction: GameScreenProps["onAction"];
   onSectorSale?: GameScreenProps["onSectorSale"];
+  /** Opens the linked region detail (the existing regions destination). */
+  onOpenRegion?: (regionId: string) => void;
 }
 
 function AvailabilityHint({ cost, available, disabledReason }: { cost: number; available: boolean; disabledReason?: string }) {
@@ -747,6 +749,7 @@ function CompanyDetail({
   onAction,
   onSectorSale,
   onBack,
+  onOpenRegion,
 }: {
   listing: MarketListing;
   markets: MarketsView;
@@ -756,6 +759,8 @@ function CompanyDetail({
   onAction: GameScreenProps["onAction"];
   onSectorSale?: GameScreenProps["onSectorSale"];
   onBack: () => void;
+  /** Opens the linked region detail (the existing regions destination). */
+  onOpenRegion?: (regionId: string) => void;
 }) {
   const [shares, setShares] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -922,6 +927,23 @@ function CompanyDetail({
               {listing.sectorAsset.regionName ?? "No region recorded"}
             </dd>
           </div>
+          {/* #510 company-to-region entry: a recorded regional asset drills
+              to the existing Regions detail (the Sectors directory and the
+              Regions detail already link here, so the company was a dead
+              end). National assets keep the read-only fact, never a dead
+              link; surfaces without the handler render exactly as before. */}
+          {listing.sectorAsset.regionId != null && onOpenRegion ? (
+            <div>
+              <button
+                type="button"
+                className="ahd-btn ahd-btn-ghost ahd-btn-sm"
+                onClick={() => onOpenRegion(listing.sectorAsset.regionId!)}
+                aria-label={`View ${listing.sectorAsset.regionName ?? listing.sectorAsset.regionId} region`}
+              >
+                View {listing.sectorAsset.regionName ?? "region"}
+              </button>
+            </div>
+          ) : null}
           <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
             <dt style={{ fontSize: "0.82rem" }}>Workers</dt>
             <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem" }}>
@@ -1069,7 +1091,7 @@ function CompanyDetail({
   );
 }
 
-export function MarketsPanel({ markets, busy, onAction, onSectorSale, initialId = null, onSelect }: MarketsPanelProps) {
+export function MarketsPanel({ markets, busy, onAction, onSectorSale, initialId = null, onSelect, onOpenRegion }: MarketsPanelProps) {
   const [query, setQuery] = useState("");
   // Default context: the player's own country, mirroring AHDGame's sectors page
   // (src/app/sectors/page.tsx), which preselects the corporation/character
@@ -1232,6 +1254,7 @@ export function MarketsPanel({ markets, busy, onAction, onSectorSale, initialId 
         onAction={onAction}
         onSectorSale={onSectorSale}
         onBack={() => setSelectedId(null)}
+        onOpenRegion={onOpenRegion}
       />
     );
   }
@@ -1247,6 +1270,7 @@ export function MarketsPanel({ markets, busy, onAction, onSectorSale, initialId 
           onAction={onAction}
           onSectorSale={onSectorSale}
           onBack={() => setSelectedId(null)}
+          onOpenRegion={onOpenRegion}
         />
       </div>
     );
