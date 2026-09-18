@@ -1026,7 +1026,7 @@ describe("MarketsPanel trade routes (#77)", () => {
   it("shows an explicit empty state when the filtered country has no routes", async () => {
     const MarketsPanel = await loadPanel();
     const user = userEvent.setup();
-    const usOnly = makeMarkets().tradeRoutes.filter((route) => route.countryId === "US");
+    const usOnly = (makeMarkets().tradeRoutes ?? []).filter((route) => route.countryId === "US");
     render(<MarketsPanel markets={makeMarkets({ tradeRoutes: usOnly })} busy={false} onAction={vi.fn()} />);
     await user.selectOptions(screen.getByLabelText("Country"), "UK");
     expect(screen.getByText(/No trade routes recorded in United Kingdom/)).toBeInTheDocument();

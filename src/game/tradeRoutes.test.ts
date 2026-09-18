@@ -96,8 +96,8 @@ describe("orderFlow projection", () => {
     const notional = expectedNotional(fresh.sharePrice, 2);
     expect(executeAction(world, "player", "buyShares", { corpId: "US-media", shares: 2 }).ok).toBe(true);
     const after = projectMarkets(world).listings.find((l) => l.id === "US-media")!;
-    expect(after.orderFlow.buyWindow).toBe(notional);
-    expect(after.orderFlow.sellWindow).toBe(0);
+    expect(after.orderFlow!.buyWindow).toBe(notional);
+    expect(after.orderFlow!.sellWindow).toBe(0);
 
     // Existing behavior is untouched: cash, float, and holdings move as before.
     expect(after.playerShares).toBe(2);
@@ -110,7 +110,7 @@ describe("orderFlow projection", () => {
     expect(executeAction(world, "player", "buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
     const loaded = deserializeSave(serializeSave(world, "2026-09-10T00:00:00.000Z"));
     expect(
-      projectMarkets(loaded).listings.find((l) => l.id === "US-media")!.orderFlow.buyWindow,
+      projectMarkets(loaded).listings.find((l) => l.id === "US-media")!.orderFlow!.buyWindow,
     ).toBe(expectedNotional(price, 1));
   });
 
@@ -119,7 +119,7 @@ describe("orderFlow projection", () => {
     world.corporations["US-media"]!.insolventSinceTurn = 7;
     const listing = projectMarkets(world).listings.find((l) => l.id === "US-media")!;
     expect(listing.insolvent).toBe(true);
-    expect(listing.orderFlow.insolventSinceTurn).toBe(7);
+    expect(listing.orderFlow!.insolventSinceTurn).toBe(7);
   });
 });
 
