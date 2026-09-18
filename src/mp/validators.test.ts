@@ -14,12 +14,15 @@ import {
   parsePlayersOnline,
   parseSessionProbe,
   parseTurnStatus,
+  parseUnionDetail,
+  isUnionId,
   validateCorporationId,
   validateElectionId,
   validateExecuteArgs,
   validateNotificationId,
   validateNotificationPreference,
   validateSnoozeMinutes,
+  validateUnionId,
 } from "./validators";
 import { MP_EXECUTE_ACTION_TYPES } from "./endpoints";
 
@@ -502,6 +505,141 @@ describe("corporation-detail reference and payload (#359 corporation slice)", ()
       ),
     ).toBeNull();
     expect(parseCorporationDetail(JSON.stringify({ error: "Corporation not found" }))).toBeNull();
+  });
+});
+
+describe("union-detail reference and payload (#359 union slice)", () => {
+  const HEX_ID = "68a000000000000000000001";
+
+  it("accepts strict 24-hex ObjectIds, rejects smuggling and drift", () => {
+    expect(isUnionId(HEX_ID)).toBe(true);
+    expect(isUnionId("ffffffffffffffffffffffff")).toBe(true);
+    for (const bad of [
+      "",
+      "e1",
+      "42",
+      "union-42",
+      "68a000000000000000000001 ",
+      " 68a000000000000000000001",
+      `${HEX_ID}&view=full`,
+      `${HEX_ID}?view=full`,
+      `${HEX_ID}/leader`,
+      "../../admin/maintenance",
+      "/api/unions/68a000000000000000000001",
+      "leaderboard",
+      "found",
+      "012345678901",
+      "zzzzzzzzzzzzzzzzzzzzzzzz",
+      "68A00000000000000000000ZZ",
+      null,
+      42,
+    ]) {
+      expect(isUnionId(bad), JSON.stringify(bad)).toBe(false);
+      expect(validateUnionId(bad).ok).toBe(false);
+    }
+    expect(validateUnionId(HEX_ID)).toEqual({ ok: true, id: HEX_ID });
+  });
+
+  const detail = (overrides: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      union: {
+        id: HEX_ID,
+        name: "Amalgamated Millhands",
+        countryId: "US",
+        countryName: "United States",
+        sectorType: "manufacturing",
+        sectorLabel: "Manufacturing",
+        ownerId: "507f1f77bcf86cd799439011",
+        electionOpen: false,
+        members: 1200,
+        approval: 62,
+        treasury: 4500,
+        suspended: false,
+        ...overrides,
+      },
+      sectors: [{}, {}, {}],
+      workforce: { unionizedWorkers: 1200 },
+      dues: { duesPerWorkerAnnual: 10 },
+    });
+
+  it("projects the read-only summary identity, leadership, and scale", () => {
+    expect(parseUnionDetail(detail())).toEqual({
+      id: HEX_ID,
+      name: "Amalgamated Millhands",
+      countryId: "US",
+      countryName: "United States",
+      sectorType: "manufacturing",
+      sectorLabel: "Manufacturing",
+      ownerId: "507f1f77bcf86cd799439011",
+      electionOpen: false,
+      suspended: false,
+      members: 1200,
+      approval: 62,
+      treasury: 4500,
+      sectorCount: 3,
+    });
+  });
+
+  it("degrades absent decorations to null without losing the union", () => {
+    expect(
+      parseUnionDetail(detail({ countryName: null, sectorType: null, sectorLabel: null, ownerId: null })),
+    ).toMatchObject({
+      name: "Amalgamated Millhands",
+      countryName: null,
+      sectorType: null,
+      sectorLabel: null,
+      ownerId: null,
+    });
+    expect(
+      parseUnionDetail(
+        JSON.stringify({
+          union: { id: HEX_ID, name: "Millhands", countryId: "US" },
+          sectors: [],
+        }),
+      ),
+    ).toMatchObject({
+      name: "Millhands",
+      electionOpen: null,
+      suspended: null,
+      members: null,
+      approval: null,
+      treasury: null,
+      sectorCount: 0,
+    });
+    // Bargaining, dues, pension, and endorsement extras stay server-side:
+    // they never surface on the summary even when present.
+    const projected = parseUnionDetail(detail())!;
+    expect(JSON.stringify(projected)).not.toMatch(/duesPerWorker|activeServices|pension|endorsement|bargaining/i);
+  });
+
+  it("fails closed on structural drift", () => {
+    expect(parseUnionDetail("not json")).toBeNull();
+    expect(parseUnionDetail(JSON.stringify({ union: null }))).toBeNull();
+    expect(parseUnionDetail(JSON.stringify({}))).toBeNull();
+    expect(parseUnionDetail(detail({ name: "" }))).toBeNull();
+    expect(parseUnionDetail(detail({ name: "   " }))).toBeNull();
+    expect(parseUnionDetail(detail({ countryId: 42 }))).toBeNull();
+    expect(parseUnionDetail(detail({ id: "42" }))).toBeNull();
+    expect(parseUnionDetail(detail({ members: "many" }))).toBeNull();
+    expect(parseUnionDetail(detail({ members: -5 }))).toBeNull();
+    expect(parseUnionDetail(detail({ approval: "high" }))).toBeNull();
+    expect(parseUnionDetail(detail({ treasury: { amount: 1 } }))).toBeNull();
+    expect(
+      parseUnionDetail(
+        JSON.stringify({
+          union: { id: HEX_ID, name: "Millhands", countryId: "US" },
+          sectors: { length: 3 },
+        }),
+      ),
+    ).toBeNull();
+    expect(
+      parseUnionDetail(
+        JSON.stringify({
+          union: { id: HEX_ID, name: "Millhands", countryId: "US" },
+        }),
+      ),
+    ).toBeNull();
+    expect(parseUnionDetail(JSON.stringify({ error: "Union not found" }))).toBeNull();
   });
 });
 

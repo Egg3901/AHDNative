@@ -429,11 +429,11 @@ export class MpModeSession {
    * ObjectId, the only shape client-nav `myUnionId` carries) and the Rust
    * bridge re-validates before anything is sent. Expiry evicts the detail
    * with every other authed projection; a 404 means the union is gone
-   * server-side and reports the server's message with prior detail kept.
-   * Every other failure (including 403 while the labour system is
-   * disabled) maps through the shared read-failure contract with prior
-   * detail kept and an honest error, never stale success. Nothing here
-   * touches the local SP engine or saves.
+   * server-side and a 403 means the labour system is disabled: both report
+   * the server's message with prior detail kept. Every other failure maps
+   * through the shared read-failure contract with prior detail kept and an
+   * honest error, never stale success. Nothing here touches the local SP
+   * engine or saves.
    */
   async loadUnionDetail(id: unknown): Promise<MpSnapshot> {
     if (!this.snapshot.userId) return this.enter();
@@ -443,9 +443,10 @@ export class MpModeSession {
     }
     this.set({ error: null, notice: null, retryAfter: null });
     const result = await mpFetch(this.host, "union-detail", undefined, undefined, undefined, undefined, validated.id);
-    if (result.kind === "remote" && result.http === 404) {
-      // The referenced union no longer resolves server-side: say so with
-      // the server's message and keep the last loaded detail, never blank it.
+    if (result.kind === "remote" && (result.http === 404 || result.http === 403)) {
+      // The referenced union no longer resolves server-side, or the labour
+      // system is disabled: say so with the server's message and keep the
+      // last loaded detail, never blank it.
       return this.set({ phase: "offline", error: result.message });
     }
     if (result.kind !== "ok") return this.applyAuthedReadFailure(result);

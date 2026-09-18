@@ -100,7 +100,7 @@ describe("mpFetch/mpMutate", () => {
       kind: "ok",
       bodyText: '{"active":true}',
     });
-    expect(fetch).toHaveBeenCalledWith("notifications", 25, 0, undefined, undefined);
+    expect(fetch).toHaveBeenCalledWith("notifications", 25, 0, undefined, undefined, undefined);
 
     const corpFetch = vi.fn(async () => '{"corporation":{}}');
     const corpHost = hostWith({ fetch: corpFetch });
@@ -108,7 +108,24 @@ describe("mpFetch/mpMutate", () => {
       kind: "ok",
       bodyText: '{"corporation":{}}',
     });
-    expect(corpFetch).toHaveBeenCalledWith("corporation-detail", undefined, undefined, undefined, "42");
+    expect(corpFetch).toHaveBeenCalledWith("corporation-detail", undefined, undefined, undefined, "42", undefined);
+
+    const unionFetch = vi.fn(async () => '{"union":{}}');
+    const unionHost = hostWith({ fetch: unionFetch });
+    expect(
+      await mpFetch(unionHost, "union-detail", undefined, undefined, undefined, undefined, "68a000000000000000000001"),
+    ).toEqual({
+      kind: "ok",
+      bodyText: '{"union":{}}',
+    });
+    expect(unionFetch).toHaveBeenCalledWith(
+      "union-detail",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "68a000000000000000000001",
+    );
 
     const mutate = vi.fn(async () => '{"success":true}');
     const host2 = hostWith({ mutate });
