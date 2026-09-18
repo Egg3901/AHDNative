@@ -833,7 +833,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           {route === "bonds" && <BondMarketRoute initialId={detailId} load={loadBondMarket} revision={world} busy={busy} onAction={onAction} />}
           {route === "partyManagement" && <DetailQuery load={loadPartyManagement} revision={world} label="Party management">{management => <PartyManagementPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "search" && <SearchPanel load={search} revision={world} onOpen={openSearchResult} snapshot={searchSnapshot} onSnapshot={updateSearchSnapshot} />}
-          {route === "markets" && <MarketsRoute initialId={detailId} load={loadMarkets} revision={world} busy={busy} onAction={onAction} onSectorSale={onSectorSale} />}
+          {route === "markets" && <MarketsRoute initialId={detailId} load={loadMarkets} revision={world} busy={busy} onAction={onAction} onSectorSale={onSectorSale} onNavigate={navigate} onDrill={drillViewer} />}
           {route === "sectors" && <SectorsRoute load={loadMarkets} revision={world} busy={busy} onSectorSale={onSectorSale} onOpenCompany={(id) => drill("markets", id)} onOpenRegion={(id) => drill("regions", id)} />}
           {route === "legislationDetails" && <LegislationRoute initialId={detailId} countryId={world.countryId} load={loadLegislation} revision={world} busy={busy} onAction={onAction} />}
           {route === "help" && <HelpPanel />}
