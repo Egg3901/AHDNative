@@ -985,6 +985,26 @@ function projectProjection(
       .sort((a, b) => b.seats - a.seats)
     : null;
   const snapshots = tallyDoc?.turnSnapshots;
+  // Presidential generals accumulate per-state tally documents
+  // (tallyAdapter.ts realAccumulatePresident) and never write the
+  // single-state tallyState read above, so without a fallback the as-of
+  // turn would stay null while counted votes exist. Fall back to the latest
+  // per-state snapshot turn; the nationwide-fallback shape has no per-state
+  // docs and stays null until its own tallyState records a snapshot.
+  let snapshotTurn: number | null = snapshots?.length ? snapshots[snapshots.length - 1]!.turn : null;
+  if (snapshotTurn == null && election.electionType === "president") {
+    const statesRaw = election.stateTallyStates as
+      Record<string, { turnSnapshots?: { turn: number }[] }> | undefined;
+    if (statesRaw) {
+      for (const doc of Object.values(statesRaw)) {
+        for (const snap of doc?.turnSnapshots ?? []) {
+          if (typeof snap?.turn === "number" && (snapshotTurn == null || snap.turn > snapshotTurn)) {
+            snapshotTurn = snap.turn;
+          }
+        }
+      }
+    }
+  }
   const drivers: PoliticsProjectionDriverView[] = [];
   for (const c of election.candidates) {
     drivers.push({
@@ -1050,7 +1070,7 @@ function projectProjection(
     runnerUpName: runnerUp?.name ?? null,
     marginPct: leader?.voteShare != null && runnerUp?.voteShare != null
       ? leader.voteShare - runnerUp.voteShare : null,
-    seats, snapshotTurn: snapshots?.length ? snapshots[snapshots.length - 1]!.turn : null,
+    seats, snapshotTurn,
     drivers,
     projected,
   };
