@@ -112,10 +112,11 @@ the turn pipeline in both trees — no phase edge.
   Ph1-5 with a unified issuer debit. Shared state (player cash) is additive
   so the order commutes, and issuer sides (budgets vs corp capital) are
   disjoint — unobservable, no move.
-- **Bank solvency before bonds.** Native `bankSolvencyTurnPhase` runs before
-  the bond cluster; mainline runs it after. No interaction in Native (no
-  prop-book mark-to-market; solvency reads bank charters/deposits, untouched
-  by servicing) — no-op deviation.
+- **Bank solvency after repricing.** Native `bankSolvencyTurnPhase` runs
+  immediately after `recomputeSharePricesPhase` (after the bond cluster),
+  matching mainline, so the #328 prop-book mark lands on fresh prices. The
+  retail-bank math reads charters/deposits untouched by servicing, so that
+  leg is order-indifferent.
 - **Corporate price stays at par.** No credit-rating repricing for corporate
   issues (price 1.0 while performing, 0.1 on default per source Ph4) —
   carried over from #308, pinned by test.

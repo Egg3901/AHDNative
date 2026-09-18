@@ -5,6 +5,7 @@ import { deserializeSave, serializeSave } from "../save.js";
 import type { Corporation } from "../corporation/types.js";
 import { bankEquity } from "./balanceSheet.js";
 import { bankSolvencyTurnPhase } from "./bankSolvencyTurn.js";
+import { CONTAGION_PANIC_TURNS } from "./constants.js";
 import {
   charterTypeOf,
   closePropPosition,
@@ -526,6 +527,45 @@ describe("bankSolvencyTurn prop leg (#328)", () => {
       .entries()) {
       expect(corp.bankCharter!.panicTurns).toBe(peerPanics[i]);
     }
+  });
+
+  it("stamps a deposit-taking peer but not an investment peer when a deposit-taker fails", () => {
+    const world = freshWorld("solvency-contagion-dir");
+    const failing = world.corporations["US-financial"]!;
+    // Synthetic same-country peers (solo seeds one bank per country).
+    // Copied before mutation so each charter below is set independently.
+    const investmentPeer = {
+      ...failing,
+      id: "US-investment-peer",
+      bankCharter: { ...failing.bankCharter! },
+    };
+    const universalPeer = {
+      ...failing,
+      id: "US-universal-peer",
+      bankCharter: { ...failing.bankCharter! },
+    };
+    world.corporations["US-investment-peer"] = investmentPeer;
+    world.corporations["US-universal-peer"] = universalPeer;
+    failing.bankCharter!.warningBand = "red";
+    failing.bankCharter!.npcDeposits = 1_000_000;
+    failing.bankCharter!.cashReserves = 10_000;
+    failing.bankCharter!.postedCapital = 50_000;
+    investmentPeer.bankCharter!.charterType = "investment";
+    investmentPeer.bankCharter!.warningBand = "green";
+    investmentPeer.bankCharter!.npcDeposits = 0;
+    investmentPeer.bankCharter!.cashReserves = 1_000_000;
+    investmentPeer.bankCharter!.panicTurns = 0;
+    universalPeer.bankCharter!.charterType = "universal";
+    universalPeer.bankCharter!.warningBand = "green";
+    universalPeer.bankCharter!.npcDeposits = 50_000;
+    universalPeer.bankCharter!.cashReserves = 50_000;
+    universalPeer.bankCharter!.panicTurns = 0;
+    runSolvency(world);
+    expect(failing.bankCharter!.status).toBe("failed");
+    // Source: only a deposit-taking peer receives the panic bump.
+    expect(investmentPeer.bankCharter!.status).toBe("active");
+    expect(investmentPeer.bankCharter!.panicTurns).toBe(0);
+    expect(universalPeer.bankCharter!.panicTurns).toBe(CONTAGION_PANIC_TURNS);
   });
 
   it("applies no deposit flight to an investment charter", () => {
