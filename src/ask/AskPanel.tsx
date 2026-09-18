@@ -333,6 +333,11 @@ export function AskPanel({
   // cached shell exists to avoid.
   useEffect(() => {
     const onFocus = () => {
+      // #149: the link action owns verification while its bounce is in
+      // flight. A focus probe racing it could land a stale signed-out
+      // verdict over a just-linked session (or vice versa); the link's own
+      // post-bounce probe is the single owner until it settles.
+      if (linkingRef.current) return;
       setPhase((prev) => {
         if (prev === "signedOut") void probe();
         else if (Date.now() - lastRefreshRef.current > 60_000) void refreshQuota();
@@ -602,7 +607,7 @@ export function AskPanel({
           <button type="button" className="av-primary" disabled={linking} onClick={() => void signIn()}>
             Sign in
           </button>
-          <button type="button" className="av-quiet" onClick={() => void probe()}>
+          <button type="button" className="av-quiet" disabled={linking} onClick={() => void probe()}>
             I signed in — retry
           </button>
           {notice ? <p className="av-error">{notice}</p> : null}
