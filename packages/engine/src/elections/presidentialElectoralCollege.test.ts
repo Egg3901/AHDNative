@@ -97,13 +97,34 @@ describe("allocateElectoralVotes — winner-take-all goldens", () => {
     expect(result!.totalEv).toBe(32 + 24 + 3);
   });
 
-  it("breaks an exact intra-state tie alphabetically by candidate id (deterministic, documented simplification)", () => {
+  it("breaks an exact intra-state tie by first-seen order, matching mainline electoralVoteService.ts (stable votes-descending sort, no secondary key)", () => {
     const world = createWorld(OPTS);
     const rec = baseRecord({
       stateTallyStates: { WY: { totalVotes: { Zed: 100, Alpha: 100 } } },
     });
     const result = allocateElectoralVotes(world, rec);
+    expect(result!.stateWinners["WY"]).toBe("Zed");
+  });
+
+  it("resolves the same exact tie the other way when insertion order flips (order-dependent, not alphabetical)", () => {
+    const world = createWorld(OPTS);
+    const rec = baseRecord({
+      stateTallyStates: { WY: { totalVotes: { Alpha: 100, Zed: 100 } } },
+    });
+    const result = allocateElectoralVotes(world, rec);
     expect(result!.stateWinners["WY"]).toBe("Alpha");
+  });
+
+  it("keeps the exact-tie winner across a JSON save/reload round trip (string-key order preserved)", () => {
+    const world = createWorld(OPTS);
+    const rec = baseRecord({
+      stateTallyStates: { WY: { totalVotes: { Zed: 100, Alpha: 100 } } },
+    });
+    const reloaded = baseRecord(JSON.parse(JSON.stringify({ stateTallyStates: rec.stateTallyStates })));
+    const result = allocateElectoralVotes(world, reloaded);
+    expect(result!.stateWinners["WY"]).toBe("Zed");
+    expect(result!.evByCandidate).toEqual({ Zed: 3 });
+    expect(result!.totalEv).toBe(3);
   });
 
   it("skips a state with zero votes cast and still allocates the rest", () => {

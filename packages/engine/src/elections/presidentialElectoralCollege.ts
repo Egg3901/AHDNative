@@ -61,13 +61,17 @@ export interface ElectoralCollegeResult {
  * every state fails to produce a winner (no votes cast anywhere).
  *
  * Tie-break: highest cumulative votes; an EXACT tie within a state resolves
- * alphabetically by candidate id. Mainline resolves the same exact-tie case
- * with a sha256 hash of the unit + tied candidate ids (deterministic, but
- * pulls in `node:crypto`, which the engine's Tauri/DOM/network/filesystem-free
- * module boundary — see docs/FRAMEWORK.md — has no other reason to import).
- * Alphabetical is equally deterministic and, at the vote scale a full
- * state's turnout produces, an exact tie is not realistically reachable —
- * documented simplification, not a behavior mainline players would notice.
+ * to the first-seen candidate (insertion order of the per-state
+ * `totalVotes` map). That matches mainline's unit-winner rule in
+ * `src/lib/elections/electoralVoteService.ts`: entries are filtered to
+ * `v > 0` and stable-sorted by votes descending with no secondary key, so
+ * the earliest entry wins an exact tie. Mainline's sha256 tiebreaks live
+ * only in `src/lib/elections/contingentElection.ts` (contingent House /
+ * Senate ballots and deadlock fallbacks), never on this per-state EC path.
+ * First-seen is deterministic here because `totalVotes` insertion order
+ * follows `rec.candidates` order (`initElectionVoteTally` seeds keys in
+ * candidate order; accumulation updates them in place) and JSON save/reload
+ * preserves string-key order.
  */
 export function allocateElectoralVotes(world: WorldState, rec: ElectionRecord): ElectoralCollegeResult | null {
   const stateTallyStates = rec.stateTallyStates as Record<string, { totalVotes?: Record<string, number> }> | undefined;
@@ -83,9 +87,11 @@ export function allocateElectoralVotes(world: WorldState, rec: ElectionRecord): 
     if (!ev || ev <= 0) continue; // defensive: state has no live EV data (not a real region)
 
     const votes = stateTallyStates[stateId]?.totalVotes ?? {};
+    // Stable votes-descending sort with no secondary key: an exact tie keeps
+    // insertion (candidate) order, matching mainline electoralVoteService.ts.
     const entries = Object.entries(votes)
       .filter(([, v]) => v > 0)
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+      .sort((a, b) => b[1] - a[1]);
     const top = entries[0];
     if (!top) continue; // no votes cast in this state yet
 

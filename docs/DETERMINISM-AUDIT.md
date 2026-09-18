@@ -56,7 +56,7 @@ Seeded engines in production:
 - `packages/engine/src/referendum/seededVariance.ts`: FNV-1a over `${id}:${turn}` (post-import; see adaptations). No world-RNG draw.
 - `packages/engine/src/cabinet/nominationLifecycle.ts:105-117`: local draw from `world.meta.turn`, index, and `world.meta.rng[0]`. Seeded and serializable. It does not advance the shared `WorldRng` stream. Not `Math.random`.
 
-`packages/engine/src/elections/presidentialElectoralCollege.ts` documents an alphabetical tie-break instead of mainline `node:crypto` sha256, to keep the engine free of that module.
+`packages/engine/src/elections/presidentialElectoralCollege.ts` resolves exact per-state ties by first-seen candidate order (stable votes-descending sort), matching mainline `electoralVoteService.ts`; mainline `sha256` tiebreaks are contingent-ballot/deadlock only and were never on this path.
 
 Comment and catalog text that names `Math.random` / `Date.now` (for example `nominationLifecycle.ts:10,24`, `achievements/catalog.ts:95,518`, `phases/eraCrossing.ts:11`) is not a call site.
 
