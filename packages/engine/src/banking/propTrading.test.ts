@@ -680,6 +680,25 @@ describe("prop save compatibility (#328)", () => {
         c["propBook"] = [];
         c["propBookMarkValue"] = -5;
       },
+      (c) => {
+        c["charterType"] = "retail";
+        c["propBook"] = [
+          { asset: "equity", ref: "X", units: 10, costBasis: 100 },
+        ];
+        c["propBookMarkValue"] = 100;
+      },
+      (c) => {
+        delete c["charterType"];
+        c["propBook"] = [
+          { asset: "equity", ref: "X", units: 10, costBasis: 100 },
+        ];
+        c["propBookMarkValue"] = 100;
+      },
+      (c) => {
+        c["charterType"] = "retail";
+        c["propBook"] = [];
+        c["propBookMarkValue"] = 50;
+      },
     ];
     for (const mutate of cases) {
       const raw = saveJson(world);

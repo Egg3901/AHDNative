@@ -37,7 +37,7 @@ import { validateUnionOrganizers } from "./unions/organizers.js";
 import { validateUnionContributionLedger } from "./unions/contributions.js";
 import { validatePlayerLineOfCredit } from "./finance/playerLineOfCredit.js";
 import type { BankCharter } from "./banking/types.js";
-import { sumPositionMarks } from "./banking/propTrading.js";
+import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
 import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
 import {
   validateBargainingCampaigns,
@@ -722,6 +722,19 @@ function normalizeBankCharterPropBook(corpId: string, charter: BankCharter): voi
     charter.propBookMarkValue = sumPositionMarks(charter.propBook);
   } else if (typeof charter.propBookMarkValue !== "number" || !Number.isFinite(charter.propBookMarkValue) || charter.propBookMarkValue < 0) {
     throw new Error(`Not a valid save file: corporation ${corpId} has an invalid bank prop mark`);
+  }
+  // #328 coherence: no legal transition puts positions (or a nonzero mark)
+  // on a non-prop charter - opens refuse retail, failure clears the book,
+  // and seeds are retail/empty/zero. A retail book can only be smuggled in,
+  // so it fails closed instead of persisting inert until a charter flip.
+  if (
+    charterTypeOf(charter) === "retail" &&
+    ((charter.propBook?.length ?? 0) > 0 ||
+      (charter.propBookMarkValue ?? 0) !== 0)
+  ) {
+    throw new Error(
+      `Not a valid save file: corporation ${corpId} has proprietary positions on a retail bank charter`,
+    );
   }
 }
 
