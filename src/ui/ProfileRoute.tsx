@@ -33,8 +33,18 @@ export function ProfileRoute({ load, loadDestination, loadImperial, revision, er
       const destination = loadDestination ? await loadDestination() : "profile";
       if (!active) return;
       if (destination === "imperial" && loadImperial) {
-        setImperial(await loadImperial());
-        return;
+        // The gate routes imperial only when marker and record resolve
+        // together, but the loaders are separate round-trips and the
+        // imperial projection is nullable by contract: a null record means
+        // no persisted imperial identity, so fall back to the ordinary
+        // profile (the same destination the gate and the no-loader path
+        // choose) instead of leaving the route blank with no recovery.
+        const identity = await loadImperial();
+        if (!active) return;
+        if (identity) {
+          setImperial(identity);
+          return;
+        }
       }
       setProfile(await load());
     })().catch(reason => {
