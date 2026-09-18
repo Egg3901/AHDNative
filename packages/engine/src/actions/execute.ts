@@ -108,6 +108,8 @@ export type ExecuteActionParams = {
   // W35 player wealth
   holder?: string;
   targetPoliticianId?: string;
+  /** Wire denomination; defaults to the sender home currency. Must be a known world currency. */
+  currency?: string;
   // P0 campaign management (#67)
   category?: string;
   branch?: "a" | "b" | "c" | null;
@@ -1829,13 +1831,13 @@ function executeActionInner(
       if (actor.actionCounts) actor.actionCounts[actionId] = Math.max(0, (actor.actionCounts[actionId] ?? 1) - 1);
       return { ok: false, error: "wireTransfer requires targetPoliticianId and amount" };
     }
-    const res = wireTransferFn(world, targetPoliticianId, amount);
+    const res = wireTransferFn(world, targetPoliticianId, amount, params.currency);
     if (!res.ok) {
       actor.actions += cost;
       if (actor.actionCounts) actor.actionCounts[actionId] = Math.max(0, (actor.actionCounts[actionId] ?? 1) - 1);
       return { ok: false, error: res.error };
     }
-    return { ok: true, message: `Wired ${amount} to ${res.recipientName}` };
+    return { ok: true, message: `Wired ${amount} ${res.currency} to ${res.recipientName}` };
   }
 
   return { ok: false, error: `No effect for ${actionId}` };

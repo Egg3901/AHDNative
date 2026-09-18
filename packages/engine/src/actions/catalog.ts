@@ -762,7 +762,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   wireTransfer: {
     id: "wireTransfer",
     name: "Wire Transfer",
-    description: "Wire personal cash to another politician in your country (subject to a daily anchor-denominated cap). Ports src/app/api/characters/[id]/wire/route.ts core transfer + quota. Cross-border wires are PORT-STUB (no per-character currency wallets — see finance/wireTransfer.ts).",
+    description: "Wire personal funds to another politician, cross-border included: the transfer currency travels with the transfer (no conversion, no fee) and the daily cap is anchor-denominated. Ports src/app/api/characters/[id]/wire/route.ts core transfer + quota (see finance/wireTransfer.ts).",
     baseCost: 1,
     cooldown: 0,
     fundCost: 0,
