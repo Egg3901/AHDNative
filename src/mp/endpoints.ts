@@ -124,6 +124,26 @@
  *   titles); mechanics, settings, orders, metrics, budgets, military,
  *   monetary, and every write stay absent, so privileged departmental
  *   record cannot leak into exact figures.
+ * - governor-detail  GET /api/country/[code]/region/[id]/officials
+ *   (AHDGame src/app/api/country/[code]/region/[id]/officials/route.ts;
+ *   the region office page reads the same roster). Auth is public: the
+ *   route returns every elected bench for the region with banned holders
+ *   redacted to a null character (characterId null, name and party
+ *   cleared), served through the first-party session cookie. The country
+ *   code is the lowercase client-nav `governorOffice.countryCode`
+ *   (COUNTRY_CONFIGS key, e.g. us/sco; the route uppercases it before
+ *   lookup, answering 400 on an unknown country) and the region id is the
+ *   stored uppercase client-nav `governorOffice.stateId` (e.g. CA/SN;
+ *   the route uppercases before querying). Errors: 400 invalid country,
+ *   404 state not found (a seat with no governor record answers 200 with
+ *   no governor entry, never 404), generic { error } envelope
+ *   (src/lib/api/errors handleRouteError). No per-route rate limit is
+ *   documented; a 429 still maps through the shared remote-error
+ *   contract. Cache: no-store. Native keeps no copy beyond memory.
+ *   Native projects state identity plus the office holder only (state,
+ *   state name, country, office key, holder name); sibling benches and
+ *   the stored holder party key stay server-side (only the region server
+ *   page resolves that key), and every write stays absent.
  *
  * Audited writes:
  * - execute-action    POST /api/actions/execute  requireHumanSession
@@ -256,7 +276,8 @@ export type MpFetchOpId =
   | "election-detail"
   | "corporation-detail"
   | "union-detail"
-  | "cabinet-detail";
+  | "cabinet-detail"
+  | "governor-detail";
 
 export type MpMutateOpId =
   | "execute-action"

@@ -7,7 +7,7 @@ import {
 } from "./MobileNavigation";
 import { MpModeSession, type MpSnapshot } from "../mp/adapter";
 import { tauriMpBridgeHost, type MpBridgeHost } from "../mp/bridge";
-import { isCabinetCountryCode, isCabinetPositionId, isCorporationId, isElectionId, isUnionId } from "../mp/validators";
+import { isCabinetCountryCode, isCabinetPositionId, isCorporationId, isElectionId, isGovernorCountryCode, isGovernorStateId, isUnionId } from "../mp/validators";
 import { MP_EXECUTE_ACTIONS, MP_NOTIFICATION_TYPES, MP_SNOOZE_MINUTES_DEFAULT } from "../mp/endpoints";
 import { formatTurnCountdown } from "../mp/validators";
 import { MpAdminScreen } from "./MpAdminScreen";
@@ -46,6 +46,7 @@ const IDLE: MpSnapshot = {
   corporationDetail: null,
   unionDetail: null,
   cabinetDetail: null,
+  governorDetail: null,
   inbox: null,
   mailInbox: null,
   mailSent: null,
@@ -112,6 +113,9 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   /* Cabinet briefing drill-in (#359 cabinet slice): same contract as the
    * election, corporation, and union panels, one office at a time. */
   const [cabinetOpen, setCabinetOpen] = useState(false);
+  /* Governor roster drill-in (#359 governor slice): same contract as the
+   * election, corporation, union, and cabinet panels, one office at a time. */
+  const [governorOpen, setGovernorOpen] = useState(false);
 
   useEffect(() => {
     const session = sessionRef.current!;
@@ -270,6 +274,22 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
       : null;
   })();
 
+  /* Standing governor drill-in target: the live-site
+   * /country/[code]/region/[stateId]/office reference, gated on a valid
+   * country-plus-region pair. A half-valid pair (or an absent one) keeps
+   * the row display-only: no control, no request. The adapter and the
+   * Rust bridge re-validate before sending. */
+  const governorTarget = (() => {
+    const countryCode = snapshot.capabilities?.governorCountryCode ?? null;
+    const stateId = snapshot.capabilities?.governorStateId ?? null;
+    return countryCode !== null
+      && stateId !== null
+      && isGovernorCountryCode(countryCode)
+      && isGovernorStateId(stateId)
+      ? { countryCode, stateId }
+      : null;
+  })();
+
   /* The detail panel opens only once the authoritative summary is loaded;
    * failures stay on the shared error display with Standing intact. */
   function openElection(target: string) {
@@ -320,6 +340,20 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     });
   }
 
+  /* The governor panel opens only once the authoritative roster is
+   * loaded; failures stay on the shared error display with Standing
+   * intact. A 404 keeps the last loaded roster, so the panel opens
+   * only when fresh detail is behind it. */
+  function openGovernor(target: { countryCode: string; stateId: string }) {
+    setNoticeScope("general");
+    void run((s) => s.loadGovernorDetail(target.countryCode, target.stateId)).then((next) => {
+      if (next?.governorDetail) {
+        setGovernorOpen(true);
+        window.setTimeout(() => jumpTo("mp-governor"), 0);
+      }
+    });
+  }
+
   function runMail(operation: (session: MpModeSession) => Promise<MpSnapshot>): Promise<MpSnapshot | null> {
     setNoticeScope("mail");
     return run(operation);
@@ -362,8 +396,8 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
 
   /* Auth expiry evicts the details with every other authed projection, so
    * an open panel closes itself instead of showing a stale race, company,
-   * union, or office. Above the admin early-return: every render runs the
-   * same hooks. */
+   * union, cabinet office, or governorship. Above the admin early-return:
+   * every render runs the same hooks. */
   useEffect(() => {
     if (needsSession && electionOpen) setElectionOpen(false);
   }, [needsSession, electionOpen]);
@@ -376,6 +410,9 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   useEffect(() => {
     if (needsSession && cabinetOpen) setCabinetOpen(false);
   }, [needsSession, cabinetOpen]);
+  useEffect(() => {
+    if (needsSession && governorOpen) setGovernorOpen(false);
+  }, [needsSession, governorOpen]);
 
   if (adminOpen) {
     return <MpAdminScreen host={host} onBack={() => setAdminOpen(false)} />;
@@ -397,6 +434,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   const visibleCorporation = !needsSession && corporationOpen ? snapshot.corporationDetail : null;
   const visibleUnion = !needsSession && unionOpen ? snapshot.unionDetail : null;
   const visibleCabinet = !needsSession && cabinetOpen ? snapshot.cabinetDetail : null;
+  const visibleGovernor = !needsSession && governorOpen ? snapshot.governorDetail : null;
   const electionPhaseLabel = visibleElection
     ? visibleElection.isEnded
       ? "Ended"
@@ -537,17 +575,18 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
               * /unions/[id], My election -> /elections/[seatId ?? id],
               * cabinet -> /country/[cc]/executive/cabinet/[position]/office,
               * governor -> /country/[cc]/region/[state]/office). The
-              * election, corporation, union, and cabinet rows are real
-              * drill-ins: the election-detail read
+              * election, corporation, union, cabinet, and governor rows are
+              * real drill-ins: the election-detail read
               * (GET /api/elections?id=&view=summary), the
               * corporation-detail read (GET /api/corporations/[id]), the
-              * union-detail read (GET /api/unions/[id]), and the
+              * union-detail read (GET /api/unions/[id]), the
               * cabinet-detail read (GET
-              * /api/country/[code]/executive/cabinet/[positionId]/briefing)
-              * are allowlisted and have Native MP surfaces below. The
-              * governor row stays display-only: no dead controls, no links
-              * into local SP state. A row becomes actionable only with a
-              * supported authoritative MP destination behind it. */}
+              * /api/country/[code]/executive/cabinet/[positionId]/briefing),
+              * and the governor-detail read (GET
+              * /api/country/[code]/region/[id]/officials) are allowlisted
+              * and have Native MP surfaces below. A row without an
+              * allowlisted read and a Native surface stays display-only:
+              * no dead controls, no links into local SP state. */}
             {snapshot.capabilities && (
               <article className="ahd-card ahd-card-pad" aria-label="Standing">
                 <h2 className="ahd-h2">Standing</h2>
@@ -625,7 +664,23 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                         )}
                       </dd></>
                     )}
-                    {snapshot.capabilities.governorOffice && (<><dt>Governor</dt><dd>{snapshot.capabilities.governorOffice}</dd></>)}
+                    {snapshot.capabilities.governorOffice && (
+                      <><dt>Governor</dt><dd>
+                        {snapshot.capabilities.governorOffice}
+                        {governorTarget && (
+                          <>
+                            {" "}
+                            <button
+                              className="ahd-btn ahd-btn-sm"
+                              disabled={busy}
+                              onClick={() => openGovernor(governorTarget)}
+                            >
+                              View governorship
+                            </button>
+                          </>
+                        )}
+                      </dd></>
+                    )}
                   </dl>
                 ) : (
                   <p className="ahd-muted" style={{ margin: 0 }}>No offices, candidacies, or company standing.</p>
@@ -803,6 +858,37 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
               className="ahd-btn ahd-btn-sm ahd-btn-ghost"
               onClick={() => {
                 setCabinetOpen(false);
+                jumpTo("mp-profile");
+              }}
+            >
+              Back to Standing
+            </button>
+          </div>
+          </>
+        )}
+
+        {/* Governor roster drill-in (#359 governor slice): state identity
+          * plus the office holder for the Standing governorship, opened
+          * only with a loaded roster. Read-only: sibling benches, the
+          * stored holder party key, and every write stay absent. A vacant
+          * seat, or a holder redacted to a null character, names no
+          * holder. Back returns to Standing, never into local SP state. */}
+        {visibleGovernor && (
+          <>
+          <article id="mp-governor" className="ahd-card ahd-card-pad" aria-label="Governor detail" tabIndex={-1}>
+            <h2 className="ahd-h2">{visibleGovernor.stateName}</h2>
+            <dl className="ahd-mp-facts">
+              {visibleGovernor.officeType && (<><dt>Office</dt><dd>{visibleGovernor.officeType}</dd></>)}
+              <dt>Holder</dt><dd>{visibleGovernor.holderName ?? "Vacant or undisclosed"}</dd>
+              <dt>State</dt><dd>{visibleGovernor.state}</dd>
+              <dt>Country</dt><dd>{visibleGovernor.countryId}</dd>
+            </dl>
+          </article>
+          <div className="ahd-mp-row ahd-mp-back">
+            <button
+              className="ahd-btn ahd-btn-sm ahd-btn-ghost"
+              onClick={() => {
+                setGovernorOpen(false);
                 jumpTo("mp-profile");
               }}
             >
