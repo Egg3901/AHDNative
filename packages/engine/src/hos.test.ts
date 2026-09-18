@@ -243,13 +243,20 @@ describe("M1: economic-direction levers (HoS-only, call existing budget function
     expect(world.budgets["US"]!.taxRates.incomeTax).toBe(target);
   });
 
-  it("subsidy and command-economy levers stay honestly unavailable (PORT-STUB)", () => {
+  it("command-economy lever stays honestly unavailable (PORT-STUB); subsidy enactment is live (#94)", () => {
     const world = createWorld(HOS_OPTS);
-    const subsidy = executeAction(world, "player", "setSubsidyRate", {});
-    expect(subsidy.ok).toBe(false);
-    if (!subsidy.ok) expect(subsidy.error).toMatch(/unavailable/);
     const command = executeAction(world, "player", "commandEconomyDirective", {});
     expect(command.ok).toBe(false);
+    if (!command.ok) expect(command.error).toMatch(/unavailable/);
+    // setSubsidyRate now executes: missing op still fails closed, and career
+    // mode is gated before any world mutation.
+    const missingOp = executeAction(world, "player", "setSubsidyRate", {});
+    expect(missingOp.ok).toBe(false);
+    const career = createWorld(CAREER_OPTS);
+    const careerSubsidy = executeAction(career, "player", "setSubsidyRate", { subsidyOp: "enact" });
+    expect(careerSubsidy.ok).toBe(false);
+    if (!careerSubsidy.ok) expect(careerSubsidy.error).toMatch(/Head of State/);
+    expect(career.subsidies).toEqual([]);
   });
 });
 
