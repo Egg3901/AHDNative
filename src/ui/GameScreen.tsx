@@ -21,6 +21,7 @@ import { PoliticsRoute } from "./PoliticsRoute";
 import { ResourceBreakdown } from "./ResourceBreakdown";
 import { BottomNav, GameDrawer } from "./MobileNavigation";
 import type { DrawerRouteId, IdentityOrgLink } from "./MobileNavigation";
+import { installFooterClearance } from "./footerClearance";
 import { hingeBounds, useDualPaneLayout, useViewportSegments, type ViewportSegment } from "./dualPane";
 import { ActionsHub, type ActionsCategoryFilter } from "./ActionsHub";
 import { PartyMark } from "./PartyMark";
@@ -208,16 +209,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const screenRef = useRef<HTMLDivElement | null>(null);
   const footerRef = useRef<HTMLElement | null>(null);
-  useEffect(() => {
-    const footer = footerRef.current;
-    if (!footer) return;
-    const measure = () => screenRef.current?.style.setProperty("--ahd-footer-height", `${footer.getBoundingClientRect().height}px`);
-    measure();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(footer);
-    return () => observer.disconnect();
-  }, []);
+  useEffect(() => installFooterClearance(footerRef.current, screenRef.current), []);
   const detailsRef = useRef<HTMLDivElement | null>(null);
   const focusPage = useRef(false);
   const resourceButtonRefs = useRef<Partial<Record<ResourceId, HTMLButtonElement | null>>>({});

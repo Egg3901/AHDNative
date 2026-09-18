@@ -1698,6 +1698,25 @@ and removed. The smoke helper now walks the conversation; no engine change.
   tree (pre-existing, unrelated). #436 stays open with `status: partial`
   for the named physical-device pass reading the diagnostic; no device
   claim made.
+- Root-clearance follow-up, 2026-09-18 (layout invariant only, no geometry
+  restyle): both shells measured the fixed footer but published
+  `--ahd-footer-height` on the screen element alone, which `html`
+  (`scroll-padding-bottom`) cannot inherit, so the document rule always used
+  the 9rem fallback while `.ahd-main`/popover tracked the grown footer. New
+  shared `src/ui/footerClearance.ts` (`installFooterClearance`) publishes the
+  live height to the screen element and `document.documentElement`, clears
+  the shared root value on unmount, and is consumed by `GameScreen` and
+  `MpModeScreen` with no per-screen logic change. Desktop is unchanged by
+  construction (same inherited value for descendants; `env()` is zero).
+  Evidence: new `src/ui/FooterClearanceRoot.test.tsx` (9 cases: helper
+  publish/resize/uninstall/no-footer, the `html` consumer contract, and
+  rendered GameScreen root tracking plus unmount cleanup at 390px phone and
+  1280px desktop with a 172px grown footer); neighboring `MpFooterClearance`
+  (renders through the same helper), `FocusScrollContracts`,
+  `SafeAreaFallback`, `SafeAreaGaps`, `DeviceChromeContracts` suites green
+  (36 cases). No physical-device pass; full typecheck/verify/build owed via
+  the shared scheduler. #436 stays open with `status: partial`; no device
+  claim made.
 
 ## Dual-pane and hinge-aware layout checkpoint, 2026-09-16 (#438 partial)
 
