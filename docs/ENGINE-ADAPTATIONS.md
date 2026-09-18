@@ -54,7 +54,21 @@ Previously the dispatcher debited first and membership checked another 100k,
 so players needed twice the advertised funds. The formula and actual successful
 charge are unchanged. Public action tests exercise the 100k-200k band, exact
 100k boundary and no-charge rejection. [Party evidence](PARTY-MANAGEMENT.md)
-records the still-divergent single-founder charter lifecycle.
+records the charter lifecycle.
+
+## Charter draft lifecycle SP adaptation (#95)
+
+The pending-founder lifecycle (`draftCharter`/`signCharter`/`rejectCharter`
+in `packages/engine/src/membership.ts`) keeps the reference 3-founder count,
+proposer auto-sign, 3-of-3 ratification, Overton platform clamp, name
+reservation, rejection, and 14-turn expiry, but the co-founder slots are
+same-country NPC politicians: there are no other humans offline, so the
+human-ownership check, home-state adjacency, founding-cohort picks, NPP
+cohort spawn, state-org provisioning, leadership-election bootstrap, and
+invitation/ratification notifications are explicitly not ported. The draft
+pays the single 100k founding charge; ratification pays nothing. The
+immediate `foundParty` path is unchanged. Public-action wiring and UI are
+follow-up work; see [party evidence](PARTY-MANAGEMENT.md).
 
 ## Campaign timing
 
