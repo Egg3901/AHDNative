@@ -114,3 +114,41 @@ describe("disbandCaucus through the public action (#60)", () => {
     expect(serializeSave(world, SAVED_AT)).toBe(before);
   });
 });
+
+describe("stale chair affiliation (#60)", () => {
+  it("rejects tax edit and disband when the chair seat outlives the membership pointer", () => {
+    const { world, caucusId } = chairedCaucus(2);
+    // Models a sweep or legacy save that cleared the active membership
+    // pointer without vacating the recorded chair seat.
+    world.player.caucusId = null;
+    const before = serializeSave(world, SAVED_AT);
+
+    const tax = executeAction(world, "player", "setCaucusTaxRate", { caucusId, caucusTaxRate: 4 });
+    expect(tax.ok).toBe(false);
+    expect(tax.ok ? "" : tax.error).toMatch(/active member.*chair|chair/i);
+    const disband = executeAction(world, "player", "disbandCaucus", { caucusId });
+    expect(disband.ok).toBe(false);
+    expect(disband.ok ? "" : disband.error).toMatch(/active member.*chair|chair/i);
+    expect(serializeSave(world, SAVED_AT)).toBe(before);
+    expect(world.caucuses.find((c) => c.id === caucusId)!.disbandedAt).toBeNull();
+  });
+
+  it("rejects tax edit and disband when the roster entry is gone but the pointer remains", () => {
+    const { world, caucusId } = chairedCaucus(2);
+    world.caucuses.find((c) => c.id === caucusId)!.memberIds = [];
+    const before = serializeSave(world, SAVED_AT);
+
+    expect(executeAction(world, "player", "setCaucusTaxRate", { caucusId, caucusTaxRate: 4 }).ok).toBe(false);
+    expect(executeAction(world, "player", "disbandCaucus", { caucusId }).ok).toBe(false);
+    expect(serializeSave(world, SAVED_AT)).toBe(before);
+  });
+
+  it("restores chair control once the player rejoins through the public path", () => {
+    const { world, caucusId } = chairedCaucus(2);
+    world.player.caucusId = null;
+    expect(executeAction(world, "player", "setCaucusTaxRate", { caucusId, caucusTaxRate: 4 }).ok).toBe(false);
+    expect(executeAction(world, "player", "joinCaucus", { caucusId }).ok).toBe(true);
+    expect(executeAction(world, "player", "setCaucusTaxRate", { caucusId, caucusTaxRate: 4 }).ok).toBe(true);
+    expect(world.caucuses[0]!.taxRate).toBe(4);
+  });
+});

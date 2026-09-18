@@ -120,17 +120,32 @@ function playerChairsCaucus(world: WorldState, caucus: Caucus): boolean {
 }
 
 /**
+ * True when the player is actively affiliated with this caucus: the single
+ * active membership pointer and the inline roster agree. A bare chairId is a
+ * record, not an affiliation; legacy saves and membership sweeps can leave a
+ * chair seat behind after the membership pointer or roster entry is gone.
+ */
+function playerActivelyBelongsToCaucus(world: WorldState, caucus: Caucus): boolean {
+  return world.player.caucusId === caucus.id && caucus.memberIds.includes("player");
+}
+
+/**
  * Chair-only tax edit. Ports the reference PATCH
  * src/app/api/country/[code]/parties/[id]/caucuses/[slug]/route.ts: the chair
  * sets a 0-5 rate, and the route charges neither action points nor funds. A
  * non-chair member cannot edit the rate (the helper previously allowed any
- * member, which the reference route rejects).
+ * member, which the reference route rejects). The chair must also be actively
+ * affiliated (membership pointer plus roster entry); a bare chairId left
+ * behind by a sweep or legacy save cannot act on a caucus the player left.
  */
 export function canSetCaucusTaxRate(world: WorldState, caucusId: string): CaucusResult {
   const caucus = world.caucuses.find((c) => c.id === caucusId);
   if (!caucus) return { ok: false, error: `Caucus not found: ${caucusId}` };
   if (caucus.disbandedAt !== null) return { ok: false, error: "Caucus is disbanded" };
   if (!playerChairsCaucus(world, caucus)) return { ok: false, error: "Only the caucus chair can set the tax rate" };
+  if (!playerActivelyBelongsToCaucus(world, caucus)) {
+    return { ok: false, error: "Only an active member holding the caucus chair can set the tax rate" };
+  }
   return { ok: true };
 }
 
@@ -158,6 +173,9 @@ export function canDisbandCaucus(world: WorldState, caucusId: string): CaucusRes
   if (!caucus) return { ok: false, error: `Caucus not found: ${caucusId}` };
   if (caucus.disbandedAt !== null) return { ok: false, error: "Caucus is already disbanded" };
   if (!playerChairsCaucus(world, caucus)) return { ok: false, error: "Only the caucus chair can disband the caucus" };
+  if (!playerActivelyBelongsToCaucus(world, caucus)) {
+    return { ok: false, error: "Only an active member holding the caucus chair can disband the caucus" };
+  }
   return { ok: true };
 }
 

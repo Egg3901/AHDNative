@@ -316,6 +316,30 @@ describe("chair action projection (#61)", () => {
     expect(projectCaucusManagement(world).caucuses[0]).toMatchObject({ taxRate: 2, memberCount: 0 });
   });
 
+  it("quotes a stale chair seat unavailable with the engine's own reason (#60)", () => {
+    const world = readyWorld();
+    expect(
+      executeAction(world, "player", "createCaucus", { caucusName: "Blue Dog Caucus", caucusTaxRate: 2 }).ok,
+    ).toBe(true);
+    const id = projectCaucusManagement(world).caucuses[0]!.id;
+    expect(projectCaucusChairAction(world, id, "disbandCaucus").available).toBe(true);
+    // A sweep or legacy save drops the membership pointer but keeps the seat.
+    world.player.caucusId = null;
+    for (const actionId of ["setCaucusTaxRate", "disbandCaucus"] as const) {
+      const view = projectCaucusChairAction(world, id, actionId);
+      expect(view.available).toBe(false);
+      expect(view.disabledReason).toMatch(/active member/i);
+      const result = executeAction(
+        world,
+        "player",
+        actionId,
+        actionId === "setCaucusTaxRate" ? { caucusId: id, caucusTaxRate: 4 } : { caucusId: id },
+      );
+      expect(result.ok).toBe(false);
+      expect(result.ok ? "" : result.error).toBe(view.disabledReason);
+    }
+  });
+
   it("projects the reloaded chair state after save/reload", () => {
     const world = readyWorld();
     expect(
