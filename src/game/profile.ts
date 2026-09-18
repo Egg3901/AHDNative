@@ -3,6 +3,7 @@ import { projectResources } from "./resources";
 import { campaignSongId, safeAvatarUrl, safeHeaderUrl } from "./profileValidation";
 import type { ProfileAchievement, ProfileView } from "./profileTypes";
 import { projectProfileConstituency } from "./profileConstituency";
+import { projectProfileCorporations } from "./profileCorporation";
 
 function homeCurrency(world: WorldState, countryId: string): string {
   return world.budgets[countryId]?.currencyCode ?? world.exchangeRates[countryId]?.currencyCode ?? "XXX";
@@ -135,6 +136,7 @@ export function projectProfile(world: WorldState): ProfileView {
     stats,
     demographics,
     profileHeaderUrl,
+    corporations: projectProfileCorporations(world),
     careerHistory: world.elections
       .filter((election) => election.status === "resolved" && election.winners?.includes("player"))
       .sort((a, b) => (b.resolvedTurn ?? b.endTurn) - (a.resolvedTurn ?? a.endTurn))
