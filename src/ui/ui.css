@@ -153,10 +153,13 @@
 
   /* iOS safe-area fallback (#436 WKWebView zero-env failure): published by
      src/ui/iosSafeArea.ts. 0px unless the live env() probe reads ~zero on
-     an iPhone-class portrait webview (59px fail-safe floor). Every top
-     rule below composes it as max(<base>, var(...), env(...)), so it only
-     ever raises the floor and never lowers a working native inset. */
+     an iPhone-class portrait webview (59px fail-safe top floor, 34px
+     home-indicator bottom floor). Every top rule below composes the top
+     floor as max(<base>, var(...), env(...)), and every persistent bottom
+     control composes the bottom floor the same way, so either only ever
+     raises the floor and never lowers a working native inset. */
   --ahd-safe-area-top-fallback: 0px;
+  --ahd-safe-area-bottom-fallback: 0px;
 
   /* Material tokens (issue #437) — glass-inspired hierarchy on the AHD
      palette. Chrome: persistent footer/drawer. Elevated: resource details.
@@ -532,8 +535,10 @@ html, body { overflow-x: hidden; }
 }
 
 /* Persistent status footer. The bottom padding clears the home indicator
- * (#436); content clearance follows the measured footer height including
- * that padding, so the resource row and bottom nav never hide page content. */
+ * (#436), including the zero-env WKWebView fail-safe floor, so the footer
+ * never parks under the indicator where env() is not reporting; content
+ * clearance follows the measured footer height including that padding, so
+ * the resource row and bottom nav never hide page content. */
 .ahd-footer {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
   background: var(--ahd-material-chrome-bg);
@@ -542,7 +547,7 @@ html, body { overflow-x: hidden; }
   border-top: 1px solid color-mix(in srgb, var(--ahd-fg) 18%, transparent);
   box-shadow: 0 -10px 32px rgb(0 0 0 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.06);
   padding-top: 0.25rem;
-  padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
+  padding-bottom: max(0.35rem, var(--ahd-safe-area-bottom-fallback, 0px), env(safe-area-inset-bottom));
   overflow: visible;
 }
 .ahd-footer-inner {
@@ -709,7 +714,7 @@ html, body { overflow-x: hidden; }
   display: flex; flex-direction: column;
   overscroll-behavior: contain;
   padding-top: max(0.7rem, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top));
-  padding-bottom: max(0.7rem, env(safe-area-inset-bottom));
+  padding-bottom: max(0.7rem, var(--ahd-safe-area-bottom-fallback, 0px), env(safe-area-inset-bottom));
   padding-left: max(0, env(safe-area-inset-left));
   animation: ahd-drawer-in 0.18s ease-out;
 }
@@ -761,7 +766,7 @@ html, body { overflow-x: hidden; }
 .ahd-drawer-quick {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem;
   padding: 0.5rem 0.9rem 0;
-  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  padding-bottom: max(0.5rem, var(--ahd-safe-area-bottom-fallback, 0px), env(safe-area-inset-bottom));
   border-top: 1px solid color-mix(in srgb, var(--ahd-fg) 10%, transparent);
   background: transparent;
 }
@@ -1323,7 +1328,7 @@ html {
 .ahd-creation-actions {
   position: sticky; bottom: 0; z-index: 5;
   display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;
-  margin-top: 1rem; padding: 0.6rem 0 max(0.6rem, env(safe-area-inset-bottom));
+  margin-top: 1rem; padding: 0.6rem 0 max(0.6rem, var(--ahd-safe-area-bottom-fallback, 0px), env(safe-area-inset-bottom));
   background: var(--ahd-material-chrome-bg);
   -webkit-backdrop-filter: blur(var(--ahd-material-chrome-blur));
   backdrop-filter: blur(var(--ahd-material-chrome-blur));

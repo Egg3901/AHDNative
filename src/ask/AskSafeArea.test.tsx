@@ -62,7 +62,7 @@ describe("Ask window-surface safe-area geometry (#436)", () => {
 
   it("clears the home indicator under the window-surface composer without moving desktop", () => {
     expect(css).toMatch(
-      /\.askview\[data-surface="window"\] \.av-composer\s*\{[^}]*padding-bottom:\s*max\(10px,\s*env\(safe-area-inset-bottom\)\)/,
+      /\.askview\[data-surface="window"\] \.av-composer\s*\{[^}]*padding-bottom:\s*max\(10px,\s*var\(--ahd-safe-area-bottom-fallback,\s*0px\),\s*env\(safe-area-inset-bottom\)\)/,
     );
   });
 
