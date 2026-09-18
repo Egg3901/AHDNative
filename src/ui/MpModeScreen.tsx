@@ -84,6 +84,8 @@ function withPresenceRefresh(session: MpModeSession, base: Promise<MpSnapshot>):
 export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   const sessionRef = useRef<MpModeSession | null>(null);
   if (!sessionRef.current) sessionRef.current = new MpModeSession(host ?? tauriMpBridgeHost());
+  const screenRef = useRef<HTMLElement | null>(null);
+  const footerRef = useRef<HTMLElement | null>(null);
   const [snapshot, setSnapshot] = useState<MpSnapshot>(IDLE);
   const [busy, setBusy] = useState(false);
   const [region, setRegion] = useState("");
@@ -445,6 +447,24 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     setAdminOpen(false);
   }, [accountKey]);
 
+  useEffect(() => {
+    // MP content clearance (#436): the fixed footer grows with the home
+    // indicator and large text, so publish its measured height for
+    // .ahd-mp-layout to clear. Same contract as GameScreen; the measurement
+    // includes the footer's own safe-area padding, so the layout adds only
+    // breathing room on top of it. Re-runs on adminOpen because Admin
+    // status swaps the whole main element out and Back mounts a fresh one
+    // a mount-only effect would never measure.
+    const footer = footerRef.current;
+    if (!footer) return;
+    const measure = () => screenRef.current?.style.setProperty("--ahd-footer-height", `${footer.getBoundingClientRect().height}px`);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(footer);
+    return () => observer.disconnect();
+  }, [adminOpen]);
+
   if (adminOpen) {
     return <MpAdminScreen host={host} onBack={() => setAdminOpen(false)} />;
   }
@@ -479,7 +499,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     : null;
 
   return (
-    <main className="ahd-screen ahd-mp">
+    <main ref={screenRef} className="ahd-screen ahd-mp">
       <div className="ahd-container ahd-mp-layout">
         <header className="ahd-mp-row" aria-label="Multiplayer header">
           <div style={{ minWidth: 0 }}>
@@ -1269,7 +1289,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
           </>
         )}
       </div>
-      <footer className="ahd-footer ahd-mp-footer" aria-label="Multiplayer navigation">
+      <footer ref={footerRef} className="ahd-footer ahd-mp-footer" aria-label="Multiplayer navigation">
         <div className="ahd-container ahd-footer-inner">
           <nav className="ahd-bottomnav ahd-mp-bottomnav" aria-label="Primary">
             <a className="ahd-bottomnav-item" aria-label="Profile" href="#mp-profile">

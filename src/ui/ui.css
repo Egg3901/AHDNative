@@ -1404,7 +1404,13 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
 .ahd-bills-pager { flex-wrap: wrap; min-width: 0; }
 .ahd-bills-pager .ahd-btn { min-width: 0; max-width: 100%; }
 .ahd-bills-pager > span { min-width: 0; }
-.ahd-mp-layout { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; padding-top: max(1rem, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top)); padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
+/* MP content clearance (#436): the fixed MP footer grows with the home
+ * indicator and large text, so a hardcoded bottom floor can park the last
+ * content row underneath it. Track the footer the shell measures at runtime
+ * (MpModeScreen publishes --ahd-footer-height, including its own safe-area
+ * padding, exactly like .ahd-main), with the shipped 6rem floor plus the
+ * same 1rem breathing room when nothing is measured yet. */
+.ahd-mp-layout { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; padding-top: max(1rem, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top)); padding-bottom: calc(var(--ahd-footer-height, 6rem) + 1rem); }
 .ahd-mp-footer { z-index: 40; }
 .ahd-mp-bottomnav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .ahd-mp-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; min-width: 0; }
