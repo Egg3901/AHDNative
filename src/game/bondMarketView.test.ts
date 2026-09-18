@@ -64,7 +64,9 @@ describe('projectBondMarket denomination balances (#306)', () => {
   it('copies balances so panel reads cannot mutate the world', () => {
     const base = world();
     const market = projectBondMarket(base);
-    market.balances['GBP'] = 0;
+    const balances = market.balances;
+    expect(balances).toBeDefined();
+    balances!['GBP'] = 0;
     expect((base.player as { currencyBalances: { personal: Record<string, number> } }).currencyBalances.personal['GBP']).toBe(5000);
   });
 });
