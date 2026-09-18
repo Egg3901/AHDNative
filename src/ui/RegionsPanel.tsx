@@ -33,6 +33,10 @@ export interface RegionsPanelProps {
   onDirectoryOpenChange: (open: boolean) => void;
   /** Opens a linked destination (election, office, profile) from the role rows. */
   onNavigate?: (route: DrawerRouteId, id?: string) => void;
+  /** Opens the national party detail for a party-support row id (#510). */
+  onOpenParty?: (partyId: string) => void;
+  /** Opens the national race detail for a region election id (#510). */
+  onOpenElection?: (electionId: string) => void;
 }
 
 function number(value: number | null, maximumFractionDigits = 0): string {
@@ -401,13 +405,24 @@ function ChamberCard({
   );
 }
 
-function ElectionCard({ election, clock }: { election: RegionElectionView; clock: GameClock }) {
+function ElectionCard({ election, clock, onOpenElection }: { election: RegionElectionView; clock: GameClock; onOpenElection?: (electionId: string) => void }) {
   return (
     <li style={{ borderTop: "1px solid var(--ahd-border)", paddingTop: "0.55rem" }} aria-label={election.id}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "flex-start", flexWrap: "wrap" }}>
         <strong style={{ minWidth: 0, overflowWrap: "anywhere" }}>{election.chamberName}</strong>
         <span className="ahd-badge" style={{ flexShrink: 0 }}>{humanize(election.status)}</span>
       </div>
+      {onOpenElection ? (
+        <button
+          type="button"
+          className="ahd-btn ahd-btn-sm"
+          style={{ marginTop: "0.35rem" }}
+          onClick={() => onOpenElection(election.id)}
+          aria-label={`View ${humanize(election.electionType)} race details`}
+        >
+          View race details
+        </button>
+      ) : null}
       <div className="ahd-muted" style={{ fontSize: "0.7rem", marginTop: "0.25rem" }}>
         {humanize(election.electionType)} · cycle {number(election.cycle)} · {number(election.totalSeats)} seat{election.totalSeats === 1 ? "" : "s"}
       </div>
@@ -435,12 +450,16 @@ function SelectedRegion({
   busy,
   onQueryChange,
   onNavigate,
+  onOpenParty,
+  onOpenElection,
 }: {
   view: RegionsView;
   selected: RegionDetailView;
   busy: boolean;
   onQueryChange: (query: RegionsQuery) => void;
   onNavigate?: (route: DrawerRouteId, id?: string) => void;
+  onOpenParty?: (partyId: string) => void;
+  onOpenElection?: (electionId: string) => void;
 }) {
   const [electionDraft, setElectionDraft] = useState(selected.electionQuery);
   const [memberPages, setMemberPages] = useState<Record<string, number>>({});
@@ -501,6 +520,17 @@ function SelectedRegion({
                   <span>
                     <PartyName party={row.party} />
                     {row.chair ? <span className="ahd-muted" style={{ display: "block", fontSize: "0.68rem" }}>Chair {row.chair.name}</span> : null}
+                    {onOpenParty ? (
+                      <button
+                        type="button"
+                        className="ahd-btn ahd-btn-sm"
+                        style={{ marginTop: "0.3rem" }}
+                        onClick={() => onOpenParty(row.party.id)}
+                        aria-label={`View ${row.party.name} details`}
+                      >
+                        View details
+                      </button>
+                    ) : null}
                   </span>
                   <span className="ahd-mono" style={{ textAlign: "right" }}>
                     <span>{`${row.organization.toFixed(1)}% organization`}</span>
@@ -600,7 +630,7 @@ function SelectedRegion({
           <div className="ahd-empty" style={{ marginTop: "0.55rem" }}>No elections recorded for this region.</div>
         ) : (
           <ul style={{ listStyle: "none", margin: "0.6rem 0 0", padding: 0, display: "flex", flexDirection: "column", gap: "0.7rem" }}>
-            {selected.elections.map((election) => <ElectionCard key={election.id} election={election} clock={clock} />)}
+            {selected.elections.map((election) => <ElectionCard key={election.id} election={election} clock={clock} onOpenElection={onOpenElection} />)}
           </ul>
         )}
       </div>
@@ -716,7 +746,7 @@ function SelectedRegion({
   );
 }
 
-export function RegionsPanel({ query, onQueryChange, busy = false, directoryOpen, onDirectoryOpenChange, onNavigate }: RegionsPanelProps) {
+export function RegionsPanel({ query, onQueryChange, busy = false, directoryOpen, onDirectoryOpenChange, onNavigate, onOpenParty, onOpenElection }: RegionsPanelProps) {
   return (
     <div className="ahd-stack" aria-label={`${query.playerCountryName} regions`}>
       <div className="ahd-card ahd-card-pad ahd-hero">
@@ -743,7 +773,7 @@ export function RegionsPanel({ query, onQueryChange, busy = false, directoryOpen
           onQueryChange={onQueryChange}
         />
         {query.selected ? (
-          <SelectedRegion key={query.selected.id} view={query} selected={query.selected} busy={busy} onQueryChange={onQueryChange} onNavigate={onNavigate} />
+          <SelectedRegion key={query.selected.id} view={query} selected={query.selected} busy={busy} onQueryChange={onQueryChange} onNavigate={onNavigate} onOpenParty={onOpenParty} onOpenElection={onOpenElection} />
         ) : (
           <div className="ahd-empty" data-pane="detail">No region selected.</div>
         )}

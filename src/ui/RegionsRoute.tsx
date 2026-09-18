@@ -24,7 +24,21 @@ export function RegionsRoute({ load, revision, busy, initialId, onNavigate, onDr
     if (onDrill) onDrill({ route: "regions", detailId: query.regionId ?? undefined }, next, id);
     else onNavigate?.(next, id);
   }, [onDrill, onNavigate, query.regionId]);
+  // #510 directory surface links: party-support and election rows open the
+  // national party/race detail for the same recorded engine id. The directory
+  // is player-country scoped (projectRegions), so the ids resolve in the
+  // player-country politics projection; stale ids fall back to the first live
+  // row on the detail with Back intact. The origin carries the selected region
+  // id so Back restores the region that opened the detail, not the default.
+  const handleOpenParty = useCallback((partyId: string) => {
+    if (onDrill) onDrill({ route: "regions", detailId: query.regionId ?? undefined }, "partyDetails", partyId);
+    else onNavigate?.("partyDetails", partyId);
+  }, [onDrill, onNavigate, query.regionId]);
+  const handleOpenElection = useCallback((electionId: string) => {
+    if (onDrill) onDrill({ route: "regions", detailId: query.regionId ?? undefined }, "electionDetails", electionId);
+    else onNavigate?.("electionDetails", electionId);
+  }, [onDrill, onNavigate, query.regionId]);
   return <DetailQuery load={request} revision={revision} label="Regions">
-    {view => <RegionsPanel query={view} onQueryChange={setQuery} busy={busy} directoryOpen={directoryOpen} onDirectoryOpenChange={setDirectoryOpen} onNavigate={handleViewerNavigate} />}
+    {view => <RegionsPanel query={view} onQueryChange={setQuery} busy={busy} directoryOpen={directoryOpen} onDirectoryOpenChange={setDirectoryOpen} onNavigate={handleViewerNavigate} onOpenParty={handleOpenParty} onOpenElection={handleOpenElection} />}
   </DetailQuery>;
 }

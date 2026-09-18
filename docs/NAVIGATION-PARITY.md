@@ -384,12 +384,12 @@ Focused evidence: `src/ui/StateSurfaceLinks510.test.tsx` (8 rendered tests:
 party and race round-trips at 320/390/1280px desktop, ghost-id fallback,
 null-region empty state).
 
-Still open after this slice: the Regions directory detail (foreign-region
-ids do not resolve in the player-country politics projection, so its party
-support and election rows stay unlinked), RegionViewerCard-adjacent office
+Still open after this slice: RegionViewerCard-adjacent office
 holder links, and the no-destination rows (Executive, SCOTUS, US Political
 Operations, charters surface, unions, Hall of Fame, crises, conflicts,
-international orgs, forex, trade, IMF). The RouteMatrix510
+international orgs, forex, trade, IMF). The Regions directory detail
+residual is closed by section 15 (re-derived 2026-09-18: the directory is
+player-country scoped, so its ids resolve). The RouteMatrix510
 politicians-return residual noted under section 10 now passes (verified
 2026-09-17 on the 0.1.9 base). No physical-iPhone evidence is claimed.
 
@@ -565,3 +565,23 @@ display-only: no audited governor JSON endpoint exists. Evidence:
 Remaining gaps (issues #359 and #510 stay open): Native MP still has no
 governor-office detail surface; that row stays display-only. Per-screen action/data depth and
 physical-iPhone smoke remain as in section 8.
+## 15. Regions-directory surface links (#510, post-0.1.9 audit)
+
+Re-derived 2026-09-18 against AHDGame e364c0495 and current main:
+`projectRegions` scopes the directory to the player country
+(`src/game/regions.ts`), so every listed region's party-support and
+election ids resolve in the player-country politics projection. The
+section-12 "foreign-region" rationale was stale; the dead-text rows were a
+real reachability defect versus the reference state/region pages.
+
+`RegionsPanel` accepts optional `onOpenParty`/`onOpenElection` and renders
+the same `View details` / `View race details` buttons as the home-region
+surface when present (read-only facts otherwise). `RegionsRoute` drills
+through the shell with the selected region id as the return frame, so Back
+restores the browsed region, not the home default; stale ids fall back to
+the first live row with Back intact (detail panels already do this).
+
+Focused evidence: `src/ui/RegionDirectoryLinks510.test.tsx` (7 rendered
+tests: California party round trip with selection restore, Alabama race
+round trip, ghost-id fallback, at 320/390/1280px desktop). No
+physical-iPhone evidence is claimed.
