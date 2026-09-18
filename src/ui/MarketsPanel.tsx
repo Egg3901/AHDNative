@@ -1104,6 +1104,14 @@ export function MarketsPanel({ markets, busy, onAction, onSectorSale, initialId 
   const [sectorType, setSectorType] = useState<string | null>(null);
   const [selectedId, updateSelectedId] = useState<string | null>(initialId);
   const setSelectedId = (id: string | null) => { updateSelectedId(id); onSelect?.(id); };
+  // Follow a same-route deep link the route re-points (the drawer "My
+  // Corporation" row while the market is already open). In-panel selections
+  // already report upward through onSelect, so echoing the same value back
+  // bails out with no extra render; a stale id falls back to the list
+  // through the guard below.
+  useEffect(() => {
+    updateSelectedId(initialId ?? null);
+  }, [initialId]);
 
   const selected = selectedId ? markets.listings.find((l) => l.id === selectedId) ?? null : null;
 

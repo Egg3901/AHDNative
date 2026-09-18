@@ -688,3 +688,20 @@ Focused evidence: `src/ui/MarketsRegionLink510.test.tsx` (6 rendered
 tests: regional company round trip with company restore, national-asset
 read-only honesty, at 320/390/1280px). No physical-iPhone evidence is
 claimed.
+## 19. Same-route company deep-link entry (#510, economy/regions audit)
+
+The drawer "My Corporation" row deep-links the Stock market route with the
+owned company's id, but `MarketsRoute`/`MarketsPanel` read that id only on
+mount: tapping the row while already viewing another company silently kept
+the old detail, so the entry never landed. The route now follows a newly
+supplied id the way the Nations surface follows its browse context
+(absent id keeps the current selection; a stale corp id still falls back
+to the market list through the existing panel guard, never a dead
+detail). The MP shell has no economy/regions surfaces (server reads only,
+none added), so this slice is SP entry only; the MP Standing "View
+company" drill-in is a separate native surface and is untouched.
+
+Focused evidence: `src/ui/MarketsDeepLink510.test.tsx` (5 rendered
+tests: same-route corp entry at 320/390/1280px desktop, plain drawer
+revisit keeps the browse selection, stale corp id falls back to the list).
+No physical-iPhone evidence is claimed.
