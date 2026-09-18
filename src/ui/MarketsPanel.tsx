@@ -523,7 +523,13 @@ function TradeRoutesCard({ routes, countryName }: { routes: TradeRouteSummary[];
  * and accounting are untouched.
  */
 function TradeContextCard({ listing }: { listing: MarketListing }) {
-  const flow = listing.orderFlow;
+  const flow = listing.orderFlow ?? {
+    buyWindow: null,
+    sellWindow: null,
+    flowMultiplier: null,
+    sentimentMultiplier: null,
+    insolventSinceTurn: null,
+  };
   const flowRecorded = flow.buyWindow != null || flow.sellWindow != null;
   const flowTotal = (flow.buyWindow ?? 0) + (flow.sellWindow ?? 0);
   return (

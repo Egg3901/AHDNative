@@ -159,8 +159,11 @@ export interface MarketListing {
   shareholders: MarketShareholder[];
   /** Recorded holder with the largest block, or null when none is recorded or the top is tied. */
   controllingHolder: ShareholderKind | null;
-  /** Recorded executed-trade flow, multipliers, and insolvency marker (#77 slice). */
-  orderFlow: MarketOrderFlow;
+  /** Recorded executed-trade flow, multipliers, and insolvency marker (#77 slice).
+   * Older persisted/read-only projections may omit this field; projectMarkets
+   * always supplies it for current worlds.
+   */
+  orderFlow?: MarketOrderFlow;
 }
 
 /**
@@ -322,7 +325,8 @@ export interface MarketsView {
    * Recorded per-country trade-route summary (#77 slice): trade growth, FX
    * row, and listing count. Read-only; no quotes, conversions, or settlement.
    */
-  tradeRoutes: TradeRouteSummary[];
+  /** Current projections always include this; legacy callers may omit it. */
+  tradeRoutes?: TradeRouteSummary[];
 }
 
 function homeCurrency(world: WorldState, countryId: string): string {
