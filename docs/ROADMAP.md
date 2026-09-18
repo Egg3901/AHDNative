@@ -1409,8 +1409,9 @@ and removed. The smoke helper now walks the conversation; no engine change.
   reserve/creation ledger exists), interest paid is retired the same way, and
   arrears extinguish on failure exactly as the reference waterfall holds.
 - Focused evidence: `packages/engine/src/banking/discountWindow.test.ts`
-  (23 cases: quote/limits/draw/repay, rejection atomicity, interest/arrears,
-  idempotency, pre-#327 saves, stigma, failure waterfall, ordering) and
+  (24 cases: quote/limits/draw/repay, rejection atomicity, unrounded gate,
+  interest/arrears, idempotency, pre-#327 saves, stigma, failure waterfall,
+  ordering) and
   `src/game/discountWindowSession.test.ts` (advance-seam servicing, reload,
   debt-free no-op). #327 acceptance is met; #326/#328 lifecycles and the full
   multi-claim waterfall (margin/interbank senior legs) remain open under #329.

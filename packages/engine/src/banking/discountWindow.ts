@@ -34,11 +34,12 @@
  *    counter to move and no CB revenue account for interest: interest paid is
  *    destroyed with the same burn semantics as a repayment. Documented
  *    residual, not a silent retune.
- *  - Rounding: the decision validates the ROUNDED move against headroom
- *    (the reference validates the unrounded amount, then re-gates debt +
- *    rounded draw <= cap inside the guarded write). Single-threaded solo has
- *    no concurrent writer to re-gate against, so the one check covers both;
- *    it is stricter than the reference by less than one money unit.
+ *  - Rounding: the decision gates the unrounded amount via canDraw, then
+ *    re-gates debt + rounded draw <= cap (the reference's own two-step order:
+ *    decide.ts validates, the guarded write re-gates). Single-threaded solo
+ *    has no concurrent writer to re-gate against, so both checks run up front
+ *    in the same order; whole-unit money makes them agree everywhere except a
+ *    sub-unit sliver where the pair refuses together.
  *  - Arrears have no repayment path in the reference either (repay clamps to
  *    discountWindowDebt; arrears accrue on shortfall and are extinguished on
  *    failure) — kept verbatim. Stigma "recovery" is automatic: it scales with
@@ -172,11 +173,16 @@ export function drawDiscountWindow(
 ): DiscountWindowDrawResult {
   const { corp, charter } = requireBank(world, bankCorpId);
   const bank = world.centralBanks[corp.countryId];
-  if (!bank) throw new Error(DENIAL_MESSAGES.charter_inactive);
+  if (!bank) throw new Error("The borrowing bank's central bank is missing, so the draw cannot be priced.");
 
   if (!Number.isFinite(amount) || amount <= 0) throw new Error(DENIAL_MESSAGES.invalid_amount);
   const quote = quoteDiscountWindow(charter, bank.primeRate);
   if (quote.capAnchor <= 0) throw new Error(DENIAL_MESSAGES.no_deposits);
+  // Reference order (decide.ts draw_discount_window): canDraw gates the
+  // UNROUNDED amount, then the guarded write re-gates debt + ROUNDED draw <=
+  // cap. Both checks run here in the same order; solo has no concurrent
+  // writer to re-gate against, so the front-loaded pair covers it.
+  if (amount > quote.headroomAnchor) throw new Error(DENIAL_MESSAGES.cap_exhausted);
   const move = Math.round(amount);
   if (move <= 0) throw new Error(DENIAL_MESSAGES.invalid_amount);
   if (move > quote.headroomAnchor) throw new Error(DENIAL_MESSAGES.cap_exhausted);

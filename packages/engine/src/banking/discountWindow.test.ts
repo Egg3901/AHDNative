@@ -105,7 +105,24 @@ describe("discount-window draw (#327)", () => {
     const { world, corp } = fundedWorld();
     delete (world.centralBanks as Record<string, unknown>)["US"];
     const before = JSON.stringify(world);
-    expect(() => drawDiscountWindow(world, corp.id, 100)).toThrow();
+    expect(() => drawDiscountWindow(world, corp.id, 100)).toThrow(/central bank/i);
+    expect(JSON.stringify(world)).toBe(before);
+  });
+
+  it("gates the unrounded amount like canDraw before the rounded re-gate", () => {
+    const { world, corp, charter } = fundedWorld();
+    const headroom = charter.npcDeposits * DISCOUNT_WINDOW_CAP_FRACTION;
+    const amount = headroom + 0.4;
+    expect(Math.round(amount)).toBe(headroom);
+    expect(
+      canDraw(
+        { status: "active", npcDeposits: charter.npcDeposits, discountWindowDebt: 0 },
+        amount,
+        5,
+      ),
+    ).toEqual({ ok: false, reason: "cap_exhausted" });
+    const before = JSON.stringify(world);
+    expect(() => drawDiscountWindow(world, corp.id, amount)).toThrow();
     expect(JSON.stringify(world)).toBe(before);
   });
 });
