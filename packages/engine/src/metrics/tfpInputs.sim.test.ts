@@ -31,6 +31,8 @@ import { TFP_METRIC_PATHS, tfpBasket } from "../demographics/laborForce.js";
  */
 
 const OPTS_1953 = { seed: "tfp-inputs-1953", playerName: "Tester", countryId: "US", era: "1953" } as const;
+const OPTS_1979 = { seed: "tfp-inputs-1979", playerName: "Tester", countryId: "US", era: "1979" } as const;
+const OPTS_1991 = { seed: "tfp-inputs-1991", playerName: "Tester", countryId: "US", era: "1991" } as const;
 const OPTS_2019 = { seed: "tfp-inputs-2019", playerName: "Tester", countryId: "US", era: "2019" } as const;
 
 const ALL_PATHS = Object.values(TFP_METRIC_PATHS);
@@ -54,7 +56,7 @@ function nationalRow(world: WorldState, countryId: string): Record<string, { val
 
 describe("#40 TFP basket input gate (public turn boundary)", () => {
   it("default worlds record no per-region source, so the six leaves stay absent", () => {
-    for (const opts of [OPTS_1953, OPTS_2019]) {
+    for (const opts of [OPTS_1953, OPTS_1979, OPTS_1991, OPTS_2019]) {
       const world = createWorld(opts);
       // The regional policy store starts empty (no enacted regional law).
       expect(Object.keys(world.regionalMetrics)).toEqual([]);

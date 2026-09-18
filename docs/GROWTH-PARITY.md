@@ -42,13 +42,15 @@ Closed form at the pin, `tfpBasket` annual %:
 
 `potentialGrowth(0.4, 2.0, tfpBasket(ref)) = 2.144`.
 
-## Missing-input gate (unresolved)
+## Missing-input gate (still open for default worlds; aggregation path live)
 
-`computeNationalMetricsForCountry` still writes only `economic.gdpGrowth`, `economic.inflationRate`, `economic.unemploymentRate`, and budget governance mirrors. It does not seed the six TFP leaves (`E01_PER_STATE_METRICS`). After `advanceTurn` on a default 1953 US world those six keys are absent.
+`computeNationalMetricsForCountry` writes `economic.gdpGrowth`, `economic.inflationRate`, `economic.unemploymentRate`, and budget governance mirrors, and additionally aggregates the six exact TFP leaves from the recorded per-region rows in `WorldState.regionalMetrics` (schema v45): population-weighted, era-gated via `isMetricActive` (e.g. `broadbandAccess` is 1998+, so a pre-1998 world never aggregates it). No synthetic seeds and no national stand-in: when no region records a leaf it stays absent and `macroCountryTurn` falls back to `TFP_REFERENCE_INPUTS` (TFP 1.2).
 
-`policyEffects` / `ministerialOrders` can write those exact dotted keys when a law or order targets them. Those writes survive until the next `nationalMetricsPhase` rebuild, so `macroCountryTurn` on the following turn can see them as real prior-turn values. That path is not a substitute for a stateMetrics store.
+Seed audit 2026-09-18: the authoritative Native packs (`packages/content/src/packs/`, all four eras) contain no values for any of the six leaves — pack grep matches only unrelated voter-group labels (`urban_progressives`, `urban_professional`) and tax-line names, never the `economic.rdIntensity` / `education.workforceSkill` / `infrastructure.*` / `population.urbanizationRate` metric paths. There is therefore no source-backed seed slice to implement; inventing time series from spending shares or group labels is explicitly out of scope. After `createWorld` plus `advanceTurn` on a default 1953/1979/1991/2019 US world (see `packages/engine/src/metrics/tfpInputs.sim.test.ts`) those six keys are absent and the basket stays at baseline.
 
-Do not claim full AHDGame TFP effects from the helper alone. Education, infrastructure, and urbanization do not move growth on a default world.
+The only live progression contract is the real regional-scope policy store: `policyEffects` / `ministerialOrders` regional effects record rows in `world.regionalMetrics[regionId]`, the tail `nationalMetricsPhase` aggregates them, and `macroCountryTurn` reads the aggregated row one turn later (C3 lag). Both stores persist through `serializeSave` / `deserializeSave` at the current schema; v42 projection refuses a save with non-empty `regionalMetrics` rather than silently dropping TFP state (`packages/engine/src/save.ts`).
+
+Do not claim full AHDGame TFP effects from the helper plus aggregation alone. Education, infrastructure, and urbanization still do not move growth on a default world, and the remaining prerequisites (per-region sector revenue, state education/infrastructure spending, registry dependency chain, full region coverage, downstream inflation/revenue effects) are recorded in `docs/TFP-REMAINDER-AUDIT.md`. Keep #40 open.
 
 ## Tests
 
@@ -68,6 +70,6 @@ Public contract (`createWorld` / `advanceTurn` / `serializeSave` / `deserializeS
 
 - Phase-order re-golden (rest of M04).
 - Inventing urbanization/education from demographics or region population.
-- Seeding or persisting the six TFP leaves inside `nationalMetricsPhase`.
+- Seeding the six TFP leaves from pack data that does not contain them; inventing metric time series.
 - Rebalancing coefficients.
 - Commit, push, merge, cherry-pick.
