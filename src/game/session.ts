@@ -583,7 +583,7 @@ function describeAction(
     case "fundraise": case "convertCash": case "depositSavings": case "withdrawSavings":
     case "campaign": case "advertise": case "canvass":
     case "sponsorBill": case "voteOnBill": case "buildDonorBase":
-    case "poll": case "pollLarge":
+    case "poll": case "pollLarge": case "debatePrep":
       return detail;
     default:
       return detail;
@@ -594,15 +594,22 @@ const ACTION_FIELDS = [
   ["actions", "Actions"], ["funds", "Campaign funds"], ["cash", "Cash"], ["savings", "Savings"],
   ["politicalInfluence", "Influence"], ["nationalInfluence", "National influence"],
   ["partyInfluence", "Party influence"], ["favorability", "Favorability"], ["infamy", "Infamy"],
-  ["donorBaseLevel", "Donor network"], ["partyId", "Party"],
+  ["donorBaseLevel", "Donor network"], ["partyId", "Party"], ["debate", "Debate"],
 ] as const;
 
 function snapshotActionFields(world: WorldState): Record<string, number | string | null> {
   const player = world.player as unknown as Record<string, unknown>;
-  return Object.fromEntries(ACTION_FIELDS.map(([field]) => {
+  const flat = Object.fromEntries(ACTION_FIELDS.map(([field]) => {
     const value = player[field];
     return [field, typeof value === "number" || typeof value === "string" ? value : null];
   }));
+  // Debate lives nested under player.stats (debatePrep #37 is its only hub
+  // writer), so the flat player lookup above always misses it. Surface it
+  // here so the outcome history records the stat change; absent stays null
+  // so unallocated saves compare equal and emit no change entry.
+  const debate = (player.stats as Record<string, unknown> | undefined)?.debate;
+  flat.debate = typeof debate === "number" ? debate : null;
+  return flat;
 }
 
 function actionTarget(params: ExecuteActionParams, world: WorldState): ActionTarget | undefined {

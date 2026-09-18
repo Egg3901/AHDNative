@@ -259,8 +259,10 @@ Blocker: same as `poll`; full breakdown substrate absent.
 | Status | **ported at coded values** | - |
 
 Note: reference hub copy says "10%" (`actionsConstants.ts:170`) while the coded
-chance is 15%; Native states the coded 15% (`catalog.ts:270`). Remaining gaps:
-Debate decay/practice rolls and full stat allocation (see
+chance is 15%; Native states the coded 15% (`catalog.ts:270`). The session
+outcome history records the AP debit and the Debate before/after (`session.ts`
+`snapshotActionFields`, Intelligence hub card + recent-outcomes list). Remaining
+gaps: Debate decay/practice rolls and full stat allocation (see
 [ENGINE-ADAPTATIONS.md](ENGINE-ADAPTATIONS.md)).
 
 ## Existing helper presence vs actual wiring

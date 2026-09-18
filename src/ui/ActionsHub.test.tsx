@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ActionsHub, type ActionsCategoryFilter } from "./ActionsHub";
+import { GameSession } from "../game/session";
 import type { ActionView } from "../game/types";
 
 function StatefulHub({ actions }: { actions: ActionView[] }) {
@@ -130,5 +131,36 @@ describe("ActionsHub", () => {
     expect(within(history).getByText("Midwest")).toBeInTheDocument();
     expect(within(history).getByText(/Influence.*\+1.5/)).toBeInTheDocument();
     expect(within(history).getByText(/use Campaign again this turn/i)).toBeInTheDocument();
+  });
+
+  it("renders Debate Prep from the live session projection under Intelligence (#37)", async () => {
+    const session = new GameSession();
+    session.create({ era: "1953", countryId: "US", seed: "debate-hub-seed", playerName: "Alex" });
+    const live = session.view().actions;
+    expect(live.find((action) => action.id === "debatePrep")).toMatchObject({
+      cost: 1, fundCost: 0, cooldownTurns: 0, category: "intelligence",
+    });
+    const user = userEvent.setup();
+    render(<StatefulHub actions={live} />);
+    await user.click(screen.getByRole("tab", { name: /intelligence/i }));
+    const card = screen.getByRole("article", { name: /^debate prep$/i });
+    expect(within(card).getByText(/1 AP/i)).toBeInTheDocument();
+  });
+
+  it("renders a Debate Prep result with the stat change in recent outcomes (#37)", () => {
+    render(<ActionsHub actions={actions} {...props} category="all" onCategoryChange={() => {}} outcomes={[{
+      id: "t0-action:debatePrep:1", actionId: "debatePrep",
+      title: "Breakthrough in the briefing room: your Debate skill improved (+1).",
+      message: "Breakthrough in the briefing room: your Debate skill improved (+1).",
+      turn: 0, date: "1953-01-01", destination: { route: "actions" },
+      changes: [
+        { field: "actions", label: "Actions", before: 25, after: 24, delta: -1 },
+        { field: "debate", label: "Debate", before: 1, after: 2, delta: 1 },
+      ],
+      followUps: ["No cooldown. You can use Debate Prep again this turn."],
+    }]} />);
+    const history = screen.getByRole("region", { name: "Recent action results" });
+    expect(within(history).getByText(/Debate: 1 to 2 \(\+1\)/)).toBeInTheDocument();
+    expect(within(history).getByText(/use Debate Prep again this turn/i)).toBeInTheDocument();
   });
 });
