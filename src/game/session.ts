@@ -22,7 +22,7 @@ import { projectPolitics, projectPartyMembership } from "./politics";
 import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
-  ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, lendInterbank, quoteInterbankMax, repayInterbank,
+  ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, lendInterbank, quoteInterbankMax, repayInterbank,
   getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
@@ -707,6 +707,32 @@ function projectNewsItem(world: WorldState, item: WorldState["news"][number], so
   };
 }
 
+/**
+ * Hub-level joinParty gate. The hub row carries a party picker, so it cannot
+ * name a target: it stays enabled while any same-country party passes the
+ * authoritative `canJoinParty` contract, and names the engine reason once no
+ * selectable party can execute (24-turn switch cooldown, purge block,
+ * already a member with no alternative, or no parties at all).
+ * Per-party rows (politics.ts projectPartyMembership) carry the target-level
+ * detail; executeAction stays authoritative.
+ */
+export function joinPartyDisabledReason(world: WorldState): string | undefined {
+  const player = world.player;
+  const homeParties = Object.values(world.parties)
+    .filter((party) => party.countryId === player.countryId)
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  if (homeParties.length === 0) return "No parties recorded for your country.";
+  if (homeParties.some((party) => canJoinParty(world, party.id).ok)) return undefined;
+  // No selectable party can execute. Probe another party before the current
+  // one so the reason names the recoverable blocker for any switch attempt
+  // (the 24-turn cooldown or purge block) rather than the already-member
+  // state, which leaving cannot clear (hop prevention keeps the anchor).
+  const others = homeParties.filter((party) => party.id !== player.partyId);
+  const probe = others[0] ?? homeParties[0]!;
+  const check = canJoinParty(world, probe.id);
+  return check.ok ? undefined : check.error;
+}
+
 function projectWorld(world: WorldState, notifications: NotificationItem[]): GameView {
   const country = world.countries[world.player.countryId];
   if (!country || !country.playable) throw new Error("The save does not contain the player's playable country.");
@@ -776,7 +802,8 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
         : id === "convertCash" && player.cash <= 0 ? "No cash to convert."
         : id === "debatePrep" && player.stats?.debate === undefined ? "Allocate your stats before training Debate."
         : id === "canvass" && !Object.values(world.regions).some((region) => region.countryId === country.id) ? "No regions recorded for your country."
-        : id === "leaveParty" && !player.partyId ? "You are independent." : undefined;
+        : id === "leaveParty" && !player.partyId ? "You are independent."
+        : id === "joinParty" ? joinPartyDisabledReason(world) : undefined;
       return { id, name: entry.name, description: entry.description, cost, available: !reason,
         category, fundCost, cooldownTurns,
         ...(id === "fundraise" && isFundraiseEligible(player.donorBaseLevel) ? { fundsGain: fundraiseQuote(player.donorBaseLevel, player.politicalInfluence, player.stats) } : {}),

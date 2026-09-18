@@ -4,7 +4,7 @@ import { advanceTurn } from "./engine.js";
 import { deserializeSave, serializeSave } from "./save.js";
 import { executeAction } from "./actions/execute.js";
 import { SUPPORT_ENDORSEMENT_BUMP } from "./endorsement.js";
-import { FOUND_PARTY_FUND_COST, PARTY_SWITCH_COOLDOWN_TURNS } from "./membership.js";
+import { FOUND_PARTY_FUND_COST, PARTY_SWITCH_COOLDOWN_TURNS, canJoinParty } from "./membership.js";
 
 const OPTS = { seed: "w36-membership-seed", playerName: "Tester", countryId: "US", era: "1953" } as const;
 
@@ -423,6 +423,42 @@ describe("schema migration v10->v11", () => {
     const restored = deserializeSave(raw);
     expect(restored.player.partyId).toBe("US_DEM");
     expect(restored.endorsements[0]!.active).toBe(true);
+  });
+});
+
+describe("canJoinParty eligibility contract (hub projection source)", () => {
+  it("eligible independent world passes for a home party", () => {
+    const w = createWorld(OPTS);
+    expect(canJoinParty(w, "US_DEM")).toEqual({ ok: true });
+  });
+
+  it("already a member fails with the current party named", () => {
+    const w = createWorld(OPTS);
+    w.player.actions = 10;
+    expect(executeAction(w, "player", "joinParty", { partyId: "US_DEM" }).ok).toBe(true);
+    // Cooldown is active too, but the current party names membership first,
+    // matching canJoinParty gate order.
+    expect(canJoinParty(w, "US_DEM")).toEqual({ ok: false, error: "Already a member of US_DEM" });
+    expect(executeAction(w, "player", "joinParty", { partyId: "US_DEM" }).ok).toBe(false);
+  });
+
+  it("switch cooldown blocks every other party with the remaining count", () => {
+    const w = createWorld(OPTS);
+    w.player.actions = 10;
+    expect(executeAction(w, "player", "joinParty", { partyId: "US_DEM" }).ok).toBe(true);
+    expect(canJoinParty(w, "US_REP")).toEqual({
+      ok: false,
+      error: `Party switch cooldown: ${PARTY_SWITCH_COOLDOWN_TURNS} turn(s) remaining`,
+    });
+  });
+
+  it("missing party fails closed without mutating membership", () => {
+    const w = createWorld(OPTS);
+    w.player.actions = 10;
+    expect(canJoinParty(w, "US_NOPE")).toEqual({ ok: false, error: "Party not found: US_NOPE" });
+    const res = executeAction(w, "player", "joinParty", { partyId: "US_NOPE" });
+    expect(res.ok).toBe(false);
+    expect(w.player.partyId).toBe(null);
   });
 });
 
