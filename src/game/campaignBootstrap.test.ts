@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GameSession, gameChoices } from "./session";
+import { GameSession, creationChoices, gameChoices } from "./session";
 
 /**
  * Campaign bootstrap from actual new-character creation (#447 follow-up).
@@ -101,5 +101,46 @@ describe("campaign bootstrap from new-character creation (#447)", () => {
         for (const action of hosView.actions) expect(action.fundCost).toBe(0);
       }
     }
+  });
+
+  it("reproduces the exact owner path with a full creation file, a turn advance, and a reload", () => {
+    // What CharacterCreationScreen submits: name, party, compass, full
+    // demographics (wealth high), and the 28-point seven-key stat block.
+    // Red pre-fix: creation seeded funds 0, so the endowment assertion fails
+    // exactly as the owner observed ($0 CF on a newly created world).
+    const partyId = creationChoices("1953", "US").parties[0]?.id ?? null;
+    const session = new GameSession();
+    session.create({
+      era: "1953",
+      countryId: "US",
+      seed: "bootstrap-owner-creation-file",
+      playerName: "Alex",
+      creation: {
+        name: "Alex",
+        partyId,
+        policies: { economic: 0, social: 0 },
+        demographics: { race: "white", gender: "male", education: "college", wealth: "high" },
+        stats: { charisma: 4, debate: 4, energy: 4, fundraising: 4, businessAcumen: 4, statecraft: 4, intellect: 4 },
+      },
+    });
+    expect(session.view().player.funds).toBe(250_000);
+
+    const entry = session.view().actions.find((action) => action.id === "fundraise");
+    expect(entry).toMatchObject({ available: true });
+    const quote = entry!.fundsGain ?? 0;
+    expect(quote).toBeGreaterThan(0);
+    const before = session.view().player;
+    expect(session.act("fundraise").ok).toBe(true);
+    const after = session.view().player;
+    expect(after.funds - before.funds).toBe(quote);
+    expect(before.actions - after.actions).toBe(entry!.cost);
+
+    // A full turn and a save/reload leave the bootstrap intact.
+    session.advance();
+    const reloaded = new GameSession();
+    reloaded.load(session.serialize(stamp));
+    expect(reloaded.view().actions.find((action) => action.id === "fundraise")).toMatchObject({ available: true });
+    expect(reloaded.act("fundraise").ok).toBe(true);
+    expect(reloaded.view().player.funds).toBeGreaterThan(0);
   });
 });
