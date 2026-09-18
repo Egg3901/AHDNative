@@ -65,7 +65,7 @@ export interface EraChoice {
 }
 export interface MetricView { id: string; label: string; value: number; format: "money" | "percent" | "number"; }
 export type ActionCategory = "influence" | "fundraising" | "intelligence" | "executive";
-export interface ActionView { id: string; name: string; description: string; cost: number; fundsGain?: number; available: boolean; disabledReason?: string; requires?: "amount" | "party" | "region" | "budgetSpending" | "taxRate";
+export interface ActionView { id: string; name: string; description: string; cost: number; fundsGain?: number; available: boolean; disabledReason?: string; requires?: "amount" | "party" | "region" | "budgetSpending" | "taxRate" | "targetPoliticianId";
   /** Hub grouping, mirroring AHDGame actions categories (influence/money/research). */
   category?: ActionCategory;
   /** Quoted fund cost from the engine projection; executeAction remains authoritative. */
