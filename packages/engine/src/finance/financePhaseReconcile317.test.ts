@@ -27,8 +27,15 @@
  * Required edges asserted below (registry index order):
  * corporationTurn < unionsTurn < nppUnionBehavior < pensionTurn <
  * macroCountryTurn < playerSavingsInterest < bankingTurn <
- * discountWindowTurn < playerLineOfCredit < recomputeSharePrices <
+ * discountWindowTurn < sovereignIssuance < bondCouponMaturity <
+ * npcBondHolder < playerLineOfCredit < recomputeSharePrices <
  * bankSolvencyTurn.
+ *
+ * The bond < line edge is the #317 restoration: the reference runs bondTurn
+ * coupons/maturities (player-wallet credits) BEFORE lineOfCreditTurn sizes
+ * the scheduled payment (turnPhaseRegistry.ts at e364c0495: bondTurn ...
+ * contractSettlement ... lineOfCreditTurn ... recomputeSharePrices), so
+ * coupon cash is spendable on the obligation the same turn.
  *
  * Every behavioral expectation is derived from the published rules plus
  * twin-world differencing, never from the implementation under test. No
@@ -42,6 +49,8 @@ import { deserializeSave, serializeSave } from "../save.js";
 import { TURN_PHASES } from "../phases/registry.js";
 import { depositToSavings } from "./savingsActions.js";
 import { wireTransfer } from "./wireTransfer.js";
+import { BOND_UNIT_FACE_VALUE, perTurnCouponPayment } from "../bonds/constants.js";
+import type { Bond } from "../bonds/types.js";
 
 const OPTS = {
   seed: "finance-reconcile-317",
@@ -130,6 +139,9 @@ describe("finance phase reconcile #317", () => {
       "playerSavingsInterest",
       "bankingTurn",
       "discountWindowTurn",
+      "sovereignIssuance",
+      "bondCouponMaturity",
+      "npcBondHolder",
       "playerLineOfCredit",
       "recomputeSharePrices",
       "bankSolvencyTurn",
@@ -199,7 +211,78 @@ describe("finance phase reconcile #317", () => {
     expect(a.world.player.wireQuotaUsedAnchor).toBe(2000);
     expect(a.world.player.wireQuotaWindowStartTurn).toBe(0);
   });
+});
 
+/**
+ * Player-held sovereign bond funding the line payment. Crafted directly
+ * (same shape as the #309 craftSovereign fixture): 10 units of a 5% USD
+ * sovereign, far from maturity, so the only same-turn writer touching the
+ * player wallet besides the line is the coupon credit.
+ */
+function craftCouponBond(world: World): void {
+  const turn = world.meta.turn;
+  world.bonds["loc-coupon-sov"] = {
+    id: "loc-coupon-sov",
+    issuerType: "sovereign",
+    countryId: "US",
+    issuerName: "US",
+    faceValue: BOND_UNIT_FACE_VALUE,
+    couponRate: 5,
+    maturityTurns: 240 as Bond["maturityTurns"],
+    issuedAtTurn: turn,
+    maturityTurn: turn + 240,
+    marketPrice: 1.0,
+    totalIssued: 1_000_000,
+    publicFloat: 990,
+    holders: [{ holderId: "player", units: 10 }],
+    matured: false,
+    defaulted: false,
+    defaultedAtTurn: null,
+    currencyCode: "USD",
+    createdAt: world.meta.date,
+    updatedAt: world.meta.date,
+  };
+}
+
+describe("bond coupon funds the line payment #317", () => {
+  it("services the line from post-coupon cash (bondTurn < lineOfCreditTurn)", () => {
+    // Reference edge (turnPhaseRegistry.ts at e364c0495): bondTurn credits
+    // coupons/maturities to the player wallet BEFORE lineOfCreditTurn sizes
+    // the scheduled payment. The wallet starts empty, so a pre-coupon line
+    // shortfalls and freezes while a post-coupon line pays in full.
+    const a = createWorld(OPTS);
+    const b = createWorld(OPTS);
+    for (const world of [a, b]) {
+      world.player.cash = 0;
+      world.player.savings = 0;
+      world.centralBanks.US!.primeRate = 5;
+      craftCouponBond(world);
+    }
+    a.player.lineOfCredit = {
+      balance: 1000,
+      denomination: "USD",
+      arrears: 0,
+      drawFrozen: false,
+    };
+
+    advanceTurn(a);
+    advanceTurn(b);
+
+    // Published coupon rule: 10 units x (5% of face)/48.
+    const coupon = perTurnCouponPayment(5, BOND_UNIT_FACE_VALUE) * 10;
+    // The twin cash delta IS the payment (no other writer diverges: the
+    // line phase is RNG-free and no pre-line phase reads the line).
+    const payment = Math.round((b.player.cash - a.player.cash) * 100) / 100;
+    expect(payment).toBeGreaterThan(0);
+    expect(payment).toBeLessThanOrEqual(Math.round(coupon * 100) / 100);
+    // Paid in full from the coupon wallet: unfrozen and balance down.
+    expect(a.player.lineOfCredit!.drawFrozen).toBe(false);
+    expect(a.player.lineOfCredit!.balance).toBeLessThan(1000);
+    expect(a.player.lineOfCredit!.arrears).toBe(0);
+  });
+});
+
+describe("finance reconcile save determinism #317", () => {
   it("keeps the reconciled turn deterministic across save and resume", () => {
     const live = financeWorld(true).world;
     advanceTurn(live);

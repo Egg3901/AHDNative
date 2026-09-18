@@ -390,12 +390,10 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // before the solvency pass scores the resulting cash position. RNG-free,
   // so tail placement shifts no downstream rng draws.
   discountWindowTurnPhase,
-  // #314 line-of-credit servicing, immediately after bankingTurn and before
-  // bankSolvencyTurn — the reference's own relative order (turnPhaseRegistry.ts:
-  // bankingTurn … lineOfCreditTurn … bankSolvencyTurn) so the scheduled
-  // payment reads the wallet this turn's banking flows already settled.
-  // RNG-free, so tail placement shifts no downstream rng draws.
-  playerLineOfCreditPhase,
+  // #314 line-of-credit servicing used to sit here, immediately after
+  // bankingTurn. #317 moves it after the W13 bond cluster below so the
+  // scheduled payment reads the post-coupon wallet — see the slot comment
+  // there for the reference edge.
   // W30 governor cluster at END before newsMaintenance, after the W12
   // banking cluster (merged in ahead of this wave - see world.ts
   // SCHEMA_VERSION file doc; the two clusters don't read/write any shared
@@ -448,6 +446,17 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   sovereignIssuancePhase,
   bondCouponMaturityPhase,
   npcBondHolderPhase,
+  // #314/#317 line-of-credit servicing, immediately after the bond cluster
+  // and before recomputeSharePrices — the reference's own relative order
+  // (turnPhaseRegistry.ts at e364c0495: bondTurn … contractSettlement …
+  // lineOfCreditTurn … recomputeSharePrices … bankSolvencyTurn). Coupons and
+  // maturities credit the player wallet, so the scheduled payment reads
+  // post-coupon cash the same turn; bankingTurn/discountWindowTurn still run
+  // earlier in this tail, so the #314 wallet-settled edge holds too. The
+  // jumped phases (governor cluster, bond cluster) are all RNG-free and
+  // touch no player-wallet or line fields, and this phase is RNG-free, so
+  // the move shifts no downstream rng draws.
+  playerLineOfCreditPhase,
   // #309: recomputeSharePricesPhase runs here — immediately after the bond
   // cluster — so this turn's repricing reads post-coupon issuer capital,
   // matching mainline (turnPhaseNames.ts: bondTurn 18 < recomputeSharePrices
