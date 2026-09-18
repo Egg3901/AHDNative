@@ -241,7 +241,8 @@ export class GameSession {
         const nomineeId = text(extra.nomineeId);
         if (!countryId || !positionId || !nomineeId) throw new Error("Choose a country, office, and nominee.");
         const nomination = sponsorCabinetNomination(candidate, { countryId, positionId, nomineeId });
-        message = `Nominated ${nomination.nomineeName} for ${getCabinetPositionName(nomination.positionId)}. The Senate votes by turn ${nomination.votingEndsOnTurn}.`;
+        const chamberVotes = nomination.positionId === "vicePresident" ? "The House and Senate vote" : "The Senate votes";
+        message = `Nominated ${nomination.nomineeName} for ${getCabinetPositionName(nomination.positionId)}. ${chamberVotes} by turn ${nomination.votingEndsOnTurn}.`;
       } else if (actionId === "sponsorScotusNomination") {
         const countryId = text(extra.countryId);
         const nomineeId = text(extra.nomineeId);

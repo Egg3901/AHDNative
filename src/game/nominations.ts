@@ -206,6 +206,20 @@ function projectCabinet(world: WorldState, nomination: CabinetNomination): Nomin
   };
 }
 
+/**
+ * Sponsor display name for a SCOTUS nomination. The engine stores only the
+ * sponsor id (`proposedBy`); AHDGame shows the president's name
+ * (`proposedByPresidentName ?? "President"` on both detail pages). Resolve
+ * from state the engine already holds: the player record, then the
+ * politician roster, then the raw id. Null stays null (unsponsored).
+ */
+export function scotusSponsorName(world: WorldState, proposedBy: string | null): string | null {
+  if (proposedBy === null) return null;
+  if (proposedBy === "player") return world.player.name;
+  const politician = world.politicians.find((candidate) => candidate.id === proposedBy);
+  return politician?.name ?? proposedBy;
+}
+
 function projectScotus(world: WorldState, nomination: ScotusNomination): NominationView {
   const tally = computeScotusNominationTally(world, nomination);
   return {
@@ -218,7 +232,7 @@ function projectScotus(world: WorldState, nomination: ScotusNomination): Nominat
     seatNumber: nomination.seatNumber,
     nominee: nomination.nomineeName,
     nomineeParty: nomination.nomineeParty ?? null,
-    sponsor: nomination.proposedBy ?? null,
+    sponsor: scotusSponsorName(world, nomination.proposedBy),
     status: nomination.status,
     statusLabel: nominationStatusLabel(nomination.status),
     proposedAtTurn: nomination.proposedAtTurn,
