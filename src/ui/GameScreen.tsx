@@ -439,13 +439,15 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
 
   // Conditional identity org rows (#84). The reference shows "My Corporation"
   // only with myCorporationId and "My Union" only with unionsEnabled plus
-  // myUnionId (AHDGame profileNavItems.ts). Offline SP projects neither: stock
-  // holdings are positions, not owned corporations, and player-owned sectors
-  // carry the recorded corporation id rather than a player corporation
-  // identity (markets.ts), while union membership is not projected and has no
-  // Native destination. Supplying a row from either signal would invent
-  // ownership, so SP passes none and the drawer omits both rows.
-  const identityOrg: IdentityOrgLink[] = [];
+  // myUnionId (AHDGame profileNavItems.ts). The row is supplied only from the
+  // recorded player-owned sector signal (`GameView.myCorporation`, the same
+  // gate as the Profile card): stock holdings are positions, not owned
+  // corporations, and never produce a row. Union membership is not projected
+  // and has no Native destination, so no union row is ever supplied. A stale
+  // corp id still lands on the markets list, never a dead detail.
+  const identityOrg: IdentityOrgLink[] = world.myCorporation
+    ? [{ id: world.myCorporation.id, label: "My Corporation", route: "markets", detailId: world.myCorporation.id }]
+    : [];
 
   // #510 detail return: pop the newest live return-stack frame (route +
   // detail id) when one exists, otherwise the long-standing canonical parent

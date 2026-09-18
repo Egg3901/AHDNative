@@ -205,6 +205,44 @@ describe("issue #84 capability-gated identity org rows", () => {
   });
 });
 
+describe("issue #51 live-shell My Corporation row", () => {
+  it("shows the row only from the recorded-ownership signal and reaches a working destination", async () => {
+    const user = userEvent.setup();
+    const spies = { onSave: vi.fn(), onAction: vi.fn(), onAdvanceTurn: vi.fn() };
+    const world = { ...makeShell(), myCorporation: { id: "US-media", name: "US-media" } };
+    render(<GameScreen {...shellProps(world, spies)} />);
+
+    await user.click(screen.getByRole("button", { name: "Menu" }));
+    const menu = within(screen.getByRole("dialog", { name: "Game menu" }));
+    const row = menu.getByRole("button", { name: "Go to My Corporation" });
+    // Conditional rows reuse the 44px identity quick-link target.
+    expect(row).toHaveClass("ahd-profile-link");
+    await user.click(row);
+    // The stubbed market carries no listings, so the recorded corp id degrades
+    // to the market list instead of a dead detail; the destination is real.
+    expect(await screen.findByRole("region", { name: "Stock market" })).toBeInTheDocument();
+
+    expect(spies.onSave).not.toHaveBeenCalled();
+    expect(spies.onAction).not.toHaveBeenCalled();
+    expect(spies.onAdvanceTurn).not.toHaveBeenCalled();
+    expect(world.turn).toBe(1);
+    expect(world.countryId).toBe("US");
+  });
+
+  it("omits the row without the signal even when the shell holds stock positions", async () => {
+    const user = userEvent.setup();
+    const world = makeShell();
+    expect(world.finance.holdings.length).toBeGreaterThan(0);
+    expect(world.myCorporation).toBeUndefined();
+    const spies = { onSave: vi.fn(), onAction: vi.fn(), onAdvanceTurn: vi.fn() };
+    render(<GameScreen {...shellProps(world, spies)} />);
+
+    await user.click(screen.getByRole("button", { name: "Menu" }));
+    const menu = within(screen.getByRole("dialog", { name: "Game menu" }));
+    expect(menu.queryByText(/My Corporation/)).not.toBeInTheDocument();
+  });
+});
+
 describe("issue #84 nation context survives finance detours", () => {
   it("returns to the viewed nation after portfolio, banking, and market visits", async () => {
     const user = userEvent.setup();

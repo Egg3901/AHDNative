@@ -175,20 +175,29 @@ for the remaining multi-founder and platform-action differences.
   44px identity quick-link target; a capability without a destination never
   becomes a dead link. The drawer `onNavigate` carries an optional detail id
   so org rows deep-link (e.g. markets company detail).
-- Offline SP supplies no entries: stock holdings are positions rather than
-  owned corporations, player-owned sectors carry the recorded corporation id
-  rather than a player corporation identity, and union membership is not
-  projected and has no Native destination. Supplying rows from those signals
-  would invent ownership, so both rows stay omitted by construction.
+- Offline SP supplies the My Corporation entry from the recorded
+  player-owned sector signal (`GameView.myCorporation`, projected by
+  `src/game/identityOrg.ts` through the same `projectProfileCorporations`
+  gate as the Profile card, so row and card can never disagree). The drawer
+  row deep-links the first owned listing in markets-projection order
+  (player country first); the Profile card lists every owned corporation.
+  Stock holdings are positions, not ownership, and never produce a row;
+  union membership is not projected and has no Native destination, so no
+  union row is ever supplied. A stale corp id degrades to the market list,
+  never a dead detail.
 - Viewed-nation context survives finance detours: Nations (viewed) to
   Portfolio to Banking to Stock market and back lands on the viewed nation
   with the player-country note intact and save/turn state untouched.
-- Rendered evidence: `src/ui/IdentityOrg84.test.tsx` (7 tests: SP omission
-  with holdings present, supplied-capability deep-link args, empty-capability
-  omission, 44px/safe-area rules, finance-detour return, 320/390px identity
-  flow). Still open: a linkable SP owned-corporation or union-membership
-  source, a Native union destination, the full #510 route/destination matrix,
-  MP-mode drawer/identity parity, and physical-iPhone validation.
+- Rendered evidence: `src/game/identityOrg.test.ts` (4 tests: null for fresh
+  and shareholder-without-sector saves, live-view link for an owner,
+  save/reload follow plus revert-to-absent) and `src/ui/IdentityOrg84.test.tsx`
+  (9 tests: prior 7 plus live-shell row presence from the signal with
+  market reachability and save/turn untouched, and row omission with
+  holdings present). Still open: multi-owned drawer disambiguation (row
+  links the first owned listing only), a Native union destination,
+  the full #510 route/destination matrix, MP-mode drawer/identity parity,
+  and physical-iPhone validation. Verified on Linux only; no
+  physical-device claims.
 
 
 Caucuses are reachable under Nation and from Parties. The roster, founding
