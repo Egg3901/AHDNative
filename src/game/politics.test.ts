@@ -828,6 +828,56 @@ describe("projectPolitics presidential race (#69)", () => {
       .toMatchObject({ electoralVotes: 0, popularVotes: 4000 });
   });
 
+  it("reports the authoritative per-state tally turn on the presidential projection", () => {
+    const world = createWorld({ ...options, seed: "presidential-snapshot-turn" });
+    const a = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === DEM)!;
+    const b = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === REP)!;
+    const id = "president:US:-:c1";
+    world.elections = [{
+      id, electionType: "president", countryId: "US", cycle: 1,
+      status: "active", startTurn: 0, primaryEndTurn: 20, endTurn: 60, totalSeats: 1, chamberKey: "president",
+      candidates: [
+        { id: a.id, name: a.name, partyId: DEM, isNPP: true, incumbent: false },
+        { id: b.id, name: b.name, partyId: REP, isNPP: true, incumbent: false },
+      ],
+      tally: { [a.id]: 3000, [b.id]: 2000 },
+      stateTallyStates: {
+        CA: { totalVotes: { [a.id]: 1000, [b.id]: 400 }, turnSnapshots: [{ turn: 41 }] },
+        TX: { totalVotes: { [a.id]: 300, [b.id]: 700 }, turnSnapshots: [{ turn: 41 }, { turn: 42 }] },
+      },
+    }];
+
+    // The single-state tallyState the projection reads is never written on the
+    // per-state presidential path, but the as-of turn still comes from the
+    // authoritative per-state tally documents.
+    const detail = projectPolitics(world).elections.find((election) => election.id === id)!;
+    expect(detail.projection.countedVotes).toBe(5000);
+    expect(detail.projection.snapshotTurn).toBe(42);
+  });
+
+  it("leaves the presidential projection turn null when no tally snapshot exists", () => {
+    const world = createWorld({ ...options, seed: "presidential-snapshot-absent" });
+    const a = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === DEM)!;
+    const b = world.politicians.find((politician) => politician.countryId === "US" && politician.partyId === REP)!;
+    const id = "president:US:-:c1";
+    world.elections = [{
+      id, electionType: "president", countryId: "US", cycle: 1,
+      status: "active", startTurn: 0, primaryEndTurn: 20, endTurn: 60, totalSeats: 1, chamberKey: "president",
+      candidates: [
+        { id: a.id, name: a.name, partyId: DEM, isNPP: true, incumbent: false },
+        { id: b.id, name: b.name, partyId: REP, isNPP: true, incumbent: false },
+      ],
+      tally: { [a.id]: 4000, [b.id]: 3500 },
+      stateTallyStates: {
+        CA: { totalVotes: { [a.id]: 1000, [b.id]: 400 } },
+      },
+    }];
+
+    const detail = projectPolitics(world).elections.find((election) => election.id === id)!;
+    expect(detail.projection.countedVotes).toBe(7500);
+    expect(detail.projection.snapshotTurn).toBeNull();
+  });
+
   it("does not attach a presidential block to a non-presidential race", () => {
     const world = createWorld({ ...options, seed: "presidential-scope" });
     world.elections = [{
@@ -858,6 +908,10 @@ describe("projectPolitics presidential race (#69)", () => {
     expect(world.elections.find((election) => election.id === id)!.stateTallyStates).toBeDefined();
     const before = projectPolitics(world).elections.find((election) => election.id === id)!.presidential!;
     expect(before.hasStateTallies).toBe(true);
+    // The projection's as-of turn rides the same authoritative per-state
+    // tally documents the Electoral College view reads.
+    expect(projectPolitics(world).elections.find((election) => election.id === id)!.projection.snapshotTurn)
+      .toBe(world.meta.turn);
     expect(before.totalElectoralVotes).toBeGreaterThan(0);
     expect(before.states.length).toBeGreaterThan(0);
     expect(before.electors.some((elector) => elector.electoralVotes > 0)).toBe(true);
