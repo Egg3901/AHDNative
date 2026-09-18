@@ -1,5 +1,7 @@
 import type { WorldState } from "../types.js";
 import type { ElectionRecord } from "./types.js";
+import { electoralVotesFromSeats } from "../electionEngine/resolution/apportionment.js";
+import { eraToPreset } from "../electionEngine/resolution/constants.js";
 
 /**
  * Electoral College math (W24b) — winner-take-all per-state allocation and
@@ -7,37 +9,52 @@ import type { ElectionRecord } from "./types.js";
  * simplification.
  *
  * EV SOURCE: mainline's `src/lib/elections/apportionment.ts`
- * `electoralVotesFromSeats` (also ported verbatim, currently unwired, at
- * `packages/engine/src/electionEngine/resolution/apportionment.ts`) defines
- * EV = house seats + 2 senators per state, plus DC's 3 once the 23rd
- * Amendment is in force (from 1961), with Maine/Nebraska splitting into
- * congressional-district units from 1972/1992. For the 1953 content pack
- * (`packages/content/src/packs/usStates1953.ts`, sourced from mainline's
- * `HOUSE_SEATS_1953` / `ELECTORAL_VOTES_1953` — see
- * `packages/engine/src/electionEngine/resolution/constants.ts`, which holds
- * that exact 1953 table byte-for-byte for golden tests) none of DC, ME/NE
- * districting apply: DC is not a US state (no House seats, no electors
- * before 1961) and is absent from `world.regions` entirely; AK/HI are
- * absent too (territories until 1959, per that same source comment).
- * AHDClient also has no congressional-district entities at all — house races
- * are single per-state multi-seat contests (see `tallyAdapter.ts`
- * `stateSliceFor` / orchestration.ts's `state: r.id` house spec) — so the
- * ME/NE split has no structural home here even independent of the era gate.
- * This module therefore computes EV directly from each US region's live
- * `houseSeats` (+2 senators, no DC/ME-NE special-casing), which is simpler
- * than importing the ported-but-unwired apportionment.ts helpers and, for
- * every state AHDClient actually models, produces byte-identical output to
- * them: sum 435 house seats + 2×48 senators = 531 electoral votes,
+ * `electoralVotesFromSeats` (ported verbatim at
+ * `packages/engine/src/electionEngine/resolution/apportionment.ts`), which
+ * defines EV = house seats + 2 senators per state, plus DC's 3 once the
+ * 23rd Amendment is in force (from 1961), with Maine/Nebraska splitting
+ * into congressional-district units from 1972/1992. This module feeds the
+ * live per-region `houseSeats` through that helper with the world's era
+ * preset and live year, so the era gates apply structurally here instead
+ * of living only in the helper's own tests.
+ *
+ * NO-INVENTED-GEOGRAPHY GUARANTEE: the helper's DC entry is intersected
+ * back to live `world.regions` — no shipped pack models DC as a region
+ * (no House seats, no demographics, no tally), so emitting DC would invent
+ * electors the EC path can never allocate. Likewise ME/NE stay
+ * winner-take-all: AHDClient has no congressional-district entities at all
+ * (house races are single per-state multi-seat contests — see
+ * `tallyAdapter.ts` `stateSliceFor` / orchestration.ts's `state: r.id`
+ * house spec), so the district split has no structural home here even
+ * where the era gate would allow it. For the 1953 pack (48 states,
+ * sourced from mainline's `HOUSE_SEATS_1953` / `ELECTORAL_VOTES_1953` —
+ * see `packages/engine/src/electionEngine/resolution/constants.ts`, which
+ * holds that table byte-for-byte for golden tests) the gates are inert:
+ * sum 435 house seats + 2×48 senators = 531 electoral votes,
  * majority = floor(531/2)+1 = 266.
  */
 
-/** Electoral votes per US state, derived from live `houseSeats` (+2 senators). */
+/**
+ * Electoral votes per modeled region of `countryId`, via the ported
+ * `electoralVotesFromSeats` helper (live `houseSeats`, era preset + live
+ * year). Only live regions are returned — never DC or any other
+ * non-region geography the helper may add for its own era gates.
+ */
 export function electoralVotesByState(world: WorldState, countryId: string): Record<string, number> {
-  const ev: Record<string, number> = {};
+  const seats: Record<string, number> = {};
   for (const region of Object.values(world.regions)) {
     if (region.countryId !== countryId) continue;
-    const seats = region.houseSeats ?? 0;
-    ev[region.id] = seats + 2;
+    seats[region.id] = region.houseSeats ?? 0;
+  }
+  const liveYear = Number(world.meta.date.slice(0, 4));
+  const evAll = electoralVotesFromSeats(seats, {
+    preset: eraToPreset(world.meta.era),
+    year: Number.isFinite(liveYear) ? liveYear : null,
+  });
+  const ev: Record<string, number> = {};
+  for (const id of Object.keys(seats)) {
+    const v = evAll[id];
+    if (v !== undefined) ev[id] = v;
   }
   return ev;
 }
