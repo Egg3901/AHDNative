@@ -35,6 +35,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ALIGNMENT_META,
   IMPERIAL_STARTING_CAPITAL,
   STAT_FREE_POINTS,
   STAT_KEYS,
@@ -550,6 +551,14 @@ export function CharacterCreationScreen({
   const bestPartyId = compassTouched && closest ? closest.party.party.id : null;
   const partyDistance = (party: { economicPosition: number; socialPosition: number }) =>
     compassTouched ? compassDistance(position, { economic: party.economicPosition, social: party.socialPosition }) : null;
+  // Reference CompassLegend (create-character/CompassLegend.tsx) reads the
+  // plot back in words, starting with the home electorate: its label plus a
+  // measured distance, or the pick-a-home prompt when there is nothing to
+  // plot. The lean is display-only context; only homeRegionId is submitted.
+  const homeElectorateRegion = homeRegionOptions.find((region) => region.id === homeRegionId) ?? null;
+  const homeElectorateLean = homeElectorateRegion?.electorateLean ?? null;
+  const homeElectorateDistance =
+    compassTouched && homeElectorateLean ? compassDistance(position, homeElectorateLean) : null;
 
   const backgroundComplete = Boolean(gender && race && education && wealth);
   const nameComplete = name.trim().length >= 2;
@@ -864,7 +873,7 @@ export function CharacterCreationScreen({
             hidden={!reviewAll && activeStep !== 4}
             step={4}
             title="Where you stand"
-            subtitle="Drag your pin. Distance to a platform is what primaries and general elections measure."
+            subtitle="Drag your pin. Distance to a platform is what primaries and general elections actually measure."
             complete={compassTouched}
             headingRef={(element) => { headingRefs.current[3] = element; }}
             focusable={!reviewAll && activeStep === 4}
@@ -887,6 +896,22 @@ export function CharacterCreationScreen({
               <p className="ahd-help" style={{ margin: 0 }}>
                 Position: {ideologyLabel(position)}. Closest platform: {closest ? `${closest.party.party.name} (${band})` : "none"}.
               </p>
+              {homeElectorateRegion && homeElectorateLean ? (
+                <p className="ahd-help" data-testid="creation-electorate-distance" style={{ margin: 0 }}>
+                  {homeElectorateRegion.name} electorate:{" "}
+                  {homeElectorateDistance !== null
+                    ? `${homeElectorateDistance.toFixed(1)} away (${ALIGNMENT_META[alignmentBand(homeElectorateDistance)].label})`
+                    : "move either slider to measure the distance."}
+                </p>
+              ) : homeElectorateRegion ? (
+                <p className="ahd-help" data-testid="creation-electorate-distance" style={{ margin: 0 }}>
+                  {homeElectorateRegion.name} electorate: lean not yet derived.
+                </p>
+              ) : (
+                <p className="ahd-help" data-testid="creation-electorate-distance" style={{ margin: 0 }}>
+                  Pick a home {regionNoun} to plot its electorate.
+                </p>
+              )}
             </div>
           </StepPanel>
 
