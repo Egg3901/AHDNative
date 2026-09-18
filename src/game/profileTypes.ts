@@ -1,5 +1,6 @@
 import type { ResourceDetailsView } from "./resources";
 import type { CharacterDemographics } from "./types";
+import type { ProfileCorporationEntry } from "./profileCorporation";
 
 export interface ProfileUpdate {
   bio?: string;
@@ -159,6 +160,13 @@ export interface ProfileView {
    * earned/locked/available lists so the player can see why each is out of reach.
    */
   unavailableAchievements: ProfileUnavailableAchievement[];
+  /**
+   * Player-owned corporations for the conditional CEO/owner card (#51),
+   * projected from the same listings the Markets company detail renders.
+   * Optional so older fixtures keep compiling; projectProfile always sets
+   * it (empty for ordinary players). Absent/empty renders no card.
+   */
+  corporations?: ProfileCorporationEntry[];
   /** Same projection the footer breakdown uses, so Profile never diverges. */
   resourceDetails: ResourceDetailsView;
   standing: {
