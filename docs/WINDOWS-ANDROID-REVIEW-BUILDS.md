@@ -98,5 +98,9 @@ Physical install, WebView worker boot, native invoke, save/reload, lifecycle, or
 Native save durability, bundled worker startup, peak IPC memory and lifecycle
 remain device checks in issues #43 and #44. Existing storage characterization
 in SAVE-RECOVERY-DEPTH.md documents the directory-sync and replacement limits.
-No speculative storage change is included in build preparation. Inspect the
-Android ELF LOAD alignment and APK zip alignment before private delivery.
+No speculative storage change is included in build preparation.
+`scripts/review-android.sh` enforces the Android ELF LOAD alignment and APK
+zip alignment gate via `scripts/verify-android-alignment.mjs` before private
+delivery; the 16 KB linker flags also persist in `.cargo/config.toml` so the
+documented equivalent CLI stays aligned. A passing gate does not replace the
+physical 16 KB-device run tracked in issue #126.

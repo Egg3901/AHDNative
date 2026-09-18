@@ -1,0 +1,14 @@
+# Cargo configuration for the AHDNative workspace root.
+#
+# Android 16 KB page alignment (issue #126): every aarch64-linux-android link
+# requests 16 KB maximum/common page size explicitly, so any build route
+# (scripts/review-android.sh, the documented equivalent CLI, future CI)
+# produces 16 KB-aligned native libraries even with NDK r27. Host targets are
+# unaffected: these flags apply to aarch64-linux-android links only.
+[target.aarch64-linux-android]
+rustflags = [
+  "-C",
+  "link-arg=-Wl,-z,max-page-size=16384",
+  "-C",
+  "link-arg=-Wl,-z,common-page-size=16384",
+]
