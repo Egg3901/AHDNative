@@ -81,6 +81,22 @@ At enactment, the reference `declareWar` reuses an existing war between the
 pair and returns `joined: true`; proposal-time duplicate rejection is a
 different boundary. A future port must preserve that distinction.
 
+## Phase map, issue #41 (2026-09-18)
+
+AHDGame `turnPhaseNames.ts:104-105` registers `intelligenceTurn` then
+`navairOperations` immediately before `ministerialOrders`: sea control, air
+superiority, supply, and intelligence upkeep must be current before a battle
+reads them (`stateEffectsPhase.ts` runs `processIntelligenceTurn` from
+`src/lib/turn/intelligenceTurn.ts`; naval/air state lives in `src/lib/navair`
+and the `navairEngagements`/`navairChannels` collections).
+
+Native verdict: MISSING, not combined. No `TURN_PHASES` entry carries either
+name and no entry under another name performs that work; Native persists no
+navair state and runs no intelligence upkeep over dispositions. Covered by
+`packages/engine/src/wars/phaseMap.test.ts`. The `warActions` boundary now
+also pins `advanceTurn` GDP-margin direction and conflict save/reload with
+blockers intact. No `battle.ts` port starts here.
+
 ## Dependency order for the next slices
 
 1. Map the reference conflict, unit and roster fields to the offline world,
