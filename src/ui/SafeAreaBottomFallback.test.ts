@@ -105,6 +105,7 @@ describe("persistent bottom-control composition (#436)", () => {
     { selector: "\\.ahd-drawer", base: "0.7rem", label: "drawer chrome" },
     { selector: "\\.ahd-drawer-quick", base: "0.5rem", label: "drawer quick bar" },
     { selector: "\\.ahd-creation-actions", base: "0.6rem", label: "creation sticky bar" },
+    { selector: "\\.ahd-wallet", base: "0.75rem", label: "wallet surface" },
   ])("floors the $label above the indicator without moving its base", ({ selector, base, label }) => {
     // padding-bottom or the padding shorthand (creation bar): either way the
     // declaration must compose base, fail-safe, and env() via max().
@@ -127,6 +128,18 @@ describe("persistent bottom-control composition (#436)", () => {
     expect(rule![0]).toContain("max(10px,");
     expect(rule![0]).toContain(FALLBACK);
     expect(rule![0]).toContain(BOTTOM_INSET);
+  });
+
+  it("floors the landing entry shell above the indicator without moving its base", () => {
+    // The landing top rule already composes the top fail-safe, but the bottom
+    // rule shipped env()-only: on the zero-env WKWebView shape the entry
+    // shell falls back to its 1.5rem base (24px), under the 34px home
+    // indicator, so Help/Settings/saved games can park beneath it.
+    const rule = css.match(/\.ahd-landing-layout\s*\{[^}]*\}/);
+    expect(rule, "missing landing layout rule").toBeTruthy();
+    expect(rule![0], "landing lost its desktop base").toContain("1.5rem");
+    expect(rule![0], "landing missing bottom fallback").toContain(FALLBACK);
+    expect(rule![0], "landing missing env() composition").toContain(BOTTOM_INSET);
   });
 
   it("keeps the landscape footer on env()-only geometry", () => {

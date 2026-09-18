@@ -1076,7 +1076,7 @@ html {
 .ahd-landing-layout {
   max-width: 42rem;
   padding-top: max(0.9rem, var(--ahd-safe-area-top-fallback, 0px), env(safe-area-inset-top));
-  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  padding-bottom: max(1.5rem, var(--ahd-safe-area-bottom-fallback, 0px), env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
@@ -1605,7 +1605,7 @@ html {
    solid .ahd-card, so no backdrop-filter fallback is needed here. The bottom
    clearance keeps the last card above the persistent footer and home
    indicator, including the Dynamic Island / cutout top via the container. */
-.ahd-wallet { min-width: 0; max-width: 100%; padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+.ahd-wallet { min-width: 0; max-width: 100%; padding-bottom: max(0.75rem, var(--ahd-safe-area-bottom-fallback, 0px), env(safe-area-inset-bottom)); }
 .ahd-wallet-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; min-width: 0; max-width: 100%; }
 .ahd-wallet-grid > * { min-width: 0; max-width: 100%; }
 .ahd-wallet-holding { min-width: 0; max-width: 100%; }
