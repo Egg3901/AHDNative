@@ -773,8 +773,8 @@ describe("wallet action and save-reload through the real session", () => {
       />,
     );
     expect(screen.getByText(finance.savingsHolder)).toBeInTheDocument();
-    await user.clear(screen.getByLabelText(/amount/i));
-    await user.type(screen.getByLabelText(/amount/i), "500");
+    await user.clear(screen.getByLabelText("Amount"));
+    await user.type(screen.getByLabelText("Amount"), "500");
     await user.click(screen.getByRole("button", { name: /withdraw/i }));
     expect(onAction).toHaveBeenCalledWith("withdrawSavings", { amount: 500 });
   });
