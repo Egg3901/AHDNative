@@ -50,7 +50,7 @@ describe("MobileNavigation", () => {
     const world = MENU_GROUPS.find((g) => g.label === "World")!;
     expect(world.sections?.map((s) => s.label)).toEqual(["Economy", "Diplomacy", "Other"]);
     expect(world.sections?.[0]!.items.map((i) => i.id)).toEqual(["markets", "sectors", "bonds", "banking"]);
-    expect(world.sections?.[1]!.items.map((i) => i.id)).toEqual(["nations", "worldMap"]);
+    expect(world.sections?.[1]!.items.map((i) => i.id)).toEqual(["nations", "worldDirectory", "worldMap"]);
     expect(world.sections?.[2]!.items.map((i) => i.id)).toEqual(["news", "worldSettings"]);
   });
 
@@ -313,7 +313,7 @@ describe("MobileNavigation", () => {
     const nation = screen.getByRole("button", { name: "Nation" });
     const world = screen.getByRole("button", { name: "World" });
     expect(within(nation).getByText("15")).toBeInTheDocument();
-    expect(within(world).getByText("8")).toBeInTheDocument();
+    expect(within(world).getByText("9")).toBeInTheDocument();
     expect(nation).toHaveAttribute("aria-controls", "ahd-drawer-section-nation");
     expect(world).toHaveAttribute("aria-controls", "ahd-drawer-section-world");
     // Collapsed sections render no controlled region; expanding reveals it.
@@ -323,10 +323,10 @@ describe("MobileNavigation", () => {
     expect(document.getElementById("ahd-drawer-section-nation")).not.toBeNull();
     expect(screen.getByRole("button", { name: "National Budget" })).toBeInTheDocument();
     // No destination added or removed by the composition pass beyond the
-    // Sectors entry (#89).
+    // Sectors entry (#89) and the World directory entry (#73).
     const ids = drawerRouteIds();
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(33);
+    expect(ids).toHaveLength(34);
     expect(css).toMatch(/\.ahd-drawer-group\s*\+\s*\.ahd-drawer-group\s*\{[^}]*border-top:/);
   });
 
@@ -525,7 +525,7 @@ describe("MobileNavigation", () => {
     expect(groups.get("Actions")!.items.map((i) => i.id)).toEqual(["actions"]);
     // World > Diplomacy carries the Nations browse destination (browse context).
     const diplomacy = groups.get("World")!.sections?.find((s) => s.label === "Diplomacy");
-    expect(diplomacy?.items.map((i) => i.id)).toEqual(["nations", "worldMap"]);
+    expect(diplomacy?.items.map((i) => i.id)).toEqual(["nations", "worldDirectory", "worldMap"]);
   });
 
   it("docks the drawer as an in-flow navigation pane without modal behavior (#438)", async () => {
@@ -580,6 +580,7 @@ describe("MobileNavigation", () => {
       expect(labels).not.toContain(label);
     }
     expect(ids).toContain("worldMap");
+    expect(ids).toContain("worldDirectory");
     expect(ids).toContain("sectors");
   });
 
@@ -602,7 +603,7 @@ describe("MobileNavigation", () => {
     // Every drawer row carries its label in a truncating span with a hover
     // title, so long/localized strings cannot push neighbouring content out.
     const rows = document.querySelectorAll("#ahd-drawer .ahd-drawer-item");
-    expect(rows.length).toBe(33);
+    expect(rows.length).toBe(34);
     for (const row of Array.from(rows)) {
       const label = row.querySelector(":scope > .ahd-drawer-item-label");
       expect(label).not.toBeNull();
@@ -621,7 +622,7 @@ describe("MobileNavigation", () => {
     expect(css).toMatch(/\.ahd-drawer-item-label\s*\{[^}]*flex:\s*1 1 auto[^}]*min-width:\s*0[^}]*text-overflow:\s*ellipsis[^}]*white-space:\s*nowrap/);
     expect(css).toMatch(/\.ahd-drawer-item\s+\.ahd-badge\s*\{[^}]*flex:\s*0 0 auto/);
     expect(css).toMatch(/\.ahd-drawer-item[^{]*\{[^}]*min-height:\s*44px/);
-    expect(drawerRouteIds()).toHaveLength(33);
+    expect(drawerRouteIds()).toHaveLength(34);
   });
 
   it("truncates long/localized bottom-nav labels in place at 320px without losing routes", () => {

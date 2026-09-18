@@ -1837,6 +1837,18 @@ and removed. The smoke helper now walks the conversation; no engine change.
   depth, and the remaining acceptance checklist (stable player/era filters, election/profile entity
   links, mobile-width verification beyond the directory slice).
 
+## World directory checkpoint, 2026-09-18 (#73, directory/read-only slice)
+
+- N07: the read-only `World directory` route (World > Diplomacy) lists exactly the recorded nations
+  from `projectWorldOverview` with search, 44px+ touch rows, and links into the existing Nations
+  detail route. No coordinates, regions, leaderboards, election links, or profile data are rendered
+  or implied; empty and no-match states are explicit. No view state persists.
+- Validation: focused UI tests (`WorldDirectoryPanel` populated/empty/search/honesty, modal + docked
+  drawer reachability) against real engine projections, updated drawer-structure assertions, and the
+  route-matrix sweep at 320/390/1280px. Existing world/country/region routes and MP/SP gating
+  untouched. #73 remains open: plotted map surfaces, Hall of Fame/leaderboards, and map-entity links
+  beyond the nation detail route.
+
 ## Nation context and identity navigation checkpoint, 2026-09-15 (#84)
 
 - Drawer identity now exposes real Profile, Actions, and Wallet destinations;
