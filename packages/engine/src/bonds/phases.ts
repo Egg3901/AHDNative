@@ -1,8 +1,10 @@
 /**
  * Bond turn phases — W13.
  *
- * Mainline ordering (turnPhaseRegistry.ts):
- *  bondTurn sits mid-pipeline after centralBankChairSelection and before corporationTurn.
+ * Mainline ordering (src/simulation/phases/turnPhaseNames.ts, e364c0495):
+ *  corporationTurn (5) < bondTurn (18) < recomputeSharePrices (22), with the
+ * central-bank cluster (~111-116) long after bondTurn — so the source prices
+ * bonds off last turn's prime rate (one-turn lag).
  * Solo deviation: placed at END before newsMaintenance (same rng-stream-stability rule
  * every tail cluster since W9/W10/W15/W29/W31 uses — inserting mid-pipeline would
  * shift every downstream rng draw for existing goldens). A dedicated re-golden will
@@ -12,6 +14,10 @@
  *      (cash flows against budget debt) → 3. NPC holder behavior → 4. price
  *      refresh already inside step 2 (vs W3 prime rate). Steps 2+3 together
  *      constitute the mainline bondTurn's daily concerns.
+ * #309 consumer edge: recomputeSharePricesPhase is registered immediately
+ * after this cluster (registry.ts) so the mainline bondTurn <
+ * recomputeSharePrices edge holds and this turn's repricing reads
+ * post-coupon issuer capital.
  *
  * Each phase is rng-free (deterministic over WorldState only) so tail placement
  * does not shift any shared RNG stream — same justification as W10's

@@ -57,6 +57,75 @@ matured/defaulted guards). Restructure, refinance, dissolution, credit-rating
 pricing, and any further phase reordering stay out (#309).
 Focused evidence: `packages/engine/src/bonds/corporateBondServicing.test.ts`.
 
+## Phase timing slice (#309)
+
+Pinned source: AHDGame `e364c0495`,
+`src/simulation/phases/turnPhaseNames.ts` —
+`corporationTurn` (5) < `bondTurn` (18) < `recomputeSharePrices` (22), with
+the central-bank cluster (~111-116) long after `bondTurn` (so the source
+prices bonds off last turn's prime rate). Inside `bondTurn`
+(`src/lib/turn/bondTurn.ts`): coupons (Ph1) -> maturity precompute (Ph1.5) ->
+unified issuer debit (Ph2) -> default detection (Ph3) -> rollback (Ph3.5) ->
+price/maturity/default marking (Ph4) -> settlement (Ph5).
+
+### Writer/consumer inventory (Native `packages/engine/src/phases/registry.ts`)
+
+| Native writer | Writes | Pinned counterpart |
+|---|---|---|
+| `sovereignIssuancePhase` | new bond docs, budget debt/principal/interest/surplus | `issueScheduledSovereignBondSeries` inside `bondTurn` |
+| `bondCouponMaturityPhase` | player cash/balances, budget treasury+debt, corp `liquidCapital`, bond price/flags/holdings | `bondTurn` Ph1-5 (sovereign + corporate servicing) |
+| `npcBondHolderPhase` | bond `publicFloat` drift only | no source counterpart (solo invention; reads `marketPrice`, so runs after servicing) |
+
+| Native consumer | Reads | Order vs source |
+|---|---|---|
+| `recomputeSharePricesPhase` | corp `liquidCapital` (post-coupon, post-loan-service) | **moved by #309** to right after `npcBondHolderPhase`, matching `bondTurn` (18) < `recomputeSharePrices` (22); the source keeps a dedicated `recomputeSharePricesAfterBondTurn` for this edge |
+| `recordWorldHistoryPhase`, `economicVitalSignsPhase`, achievements | bond holdings/prices/traces | already after the bond cluster; read-only, no move |
+| `ledgerPreForexSnapshotPhase`/`forexTurnPhase` | player cash (incl. coupon flows) | already after the bond cluster, matching source order |
+
+All moved phases are RNG-free (no `WorldRng` draws: bond phases and the
+repricing declare `run(world)`), so the move shifts no shared RNG stream.
+Relative order the move preserves: `corporationTurnPhase` <
+`bankingTurnPhase` < bond cluster < `recomputeSharePricesPhase`, matching
+mainline's `corporationTurn`/`bankingTurn`/`bondTurn`/`recomputeSharePrices`
+chain. Buyback stays an action-seam operation (CEO float buyback), outside
+the turn pipeline in both trees — no phase edge.
+
+### Intentional Native adaptations (no move, documented)
+
+- **Commodity/contract before bonds.** Native runs `commodityPricesPhase` /
+  `contractSettlementPhase` before the bond cluster; mainline runs them after
+  `bondTurn`. `commodityPrices` draws RNG, so reordering needs a re-golden,
+  and contract settlement is W11 finance work — both out of #309 scope.
+  One-turn lag on royalty-vs-coupon same-turn interaction; no bond-observation
+  impact.
+- **This-turn prime for bond pricing.** Native's central-bank cluster runs
+  before the bond cluster; mainline's runs long after `bondTurn`, so the
+  source prices off last turn's prime (one-turn lag). Moving the bank cluster
+  is broader monetary work. Price direction vs prime is proven either way.
+- **Fiscal year before bonds.** Native `fiscalYearPhase` /
+  `regionalBudgetProcessingPhase` run before the bond cluster; mainline runs
+  them after `bondTurn`, so source issuance debt lands before the fiscal
+  read. Budget-phase reorder is broad finance work, out of scope.
+- **Unified corporate servicing after sovereign settlement.** Native services
+  each corporate bond atomically (coupon+maturity+default per bond) after the
+  sovereign coupon/settle steps; the source interleaves both books through
+  Ph1-5 with a unified issuer debit. Shared state (player cash) is additive
+  so the order commutes, and issuer sides (budgets vs corp capital) are
+  disjoint — unobservable, no move.
+- **Bank solvency before bonds.** Native `bankSolvencyTurnPhase` runs before
+  the bond cluster; mainline runs it after. No interaction in Native (no
+  prop-book mark-to-market; solvency reads bank charters/deposits, untouched
+  by servicing) — no-op deviation.
+- **Corporate price stays at par.** No credit-rating repricing for corporate
+  issues (price 1.0 while performing, 0.1 on default per source Ph4) —
+  carried over from #308, pinned by test.
+
+Focused evidence: `packages/engine/src/bonds/bondPhaseOrder.sim.test.ts`
+(public-turn twin-world oracles: next-turn price via the published formula,
+exact issuer-coupon twin delta, holder credits, once-per-turn accrual,
+maturity settlement, zero-flow default, and the repricing edge that fails
+with equal prices pre-#309 and passes post-#309).
+
 ## Validation boundary
 
 The genuine elected 1953 US save contains `bond-60-US` with 1000 face value,

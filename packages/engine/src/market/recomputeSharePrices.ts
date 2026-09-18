@@ -2,11 +2,11 @@
  * recomputeSharePrices — W10. Re-prices every corp's shares each turn from
  * fresh, same-turn corp financials.
  *
- * Registered at the END of the phase list (registry.ts), just before
- * newsMaintenancePhase, per the same rng-stream-stability rule the
- * corporation, campaign, intra-party, government, presidential, and
- * cabinet/judiciary tail clusters already follow there — mainline runs
- * recomputeSharePrices mid-pipeline (turnPhaseNames.ts, after bondTurn);
+ * Registered at the END of the phase list (registry.ts), just after the W13
+ * bond cluster, per the same rng-stream-stability rule the corporation,
+ * campaign, intra-party, government, presidential, and cabinet/judiciary tail
+ * clusters already follow there — mainline runs recomputeSharePrices
+ * mid-pipeline (turnPhaseNames.ts: bondTurn 18 < recomputeSharePrices 22);
  * inserting it there would shift every downstream rng draw for existing
  * goldens. This phase itself draws no rng (pure repricing), same as
  * corporationTurnPhase.
@@ -14,21 +14,22 @@
  * Ordering vs corporationTurnPhase: this phase must run AFTER
  * corporationTurnPhase within the same turn (it reads corp.liquidCapital,
  * corp.currentGrowthRate, and corp.earningsHistory, all written by that
- * phase this same turn). registry.ts places it as the LAST phase before
- * newsMaintenancePhase — after every other tail cluster, including
- * corporationTurnPhase — which trivially guarantees the ordering (no other
- * phase in this worktree mutates world.corporations, so nothing in between
- * matters).
+ * phase this same turn). registry.ts places it after the bond cluster, which
+ * is itself after corporationTurnPhase, so the ordering holds. Two other
+ * same-turn writers also land before it: bondCouponMaturityPhase (corporate
+ * coupon/maturity debits to corp.liquidCapital, #308) and bankingTurnPhase
+ * (loan-service debits to borrower corps' liquidCapital) — both sit earlier
+ * in the tail, preserving mainline's bankingTurn (13) < bondTurn (18) <
+ * recomputeSharePrices (22) chain.
  *
  * Mainline's own recomputeSharePrices exists to fix a lag: it re-prices
  * AFTER bondTurn has applied coupon cash flows, because processCorporationTurn
  * already wrote a placeholder price before bondTurn ran (see
- * turn/corporation/recomputeSharePrices.ts file doc). The W13 bond cluster
- * (sovereignIssuance, bondCouponMaturity, npcBondHolder in bonds/phases.ts)
- * is live but placed at the tail AFTER this phase, so this phase still
- * prices before this turn's coupon/maturity servicing rather than after it
- * as in mainline. This is a tail-ordering deviation, not a missing system. It reads
- * the same-turn corporationTurn output directly.
+ * turn/corporation/recomputeSharePrices.ts file doc). #309 closed the
+ * matching solo gap by moving this phase to right after the W13 bond cluster
+ * (sovereignIssuance, bondCouponMaturity, npcBondHolder in bonds/phases.ts),
+ * so this turn's repricing reads post-coupon issuer capital exactly as in
+ * mainline. It still reads the same-turn corporationTurn output directly.
  *
  * The live price is the source-shaped fundamental value multiplied by the
  * available sentiment and order-flow inputs. Native replaces the source's
