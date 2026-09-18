@@ -246,10 +246,17 @@ describe("debatePrep character action (#37)", () => {
     return session;
   }
   it("exposes debate prep in the Intelligence hub with engine-backed cost", () => {
+    // The statless quick-create world names the stat requirement instead of
+    // advertising an action the engine refuses (first-turn availability fix:
+    // the projection mirrors the executeAction Debate-stat preflight).
     const session = new GameSession(); session.create(options);
     const action = session.view().actions.find((a) => a.id === "debatePrep");
-    expect(action).toMatchObject({ category: "intelligence", cost: 1, fundCost: 0, available: true });
+    expect(action).toMatchObject({ category: "intelligence", cost: 1, fundCost: 0, available: false });
     expect(action?.name).toContain("Debate");
+    expect(action?.disabledReason).toBe("Allocate your stats before training Debate.");
+    // Once stats are allocated the same hub entry is reachable and executable.
+    const allocated = createAllocatedSession("debate-hub-allocated");
+    expect(allocated.view().actions.find((a) => a.id === "debatePrep")).toMatchObject({ available: true });
   });
   it("refuses debate prep until stats are allocated", () => {
     const session = new GameSession(); session.create(options);

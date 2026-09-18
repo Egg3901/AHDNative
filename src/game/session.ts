@@ -760,12 +760,16 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
       const fundCost = quoteFundCost(id, entry.fundCost, player.donorBaseLevel, cost, player.countryId, player.stats);
       const cooldownTurns = Math.max(0, (player.actionCooldowns[id] ?? 0) - world.meta.turn);
       // Gate order mirrors executeAction validation; executeAction stays authoritative.
+      // The debatePrep Debate-stat preflight is mirrored here so the hub never
+      // advertises an action executeAction unconditionally refuses (the
+      // statless quick-create path); the engine error stays authoritative.
       const reason = entry.status === "unavailable" ? `Not yet available: requires the ${entry.blockingSystem ?? "unported system"} system.`
         : cooldownTurns > 0 ? `Available in ${cooldownTurns} ${cooldownTurns === 1 ? "turn" : "turns"}.`
         : player.actions < cost ? "Not enough action points."
         : fundCost > 0 && player.funds < fundCost ? `Not enough funds. Requires ${fundCost}.`
         : id === "fundraise" && !isFundraiseEligible(player.donorBaseLevel) ? "No donor base. Use Build Donor Network first."
         : id === "convertCash" && player.cash <= 0 ? "No cash to convert."
+        : id === "debatePrep" && player.stats?.debate === undefined ? "Allocate your stats before training Debate."
         : id === "leaveParty" && !player.partyId ? "You are independent." : undefined;
       return { id, name: entry.name, description: entry.description, cost, available: !reason,
         category, fundCost, cooldownTurns,
