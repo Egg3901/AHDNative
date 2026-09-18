@@ -902,6 +902,91 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
         </div>
       </section>
 
+      {(profile.corporations ?? []).length > 0 ? (
+        <section aria-label="Corporation" className="ahd-card ahd-card-pad">
+          <h2 className="ahd-h2">Corporation</h2>
+          {(profile.corporations ?? []).map((entry) => (
+            <article key={entry.id} aria-label={entry.name} style={{ marginTop: "0.55rem" }}>
+              <p style={{ fontWeight: 750, fontSize: "0.92rem", margin: 0, overflowWrap: "anywhere" }}>
+                {entry.ticker} <span className="ahd-muted">({entry.name})</span>
+              </p>
+              <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: "0.25rem 0 0" }}>
+                {entry.countryName} · {entry.sectorLabel}
+              </p>
+              <dl className="ahd-profile-rows">
+                <div className="ahd-profile-row">
+                  <dt>Role</dt>
+                  <dd className="ahd-mono">
+                    Sector owner
+                    <span className="ahd-profile-sub">
+                      {entry.scope === "national" ? "National asset" : (entry.regionName ?? "Region not recorded")}
+                    </span>
+                  </dd>
+                </div>
+                <div className="ahd-profile-row">
+                  <dt>Corporate cash</dt>
+                  <dd className="ahd-mono">{money(entry.liquidCapital, entry.currency)}</dd>
+                </div>
+                <div className="ahd-profile-row">
+                  <dt>Revenue</dt>
+                  <dd className="ahd-mono">{money(entry.revenue, entry.currency)}</dd>
+                </div>
+                <div className="ahd-profile-row">
+                  <dt>Share price</dt>
+                  <dd className="ahd-mono">
+                    {money(entry.sharePrice, entry.currency)}
+                    <span className="ahd-profile-sub">{entry.totalShares.toLocaleString()} shares issued</span>
+                  </dd>
+                </div>
+                <div className="ahd-profile-row">
+                  <dt>Your shares</dt>
+                  <dd className="ahd-mono">
+                    {entry.playerShares} {entry.playerShares === 1 ? "share" : "shares"}
+                    <span className="ahd-profile-sub">
+                      {entry.playerAvgCostPerShare != null
+                        ? `Avg ${money(entry.playerAvgCostPerShare, entry.currency)}`
+                        : "No recorded average cost"}
+                    </span>
+                  </dd>
+                </div>
+                <div className="ahd-profile-row">
+                  <dt>Controlling holder</dt>
+                  <dd className="ahd-mono">
+                    {entry.controllingHolder == null
+                      ? "No recorded controlling holder"
+                      : entry.controllingHolder === "player" ? "You (player)" : "NPC founder"}
+                  </dd>
+                </div>
+                <div className="ahd-profile-row">
+                  <dt>CEO salary</dt>
+                  <dd className="ahd-mono ahd-profile-unavailable-note">Not recorded by the engine</dd>
+                </div>
+                <div className="ahd-profile-row">
+                  <dt>Dividends</dt>
+                  <dd className="ahd-mono ahd-profile-unavailable-note">The engine has no dividend system</dd>
+                </div>
+              </dl>
+              <div className="ahd-profile-actions">
+                <button
+                  type="button"
+                  className="ahd-btn ahd-btn-sm"
+                  aria-label={`View company: ${entry.name}`}
+                  style={{ minHeight: 44 }}
+                  onClick={() => onNavigate("markets", entry.id)}
+                  disabled={busy}
+                >
+                  View company
+                </button>
+              </div>
+              <p className="ahd-help">
+                Quote {entry.currency}. Values match the company detail exactly; salary and
+                dividends are unavailable because the local engine records neither.
+              </p>
+            </article>
+          ))}
+        </section>
+      ) : null}
+
       <section aria-label="Career history" className="ahd-card ahd-card-pad">
         <h2 className="ahd-h2">Career history</h2>
         {profile.careerHistory.length > 0 ? (
