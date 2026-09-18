@@ -637,3 +637,17 @@ Focused evidence: `src/ui/MpDetailExclusivity510.test.tsx` (2 rendered
 tests at 390px phone and 1280px desktop: race-then-company takes the single
 slot with exactly one Back, and Back restores Standing with hash
 `#mp-profile`). No physical-iPhone evidence is claimed.
+## 17. MP footer Ask honesty (#510, unsupported-state explicitness)
+
+The MP footer Ask entry without a host `onAsk` callback was a live-looking
+button that did nothing: a silently clickable unsupported destination. It
+now renders disabled with the honest title "Ask is unavailable here",
+keeping the four-item hierarchy in place (same precedent as the SP drawer
+disabled "My election" row). With `onAsk` present (the App wiring, which
+routes to the Ask screen with an MP return) the entry is unchanged. The SP
+drawer Ask entry is untouched and keeps its offline composer.
+
+Focused evidence: `src/ui/MpAskAvailability510.test.tsx` (6 rendered
+tests: disabled Ask with title plus intact Profile/Actions/Menu at
+320/390/1280px, enabled Ask routing at 390px, SP composer reachability at
+390/1280px). No physical-iPhone evidence is claimed.

@@ -1342,7 +1342,19 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
             <a className="ahd-bottomnav-item" aria-label="Actions" href="#mp-actions">
               <NavIcon path={BOTTOM_TABS[1].path} label="" /><span>Actions</span>
             </a>
-            <button type="button" className="ahd-bottomnav-item" aria-label="Ask" onClick={onAsk}>
+            {/* #510: Ask without a host callback is an unsupported MP
+                destination, so it renders disabled with an honest title
+                instead of a live-looking dead control. The four-item
+                hierarchy never shifts (same precedent as the SP drawer
+                disabled "My election" row). */}
+            <button
+              type="button"
+              className="ahd-bottomnav-item"
+              aria-label="Ask"
+              onClick={onAsk}
+              disabled={onAsk === undefined}
+              title={onAsk === undefined ? "Ask is unavailable here" : undefined}
+            >
               <NavIcon path={ASK_ICON_PATH} label="" /><span>Ask</span>
             </button>
             <button type="button" className="ahd-bottomnav-item" aria-label="Menu" onClick={onExit}>
