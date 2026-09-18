@@ -5,8 +5,9 @@
  * progressive disclosure with 44px controls and no clipped rows, a deliberate
  * desktop grid, safe-area and glass-fallback CSS contracts, and explicit
  * zero/empty/error/loading plus representative multi-holding data. Rendered
- * viewport cases below pin the real screens at 320/390px phone widths, 1280px
- * desktop, large text, and the 390x844 Dynamic Island shape, and the final
+ * viewport cases below pin the real screens at 320/390px phone widths, 768px
+ * tablet portrait, 1280px desktop, large text, and the 390x844 Dynamic
+ * Island shape, and the final
  * cases drive the real GameSession (create, deposit/buyShares commands,
  * turn advance, serialize, load) and render the reloaded finance view
  * through the panel, so action/save-reload behavior is covered through the
@@ -555,6 +556,55 @@ describe.each([320, 390])("wallet rendered phone viewport at %dpx", (width) => {
     await user.type(screen.getByLabelText(/amount/i), "100");
     await user.click(screen.getByRole("button", { name: /deposit/i }));
     expect(onAction).toHaveBeenCalledWith("depositSavings", { amount: 100 });
+  });
+});
+
+describe("wallet rendered tablet", () => {
+  it("renders the full portfolio at 768px with operable disclosure and no fixed-width controls", async () => {
+    // 768px tablet portrait is the widest viewport on the single-column
+    // phone composition (the two-column grid starts at 1024px): every
+    // section, holding, and trend context renders with no inline fixed
+    // pixel width that would force horizontal page scrolling, and a closed
+    // holding still opens on activation with cross-navigation intact.
+    const user = userEvent.setup();
+    setViewportWidth(768, 1024);
+    const onNavigate = vi.fn();
+    render(
+      <FinancePanel
+        finance={makeFinance()}
+        section="portfolio"
+        busy={false}
+        onAction={vi.fn()}
+        onNavigate={onNavigate}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Portfolio" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Stock holdings" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Portfolio trend" }),
+    ).toBeInTheDocument();
+    for (const name of ["Acme Steel", "Yen Works", "Harbor Rail"]) {
+      expect(screen.getByText(name)).toBeInTheDocument();
+    }
+    for (const element of document.querySelectorAll(
+      ".ahd-wallet button, .ahd-wallet input, .ahd-wallet summary, .ahd-wallet .ahd-card",
+    )) {
+      expect((element as HTMLElement).style.width).not.toMatch(/^[0-9]{3,}px$/);
+    }
+    const holdings = document.querySelectorAll("details.ahd-wallet-holding");
+    expect(holdings).toHaveLength(3);
+    const closed = Array.from(holdings).find(
+      (d) => !d.hasAttribute("open"),
+    ) as HTMLDetailsElement;
+    await user.click(closed.querySelector("summary") as HTMLElement);
+    expect(closed).toHaveAttribute("open");
+    await user.click(screen.getByRole("button", { name: "Go to banking" }));
+    expect(onNavigate).toHaveBeenCalledWith("banking");
   });
 });
 
