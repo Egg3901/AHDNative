@@ -112,6 +112,13 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 
 Status changes must cite an actual commit, test result, artifact or explicit blocker. Completed shell/RNG/replay groundwork does not imply a playable release.
 
+## Executive tax phase-in checkpoint, 2026-09-18 (#65 / #93)
+
+- HoS `adjustTaxRate` now takes the same persisted phase-in path as enacted federal tax law: `fiscalDirectivesPhase` steps the rate by at most 1pp at the turn boundary and queues the remainder on `budget.taxRatePhaseIn` for `fiscalBaseGrowthPhase` to walk each turn (`packages/engine/src/budget/fiscalDirectives.ts`, mirroring `legislation/billLifecycle.ts`). A fresh directive replaces a running ramp; unknown tax fields are ignored; spending directives still enact in full at the boundary.
+- Reachability: the HoS session projects both executive actions into ActionsHub (`src/game/session.ts` `HOS_ACTIONS`); the Executive tab shows 2/2 available with costed Take-action cards, and profile deep-links now accept the `executive` category (`src/ui/GameScreen.tsx`). Career projections show an honest empty tab. Phone layout stays single-column at 390px on the shared card surface.
+- Evidence: `packages/engine/src/budget/fiscalDirectives.test.ts` (8 tests: step/queue, convergence, ramp replacement, small-move landing, unknown-field guard, spending, rejection refunds, save/reload), `packages/engine/src/hos.test.ts` tax test updated to the phase-in trajectory, `src/game/executiveControls.test.ts` (availability, queueing, rollback, save/close/reload), `src/ui/ExecutiveControls.test.tsx` (live-projection tab, card execution, empty career tab, phone CSS). Focused runs: 36 engine, 4 session, 4 UI tests pass. No full verify/typecheck/build run here; owed to the shared scheduler.
+- Limits: full policy proposal/sponsorship/debate/enactment/rejection/expiry lifecycle, ministerial order issue flow (#105 children), and budget/approval/election consequence surfacing remain open under #65. No physical-device claims; Linux tests only.
+
 ## Differential trace-contract checkpoint, 2026-09-15 (#279 / #117)
 
 - The engine-neutral trace contract records pinned engine identity, normalized

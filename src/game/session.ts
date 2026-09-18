@@ -58,7 +58,7 @@ const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: Acti
 ];
 const HOS_ACTIONS: typeof ACTIONS = [
   { id: "adjustBudgetSpending", requires: "budgetSpending", category: "executive", prerequisite: "Enacts at the next turn boundary." },
-  { id: "adjustTaxRate", requires: "taxRate", category: "executive", prerequisite: "Enacts at the next turn boundary." },
+  { id: "adjustTaxRate", requires: "taxRate", category: "executive", prerequisite: "Phases in from the next turn boundary, like enacted tax law." },
 ];
 
 /**
