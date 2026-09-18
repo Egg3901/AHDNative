@@ -312,8 +312,21 @@ export function TrendChart({
             Chart plots all {allTurns.length} recorded points; table shows the last {shownTurns.length} records.
           </p>
         ) : null}
-        <div style={{ overflowX: "auto", marginTop: "0.35rem" }}>
-          <table aria-label={`${title} data`} style={{ borderCollapse: "collapse", fontSize: "0.76rem", width: "100%" }}>
+        {/* The table below scrolls horizontally at 320/390px once the
+            visible series outgrow the phone viewport (the wallet "All
+            series" view renders seven columns). Its scroll container is a
+            labelled tab stop so the clipped columns stay
+            keyboard-reachable; min-width keeps the table at its content
+            size with values on one line instead of crushing cells into
+            mid-number wraps. Narrow single-series tables still fit, so
+            their visual behavior is unchanged. */}
+        <div
+          role="region"
+          aria-label={`${title} data table`}
+          tabIndex={0}
+          style={{ overflowX: "auto", marginTop: "0.35rem" }}
+        >
+          <table aria-label={`${title} data`} style={{ borderCollapse: "collapse", fontSize: "0.76rem", width: "100%", minWidth: "max-content" }}>
             <thead>
               <tr>
                 <th scope="col" style={{ textAlign: "left", padding: "0.25rem" }}>{turnLabel}</th>
@@ -327,7 +340,7 @@ export function TrendChart({
                 <tr key={turn} style={{ borderTop: "1px solid var(--ahd-border)" }}>
                   <th scope="row" style={{ textAlign: "left", padding: "0.3rem 0.25rem", fontWeight: 500 }}>{turnLabel} {turn}</th>
                   {visible.map((s) => (
-                    <td key={s.id} className="ahd-mono" style={{ textAlign: "right", padding: "0.3rem 0.25rem" }}>
+                    <td key={s.id} className="ahd-mono" style={{ textAlign: "right", padding: "0.3rem 0.25rem", whiteSpace: "nowrap" }}>
                       {valueAt(s, turn)}
                     </td>
                   ))}
