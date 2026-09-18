@@ -33,6 +33,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { evaluateSectorBuy } from "../game/markets";
+import { COMMODITY_HERO_ALT, RouteHero, SECTORS_LIST_HERO_IMAGE } from "./RouteHero";
 import type { GameScreenProps } from "../game/types";
 import type { MarketListing, MarketsView } from "../game/markets";
 import { formatFinanceMoney } from "./FinancePanel";
@@ -461,20 +462,26 @@ export function SectorsPanel({
 
   return (
     <div className="ahd-stack">
-      <div className="ahd-card ahd-card-pad ahd-hero">
-        <div className="ahd-eyebrow">World</div>
-        <h2 className="ahd-h2" style={{ marginTop: "0.22rem" }}>
-          Sectors
-        </h2>
-        <p
-          className="ahd-muted"
-          style={{ fontSize: "0.76rem", margin: "0.32rem 0 0" }}
-        >
+      {/*
+        Sectors list band (#378): the directory previously opened on a plain
+        text card. The reference ships no dedicated sectors hero, so the band
+        reuses the bundled steel-works art through `RouteHero` (reference
+        image-error gradient fallback). The turn/count line rides as hero
+        children in inherited white at 0.85 opacity, mirroring the Markets
+        list, so contrast never depends on the muted card palette.
+      */}
+      <RouteHero
+        image={SECTORS_LIST_HERO_IMAGE}
+        alt={COMMODITY_HERO_ALT["steel"]}
+        eyebrow="World"
+        title="Sectors"
+      >
+        <p style={{ fontSize: "0.76rem", margin: "0.35rem 0 0", opacity: 0.85 }}>
           Browse every recorded corporate sector across the world. Turn{" "}
           {markets.turn} · {markets.listings.length}{" "}
           {markets.listings.length === 1 ? "listing" : "listings"}.
         </p>
-      </div>
+      </RouteHero>
 
       {removedCountryNotice ? (
         <div className="ahd-card ahd-card-pad" role="note">
