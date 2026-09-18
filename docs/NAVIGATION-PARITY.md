@@ -443,7 +443,7 @@ Remaining gaps (issue #510 stays open):
   #521, per-screen action/data depth, and physical-iPhone smoke remain as in
   section 8.
 
-## 12. Home-region viewer-row returns (#510)
+## 13. Home-region viewer-row returns (#510)
 
 Enforced by `src/ui/RegionViewerReturn510.test.tsx`: 12 rendered tests green
 at 320px, 390px, and 1280px (desktop). The Governor Office (office-holder)
@@ -485,3 +485,49 @@ Remaining gaps (issue #510 stays open):
 - Role/country/capability conditions beyond this slice, SP-MP switching,
   per-screen action/data depth, and physical-iPhone smoke remain as in
   section 8.
+## 14. MP Standing capability audit (#359/#510)
+
+Audited the authoritative multiplayer Standing card (corporation, union,
+active election, cabinet, governor) against current AHDGame main. Reference
+targets, all live-site pages with no Native MP counterpart:
+`profileNavItems.ts` (My Corporation -> `/corporation/[id]` shown with
+`myCorporationId`; My Union -> `/unions/[id]` shown with `unionsEnabled` +
+`myUnionId`); `Navbar.tsx` / `ExperimentalMobileMenu.tsx` state rows (My
+election -> `/elections/[seatId ?? id]` with a disabled `myElectionNone`
+label otherwise; cabinet ->
+`/country/[cc]/executive/cabinet/[positionId]/office` via `cabinetOfficeUrl`;
+governor -> `/country/[cc]/region/[stateId]/office`, holder-only plus the
+party-officer `canManage` case from `governorOffice/access`).
+
+Result: zero of the five has an already-supported meaningful Native MP
+destination. None of those reads is allowlisted (`src/mp/endpoints.ts`,
+`src-tauri/src/mp_session.rs`: only auth-session, character-me, client-nav,
+turn-status, game-time, notifications, mail-inbox/sent, admin-maintenance;
+corporation/election/legislature surfaces are deliberately absent), the Rust
+allowlist is unchanged, and no remote state is synthesized. Every row stays
+display-only: absent navigation, never an inert control, never a route into
+local SP state. A row becomes a link only when a supported authoritative MP
+destination exists behind it; the card carries that rule as a code comment.
+
+Focused evidence: `src/ui/MpStandingCapabilities510.test.tsx` (7 tests x
+320/390/1280px): full capabilities render display-only with no links,
+buttons, or live-site paths; absent capabilities render the honest empty
+with no invented rows; election-only partial renders without sibling rows;
+section navigation plus Back to sections sets the return hash; auth expiry
+evicts the whole card (no stale rows) and reconnect restores it; a 403
+refusal keeps standing intact with the server message and no refresh; a
+malformed capabilities payload reports honestly with no stale rows.
+
+Election slice (PR #543, issues #359 and #510 stay open): the
+active-election row now drills into an authoritative summary via the
+audited GET /api/elections?id={seatId ?? id}&view=summary read
+(`election-detail` fetch op, TS + Rust id validation, fail-closed
+projection, on-demand load with expiry eviction, read-only article with
+Back to Standing). Evidence: `src/mp/adapter.test.ts`,
+`src/mp/validators.test.ts`, `src/mp/endpoints.test.ts`, and
+`src/ui/MpElectionDetail543.test.tsx` (12 rendered at 320/390/1280px).
+
+Remaining gaps (issues #359 and #510 stay open): Native MP still has no
+corporation, union, cabinet-office, or governor-office detail surface;
+those four rows stay display-only. Per-screen action/data depth and
+physical-iPhone smoke remain as in section 8.

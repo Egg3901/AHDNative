@@ -242,6 +242,10 @@ export interface MpCapabilitiesView {
   corporationId: number | null;
   unionId: string | null;
   activeElectionLabel: string | null;
+  /** client-nav activeElection.id: the live-site /elections/[seatId ?? id] target id. */
+  activeElectionId: string | null;
+  /** client-nav activeElection.seatId: preferred detail target when present. */
+  activeElectionSeatId: string | null;
   cabinetOffice: string | null;
   governorOffice: string | null;
 }
@@ -271,8 +275,99 @@ export function parseClientNav(bodyText: string): MpCapabilitiesView | null {
     corporationId: record.myCorporationId === undefined ? null : asNumber(record.myCorporationId),
     unionId: asTrimmedString(record.myUnionId ?? null),
     activeElectionLabel: election ? asTrimmedString(election.label ?? null) : null,
+    activeElectionId: election ? asTrimmedString(election.id ?? null) : null,
+    activeElectionSeatId: election ? asTrimmedString(election.seatId ?? null) : null,
     cabinetOffice: cabinet ? asTrimmedString(cabinet.positionName ?? null) : null,
     governorOffice: governor ? asTrimmedString(governor.stateName ?? null) : null,
+  };
+}
+
+/**
+ * Election detail reference accepted by GET /api/elections?id= (AHDGame
+ * resolveElection accepts a 24-hex ObjectId or a seatId like US-senate-PA-1;
+ * see isSeatId in src/lib/elections/resolveElection.ts). Bounded so the id
+ * stays URL-safe without encoding and never carries query smuggling.
+ */
+const ELECTION_SEAT_ID = /^[A-Za-z]{2}(-[A-Za-z0-9]{1,16}){1,6}$/;
+const ELECTION_ID_MAX_CHARS = 64;
+
+export function isElectionId(value: unknown): value is string {
+  if (typeof value !== "string" || !value || value.length > ELECTION_ID_MAX_CHARS) return false;
+  if (HEX_OBJECT_ID.test(value)) return true;
+  return ELECTION_SEAT_ID.test(value);
+}
+
+/** Election ids are 24-hex ObjectIds or bounded seatIds; anything else never leaves the UI. */
+export function validateElectionId(id: unknown): { ok: true; id: string } | { ok: false; reason: string } {
+  if (!isElectionId(id)) {
+    return { ok: false, reason: "That election reference is invalid." };
+  }
+  return { ok: true, id: id };
+}
+
+export interface MpElectionDetailView {
+  id: string;
+  seatId: string | null;
+  electionType: string;
+  state: string | null;
+  countryId: string;
+  cycle: number;
+  status: string;
+  inPrimary: boolean;
+  isEnded: boolean;
+  isUpcoming: boolean;
+  inGeneral: boolean;
+  /** Length of the summary-view candidates array; entries stay server-side. */
+  candidateCount: number;
+  leaderName: string | null;
+  leaderParty: string | null;
+  incumbentName: string | null;
+  incumbentParty: string | null;
+}
+
+/**
+ * election-detail: the route wraps the resolved race as { election }. The
+ * summary view always carries identity, phase, and the candidates array
+ * (enrichElection core data); polling and incumbent are nullable decorations
+ * that degrade to null individually. Anything else fails closed.
+ */
+export function parseElectionDetail(bodyText: string): MpElectionDetailView | null {
+  const record = asRecord(parseJsonBody(bodyText));
+  const election = record ? asRecord(record.election) : null;
+  if (!election) return null;
+  const id = asTrimmedString(election.id);
+  const electionType = asTrimmedString(election.electionType);
+  const countryId = asTrimmedString(election.countryId);
+  const cycle = asNumber(election.cycle);
+  const status = asTrimmedString(election.status);
+  const inPrimary = asBoolean(election.inPrimary);
+  const isEnded = asBoolean(election.isEnded);
+  const isUpcoming = asBoolean(election.isUpcoming);
+  const inGeneral = asBoolean(election.inGeneral);
+  if (!id || !electionType || !countryId || cycle === null || !status) return null;
+  if (inPrimary === null || isEnded === null || isUpcoming === null || inGeneral === null) return null;
+  if (!Array.isArray(election.candidates)) return null;
+  // Decorations degrade to null individually: a mistyped polling or
+  // incumbent object never invalidates the race, it just reads as absent.
+  const polling = asRecord(election.polling);
+  const incumbent = asRecord(election.incumbent);
+  return {
+    id,
+    seatId: asTrimmedString(election.seatId ?? null),
+    electionType,
+    state: asTrimmedString(election.state ?? null),
+    countryId,
+    cycle,
+    status,
+    inPrimary,
+    isEnded,
+    isUpcoming,
+    inGeneral,
+    candidateCount: election.candidates.length,
+    leaderName: polling ? asTrimmedString(polling.leaderName ?? null) : null,
+    leaderParty: polling ? asTrimmedString(polling.leaderParty ?? null) : null,
+    incumbentName: incumbent ? asTrimmedString(incumbent.name ?? null) : null,
+    incumbentParty: incumbent ? asTrimmedString(incumbent.party ?? null) : null,
   };
 }
 

@@ -150,6 +150,19 @@ describe("MP admin-maintenance pin (#359)", () => {
     expect(mutateBlock).not.toMatch(/admin/i);
   });
 
+  it("pins the election-detail summary read next to the other fetch ops", () => {
+    const op: MpFetchOpId = "election-detail";
+    expect(op).toBe("election-detail");
+    const source = readFileSync(new URL("./endpoints.ts", import.meta.url), "utf8");
+    const fetchBlock = source.slice(source.indexOf("export type MpFetchOpId"), source.indexOf("export type MpMutateOpId"));
+    expect(fetchBlock).toMatch(/election-detail/);
+    const docBlock = source.slice(0, source.indexOf("export const MP_AUDIT_REVISION"));
+    expect(docBlock).toMatch(/election-detail/);
+    expect(docBlock).toMatch(/\/api\/elections\?id=/);
+    expect(docBlock).toMatch(/view=summary/);
+    expect(docBlock).toMatch(/no-store/);
+  });
+
   it("keeps player mail fetch ops next to the admin-maintenance read", () => {
     const source = readFileSync(new URL("./endpoints.ts", import.meta.url), "utf8");
     const fetchBlock = source.slice(source.indexOf("export type MpFetchOpId"), source.indexOf("export type MpMutateOpId"));

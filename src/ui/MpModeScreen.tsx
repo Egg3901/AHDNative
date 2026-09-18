@@ -7,6 +7,7 @@ import {
 } from "./MobileNavigation";
 import { MpModeSession, type MpSnapshot } from "../mp/adapter";
 import { tauriMpBridgeHost, type MpBridgeHost } from "../mp/bridge";
+import { isElectionId } from "../mp/validators";
 import { MP_EXECUTE_ACTIONS, MP_NOTIFICATION_TYPES, MP_SNOOZE_MINUTES_DEFAULT } from "../mp/endpoints";
 import { formatTurnCountdown } from "../mp/validators";
 import { MpAdminScreen } from "./MpAdminScreen";
@@ -41,6 +42,7 @@ const IDLE: MpSnapshot = {
   character: null,
   turn: null,
   capabilities: null,
+  electionDetail: null,
   inbox: null,
   mailInbox: null,
   mailSent: null,
@@ -95,6 +97,9 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   const [composeSubject, setComposeSubject] = useState("");
   const [composeBody, setComposeBody] = useState("");
   const [adminOpen, setAdminOpen] = useState(false);
+  /* Election detail drill-in (#359 election slice): opened only with a loaded
+   * detail behind it, closed by the Back row or by auth expiry. */
+  const [electionOpen, setElectionOpen] = useState(false);
 
   useEffect(() => {
     const session = sessionRef.current!;
@@ -206,6 +211,29 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     void run(operation);
   }
 
+  /* Standing active-election drill-in target: the live-site
+   * /elections/[seatId ?? id] reference, gated on a valid election id. An
+   * invalid or absent reference keeps the row display-only: no control, no
+   * request. The adapter and the Rust bridge re-validate before sending. */
+  const electionTarget = (() => {
+    const target = snapshot.capabilities?.activeElectionSeatId
+      ?? snapshot.capabilities?.activeElectionId
+      ?? null;
+    return target !== null && isElectionId(target) ? target : null;
+  })();
+
+  /* The detail panel opens only once the authoritative summary is loaded;
+   * failures stay on the shared error display with Standing intact. */
+  function openElection(target: string) {
+    setNoticeScope("general");
+    void run((s) => s.loadElectionDetail(target)).then((next) => {
+      if (next?.electionDetail) {
+        setElectionOpen(true);
+        window.setTimeout(() => jumpTo("mp-election"), 0);
+      }
+    });
+  }
+
   function runMail(operation: (session: MpModeSession) => Promise<MpSnapshot>): Promise<MpSnapshot | null> {
     setNoticeScope("mail");
     return run(operation);
@@ -243,12 +271,19 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     });
   }
 
+  const phase = snapshot.phase;
+  const needsSession = phase === "idle" || phase === "loading" || phase === "session-required" || phase === "signed-out" || phase === "auth-expired";
+
+  /* Auth expiry evicts the detail with every other authed projection, so the
+   * open panel closes itself instead of showing a stale race. Above the
+   * admin early-return: every render runs the same hooks. */
+  useEffect(() => {
+    if (needsSession && electionOpen) setElectionOpen(false);
+  }, [needsSession, electionOpen]);
+
   if (adminOpen) {
     return <MpAdminScreen host={host} onBack={() => setAdminOpen(false)} />;
   }
-
-  const phase = snapshot.phase;
-  const needsSession = phase === "idle" || phase === "loading" || phase === "session-required" || phase === "signed-out" || phase === "auth-expired";
   const blocked = phase === "offline" || phase === "server-error" || phase === "rate-limited";
   /* Authoritative timing projection (#359 presence slice): the countdown is
    * computed from the server's nextScheduledTurn at render, exactly like the
@@ -261,6 +296,19 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     && !snapshot.turn.isProcessing
     && !snapshot.turn.paused
     && snapshot.turn.isActive !== false;
+
+  const visibleElection = !needsSession && electionOpen ? snapshot.electionDetail : null;
+  const electionPhaseLabel = visibleElection
+    ? visibleElection.isEnded
+      ? "Ended"
+      : visibleElection.inPrimary
+        ? "Primary"
+        : visibleElection.inGeneral
+          ? "General"
+          : visibleElection.isUpcoming
+            ? "Upcoming"
+            : visibleElection.status
+    : null;
 
   return (
     <main className="ahd-screen ahd-mp">
@@ -384,6 +432,18 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                 {snapshot.character.corporationName && (<><dt>Corporation</dt><dd>{snapshot.character.corporationName}</dd></>)}
               </dl>
             </article>
+            {/* Standing capability audit (#359/#510, docs/NAVIGATION-PARITY.md
+              * section 12): the reference links each row at a live-site
+              * destination (My Corporation -> /corporation/[id], My Union ->
+              * /unions/[id], My election -> /elections/[seatId ?? id],
+              * cabinet -> /country/[cc]/executive/cabinet/[position]/office,
+              * governor -> /country/[cc]/region/[state]/office). The
+              * election row is a real drill-in: the election-detail read
+              * (GET /api/elections?id=&view=summary) is allowlisted and has
+              * a Native MP surface below. The other four rows stay
+              * display-only: no dead controls, no links into local SP
+              * state. A row becomes actionable only with a supported
+              * authoritative MP destination behind it. */}
             {snapshot.capabilities && (
               <article className="ahd-card ahd-card-pad" aria-label="Standing">
                 <h2 className="ahd-h2">Standing</h2>
@@ -395,7 +455,23 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                   <dl className="ahd-mp-facts">
                     {snapshot.capabilities.corporationId !== null && (<><dt>Corporation</dt><dd>#{snapshot.capabilities.corporationId}</dd></>)}
                     {snapshot.capabilities.unionId && (<><dt>Union</dt><dd>{snapshot.capabilities.unionId}</dd></>)}
-                    {snapshot.capabilities.activeElectionLabel && (<><dt>Election</dt><dd>{snapshot.capabilities.activeElectionLabel}</dd></>)}
+                    {snapshot.capabilities.activeElectionLabel && (
+                      <><dt>Election</dt><dd>
+                        {snapshot.capabilities.activeElectionLabel}
+                        {electionTarget && (
+                          <>
+                            {" "}
+                            <button
+                              className="ahd-btn ahd-btn-sm"
+                              disabled={busy}
+                              onClick={() => openElection(electionTarget)}
+                            >
+                              View race
+                            </button>
+                          </>
+                        )}
+                      </dd></>
+                    )}
                     {snapshot.capabilities.cabinetOffice && (<><dt>Cabinet</dt><dd>{snapshot.capabilities.cabinetOffice}</dd></>)}
                     {snapshot.capabilities.governorOffice && (<><dt>Governor</dt><dd>{snapshot.capabilities.governorOffice}</dd></>)}
                   </dl>
@@ -433,6 +509,38 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
           <div className="ahd-mp-row ahd-mp-back">
             <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" onClick={() => jumpTo("mp-top")}>
               Back to sections
+            </button>
+          </div>
+          </>
+        )}
+
+        {/* Election detail drill-in (#359 election slice): authoritative
+          * summary for the Standing active election, opened only with data
+          * loaded. Read-only: candidacy, campaigns, and every write stay
+          * absent. Back returns to Standing, never into local SP state. */}
+        {visibleElection && electionPhaseLabel && (
+          <>
+          <article id="mp-election" className="ahd-card ahd-card-pad" aria-label="Election detail" tabIndex={-1}>
+            <h2 className="ahd-h2">{snapshot.capabilities?.activeElectionLabel ?? `${visibleElection.electionType} · ${visibleElection.state ?? visibleElection.countryId}`}</h2>
+            <dl className="ahd-mp-facts">
+              <dt>Phase</dt><dd>{electionPhaseLabel}</dd>
+              <dt>Status</dt><dd>{visibleElection.status}</dd>
+              <dt>Field</dt><dd>{visibleElection.candidateCount === 1 ? "1 candidate" : `${visibleElection.candidateCount} candidates`}</dd>
+              <dt>Leader</dt><dd>{visibleElection.leaderName ?? "No polling yet"}{visibleElection.leaderParty ? ` · ${visibleElection.leaderParty}` : ""}</dd>
+              <dt>Incumbent</dt><dd>{visibleElection.incumbentName ?? "None listed"}{visibleElection.incumbentParty ? ` · ${visibleElection.incumbentParty}` : ""}</dd>
+              {visibleElection.state && (<><dt>State</dt><dd>{visibleElection.state}</dd></>)}
+              <dt>Cycle</dt><dd>{visibleElection.cycle}</dd>
+            </dl>
+          </article>
+          <div className="ahd-mp-row ahd-mp-back">
+            <button
+              className="ahd-btn ahd-btn-sm ahd-btn-ghost"
+              onClick={() => {
+                setElectionOpen(false);
+                jumpTo("mp-profile");
+              }}
+            >
+              Back to Standing
             </button>
           </div>
           </>

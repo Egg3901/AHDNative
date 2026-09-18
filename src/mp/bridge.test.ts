@@ -100,7 +100,7 @@ describe("mpFetch/mpMutate", () => {
       kind: "ok",
       bodyText: '{"active":true}',
     });
-    expect(fetch).toHaveBeenCalledWith("notifications", 25, 0);
+    expect(fetch).toHaveBeenCalledWith("notifications", 25, 0, undefined);
 
     const mutate = vi.fn(async () => '{"success":true}');
     const host2 = hostWith({ mutate });

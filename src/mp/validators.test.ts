@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   formatTurnCountdown,
+  isElectionId,
   parseCharacterMe,
   parseClientNav,
+  parseElectionDetail,
   parseExecuteResult,
   parseInbox,
   parseLogoutAck,
@@ -10,6 +12,7 @@ import {
   parsePlayersOnline,
   parseSessionProbe,
   parseTurnStatus,
+  validateElectionId,
   validateExecuteArgs,
   validateNotificationId,
   validateNotificationPreference,
@@ -197,9 +200,29 @@ describe("parseClientNav", () => {
       corporationId: 7,
       unionId: null,
       activeElectionLabel: "President — National",
+      activeElectionId: "68a000000000000000000001",
+      activeElectionSeatId: null,
       cabinetOffice: "Secretary of State",
       governorOffice: null,
     });
+  });
+
+  it("projects the election seatId detail target when present", () => {
+    expect(
+      parseClientNav(
+        JSON.stringify({
+          hasCharacter: true,
+          activeElection: { id: "68a000000000000000000001", seatId: "US-senate-PA-1", label: "Senate — PA" },
+        }),
+      ),
+    ).toMatchObject({
+      activeElectionLabel: "Senate — PA",
+      activeElectionId: "68a000000000000000000001",
+      activeElectionSeatId: "US-senate-PA-1",
+    });
+    expect(
+      parseClientNav(JSON.stringify({ hasCharacter: true, activeElection: { label: "Senate — PA" } })),
+    ).toMatchObject({ activeElectionLabel: "Senate — PA", activeElectionId: null, activeElectionSeatId: null });
   });
 
   it("tolerates the guest and no-character shapes", () => {
@@ -232,6 +255,108 @@ describe("parseClientNav", () => {
         JSON.stringify({ hasCharacter: true, activeElection: "soon", cabinetOffice: { positionName: 42 } }),
       ),
     ).toMatchObject({ hasCharacter: true, activeElectionLabel: null, cabinetOffice: null });
+  });
+});
+
+describe("election-detail reference and payload (#359 election slice)", () => {
+  const HEX_ID = "68a000000000000000000001";
+  const SEAT_ID = "US-senate-PA-1";
+
+  it("accepts hex ids and bounded seatIds, rejects smuggling and drift", () => {
+    expect(isElectionId(HEX_ID)).toBe(true);
+    expect(isElectionId(SEAT_ID)).toBe(true);
+    expect(isElectionId("UK-commons-LON-3")).toBe(true);
+    for (const bad of [
+      "",
+      "e1",
+      "seat-9",
+      "US",
+      "US-",
+      "US--PA",
+      "US senate",
+      "US-senate-PA-1!",
+      `${HEX_ID}&view=full`,
+      `${SEAT_ID}?view=full`,
+      "../../admin/maintenance",
+      "/api/elections?id=x",
+      null,
+      42,
+    ]) {
+      expect(isElectionId(bad), JSON.stringify(bad)).toBe(false);
+      expect(validateElectionId(bad).ok).toBe(false);
+    }
+    expect(validateElectionId(SEAT_ID)).toEqual({ ok: true, id: SEAT_ID });
+  });
+
+  const summary = (overrides: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      election: {
+        id: HEX_ID,
+        seatId: SEAT_ID,
+        electionType: "senate",
+        state: "PA",
+        countryId: "US",
+        cycle: 4,
+        status: "active",
+        inPrimary: false,
+        isEnded: false,
+        isUpcoming: false,
+        inGeneral: true,
+        candidates: [{}, {}, {}],
+        polling: { leaderName: "Ada", leaderParty: "Labor" },
+        incumbent: { name: "Bo", party: "Tory" },
+        ...overrides,
+      },
+    });
+
+  it("projects the summary identity, phase, field, leader, and incumbent", () => {
+    expect(parseElectionDetail(summary())).toEqual({
+      id: HEX_ID,
+      seatId: SEAT_ID,
+      electionType: "senate",
+      state: "PA",
+      countryId: "US",
+      cycle: 4,
+      status: "active",
+      inPrimary: false,
+      isEnded: false,
+      isUpcoming: false,
+      inGeneral: true,
+      candidateCount: 3,
+      leaderName: "Ada",
+      leaderParty: "Labor",
+      incumbentName: "Bo",
+      incumbentParty: "Tory",
+    });
+  });
+
+  it("degrades absent decorations to null without losing the race", () => {
+    expect(parseElectionDetail(summary({ polling: null, incumbent: null, seatId: null, state: null }))).toMatchObject({
+      candidateCount: 3,
+      leaderName: null,
+      leaderParty: null,
+      incumbentName: null,
+      incumbentParty: null,
+      seatId: null,
+      state: null,
+    });
+    expect(parseElectionDetail(summary({ polling: "soon", incumbent: 42 }))).toMatchObject({
+      candidateCount: 3,
+      leaderName: null,
+      incumbentName: null,
+    });
+  });
+
+  it("fails closed on structural drift", () => {
+    expect(parseElectionDetail("not json")).toBeNull();
+    expect(parseElectionDetail(JSON.stringify({ election: null }))).toBeNull();
+    expect(parseElectionDetail(JSON.stringify({}))).toBeNull();
+    expect(parseElectionDetail(summary({ id: "" }))).toBeNull();
+    expect(parseElectionDetail(summary({ cycle: "four" }))).toBeNull();
+    expect(parseElectionDetail(summary({ inGeneral: "yes" }))).toBeNull();
+    expect(parseElectionDetail(summary({ candidates: { length: 3 } }))).toBeNull();
+    expect(parseElectionDetail(summary({ candidates: null }))).toBeNull();
+    expect(parseElectionDetail(JSON.stringify({ error: "Election not found" }))).toBeNull();
   });
 });
 
