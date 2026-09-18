@@ -182,7 +182,7 @@ export function CaucusPanel({ management, busy, onAction }: CaucusPanelProps) {
                         onClick={() => {
                           if (!caucus.disband.available) return;
                           const membersLabel = `${caucus.memberCount} ${caucus.memberCount === 1 ? "membership" : "memberships"}`;
-                          const warning = `Disband ${caucus.name}? All ${membersLabel} will be cleared and the chair seats vacated.`;
+                          const warning = `Disband ${caucus.name}? All ${membersLabel} will be cleared and the chair seats vacated. This is free (no action-point or fund charge).`;
                           if (!window.confirm(warning)) return;
                           onAction("disbandCaucus", { caucusId: caucus.id });
                         }}>
@@ -190,7 +190,15 @@ export function CaucusPanel({ management, busy, onAction }: CaucusPanelProps) {
                       </button>
                       <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
                         {!caucus.setTax.available ? (caucus.setTax.disabledReason ?? "Unavailable")
-                          : caucus.disband.consequences?.[0] ?? "Chair controls"}
+                          : caucus.setTax.cost > 0 || (caucus.setTax.fundCost ?? 0) > 0
+                            ? `Cost ${caucus.setTax.cost} actions`
+                            : `Free · ${caucus.setTax.consequences?.[0] ?? "Chair controls"}`}
+                      </span>
+                      <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+                        {!caucus.disband.available ? (caucus.disband.disabledReason ?? "Unavailable")
+                          : caucus.disband.cost > 0 || (caucus.disband.fundCost ?? 0) > 0
+                            ? `Cost ${caucus.disband.cost} actions`
+                            : `Free · ${caucus.disband.consequences?.[0] ?? "Chair controls"}`}
                       </span>
                     </div>
                   ) : null}
