@@ -130,4 +130,9 @@ export const MATERIAL_TEXT_PAIRS: readonly MaterialTextPair[] = [
   { fg: "#8f8f9d", bg: "#1d1d2a", label: "secondary on content", kind: "secondary" },
   { fg: "#8f8f9d", bg: "#26263a", label: "secondary on elevated/modal fallback", kind: "secondary" },
   { fg: "#ffffff", bg: "#dc2626", label: "primary action label", kind: "action" },
+  // Route-hero content sits bottom-justified over the shade's opaque base
+  // stop (#08080e at .96 alpha), not over the raw photo: this pair pins the
+  // imagery-legibility claim to that stop. Mid-gradient stops over bright
+  // photos carry no ratio claim; forced-colors drops the photo instead.
+  { fg: "#ffffff", bg: "#08080e", label: "hero content on shade base", kind: "body" },
 ];

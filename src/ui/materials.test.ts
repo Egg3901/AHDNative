@@ -186,6 +186,9 @@ describe("high-contrast preferences", () => {
     expect(forcedBlock).toMatch(/:focus-visible[^}]*box-shadow:\s*none/);
     // Every shipped control that suppresses its outline for a shadow ring
     // must appear in the takeover, or Tab focus goes invisible there.
+    // The wallet disclosure keeps an author-color outline at rest, but it
+    // joins the takeover so its forced-colors ring is the same Highlight
+    // as every other control instead of a remapped author color.
     // The profile chip/link live in profile.css (import order varies),
     // so the takeover's !important carries them regardless of sheet order.
     for (const control of [
@@ -200,6 +203,7 @@ describe("high-contrast preferences", () => {
       ".ahd-creation-answer:focus-visible",
       ".ahd-chip:focus-visible",
       ".ahd-creation-progress-dot:focus-visible",
+      ".ahd-wallet-disclosure:focus-visible",
       "button.ahd-profile-chip:focus-visible",
       ".ahd-profile-link:focus-visible",
       ".ahd-era-card:has(:focus-visible)",
@@ -293,5 +297,34 @@ describe("motion restraint", () => {
   it("keeps the existing reduced-motion takeover intact", () => {
     expect(materialCss).toContain("prefers-reduced-motion");
     expect(materialCss).toContain('data-reduced-motion="on"');
+  });
+});
+
+describe("imagery legibility (#437)", () => {
+  it("holds enhanced contrast for hero content on the shade base stop", () => {
+    const pair = MATERIAL_TEXT_PAIRS.find((candidate) => candidate.label === "hero content on shade base");
+    expect(pair).toBeTruthy();
+    expect(contrastRatio(pair!.fg, pair!.bg)).toBeGreaterThanOrEqual(7);
+  });
+
+  it("keeps the hero shade opaque at its base so bottom-justified content never sits on the raw photo", () => {
+    const shade = materialCss.match(/\.ahd-route-hero-shade\s*\{[^}]*\}/);
+    expect(shade, "missing hero shade rule").toBeTruthy();
+    expect(shade![0]).toMatch(/rgba\(8,8,14,\.96\)/);
+    expect(materialCss).toMatch(/\.ahd-route-hero-content\s*\{[^}]*justify-content:\s*flex-end/);
+  });
+
+  it("drops the hero photo and shade for system colors in forced-colors mode", () => {
+    const forcedStart = materialCss.indexOf("@media (forced-colors: active)");
+    expect(forcedStart).toBeGreaterThan(0);
+    const forcedCss = materialCss.slice(forcedStart);
+    // The photo stays rendered in forced-colors while text-shadow is
+    // suppressed, so the image and its shade must go and the band must
+    // resolve to system colors instead of white-on-photo.
+    expect(forcedCss).toMatch(/\.ahd-route-hero-image[^{]*\{[^}]*display:\s*none/);
+    expect(forcedCss).toMatch(/\.ahd-route-hero-shade[^{]*\{[^}]*display:\s*none/);
+    expect(forcedCss).toMatch(/\.ahd-route-hero\s*\{[^}]*background:\s*Canvas/);
+    expect(forcedCss).toMatch(/\.ahd-route-hero-content\s*\{[^}]*color:\s*CanvasText/);
+    expect(forcedCss).toMatch(/\.ahd-route-hero-content\s*\{[^}]*text-shadow:\s*none/);
   });
 });

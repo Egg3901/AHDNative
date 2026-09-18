@@ -924,7 +924,8 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
  * keyboard focus with a box-shadow ring and `outline: none` needs it, and
  * box-shadow is suppressed in forced-colors mode, which would leave Tab
  * focus invisible on the footer, drawer, bottom nav, creation controls,
- * and the Profile chip/link controls (profile.css). A real system-color
+ * the wallet disclosures, and the Profile chip/link controls (profile.css).
+ * A real system-color
  * outline keeps focus visible there. `!important` mirrors the
  * reduced-motion takeover below: the guarantee must hold regardless of
  * source order (creation rules ship later, profile.css order varies). */
@@ -940,6 +941,7 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
   .ahd-creation-answer:focus-visible,
   .ahd-chip:focus-visible,
   .ahd-creation-progress-dot:focus-visible,
+  .ahd-wallet-disclosure:focus-visible,
   button.ahd-profile-chip:focus-visible,
   .ahd-profile-link:focus-visible,
   .ahd-era-card:has(:focus-visible) { outline: 2px solid Highlight !important; outline-offset: 2px !important; box-shadow: none !important; }
@@ -1368,6 +1370,15 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
 @media (orientation: landscape) and (max-height: 500px) {
   .ahd-route-hero, .ahd-route-hero-content { min-height: 120px; }
   .ahd-route-hero-content { padding: 0.75rem 1rem; }
+}
+/* Forced-colors hero legibility (issue #437): text-shadow is suppressed in
+ * forced-colors mode and the photo stays rendered, so white content over a
+ * variable image would lose its only contrast mechanism. Drop the image and
+ * its shade and resolve the band to system colors instead. */
+@media (forced-colors: active) {
+  .ahd-route-hero { background: Canvas; }
+  .ahd-route-hero-image, .ahd-route-hero-shade { display: none; }
+  .ahd-route-hero-content { color: CanvasText; text-shadow: none; }
 }
 /* Elections hub stat strip (#377): Races / Contested / Next-to-close under the
    hero band. Grid tiles keep their own minimum width at zero so long deadline
