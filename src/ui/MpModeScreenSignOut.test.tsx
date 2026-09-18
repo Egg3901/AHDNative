@@ -96,6 +96,74 @@ describe("MpModeScreen sign out", () => {
 });
 
 /**
+ * Throttled unlink recovery (#149, #363): tapping Sign out while the server
+ * throttles must keep the linked session under the "Slow down" card with the
+ * server backoff — never a half-cleared screen — and the retry path must
+ * reach the sign-in card once the throttle lifts.
+ */
+describe("MpModeScreen throttled unlink", () => {
+  function pressureHost(): { host: MpBridgeHost; mutateSpy: ReturnType<typeof vi.fn> } {
+    const logoutQueue: Array<string | { reject: string }> = [
+      { reject: 'remote-error:429:45:{"error":"too quick"}' },
+      logoutAck,
+    ];
+    const mutateSpy = vi.fn(async (op: string) => {
+      if (op === "auth-logout") {
+        const next = logoutQueue.shift();
+        if (typeof next === "string") return next;
+        if (next) throw new Error(next.reject);
+      }
+      throw new Error(`unexpected mutate ${op}`);
+    });
+    return {
+      mutateSpy,
+      host: {
+        fetch: async (op: string) => {
+          switch (op) {
+            case "auth-session": return probe;
+            case "character-me": return me;
+            case "turn-status": return turn;
+            case "client-nav": return caps;
+            case "notifications": return inbox;
+            case "mail-inbox": return emptyMailInbox;
+            case "mail-sent": return emptyMailSent;
+            default: throw new Error(`unexpected fetch ${op}`);
+          }
+        },
+        mutate: mutateSpy,
+        beginSignIn: async () => {},
+      },
+    };
+  }
+
+  it("slow-down keeps the session, then retry reaches the sign-in card", async () => {
+    const user = userEvent.setup();
+    const { host, mutateSpy } = pressureHost();
+    render(<MpModeScreen host={host} onExit={() => {}} />);
+    await waitFor(() => expect(screen.getByText("Playing as Ada")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: /sign out/i }));
+
+    // Honest pressure state: backoff line, Slow down card, kept identity.
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Slow down" })).toBeInTheDocument());
+    expect(screen.getByText("Try again in about 45 seconds.")).toBeInTheDocument();
+    expect(screen.getByText("Playing as Ada")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
+    expect(mutateSpy).toHaveBeenCalledWith("auth-logout", {});
+
+    // Reconnect recovers the ready session; the retry unlink then lands the
+    // sign-in card (the switch-account path) once the throttle lifts.
+    await user.click(screen.getByRole("button", { name: "Reconnect" }));
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Slow down" })).not.toBeInTheDocument());
+    expect(screen.getByText("Playing as Ada")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /sign out/i }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: /sign in to play multiplayer/i })).toBeInTheDocument());
+    expect(screen.queryByText("Playing as Ada")).not.toBeInTheDocument();
+  });
+});
+
+/**
  * Unlink-to-switch screen residue (#149, #363): the reference logs out to
  * `/`, dropping every in-memory draft with the navigation. Native keeps the
  * MP screen mounted across unlink and switch, so per-account screen state
