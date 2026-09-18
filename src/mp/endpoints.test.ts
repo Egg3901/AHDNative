@@ -194,6 +194,23 @@ describe("MP admin-maintenance pin (#359)", () => {
     expect(mutateBlock).not.toMatch(/union/i);
   });
 
+  it("pins the cabinet-detail read on the public briefing route", () => {
+    const op: MpFetchOpId = "cabinet-detail";
+    expect(op).toBe("cabinet-detail");
+    const source = readFileSync(new URL("./endpoints.ts", import.meta.url), "utf8");
+    const fetchBlock = source.slice(source.indexOf("export type MpFetchOpId"), source.indexOf("export type MpMutateOpId"));
+    expect(fetchBlock).toMatch(/cabinet-detail/);
+    const docBlock = source.slice(0, source.indexOf("export const MP_AUDIT_REVISION"));
+    expect(docBlock).toMatch(/cabinet-detail/);
+    expect(docBlock).toMatch(/\/api\/country\/\[code\]\/executive\/cabinet\/\[positionId\]\/briefing/);
+    expect(docBlock).toMatch(/400/);
+    expect(docBlock).toMatch(/404/);
+    expect(docBlock).toMatch(/canView/);
+    expect(docBlock).toMatch(/no-store/);
+    const mutateBlock = source.slice(source.indexOf("export type MpMutateOpId"), source.indexOf("export type MpExecuteActionType"));
+    expect(mutateBlock).not.toMatch(/cabinet/i);
+  });
+
   it("keeps player mail fetch ops next to the admin-maintenance read", () => {
     const source = readFileSync(new URL("./endpoints.ts", import.meta.url), "utf8");
     const fetchBlock = source.slice(source.indexOf("export type MpFetchOpId"), source.indexOf("export type MpMutateOpId"));

@@ -13,12 +13,16 @@
  *   `/country/[cc]/region/[stateId]/office`.
  * The corporation read is allowlisted (`src/mp/endpoints.ts`,
  * `src-tauri/src/mp_session.rs`) with a Native MP surface, so the
- * corporation row offers its drill-in. Union, cabinet, and governor have no
- * allowlisted read and no Native surface, so those rows stay display-only:
- * absent navigation, never an inert control, never a route into local SP
- * state. (The election drill-in is covered by MpElectionDetail543; this
- * file's election fixture carries an invalid id, so its row stays
- * display-only here.) Rendered at 320px, 390px, and desktop.
+ * corporation row offers its drill-in. The union and cabinet drill-ins
+ * landed after this file (`MpUnionDetail.test.tsx`,
+ * `MpCabinetDetail.test.tsx`); this file's union, election, and cabinet
+ * fixtures carry invalid references (`union-7`, `e1`, hyphenated
+ * `sec-state`), so those rows stay display-only here and pin the
+ * invalid-reference path: absent navigation, never an inert control,
+ * never a route into local SP state (the election drill-in itself is
+ * covered by `MpElectionDetail543.test.tsx`). The governor row stays display-only:
+ * no audited governor JSON endpoint exists. Rendered at 320px, 390px, and
+ * desktop.
  */
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";

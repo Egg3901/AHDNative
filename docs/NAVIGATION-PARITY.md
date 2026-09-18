@@ -534,16 +534,34 @@ the audited public GET /api/corporations/[id] read
 (`corporation-detail` fetch op, sequential-id-or-24-hex validation in TS
 and Rust, fail-closed projection of identity plus leadership plus scale
 only, on-demand load with expiry eviction, read-only article with Back
-to Standing). The Standing card rule is unchanged: union, cabinet, and
-governor rows have no allowlisted read and no Native surface, so they
-stay display-only. Evidence: `src/mp/adapter.test.ts`,
+to Standing). The Standing card rule is unchanged: rows without an
+allowlisted read and a Native surface stay display-only. Evidence: `src/mp/adapter.test.ts`,
 `src/mp/validators.test.ts`, `src/mp/endpoints.test.ts`,
 `src/mp/bridge.test.ts`, `src/ui/MpCorporationDetail.test.tsx` (9
 rendered at 320/390/1280px), and the updated
 `src/ui/MpStandingCapabilities510.test.tsx` (corporation drill-in plus
 display-only siblings at 320/390/1280px).
 
+Union slice (PR #553): the Standing union row now drills into an
+authoritative summary via the audited public GET /api/unions/[id] read
+(`union-detail` fetch op, strict 24-hex validation in TS and Rust,
+fail-closed projection of identity plus leadership plus scale only,
+on-demand load with expiry eviction and 403 honesty, read-only article
+with Back to Standing). Evidence: `src/ui/MpUnionDetail.test.tsx`
+(15 rendered at 320/390/1280px).
+
+Cabinet slice (this change, issues #359 and #510 stay open): the
+Standing cabinet row now drills into the audited public GET
+/api/country/[code]/executive/cabinet/[positionId]/briefing read
+(`cabinet-detail` fetch op, lowercase 2-3 letter country key plus
+snake_case seat slug validated in TS and Rust, letterhead plus roster
+facts only, on-demand load with expiry eviction and 404 honesty,
+read-only article with Back to Standing). A withheld office
+({canView:false}) shows restriction titles instead of departmental
+record; a vacant seat names no holder. The governor row stays
+display-only: no audited governor JSON endpoint exists. Evidence:
+`src/ui/MpCabinetDetail.test.tsx` (21 rendered at 320/390/1280px).
+
 Remaining gaps (issues #359 and #510 stay open): Native MP still has no
-union, cabinet-office, or governor-office detail surface; those three
-rows stay display-only. Per-screen action/data depth and
+governor-office detail surface; that row stays display-only. Per-screen action/data depth and
 physical-iPhone smoke remain as in section 8.

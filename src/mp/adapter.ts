@@ -1,5 +1,6 @@
 import { mpFetch, mpMutate, type MpBridgeHost, type MpCallResult } from "./bridge";
 import {
+  parseCabinetDetail,
   parseCharacterMe,
   parseClientNav,
   parseCorporationDetail,
@@ -14,6 +15,7 @@ import {
   parseSessionProbe,
   parseTurnStatus,
   parseUnionDetail,
+  validateCabinetRef,
   validateCorporationId,
   validateElectionId,
   validateExecuteArgs,
@@ -23,6 +25,7 @@ import {
   validateNotificationPreference,
   validateSnoozeMinutes,
   validateUnionId,
+  type MpCabinetDetailView,
   type MpCapabilitiesView,
   type MpCharacterView,
   type MpCorporationDetailView,
@@ -70,6 +73,8 @@ export interface MpSnapshot {
   corporationDetail: MpCorporationDetailView | null;
   /** Standing union detail; loaded on demand, never on enter or refresh. */
   unionDetail: MpUnionDetailView | null;
+  /** Standing cabinet-office briefing; loaded on demand, never on enter or refresh. */
+  cabinetDetail: MpCabinetDetailView | null;
   inbox: MpInboxView | null;
   /** Received player mail page; loaded on demand, never on enter. */
   mailInbox: MpMailInbox | null;
@@ -100,6 +105,7 @@ const INITIAL_SNAPSHOT: MpSnapshot = {
   electionDetail: null,
   corporationDetail: null,
   unionDetail: null,
+  cabinetDetail: null,
   inbox: null,
   mailInbox: null,
   mailSent: null,
@@ -120,9 +126,9 @@ export const MP_MAIL_LIMIT = 50;
 
 function emptyAuthed(): Pick<
   MpSnapshot,
-  "character" | "turn" | "capabilities" | "electionDetail" | "corporationDetail" | "unionDetail" | "inbox" | "mailInbox" | "mailSent" | "presence"
+  "character" | "turn" | "capabilities" | "electionDetail" | "corporationDetail" | "unionDetail" | "cabinetDetail" | "inbox" | "mailInbox" | "mailSent" | "presence"
 > {
-  return { character: null, turn: null, capabilities: null, electionDetail: null, corporationDetail: null, unionDetail: null, inbox: null, mailInbox: null, mailSent: null, presence: null };
+  return { character: null, turn: null, capabilities: null, electionDetail: null, corporationDetail: null, unionDetail: null, cabinetDetail: null, inbox: null, mailInbox: null, mailSent: null, presence: null };
 }
 
 export class MpModeSession {
@@ -455,6 +461,45 @@ export class MpModeSession {
       return this.set({ phase: "server-error", unionDetail: null, error: "The union record answered in an unexpected shape." });
     }
     return this.set({ phase: "ready", unionDetail, error: null, retryAfter: null });
+  }
+
+  /**
+   * Load the Standing cabinet-office briefing on demand (#359 cabinet
+   * slice). Enter and refresh never fetch it: the Standing row offers the
+   * drill-in, and this reads GET
+   * /api/country/[code]/executive/cabinet/[positionId]/briefing through
+   * the first-party session. The reference is pre-checked against the
+   * audited shape (lowercase 2-3 letter country key plus snake_case seat
+   * slug from client-nav `cabinetOffice`) and the Rust bridge re-validates
+   * before anything is sent. Expiry evicts the briefing with every other
+   * authed projection; a 404 means the seat is gone server-side and
+   * reports the server's message with prior detail kept. A withheld
+   * office ({canView:false}) is a 200 with roster facts plus restriction
+   * titles, not an error; a vacant seat is a 200 with member null. Every
+   * other failure maps through the shared read-failure contract with
+   * prior detail kept and an honest error, never stale success. Nothing
+   * here touches the local SP engine or saves.
+   */
+  async loadCabinetDetail(countryCode: unknown, positionId: unknown): Promise<MpSnapshot> {
+    if (!this.snapshot.userId) return this.enter();
+    const validated = validateCabinetRef({ countryCode, positionId });
+    if (!validated.ok) {
+      return this.set({ error: validated.reason });
+    }
+    this.set({ error: null, notice: null, retryAfter: null });
+    const result = await mpFetch(this.host, "cabinet-detail", undefined, undefined, undefined, undefined, undefined, validated.countryCode, validated.positionId);
+    if (result.kind === "remote" && result.http === 404) {
+      // The referenced seat no longer resolves server-side: say so with
+      // the server's message and keep the last loaded briefing, never
+      // blank it.
+      return this.set({ phase: "offline", error: result.message });
+    }
+    if (result.kind !== "ok") return this.applyAuthedReadFailure(result);
+    const cabinetDetail = parseCabinetDetail(result.bodyText);
+    if (!cabinetDetail) {
+      return this.set({ phase: "server-error", cabinetDetail: null, error: "The cabinet briefing answered in an unexpected shape." });
+    }
+    return this.set({ phase: "ready", cabinetDetail, error: null, retryAfter: null });
   }
 
   /**

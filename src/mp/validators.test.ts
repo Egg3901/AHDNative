@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   formatTurnCountdown,
+  isCabinetCountryCode,
+  isCabinetPositionId,
   isCorporationId,
   isElectionId,
+  parseCabinetDetail,
   parseCharacterMe,
   parseClientNav,
   parseCorporationDetail,
@@ -16,6 +19,7 @@ import {
   parseTurnStatus,
   parseUnionDetail,
   isUnionId,
+  validateCabinetRef,
   validateCorporationId,
   validateElectionId,
   validateExecuteArgs,
@@ -191,7 +195,7 @@ describe("parseClientNav", () => {
       homeState: { id: "CA", name: "California", countryId: "US" },
       currentParty: { id: "3", name: "Labor", countryId: "US" },
       activeElection: { id: "68a000000000000000000001", label: "President — National" },
-      cabinetOffice: { positionId: "sec-state", positionName: "Secretary of State", countryCode: "us" },
+      cabinetOffice: { positionId: "secretary_of_state", positionName: "Secretary of State", countryCode: "us" },
       governorOffice: null,
       wikiDisabled: false,
       conflictsEnabled: true,
@@ -209,8 +213,32 @@ describe("parseClientNav", () => {
       activeElectionId: "68a000000000000000000001",
       activeElectionSeatId: null,
       cabinetOffice: "Secretary of State",
+      cabinetCountryCode: "us",
+      cabinetPositionId: "secretary_of_state",
       governorOffice: null,
     });
+  });
+
+  it("degrades a half-valid cabinet pair to display-only, never half a request", () => {
+    const caps = (cabinetOffice: unknown) =>
+      parseClientNav(JSON.stringify({ hasCharacter: true, cabinetOffice }));
+    // A hyphenated slug is not a real seat: the display name stands, the
+    // drill-in pair degrades to null so nothing is ever requested.
+    expect(
+      caps({ positionId: "secretary-of-state", positionName: "Secretary of State", countryCode: "us" }),
+    ).toMatchObject({ cabinetOffice: "Secretary of State", cabinetCountryCode: null, cabinetPositionId: null });
+    // An overlong country key is not a real country: same degradation.
+    expect(
+      caps({ positionId: "secretary_of_state", positionName: "Secretary of State", countryCode: "ussr" }),
+    ).toMatchObject({ cabinetOffice: "Secretary of State", cabinetCountryCode: null, cabinetPositionId: null });
+    // A missing half is not a pair either.
+    expect(
+      caps({ positionId: "secretary_of_state", positionName: "Secretary of State" }),
+    ).toMatchObject({ cabinetOffice: "Secretary of State", cabinetCountryCode: null, cabinetPositionId: null });
+    // Uppercase country keys canonicalize: the route uppercases before lookup.
+    expect(
+      caps({ positionId: "secretary_of_state", positionName: "Secretary of State", countryCode: "US" }),
+    ).toMatchObject({ cabinetOffice: "Secretary of State", cabinetCountryCode: "us", cabinetPositionId: "secretary_of_state" });
   });
 
   it("projects the election seatId detail target when present", () => {
@@ -640,6 +668,115 @@ describe("union-detail reference and payload (#359 union slice)", () => {
       ),
     ).toBeNull();
     expect(parseUnionDetail(JSON.stringify({ error: "Union not found" }))).toBeNull();
+  });
+});
+
+describe("cabinet-detail reference and payload (#359 cabinet slice)", () => {
+  it("accepts the audited country-plus-seat pair, rejects drift", () => {
+    expect(isCabinetCountryCode("us")).toBe(true);
+    expect(isCabinetCountryCode("US")).toBe(true);
+    expect(isCabinetCountryCode("sco")).toBe(true);
+    for (const bad of ["", "u", "ussr", "u1", "us ", "us1", "u-s", null, 42]) {
+      expect(isCabinetCountryCode(bad), JSON.stringify(bad)).toBe(false);
+    }
+    expect(isCabinetPositionId("secretary_of_state")).toBe(true);
+    expect(isCabinetPositionId("generalSecretary")).toBe(true);
+    for (const bad of [
+      "",
+      "secretary-of-state",
+      "secretary_of_state?view=full",
+      "secretary_of_state/leader",
+      "secretary_of_state/../fire",
+      "../admin/maintenance",
+      "/api/country/us/executive/cabinet/secretary_of_state/briefing",
+      "x".repeat(65),
+      null,
+      42,
+    ]) {
+      expect(isCabinetPositionId(bad), JSON.stringify(bad)).toBe(false);
+    }
+    expect(validateCabinetRef({ countryCode: "US", positionId: "secretary_of_state" })).toEqual({
+      ok: true,
+      countryCode: "us",
+      positionId: "secretary_of_state",
+    });
+    expect(validateCabinetRef({ countryCode: "ussr", positionId: "secretary_of_state" }).ok).toBe(false);
+    expect(validateCabinetRef({ countryCode: "us", positionId: "secretary-of-state" }).ok).toBe(false);
+  });
+
+  const briefing = (overrides: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      canView: true,
+      canAct: true,
+      liveYear: 1862,
+      position: { id: "secretary_of_state", name: "Secretary of State", department: "State" },
+      member: { characterName: "Ada", partyName: "Labor", acting: false, actingExpiresOnTurn: null },
+      ...overrides,
+    });
+
+  it("projects the letterhead plus roster facts only", () => {
+    expect(parseCabinetDetail(briefing())).toEqual({
+      positionId: "secretary_of_state",
+      positionName: "Secretary of State",
+      department: "State",
+      liveYear: 1862,
+      canView: true,
+      canAct: true,
+      member: { characterName: "Ada", partyName: "Labor", acting: false, actingExpiresOnTurn: null },
+      restriction: null,
+    });
+    // Departmental record never surfaces, even when the server sends it.
+    const projected = parseCabinetDetail(
+      briefing({ orders: [{ id: "o1" }], budgets: { cash: 1 }, ministerialActions: 2 }),
+    )!;
+    expect(JSON.stringify(projected)).not.toMatch(/orders|budgets|ministerialActions|metrics|monetary|military/i);
+  });
+
+  it("keeps the withheld shape as data with roster facts plus titles", () => {
+    expect(
+      parseCabinetDetail(
+        briefing({
+          canView: false,
+          canAct: false,
+          member: { characterName: "Ada", partyName: "Labor", acting: true, actingExpiresOnTurn: 14 },
+          restriction: { allowedTitles: ["President", "Vice President"], countryName: "United States" },
+        }),
+      ),
+    ).toEqual({
+      positionId: "secretary_of_state",
+      positionName: "Secretary of State",
+      department: "State",
+      liveYear: 1862,
+      canView: false,
+      canAct: false,
+      member: { characterName: "Ada", partyName: "Labor", acting: true, actingExpiresOnTurn: 14 },
+      restriction: { allowedTitles: ["President", "Vice President"], countryName: "United States" },
+    });
+  });
+
+  it("names no holder on a vacant seat and degrades decorations to null", () => {
+    expect(parseCabinetDetail(briefing({ member: null }))).toMatchObject({
+      positionId: "secretary_of_state",
+      member: null,
+      restriction: null,
+    });
+    expect(
+      parseCabinetDetail(briefing({ position: { id: "secretary_of_state" }, liveYear: null })),
+    ).toMatchObject({ positionName: null, department: null, liveYear: null });
+  });
+
+  it("fails closed on structural drift", () => {
+    expect(parseCabinetDetail("not json")).toBeNull();
+    expect(parseCabinetDetail(JSON.stringify({}))).toBeNull();
+    expect(parseCabinetDetail(briefing({ position: null }))).toBeNull();
+    expect(parseCabinetDetail(briefing({ position: { id: "secretary-of-state" } }))).toBeNull();
+    expect(parseCabinetDetail(briefing({ canView: "yes", canAct: true }))).toBeNull();
+    expect(parseCabinetDetail(briefing({ canView: false, restriction: null }))).toBeNull();
+    expect(
+      parseCabinetDetail(briefing({ canView: false, restriction: { allowedTitles: ["", "VP"] } })),
+    ).toBeNull();
+    expect(parseCabinetDetail(briefing({ member: { characterName: "Ada", acting: "sometimes" } }))).toBeNull();
+    expect(parseCabinetDetail(JSON.stringify({ error: "Unknown cabinet position" }))).toBeNull();
   });
 });
 

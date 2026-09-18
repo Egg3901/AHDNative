@@ -33,7 +33,7 @@ const caps = () =>
     myCorporationId: 7,
     myUnionId: null,
     activeElection: { id: "68a000000000000000000001", label: "President — National" },
-    cabinetOffice: { positionId: "sec-state", positionName: "Secretary of State", countryCode: "us" },
+    cabinetOffice: { positionId: "secretary_of_state", positionName: "Secretary of State", countryCode: "us" },
     governorOffice: null,
   });
 const capsGuest = () => JSON.stringify({ user: null, hasCharacter: false });
@@ -193,6 +193,7 @@ describe("MpModeSession enter", () => {
       electionDetail: null,
       corporationDetail: null,
       unionDetail: null,
+      cabinetDetail: null,
       inbox: null,
       mailInbox: null,
       mailSent: null,
@@ -679,7 +680,7 @@ describe("MpModeSession election detail (#359 election slice)", () => {
       candidateCount: 2,
       leaderName: "Ada",
     });
-    expect(host.fetch).toHaveBeenCalledWith("election-detail", undefined, undefined, SEAT_ID, undefined, undefined);
+    expect(host.fetch).toHaveBeenCalledWith("election-detail", undefined, undefined, SEAT_ID, undefined, undefined, undefined, undefined);
   });
 
   it("rejects bad references client-side without a bridge call", async () => {
@@ -805,7 +806,7 @@ describe("MpModeSession corporation detail (#359 corporation slice)", () => {
       ceoName: "Ada",
       sectorCount: 2,
     });
-    expect(host.fetch).toHaveBeenCalledWith("corporation-detail", undefined, undefined, undefined, "42", undefined);
+    expect(host.fetch).toHaveBeenCalledWith("corporation-detail", undefined, undefined, undefined, "42", undefined, undefined, undefined);
   });
 
   it("rejects bad references client-side without a bridge call", async () => {
@@ -935,7 +936,7 @@ describe("MpModeSession union detail (#359 union slice)", () => {
       name: "Amalgamated Millhands",
       sectorCount: 2,
     });
-    expect(host.fetch).toHaveBeenCalledWith("union-detail", undefined, undefined, undefined, undefined, HEX_ID);
+    expect(host.fetch).toHaveBeenCalledWith("union-detail", undefined, undefined, undefined, undefined, HEX_ID, undefined, undefined);
   });
 
   it("rejects bad references client-side without a bridge call", async () => {
@@ -1016,6 +1017,163 @@ describe("MpModeSession union detail (#359 union slice)", () => {
     const refreshed = await session.refresh();
     expect(refreshed.phase).toBe("ready");
     expect(refreshed.unionDetail?.name).toBe("Amalgamated Millhands");
+    expect(JSON.stringify(refreshed)).not.toMatch(/sp_|singleplayer|localSave/i);
+  });
+});
+
+describe("MpModeSession cabinet briefing (#359 cabinet slice)", () => {
+  const briefing = (overrides: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      canView: true,
+      canAct: true,
+      liveYear: 1862,
+      position: { id: "secretary_of_state", name: "Secretary of State", department: "State" },
+      member: { characterName: "Ada", partyName: "Labor", acting: false, actingExpiresOnTurn: null },
+      ...overrides,
+    });
+
+  function enteredCabinetHost(extraFetch: Record<string, Array<string | { reject: string }>>) {
+    return scriptedHost({
+      fetch: {
+        "auth-session": [probeA],
+        "character-me": [meA(1000)],
+        "turn-status": [turn()],
+        "client-nav": [caps()],
+        notifications: [inbox()],
+        ...extraFetch,
+      },
+    });
+  }
+
+  it("loads the briefing on demand with the validated pair, never on enter", async () => {
+    const { host, calls } = enteredCabinetHost({ "cabinet-detail": [briefing()] });
+    const session = new MpModeSession(host);
+    const entered = await session.enter();
+    expect(entered.phase).toBe("ready");
+    expect(entered.cabinetDetail).toBeNull();
+    expect(entered.electionDetail).toBeNull();
+    expect(entered.corporationDetail).toBeNull();
+    expect(entered.unionDetail).toBeNull();
+    expect(calls.some((call) => call.op === "cabinet-detail")).toBe(false);
+    const loaded = await session.loadCabinetDetail("us", "secretary_of_state");
+    expect(loaded.phase).toBe("ready");
+    expect(loaded.cabinetDetail).toMatchObject({
+      positionId: "secretary_of_state",
+      positionName: "Secretary of State",
+      department: "State",
+    });
+    expect(host.fetch).toHaveBeenCalledWith(
+      "cabinet-detail",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      "us",
+      "secretary_of_state",
+    );
+  });
+
+  it("rejects bad references client-side without a bridge call", async () => {
+    const { host, calls } = enteredCabinetHost({});
+    const session = new MpModeSession(host);
+    await session.enter();
+    calls.length = 0;
+    for (const bad of [
+      ["ussr", "secretary_of_state"],
+      ["u1", "secretary_of_state"],
+      ["us", "secretary-of-state"],
+      ["us", "secretary_of_state/../fire"],
+      ["us", ""],
+      ["", "secretary_of_state"],
+      [null, "secretary_of_state"],
+      ["us", null],
+      [42, "secretary_of_state"],
+    ]) {
+      const snapshot = await session.loadCabinetDetail(bad[0], bad[1]);
+      expect(snapshot.error, JSON.stringify(bad)).toMatch(/cabinet office reference is invalid/);
+    }
+    expect(calls).toHaveLength(0);
+    expect(session.get().cabinetDetail).toBeNull();
+  });
+
+  it("keeps withheld and vacant briefings as data, fails closed on drift and outages", async () => {
+    const withheld = briefing({
+      canView: false,
+      canAct: false,
+      member: { characterName: "Ada", partyName: "Labor", acting: true, actingExpiresOnTurn: 14 },
+      restriction: { allowedTitles: ["President", "Vice President"], countryName: "United States" },
+    });
+    const vacant = briefing({ member: null });
+    const { host } = enteredCabinetHost({
+      "cabinet-detail": [
+        briefing(),
+        withheld,
+        vacant,
+        "{oops",
+        briefing(),
+        { reject: "remote-error:404:0:{\\\"error\\\":\\\"Unknown cabinet position\\\"}" },
+        { reject: "remote-error:500:0:{\\\"error\\\":\\\"boom\\\"}" },
+      ],
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+    expect((await session.loadCabinetDetail("us", "secretary_of_state")).cabinetDetail?.member?.characterName).toBe("Ada");
+    // A withheld office is data, not an error: roster facts plus titles.
+    const held = await session.loadCabinetDetail("us", "secretary_of_state");
+    expect(held.phase).toBe("ready");
+    expect(held.cabinetDetail?.canView).toBe(false);
+    expect(held.cabinetDetail?.restriction?.allowedTitles).toEqual(["President", "Vice President"]);
+    // A vacant seat is data too: the seat stands, no holder is named.
+    const empty = await session.loadCabinetDetail("us", "secretary_of_state");
+    expect(empty.phase).toBe("ready");
+    expect(empty.cabinetDetail?.member).toBeNull();
+    const malformed = await session.loadCabinetDetail("us", "secretary_of_state");
+    expect(malformed.phase).toBe("server-error");
+    expect(malformed.error).toMatch(/cabinet briefing/);
+    expect(malformed.cabinetDetail).toBeNull();
+    expect((await session.loadCabinetDetail("us", "secretary_of_state")).phase).toBe("ready");
+    const missing = await session.loadCabinetDetail("us", "secretary_of_state");
+    expect(missing.phase).toBe("offline");
+    expect(missing.error).toMatch(/Unknown cabinet position/);
+    expect(missing.cabinetDetail?.positionId).toBe("secretary_of_state");
+    const outage = await session.loadCabinetDetail("us", "secretary_of_state");
+    expect(outage.phase).toBe("server-error");
+    expect(outage.error).toMatch(/boom/);
+    expect(outage.cabinetDetail?.positionId).toBe("secretary_of_state");
+  });
+
+  it("evicts the briefing with standing on auth expiry and clears it on exit", async () => {
+    const { host } = enteredCabinetHost({
+      "cabinet-detail": [briefing(), { reject: "remote-error:401:0:{\\\"error\\\":\\\"Unauthorized\\\"}" }],
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+    await session.loadCabinetDetail("us", "secretary_of_state");
+    expect(session.get().cabinetDetail?.positionId).toBe("secretary_of_state");
+    const expired = await session.loadCabinetDetail("us", "secretary_of_state");
+    expect(expired.phase).toBe("auth-expired");
+    expect(expired.cabinetDetail).toBeNull();
+    expect(expired.capabilities).toBeNull();
+    session.exit();
+    expect(session.get().cabinetDetail).toBeNull();
+  });
+
+  it("leaves the briefing alone on refresh and never touches SP state", async () => {
+    const { host } = enteredCabinetHost({
+      "auth-session": [probeA, probeA],
+      "character-me": [meA(1000), meA(1000)],
+      "turn-status": [turn(), turn()],
+      "client-nav": [caps(), caps()],
+      notifications: [inbox(), inbox()],
+      "cabinet-detail": [briefing()],
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+    await session.loadCabinetDetail("us", "secretary_of_state");
+    const refreshed = await session.refresh();
+    expect(refreshed.phase).toBe("ready");
+    expect(refreshed.cabinetDetail?.positionName).toBe("Secretary of State");
     expect(JSON.stringify(refreshed)).not.toMatch(/sp_|singleplayer|localSave/i);
   });
 });
