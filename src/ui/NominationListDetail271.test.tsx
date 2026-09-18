@@ -76,6 +76,36 @@ describe("Nomination list/detail unified projection (#271)", () => {
     }
   });
 
+  it("shows the nominee party name in the selected detail at 390px and omits it when unknown", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const { session, names } = unifiedSession();
+    const probe = createWorld({ era: "1953", countryId: "US", seed: "nom-271-ui", playerName: "President", mode: "hos" });
+    const nominee = probe.politicians.find((p) => p.name === names[0])!;
+    const partyName = probe.parties[nominee.partyId]?.name ?? nominee.partyId;
+
+    const { unmount } = render(
+      <div style={{ width: 390 }}>
+        <NominationsPanel legislature={session.view().legislature} busy={false} onAction={onAction} />
+      </div>,
+    );
+    await user.click(screen.getByRole("button", { name: new RegExp(escapeRegExp(names[0]!), "i") }));
+    const detail = document.querySelector('[data-pane="detail"]') as HTMLElement;
+    expect(within(detail).getByText(new RegExp(escapeRegExp(partyName), "i"))).toBeInTheDocument();
+    unmount();
+
+    // A null party name renders no party fragment in the same detail slot.
+    const legislature = session.view().legislature;
+    const nulled = {
+      ...legislature,
+      nominations: legislature.nominations!.map((entry) => ({ ...entry, nomineeParty: null, nomineePartyName: null })),
+    };
+    render(<NominationsPanel legislature={nulled} busy={false} onAction={onAction} />);
+    await user.click(screen.getByRole("button", { name: new RegExp(escapeRegExp(names[0]!), "i") }));
+    const nullDetail = document.querySelector('[data-pane="detail"]') as HTMLElement;
+    expect(within(nullDetail).queryByText(new RegExp(escapeRegExp(partyName), "i"))).toBeNull();
+  });
+
   it("renders an honest empty state when no nominations are projected", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "nom-271-empty", playerName: "Alex", mode: "hos" });
     const session = new GameSession();

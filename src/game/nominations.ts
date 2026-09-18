@@ -71,6 +71,8 @@ export interface NominationView {
   seatNumber?: number;
   nominee: string;
   nomineeParty: string | null;
+  /** Display name resolved from world.parties; null when the nominee has no party. */
+  nomineePartyName: string | null;
   sponsor: string | null;
   status: string;
   statusLabel: string;
@@ -183,6 +185,7 @@ function projectCabinet(world: WorldState, nomination: CabinetNomination): Nomin
     positionId: nomination.positionId,
     nominee: nomination.nomineeName,
     nomineeParty: nomination.nomineeParty ?? null,
+    nomineePartyName: nomineePartyName(world, nomination.nomineeParty ?? null),
     sponsor: nomination.proposedByName ?? nomination.proposedBy,
     status: nomination.status,
     statusLabel: nominationStatusLabel(nomination.status),
@@ -213,6 +216,17 @@ function projectCabinet(world: WorldState, nomination: CabinetNomination): Nomin
  * from state the engine already holds: the player record, then the
  * politician roster, then the raw id. Null stays null (unsponsored).
  */
+/**
+ * Nominee party display name. The engine stores only the raw party id on the
+ * nomination (`nomineeParty`, e.g. "US_DEM"); both AHDGame detail pages render
+ * the party name beside the sponsor. Resolve through world.parties with the
+ * same fallback sibling projections use (`world.parties[id]?.name ?? id`).
+ */
+export function nomineePartyName(world: WorldState, partyId: string | null): string | null {
+  if (partyId === null) return null;
+  return world.parties[partyId]?.name ?? partyId;
+}
+
 export function scotusSponsorName(world: WorldState, proposedBy: string | null): string | null {
   if (proposedBy === null) return null;
   if (proposedBy === "player") return world.player.name;
@@ -232,6 +246,7 @@ function projectScotus(world: WorldState, nomination: ScotusNomination): Nominat
     seatNumber: nomination.seatNumber,
     nominee: nomination.nomineeName,
     nomineeParty: nomination.nomineeParty ?? null,
+    nomineePartyName: nomineePartyName(world, nomination.nomineeParty ?? null),
     sponsor: scotusSponsorName(world, nomination.proposedBy),
     status: nomination.status,
     statusLabel: nominationStatusLabel(nomination.status),

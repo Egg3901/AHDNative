@@ -1557,6 +1557,31 @@ and removed. The smoke helper now walks the conversation; no engine change.
   Full typecheck/verify/build remain queued with the supervisor. No
   physical-device evidence is claimed; parent #63 stays open.
 
+## Nomination detail party checkpoint, 2026-09-18 (#271 partial)
+
+- The nomination detail byline now names the nominee's party, matching both
+  AHDGame detail pages (`src/app/congress/nominations/[id]/page.tsx` and
+  `src/app/congress/scotus-nominations/[id]/page.tsx`, which render
+  `nomineeParty` beside sponsor and proposed date). The projection keeps the
+  raw `nomineeParty` id and adds `nomineePartyName` resolved from
+  `world.parties` with the sibling fallback (`?.name ?? id`, null stays
+  null); the panel renders it conditionally, so unknown parties change
+  nothing. No nominees, votes, or mechanics invented.
+- Focused evidence: `src/game/nominationProjection271.test.ts` (11 green,
+  incl. display-name resolution plus null/unknown-id edges),
+  `src/ui/NominationListDetail271.test.tsx` (4 green, incl. party shown at
+  390px and omitted when null), `src/ui/NominationsPanel.test.tsx`
+  (11 green); `src/game/nominations.test.ts` 18/20 with the 2 failures
+  being pre-existing turn-advancement timeouts on this host (68s/72s vs the
+  60s default; same failures with this change stashed).
+- Environment note: this worktree's `node_modules/@ahdclient/engine`
+  symlink points at the main checkout (c6510ee), whose engine predates
+  `isFoundingActive`, so every session-touching test fails on a clean
+  checkout; the runs above temporarily pointed the symlink at the
+  worktree-local `packages/engine` and restored it afterwards. Full
+  typecheck/verify/build remain owed via the supervisor queue. No
+  physical-device evidence is claimed; #271 stays open (`status: partial`).
+
 ## Glass material system checkpoint, 2026-09-16 (#437 partial)
 
 - The Native material contract now lives in `src/ui/materials.ts`: a

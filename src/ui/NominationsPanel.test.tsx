@@ -23,7 +23,7 @@ function makeLegislature(): LegislatureView {
       {
         id: "cab-1", kind: "cabinet", countryId: "US", chamber: "senate", chamberLabel: "Senate",
         office: "Secretary of State", positionId: "secretary_of_state",
-        nominee: "Ada Nominee", nomineeParty: "US_DEM", sponsor: "President",
+        nominee: "Ada Nominee", nomineeParty: "US_DEM", nomineePartyName: "Democratic Party", sponsor: "President",
         status: "active", statusLabel: "Vote Open", proposedAtTurn: 0, votingEndsOnTurn: 24,
         resolvedAtTurn: null, tally: { for: 3, against: 1, abstain: 0 },
         playerVote: null, voting: { available: true },
@@ -163,7 +163,7 @@ describe("NominationsPanel", () => {
       {
         id: "sco-1", kind: "scotus", countryId: "US", chamber: "senate", chamberLabel: "Senate",
         office: "Supreme Court Seat #2", seatNumber: 2,
-        nominee: "June Nominee", nomineeParty: null, sponsor: "player",
+        nominee: "June Nominee", nomineeParty: null, nomineePartyName: null, sponsor: "player",
         status: "active", statusLabel: "Vote Open", proposedAtTurn: 0, votingEndsOnTurn: 24,
         resolvedAtTurn: null, tally: { for: 1, against: 0, abstain: 0 },
         playerVote: null, voting: { available: true },
