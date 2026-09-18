@@ -426,6 +426,7 @@ mod tests {
         // recognizing one would attach the wrong material to live-site calls.
         for rejected in [
             "ask_session",
+            "__Host-ask_session",
             "auth-token-",
             "discord_oauth_state",
             "discord_oauth_mode",

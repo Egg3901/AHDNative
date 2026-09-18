@@ -856,6 +856,46 @@ mod tests {
     }
 
     #[test]
+    fn ask_session_filter_rejects_the_game_account_cookies() {
+        // The game account names (`auth-token` historic literal,
+        // `auth-token-<railway-tag>` per AHDGame `computeAuthCookieName`,
+        // Auth.js-era session names) must never attach to Ask calls: the
+        // wrong material would read as signed out with the account linked
+        // (the #358 physical-device loop class).
+        for rejected in [
+            "auth-token",
+            "auth-token-production",
+            "auth-token-local",
+            "auth-token-ahd-game-prod",
+            "authjs.session-token",
+            "__Secure-authjs.session-token",
+            "next-auth.session-token",
+            "__Secure-next-auth.session-token",
+        ] {
+            assert!(
+                !is_ask_session_cookie(rejected),
+                "{rejected} must not be recognized"
+            );
+        }
+    }
+
+    #[test]
+    fn ask_windows_keep_the_persistent_platform_profile() {
+        // Session persistence across full process relaunches (#149): the Ask
+        // bounce and panel windows must use the platform's normal persistent
+        // cookie/storage jar, which is the Tauri default — the same default
+        // AHDClient documents. Building a window incognito would silently
+        // discard the account session on every quit. The token is joined so
+        // this test never self-matches.
+        let source = include_str!("ask.rs");
+        let incognito = [".incognito", "("].join("");
+        assert!(
+            !source.contains(&incognito),
+            "Ask windows must never be built incognito"
+        );
+    }
+
+    #[test]
     fn ask_links_leave_only_through_plain_web_urls() {
         let source = include_str!("ask.rs");
         let body = source
