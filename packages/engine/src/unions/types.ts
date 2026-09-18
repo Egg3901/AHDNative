@@ -44,6 +44,19 @@ export interface Union {
   /** Share of free cash flow (0-0.5) sent to organizers as political contributions. */
   politicalContributionPct: number;
   /**
+   * Employer pension contribution as a share of the covered wage bill,
+   * 0..0.15. Native collapse of the reference CollectiveAgreement field
+   * (db/types/union.ts: absent reads as zero — those agreements promised
+   * no pension and none is charged). Absent reads as zero here too, so
+   * pre-#315 saves and un-bargained unions charge nothing. The bargaining
+   * writer that settles this rate is the #322 residual; the pension turn
+   * (#315) only reads it. Present-but-invalid values fail closed at the
+   * save boundary.
+   * Source: src/lib/unions/bargaining.ts BargainingTerms +
+   * src/lib/pensions/rules.ts isValidContributionRate.
+   */
+  pensionContributionRate?: number;
+  /**
    * Worker-weighted unionization across represented sectors, 0-100.
    * In mainline this is CorporateSector.unionization per sector; AHDClient
    * collapses to one density per union (the worktree has no per-sector

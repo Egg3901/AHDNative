@@ -112,6 +112,7 @@ import {
   governorEndorsementsPhase,
 } from "../governor/phases.js";
 import { unionsTurnPhase, nppUnionBehaviorPhase } from "../unions/phases.js";
+import { pensionTurnPhase } from "../unions/pensionTurn.js";
 import { sovereignIssuancePhase, bondCouponMaturityPhase, npcBondHolderPhase } from "../bonds/phases.js";
 import { ledgerPreForexSnapshotPhase, forexTurnPhase } from "../forex/phases.js";
 import { eraCrossingPhase } from "./eraCrossing.js";
@@ -399,6 +400,14 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // deviation itself, which a dedicated re-golden will restore.
   nppUnionBehaviorPhase,
   unionsTurnPhase,
+  // #315 pensions at the labor-consumer edge, after unionsTurn: the charge
+  // sweep debits corporate liquidCapital written by corporationTurnPhase
+  // (far above, so current) and reads the same represented-sector wage
+  // population unionsTurn just priced dues against. Benefits follow the
+  // charge in the same turn (retire-then-pay), matching the reference's
+  // contribution-before-benefits order. RNG-free, like every other tail
+  // cluster, so placement shifts no downstream RNG stream.
+  pensionTurnPhase,
   // W13 bonds at END before newsMaintenance — ordering deviation:
   // Mainline runs bondTurn mid-pipeline (after centralBankChairSelection, before
   // corporationTurn) per turnPhaseRegistry.ts. Solo defers the entire W13

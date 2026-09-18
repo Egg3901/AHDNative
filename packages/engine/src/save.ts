@@ -35,6 +35,7 @@ import {
 import { validateUnionOrganizers } from "./unions/organizers.js";
 import { validateUnionContributionLedger } from "./unions/contributions.js";
 import { validatePlayerLineOfCredit } from "./finance/playerLineOfCredit.js";
+import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
 
 /**
  * Save file = versioned JSON envelope around the full WorldState. Older
@@ -2660,6 +2661,24 @@ export function deserializeSave(raw: string): WorldState {
     if (union.strength !== undefined && (!Number.isFinite(union.strength) || union.strength < 0)) {
       throw new Error(`Union ${union.id} has an invalid strength`);
     }
+    // #315: the pension rate keeps the reference agreement
+    // absent-reads-as-zero rule the same way: absent stays absent, only a
+    // present-but-invalid rate fails closed.
+    if (union.pensionContributionRate !== undefined && !isValidContributionRate(union.pensionContributionRate)) {
+      throw new Error(`Union ${union.id} has an invalid pension contribution rate`);
+    }
+  }
+  // #315: pension schemes and ledger. Saves written before the pension
+  // slice carry neither; missing degrades to empty and every loaded row is
+  // kept explicit — same additive shape as the #320/#321 backfills above,
+  // so no version renumber is needed. Present-but-invalid rows fail
+  // closed. Absent stays absent (no materialization), so a mid-campaign
+  // save/load leaves untouched worlds byte-identical.
+  if (save.world.pensionSchemes !== undefined) {
+    validatePensionSchemes(save.world, save.world.pensionSchemes);
+  }
+  if (save.world.pensionLedger !== undefined) {
+    validatePensionLedger(save.world, save.world.pensionLedger);
   }
   return save.world;
 }
