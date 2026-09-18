@@ -821,6 +821,26 @@ export interface ImperialCharacterRecord {
 /** Full RPG stat block. Ports src/lib/stats/statsConstants.ts CharacterStats. */
 export type PlayerStats = Partial<import("./stats/characterStats.js").CharacterStats>;
 
+/**
+ * #314: player line-of-credit servicing state. Single-line projection of
+ * mainline `LineOfCreditState` (src/lib/db/types/character.ts, AHDGame
+ * `e364c0495`): `balances`/`arrears`/`paymentMode` per-currency maps
+ * collapse to one `denomination`, and `drawFrozen` is kept verbatim.
+ * `paymentMode` absent means `"pi"`, matching the reference default.
+ */
+export interface PlayerLineOfCredit {
+  /** Drawn principal, in `denomination` face units. Non-negative. */
+  balance: number;
+  /** Currency code the line is denominated in (e.g. the home currency). */
+  denomination: string;
+  /** Unpaid interest / service shortfalls, in `denomination` face units. */
+  arrears: number;
+  /** When true, new draws are blocked (payment distress). */
+  drawFrozen: boolean;
+  /** Scheduled-payment mode: `"pi"` amortizing or `"io"` arrears-only. */
+  paymentMode?: "pi" | "io";
+}
+
 export interface PlayerCharacter {
   name: string;
   /** Optional profile metadata. Older saves omit it; no simulation effect. */
@@ -1009,6 +1029,24 @@ export interface PlayerCharacter {
    * reachable via a save edit or cheat today. Ports SavingsHolder.
    */
   savingsHolder: "centralBank" | string;
+  /**
+   * #314: single-line projection of mainline's multi-currency
+   * `Character.lineOfCredit` (src/lib/db/types/character.ts
+   * `LineOfCreditState`, AHDGame `e364c0495`). Carries the drawn principal
+   * (`balance`) in one `denomination` currency code, unpaid interest
+   * (`arrears`), the draw-freeze flag, and the per-line payment mode.
+   * Serviced each turn by `playerLineOfCreditPhase`; no draw/borrow action
+   * exists, so a line appears only via save edit or cheat (same reachability
+   * as the W12 `savingsHolder` move). Optional with absent-means-none: old
+   * saves omit it, the phase no-ops, and no schema bump is needed.
+   * Deliberately omitted source fields: `accountsOpened`,
+   * `fundingSource`, and `paymentModeChangedAt` are origination-side (draw
+   * sizing, reserve/deposit split, mode-flip cooldown) with no Native draw
+   * path to read them; per-currency maps collapse to the single
+   * denomination because the player wallet is single-currency
+   * (`cash`/`savings` home plus `currencyBalances.personal` foreign).
+   */
+  lineOfCredit?: PlayerLineOfCredit;
   /**
    * W22: opt-in automatic reelection filing. Ports mainline
    * Character.autoRunForReelection (src/lib/turn/autoReelectionEntry.ts:58),
