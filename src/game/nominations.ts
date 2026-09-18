@@ -153,21 +153,21 @@ export function nominationVoteEligibility(
           : "Only members of Congress can vote on nominations",
     };
   }
+  // Mirrors castCabinetNominationVote/castScotusNominationVote guard order:
+  // the Senate check (with the VP House-ballot exception) fires before any
+  // chamber-membership check, so a seat outside both chambers reports the
+  // Senate reason exactly like the engine refusal. The engine's trailing
+  // membership check is unreachable and has no observable effect.
   const isVp = kind === "cabinet" && (nomination as CabinetNomination).positionId === "vicePresident";
-  if (kind === "scotus" || !isVp) {
-    if (!isSenateChamberKey(seat.chamberKey)) {
-      return {
-        available: false,
-        disabledReason:
-          kind === "scotus"
-            ? "Only Senators can vote on Justice nominations"
-            : "Only Senators can vote on cabinet nominations",
-      };
-    }
-    return { available: true };
-  }
-  if (!isSenateChamberKey(seat.chamberKey) && !isHouseChamberKey(seat.chamberKey)) {
-    return { available: false, disabledReason: "Only members of Congress can vote on nominations" };
+  const votesHouse = isVp && isHouseChamberKey(seat.chamberKey);
+  if (!isSenateChamberKey(seat.chamberKey) && !votesHouse) {
+    return {
+      available: false,
+      disabledReason:
+        kind === "scotus"
+          ? "Only Senators can vote on Justice nominations"
+          : "Only Senators can vote on cabinet nominations",
+    };
   }
   return { available: true };
 }
