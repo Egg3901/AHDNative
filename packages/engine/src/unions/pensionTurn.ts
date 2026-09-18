@@ -4,7 +4,9 @@
  * Ports AHDGame `src/lib/pensions/pensionTurn.ts` `runPensionTurn` (+
  * `pensionBenefits.ts` `runPensionBenefitsTurn`, with the investing leg as
  * a documented no-op) at pinned e364c04954ed628beef73a993a8e9e156650a31e,
- * as one RNG-free TurnPhase registered at the tail after `unionsTurnPhase`.
+ * as one RNG-free TurnPhase registered immediately after
+ * `nppUnionBehaviorPhase` (corporationTurn < unionsTurn < nppUnionBehavior
+ * < pensionTurn < macroCountryTurn, per #323's source-backed reorder).
  *
  * Native adaptations (cited, not invented):
  * - Agreement scope collapses to the union: Native seeds one corporation
