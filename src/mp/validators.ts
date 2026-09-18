@@ -113,6 +113,18 @@ export interface MpTurnView {
   isActive: boolean | null;
   isProcessing: boolean;
   processingLabel: string | null;
+  /**
+   * Server-computed turn progress percent (#359 processing slice). Projected
+   * verbatim from turn-status `processingProgress` when it is a finite
+   * 0..100 number, else null: a malformed or out-of-range value renders no
+   * percent rather than a fabricated one. Null outside processing.
+   */
+  processingProgress: number | null;
+  /**
+   * Turn the worker is producing (#359 processing slice), from turn-status
+   * `processingTargetTurn`. Rendered only while isProcessing.
+   */
+  processingTargetTurn: number | null;
   nextScheduledTurn: string | null;
   paused: boolean;
   pauseReason: string | null;
@@ -127,12 +139,16 @@ export function parseTurnStatus(bodyText: string): MpTurnView | null {
   if (currentTurn === null || currentYear === null) return null;
   const isProcessing = asBoolean(record.isProcessing) ?? false;
   const pausedAt = record.pausedAt;
+  const rawProgress = asNumber(record.processingProgress);
   return {
     currentTurn,
     currentYear,
     isActive: record.isActive === undefined ? null : asBoolean(record.isActive),
     isProcessing,
     processingLabel: asTrimmedString(record.processingPhaseLabel ?? null),
+    processingProgress:
+      rawProgress !== null && rawProgress >= 0 && rawProgress <= 100 ? rawProgress : null,
+    processingTargetTurn: asNumber(record.processingTargetTurn),
     nextScheduledTurn:
       typeof record.nextScheduledTurn === "string" && record.nextScheduledTurn
         ? record.nextScheduledTurn

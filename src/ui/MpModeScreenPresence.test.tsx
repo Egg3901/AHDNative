@@ -178,6 +178,60 @@ describe("MpModeScreen turn states at desktop widths", () => {
     expect(within(card).queryByText("Player paced")).toBeNull();
   });
 
+  it("renders server progress percent and target turn while processing at 390px", async () => {
+    setViewport(390);
+    await readyScreen(
+      mountScript({
+        turn: {
+          ...turnBase,
+          isProcessing: true,
+          processingPhaseLabel: "Corporation Production",
+          processingProgress: 47,
+          processingTargetTurn: 13,
+        },
+        presence: [presence(40)],
+      }),
+    );
+    const card = worldTurnCard();
+    expect(within(card).getByText("Processing: Corporation Production (47%)")).toBeInTheDocument();
+    const target = within(card).getByText("Target");
+    expect(target.nextElementSibling?.textContent).toBe("Turn 13");
+  });
+
+  it("renders no percent on malformed progress at desktop width", async () => {
+    setViewport(1280);
+    await readyScreen(
+      mountScript({
+        turn: {
+          ...turnBase,
+          isProcessing: true,
+          processingPhaseLabel: "Elections",
+          processingProgress: "lots",
+          processingTargetTurn: 13,
+        },
+        presence: [presence(40)],
+      }),
+    );
+    const card = worldTurnCard();
+    expect(within(card).getByText("Processing: Elections")).toBeInTheDocument();
+    expect(within(card).queryByText(/\(\d+%\)/)).toBeNull();
+    // Target is independent of progress shape: the server's number still shows.
+    expect(within(card).getByText("Turn 13")).toBeInTheDocument();
+  });
+
+  it("hides the target row once processing ends, even with a stale value", async () => {
+    setViewport(1280);
+    await readyScreen(
+      mountScript({
+        turn: { ...turnBase, isProcessing: false, processingTargetTurn: 13 },
+        presence: [presence(40)],
+      }),
+    );
+    const card = worldTurnCard();
+    expect(within(card).getByText("Live")).toBeInTheDocument();
+    expect(within(card).queryByText("Target")).toBeNull();
+  });
+
   it("renders paused state with the server reason and a Paused schedule", async () => {
     setViewport(1280);
     const future = new Date(Date.now() + 30 * 60 * 1000).toISOString();

@@ -31,6 +31,14 @@
  * - turn-status       /api/game/turn/status    public; 404 uninitialized
  *   {singleplayer,currentTurn,currentYear,isActive,isProcessing,
  *   nextScheduledTurn|null,processingPhaseLabel,...}
+ *   Native projects the processing slice too (#359): `processingProgress`
+ *   (server-clamped 0..98 int while processing, null otherwise; the adapter
+ *   accepts any finite 0..100 and renders it rounded, malformed or
+ *   out-of-range values render no percent) and `processingTargetTurn`
+ *   (rendered only while isProcessing). Heartbeat/started-at timestamps,
+ *   lock-retry fields, and per-phase statuses stay unprojected: staleness
+ *   classification stays server-side and Native never ages, dismisses, or
+ *   completes processing state locally.
  * - players-online    GET /api/players/online    public, no session required.
  *   Count of non-banned players active within the last hour
  *   (src/app/api/players/online/route.ts): 200 {online: number, asOf: ISO}.

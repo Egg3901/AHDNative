@@ -129,6 +129,8 @@ describe("parseTurnStatus", () => {
       isActive: true,
       isProcessing: true,
       processingLabel: "Elections",
+      processingProgress: null,
+      processingTargetTurn: null,
       nextScheduledTurn: "2026-09-15T16:00:00.000Z",
       paused: false,
       pauseReason: null,
@@ -140,6 +142,37 @@ describe("parseTurnStatus", () => {
     });
     expect(parseTurnStatus(JSON.stringify({ currentTurn: 1 }))).toBeNull();
     expect(parseTurnStatus(JSON.stringify({ error: "Game state not initialized" }))).toBeNull();
+  });
+
+  it("projects server progress and target turn, failing closed on malformed values", () => {
+    expect(
+      parseTurnStatus(
+        JSON.stringify({
+          currentTurn: 40,
+          currentYear: 1862,
+          isActive: true,
+          isProcessing: true,
+          processingPhaseLabel: "Corporation Production",
+          processingProgress: 47,
+          processingTargetTurn: 41,
+          nextScheduledTurn: null,
+          pausedAt: null,
+        }),
+      ),
+    ).toMatchObject({ processingProgress: 47, processingTargetTurn: 41 });
+    // Malformed or out-of-range progress renders no percent, never a guess.
+    for (const bad of ["47", true, -5, 101, Number.NaN]) {
+      expect(
+        parseTurnStatus(
+          JSON.stringify({ currentTurn: 40, currentYear: 1862, isProcessing: true, processingProgress: bad }),
+        )?.processingProgress,
+      ).toBeNull();
+    }
+    expect(
+      parseTurnStatus(
+        JSON.stringify({ currentTurn: 40, currentYear: 1862, isProcessing: true, processingTargetTurn: "41" }),
+      )?.processingTargetTurn,
+    ).toBeNull();
   });
 });
 
