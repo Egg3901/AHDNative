@@ -1979,7 +1979,7 @@ balance sheet. Child of #109; depends on #329 for failed-bank creditor
 resolution and leaves margin/discount/prop-trading halves unported.
 
 - `packages/engine/src/banking/interbank.ts` (new): `lendInterbank`,
-  `repayInterbank`, `interbankQuote` plus idempotent
+  `repayInterbank`, `quoteInterbankMax` plus idempotent
   `serviceInterbankLoans` (interest-only, arrears counter, default
   write-off on the 8th consecutive shortfall). Gates are source-faithful:
   active charters both sides, lendable-headroom share cap, lender cash,
