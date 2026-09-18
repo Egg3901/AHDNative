@@ -83,9 +83,37 @@ describe("character creation fields persist through createWorld and save/load (#
   });
 
   it("rejects a corrupt avatarUrl in the save loader, not just the header", () => {
-    const world = createWorld({ ...base, avatarUrl: "https://example.com/face.png" });
+    // Creation now rejects remote URLs fail-fast (see below), so the loader
+    // case tampers a valid save after serialization instead.
+    const world = createWorld({ ...base });
     const save = JSON.parse(serializeSave(world, "2026-09-14T00:00:00.000Z")) as { world: { player: Record<string, unknown> } };
+    save.world.player["avatarUrl"] = "https://example.com/face.png";
     expect(() => deserializeSave(JSON.stringify(save))).toThrow(/avatar/i);
+  });
+
+  it("rejects a non-raster avatarUrl at creation instead of writing an unloadable save", () => {
+    // A stale or tampered draft carries a remote URL, not a local raster.
+    // createWorld must fail fast here: previously it stored the URL and the
+    // resulting save could never reload ("Not a valid save file").
+    expect(() => createWorld({ ...base, avatarUrl: "https://example.com/face.png" })).toThrow(/avatar/i);
+  });
+
+  it("rejects a corrupt profileHeaderUrl at creation", () => {
+    expect(() => createWorld({ ...base, profileHeaderUrl: "data:text/plain;base64,aGVsbG8=" })).toThrow(/profile header/i);
+  });
+
+  it("rejects an oversized portrait at creation (reference 2 MB cap)", () => {
+    const oversized = `data:image/png;base64,${"A".repeat(2_800_000)}`;
+    expect(() => createWorld({ ...base, avatarUrl: oversized })).toThrow(/avatar/i);
+  });
+
+  it("accepts reference-capped images at creation and round-trips them through save/load", () => {
+    const avatar = "data:image/png;base64,iVBORw0KGgo=";
+    const header = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";
+    const world = createWorld({ ...base, avatarUrl: avatar, profileHeaderUrl: header });
+    const restored = deserializeSave(serializeSave(world, "2026-09-14T00:00:00.000Z"));
+    expect(restored.player.avatarUrl).toBe(avatar);
+    expect(restored.player.profileHeaderUrl).toBe(header);
   });
 
   it("accepts a valid raster avatarUrl through the save loader", () => {

@@ -114,6 +114,7 @@ import { DEFAULT_NPP_AUTONOMY_LEVEL, resolveNppAutonomyLevel } from "./nppAutono
 import type { NppAutonomyLevel } from "./nppAutonomyLevel.js";
 import { validateStatAllocation } from "./stats/characterStats.js";
 import { startingCashFor } from "./stats/characterWealth.js";
+import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } from "./playerImages.js";
 
 // Pre-allocated v36 for the W11 (extraction/prospecting) + W35 (player wealth,
 // international wires, achievements) batch. Main is v33 as of this wave's
@@ -547,6 +548,24 @@ function validatePlayerStats(value: NewWorldOptions["stats"]): import("./types.j
   return result.stats;
 }
 
+/**
+ * Validate a supplied creation portrait/header raster URL against the
+ * reference upload contract (portrait 2 MB, header 4 MB; local raster data
+ * URLs only). Rejects here, atomically, so a corrupt pick fails fast at
+ * creation instead of producing a world whose save can never reload.
+ */
+function validatePlayerImage(
+  value: NewWorldOptions["avatarUrl"],
+  maxBytes: number,
+  label: string,
+): string | null | undefined {
+  if (value === undefined || value === null) return value;
+  if (!isPlayerImageUrl(value, maxBytes)) {
+    throw new Error(`Invalid player ${label}: must be a PNG, JPEG or WebP data URL within the size limit`);
+  }
+  return value;
+}
+
 export function createWorld(options: NewWorldOptions): WorldState {
   if (typeof options.era !== "string" || options.era.trim() === "") {
     throw new Error("New world era is required");
@@ -756,6 +775,8 @@ export function createWorld(options: NewWorldOptions): WorldState {
   const playerPolicies = validatePlayerPolicies(options.policies);
   const playerDemographics = validatePlayerDemographics(options.demographics, options.wealth);
   const playerStats = validatePlayerStats(options.stats);
+  const playerAvatarUrl = validatePlayerImage(options.avatarUrl, MAX_PLAYER_AVATAR_BYTES, "avatar");
+  const playerProfileHeaderUrl = validatePlayerImage(options.profileHeaderUrl, MAX_PLAYER_HEADER_BYTES, "profile header");
   // The cash grant keys off the wealth tier whether it arrived in the full
   // demographics block or standalone; a wealth-only grant still credits cash.
   const wealthTier = playerDemographics?.wealth ?? options.wealth;
@@ -1031,8 +1052,8 @@ export function createWorld(options: NewWorldOptions): WorldState {
       ...(playerPolicies !== undefined ? { policies: playerPolicies } : {}),
       ...(playerDemographics !== undefined ? { demographics: playerDemographics } : {}),
       ...(playerStats !== undefined ? { stats: playerStats } : {}),
-      ...(options.avatarUrl !== undefined ? { avatarUrl: options.avatarUrl } : {}),
-      ...(options.profileHeaderUrl !== undefined ? { profileHeaderUrl: options.profileHeaderUrl } : {}),
+      ...(playerAvatarUrl !== undefined ? { avatarUrl: playerAvatarUrl } : {}),
+      ...(playerProfileHeaderUrl !== undefined ? { profileHeaderUrl: playerProfileHeaderUrl } : {}),
       actions: 25,
       // Reference creation endowment (AHDGame gameConfig seed plus the
       // character route): startingFunds 250_000 flat (wealth touches personal
