@@ -32,8 +32,13 @@ Host tools:
 
 ```bash
 export XWIN_CACHE_DIR=...   # existing cache directory
+export AHD_REVIEW_COMMIT=...   # full 40-hex reviewed main SHA; the script refuses any other HEAD
 bash scripts/review-windows.sh
 ```
+
+The script fails closed unless `HEAD` equals `AHD_REVIEW_COMMIT` and the
+tracked tree is clean, then writes a `sha256` checksum sidecar next to the
+exe so the identically named portable binary stays tied to its source.
 
 Equivalent CLI:
 
@@ -47,6 +52,7 @@ CI=1 npm run tauri -- build --ci --no-sign \
 Outputs (after a successful run):
 
 - Portable exe (unsigned, needs WebView2 on the Windows machine): `src-tauri/target/x86_64-pc-windows-msvc/release/ahdnative.exe`
+- Checksum sidecar (`sha256sum` format): `ahdnative.exe.sha256`, plus the pinned commit printed on stdout. Record the commit, version (`0.1.9`), target (`x86_64-pc-windows-msvc`), unsigned status, and sha256 in the private delivery note; the exe filename itself carries none of them.
 
 The portable executable is unsigned. Do not enable Windows code signing for this review.
 
