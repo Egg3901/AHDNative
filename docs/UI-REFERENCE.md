@@ -573,6 +573,17 @@ and creation bar to app bg; elevated/modal surfaces resource details,
 disclosures, and popovers to elevated card) with no blur. Solid-token contrast: body 12.1-15.4,
 secondary 4.6-5.2, primary-action label 4.8. No new transitions or animations;
 the existing reduced-motion takeover covers drawer/backdrop keyframes.
+Press feedback: bottom-nav items and drawer rows paint an instant opaque
+press tint (`:active`, darkened elevated token, no transition/animation so
+the reduced-motion takeover stays intact). Disabled drawer rows stay inert
+under press; `:focus-visible` shadow rings are untouched so a
+pressed-and-focused control keeps its Tab indicator. Top-level rules, so
+they apply at 390px and 1280px alike; pinned by
+`src/ui/MaterialPressContracts.test.ts` (6 cases, incl. derived pressed-tint
+contrast: body 7+, secondary 4.5+). Limitation: the tint is an author color
+and collapses under forced-colors system mapping; there the Highlight focus
+outline remains the guaranteed indicator, and there is still no named
+physical-device pass for the perceived press feel.
 Layout geometry (insets, widths, heights, positioning) is unchanged and stays
 owned by #436. Rendered acceptance:
 `smoke/material-visual-acceptance.spec.ts` (320/390px portrait: chrome,
