@@ -150,5 +150,13 @@ describe("docs/IOS-TESTING.md manual invocation path", () => {
       /no external|No external beta review/i.test(DOCS),
       "docs must state no external/App Store submission",
     );
+    assert.ok(
+      DOCS.includes("rustls"),
+      "docs must acknowledge the native Rust TLS client in the export review",
+    );
+    assert.ok(
+      /re-confirm/i.test(DOCS),
+      "docs must mark export-compliance re-confirmation owed before the next candidate",
+    );
   });
 });
