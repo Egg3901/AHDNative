@@ -1,0 +1,113 @@
+import { describe, expect, it } from "vitest";
+import { createWorld } from "../world.js";
+import { deserializeSave, serializeSave } from "../save.js";
+import { rngFromSeed } from "../rng.js";
+import { ensureCampaignsForElection } from "../campaigns/lifecycle.js";
+import { runVoteAccumulation } from "./orchestration.js";
+import type { ElectionRecord } from "./types.js";
+import type { WorldState } from "../types.js";
+
+/**
+ * #141 (down-ballot half): the house tally must honor the same
+ * canvass/GOTV turnout modifiers the presidential per-state path threads
+ * through (`tallyAdapter.ts` `stateSliceFor(world, stateId, rec.id)` ->
+ * `deriveTurnout` -> `campaignTurnoutModifiers`). The presidential side is
+ * pinned by `presidentialCanvassTurnout.test.ts`; this file pins the
+ * down-ballot side through the same public turn entry
+ * (`runVoteAccumulation`) and the same save/reload boundary, so a future
+ * refactor cannot silently drop the election-id threading on one path
+ * while the other stays green.
+ */
+
+const OPTS = { seed: "house-canvass", playerName: "Tester", countryId: "US", era: "1953" } as const;
+const RACE_ID = "house:US:CA:c-canvass";
+
+function setupRace(): { world: WorldState; race: ElectionRecord; groupIds: string[] } {
+  const world = createWorld(OPTS);
+  const dem = world.politicians.find((p) => p.countryId === "US" && p.partyId === "US_DEM")!;
+  const rep = world.politicians.find((p) => p.countryId === "US" && p.partyId === "US_REP")!;
+  const race: ElectionRecord = {
+    id: RACE_ID,
+    electionType: "house",
+    countryId: "US",
+    state: "CA",
+    cycle: 1,
+    status: "active",
+    startTurn: 0,
+    primaryEndTurn: 5,
+    endTurn: 20,
+    totalSeats: 1,
+    chamberKey: "house",
+    candidates: [
+      { id: dem.id, name: dem.name, partyId: "US_DEM", isNPP: true, incumbent: false },
+      { id: rep.id, name: rep.name, partyId: "US_REP", isNPP: true, incumbent: false },
+    ],
+    tally: {},
+    // US house races require primary resolution before the general tally
+    // gate opens (`runVoteAccumulation`); stamp both as nominees.
+    primaryResults: {
+      byParty: {
+        US_DEM: [{ candidateId: dem.id, candidateName: dem.name, score: 20, sharePct: 100, won: true }],
+        US_REP: [{ candidateId: rep.id, candidateName: rep.name, score: 20, sharePct: 100, won: true }],
+      },
+      recordedAt: "1953-01-01T00:00:00.000Z",
+    },
+  };
+  world.elections = [race];
+  world.meta.turn = 6;
+  ensureCampaignsForElection(world, race);
+  // Boost every demographic group so the per-group live-turnout shift is
+  // unambiguous regardless of per-state weighting.
+  const groupIds = Object.keys(world.stateDemographics["CA"]!.groups);
+  return { world, race, groupIds };
+}
+
+function canvassEverywhere(world: WorldState, groupIds: string[], boost: number): void {
+  for (const campaign of Object.values(world.campaigns)) {
+    if (campaign.electionId !== RACE_ID || campaign.status !== "active") continue;
+    campaign.canvassModifiers = Object.fromEntries(groupIds.map((groupId) => [`test:${groupId}`, boost]));
+  }
+}
+
+function totalsOf(world: WorldState): Record<string, number> {
+  return { ...world.elections.find((e) => e.id === RACE_ID)!.tally };
+}
+
+describe("house tally honors canvass turnout modifiers", () => {
+  it("moves saved candidate totals when canvass modifiers change", () => {
+    const { world, groupIds } = setupRace();
+    const snap = serializeSave(world, new Date(0).toISOString());
+
+    const plain = deserializeSave(snap);
+    runVoteAccumulation(plain, rngFromSeed("canvass-pool"));
+
+    const canvassed = deserializeSave(snap);
+    canvassEverywhere(canvassed, groupIds, 25);
+    runVoteAccumulation(canvassed, rngFromSeed("canvass-pool"));
+
+    // The real mainline tally ran (not the stub): a tally document exists.
+    expect(plain.elections.find((e) => e.id === RACE_ID)!.tallyState).toBeDefined();
+    expect(canvassed.elections.find((e) => e.id === RACE_ID)!.tallyState).toBeDefined();
+
+    const plainTotals = totalsOf(plain);
+    const canvassedTotals = totalsOf(canvassed);
+    expect(canvassedTotals).not.toEqual(plainTotals);
+    const sum = (t: Record<string, number>) => Object.values(t).reduce((a, b) => a + b, 0);
+    // The boost rides the per-group live turnouts (`byGroup`) the tally core
+    // consumes, so a uniform GOTV push grows the counted votes.
+    expect(sum(canvassedTotals)).toBeGreaterThan(sum(plainTotals));
+  });
+
+  it("stays deterministic across save/reload with modifiers present", () => {
+    const { world, groupIds } = setupRace();
+    canvassEverywhere(world, groupIds, 25);
+    const snap = serializeSave(world, new Date(0).toISOString());
+
+    const first = deserializeSave(snap);
+    const second = deserializeSave(snap);
+    runVoteAccumulation(first, rngFromSeed("canvass-determinism"));
+    runVoteAccumulation(second, rngFromSeed("canvass-determinism"));
+
+    expect(totalsOf(second)).toEqual(totalsOf(first));
+  });
+});
