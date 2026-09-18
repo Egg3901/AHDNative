@@ -345,6 +345,25 @@ export interface WorldState {
    */
   unionContributionLedger?: Array<import("./unions/contributions.js").UnionContributionRecord>;
   /**
+   * Occupational pension schemes, keyed by union id. Ports mainline's
+   * `pensionSchemes` collection (src/lib/db/types/pensionScheme.ts) at
+   * seeded-roster granularity: one scheme per union, created on first
+   * charge. Optional with absent-means-empty — pre-#315 saves carry no
+   * map — backfilled on load and strict-validated at the save boundary
+   * (see unions/pension.ts). No schema bump: same additive pattern as the
+   * #320 organizer map and the #321 contribution ledger.
+   */
+  pensionSchemes?: Record<string, import("./unions/pension.js").PensionScheme>;
+  /**
+   * Pension ledger, oldest first. Ports mainline's `pension_contribution`
+   * (two legs: employer debit + scheme credit) and `pension_benefit`
+   * (scheme to the modelled-pensioner `system` sink) financialTxLog rows.
+   * Optional with absent-means-empty — pre-#315 saves carry no rows —
+   * backfilled on load and strict-validated at the save boundary. No
+   * schema bump: same additive pattern as the #321 ledger.
+   */
+  pensionLedger?: Array<import("./unions/pension.js").PensionLedgerRecord>;
+  /**
    * Sovereign bonds, keyed by bond id. Ports src/lib/db/types/bond.ts (sovereign
    * subset) + src/lib/bonds/sovereign.ts issuance/maturity bookkeeping. One row
    * per quarterly auction tranche (single 48t maturity this wave); holders are
