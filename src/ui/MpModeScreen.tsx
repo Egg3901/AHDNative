@@ -359,6 +359,12 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
 
   const phase = snapshot.phase;
   const needsSession = phase === "idle" || phase === "loading" || phase === "session-required" || phase === "signed-out" || phase === "auth-expired";
+  /* Sessionless offline (#362 single-view join): the provider step can fail
+   * to start, or entry transport can fail, before any identity exists. That
+   * is a sign-in state, not a mid-session loss: route it to the sign-in
+   * card so the provider choices, Retry, and Back stay reachable with the
+   * error. Offline WITH an identity keeps the blocked kept-state card. */
+  const showSignIn = needsSession || (phase === "offline" && !snapshot.userId);
 
   /* Auth expiry evicts the details with every other authed projection, so
    * an open panel closes itself instead of showing a stale race, company,
@@ -468,7 +474,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
           <p role="status">Loading your multiplayer game...</p>
         )}
 
-        {(phase === "session-required" || phase === "signed-out" || phase === "auth-expired") && (
+        {showSignIn && (
           <section className="ahd-card ahd-card-pad" aria-label="Sign in required">
             <h2 className="ahd-h2">
               {phase === "auth-expired" ? "Session expired" : "Sign in to play multiplayer"}
@@ -499,7 +505,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
           </section>
         )}
 
-        {blocked && !needsSession && (
+        {blocked && !showSignIn && (
           <section className="ahd-card ahd-card-pad" aria-label="Connection issue">
             <h2 className="ahd-h2">
               {phase === "rate-limited" ? "Slow down" : phase === "server-error" ? "Live game hiccup" : "Connection lost"}
