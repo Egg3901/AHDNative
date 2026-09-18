@@ -192,6 +192,10 @@ export function AskPanel({
     setUsage(nextUsage);
     setTier(nextTier);
     setQuotaStale(false);
+    // An authoritative snapshot means the session verified: any earlier
+    // link/transport failure text is stale and must not linger over the
+    // restored panel (retry button and focus re-probes land here too).
+    setNotice(null);
     saveCachedAskSession({ username, usage: nextUsage, tier: nextTier });
   }, []);
 

@@ -169,6 +169,25 @@ describe("AskPanel account-link action", () => {
     expect(opens).toBe(1);
   });
 
+  it("a successful retry after a failed link clears the stale failure notice", async () => {
+    // A failed bounce leaves a notice on the signed-out panel; once the
+    // session lands and the retry probe restores it, the ready panel must
+    // not keep showing the stale failure above the composer.
+    const user = userEvent.setup();
+    routeInvoke(
+      { "/api/me": { status: 401, body: '{"error":"no session"}' } },
+      () => Promise.reject(new Error("main webview is unavailable")),
+    );
+    render(<AskPanel />);
+    await user.click(await screen.findByRole("button", { name: "Sign in" }));
+    expect(await screen.findByText("main webview is unavailable")).toBeInTheDocument();
+
+    routeInvoke({ "/api/me": meOk("marshall") });
+    await user.click(screen.getByRole("button", { name: /retry/i }));
+    expect(await screen.findByText("7 of 10 left", { exact: false })).toBeInTheDocument();
+    expect(screen.queryByText("main webview is unavailable")).toBeNull();
+  });
+
   it("expiry on the background refresh signs out and evicts the cache", async () => {
     saveCachedAskSession({ username: "marshall", usage: USAGE, tier: "Player" });
     routeInvoke({ "/api/me": meOk("marshall") });
