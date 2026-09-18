@@ -28,7 +28,7 @@ import { memberDueUsd, clampDuesRate } from "./fund.js";
 import { buildOrganizationSanctionEmbargoes } from "./sanctions.js";
 import { computeOrgDerived } from "./derived.js";
 import { runInternationalOrganizationsTurn } from "./phases.js";
-import { castOrgVote, proposeOrgMembership, proposeOrgResolution, standForOrgLeadership } from "./actions.js";
+import { castOrgVote, leaveOrg, proposeOrgMembership, proposeOrgResolution, standForOrgLeadership } from "./actions.js";
 import type { WorldState } from "../types.js";
 import type { OrgVoteValue } from "./types.js";
 
@@ -404,6 +404,72 @@ describe("#113 actions validate membership, authority, cost and status", () => {
     expect(first.resolution.status).toBe("active");
     const lateVote = castOrgVote(world, { orgId: "NATO", kind: "resolution", ballotId: first.resolution.id, countryId: "US", vote: "no" });
     expect(lateVote).toEqual({ ok: false, error: `resolution ballot ${first.resolution.id} is not pending` });
+  });
+});
+
+describe("#113 withdrawal: leaveOrg validates and cleans up like removeOrganizationMembership", () => {
+  it("rejects an unknown org, a non-member, and a player with no actions left", () => {
+    const world = fresh();
+    expect(leaveOrg(world, { orgId: "NOPE", countryId: "US" })).toEqual({ ok: false, error: "Unknown organization NOPE" });
+    expect(leaveOrg(world, { orgId: "NATO", countryId: "DD" })).toEqual({ ok: false, error: "DD is not a member of NATO" });
+    world.player.actions = 0;
+    expect(leaveOrg(world, { orgId: "NATO", countryId: "US" })).toEqual({ ok: false, error: "US has no actions left" });
+    expect(world.internationalOrgs["NATO"]!.members.includes("US")).toBe(true);
+  });
+
+  it("vacates the chair, rejects the leaver's pending election, and records news", () => {
+    const world = fresh();
+    const first = standForOrgLeadership(world, { orgId: "NATO", countryId: "UK", candidateName: "Anthony Eden" });
+    if (!first.ok) throw new Error(first.error);
+    vote(world, "NATO", "election", first.electionId, "US", "yes");
+    vote(world, "NATO", "election", first.electionId, "UK", "yes");
+    closeNow(world, world.internationalOrgs["NATO"]!.leadershipElections!.find((e) => e.id === first.electionId)!);
+    advanceTurn(world);
+    expect(world.internationalOrgs["NATO"]!.leadership!.holderCountryId).toBe("UK");
+
+    const second = standForOrgLeadership(world, { orgId: "NATO", countryId: "UK", candidateName: "Anthony Eden" });
+    if (!second.ok) throw new Error(second.error);
+
+    const left = leaveOrg(world, { orgId: "NATO", countryId: "UK" });
+    expect(left).toEqual({ ok: true });
+    const org = world.internationalOrgs["NATO"]!;
+    expect(org.members.includes("UK")).toBe(false);
+    expect(org.leadership!.holderCountryId).toBeNull();
+    expect(org.leadershipElections!.find((e) => e.id === first.electionId)!.status).toBe("elected");
+    expect(org.leadershipElections!.find((e) => e.id === second.electionId)!.status).toBe("rejected");
+    expect(world.news[world.news.length - 1]!.headline).toBe("United Kingdom withdrew from North Atlantic Treaty Organization.");
+  });
+
+  it("strips the leaver from surviving agreements and terminates the rest", () => {
+    const world = fresh();
+    const big = proposeOrgResolution(world, { orgId: "NATO", countryId: "US", type: "free_trade_agreement", title: "Big FTA", parties: ["US", "UK", "FR"] });
+    if (!big.ok) throw new Error(big.error);
+    const small = proposeOrgResolution(world, { orgId: "NATO", countryId: "UK", type: "free_trade_agreement", title: "Small FTA", parties: ["UK", "US"] });
+    if (!small.ok) throw new Error(small.error);
+
+    const left = leaveOrg(world, { orgId: "NATO", countryId: "UK" });
+    expect(left).toEqual({ ok: true });
+    expect(big.resolution.parties).toEqual(["US", "FR"]);
+    expect(big.resolution.status).toBe("pending");
+    expect(small.resolution.parties).toEqual(["UK", "US"]);
+    expect(small.resolution.status).toBe("terminated");
+    expect(small.resolution.terminatedOnTurn).toBe(world.meta.turn);
+  });
+
+  it("shrinks the voting roll at the close turn and survives save/reload", () => {
+    const world = fresh();
+    expect(leaveOrg(world, { orgId: "NATO", countryId: "UK" })).toEqual({ ok: true });
+    // NATO's voting roll is now just the US: one yes carries unanimously.
+    const app = proposeOrgMembership(world, { orgId: "NATO", countryId: "DD" });
+    if (!app.ok) throw new Error(app.error);
+    vote(world, "NATO", "proposal", app.proposalId, "US", "yes");
+    closeNow(world, world.internationalOrgs["NATO"]!.membershipProposals!.find((p) => p.id === app.proposalId)!);
+    advanceTurn(world);
+    expect(world.internationalOrgs["NATO"]!.members.includes("DD")).toBe(true);
+
+    const loaded = deserializeSave(serializeSave(world, "2026-09-10T00:00:00.000Z"));
+    expect(loaded.internationalOrgs).toEqual(world.internationalOrgs);
+    expect(loaded.internationalOrgs["NATO"]!.members.includes("UK")).toBe(false);
   });
 });
 

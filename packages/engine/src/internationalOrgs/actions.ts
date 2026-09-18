@@ -24,7 +24,7 @@ import type { WorldState } from "../types.js";
 import type { InternationalOrgState, OrgResolution, OrgVoteValue, OrgResolutionType } from "./types.js";
 import { ORG_PROPOSAL_VOTING_TURNS } from "./constants.js";
 import { isMember, isVotingMember, votingMembers } from "./members.js";
-import { electionsOf, ensureOrgState, proposalsOf, resolutionsOf } from "./state.js";
+import { electionsOf, ensureOrgState, leadershipOf, proposalsOf, resolutionsOf } from "./state.js";
 
 export type OrgActionFailure = { ok: false; error: string };
 export type OrgActionSuccess<T> = { ok: true } & T;
@@ -156,6 +156,82 @@ export function proposeOrgMembership(
   });
   spendOrgAction(world, params.countryId);
   return { ok: true, proposalId };
+}
+
+/**
+ * Withdraw a member country from an organization. Ports
+ * removeOrganizationMembership
+ * (src/lib/internationalOrganizations/withdrawalBills.ts) to the direct-action
+ * model: the reference enacts leave through a domestic bill or the legacy
+ * internationalAction path, neither of which Native models, so the validated
+ * country acts directly here (same reduction as every other action above).
+ *
+ * Effects, mirroring the reference in order:
+ *   1. the country leaves the member roll (so the next dues/tribute charge and
+ *      every ballot roll computed at a close turn skip it);
+ *   2. pending/active resolutions naming it as a party keep going with the
+ *      remaining parties when at least two remain, else terminate (reference
+ *      updateOrganizationLegislationForWithdrawal);
+ *   3. a leadership seat it holds is vacated;
+ *   4. pending elections fielding it as candidate are rejected;
+ *   5. one world-news headline records the departure (reference history events
+ *      for the leaver + remaining members, folded — news has no per-country
+ *      addressing).
+ *
+ * Deliberately NOT ported:
+ *   - the withdrawal tombstone (recordOrganizationWithdrawal): its only job is
+ *     stopping the founding self-heal from re-adding a founder that left, and
+ *     Native founding never seats members (foundDueOrganizations founds EMPTY
+ *     orgs; the seed is the sole membership authority), so there is nothing to
+ *     suppress;
+ *   - the election-nominator rejection branch: Native elections record no
+ *     nominator, so candidate-only rejection is the complete port;
+ *   - FTA-only withdrawal (leave_free_trade_agreement): a separate slice.
+ */
+export function leaveOrg(
+  world: WorldState,
+  params: { orgId: string; countryId: string },
+): OrgActionOk | OrgActionFailure {
+  const org = orgOrNull(world, params.orgId);
+  if (!org) return { ok: false, error: `Unknown organization ${params.orgId}` };
+  if (!isMember(org, params.countryId)) return { ok: false, error: `${params.countryId} is not a member of ${params.orgId}` };
+  if (!canAffordOrgAction(world, params.countryId)) return { ok: false, error: `${params.countryId} has no actions left` };
+
+  const turn = world.meta.turn;
+  org.members = org.members.filter((m) => m !== params.countryId);
+
+  for (const resolution of resolutionsOf(org)) {
+    if (resolution.status !== "pending" && resolution.status !== "active") continue;
+    if (!resolution.parties.includes(params.countryId)) continue;
+    const remaining = resolution.parties.filter((p) => p !== params.countryId);
+    if (remaining.length >= 2) {
+      resolution.parties = remaining;
+    } else {
+      resolution.status = "terminated";
+      resolution.terminatedOnTurn = turn;
+    }
+  }
+
+  const leadership = leadershipOf(org);
+  if (leadership.holderCountryId === params.countryId) {
+    leadership.holderCountryId = null;
+    leadership.holderName = null;
+    leadership.electedOnTurn = null;
+    leadership.termEndsOnTurn = null;
+  }
+
+  for (const election of electionsOf(org)) {
+    if (election.status === "pending" && election.candidateCountryId === params.countryId) {
+      election.status = "rejected";
+      election.resolvedOnTurn = turn;
+    }
+  }
+
+  const countryName = world.countries[params.countryId]?.name ?? params.countryId;
+  world.news.push({ turn, date: world.meta.date, headline: `${countryName} withdrew from ${org.name}.` });
+
+  spendOrgAction(world, params.countryId);
+  return { ok: true };
 }
 
 /**
