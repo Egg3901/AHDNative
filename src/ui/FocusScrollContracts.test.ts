@@ -65,6 +65,18 @@ describe("keyboard focus scroll clearance (phone focus layout)", () => {
     expect(body).toMatch(/scroll-padding-bottom:\s*calc\(\s*var\(--ahd-footer-height,\s*9rem\)\s*\+\s*1rem\s*\)/);
   });
 
+  it("keeps page-content focus below the Dynamic Island / status bar (#436)", () => {
+    // Browser and jsdom runs report no top inset, so a focused heading
+    // scrolls flush to viewport top; on a physical iPhone that parks it
+    // under the island even though every shell pads its initial render.
+    // Same fail-safe floor as .ahd-main's top padding: zero-cost on
+    // desktop/Android, island clearance on device and zero-env webviews.
+    const body = ruleBodyWith("html", "scroll-padding-top");
+    expect(body).toMatch(
+      /scroll-padding-top:\s*max\([^;]*var\(--ahd-safe-area-top-fallback[^;]*env\(safe-area-inset-top\)/,
+    );
+  });
+
   it("steers scroll alignment only: no pointer or desktop geometry change", () => {
     const combined = ruleBodyWith(".ahd-drawer-disclosure", "scroll-margin");
     for (const declaration of combined.split(";").map((d) => d.trim()).filter(Boolean)) {
