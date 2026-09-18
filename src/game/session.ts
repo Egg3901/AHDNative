@@ -26,7 +26,7 @@ import {
   getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
-import type { ActionCategory, ActionView, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
+import type { ActionCategory, ActionView, BankOption, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
 import { isWorldsimMode } from "@ahdclient/engine";
 import {
   actionNotification, addNotifications, deleteNotification, diffTurnSnapshots, markAllNotificationsRead,
@@ -958,7 +958,12 @@ function homeCurrency(world: WorldState, countryId: string): string {
 /** Display hints mirror the pinned engine; executeAction remains authoritative. */
 function projectFinance(world: WorldState): FinanceView {
   const player = world.player;
-  const savingsAction = (id: "depositSavings" | "withdrawSavings", empty: boolean, emptyReason: string): ActionView => {
+  const savingsAction = (
+    id: "depositSavings" | "withdrawSavings" | "moveSavings",
+    requires: "amount" | "holder",
+    empty: boolean,
+    emptyReason: string,
+  ): ActionView => {
     const entry = ACTION_CATALOG[id];
     const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
     const remaining = (player.actionCooldowns[id] ?? 0) - world.meta.turn;
@@ -966,20 +971,29 @@ function projectFinance(world: WorldState): FinanceView {
       : player.actions < cost ? "Not enough action points."
       : empty ? emptyReason : undefined;
     return { id, name: entry.name, description: entry.description, cost, available: !reason,
-      requires: "amount", ...(reason ? { disabledReason: reason } : {}) };
+      requires, ...(reason ? { disabledReason: reason } : {}) };
   };
+  const banks: BankOption[] = [{ id: "centralBank", name: "Central Bank", kind: "central" }];
+  for (const corp of Object.values(world.corporations)) {
+    if (corp.bankCharter?.status !== "active") continue;
+    banks.push({ id: corp.id, name: corp.tickerSymbol ?? corp.id, kind: "bank" });
+  }
+  banks.sort((a, b) => Number(b.kind === "central") - Number(a.kind === "central") || a.id.localeCompare(b.id));
   return {
     cash: player.cash, savings: player.savings, currency: homeCurrency(world, player.countryId),
     savingsHolder: player.savingsHolder === "centralBank" ? "Central Bank"
       : world.corporations[player.savingsHolder]?.id ?? player.savingsHolder,
+    savingsHolderId: player.savingsHolder,
     holdings: Object.values(world.corporations).flatMap((corp) => {
       const entry = corp.shareholders.find((s) => s.holder === "player");
       if (!entry || entry.shares <= 0) return [];
       return [{ id: corp.id, name: corp.id, ticker: corp.tickerSymbol, shares: entry.shares,
         price: corp.sharePrice, currency: homeCurrency(world, corp.countryId) }];
     }),
-    deposit: savingsAction("depositSavings", player.cash <= 0, "No cash to deposit."),
-    withdraw: savingsAction("withdrawSavings", player.savings <= 0, "No savings to withdraw."),
+    deposit: savingsAction("depositSavings", "amount", player.cash <= 0, "No cash to deposit."),
+    withdraw: savingsAction("withdrawSavings", "amount", player.savings <= 0, "No savings to withdraw."),
+    banks,
+    moveSavings: savingsAction("moveSavings", "holder", false, ""),
     wealthHistory: world.history.playerWealth.map(({ turn, cash, savings, funds, bondsValue, sharesValue, netWorth }) => ({
       turn, cash, savings, funds, bondsValue, sharesValue, netWorth,
     })),
