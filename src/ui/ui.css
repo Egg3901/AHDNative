@@ -672,6 +672,13 @@ html, body { overflow-x: hidden; }
 .ahd-bottomnav-item[data-active="true"] { color: var(--ahd-fg); }
 .ahd-bottomnav-item[data-active="true"] svg { color: var(--ahd-primary); }
 .ahd-bottomnav-item:focus-visible { outline: none; box-shadow: var(--ahd-focus); }
+/* Press feedback on glass chrome (issue #437): touch has no hover, so
+ * :active paints an instant opaque tint while pressed. Instant means no
+ * transition or animation (the material system adds none, and the
+ * reduced-motion takeover stays intact). The tint darkens the elevated
+ * token instead of lightening it, so the pinned body/secondary contrast
+ * on elevated surfaces cannot regress under press. */
+.ahd-bottomnav-item:active { background: color-mix(in srgb, var(--ahd-card-elevated) 85%, black); }
 
 /* Side drawer sliding from the left (#366 composition: compact phone layout).
  * Width stays narrow so the backdrop keeps a tappable strip on 320px;
@@ -819,6 +826,11 @@ html, body { overflow-x: hidden; }
  * candidacy flips; opacity alone marks it unavailable. */
 .ahd-drawer-item:disabled { opacity: 0.5; cursor: default; }
 .ahd-drawer-item:disabled:hover { background: transparent; }
+/* Same chrome press language as the bottom nav above: the tint deepens the
+ * hover token so press reads distinctly from hover on desktop and still
+ * shows on touch. Disabled rows stay inert (transparent, matching hover). */
+.ahd-drawer-item:active:not(:disabled) { background: color-mix(in srgb, var(--ahd-card-elevated) 85%, black); }
+.ahd-drawer-item:disabled:active { background: transparent; }
 .ahd-drawer-item:focus-visible { outline: none; box-shadow: var(--ahd-focus); }
 .ahd-drawer-item[data-active="true"] {
   border-left-color: var(--ahd-primary);
