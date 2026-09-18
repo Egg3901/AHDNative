@@ -292,12 +292,25 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
       : null;
   })();
 
+  /* The five Standing drill-ins share one detail slot below the profile
+   * section (the SP single-detail model): opening one closes the other four,
+   * so two detail articles and two "Back to Standing" buttons never stack.
+   * Back closes the visible panel and returns to Standing. */
+  function closeDetailPanels() {
+    setElectionOpen(false);
+    setCorporationOpen(false);
+    setUnionOpen(false);
+    setCabinetOpen(false);
+    setGovernorOpen(false);
+  }
+
   /* The detail panel opens only once the authoritative summary is loaded;
    * failures stay on the shared error display with Standing intact. */
   function openElection(target: string) {
     setNoticeScope("general");
     void run((s) => s.loadElectionDetail(target)).then((next) => {
       if (next?.electionDetail) {
+        closeDetailPanels();
         setElectionOpen(true);
         window.setTimeout(() => jumpTo("mp-election"), 0);
       }
@@ -310,6 +323,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     setNoticeScope("general");
     void run((s) => s.loadCorporationDetail(target)).then((next) => {
       if (next?.corporationDetail) {
+        closeDetailPanels();
         setCorporationOpen(true);
         window.setTimeout(() => jumpTo("mp-corporation"), 0);
       }
@@ -322,6 +336,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     setNoticeScope("general");
     void run((s) => s.loadUnionDetail(target)).then((next) => {
       if (next?.unionDetail) {
+        closeDetailPanels();
         setUnionOpen(true);
         window.setTimeout(() => jumpTo("mp-union"), 0);
       }
@@ -336,6 +351,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     setNoticeScope("general");
     void run((s) => s.loadCabinetDetail(target.countryCode, target.positionId)).then((next) => {
       if (next?.cabinetDetail) {
+        closeDetailPanels();
         setCabinetOpen(true);
         window.setTimeout(() => jumpTo("mp-cabinet"), 0);
       }
@@ -350,6 +366,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     setNoticeScope("general");
     void run((s) => s.loadGovernorDetail(target.countryCode, target.stateId)).then((next) => {
       if (next?.governorDetail) {
+        closeDetailPanels();
         setGovernorOpen(true);
         window.setTimeout(() => jumpTo("mp-governor"), 0);
       }

@@ -613,3 +613,17 @@ Focused evidence: `src/ui/RegionDirectoryLinks510.test.tsx` (7 rendered
 tests: California party round trip with selection restore, Alabama race
 round trip, ghost-id fallback, at 320/390/1280px desktop). No
 physical-iPhone evidence is claimed.
+## 16. MP drill-in exclusivity (#510, state-preserving navigation)
+
+The five Standing drill-ins shared no slot: opening a second panel left the
+first mounted, stacking two detail articles with two "Back to Standing"
+buttons and no single return context. Each opener now closes the other four
+first (`closeDetailPanels` in `src/ui/MpModeScreen.tsx`), matching the SP
+single-detail model; Back returns to Standing with no detail left open. No
+new chrome was added, so Dynamic Island safe-area and Liquid Glass
+treatment are unchanged (shared card/footer classes only).
+
+Focused evidence: `src/ui/MpDetailExclusivity510.test.tsx` (2 rendered
+tests at 390px phone and 1280px desktop: race-then-company takes the single
+slot with exactly one Back, and Back restores Standing with hash
+`#mp-profile`). No physical-iPhone evidence is claimed.
