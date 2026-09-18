@@ -669,20 +669,22 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     systems: ["budget"],
     status: "available",
   },
-  // The subsidy cost line is live from corporation revenue every turn.
-  // Listed (not omitted) so the HoS Economic Direction console can render
-  // an honest grayed-out row naming the real blocker instead of hiding the
-  // lever the roadmap promises.
+  // Player-authored national subsidy enact/end (#94). The reference
+  // (AHDGame subsidyEffects.ts at e364c049) carries no rate dial: subsidies
+  // deliver a fixed SUBSIDY_MARGIN_BONUS margin at a fixed deadweight cost,
+  // so this action writes fixed-bonus records rather than setting a rate.
+  // The live subsidyBudgetPhase charges the budget line from corporation
+  // revenue starting the next turn. Head of State mode only, national scope
+  // only (solo has no state-budget subsidy writer).
   setSubsidyRate: {
     id: "setSubsidyRate",
     name: "Set Subsidy Rate",
-    description: "Sector subsidy dial. Blocked: no action writes world.subsidies records yet (subsidy cost itself is live from corporation revenue).",
+    description: "Enact or end a national sector subsidy (subsidyOp enact/end, economy-wide or one sectorType, optional domesticOnly). Fixed reference bonus/cost; the budget line follows next turn. Head of State mode only.",
     baseCost: 3,
     cooldown: 0,
     fundCost: 0,
     systems: ["budget/subsidies"],
-    status: "unavailable",
-    blockingSystem: "player subsidy enactment (world.subsidies writer)",
+    status: "available",
   },
   // PORT-STUB: the command-economy turn model is live, but it currently
   // derives policy stance from the ruling party and has no player-authored

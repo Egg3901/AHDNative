@@ -46,6 +46,7 @@ import { rollDebatePrep } from "../stats/debatePrep.js";
 import { validateBondIssuerIdentity } from "../bonds/corporateBonds.js";
 import { rngFromState } from "../rng.js";
 import { isOrderFlowPriceEligible } from "../market/orderFlow.js";
+import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
 
 export type ExecuteActionParams = {
   regionId?: string;
@@ -99,6 +100,12 @@ export type ExecuteActionParams = {
   budgetAmount?: number;
   taxField?: "incomeTax" | "domesticCorporateTax" | "foreignCorporateTax" | "payrollTax" | "tariffs" | "salesTax";
   taxRate?: number;
+  // setSubsidyRate (#94): player-authored national subsidy lifecycle.
+  subsidyOp?: "enact" | "end";
+  subsidyScope?: string;
+  subsidyScopeType?: "economy_wide" | "sector";
+  sectorType?: string;
+  domesticOnly?: boolean;
   // W11 extraction/prospecting
   resource?: string;
   share?: number;
@@ -1736,6 +1743,57 @@ function executeActionInner(
     ];
     return { ok: true, message: `Directed ${field} to ${rate}% for ${countryId}; enacts next turn.` };
   }
+  // ── setSubsidyRate (#94): HoS-only national subsidy enact/end ─────────
+  // Player lever over the live subsidyBudgetPhase cost line. The reference
+  // (subsidyEffects.ts applySubsidyProvision/applyEndSubsidyProvision)
+  // enacts through legislation with a FIXED margin bonus — there is no rate
+  // dial, so this action writes fixed-bonus records and takes no rate param.
+  // The record lands immediately; the budget cost follows deterministically
+  // at the next turn boundary through the existing phase. State scope is
+  // rejected: solo has no state-budget subsidy writer.
+  if (actionId === "setSubsidyRate") {
+    const fail = (error: string): ExecuteActionResult => {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error };
+    };
+    if (found.kind !== "player") return fail("Only the player directs subsidies");
+    if ((world.player as unknown as { mode: string }).mode !== "hos") {
+      return fail("Economic direction levers require Head of State mode");
+    }
+    const countryId = params.budgetCountryId ?? world.player.countryId;
+    if (!world.budgets[countryId]) return fail(`No budget for country: ${countryId}`);
+    const op = params.subsidyOp;
+    if (op !== "enact" && op !== "end") {
+      return fail("setSubsidyRate requires subsidyOp 'enact' or 'end'");
+    }
+    if (params.subsidyScope !== undefined && params.subsidyScope !== "national") {
+      return fail("setSubsidyRate supports national scope only: solo has no state-budget subsidy writer");
+    }
+    const spec = {
+      countryId,
+      scopeType: params.subsidyScopeType ?? "economy_wide",
+      targetSectorType: params.sectorType ?? null,
+      domesticOnly: params.domesticOnly ?? false,
+    } as const;
+    const current = Array.isArray(world.subsidies) ? world.subsidies : [];
+    if (op === "end") {
+      const ended = endNationalSubsidy(current, { ...spec });
+      if (!ended.ok) return fail(ended.error);
+      world.subsidies = ended.subsidies;
+      return { ok: true, message: `Ended national ${spec.scopeType} subsidy for ${countryId}; the budget line clears next turn.` };
+    }
+    const enacted = enactNationalSubsidy(current, { ...spec });
+    if (!enacted.ok) return fail(enacted.error);
+    world.subsidies = enacted.subsidies;
+    if (enacted.status === "already-active") {
+      return { ok: true, message: `National ${spec.scopeType} subsidy for ${countryId} is already active; no duplicate written.` };
+    }
+    if (enacted.status === "reactivated") {
+      return { ok: true, message: `Reactivated national ${spec.scopeType} subsidy for ${countryId}; the budget line resumes next turn.` };
+    }
+    return { ok: true, message: `Enacted national ${spec.scopeType} subsidy for ${countryId}; the budget line charges next turn.` };
+  }
   // ── W11 extraction/prospecting: government actions, HoS mode only ──────
   if (actionId === "launchProspect" || actionId === "issueExtractionContract") {
     if (found.kind !== "player") {
@@ -1960,6 +2018,10 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.taxField && params.taxRate !== undefined && Number.isFinite(params.taxRate) && params.taxRate >= 0 && params.taxRate <= 100
         ? null
         : "adjustTaxRate requires taxField and taxRate in [0,100]";
+    case "setSubsidyRate":
+      return params.subsidyOp === "enact" || params.subsidyOp === "end"
+        ? null
+        : "setSubsidyRate requires subsidyOp 'enact' or 'end'";
     case "launchProspect":
       return params.regionId && params.resource ? null : "launchProspect requires regionId and resource";
     case "issueExtractionContract":
