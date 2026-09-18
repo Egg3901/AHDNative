@@ -67,8 +67,12 @@ membership-removal sweep.
 `projectCaucusRoster` exposes `isPlayerChair`, `chairName`, `setTax` and
 `disband`, each quoting the engine's own `canSetCaucusTaxRate` /
 `canDisbandCaucus` verdict so a disabled reason matches the dispatcher's
-rejection. `CaucusPanel` shows the tax input and Disband button only for a
-caucus the player chairs. Disband mirrors the reference confirmation guard:
+rejection. Both engine checks now also require active affiliation (the
+player's membership pointer plus roster entry): a bare `chairId` left behind
+by a sweep or legacy save cannot tax or disband a caucus the player no longer
+belongs to, and the projection quotes that verdict unchanged. `CaucusPanel`
+shows the tax input and Disband button only for a caucus the player chairs.
+Disband mirrors the reference confirmation guard:
 `SelectedCaucus.tsx` calls `confirm` with the caucus name and total membership
 count before issuing DELETE, so the panel warns with the caucus name and
 projected member count and only dispatches on acceptance. Color, description,

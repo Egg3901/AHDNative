@@ -840,10 +840,13 @@ caucus is excluded from the tax phase and roster. The earlier member-level tax
 helper now requires the chair seat.
 
 `CaucusPanel` shows the tax input and Disband button only for a chaired caucus,
-quoting the engine's own eligibility verdict. Evidence: nine engine scenarios
-(`src/actions/caucusChairActions.test.ts`), three game-layer scenarios, three
-panel scenarios, and an extended `smoke/caucuses.spec.ts` that edits the tax,
-reloads, disbands and relaunches on the genuine elected fixture. Validation:
+quoting the engine's own eligibility verdict. The chair checks additionally
+require active affiliation (membership pointer plus roster entry), so a stale
+chair seat cannot tax or disband a caucus the player left. Evidence: twelve
+engine scenarios (`src/actions/caucusChairActions.test.ts`), four game-layer
+scenarios, three panel scenarios, and an extended `smoke/caucuses.spec.ts`
+that edits the tax, reloads, disbands and relaunches on the genuine elected
+fixture. Validation:
 engine non-sim suite 1020 tests, root suite 260, UI suite 285, content 41,
 shared-rules gates, engine and root typecheck and production build all pass.
 
