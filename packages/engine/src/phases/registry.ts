@@ -101,6 +101,7 @@ import {
 } from "../events/phases.js";
 import { bankingTurnPhase } from "../banking/bankingTurn.js";
 import { playerSavingsInterestPhase } from "../finance/playerSavingsInterest.js";
+import { playerLineOfCreditPhase } from "../finance/playerLineOfCredit.js";
 import { bankSolvencyTurnPhase } from "../banking/bankSolvencyTurn.js";
 import {
   governorAPRegenPhase,
@@ -353,6 +354,12 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // investment-bank charter type ported), but keeps the same slot.
   playerSavingsInterestPhase,
   bankingTurnPhase,
+  // #314 line-of-credit servicing, immediately after bankingTurn and before
+  // bankSolvencyTurn — the reference's own relative order (turnPhaseRegistry.ts:
+  // bankingTurn … lineOfCreditTurn … bankSolvencyTurn) so the scheduled
+  // payment reads the wallet this turn's banking flows already settled.
+  // RNG-free, so tail placement shifts no downstream rng draws.
+  playerLineOfCreditPhase,
   bankSolvencyTurnPhase,
   // W30 governor cluster at END before newsMaintenance, after the W12
   // banking cluster (merged in ahead of this wave - see world.ts

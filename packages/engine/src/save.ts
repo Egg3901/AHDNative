@@ -34,6 +34,7 @@ import {
 } from "./corporation/corporateSectorAssets.js";
 import { validateUnionOrganizers } from "./unions/organizers.js";
 import { validateUnionContributionLedger } from "./unions/contributions.js";
+import { validatePlayerLineOfCredit } from "./finance/playerLineOfCredit.js";
 
 /**
  * Save file = versioned JSON envelope around the full WorldState. Older
@@ -2642,6 +2643,14 @@ export function deserializeSave(raw: string): WorldState {
   // leaves untouched worlds byte-identical.
   if (save.world.unionContributionLedger !== undefined) {
     validateUnionContributionLedger(save.world, save.world.unionContributionLedger);
+  }
+  // #314: player line-of-credit servicing state. Saves written before the
+  // slice carry no field; missing degrades to no line and the phase no-ops,
+  // so no version renumber is needed. Present-but-invalid state fails
+  // closed. Absent stays absent (no materialization), so a mid-campaign
+  // save/load leaves untouched worlds byte-identical.
+  if (save.world.player.lineOfCredit !== undefined) {
+    validatePlayerLineOfCredit(save.world.player.lineOfCredit);
   }
   // Union strength keeps the reference absent-means-zero rule WITHOUT
   // materializing the field: a mid-campaign save/load must leave union rows
