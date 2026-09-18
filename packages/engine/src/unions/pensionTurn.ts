@@ -77,6 +77,7 @@ import {
   pensionBenefitPayment,
   pensionBenefitsDueForTurn,
   pensionContributionForTurn,
+  pensionCurrencyForCountry,
   pensionRecordIdFor,
   pensionRetirementsForTurn,
   pensionSchemeAssets,
@@ -220,8 +221,13 @@ export function runPensionTurn(world: WorldState, currentTurn: number): PensionT
       // economy is not modelling.
       if (!(wageTotal > 0)) continue;
 
-      const scheme = ensurePensionScheme(world, unionId, union.countryId, union.name, currentTurn);
-      if (scheme.lastChargedTurn === currentTurn) continue;
+      // Plan against the pre-existing position WITHOUT creating the scheme:
+      // a refused plan must leave no trace, not even an empty scheme row.
+      // The scheme is created only after the plan fully validates, below.
+      const prior = world.pensionSchemes?.[unionId];
+      if (prior?.lastChargedTurn === currentTurn) continue;
+      const priorAssets = prior ? pensionSchemeAssets(prior) : 0;
+      const priorLiabilities = prior?.liabilities ?? 0;
 
       // 1. Contribution per employer, rounded to cents at the debit
       // boundary so debit == credit == ledger exactly.
@@ -252,9 +258,9 @@ export function runPensionTurn(world: WorldState, currentTurn: number): PensionT
       // 2. Top-up on the position BEFORE this turn's accrual, split by
       // covered-wage share with the leftover absorbed by the last
       // employer so the shares sum exactly.
-      const assetsAfterContribution = pensionSchemeAssets(scheme) + paidTotal;
+      const assetsAfterContribution = priorAssets + paidTotal;
       const topUpTotal = roundMoney(
-        pensionTopUpForTurn({ assets: assetsAfterContribution, liabilities: scheme.liabilities }),
+        pensionTopUpForTurn({ assets: assetsAfterContribution, liabilities: priorLiabilities }),
       );
       const topUpByEmployer = new Map<string, number>();
       let topUpCharged = 0;
@@ -298,23 +304,23 @@ export function runPensionTurn(world: WorldState, currentTurn: number): PensionT
       }
       const ledger = world.pensionLedger ?? (world.pensionLedger = []);
       const newRows: PensionLedgerRecord[] = [];
-      const currencyCode = world.budgets?.[union.countryId]?.currencyCode ??
-        world.exchangeRates?.[union.countryId]?.currencyCode ??
-        "USD";
+      // Same static union-country currency as the union contribution ledger
+      // (contributions.ts), not the mutable budget/forex rows.
+      const currencyCode = pensionCurrencyForCountry(union.countryId);
       for (const employerId of employerIds) {
         const moved = movedByEmployer.get(employerId) ?? 0;
         if (!(moved > 0)) continue;
         const corp = world.corporations[employerId]!;
         const schemeName = schemeDisplayName(world, unionId);
-        const debitId = pensionRecordIdFor(scheme.id, currentTurn, "contribution", employerId, scheme.id);
-        const creditId = pensionRecordIdFor(scheme.id, currentTurn, "contribution", scheme.id, employerId);
+        const debitId = pensionRecordIdFor(unionId, currentTurn, "contribution", employerId, unionId);
+        const creditId = pensionRecordIdFor(unionId, currentTurn, "contribution", unionId, employerId);
         if (ledgerHas(world, debitId) || ledgerHas(world, creditId)) {
-          throw new Error(`Scheme ${scheme.id} already booked its contribution legs for turn ${currentTurn}`);
+          throw new Error(`Scheme ${unionId} already booked its contribution legs for turn ${currentTurn}`);
         }
         newRows.push({
           id: debitId,
           type: PENSION_CONTRIBUTION_TX_TYPE,
-          schemeId: scheme.id,
+          schemeId: unionId,
           unionName: union.name,
           turn: currentTurn,
           amount: -moved,
@@ -323,25 +329,29 @@ export function runPensionTurn(world: WorldState, currentTurn: number): PensionT
           subjectId: employerId,
           subjectName: corp.tickerSymbol ?? employerId,
           counterpartyType: "pension_scheme",
-          counterpartyId: scheme.id,
+          counterpartyId: unionId,
           counterpartyName: schemeName,
         });
         newRows.push({
           id: creditId,
           type: PENSION_CONTRIBUTION_TX_TYPE,
-          schemeId: scheme.id,
+          schemeId: unionId,
           unionName: union.name,
           turn: currentTurn,
           amount: moved,
           currencyCode,
           subjectType: "pension_scheme",
-          subjectId: scheme.id,
+          subjectId: unionId,
           subjectName: schemeName,
           counterpartyType: "corporation",
           counterpartyId: employerId,
           counterpartyName: corp.tickerSymbol ?? employerId,
         });
       }
+
+      // The plan validated without touching state; only now does the scheme
+      // come into existence (absence stays the record of never-charged).
+      const scheme = ensurePensionScheme(world, unionId, union.countryId, union.name, currentTurn);
 
       // Apply with snapshot restore if a write unexpectedly throws.
       const snapshot = structuredClone({
@@ -423,9 +433,8 @@ export function runPensionBenefitsTurn(world: WorldState, currentTurn: number): 
       // the write.
       const payment = pensionBenefitPayment({ benefitsDue: due, cash: scheme.assets });
 
-      const currencyCode = world.budgets?.[scheme.countryId]?.currencyCode ??
-        world.exchangeRates?.[scheme.countryId]?.currencyCode ??
-        "USD";
+      // Same static scheme-country currency as the contribution legs above.
+      const currencyCode = pensionCurrencyForCountry(scheme.countryId);
       const ledger = world.pensionLedger ?? (world.pensionLedger = []);
       let benefitRow: PensionLedgerRecord | null = null;
       if (payment.paid > 0) {

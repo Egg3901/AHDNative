@@ -564,7 +564,10 @@ export function validatePensionLedger(world: WorldState, rows: unknown): asserts
     if (!isValidId(entry["schemeId"])) throw new Error("Invalid pension ledger scheme reference");
     const scheme = schemes[entry["schemeId"] as string];
     if (!scheme) throw new Error(`Invalid pension ledger scheme reference for ${String(entry["id"])}`);
-    if (typeof entry["unionName"] !== "string" || entry["unionName"] !== scheme.unionName) {
+    // Display text only: the reference keeps counterpartyName denormalized and
+    // a union renamed after rows were booked must still load. Identity rides
+    // on the deterministic id, checked below.
+    if (typeof entry["unionName"] !== "string" || (entry["unionName"] as string).length === 0) {
       throw new Error(`Invalid pension ledger union name for ${String(entry["id"])}`);
     }
     if (!Number.isInteger(entry["turn"]) || (entry["turn"] as number) < 0) {
@@ -589,12 +592,16 @@ export function validatePensionLedger(world: WorldState, rows: unknown): asserts
   }
   // Id determinism: a row whose id is not the deterministic join of its
   // own legs fails closed, so the same turn can never book the same leg
-  // twice and a hand-edited id cannot smuggle in a duplicate payment.
+  // twice and a hand-edited id cannot smuggle in a duplicate payment. The
+  // benefit leg names the `system` sink in its id (the row itself keeps
+  // counterpartyId null: pensioners are modelled workforce, not an
+  // account), so the recomputation uses the same sink literal.
   for (const row of rows as PensionLedgerRecord[]) {
     const kind = row.type === PENSION_BENEFIT_TX_TYPE ? "benefit" : "contribution";
+    const counterpartyId =
+      row.counterpartyId ?? (row.counterpartyType === "system" ? "system" : "");
     if (
-      row.id !==
-      pensionRecordIdFor(row.schemeId, row.turn, kind, row.subjectId, row.counterpartyId ?? "")
+      row.id !== pensionRecordIdFor(row.schemeId, row.turn, kind, row.subjectId, counterpartyId)
     ) {
       throw new Error(`Invalid pension ledger id does not match legs: ${row.id}`);
     }
