@@ -226,7 +226,12 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
     setTutorialSaving(true);
     setTutorialError(null);
     onUpdateProfile({ onboardingDismissed: false }).then((ok) => {
-      if (!ok) setTutorialError("Getting started could not be reopened.");
+      if (ok) {
+        // Clear the local dismissal mirror too: the same mount dismissed the
+        // card above, and the refetched save now reports it applicable again.
+        setOnboardingResolved(false);
+        setOnboardingError(null);
+      } else setTutorialError("Getting started could not be reopened.");
     }).catch(() => {
       setTutorialError("Getting started could not be reopened.");
     }).finally(() => {

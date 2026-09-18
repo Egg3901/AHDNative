@@ -14,7 +14,7 @@
  * exposes no allocation action.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProfilePanel } from "./ProfilePanel";
 import type { ProfileView } from "../game/profileTypes";
@@ -181,6 +181,54 @@ describe("profile onboarding and guided-tour prompts", () => {
     expect(onUpdateProfile).toHaveBeenCalledWith({ onboardingDismissed: false });
     // Replaying does not resolve the tour itself.
     expect(screen.getByRole("region", { name: "Guided tour" })).toBeInTheDocument();
+  });
+
+  it("shows getting started again after a dismiss then replay round trip", async () => {
+    const user = userEvent.setup();
+    const onUpdateProfile = vi.fn(async () => true);
+    const view = render(
+      <ProfilePanel
+        profile={makeProfile()}
+        busy={false}
+        onNavigate={vi.fn()}
+        onUpdateProfile={onUpdateProfile}
+        onSelectConstituency={vi.fn(async () => true)}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Dismiss getting started" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("region", { name: "Getting started" })).not.toBeInTheDocument();
+    });
+
+    // Parent refetches: the save now reports the prompt dismissed.
+    view.rerender(
+      <ProfilePanel
+        profile={makeProfile({
+          onboarding: { dismissed: true, showPrompt: false },
+        })}
+        busy={false}
+        onNavigate={vi.fn()}
+        onUpdateProfile={onUpdateProfile}
+        onSelectConstituency={vi.fn(async () => true)}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Show getting started again" }));
+    expect(onUpdateProfile).toHaveBeenCalledWith({ onboardingDismissed: false });
+
+    // Parent refetches: the save reports the prompt applicable again, so the
+    // card must return even though it was dismissed in this same mount.
+    view.rerender(
+      <ProfilePanel
+        profile={makeProfile({
+          onboarding: { dismissed: false, showPrompt: true },
+        })}
+        busy={false}
+        onNavigate={vi.fn()}
+        onUpdateProfile={onUpdateProfile}
+        onSelectConstituency={vi.fn(async () => true)}
+      />,
+    );
+    expect(await screen.findByRole("region", { name: "Getting started" })).toBeInTheDocument();
   });
 
   it("hides inapplicable prompts and legacy profiles without prompt state", () => {
