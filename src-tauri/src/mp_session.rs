@@ -1395,6 +1395,47 @@ async fn run_session_call(
     classify_outcome(&outcome?)
 }
 
+/// Choose the account-session cookies the mobile relay attaches.
+///
+/// A device profile can hold several recognized names at once (the current
+/// `auth-token-<tag>` contract, the historic `auth-token` literal, and
+/// Auth.js-era session names from older previews), and one name can repeat
+/// with a stale value. Attaching everything lets a dead value ride on every
+/// proxied call and read as signed out with the account linked. When the
+/// current-contract family is present it wins alone; older-profile material
+/// only rides when nothing newer exists. Sharded Auth.js chunks all ride
+/// together (the server reassembles them), and a repeated name sends once.
+#[cfg(any(mobile, test))]
+fn select_account_session_cookies(cookies: &[(&str, &str)]) -> Option<String> {
+    let mut seen: Vec<&str> = Vec::new();
+    let mut current: Vec<(&str, &str)> = Vec::new();
+    let mut legacy: Vec<(&str, &str)> = Vec::new();
+    for &(name, value) in cookies {
+        if value.is_empty() || !crate::is_account_session_cookie(name) || seen.contains(&name) {
+            continue;
+        }
+        seen.push(name);
+        if name == "auth-token" || name.starts_with("auth-token-") {
+            current.push((name, value));
+        } else {
+            legacy.push((name, value));
+        }
+    }
+    // The current contract first: tagged names before the historic literal.
+    current.sort_by_key(|(name, _)| (*name == "auth-token") as u8);
+    let picked = if current.is_empty() { legacy } else { current };
+    if picked.is_empty() {
+        return None;
+    }
+    Some(
+        picked
+            .iter()
+            .map(|(name, value)| format!("{name}={value}"))
+            .collect::<Vec<_>>()
+            .join("; "),
+    )
+}
+
 #[cfg(mobile)]
 fn account_session_header(app: &tauri::AppHandle) -> Option<String> {
     let url: tauri::Url = format!("{}/api/auth/session", session_origin())
@@ -1407,15 +1448,11 @@ fn account_session_header(app: &tauri::AppHandle) -> Option<String> {
         let Ok(cookies) = view.cookies_for_url(url.clone()) else {
             continue;
         };
-        let header = cookies
-            .into_iter()
-            .filter(|cookie| {
-                crate::is_account_session_cookie(cookie.name()) && !cookie.value().is_empty()
-            })
-            .map(|cookie| format!("{}={}", cookie.name(), cookie.value()))
-            .collect::<Vec<_>>()
-            .join("; ");
-        if !header.is_empty() {
+        let pairs: Vec<(&str, &str)> = cookies
+            .iter()
+            .map(|cookie| (cookie.name(), cookie.value()))
+            .collect();
+        if let Some(header) = select_account_session_cookies(&pairs) {
             return Some(header);
         }
     }
@@ -1781,6 +1818,60 @@ mod tests {
         assert_eq!((op.method(), op.path()), ("POST", "/api/actions/execute"));
         let op = MpMutateOp::NotificationRead;
         assert_eq!((op.method(), op.path()), ("PATCH", "/api/notifications"));
+    }
+
+    #[test]
+    fn mobile_relay_prefers_the_current_account_cookie_contract() {
+        // A device profile can hold Auth.js-era material from an older
+        // preview next to the current `auth-token-<tag>` session: sending
+        // everything lets a dead value ride on every proxied call and read
+        // as signed out with the account linked. The current family wins
+        // alone; the tagged name leads the historic literal.
+        assert_eq!(
+            select_account_session_cookies(&[
+                ("__Secure-authjs.session-token", "stale"),
+                ("auth-token-production", "live"),
+            ]),
+            Some("auth-token-production=live".to_string())
+        );
+        assert_eq!(
+            select_account_session_cookies(&[
+                ("auth-token", "bridge"),
+                ("auth-token-local", "live")
+            ]),
+            Some("auth-token-local=live; auth-token=bridge".to_string())
+        );
+        // No current-contract cookie: older-profile material still rides so
+        // those installs stay linked, sharded chunks included, once each.
+        assert_eq!(
+            select_account_session_cookies(&[
+                ("next-auth.session-token", "legacy"),
+                ("discord_oauth_state", "flow"),
+                ("__Secure-authjs.session-token", "shard"),
+            ]),
+            Some("next-auth.session-token=legacy; __Secure-authjs.session-token=shard".to_string())
+        );
+        // A repeated name sends once, and empty values count as absent.
+        assert_eq!(
+            select_account_session_cookies(&[
+                ("auth-token-production", "stale"),
+                ("auth-token-production", "live"),
+            ]),
+            Some("auth-token-production=stale".to_string())
+        );
+        assert_eq!(
+            select_account_session_cookies(&[
+                ("auth-token-production", ""),
+                ("auth-token", "bridge")
+            ]),
+            Some("auth-token=bridge".to_string())
+        );
+        let none: &[(&str, &str)] = &[];
+        assert_eq!(select_account_session_cookies(none), None);
+        assert_eq!(
+            select_account_session_cookies(&[("discord_oauth_state", "flow")]),
+            None
+        );
     }
 
     #[cfg(desktop)]

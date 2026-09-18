@@ -214,6 +214,36 @@ fn mp_signin_return_home(gave_up: bool, on_app_origin: bool) -> bool {
     gave_up && !on_app_origin
 }
 
+/// Single-flight claim for the mobile multiplayer sign-in watch: the link
+/// action borrows the only webview, so concurrent taps must open one bounce.
+/// The TypeScript guard evaporates when the bounce navigates the webview away
+/// (the JS context is destroyed), so the claim lives here and survives the
+/// bounce. A refused claim means an earlier bounce already watches the
+/// single webview, and the late tap just joins it.
+#[cfg(any(mobile, test))]
+fn mp_signin_watch_claim(active: &std::sync::atomic::AtomicBool) -> bool {
+    active
+        .compare_exchange(
+            false,
+            true,
+            std::sync::atomic::Ordering::AcqRel,
+            std::sync::atomic::Ordering::Acquire,
+        )
+        .is_ok()
+}
+
+/// Release a watch claim; the watcher calls this once on every exit path.
+#[cfg(any(mobile, test))]
+fn mp_signin_watch_release(active: &std::sync::atomic::AtomicBool) {
+    active.store(false, std::sync::atomic::Ordering::Release);
+}
+
+/// At most one mobile multiplayer watch runs at a time (see
+/// [`mp_signin_watch_claim`]).
+#[cfg(mobile)]
+static MP_SIGNIN_WATCH_ACTIVE: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
 /// Whether the main view currently shows app content rather than the borrowed
 /// live-site sign-in page. Mirrors the Ask watcher stop condition.
 #[cfg(mobile)]
@@ -233,10 +263,25 @@ async fn open_mp_sign_in(app: tauri::AppHandle, provider: String) -> Result<(), 
     let url: Url = format!("{ONLINE_URL}{path}")
         .parse()
         .map_err(|error| format!("bad multiplayer sign-in URL: {error}"))?;
-    let main = app
-        .get_webview_window("main")
-        .ok_or_else(|| "main webview is unavailable".to_string())?;
-    main.navigate(url).map_err(|error| error.to_string())?;
+    // Probe-first: a live session in the shared jar needs no bounce. The
+    // caller re-probes on its own mount, so returning here enters the linked
+    // session without ever borrowing the only webview.
+    if mp_session::has_account_session(&app) {
+        return Ok(());
+    }
+    // Single-flight: an earlier bounce already watches the single webview,
+    // so a concurrent tap joins it instead of racing a second navigate.
+    if !mp_signin_watch_claim(&MP_SIGNIN_WATCH_ACTIVE) {
+        return Ok(());
+    }
+    let Some(main) = app.get_webview_window("main") else {
+        mp_signin_watch_release(&MP_SIGNIN_WATCH_ACTIVE);
+        return Err("main webview is unavailable".to_string());
+    };
+    if let Err(error) = main.navigate(url) {
+        mp_signin_watch_release(&MP_SIGNIN_WATCH_ACTIVE);
+        return Err(error.to_string());
+    }
     std::thread::spawn(move || {
         let mut gave_up = true;
         for _ in 0..600 {
@@ -261,6 +306,7 @@ async fn open_mp_sign_in(app: tauri::AppHandle, provider: String) -> Result<(), 
                 let _ = main.navigate(mobile_mp_launcher_url());
             }
         }
+        mp_signin_watch_release(&MP_SIGNIN_WATCH_ACTIVE);
     });
     Ok(())
 }
@@ -367,6 +413,21 @@ mod tests {
         assert!(mp_signin_watch_done(false, true));
         assert!(mp_signin_watch_done(true, true));
         assert!(!mp_signin_watch_done(false, false));
+    }
+
+    #[test]
+    fn mobile_sign_in_watch_claim_is_single_flight() {
+        use super::{mp_signin_watch_claim, mp_signin_watch_release};
+        use std::sync::atomic::AtomicBool;
+        let active = AtomicBool::new(false);
+        // The first tap claims the single webview; a concurrent tap joins
+        // the running watch instead of racing a second bounce over it.
+        assert!(mp_signin_watch_claim(&active));
+        assert!(!mp_signin_watch_claim(&active));
+        // The watcher releases once on exit, so the next link can bounce.
+        mp_signin_watch_release(&active);
+        assert!(mp_signin_watch_claim(&active));
+        mp_signin_watch_release(&active);
     }
 
     #[test]

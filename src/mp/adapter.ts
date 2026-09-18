@@ -173,8 +173,29 @@ export class MpModeSession {
     return this.refreshAuthed();
   }
 
-  /** Begin a provider OAuth round trip, then reload authoritative state. */
+  /**
+   * Link-account action (#149). Single-flight: concurrent calls join one
+   * provider round trip instead of racing parallel bounces over the single
+   * mobile webview. The native command adds its own claim (which survives
+   * the bounce destroying this JS context) plus a probe-first fast path
+   * that skips the bounce when a session already sits in the shared jar.
+   * Every failure ends in a recoverable phase with retry; nothing here
+   * throws or strands the screen.
+   */
+  private signInFlight: Promise<MpSnapshot> | null = null;
+
   async signIn(provider: "discord" | "google"): Promise<MpSnapshot> {
+    if (this.signInFlight) return this.signInFlight;
+    const flight = this.runSignIn(provider);
+    this.signInFlight = flight;
+    try {
+      return await flight;
+    } finally {
+      if (this.signInFlight === flight) this.signInFlight = null;
+    }
+  }
+
+  private async runSignIn(provider: "discord" | "google"): Promise<MpSnapshot> {
     try {
       await this.host.beginSignIn(provider);
     } catch {
