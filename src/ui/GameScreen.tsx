@@ -846,7 +846,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
             }
             navigate(next, id);
           }} /> : null}
-          {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} onNavigate={(next) => go(next)} /> : null}
+          {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} onNavigate={(next) => go(next)} onOpenCompany={(id) => drill("markets", id)} /> : null}
           {detailBack && (route === "partyDetails" || route === "electionDetails" || route === "campaignDetails" || route === "presidentialDetails" || route === "politicians" || route === "markets" || route === "legislationDetails" || route === "bonds" || route === "regions" || route === "nations" || route === "referendums" || route === "profile" || route === "policy") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={detailBack.onBack}>{detailBack.name}</button>}
           {route === "politicalMetrics" && world.capabilityNav?.metricsAvailable !== false && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => go("elections")}>Back to elections</button>}
           {route === "partyDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="parties" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
