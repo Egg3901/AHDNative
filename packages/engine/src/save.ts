@@ -334,6 +334,35 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
         error: `Corporation ${corpId} has price history that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}`,
       };
     }
+    // #328: bank proprietary-book state. A default retail charter with an
+    // empty book and a zero mark projects cleanly (dropped below; absent
+    // reloads as the identical default). Any live prop state cannot
+    // round-trip through schema 42 and is refused, same class as market
+    // pressure above.
+    const charter = value["bankCharter"];
+    if (isRecord(charter)) {
+      const charterType = charter["charterType"];
+      if (charterType !== undefined && charterType !== "retail") {
+        return {
+          ok: false,
+          error: `Corporation ${corpId} has a ${String(charterType)} bank charter that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}`,
+        };
+      }
+      const propBook = charter["propBook"];
+      if (propBook !== undefined && (!Array.isArray(propBook) || propBook.length > 0)) {
+        return {
+          ok: false,
+          error: `Corporation ${corpId} has proprietary positions that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}`,
+        };
+      }
+      const propBookMarkValue = charter["propBookMarkValue"];
+      if (propBookMarkValue !== undefined && propBookMarkValue !== 0) {
+        return {
+          ok: false,
+          error: `Corporation ${corpId} has a proprietary mark that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}`,
+        };
+      }
+    }
   }
 
   const candidateSave = structuredClone(save);
@@ -356,6 +385,15 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     delete corp["orderFlowWindowBuyValue"];
     delete corp["orderFlowWindowSellValue"];
     delete corp["priceHistory"];
+    // #328: default prop-book state is dropped so the projected bytes stay
+    // identical to an authentic schema 42 document; the reload backfill
+    // re-seeds the same retail charter, empty book, and zero mark.
+    const candidateCharter = corp["bankCharter"];
+    if (isRecord(candidateCharter)) {
+      delete candidateCharter["charterType"];
+      delete candidateCharter["propBook"];
+      delete candidateCharter["propBookMarkValue"];
+    }
   }
   if (typeof candidatePlayer["homeRegionId"] !== "string") {
     delete candidatePlayer["homeRegionId"];
