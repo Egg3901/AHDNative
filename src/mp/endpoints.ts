@@ -80,6 +80,27 @@
  *   headquarters, CEO, sector count, public/private); financials, balance
  *   sheet, and every write stay absent, so fog/redaction drift cannot leak
  *   into exact figures.
+ * - union-detail  GET /api/unions/[id]  public, no auth required
+ *   (AHDGame src/app/api/unions/[id]/route.ts; the page shell at
+ *   src/app/unions/[id]/page.tsx reads the same shape via
+ *   fetch(`/api/unions/${id}`)). The id is the 24-hex ObjectId client-nav
+ *   `myUnionId` carries (resolved by resolveMyUnionNav in
+ *   src/lib/navigation/resolveMyUnionNav.ts: the led union, else the
+ *   strongest organized union). The route itself checks ObjectId.isValid,
+ *   but Native pins strict 24-hex and fails closed on anything else.
+ *   No auth is required: the viewer resolves optionally server-side (only
+ *   to personalize ratification ballots on campaigns under ratification),
+ *   so signed-out readers get the same public shape through the
+ *   first-party session. Cache: no-store — Native keeps no copy beyond
+ *   memory. Errors: 403 while the labour system is not in full mode
+ *   ("Player-run unions are not enabled."), 400 invalid id, 404 union not
+ *   found, generic { error } envelope (src/lib/api/errors
+ *   handleRouteError). No per-route rate limit is documented; a 429 still
+ *   maps through the shared remote-error contract. Native projects
+ *   identity + leadership + scale only (name, sector, country, leader,
+ *   members, approval, treasury, sector count, leadership-election flag);
+ *   bargaining campaigns, dues/services panels, pension, endorsements, and
+ *   every write stay absent.
  *
  * Audited writes:
  * - execute-action    POST /api/actions/execute  requireHumanSession
@@ -210,7 +231,8 @@ export type MpFetchOpId =
   | "mail-sent"
   | "admin-maintenance"
   | "election-detail"
-  | "corporation-detail";
+  | "corporation-detail"
+  | "union-detail";
 
 export type MpMutateOpId =
   | "execute-action"

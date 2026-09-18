@@ -89,7 +89,8 @@ pub mod error {
 /// variant maps to one pinned path; see [`fetch_path_and_query`]. The
 /// election detail read takes an id parameter instead; see
 /// [`fetch_election_path`]. The corporation detail read takes an id
-/// parameter instead; see [`fetch_corporation_path`].
+/// parameter instead; see [`fetch_corporation_path`]. The union detail
+/// read takes an id parameter instead; see [`fetch_union_path`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MpFetchOp {
     /// Legacy read-only session probe; 200 `{active:true,...}` signed in,
@@ -126,6 +127,11 @@ pub enum MpFetchOp {
     /// The id is a sequential numeric id or a 24-hex ObjectId; see
     /// [`is_corporation_id`].
     CorporationDetail,
+    /// Standing union detail; GET /api/unions/[id] (public, no auth
+    /// required; 403 while the labour system is not in full mode, 400 on an
+    /// invalid id, 404 when the union is gone). The id is the 24-hex
+    /// ObjectId client-nav `myUnionId` carries; see [`is_union_id`].
+    UnionDetail,
 }
 
 impl MpFetchOp {
@@ -143,6 +149,7 @@ impl MpFetchOp {
             "admin-maintenance" => Some(Self::AdminMaintenance),
             "election-detail" => Some(Self::ElectionDetail),
             "corporation-detail" => Some(Self::CorporationDetail),
+            "union-detail" => Some(Self::UnionDetail),
             _ => None,
         }
     }
@@ -161,6 +168,7 @@ impl MpFetchOp {
             Self::AdminMaintenance => "/api/admin/maintenance",
             Self::ElectionDetail => "/api/elections",
             Self::CorporationDetail => "/api/corporations",
+            Self::UnionDetail => "/api/unions",
         }
     }
 }
@@ -565,6 +573,29 @@ fn fetch_corporation_path(corporation_id: &str) -> Result<String, String> {
     ))
 }
 
+/// Union reference accepted by GET /api/unions/[id]: the route checks
+/// `ObjectId.isValid`, but Native pins the strict 24-hex ObjectId that
+/// client-nav `myUnionId` (via `resolveMyUnionNav` in AHDGame
+/// `src/lib/navigation/resolveMyUnionNav.ts`) always carries. Bounded and
+/// URL-safe by construction, so the id embeds in the path with no encoding
+/// step that could smuggle query text.
+fn is_union_id(value: &str) -> bool {
+    is_hex_object_id(value)
+}
+
+/// Build the exact union detail request path from a validated id.
+/// The id is a path segment (never a query pair) and carries no pagination.
+fn fetch_union_path(union_id: &str) -> Result<String, String> {
+    if !is_union_id(union_id) {
+        return Err(error::BAD_ARG.to_string());
+    }
+    Ok(format!(
+        "{}/{}",
+        MpFetchOp::UnionDetail.path(),
+        union_id
+    ))
+}
+
 /// Validate a mutation payload and return the canonical body to send. Unknown
 /// fields are stripped; the server ignores them, and the bridge never
 /// forwards what it did not explicitly model.
@@ -845,10 +876,22 @@ fn is_corporation_path(path: &str) -> bool {
     }
 }
 
+/// Union detail path: exactly `/api/unions/<validated id>` with no query
+/// string. The id segment re-validates here so a future refactor of
+/// [`fetch_union_path`] cannot widen the pin.
+fn is_union_path(path: &str) -> bool {
+    let id = path.strip_prefix("/api/unions/");
+    match id {
+        Some(id) => !id.is_empty() && !id.contains('/') && is_union_id(id),
+        None => false,
+    }
+}
+
 /// Re-check a fully formed method+path+query against the allowlist. Defense
 /// in depth: the call is built by [`fetch_path_and_query`]/[`mutate_path`],
-/// [`fetch_election_path`], or [`fetch_corporation_path`], but the transport
-/// re-validates so a future refactor cannot bypass the pin.
+/// [`fetch_election_path`], [`fetch_corporation_path`], or
+/// [`fetch_union_path`], but the transport re-validates so a future refactor
+/// cannot bypass the pin.
 fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
     let (path, query) = match path_and_query.split_once('?') {
         Some((path, query)) => (path, Some(query)),
@@ -874,6 +917,9 @@ fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
         },
         ("GET", path) if path.starts_with("/api/corporations/") => {
             query.is_none() && is_corporation_path(path)
+        }
+        ("GET", path) if path.starts_with("/api/unions/") => {
+            query.is_none() && is_union_path(path)
         }
         ("POST", "/api/actions/execute") | ("PATCH", "/api/notifications") => query.is_none(),
         ("PUT", "/api/notifications/preferences") => query.is_none(),
@@ -1360,9 +1406,10 @@ async fn run_session_call(
 
 /// Fetch one allowlisted read through the live-site session. Resolves with
 /// the raw JSON body; the TypeScript adapter validates and projects it.
-/// `election_id` serves the election detail read only and `corporation_id`
-/// serves the corporation detail read only: each must be absent on every
-/// other op and present (validated) on its own.
+/// `election_id` serves the election detail read only, `corporation_id`
+/// serves the corporation detail read only, and `union_id` serves the union
+/// detail read only: each must be absent on every other op and present
+/// (validated) on its own.
 #[tauri::command(rename_all = "camelCase")]
 pub async fn mp_session_fetch(
     app: tauri::AppHandle,
@@ -1371,11 +1418,12 @@ pub async fn mp_session_fetch(
     offset: Option<u32>,
     election_id: Option<String>,
     corporation_id: Option<String>,
+    union_id: Option<String>,
 ) -> Result<String, String> {
     let op = MpFetchOp::from_id(op_id.trim()).ok_or_else(|| error::UNSUPPORTED_OP.to_string())?;
     let path_and_query = match op {
         MpFetchOp::ElectionDetail => {
-            if limit.is_some() || offset.is_some() || corporation_id.is_some() {
+            if limit.is_some() || offset.is_some() || corporation_id.is_some() || union_id.is_some() {
                 return Err(error::UNSUPPORTED_OP.to_string());
             }
             let id = election_id
@@ -1384,7 +1432,7 @@ pub async fn mp_session_fetch(
             fetch_election_path(id)?
         }
         MpFetchOp::CorporationDetail => {
-            if limit.is_some() || offset.is_some() || election_id.is_some() {
+            if limit.is_some() || offset.is_some() || election_id.is_some() || union_id.is_some() {
                 return Err(error::UNSUPPORTED_OP.to_string());
             }
             let id = corporation_id
@@ -1392,8 +1440,17 @@ pub async fn mp_session_fetch(
                 .ok_or_else(|| error::BAD_ARG.to_string())?;
             fetch_corporation_path(id)?
         }
+        MpFetchOp::UnionDetail => {
+            if limit.is_some() || offset.is_some() || election_id.is_some() || corporation_id.is_some() {
+                return Err(error::UNSUPPORTED_OP.to_string());
+            }
+            let id = union_id
+                .as_deref()
+                .ok_or_else(|| error::BAD_ARG.to_string())?;
+            fetch_union_path(id)?
+        }
         _ => {
-            if election_id.is_some() || corporation_id.is_some() {
+            if election_id.is_some() || corporation_id.is_some() || union_id.is_some() {
                 return Err(error::BAD_ARG.to_string());
             }
             fetch_path_and_query(op, limit, offset)?
@@ -2093,6 +2150,95 @@ mod tests {
         assert!(!is_allowlisted_call("POST", "/api/corporations/42"));
         assert!(!is_allowlisted_call("PATCH", "/api/corporations/42"));
         assert!(!is_allowlisted_call("DELETE", "/api/corporations/42"));
+    }
+
+    #[test]
+    fn union_detail_resolves_to_the_pinned_union_read() {
+        assert_eq!(
+            MpFetchOp::from_id("union-detail"),
+            Some(MpFetchOp::UnionDetail)
+        );
+        assert_eq!(MpFetchOp::UnionDetail.path(), "/api/unions");
+        assert_eq!(MpFetchOp::from_id("UNION-DETAIL"), None);
+        assert_eq!(MpFetchOp::from_id("unions"), None);
+        assert_eq!(MpFetchOp::from_id("union"), None);
+        // Only strict 24-hex ObjectIds build the exact item path; the
+        // route's looser `ObjectId.isValid` never widens the bridge, and
+        // pagination never applies to this read.
+        assert_eq!(
+            fetch_union_path("68a000000000000000000001").unwrap(),
+            "/api/unions/68a000000000000000000001"
+        );
+        // Traversal, query smuggling, sibling routes, and drift all fail closed.
+        for bad in [
+            "",
+            "e1",
+            "42",
+            "union-42",
+            "68a000000000000000000001 ",
+            " 68a000000000000000000001",
+            "68a000000000000000000001&view=full",
+            "68a000000000000000000001?view=full",
+            "68a000000000000000000001/leader",
+            "68a000000000000000000001/../43",
+            "../admin/maintenance",
+            "/api/unions/68a000000000000000000001",
+            "leaderboard",
+            "found",
+            "012345678901",
+            "0000000000000000000000000 ",
+            "zzzzzzzzzzzzzzzzzzzzzzzz",
+            "68A00000000000000000000ZZ",
+        ] {
+            assert!(
+                fetch_union_path(bad).is_err(),
+                "{bad:?} must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn union_allowlist_pins_item_path_and_validated_id() {
+        for allowed in [
+            "/api/unions/68a000000000000000000001",
+            "/api/unions/ffffffffffffffffffffffff",
+        ] {
+            assert!(
+                is_allowlisted_call("GET", allowed),
+                "{allowed} must be allowed"
+            );
+        }
+        for denied in [
+            "/api/unions",
+            "/api/unions/",
+            "/api/unions/leaderboard",
+            "/api/unions/found",
+            "/api/unions/68a000000000000000000001/",
+            "/api/unions/42",
+            "/api/unions/e1",
+            "/api/unions/68a000000000000000000001?view=summary",
+            "/api/unions/68a000000000000000000001?limit=1&offset=0",
+            "/api/unions/68a000000000000000000001/leader",
+            "/api/unions/68a000000000000000000001/../68a000000000000000000002",
+            "https://ahousedividedgame.com/api/unions/68a000000000000000000001",
+        ] {
+            assert!(
+                !is_allowlisted_call("GET", denied),
+                "{denied} must be rejected"
+            );
+        }
+        assert!(!is_allowlisted_call(
+            "POST",
+            "/api/unions/68a000000000000000000001"
+        ));
+        assert!(!is_allowlisted_call(
+            "PATCH",
+            "/api/unions/68a000000000000000000001"
+        ));
+        assert!(!is_allowlisted_call(
+            "DELETE",
+            "/api/unions/68a000000000000000000001"
+        ));
     }
 
     #[test]

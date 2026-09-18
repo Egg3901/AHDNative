@@ -192,6 +192,7 @@ describe("MpModeSession enter", () => {
       capabilities: null,
       electionDetail: null,
       corporationDetail: null,
+      unionDetail: null,
       inbox: null,
       mailInbox: null,
       mailSent: null,

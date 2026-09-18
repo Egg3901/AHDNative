@@ -467,6 +467,88 @@ export function parseCorporationDetail(bodyText: string): MpCorporationDetailVie
   };
 }
 
+/**
+ * Union reference accepted by GET /api/unions/[id]: the route checks
+ * `ObjectId.isValid`, but Native pins the strict 24-hex ObjectId that
+ * client-nav `myUnionId` always carries (see `resolveMyUnionNav` in AHDGame
+ * `src/lib/navigation/resolveMyUnionNav.ts`). The id stays URL-safe without
+ * encoding and never carries query smuggling.
+ */
+export function isUnionId(value: unknown): value is string {
+  return typeof value === "string" && !!value && HEX_OBJECT_ID.test(value);
+}
+
+/** Union ids are 24-hex ObjectIds; anything else never leaves the UI. */
+export function validateUnionId(id: unknown): { ok: true; id: string } | { ok: false; reason: string } {
+  if (!isUnionId(id)) {
+    return { ok: false, reason: "That union reference is invalid." };
+  }
+  return { ok: true, id };
+}
+
+export interface MpUnionDetailView {
+  id: string;
+  name: string;
+  countryId: string;
+  countryName: string | null;
+  sectorType: string | null;
+  sectorLabel: string | null;
+  ownerId: string | null;
+  electionOpen: boolean | null;
+  suspended: boolean | null;
+  /** Real headcount across represented sectors; null when not yet priced. */
+  members: number | null;
+  /** 0-100 membership approval; null when not yet priced. */
+  approval: number | null;
+  /** Union treasury anchor; the route answers it publicly, unredacted. */
+  treasury: number | null;
+  /** Length of the sectors array; entries stay server-side. */
+  sectorCount: number;
+}
+
+/**
+ * union-detail: the route answers the detail view as { union, sectors,
+ * workforce, ... }. The summary projects identity, leadership, and scale
+ * only: bargaining campaigns, dues/services pricing, the pension scheme,
+ * endorsements, and every write stay server-side. Decorations degrade to
+ * null individually; identity drift fails closed.
+ */
+export function parseUnionDetail(bodyText: string): MpUnionDetailView | null {
+  const record = asRecord(parseJsonBody(bodyText));
+  const union = record ? asRecord(record.union) : null;
+  if (!union) return null;
+  const id = asTrimmedString(union.id);
+  const name = asTrimmedString(union.name);
+  const countryId = asTrimmedString(union.countryId);
+  if (!id || !name || !countryId) return null;
+  if (!isUnionId(id)) return null;
+  if (!Array.isArray(record?.sectors)) return null;
+  // Scale figures degrade to null when absent, but a present mistyped
+  // value signals a drifting payload and fails closed instead of quoting
+  // a fabricated figure.
+  const members = union.members === undefined || union.members === null ? null : asNumber(union.members);
+  if ((union.members !== undefined && union.members !== null && members === null) || (members !== null && members < 0)) return null;
+  const approval = union.approval === undefined || union.approval === null ? null : asNumber(union.approval);
+  if (union.approval !== undefined && union.approval !== null && approval === null) return null;
+  const treasury = union.treasury === undefined || union.treasury === null ? null : asNumber(union.treasury);
+  if (union.treasury !== undefined && union.treasury !== null && treasury === null) return null;
+  return {
+    id,
+    name,
+    countryId,
+    countryName: asTrimmedString(union.countryName ?? null),
+    sectorType: asTrimmedString(union.sectorType ?? null),
+    sectorLabel: asTrimmedString(union.sectorLabel ?? null),
+    ownerId: asTrimmedString(union.ownerId ?? null),
+    electionOpen: union.electionOpen === undefined ? null : asBoolean(union.electionOpen),
+    suspended: union.suspended === undefined ? null : asBoolean(union.suspended),
+    members,
+    approval,
+    treasury,
+    sectorCount: (record.sectors as unknown[]).length,
+  };
+}
+
 /** execute-action 200: {success:true, message}. */
 export function parseExecuteResult(bodyText: string): string | null {
   const record = asRecord(parseJsonBody(bodyText));
