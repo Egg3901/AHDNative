@@ -208,6 +208,39 @@ describe("ActionsHub", () => {
     expect(onAction).not.toHaveBeenCalled();
   });
 
+  it("locks the hub Join Party row with the cooldown reason from the live projection", async () => {
+    const session = new GameSession();
+    session.create({ era: "1953", countryId: "US", seed: "join-hub-cooldown", playerName: "Alex" });
+    expect(session.act("joinParty", { partyId: "US_DEM" }).ok).toBe(true);
+    const live = session.view();
+    expect(live.actions.find((action) => action.id === "joinParty")).toMatchObject({
+      available: false,
+      disabledReason: "Party switch cooldown: 24 turn(s) remaining",
+    });
+    const onAction = vi.fn();
+    const user = userEvent.setup();
+    render(<ActionsHub actions={live.actions} regions={live.regions} parties={live.parties} busy={false} currency="USD" onAction={onAction} category="all" onCategoryChange={() => {}} />);
+    // The row stays (hub contract) but locked with the explicit engine reason.
+    const card = screen.getByRole("article", { name: /^join party$/i });
+    expect(within(card).getByRole("button", { name: /unavailable: join party/i })).toBeDisabled();
+    expect(within(card).getByText(/party switch cooldown: 24 turn\(s\) remaining/i)).toBeInTheDocument();
+    await user.click(within(card).getByRole("button", { name: /unavailable: join party/i }));
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it("sends the picked party with an eligible hub Join Party action", async () => {
+    const session = new GameSession();
+    session.create({ era: "1953", countryId: "US", seed: "join-hub-eligible", playerName: "Alex" });
+    const live = session.view();
+    expect(live.actions.find((action) => action.id === "joinParty")).toMatchObject({ available: true });
+    const onAction = vi.fn();
+    const user = userEvent.setup();
+    render(<ActionsHub actions={live.actions} regions={live.regions} parties={live.parties} busy={false} currency="USD" onAction={onAction} category="all" onCategoryChange={() => {}} />);
+    const card = screen.getByRole("article", { name: /^join party$/i });
+    await user.click(within(card).getByRole("button", { name: /take action: join party/i }));
+    expect(onAction).toHaveBeenCalledWith("joinParty", { partyId: live.parties[0]!.id });
+  });
+
   it("renders a Debate Prep result with the stat change in recent outcomes (#37)", () => {
     render(<ActionsHub actions={actions} {...props} category="all" onCategoryChange={() => {}} outcomes={[{
       id: "t0-action:debatePrep:1", actionId: "debatePrep",
