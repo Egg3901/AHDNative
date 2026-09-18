@@ -453,17 +453,23 @@ describe("invalid-state refusal with rollback, idempotency, and ordering", () =>
 });
 
 describe("phase position at the writer/consumer edge", () => {
-  it("runs after unionsTurn (immediately) and after corporationTurn", () => {
+  it("runs in the #323 source-backed cluster after corporationTurn", () => {
     const names = TURN_PHASES.map((phase) => phase.name);
     const corp = names.indexOf("corporationTurn");
     const unions = names.indexOf("unionsTurn");
+    const npp = names.indexOf("nppUnionBehavior");
     const pension = names.indexOf("pensionTurn");
+    const macro = names.indexOf("macroCountryTurn");
     expect(corp).toBeGreaterThanOrEqual(0);
-    expect(unions).toBeGreaterThan(corp);
-    // The charge sweep debits corporate liquidCapital and prices dues off
-    // the same represented-sector population unionsTurn just settled, so
-    // the pension pass sits directly behind it.
-    expect(pension).toBe(unions + 1);
+    // Pinned e364c0495 turnPhaseNames.ts: corporationTurn (5) < unionsTurn
+    // (6) < nppUnionBehavior (7) < … < pensionTurn (15) < macroCountryTurn
+    // (17). The charge sweep debits corporate liquidCapital and prices dues
+    // off the same represented-sector population unionsTurn just settled,
+    // so the pension pass sits directly behind the union pair.
+    expect(unions).toBe(corp + 1);
+    expect(npp).toBe(unions + 1);
+    expect(pension).toBe(npp + 1);
+    expect(macro).toBeGreaterThan(pension);
     expect(pensionTurnPhase.name).toBe("pensionTurn");
   });
 

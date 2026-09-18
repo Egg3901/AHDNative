@@ -158,6 +158,40 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // macroCountryTurn for this dependency. This phase is RNG-free, so moving
   // this single causal edge does not consume or shift the shared RNG stream.
   corporationTurnPhase,
+  // #323 union cluster at the source-backed edge: mainline runs
+  // corporationTurn (index 5) < unionsTurn (6) < nppUnionBehavior (7) <
+  // … < pensionTurn (15) < macroCountryTurn (17) (turnPhaseNames.ts at
+  // pinned e364c0495). All four moved phases are RNG-free, so restoring
+  // this edge consumes no shared RNG draws and shifts no downstream
+  // phase's stream. What the move fixes, in reference relative order:
+  //   corporationTurn → unionsTurn: the dues/services/approval loop prices
+  //     against this turn's sector unionization/workers/wage writes, and
+  //     the labour-relations leg reads turn-start strike state for the
+  //     NEXT corporation turn (never the one that just ran, so a strike
+  //     called this turn cannot damage this turn's revenue twice — the
+  //     no-same-turn-duplicate-damage invariant #323 proves).
+  //   unionsTurn → nppUnionBehavior: mainline runs NPP behavior AFTER the
+  //     unions pass, so a union elected this turn does NOT get its dues
+  //     tick the same turn (the old tail order did the opposite).
+  //   unionsTurn → campaignTurn: #321 organizer payouts credit recipient
+  //     campaign funds before campaignTurn spends them, matching mainline's
+  //     unionsTurn (6) < campaignTurn (56) edge (previously the tail
+  //     placement credited payouts after the spend).
+  //   pensionTurn before macroCountryTurn: the charge sweep debits the
+  //     corporate liquidCapital corporationTurn just settled and reads the
+  //     same represented-sector wage population unionsTurn just priced
+  //     dues against — before macroCountryTurn mutates laborForces and
+  //     before the fiscal tail phases mutate budgets, exactly the
+  //     reference's pre-macro read position.
+  // Remaining deviation (out of scope): mainline runs bankingTurn (13)
+  // before pensionTurn (15); Native's banking cluster stays at the tail
+  // per its own rng-stream-stability rule, so pension reads pre-banking
+  // corporate capital. No shared-field consumer distinguishes the two
+  // positions (banking touches private-bank savings, never the pension
+  // wage base), and a dedicated re-golden will restore mainline order.
+  unionsTurnPhase,
+  nppUnionBehaviorPhase,
+  pensionTurnPhase,
   macroCountryTurnPhase,
   turnoutDecayPhase,
   partyGOTVPhase,
@@ -390,32 +424,12 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   governorByElectionWatcherPhase,
   governorLegislationQueuePhase,
   governorEndorsementsPhase,
-  // W15 unions at END before newsMaintenance — ordering deviation:
-  // Mainline runs unionsTurn immediately after corporationTurn, reading that
-  // phase's sector unionization/workers/wagePerWorker writes this same turn
-  // (see turnPhaseRegistry.ts unionsTurn registration), and nppUnionBehavior
-  // runs later in the NPP group (turnPhaseNames.ts indices). Solo defers the
-  // entire W15 cluster to the tail before newsMaintenance to avoid shifting
-  // shared RNG streams under existing integration goldens — same rule as every
-  // other tail cluster above (see recomputeSharePricesPhase comment). Relative
-  // order inside this cluster keeps nppUnionBehavior BEFORE unionsTurn so a
-  // union elected this turn still gets its dues tick the same turn (mainline
-  // order is opposite but both phases are RNG-free, so swapping preserves
-  // determinism and matches the tail-append stable-ordering convention the
-  // rest of the registry uses). Both phases mutate only WorldState.unions
-  // (plus reading laborForces/regions/budgets) and are RNG-free, so their
-  // tail placement has no downstream RNG stream effect beyond the ordering
-  // deviation itself, which a dedicated re-golden will restore.
-  nppUnionBehaviorPhase,
-  unionsTurnPhase,
-  // #315 pensions at the labor-consumer edge, after unionsTurn: the charge
-  // sweep debits corporate liquidCapital written by corporationTurnPhase
-  // (far above, so current) and reads the same represented-sector wage
-  // population unionsTurn just priced dues against. Benefits follow the
-  // charge in the same turn (retire-then-pay), matching the reference's
-  // contribution-before-benefits order. RNG-free, like every other tail
-  // cluster, so placement shifts no downstream RNG stream.
-  pensionTurnPhase,
+  // #323: the W15 union cluster (unionsTurn, nppUnionBehavior) and the #315
+  // pension phase used to live here at the tail; they now run immediately
+  // after corporationTurnPhase near the head of this array, in mainline's
+  // relative order (corporationTurn < unionsTurn < nppUnionBehavior <
+  // pensionTurn < macroCountryTurn at pinned e364c0495). See the #323
+  // comment at the new slot for the full rationale.
   // W13 bonds at END before newsMaintenance — ordering deviation:
   // Mainline runs bondTurn mid-pipeline (after centralBankChairSelection, before
   // corporationTurn) per turnPhaseRegistry.ts. Solo defers the entire W13

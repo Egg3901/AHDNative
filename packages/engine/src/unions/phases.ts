@@ -35,10 +35,18 @@
  *  - approval trends toward approvalTarget
  *
  * Suspension (union ban law) is honoured: suspended unions skip the whole block.
- * NPP behavior runs first so a union elected this turn still gets its dues tick
- * the same turn? Mainline runs nppUnionBehavior AFTER unionsTurn; AHDClient runs
- * NPP before unionsTurn in the tail cluster so election is visible same turn —
- * deviation documented in registry.ts comment.
+ * Intra-turn order mirrors the reference exactly (processUnionsTurn at pinned
+ * e364c0495 runs processLabourRelationsTurn FIRST, then roster backfill,
+ * strength decay, unrepresented-sector adoption, and only then the
+ * dues/services/approval loop over led unions): the labour clock advance —
+ * dispute entries, expiries, ballots, lapses, mandate refreshes, overtime
+ * upkeep charged against the PRE-dues treasury (a defunded ban ends before
+ * this turn's dues income could rescue it) — all land before dues are
+ * priced, so dues and services settle against the labour state the reference
+ * settles them against. #323 fixed the old dues-first deviation.
+ * NPP behavior runs AFTER unionsTurn (nppUnionBehaviorPhase is registered
+ * after unionsTurnPhase), matching mainline: a union elected this turn does
+ * NOT get its dues tick the same turn. #323 fixed the old NPP-first order.
  *
  * Source: <mainline-checkout>/src/lib/turn/unions/index.ts processUnionsTurn
  *         <mainline-checkout>/src/lib/unions/unionDues.ts
@@ -86,9 +94,17 @@ export const unionsTurnPhase: TurnPhase = {
     const unions = world.unions as Record<string, import("./types.js").Union> | undefined;
     if (!unions || Object.keys(unions).length === 0) return;
 
-    // #320: strength decay and null-pointer adoption run before dues, same
-    // turn position as the reference (decay beside the dues pass, adoption
-    // before the represented-sectors query).
+    // #323: the labour-relations leg runs FIRST, matching the reference
+    // (processUnionsTurn calls processLabourRelationsTurn before decay,
+    // adoption, and dues). Upkeep is charged against the pre-dues treasury;
+    // mandates refresh before dues price against them. RNG-free, no
+    // revenue/margin/output writes: economic enforcement lives exactly
+    // once in corporationTurn.
+    processLabourRelationsTurn(world, turn);
+
+    // #320: strength decay and null-pointer adoption run after the labour
+    // pass and before dues, same turn position as the reference (decay
+    // beside the dues pass, adoption before the represented-sectors query).
     decayUnionStrength(world, turn);
     adoptUnrepresentedSectors(world);
 
@@ -161,12 +177,9 @@ export const unionsTurnPhase: TurnPhase = {
       union.updatedAtTurn = turn;
     }
 
-    // #322: deadline/expiry/ballot/lapse clocks, mandate refreshes, overtime
-    // upkeep, and NPP autonomous bargaining run after the dues pass, same
-    // turn position as the reference's labour-relations leg. The pass is
-    // RNG-free and never touches revenue, margin, or output: economic
-    // enforcement lives exactly once in corporationTurn.
-    processLabourRelationsTurn(world, turn);
+    // (The #322 labour-relations leg now runs at the TOP of this phase, ahead
+    // of decay/adoption/dues, per the reference order — see the comment at
+    // the processLabourRelationsTurn call above.)
   },
 };
 

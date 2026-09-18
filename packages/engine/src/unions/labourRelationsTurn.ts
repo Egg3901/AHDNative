@@ -7,18 +7,22 @@
  * overtime-ban upkeep is charged (a defunded ban ends), and NPP-led unions
  * plus NPC employers answer through the deterministic policy.
  *
- * Runs inside unionsTurn AFTER the dues/services/approval loop (same
- * turn position as the reference's labour-relations leg; #323 owns any
- * broader phase reordering and is explicitly out of scope). RNG-free:
- * deterministic iteration order, no draws, so the pass neither consumes
- * nor shifts the shared RNG stream.
+ * Runs inside unionsTurn BEFORE the dues/services/approval loop — the
+ * reference's own position (processUnionsTurn calls this pass first, so
+ * overtime upkeep is charged against the pre-dues treasury). #323 moved
+ * the call to the top of unionsTurn and moved unionsTurn itself to
+ * immediately after corporationTurn. RNG-free: deterministic iteration
+ * order, no draws, so the pass neither consumes nor shifts the shared
+ * RNG stream.
  *
  * Economic enforcement reads turn bounds directly and applies EXACTLY once
- * in corporationTurn (which runs earlier in the registry): this pass never
- * touches revenue, margin, or output. Strike state written here
- * (strikeStartedAtTurn) is what the corporation turn throttles; strike
- * resolution (concession / waitout / ban / agreement) runs there through
- * stepSectorStrike.
+ * in corporationTurn (which runs immediately before unionsTurn in the
+ * registry): this pass never touches revenue, margin, or output. Strike
+ * state written here (strikeStartedAtTurn) is what the NEXT corporation
+ * turn throttles — never the one that just ran, so a strike called this
+ * turn cannot damage this turn's revenue (no same-turn duplicate damage);
+ * strike resolution (concession / waitout / ban / agreement) runs there
+ * through stepSectorStrike.
  *
  * Source: <mainline-checkout>/src/lib/turn/unions/labourRelationsTurn.ts
  *         processLabourRelationsTurn and
