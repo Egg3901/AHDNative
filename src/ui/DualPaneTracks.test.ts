@@ -91,6 +91,24 @@ describe("segment-fitted hinge tracks without spanning media (#438)", () => {
     );
   });
 
+  it("caps the docked drawer to the top segment across a horizontal hinge", () => {
+    // The docked navigation pane lives in the top segment track, but its
+    // base max-height is a full viewport (100dvh). On a landscape-folded
+    // device the top segment is about half the viewport, so a long
+    // destination list would paint across the hinge. Both hinge-driven
+    // paths cap it to the top segment; the drawer already scrolls in
+    // place (overflow-y: auto). Vertical dual keeps the full-height
+    // drawer: the left pane spans the whole viewport height.
+    // Spanning-media path: top segment height from the platform env().
+    expect(css).toMatch(
+      /@media\s*\(spanning:\s*single-fold-horizontal\)[\s\S]*?\.ahd-screen\[data-dual-pane="dual"\]\[data-hinge="horizontal"\] \.ahd-drawer-docked\s*\{[^}]*max-height:\s*env\(viewport-segment-height 0 0\)/,
+    );
+    // Reported-rects path: pane 0 height the shell sets from the segments.
+    expect(css).toMatch(
+      /\.ahd-screen\[data-dual-pane="dual"\]\[data-hinge="horizontal"\]\[data-segfit="true"\] \.ahd-drawer-docked\s*\{[^}]*max-height:\s*var\(--ahd-pane0\)/,
+    );
+  });
+
   it("zeroes the grid gap on segment-fitted tracks so the gutter lands exactly over the occlusion", () => {
     // The gutter track already spans the occlusion. The dual-pane base grid
     // carries gap: var(--ahd-hinge-gap), which the shell overrides inline to

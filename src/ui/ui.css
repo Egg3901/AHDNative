@@ -1536,6 +1536,13 @@ html {
   .ahd-screen[data-dual-pane="dual"][data-hinge="horizontal"] .ahd-resource-popover {
     max-height: calc(env(viewport-segment-height 1 0) - var(--ahd-footer-height, 9rem));
   }
+  /* The docked navigation pane sits in the top segment track, but its base
+     max-height is a full viewport; cap it to the top segment so a long
+     destination list scrolls inside its own pane instead of painting
+     across the hinge. Overflow already scrolls in place. */
+  .ahd-screen[data-dual-pane="dual"][data-hinge="horizontal"] .ahd-drawer-docked {
+    max-height: env(viewport-segment-height 0 0);
+  }
 }
 
 /* Segment-fitted tracks (issue #438). The shell sets data-segfit with exact
@@ -1578,6 +1585,13 @@ html {
    bottom segment minus the footer; overflow already scrolls in place. */
 .ahd-screen[data-dual-pane="dual"][data-hinge="horizontal"][data-segfit="true"] .ahd-resource-popover {
   max-height: calc(var(--ahd-pane1) - var(--ahd-footer-height, 9rem));
+}
+/* Same top-segment cap when the fit comes from reported rects instead of
+   spanning media: the gutter track is the occlusion, so the drawer scrolls
+   inside pane 0 rather than painting across it. Vertical dual keeps the
+   full-height drawer; the left pane spans the whole viewport height. */
+.ahd-screen[data-dual-pane="dual"][data-hinge="horizontal"][data-segfit="true"] .ahd-drawer-docked {
+  max-height: var(--ahd-pane0);
 }
 
 /* Wallet/portfolio redesign (#507). Phone is a single touch-first column
