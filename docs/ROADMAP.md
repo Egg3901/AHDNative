@@ -62,7 +62,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | S01 | Saves | Done | G02 | Build native atomic save-slot storage with TDD | Fresh instance reads saved data; failed replacement preserves prior data |
 | S02 | Saves | In progress | S01,E02 | Connect native save and reload commands | Raw engine envelope retained; completion and errors visible |
 | S03 | Saves | Done | S02 | Implement slot list,delete and replacement confirmation | No traversal; deliberate overwrite/delete; deterministic metadata |
-| S04 | Saves | In progress | S02 | Provide save import/export interchange | Real fixture both directions; no silent version downgrade |
+| S04 | Saves | In progress | S02 | Provide save export interchange | Real fixture both directions; no silent version downgrade |
 | S05 | Saves | In progress | S04 | Resolve v42/v43 compatibility explicitly | Fixture-backed policy; no promise of roundtrip until verified |
 | S06 | Saves | In progress | S02 | Recover after close,crash and partial write | Last completed save survives; no false saved status |
 | U01 | Interface | In progress | G01 | Extract actual MP/SP visual and navigation baseline | Reference source/screens; no historical client redesign |
@@ -180,7 +180,7 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 
 - Added party join/leave controls and real engine candidacy actions, with filing dates, action costs, availability reasons, candidate/winner names and 20-race pagination. Removed the old 40-race projection cap so open races remain reachable. The active player race appears first.
 - TDD: two new session scenarios and six new UI scenarios failed against the previous implementation, then passed. Production build, 9 session/worker tests, 34 component tests and 10 integrated browser smoke tests pass.
-- The new production smoke creates a real 1953 US world, joins the Democratic Party, advances to scheduled races, files, saves, relaunches, checks candidacy and withdraws. Existing save import/deletion/error/concurrency smoke remains green.
+- The new production smoke creates a real 1953 US world, joins the Democratic Party, advances to scheduled races, files, saves, relaunches, checks candidacy and withdraws. Existing save/deletion/error/concurrency smoke remains green.
 - No engine formulas changed. Existing engine/content/Rust suites were not repeated locally for this adapter/UI-only batch; CI retains the full verify gate. No Codemagic build or paid minutes used.
 - Next: complete an election-to-office scenario, expose necessary campaign/officeholder actions, and compare the resulting mobile screens against actual MP/SP references. Mechanics parity, bidirectional v42 output, and physical device validation remain release blockers. See [career evidence](CAREER-VALIDATION.md).
 

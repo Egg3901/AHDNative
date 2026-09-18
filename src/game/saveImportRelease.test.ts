@@ -116,6 +116,38 @@ describe("save import release gate (#506)", () => {
     expect(read("package.json")).not.toMatch(/VITE_AHD_SMOKE_FIXTURES/);
   });
 
+  it("exposes no import command or file-system/dialog grant in the native shell", () => {
+    // The Tauri manifest is the full command allowlist: slot-scoped
+    // save/load/list/delete plus MP/Ask entries, no import entry.
+    expect(
+      codeWithoutComments(read("src-tauri/build.rs")).toLowerCase(),
+      "build.rs must not list an import command",
+    ).not.toContain("import");
+    // No Rust command function takes an import name either.
+    const offenders = walk(join(ROOT, "src-tauri", "src"))
+      .filter((file) => file.endsWith(".rs"))
+      .map((file) => relative(ROOT, file))
+      .filter((path) => /fn\s+\w*import/i.test(codeWithoutComments(read(path))));
+    expect(offenders).toEqual([]);
+    // Capabilities grant IPC allowlists only: no fs/shell/dialog plugin grant
+    // on any window (prose descriptions may name them; permission ids may not).
+    for (const path of [
+      "src-tauri/capabilities/default.json",
+      "src-tauri/capabilities/ask.json",
+      "src-tauri/capabilities/online.json",
+      "src-tauri/capabilities/ask-auth.json",
+    ]) {
+      const parsed = JSON.parse(read(path)) as { permissions?: unknown };
+      expect(Array.isArray(parsed.permissions), `${path} must list permissions`).toBe(true);
+      for (const entry of parsed.permissions as string[]) {
+        expect(entry, `${path} grants no file-system/shell/dialog plugin`).not.toMatch(
+          /^(fs|shell|dialog):/,
+        );
+        expect(entry, `${path} grants no import permission`).not.toMatch(/import/i);
+      }
+    }
+  });
+
   it("round-trips the hook through install and teardown", () => {
     clearTestHooks();
     expect(window.__ahdTestHooks).toBeUndefined();

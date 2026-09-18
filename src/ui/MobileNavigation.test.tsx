@@ -68,6 +68,36 @@ describe("MobileNavigation", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it("drawer exposes no save-import control, picker, or route (#506)", () => {
+    const ref = createRef<HTMLButtonElement | null>();
+    const { container } = render(
+      <GameDrawer
+        open
+        route="profile"
+        busy={false}
+        playerName="Ada"
+        playerParty="Labor"
+        countryName="United States"
+        turn={1}
+        date="1953-01-08"
+        menuButtonRef={ref}
+        onNavigate={vi.fn()}
+        onAdvanceTurn={vi.fn()}
+        onSave={vi.fn()}
+        onExit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    const menu = screen.getByRole("dialog", { name: "Game menu" });
+    expect(within(menu).queryByRole("button", { name: /import/i })).toBeNull();
+    expect(container.querySelector('input[type="file"]')).toBeNull();
+    expect(drawerRouteIds().some((id) => /import/i.test(id))).toBe(false);
+    // Ordinary save/turn/exit controls stay.
+    expect(screen.getByRole("button", { name: "Save game" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "End turn" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Exit game" })).toBeInTheDocument();
+  });
+
   it("drawer renders the reference group and sub-section headings and keeps turn actions open", async () => {
     const user = userEvent.setup();
     const ref = createRef<HTMLButtonElement | null>();
