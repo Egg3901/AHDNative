@@ -1277,12 +1277,32 @@ export interface Party {
 export type CharterStatus =
   | "draft"
   | "pending-signatures"
-  | "ratified"
   | "founder-replacement"
+  | "ratified"
   | "rejected"
   | "expired"
   | "migrated"
   | "migrated-incomplete";
+
+/** One founder slot on a pending charter. Ports the signatures array entries. */
+export interface CharterSignature {
+  /** "player" or a politician id. */
+  founderId: string;
+  /** Turn the slot was signed; null while unsigned. */
+  signedAtTurn: number | null;
+  /** Turn the slot was rejected; null unless rejected. */
+  rejectedAtTurn?: number | null;
+  rejectionReason?: string | null;
+}
+
+/**
+ * Charter platform on the reference [-60, +60] Overton axes.
+ * Ports PartyCharterPlatform (src/lib/db/types + overtonGuardrails.ts).
+ */
+export interface CharterPlatform {
+  economic: number;
+  social: number;
+}
 
 export interface PartyCharter {
   id: string;
@@ -1299,6 +1319,29 @@ export interface PartyCharter {
   expiresAt: string | null;
   founderReplacementDeadlineTurn: number | null;
   founderReplacementDeadline: string | null;
+  /**
+   * Pending-lifecycle fields below port the draftCharter/signCharter/
+   * rejectCharter lifecycle (src/lib/charters/). All optional so
+   * pre-lifecycle saves still load; membership helpers normalize absent
+   * fields defensively.
+   */
+  /** Proposed party name while pending. */
+  proposedName?: string | null;
+  /** Proposed party abbreviation (uppercase) while pending. */
+  proposedAbbr?: string | null;
+  /**
+   * Exactly 3 founder slots on a drafted charter: "player" plus two
+   * same-country politician ids. Absent on immediate-ratify charters.
+   */
+  founderIds?: string[];
+  /** Per-slot signature state, parallel to founderIds. */
+  signatures?: CharterSignature[];
+  /** Clamped platform axes; converted to party positions at ratification. */
+  platform?: CharterPlatform | null;
+  /** Turn the draft was created. */
+  createdAtTurn?: number | null;
+  /** Turn the charter ratified; null unless ratified. */
+  ratifiedAtTurn?: number | null;
 }
 
 /**
