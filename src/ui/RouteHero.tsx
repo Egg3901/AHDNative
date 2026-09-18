@@ -264,3 +264,14 @@ export function companyHeroAlt(sectorType: string): string {
  * the panel and its tests cannot drift.
  */
 export const MARKETS_LIST_HERO_IMAGE = "/static/heroes/commodity-financial-services.webp";
+
+/**
+ * Sectors-directory list band (#378). The reference sectors page ships no
+ * dedicated hero file, so the directory reuses the already-bundled steel
+ * works art (byte-identical to AHDGame, same SHA-256 provenance as the
+ * commodity slice) instead of a plain text card: an industrial facility
+ * reads as corporate sectors generally, and it keeps a distinct identity
+ * from the Markets list, which already uses the NYSE financial-services
+ * file. Single source of truth so the panel and its tests cannot drift.
+ */
+export const SECTORS_LIST_HERO_IMAGE = "/static/heroes/commodity-steel.webp";
