@@ -944,6 +944,22 @@ export interface PlayerCharacter {
    * seven-key allocation is written at creation (#48/#91 own later reallocation).
    */
   stats?: PlayerStats;
+  /**
+   * Getting-started prompt state (#48). Ports Character.onboardingDismissed
+   * (src/lib/db/types/character.ts), read by the reference profile as
+   * `!character.onboardingDismissed && <NewPlayerBanner />`. Absent reads as
+   * not dismissed, so legacy saves show the prompt until dismissed.
+   */
+  onboardingDismissed?: boolean;
+  /**
+   * Guided-tour terminal states (#48). Ports the reference tutorial progress
+   * (src/lib/onboarding/tutorialPlan.ts `tutorial.progress/completedChapters`)
+   * as offline booleans: the replay prompt stays applicable until the tour is
+   * marked complete or dismissed. Absent reads as neither.
+   */
+  tutorialCompleted?: boolean;
+  /** See tutorialCompleted: the player dismissed the replay prompt. */
+  tutorialDismissed?: boolean;
   favorability: number;
   infamy: number;
   /** Action cooldowns: actionId -> turn when next available. */

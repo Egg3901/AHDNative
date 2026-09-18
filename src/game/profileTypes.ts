@@ -7,6 +7,18 @@ export interface ProfileUpdate {
   profileHeaderUrl?: string | null;
   campaignSongUrl?: string;
   campaignSongAutoplay?: boolean;
+  /**
+   * Getting-started prompt lifecycle (#48). Mirrors the reference PATCH
+   * /api/character/me { onboardingDismissed } (OnboardingCard): true hides
+   * the prompt, false reopens it (the guided-tour card's replay path).
+   */
+  onboardingDismissed?: boolean;
+  /**
+   * Guided-tour terminal states (#48). Either one hides the replay prompt;
+   * both persist through save/reload like every other player field.
+   */
+  tutorialCompleted?: boolean;
+  tutorialDismissed?: boolean;
 }
 
 /** One catalog achievement surfaced as a profile record (earned or locked). */
@@ -113,6 +125,18 @@ export interface ProfileView {
    * shape). Never defaulted to a fabricated 0/0.
    */
   policies: { economic: number; social: number } | null;
+  /**
+   * Getting-started prompt (#48). Applicable exactly while not dismissed, the
+   * reference NewPlayerBanner gate. Optional so older committed tests that
+   * build ProfileView literals keep compiling; absent hides the prompt.
+   */
+  onboarding?: { dismissed: boolean; showPrompt: boolean };
+  /**
+   * Guided-tour replay prompt (#48). Applicable until marked complete or
+   * dismissed, mirroring the always-visible reference ReplayTutorialButton
+   * with persisted terminal states. Absent hides the prompt.
+   */
+  tutorial?: { completed: boolean; dismissed: boolean; showPrompt: boolean };
   /**
    * Full seven-key RPG stat block (#242), read from world.player.stats. Null
    * when the save records none (legacy saves carry at most Energy/Debate).

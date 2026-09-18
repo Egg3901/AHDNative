@@ -16,6 +16,12 @@
  *   influence, favorability, infamy, conditional party influence),
  *   src/app/profile/components/FinancialStrip.tsx (donor network level, cash,
  *   campaign funds, savings, income details, portfolio link),
+ *   src/app/profile/components/OnboardingCard.tsx, OnboardingChecklist.tsx and
+ *   src/components/tutorial/ReplayTutorialButton.tsx (the getting-started and
+ *   guided-tour prompts after the constituency card, with persisted
+ *   dismiss/complete state; the reference stat-allocation banner and
+ *   reallocation control have no local ruleset action behind them, so RPG
+ *   allocation stays read-only with an honest unavailable note — #48).
  *   src/app/profile/components/PolicyDemographicsCard.tsx and
  *   src/components/PoliticalCompass.tsx (the "Policy and demographics" card: the
  *   player's projected policy axes on a plain-SVG compass, a party marker from
@@ -37,7 +43,7 @@ import { CampaignSongPlayer } from "./CampaignSongPlayer";
 import { PolicyCompass, policyAxisLabel, type CompassMarker } from "./PolicyCompass";
 import { ResourceBreakdown } from "./ResourceBreakdown";
 import { CountryFlag } from "./CountryFlag";
-import { STAT_KEYS } from "@ahdclient/engine";
+import { STAT_KEYS, statBonus } from "@ahdclient/engine";
 import "./profile.css";
 
 /** Canonical stat display order and labels (reference statsConstants.ts / statMeta.ts). */
@@ -173,6 +179,72 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
   const [savedConstituencyId, setSavedConstituencyId] = useState(profile.constituency.selected?.id ?? "");
   const [constituencySaving, setConstituencySaving] = useState(false);
   const [constituencyError, setConstituencyError] = useState<string | null>(null);
+  // #48: prompt lifecycle. Local resolution mirrors the persisted dismissal so
+  // the card clears the moment the save accepts it; a refusal keeps the card
+  // with the entry intact.
+  const [onboardingSaving, setOnboardingSaving] = useState(false);
+  const [onboardingError, setOnboardingError] = useState<string | null>(null);
+  const [onboardingResolved, setOnboardingResolved] = useState(false);
+  const [tutorialSaving, setTutorialSaving] = useState(false);
+  const [tutorialError, setTutorialError] = useState<string | null>(null);
+  const [tutorialResolved, setTutorialResolved] = useState(false);
+
+  const showOnboarding = (profile.onboarding?.showPrompt ?? false) && !onboardingResolved;
+  const showTutorial = (profile.tutorial?.showPrompt ?? false) && !tutorialResolved;
+  const onboardingDismissed = profile.onboarding?.dismissed ?? false;
+
+  const runPromptUpdate = async (
+    update: ProfileUpdate,
+    setSaving: (value: boolean) => void,
+    setError: (value: string | null) => void,
+    setResolved: (value: boolean) => void,
+    failure: string,
+  ) => {
+    if (busy) return;
+    setSaving(true);
+    setError(null);
+    try {
+      if (await onUpdateProfile(update)) setResolved(true);
+      else setError(failure);
+    } catch {
+      setError(failure);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const dismissOnboarding = () =>
+    void runPromptUpdate(
+      { onboardingDismissed: true },
+      setOnboardingSaving, setOnboardingError, setOnboardingResolved,
+      "Getting started could not be dismissed. Your progress is kept.",
+    );
+  // Replaying reopens the getting-started card above without resolving the
+  // tour itself, so the player can still mark it complete afterwards.
+  const replayOnboarding = () => {
+    if (busy || tutorialSaving) return;
+    setTutorialSaving(true);
+    setTutorialError(null);
+    onUpdateProfile({ onboardingDismissed: false }).then((ok) => {
+      if (!ok) setTutorialError("Getting started could not be reopened.");
+    }).catch(() => {
+      setTutorialError("Getting started could not be reopened.");
+    }).finally(() => {
+      setTutorialSaving(false);
+    });
+  };
+  const completeTutorial = () =>
+    void runPromptUpdate(
+      { tutorialCompleted: true },
+      setTutorialSaving, setTutorialError, setTutorialResolved,
+      "The guided tour could not be marked complete.",
+    );
+  const dismissTutorial = () =>
+    void runPromptUpdate(
+      { tutorialDismissed: true },
+      setTutorialSaving, setTutorialError, setTutorialResolved,
+      "The guided tour could not be dismissed.",
+    );
 
   const photoBusy = busy || photoSaving;
   const headerBusy = busy || headerSaving;
@@ -557,6 +629,82 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
         )}
       </section>
 
+      {showOnboarding ? (
+        <section aria-label="Getting started" className="ahd-card ahd-card-pad">
+          <h2 className="ahd-h2">Getting started</h2>
+          <p className="ahd-muted">
+            New to the campaign trail? Take your first actions from the Campaign Office,
+            join a party to unlock its shared actions, and contest a race when you are ready.
+          </p>
+          <div className="ahd-profile-actions">
+            <button
+              type="button"
+              className="ahd-btn ahd-btn-primary ahd-btn-sm"
+              onClick={() => onNavigate("actions")}
+              disabled={busy || onboardingSaving}
+            >
+              Open Campaign Office
+            </button>
+            <button
+              type="button"
+              className="ahd-btn ahd-btn-sm"
+              onClick={() => onNavigate("parties")}
+              disabled={busy || onboardingSaving}
+            >
+              Browse parties
+            </button>
+            <button
+              type="button"
+              className="ahd-btn ahd-btn-ghost ahd-btn-sm"
+              onClick={dismissOnboarding}
+              disabled={busy || onboardingSaving}
+            >
+              {onboardingSaving ? "Dismissing..." : "Dismiss getting started"}
+            </button>
+          </div>
+          {onboardingError ? <p className="ahd-alert" role="alert">{onboardingError}</p> : null}
+        </section>
+      ) : null}
+
+      {showTutorial ? (
+        <section aria-label="Guided tour" className="ahd-card ahd-card-pad">
+          <h2 className="ahd-h2">Guided tour</h2>
+          <p className="ahd-muted">
+            Work through the getting-started steps above at your own pace, then mark the
+            tour complete. You can replay it any time from here.
+          </p>
+          <div className="ahd-profile-actions">
+            {onboardingDismissed ? (
+              <button
+                type="button"
+                className="ahd-btn ahd-btn-sm"
+                onClick={replayOnboarding}
+                disabled={busy || tutorialSaving}
+              >
+                {tutorialSaving ? "Reopening..." : "Show getting started again"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="ahd-btn ahd-btn-primary ahd-btn-sm"
+              onClick={completeTutorial}
+              disabled={busy || tutorialSaving}
+            >
+              {tutorialSaving ? "Saving..." : "Mark tour complete"}
+            </button>
+            <button
+              type="button"
+              className="ahd-btn ahd-btn-ghost ahd-btn-sm"
+              onClick={dismissTutorial}
+              disabled={busy || tutorialSaving}
+            >
+              Dismiss tour
+            </button>
+          </div>
+          {tutorialError ? <p className="ahd-alert" role="alert">{tutorialError}</p> : null}
+        </section>
+      ) : null}
+
       <section aria-label="Campaign song" className="ahd-card ahd-card-pad">
         <h2 className="ahd-h2">Campaign song</h2>
         {profile.campaignSongUrl ? (
@@ -744,18 +892,31 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
         <section aria-label="Character stats" className="ahd-card ahd-card-pad">
           <h2 className="ahd-h2">Character stats</h2>
           <dl className="ahd-profile-rows">
-            {STAT_META_ORDER.map((key) =>
-              profile.stats![key] != null ? (
+            {STAT_META_ORDER.map((key) => {
+              const value = profile.stats![key];
+              if (value == null) return null;
+              // Source-backed effect readout: the engine's own statBonus table
+              // (energy reports its action-cap/bank numbers, every other stat
+              // its outcome multiplier). No allocation costs are shown because
+              // the local ruleset exposes no allocation action.
+              const bonus = statBonus(key, value);
+              return (
                 <div className="ahd-profile-row" key={key}>
                   <dt>{STAT_LABELS[key] ?? key}</dt>
-                  <dd className="ahd-mono">{profile.stats![key]}</dd>
+                  <dd className="ahd-mono">
+                    {value}
+                    <span className="ahd-profile-sub" title={bonus.detail}>{bonus.detail}</span>
+                  </dd>
                 </div>
-              ) : null,
-            )}
+              );
+            })}
           </dl>
           <p className="ahd-help">
             Every stat ranges 1 to 10 on the engine's own scale. A higher stat shifts the
             corresponding action outcome by a gentle multiplier (see Actions for quoted costs).
+          </p>
+          <p className="ahd-muted ahd-profile-unavailable-note">
+            Stat reallocation is not available in offline play yet.
           </p>
         </section>
       ) : null}

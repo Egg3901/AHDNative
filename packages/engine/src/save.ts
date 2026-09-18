@@ -490,6 +490,15 @@ function assertCurrentWorldState(world: WorldState): void {
   if (profileHeader !== undefined && profileHeader !== null && !isSafeRaster(profileHeader)) {
     throw new Error("Not a valid save file: invalid player profile header");
   }
+  // #48: onboarding/tutorial prompt states are optional booleans. Absent
+  // reads as not dismissed / not completed; a present non-boolean is
+  // corruption, never history.
+  for (const field of ["onboardingDismissed", "tutorialCompleted", "tutorialDismissed"] as const) {
+    const flag = player[field];
+    if (flag !== undefined && typeof flag !== "boolean") {
+      throw new Error(`Not a valid save file: invalid player ${field}`);
+    }
+  }
   // #242: the portrait shares the header raster envelope; a corrupt or
   // non-raster value must be rejected here, not persisted and rendered.
   const avatar = player["avatarUrl"];
