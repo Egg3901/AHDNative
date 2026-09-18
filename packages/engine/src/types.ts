@@ -7,6 +7,7 @@ import type { GovernmentState } from "./government/types.js";
 import type { ExecutiveState } from "./executive/types.js";
 import type { ImpeachmentCase } from "./impeachment/types.js";
 import type { BankLoan, DepositInsuranceFund } from "./banking/types.js";
+import type { InterbankLoan } from "./banking/interbank.js";
 import type { WorldHistory } from "./history/types.js";
 import type { PolicyLedgerEntry } from "./policyEffects/types.js";
 import type { MinisterialOrder } from "./ministerialOrders/types.js";
@@ -280,6 +281,15 @@ export interface WorldState {
    * by bankingTurnPhase. Schema v28.
    */
   bankLoans: BankLoan[];
+  /**
+   * Interbank market (#326). Bank-to-bank cash loans, interest-only with
+   * principal via explicit repayment (see banking/interbank.ts). NOT part of
+   * retail totalLoans; borrower-side debt lives on
+   * BankCharter.interbankDebt. Serviced by bankingTurnPhase after every
+   * bank's pass, feeds bankSolvencyTurnPhase confidence via lender-side
+   * defaults. Schema v48.
+   */
+  interbankLoans: InterbankLoan[];
   /**
    * Deposit insurance funds, one per country (see banking/types.js file doc
    * for why keyed by countryId rather than currency). Maintained by

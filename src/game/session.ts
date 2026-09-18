@@ -21,7 +21,7 @@ import { projectPolitics, projectPartyMembership } from "./politics";
 import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
-  ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder,
+  ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, lendInterbank, quoteInterbankMax, repayInterbank,
   getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
@@ -387,6 +387,32 @@ export class GameSession {
   search(query: string, filter?: SearchFilter) { return searchWorld(this.requireWorld(), query, filter); }
 
   bondMarket() { return projectBondMarket(this.requireWorld()); }
+
+  /**
+   * Interbank lending commands (#326 engine commands). Each runs against a
+   * clone and commits only on success, so a refusal (unknown bank,
+   * inactive charter, self-lending, cross-country, over headroom-share,
+   * insufficient cash, nothing to repay) leaves the live world untouched
+   * and surfaces the engine's exact error. The quote reads the same
+   * headroom rule the command enforces, so it can never disagree.
+   */
+  interbankQuote(lenderCorpId: string) { return quoteInterbankMax(this.requireWorld(), lenderCorpId); }
+
+  lendInterbank(lenderCorpId: string, borrowerCorpId: string, amount: number, ratePercent: number) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = lendInterbank(candidate, lenderCorpId, borrowerCorpId, amount, ratePercent);
+    if (!result.ok) return result;
+    this.commit(candidate);
+    return result;
+  }
+
+  repayInterbank(loanId: string, amount: number) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = repayInterbank(candidate, loanId, amount);
+    if (!result.ok) return result;
+    this.commit(candidate);
+    return result;
+  }
 
   regions(query: RegionsQuery = {}) { return projectRegions(this.requireWorld(), query); }
 

@@ -23,9 +23,10 @@
  * ports the retail/deposit-taking core only: one bank per playable country
  * (see npcBanks.ts), NPC household deposits + interest, the NPC household
  * bulk loan book, deposit insurance, and solvency/failure. Prop transactions,
- * interbank servicing, the margin facility, charter switching, Regulation Q,
+ * the margin facility, charter switching, Regulation Q,
  * supervision and loan approval are out of scope for this wave — flagged for
- * operator review, not silently ported partial.
+ * operator review, not silently ported partial. Interbank lend/repay/interest
+ * servicing used to sit in that list; #326 ports it (see banking/interbank.ts).
  */
 
 /** Solo charters only the deposit-taking type; see file doc for the cut. */

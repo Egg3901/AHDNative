@@ -137,7 +137,7 @@ describe("#296 corporate-sector workers and union representation", () => {
     expect(() => validateSectorWorkers(invalid[asset.id]!)).toThrow(/invalid worker headcount/i);
   });
 
-  it("migrates pre-#296 saves to grounded workforce state at schema 47", () => {
+  it("migrates pre-#296 saves to grounded workforce state at schema 48", () => {
     const world = createWorld(WORLD);
     corporateSectorAssets(world);
     const raw = JSON.parse(serializeSave(world, SAVED_AT)) as any;
@@ -150,7 +150,7 @@ describe("#296 corporate-sector workers and union representation", () => {
     raw.world.meta.schemaVersion = 46;
     const migrated = deserializeSave(JSON.stringify(raw));
     expect(migrated.meta.schemaVersion).toBe(SCHEMA_VERSION);
-    expect(SCHEMA_VERSION).toBe(47);
+    expect(SCHEMA_VERSION).toBe(48);
     const assets = corporateSectorAssets(migrated);
     for (const asset of Object.values(assets)) {
       const corporation = migrated.corporations[asset.corporationId]!;

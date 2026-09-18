@@ -294,6 +294,15 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (Array.isArray(fomcNominations) && fomcNominations.length > 0) {
     return { ok: false, error: `FOMC nomination records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
+  // Issue #326 (v48): interbank loan book. An empty book is dropped so the
+  // projected bytes stay identical to an authentic schema 42 document (the
+  // v47 -> v48 migration backfills it empty on reload); any live loan cannot
+  // round-trip through schema 42 and is refused (same class as
+  // subsidies/regionalMetrics above).
+  const interbankLoans = world["interbankLoans"];
+  if (Array.isArray(interbankLoans) && interbankLoans.length > 0) {
+    return { ok: false, error: `Interbank loan records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
   const corporations = world["corporations"];
   if (!isRecord(corporations)) {
     return { ok: false, error: "Schema 42 projection cannot validate corporation market state" };
@@ -332,6 +341,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   candidateSave["schemaVersion"] = V42_SCHEMA;
   candidateMeta["schemaVersion"] = V42_SCHEMA;
   delete candidateWorld["countryPolitics"];
+  delete candidateWorld["interbankLoans"];
   delete candidateWorld["subsidies"];
   delete candidateWorld["regionalMetrics"];
   delete candidateWorld["fomcNominations"];
@@ -404,7 +414,7 @@ const REQUIRED_WORLD_ARRAYS = [
   "statePartyElections", "nationalPartyElections", "nationalCommitteeElections", "coalitions",
   "cabinetMembers", "cabinetNominations", "supremeCourtSeats", "scotusNominations", "docketCases",
   "ukJudicialReviewCases", "activeWorldModifiers", "crises", "playerEventLog", "governorAddresses",
-  "governorOrders", "bills", "committees", "enactedLaws", "stateBills", "news", "bankLoans",
+  "governorOrders", "bills", "committees", "enactedLaws", "stateBills", "news", "bankLoans", "interbankLoans",
   "vitalSignsHistory", "ministerialOrders", "conflicts", "settlements", "subsidies",
 ] as const;
 
@@ -2594,6 +2604,16 @@ export function deserializeSave(raw: string): WorldState {
       }
     }
     save.world.meta.schemaVersion = 47;
+  }
+  // v47 -> v48: interbank loan book (#326). Pre-#326 saves have no
+  // world.interbankLoans array; backfill it empty (no bank ever originated
+  // an interbank loan before this wave, so empty is the true history, not a
+  // default). Charter.interbankDebt already existed as an optional balance-
+  // sheet field and needs no migration. No RNG is consumed.
+  if (save.schemaVersion < 48) {
+    const w = save.world as unknown as Record<string, unknown>;
+    if (!Array.isArray(w["interbankLoans"])) w["interbankLoans"] = [];
+    save.world.meta.schemaVersion = 48;
   }
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written

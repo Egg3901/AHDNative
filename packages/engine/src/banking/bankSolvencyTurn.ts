@@ -26,6 +26,7 @@
 import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import type { Corporation } from "../corporation/types.js";
+import { sumInterbankDefaultsLastTurn, writeOffLenderSideInterbankOnFailure } from "./interbank.js";
 import {
   CONTAGION_PANIC_TURNS,
   FLIGHT_RATE_BY_BAND,
@@ -113,7 +114,11 @@ function evaluateOneBank(
   if (!bank) return false;
 
   const arrearsOutstanding = sumLoanOutstanding(world, corp.id, "arrears");
-  const defaultsLastTurn = sumLoanOutstanding(world, corp.id, "defaulted", turn);
+  // Source: bankSolvencyTurn.ts `defaultsLastTurn = retail +
+  // interbank` — lender-side interbank defaults booked this turn weigh on
+  // confidence exactly like retail ones.
+  const defaultsLastTurn =
+    sumLoanOutstanding(world, corp.id, "defaulted", turn) + sumInterbankDefaultsLastTurn(world, corp.id, turn);
 
   const { confidence, band } = computeConfidence({
     cashReserves: charter.cashReserves,
@@ -145,6 +150,10 @@ function evaluateOneBank(
   const fails = priorBand === "red" && charter.cashReserves < RUN_FAILURE_COVER_FRACTION * requiredLiquidity;
 
   if (fails) {
+    // Source: writeOffLenderSideInterbankOnFailure — loans this bank made
+    // AS A LENDER die with it (borrowers keep the cash). Claims AGAINST it
+    // are deliberately untouched here; creditor priority is #329's sweep.
+    writeOffLenderSideInterbankOnFailure(world, corp.id, turn);
     resolveFailedBank(world, corp, turn, summary);
     charter.status = "failed";
     charter.failedTurn = turn;

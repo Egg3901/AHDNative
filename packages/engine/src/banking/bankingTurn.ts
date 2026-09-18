@@ -10,24 +10,30 @@
  * loan book, and the deposit-insurance premium.
  *
  * Scope cut vs mainline (cited once, applies to this whole module — see
- * banking/types.ts file doc for the itemized list): no interbank market, no
- * central-bank margin line, no proprietary trading book. Those sit behind
- * mainline's separate `bankPropTradingEnabled` kill switch
- * (isBankPropTradingEnabled). The B8 discount-window leg of mainline's
- * dedicated `serviceInterbankAndCbMargin` pass is ported separately in
+ * banking/types.ts file doc for the itemized list): no central-bank margin
+ * line, no proprietary trading book. Those sit behind mainline's separate
+ * `bankPropTradingEnabled` kill switch (isBankPropTradingEnabled).
+ * Mainline's dedicated `serviceInterbankAndCbMargin` pass is split here:
+ * the interbank-interest half is wired below (#326, slot (g), ungated —
+ * native banking has no kill switch, see banking/interbank.ts file doc)
+ * and the B8 discount-window leg is ported separately in
  * banking/discountWindow.ts, which runs as its own phase immediately after
  * this one (see phases/registry.ts) — this module simply never calls that
  * pass.
  *
  * Ordering within one bank's pass mirrors mainline processOneBank exactly:
  * (a) NPC deposit flow, (b) deposit interest, (c) insurance premium,
- * (d) named-loan servicing, (e) NPC household bulk book.
+ * (d) named-loan servicing, (e) NPC household bulk book — then (g) the
+ * interbank-interest pass runs once after every bank's pass, mirroring
+ * mainline's serviceInterbankAndCbMargin slot (its CB margin and
+ * discount-window halves belong to #327).
  */
 
 import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import type { Corporation } from "../corporation/types.js";
 import type { BankLoan } from "./types.js";
+import { serviceInterbankLoans } from "./interbank.js";
 import { bankEquity } from "./balanceSheet.js";
 import {
   ARREARS_DEFAULT_TURNS,
@@ -277,7 +283,13 @@ export const bankingTurnPhase: TurnPhase = {
     const activeCharters = Object.values(world.corporations).filter(
       (c) => c.bankCharter && c.bankCharter.status === "active" && c.bankCharter.lastBankingTurn !== turn,
     );
-    if (activeCharters.length === 0) return;
+    // (g) is wired below even when no charter needs a pass this turn: source
+    // runs serviceInterbankAndCbMargin even then (bankingTurn.ts), and the
+    // per-loan lastProcessedTurn key keeps it idempotent.
+    if (activeCharters.length === 0) {
+      serviceInterbankLoans(world, turn);
+      return;
+    }
 
     // Competing NPC deposit shares, once per country (solo has at most one
     // deposit-taking bank per country — see npcBanks.ts file doc — but this
@@ -380,5 +392,10 @@ export const bankingTurnPhase: TurnPhase = {
       charter.depositCeiling = depositCeiling;
       charter.lastBankingTurn = turn;
     }
+
+    // (g) Interbank interest, borrower vault to lender vault, after every
+    // bank's pass — source's serviceInterbankAndCbMargin slot (the CB
+    // margin/discount-window halves are #327's, not silently skipped here).
+    serviceInterbankLoans(world, turn);
   },
 };
