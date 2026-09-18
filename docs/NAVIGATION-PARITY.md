@@ -25,7 +25,7 @@ The tables below describe the audited base, not the current branch. Implementati
 | Nation (page country) | Home nation page; My Cabinet office (office-holder only); My Party (party member only); Political Operations (US country only); National Details sections (see section 2) | logged in; some rows conditional | PARTIAL: country overview data present (name, era, turn, date, metrics, parties, legislature, elections, news). No nation switcher, no cabinet-office page, no political-operations page. |
 | Legislature submenu (`experimentalNavMenus`) | Chamber pages (US: House/Senate/Committees/Active legislation/Floor schedule; other countries: config legislature + elected upper chamber) | country config; bicameral/elected flags | PARTIAL: `Legislature` tab shows office, proposals, sponsor/vote actions. Real. No chamber split, committee, legislation-list, or schedule views. |
 | Elections submenu | Upcoming races; Primaries + Results tabs (legacy US congress routes only); Candidate directory (`/politicians` or country-scoped); Political Operations (US legacy only) | country; legacy-route flag for US extras | PARTIAL: `Elections` tab lists races with run/withdraw candidacy, winners, pagination. Real. No primaries/results tabs, no candidate-directory page, no per-race detail page. |
-| World (see section 3) | Nations, Map, Crises, German Question, Conflicts, International Orgs, Sectors, Unions, Stock Market, Forex, Trade, News, IMF, Banking, Hall of Fame, My Corporation | several flagged (see section 3) | PARTIAL: Nations, regions, the offline World map directory, News, Banking, Markets, and Finance are routed Native destinations. Plotted geography, Hall of Fame, unions, and a player-owned corporation destination remain missing. |
+| World (see section 3) | Nations, Map, Crises, German Question, Conflicts, International Orgs, Sectors, Unions, Stock Market, Forex, Trade, News, IMF, Banking, Hall of Fame, My Corporation | several flagged (see section 3) | PARTIAL: Nations, the World directory (recorded-nation list into Nations details), regions, the offline World map directory, News, Banking, Markets, and Finance are routed Native destinations. Plotted geography, Hall of Fame, unions, and a player-owned corporation destination remain missing. |
 | Help | Wiki/Guides (wiki unless disabled for non-staff), About, Feedback, Suggestions, Quick-suggest screenshot capture, Discord, Patreon, Supporter wall, support email, status page | wiki gated by `wikiDisabled` for non-staff | MISSING: no help menu. (External links + feedback capture are web-service concerns; Guides/About content has no offline equivalent yet.) |
 | Search (UniversalSearch, expanding overlay) | Global search overlay | all pages | MISSING. No search capability locally. |
 | Wallet icon (`/portfolio?tab=currency`) | Portfolio/wallet | logged in | PRESENT for the supported Native slice: the drawer identity exposes Wallet, routed to Portfolio, and Portfolio/Banking cross-link. Multi-currency wallet depth remains separate. |
@@ -307,6 +307,23 @@ multi-level returns, and the physical-iPhone smoke pass.
 - Hall of Fame / leaderboards have no offline SP source and render an explicit unavailable note
   tracked in issue #73, never a table. Country/region map depth beyond the directory (plotted
   geography, crises, diplomacy extras) remains open, so #73 stays open.
+
+## World directory slice (#73, directory/read-only slice)
+
+- `World directory` (World > Diplomacy, route `worldDirectory`) is a nations-only read-only
+  directory over the same authoritative projection: every row comes from `projectWorldOverview`
+  and opens the existing Nations detail route (`nations` + id). No region, election, profile,
+  leaderboard, or Hall of Fame data is rendered or linked.
+- Nothing is plotted and no map position is implied: the route states it is a directory, not a
+  map. Empty (`No nations recorded in this save`) and no-match states are explicit and never
+  render a map or leaderboard substitute. No view state persists for this route.
+- Reachability: the drawer row renders in both the modal (phone) and docked (desktop/dual-pane)
+  shells through the shared `MENU_GROUPS` hierarchy; the route-matrix sweep renders the screen
+  at 320px, 390px, and 1280px. Existing `nations` / `worldMap` / `regions` routes and MP/SP
+  gating are untouched.
+- Still owed for #73: plotted world/country/region map surfaces with cleared-rights assets,
+  Hall of Fame / leaderboards with player/era filters, and map-entity links beyond the existing
+  nation/region detail routes, so #73 stays open.
 
 ## 8. Route-matrix evidence (#510)
 

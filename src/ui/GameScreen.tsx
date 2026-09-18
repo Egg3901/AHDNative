@@ -1,4 +1,5 @@
 import { AskPanel } from "../ask/AskPanel";
+import { WorldDirectoryPanel } from "./WorldDirectoryPanel";
 import { WorldMapRoute } from "./WorldMapRoute";
 import { ProfileRoute } from "./ProfileRoute";
 import { RegionsRoute } from "./RegionsRoute";
@@ -76,7 +77,7 @@ function pageTitle(route: RouteId): string {
 }
 
 const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
-  nations: "Nations", worldMap: "World map", state: "Home region",
+  nations: "Nations", worldDirectory: "World directory", worldMap: "World map", state: "Home region",
   economy: "Economy", budget: "Budget", metrics: "National metrics", policy: "Policy",
   legislationDetails: "Legislation details",
   markets: "Stock market",
@@ -799,6 +800,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           ))}
           {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={route === "nations" ? (detailId ?? nationContext) : detailId} onSelectNation={route === "nations" ? (id) => { setDetailId(undefined); setNationContext(id); } : undefined} onNavigate={navigate} onDrill={drillViewer} onOpenParty={openParty} onOpenElection={openElection} />}</DetailQuery>}
           {route === "worldMap" && <WorldMapRoute loadOverview={loadWorldOverview} loadRegions={loadRegions} revision={world} section={preferences.worldMapSection} onSectionChange={(worldMapSection) => onPreferencesChange({ ...preferences, worldMapSection })} onNavigate={navigate} />}
+          {route === "worldDirectory" && <DetailQuery load={loadWorldOverview} revision={world} label="World directory">{overview => <WorldDirectoryPanel overview={overview} onNavigate={navigate} />}</DetailQuery>}
           {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} loadMarkets={loadMarkets} revision={world} busy={busy} onNavigate={navigate} onDrill={drillViewer} onSectorSale={onSectorSale} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "government" && (world.cabinet === null ? (

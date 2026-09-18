@@ -5,7 +5,7 @@ export type DrawerRouteId =
   | "actions" | "parties" | "legislature" | "elections" | "news"
   | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "campaignDetails"
   | "politicians" | "presidentialDetails" | "politicalMetrics"
-  | "economy" | "budget" | "policy" | "metrics" | "nations" | "worldMap" | "state" | "government"
+  | "economy" | "budget" | "policy" | "metrics" | "nations" | "worldDirectory" | "worldMap" | "state" | "government"
   | "help" | "settings" | "legislationDetails" | "markets" | "sectors" | "search"
   | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications" | "referendums"
   | "worldSettings" | "ask";
@@ -53,9 +53,11 @@ export interface DrawerNavGroup {
  *    by one offline Native destination: "World map" under World > Diplomacy
  *    (#73). It is a directory over the actual projected nations and regions,
  *    not a plotted geographic surface: the save records no coordinates.
- *    World's "Leaderboards" (Hall of Fame) and the remaining Diplomacy extras
- *    have no reachable destination, so those rows are omitted rather than
- *    shown as placeholders.
+ *    "World directory" (same group, #73) is the nations-only read-only slice
+ *    of that data: every row comes from `projectWorldOverview` and opens the
+ *    existing Nations detail route. World's "Leaderboards" (Hall of Fame) and
+ *    the remaining Diplomacy extras have no reachable destination, so those
+ *    rows are omitted rather than shown as placeholders.
  *  - Search is a routed destination in Native, so it sits under Help (the
  *    reference renders an inline search field above the profile card).
  *  - The reference profile-card link labelled Wallet maps to Native's
@@ -152,6 +154,7 @@ export const MENU_GROUPS: DrawerNavGroup[] = [
         label: "Diplomacy",
         items: [
           { id: "nations", label: "Nations" },
+          { id: "worldDirectory", label: "World directory" },
           { id: "worldMap", label: "World map" },
         ],
       },
