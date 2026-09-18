@@ -642,6 +642,12 @@ html, body { overflow-x: hidden; }
 }
 .ahd-status-btn:hover .ahd-status-btn-value { color: var(--ahd-primary); }
 .ahd-status-btn:focus-visible { outline: none; box-shadow: var(--ahd-focus); }
+/* Press feedback on footer chrome cells (issue #437): the resource grid and
+ * notification bell are touch-first buttons with hover/focus but no press
+ * state, so taps give no feedback on phones. Same instant opaque tint as
+ * the bottom-nav/drawer chrome press language above: no transition or
+ * animation, no outline/box-shadow change, so the Tab ring survives press. */
+.ahd-status-btn:active { background: color-mix(in srgb, var(--ahd-card-elevated) 85%, black); }
 .ahd-status-btn[aria-expanded="true"] .ahd-status-btn-value { color: var(--ahd-primary); }
 .ahd-status-btn-label {
   font-size: 0.64rem; font-weight: 700; letter-spacing: 0.04em;

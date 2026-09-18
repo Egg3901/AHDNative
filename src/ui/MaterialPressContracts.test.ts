@@ -6,10 +6,10 @@ import { contrastRatio } from "./materials";
  * Press feedback on glass chrome (issue #437).
  *
  * Touch has no hover, and the shipped sheet previously had zero `:active`
- * rules, so tapping bottom-nav or drawer rows gave no visual press
- * feedback on phones. These cases pin an instant opaque press tint on the
- * two chrome controls plus the drawer disclosure toggles, which are the
- * same class of button directly on the blurred drawer chrome. jsdom performs no layout, so the width cases pin
+ * rules, so tapping bottom-nav, drawer rows, drawer disclosures, or footer
+ * resource cells gave no visual press feedback on phones. These cases pin an
+ * instant opaque press tint on the chrome controls. jsdom performs no layout,
+ * so the width cases pin
  * that the rules are not gated behind a viewport media query (they apply
  * at 390px phone and 1280px desktop widths alike). Nothing here is
  * physical-device evidence.
@@ -102,6 +102,17 @@ describe("chrome press feedback (#437)", () => {
     expect(body).not.toMatch(/transparent/);
   });
 
+  it("paints the same instant press tint on footer resource cells", () => {
+    const body = ruleBody(/\.ahd-status-btn:active\s*\{[^}]*\}/);
+    expect(body).toMatch(/background:\s*color-mix\(in srgb,\s*var\(--ahd-card-elevated\)\s*85%,\s*black\)/);
+    expect(body).not.toMatch(/backdrop-filter/);
+    expect(body).not.toMatch(/transparent/);
+    expect(body).not.toMatch(/transition\s*:/);
+    expect(body).not.toMatch(/animation\s*:/);
+    expect(body).not.toMatch(/outline/);
+    expect(body).not.toMatch(/box-shadow/);
+  });
+
   it("applies at phone (390px) and desktop (1280px) widths with no viewport gate", () => {
     // The press rules must survive with all viewport-gated blocks removed:
     // they ship at top level, not inside a max-width/min-width query.
@@ -120,6 +131,13 @@ describe("chrome press feedback (#437)", () => {
     ]) {
       expect(gated).not.toMatch(selector);
     }
+    // The status-cell rule ships top-level (proven here); it is not added to
+    // the 2000-char media-window probes below because it intentionally sits
+    // just after the 360px large-text block, which those windows would
+    // false-positive on. Top-level presence is the no-viewport-gate proof.
+    expect(topLevel).toMatch(/\.ahd-status-btn:active\s*\{[^}]*\}/);
+    expect(css).not.toMatch(/@media[^{]*max-width[\s\S]{0,2000}?\.ahd-(bottomnav-item|drawer-item):active/);
+    expect(css).not.toMatch(/@media[^{]*min-width[\s\S]{0,2000}?\.ahd-(bottomnav-item|drawer-item):active/);
   });
 
   it("adds no transition or animation with the press tint", () => {
@@ -127,6 +145,7 @@ describe("chrome press feedback (#437)", () => {
       /\.ahd-bottomnav-item:active\s*\{[^}]*\}/,
       /\.ahd-drawer-item:active:not\(:disabled\)\s*\{[^}]*\}/,
       /\.ahd-drawer-disclosure:active\s*\{[^}]*\}/,
+      /\.ahd-status-btn:active\s*\{[^}]*\}/,
     ]) {
       const body = ruleBody(pattern);
       expect(body).not.toMatch(/transition\s*:/);
@@ -141,10 +160,12 @@ describe("chrome press feedback (#437)", () => {
     expect(css).toMatch(/\.ahd-bottomnav-item:focus-visible\s*\{[^}]*box-shadow:\s*var\(--ahd-focus\)/);
     expect(css).toMatch(/\.ahd-drawer-item:focus-visible\s*\{[^}]*box-shadow:\s*var\(--ahd-focus\)/);
     expect(css).toMatch(/\.ahd-drawer-disclosure:focus-visible\s*\{[^}]*box-shadow:\s*var\(--ahd-focus\)/);
+    expect(css).toMatch(/\.ahd-status-btn:focus-visible\s*\{[^}]*box-shadow:\s*var\(--ahd-focus\)/);
     for (const pattern of [
       /\.ahd-bottomnav-item:active\s*\{[^}]*\}/,
       /\.ahd-drawer-item:active:not\(:disabled\)\s*\{[^}]*\}/,
       /\.ahd-drawer-disclosure:active\s*\{[^}]*\}/,
+      /\.ahd-status-btn:active\s*\{[^}]*\}/,
     ]) {
       const body = ruleBody(pattern);
       expect(body).not.toMatch(/outline/);
