@@ -781,6 +781,11 @@ html, body { overflow-x: hidden; }
   border-radius: var(--ahd-radius-sm); padding-inline: 0.7rem;
 }
 .ahd-drawer-disclosure:focus-visible { outline: none; box-shadow: var(--ahd-focus); }
+/* Press feedback on the disclosure toggles (issue #437): same instant
+ * opaque tint as the drawer rows. The disclosures are buttons on the
+ * blurred drawer chrome with no hover treatment, so without this tapping
+ * a group header gives no press feedback on phones. */
+.ahd-drawer-disclosure:active { background: color-mix(in srgb, var(--ahd-card-elevated) 85%, black); }
 /* Disclosure meta: destination count plus the expand marker, kept muted so
  * the group label stays the scannable element at phone widths. */
 .ahd-drawer-disclosure-meta {
