@@ -191,6 +191,7 @@ describe("MpModeSession enter", () => {
       turn: null,
       capabilities: null,
       electionDetail: null,
+      corporationDetail: null,
       inbox: null,
       mailInbox: null,
       mailSent: null,
@@ -677,7 +678,7 @@ describe("MpModeSession election detail (#359 election slice)", () => {
       candidateCount: 2,
       leaderName: "Ada",
     });
-    expect(host.fetch).toHaveBeenCalledWith("election-detail", undefined, undefined, SEAT_ID);
+    expect(host.fetch).toHaveBeenCalledWith("election-detail", undefined, undefined, SEAT_ID, undefined);
   });
 
   it("rejects bad references client-side without a bridge call", async () => {
@@ -752,6 +753,132 @@ describe("MpModeSession election detail (#359 election slice)", () => {
     const refreshed = await session.refresh();
     expect(refreshed.phase).toBe("ready");
     expect(refreshed.electionDetail?.seatId).toBe(SEAT_ID);
+    expect(JSON.stringify(refreshed)).not.toMatch(/sp_|singleplayer|localSave/i);
+  });
+});
+
+describe("MpModeSession corporation detail (#359 corporation slice)", () => {
+  const HEX_ID = "68a000000000000000000001";
+  const detail = () =>
+    JSON.stringify({
+      corporation: {
+        _id: HEX_ID,
+        sequentialId: 42,
+        name: "Acme Consolidated",
+        tickerSymbol: "ACME",
+        typeLabel: "Industrial",
+        headquartersStateName: "Pennsylvania",
+        countryId: "US",
+      },
+      ceo: { name: "Ada", sequentialId: 9 },
+      sectors: [{}, {}],
+      isPrivate: false,
+    });
+
+  function enteredHost(extraFetch: Record<string, Array<string | { reject: string }>>) {
+    return scriptedHost({
+      fetch: {
+        "auth-session": [probeA],
+        "character-me": [meA(1000)],
+        "turn-status": [turn()],
+        "client-nav": [caps()],
+        notifications: [inbox()],
+        ...extraFetch,
+      },
+    });
+  }
+
+  it("loads the company on demand with the validated id, never on enter", async () => {
+    const { host, calls } = enteredHost({ "corporation-detail": [detail()] });
+    const session = new MpModeSession(host);
+    const entered = await session.enter();
+    expect(entered.phase).toBe("ready");
+    expect(entered.corporationDetail).toBeNull();
+    expect(calls.some((call) => call.op === "corporation-detail")).toBe(false);
+    const loaded = await session.loadCorporationDetail(42);
+    expect(loaded.phase).toBe("ready");
+    expect(loaded.corporationDetail).toMatchObject({
+      id: HEX_ID,
+      sequentialId: 42,
+      name: "Acme Consolidated",
+      ceoName: "Ada",
+      sectorCount: 2,
+    });
+    expect(host.fetch).toHaveBeenCalledWith("corporation-detail", undefined, undefined, undefined, "42");
+  });
+
+  it("rejects bad references client-side without a bridge call", async () => {
+    const { host, calls } = enteredHost({});
+    const session = new MpModeSession(host);
+    await session.enter();
+    calls.length = 0;
+    for (const bad of ["e1", "corp-42", "42?view=full", "", null, -1, 4.5]) {
+      const snapshot = await session.loadCorporationDetail(bad);
+      expect(snapshot.error, JSON.stringify(bad)).toMatch(/corporation reference is invalid/);
+    }
+    expect(calls).toHaveLength(0);
+    expect(session.get().corporationDetail).toBeNull();
+  });
+
+  it("fails closed on malformed bodies and keeps prior detail on remote failures", async () => {
+    const { host } = enteredHost({
+      "corporation-detail": [
+        detail(),
+        "{oops",
+        detail(),
+        { reject: "remote-error:404:0:{\"error\":\"Corporation not found\"}" },
+        { reject: "remote-error:500:0:{\"error\":\"boom\"}" },
+      ],
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+    expect((await session.loadCorporationDetail("42")).corporationDetail?.sectorCount).toBe(2);
+    const malformed = await session.loadCorporationDetail("42");
+    expect(malformed.phase).toBe("server-error");
+    expect(malformed.error).toMatch(/corporation record/);
+    expect(malformed.corporationDetail).toBeNull();
+    expect((await session.loadCorporationDetail(HEX_ID)).phase).toBe("ready");
+    const missing = await session.loadCorporationDetail(HEX_ID);
+    expect(missing.phase).toBe("offline");
+    expect(missing.error).toMatch(/Corporation not found/);
+    expect(missing.corporationDetail?.sectorCount).toBe(2);
+    const outage = await session.loadCorporationDetail(HEX_ID);
+    expect(outage.phase).toBe("server-error");
+    expect(outage.error).toMatch(/boom/);
+    expect(outage.corporationDetail?.sectorCount).toBe(2);
+  });
+
+  it("evicts the detail with standing on auth expiry and clears it on exit", async () => {
+    const { host } = enteredHost({
+      "corporation-detail": [detail(), { reject: "remote-error:401:0:{\"error\":\"Unauthorized\"}" }],
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+    await session.loadCorporationDetail(42);
+    expect(session.get().corporationDetail?.id).toBe(HEX_ID);
+    const expired = await session.loadCorporationDetail(42);
+    expect(expired.phase).toBe("auth-expired");
+    expect(expired.corporationDetail).toBeNull();
+    expect(expired.capabilities).toBeNull();
+    session.exit();
+    expect(session.get().corporationDetail).toBeNull();
+  });
+
+  it("leaves the detail alone on refresh and never touches SP state", async () => {
+    const { host } = enteredHost({
+      "auth-session": [probeA, probeA],
+      "character-me": [meA(1000), meA(1000)],
+      "turn-status": [turn(), turn()],
+      "client-nav": [caps(), caps()],
+      notifications: [inbox(), inbox()],
+      "corporation-detail": [detail()],
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+    await session.loadCorporationDetail(42);
+    const refreshed = await session.refresh();
+    expect(refreshed.phase).toBe("ready");
+    expect(refreshed.corporationDetail?.name).toBe("Acme Consolidated");
     expect(JSON.stringify(refreshed)).not.toMatch(/sp_|singleplayer|localSave/i);
   });
 });

@@ -527,7 +527,22 @@ Back to Standing). Evidence: `src/mp/adapter.test.ts`,
 `src/mp/validators.test.ts`, `src/mp/endpoints.test.ts`, and
 `src/ui/MpElectionDetail543.test.tsx` (12 rendered at 320/390/1280px).
 
+Corporation slice (PR #549, issues #359 and #510 stay open): the
+Standing corporation row now drills into an authoritative summary via
+the audited public GET /api/corporations/[id] read
+(`corporation-detail` fetch op, sequential-id-or-24-hex validation in TS
+and Rust, fail-closed projection of identity plus leadership plus scale
+only, on-demand load with expiry eviction, read-only article with Back
+to Standing). The Standing card rule is unchanged: union, cabinet, and
+governor rows have no allowlisted read and no Native surface, so they
+stay display-only. Evidence: `src/mp/adapter.test.ts`,
+`src/mp/validators.test.ts`, `src/mp/endpoints.test.ts`,
+`src/mp/bridge.test.ts`, `src/ui/MpCorporationDetail.test.tsx` (9
+rendered at 320/390/1280px), and the updated
+`src/ui/MpStandingCapabilities510.test.tsx` (corporation drill-in plus
+display-only siblings at 320/390/1280px).
+
 Remaining gaps (issues #359 and #510 stay open): Native MP still has no
-corporation, union, cabinet-office, or governor-office detail surface;
-those four rows stay display-only. Per-screen action/data depth and
+union, cabinet-office, or governor-office detail surface; those three
+rows stay display-only. Per-screen action/data depth and
 physical-iPhone smoke remain as in section 8.

@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   formatTurnCountdown,
+  isCorporationId,
   isElectionId,
   parseCharacterMe,
   parseClientNav,
+  parseCorporationDetail,
   parseElectionDetail,
   parseExecuteResult,
   parseInbox,
@@ -12,6 +14,7 @@ import {
   parsePlayersOnline,
   parseSessionProbe,
   parseTurnStatus,
+  validateCorporationId,
   validateElectionId,
   validateExecuteArgs,
   validateNotificationId,
@@ -256,6 +259,19 @@ describe("parseClientNav", () => {
       ),
     ).toMatchObject({ hasCharacter: true, activeElectionLabel: null, cabinetOffice: null });
   });
+
+  it("projects only integer corporation ids, including sequential zero", () => {
+    const caps = (myCorporationId: unknown) =>
+      parseClientNav(JSON.stringify({ hasCharacter: true, myCorporationId }));
+    expect(caps(42)).toMatchObject({ corporationId: 42 });
+    // Sequential zero is a real reference (live `corporationPathIdFromDoc`
+    // prefers it over the ObjectId), so it must project, not null out.
+    expect(caps(0)).toMatchObject({ corporationId: 0 });
+    expect(caps(9_999_999_999)).toMatchObject({ corporationId: 9_999_999_999 });
+    for (const bad of [4.5, -1, 10_000_000_000, "42", Number.NaN]) {
+      expect(caps(bad), JSON.stringify(bad)).toMatchObject({ corporationId: null });
+    }
+  });
 });
 
 describe("election-detail reference and payload (#359 election slice)", () => {
@@ -357,6 +373,135 @@ describe("election-detail reference and payload (#359 election slice)", () => {
     expect(parseElectionDetail(summary({ candidates: { length: 3 } }))).toBeNull();
     expect(parseElectionDetail(summary({ candidates: null }))).toBeNull();
     expect(parseElectionDetail(JSON.stringify({ error: "Election not found" }))).toBeNull();
+  });
+});
+
+describe("corporation-detail reference and payload (#359 corporation slice)", () => {
+  const HEX_ID = "68a000000000000000000001";
+
+  it("accepts sequential ids and hex ObjectIds, rejects smuggling and drift", () => {
+    expect(isCorporationId(42)).toBe(true);
+    expect(isCorporationId("42")).toBe(true);
+    expect(isCorporationId(HEX_ID)).toBe(true);
+    expect(isCorporationId("0")).toBe(true);
+    for (const bad of [
+      "",
+      "e1",
+      "corp-42",
+      "42 ",
+      " 42",
+      "4.5",
+      "-1",
+      "0x2A",
+      `${HEX_ID}&view=full`,
+      "../../admin/maintenance",
+      "/api/corporations/42",
+      "42?view=full",
+      null,
+      -1,
+      4.5,
+      Number.NaN,
+    ]) {
+      expect(isCorporationId(bad), JSON.stringify(bad)).toBe(false);
+      expect(validateCorporationId(bad).ok).toBe(false);
+    }
+    expect(validateCorporationId(42)).toEqual({ ok: true, id: "42" });
+    expect(validateCorporationId("42")).toEqual({ ok: true, id: "42" });
+    expect(validateCorporationId(HEX_ID)).toEqual({ ok: true, id: HEX_ID });
+  });
+
+  it("shares one numeric/string boundary with the Rust bridge", () => {
+    // Up to 10 digits in either form (the Rust `is_corporation_id` segment
+    // bound); an 11-digit reference never leaves the UI in either form.
+    expect(isCorporationId(9_999_999_999)).toBe(true);
+    expect(isCorporationId("9999999999")).toBe(true);
+    expect(validateCorporationId(9_999_999_999)).toEqual({ ok: true, id: "9999999999" });
+    for (const bad of [10_000_000_000, "10000000000", "12345678901", 1e15]) {
+      expect(isCorporationId(bad), JSON.stringify(bad)).toBe(false);
+      expect(validateCorporationId(bad).ok).toBe(false);
+    }
+  });
+
+  const detail = (overrides: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      corporation: {
+        _id: HEX_ID,
+        sequentialId: 42,
+        name: "Acme Consolidated",
+        tickerSymbol: "ACME",
+        typeLabel: "Industrial",
+        headquartersStateName: "Pennsylvania",
+        countryId: "US",
+        ...overrides,
+      },
+      ceo: { name: "Ada", sequentialId: 9 },
+      ceoIsInactive: false,
+      financials: { revenue: 100 },
+      sectors: [{}, {}, {}],
+      balanceSheet: { assets: 50 },
+      isPrivate: false,
+    });
+
+  it("projects the read-only summary identity, leadership, and scale", () => {
+    expect(parseCorporationDetail(detail())).toEqual({
+      id: HEX_ID,
+      sequentialId: 42,
+      name: "Acme Consolidated",
+      tickerSymbol: "ACME",
+      typeLabel: "Industrial",
+      headquarters: "Pennsylvania",
+      countryId: "US",
+      isPrivate: false,
+      ceoName: "Ada",
+      sectorCount: 3,
+    });
+  });
+
+  it("degrades absent decorations to null without losing the company", () => {
+    expect(
+      parseCorporationDetail(detail({ tickerSymbol: null, typeLabel: null, headquartersStateName: null })),
+    ).toMatchObject({
+      name: "Acme Consolidated",
+      tickerSymbol: null,
+      typeLabel: null,
+      headquarters: null,
+    });
+    expect(
+      parseCorporationDetail(JSON.stringify({
+        corporation: { _id: HEX_ID, sequentialId: 42, name: "Acme", countryId: "US" },
+        ceo: null,
+        sectors: [],
+        isPrivate: true,
+      })),
+    ).toMatchObject({ name: "Acme", ceoName: null, sectorCount: 0, isPrivate: true });
+    // A missing ceo key degrades like an explicit null: leadership unknown.
+    expect(
+      parseCorporationDetail(
+        JSON.stringify({
+          corporation: { _id: HEX_ID, sequentialId: 42, name: "Acme", countryId: "US" },
+          sectors: [],
+        }),
+      ),
+    ).toMatchObject({ name: "Acme", ceoName: null, sectorCount: 0 });
+  });
+
+  it("fails closed on structural drift", () => {
+    expect(parseCorporationDetail("not json")).toBeNull();
+    expect(parseCorporationDetail(JSON.stringify({ corporation: null }))).toBeNull();
+    expect(parseCorporationDetail(JSON.stringify({}))).toBeNull();
+    expect(parseCorporationDetail(detail({ name: "" }))).toBeNull();
+    expect(parseCorporationDetail(detail({ name: "   " }))).toBeNull();
+    expect(parseCorporationDetail(detail({ countryId: 42 }))).toBeNull();
+    expect(parseCorporationDetail(detail({ sequentialId: "many" }))).toBeNull();
+    expect(
+      parseCorporationDetail(
+        JSON.stringify({
+          corporation: { _id: HEX_ID, sequentialId: 42, name: "Acme", countryId: "US" },
+          sectors: { length: 3 },
+        }),
+      ),
+    ).toBeNull();
+    expect(parseCorporationDetail(JSON.stringify({ error: "Corporation not found" }))).toBeNull();
   });
 });
 

@@ -11,10 +11,14 @@
  *   `/elections/[seatId ?? id]`, cabinet ->
  *   `/country/[cc]/executive/cabinet/[positionId]/office`, governor ->
  *   `/country/[cc]/region/[stateId]/office`.
- * None of those reads is allowlisted (`src/mp/endpoints.ts`,
- * `src-tauri/src/mp_session.rs`) and none has a Native MP surface, so every
- * row stays display-only: absent navigation, never an inert control, never a
- * route into local SP state. Rendered at 320px, 390px, and desktop.
+ * The corporation read is allowlisted (`src/mp/endpoints.ts`,
+ * `src-tauri/src/mp_session.rs`) with a Native MP surface, so the
+ * corporation row offers its drill-in. Union, cabinet, and governor have no
+ * allowlisted read and no Native surface, so those rows stay display-only:
+ * absent navigation, never an inert control, never a route into local SP
+ * state. (The election drill-in is covered by MpElectionDetail543; this
+ * file's election fixture carries an invalid id, so its row stays
+ * display-only here.) Rendered at 320px, 390px, and desktop.
  */
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
@@ -134,7 +138,7 @@ function readyScript(capabilities: string = fullCapabilities): Script {
 }
 
 describe.each([320, 390, 1280])("MP Standing capabilities at %spx (#359/#510)", (width) => {
-  it("renders available capabilities as display-only facts with no controls", async () => {
+  it("renders the corporation drill-in with the remaining rows display-only", async () => {
     setViewport(width);
     render(<MpModeScreen host={fakeHost(readyScript()).host} onExit={() => {}} />);
     const standing = await screen.findByRole("article", { name: "Standing" });
@@ -144,10 +148,14 @@ describe.each([320, 390, 1280])("MP Standing capabilities at %spx (#359/#510)", 
     expect(within(standing).getByText("President · US")).toBeInTheDocument();
     expect(within(standing).getByText("Secretary of State")).toBeInTheDocument();
     expect(within(standing).getByText("California")).toBeInTheDocument();
-    // Absent navigation: no links, no buttons, no live-site paths. Nothing
-    // here may look actionable or route into local SP state.
+    // The corporation row is the one actionable destination here (the
+    // fixture election id is invalid, so that row stays display-only):
+    // exactly one control, no links, no live-site paths. Nothing here may
+    // route into local SP state.
     expect(standing.querySelector("a")).toBeNull();
-    expect(standing.querySelector("button")).toBeNull();
+    const controls = within(standing).queryAllByRole("button");
+    expect(controls).toHaveLength(1);
+    expect(controls[0]).toHaveTextContent("View company");
     expect(standing.textContent).not.toMatch(/\/corporation|\/unions|\/elections|\/country\//);
   });
 

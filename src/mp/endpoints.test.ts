@@ -163,6 +163,20 @@ describe("MP admin-maintenance pin (#359)", () => {
     expect(docBlock).toMatch(/no-store/);
   });
 
+  it("pins the corporation-detail read on the public corporations route", () => {
+    const op: MpFetchOpId = "corporation-detail";
+    expect(op).toBe("corporation-detail");
+    const source = readFileSync(new URL("./endpoints.ts", import.meta.url), "utf8");
+    const fetchBlock = source.slice(source.indexOf("export type MpFetchOpId"), source.indexOf("export type MpMutateOpId"));
+    expect(fetchBlock).toMatch(/corporation-detail/);
+    const docBlock = source.slice(0, source.indexOf("export const MP_AUDIT_REVISION"));
+    expect(docBlock).toMatch(/corporation-detail/);
+    expect(docBlock).toMatch(/\/api\/corporations\/\[id\]/);
+    expect(docBlock).toMatch(/no-store/);
+    const mutateBlock = source.slice(source.indexOf("export type MpMutateOpId"), source.indexOf("export type MpExecuteActionType"));
+    expect(mutateBlock).not.toMatch(/corporation/i);
+  });
+
   it("keeps player mail fetch ops next to the admin-maintenance read", () => {
     const source = readFileSync(new URL("./endpoints.ts", import.meta.url), "utf8");
     const fetchBlock = source.slice(source.indexOf("export type MpFetchOpId"), source.indexOf("export type MpMutateOpId"));

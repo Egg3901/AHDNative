@@ -234,6 +234,17 @@ export function parseInbox(bodyText: string): MpInboxView | null {
   };
 }
 
+/**
+ * client-nav `myCorporationId` is a sequential numeric id (or null when the
+ * player holds no company). Only an integer in the shared corporation-id
+ * boundary projects: a fractional or out-of-range value signals a drifting
+ * payload and degrades to null so the Standing row stays display-only.
+ */
+function asCorporationCapabilityId(value: unknown): number | null {
+  if (value === undefined || value === null) return null;
+  return isCorporationId(value) && typeof value === "number" ? value : null;
+}
+
 export interface MpCapabilitiesView {
   hasCharacter: boolean;
   characterName: string | null;
@@ -272,7 +283,7 @@ export function parseClientNav(bodyText: string): MpCapabilitiesView | null {
     characterName: asTrimmedString(record.characterName ?? null),
     characterCountryId: asTrimmedString(record.characterCountryId ?? null),
     unreadMailCount: record.unreadMailCount === undefined ? null : asNumber(record.unreadMailCount),
-    corporationId: record.myCorporationId === undefined ? null : asNumber(record.myCorporationId),
+    corporationId: asCorporationCapabilityId(record.myCorporationId),
     unionId: asTrimmedString(record.myUnionId ?? null),
     activeElectionLabel: election ? asTrimmedString(election.label ?? null) : null,
     activeElectionId: election ? asTrimmedString(election.id ?? null) : null,
@@ -368,6 +379,91 @@ export function parseElectionDetail(bodyText: string): MpElectionDetailView | nu
     leaderParty: polling ? asTrimmedString(polling.leaderParty ?? null) : null,
     incumbentName: incumbent ? asTrimmedString(incumbent.name ?? null) : null,
     incumbentParty: incumbent ? asTrimmedString(incumbent.party ?? null) : null,
+  };
+}
+
+/**
+ * Corporation reference accepted by GET /api/corporations/[id] (AHDGame
+ * corporationQueryFromParamId in src/lib/api/corporations/resolveQuery.ts
+ * accepts a sequential numeric id or a 24-hex ObjectId; the ObjectId check
+ * runs first so all-numeric 24-char hex is an ObjectId, never a sequence).
+ * Numbers arrive from client-nav `myCorporationId`; strings stay URL-safe
+ * without encoding and never carry query smuggling.
+ */
+export function isCorporationId(value: unknown): value is number | string {
+  // Numeric and string forms share one boundary: up to 10 digits, matching
+  // the Rust bridge (`is_corporation_id` accepts a <=10-digit id segment).
+  // The live route accepts unbounded digits; Native stays fail-closed above
+  // this bound and the server 404s unknown ids below it.
+  if (typeof value === "number") {
+    return Number.isInteger(value) && value >= 0 && value <= 9_999_999_999;
+  }
+  if (typeof value !== "string" || !value) return false;
+  if (HEX_OBJECT_ID.test(value)) return true;
+  return /^\d{1,10}$/.test(value);
+}
+
+/** Corporation ids are sequential numbers or 24-hex ObjectIds; anything else never leaves the UI. */
+export function validateCorporationId(id: unknown): { ok: true; id: string } | { ok: false; reason: string } {
+  if (!isCorporationId(id)) {
+    return { ok: false, reason: "That corporation reference is invalid." };
+  }
+  return { ok: true, id: String(id) };
+}
+
+export interface MpCorporationDetailView {
+  id: string;
+  sequentialId: number | null;
+  name: string;
+  tickerSymbol: string | null;
+  typeLabel: string | null;
+  headquarters: string | null;
+  countryId: string;
+  isPrivate: boolean | null;
+  ceoName: string | null;
+  /** Length of the sectors array; entries stay server-side. */
+  sectorCount: number;
+}
+
+/**
+ * corporation-detail: the route answers the detail view as { corporation,
+ * ceo, sectors, ... }. The summary projects identity, leadership, and scale
+ * only: financials and the balance sheet stay server-side (outsiders see
+ * fogged estimates or redacted nulls, never exact figures worth quoting).
+ * Decorations degrade to null individually; identity drift fails closed.
+ */
+export function parseCorporationDetail(bodyText: string): MpCorporationDetailView | null {
+  const record = asRecord(parseJsonBody(bodyText));
+  const corporation = record ? asRecord(record.corporation) : null;
+  if (!corporation) return null;
+  const id = asTrimmedString(corporation._id);
+  const name = asTrimmedString(corporation.name);
+  const countryId = asTrimmedString(corporation.countryId);
+  if (!id || !name || !countryId) return null;
+  if (!Array.isArray(record?.sectors)) return null;
+  // sequentialId degrades to null when absent (legacy docs predate it),
+  // but a present mistyped value signals a drifting payload and fails
+  // closed.
+  const sequentialRaw = corporation.sequentialId;
+  const sequentialId =
+    sequentialRaw === undefined || sequentialRaw === null
+      ? null
+      : typeof sequentialRaw === "number" && Number.isInteger(sequentialRaw) && sequentialRaw >= 0
+        ? sequentialRaw
+        : null;
+  if (sequentialRaw !== undefined && sequentialRaw !== null && sequentialId === null) return null;
+  const ceo = asRecord(record?.ceo);
+  return {
+    id,
+    sequentialId,
+    name,
+    tickerSymbol: asTrimmedString(corporation.tickerSymbol ?? null),
+    typeLabel: asTrimmedString(corporation.typeLabel ?? null),
+    headquarters: asTrimmedString(corporation.headquartersStateName ?? null),
+    countryId,
+    isPrivate: record?.isPrivate === undefined ? null : asBoolean(record.isPrivate),
+    ceoName: ceo ? asTrimmedString(ceo.name ?? null) : null,
+    sectorCount: (record.sectors as unknown[]).length,
   };
 }
 
