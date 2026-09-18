@@ -420,3 +420,109 @@ describe("#119 constants", () => {
     expect(FOMC_VOTE_WINDOW_TURNS).toBe(24);
   });
 });
+
+describe("#119 joined lifecycle: confirmed nominees vote and chair nominations mirror", () => {
+  it("seats a confirmed player nominee as a live ballot seat on the next meeting", () => {
+    const world = createWorld(OPTS);
+    seedFomcBoard(world, "US", 0);
+    world.centralBanks["US"]!.fomcBoard![1]!.termExpiresAtTurn = 0; // seat-2 expires
+    const { majority } = senateParties(world);
+
+    advanceTurn(world); // turn 1: seat-2 vacated
+    expect(world.centralBanks["US"]!.fomcBoard![1]!.occupantType).toBe("vacant");
+
+    const id = proposeFomcNomination(world, {
+      countryId: "US",
+      seatId: "seat-2",
+      nomineeCharacterId: "player",
+      nomineeName: "Tester",
+      nomineeParty: majority,
+      occupantType: "player",
+      alignment: "dove",
+      votingEndsOnTurn: world.meta.turn + 2,
+    });
+
+    advanceTurn(world); // turn 2: catch-up NPP senator votes
+    advanceTurn(world); // turn 3: expires -> confirmed
+    const nom = world.fomcNominations?.find((n) => n.id === id)!;
+    expect(nom.status).toBe("confirmed");
+
+    // The install must wire a LIVE player seat: characterId "player" is what
+    // castFomcBallot matches on. An "npp"-typed install (or a dropped id)
+    // would auto-vote or lock the player out of every later meeting.
+    const bank = world.centralBanks["US"]!;
+    const seated = bank.fomcBoard!.find((s) => s.seatId === "seat-2")!;
+    expect(seated.occupantType).toBe("player");
+    expect(seated.characterId).toBe("player");
+    expect(seated.termExpiresAtTurn).toBe(3 + FOMC_TERM_TURNS);
+
+    // Advance to the next scheduled meeting (cadence: 8 turns after the last open).
+    let opened = false;
+    for (let i = 0; i < 12 && !opened; i++) {
+      advanceTurn(world);
+      opened = bank.activeFomcMeeting?.status === "voting";
+    }
+    expect(opened).toBe(true);
+
+    // Invalid: not a seated player board member.
+    expect(castFomcBallot(world, { bankId: "US", characterId: "ghost", vote: "hold" })).toEqual({
+      ok: false,
+      reason: "not-seated",
+    });
+
+    // Valid: the confirmed nominee's live ballot is recorded as non-auto.
+    const cast = castFomcBallot(world, { bankId: "US", characterId: "player", vote: "hold" });
+    expect(cast.ok).toBe(true);
+    const allBallots = [
+      ...(bank.activeFomcMeeting?.ballots ?? []),
+      ...(bank.fomcMeetingHistory ?? []).flatMap((m) => m.ballots),
+    ];
+    const live = allBallots.find((b) => b.seatId === "seat-2" && !b.auto);
+    expect(live?.vote).toBe("hold");
+  });
+
+  it("mirrors a confirmed chair nomination onto the single-chair fields and persists across save/reload", () => {
+    const world = createWorld(OPTS);
+    seedFomcBoard(world, "US", 0);
+    world.centralBanks["US"]!.fomcBoard![0]!.termExpiresAtTurn = 0; // chair seat-1 expires
+    const { majority } = senateParties(world);
+
+    advanceTurn(world); // turn 1: chair vacated
+    const bank = world.centralBanks["US"]!;
+    expect(bank.fomcBoard![0]!.occupantType).toBe("vacant");
+
+    const id = proposeFomcNomination(world, {
+      countryId: "US",
+      seatId: "seat-1",
+      makeChair: true,
+      nomineeNppId: "US-chair-new",
+      nomineeName: "New Chair",
+      nomineeParty: majority,
+      occupantType: "npp",
+      alignment: "dove",
+      proposedByPresidentId: "prez-1",
+      votingEndsOnTurn: world.meta.turn + 2,
+    });
+
+    advanceTurn(world); // turn 2: votes
+    advanceTurn(world); // turn 3: confirmed
+    const nom = world.fomcNominations?.find((n) => n.id === id)!;
+    expect(nom.status).toBe("confirmed");
+    const turn = world.meta.turn;
+
+    // Exactly one chair seat, and the single-chair mirror fields track it so
+    // legacy chair consumers (display, infamy, Taylor rule fallback) resolve.
+    const chair = bank.fomcBoard!.find((s) => s.seatId === "seat-1")!;
+    expect(chair.isChair).toBe(true);
+    expect(chair.nppId).toBe("US-chair-new");
+    expect(bank.fomcBoard!.filter((s) => s.isChair)).toHaveLength(1);
+    expect(bank.chairAlignment).toBe("dove");
+    expect(bank.chairMode).toBe("npp");
+    expect(bank.chairAppointedBy).toBe("prez-1");
+    expect(bank.chairTermExpiresAtTurn).toBe(turn + FOMC_TERM_TURNS);
+
+    const raw = serializeSave(world, SAVED_AT);
+    const reloaded = deserializeSave(raw);
+    expect(JSON.stringify(reloaded)).toBe(JSON.stringify(world));
+  });
+});
