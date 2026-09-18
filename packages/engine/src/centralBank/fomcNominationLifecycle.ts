@@ -214,6 +214,19 @@ export function proposeFomcNomination(world: WorldState, opts: ProposeFomcNomina
   if (Boolean(opts.nomineeCharacterId) === Boolean(opts.nomineeNppId)) {
     throw new Error("Provide exactly one of nomineeCharacterId or nomineeNppId");
   }
+  // The reference nominate route DERIVES occupantType from which id is
+  // supplied (character -> player seat, NPP -> autonomous NPP seat). Native
+  // takes it as a caller option, so reject a contradicting pair: it would
+  // install a hybrid seat that neither votes nor ballots correctly (an "npp"
+  // seat carrying a characterId auto-votes and locks the player out; a
+  // "player" seat with a null characterId abstains forever and counts
+  // against the carry-a-motion majority).
+  if (opts.nomineeCharacterId && opts.occupantType !== "player") {
+    throw new Error("occupantType must be player for a nomineeCharacterId nomination");
+  }
+  if (opts.nomineeNppId && opts.occupantType !== "npp") {
+    throw new Error("occupantType must be npp for a nomineeNppId nomination");
+  }
 
   // Nominee eligibility (mirrors cabinet proposeCabinetNomination): the player,
   // or a known politician in the same country.

@@ -326,6 +326,38 @@ describe("#119 FOMC nomination lifecycle (turn boundary)", () => {
       }),
     ).toThrow(/exactly one/);
   });
+
+  it("rejects an occupantType that contradicts the nominee id kind (reference derives it)", () => {
+    const world = createWorld(OPTS);
+    seedFomcBoard(world, "US", 0);
+    // A character nominee seats a live player seat; an NPP nominee seats an
+    // autonomous NPP seat (reference nominate route derives occupantType from
+    // which id is supplied). A contradicting pair would install a corrupt
+    // hybrid seat: an "npp" seat carrying a characterId auto-votes and locks
+    // the player out, while a "player" seat with a null characterId abstains
+    // forever and counts against the majority.
+    expect(() =>
+      proposeFomcNomination(world, {
+        countryId: "US",
+        seatId: "seat-4",
+        nomineeCharacterId: "player",
+        nomineeName: "X",
+        occupantType: "npp",
+        alignment: "hawk",
+      }),
+    ).toThrow(/occupantType/);
+    expect(() =>
+      proposeFomcNomination(world, {
+        countryId: "US",
+        seatId: "seat-5",
+        nomineeNppId: "US-governor-y",
+        nomineeName: "Y",
+        occupantType: "player",
+        alignment: "dove",
+      }),
+    ).toThrow(/occupantType/);
+    expect(world.fomcNominations ?? []).toHaveLength(0);
+  });
 });
 
 describe("#119 save/reload determinism + migration", () => {
