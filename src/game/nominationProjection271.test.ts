@@ -8,6 +8,7 @@ import {
 } from "@ahdclient/engine";
 import { GameSession } from "./session";
 import {
+  nomineePartyName,
   projectNominationDetail,
   projectNominationList,
 } from "./nominations";
@@ -74,6 +75,24 @@ describe("unified nomination list/detail projection (#271)", () => {
 
     // Detail is the same projection by id.
     expect(session.nomination(list[0]!.id)).toEqual(list[0]!);
+  });
+
+  it("resolves the nominee party display name from world parties", () => {
+    const session = senateSession();
+    const probe = createWorld({ ...HOS_US });
+    const nominee = probe.politicians.find((p) => p.countryId === "US")!;
+    expect(session.act("sponsorCabinetNomination", {
+      countryId: "US", positionId: "secretary_of_state", nomineeId: nominee.id,
+    }).ok).toBe(true);
+
+    const entry = session.view().legislature.nominations![0]!;
+    expect(entry.nomineeParty).toBe(nominee.partyId);
+    expect(entry.nomineePartyName).toBe(probe.parties[nominee.partyId]?.name ?? nominee.partyId);
+    expect(session.nomination(entry.id)?.nomineePartyName).toBe(entry.nomineePartyName);
+
+    // Null stays null; an unknown party id falls back to the raw id.
+    expect(nomineePartyName(probe, null)).toBeNull();
+    expect(nomineePartyName(probe, "NO_SUCH_PARTY")).toBe("NO_SUCH_PARTY");
   });
 
   it("unifies cabinet and SCOTUS nominations pending-first with Senate routing", () => {

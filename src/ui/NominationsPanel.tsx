@@ -120,6 +120,7 @@ export function NominationsPanel({ legislature, busy, onAction }: {
           <div style={{ fontWeight: 700, fontSize: "0.86rem" }}>{selected.office}</div>
           <div className="ahd-muted" style={{ fontSize: "0.74rem", marginTop: "0.15rem" }}>
             {selected.statusLabel} · {selected.chamberLabel} · Nominee {selected.nominee}
+            {selected.nomineePartyName ? ` · ${selected.nomineePartyName}` : ""}
             {selected.sponsor ? ` · Sponsored by ${selected.sponsor}` : ""}
             {` · Vote closes turn ${selected.votingEndsOnTurn}`}
           </div>
