@@ -281,7 +281,7 @@ function stateSliceFor(world: WorldState, stateId: string, electionId?: string):
  * orgs are aggregated separately (`nationalPartyOrgs`) since the caller only
  * needs the simple `{partyId, organization, registration}` shape.
  */
-function nationwideSliceFor(world: WorldState, countryId: string): StateSlice | null {
+function nationwideSliceFor(world: WorldState, countryId: string, electionId?: string): StateSlice | null {
   const regions = Object.values(world.regions).filter((r) => r.countryId === countryId);
   if (regions.length === 0) return null;
 
@@ -315,7 +315,7 @@ function nationwideSliceFor(world: WorldState, countryId: string): StateSlice | 
   if (!preload) return null;
 
   const vep = preload.state.votingEligiblePopulation ?? preload.state.population;
-  const turnout = deriveTurnoutFrom(preload.demographics, vep);
+  const turnout = deriveTurnoutFrom(preload.demographics, vep, campaignTurnoutModifiers(world, electionId));
 
   return {
     stateId: countryId,
@@ -527,12 +527,17 @@ function realAccumulatePresident(world: WorldState, rng: WorldRng, rec: Election
 
   const slices = new Map<string, StateSlice>();
   for (const stateId of stateIds) {
-    const slice = stateSliceFor(world, stateId);
+    // Thread the election id so canvass/GOTV turnout modifiers recorded
+    // against this race's campaigns shape the per-state pools, exactly as
+    // the down-ballot path already does. Reference:
+    // AHDGame presidentialElectionEngine.ts resolves per-state turnout
+    // "with GOTV/canvassing/suppression modifiers applied".
+    const slice = stateSliceFor(world, stateId, rec.id);
     if (slice) slices.set(stateId, slice);
   }
 
   if (slices.size === 0) {
-    const nw = nationwideSliceFor(world, rec.countryId);
+    const nw = nationwideSliceFor(world, rec.countryId, rec.id);
     if (!nw) return false;
     return runAccumulate(world, rng, rec, nw);
   }
