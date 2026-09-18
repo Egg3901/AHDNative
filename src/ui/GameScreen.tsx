@@ -797,7 +797,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           ))}
           {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={route === "nations" ? (detailId ?? nationContext) : detailId} onSelectNation={route === "nations" ? (id) => { setDetailId(undefined); setNationContext(id); } : undefined} onNavigate={navigate} onDrill={drillViewer} onOpenParty={openParty} onOpenElection={openElection} />}</DetailQuery>}
           {route === "worldMap" && <WorldMapRoute loadOverview={loadWorldOverview} loadRegions={loadRegions} revision={world} section={preferences.worldMapSection} onSectionChange={(worldMapSection) => onPreferencesChange({ ...preferences, worldMapSection })} onNavigate={navigate} />}
-          {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} revision={world} busy={busy} onNavigate={navigate} onDrill={drillViewer} />}
+          {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} loadMarkets={loadMarkets} revision={world} busy={busy} onNavigate={navigate} onDrill={drillViewer} onSectorSale={onSectorSale} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "government" && (world.cabinet === null ? (
             // #510 honest no-seat state: the drawer hides this destination

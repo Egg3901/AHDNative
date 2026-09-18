@@ -17,13 +17,25 @@ import type {
   RegionsQuery,
   RegionsView,
 } from "../game/regions";
+import type { MarketListing } from "../game/markets";
+import type { GameScreenProps } from "../game/types";
 import { RegionViewerCard } from "./RegionViewerCard";
 import { RegionMacroCard, RegionSectorsCard } from "./RegionEconomyCards";
+import { RegionSectorAssetsCard } from "./RegionSectorAssets";
 import { CountryFlag, resolveCountryFlagCode } from "./CountryFlag";
 import type { DrawerRouteId } from "./MobileNavigation";
 import { formatGameDate, formatGameTurn, type GameClock } from "../game/gameDate";
 
 const CHAMBER_MEMBER_PAGE_SIZE = 12;
+
+export interface RegionSectorAssetsSource {
+  /** Recorded markets projection; the card selects its own regional rows. */
+  listings: MarketListing[];
+  playerCash: number;
+  onSectorSale?: GameScreenProps["onSectorSale"];
+  /** Opens the linked company detail (the existing markets destination). */
+  onOpenCompany?: (listingId: string) => void;
+}
 
 export interface RegionsPanelProps {
   query: RegionsView;
@@ -37,6 +49,12 @@ export interface RegionsPanelProps {
   onOpenParty?: (partyId: string) => void;
   /** Opens the national race detail for a region election id (#510). */
   onOpenElection?: (electionId: string) => void;
+  /**
+   * Regional corporate-sector inventory (#299). Absent until the route loads
+   * the markets projection alongside the regions view; without it the detail
+   * renders exactly as before.
+   */
+  sectorAssets?: RegionSectorAssetsSource;
 }
 
 function number(value: number | null, maximumFractionDigits = 0): string {
@@ -452,6 +470,7 @@ function SelectedRegion({
   onNavigate,
   onOpenParty,
   onOpenElection,
+  sectorAssets,
 }: {
   view: RegionsView;
   selected: RegionDetailView;
@@ -460,6 +479,7 @@ function SelectedRegion({
   onNavigate?: (route: DrawerRouteId, id?: string) => void;
   onOpenParty?: (partyId: string) => void;
   onOpenElection?: (electionId: string) => void;
+  sectorAssets?: RegionSectorAssetsSource;
 }) {
   const [electionDraft, setElectionDraft] = useState(selected.electionQuery);
   const [memberPages, setMemberPages] = useState<Record<string, number>>({});
@@ -699,6 +719,18 @@ function SelectedRegion({
         <RegionSectorsCard sectors={selected.economy.sectors} currency={currency} />
       </div>
 
+      {sectorAssets ? (
+        <RegionSectorAssetsCard
+          regionId={selected.id}
+          regionName={selected.name}
+          listings={sectorAssets.listings}
+          playerCash={sectorAssets.playerCash}
+          busy={busy}
+          onSectorSale={sectorAssets.onSectorSale}
+          onOpenCompany={sectorAssets.onOpenCompany}
+        />
+      ) : null}
+
       {hasDemographicData ? (
         <div className="ahd-card ahd-card-pad">
           <h2 className="ahd-h2">Demographics</h2>
@@ -746,7 +778,7 @@ function SelectedRegion({
   );
 }
 
-export function RegionsPanel({ query, onQueryChange, busy = false, directoryOpen, onDirectoryOpenChange, onNavigate, onOpenParty, onOpenElection }: RegionsPanelProps) {
+export function RegionsPanel({ query, onQueryChange, busy = false, directoryOpen, onDirectoryOpenChange, onNavigate, onOpenParty, onOpenElection, sectorAssets }: RegionsPanelProps) {
   return (
     <div className="ahd-stack" aria-label={`${query.playerCountryName} regions`}>
       <div className="ahd-card ahd-card-pad ahd-hero">
@@ -773,7 +805,7 @@ export function RegionsPanel({ query, onQueryChange, busy = false, directoryOpen
           onQueryChange={onQueryChange}
         />
         {query.selected ? (
-          <SelectedRegion key={query.selected.id} view={query} selected={query.selected} busy={busy} onQueryChange={onQueryChange} onNavigate={onNavigate} onOpenParty={onOpenParty} onOpenElection={onOpenElection} />
+          <SelectedRegion key={query.selected.id} view={query} selected={query.selected} busy={busy} onQueryChange={onQueryChange} onNavigate={onNavigate} onOpenParty={onOpenParty} onOpenElection={onOpenElection} sectorAssets={sectorAssets} />
         ) : (
           <div className="ahd-empty" data-pane="detail">No region selected.</div>
         )}

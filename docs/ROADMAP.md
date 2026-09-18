@@ -1361,6 +1361,22 @@ and removed. The smoke helper now walks the conversation; no engine change.
   `SECTOR_SALE_UNAVAILABLE` instead of hidden. Focused evidence:
   `src/game/markets.test.ts` (34 tests) and `src/ui/MarketsPanel.test.tsx`
   For Sale/sector-asset block.
+- The region detail renders a Corporate sectors card (2026-09-18):
+  `selectRegionSectorAssets` filters the recorded markets projection by
+  `sectorAsset.regionId` and each row shows recorded ownership, workers,
+  union, and for-sale state verbatim, with Buy gated by `evaluateSectorBuy`
+  through the existing `onSectorSale("buy")` dispatch and a company drill
+  that returns to the region. National assets stay in the Sectors directory.
+  Fresh worlds seed every asset national, so the card honestly reports no
+  regional sectors until a save records a regional split. List/update/unlist
+  stay on the company detail. Focused evidence:
+  `src/ui/RegionSectorAssets.test.tsx` (11 tests: selector, 320/390/1280px
+  reachability, owned/unowned, buy dispatch, disabled reasons, recorded
+  stateId join and player-acquisition readback) and
+  `src/ui/RegionsRoute.test.tsx` (markets wiring, drill). No
+  physical-device claims; jsdom pins content and containment styles.
+  Remaining #299 gap: union bargaining/dues UI (#297) and
+  nationalization/secession fan-out (#298).
 
 ## Corporate-sector sale vertical slice, 2026-09-15 (#294 / #211)
 
