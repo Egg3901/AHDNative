@@ -108,6 +108,19 @@ describe("character-creation session contract (#242)", () => {
     expect(loaded.profile().policies).toEqual({ economic: 1, social: -1 });
   });
 
+  it("rejects a corrupt creation portrait atomically with a clear error", () => {
+    // A stale draft carrying a remote URL must fail fast at creation, not
+    // produce a world whose save can never reload.
+    const session = new GameSession();
+    expect(() =>
+      session.create({
+        ...setup,
+        homeRegionId: "NY",
+        creation: { ...creation, avatarUrl: "https://example.com/face.png" },
+      }),
+    ).toThrow(/avatar/i);
+  });
+
   it("carries the optional portrait and header through save/relaunch", () => {
     const session = new GameSession();
     session.create({
