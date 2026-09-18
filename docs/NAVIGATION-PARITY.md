@@ -344,6 +344,7 @@ Proven rows:
 | SP/MP separation | SP drawer shows no Multiplayer/Sign-in entries and keeps local End turn + Save game; ready MP screen shows no End turn/Save game at any width |
 | Return to context | Race opened from Politicians returns via Back to politicians with the Politicians region restored; party opened from Parties returns via Back to parties; search hits record the search surface so Back restores query/filters/results |
 | MP account states | Expired session renders Session-expired heading with a Discord reconnect path and a safe Back |
+| MP settings entry | Ready MP sections expose Settings (incl. Appearance) rendering the shared device-local surface in place with a Back-to-sections return; unwired props keep the entry honestly disabled with no dead surface (`MpSettingsEntry510`, 320/390/1280px) |
 
 Return-context model: single-slot `{ route, detailId }` in shell state, captured
 by browse-surface drill-downs, cleared by drawer/deep-link/notification

@@ -11,6 +11,7 @@ import { isCabinetCountryCode, isCabinetPositionId, isCorporationId, isElectionI
 import { MP_EXECUTE_ACTIONS, MP_NOTIFICATION_TYPES, MP_SNOOZE_MINUTES_DEFAULT } from "../mp/endpoints";
 import { formatTurnCountdown } from "../mp/validators";
 import { MpAdminScreen } from "./MpAdminScreen";
+import { SettingsPanel, type SettingsPanelProps } from "./SettingsPanel";
 import { installFooterClearance } from "./footerClearance";
 import "./ui.css";
 
@@ -27,6 +28,17 @@ export interface MpModeScreenProps {
   host?: MpBridgeHost;
   onAsk?: () => void;
   onExit: () => void;
+  /**
+   * Device presentation settings (#510 settings family). The panel is
+   * device-local (text size, motion, transparency, world-map section,
+   * profile media): it never touches world rules, saves, or the
+   * authenticated MP session, so it is safe to surface inside the MP
+   * shell. Absent props keep the entry honestly disabled, mirroring the
+   * unwired-Ask precedent below.
+   */
+  preferences?: SettingsPanelProps["value"];
+  onPreferencesChange?: SettingsPanelProps["onChange"];
+  preferencesError?: string | null;
 }
 
 /* Presence freshness cadence (#359 presence slice): mirrors the reference
@@ -82,7 +94,7 @@ function withPresenceRefresh(session: MpModeSession, base: Promise<MpSnapshot>):
   });
 }
 
-export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
+export function MpModeScreen({ host, onAsk, onExit, preferences, onPreferencesChange, preferencesError }: MpModeScreenProps) {
   const sessionRef = useRef<MpModeSession | null>(null);
   if (!sessionRef.current) sessionRef.current = new MpModeSession(host ?? tauriMpBridgeHost());
   const screenRef = useRef<HTMLElement | null>(null);
@@ -557,6 +569,20 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
             )}
             <button className="ahd-btn ahd-btn-sm" onClick={() => jumpTo("mp-mail")}>
               Mail
+            </button>
+            {/* #510 settings family: Settings (including Appearance) is
+                reachable from home and the SP drawer but was silently
+                missing here, stranding MP players on device presentation.
+                Wired props jump to the shared device surface below; absent
+                props keep the entry honestly disabled, mirroring the
+                unwired-Ask footer precedent. */}
+            <button
+              className="ahd-btn ahd-btn-sm"
+              onClick={() => jumpTo("mp-settings")}
+              disabled={preferences === undefined || onPreferencesChange === undefined}
+              title={preferences === undefined || onPreferencesChange === undefined ? "Settings are unavailable here" : undefined}
+            >
+              Settings
             </button>
           </nav>
         )}
@@ -1324,6 +1350,27 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                 Send mail
               </button>
             </div>
+          </section>
+          <div className="ahd-mp-row ahd-mp-back">
+            <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" onClick={() => jumpTo("mp-top")}>
+              Back to sections
+            </button>
+          </div>
+          </>
+        )}
+
+        {/* Device settings slice (#510 settings family): the shared
+          * device-local Settings surface (text size, motion, transparency,
+          * world-map section, profile media) in place, so MP players are no
+          * longer stranded without it. The panel changes no world rules,
+          * saves, or account access, and the MP session stays mounted: Back
+          * returns to the section list, never into local SP state. Renders
+          * only with wired preferences; otherwise the sections entry above
+          * stays honestly disabled and no dead surface exists. */}
+        {snapshot.character && preferences !== undefined && onPreferencesChange !== undefined && (
+          <>
+          <section id="mp-settings" className="ahd-card ahd-card-pad" aria-label="Device settings" tabIndex={-1}>
+            <SettingsPanel value={preferences} onChange={onPreferencesChange} error={preferencesError} />
           </section>
           <div className="ahd-mp-row ahd-mp-back">
             <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" onClick={() => jumpTo("mp-top")}>
