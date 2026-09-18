@@ -1971,3 +1971,48 @@ ported; prime/APY rates omitted (no Native DTO); no physical-device run.
   have no Native consumer yet (no-strike window only), and the
   `labourNudgesForTurn` feedback has no metric-engine writer (the write
   itself stays a documented blocker).
+
+## Interbank lending and servicing checkpoint, 2026-09-18 (#326)
+
+#326 done as a bounded engine plus session-seam slice on top of the #325
+balance sheet. Child of #109; depends on #329 for failed-bank creditor
+resolution and leaves margin/discount/prop-trading halves unported.
+
+- `packages/engine/src/banking/interbank.ts` (new): `lendInterbank`,
+  `repayInterbank`, `interbankQuote` plus idempotent
+  `serviceInterbankLoans` (interest-only, arrears counter, default
+  write-off on the 8th consecutive shortfall). Gates are source-faithful:
+  active charters both sides, lendable-headroom share cap, lender cash,
+  borrower limits; a failed borrower's repay is refused and its recorded
+  debt settles through `returnDepositBook` (#329), never out-of-band.
+  No kill switch is ported: source gates on privateBanking plus
+  propTrading, but native banking is always on, so an active charter is
+  the whole enablement check. Every mutation validates first and applies
+  lender cash, borrower cash/debt, and loan state together, so failures
+  leave the world byte-identical.
+- Wired into `bankingTurnPhase` after every bank's deposit/interest/
+  premium/named/NPC pass and before `bankSolvencyTurnPhase` reads cash,
+  matching source's bankingTurn (incl. interbank) before solvency order.
+  Registry order verified: bankingTurn, playerLineOfCredit,
+  bankSolvencyTurn. Save schema v48 for `world.interbankLoans` with
+  empty-book backfill on pre-#326 saves.
+- `src/game/session.ts`: `lendInterbank`/`repayInterbank`/`interbankQuote`
+  seam commands over the serialized save.
+
+Evidence: engine `interbank.test.ts` (origination gates, principal
+repayment incl. failed-charter refusal, interest/arrears/default,
+phase ordering, neighbor isolation of retail/insurance/foreign books,
+deterministic ordering, save round-trip and backfill) plus unchanged
+`bankingTurn` (13), `bankSolvencyTurn` (11), `balanceSheet`, `npcBanks`,
+`migration`, `constants`, and `playerLineOfCredit` (19) neighbors, 121
+engine tests green; session `interbank.test.ts` (9: lend/persist,
+over-cap refusal, advance plus interest plus repay, quote boundary,
+uncovered-repay refusal, 8th-shortfall default, determinism,
+byte-identical reload, pre-#326 load) plus unchanged
+`lineOfCreditSession` (2), 11 session tests green. 132 focused total.
+Validation: focused suites only, per the slice boundary — no full
+typecheck, verify, or build, queued with the supervisor.
+
+Honest gaps: failed-bank creditor sweep itself is #329, not here;
+central-bank margin line, B8 discount window, and prop-trading book stay
+unported; no physical-device run.

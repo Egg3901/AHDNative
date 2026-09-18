@@ -10,11 +10,13 @@
  * loan book, and the deposit-insurance premium.
  *
  * Scope cut vs mainline (cited once, applies to this whole module — see
- * banking/types.ts file doc for the itemized list): no interbank market, no
- * central-bank margin line, no proprietary trading book. Those sit behind
- * mainline's separate `bankPropTradingEnabled` kill switch
- * (isBankPropTradingEnabled). The B8 discount-window leg of mainline's
- * dedicated `serviceInterbankAndCbMargin` pass is ported separately in
+ * banking/types.ts file doc for the itemized list): no central-bank margin
+ * line, no proprietary trading book. Those sit behind mainline's separate
+ * `bankPropTradingEnabled` kill switch (isBankPropTradingEnabled).
+ * Mainline's dedicated `serviceInterbankAndCbMargin` pass is split here:
+ * the interbank-interest half is wired below (#326, slot (g), ungated —
+ * native banking has no kill switch, see banking/interbank.ts file doc)
+ * and the B8 discount-window leg is ported separately in
  * banking/discountWindow.ts, which runs as its own phase immediately after
  * this one (see phases/registry.ts) — this module simply never calls that
  * pass.

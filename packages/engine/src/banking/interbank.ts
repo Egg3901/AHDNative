@@ -38,6 +38,13 @@
  *   bankingTurnPhase after every bank's deposit/interest/premium/named/NPC
  *   pass and before bankSolvencyTurnPhase evaluates confidence — matching
  *   source's bankingTurn (incl. interbank) before solvency order.
+ * - No feature-flag gate is ported: source refuses lend/repay with
+ *   "Interbank lending is not enabled" unless the policy enables both
+ *   privateBanking and propTrading. Native declares privateBankingEnabled
+ *   (featureFlags.ts) but nothing reads it — native banking is always on,
+ *   so an active charter is the whole enablement check. Gating only
+ *   interbank on an otherwise unread flag would invent a kill switch solo
+ *   never had.
  * - Borrower-side claims against a failed bank are settled by source's
  *   `returnDepositBook` priority sweep, which has no native counterpart
  *   (issue #329 owns creditor resolution). A failed borrower's
@@ -195,6 +202,10 @@ export function repayInterbank(world: WorldState, loanId: string, amount: number
   const borrower = world.corporations[loan.borrowerCorpId];
   const lender = world.corporations[loan.lenderCorpId];
   if (!borrower || !lender) return { ok: false, error: "Interbank loan not found or not current" };
+  // Source: repay_interbank opens with requireCapability(interbankBorrowing)
+  // on the borrower's snapshot — a failed borrower's recorded debt settles
+  // through returnDepositBook (#329), never through an out-of-band repay.
+  if (!activeCharter(borrower)) return { ok: false, error: "Borrower must have an active bank charter" };
   const repay = Math.min(positiveAmount(amount) ?? 0, Math.max(0, loan.outstanding));
   if (!(repay > 0)) return { ok: false, error: "Nothing to repay" };
   if (repay > Math.max(0, borrower.bankCharter?.cashReserves ?? 0) + 1e-9) {

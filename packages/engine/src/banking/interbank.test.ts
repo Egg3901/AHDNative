@@ -14,6 +14,7 @@ import { rngFromSeed } from "../rng.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { bankingTurnPhase } from "./bankingTurn.js";
 import { bankSolvencyTurnPhase } from "./bankSolvencyTurn.js";
+import { TURN_PHASES } from "../phases/registry.js";
 import type { Corporation } from "../corporation/types.js";
 import {
   INTERBANK_MAX_SHARE_OF_LENDABLE,
@@ -218,6 +219,16 @@ describe("repayInterbank — principal return", () => {
     expect(repayInterbank(world, loanId, 100_000).ok).toBe(true);
     expect(repayInterbank(world, loanId, 1)).toEqual({ ok: false, error: "Interbank loan not found or not current" });
   });
+
+  it("refuses when the borrower's charter is no longer active, touching nothing", () => {
+    // Source: repay_interbank requireCapability(interbankBorrowing) — a
+    // failed borrower's debt settles through returnDepositBook (#329).
+    const { world, peer, loanId } = originated();
+    peer.bankCharter!.status = "failed";
+    const before = snapshot(world);
+    expect(repayInterbank(world, loanId, 1_000)).toEqual({ ok: false, error: "Borrower must have an active bank charter" });
+    expect(snapshot(world)).toBe(before);
+  });
 });
 
 describe("serviceInterbankLoans — interest, arrears, default", () => {
@@ -395,6 +406,62 @@ describe("phase ordering — bankingTurn runs interbank after bank passes, solve
     bankSolvencyTurnPhase.run(world, RNG);
     expect(lenderOf(world).bankCharter!.lastSolvencyTurn).toBe(1);
     expect(cashAtSolvency).toBeGreaterThan(0);
+  });
+});
+
+describe("banking neighbors — interbank moves nothing it does not own", () => {
+  it("origination and servicing leave retail books, insurance, and foreign vaults untouched", () => {
+    const world = createWorld(OPTS);
+    const peer = charterPeer(world);
+    fundLender(world);
+    const foreign = Object.values(world.corporations).find((c) => c.countryId !== "US" && c.bankCharter)!;
+    const foreignCash = foreign.bankCharter!.cashReserves;
+    const retailLoans = JSON.stringify(world.bankLoans);
+    const insurance = JSON.stringify(world.depositInsurance);
+
+    expect(lendInterbank(world, "US-financial", peer.id, 100_000, 4.8).ok).toBe(true);
+    expect(JSON.stringify(world.bankLoans)).toBe(retailLoans);
+    expect(JSON.stringify(world.depositInsurance)).toBe(insurance);
+    expect(foreign.bankCharter!.cashReserves).toBe(foreignCash);
+
+    serviceInterbankLoans(world, 1);
+    expect(JSON.stringify(world.bankLoans)).toBe(retailLoans);
+    expect(JSON.stringify(world.depositInsurance)).toBe(insurance);
+    expect(foreign.bankCharter!.cashReserves).toBe(foreignCash);
+    // Lender/borrower reserve movements are exactly principal then interest.
+    expect(peer.bankCharter!.cashReserves).toBeCloseTo(500_000 + 100_000 - (100_000 * (4.8 / 100)) / 48, 6);
+  });
+
+  it("default clears only the borrower's interbank debt, never retail balances", () => {
+    const world = createWorld(OPTS);
+    const peer = charterPeer(world);
+    fundLender(world);
+    expect(lendInterbank(world, "US-financial", peer.id, 96_000, 4.8).ok).toBe(true);
+    const retailLoans = JSON.stringify(world.bankLoans);
+    peer.bankCharter!.cashReserves = 0;
+    for (let turn = 1; turn <= 8; turn += 1) serviceInterbankLoans(world, turn);
+    expect(world.interbankLoans[0]!.status).toBe("defaulted");
+    expect(peer.bankCharter!.interbankDebt).toBe(0);
+    expect(JSON.stringify(world.bankLoans)).toBe(retailLoans);
+    expect(peer.bankCharter!.totalLoans).toBe(0);
+  });
+});
+
+describe("registry ordering — bankingTurn before solvency (source pipeline order)", () => {
+  it("bankingTurn runs before playerLineOfCredit and bankSolvencyTurn", () => {
+    // Source src/simulation/phases/turnPhaseRegistry.ts: bankingTurn …
+    // lineOfCreditTurn … bankSolvencyTurn. Interbank interest settles inside
+    // bankingTurn, so it is always in the lender's vault before solvency
+    // reads cash.
+    const names = TURN_PHASES.map((p) => p.name);
+    const banking = names.indexOf("bankingTurn");
+    const loc = names.indexOf("playerLineOfCredit");
+    const solvency = names.indexOf("bankSolvencyTurn");
+    expect(banking).toBeGreaterThan(-1);
+    expect(loc).toBeGreaterThan(-1);
+    expect(solvency).toBeGreaterThan(-1);
+    expect(banking).toBeLessThan(loc);
+    expect(loc).toBeLessThan(solvency);
   });
 });
 
