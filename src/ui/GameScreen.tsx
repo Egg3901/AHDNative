@@ -375,8 +375,12 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
     drill(destinations[result.kind], result.id);
   };
 
+  // Notification deep-links into Nations re-point the shared browse context
+  // like navigate() does, so the viewed nation survives later route changes.
+  // The player country is never touched.
   const openNotificationTarget = (target: { route: RouteId; detailId?: string }) => {
     focusPage.current = true;
+    if (target.route === "nations" && target.detailId) setNationContext(target.detailId);
     setReturnStack([]);
     setDetailId(target.detailId);
     setRoute(target.route);
