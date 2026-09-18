@@ -2146,3 +2146,33 @@ typecheck, verify, or build, queued with the supervisor.
 Honest gaps: failed-bank creditor sweep itself is #329, not here;
 central-bank margin line, B8 discount window, and prop-trading book stay
 unported; no physical-device run.
+
+## Action outcome history checkpoint, 2026-09-18 (#58 partial)
+
+#58 stays open: this is one bounded display slice over the existing
+session outcome projection, not the full structured-result scope. No
+engine accounting changed; no save schema change.
+
+- `src/ui/ActionsHub.tsx`: each Recent-results entry now carries an
+  explicit "Succeeded" badge, an accessible `: succeeded` article name,
+  and the recorded result message alongside the existing target,
+  resource/stat changes, and follow-ups. Entries remain successes only:
+  failures record no history (no partial spend) and surface through the
+  existing `role=alert` error banner on the Actions destination.
+- The projection itself (`session.ts` outcome/history via notifications,
+  surviving turn advancement and save/reload) is unchanged and already
+  covered; this slice adds only the status/result copy rendering.
+
+Evidence: `src/ui/ActionsHub.test.tsx` (3 new: success status plus
+result copy rendering, empty history omits the section, history capped
+at five entries), 14 UI tests green; unchanged
+`src/game/actionOutcomes.test.ts` (4: changed resources plus target
+plus follow-ups, history across turn plus save/reload, notification
+projection, prerequisite failure with no spend and no history) green.
+Validation: focused suites only, per the slice boundary — no full
+typecheck, verify, or build, queued with the supervisor.
+
+Honest gaps: no per-action reference outcome copy (AHDGame card/modal
+detail beyond the engine message); failures stay transient banner text
+with no persisted rejected-attempt record; canvass-targeting work on
+another branch is untouched; no physical-device run.
