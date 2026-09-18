@@ -89,6 +89,23 @@ describe("canonical AHD logo asset (#148)", () => {
   });
 });
 
+describe("browser chrome icon reference (#148)", () => {
+  it("points favicon and apple-touch-icon at the bundled offline mark", () => {
+    const html = readFileSync(join(ROOT, "index.html"), "utf8");
+    // index.html already opts into the iOS web-app mode without an icon.
+    expect(html).toContain("apple-mobile-web-app-capable");
+    // Both links must resolve to the bundled canonical asset, never remote.
+    for (const rel of ['rel="icon"', 'rel="apple-touch-icon"']) {
+      const match = html.match(new RegExp(`<link[^>]*${rel}[^>]*>`, "i"));
+      expect(match).not.toBeNull();
+      expect(match?.[0]).toContain("ahd-logo.png");
+      expect(match?.[0]).not.toMatch(/^https?:/m);
+      expect(match?.[0]).not.toContain("http");
+    }
+    expect(existsSync(join(ROOT, "public/ahd-logo.png"))).toBe(true);
+  });
+});
+
 describe("platform icon declarations (#148)", () => {
   it("declares bundle icons that exist on disk", () => {
     const conf = JSON.parse(readFileSync(join(ROOT, "src-tauri/tauri.conf.json"), "utf8"));
