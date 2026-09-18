@@ -1336,10 +1336,30 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
       <footer ref={footerRef} className="ahd-footer ahd-mp-footer" aria-label="Multiplayer navigation">
         <div className="ahd-container ahd-footer-inner">
           <nav className="ahd-bottomnav ahd-mp-bottomnav" aria-label="Primary">
-            <a className="ahd-bottomnav-item" aria-label="Profile" href="#mp-profile">
+            <a
+              className="ahd-bottomnav-item"
+              aria-label="Profile"
+              href="#mp-profile"
+              onClick={(event) => {
+                // Plain anchors scroll without moving DOM focus, stranding
+                // keyboard and screen-reader users in the footer. Route
+                // through the same focus-moving jump-nav as the in-screen
+                // section buttons; href stays as the fallback identity.
+                event.preventDefault();
+                jumpTo("mp-profile");
+              }}
+            >
               <NavIcon path={BOTTOM_TABS[0].path} label="" /><span>Profile</span>
             </a>
-            <a className="ahd-bottomnav-item" aria-label="Actions" href="#mp-actions">
+            <a
+              className="ahd-bottomnav-item"
+              aria-label="Actions"
+              href="#mp-actions"
+              onClick={(event) => {
+                event.preventDefault();
+                jumpTo("mp-actions");
+              }}
+            >
               <NavIcon path={BOTTOM_TABS[1].path} label="" /><span>Actions</span>
             </a>
             {/* #510: Ask without a host callback is an unsupported MP

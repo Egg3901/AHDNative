@@ -123,6 +123,20 @@ describe.each([320, 390])("MP footer navigation at %spx", (width) => {
   });
 });
 
+describe.each([320, 390])("MP footer destination focus at %spx", (width) => {
+  it("moves focus to the section like the in-screen jump-nav does", async () => {
+    const user = userEvent.setup();
+    const queries = nav(await renderReady(width));
+    await user.click(queries.getByRole("link", { name: "Profile" }));
+    expect(window.location.hash).toBe("#mp-profile");
+    expect(document.getElementById("mp-profile")).toHaveFocus();
+
+    await user.click(queries.getByRole("link", { name: "Actions" }));
+    expect(window.location.hash).toBe("#mp-actions");
+    expect(document.getElementById("mp-actions")).toHaveFocus();
+  });
+});
+
 describe("MP footer shared-system parity", () => {
   it("reuses the single-player Ask and Menu icon paths", () => {
     expect(ASK_ICON_PATH).toBe(BOTTOM_TABS.find((tab) => tab.id === "ask")!.path);
