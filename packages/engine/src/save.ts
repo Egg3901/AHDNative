@@ -7,6 +7,7 @@ import { DEFAULT_NPP_AUTONOMY_LEVEL, isNppAutonomyLevel } from "./nppAutonomyLev
 import { TENSION_BASELINE } from "./coldWar/constants.js";
 import { NUCLEAR_CAPABLE } from "./coldWar/nuclear.js";
 import { normalizeShares } from "./alignment/alignment.js";
+import { validateAlignmentRecords } from "./alignment/recordValidation.js";
 import { seedInternationalOrgs } from "./internationalOrgs/seed.js";
 import { assignUsSeatGeography } from "./elections/seatGeography.js";
 import { CENTRAL_BANK_COUNTRY_ANCHORS, CHAIR_TERM_TURNS } from "./centralBank/constants.js";
@@ -2834,6 +2835,16 @@ export function deserializeSave(raw: string): WorldState {
   }
   if (save.world.pensionLedger !== undefined) {
     validatePensionLedger(save.world, save.world.pensionLedger);
+  }
+  // #112: alignment rows. Saves written before the W32 slice carry no map
+  // and the v33->v37 migration backfills it via normalizeShares, so missing
+  // degrades to seeded shares and absent stays absent (no materialization),
+  // keeping untouched saves byte-identical. Present-but-invalid rows fail
+  // closed against the normalize.ts invariant (grid + exact-100 total, known
+  // poles only) — same additive shape as the #320/#321 backfills above, so
+  // no version renumber is needed.
+  if (save.world.alignments !== undefined) {
+    validateAlignmentRecords(save.world.alignments);
   }
   return save.world;
 }
