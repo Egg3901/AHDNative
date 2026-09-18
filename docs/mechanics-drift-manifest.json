@@ -30,7 +30,7 @@
       ],
       "consumers": [
         "packages/engine/src/phases/",
-        "packages/engine/src/registry.ts",
+        "packages/engine/src/phases/registry.ts",
         "packages/engine/src/engine.ts"
       ]
     },
@@ -88,7 +88,7 @@
       ],
       "consumers": [
         "packages/content/src/packs/",
-        "packages/engine/src/content/",
+        "packages/engine/src/world.ts",
         "packages/engine/src/types.ts"
       ]
     },

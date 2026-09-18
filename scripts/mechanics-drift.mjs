@@ -6,12 +6,18 @@
  * important mechanics paths to Native consumers. The scanner compares two
  * immutable Git revisions, reports affected slices, and can fail a consumer
  * update gate when source drift is present or a changed path is unclassified.
- * It never executes source code and never contacts GitHub itself.
+ * Declared consumers are fail-closed: every consumer must resolve to a file
+ * or directory in this repository, so drift can never route to a deleted or
+ * renamed path without failing. It never executes source code and never
+ * contacts GitHub itself.
  *
  *   node scripts/mechanics-drift.mjs \
  *     --source <AHDGame-checkout> \
  *     --manifest docs/mechanics-drift-manifest.json \
  *     [--to <revision-or-ref>] [--fail-on-drift]
+ *   node scripts/mechanics-drift.mjs \
+ *     --manifest docs/mechanics-drift-manifest.json \
+ *     --check-consumers
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -22,10 +28,13 @@ const REPO_ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const SHA_RE = /^[0-9a-f]{40}$/;
 
 const USAGE = `usage: node scripts/mechanics-drift.mjs --source <checkout> --manifest <path> [--to <ref>] [--fail-on-drift]
+       node scripts/mechanics-drift.mjs --manifest <path> --check-consumers
 
 Compare the manifest's pinned AHDGame revision with a target Git revision.
 The default target is HEAD. Without --fail-on-drift the command reports
 affected slices for review; --fail-on-drift makes source changes gateable.
+--check-consumers needs no source checkout: it fails when any declared
+consumer does not resolve to a file or directory in this repository.
 `;
 
 class CliError extends Error {
@@ -56,8 +65,15 @@ function takeValue(flag, argv, index) {
 }
 
 function parseArgs(argv) {
-  /** @type {{ source: string | undefined, manifest: string | undefined, target: string, failOnDrift: boolean, help: boolean }} */
-  const flags = { source: undefined, manifest: undefined, target: "HEAD", failOnDrift: false, help: false };
+  /** @type {{ source: string | undefined, manifest: string | undefined, target: string, failOnDrift: boolean, checkConsumers: boolean, help: boolean }} */
+  const flags = {
+    source: undefined,
+    manifest: undefined,
+    target: "HEAD",
+    failOnDrift: false,
+    checkConsumers: false,
+    help: false,
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--help" || arg === "-h") flags.help = true;
@@ -68,6 +84,7 @@ function parseArgs(argv) {
     else if (arg === "--to") flags.target = takeValue("--to", argv, ++i);
     else if (arg.startsWith("--to=")) flags.target = arg.slice("--to=".length);
     else if (arg === "--fail-on-drift") flags.failOnDrift = true;
+    else if (arg === "--check-consumers") flags.checkConsumers = true;
     else usageError(`unknown argument: ${arg}`);
   }
   return flags;
@@ -128,6 +145,9 @@ function readManifest(input) {
     if (!Array.isArray(slice.consumers) || slice.consumers.length === 0) {
       fail(`manifest slice ${slice.id} consumers are required`);
     }
+    for (const consumer of slice.consumers) {
+      assertConsumerResolves(slice.id, consumer);
+    }
     for (const path of paths) {
       const exactPath = path.endsWith("/") ? path.slice(0, -1) : path;
       if (!trackedRoots.some((root) => exactPath === root || exactPath.startsWith(`${root}/`))) {
@@ -153,6 +173,24 @@ function normalizeSourcePath(value, label, allowPrefix = false) {
     fail(`${label} must be a relative POSIX path`);
   }
   return allowPrefix && value.endsWith("/") ? `${normalized}/` : normalized;
+}
+
+function assertConsumerResolves(sliceId, consumer) {
+  if (
+    typeof consumer !== "string" ||
+    consumer.length === 0 ||
+    consumer.includes("\0") ||
+    consumer.includes("\\") ||
+    isAbsolute(consumer) ||
+    consumer.split("/").includes("..") ||
+    consumer.split("/").includes(".") ||
+    consumer.includes("//")
+  ) {
+    fail(`slice ${sliceId} consumer must be a relative POSIX path`);
+  }
+  if (!existsSync(resolve(REPO_ROOT, consumer))) {
+    fail(`slice ${sliceId} consumer does not exist: ${consumer}`);
+  }
 }
 
 function resolveRevision(source, revision, label) {
@@ -223,10 +261,16 @@ function main(argv) {
     process.stdout.write(USAGE);
     return;
   }
-  if (!flags.source) usageError("--source is required");
   if (!flags.manifest) usageError("--manifest is required");
-  const source = resolveSourceDir(flags.source);
   const manifest = readManifest(flags.manifest);
+  if (flags.checkConsumers) {
+    process.stdout.write(
+      `mechanics-drift: ${manifest.slices.length} slices, all declared consumers resolve\n`,
+    );
+    return;
+  }
+  if (!flags.source) usageError("--source is required");
+  const source = resolveSourceDir(flags.source);
   const from = resolveRevision(source, manifest.baselineRevision, "baseline");
   const to = resolveRevision(source, flags.target, "target");
   const paths = changedPaths(source, from, to, manifest.trackedRoots);
