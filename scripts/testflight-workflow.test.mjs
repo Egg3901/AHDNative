@@ -36,6 +36,14 @@ const REQUIRED_SIGNING_VARS = [
 describe("ios-private-testflight workflow", () => {
   it("defines exactly one workflow and no automatic triggers", () => {
     assert.match(WORKFLOW, /^\s{2}ios-private-testflight:$/m);
+    const names = [...WORKFLOW.matchAll(/^ {2}([A-Za-z0-9_-]+):\s*$/gm)].map(
+      (m) => m[1],
+    );
+    assert.deepEqual(
+      names,
+      ["ios-private-testflight"],
+      "no second workflow may appear beside the manual preview",
+    );
     for (const banned of [
       "triggering",
       "schedule",
@@ -102,6 +110,17 @@ describe("ios-private-testflight workflow", () => {
       WORKFLOW.includes("publishing:") &&
         WORKFLOW.includes("app_store_connect:"),
       "must keep the App Store Connect upload (not artifact-only export)",
+    );
+    for (const key of ["api_key:", "key_id:", "issuer_id:"]) {
+      assert.ok(
+        WORKFLOW.includes(key),
+        `upload auth must keep ${key} (actual upload, not artifact-only export)`,
+      );
+    }
+    assert.doesNotMatch(
+      WORKFLOW,
+      /^\s*beta_groups\s*:/m,
+      "no automatic tester-group distribution; the owner adds the build by hand",
     );
     assert.ok(
       /testFlightInternalTestingOnly["']?\]\s*=\s*True/.test(WORKFLOW),
