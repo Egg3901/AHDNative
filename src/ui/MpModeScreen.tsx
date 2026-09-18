@@ -7,7 +7,7 @@ import {
 } from "./MobileNavigation";
 import { MpModeSession, type MpSnapshot } from "../mp/adapter";
 import { tauriMpBridgeHost, type MpBridgeHost } from "../mp/bridge";
-import { isCorporationId, isElectionId } from "../mp/validators";
+import { isCorporationId, isElectionId, isUnionId } from "../mp/validators";
 import { MP_EXECUTE_ACTIONS, MP_NOTIFICATION_TYPES, MP_SNOOZE_MINUTES_DEFAULT } from "../mp/endpoints";
 import { formatTurnCountdown } from "../mp/validators";
 import { MpAdminScreen } from "./MpAdminScreen";
@@ -44,6 +44,7 @@ const IDLE: MpSnapshot = {
   capabilities: null,
   electionDetail: null,
   corporationDetail: null,
+  unionDetail: null,
   inbox: null,
   mailInbox: null,
   mailSent: null,
@@ -104,6 +105,9 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   /* Corporation detail drill-in (#359 corporation slice): same contract as
    * the election panel, one company at a time. */
   const [corporationOpen, setCorporationOpen] = useState(false);
+  /* Union detail drill-in (#359 union slice): same contract as the
+   * election and corporation panels, one union at a time. */
+  const [unionOpen, setUnionOpen] = useState(false);
 
   useEffect(() => {
     const session = sessionRef.current!;
@@ -237,6 +241,15 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     return isCorporationId(target) ? target : null;
   })();
 
+  /* Standing union drill-in target: the live-site /unions/[id] reference,
+   * gated on a valid union id. An invalid or absent reference keeps the
+   * row display-only: no control, no request. The adapter and the Rust
+   * bridge re-validate before sending. */
+  const unionTarget = (() => {
+    const target = snapshot.capabilities?.unionId ?? null;
+    return target !== null && isUnionId(target) ? target : null;
+  })();
+
   /* The detail panel opens only once the authoritative summary is loaded;
    * failures stay on the shared error display with Standing intact. */
   function openElection(target: string) {
@@ -257,6 +270,18 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
       if (next?.corporationDetail) {
         setCorporationOpen(true);
         window.setTimeout(() => jumpTo("mp-corporation"), 0);
+      }
+    });
+  }
+
+  /* The union panel opens only once the authoritative summary is loaded;
+   * failures stay on the shared error display with Standing intact. */
+  function openUnion(target: string) {
+    setNoticeScope("general");
+    void run((s) => s.loadUnionDetail(target)).then((next) => {
+      if (next?.unionDetail) {
+        setUnionOpen(true);
+        window.setTimeout(() => jumpTo("mp-union"), 0);
       }
     });
   }
@@ -302,14 +327,18 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   const needsSession = phase === "idle" || phase === "loading" || phase === "session-required" || phase === "signed-out" || phase === "auth-expired";
 
   /* Auth expiry evicts the details with every other authed projection, so
-   * an open panel closes itself instead of showing a stale race or company.
-   * Above the admin early-return: every render runs the same hooks. */
+   * an open panel closes itself instead of showing a stale race, company,
+   * or union. Above the admin early-return: every render runs the same
+   * hooks. */
   useEffect(() => {
     if (needsSession && electionOpen) setElectionOpen(false);
   }, [needsSession, electionOpen]);
   useEffect(() => {
     if (needsSession && corporationOpen) setCorporationOpen(false);
   }, [needsSession, corporationOpen]);
+  useEffect(() => {
+    if (needsSession && unionOpen) setUnionOpen(false);
+  }, [needsSession, unionOpen]);
 
   if (adminOpen) {
     return <MpAdminScreen host={host} onBack={() => setAdminOpen(false)} />;
@@ -329,6 +358,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
 
   const visibleElection = !needsSession && electionOpen ? snapshot.electionDetail : null;
   const visibleCorporation = !needsSession && corporationOpen ? snapshot.corporationDetail : null;
+  const visibleUnion = !needsSession && unionOpen ? snapshot.unionDetail : null;
   const electionPhaseLabel = visibleElection
     ? visibleElection.isEnded
       ? "Ended"
@@ -469,12 +499,13 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
               * /unions/[id], My election -> /elections/[seatId ?? id],
               * cabinet -> /country/[cc]/executive/cabinet/[position]/office,
               * governor -> /country/[cc]/region/[state]/office). The
-              * election and corporation rows are real drill-ins: the
-              * election-detail read (GET /api/elections?id=&view=summary)
-              * and the corporation-detail read (GET /api/corporations/[id])
-              * are allowlisted and have Native MP surfaces below. The other
-              * three rows stay display-only: no dead controls, no links
-              * into local SP state. A row becomes actionable only with a
+              * election, corporation, and union rows are real drill-ins: the
+              * election-detail read (GET /api/elections?id=&view=summary),
+              * the corporation-detail read (GET /api/corporations/[id]),
+              * and the union-detail read (GET /api/unions/[id]) are
+              * allowlisted and have Native MP surfaces below. The other two
+              * rows stay display-only: no dead controls, no links into
+              * local SP state. A row becomes actionable only with a
               * supported authoritative MP destination behind it. */}
             {snapshot.capabilities && (
               <article className="ahd-card ahd-card-pad" aria-label="Standing">
@@ -502,7 +533,23 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                         )}
                       </dd></>
                     )}
-                    {snapshot.capabilities.unionId && (<><dt>Union</dt><dd>{snapshot.capabilities.unionId}</dd></>)}
+                    {snapshot.capabilities.unionId && (
+                      <><dt>Union</dt><dd>
+                        {snapshot.capabilities.unionId}
+                        {unionTarget && (
+                          <>
+                            {" "}
+                            <button
+                              className="ahd-btn ahd-btn-sm"
+                              disabled={busy}
+                              onClick={() => openUnion(unionTarget)}
+                            >
+                              View union
+                            </button>
+                          </>
+                        )}
+                      </dd></>
+                    )}
                     {snapshot.capabilities.activeElectionLabel && (
                       <><dt>Election</dt><dd>
                         {snapshot.capabilities.activeElectionLabel}
@@ -619,6 +666,40 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
               className="ahd-btn ahd-btn-sm ahd-btn-ghost"
               onClick={() => {
                 setCorporationOpen(false);
+                jumpTo("mp-profile");
+              }}
+            >
+              Back to Standing
+            </button>
+          </div>
+          </>
+        )}
+
+        {/* Union detail drill-in (#359 union slice): authoritative summary
+          * for the Standing union, opened only with data loaded. Read-only:
+          * bargaining, dues/services, pension, endorsements, and every write
+          * stay absent. Back returns to Standing, never into local SP
+          * state. */}
+        {visibleUnion && (
+          <>
+          <article id="mp-union" className="ahd-card ahd-card-pad" aria-label="Union detail" tabIndex={-1}>
+            <h2 className="ahd-h2">{visibleUnion.name}</h2>
+            <dl className="ahd-mp-facts">
+              {(visibleUnion.sectorLabel ?? visibleUnion.sectorType) && (<><dt>Sector</dt><dd>{visibleUnion.sectorLabel ?? visibleUnion.sectorType}</dd></>)}
+              <dt>Country</dt><dd>{visibleUnion.countryName ?? visibleUnion.countryId}</dd>
+              <dt>Leadership</dt><dd>{visibleUnion.electionOpen === true ? "Election open" : visibleUnion.electionOpen === false ? "Settled" : "Unknown"}</dd>
+              <dt>Members</dt><dd>{visibleUnion.members ?? "Not yet priced"}</dd>
+              <dt>Approval</dt><dd>{visibleUnion.approval ?? "Not yet priced"}</dd>
+              <dt>Treasury</dt><dd>{visibleUnion.treasury ?? "Not yet priced"}</dd>
+              <dt>Scale</dt><dd>{visibleUnion.sectorCount === 1 ? "1 sector" : `${visibleUnion.sectorCount} sectors`}</dd>
+              {visibleUnion.suspended === true && (<><dt>Status</dt><dd>Suspended in this country</dd></>)}
+            </dl>
+          </article>
+          <div className="ahd-mp-row ahd-mp-back">
+            <button
+              className="ahd-btn ahd-btn-sm ahd-btn-ghost"
+              onClick={() => {
+                setUnionOpen(false);
                 jumpTo("mp-profile");
               }}
             >

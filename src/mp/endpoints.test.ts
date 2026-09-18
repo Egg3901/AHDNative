@@ -177,6 +177,23 @@ describe("MP admin-maintenance pin (#359)", () => {
     expect(mutateBlock).not.toMatch(/corporation/i);
   });
 
+  it("pins the union-detail read on the public unions route", () => {
+    const op: MpFetchOpId = "union-detail";
+    expect(op).toBe("union-detail");
+    const source = readFileSync(new URL("./endpoints.ts", import.meta.url), "utf8");
+    const fetchBlock = source.slice(source.indexOf("export type MpFetchOpId"), source.indexOf("export type MpMutateOpId"));
+    expect(fetchBlock).toMatch(/union-detail/);
+    const docBlock = source.slice(0, source.indexOf("export const MP_AUDIT_REVISION"));
+    expect(docBlock).toMatch(/union-detail/);
+    expect(docBlock).toMatch(/\/api\/unions\/\[id\]/);
+    expect(docBlock).toMatch(/no auth required/);
+    expect(docBlock).toMatch(/not in full mode/);
+    expect(docBlock).toMatch(/404/);
+    expect(docBlock).toMatch(/no-store/);
+    const mutateBlock = source.slice(source.indexOf("export type MpMutateOpId"), source.indexOf("export type MpExecuteActionType"));
+    expect(mutateBlock).not.toMatch(/union/i);
+  });
+
   it("keeps player mail fetch ops next to the admin-maintenance read", () => {
     const source = readFileSync(new URL("./endpoints.ts", import.meta.url), "utf8");
     const fetchBlock = source.slice(source.indexOf("export type MpFetchOpId"), source.indexOf("export type MpMutateOpId"));

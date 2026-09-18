@@ -192,6 +192,7 @@ describe("MpModeSession enter", () => {
       capabilities: null,
       electionDetail: null,
       corporationDetail: null,
+      unionDetail: null,
       inbox: null,
       mailInbox: null,
       mailSent: null,
@@ -678,7 +679,7 @@ describe("MpModeSession election detail (#359 election slice)", () => {
       candidateCount: 2,
       leaderName: "Ada",
     });
-    expect(host.fetch).toHaveBeenCalledWith("election-detail", undefined, undefined, SEAT_ID, undefined);
+    expect(host.fetch).toHaveBeenCalledWith("election-detail", undefined, undefined, SEAT_ID, undefined, undefined);
   });
 
   it("rejects bad references client-side without a bridge call", async () => {
@@ -804,7 +805,7 @@ describe("MpModeSession corporation detail (#359 corporation slice)", () => {
       ceoName: "Ada",
       sectorCount: 2,
     });
-    expect(host.fetch).toHaveBeenCalledWith("corporation-detail", undefined, undefined, undefined, "42");
+    expect(host.fetch).toHaveBeenCalledWith("corporation-detail", undefined, undefined, undefined, "42", undefined);
   });
 
   it("rejects bad references client-side without a bridge call", async () => {
@@ -879,6 +880,142 @@ describe("MpModeSession corporation detail (#359 corporation slice)", () => {
     const refreshed = await session.refresh();
     expect(refreshed.phase).toBe("ready");
     expect(refreshed.corporationDetail?.name).toBe("Acme Consolidated");
+    expect(JSON.stringify(refreshed)).not.toMatch(/sp_|singleplayer|localSave/i);
+  });
+});
+
+describe("MpModeSession union detail (#359 union slice)", () => {
+  const HEX_ID = "68a000000000000000000001";
+  const detail = () =>
+    JSON.stringify({
+      union: {
+        id: HEX_ID,
+        name: "Amalgamated Millhands",
+        countryId: "US",
+        countryName: "United States",
+        sectorType: "manufacturing",
+        sectorLabel: "Manufacturing",
+        ownerId: USER_A,
+        electionOpen: false,
+        members: 1200,
+        approval: 62,
+        treasury: 4500,
+        suspended: false,
+      },
+      sectors: [{}, {}],
+      workforce: { unionizedWorkers: 1200 },
+    });
+
+  function enteredHost(extraFetch: Record<string, Array<string | { reject: string }>>) {
+    return scriptedHost({
+      fetch: {
+        "auth-session": [probeA],
+        "character-me": [meA(1000)],
+        "turn-status": [turn()],
+        "client-nav": [caps()],
+        notifications: [inbox()],
+        ...extraFetch,
+      },
+    });
+  }
+
+  it("loads the union on demand with the validated id, never on enter", async () => {
+    const { host, calls } = enteredHost({ "union-detail": [detail()] });
+    const session = new MpModeSession(host);
+    const entered = await session.enter();
+    expect(entered.phase).toBe("ready");
+    expect(entered.unionDetail).toBeNull();
+    expect(entered.electionDetail).toBeNull();
+    expect(entered.corporationDetail).toBeNull();
+    expect(calls.some((call) => call.op === "union-detail")).toBe(false);
+    const loaded = await session.loadUnionDetail(HEX_ID);
+    expect(loaded.phase).toBe("ready");
+    expect(loaded.unionDetail).toMatchObject({
+      id: HEX_ID,
+      name: "Amalgamated Millhands",
+      sectorCount: 2,
+    });
+    expect(host.fetch).toHaveBeenCalledWith("union-detail", undefined, undefined, undefined, undefined, HEX_ID);
+  });
+
+  it("rejects bad references client-side without a bridge call", async () => {
+    const { host, calls } = enteredHost({});
+    const session = new MpModeSession(host);
+    await session.enter();
+    calls.length = 0;
+    for (const bad of ["e1", "42", "union-42", `${HEX_ID}?view=full`, "", null, 42]) {
+      const snapshot = await session.loadUnionDetail(bad);
+      expect(snapshot.error, JSON.stringify(bad)).toMatch(/union reference is invalid/);
+    }
+    expect(calls).toHaveLength(0);
+    expect(session.get().unionDetail).toBeNull();
+  });
+
+  it("fails closed on malformed bodies and keeps prior detail on remote failures", async () => {
+    const { host } = enteredHost({
+      "union-detail": [
+        detail(),
+        "{oops",
+        detail(),
+        { reject: "remote-error:404:0:{\"error\":\"Union not found\"}" },
+        { reject: "remote-error:403:0:{\"error\":\"Player-run unions are not enabled.\"}" },
+        { reject: "remote-error:500:0:{\"error\":\"boom\"}" },
+      ],
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+    expect((await session.loadUnionDetail(HEX_ID)).unionDetail?.sectorCount).toBe(2);
+    const malformed = await session.loadUnionDetail(HEX_ID);
+    expect(malformed.phase).toBe("server-error");
+    expect(malformed.error).toMatch(/union record/);
+    expect(malformed.unionDetail).toBeNull();
+    expect((await session.loadUnionDetail(HEX_ID)).phase).toBe("ready");
+    const missing = await session.loadUnionDetail(HEX_ID);
+    expect(missing.phase).toBe("offline");
+    expect(missing.error).toMatch(/Union not found/);
+    expect(missing.unionDetail?.sectorCount).toBe(2);
+    // A 403 while the labour system is disabled keeps prior detail too.
+    const disabled = await session.loadUnionDetail(HEX_ID);
+    expect(disabled.phase).toBe("offline");
+    expect(disabled.error).toMatch(/not enabled/);
+    expect(disabled.unionDetail?.sectorCount).toBe(2);
+    const outage = await session.loadUnionDetail(HEX_ID);
+    expect(outage.phase).toBe("server-error");
+    expect(outage.error).toMatch(/boom/);
+    expect(outage.unionDetail?.sectorCount).toBe(2);
+  });
+
+  it("evicts the detail with standing on auth expiry and clears it on exit", async () => {
+    const { host } = enteredHost({
+      "union-detail": [detail(), { reject: "remote-error:401:0:{\"error\":\"Unauthorized\"}" }],
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+    await session.loadUnionDetail(HEX_ID);
+    expect(session.get().unionDetail?.id).toBe(HEX_ID);
+    const expired = await session.loadUnionDetail(HEX_ID);
+    expect(expired.phase).toBe("auth-expired");
+    expect(expired.unionDetail).toBeNull();
+    expect(expired.capabilities).toBeNull();
+    session.exit();
+    expect(session.get().unionDetail).toBeNull();
+  });
+
+  it("leaves the detail alone on refresh and never touches SP state", async () => {
+    const { host } = enteredHost({
+      "auth-session": [probeA, probeA],
+      "character-me": [meA(1000), meA(1000)],
+      "turn-status": [turn(), turn()],
+      "client-nav": [caps(), caps()],
+      notifications: [inbox(), inbox()],
+      "union-detail": [detail()],
+    });
+    const session = new MpModeSession(host);
+    await session.enter();
+    await session.loadUnionDetail(HEX_ID);
+    const refreshed = await session.refresh();
+    expect(refreshed.phase).toBe("ready");
+    expect(refreshed.unionDetail?.name).toBe("Amalgamated Millhands");
     expect(JSON.stringify(refreshed)).not.toMatch(/sp_|singleplayer|localSave/i);
   });
 });
