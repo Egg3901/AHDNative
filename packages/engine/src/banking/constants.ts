@@ -319,6 +319,13 @@ export interface ConfidenceInput {
   arrearsOutstanding: number;
   defaultsLastTurn: number;
   panicTurns: number;
+  /**
+   * #327: B8 discount-window stigma, already computed on the 0..1 confidence
+   * scale by discountWindowStigma. Absent/0 for a bank that never drew, which
+   * leaves pre-#327 scoring exactly unchanged.
+   * Source: rules/confidence.ts ConfidenceInput.discountWindowStigma.
+   */
+  discountWindowStigma?: number;
 }
 export interface ConfidenceResult {
   confidence: number;
@@ -327,10 +334,9 @@ export interface ConfidenceResult {
 export type ConfidenceBand = "green" | "amber" | "red";
 
 /**
- * Source: confidence.ts computeConfidence, scope-cut form (no
- * forcedLiquidation/discountWindowStigma penalties — prop trading and the
- * discount window are out of scope, see types.ts file doc, so both terms are
- * always 0 here).
+ * Source: confidence.ts computeConfidence. The forcedLiquidation penalty stays
+ * out of scope (prop trading, #328 — see types.ts file doc); the
+ * discountWindowStigma penalty is live (#327).
  */
 export function computeConfidence(input: ConfidenceInput): ConfidenceResult {
   const cash = Math.max(0, input.cashReserves);
@@ -357,7 +363,12 @@ export function computeConfidence(input: ConfidenceInput): ConfidenceResult {
     CONFIDENCE_CAPITAL_WEIGHT * capitalCover +
     CONFIDENCE_ASSET_QUALITY_WEIGHT * assetQuality;
 
-  const penalized = raw - CONFIDENCE_PANIC_PENALTY_PER_TURN * Math.min(panicTurns, CONFIDENCE_PANIC_TURNS_CAP);
+  const stigma =
+    typeof input.discountWindowStigma === "number" && Number.isFinite(input.discountWindowStigma)
+      ? Math.max(0, input.discountWindowStigma)
+      : 0;
+  const penalized =
+    raw - CONFIDENCE_PANIC_PENALTY_PER_TURN * Math.min(panicTurns, CONFIDENCE_PANIC_TURNS_CAP) - stigma;
   const confidence = clamp(penalized, 0, 1);
   const band: ConfidenceBand =
     confidence >= CONFIDENCE_BAND_GREEN_MIN ? "green" : confidence >= CONFIDENCE_BAND_AMBER_MIN ? "amber" : "red";

@@ -34,6 +34,7 @@ import {
   RUN_FAILURE_COVER_FRACTION,
   computeConfidence,
 } from "./constants.js";
+import { discountWindowStigma } from "./discountWindow.js";
 
 export interface BankSolvencyTurnSummary {
   banksEvaluated: number;
@@ -122,6 +123,10 @@ function evaluateOneBank(
     arrearsOutstanding,
     defaultsLastTurn,
     panicTurns: charter.panicTurns,
+    // #327: borrowing from the lender of last resort reads as a bank that
+    // could not fund itself elsewhere (rules/confidence.ts). Zero for a bank
+    // that never drew, so pre-#327 scoring is unchanged.
+    discountWindowStigma: discountWindowStigma(charter),
   });
 
   const priorBand = charter.warningBand;
@@ -172,10 +177,11 @@ function sumLoanOutstanding(world: WorldState, bankCorpId: string, status: "arre
  * solo's single named player + one NPC household pool (see file doc for the
  * Treasury-backstop cut).
  *
- * NPC deposits are cash-backed: the bank's remaining cash pays the household
- * pool first, the insurance fund tops up to `insuredCap` next, and anything
- * still short is an uninsured loss (accounted in the summary, not silently
- * destroyed nor invented).
+ * NPC deposits are cash-backed: the senior central-bank window claim
+ * (debt + arrears, #327) is settled first, then the remaining cash pays the
+ * household pool, the insurance fund tops up to `insuredCap` next, and
+ * anything still short is an uninsured loss (accounted in the summary, not
+ * silently destroyed nor invented).
  *
  * Player savings are a POINTER (see constants.ts / balanceSheet.ts doc): no
  * cash ever left `player.savings` for a deposit, so failure costs the
@@ -189,6 +195,25 @@ function resolveFailedBank(world: WorldState, corp: Corporation, turn: number, s
   if (charter.depositorsResolvedTurn !== null) return;
 
   let available = Math.max(0, charter.cashReserves);
+
+  // (0) Senior central-bank window claim, before depositors.
+  // Source: depositBookReturn.ts waterfall tier 1 (window debt + arrears, one
+  // tier with the margin line). Only the window leg is ported (#327); margin
+  // and interbank senior claims complete with #326/#328 and are untouched
+  // here (documented residual). Repaid money retires: Native carries no
+  // netMoneyCreatedLifetime counter (centralBank/types.ts scope cut), so the
+  // paid leg simply leaves circulation, symmetric with repayDiscountWindow.
+  const windowOwed =
+    (typeof charter.discountWindowDebt === "number" && Number.isFinite(charter.discountWindowDebt)
+      ? Math.max(0, charter.discountWindowDebt)
+      : 0) +
+    (typeof charter.discountWindowArrears === "number" && Number.isFinite(charter.discountWindowArrears)
+      ? Math.max(0, charter.discountWindowArrears)
+      : 0);
+  available = Math.max(0, available - Math.min(available, windowOwed));
+  charter.discountWindowDebt = 0;
+  charter.discountWindowArrears = 0;
+
   let npcClaim = Math.max(0, charter.npcDeposits);
 
   const fromCash = Math.min(available, npcClaim);
