@@ -11,8 +11,8 @@
  *  - Single sovereign maturity (48t) per quarterly auction, not staggered 48/96/240 distribution. The distribution is an admin reconcile convenience and not required for the quarterly deficit auction shape; trace still shows price/yield vs prime correctly.
  *  - Rollover: solo rolls over *exact* maturing principal coming due next quarter (like mainline's calculateSovereignRolloverAmount) but only for the integer number of bonds whose maturityTurn falls in [turn, turn+12). This keeps the float stable even in surplus — cited.
  *  - Sovereign bonds denominate in the issuing budget's currencyCode. Player
- *    coupons and principal settle in that denomination; cross-currency trades
- *    remain blocked in the action layer pending #306.
+ *    coupons, principal, and action trades all settle in that denomination
+ *    (#305 for flows, #306 for buy/sell against currencyBalances.personal).
  *  - Corporate bonds (#307) are inert state: coupon, maturity, buyback, and
  *    default servicing on corporate issues is #308, so the cash-flow phases
  *    below skip issuerType "corporation" (price stays at issuance par until

@@ -362,7 +362,9 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - #305: sovereign coupons and matured principal now settle in the bond's
   authoritative denomination. Home-currency flows retain the legacy `cash`
   projection; foreign balances persist in optional per-currency player state.
-  Foreign trading remains tracked by #306, corporate lifecycle by #307/#308,
+- #306: sovereign buy/sell now debit and credit the balance named by
+  `bond.currencyCode` in one atomic action transition, with insufficient
+  denomination balance refusing untouched. Corporate lifecycle by #307/#308,
   and phase alignment by #309.
 - The genuine elected-save flow retains the selected issue and remaining units
   across trades and relaunch. [Bond evidence](BOND-MARKET.md) records the exact

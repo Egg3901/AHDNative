@@ -13,8 +13,9 @@ import { formatFinanceMoney } from './FinancePanel';
 import { formatGameTurn, type GameClock } from '../game/gameDate';
 
 /**
- * BondMarketPanel: sovereign inventory, domestic trade tickets, and a
- * source-grounded market visual.
+ * BondMarketPanel: sovereign inventory, denomination-settled trade tickets, and a
+ * source-grounded market visual. Home-currency issues settle in personal cash;
+ * foreign issues settle in the matching personal foreign balance (#306).
  *
  * Visual provenance (read-only inspection, no remote fetch):
  * - Status badges mirror AHDGame `src/app/bond/[id]/components/BondHeroPanel.tsx`
@@ -110,6 +111,7 @@ export function BondMarketPanel({ market, busy, onAction, selectedId, onSelect }
         <div className="ahd-kv"><dt>Price vs par</dt><dd style={{ margin: 0, textAlign: "right" }}>{priceVsParLabel(bond.marketPrice, bond.defaulted)}</dd></div>
         <div className="ahd-kv"><dt>Maturity</dt><dd style={{ margin: 0, textAlign: "right" }}>{formatGameTurn(bond.maturityTurn, clock)} ({turnsLeft} turns remaining)</dd></div>
         <div className="ahd-kv"><dt>Available units</dt><dd style={{ margin: 0, textAlign: "right" }}>{bond.publicFloat.toLocaleString()}</dd></div>
+        <div className="ahd-kv"><dt>Settlement balance</dt><dd style={{ margin: 0, textAlign: "right" }} aria-label={`Available ${bond.currency} balance`}>{formatFinanceMoney(bond.availableBalance, bond.currency)}</dd></div>
         <div className="ahd-kv"><dt>Your units</dt><dd style={{ margin: 0, textAlign: "right" }} aria-label="Your bond units">{bond.playerUnits.toLocaleString()}</dd></div>
         <div className="ahd-kv"><dt>Status</dt><dd style={{ margin: 0, textAlign: "right" }}>{bond.defaulted ? 'Defaulted' : bond.matured ? 'Matured' : 'Outstanding'}</dd></div>
       </dl>
@@ -141,8 +143,11 @@ export function BondMarketPanel({ market, busy, onAction, selectedId, onSelect }
   return <div className="ahd-stack">
     <div className="ahd-card ahd-card-pad ahd-hero">
       <h2 className="ahd-h2">Sovereign bonds</h2>
-      <p className="ahd-help">Government debt issues, annual coupons and your holdings. Trade domestic issues using personal cash.</p>
+      <p className="ahd-help">Government debt issues, annual coupons and your holdings. Home-currency issues settle in personal cash; foreign issues settle in the matching foreign balance.</p>
       <p>Available cash: {formatFinanceMoney(market.playerCash, market.currency)}</p>
+      {Object.entries(market.balances ?? {}).filter(([, amount]) => amount !== 0).map(([code, amount]) => (
+        <p key={code}>Available {code} balance: {formatFinanceMoney(amount, code)}</p>
+      ))}
       {market.bonds.length === 0 ? <p className="ahd-empty">No outstanding bond issues.</p> :
         <label className="ahd-field"><span className="ahd-label">Bond issue</span>
           <select className="ahd-input" aria-label="Bond issue" value={bond?.id} disabled={busy}

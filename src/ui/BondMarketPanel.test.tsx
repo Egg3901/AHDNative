@@ -5,11 +5,21 @@ import { BondMarketPanel } from './BondMarketPanel';
 import type { BondMarketView } from '../game/bondMarket';
 
 const market: BondMarketView = {
-  turn: 98, date: '1954-11-23', playerCountryId: 'US', playerCash: 10000, currency: 'USD', buy: { cost: 1 }, sell: { cost: 1 },
+  turn: 98, date: '1954-11-23', playerCountryId: 'US', playerCash: 10000, currency: 'USD', balances: {}, buy: { cost: 1 }, sell: { cost: 1 },
   bonds: [{ id: 'bond-60-US', countryId: 'US', issuerName: 'United States', currency: 'USD', faceValue: 1000,
     marketPrice: 1, couponRate: 3.75, maturityTurn: 108, publicFloat: 20, playerUnits: 1,
-    matured: false, defaulted: false, domestic: true }],
+    matured: false, defaulted: false, domestic: true, settlesInHomeCash: true, availableBalance: 10000 }],
 };
+const foreignMarket: BondMarketView = {
+  ...market, balances: { GBP: 5000 },
+  bonds: [{ id: 'bond-61-UK', countryId: 'UK', issuerName: 'United Kingdom', currency: 'GBP', faceValue: 1000,
+    marketPrice: 1, couponRate: 4, maturityTurn: 146, publicFloat: 20, playerUnits: 1,
+    matured: false, defaulted: false, domestic: false, settlesInHomeCash: false, availableBalance: 5000 }],
+};
+function setViewportWidth(width: number) {
+  Object.defineProperty(window, 'innerWidth', { value: width, configurable: true });
+  window.dispatchEvent(new Event('resize'));
+}
 it('quotes whole units and dispatches the selected issue, while rejecting overselling and decimals', async () => {
   const user = userEvent.setup(); const onAction = vi.fn();
   render(<BondMarketPanel market={market} busy={false} onAction={onAction} onSelect={vi.fn()} />);
@@ -22,11 +32,42 @@ it('quotes whole units and dispatches the selected issue, while rejecting overse
   await user.type(screen.getByLabelText('Bond units'), '1.5');
   expect(screen.getByRole('button', { name: 'Buy bond units' })).toBeDisabled();
 });
-it('explains foreign settlement and blocks both trade controls', () => {
-  render(<BondMarketPanel market={{ ...market, bonds: [{ ...market.bonds[0]!, domestic: false }] }} busy={false} onAction={vi.fn()} onSelect={vi.fn()} />);
+it('enables foreign tickets when the denomination balance covers the order and dispatches', async () => {
+  const user = userEvent.setup(); const onAction = vi.fn();
+  render(<BondMarketPanel market={foreignMarket} busy={false} onAction={onAction} onSelect={vi.fn()} />);
+  expect(screen.getByText('Foreign issue')).toBeInTheDocument();
+  expect(screen.getByLabelText('Available GBP balance')).toBeInTheDocument();
+  expect(screen.getByText(/Available GBP balance:/)).toBeInTheDocument();
+  await user.clear(screen.getByLabelText('Bond units'));
+  await user.type(screen.getByLabelText('Bond units'), '2');
+  await user.click(screen.getByRole('button', { name: 'Buy bond units' }));
+  expect(onAction).toHaveBeenCalledWith('buyBond', { bondId: 'bond-61-UK', units: 2 });
+  await user.clear(screen.getByLabelText('Bond units'));
+  await user.type(screen.getByLabelText('Bond units'), '1');
+  await user.click(screen.getByRole('button', { name: 'Sell bond units' }));
+  expect(onAction).toHaveBeenCalledWith('sellBond', { bondId: 'bond-61-UK', units: 1 });
+});
+it('blocks a foreign buy the denomination balance cannot cover while quoting the currency', async () => {
+  const user = userEvent.setup();
+  const poor: BondMarketView = { ...foreignMarket, bonds: [{ ...foreignMarket.bonds[0]!, availableBalance: 500 }] };
+  render(<BondMarketPanel market={poor} busy={false} onAction={vi.fn()} onSelect={vi.fn()} />);
+  await user.clear(screen.getByLabelText('Bond units'));
+  await user.type(screen.getByLabelText('Bond units'), '2');
   expect(screen.getByRole('button', { name: 'Buy bond units' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Sell bond units' })).toBeDisabled();
-  expect(screen.getAllByText('Foreign bond trading is unavailable in singleplayer.').length).toBeGreaterThan(0);
+  expect(screen.getAllByText('Not enough GBP balance for this order.').length).toBeGreaterThan(0);
+});
+it.each([320, 390, 1280])('renders the funded foreign trade identically at a %dpx viewport', (width) => {
+  setViewportWidth(width);
+  try {
+    render(<BondMarketPanel market={foreignMarket} busy={false} onAction={vi.fn()} onSelect={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Buy bond units' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Sell bond units' })).toBeEnabled();
+    expect(screen.getByLabelText('Available GBP balance')).toBeInTheDocument();
+    expect(screen.getByText(/Available GBP balance:/)).toBeInTheDocument();
+    expect(screen.getByText('Foreign issue')).toBeInTheDocument();
+  } finally {
+    setViewportWidth(1024);
+  }
 });
 it('shows the source-grounded yield, coupon and ownership for the selected issue', () => {
   render(<BondMarketPanel market={market} busy={false} onAction={vi.fn()} onSelect={vi.fn()} />);
@@ -43,7 +84,7 @@ it('compares outstanding issues with scaled yield bars and selects on tap', asyn
   const multi: BondMarketView = { ...market, bonds: [...market.bonds,
     { id: 'bond-61-US', countryId: 'US', issuerName: 'United States Second', currency: 'USD', faceValue: 1000,
       marketPrice: 0.9, couponRate: 5, maturityTurn: 146, publicFloat: 40, playerUnits: 0,
-      matured: false, defaulted: false, domestic: true }] };
+      matured: false, defaulted: false, domestic: true, settlesInHomeCash: true, availableBalance: 10000 }] };
   render(<BondMarketPanel market={multi} busy={false} onAction={vi.fn()} onSelect={onSelect} />);
   expect(screen.getByText('Compare issues')).toBeInTheDocument();
   const discountBar = screen.getByTestId('bond-ytm-bar-bond-61-US');
@@ -71,7 +112,7 @@ describe('BondMarketPanel dual-pane list/detail (#438)', () => {
   const multi: BondMarketView = { ...market, bonds: [...market.bonds,
     { id: 'bond-61-US', countryId: 'US', issuerName: 'United States Second', currency: 'USD', faceValue: 1000,
       marketPrice: 0.9, couponRate: 5, maturityTurn: 146, publicFloat: 40, playerUnits: 0,
-      matured: false, defaulted: false, domestic: true }] };
+      matured: false, defaulted: false, domestic: true, settlesInHomeCash: true, availableBalance: 10000 }] };
   it('pairs the compare list with the selected detail sharing one selection', async () => {
     const user = userEvent.setup(); const onSelect = vi.fn();
     render(<BondMarketPanel market={multi} busy={false} onAction={vi.fn()} onSelect={onSelect} />);
