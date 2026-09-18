@@ -5,6 +5,9 @@ import {
   electoralMajorityFor,
   electoralVotesByState,
 } from "./presidentialElectoralCollege.js";
+import { electoralVotesFromSeats } from "../electionEngine/resolution/apportionment.js";
+import { eraToPreset } from "../electionEngine/resolution/constants.js";
+import type { WorldState } from "../types.js";
 import type { ElectionRecord } from "./types.js";
 
 const OPTS = { seed: "ec-test", playerName: "Tester", countryId: "US", era: "1953" } as const;
@@ -138,5 +141,66 @@ describe("allocateElectoralVotes — winner-take-all goldens", () => {
     const result = allocateElectoralVotes(world, rec);
     expect(result!.stateWinners).toEqual({ CA: "A" });
     expect(result!.totalEv).toBe(32);
+  });
+});
+
+/** Live seats map backing `electoralVotesByState`, for helper-equivalence checks. */
+function liveSeats(world: WorldState, countryId = "US"): Record<string, number> {
+  const seats: Record<string, number> = {};
+  for (const region of Object.values(world.regions)) {
+    if (region.countryId !== countryId) continue;
+    seats[region.id] = region.houseSeats ?? 0;
+  }
+  return seats;
+}
+
+describe("electoralVotesByState — live apportionment-helper wiring (#98)", () => {
+  it("1953: deep-equals the ported helper over live regions (era gates inert)", () => {
+    const world = createWorld(OPTS);
+    const seats = liveSeats(world);
+    const raw = electoralVotesFromSeats(seats, {
+      preset: eraToPreset(world.meta.era),
+      year: Number(world.meta.date.slice(0, 4)),
+    });
+    const liveOnly = Object.fromEntries(Object.entries(raw).filter(([id]) => id in seats));
+    expect(electoralVotesByState(world, "US")).toEqual(liveOnly);
+  });
+
+  it("2019: models AK/HI, never invents DC, total = house seats + 2 per state", () => {
+    const world = createWorld({ ...OPTS, era: "2019" });
+    const ev = electoralVotesByState(world, "US");
+    expect(ev["AK"]).toBe(3); // 1 house seat + 2 senators
+    expect(ev["HI"]).toBe(4); // 2 house seats + 2 senators
+    expect(ev["CA"]).toBe(54);
+    expect(ev["TX"]).toBe(40);
+    expect(ev["DC"]).toBeUndefined();
+    const seats = liveSeats(world);
+    expect(Object.keys(seats)).toHaveLength(50);
+    expect(Object.keys(ev).sort()).toEqual(Object.keys(seats).sort());
+    const total = Object.values(ev).reduce((a, b) => a + b, 0);
+    const houseSum = Object.values(seats).reduce((a, b) => a + b, 0);
+    expect(houseSum).toBe(435);
+    expect(total).toBe(535);
+    expect(total).toBe(houseSum + 2 * Object.keys(seats).length);
+    expect(electoralMajorityFor(total)).toBe(268);
+  });
+
+  it("does not invent DC once the live year passes the 1961 gate (helper adds DC, live path drops it)", () => {
+    const world = createWorld(OPTS);
+    world.meta.date = "1970-01-06";
+    const raw = electoralVotesFromSeats(liveSeats(world), {
+      preset: eraToPreset(world.meta.era),
+      year: 1970,
+    });
+    expect(raw["DC"]).toBe(3); // the 23rd-Amendment gate itself fires...
+    expect(electoralVotesByState(world, "US")["DC"]).toBeUndefined(); // ...but no DC region exists to carry it
+  });
+
+  it("survives a JSON save/reload round trip with identical totals", () => {
+    const world = createWorld(OPTS);
+    const ev = electoralVotesByState(world, "US");
+    const reloaded: Record<string, number> = JSON.parse(JSON.stringify(ev));
+    expect(reloaded).toEqual(ev);
+    expect(Object.values(reloaded).reduce((a, b) => a + b, 0)).toBe(531);
   });
 });
