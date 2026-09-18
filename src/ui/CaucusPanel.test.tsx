@@ -69,7 +69,7 @@ function makeChairManagement(): CaucusManagementView {
       isPlayerChair: true,
       join: action("joinCaucus", false, 2, "Already in a caucus; leave it first"),
       leave: action("leaveCaucus", true, 1),
-      setTax: action("setCaucusTaxRate", true, 0),
+      setTax: action("setCaucusTaxRate", true, 0, undefined, ["Sets the caucus campaign-fund levy"]),
       disband: action("disbandCaucus", true, 0, undefined, ["Clears all members and vacates the chair seats"]),
     }],
   };
@@ -163,7 +163,27 @@ describe("CaucusPanel", () => {
     expect(message).toContain("Blue Dog Caucus");
     expect(message).toContain("1");
     expect(message.toLowerCase()).toContain("member");
+    expect(message.toLowerCase()).toContain("free");
     expect(onAction).toHaveBeenCalledWith("disbandCaucus", { caucusId: "caucus-blue-dog-caucus-99-0" });
+  });
+
+  it("shows each chair action's own charge and consequence before confirmation", () => {
+    render(<CaucusPanel management={makeChairManagement()} busy={false} onAction={vi.fn()} />);
+    expect(screen.getByText("Free · Sets the caucus campaign-fund levy")).toBeTruthy();
+    expect(screen.getByText("Free · Clears all members and vacates the chair seats")).toBeTruthy();
+  });
+
+  it("renders the engine chair reason when a chair action is unavailable", () => {
+    const management = makeChairManagement();
+    management.caucuses = [{
+      ...management.caucuses[0]!,
+      setTax: action("setCaucusTaxRate", true, 0, undefined, ["Sets the caucus campaign-fund levy"]),
+      disband: action("disbandCaucus", false, 0, "Caucus is already disbanded"),
+    }];
+    render(<CaucusPanel management={management} busy={false} onAction={vi.fn()} />);
+    expect(screen.getByText("Free · Sets the caucus campaign-fund levy")).toBeTruthy();
+    expect(screen.getByText("Caucus is already disbanded")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Disband Blue Dog Caucus" }).hasAttribute("disabled")).toBe(true);
   });
 
   it("does not dispatch disband when the chair cancels the confirmation", async () => {

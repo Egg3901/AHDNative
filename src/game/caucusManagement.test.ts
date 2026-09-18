@@ -10,9 +10,11 @@ import {
   serializeSave,
   type WorldState,
 } from "@ahdclient/engine";
+import { ACTION_CATALOG } from "@ahdclient/engine";
 import {
   CAUCUS_CREATE_COST,
   CAUCUS_CREATE_FUNDS_REQUIRED,
+  projectCaucusChairAction,
   projectCaucusCreate,
   projectCaucusManagement,
   projectCaucusRoster,
@@ -232,6 +234,102 @@ describe("joinCaucus and leaveCaucus through the public action", () => {
     const mismatch = executeAction(world, "player", "joinCaucus", { caucusId: "caucus-red-state" });
     expect(mismatch.ok).toBe(false);
     expect(mismatch.ok ? "" : mismatch.error).toMatch(/party mismatch/i);
+  });
+});
+
+describe("chair action projection (#61)", () => {
+  it("quotes the exact catalog charge and consequence before confirmation", () => {
+    const world = readyWorld();
+    expect(
+      executeAction(world, "player", "createCaucus", { caucusName: "Blue Dog Caucus", caucusTaxRate: 2 }).ok,
+    ).toBe(true);
+    const id = projectCaucusManagement(world).caucuses[0]!.id;
+    for (const actionId of ["setCaucusTaxRate", "disbandCaucus"] as const) {
+      const view = projectCaucusChairAction(world, id, actionId);
+      // Same catalog entry the dispatcher debits: no AP, no funds.
+      expect(view.cost).toBe(ACTION_CATALOG[actionId].baseCost);
+      expect(view.cost).toBe(0);
+      expect(view.fundCost).toBe(ACTION_CATALOG[actionId].fundCost);
+      expect(view.fundCost).toBe(0);
+      expect(view.available).toBe(true);
+    }
+    expect(projectCaucusChairAction(world, id, "setCaucusTaxRate").consequences)
+      .toEqual(["Sets the caucus campaign-fund levy"]);
+    expect(projectCaucusChairAction(world, id, "disbandCaucus").consequences)
+      .toEqual(["Clears all members and vacates the chair seats"]);
+    // Roster views share the same projection object shape.
+    const entry = projectCaucusRoster(world)[0]!;
+    expect(entry.setTax).toEqual(projectCaucusChairAction(world, id, "setCaucusTaxRate"));
+    expect(entry.disband).toEqual(projectCaucusChairAction(world, id, "disbandCaucus"));
+  });
+
+  it("executes the chair pair with no debit and keeps the failed-disband state untouched", () => {
+    const world = readyWorld();
+    expect(
+      executeAction(world, "player", "createCaucus", { caucusName: "Blue Dog Caucus", caucusTaxRate: 2 }).ok,
+    ).toBe(true);
+    const id = projectCaucusManagement(world).caucuses[0]!.id;
+    const fundsBefore = world.player.funds;
+    const actionsBefore = world.player.actions;
+    expect(executeAction(world, "player", "setCaucusTaxRate", { caucusId: id, caucusTaxRate: 4 }).ok).toBe(true);
+    expect(projectCaucusRoster(world)[0]!.taxRate).toBe(4);
+    expect(world.player.funds).toBe(fundsBefore);
+    expect(world.player.actions).toBe(actionsBefore);
+    expect(executeAction(world, "player", "disbandCaucus", { caucusId: id }).ok).toBe(true);
+    expect(world.player.funds).toBe(fundsBefore);
+    expect(world.player.actions).toBe(actionsBefore);
+    expect(world.player.caucusId).toBeNull();
+    // Disbanded caucuses leave the roster and quote unavailable, never executable.
+    expect(projectCaucusRoster(world)).toHaveLength(0);
+    for (const actionId of ["setCaucusTaxRate", "disbandCaucus"] as const) {
+      const view = projectCaucusChairAction(world, id, actionId);
+      expect(view.available).toBe(false);
+      expect(view.disabledReason).toMatch(/disbanded/i);
+    }
+    const retry = executeAction(world, "player", "disbandCaucus", { caucusId: id });
+    expect(retry.ok).toBe(false);
+    expect(world.player.funds).toBe(fundsBefore);
+    expect(world.player.actions).toBe(actionsBefore);
+  });
+
+  it("rejects a non-chair with the engine reason and changes nothing", () => {
+    const world = readyWorld();
+    expect(
+      executeAction(world, "player", "createCaucus", { caucusName: "Blue Dog Caucus", caucusTaxRate: 2 }).ok,
+    ).toBe(true);
+    executeAction(world, "player", "leaveCaucus", {});
+    const id = projectCaucusManagement(world).caucuses[0]!.id;
+    const fundsBefore = world.player.funds;
+    const actionsBefore = world.player.actions;
+    expect(projectCaucusChairAction(world, id, "setCaucusTaxRate").available).toBe(false);
+    expect(projectCaucusChairAction(world, id, "setCaucusTaxRate").disabledReason).toMatch(/chair/i);
+    expect(projectCaucusChairAction(world, id, "disbandCaucus").available).toBe(false);
+    expect(projectCaucusChairAction(world, id, "disbandCaucus").disabledReason).toMatch(/chair/i);
+    const taxResult = executeAction(world, "player", "setCaucusTaxRate", { caucusId: id, caucusTaxRate: 4 });
+    expect(taxResult.ok).toBe(false);
+    expect(taxResult.ok ? "" : taxResult.error).toMatch(/chair/i);
+    const disbandResult = executeAction(world, "player", "disbandCaucus", { caucusId: id });
+    expect(disbandResult.ok).toBe(false);
+    expect(disbandResult.ok ? "" : disbandResult.error).toMatch(/chair/i);
+    expect(world.player.funds).toBe(fundsBefore);
+    expect(world.player.actions).toBe(actionsBefore);
+    expect(projectCaucusManagement(world).caucuses[0]).toMatchObject({ taxRate: 2, memberCount: 0 });
+  });
+
+  it("projects the reloaded chair state after save/reload", () => {
+    const world = readyWorld();
+    expect(
+      executeAction(world, "player", "createCaucus", { caucusName: "Blue Dog Caucus", caucusTaxRate: 2 }).ok,
+    ).toBe(true);
+    const id = projectCaucusManagement(world).caucuses[0]!.id;
+    expect(executeAction(world, "player", "setCaucusTaxRate", { caucusId: id, caucusTaxRate: 3.5 }).ok).toBe(true);
+    const revived = deserializeSave(serializeSave(world, SAVED_AT));
+    const revivedId = projectCaucusManagement(revived).caucuses[0]!.id;
+    expect(projectCaucusManagement(revived).caucuses[0]).toMatchObject({ taxRate: 3.5, isPlayerChair: true });
+    expect(projectCaucusChairAction(revived, revivedId, "setCaucusTaxRate").available).toBe(true);
+    expect(projectCaucusChairAction(revived, revivedId, "disbandCaucus").available).toBe(true);
+    expect(executeAction(revived, "player", "disbandCaucus", { caucusId: revivedId }).ok).toBe(true);
+    expect(projectCaucusManagement(revived).caucusCount).toBe(0);
   });
 });
 
