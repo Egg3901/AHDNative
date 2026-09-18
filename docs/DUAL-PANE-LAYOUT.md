@@ -96,6 +96,13 @@ is list-only and routes into the paired elections section for detail.
   segment minus the footer (overflow scrolls in place).
 - Drawer turn controls, resource buttons, and bottom-nav targets keep their
   44px minimums; no interactive surface is placed under the occlusion.
+- Across a horizontal hinge the docked navigation pane sits in the top
+  segment track, so its full-viewport base max-height is capped to the top
+  segment (`env(viewport-segment-height 0 0)` under spanning media,
+  `var(--ahd-pane0)` under the reported-rects fit); a long destination
+  list scrolls inside its own pane instead of painting across the hinge.
+  Vertical dual keeps the full-height drawer: the left pane spans the
+  whole viewport height.
 
 ## Verification and remainder
 
@@ -114,13 +121,14 @@ is list-only and routes into the paired elections section for detail.
   reversed-order segfit (right-first vertical pair still fits the exact
   400/400/16 geometry with navigation/content pairing; 1440px desktop
   viewport with no hinge signal stays single with no fit and no pane
-  landmarks). `src/ui/DualPaneTracks.test.ts` (7 cases): spanning-media grid drops a
+  landmarks). `src/ui/DualPaneTracks.test.ts` (9 cases): spanning-media grid drops a
   gutter track over the occlusion with navigation and content pinned to
   their own segment tracks, list/detail splits side by side only across a
   reported vertical hinge, single-pane stacks, gutter defined on dual
   posture only, plus segment-fitted tracks (no spanning media): exact
   vertical pane/gutter sizing with footer/popover pinning, horizontal
-  stacking with bottom-segment popover cap. `GameScreen.test.tsx` dual
+  stacking with bottom-segment popover cap, horizontal top-segment drawer
+  cap on both paths. `GameScreen.test.tsx` dual
   block pins the shell side: exact `data-segfit` geometry for reported
   vertical/horizontal segments, fractional fallback for override-only
   dual, no fit in single-pane. `PoliticsPanel.test.tsx`: list/detail landmarks share
