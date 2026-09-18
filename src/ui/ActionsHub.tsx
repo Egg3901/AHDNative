@@ -65,8 +65,10 @@ function ActionCard({
   const [taxField, setTaxField] = useState("incomeTax");
 
   const [amountError, setAmountError] = useState<string | null>(null);
+  const [regionError, setRegionError] = useState<string | null>(null);
   const disabled = busy || !action.available;
   const hint = !action.available ? action.disabledReason ?? "Unavailable" : `Cost ${action.cost} actions`;
+  const selectedRegion = regions.find((rr) => rr.id === regionId) ?? null;
 
   const handle = () => {
     if (disabled) return;
@@ -87,9 +89,15 @@ function ActionCard({
       params.partyId = partyId;
     }
     if (action.requires === "region") {
-      if (!regionId || !regions.some((rr) => rr.id === regionId)) {
+      if (regions.length === 0) {
+        setRegionError("No regions available for your country.");
         return;
       }
+      if (!regionId || !regions.some((rr) => rr.id === regionId)) {
+        setRegionError("Choose a listed region before acting.");
+        return;
+      }
+      setRegionError(null);
       params.regionId = regionId;
     }
     if (action.requires === "budgetSpending") {
@@ -183,13 +191,17 @@ function ActionCard({
         </label>
       ) : null}
       {action.requires === "region" ? (
-        <label className="ahd-field" style={{ maxWidth: "16rem" }}>
-          <span className="ahd-label">Region</span>
-          <select className="ahd-select" value={regionId} onChange={(e) => setRegionId(e.target.value)} disabled={busy || regions.length === 0} aria-label={`Region for ${action.name}`}>
-            {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-            {regions.length === 0 ? <option value="">No regions</option> : null}
-          </select>
-        </label>
+        <div>
+          <label className="ahd-field" style={{ maxWidth: "16rem" }}>
+            <span className="ahd-label">Region</span>
+            <select className="ahd-select" value={regionId} onChange={(e) => { setRegionId(e.target.value); if (regionError) setRegionError(null); }} disabled={busy || regions.length === 0} aria-label={`Region for ${action.name}`} aria-invalid={!!regionError} aria-describedby={regionError ? `region-error-${action.id}` : undefined}>
+              {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              {regions.length === 0 ? <option value="">No regions</option> : null}
+            </select>
+          </label>
+          {selectedRegion ? <div className="ahd-help" aria-live="polite">Target: {selectedRegion.name}. This region is sent with the action.</div> : null}
+          {regionError ? <span id={`region-error-${action.id}`} className="ahd-error-text" role="alert">{regionError}</span> : null}
+        </div>
       ) : null}
 
       <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap" }}>

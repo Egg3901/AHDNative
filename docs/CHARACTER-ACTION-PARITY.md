@@ -142,6 +142,20 @@ and **is wired** - but only through the campaign-management panel
 ActionsHub `canvass` entry. Two problems: the hub entry's 3 AP/15k are invented,
 and the correct helper is reachable from a different surface. Not changed here.
 
+Targeting slice, 2026-09-18 (#57, bounded): the existing hub `canvass` entry
+now targets a recorded region end to end. Region choices project from
+`world.regions` for the player country (`src/game/session.ts`); `executeAction`
+rejects missing, unknown and foreign regions before any world mutation with a
+user-readable error and atomic AP/fund accounting (`execute.ts` canvass
+branch); the hub card shows the selected region as the confirmed target, sends
+`regionId` in the action params, and surfaces a readable inline error instead
+of silently dropping an invalid choice (`ActionsHub.tsx`); the result names the
+recorded region and stays attached through save/reload and the next turn.
+Evidence: `src/game/canvassRegionTargeting.test.ts`, `ActionsHub.test.tsx`
+canvass cases. Costs and APIs are unchanged. Remaining target classes for #57:
+poll demographic targeting, targeted-ad targeting, and US political-operation
+targeting.
+
 ### 4. `joinParty`
 
 | Field | Native | AHDGame |

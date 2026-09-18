@@ -519,8 +519,16 @@ function executeActionInner(
   }
   if (actionId === "canvass") {
     const regionId = params.regionId!;
+    // Region choices come from recorded world data only: the region record
+    // and its turnout row must both exist, and the region must belong to the
+    // actor's country. Runs after the shared AP/fund charge, but the outer
+    // wrapper restores accounting on every failure, so rejection is atomic.
+    const record = world.regions[regionId];
     const rt = world.regionTurnouts[regionId];
-    if (!rt) return { ok: false, error: `Unknown region ${regionId}` };
+    if (!record || !rt) return { ok: false, error: `Unknown region ${regionId}` };
+    if (record.countryId !== actorCountry) {
+      return { ok: false, error: `Canvass is only available in your country (${record.name} is in ${record.countryId}).` };
+    }
     // Apply a boost similar to partyGOTV but directly
     const party = actorPartyId ? world.parties[actorPartyId] : null;
     const groups = getVoterGroups(actorCountry);
@@ -535,7 +543,7 @@ function executeActionInner(
     if (!rt.modifiers[DEFAULT_GOTV_CATEGORY]) rt.modifiers[DEFAULT_GOTV_CATEGORY] = {};
     if (!(group.id in (rt.modifiers[DEFAULT_GOTV_CATEGORY] ?? {}))) rt.modifiers[DEFAULT_GOTV_CATEGORY]![group.id] = 0;
     applyBoost(rt.modifiers, DEFAULT_GOTV_CATEGORY, group.id, boost);
-    return { ok: true, message: `Canvassed ${regionId}: +${boost.toFixed(2)} turnout.` };
+    return { ok: true, message: `Canvassed ${record.name} (+${boost.toFixed(2)} turnout).` };
   }
   if (actionId === "organize") {
     const regionId = params.regionId!;

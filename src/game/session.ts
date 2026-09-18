@@ -775,6 +775,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
         : id === "fundraise" && !isFundraiseEligible(player.donorBaseLevel) ? "No donor base. Use Build Donor Network first."
         : id === "convertCash" && player.cash <= 0 ? "No cash to convert."
         : id === "debatePrep" && player.stats?.debate === undefined ? "Allocate your stats before training Debate."
+        : id === "canvass" && !Object.values(world.regions).some((region) => region.countryId === country.id) ? "No regions recorded for your country."
         : id === "leaveParty" && !player.partyId ? "You are independent." : undefined;
       return { id, name: entry.name, description: entry.description, cost, available: !reason,
         category, fundCost, cooldownTurns,
