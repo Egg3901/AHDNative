@@ -1,7 +1,9 @@
 /**
  * corporationTurn — W9. Per-corp growth, margin, cost, tax, and insolvency,
  * then the per-country revenue rollup that feeds macroCountryTurn's growth
- * signal (see macroCountryTurn.ts THE KEY WIRE comment).
+ * signal (see macroCountryTurn.ts THE KEY WIRE comment). #322 adds the
+ * labour leg (overtime/strike output factors + margin penalty applied once
+ * here, then strike-state stepping; see corporationLabour.ts).
  *
  * Registered immediately before macroCountryTurnPhase in registry.ts. AHDGame
  * runs corporationTurn before macroCountryTurn, and the macro phase reads the
@@ -44,6 +46,12 @@ import {
   DEFAULT_CORPORATE_TAX_RATE_PCT,
 } from "./constants.js";
 import { pushEarningsHistory } from "../market/earnings.js";
+import {
+  labourFactorsForCorporation,
+  loadCorporationLabourState,
+  stepCorporateSectorStrikes,
+  type CorporationLabourFactors,
+} from "./corporationLabour.js";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -58,7 +66,11 @@ function clamp(value: number, min: number, max: number): number {
  * growthCost) + sectorCalculations.ts corporate tax (single-sector, no
  * consolidation).
  */
-export function runCorporationTurn(corp: Corporation, taxRatePct: number): void {
+export function runCorporationTurn(
+  corp: Corporation,
+  taxRatePct: number,
+  labourFactors: CorporationLabourFactors = { outputFactor: 1, marginModifierPP: 0, strikeActive: false },
+): void {
   const priorRevenue = corp.revenue;
   const priorMargin = corp.effectiveProfitMargin || corp.profitMargin;
   const priorGrowthCostShare = priorRevenue > 0 ? (100 * corp.currentGrowthCost) / priorRevenue : 0;
@@ -77,9 +89,17 @@ export function runCorporationTurn(corp: Corporation, taxRatePct: number): void 
 
   const perTurnGrowthRate = newCurrentGrowthRate / GROWTH_RATE_TURNS_PER_YEAR;
   const growthCost = calculateGrowthCost(priorRevenue, perTurnGrowthRate);
-  const newRevenue = priorRevenue * (1 + perTurnGrowthRate / 100);
+  // #322: labour output hit lands here, exactly once per turn (the unions
+  // pass never touches revenue). Worlds with no live action read factor 1.
+  const outputFactor = Number.isFinite(labourFactors.outputFactor)
+    ? Math.max(0, Math.min(1, labourFactors.outputFactor))
+    : 1;
+  const newRevenue = priorRevenue * (1 + perTurnGrowthRate / 100) * outputFactor;
 
-  const effectiveMargin = softCapEffectiveMargin(corp.profitMargin);
+  // #322: strike margin penalty while an asset strikes unprotected
+  // (reference strikeMarginModifier). Transient: it leaves with the strike.
+  const marginModifierPP = Number.isFinite(labourFactors.marginModifierPP) ? labourFactors.marginModifierPP : 0;
+  const effectiveMargin = softCapEffectiveMargin(corp.profitMargin) + marginModifierPP;
   const netIncomePreTax = priorRevenue * (effectiveMargin / 100) - growthCost;
 
   const taxableIncome = Math.max(0, netIncomePreTax);
@@ -146,11 +166,16 @@ export function checkInsolvency(corp: Corporation, currentTurn: number): void {
 export const corporationTurnPhase: TurnPhase = {
   name: "corporationTurn",
   run(world) {
+    // #322: agreement protection + overtime-ban factors load once per turn;
+    // strike resolution steps after the corp math (reference sector-pass
+    // order: production effects from turn-start state, then the step).
+    const labour = loadCorporationLabourState(world, world.meta.turn);
     for (const corp of Object.values(world.corporations)) {
       const taxRatePct = world.budgets?.[corp.countryId]?.taxRates.domesticCorporateTax ?? DEFAULT_CORPORATE_TAX_RATE_PCT;
-      runCorporationTurn(corp, taxRatePct);
+      runCorporationTurn(corp, taxRatePct, labourFactorsForCorporation(world, corp.id, labour));
       checkInsolvency(corp, world.meta.turn);
     }
+    stepCorporateSectorStrikes(world, world.meta.turn, labour);
 
     // Per-country revenue rollup for the macro growth-signal wire (see file doc).
     const byCountry: Record<string, number> = {};

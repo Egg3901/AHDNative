@@ -54,6 +54,7 @@ import {
   openBargainingCampaign,
   openRatificationVote,
   ratificationBlockReason,
+  ratificationWeightFor,
   isRatificationOpen,
   realWageIndex,
   recordEscalationExpectations,

@@ -27,6 +27,12 @@
  * Source: <mainline-checkout>/src/simulation/industrialRelationsBalance.ts
  */
 
+import {
+  BARGAINING_ESCALATION_SUPPORT as AUDITED_ESCALATION_SUPPORT,
+  OVERTIME_BAN_OUTPUT_FACTOR as AUDITED_OVERTIME_BAN_OUTPUT_FACTOR,
+  STRIKE_REVENUE_THROTTLE as AUDITED_STRIKE_REVENUE_THROTTLE,
+} from "./bargaining.js";
+
 export interface IndustrialRelationsBalanceScenario {
   name: string;
   workers: number;
@@ -144,17 +150,16 @@ export const INDUSTRIAL_RELATIONS_BALANCE_SCENARIOS: readonly IndustrialRelation
 ];
 
 /**
- * Constants cited from mainline bargaining module (see bargaining.ts).
- * No invented numbers: thresholds and costs are verbatim from source.
+ * Thresholds and factors re-exported from the audited bargaining module, the
+ * same import shape as mainline's industrialRelationsBalance.ts (which reads
+ * BARGAINING_ESCALATION_SUPPORT / OVERTIME_BAN_OUTPUT_FACTOR from
+ * @/lib/unions/bargaining and STRIKE_REVENUE_THROTTLE from @/lib/labour/strikes).
+ * Audited #322: 35/50/65 support rungs, 0.96 overtime output factor, 0.25
+ * strike revenue throttle. No invented numbers.
  */
-export const BARGAINING_ESCALATION_SUPPORT = {
-  overtime_ban: 40,
-  selective_strike: 55,
-  industry_strike: 70,
-} as const;
-
-export const OVERTIME_BAN_OUTPUT_FACTOR = 0.85;
-export const STRIKE_REVENUE_THROTTLE = 0.35;
+export const BARGAINING_ESCALATION_SUPPORT = AUDITED_ESCALATION_SUPPORT;
+export const OVERTIME_BAN_OUTPUT_FACTOR = AUDITED_OVERTIME_BAN_OUTPUT_FACTOR;
+export const STRIKE_REVENUE_THROTTLE = AUDITED_STRIKE_REVENUE_THROTTLE;
 export const STRIKE_CALL_COST_PER_SECTOR = 400;
 
 /** Treasury cost per matched sector when a union calls a strike. Source: unionEconomy.ts STRIKE_CALL_COST_PER_SECTOR 400 */

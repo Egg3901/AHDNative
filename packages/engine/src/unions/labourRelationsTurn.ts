@@ -134,6 +134,15 @@ export function processLabourRelationsTurn(world: WorldState, turn: number): Lab
     agreementsSettled: 0,
     disputesEscalated: 0,
   };
+  // Pre-#322 worlds carry no bargaining state and no NPP-led unions: return
+  // early WITHOUT touching the lazy accessors below, which materialize
+  // absent maps. Absent stays absent, so an idle world is byte-identical
+  // before and after the pass.
+  const hasBargainingState = world.bargainingCampaigns != null || world.collectiveAgreements != null;
+  const hasNppLedUnion = Object.values(world.unions ?? {}).some(
+    (union) => !union.suspended && union.ownerType === "npp" && union.ownerId != null
+  );
+  if (!hasBargainingState && !hasNppLedUnion) return result;
   const campaigns = bargainingCampaigns(world);
 
   // 1. Negotiating campaigns past their deadline enter dispute.
@@ -277,10 +286,12 @@ function refreshOpenCampaigns(
     if (scoped.length === 0) continue;
 
     // An overtime ban is organized withdrawal of labour the union keeps
-    // paying for. When the fund runs dry the action ends.
+    // paying for. When the fund runs dry the action ends. Suspended unions
+    // are frozen like the dues pass keeps them: no upkeep debit moves a
+    // banned union's treasury.
     let escalationLevel = campaign.escalationLevel;
     let treasury = union.treasury;
-    if (campaign.status === "dispute" && campaign.escalationLevel === "overtime_ban") {
+    if (campaign.status === "dispute" && campaign.escalationLevel === "overtime_ban" && !union.suspended) {
       const upkeep = escalationUpkeepPerTurn("overtime_ban", scoped.length);
       if (treasury >= upkeep) {
         treasury -= upkeep;
