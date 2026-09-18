@@ -611,8 +611,7 @@ fn fetch_union_path(union_id: &str) -> Result<String, String> {
 /// lookup). Two or three ASCII letters, any case; the builder lowercases so
 /// the pinned path is canonical. Anything else never leaves the bridge.
 fn is_cabinet_country_code(value: &str) -> bool {
-    (value.len() == 2 || value.len() == 3)
-        && value.bytes().all(|byte| byte.is_ascii_alphabetic())
+    (value.len() == 2 || value.len() == 3) && value.bytes().all(|byte| byte.is_ascii_alphabetic())
 }
 
 /// Cabinet briefing seat slug: the client-nav `cabinetOffice.positionId`
@@ -945,7 +944,13 @@ fn is_cabinet_path(path: &str) -> bool {
         None => return false,
     };
     let mut segments = rest.split('/');
-    match (segments.next(), segments.next(), segments.next(), segments.next(), segments.next()) {
+    match (
+        segments.next(),
+        segments.next(),
+        segments.next(),
+        segments.next(),
+        segments.next(),
+    ) {
         (Some(code), Some("executive"), Some("cabinet"), Some(position), Some("briefing")) => {
             segments.next().is_none()
                 && is_cabinet_country_code(code)
@@ -987,7 +992,9 @@ fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
             query.is_none() && is_corporation_path(path)
         }
         ("GET", path) if path.starts_with("/api/unions/") => query.is_none() && is_union_path(path),
-        ("GET", path) if path.starts_with("/api/country/") => query.is_none() && is_cabinet_path(path),
+        ("GET", path) if path.starts_with("/api/country/") => {
+            query.is_none() && is_cabinet_path(path)
+        }
         ("POST", "/api/actions/execute") | ("PATCH", "/api/notifications") => query.is_none(),
         ("PUT", "/api/notifications/preferences") => query.is_none(),
         ("POST", "/api/mail") | ("POST", "/api/auth/logout") => query.is_none(),
