@@ -851,6 +851,14 @@ Still open on #60: chair/vice-chair elections, whip modes, health, color,
 description, motto, NPP recruitment and rename. This closes only the tax-edit
 and disband substeps; the issue stays open with `status: partial`.
 
+Read-only roster/role slice (this batch): the projection now surfaces the
+recorded chair, vice-chair, roster and player role with explicit
+unknown/vacant copy, and the panel renders them without hiding the chair tax
+and disband controls. Whip, health, recruitment, elections, color,
+description, motto and rename remain unrecorded with no public engine action;
+recruitment and leadership changes through validated commands remain the next
+#60 work.
+
 ## World and new-game setup checkpoint, 2026-09-14 (#241)
 
 ## UK profile constituency checkpoint, 2026-09-15 (#47)

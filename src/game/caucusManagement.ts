@@ -50,6 +50,12 @@ export interface CaucusCreateStatus {
   action: ActionView;
 }
 
+/** How a recorded caucus seat resolves: named, explicitly vacant, or not recorded. */
+export type CaucusSeatState = "known" | "vacant" | "unknown";
+
+/** The player's recorded seat in a caucus, from chairId/viceChairId/membership. */
+export type CaucusPlayerRole = "chair" | "vice-chair" | "member" | "non-member";
+
 export interface CaucusRosterEntry {
   id: string;
   name: string;
@@ -61,6 +67,13 @@ export interface CaucusRosterEntry {
   /** True when the player holds this caucus's chair seat (chair-only controls). */
   isPlayerChair: boolean;
   chairName: string | null;
+  /** Seat resolution: vacant when chairId is null, unknown when absent (legacy saves) or unresolvable. */
+  chairState: CaucusSeatState;
+  /** Recorded vice-chair name, if any. Whip/health/recruitment are not persisted, so they stay unshown. */
+  viceChairName: string | null;
+  viceChairState: CaucusSeatState;
+  /** The player's recorded role in this caucus. */
+  playerRole: CaucusPlayerRole;
   join: ActionView;
   leave: ActionView;
   /** Chair-only tax edit (#60), no AP/fund charge. */
@@ -123,6 +136,17 @@ function chairActionView(id: CaucusChairActionId, reason: string | undefined): A
 function memberName(world: WorldState, id: string): string | null {
   if (id === "player") return world.player.name;
   return world.politicians.find((politician) => politician.id === id)?.name ?? null;
+}
+
+/**
+ * Resolve a recorded seat to display state. Null means the seat was vacated
+ * (leave/disband); undefined means a legacy save never recorded it; a set id
+ * that resolves to no name is equally unknown, never a fabricated occupant.
+ */
+function seatState(world: WorldState, seatId: string | null | undefined): { name: string | null; state: CaucusSeatState } {
+  if (seatId == null) return { name: null, state: seatId === null ? "vacant" : "unknown" };
+  const name = memberName(world, seatId);
+  return name == null ? { name: null, state: "unknown" } : { name, state: "known" };
 }
 
 export function slugifyCaucusName(name: string): string {
@@ -231,6 +255,15 @@ export function projectCaucusRoster(world: WorldState): CaucusRosterEntry[] {
         .map((id) => memberName(world, id))
         .filter((name): name is string => name != null)
         .sort((a, b) => (a === player.name ? -1 : b === player.name ? 1 : a.localeCompare(b)));
+      // Read-only seat/role state (#60): resolved from the recorded save, with
+      // explicit unknown when a legacy save never stored the seat or the id no
+      // longer resolves. No elections, health or recruitment values are
+      // invented; those fields do not exist on the persisted Caucus.
+      const chair = seatState(world, caucus.chairId);
+      const viceChair = seatState(world, caucus.viceChairId);
+      const playerRole: CaucusPlayerRole = isPlayerChair ? "chair"
+        : caucus.viceChairId === "player" ? "vice-chair"
+        : isPlayerCaucus ? "member" : "non-member";
       return {
         id: caucus.id,
         name: caucus.name,
@@ -240,7 +273,11 @@ export function projectCaucusRoster(world: WorldState): CaucusRosterEntry[] {
         memberNames: names,
         isPlayerCaucus,
         isPlayerChair,
-        chairName: caucus.chairId != null ? memberName(world, caucus.chairId) : null,
+        chairName: chair.name,
+        chairState: chair.state,
+        viceChairName: viceChair.name,
+        viceChairState: viceChair.state,
+        playerRole,
         join: actionView(world, "joinCaucus", joinReason),
         leave: actionView(world, "leaveCaucus", leaveReason),
         setTax: chairActionView("setCaucusTaxRate", taxCheck.ok ? undefined : taxCheck.error),

@@ -74,6 +74,32 @@ count before issuing DELETE, so the panel warns with the caucus name and
 projected member count and only dispatches on acceptance. Color, description,
 motto, whip and chair elections remain open.
 
+## Recorded roster/role/health slice (#60)
+
+`projectCaucusRoster` now exposes the seats already present in the save, read
+only: `chairName`/`chairState`, `viceChairName`/`viceChairState` and
+`playerRole` (`chair`, `vice-chair`, `member`, `non-member`). A null seat
+reads `vacant` (leave/disband vacated it); an absent seat (legacy saves never
+stored `chairId`/`viceChairId`) or an id that resolves to no one reads
+`unknown`, never a fabricated occupant. `CaucusPanel` renders one compact
+seat/role line per caucus plus a roster note that health, whip, recruitment
+and elections are not recorded in this save. No recruitment, elections, health
+formulas or network actions were added: the persisted `Caucus` carries no
+health fields, and there is still no public engine action to recruit, elect a
+chair/vice-chair, set a whip, rename or edit color/description/motto. Chair
+only tax-edit and disband behavior is unchanged.
+
+Evidence: six scenarios in `src/game/caucusRosterState.test.ts` cover
+populated seats, non-member role, legacy-missing and unresolvable seats,
+save/reload plus next-turn stability (a same-party vice-chair with a recorded
+NPP relationship survives the retention phase; a relationship-less NPC is
+correctly dissolved by `nppRelationshipMaintenance`) and disbanded-state
+stability. Three `src/ui/CaucusPanel.test.tsx` scenarios cover the recorded
+role line with chair controls still present, the unknown copy and the
+unrecorded-fields note. Commands: `npm test --
+src/game/caucusRosterState.test.ts`, `npm run test:ui --
+src/ui/CaucusPanel.test.tsx`.
+
 ## Evidence
 
 - Public engine regression: the 25k and 40k cases failed before the repair;

@@ -48,6 +48,10 @@ function makeManagement(): CaucusManagementView {
         isPlayerCaucus: false,
         isPlayerChair: false,
         chairName: "Pat",
+        chairState: "known",
+        viceChairName: null,
+        viceChairState: "vacant",
+        playerRole: "non-member",
         join: action("joinCaucus", true, 2, undefined, ["Joins you to this caucus"]),
         leave: action("leaveCaucus", false, 1, "You are not a member of this caucus."),
         setTax: action("setCaucusTaxRate", false, 0, "Only the caucus chair can set the tax rate"),
@@ -67,6 +71,9 @@ function makeChairManagement(): CaucusManagementView {
       ...management.caucuses[0]!,
       isPlayerCaucus: true,
       isPlayerChair: true,
+      chairName: "Alex",
+      chairState: "known",
+      playerRole: "chair",
       join: action("joinCaucus", false, 2, "Already in a caucus; leave it first"),
       leave: action("leaveCaucus", true, 1),
       setTax: action("setCaucusTaxRate", true, 0),
@@ -189,6 +196,33 @@ describe("CaucusPanel", () => {
     render(<CaucusPanel management={makeManagement()} busy={false} onAction={vi.fn()} />);
     expect(screen.queryByLabelText("Caucus tax for Blue Dog Caucus")).toBeNull();
     expect(screen.queryByRole("button", { name: "Disband Blue Dog Caucus" })).toBeNull();
+  });
+
+  it("shows recorded chair, vice-chair and player role without hiding chair controls", () => {
+    render(<CaucusPanel management={makeChairManagement()} busy={false} onAction={vi.fn()} />);
+    expect(screen.getByText(/Chair: Alex/)).toBeTruthy();
+    expect(screen.getByText(/Your role: chair/)).toBeTruthy();
+    expect(screen.getByLabelText("Caucus tax for Blue Dog Caucus")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Disband Blue Dog Caucus" })).toBeTruthy();
+  });
+
+  it("shows explicit unknown copy when seats were never recorded", () => {
+    const management = makeManagement();
+    management.caucuses = [{
+      ...management.caucuses[0]!,
+      chairName: null,
+      chairState: "unknown",
+      viceChairName: null,
+      viceChairState: "unknown",
+    }];
+    render(<CaucusPanel management={management} busy={false} onAction={vi.fn()} />);
+    expect(screen.getAllByText(/unknown \(not recorded in this save\)/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Your role: not a member/)).toBeTruthy();
+  });
+
+  it("names health, whip, recruitment and elections as unrecorded instead of inventing values", () => {
+    render(<CaucusPanel management={makeManagement()} busy={false} onAction={vi.fn()} />);
+    expect(screen.getByText(/Health, whip, recruitment and elections are not recorded/)).toBeTruthy();
   });
 
   it("shows the engine disabled reason when founding is unavailable", () => {

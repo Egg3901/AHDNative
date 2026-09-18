@@ -11,8 +11,11 @@
  *   imports; props arrive through the CaucusManagementView DTO, so the engine
  *   package never enters the React bundle (type-only import below). Inline
  *   draft checks run synchronously from the DTO via caucusDraft, so typing
- *   never issues worker queries. Color, description, whip, chair elections and
- *   NPP recruit remain omitted: those are not public engine actions yet.
+ *   never issues worker queries. Chair, vice-chair, roster and the player's
+ *   recorded role render from the saved seats with explicit unknown copy when
+ *   a legacy save never recorded them. Whip, health, recruitment, color,
+ *   description, chair elections and NPP recruit are not persisted fields, so
+ *   the panel names them as unrecorded instead of inventing values.
  *   Section navigation, the management query and action dispatch are owned by
  *   root.
  */
@@ -119,6 +122,15 @@ export function CaucusPanel({ management, busy, onAction }: CaucusPanelProps) {
                     {" · "}Tax {caucus.taxRate}%
                     {" · "}{formatFinanceMoney(caucus.treasury, management.currency)}
                   </p>
+                  <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.1rem 0 0" }}>
+                    Chair: {caucus.chairState === "known" ? caucus.chairName
+                      : caucus.chairState === "vacant" ? "vacant"
+                      : "unknown (not recorded in this save)"}
+                    {" · "}Vice-chair: {caucus.viceChairState === "known" ? caucus.viceChairName
+                      : caucus.viceChairState === "vacant" ? "vacant"
+                      : "unknown (not recorded in this save)"}
+                    {" · "}Your role: {caucus.playerRole === "non-member" ? "not a member" : caucus.playerRole}
+                  </p>
                   {caucus.memberNames.length > 0 ? (
                     <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.1rem 0 0" }}>
                       {caucus.memberNames.join(", ")}
@@ -187,6 +199,10 @@ export function CaucusPanel({ management, busy, onAction }: CaucusPanelProps) {
             })}
           </ul>
         )}
+        <p className="ahd-help" role="note" style={{ marginTop: "0.45rem" }}>
+          Health, whip, recruitment and elections are not recorded in this save, so the roster shows
+          only the saved seats, members, tax and treasury.
+        </p>
       </div>
     </div>
   );
