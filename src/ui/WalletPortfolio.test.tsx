@@ -778,7 +778,139 @@ describe("wallet action and save-reload through the real session", () => {
     await user.click(screen.getByRole("button", { name: /withdraw/i }));
     expect(onAction).toHaveBeenCalledWith("withdrawSavings", { amount: 500 });
   });
+});
 
+describe("wallet holding company drill", () => {
+  // Reference HoldingsTables links each stock row to its corporation page
+  // (/corporation/[id]); the Native counterpart is the markets company
+  // detail, reachable because the holding id is the corporation id shared
+  // with market listings (session projectFinance id: corp.id; projectMarkets
+  // listing id: corp.id).
+  it("links each holding to its company with a 44px keyboard-focusable control", async () => {
+    const user = userEvent.setup();
+    const onOpenCompany = vi.fn();
+    render(
+      <FinancePanel
+        finance={makeFinance()}
+        section="portfolio"
+        busy={false}
+        onAction={vi.fn()}
+        onOpenCompany={onOpenCompany}
+      />,
+    );
+    const links = screen.getAllByRole("button", { name: /view .* company/i });
+    expect(links).toHaveLength(3);
+    for (const link of links) {
+      expect((link as HTMLElement).style.minHeight).toBe("44px");
+    }
+    (links[0] as HTMLElement).focus();
+    expect(document.activeElement).toBe(links[0]);
+    await user.click(
+      screen.getByRole("button", { name: "View Yen Works company" }),
+    );
+    expect(onOpenCompany).toHaveBeenCalledWith("h2");
+  });
+
+  it("renders no company link without a handler", () => {
+    render(
+      <FinancePanel
+        finance={makeFinance()}
+        section="portfolio"
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: /view .* company/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("exposes the company link in the single-holding layout", async () => {
+    const user = userEvent.setup();
+    const onOpenCompany = vi.fn();
+    const single = makeFinance().holdings[0]!;
+    render(
+      <FinancePanel
+        finance={makeFinance({ holdings: [single] })}
+        section="portfolio"
+        busy={false}
+        onAction={vi.fn()}
+        onOpenCompany={onOpenCompany}
+      />,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "View Acme Steel company" }),
+    );
+    expect(onOpenCompany).toHaveBeenCalledWith("h1");
+  });
+
+  it("passes the real session holding id to the drill", async () => {
+    // Session-produced id: buyShares for corpId "US-media" records the
+    // holding under that corporation id, the same id space the markets
+    // detail resolves, so the drilled target is real, not a display key.
+    const user = userEvent.setup();
+    const session = liveWalletSession();
+    expect(
+      session.act("buyShares", { corpId: "US-media", shares: 1 }).ok,
+    ).toBe(true);
+    const reloaded = new GameSession();
+    reloaded.load(session.serialize(SAVED_AT));
+    const finance = reloaded.view().finance;
+    const holding = finance.holdings.find((h) => h.id === "US-media");
+    expect(holding).toBeDefined();
+    const onOpenCompany = vi.fn();
+    render(
+      <FinancePanel
+        finance={finance}
+        section="portfolio"
+        busy={false}
+        onAction={vi.fn()}
+        onOpenCompany={onOpenCompany}
+      />,
+    );
+    await user.click(
+      screen.getByRole("button", { name: `View ${holding!.name} company` }),
+    );
+    expect(onOpenCompany).toHaveBeenCalledWith("US-media");
+  });
+
+  it("keeps the company link operable at 320px and present on desktop", () => {
+    setViewportWidth(320, 568);
+    const { unmount } = render(
+      <FinancePanel
+        finance={makeFinance()}
+        section="portfolio"
+        busy={false}
+        onAction={vi.fn()}
+        onOpenCompany={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "View Acme Steel company" }),
+    ).toBeVisible();
+    for (const element of document.querySelectorAll(
+      ".ahd-wallet button, .ahd-wallet input, .ahd-wallet summary, .ahd-wallet .ahd-card",
+    )) {
+      expect((element as HTMLElement).style.width).not.toMatch(/^[0-9]{3,}px$/);
+    }
+    unmount();
+    setViewportWidth(1280, 800);
+    render(
+      <FinancePanel
+        finance={makeFinance()}
+        section="portfolio"
+        busy={false}
+        onAction={vi.fn()}
+        onOpenCompany={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "View Acme Steel company" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("wallet holdings and trend after shares, a turn, and reload", () => {
   it("renders reloaded holdings and recorded trend after shares, a turn, and reload", () => {
     const session = liveWalletSession();
     expect(

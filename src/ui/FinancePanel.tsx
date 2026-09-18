@@ -32,6 +32,14 @@ export interface FinancePanelProps {
   onAction: GameScreenProps["onAction"];
   /** Cross-links the two real finance destinations (wallet/portfolio and banking). */
   onNavigate?: (route: "portfolio" | "banking") => void;
+  /**
+   * Opens a holding's company in the stock-market detail. The holding id is
+   * the corporation id shared with market listings, so the reference
+   * per-holding corporation link (HoldingsTables stock rows to
+   * /corporation/[id]) resolves through the Native markets drill. Absent
+   * means no link renders: unsupported navigation stays absent, not inert.
+   */
+  onOpenCompany?: (holdingId: string) => void;
   /** Native country id; selects the offline central-bank hero (unknown ids take the Actions fallback). */
   countryId?: string;
   /** Loading/error replace balances so stale values are never shown as current. Defaults to "ready". */
@@ -142,7 +150,25 @@ function HoldingDetail({ shares, price, currency }: { shares: number; price: num
   );
 }
 
-function PortfolioSection({ finance, onNavigate }: { finance: FinanceView; onNavigate?: (route: "portfolio" | "banking") => void }) {
+/** Per-holding link into the stock-market company detail. A native button
+ * (keyboard-focusable, 44px touch floor) kept out of the summary row so the
+ * disclosure toggle stays a single control. Renders nothing without a handler. */
+function HoldingCompanyLink({ id, name, onOpenCompany }: { id: string; name: string; onOpenCompany?: (holdingId: string) => void }) {
+  if (!onOpenCompany) return null;
+  return (
+    <button
+      type="button"
+      className="ahd-btn ahd-btn-sm"
+      style={{ minHeight: 44, marginTop: "0.4rem" }}
+      onClick={() => onOpenCompany(id)}
+      aria-label={`View ${name} company`}
+    >
+      View company
+    </button>
+  );
+}
+
+function PortfolioSection({ finance, onNavigate, onOpenCompany }: { finance: FinanceView; onNavigate?: (route: "portfolio" | "banking") => void; onOpenCompany?: (holdingId: string) => void }) {
   const multiHolding = finance.holdings.length > 1;
   return (
     <div className="ahd-wallet-grid">
@@ -192,6 +218,7 @@ function PortfolioSection({ finance, onNavigate }: { finance: FinanceView; onNav
                     <HoldingSummaryValue name={h.name} ticker={h.ticker} shares={h.shares} price={h.price} currency={h.currency} />
                   </summary>
                   <HoldingDetail shares={h.shares} price={h.price} currency={h.currency} />
+                  <HoldingCompanyLink id={h.id} name={h.name} onOpenCompany={onOpenCompany} />
                 </details>
               ))}
             </div>
@@ -204,6 +231,7 @@ function PortfolioSection({ finance, onNavigate }: { finance: FinanceView; onNav
                 >
                   <HoldingSummaryValue name={h.name} ticker={h.ticker} shares={h.shares} price={h.price} currency={h.currency} layout="stack" />
                   <HoldingDetail shares={h.shares} price={h.price} currency={h.currency} />
+                  <HoldingCompanyLink id={h.id} name={h.name} onOpenCompany={onOpenCompany} />
                 </li>
               ))}
             </ul>
@@ -434,7 +462,7 @@ function WalletError({ section, loadError, onNavigate }: { section: "portfolio" 
   );
 }
 
-export function FinancePanel({ finance, section, busy, onAction, onNavigate, countryId, status = "ready", loadError = null, mode = "sp" }: FinancePanelProps) {
+export function FinancePanel({ finance, section, busy, onAction, onNavigate, onOpenCompany, countryId, status = "ready", loadError = null, mode = "sp" }: FinancePanelProps) {
   if (mode === "mp") {
     return (
       <div className="ahd-wallet">
@@ -465,7 +493,7 @@ export function FinancePanel({ finance, section, busy, onAction, onNavigate, cou
     <div className="ahd-wallet">
       {section === "banking"
         ? <BankingSection finance={finance} busy={busy} onAction={onAction} onNavigate={onNavigate} countryId={countryId} />
-        : <PortfolioSection finance={finance} onNavigate={onNavigate} />}
+        : <PortfolioSection finance={finance} onNavigate={onNavigate} onOpenCompany={onOpenCompany} />}
     </div>
   );
 }
