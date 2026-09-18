@@ -22,7 +22,7 @@ import { projectPolitics, projectPartyMembership } from "./politics";
 import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
-  ACTION_CATALOG, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, lendInterbank, quoteInterbankMax, repayInterbank,
+  ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, lendInterbank, quoteInterbankMax, repayInterbank,
   getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
@@ -955,6 +955,55 @@ function projectFinance(world: WorldState): FinanceView {
     wealthHistory: world.history.playerWealth.map(({ turn, cash, savings, funds, bondsValue, sharesValue, netWorth }) => ({
       turn, cash, savings, funds, bondsValue, sharesValue, netWorth,
     })),
+    wire: projectWire(world),
+  };
+}
+
+/**
+ * Wire settlement projection (#77 FX settlement, #76 wallets). Reads only
+ * recorded state: home cash plus recorded foreign personal buckets, recorded
+ * politicians, the recorded quota window, and the foreignExchange flag.
+ * Availability mirrors the engine gate order (cooldown, action points,
+ * recipients); executeAction stays authoritative for balances, quota, and
+ * the forex-off cross-border block.
+ */
+function projectWire(world: WorldState): FinanceView["wire"] {
+  const player = world.player;
+  const senderHome = homeCurrency(world, player.countryId);
+  const forexEnabled = world.featureFlags?.foreignExchange !== false;
+  const balances: NonNullable<NonNullable<FinanceView["wire"]>["balances"]> = [
+    { currency: senderHome, balance: player.cash, home: true },
+  ];
+  for (const [currency, amount] of Object.entries(player.currencyBalances?.personal ?? {})) {
+    if (currency === senderHome || !Number.isFinite(amount)) continue;
+    balances.push({ currency, balance: amount, home: false });
+  }
+  balances.sort((a, b) => Number(b.home) - Number(a.home) || a.currency.localeCompare(b.currency));
+  const recipients = world.politicians.map((p) => ({
+    id: p.id,
+    name: p.name,
+    countryId: p.countryId,
+    countryName: world.countries[p.countryId]?.name ?? p.countryId,
+    crossBorder: p.countryId !== player.countryId,
+  })).sort((a, b) => Number(a.crossBorder) - Number(b.crossBorder)
+    || a.countryId.localeCompare(b.countryId) || a.name.localeCompare(b.name));
+  const windowFresh = player.wireQuotaWindowStartTurn != null
+    && world.meta.turn - player.wireQuotaWindowStartTurn < WIRE_QUOTA_WINDOW_TURNS;
+  const quotaUsed = windowFresh ? (player.wireQuotaUsedAnchor ?? 0) : 0;
+  const entry = ACTION_CATALOG["wireTransfer"];
+  const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
+  const remaining = (player.actionCooldowns["wireTransfer"] ?? 0) - world.meta.turn;
+  const reason = remaining > 0 ? `Available in ${remaining} ${remaining === 1 ? "turn" : "turns"}.`
+    : player.actions < cost ? "Not enough action points."
+    : recipients.length === 0 ? "No recorded politicians to receive a wire."
+    : undefined;
+  return {
+    action: { id: "wireTransfer", name: entry.name, description: entry.description, cost,
+      available: !reason, requires: "targetPoliticianId", ...(reason ? { disabledReason: reason } : {}) },
+    forexEnabled,
+    quotaRemainingAnchor: Math.max(0, DAILY_WIRE_CAP_ANCHOR - quotaUsed),
+    balances,
+    recipients,
   };
 }
 

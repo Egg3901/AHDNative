@@ -19,7 +19,7 @@
  * mechanics and stay explicit unavailable text here, never fake controls.
  */
 import { useState } from "react";
-import type { FinanceView, GameScreenProps } from "../game/types";
+import type { FinanceView, GameScreenProps, WireView } from "../game/types";
 import { RouteHero, bankingHero, bankingHeroAlt } from "./RouteHero";
 import { TrendChart } from "./TrendChart";
 
@@ -423,8 +423,186 @@ function BankingSection({ finance, busy, onAction, onNavigate, countryId = "" }:
             </div>
           </div>
         </div>
+        <WireSection wire={finance.wire} busy={busy} onAction={onAction} />
         <CapabilityNote />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Wire settlement card (#77 FX settlement, #76 wallets). Sends through the
+ * existing session wireTransfer action: the selected currency travels with
+ * the transfer, no conversion is quoted or applied, and failures surface in
+ * the existing GameScreen error alert. Foreign-currency legs need a
+ * pre-funded recorded bucket (bond coupons/maturities fund them); amounts
+ * are positive whole units, matching the engine integer gate.
+ */
+function WireSection({ wire, busy, onAction }: { wire: WireView | undefined; busy: boolean; onAction: GameScreenProps["onAction"] }) {
+  const [recipientId, setRecipientId] = useState("");
+  const [currency, setCurrency] = useState("");
+  const [amount, setAmount] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  if (!wire) {
+    return (
+      <div className="ahd-card ahd-card-pad" role="note" aria-label="Wire transfers unavailable">
+        <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Wire funds</h3>
+        <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: "0.4rem 0 0" }}>
+          Wire settlement data is unavailable in this build.
+        </p>
+      </div>
+    );
+  }
+
+  const home = wire.balances.find((b) => b.home) ?? wire.balances[0];
+  const activeCurrency = currency || home?.currency || "";
+  const activeBalance = wire.balances.find((b) => b.currency === activeCurrency)?.balance ?? 0;
+  const recipient = wire.recipients.find((r) => r.id === recipientId) ?? null;
+  const crossBorderBlocked = recipient != null && recipient.crossBorder && !wire.forexEnabled;
+
+  const parse = (): number | null => {
+    const trimmed = amount.trim();
+    if (!/^[1-9]\d*$/.test(trimmed)) return null;
+    const n = Number(trimmed);
+    if (!Number.isSafeInteger(n) || n <= 0) return null;
+    return n;
+  };
+
+  const submit = () => {
+    if (!recipient) {
+      setError("Choose a recipient.");
+      return;
+    }
+    if (crossBorderBlocked) {
+      setError("Cross-border wires are not available while foreign exchange is off.");
+      return;
+    }
+    const n = parse();
+    if (n === null) {
+      setError("Enter a positive whole amount.");
+      return;
+    }
+    if (n > activeBalance) {
+      setError(`Amount exceeds the recorded ${activeCurrency} balance of ${activeBalance}.`);
+      return;
+    }
+    setError(null);
+    const params: Record<string, string | number> = { targetPoliticianId: recipient.id, amount: n };
+    if (home && activeCurrency !== home.currency) params.currency = activeCurrency;
+    onAction(wire.action.id, params);
+  };
+
+  const sendDisabled = busy || !wire.action.available;
+  const inputId = "wire-amount";
+
+  return (
+    <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem", minWidth: 0 }}>
+      <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Wire funds</h3>
+      {wire.balances.length === 0 ? (
+        <div className="ahd-empty">No recorded currency balances.</div>
+      ) : (
+        <dl style={{ display: "flex", flexDirection: "column", gap: "0.25rem", margin: 0 }}>
+          {wire.balances.map((b) => (
+            <BalanceRow
+              key={b.currency}
+              label={b.home ? `Balance (${b.currency})` : `${b.currency} balance`}
+              amount={b.balance}
+              currency={b.currency}
+            />
+          ))}
+        </dl>
+      )}
+      <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: 0 }}>
+        The transfer currency travels with the transfer; no conversion is applied. Daily quota remaining: {wire.quotaRemainingAnchor} (anchor).
+      </p>
+      {wire.recipients.length === 0 ? (
+        <div className="ahd-empty">No recorded politicians to receive a wire.</div>
+      ) : (
+        <>
+          <label className="ahd-field" style={{ maxWidth: "16rem" }}>
+            <span className="ahd-label">Recipient</span>
+            <select
+              className="ahd-input"
+              style={{ minHeight: "44px" }}
+              value={recipientId}
+              onChange={(e) => {
+                setRecipientId(e.target.value);
+                if (error) setError(null);
+              }}
+              disabled={busy}
+              aria-label="Wire recipient"
+            >
+              <option value="">Choose a recipient</option>
+              {wire.recipients.map((r) => (
+                <option key={r.id} value={r.id} disabled={r.crossBorder && !wire.forexEnabled}>
+                  {r.name} · {r.countryName}{r.crossBorder ? " (cross-border)" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="ahd-field" style={{ maxWidth: "16rem" }}>
+            <span className="ahd-label">Currency</span>
+            <select
+              className="ahd-input"
+              style={{ minHeight: "44px" }}
+              value={activeCurrency}
+              onChange={(e) => {
+                setCurrency(e.target.value);
+                if (error) setError(null);
+              }}
+              disabled={busy}
+              aria-label="Wire currency"
+            >
+              {wire.balances.map((b) => (
+                <option key={b.currency} value={b.currency}>
+                  {b.currency}{b.home ? " (home)" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="ahd-field" style={{ maxWidth: "16rem" }} htmlFor={inputId}>
+            <span className="ahd-label">Amount (whole {activeCurrency || "units"})</span>
+            <input
+              id={inputId}
+              className="ahd-input"
+              style={{ minHeight: "44px" }}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              step={1}
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                if (error) setError(null);
+              }}
+              disabled={busy}
+              aria-label="Wire amount"
+              aria-invalid={!!error}
+              aria-describedby={error ? "wire-amount-error" : undefined}
+            />
+            {error ? (
+              <span id="wire-amount-error" className="ahd-error-text" role="alert">
+                {error}
+              </span>
+            ) : null}
+          </label>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+            <button
+              type="button"
+              className="ahd-btn ahd-btn-primary ahd-btn-sm"
+              style={{ minHeight: "44px" }}
+              onClick={submit}
+              disabled={sendDisabled}
+              aria-disabled={sendDisabled}
+              aria-label={`Send wire: ${wire.action.name}`}
+            >
+              Send wire
+            </button>
+            <AvailabilityHint cost={wire.action.cost} available={wire.action.available} disabledReason={wire.action.disabledReason} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

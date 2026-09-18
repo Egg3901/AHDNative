@@ -405,6 +405,26 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Validation: 20 focused engine wire tests and 4 new session wire tests
   pass alongside the 7 pre-existing session finance tests. Full typecheck,
   full suites, build and verify belong to the shared scheduler/CI.
+- UI surface (2026-09-18, worktree `muse/fx-trade-next-20260918`, #77 FX
+  settlement / #76 wallets): Banking gains a Wire funds card projecting
+  `FinanceView.wire` (`src/game/types.ts`, `projectWire` in
+  `src/game/session.ts`, card in `src/ui/FinancePanel.tsx`). Recorded home
+  cash plus recorded foreign personal buckets, recorded politician
+  recipients (domestic first, cross-border options disabled while
+  `foreignExchange` is off), and the recorded anchor quota remainder; the
+  selected currency travels with the `wireTransfer` action untouched, so no
+  conversion is quoted or applied. Evidence: `src/game/wireView.test.ts`
+  (3 projection tests: fresh-world balances/recipients/quota, foreign
+  buckets, post-wire quota + save/reload) and
+  `src/ui/FinancePanelWire.test.tsx` (8 panel tests: no-conversion copy,
+  home/foreign send params, local input/balance rejection, empty
+  recipients, forex-off disabling, absent-projection unavailable text,
+  loading/error hiding balances). Engine exports `DAILY_WIRE_CAP_ANCHOR`,
+  `WIRE_QUOTA_WINDOW_TURNS`, `WireTransferResult` for the projection; no
+  engine formulas changed. Order books, dealer spreads, trade routes,
+  corporate issuance, and default lifecycle remain open under #77. No
+  physical-device claims; phone/desktop validation is jsdom + layout
+  styles only.
 
 ## Campaign timing checkpoint, 2026-09-10
 

@@ -66,7 +66,7 @@ export interface EraChoice {
 }
 export interface MetricView { id: string; label: string; value: number; format: "money" | "percent" | "number"; }
 export type ActionCategory = "influence" | "fundraising" | "intelligence" | "executive";
-export interface ActionView { id: string; name: string; description: string; cost: number; fundsGain?: number; available: boolean; disabledReason?: string; requires?: "amount" | "party" | "region" | "budgetSpending" | "taxRate";
+export interface ActionView { id: string; name: string; description: string; cost: number; fundsGain?: number; available: boolean; disabledReason?: string; requires?: "amount" | "party" | "region" | "budgetSpending" | "taxRate" | "targetPoliticianId";
   /** Hub grouping, mirroring AHDGame actions categories (influence/money/research). */
   category?: ActionCategory;
   /** Quoted fund cost from the engine projection; executeAction remains authoritative. */
@@ -192,12 +192,44 @@ export interface FinanceWealthHistoryPoint {
   turn: number; cash: number; savings: number; funds: number;
   bondsValue: number; sharesValue: number; netWorth: number;
 }
+/** One recorded personal currency balance available for wire settlement. */
+export interface WireBalance {
+  currency: string;
+  balance: number;
+  /** True for the home-currency leg (player.cash); false for recorded foreign buckets. */
+  home: boolean;
+}
+/** One recorded wire recipient (a world politician). */
+export interface WireRecipient {
+  id: string;
+  name: string;
+  countryId: string;
+  countryName: string;
+  crossBorder: boolean;
+}
+/**
+ * Wire settlement surface (#77 FX settlement, #76 wallets). Every field is a
+ * recorded-world projection: home cash plus recorded foreign personal buckets
+ * (absent means zero), recorded politicians, and the recorded quota window.
+ * No FX conversion is quoted or applied — the transfer currency travels with
+ * the transfer per packages/engine/src/finance/wireTransfer.ts. executeAction
+ * stays authoritative; the panel only validates input locally. Absent on
+ * older projections; the panel then shows unavailable text.
+ */
+export interface WireView {
+  action: ActionView;
+  forexEnabled: boolean;
+  quotaRemainingAnchor: number;
+  balances: WireBalance[];
+  recipients: WireRecipient[];
+}
 export interface FinanceView {
   cash: number; savings: number; currency: string; savingsHolder: string;
   holdings: { id: string; name: string; ticker: string; shares: number; price: number; currency: string }[];
   deposit: ActionView; withdraw: ActionView;
   /** Recorded wealth series for the portfolio trend chart. Absent on older projections; empty before the first turn. */
   wealthHistory?: FinanceWealthHistoryPoint[];
+  wire?: WireView;
 }
 /**
  * The player's validated cabinet seat (#510). Mirrors AHDGame's cabinet nav
