@@ -7,6 +7,7 @@ import type { ProfileView } from "../game/profileTypes";
 import type { ProfileCorporationEntry } from "../game/profileCorporation";
 import { ProfilePanel } from "./ProfilePanel";
 import { MarketsPanel } from "./MarketsPanel";
+import type { DrawerRouteId } from "./MobileNavigation";
 
 const OPTIONS = { era: "1953", countryId: "US", seed: "native-profile-ceo-card", playerName: "Alex" };
 const SAVED_AT = "2026-09-18T00:00:00.000Z";
@@ -38,7 +39,7 @@ function owningProfile(): ProfileView {
   return funded.profile();
 }
 
-function renderPanel(profile: ProfileView, onNavigate: (route: never, id?: string) => void) {
+function renderPanel(profile: ProfileView, onNavigate: (route: DrawerRouteId, id?: string) => void) {
   return render(
     <ProfilePanel
       profile={profile}
@@ -145,7 +146,7 @@ describe("#51 profile corporation card", () => {
   });
 
   it("links the card to the working company destination", async () => {
-    const onNavigate = vi.fn();
+    const onNavigate: (route: DrawerRouteId, id?: string) => void = vi.fn();
     const user = userEvent.setup();
     renderPanel(owningProfile(), onNavigate);
     await user.click(screen.getByRole("button", { name: "View company: US-media" }));
