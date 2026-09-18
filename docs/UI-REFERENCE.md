@@ -189,7 +189,10 @@ the cookie and revokes issued tokens, Native drops every authed view and
 returns to the sign-in card, and mobile additionally evicts the recognized
 session cookie names from the platform jar since the relay cannot receive
 the server's Set-Cookie expiry. Failed unlink keeps the signed-in session
-with retry. Real provider callbacks, cookie restoration across relaunch,
+with retry. The MP screen also drops its per-account form state (mail
+reader selection, compose draft, action inputs, admin panel) when the
+linked account ends or changes, matching the reference logout-to-`/`
+which drops in-memory drafts with the navigation. Real provider callbacks, cookie restoration across relaunch,
 logout/expiry, cancellation, network failure presentation and
 desktop/mobile lifecycle remain runtime acceptance checks. Source and unit
 evidence alone do not complete #149.

@@ -377,6 +377,31 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     if (needsSession && cabinetOpen) setCabinetOpen(false);
   }, [needsSession, cabinetOpen]);
 
+  /* Account-boundary residue (#149, #363): the reference logs out to `/`,
+   * dropping every in-memory draft with the navigation. This screen stays
+   * mounted across unlink and switch, so per-account form state (mail
+   * reader selection, compose draft, action inputs, admin panel) must reset
+   * when the linked account ends or changes. Otherwise the next account on
+   * a shared phone reopens the previous player's mail and draft. Detail
+   * panels already close on needsSession above; this covers the form state
+   * they miss. Fires only when a previously linked account ends: a fresh
+   * link (null to account) and steady state clear nothing. */
+  const accountKey = snapshot.userId;
+  const prevAccountRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    const prev = prevAccountRef.current;
+    prevAccountRef.current = accountKey;
+    if (prev === undefined || prev === null || prev === accountKey) return;
+    setOpenMailId(null);
+    setComposeTo("");
+    setComposeSubject("");
+    setComposeBody("");
+    setRegion("");
+    setAmount("");
+    setSnooze("");
+    setAdminOpen(false);
+  }, [accountKey]);
+
   if (adminOpen) {
     return <MpAdminScreen host={host} onBack={() => setAdminOpen(false)} />;
   }
