@@ -17,7 +17,7 @@ import {
 } from "../game/shareTrade";
 import { SECTOR_BUY_ALREADY_OWNED, SECTOR_LIST_OWNER_ONLY, evaluateSectorBuy, parseSalePrice } from "../game/markets";
 import { COMMODITY_HERO_ALT, MARKETS_LIST_HERO_IMAGE, RouteHero, companyHero, companyHeroAlt } from "./RouteHero";
-import type { MarketListing, MarketsView, SectorSummary, ShareholderKind } from "../game/markets";
+import type { MarketListing, MarketsView, SectorSummary, ShareholderKind, TradeRouteSummary } from "../game/markets";
 import type { GameScreenProps } from "../game/types";
 import { formatFinanceMoney } from "./FinancePanel";
 import { useDualPaneLayout } from "./dualPane";
@@ -464,6 +464,121 @@ function ForSaleDirectory({
 }
 
 /**
+ * Trade-route directory (#77 slice): one read-only row per recorded country
+ * route — listing count, recorded trade growth, and the recorded FX row. No
+ * quotes, spreads, conversions, or settlement are shown because the engine
+ * records none of them. A country whose budget or FX row is missing reads as
+ * an explicit gap, never a zero or a substituted rate.
+ */
+function TradeRoutesCard({ routes, countryName }: { routes: TradeRouteSummary[]; countryName: string | null }) {
+  return (
+    <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+      <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Trade routes</h3>
+      <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: 0 }}>
+        {routes.length === 0
+          ? (countryName
+            ? `No trade routes recorded in ${countryName}.`
+            : "No trade routes recorded.")
+          : `Recorded per-country trade context (${routes.length} ${routes.length === 1 ? "route" : "routes"}). Read-only: no bid/ask books, spreads, quotes, or settlement are recorded.`}
+      </p>
+      {routes.length === 0 ? null : (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          {routes.map((route) => (
+            <li
+              key={route.countryId}
+              style={{ display: "flex", flexDirection: "column", gap: "0.2rem", fontSize: "0.78rem" }}
+              aria-label={`${route.countryName} trade route`}
+            >
+              <span style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+                <span style={{ overflowWrap: "anywhere" }}>
+                  <strong>{route.countryName}</strong>{" "}
+                  <span className="ahd-muted">({route.currency})</span>
+                </span>
+                <span className="ahd-muted" style={{ fontSize: "0.74rem", whiteSpace: "nowrap" }}>
+                  {route.listingCount} {route.listingCount === 1 ? "listing" : "listings"}
+                </span>
+              </span>
+              <span className="ahd-muted" style={{ fontSize: "0.74rem" }}>
+                {route.tradeGrowth == null
+                  ? "No trade growth recorded"
+                  : `Trade growth: ${route.tradeGrowth.toFixed(1)}%`}
+              </span>
+              <span className="ahd-muted" style={{ fontSize: "0.74rem" }}>
+                {route.fx.available && route.fx.rate != null
+                  ? `FX: ${route.fx.rate} ${route.currency} per anchor${route.fx.baseRate != null ? ` · base ${route.fx.baseRate}` : ""}${route.fx.regime ? ` · ${route.fx.regime}` : ""}`
+                  : "No FX record"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Recorded per-company trade context (#77 slice): executed-trade notionals
+ * awaiting the next market phase, the recorded multipliers, live vs
+ * fundamental price, and the insolvency marker. Read-only; buy/sell behavior
+ * and accounting are untouched.
+ */
+function TradeContextCard({ listing }: { listing: MarketListing }) {
+  const flow = listing.orderFlow;
+  const flowRecorded = flow.buyWindow != null || flow.sellWindow != null;
+  const flowTotal = (flow.buyWindow ?? 0) + (flow.sellWindow ?? 0);
+  return (
+    <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+      <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Recorded trade context</h3>
+      <dl style={{ display: "flex", flexDirection: "column", gap: "0.3rem", margin: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+          <dt style={{ fontSize: "0.82rem" }}>Executed buy flow</dt>
+          <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem" }}>
+            {flow.buyWindow != null ? formatFinanceMoney(flow.buyWindow, listing.currency) : "Not recorded"}
+          </dd>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+          <dt style={{ fontSize: "0.82rem" }}>Executed sell flow</dt>
+          <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem" }}>
+            {flow.sellWindow != null ? formatFinanceMoney(flow.sellWindow, listing.currency) : "Not recorded"}
+          </dd>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+          <dt style={{ fontSize: "0.82rem" }}>Fundamental price</dt>
+          <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem" }}>
+            {formatFinanceMoney(listing.fundamentalSharePrice, listing.currency)}
+          </dd>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+          <dt style={{ fontSize: "0.82rem" }}>Order-flow multiplier</dt>
+          <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem" }}>
+            {flow.flowMultiplier != null ? `${flow.flowMultiplier}×` : "—"}
+          </dd>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+          <dt style={{ fontSize: "0.82rem" }}>Sentiment multiplier</dt>
+          <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem" }}>
+            {flow.sentimentMultiplier != null ? `${flow.sentimentMultiplier}×` : "—"}
+          </dd>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+          <dt style={{ fontSize: "0.82rem" }}>Solvency</dt>
+          <dd style={{ margin: 0, fontSize: "0.82rem" }}>
+            {flow.insolventSinceTurn != null ? `Insolvent since turn ${flow.insolventSinceTurn}` : "Solvent (no insolvency recorded)"}
+          </dd>
+        </div>
+      </dl>
+      <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: 0 }}>
+        {!flowRecorded
+          ? "No executed trade flow recorded yet. No bid/ask book is recorded."
+          : flowTotal > 0
+            ? "Executed-trade notionals await the next market phase. No bid/ask book is recorded."
+            : "No executed trades are awaiting the market phase yet. No bid/ask book is recorded."}
+      </p>
+    </div>
+  );
+}
+
+/**
  * Owner-only sale listing controls (#294) plus the live Buy control (#295).
  * The engine authorizes listing changes only for a recorded shareholder of
  * the corporation, so the player must hold at least one share before
@@ -784,6 +899,8 @@ function CompanyDetail({
         </p>
       </div>
 
+      <TradeContextCard listing={listing} />
+
       <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
         <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Sector asset</h3>
         <dl style={{ display: "flex", flexDirection: "column", gap: "0.3rem", margin: 0 }}>
@@ -1065,6 +1182,15 @@ export function MarketsPanel({ markets, busy, onAction, onSectorSale, initialId 
       />
 
       <ForSaleDirectory listings={countryListings} playerCash={markets.playerCash} busy={busy} onSectorSale={onSectorSale} />
+
+      <TradeRoutesCard
+        routes={
+          countryId === "all"
+            ? (markets.tradeRoutes ?? [])
+            : ((markets.tradeRoutes ?? []).filter((route) => route.countryId === countryId))
+        }
+        countryName={countryName}
+      />
 
       <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
         {sectorType ? (

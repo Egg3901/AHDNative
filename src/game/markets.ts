@@ -21,7 +21,9 @@ import {
 const EARNINGS_HISTORY_BOUND = 52;
 
 import { CROSS_CURRENCY_UNAVAILABLE, evaluateShareTrade, type TradeListing } from "./shareTrade";
+import { projectTradeRoutes, type TradeRouteSummary } from "./tradeRoutes";
 export { CROSS_CURRENCY_UNAVAILABLE, shareNotional, parseShareCount, evaluateShareTrade } from "./shareTrade";
+export type { TradeRouteSummary } from "./tradeRoutes";
 
 /**
  * Parse an asking-price input for the #294 update control. Positive finite
@@ -95,6 +97,27 @@ export interface MarketSectorAsset {
   owner: CorporateSectorOwner;
 }
 
+/**
+ * Recorded per-corporation trade context (#77 slice). Every field is a verbatim
+ * copy of the engine corporation record — executed-trade notionals awaiting the
+ * next market phase, the multipliers that phase applies, and the insolvency
+ * marker that starts the default-lifecycle edge. Null means the engine recorded
+ * nothing (fresh pre-trade state). This is not a bid/ask book: the engine
+ * records no bids, asks, dealers, or spreads.
+ */
+export interface MarketOrderFlow {
+  /** Executed buy notional awaiting the next market phase; null when unrecorded. */
+  buyWindow: number | null;
+  /** Executed sell notional awaiting the next market phase; null when unrecorded. */
+  sellWindow: number | null;
+  /** Recorded public-float order-flow multiplier; null when unrecorded. */
+  flowMultiplier: number | null;
+  /** Recorded investor-confidence multiplier; null when unrecorded. */
+  sentimentMultiplier: number | null;
+  /** Turn persistent insolvency began; null while solvent. */
+  insolventSinceTurn: number | null;
+}
+
 export interface MarketListing {
   id: string;
   ticker: string;
@@ -136,6 +159,8 @@ export interface MarketListing {
   shareholders: MarketShareholder[];
   /** Recorded holder with the largest block, or null when none is recorded or the top is tied. */
   controllingHolder: ShareholderKind | null;
+  /** Recorded executed-trade flow, multipliers, and insolvency marker (#77 slice). */
+  orderFlow: MarketOrderFlow;
 }
 
 /**
@@ -293,6 +318,11 @@ export interface MarketsView {
   listings: MarketListing[];
   /** Sector directory derived from the same listings projection (sorted by label). */
   sectors: SectorSummary[];
+  /**
+   * Recorded per-country trade-route summary (#77 slice): trade growth, FX
+   * row, and listing count. Read-only; no quotes, conversions, or settlement.
+   */
+  tradeRoutes: TradeRouteSummary[];
 }
 
 function homeCurrency(world: WorldState, countryId: string): string {
@@ -456,6 +486,13 @@ export function projectMarkets(world: WorldState): MarketsView {
         avgCostPerShare: shareholder.avgCostPerShare ?? null,
       })),
       controllingHolder: controllingHolder(corp.shareholders),
+      orderFlow: {
+        buyWindow: corp.orderFlowWindowBuyValue ?? null,
+        sellWindow: corp.orderFlowWindowSellValue ?? null,
+        flowMultiplier: corp.orderFlowMultiplier ?? null,
+        sentimentMultiplier: corp.sentimentMultiplier ?? null,
+        insolventSinceTurn: corp.insolventSinceTurn ?? null,
+      },
     };
   });
 
@@ -586,5 +623,6 @@ export function projectMarkets(world: WorldState): MarketsView {
     countries,
     listings,
     sectors,
+    tradeRoutes: projectTradeRoutes(world),
   };
 }
