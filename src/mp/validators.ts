@@ -258,6 +258,10 @@ export interface MpCapabilitiesView {
   /** client-nav activeElection.seatId: preferred detail target when present. */
   activeElectionSeatId: string | null;
   cabinetOffice: string | null;
+  /** client-nav cabinetOffice.countryCode: lowercase country key for the briefing read. */
+  cabinetCountryCode: string | null;
+  /** client-nav cabinetOffice.positionId: seat slug for the briefing read. */
+  cabinetPositionId: string | null;
   governorOffice: string | null;
 }
 
@@ -278,6 +282,13 @@ export function parseClientNav(bodyText: string): MpCapabilitiesView | null {
   const election = asRecord(record.activeElection);
   const cabinet = asRecord(record.cabinetOffice);
   const governor = asRecord(record.governorOffice);
+  // The briefing drill-in needs the seat slug plus the country key, not the
+  // display name. A half-valid pair signals a drifting payload, so both
+  // degrade to null unless both validate; the display name stands alone.
+  const rawCabinetCountry = cabinet ? cabinet.countryCode : null;
+  const rawCabinetPosition = cabinet ? cabinet.positionId : null;
+  const cabinetCountryCode = isCabinetCountryCode(rawCabinetCountry) ? rawCabinetCountry.toLowerCase() : null;
+  const cabinetPositionId = isCabinetPositionId(rawCabinetPosition) ? rawCabinetPosition : null;
   return {
     hasCharacter,
     characterName: asTrimmedString(record.characterName ?? null),
@@ -289,6 +300,8 @@ export function parseClientNav(bodyText: string): MpCapabilitiesView | null {
     activeElectionId: election ? asTrimmedString(election.id ?? null) : null,
     activeElectionSeatId: election ? asTrimmedString(election.seatId ?? null) : null,
     cabinetOffice: cabinet ? asTrimmedString(cabinet.positionName ?? null) : null,
+    cabinetCountryCode: cabinetCountryCode !== null && cabinetPositionId !== null ? cabinetCountryCode : null,
+    cabinetPositionId: cabinetCountryCode !== null && cabinetPositionId !== null ? cabinetPositionId : null,
     governorOffice: governor ? asTrimmedString(governor.stateName ?? null) : null,
   };
 }
@@ -546,6 +559,140 @@ export function parseUnionDetail(bodyText: string): MpUnionDetailView | null {
     approval,
     treasury,
     sectorCount: (record.sectors as unknown[]).length,
+  };
+}
+
+/**
+ * Cabinet briefing country key: the lowercase client-nav
+ * `cabinetOffice.countryCode` (a COUNTRY_CONFIGS key like us/sco/wal; the
+ * route uppercases it before lookup). Two or three letters, any case;
+ * anything else never leaves the UI.
+ */
+const CABINET_COUNTRY_CODE = /^[A-Za-z]{2,3}$/;
+
+export function isCabinetCountryCode(value: unknown): value is string {
+  return typeof value === "string" && CABINET_COUNTRY_CODE.test(value);
+}
+
+/**
+ * Cabinet briefing seat slug: the client-nav `cabinetOffice.positionId`
+ * (snake_case like secretary_of_state; one camelCase seat,
+ * generalSecretary, exists). Letters, digits, and underscores only; the
+ * server answers 404 on an unknown seat. Hyphens never occur in the
+ * audited position lists, so a hyphenated value degrades the Standing row
+ * to display-only.
+ */
+const CABINET_POSITION_ID = /^[A-Za-z0-9_]{1,64}$/;
+
+export function isCabinetPositionId(value: unknown): value is string {
+  return typeof value === "string" && CABINET_POSITION_ID.test(value);
+}
+
+/** A cabinet drill-in needs both halves; anything else never leaves the UI. */
+export function validateCabinetRef(
+  ref: { countryCode: unknown; positionId: unknown },
+): { ok: true; countryCode: string; positionId: string } | { ok: false; reason: string } {
+  if (!isCabinetCountryCode(ref.countryCode) || !isCabinetPositionId(ref.positionId)) {
+    return { ok: false, reason: "That cabinet office reference is invalid." };
+  }
+  return { ok: true, countryCode: ref.countryCode.toLowerCase(), positionId: ref.positionId };
+}
+
+export interface MpCabinetMemberView {
+  characterName: string | null;
+  partyName: string | null;
+  acting: boolean | null;
+  /** Turn the acting tenure ends; null when substantive or undisclosed. */
+  actingExpiresOnTurn: number | null;
+}
+
+export interface MpCabinetRestrictionView {
+  allowedTitles: string[];
+  countryName: string | null;
+}
+
+export interface MpCabinetDetailView {
+  positionId: string;
+  positionName: string | null;
+  department: string | null;
+  liveYear: number | null;
+  canView: boolean;
+  canAct: boolean;
+  /** Null when the seat is vacant; roster facts only, never action counts. */
+  member: MpCabinetMemberView | null;
+  /** Present only on the withheld ({canView:false}) shape. */
+  restriction: MpCabinetRestrictionView | null;
+}
+
+/**
+ * cabinet-detail: the briefing answers the letterhead, the gates, and
+ * departmental record. The summary projects the letterhead plus roster
+ * facts only (seat id/name/department, holder name/party/acting/tenure,
+ * canView/canAct, withheld restriction titles). Mechanics, settings,
+ * orders, metrics, budgets, military, monetary, and every write stay
+ * server-side. Decorations degrade to null individually; identity and gate
+ * drift fail closed.
+ */
+export function parseCabinetDetail(bodyText: string): MpCabinetDetailView | null {
+  const record = asRecord(parseJsonBody(bodyText));
+  if (!record) return null;
+  const canView = asBoolean(record.canView);
+  const canAct = asBoolean(record.canAct);
+  if (canView === null || canAct === null) return null;
+  const position = asRecord(record.position);
+  if (!position) return null;
+  const positionId = asTrimmedString(position.id);
+  if (!positionId || !isCabinetPositionId(positionId)) return null;
+  const memberRecord = record.member === null || record.member === undefined ? null : asRecord(record.member);
+  if (record.member !== null && record.member !== undefined && !memberRecord) return null;
+  let member: MpCabinetMemberView | null = null;
+  if (memberRecord) {
+    const acting = memberRecord.acting === undefined ? null : asBoolean(memberRecord.acting);
+    if (memberRecord.acting !== undefined && acting === null) return null;
+    const actingExpiresOnTurn =
+      memberRecord.actingExpiresOnTurn === undefined || memberRecord.actingExpiresOnTurn === null
+        ? null
+        : asNumber(memberRecord.actingExpiresOnTurn);
+    if (
+      memberRecord.actingExpiresOnTurn !== undefined &&
+      memberRecord.actingExpiresOnTurn !== null &&
+      actingExpiresOnTurn === null
+    ) {
+      return null;
+    }
+    member = {
+      characterName: asTrimmedString(memberRecord.characterName ?? null),
+      partyName: asTrimmedString(memberRecord.partyName ?? null),
+      acting,
+      actingExpiresOnTurn,
+    };
+  }
+  let restriction: MpCabinetRestrictionView | null = null;
+  if (!canView) {
+    const restrictionRecord = asRecord(record.restriction);
+    if (!restrictionRecord || !Array.isArray(restrictionRecord.allowedTitles)) return null;
+    const allowedTitles: string[] = [];
+    for (const title of restrictionRecord.allowedTitles as unknown[]) {
+      const text = asTrimmedString(title);
+      if (!text) return null;
+      allowedTitles.push(text);
+    }
+    restriction = {
+      allowedTitles,
+      countryName: asTrimmedString(restrictionRecord.countryName ?? null),
+    };
+  }
+  const liveYear = record.liveYear === undefined || record.liveYear === null ? null : asNumber(record.liveYear);
+  if (record.liveYear !== undefined && record.liveYear !== null && liveYear === null) return null;
+  return {
+    positionId,
+    positionName: asTrimmedString(position.name ?? null),
+    department: asTrimmedString(position.department ?? null),
+    liveYear,
+    canView,
+    canAct,
+    member,
+    restriction,
   };
 }
 

@@ -101,6 +101,27 @@
  *   members, approval, treasury, sector count, leadership-election flag);
  *   bargaining campaigns, dues/services panels, pension, endorsements, and
  *   every write stay absent.
+ * - cabinet-detail  GET /api/country/[code]/executive/cabinet/[positionId]/briefing
+ *   (AHDGame src/app/api/country/[code]/executive/cabinet/[positionId]/briefing/route.ts;
+ *   the office page at src/app/country/[code]/executive/cabinet/[positionId]/office/page.tsx
+ *   reads the same shape via useCabinetOffice). Auth is public with an
+ *   optional viewer (getAuthUserWithCharacter personalizes canView/canAct);
+ *   the first-party session cookie carries it. The country code is the
+ *   lowercase client-nav `cabinetOffice.countryCode` (COUNTRY_CONFIGS key,
+ *   e.g. us/sco/wal); the position id is the snake_case (one camelCase:
+ *   generalSecretary) client-nav `cabinetOffice.positionId` (e.g.
+ *   secretary_of_state). Errors: 400 invalid country, 404 unknown position
+ *   or a gone seat, generic { error } envelope (src/lib/api/errors
+ *   handleRouteError). A viewer who may not work the office still gets the
+ *   withheld shape ({canView:false, position, member, restriction}) rather
+ *   than an error: the seat, its department, and its holder are roster
+ *   facts published on the cabinet list and the holder page. Cache:
+ *   no-store — Native keeps no copy beyond memory. Native projects the
+ *   letterhead plus roster facts only (seat id/name/department, holder
+ *   name/party/acting/tenure, canView/canAct, withheld restriction
+ *   titles); mechanics, settings, orders, metrics, budgets, military,
+ *   monetary, and every write stay absent, so privileged departmental
+ *   record cannot leak into exact figures.
  *
  * Audited writes:
  * - execute-action    POST /api/actions/execute  requireHumanSession
@@ -232,7 +253,8 @@ export type MpFetchOpId =
   | "admin-maintenance"
   | "election-detail"
   | "corporation-detail"
-  | "union-detail";
+  | "union-detail"
+  | "cabinet-detail";
 
 export type MpMutateOpId =
   | "execute-action"
