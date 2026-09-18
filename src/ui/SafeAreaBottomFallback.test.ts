@@ -50,7 +50,7 @@ const DESKTOP_NAV = {
 };
 
 /** Minimal style root: only the surface installIosSafeArea uses. */
-function makeRoot() {
+function makeRoot(): HTMLElement & { props: Map<string, string> } {
   const props = new Map<string, string>();
   return {
     props,
@@ -63,7 +63,7 @@ function makeRoot() {
       },
     },
     setAttribute() {},
-  } as unknown as HTMLElement;
+  } as unknown as HTMLElement & { props: Map<string, string> };
 }
 
 /** Dimension-driven window double: no matchMedia, so viewport geometry decides orientation. */
