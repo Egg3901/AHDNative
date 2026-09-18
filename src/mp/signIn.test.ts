@@ -47,6 +47,39 @@ describe("MpModeSession signIn link action", () => {
     expect(snapshot.error).toMatch(/could not be started/i);
   });
 
+  it("opens a single bounce for concurrent link calls", async () => {
+    // Two link calls before the first bounce resolves join one round trip
+    // instead of racing parallel bounces over the single webview.
+    let releaseBounce!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseBounce = resolve;
+    });
+    const begin = vi.fn(async () => {
+      await gate;
+    });
+    const host = hostWith(begin, { reject: "remote-error:401:0:Authentication required" });
+    const session = new MpModeSession(host);
+    const first = session.signIn("discord");
+    const second = session.signIn("google");
+    releaseBounce();
+    const [firstSnap, secondSnap] = await Promise.all([first, second]);
+    expect(begin).toHaveBeenCalledTimes(1);
+    expect(firstSnap.phase).toBe("signed-out");
+    expect(secondSnap.phase).toBe("signed-out");
+  });
+
+  it("link with no session window lands session-required with retry", async () => {
+    // Cold boot with no live-site session to bridge through: the bounce
+    // opens, the load finds no session, and the screen offers the sign-in
+    // path again instead of an unreachable-device claim.
+    const begin = vi.fn(async () => {});
+    const host = hostWith(begin, { reject: "session-unavailable" });
+    const snapshot = await new MpModeSession(host).signIn("google");
+    expect(begin).toHaveBeenCalledWith("google");
+    expect(snapshot.phase).toBe("session-required");
+    expect(snapshot.character).toBeNull();
+  });
+
   it("cancelled callback (bounce without a session) lands signed-out", async () => {
     const host = hostWith(async () => {}, {
       reject: "remote-error:401:0:Authentication required",
