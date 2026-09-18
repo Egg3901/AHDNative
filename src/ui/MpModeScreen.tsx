@@ -547,6 +547,9 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
             <button className="ahd-btn ahd-btn-sm" onClick={() => jumpTo("mp-actions")}>
               Actions
             </button>
+            <button className="ahd-btn ahd-btn-sm" onClick={() => jumpTo("mp-wallet")}>
+              Wallet
+            </button>
             {snapshot.inbox && (
               <button className="ahd-btn ahd-btn-sm" onClick={() => jumpTo("mp-inbox")}>
                 Inbox{snapshot.inbox.unreadCount > 0 ? ` (${snapshot.inbox.unreadCount} unread)` : ""}
@@ -1029,6 +1032,35 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                 </button>
               ))}
             </div>
+          </section>
+          <div className="ahd-mp-row ahd-mp-back">
+            <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" onClick={() => jumpTo("mp-top")}>
+              Back to sections
+            </button>
+          </div>
+          </>
+        )}
+
+        {/* Wallet reachability slice (#507, #84): the only audited
+          * multiplayer money figure is character-me `cashOnHand`, already
+          * loaded with the session, so this section projects it with no new
+          * endpoint. Savings, holdings, trends, and deposit/withdraw have no
+          * allowlisted bridge read (finance surfaces are deliberately absent
+          * in src/mp/endpoints.ts) and stay named-absent, never SP values.
+          * Back returns to the section list, never into local SP state. */}
+        {snapshot.character && (
+          <>
+          <section id="mp-wallet" className="ahd-card ahd-card-pad" aria-label="Wallet" tabIndex={-1}>
+            <h2 className="ahd-h2">Wallet</h2>
+            <p className="ahd-muted" style={{ marginTop: 0 }}>
+              Live cash balance from your character record. Savings, stock
+              holdings, portfolio trends, and deposit/withdraw have no
+              multiplayer read in this build, so only cash on hand is shown.
+            </p>
+            <dl className="ahd-mp-facts">
+              <dt>Cash on hand</dt>
+              <dd>{snapshot.character.cashOnHand !== null ? snapshot.character.cashOnHand : "Not reported by the server"}</dd>
+            </dl>
           </section>
           <div className="ahd-mp-row ahd-mp-back">
             <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" onClick={() => jumpTo("mp-top")}>

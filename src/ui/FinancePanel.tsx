@@ -49,7 +49,10 @@ export interface FinancePanelProps {
   /**
    * Session mode. The local SP engine projects finance; the MP surface never
    * touches it (MpModeScreen owns MP reads), so "mp" renders the explicit
-   * unavailable state instead of balances. Defaults to "sp".
+   * unavailable state instead of balances. The note names the missing bridge
+   * read, points at the MP Wallet section for live cash on hand, and keeps
+   * the portfolio/banking cross-link when onNavigate is provided.
+   * Defaults to "sp".
    */
   mode?: "sp" | "mp";
 }
@@ -464,13 +467,28 @@ function WalletError({ section, loadError, onNavigate }: { section: "portfolio" 
 
 export function FinancePanel({ finance, section, busy, onAction, onNavigate, onOpenCompany, countryId, status = "ready", loadError = null, mode = "sp" }: FinancePanelProps) {
   if (mode === "mp") {
+    const other = section === "portfolio" ? "banking" : "portfolio";
     return (
       <div className="ahd-wallet">
         <div className="ahd-card ahd-card-pad" role="note" aria-label="Wallet unavailable in multiplayer">
           <h2 className="ahd-h2">{section === "portfolio" ? "Portfolio" : "Banking"}</h2>
           <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: "0.4rem 0 0" }}>
-            Wallet and portfolio balances are unavailable in multiplayer in this build.
+            Wallet and portfolio balances are unavailable in multiplayer in this build:
+            the bridge has no allowlisted portfolio or banking read, so no balances
+            are shown here. Your live cash on hand is in the multiplayer Wallet
+            section, from your character record.
           </p>
+          {onNavigate ? (
+            <button
+              type="button"
+              className="ahd-btn ahd-btn-sm"
+              style={{ marginTop: "0.55rem" }}
+              onClick={() => onNavigate(other)}
+              aria-label={other === "banking" ? "Go to banking" : "Go to portfolio"}
+            >
+              {other === "banking" ? "Go to Banking" : "Go to Portfolio"}
+            </button>
+          ) : null}
         </div>
       </div>
     );
