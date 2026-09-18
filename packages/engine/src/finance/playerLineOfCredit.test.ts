@@ -69,6 +69,68 @@ describe("playerLineOfCreditPhase", () => {
     expect(world.player.lineOfCredit!.balance).toBe(998.01);
   });
 
+  it("reaches a home-currency personal pocket between cash and savings", () => {
+    const world = fundedWorld();
+    world.player.cash = 1;
+    world.player.savings = 10_000;
+    world.player.currencyBalances = { personal: { USD: 10_000 } };
+
+    playerLineOfCreditPhase.run(world, RNG);
+
+    // Scheduled 4.07: 1 from cash, 3.07 from the home pocket, savings
+    // untouched. The gross tally counts the pocket, so the payment must too.
+    expect(world.player.cash).toBe(0);
+    expect(world.player.currencyBalances!.personal.USD).toBeCloseTo(
+      9996.93,
+      10,
+    );
+    expect(world.player.savings).toBe(10_000);
+    expect(world.player.lineOfCredit!.balance).toBe(998.01);
+    expect(world.player.lineOfCredit!.arrears).toBe(0);
+    expect(world.player.lineOfCredit!.drawFrozen).toBe(false);
+  });
+
+  it("settles interest before principal on a partial home payment", () => {
+    const world = fundedWorld();
+    world.player.cash = 2;
+    world.player.savings = 0;
+
+    playerLineOfCreditPhase.run(world, RNG);
+
+    // Pay 2 of the 4.07 scheduled: interest (2.08) absorbs the whole
+    // payment, so arrears keep 0.08, principal never moves, and the
+    // remaining shortfall freezes the line.
+    expect(world.player.cash).toBe(0);
+    expect(world.player.lineOfCredit!.balance).toBe(1000);
+    expect(world.player.lineOfCredit!.arrears).toBe(0.08);
+    expect(world.player.lineOfCredit!.drawFrozen).toBe(true);
+  });
+
+  it("settles interest before principal on a partial foreign payment", () => {
+    const world = createWorld(OPTS);
+    world.player.cash = 10_000;
+    world.player.savings = 0;
+    world.centralBanks.US!.primeRate = 1;
+    world.centralBanks.UK!.primeRate = 7;
+    world.player.currencyBalances = { personal: { GBP: 1 } };
+    world.player.lineOfCredit = {
+      balance: 1000,
+      denomination: "GBP",
+      arrears: 0,
+      drawFrozen: false,
+    };
+
+    playerLineOfCreditPhase.run(world, RNG);
+
+    // GBP interest is 2.5; the 1-unit pocket covers interest only. The USD
+    // wallet is untouched and the shortfall freezes the line.
+    expect(world.player.currencyBalances!.personal.GBP).toBe(0);
+    expect(world.player.cash).toBe(10_000);
+    expect(world.player.lineOfCredit!.balance).toBe(1000);
+    expect(world.player.lineOfCredit!.arrears).toBe(1.5);
+    expect(world.player.lineOfCredit!.drawFrozen).toBe(true);
+  });
+
   it("grows arrears and freezes the line when the wallet cannot cover the payment", () => {
     const world = fundedWorld();
     world.player.cash = 0;

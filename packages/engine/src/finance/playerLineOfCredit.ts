@@ -26,6 +26,15 @@
  *   the scheduled payment.
  * - Savings back only a home-denomination line: player.savings is a home
  *   pool, so a foreign line pays from currencyBalances.personal alone.
+ * - A home line also reaches same-denomination funds parked in the personal
+ *   pocket (crafted saves; live flows keep home cash in `cash`, and the
+ *   bond seams route home currency there too). The gross tally already
+ *   counts that pocket, so the payment must be able to touch it.
+ * - No cross-currency auto-conversion: when the loan-currency wallet falls
+ *   short the reference converts other personal balances at market rates,
+ *   but the Native engine has no FX-conversion writer precedent (see
+ *   finance/wireTransfer.ts: cross-currency movement is an explicit
+ *   PORT-STUB), so the shortfall stands and the line freezes.
  * - The savings slice decrements player.savings exactly once. There is no
  *   second backing store to move: Native central banks omit reserveBalance
  *   (see centralBank/types.ts scope cut) and the savings-accounts journal
@@ -194,15 +203,22 @@ export const playerLineOfCreditPhase: TurnPhase = {
 
     // 2. Size the scheduled payment against the post-accrual obligation,
     // then pay it from the same-denomination wallet: home lines draw cash
-    // first with savings as overflow; foreign lines draw only the foreign
-    // personal balance (savings is a home pool). Interest settles before
-    // principal, exactly like the reference auto-pay split.
+    // first, then the home personal pocket, with savings as overflow;
+    // foreign lines draw only the foreign personal balance (savings is a
+    // home pool). Interest settles before principal, exactly like the
+    // reference auto-pay split.
     const scheduled = roundSavingsAmount(
       computeLocScheduledPaymentFace(mode, balance, postAccrualArrears),
       denomination,
     );
     const isHome = denomination === home;
     const cashAvailable = isHome ? Math.max(0, world.player.cash) : 0;
+    const homePocketAvailable = isHome
+      ? Math.max(
+          0,
+          world.player.currencyBalances?.personal?.[denomination] ?? 0,
+        )
+      : 0;
     const savingsAvailable = isHome ? Math.max(0, world.player.savings) : 0;
     const foreignAvailable = !isHome
       ? Math.max(
@@ -211,7 +227,7 @@ export const playerLineOfCreditPhase: TurnPhase = {
         )
       : 0;
     const walletAvailable = isHome
-      ? cashAvailable + savingsAvailable
+      ? cashAvailable + homePocketAvailable + savingsAvailable
       : foreignAvailable;
     const pay = Math.min(scheduled, walletAvailable);
     const interestPart = roundSavingsAmount(
@@ -236,14 +252,24 @@ export const playerLineOfCreditPhase: TurnPhase = {
     const locBefore: PlayerLineOfCredit = { ...loc };
     try {
       const fromCash = isHome ? Math.min(pay, cashAvailable) : 0;
+      const fromPocket = isHome
+        ? Math.min(pay - fromCash, homePocketAvailable)
+        : 0;
       const fromSavings = isHome
-        ? roundSavingsAmount(pay - fromCash, denomination)
+        ? roundSavingsAmount(pay - fromCash - fromPocket, denomination)
         : 0;
       if (fromCash > 0)
         world.player.cash = roundSavingsAmount(
           cashBefore - fromCash,
           denomination,
         );
+      if (fromPocket > 0) {
+        world.player.currencyBalances!.personal[denomination] =
+          roundSavingsAmount(
+            (foreignBefore ?? 0) - fromPocket,
+            denomination,
+          );
+      }
       if (fromSavings > 0) {
         world.player.savings = roundSavingsAmount(
           savingsBefore - fromSavings,
@@ -268,16 +294,16 @@ export const playerLineOfCreditPhase: TurnPhase = {
     } catch (error) {
       world.player.cash = cashBefore;
       world.player.savings = savingsBefore;
-      if (!isHome) {
-        if (!hadBalances) {
-          delete world.player.currencyBalances;
-        } else if (world.player.currencyBalances?.personal) {
-          if (foreignBefore === undefined) {
-            delete world.player.currencyBalances.personal[denomination];
-          } else {
-            world.player.currencyBalances.personal[denomination] =
-              foreignBefore;
-          }
+      // The home path never creates currencyBalances (a pocket debit needs
+      // the key to exist); only the foreign path can leave a fresh object.
+      if (!isHome && !hadBalances) {
+        delete world.player.currencyBalances;
+      } else if (world.player.currencyBalances?.personal) {
+        if (foreignBefore === undefined) {
+          delete world.player.currencyBalances.personal[denomination];
+        } else {
+          world.player.currencyBalances.personal[denomination] =
+            foreignBefore;
         }
       }
       world.player.lineOfCredit = locBefore;

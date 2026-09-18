@@ -43,20 +43,23 @@ describe("line-of-credit session seam (#314)", () => {
     expect(world.player.cash).toBeLessThan(before);
   });
 
-  it("refuses an invalid line at advance and leaves the live session untouched", () => {
+  it("refuses an invalid line at the load boundary and leaves the loading session untouched", () => {
     const session = new GameSession();
     session.create(options);
-    const stamp = saveWithLine(session, {
+    const good = session.serialize(STAMP);
+    const parsed = JSON.parse(good) as {
+      world: { player: Record<string, unknown> };
+    };
+    parsed.world.player.lineOfCredit = {
       balance: -50,
       denomination: "USD",
       arrears: 0,
       drawFrozen: false,
-    });
+    };
 
-    const loaded = new GameSession();
-    loaded.load(stamp);
-    const before = loaded.serialize(STAMP);
-    expect(() => loaded.advance()).toThrow();
-    expect(loaded.serialize(STAMP)).toBe(before);
+    // deserializeSave fails closed on present-but-invalid line state, so
+    // the invalid save never enters the session; the live world is intact.
+    expect(() => session.load(JSON.stringify(parsed))).toThrow();
+    expect(session.serialize(STAMP)).toBe(good);
   });
 });
