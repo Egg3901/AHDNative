@@ -16,6 +16,7 @@ import { readFileSync } from "node:fs";
 const css = readFileSync("src/ui/ui.css", "utf8");
 const appTsx = readFileSync("src/App.tsx", "utf8");
 const creationTsx = readFileSync("src/ui/CharacterCreationScreen.tsx", "utf8");
+const mpTsx = readFileSync("src/ui/MpModeScreen.tsx", "utf8");
 
 describe("safe-area gap closures (#436, post-#449)", () => {
   it("clears the home indicator under the landing entry shell", () => {
@@ -39,8 +40,16 @@ describe("safe-area gap closures (#436, post-#449)", () => {
     }
   });
 
-  it("holds MP mail compose fields at the 16px iOS anti-zoom floor", () => {
-    expect(css).toMatch(/\.ahd-mp-input input,\s*\.ahd-mp-input textarea\s*\{[^}]*font-size:\s*16px/);
+  it("holds every MP field kind at the 16px iOS anti-zoom floor", () => {
+    // iOS Safari auto-zooms on focus below 16px. The compose row pins input
+    // and textarea, but the notification-preference select in the same
+    // .ahd-mp-input row shipped unpinned and would zoom on iPhone.
+    expect(css).toMatch(/\.ahd-mp-input input[^{]*\{[^}]*font-size:\s*16px/);
+    expect(css).toMatch(/\.ahd-mp-input textarea[^{]*\{[^}]*font-size:\s*16px/);
+    expect(css).toMatch(/\.ahd-mp-input select[^{]*\{[^}]*font-size:\s*16px/);
+    // Non-vacuity: an .ahd-mp-input select must actually ship, otherwise the
+    // rule above pins nothing.
+    expect(mpTsx).toMatch(/ahd-field ahd-mp-input[\s\S]*?<select/);
   });
 
   it("keeps a vh fallback ahead of dvh on the docked drawer", () => {

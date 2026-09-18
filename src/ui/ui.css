@@ -320,9 +320,11 @@ html, body { overflow-x: hidden; }
   outline: none;
 }
 .ahd-input:focus, .ahd-select:focus { border-color: var(--ahd-primary); box-shadow: 0 0 0 1px var(--ahd-primary); }
-/* MP mail compose fields carry no .ahd-input class (behavior unchanged), so
-   the 16px iOS anti-zoom floor is pinned here too (#436 keyboard). */
-.ahd-mp-input input, .ahd-mp-input textarea { font-size: 16px; }
+/* MP fields carry no .ahd-input class (behavior unchanged), so the 16px iOS
+   anti-zoom floor is pinned here too (#436 keyboard). Every field kind needs
+   it: the notification-preference select in the same row shipped unpinned
+   and would zoom on iPhone focus while its sibling input/textarea held. */
+.ahd-mp-input input, .ahd-mp-input textarea, .ahd-mp-input select { font-size: 16px; }
 .ahd-input:focus-visible, .ahd-select:focus-visible { border-color: var(--ahd-primary); box-shadow: var(--ahd-focus); }
 .ahd-input:disabled, .ahd-select:disabled { opacity: 0.6; }
 .ahd-error-text { color: var(--ahd-error); font-size: 0.76rem; }
