@@ -150,6 +150,28 @@ describe("mechanics drift CLI", () => {
     assert.match(combined(report), /src\/lib\/newMechanic\.ts/);
   });
 
+  it("fails when a declared consumer does not resolve in this repository", () => {
+    const source = initSourceRepo({ "src/lib/actions/rules.ts": "export const cost = 3;\n" });
+    const manifest = writeManifest(source.baselineRevision, [
+      { ...ACTION_SLICE, consumers: ["packages/engine/src/actions/", "packages/engine/src/no-such-consumer.ts"] },
+    ]);
+
+    const report = runCli(["--source", source.dir, "--manifest", manifest]);
+
+    assert.notEqual(report.status, 0, combined(report));
+    assert.match(combined(report), /consumer does not exist/);
+    assert.match(combined(report), /packages\/engine\/src\/no-such-consumer\.ts/);
+  });
+
+  it("passes consumer ownership for the shipped manifest without a source checkout", () => {
+    const shipped = join(REPO_ROOT, "docs", "mechanics-drift-manifest.json");
+
+    const report = runCli(["--manifest", shipped, "--check-consumers"]);
+
+    assert.equal(report.status, 0, combined(report));
+    assert.match(combined(report), /all declared consumers resolve/);
+  });
+
   it("passes strict mode when the target has no tracked source changes", () => {
     const source = initSourceRepo({ "src/lib/actions/rules.ts": "export const cost = 3;\n" });
     const manifest = writeManifest(source.baselineRevision, [ACTION_SLICE]);

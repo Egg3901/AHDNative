@@ -71,7 +71,10 @@ to fail on any tracked change, including an unclassified path. The command
 compares immutable Git revisions and does not execute source, contact GitHub,
 or silently update the manifest. `.github/workflows/mechanics-drift.yml`
 provides the same report as an explicit manual workflow with an optional strict
-gate. Automatic upstream PR preparation, differential execution and complete
+gate. Every declared consumer must resolve to a file or directory in this
+repository: the scanner rejects a stale consumer path, and
+`npm run verify:rules` enforces it locally with `--check-consumers` on every
+run. Automatic upstream PR preparation, differential execution and complete
 ruleset/save policy remain open in #120.
 
 ## Validation boundaries and limits

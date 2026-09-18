@@ -17,7 +17,7 @@
     "test:smoke": "playwright test",
     "test:ui": "vitest run --config vitest.ui.config.ts",
     "test:career-fixtures": "tsx scripts/validate-career.ts --mode=validate",
-    "verify:rules": "node --test scripts/shared-rules.test.mjs scripts/mechanics-drift.test.mjs scripts/testflight-workflow.test.mjs scripts/verify-android-alignment.test.mjs scripts/review-windows.test.mjs && node scripts/shared-rules.mjs --verify"
+    "verify:rules": "node --test scripts/shared-rules.test.mjs scripts/mechanics-drift.test.mjs scripts/testflight-workflow.test.mjs scripts/verify-android-alignment.test.mjs scripts/review-windows.test.mjs && node scripts/shared-rules.mjs --verify && node scripts/mechanics-drift.mjs --manifest docs/mechanics-drift-manifest.json --check-consumers"
   },
   "dependencies": {
     "react": "^19.0.0",
