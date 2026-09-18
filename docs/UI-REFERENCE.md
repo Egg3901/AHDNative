@@ -422,9 +422,10 @@ file upstream (remote-only; the offline app cannot fetch them). The 11
 licence recorded in AHDGame), so rights cannot be audited and they stay out
 per the issue's fair-use/proprietary exclusion. `cabinet`, `imf` and
 `imf-logo` have recorded Commons sources in the hero route but no Native
-consumer surface yet (Native has no IMF, cabinet, or commodity destination;
-corporation model and market lifecycles stay with #80/#211/#77), so they
-are staged with the surface rather than shipped as dead weight. (The
+consumer for those slugs yet (Native has no IMF destination; the cabinet
+destination renders the already-cleared executive-house art instead, see
+below; corporation model and market lifecycles stay with #80/#211/#77), so
+they are staged with the surface rather than shipped as dead weight. (The
 `bank-of-england`, `bank-of-japan`, and `federal-reserve` bank heroes
 formerly in this waiting list have since shipped on `main` via the
 central-bank slice #386 with a Native banking consumer; see the banking
@@ -435,10 +436,18 @@ recorded `sectorType` with `commodityHero()` / `commodityHeroAlt()`. Only
 the `energy` and `retail` Native sectors hit bundled art (the 17
 `CorporationType` sector keys otherwise miss the 14 commodity keys and take
 the Actions fallback with the fallback accessible name); no route, mechanic,
-or sector mapping was invented. Partial: the corporation, IMF, and cabinet
-surfaces from #378 stay open (no Native consumer or rights manifest yet;
-central-bank has since shipped via #386), the other 14 commodity slugs stay
-remote-only, and the reference commodity browse surface has no Native
+or sector mapping was invented. Cabinet-office destination
+(`CabinetOfficePanel` in `src/ui/CabinetOfficePanel.tsx`) renders a
+`RouteHero` keyed by the cabinet `countryId` through the existing
+`executiveHero()` mapping (US/UK/DD/CN to the cleared executive-house files
+above, every other country to the Actions fallback, never a remote fetch or
+a broken image); no new bytes, no new rights attach. Focused tests:
+`src/ui/CabinetHeroImagery.test.tsx` (mapping, local decode, rendered local
+path and accessible alt, no external URL, error-gradient fallback, controls
+preserved, 320/390/desktop crop and wrap rules). Partial: the corporation
+and IMF surfaces from #378 stay open (no Native consumer or rights manifest
+yet; central-bank has since shipped via #386), the other 14 commodity slugs
+stay remote-only, and the reference commodity browse surface has no Native
 equivalent. The issue stays open with `status: partial`.
 
 Full destination/conditional-menu inventory lives in

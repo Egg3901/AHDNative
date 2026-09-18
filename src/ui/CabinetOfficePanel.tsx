@@ -12,6 +12,7 @@
 import { useState } from "react";
 import type { CabinetOfficeView } from "../game/cabinetOffice";
 import type { IssueCabinetOrderInput } from "../game/cabinetOffice";
+import { RouteHero, executiveHero } from "./RouteHero";
 
 export interface CabinetOfficeNotice {
   kind: "ok" | "error";
@@ -57,15 +58,18 @@ export function CabinetOfficePanel({ office, busy, notice, onIssue }: CabinetOff
 
   return (
     <div className="ahd-stack">
-      <div className="ahd-card ahd-card-pad ahd-hero">
-        <div className="ahd-eyebrow">{office.countryName}</div>
-        <h1 className="ahd-h1" style={{ marginTop: "0.22rem" }}>Cabinet office</h1>
+      <RouteHero
+        image={executiveHero(office.countryId)}
+        alt={`${office.countryName} cabinet office`}
+        eyebrow={office.countryName}
+        title="Cabinet office"
+      >
         <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.32rem 0 0" }}>
           {office.isExecutive
             ? "You hold the presidency, so you may issue orders for any held portfolio."
             : "Only an office holder, or the sitting executive for another portfolio, may issue orders."}
         </p>
-      </div>
+      </RouteHero>
 
       {notice ? (
         <div className={notice.kind === "ok" ? "ahd-notice" : "ahd-alert"} role={notice.kind === "ok" ? "status" : "alert"}>
