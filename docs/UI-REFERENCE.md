@@ -117,6 +117,19 @@ recognizable, with fine bell detail naturally softening at favicon sizes. The
 next authorized package confirms the installed icon; no paid build was
 triggered for this asset update.
 
+Browser chrome (2026-09-18, Linux-verifiable only): `index.html` declared
+`apple-mobile-web-app-capable` but shipped no favicon or touch icon, so tabs,
+bookmarks and iOS home-screen shortcuts fell back to a blank/screenshot glyph
+instead of the canonical mark. `index.html` now links both `rel="icon"` and
+`rel="apple-touch-icon"` at the bundled offline `public/ahd-logo.png`
+(relative href, same convention as the launcher `<img>`; no new artwork, no
+remote fetch). Pinned by `browser chrome icon reference` in
+`src/ui/logoIconAcceptance.test.tsx`. Limitations: iOS applies its own
+rounded-rect mask and paints transparent regions black on the touch icon,
+unlike the opaque white fill in the generated `src-tauri/icons/ios` set; tab
+and home-screen rendering on physical devices is not claimed (#148 stays
+open for installed-package confirmation).
+
 Help/Settings remain unbranded app-local surfaces; there is no separate
 identity backend and no auth surface yet (see #149, independent).
 
