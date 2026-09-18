@@ -19,7 +19,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { FinanceView } from "../game/types";
 import { GameSession } from "../game/session";
-import { FinancePanel } from "./FinancePanel";
+import { FinancePanel, formatFinanceMoney } from "./FinancePanel";
 import { drawerRouteIds } from "./MobileNavigation";
 
 const css = readFileSync("src/ui/ui.css", "utf8");
@@ -827,6 +827,42 @@ describe("wallet action and save-reload through the real session", () => {
     await user.type(screen.getByLabelText("Amount"), "500");
     await user.click(screen.getByRole("button", { name: /withdraw/i }));
     expect(onAction).toHaveBeenCalledWith("withdrawSavings", { amount: 500 });
+  });
+
+  it("renders exact reloaded balances after a real withdraw and save round-trip", () => {
+    // Mirror of the deposit round-trip through the other action path: the
+    // session opens with 10000 cash, the real deposit command moves 2000 to
+    // savings, the real withdraw command moves 500 back, the session
+    // serializes, a fresh session loads the save string, and the reloaded
+    // banking view renders the exact projected balances. Any projection or
+    // persistence corruption goes red here.
+    const session = liveWalletSession();
+    expect(session.act("depositSavings", { amount: 2000 }).ok).toBe(true);
+    expect(session.act("withdrawSavings", { amount: 500 }).ok).toBe(true);
+
+    const reloaded = new GameSession();
+    reloaded.load(session.serialize(SAVED_AT));
+    const finance = reloaded.view().finance;
+    expect(finance).toMatchObject({ cash: 8500, savings: 1500 });
+
+    render(
+      <FinancePanel
+        finance={finance}
+        section="banking"
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+    // The cash figure also appears in the wire settlement balance list,
+    // so both exact values must render at least once through the panel.
+    expect(
+      screen.getAllByText(formatFinanceMoney(8500, finance.currency)).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(formatFinanceMoney(1500, finance.currency)).length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText(/no cash balance/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/no savings balance/i)).not.toBeInTheDocument();
   });
 });
 
