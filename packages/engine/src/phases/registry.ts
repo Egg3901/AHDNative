@@ -100,6 +100,7 @@ import {
   crisisTurnPhase,
 } from "../events/phases.js";
 import { bankingTurnPhase } from "../banking/bankingTurn.js";
+import { discountWindowTurnPhase } from "../banking/discountWindow.js";
 import { playerSavingsInterestPhase } from "../finance/playerSavingsInterest.js";
 import { playerLineOfCreditPhase } from "../finance/playerLineOfCredit.js";
 import { bankSolvencyTurnPhase } from "../banking/bankSolvencyTurn.js";
@@ -348,6 +349,13 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // investment-bank charter type ported), but keeps the same slot.
   playerSavingsInterestPhase,
   bankingTurnPhase,
+  // #327 discount-window interest servicing, immediately after bankingTurn
+  // and before bankSolvencyTurn — the reference's own relative order
+  // (bankingTurn.ts runs serviceInterbankAndCbMargin at the end of its pass,
+  // before lineOfCreditTurn and bankSolvencyTurn) so interest/arrears settle
+  // before the solvency pass scores the resulting cash position. RNG-free,
+  // so tail placement shifts no downstream rng draws.
+  discountWindowTurnPhase,
   // #314 line-of-credit servicing, immediately after bankingTurn and before
   // bankSolvencyTurn — the reference's own relative order (turnPhaseRegistry.ts:
   // bankingTurn … lineOfCreditTurn … bankSolvencyTurn) so the scheduled

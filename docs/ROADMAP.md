@@ -1416,8 +1416,31 @@ and removed. The smoke helper now walks the conversation; no engine change.
 - One banking rule now totals discount-window, central-bank margin and
   interbank claims for book equity and regulatory capital. Invalid or negative
   legacy values fail closed to zero, and the volatile proprietary mark cannot
-  be distributed as equity. Transactions remain #326-#328; solvency and phase
+  be distributed as equity. Discount-window transactions land with #327 below;
+  interbank and proprietary transactions remain #326/#328; solvency and phase
   integration remain #329.
+
+## Discount-window checkpoint, 2026-09-18 (#327 / #109)
+
+- Banks draw and repay central-bank emergency liquidity through
+  `banking/discountWindow.ts`: prime-plus-3 rate, cap at 25% of cash-backed
+  deposits, usage-scaled confidence stigma, per-turn interest with shortfall
+  arrears and turn-stamp idempotency, and a senior failure claim ahead of
+  depositors. Every refusal throws before mutation, so rejected draws and
+  repayments leave state untouched.
+- Servicing runs as `discountWindowTurn` immediately after `bankingTurn` and
+  before `playerLineOfCredit`/`bankSolvencyTurn`, matching the reference
+  end-of-banking-pass order. Native adaptations: retail-only charters carry
+  the capability structurally, draws mint and repayments burn (no CB
+  reserve/creation ledger exists), interest paid is retired the same way, and
+  arrears extinguish on failure exactly as the reference waterfall holds.
+- Focused evidence: `packages/engine/src/banking/discountWindow.test.ts`
+  (24 cases: quote/limits/draw/repay, rejection atomicity, unrounded gate,
+  interest/arrears, idempotency, pre-#327 saves, stigma, failure waterfall,
+  ordering) and
+  `src/game/discountWindowSession.test.ts` (advance-seam servicing, reload,
+  debt-free no-op). #327 acceptance is met; #326/#328 lifecycles and the full
+  multi-claim waterfall (margin/interbank senior legs) remain open under #329.
 
 ## Canonical logo/icon Linux re-verification checkpoint, 2026-09-15 (#148 partial)
 

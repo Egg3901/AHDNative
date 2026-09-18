@@ -11,11 +11,13 @@
  *
  * Scope cut vs mainline (cited once, applies to this whole module — see
  * banking/types.ts file doc for the itemized list): no interbank market, no
- * central-bank margin line, no B8 discount window, no proprietary trading
- * book. Those all sit behind mainline's separate `bankPropTradingEnabled`
- * kill switch (isBankPropTradingEnabled) and mainline's own bankingTurn.ts
- * runs them in a dedicated `serviceInterbankAndCbMargin` pass gated on that
- * flag — this port simply never calls that pass.
+ * central-bank margin line, no proprietary trading book. Those sit behind
+ * mainline's separate `bankPropTradingEnabled` kill switch
+ * (isBankPropTradingEnabled). The B8 discount-window leg of mainline's
+ * dedicated `serviceInterbankAndCbMargin` pass is ported separately in
+ * banking/discountWindow.ts, which runs as its own phase immediately after
+ * this one (see phases/registry.ts) — this module simply never calls that
+ * pass.
  *
  * Ordering within one bank's pass mirrors mainline processOneBank exactly:
  * (a) NPC deposit flow, (b) deposit interest, (c) insurance premium,

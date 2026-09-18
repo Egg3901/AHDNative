@@ -9,20 +9,21 @@
  *
  * Scope cut (cited, not silently dropped): mainline's BankCharter also
  * carries investment/universal charter capabilities, proprietary positions,
- * InterbankLoan rows, central-bank facility commands, and their idempotency
+ * InterbankLoan rows, the central-bank margin facility, and their idempotency
  * fields. #325 adds the optional aggregate debts and proprietary mark needed
- * for canonical accounting; transaction lifecycles remain #326-#328. Regulation Q rate
- * corridors, charter-switch cooldowns, a blacklist, opt-in loan approval, and
- * B7 supervisory capital-adequacy stress testing (capitalStanding,
- * appliedStressLossFraction, undercapitalizedSinceTurn). All of that sits
- * behind mainline's SEPARATE `bankPropTradingEnabled` kill switch
- * (src/lib/banking/featureFlag.ts isBankPropTradingEnabled) or is
+ * for canonical accounting; #327 ports the discount-window lifecycle
+ * (discountWindow.ts); interbank and proprietary lifecycles remain #326/#328.
+ * Regulation Q rate corridors, charter-switch cooldowns, a blacklist, opt-in
+ * loan approval, and B7 supervisory capital-adequacy stress testing
+ * (capitalStanding, appliedStressLossFraction, undercapitalizedSinceTurn).
+ * All of that sits behind mainline's SEPARATE `bankPropTradingEnabled` kill
+ * switch (src/lib/banking/featureFlag.ts isBankPropTradingEnabled) or is
  * player-console UX with no origination action ported yet in AHDClient (no
  * "request a bank loan" / "open an investment charter" action exists). W12
  * ports the retail/deposit-taking core only: one bank per playable country
  * (see npcBanks.ts), NPC household deposits + interest, the NPC household
  * bulk loan book, deposit insurance, and solvency/failure. Prop transactions,
- * interbank servicing, central-bank facility commands, charter switching, Regulation Q,
+ * interbank servicing, the margin facility, charter switching, Regulation Q,
  * supervision and loan approval are out of scope for this wave — flagged for
  * operator review, not silently ported partial.
  */
@@ -86,6 +87,12 @@ export interface BankCharter {
   panicTurns: number;
   /** Idempotency key for bankingTurn. Source: BankCharter.lastBankingTurn. */
   lastBankingTurn: number | null;
+  /**
+   * Idempotency key for discount-window interest servicing (#327).
+   * Source: BankCharter.lastDiscountWindowTurn. Optional so pre-#327 saves
+   * load unchanged (absent reads as never-serviced).
+   */
+  lastDiscountWindowTurn?: number | null;
   /** Idempotency key for bankSolvencyTurn. Source: BankCharter.lastSolvencyTurn. */
   lastSolvencyTurn: number | null;
   failedTurn: number | null;
