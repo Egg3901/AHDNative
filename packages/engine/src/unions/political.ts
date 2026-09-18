@@ -133,8 +133,8 @@ type LabourPoliticalCampaign = {
   status: string;
   escalationLevel: string;
   mandate: { leverage: number };
-  disputeStartedAtTurn?: number;
-  escalationStartedAtTurn?: number;
+  disputeStartedAtTurn?: number | null;
+  escalationStartedAtTurn?: number | null;
   endedAtTurn?: number | null;
 };
 
@@ -148,7 +148,7 @@ function clamp(value: number, limit: number): number {
   return Math.max(-limit, Math.min(limit, value));
 }
 
-function ageSince(currentTurn: number, anchor: number | undefined): number {
+function ageSince(currentTurn: number, anchor: number | null | undefined): number {
   return Math.max(0, currentTurn - (anchor ?? currentTurn));
 }
 
