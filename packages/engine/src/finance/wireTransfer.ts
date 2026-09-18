@@ -107,6 +107,14 @@ export function wireTransfer(
     return { ok: false, error: "Foreign-currency transfers are not available" };
   }
 
+  // Read-only balance lookup: never creates currencyBalances, so every
+  // refusal below leaves cash, buckets, quota and holdings untouched.
+  // Source order: the route checks the sender balance before
+  // loadCharacterFxRate, so insufficient funds wins over a missing rate.
+  if (personalBalance(player, senderHome, transferCurrency) < amount) {
+    return { ok: false, error: `Insufficient ${transferCurrency} balance. Available: ${personalBalance(player, senderHome, transferCurrency)}` };
+  }
+
   // Source: loadCharacterFxRate for the sender home currency; anchor =
   // local / rate. Pre-forex treats USD 1:1. Fail closed when the rate is
   // missing instead of inventing a conversion.
@@ -121,16 +129,10 @@ export function wireTransfer(
     anchorAmount = amount;
   }
 
-  // Read-only balance lookup: never creates currencyBalances, so every
-  // refusal below leaves cash, buckets, quota and holdings untouched.
-  if (personalBalance(player, senderHome, transferCurrency) < amount) {
-    return { ok: false, error: `Insufficient ${transferCurrency} balance. Available: ${personalBalance(player, senderHome, transferCurrency)}` };
-  }
-
   const turn = world.meta.turn;
   const windowFresh =
     player.wireQuotaWindowStartTurn != null && turn - player.wireQuotaWindowStartTurn < WIRE_QUOTA_WINDOW_TURNS;
-  const quotaUsed = windowFresh ? player.wireQuotaUsedAnchor : 0;
+  const quotaUsed = windowFresh ? (player.wireQuotaUsedAnchor ?? 0) : 0;
   if (quotaUsed + anchorAmount > DAILY_WIRE_CAP_ANCHOR) {
     const remaining = Math.max(0, DAILY_WIRE_CAP_ANCHOR - quotaUsed);
     return { ok: false, error: `Daily wire limit reached. ${remaining} remaining in your quota.` };

@@ -163,6 +163,43 @@ describe("wireTransfer", () => {
     expect(w.player.wireQuotaUsedAnchor).toBe(1000);
   });
 
+  it("refuses insufficient balance before consulting the exchange rate (source order)", () => {
+    // The route checks the sender balance before loadCharacterFxRate, so a
+    // broke sender sees Insufficient even when the rate row is also missing.
+    const w = createWorld(OPTS);
+    const targetId = samePoliticianCountry(w);
+    w.player.cash = 100;
+    w.exchangeRates["US"].rate = NaN;
+    const before = serializeSave(w, "2026-01-01T00:00:00.000Z");
+    expect(wireTransfer(w, targetId, 1000)).toEqual({
+      ok: false,
+      error: "Insufficient USD balance. Available: 100",
+    });
+    expect(serializeSave(w, "2026-01-01T00:00:00.000Z")).toBe(before);
+  });
+
+  it("treats a missing quota counter as zero inside a fresh window", () => {
+    const w = createWorld(OPTS);
+    const targetId = samePoliticianCountry(w);
+    w.player.cash = 5000;
+    w.player.wireQuotaWindowStartTurn = w.meta.turn;
+    (w.player as unknown as Record<string, unknown>).wireQuotaUsedAnchor = undefined;
+    const res = wireTransfer(w, targetId, 1000);
+    expect(res.ok).toBe(true);
+    expect(w.player.wireQuotaUsedAnchor).toBe(1000);
+  });
+
+  it("allows explicitly naming the sender home currency when forex is off", () => {
+    // Pre-forex the route rejects only a currency that differs from home.
+    const w = createWorld(OPTS);
+    w.featureFlags.foreignExchange = false;
+    const domesticId = samePoliticianCountry(w);
+    w.player.cash = 5000;
+    const res = wireTransfer(w, domesticId, 1000, "USD");
+    expect(res.ok).toBe(true);
+    expect(w.player.cash).toBe(4000);
+  });
+
   it("refuses fail-closed when the sender-home rate is missing", () => {
     const w = createWorld(OPTS);
     const targetId = samePoliticianCountry(w);
