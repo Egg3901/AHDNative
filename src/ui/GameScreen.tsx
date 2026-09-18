@@ -22,7 +22,7 @@ import { ResourceBreakdown } from "./ResourceBreakdown";
 import { BottomNav, GameDrawer } from "./MobileNavigation";
 import type { DrawerRouteId, IdentityOrgLink } from "./MobileNavigation";
 import { installFooterClearance } from "./footerClearance";
-import { hingeBounds, useDualPaneLayout, useViewportSegments, type ViewportSegment } from "./dualPane";
+import { segmentPaneGeometry, useDualPaneLayout, useViewportSegments, type ViewportSegment } from "./dualPane";
 import { ActionsHub, type ActionsCategoryFilter } from "./ActionsHub";
 import { PartyMark } from "./PartyMark";
 import { PollingPanel } from "./PollingPanel";
@@ -178,14 +178,14 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   // occlusion axis matches the resolved hinge; otherwise the fractional
   // fallback grid (or the spanning-media tracks) stays in charge.
   const segments: ViewportSegment[] | null = useViewportSegments();
-  // hingeBounds is null unless the rects are exactly two separated segments,
-  // so a non-null bound already proves the pair shape below.
-  const segmentHinge = hingeBounds(segments);
+  // segmentPaneGeometry is null unless the rects are exactly two separated
+  // segments, so a non-null geometry already proves the pair shape below. It
+  // sizes panes from the canonically ordered rects, so the fit holds however
+  // the platform ordered its segment list.
+  const segmentGeometry = segmentPaneGeometry(segments);
   const rawSegFit: { pane0: number; pane1: number; gap: number } | null =
-    dual && segmentHinge && segmentHinge.orientation === dualPane.hinge && segments
-      ? segmentHinge.orientation === "vertical"
-        ? { pane0: segments[0]!.width, pane1: segments[1]!.width, gap: segmentHinge.end - segmentHinge.start }
-        : { pane0: segments[0]!.height, pane1: segments[1]!.height, gap: segmentHinge.end - segmentHinge.start }
+    dual && segmentGeometry && segmentGeometry.orientation === dualPane.hinge
+      ? { pane0: segmentGeometry.pane0, pane1: segmentGeometry.pane1, gap: segmentGeometry.gap }
       : null;
   // Only finite non-negative geometry reaches the --ahd-pane/--ahd-hinge-gap
   // variables below; anything else keeps the fractional fallback grid.
@@ -846,7 +846,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
             }
             navigate(next, id);
           }} /> : null}
-          {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} onNavigate={(next) => go(next)} onOpenCompany={(id) => drill("markets", id)} /> : null}
+          {route === "portfolio" ? <FinancePanel finance={world.finance} section="portfolio" busy={busy} onAction={onAction} onNavigate={(next) => go(next)} /> : null}
           {detailBack && (route === "partyDetails" || route === "electionDetails" || route === "campaignDetails" || route === "presidentialDetails" || route === "politicians" || route === "markets" || route === "legislationDetails" || route === "bonds" || route === "regions" || route === "nations" || route === "referendums" || route === "profile" || route === "policy") && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={detailBack.onBack}>{detailBack.name}</button>}
           {route === "politicalMetrics" && world.capabilityNav?.metricsAvailable !== false && <button className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={() => go("elections")}>Back to elections</button>}
           {route === "partyDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="parties" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
