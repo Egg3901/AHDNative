@@ -155,6 +155,14 @@ describe("docs/IOS-TESTING.md manual invocation path", () => {
       "docs must acknowledge the native Rust TLS client in the export review",
     );
     assert.ok(
+      DOCS.includes("reqwest"),
+      "docs must name the MP reqwest TLS client in the export review",
+    );
+    assert.ok(
+      DOCS.includes("ureq"),
+      "docs must name the Ask ureq TLS client in the export review",
+    );
+    assert.ok(
       /re-confirm/i.test(DOCS),
       "docs must mark export-compliance re-confirmation owed before the next candidate",
     );

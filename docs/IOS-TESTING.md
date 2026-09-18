@@ -67,15 +67,18 @@ Repeat this review whenever networking, authentication, dependencies,
 encrypted storage or distribution territories change.
 
 Amendment 2026-09-18: the 2026-09-11 premise of "no bundled transport
-cryptography" is stale. The Native MP view slice added a direct Rust HTTPS
-client (`reqwest` with bundled `rustls` in `src-tauri/Cargo.toml`, exercised
-by `src-tauri/src/mp_view.rs` against allowlisted read endpoints only, with
-redirects off and no cookie store). That is a networking and dependency
-change under the repeat-review rule above, so the Apple Account Holder or
-Admin must re-confirm the App Store Connect answers before the next (0.1.9)
-candidate build. `ITSAppUsesNonExemptEncryption` remains `false` in
-`Info.ios.plist` pending that confirmation. This file makes no legal
-certification.
+cryptography" is stale. Two post-review slices added direct Rust HTTPS
+clients that both bundle `rustls` (see `src-tauri/Cargo.lock`): the Native MP
+slice (`reqwest` in `src-tauri/Cargo.toml`, exercised by
+`src-tauri/src/mp_view.rs` against allowlisted read endpoints only, with
+redirects off and no cookie store, and by `src-tauri/src/mp_session.rs` with
+an explicitly attached session cookie) and the Native Ask panel (`ureq` in
+`src-tauri/Cargo.toml`, exercised by `src-tauri/src/ask.rs`). These are
+networking and dependency changes under the repeat-review rule above, so the
+Apple Account Holder or Admin must re-confirm the App Store Connect answers
+before the next (0.1.9) candidate build. `ITSAppUsesNonExemptEncryption`
+remains `false` in `Info.ios.plist` pending that confirmation. This file
+makes no legal certification.
 
 After a private build, inspect the processed IPA's final `Info.plist` and
 record only that this Boolean remains `false`. Do not publish the IPA, full
