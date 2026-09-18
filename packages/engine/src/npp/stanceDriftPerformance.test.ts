@@ -13,7 +13,9 @@ it("scans regional registrations at most once per region, preserving the pre-cac
   // Captured from the real unoptimized phase, before introducing any cache.
   // Re-pinned #242: one-party packs now carry the authored `regimeStatus`
   // marker (ruling/approved), which is part of every seeded party record.
-  expect(createHash("sha256").update(JSON.stringify(world)).digest("hex")).toBe("be63d4c2a8d3546da9e838871517a2f15d11083be47f853762d48baaa44f5949");
+  // Re-pinned #326 (schema 48): createWorld now stamps schemaVersion 48 and
+  // seeds the empty interbankLoans book; drift counts below are unchanged.
+  expect(createHash("sha256").update(JSON.stringify(world)).digest("hex")).toBe("f5872d8bc1fa5bf39f8de351066683c3c2771aadbef554db2b3a890e51ac29cd");
   // JSON hashing above performs one additional enumeration of the proxied map.
   expect(scans - 1).toBeLessThanOrEqual(Object.keys(world.regions).length);
   for (const party of Object.values(world.parties)) {
@@ -22,5 +24,5 @@ it("scans regional registrations at most once per region, preserving the pre-cac
   }
   world.meta.turn = 12;
   expect(processNppStanceDrift(world, rngFromSeed("unused"))).toEqual({ drifted: 1500 });
-  expect(createHash("sha256").update(JSON.stringify(world)).digest("hex")).toBe("f4f085555e39e00a5467c2b152208c3d822453f81b8a948bab76fbd857e1d0b2");
+  expect(createHash("sha256").update(JSON.stringify(world)).digest("hex")).toBe("9dcdac97ab1d053e3074e255390178059ebe1777aeafc88f149dbbf49953f740");
 });
