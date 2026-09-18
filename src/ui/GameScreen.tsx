@@ -231,15 +231,23 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
     ...(typeof world.foundingOffset === "number" ? { foundingOffset: world.foundingOffset } : {}),
   };
   // #83 corporation strip: the player's recorded holdings, never summed across
-  // currencies (the codebase has no FX settlement).
+  // currencies (the codebase has no FX settlement). A non-finite price
+  // (missing market data, or NaN/null across the save interchange) leaves the
+  // total unknown: shares * null coerces to 0, which would misreport the
+  // holding as worthless (#507, matching the FinancePanel "Price unavailable,
+  // never $0.00" contract).
   const holdings = world.finance.holdings;
   const holdingsCurrencies = [...new Set(holdings.map((holding) => holding.currency))];
+  const holdingsPricesKnown = holdings.every(
+    (holding) => typeof holding.price === "number" && Number.isFinite(holding.price),
+  );
   const holdingsSummary = holdings.length > 0
     ? {
       count: holdings.length,
-      total: holdingsCurrencies.length === 1
+      total: holdingsCurrencies.length === 1 && holdingsPricesKnown
         ? formatFinanceMoney(holdings.reduce((sum, holding) => sum + holding.shares * holding.price, 0), holdingsCurrencies[0]!)
         : null,
+      multiCurrency: holdingsCurrencies.length > 1,
     }
     : null;
 
@@ -922,7 +930,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
             <div className="ahd-muted" aria-label="Corporation holdings" style={{ fontSize: "0.72rem", display: "flex", gap: "0.4rem", alignItems: "center", flexWrap: "wrap" }}>
               <span>
                 {`Holdings: ${holdingsSummary.count} position${holdingsSummary.count === 1 ? "" : "s"}`}
-                {holdingsSummary.total ? ` · ${holdingsSummary.total}` : " · multiple currencies"}
+                {holdingsSummary.total ? ` · ${holdingsSummary.total}` : holdingsSummary.multiCurrency ? " · multiple currencies" : " · price unavailable"}
               </span>
               <button type="button" className="ahd-profile-link" onClick={() => go("portfolio")} disabled={busy}>Portfolio</button>
             </div>
