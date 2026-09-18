@@ -71,6 +71,22 @@ describe("executive tab reachability (#65)", () => {
     expect(onAction).toHaveBeenCalledWith("adjustTaxRate", expect.objectContaining({ taxRate: expect.any(Number) }));
   });
 
+  it("offers only tax fields the engine can enact (no silent no-op option)", () => {
+    render(<StatefulHub actions={liveActions("hos")} />);
+    const card = screen.getByRole("article", { name: /set tax rate/i });
+    const select = within(card).getByRole("combobox", { name: /tax field for set tax rate/i });
+    const values = within(select).getAllByRole("option").map((option) => (option as HTMLOptionElement).value);
+    expect(values).toEqual([
+      "incomeTax",
+      "domesticCorporateTax",
+      "foreignCorporateTax",
+      "payrollTax",
+      "tariffs",
+      "salesTax",
+    ]);
+    expect(values).not.toContain("corporateTax");
+  });
+
   it("shows an honest empty executive tab for career players (no invented controls)", () => {
     render(<StatefulHub actions={liveActions("career")} />);
     const tabs = screen.getByRole("tablist", { name: /filter actions by category/i });

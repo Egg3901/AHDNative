@@ -22,6 +22,21 @@ export const ACTION_HUB_CATEGORIES: { id: ActionsCategoryFilter; label: string }
   { id: "executive", label: "Executive" },
 ];
 
+/**
+ * HoS "Set Tax Rate" options. Must stay exactly the engine
+ * ExecuteActionParams.taxField union (BudgetTaxRates keys): the fiscal
+ * directives phase silently ignores unknown fields, so offering any other
+ * value charges AP for a directive that can never enact.
+ */
+export const HOS_TAX_FIELDS = [
+  "incomeTax",
+  "domesticCorporateTax",
+  "foreignCorporateTax",
+  "payrollTax",
+  "tariffs",
+  "salesTax",
+] as const;
+
 /** Code-native category glyphs; no generated raster art and no asset bundle. */
 const CATEGORY_GLYPH: Record<ActionCategory, string> = {
   influence: "◆",
@@ -177,7 +192,7 @@ function ActionCard({
         <label className="ahd-field" style={{ maxWidth: "16rem" }}>
           <span className="ahd-label">Tax</span>
           <select className="ahd-select" value={taxField} onChange={(e) => setTaxField(e.target.value)} disabled={busy} aria-label={`Tax field for ${action.name}`}>
-            {["incomeTax", "corporateTax", "salesTax", "payrollTax"].map((field) => <option key={field} value={field}>{field}</option>)}
+            {HOS_TAX_FIELDS.map((field) => <option key={field} value={field}>{field}</option>)}
           </select>
         </label>
       ) : null}

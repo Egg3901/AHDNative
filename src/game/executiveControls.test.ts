@@ -43,6 +43,24 @@ describe("executive controls session slice (#65/#93)", () => {
     expect(session.view().player.actions).toBe(ap - live.cost);
   });
 
+  it("enacts every UI-offered tax field (HoS) while career mode stays refused", () => {
+    const fields = ["incomeTax", "domesticCorporateTax", "foreignCorporateTax", "payrollTax", "tariffs", "salesTax"] as const;
+    for (const taxField of fields) {
+      const session = new GameSession();
+      session.create({ ...HOS });
+      const readRate = () => (session as unknown as { requireWorld(): { budgets: { US: { taxRates: Record<string, number> } } } }).requireWorld().budgets.US.taxRates[taxField];
+      const before = readRate();
+      const target = before <= 95 ? before + 5 : before - 5;
+      expect(session.act("adjustTaxRate", { taxField, taxRate: target }).ok).toBe(true);
+      session.advance();
+      expect(Math.abs(readRate() - target)).toBeLessThan(Math.abs(before - target));
+    }
+
+    const career = new GameSession();
+    career.create({ ...CAREER });
+    expect(career.act("adjustTaxRate", { taxField: "tariffs", taxRate: 10 }).ok).toBe(false);
+  });
+
   it("rejects invalid and unauthorized directives with state untouched (rollback)", () => {
     const session = new GameSession();
     session.create({ ...HOS });
