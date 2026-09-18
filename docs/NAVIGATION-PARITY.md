@@ -262,7 +262,10 @@ slice adds rendered regression coverage instead of new behavior:
   `Connection lost` card, keeps the last loaded state visible below it, and
   `Reconnect` restores `ready`.
 - The world-active home keeps both switch legs: `Return to game` (SP resume)
-  and `Enter multiplayer` coexist and fire independently at 320/1280px.
+  and `Enter multiplayer` coexist and fire independently at 320/390/1280px.
+- The degraded-state exit legs are exercised: the header `Exit multiplayer`
+  stays usable from both the Session-expired and the Connection-lost cards
+  and returns home without touching the SP save.
 - Architecture facts the tests pin: entering MP never disposes the SP
   client/world/slot (`App.tsx` only switches `screen`), exiting MP unmounts
   the session (`session.exit()` clears remote state), and the `src/mp` layer
@@ -321,7 +324,11 @@ Remaining gaps (issue #510 stays open):
 - Role/country/capability conditions across the full reference matrix are not
   matrix-tested beyond the cabinet loader/wiring case; office-holder, governor,
   devolution, and legacy-route conditions remain unproven.
-- No rendered SP-to-MP switching test; the MP shell is covered only standalone.
+- SP-to-MP switching beyond the `SpMpSwitching510` rendered lifecycle
+  (no-SP-controls, expiry/offline recovery, degraded-state exits, home legs)
+  and the `MpModeScreenModeTransition` unmount/re-enter contract; App-level
+  switches stay source-pinned, not rendered, because `App` mounts a real
+  engine Worker unavailable in jsdom.
 - Deep-link, selection-restore, and multi-level (race to politician to race)
   returns are single-slot only and untested beyond one level.
 - Matrix asserts headings/content per destination, not per-screen action/data depth.

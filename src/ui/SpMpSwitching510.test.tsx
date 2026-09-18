@@ -15,7 +15,9 @@
  * Reference: AHDGame owns authentication; Native holds no credentials.
  * Entering MP must not dispose the SP client/world/slot (App keeps them
  * while `screen === 'mp'`), and exiting MP returns home where
- * "Return to game" resumes the untouched world.
+ * "Return to game" resumes the untouched world. The degraded-state exit
+ * legs are exercised too: the header "Exit multiplayer" stays usable from
+ * both the Session-expired and the Connection-lost cards.
  */
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -266,7 +268,55 @@ describe("SP-to-MP-to-SP switching lifecycle", () => {
     ).toBeNull();
   });
 
-  it.each([320, 1280])(
+  it("expired MP session still exits home from the degraded card", async () => {
+    setViewport(390);
+    const user = userEvent.setup();
+    const onExit = vi.fn();
+    const { host } = fakeHost({
+      ...readyChain(),
+      // Manual refresh after load: the probe now 401s (logout/expiry).
+      "auth-session": [probe, probe401],
+      "character-me": [me],
+      "turn-status": [turn],
+      "client-nav": [caps],
+      notifications: [inbox],
+    });
+    render(<MpModeScreen host={host} onExit={onExit} />);
+    await screen.findByRole("heading", { name: "Ada" });
+
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+    await screen.findByRole("heading", { name: "Session expired" });
+
+    // The persistent way out stays usable from the degraded state: exit
+    // returns home (App unmounts the session) without touching the SP save.
+    await user.click(screen.getByRole("button", { name: "Exit multiplayer" }));
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it("offline MP still exits home while the connection-lost card is shown", async () => {
+    setViewport(320);
+    const user = userEvent.setup();
+    const onExit = vi.fn();
+    const { host } = fakeHost({
+      ...readyChain(),
+      // Manual refresh after load: transport failure, not a 401.
+      "auth-session": [probe, transportDown],
+      "character-me": [me],
+      "turn-status": [turn],
+      "client-nav": [caps],
+      notifications: [inbox],
+    });
+    render(<MpModeScreen host={host} onExit={onExit} />);
+    await screen.findByRole("heading", { name: "Ada" });
+
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+    await screen.findByRole("heading", { name: "Connection lost" });
+
+    await user.click(screen.getByRole("button", { name: "Exit multiplayer" }));
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([320, 390, 1280])(
     "world-active home keeps both SP resume and MP entry at %dpx",
     async (width) => {
       setViewport(width);
