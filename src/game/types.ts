@@ -66,7 +66,7 @@ export interface EraChoice {
 }
 export interface MetricView { id: string; label: string; value: number; format: "money" | "percent" | "number"; }
 export type ActionCategory = "influence" | "fundraising" | "intelligence" | "executive";
-export interface ActionView { id: string; name: string; description: string; cost: number; fundsGain?: number; available: boolean; disabledReason?: string; requires?: "amount" | "party" | "region" | "budgetSpending" | "taxRate" | "targetPoliticianId";
+export interface ActionView { id: string; name: string; description: string; cost: number; fundsGain?: number; available: boolean; disabledReason?: string; requires?: "amount" | "party" | "region" | "budgetSpending" | "taxRate" | "targetPoliticianId" | "holder";
   /** Hub grouping, mirroring AHDGame actions categories (influence/money/research). */
   category?: ActionCategory;
   /** Quoted fund cost from the engine projection; executeAction remains authoritative. */
@@ -223,10 +223,21 @@ export interface WireView {
   balances: WireBalance[];
   recipients: WireRecipient[];
 }
+/** One recorded savings holder: the central bank or an active deposit-taking bank charter. */
+export interface BankOption {
+  id: string;
+  name: string;
+  kind: "central" | "bank";
+}
 export interface FinanceView {
   cash: number; savings: number; currency: string; savingsHolder: string;
+  /** Raw holder id behind the savingsHolder display ("centralBank" or the bank corporation id). */
+  savingsHolderId?: string;
   holdings: { id: string; name: string; ticker: string; shares: number; price: number; currency: string }[];
   deposit: ActionView; withdraw: ActionView;
+  /** Recorded bank options plus the moveSavings action (#76 bank selection). Absent on older projections. */
+  banks?: BankOption[];
+  moveSavings?: ActionView;
   /** Recorded wealth series for the portfolio trend chart. Absent on older projections; empty before the first turn. */
   wealthHistory?: FinanceWealthHistoryPoint[];
   wire?: WireView;
