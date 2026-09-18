@@ -147,6 +147,32 @@ describe("ActionsHub", () => {
     expect(within(card).getByText(/1 AP/i)).toBeInTheDocument();
   });
 
+  it("shows the selected canvass region and sends it with the action (#57)", async () => {
+    const onAction = vi.fn();
+    const user = userEvent.setup();
+    const canvass: ActionView[] = [
+      { id: "canvass", name: "Canvass", description: "GOTV canvass.", cost: 3, available: true, requires: "region", category: "influence", fundCost: 15000, cooldownTurns: 0, prerequisite: "Choose a region." },
+    ];
+    render(<ActionsHub actions={canvass} {...props} onAction={onAction} category="all" onCategoryChange={() => {}} />);
+    const card = screen.getByRole("article", { name: /^canvass$/i });
+    expect(within(card).getByText(/target: midwest/i)).toBeInTheDocument();
+    await user.click(within(card).getByRole("button", { name: /take action: canvass/i }));
+    expect(onAction).toHaveBeenCalledWith("canvass", { regionId: "r1" });
+  });
+
+  it("blocks a region action with a readable error when no regions are recorded (#57)", async () => {
+    const onAction = vi.fn();
+    const user = userEvent.setup();
+    const canvass: ActionView[] = [
+      { id: "canvass", name: "Canvass", description: "GOTV canvass.", cost: 3, available: true, requires: "region", category: "influence", fundCost: 15000, cooldownTurns: 0, prerequisite: "Choose a region." },
+    ];
+    render(<ActionsHub actions={canvass} {...props} regions={[]} onAction={onAction} category="all" onCategoryChange={() => {}} />);
+    const card = screen.getByRole("article", { name: /^canvass$/i });
+    await user.click(within(card).getByRole("button", { name: /take action: canvass/i }));
+    expect(within(card).getByRole("alert")).toHaveTextContent(/no regions available/i);
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
   it("renders a Debate Prep result with the stat change in recent outcomes (#37)", () => {
     render(<ActionsHub actions={actions} {...props} category="all" onCategoryChange={() => {}} outcomes={[{
       id: "t0-action:debatePrep:1", actionId: "debatePrep",
