@@ -47,12 +47,30 @@ fi
 export CI=1
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}"
 # Keep r27-linked libraries usable on devices with 16 KB memory pages.
+# Persistent source is .cargo/config.toml; this export keeps the flag explicit
+# for shells that invoke the build outside a cargo config discovery path.
 export CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS="${CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS:-} -C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-Wl,-z,common-page-size=16384"
 if [[ ! -d src-tauri/gen/android ]]; then
   npm run tauri -- android init --ci --skip-targets-install
 fi
 
 npm run tauri -- android build --ci --debug --apk --target aarch64
+
+APK=src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk
+
+# Issue #126: deterministic 16 KB gate. ELF LOAD alignment is checked in
+# pure Node; the APK packaging check needs zipalign (exit 2 when absent).
+if node scripts/verify-android-alignment.mjs --lib-dir src-tauri/gen/android --apk "$APK"; then
+  printf 'Android 16 KB alignment checks passed\n'
+else
+  rc=$?
+  if [[ $rc -eq 2 ]]; then
+    printf 'warning: zipalign unavailable, APK packaging check skipped; ELF checks passed\n' >&2
+  else
+    printf 'Android 16 KB alignment check failed\n' >&2
+    exit 1
+  fi
+fi
 
 printf 'APK: src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk\n'
 printf 'debug package id: net.lakesidegames.ahdnative.debug (suffix from tauri.conf.json)\n'
