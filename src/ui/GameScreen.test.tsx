@@ -674,6 +674,24 @@ describe("GameScreen", () => {
     expect(within(strip).getByRole("button", { name: "Portfolio" })).toBeEnabled();
   });
 
+  it("names an unknown market price in the footer strip instead of valuing it at $0 (#507)", () => {
+    // A non-finite price (missing market data, or NaN/null across the save
+    // interchange) must read as unknown, matching the FinancePanel "Price
+    // unavailable, never $0.00" contract: shares * null coerces to 0, which
+    // would misreport the holding as worthless.
+    const nullPrice = null as unknown as number;
+    for (const price of [Number.NaN, nullPrice]) {
+      const world = makeWorld();
+      world.finance.holdings = [{ id: "c1", name: "Acme", ticker: "ACM", shares: 3, price, currency: "USD" }];
+      const { unmount } = render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
+      const strip = screen.getByLabelText("Corporation holdings");
+      expect(within(strip).getByText(/Holdings: 1 position · price unavailable/)).toBeInTheDocument();
+      expect(within(strip).queryByText(/\$0\.00/)).not.toBeInTheDocument();
+      expect(within(strip).queryByText(/multiple currencies/)).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+
   it("withdraw candidacy dispatches with electionId and shows reason when unavailable", async () => {
     const user = userEvent.setup();
     const onAction = vi.fn();
