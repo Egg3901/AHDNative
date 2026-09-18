@@ -278,7 +278,11 @@ export function AskPanel({
   // Startup probe. The shell is already painted (from cache when there is
   // one), so this only revalidates in the background and fills in the
   // thread. It never blocks the panel on /api/me.
-  const probe = useCallback(async () => {
+  // True when the round proved a linked session (identity/quota stored).
+  // Transport failures leave the answer false even though the panel keeps
+  // its stale shell: the link action then stays on the signed-out retry
+  // path instead of stranding the player on an empty composer.
+  const probe = useCallback(async (): Promise<boolean> => {
     setRefreshing(true);
     try {
       // One verification round: identity/quota and history race together so
@@ -297,6 +301,7 @@ export function AskPanel({
       const resume = stored && conversations.some((conv) => conv.id === stored) ? stored : null;
       setPhase("ready");
       await openThread(resume);
+      return true;
     } catch (error) {
       if (isSignedOutError(error)) {
         signOut();
@@ -305,6 +310,7 @@ export function AskPanel({
         setQuotaStale(true);
         setPhase("ready");
       }
+      return false;
     } finally {
       setRefreshing(false);
     }
@@ -534,15 +540,34 @@ export function AskPanel({
 
   const costLabel = fuLeft === null ? "Ask…" : fuLeft > 0 ? `Follow-up · ½ question · ${fuLeft} left` : "1 question · follow-ups used up";
 
+  // Account-link action (#149, #358). Seamless and single-flight: a session
+  // already in the shared jar enters with no bounce, the callback landing is
+  // re-probed on this same mount (no reliance on a webview reload or window
+  // focus), and concurrent taps open one bounce. Every failure ends on the
+  // signed-out panel with notice + retry, never a crash or a blank panel.
+  const linkingRef = useRef(false);
+  const [linking, setLinking] = useState(false);
   const signIn = useCallback(async () => {
+    if (linkingRef.current) return;
+    linkingRef.current = true;
+    setLinking(true);
     setNotice(null);
     try {
+      if (await probe()) return;
+      setPhase("signedOut");
       await onBeforeSignIn?.();
-      await onSignIn();
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Could not open sign-in.");
+      try {
+        await onSignIn();
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : "Could not open sign-in.");
+        return;
+      }
+      if (!(await probe())) setPhase("signedOut");
+    } finally {
+      linkingRef.current = false;
+      setLinking(false);
     }
-  }, [onBeforeSignIn, onSignIn]);
+  }, [onBeforeSignIn, onSignIn, probe]);
 
   // Citation and answer links leave through the allowlisted Rust opener so
   // a tap can never navigate the app webview to remote content. The
@@ -569,7 +594,7 @@ export function AskPanel({
         <div className="av-center">
           <div className="av-brand">Ask</div>
           <p className="av-muted">Sign in with your game account to ask questions. Players already signed in skip the password prompt.</p>
-          <button type="button" className="av-primary" onClick={() => void signIn()}>
+          <button type="button" className="av-primary" disabled={linking} onClick={() => void signIn()}>
             Sign in
           </button>
           <button type="button" className="av-quiet" onClick={() => void probe()}>

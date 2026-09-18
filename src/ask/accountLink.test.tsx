@@ -97,6 +97,78 @@ describe("AskPanel account-link action", () => {
     expect(JSON.parse(localStorage.getItem(ASK_SESSION_CACHE_KEY) ?? "{}").username).toBe("marshall");
   });
 
+  it("recognizes an already-linked session without opening the bounce", async () => {
+    // Physical-iPhone loop (#358): the panel showed signed-out while a live
+    // session already sat in the shared jar, and every Sign in tap paid a
+    // full main-webview bounce. The link action must fast-path a linked
+    // session: no bounce invoke, straight to the ready panel.
+    const user = userEvent.setup();
+    routeInvoke({ "/api/me": { status: 401, body: '{"error":"no session"}' } });
+    render(<AskPanel />);
+    await screen.findByRole("button", { name: "Sign in" });
+
+    // The game sign-in (or a completed bounce on a shared surface) lands the
+    // session after the panel mounted signed-out.
+    routeInvoke({ "/api/me": meOk("marshall") });
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByText("7 of 10 left", { exact: false })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
+    expect(invoke).not.toHaveBeenCalledWith("open_ask_window");
+  });
+
+  it("picks up the callback landing on the same mount after the bounce", async () => {
+    // The bounce resolves (invoke ok) but the panel must not wait for a
+    // webview reload or window-focus event to notice the landed session.
+    const user = userEvent.setup();
+    let linked = false;
+    invoke.mockImplementation((command: string, args?: Record<string, unknown>) => {
+      if (command === "ask_api") {
+        const path = String(args?.path ?? "");
+        if (path === "/api/me") {
+          return Promise.resolve(linked ? meOk("marshall") : { status: 401, body: '{"error":"no session"}' });
+        }
+        return Promise.resolve({ status: 200, body: '{"conversations":[]}' });
+      }
+      if (command === "open_ask_window") {
+        linked = true; // the broker callback lands the session mid-bounce
+        return Promise.resolve(undefined);
+      }
+      return Promise.reject(new Error(`unexpected invoke ${command}`));
+    });
+    render(<AskPanel />);
+    await screen.findByRole("button", { name: "Sign in" });
+
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByText("7 of 10 left", { exact: false })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
+  });
+
+  it("opens a single bounce for concurrent taps", async () => {
+    // Two taps before the first bounce resolves must not spawn parallel
+    // bounces (parallel mobile watchers race over the single webview).
+    const user = userEvent.setup();
+    let opens = 0;
+    invoke.mockImplementation((command: string, args?: Record<string, unknown>) => {
+      if (command === "ask_api") {
+        return Promise.resolve({ status: 401, body: '{"error":"no session"}' });
+      }
+      if (command === "open_ask_window") {
+        opens += 1;
+        return new Promise(() => {}); // bounce still in flight
+      }
+      return Promise.reject(new Error(`unexpected invoke ${command}`));
+    });
+    render(<AskPanel />);
+    await screen.findByRole("button", { name: "Sign in" });
+
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    const retry = screen.getByRole("button", { name: /retry/i });
+    await user.click(retry).catch(() => {});
+    await user.click(screen.getByRole("button", { name: "Sign in" })).catch(() => {});
+    expect(opens).toBe(1);
+  });
+
   it("expiry on the background refresh signs out and evicts the cache", async () => {
     saveCachedAskSession({ username: "marshall", usage: USAGE, tier: "Player" });
     routeInvoke({ "/api/me": meOk("marshall") });
