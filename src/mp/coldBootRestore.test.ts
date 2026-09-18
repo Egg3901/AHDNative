@@ -110,6 +110,41 @@ describe("MpModeSession cold-boot restore", () => {
     expect(expired.error).toMatch(/reconnect/i);
   });
 
+  it("rate-limited cold boot reports retry with the server backoff, never offline", async () => {
+    // The durable session may be valid while the probe itself is throttled
+    // (shared egress, retry storm): the bridge forwards
+    // `remote-error:429:{retry_after}:{body}`, so restore must surface the
+    // rate-limited phase with the server backoff instead of misreporting
+    // the device as unreachable. No provider round trip either way.
+    const { host, beginSpy } = fakeHost({
+      ...readyQueues([{ reject: 'remote-error:429:45:{"error":"too quick"}' }]),
+    });
+    const relaunched = new MpModeSession(host);
+    const limited = await relaunched.enter();
+    expect(limited.phase).toBe("rate-limited");
+    expect(limited.retryAfter).toBe(45);
+    expect(limited.error).toMatch(/too quick/i);
+    expect(beginSpy).not.toHaveBeenCalled();
+  });
+
+  it("rate limit mid-mode keeps loaded state with the server backoff", async () => {
+    const { host, beginSpy } = fakeHost({
+      ...readyQueues([probe, { reject: 'remote-error:429:45:{"error":"too quick"}' }]),
+      "character-me": [me],
+      "turn-status": [turn],
+      "client-nav": [caps],
+      notifications: [inbox],
+    });
+    const session = new MpModeSession(host);
+    expect((await session.enter()).phase).toBe("ready");
+    const limited = await session.refresh();
+    expect(limited.phase).toBe("rate-limited");
+    expect(limited.retryAfter).toBe(45);
+    expect(limited.error).toMatch(/too quick/i);
+    expect(limited.character?.name).toBe("Ada");
+    expect(beginSpy).not.toHaveBeenCalled();
+  });
+
   it("offline cold boot keeps retry without spending a provider trip", async () => {
     const { host, beginSpy } = fakeHost({
       ...readyQueues([OFFLINE, probe]),
