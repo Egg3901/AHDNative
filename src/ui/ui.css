@@ -1576,6 +1576,23 @@ html { scroll-padding-bottom: calc(var(--ahd-footer-height, 9rem) + 1rem); }
 .ahd-wallet-holding { min-width: 0; max-width: 100%; }
 .ahd-wallet-disclosure { min-height: 44px; border-radius: var(--ahd-radius-sm); }
 .ahd-wallet-disclosure:focus-visible { outline: 2px solid var(--ahd-primary); outline-offset: 2px; }
+/* Disclosure affordance: holding and trend-table summaries lay out with
+   display:flex, which drops the native disclosure triangle in every engine,
+   so the rows read as static text. A currentColor chevron drawn on ::after
+   restores the open/closed signal with no extra DOM; the open rule rotates
+   it down. Static transforms only, so reduced-motion rendering is
+   unaffected, and currentColor follows forced-colors automatically. */
+.ahd-wallet-disclosure::after,
+.ahd-trend-table-disclosure::after {
+  content: ""; flex-shrink: 0; width: 0.5rem; height: 0.5rem;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+}
+.ahd-trend-table-disclosure::after { margin-left: auto; }
+details[open] > .ahd-wallet-disclosure::after,
+details[open] > .ahd-trend-table-disclosure::after {
+  transform: rotate(45deg);
+}
 @media (min-width: 1024px) {
   .ahd-wallet-grid { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); align-items: start; }
 }
