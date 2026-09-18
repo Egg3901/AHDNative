@@ -11,6 +11,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { GameSession } from "../game/session";
+import type { MarketsView } from "../game/markets";
 import { SectorsRoute } from "./SectorsRoute";
 
 const options = {
@@ -80,4 +81,80 @@ it("renders recorded sale state through save, reload, and turn advancement", asy
   await waitFor(() =>
     expect(screen.getByRole("heading", { name: "Sectors" })).toBeInTheDocument(),
   );
+});
+
+it("executes a directory Buy through the real session command and keeps ownership through save, reload, and turn", async () => {
+  const user = userEvent.setup();
+  const session = new GameSession();
+  session.create(options);
+  expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(
+    true,
+  );
+  const assetId = session
+    .markets()
+    .listings.find((entry) => entry.id === "US-media")!.sectorAsset.id;
+  expect(session.listSectorForSale(assetId).ok).toBe(true);
+  expect(session.updateSectorListing(assetId, 100)).toMatchObject({
+    ok: true,
+  });
+
+  // Same op contract the app shell uses (App.tsx onSectorSale): the
+  // directory dispatch runs the engine command instead of a mock, so this
+  // proves the Buy control reaches a real ownership state change.
+  const dispatch = (
+    op: "list" | "update" | "unlist" | "buy",
+    params: { assetId: string; priceAnchor?: number },
+  ) => {
+    if (op === "buy") session.buySectorForSale(params.assetId);
+    else if (op === "list") session.listSectorForSale(params.assetId);
+    else if (op === "unlist") session.unlistSectorForSale(params.assetId);
+    else session.updateSectorListing(params.assetId, params.priceAnchor ?? 0);
+  };
+  const route = (revision: object, load: () => Promise<MarketsView>) => (
+    <SectorsRoute
+      load={load}
+      revision={revision}
+      busy={false}
+      onSectorSale={dispatch}
+      onOpenCompany={() => {}}
+      onOpenRegion={() => {}}
+    />
+  );
+  const rendered = render(
+    route({ step: 1 }, async () => session.markets()),
+  );
+
+  await rendered.findByRole("button", { name: "For Sale sectors, 1" });
+  await user.click(
+    screen.getByRole("button", { name: "For Sale sectors, 1" }),
+  );
+  await user.click(screen.getByRole("button", { name: /buy .* sector/i }));
+
+  // The engine flips ownership and clears the listing on the live session.
+  const bought = session
+    .markets()
+    .listings.find((entry) => entry.id === "US-media")!;
+  expect(bought.sectorAsset.owner).toBe("player");
+  expect(bought.sectorAsset.forSale).toBeNull();
+
+  // A fresh projection load reads the bought sector as Owned, not For Sale.
+  rendered.rerender(route({ step: 2 }, async () => session.markets()));
+  expect(
+    await screen.findByRole("button", { name: "Owned sectors, 1" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "For Sale sectors, 0" }),
+  ).toBeInTheDocument();
+
+  // Save, reload, and turn advancement keep the recorded ownership.
+  const reloaded = new GameSession();
+  reloaded.load(session.serialize(SAVED_AT));
+  const turnBefore = reloaded.markets().turn;
+  reloaded.advance();
+  expect(reloaded.markets().turn).toBeGreaterThan(turnBefore);
+  const kept = reloaded
+    .markets()
+    .listings.find((entry) => entry.id === "US-media")!;
+  expect(kept.sectorAsset.owner).toBe("player");
+  expect(kept.sectorAsset.forSale).toBeNull();
 });
