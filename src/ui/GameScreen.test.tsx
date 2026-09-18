@@ -959,6 +959,23 @@ describe("GameScreen navigation menu", () => {
     expect(within(portfolio).getByText("Stock holdings")).toBeInTheDocument();
   });
 
+  it("drills a portfolio holding into its stock-market company and back", async () => {
+    // Reference HoldingsTables links each stock row to its corporation page;
+    // Native drills the holding id (a corporation id) into the markets
+    // company detail with the return stack restoring Portfolio.
+    const user = userEvent.setup();
+    const world = makeWorld();
+    render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
+    const menu = await openMenu(user);
+    await user.click(within(menu).getByRole("button", { name: "Portfolio" }));
+    const portfolio = screen.getByRole("region", { name: "Portfolio" });
+    await user.click(within(portfolio).getByRole("button", { name: "View Acme Steel company" }));
+    const market = screen.getByRole("region", { name: "Stock market" });
+    await user.click(within(market).getByRole("button", { name: "Back to portfolio" }));
+    const restored = screen.getByRole("region", { name: "Portfolio" });
+    expect(within(restored).getByText("Acme Steel")).toBeInTheDocument();
+  });
+
   it("exposes the avatar/profile identity flow and keeps unreachable reference rows absent", async () => {
     const user = userEvent.setup();
     const world = makeWorld();
