@@ -297,6 +297,7 @@ export function TrendChart({
       </div>
       <details style={{ marginTop: "0.45rem" }}>
         <summary
+          className="ahd-trend-table-disclosure"
           style={{
             cursor: "pointer",
             fontSize: "0.76rem",

@@ -559,6 +559,56 @@ describe.each([320, 390])("wallet rendered phone viewport at %dpx", (width) => {
   });
 });
 
+describe("wallet disclosure affordance at 320px", () => {
+  it("draws an open/closed chevron on every holding disclosure", () => {
+    // Holding summaries lay out with display:flex, which drops the native
+    // disclosure triangle in every engine: the rows read as static text and
+    // the progressive disclosure is invisible (confirmed in headless
+    // Chromium against the real ui.css). A drawn ::after chevron restores
+    // the signal with no extra DOM.
+    setViewportWidth(320, 568);
+    render(
+      <FinancePanel
+        finance={makeFinance()}
+        section="portfolio"
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+    expect(
+      document.querySelectorAll("summary.ahd-wallet-disclosure"),
+    ).toHaveLength(3);
+    expect(css).toMatch(/\.ahd-wallet-disclosure::after[\s\S]*?\{[^}]*flex-shrink:\s*0/);
+    expect(css).toMatch(/\.ahd-wallet-disclosure::after[\s\S]*?border-right:/);
+    expect(css).toMatch(
+      /details\[open\]\s*>\s*\.ahd-wallet-disclosure::after[\s\S]*?\{[^}]*rotate\(/,
+    );
+  });
+
+  it("draws the same affordance on the trend data-table disclosure", () => {
+    // The chart table summary carries the same display:flex marker loss on
+    // the wallet trend card.
+    setViewportWidth(320, 568);
+    render(
+      <FinancePanel
+        finance={makeFinance()}
+        section="portfolio"
+        busy={false}
+        onAction={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Chart data table").className).toMatch(
+      /ahd-trend-table-disclosure/,
+    );
+    expect(css).toMatch(
+      /\.ahd-trend-table-disclosure::after\s*\{[^}]*border-right:/,
+    );
+    expect(css).toMatch(
+      /details\[open\]\s*>\s*\.ahd-trend-table-disclosure::after\s*\{[^}]*rotate\(/,
+    );
+  });
+});
+
 describe("wallet rendered tablet", () => {
   it("renders the full portfolio at 768px with operable disclosure and no fixed-width controls", async () => {
     // 768px tablet portrait is the widest viewport on the single-column
