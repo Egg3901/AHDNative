@@ -589,11 +589,7 @@ fn fetch_union_path(union_id: &str) -> Result<String, String> {
     if !is_union_id(union_id) {
         return Err(error::BAD_ARG.to_string());
     }
-    Ok(format!(
-        "{}/{}",
-        MpFetchOp::UnionDetail.path(),
-        union_id
-    ))
+    Ok(format!("{}/{}", MpFetchOp::UnionDetail.path(), union_id))
 }
 
 /// Validate a mutation payload and return the canonical body to send. Unknown
@@ -918,9 +914,7 @@ fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
         ("GET", path) if path.starts_with("/api/corporations/") => {
             query.is_none() && is_corporation_path(path)
         }
-        ("GET", path) if path.starts_with("/api/unions/") => {
-            query.is_none() && is_union_path(path)
-        }
+        ("GET", path) if path.starts_with("/api/unions/") => query.is_none() && is_union_path(path),
         ("POST", "/api/actions/execute") | ("PATCH", "/api/notifications") => query.is_none(),
         ("PUT", "/api/notifications/preferences") => query.is_none(),
         ("POST", "/api/mail") | ("POST", "/api/auth/logout") => query.is_none(),
@@ -1423,7 +1417,8 @@ pub async fn mp_session_fetch(
     let op = MpFetchOp::from_id(op_id.trim()).ok_or_else(|| error::UNSUPPORTED_OP.to_string())?;
     let path_and_query = match op {
         MpFetchOp::ElectionDetail => {
-            if limit.is_some() || offset.is_some() || corporation_id.is_some() || union_id.is_some() {
+            if limit.is_some() || offset.is_some() || corporation_id.is_some() || union_id.is_some()
+            {
                 return Err(error::UNSUPPORTED_OP.to_string());
             }
             let id = election_id
@@ -1441,7 +1436,11 @@ pub async fn mp_session_fetch(
             fetch_corporation_path(id)?
         }
         MpFetchOp::UnionDetail => {
-            if limit.is_some() || offset.is_some() || election_id.is_some() || corporation_id.is_some() {
+            if limit.is_some()
+                || offset.is_some()
+                || election_id.is_some()
+                || corporation_id.is_some()
+            {
                 return Err(error::UNSUPPORTED_OP.to_string());
             }
             let id = union_id
@@ -2190,10 +2189,7 @@ mod tests {
             "zzzzzzzzzzzzzzzzzzzzzzzz",
             "68A00000000000000000000ZZ",
         ] {
-            assert!(
-                fetch_union_path(bad).is_err(),
-                "{bad:?} must be rejected"
-            );
+            assert!(fetch_union_path(bad).is_err(), "{bad:?} must be rejected");
         }
     }
 
