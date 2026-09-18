@@ -256,6 +256,8 @@ function backButtons(): string[] {
   return screen.queryAllByRole("button", { name: /Back to/ }).map((button) => button.textContent ?? "");
 }
 
+// Explicit timeout: full GameScreen renders plus first-block transform cost
+// can exceed the 5s default on loaded hosts (load, not behavior).
 describe.each([320, 390, 1280])("home-region office rows at %spx (#510)", (width) => {
   it("opens each applicable row destination from the regions surface", async () => {
     setViewport(width);
@@ -429,4 +431,4 @@ describe.each([320, 390, 1280])("home-region office rows at %spx (#510)", (width
     await screen.findByRole("region", { name: "Policy" });
     expect(backButtons()).toEqual([]);
   });
-});
+}, 20000);
