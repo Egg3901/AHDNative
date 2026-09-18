@@ -345,6 +345,25 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
     if (id) setDetailId(id);
   };
 
+  // #80 corporation detail entry: the Profile card and the drawer "My
+  // Corporation" row open the Markets company detail for the recorded
+  // player-owned sector asset. Both drill instead of plain-navigating so
+  // the opening surface travels as the return frame and Back restores it;
+  // plain drawer/deep-link entry keeps today's chromeless surface. Only
+  // markets-with-id arrivals drill here — the "My Corporation" identity row
+  // is the sole drawer link into a company — so every other drawer/profile
+  // destination keeps its existing reset behavior.
+  const drawerNavigate = (next: RouteId, id?: string) => {
+    if (next === "markets" && id !== undefined) {
+      drillViewer({ route, detailId }, next, id);
+      setMenuOpen(false);
+      setOpenResource(null);
+      setPreviewOpen(false);
+      return;
+    }
+    navigate(next, id);
+  };
+
   const openSearchResult = (result: SearchResult) => {
     // Every kind maps to a route that can render that specific entity by id.
     const destinations: Record<SearchResult['kind'], RouteId> = { nation: 'nations', party: 'partyDetails', company: 'markets', election: 'electionDetails', bill: 'legislationDetails', politician: 'politicians', player: 'profile', region: 'regions', bond: 'bonds', referendum: 'referendums' };
@@ -437,7 +456,8 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   // gate as the Profile card): stock holdings are positions, not owned
   // corporations, and never produce a row. Union membership is not projected
   // and has no Native destination, so no union row is ever supplied. A stale
-  // corp id still lands on the markets list, never a dead detail.
+  // corp id still lands on the markets list, never a dead detail. The row
+  // drills (#80) so Back restores the surface the drawer was opened from.
   const identityOrg: IdentityOrgLink[] = world.myCorporation
     ? [{ id: world.myCorporation.id, label: "My Corporation", route: "markets", detailId: world.myCorporation.id }]
     : [];
@@ -543,7 +563,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
       message={message}
       error={error}
       menuButtonRef={menuButtonRef}
-      onNavigate={navigate}
+      onNavigate={drawerNavigate}
       identityOrg={identityOrg}
       roleConditions={roleConditions}
       metricsAvailable={world.capabilityNav?.metricsAvailable}
@@ -846,6 +866,14 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
             if (next === "actions" && (id === "influence" || id === "fundraising" || id === "intelligence" || id === "executive")) {
               setActionsCategory(id);
               go(next);
+              return;
+            }
+            // #80: the corporation card's company link is the only
+            // profile link into a company detail, and it drills so Back
+            // returns to Profile. Every other profile deep-link keeps
+            // navigate() reset behavior.
+            if (next === "markets" && id !== undefined) {
+              drillViewer({ route, detailId }, next, id);
               return;
             }
             navigate(next, id);
