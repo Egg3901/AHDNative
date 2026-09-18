@@ -45,11 +45,13 @@
  *   so an active charter is the whole enablement check. Gating only
  *   interbank on an otherwise unread flag would invent a kill switch solo
  *   never had.
- * - Borrower-side claims against a failed bank are settled by source's
- *   `returnDepositBook` priority sweep, which has no native counterpart
- *   (issue #329 owns creditor resolution). A failed borrower's
- *   `interbankDebt` is left as recorded, consistent with how
- *   resolveFailedBank already leaves discount-window/margin debts.
+ * - Borrower-side claims against a failed bank are settled by
+ *   bankSolvencyTurn's resolution sweep in source priority order
+ *   (depositBookReturn.ts tier 3, issue #329): live loans against the failed
+ *   borrower recover pro rata from the estate cash left after the
+ *   central-bank facilities and depositors, the unpaid remainder is recorded
+ *   as a lender loss, and the borrower's `interbankDebt` is extinguished
+ *   with the estate.
  */
 
 import type { WorldState } from "../types.js";

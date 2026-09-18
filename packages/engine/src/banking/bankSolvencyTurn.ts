@@ -57,6 +57,8 @@ export interface BankSolvencyTurnSummary {
   uninsuredLoss: number;
   /** Banks whose prop book was force-liquidated for leverage breach (#328). Source: BankSolvencyTurnSummary.forcedLiquidations. */
   forcedLiquidations: number;
+  /** Estate cash transferred to interbank lenders on failure (#329). Source: DepositBookReturnResult interbank tier. */
+  interbankRecovered: number;
 }
 
 export const bankSolvencyTurnPhase: TurnPhase = {
@@ -71,6 +73,7 @@ export const bankSolvencyTurnPhase: TurnPhase = {
       insurancePaid: 0,
       uninsuredLoss: 0,
       forcedLiquidations: 0,
+      interbankRecovered: 0,
     };
 
     const candidates = Object.values(world.corporations).filter(
@@ -172,6 +175,10 @@ function evaluateOneBank(
     if (outflow > 0) {
       charter.cashReserves = Math.max(0, charter.cashReserves - outflow);
       charter.npcDeposits = Math.max(0, charter.npcDeposits - outflow);
+      // Source flight projection decrements both aggregates, never the NPC
+      // leg alone: totalDeposits is the cached pointer + NPC aggregate
+      // bankingTurn recomputes, and flight must keep it consistent in between.
+      charter.totalDeposits = Math.max(0, charter.totalDeposits - outflow);
       bank.externalBroadMoney = Math.max(0, bank.externalBroadMoney + outflow);
       summary.fled += outflow;
     }
@@ -242,11 +249,12 @@ function sumLoanOutstanding(world: WorldState, bankCorpId: string, status: "arre
  * holder simply flips back to "centralBank", exactly mirroring mainline's
  * documented player-savings failure behavior.
  *
- * #328 residual: a failed investment bank's estate is written off with the
- * charter (propBook cleared by the caller). Mainline settles interbank and
- * central-bank claims against the estate in priority order
- * (`returnDepositBook`); those creditor rows belong to the unmerged
- * #326/#327 servicing waves, so there is no one to pay here.
+ * #329: live interbank loans against the failed bank are settled here in
+ * source priority (depositBookReturn.ts tier 3: central-bank facilities,
+ * household depositors, interbank lenders). The owner releases nothing on
+ * failure (source releaseResidualToOwner: false), so any remainder stays on
+ * the estate. The margin facility has no servicing substrate natively, so
+ * its claim is extinguished with the estate rather than paid.
  */
 function resolveFailedBank(world: WorldState, corp: Corporation, turn: number, summary: BankSolvencyTurnSummary): void {
   const charter = corp.bankCharter!;
@@ -255,13 +263,15 @@ function resolveFailedBank(world: WorldState, corp: Corporation, turn: number, s
 
   let available = Math.max(0, charter.cashReserves);
 
-  // (0) Senior central-bank window claim, before depositors.
+  // (0) Senior central-bank facilities, before depositors.
   // Source: depositBookReturn.ts waterfall tier 1 (window debt + arrears, one
-  // tier with the margin line). Only the window leg is ported (#327); margin
-  // and interbank senior claims complete with #326/#328 and are untouched
-  // here (documented residual). Repaid money retires: Native carries no
-  // netMoneyCreatedLifetime counter (centralBank/types.ts scope cut), so the
-  // paid leg simply leaves circulation, symmetric with repayDiscountWindow.
+  // tier with the margin line). Repaid window money retires: Native carries
+  // no netMoneyCreatedLifetime counter (centralBank/types.ts scope cut), so
+  // the paid leg simply leaves circulation, symmetric with
+  // repayDiscountWindow. The margin line has no servicing substrate natively
+  // (nothing originates it), so its recorded claim is extinguished with the
+  // estate rather than paid — source creditorClaimProjections clears all
+  // four central-bank fields on resolution either way.
   const windowOwed =
     (typeof charter.discountWindowDebt === "number" && Number.isFinite(charter.discountWindowDebt)
       ? Math.max(0, charter.discountWindowDebt)
@@ -272,6 +282,8 @@ function resolveFailedBank(world: WorldState, corp: Corporation, turn: number, s
   available = Math.max(0, available - Math.min(available, windowOwed));
   charter.discountWindowDebt = 0;
   charter.discountWindowArrears = 0;
+  charter.cbMarginDebt = 0;
+  charter.cbMarginArrears = 0;
 
   let npcClaim = Math.max(0, charter.npcDeposits);
 
@@ -294,11 +306,108 @@ function resolveFailedBank(world: WorldState, corp: Corporation, turn: number, s
   }
   if (npcClaim > 0) summary.uninsuredLoss += npcClaim;
 
+  // (3) Interbank lenders, pro rata on outstanding principal, from whatever
+  // the senior claims and depositors left. Source: depositBookReturn.ts tier
+  // 3. Unlike the minted window principal, this cash left another bank's
+  // vault, so recovery is a transfer into the lender's vault (or its still
+  // open estate), never a burn; the unpaid part is a real loss recorded
+  // against the loan. A bank that fails holding no cash pays nobody, and
+  // "pays nobody" is still a resolution: the claims below are settled and
+  // the borrower-side debt cleared even when every share is zero.
+  const estateLoans = world.interbankLoans.filter(
+    (l) => l.borrowerCorpId === corp.id && l.status === "current",
+  );
+  const interbankOwed = estateLoans.reduce((sum, l) => sum + Math.max(0, l.outstanding), 0);
+  if (interbankOwed > 0) {
+    const interbankPaid = toCents(Math.min(available, interbankOwed));
+    const interbankShare = interbankPaid / interbankOwed;
+    const payouts = estateLoans
+      .map((loan) => ({
+        loan,
+        outstanding: Math.max(0, loan.outstanding),
+        paid: floorCents(Math.max(0, loan.outstanding) * interbankShare),
+        target: interbankRecoveryTarget(world, loan, corp.countryId),
+      }))
+      .filter((row) => row.outstanding > 0);
+    // Whatever the floors left over goes to the largest claim, so the shares
+    // add up to exactly what was paid and no cent is stranded on the estate.
+    const floorsTotal = payouts.reduce((sum, row) => sum + row.paid, 0);
+    const remainder = toCents(interbankPaid - floorsTotal);
+    if (remainder > 0 && payouts.length > 0) {
+      const largest = payouts.reduce((best, row) =>
+        row.outstanding > best.outstanding ? row : best,
+      );
+      largest.paid = toCents(largest.paid + remainder);
+    }
+    for (const row of payouts) {
+      let moved = 0;
+      if (row.paid > 0 && row.target) {
+        moved = row.paid;
+        available = Math.max(0, available - moved);
+        if (row.target.kind === "vault") {
+          const lenderCharter = world.corporations[row.target.corpId]?.bankCharter;
+          if (lenderCharter) lenderCharter.cashReserves = Math.max(0, lenderCharter.cashReserves) + moved;
+        } else {
+          const fund = world.depositInsurance[row.target.countryId];
+          if (fund) fund.balance = Math.max(0, fund.balance) + moved;
+        }
+        summary.interbankRecovered += moved;
+      }
+      const unrecovered = Math.max(0, row.outstanding - moved);
+      row.loan.outstanding = unrecovered;
+      row.loan.status = unrecovered > 0 ? "defaulted" : "repaid";
+      row.loan.lastProcessedTurn = turn;
+    }
+    charter.interbankDebt = 0;
+  }
+
   if (world.player.countryId === corp.countryId && world.player.savingsHolder === corp.id) {
     world.player.savingsHolder = "centralBank";
   }
 
   charter.npcDeposits = 0;
-  charter.cashReserves = 0;
+  // Source depositAggregateClearProjection: the aggregates clear after the
+  // cash moved, never before. No owner residual is released on failure, so
+  // the leftover estate cash stays on the dead charter.
+  charter.totalDeposits = 0;
+  charter.cashReserves = available;
   charter.depositorsResolvedTurn = turn;
+}
+
+/** Source: depositBookReturn.ts toCents / floorCents (verbatim). */
+function toCents(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function floorCents(value: number): number {
+  return Math.floor(value * 100 + 1e-9) / 100;
+}
+
+/**
+ * Where one interbank loan's estate recovery lands. Source:
+ * depositBookReturn.ts interbankRecoveryTarget. A live lender takes it into
+ * its vault; a lender that failed but is not yet resolved takes it into its
+ * estate, where its own resolution distributes it. A lender whose estate is
+ * already closed may not be credited, so the recovery belongs to the insurer
+ * that stood behind it. Null only when neither target exists, which no live
+ * resolution path reaches (bankingTurn seeds the fund before any bank can
+ * fail); the claim is still settled, the share simply moves nowhere.
+ */
+function interbankRecoveryTarget(
+  world: WorldState,
+  loan: { lenderCorpId: string },
+  countryId: string,
+): { kind: "vault"; corpId: string } | { kind: "fund"; countryId: string } | null {
+  const lender = world.corporations[loan.lenderCorpId];
+  const lenderCharter = lender?.bankCharter;
+  if (
+    lender &&
+    lenderCharter &&
+    (lenderCharter.status === "active" ||
+      (lenderCharter.status === "failed" && lenderCharter.depositorsResolvedTurn === null))
+  ) {
+    return { kind: "vault", corpId: loan.lenderCorpId };
+  }
+  if (world.depositInsurance[countryId]) return { kind: "fund", countryId };
+  return null;
 }
