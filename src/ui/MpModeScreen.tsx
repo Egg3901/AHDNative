@@ -7,7 +7,7 @@ import {
 } from "./MobileNavigation";
 import { MpModeSession, type MpSnapshot } from "../mp/adapter";
 import { tauriMpBridgeHost, type MpBridgeHost } from "../mp/bridge";
-import { isCorporationId, isElectionId, isUnionId } from "../mp/validators";
+import { isCabinetCountryCode, isCabinetPositionId, isCorporationId, isElectionId, isUnionId } from "../mp/validators";
 import { MP_EXECUTE_ACTIONS, MP_NOTIFICATION_TYPES, MP_SNOOZE_MINUTES_DEFAULT } from "../mp/endpoints";
 import { formatTurnCountdown } from "../mp/validators";
 import { MpAdminScreen } from "./MpAdminScreen";
@@ -45,6 +45,7 @@ const IDLE: MpSnapshot = {
   electionDetail: null,
   corporationDetail: null,
   unionDetail: null,
+  cabinetDetail: null,
   inbox: null,
   mailInbox: null,
   mailSent: null,
@@ -108,6 +109,9 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   /* Union detail drill-in (#359 union slice): same contract as the
    * election and corporation panels, one union at a time. */
   const [unionOpen, setUnionOpen] = useState(false);
+  /* Cabinet briefing drill-in (#359 cabinet slice): same contract as the
+   * election, corporation, and union panels, one office at a time. */
+  const [cabinetOpen, setCabinetOpen] = useState(false);
 
   useEffect(() => {
     const session = sessionRef.current!;
@@ -250,6 +254,22 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
     return target !== null && isUnionId(target) ? target : null;
   })();
 
+  /* Standing cabinet drill-in target: the live-site
+   * /country/[code]/executive/cabinet/[positionId]/office reference,
+   * gated on a valid country-plus-seat pair. A half-valid pair (or an
+   * absent one) keeps the row display-only: no control, no request. The
+   * adapter and the Rust bridge re-validate before sending. */
+  const cabinetTarget = (() => {
+    const countryCode = snapshot.capabilities?.cabinetCountryCode ?? null;
+    const positionId = snapshot.capabilities?.cabinetPositionId ?? null;
+    return countryCode !== null
+      && positionId !== null
+      && isCabinetCountryCode(countryCode)
+      && isCabinetPositionId(positionId)
+      ? { countryCode, positionId }
+      : null;
+  })();
+
   /* The detail panel opens only once the authoritative summary is loaded;
    * failures stay on the shared error display with Standing intact. */
   function openElection(target: string) {
@@ -282,6 +302,20 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
       if (next?.unionDetail) {
         setUnionOpen(true);
         window.setTimeout(() => jumpTo("mp-union"), 0);
+      }
+    });
+  }
+
+  /* The cabinet panel opens only once the authoritative briefing is
+   * loaded; failures stay on the shared error display with Standing
+   * intact. A 404 keeps the last loaded briefing, so the panel opens
+   * only when fresh detail is behind it. */
+  function openCabinet(target: { countryCode: string; positionId: string }) {
+    setNoticeScope("general");
+    void run((s) => s.loadCabinetDetail(target.countryCode, target.positionId)).then((next) => {
+      if (next?.cabinetDetail) {
+        setCabinetOpen(true);
+        window.setTimeout(() => jumpTo("mp-cabinet"), 0);
       }
     });
   }
@@ -328,8 +362,8 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
 
   /* Auth expiry evicts the details with every other authed projection, so
    * an open panel closes itself instead of showing a stale race, company,
-   * or union. Above the admin early-return: every render runs the same
-   * hooks. */
+   * union, or office. Above the admin early-return: every render runs the
+   * same hooks. */
   useEffect(() => {
     if (needsSession && electionOpen) setElectionOpen(false);
   }, [needsSession, electionOpen]);
@@ -339,6 +373,9 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   useEffect(() => {
     if (needsSession && unionOpen) setUnionOpen(false);
   }, [needsSession, unionOpen]);
+  useEffect(() => {
+    if (needsSession && cabinetOpen) setCabinetOpen(false);
+  }, [needsSession, cabinetOpen]);
 
   if (adminOpen) {
     return <MpAdminScreen host={host} onBack={() => setAdminOpen(false)} />;
@@ -359,6 +396,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
   const visibleElection = !needsSession && electionOpen ? snapshot.electionDetail : null;
   const visibleCorporation = !needsSession && corporationOpen ? snapshot.corporationDetail : null;
   const visibleUnion = !needsSession && unionOpen ? snapshot.unionDetail : null;
+  const visibleCabinet = !needsSession && cabinetOpen ? snapshot.cabinetDetail : null;
   const electionPhaseLabel = visibleElection
     ? visibleElection.isEnded
       ? "Ended"
@@ -499,13 +537,16 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
               * /unions/[id], My election -> /elections/[seatId ?? id],
               * cabinet -> /country/[cc]/executive/cabinet/[position]/office,
               * governor -> /country/[cc]/region/[state]/office). The
-              * election, corporation, and union rows are real drill-ins: the
-              * election-detail read (GET /api/elections?id=&view=summary),
-              * the corporation-detail read (GET /api/corporations/[id]),
-              * and the union-detail read (GET /api/unions/[id]) are
-              * allowlisted and have Native MP surfaces below. The other two
-              * rows stay display-only: no dead controls, no links into
-              * local SP state. A row becomes actionable only with a
+              * election, corporation, union, and cabinet rows are real
+              * drill-ins: the election-detail read
+              * (GET /api/elections?id=&view=summary), the
+              * corporation-detail read (GET /api/corporations/[id]), the
+              * union-detail read (GET /api/unions/[id]), and the
+              * cabinet-detail read (GET
+              * /api/country/[code]/executive/cabinet/[positionId]/briefing)
+              * are allowlisted and have Native MP surfaces below. The
+              * governor row stays display-only: no dead controls, no links
+              * into local SP state. A row becomes actionable only with a
               * supported authoritative MP destination behind it. */}
             {snapshot.capabilities && (
               <article className="ahd-card ahd-card-pad" aria-label="Standing">
@@ -567,7 +608,23 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                         )}
                       </dd></>
                     )}
-                    {snapshot.capabilities.cabinetOffice && (<><dt>Cabinet</dt><dd>{snapshot.capabilities.cabinetOffice}</dd></>)}
+                    {snapshot.capabilities.cabinetOffice && (
+                      <><dt>Cabinet</dt><dd>
+                        {snapshot.capabilities.cabinetOffice}
+                        {cabinetTarget && (
+                          <>
+                            {" "}
+                            <button
+                              className="ahd-btn ahd-btn-sm"
+                              disabled={busy}
+                              onClick={() => openCabinet(cabinetTarget)}
+                            >
+                              View office
+                            </button>
+                          </>
+                        )}
+                      </dd></>
+                    )}
                     {snapshot.capabilities.governorOffice && (<><dt>Governor</dt><dd>{snapshot.capabilities.governorOffice}</dd></>)}
                   </dl>
                 ) : (
@@ -700,6 +757,52 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
               className="ahd-btn ahd-btn-sm ahd-btn-ghost"
               onClick={() => {
                 setUnionOpen(false);
+                jumpTo("mp-profile");
+              }}
+            >
+              Back to Standing
+            </button>
+          </div>
+          </>
+        )}
+
+        {/* Cabinet briefing drill-in (#359 cabinet slice): the letterhead
+          * plus roster facts for the Standing office, opened only with a
+          * loaded briefing. Read-only: mechanics, settings, orders,
+          * metrics, budgets, military, monetary, and every write stay
+          * absent. A withheld office shows the restriction titles instead
+          * of departmental record; a vacant seat names no holder. Back
+          * returns to Standing, never into local SP state. */}
+        {visibleCabinet && (
+          <>
+          <article id="mp-cabinet" className="ahd-card ahd-card-pad" aria-label="Cabinet detail" tabIndex={-1}>
+            <h2 className="ahd-h2">{visibleCabinet.positionName ?? visibleCabinet.positionId}</h2>
+            <dl className="ahd-mp-facts">
+              {visibleCabinet.department && (<><dt>Department</dt><dd>{visibleCabinet.department}</dd></>)}
+              {visibleCabinet.liveYear !== null && (<><dt>Year</dt><dd>{visibleCabinet.liveYear}</dd></>)}
+              <dt>Seat</dt><dd>{visibleCabinet.positionId}</dd>
+              <dt>Holder</dt><dd>{visibleCabinet.member?.characterName ?? "Vacant"}</dd>
+              {visibleCabinet.member?.partyName && (<><dt>Party</dt><dd>{visibleCabinet.member.partyName}</dd></>)}
+              {visibleCabinet.member && (
+                <><dt>Tenure</dt><dd>{visibleCabinet.member.acting === true
+                  ? `Acting${visibleCabinet.member.actingExpiresOnTurn !== null ? ` until turn ${visibleCabinet.member.actingExpiresOnTurn}` : ""}`
+                  : visibleCabinet.member.acting === false
+                    ? "Substantive"
+                    : "Undisclosed"}</dd></>
+              )}
+              {!visibleCabinet.canView && visibleCabinet.restriction && (
+                <><dt>Viewers</dt><dd>{visibleCabinet.restriction.allowedTitles.join(", ")}{visibleCabinet.restriction.countryName ? ` · ${visibleCabinet.restriction.countryName}` : ""}</dd></>
+              )}
+              {visibleCabinet.canView && !visibleCabinet.canAct && (
+                <><dt>Role</dt><dd>Read-only: you may view this office but not work it</dd></>
+              )}
+            </dl>
+          </article>
+          <div className="ahd-mp-row ahd-mp-back">
+            <button
+              className="ahd-btn ahd-btn-sm ahd-btn-ghost"
+              onClick={() => {
+                setCabinetOpen(false);
                 jumpTo("mp-profile");
               }}
             >

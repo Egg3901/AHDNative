@@ -111,11 +111,13 @@
  *   e.g. us/sco/wal); the position id is the snake_case (one camelCase:
  *   generalSecretary) client-nav `cabinetOffice.positionId` (e.g.
  *   secretary_of_state). Errors: 400 invalid country, 404 unknown position
- *   or a gone seat, generic { error } envelope (src/lib/api/errors
- *   handleRouteError). A viewer who may not work the office still gets the
- *   withheld shape ({canView:false, position, member, restriction}) rather
- *   than an error: the seat, its department, and its holder are roster
- *   facts published on the cabinet list and the holder page. Cache:
+ *   (a vacant seat answers 200 with member null, never 404), generic
+ *   { error } envelope (src/lib/api/errors handleRouteError). A viewer who
+ *   may not work the office still gets the withheld shape
+ *   ({canView:false, canAct:false, liveYear, position, member,
+ *   restriction}) rather than an error: the seat, its department, and its
+ *   holder are roster facts published on the cabinet list and the holder
+ *   page. Cache:
  *   no-store — Native keeps no copy beyond memory. Native projects the
  *   letterhead plus roster facts only (seat id/name/department, holder
  *   name/party/acting/tenure, canView/canAct, withheld restriction

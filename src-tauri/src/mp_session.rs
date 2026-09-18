@@ -90,7 +90,9 @@ pub mod error {
 /// election detail read takes an id parameter instead; see
 /// [`fetch_election_path`]. The corporation detail read takes an id
 /// parameter instead; see [`fetch_corporation_path`]. The union detail
-/// read takes an id parameter instead; see [`fetch_union_path`].
+/// read takes an id parameter instead; see [`fetch_union_path`]. The
+/// cabinet detail read takes a country code plus a position id instead;
+/// see [`fetch_cabinet_path`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MpFetchOp {
     /// Legacy read-only session probe; 200 `{active:true,...}` signed in,
@@ -132,6 +134,16 @@ pub enum MpFetchOp {
     /// invalid id, 404 when the union is gone). The id is the 24-hex
     /// ObjectId client-nav `myUnionId` carries; see [`is_union_id`].
     UnionDetail,
+    /// Standing cabinet-office briefing; GET
+    /// /api/country/[code]/executive/cabinet/[positionId]/briefing
+    /// (public with an optional viewer, 400 on an invalid country, 404 on
+    /// an unknown position; a vacant seat answers 200 with member null).
+    /// The country code is the lowercase client-nav
+    /// `cabinetOffice.countryCode` (a COUNTRY_CONFIGS key like us/sco/wal)
+    /// and the position id is the client-nav `cabinetOffice.positionId`
+    /// seat slug (snake_case, one camelCase: generalSecretary); see
+    /// [`is_cabinet_country_code`] and [`is_cabinet_position_id`].
+    CabinetDetail,
 }
 
 impl MpFetchOp {
@@ -150,6 +162,7 @@ impl MpFetchOp {
             "election-detail" => Some(Self::ElectionDetail),
             "corporation-detail" => Some(Self::CorporationDetail),
             "union-detail" => Some(Self::UnionDetail),
+            "cabinet-detail" => Some(Self::CabinetDetail),
             _ => None,
         }
     }
@@ -169,6 +182,7 @@ impl MpFetchOp {
             Self::ElectionDetail => "/api/elections",
             Self::CorporationDetail => "/api/corporations",
             Self::UnionDetail => "/api/unions",
+            Self::CabinetDetail => "/api/country",
         }
     }
 }
@@ -592,6 +606,44 @@ fn fetch_union_path(union_id: &str) -> Result<String, String> {
     Ok(format!("{}/{}", MpFetchOp::UnionDetail.path(), union_id))
 }
 
+/// Cabinet briefing country key: the client-nav `cabinetOffice.countryCode`
+/// (a COUNTRY_CONFIGS key like us/sco/wal; the route uppercases it before
+/// lookup). Two or three ASCII letters, any case; the builder lowercases so
+/// the pinned path is canonical. Anything else never leaves the bridge.
+fn is_cabinet_country_code(value: &str) -> bool {
+    (value.len() == 2 || value.len() == 3)
+        && value.bytes().all(|byte| byte.is_ascii_alphabetic())
+}
+
+/// Cabinet briefing seat slug: the client-nav `cabinetOffice.positionId`
+/// (snake_case like secretary_of_state; one camelCase seat,
+/// generalSecretary, exists). ASCII letters, digits, and underscores only,
+/// at most 64 chars; the server answers 404 on an unknown seat. URL-safe by
+/// construction, so the slug embeds in the path with no encoding step that
+/// could smuggle query text.
+fn is_cabinet_position_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+}
+
+/// Build the exact cabinet briefing request path from a validated
+/// country-plus-seat reference. Both segments are path segments (never
+/// query pairs) and carry no pagination.
+fn fetch_cabinet_path(country_code: &str, position_id: &str) -> Result<String, String> {
+    if !is_cabinet_country_code(country_code) || !is_cabinet_position_id(position_id) {
+        return Err(error::BAD_ARG.to_string());
+    }
+    Ok(format!(
+        "{}/{}/executive/cabinet/{}/briefing",
+        MpFetchOp::CabinetDetail.path(),
+        country_code.to_ascii_lowercase(),
+        position_id
+    ))
+}
+
 /// Validate a mutation payload and return the canonical body to send. Unknown
 /// fields are stripped; the server ignores them, and the bridge never
 /// forwards what it did not explicitly model.
@@ -883,11 +935,31 @@ fn is_union_path(path: &str) -> bool {
     }
 }
 
+/// Cabinet briefing path: exactly
+/// `/api/country/<code>/executive/cabinet/<position>/briefing` with no
+/// query string. Both segments re-validate here so a future refactor of
+/// [`fetch_cabinet_path`] cannot widen the pin.
+fn is_cabinet_path(path: &str) -> bool {
+    let rest = match path.strip_prefix("/api/country/") {
+        Some(rest) => rest,
+        None => return false,
+    };
+    let mut segments = rest.split('/');
+    match (segments.next(), segments.next(), segments.next(), segments.next(), segments.next()) {
+        (Some(code), Some("executive"), Some("cabinet"), Some(position), Some("briefing")) => {
+            segments.next().is_none()
+                && is_cabinet_country_code(code)
+                && is_cabinet_position_id(position)
+        }
+        _ => false,
+    }
+}
+
 /// Re-check a fully formed method+path+query against the allowlist. Defense
 /// in depth: the call is built by [`fetch_path_and_query`]/[`mutate_path`],
-/// [`fetch_election_path`], [`fetch_corporation_path`], or
-/// [`fetch_union_path`], but the transport re-validates so a future refactor
-/// cannot bypass the pin.
+/// [`fetch_election_path`], [`fetch_corporation_path`],
+/// [`fetch_union_path`], or [`fetch_cabinet_path`], but the transport
+/// re-validates so a future refactor cannot bypass the pin.
 fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
     let (path, query) = match path_and_query.split_once('?') {
         Some((path, query)) => (path, Some(query)),
@@ -915,6 +987,7 @@ fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
             query.is_none() && is_corporation_path(path)
         }
         ("GET", path) if path.starts_with("/api/unions/") => query.is_none() && is_union_path(path),
+        ("GET", path) if path.starts_with("/api/country/") => query.is_none() && is_cabinet_path(path),
         ("POST", "/api/actions/execute") | ("PATCH", "/api/notifications") => query.is_none(),
         ("PUT", "/api/notifications/preferences") => query.is_none(),
         ("POST", "/api/mail") | ("POST", "/api/auth/logout") => query.is_none(),
@@ -1401,9 +1474,10 @@ async fn run_session_call(
 /// Fetch one allowlisted read through the live-site session. Resolves with
 /// the raw JSON body; the TypeScript adapter validates and projects it.
 /// `election_id` serves the election detail read only, `corporation_id`
-/// serves the corporation detail read only, and `union_id` serves the union
-/// detail read only: each must be absent on every other op and present
-/// (validated) on its own.
+/// serves the corporation detail read only, `union_id` serves the union
+/// detail read only, and `cabinet_country_code` + `cabinet_position_id`
+/// serve the cabinet detail read only: each must be absent on every other
+/// op and present (validated) on its own.
 #[tauri::command(rename_all = "camelCase")]
 pub async fn mp_session_fetch(
     app: tauri::AppHandle,
@@ -1413,11 +1487,18 @@ pub async fn mp_session_fetch(
     election_id: Option<String>,
     corporation_id: Option<String>,
     union_id: Option<String>,
+    cabinet_country_code: Option<String>,
+    cabinet_position_id: Option<String>,
 ) -> Result<String, String> {
     let op = MpFetchOp::from_id(op_id.trim()).ok_or_else(|| error::UNSUPPORTED_OP.to_string())?;
     let path_and_query = match op {
         MpFetchOp::ElectionDetail => {
-            if limit.is_some() || offset.is_some() || corporation_id.is_some() || union_id.is_some()
+            if limit.is_some()
+                || offset.is_some()
+                || corporation_id.is_some()
+                || union_id.is_some()
+                || cabinet_country_code.is_some()
+                || cabinet_position_id.is_some()
             {
                 return Err(error::UNSUPPORTED_OP.to_string());
             }
@@ -1427,7 +1508,13 @@ pub async fn mp_session_fetch(
             fetch_election_path(id)?
         }
         MpFetchOp::CorporationDetail => {
-            if limit.is_some() || offset.is_some() || election_id.is_some() || union_id.is_some() {
+            if limit.is_some()
+                || offset.is_some()
+                || election_id.is_some()
+                || union_id.is_some()
+                || cabinet_country_code.is_some()
+                || cabinet_position_id.is_some()
+            {
                 return Err(error::UNSUPPORTED_OP.to_string());
             }
             let id = corporation_id
@@ -1440,6 +1527,8 @@ pub async fn mp_session_fetch(
                 || offset.is_some()
                 || election_id.is_some()
                 || corporation_id.is_some()
+                || cabinet_country_code.is_some()
+                || cabinet_position_id.is_some()
             {
                 return Err(error::UNSUPPORTED_OP.to_string());
             }
@@ -1448,8 +1537,30 @@ pub async fn mp_session_fetch(
                 .ok_or_else(|| error::BAD_ARG.to_string())?;
             fetch_union_path(id)?
         }
+        MpFetchOp::CabinetDetail => {
+            if limit.is_some()
+                || offset.is_some()
+                || election_id.is_some()
+                || corporation_id.is_some()
+                || union_id.is_some()
+            {
+                return Err(error::UNSUPPORTED_OP.to_string());
+            }
+            let country = cabinet_country_code
+                .as_deref()
+                .ok_or_else(|| error::BAD_ARG.to_string())?;
+            let position = cabinet_position_id
+                .as_deref()
+                .ok_or_else(|| error::BAD_ARG.to_string())?;
+            fetch_cabinet_path(country, position)?
+        }
         _ => {
-            if election_id.is_some() || corporation_id.is_some() || union_id.is_some() {
+            if election_id.is_some()
+                || corporation_id.is_some()
+                || union_id.is_some()
+                || cabinet_country_code.is_some()
+                || cabinet_position_id.is_some()
+            {
                 return Err(error::BAD_ARG.to_string());
             }
             fetch_path_and_query(op, limit, offset)?
@@ -2234,6 +2345,106 @@ mod tests {
         assert!(!is_allowlisted_call(
             "DELETE",
             "/api/unions/68a000000000000000000001"
+        ));
+    }
+
+    #[test]
+    fn cabinet_detail_resolves_to_the_pinned_briefing_read() {
+        assert_eq!(
+            MpFetchOp::from_id("cabinet-detail"),
+            Some(MpFetchOp::CabinetDetail)
+        );
+        assert_eq!(MpFetchOp::CabinetDetail.path(), "/api/country");
+        assert_eq!(MpFetchOp::from_id("CABINET-DETAIL"), None);
+        assert_eq!(MpFetchOp::from_id("cabinet"), None);
+        assert_eq!(MpFetchOp::from_id("briefing"), None);
+        // The audited briefing read: lowercase country key plus seat slug.
+        // An uppercase country key is accepted and canonicalized, matching
+        // the route's own case-insensitive lookup.
+        assert_eq!(
+            fetch_cabinet_path("us", "secretary_of_state").unwrap(),
+            "/api/country/us/executive/cabinet/secretary_of_state/briefing"
+        );
+        assert_eq!(
+            fetch_cabinet_path("US", "secretary_of_state").unwrap(),
+            "/api/country/us/executive/cabinet/secretary_of_state/briefing"
+        );
+        assert_eq!(
+            fetch_cabinet_path("sco", "generalSecretary").unwrap(),
+            "/api/country/sco/executive/cabinet/generalSecretary/briefing"
+        );
+        // Traversal, query smuggling, sibling routes, and drift all fail
+        // closed. A hyphenated slug can never be a real seat.
+        for (code, position) in [
+            ("", "secretary_of_state"),
+            ("u", "secretary_of_state"),
+            ("ussr", "secretary_of_state"),
+            ("u1", "secretary_of_state"),
+            ("us ", "secretary_of_state"),
+            ("us", ""),
+            ("us", "secretary-of-state"),
+            ("us", "secretary_of_state?view=full"),
+            ("us", "secretary_of_state/leader"),
+            ("us", "secretary_of_state/../fire"),
+            ("us", "../admin/maintenance"),
+            ("../admin", "secretary_of_state"),
+            (
+                "us",
+                "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            ),
+        ] {
+            assert!(
+                fetch_cabinet_path(code, position).is_err(),
+                "{code:?}/{position:?} must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn cabinet_allowlist_pins_briefing_path_and_validated_segments() {
+        for allowed in [
+            "/api/country/us/executive/cabinet/secretary_of_state/briefing",
+            "/api/country/sco/executive/cabinet/generalSecretary/briefing",
+            "/api/country/wal/executive/cabinet/chancellor/briefing",
+        ] {
+            assert!(
+                is_allowlisted_call("GET", allowed),
+                "{allowed} must be allowed"
+            );
+        }
+        for denied in [
+            "/api/country",
+            "/api/country/",
+            "/api/country/us",
+            "/api/country/us/executive",
+            "/api/country/us/executive/cabinet",
+            "/api/country/us/executive/cabinet/secretary_of_state",
+            "/api/country/us/executive/cabinet/secretary_of_state/briefing/",
+            "/api/country/ussr/executive/cabinet/secretary_of_state/briefing",
+            "/api/country/u1/executive/cabinet/secretary_of_state/briefing",
+            "/api/country/us/executive/cabinet/secretary-of-state/briefing",
+            "/api/country/us/executive/cabinet/secretary_of_state/briefing?view=full",
+            "/api/country/us/executive/cabinet/secretary_of_state/appoint",
+            "/api/country/us/executive/cabinet/secretary_of_state/fire",
+            "/api/country/us/executive/cabinet/secretary_of_state/briefing/../fire",
+            "https://ahousedividedgame.com/api/country/us/executive/cabinet/secretary_of_state/briefing",
+        ] {
+            assert!(
+                !is_allowlisted_call("GET", denied),
+                "{denied} must be rejected"
+            );
+        }
+        assert!(!is_allowlisted_call(
+            "POST",
+            "/api/country/us/executive/cabinet/secretary_of_state/briefing"
+        ));
+        assert!(!is_allowlisted_call(
+            "PATCH",
+            "/api/country/us/executive/cabinet/secretary_of_state/briefing"
+        ));
+        assert!(!is_allowlisted_call(
+            "DELETE",
+            "/api/country/us/executive/cabinet/secretary_of_state/briefing"
         ));
     }
 
