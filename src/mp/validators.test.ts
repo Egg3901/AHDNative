@@ -5,12 +5,15 @@ import {
   isCabinetPositionId,
   isCorporationId,
   isElectionId,
+  isGovernorCountryCode,
+  isGovernorStateId,
   parseCabinetDetail,
   parseCharacterMe,
   parseClientNav,
   parseCorporationDetail,
   parseElectionDetail,
   parseExecuteResult,
+  parseGovernorDetail,
   parseInbox,
   parseLogoutAck,
   parseMutationAck,
@@ -22,6 +25,7 @@ import {
   validateCabinetRef,
   validateCorporationId,
   validateElectionId,
+  validateGovernorRef,
   validateExecuteArgs,
   validateNotificationId,
   validateNotificationPreference,
@@ -249,7 +253,32 @@ describe("parseClientNav", () => {
       cabinetCountryCode: "us",
       cabinetPositionId: "secretary_of_state",
       governorOffice: null,
+      governorStateId: null,
+      governorCountryCode: null,
     });
+  });
+
+  it("projects the governor pair plus the display name, never half a request", () => {
+    const caps = (governorOffice: unknown) =>
+      parseClientNav(JSON.stringify({ hasCharacter: true, governorOffice }));
+    expect(
+      caps({ stateId: "CA", stateName: "California", countryCode: "us" }),
+    ).toMatchObject({ governorOffice: "California", governorStateId: "CA", governorCountryCode: "us" });
+    // The reference canonicalizes like the route: the country key drops to
+    // lowercase, the state id rises to the stored uppercase form.
+    expect(validateGovernorRef({ countryCode: "US", stateId: "ca" })).toEqual({
+      ok: true,
+      countryCode: "us",
+      stateId: "CA",
+    });
+    // A half-valid pair degrades the drill-in to null while the display
+    // name stands, so nothing is ever requested.
+    expect(
+      caps({ stateId: "C-A", stateName: "California", countryCode: "us" }),
+    ).toMatchObject({ governorOffice: "California", governorStateId: null, governorCountryCode: null });
+    expect(
+      caps({ stateId: "CA", stateName: "California", countryCode: "ussr" }),
+    ).toMatchObject({ governorOffice: "California", governorStateId: null, governorCountryCode: null });
   });
 
   it("degrades a half-valid cabinet pair to display-only, never half a request", () => {
@@ -810,6 +839,117 @@ describe("cabinet-detail reference and payload (#359 cabinet slice)", () => {
     ).toBeNull();
     expect(parseCabinetDetail(briefing({ member: { characterName: "Ada", acting: "sometimes" } }))).toBeNull();
     expect(parseCabinetDetail(JSON.stringify({ error: "Unknown cabinet position" }))).toBeNull();
+  });
+});
+
+describe("governor-detail reference and payload (#359 governor slice)", () => {
+  it("accepts the audited country-plus-state pair, rejects drift", () => {
+    expect(isGovernorCountryCode("us")).toBe(true);
+    expect(isGovernorCountryCode("US")).toBe(true);
+    expect(isGovernorCountryCode("sco")).toBe(true);
+    for (const bad of ["", "u", "ussr", "u1", "us ", "us1", "u-s", null, 42]) {
+      expect(isGovernorCountryCode(bad), JSON.stringify(bad)).toBe(false);
+    }
+    expect(isGovernorStateId("CA")).toBe(true);
+    expect(isGovernorStateId("SN")).toBe(true);
+    expect(isGovernorStateId("HU_BUD")).toBe(true);
+    for (const bad of [
+      "",
+      "C-A",
+      "CA/los",
+      "CA?view=full",
+      "CA/../admin",
+      "../admin/maintenance",
+      "/api/country/us/region/CA/officials",
+      "x".repeat(17),
+      null,
+      42,
+    ]) {
+      expect(isGovernorStateId(bad), JSON.stringify(bad)).toBe(false);
+    }
+    expect(validateGovernorRef({ countryCode: "US", stateId: "CA" })).toEqual({
+      ok: true,
+      countryCode: "us",
+      stateId: "CA",
+    });
+    expect(validateGovernorRef({ countryCode: "ussr", stateId: "CA" }).ok).toBe(false);
+    expect(validateGovernorRef({ countryCode: "us", stateId: "C-A" }).ok).toBe(false);
+  });
+
+  const roster = (overrides: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      state: "CA",
+      stateName: "California",
+      countryId: "US",
+      officials: {
+        senators: [],
+        governor: {
+          officeType: "governor",
+          state: "CA",
+          characterId: "507f1f77bcf86cd799439011",
+          characterName: "Ada",
+          party: "3",
+        },
+        houseRepresentatives: [],
+        stateSenators: [],
+        mps: [],
+      },
+      ...overrides,
+    });
+
+  it("projects state identity plus the holder, never the stored party key", () => {
+    expect(parseGovernorDetail(roster())).toEqual({
+      state: "CA",
+      stateName: "California",
+      countryId: "US",
+      officeType: "governor",
+      holderName: "Ada",
+    });
+    // The roster carries the holder party only as an unresolved stored key;
+    // only the region server page resolves it, so it stays server-side even
+    // when the server sends it. Sibling benches never surface either.
+    const projected = parseGovernorDetail(
+      roster({ officials: { senators: [{ characterName: "Bo" }], governor: { officeType: "governor", characterName: "Ada" } } }),
+    )!;
+    expect(JSON.stringify(projected)).not.toMatch(/party|senator|Bo/i);
+  });
+
+  it("keeps a vacant or undisclosed seat as data, never an error", () => {
+    // No governor record: the seat stands, no holder is named.
+    expect(parseGovernorDetail(roster({ officials: {} }))).toMatchObject({
+      state: "CA",
+      officeType: null,
+      holderName: null,
+    });
+    // A banned holder redacts to a null character with no name: vacant or
+    // undisclosed, same honesty as the corporation CEO line.
+    expect(
+      parseGovernorDetail(
+        roster({ officials: { governor: { officeType: "governor", characterId: null } } }),
+      ),
+    ).toMatchObject({ officeType: "governor", holderName: null });
+    expect(parseGovernorDetail(roster({ officials: { governor: null } }))).toMatchObject({
+      holderName: null,
+    });
+  });
+
+  it("fails closed on structural drift", () => {
+    expect(parseGovernorDetail("not json")).toBeNull();
+    expect(parseGovernorDetail(JSON.stringify({}))).toBeNull();
+    expect(parseGovernorDetail(roster({ state: null }))).toBeNull();
+    expect(parseGovernorDetail(roster({ stateName: "  " }))).toBeNull();
+    expect(parseGovernorDetail(roster({ officials: null }))).toBeNull();
+    expect(parseGovernorDetail(roster({ officials: [] }))).toBeNull();
+    expect(
+      parseGovernorDetail(roster({ officials: { governor: { officeType: "governor/../fire" } } })),
+    ).toBeNull();
+    expect(
+      parseGovernorDetail(roster({ officials: { governor: { officeType: "" } } })),
+    ).toBeNull();
+    expect(
+      parseGovernorDetail(roster({ officials: { governor: 42 } })),
+    ).toBeNull();
+    expect(parseGovernorDetail(JSON.stringify({ error: "State not found" }))).toBeNull();
   });
 });
 

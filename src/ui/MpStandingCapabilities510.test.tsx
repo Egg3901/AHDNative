@@ -13,16 +13,17 @@
  *   `/country/[cc]/region/[stateId]/office`.
  * The corporation read is allowlisted (`src/mp/endpoints.ts`,
  * `src-tauri/src/mp_session.rs`) with a Native MP surface, so the
- * corporation row offers its drill-in. The union and cabinet drill-ins
- * landed after this file (`MpUnionDetail.test.tsx`,
- * `MpCabinetDetail.test.tsx`); this file's union, election, and cabinet
- * fixtures carry invalid references (`union-7`, `e1`, hyphenated
- * `sec-state`), so those rows stay display-only here and pin the
- * invalid-reference path: absent navigation, never an inert control,
- * never a route into local SP state (the election drill-in itself is
- * covered by `MpElectionDetail543.test.tsx`). The governor row stays display-only:
- * no audited governor JSON endpoint exists. Rendered at 320px, 390px, and
- * desktop.
+ * corporation row offers its drill-in. The union, cabinet, and governor
+ * drill-ins landed after this file (`MpUnionDetail.test.tsx`,
+ * `MpCabinetDetail.test.tsx`, `MpGovernorDetail.test.tsx`); this file's
+ * union, election, and cabinet fixtures carry invalid references
+ * (`union-7`, `e1`, hyphenated `sec-state`), so those rows stay
+ * display-only here and pin the invalid-reference path: absent
+ * navigation, never an inert control, never a route into local SP state
+ * (the election drill-in itself is covered by
+ * `MpElectionDetail543.test.tsx`). The governor fixture carries a valid
+ * country-plus-region pair, so that row offers its drill-in alongside
+ * the corporation row. Rendered at 320px, 390px, and desktop.
  */
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
@@ -142,7 +143,7 @@ function readyScript(capabilities: string = fullCapabilities): Script {
 }
 
 describe.each([320, 390, 1280])("MP Standing capabilities at %spx (#359/#510)", (width) => {
-  it("renders the corporation drill-in with the remaining rows display-only", async () => {
+  it("renders the corporation and governor drill-ins with the remaining rows display-only", async () => {
     setViewport(width);
     render(<MpModeScreen host={fakeHost(readyScript()).host} onExit={() => {}} />);
     const standing = await screen.findByRole("article", { name: "Standing" });
@@ -152,14 +153,16 @@ describe.each([320, 390, 1280])("MP Standing capabilities at %spx (#359/#510)", 
     expect(within(standing).getByText("President · US")).toBeInTheDocument();
     expect(within(standing).getByText("Secretary of State")).toBeInTheDocument();
     expect(within(standing).getByText("California")).toBeInTheDocument();
-    // The corporation row is the one actionable destination here (the
-    // fixture election id is invalid, so that row stays display-only):
-    // exactly one control, no links, no live-site paths. Nothing here may
-    // route into local SP state.
+    // The corporation and governor rows are the actionable destinations
+    // here (the fixture union, election, and cabinet references are
+    // invalid, so those rows stay display-only): exactly two controls, no
+    // links, no live-site paths. Nothing here may route into local SP
+    // state.
     expect(standing.querySelector("a")).toBeNull();
     const controls = within(standing).queryAllByRole("button");
-    expect(controls).toHaveLength(1);
+    expect(controls).toHaveLength(2);
     expect(controls[0]).toHaveTextContent("View company");
+    expect(controls[1]).toHaveTextContent("View governorship");
     expect(standing.textContent).not.toMatch(/\/corporation|\/unions|\/elections|\/country\//);
   });
 

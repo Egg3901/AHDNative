@@ -6,6 +6,7 @@ import {
   parseCorporationDetail,
   parseElectionDetail,
   parseExecuteResult,
+  parseGovernorDetail,
   parseInbox,
   parseLogoutAck,
   parseMailInbox,
@@ -19,6 +20,7 @@ import {
   validateCorporationId,
   validateElectionId,
   validateExecuteArgs,
+  validateGovernorRef,
   validateMailId,
   validateMailSend,
   validateNotificationId,
@@ -30,6 +32,7 @@ import {
   type MpCharacterView,
   type MpCorporationDetailView,
   type MpElectionDetailView,
+  type MpGovernorDetailView,
   type MpInboxView,
   type MpMailInbox,
   type MpMailSent,
@@ -75,6 +78,8 @@ export interface MpSnapshot {
   unionDetail: MpUnionDetailView | null;
   /** Standing cabinet-office briefing; loaded on demand, never on enter or refresh. */
   cabinetDetail: MpCabinetDetailView | null;
+  /** Standing governor-office roster; loaded on demand, never on enter or refresh. */
+  governorDetail: MpGovernorDetailView | null;
   inbox: MpInboxView | null;
   /** Received player mail page; loaded on demand, never on enter. */
   mailInbox: MpMailInbox | null;
@@ -106,6 +111,7 @@ const INITIAL_SNAPSHOT: MpSnapshot = {
   corporationDetail: null,
   unionDetail: null,
   cabinetDetail: null,
+  governorDetail: null,
   inbox: null,
   mailInbox: null,
   mailSent: null,
@@ -126,9 +132,9 @@ export const MP_MAIL_LIMIT = 50;
 
 function emptyAuthed(): Pick<
   MpSnapshot,
-  "character" | "turn" | "capabilities" | "electionDetail" | "corporationDetail" | "unionDetail" | "cabinetDetail" | "inbox" | "mailInbox" | "mailSent" | "presence"
+  "character" | "turn" | "capabilities" | "electionDetail" | "corporationDetail" | "unionDetail" | "cabinetDetail" | "governorDetail" | "inbox" | "mailInbox" | "mailSent" | "presence"
 > {
-  return { character: null, turn: null, capabilities: null, electionDetail: null, corporationDetail: null, unionDetail: null, cabinetDetail: null, inbox: null, mailInbox: null, mailSent: null, presence: null };
+  return { character: null, turn: null, capabilities: null, electionDetail: null, corporationDetail: null, unionDetail: null, cabinetDetail: null, governorDetail: null, inbox: null, mailInbox: null, mailSent: null, presence: null };
 }
 
 export class MpModeSession {
@@ -500,6 +506,50 @@ export class MpModeSession {
       return this.set({ phase: "server-error", cabinetDetail: null, error: "The cabinet briefing answered in an unexpected shape." });
     }
     return this.set({ phase: "ready", cabinetDetail, error: null, retryAfter: null });
+  }
+
+  /**
+   * Load the Standing governor-office roster on demand (#359 governor
+   * slice). Enter and refresh never fetch it: the Standing row offers the
+   * drill-in, and this reads GET
+   * /api/country/[code]/region/[id]/officials through the first-party
+   * session. The reference is pre-checked against the audited shape
+   * (lowercase 2-3 letter country key plus stored uppercase region key
+   * from client-nav `governorOffice`) and the Rust bridge re-validates
+   * before anything is sent. Expiry evicts the roster with every other
+   * authed projection; a 404 means the state is gone server-side and
+   * reports the server's message with prior detail kept. A seat with no
+   * governor record, or a banned holder redacted to a null character,
+   * is a 200 with no holder named, not an error. Every other failure
+   * maps through the shared read-failure contract with prior detail kept
+   * and an honest error, never stale success. Nothing here touches the
+   * local SP engine or saves.
+   */
+  async loadGovernorDetail(countryCode: unknown, stateId: unknown): Promise<MpSnapshot> {
+    if (!this.snapshot.userId) return this.enter();
+    const validated = validateGovernorRef({ countryCode, stateId });
+    if (!validated.ok) {
+      return this.set({ error: validated.reason });
+    }
+    this.set({ error: null, notice: null, retryAfter: null });
+    const result = await mpFetch(this.host, "governor-detail", undefined, undefined, undefined, undefined, undefined, undefined, undefined, validated.countryCode, validated.stateId);
+    if (result.kind === "remote" && result.http === 404) {
+      // The referenced state no longer resolves server-side: say so with
+      // the server's message and keep the last loaded roster, never blank
+      // it.
+      return this.set({ phase: "offline", error: result.message });
+    }
+    if (result.kind === "transport" && result.code === "session-transport") {
+      // The bridge transport died mid-mode: the live-site session is
+      // closed, not merely slow. Prior detail stands.
+      return this.set({ phase: "offline", error: "The live-site session closed. Reconnect to continue." });
+    }
+    if (result.kind !== "ok") return this.applyAuthedReadFailure(result);
+    const governorDetail = parseGovernorDetail(result.bodyText);
+    if (!governorDetail) {
+      return this.set({ phase: "server-error", governorDetail: null, error: "The governor roster answered in an unexpected shape." });
+    }
+    return this.set({ phase: "ready", governorDetail, error: null, retryAfter: null });
   }
 
   /**

@@ -279,6 +279,10 @@ export interface MpCapabilitiesView {
   /** client-nav cabinetOffice.positionId: seat slug for the briefing read. */
   cabinetPositionId: string | null;
   governorOffice: string | null;
+  /** client-nav governorOffice.stateId: stored uppercase region key for the officials read. */
+  governorStateId: string | null;
+  /** client-nav governorOffice.countryCode: lowercase country key for the officials read. */
+  governorCountryCode: string | null;
 }
 
 /**
@@ -305,6 +309,16 @@ export function parseClientNav(bodyText: string): MpCapabilitiesView | null {
   const rawCabinetPosition = cabinet ? cabinet.positionId : null;
   const cabinetCountryCode = isCabinetCountryCode(rawCabinetCountry) ? rawCabinetCountry.toLowerCase() : null;
   const cabinetPositionId = isCabinetPositionId(rawCabinetPosition) ? rawCabinetPosition : null;
+  // The officials drill-in needs the stored region key plus the country
+  // key, not the display name. Like the cabinet pair, a half-valid pair
+  // signals a drifting payload, so both degrade to null unless both
+  // validate; the display name stands alone. Canonicalized like the
+  // route: the country key drops to lowercase, the state id rises to the
+  // stored uppercase form.
+  const rawGovernorCountry = governor ? governor.countryCode : null;
+  const rawGovernorState = governor ? governor.stateId : null;
+  const governorCountryCode = isGovernorCountryCode(rawGovernorCountry) ? rawGovernorCountry.toLowerCase() : null;
+  const governorStateId = isGovernorStateId(rawGovernorState) ? rawGovernorState.toUpperCase() : null;
   return {
     hasCharacter,
     characterName: asTrimmedString(record.characterName ?? null),
@@ -319,6 +333,8 @@ export function parseClientNav(bodyText: string): MpCapabilitiesView | null {
     cabinetCountryCode: cabinetCountryCode !== null && cabinetPositionId !== null ? cabinetCountryCode : null,
     cabinetPositionId: cabinetCountryCode !== null && cabinetPositionId !== null ? cabinetPositionId : null,
     governorOffice: governor ? asTrimmedString(governor.stateName ?? null) : null,
+    governorStateId: governorCountryCode !== null && governorStateId !== null ? governorStateId : null,
+    governorCountryCode: governorCountryCode !== null && governorStateId !== null ? governorCountryCode : null,
   };
 }
 
@@ -709,6 +725,98 @@ export function parseCabinetDetail(bodyText: string): MpCabinetDetailView | null
     canAct,
     member,
     restriction,
+  };
+}
+
+/**
+ * Governor officials country key: the lowercase client-nav
+ * `governorOffice.countryCode` (a COUNTRY_CONFIGS key like us/sco; the
+ * route uppercases it before lookup and answers 400 on an unknown
+ * country). Two or three letters, any case; anything else never leaves
+ * the UI.
+ */
+const GOVERNOR_COUNTRY_CODE = /^[A-Za-z]{2,3}$/;
+
+export function isGovernorCountryCode(value: unknown): value is string {
+  return typeof value === "string" && GOVERNOR_COUNTRY_CODE.test(value);
+}
+
+/**
+ * Governor officials region key: the stored client-nav
+ * `governorOffice.stateId` (uppercase like CA/SN/BEO; the route
+ * uppercases before querying and answers 404 on an unknown state).
+ * Letters, digits, and underscores only, bounded by the server
+ * MAX_REGION_ID_LENGTH (15) in AHDGame src/lib/constants/states.ts;
+ * anything else never leaves the UI.
+ */
+const GOVERNOR_STATE_ID = /^[A-Za-z0-9_]{1,15}$/;
+
+export function isGovernorStateId(value: unknown): value is string {
+  return typeof value === "string" && GOVERNOR_STATE_ID.test(value);
+}
+
+/** A governor drill-in needs both halves; anything else never leaves the UI. */
+export function validateGovernorRef(
+  ref: { countryCode: unknown; stateId: unknown },
+): { ok: true; countryCode: string; stateId: string } | { ok: false; reason: string } {
+  if (!isGovernorCountryCode(ref.countryCode) || !isGovernorStateId(ref.stateId)) {
+    return { ok: false, reason: "That governor office reference is invalid." };
+  }
+  return { ok: true, countryCode: ref.countryCode.toLowerCase(), stateId: ref.stateId.toUpperCase() };
+}
+
+export interface MpGovernorDetailView {
+  state: string;
+  stateName: string;
+  countryId: string;
+  /** Stored office key (e.g. governor); null when the seat names no governor record. */
+  officeType: string | null;
+  /** Named holder; null when the seat is vacant or the holder is undisclosed. */
+  holderName: string | null;
+}
+
+/**
+ * governor-detail: the officials route answers the region roster as
+ * { state, stateName, countryId, officials: { senators, governor,
+ * houseRepresentatives, stateSenators, mps } }. The summary projects
+ * state identity plus the office holder only: sibling benches never
+ * surface, and the stored holder party key stays server-side (only the
+ * region server page resolves it). A seat with no governor record, or
+ * a banned holder redacted to a null character with the name cleared,
+ * is data, not an error: the state stands, no holder is named. Identity
+ * and office-key drift fail closed.
+ */
+const GOVERNOR_OFFICE_TYPE = /^[A-Za-z0-9_]{1,64}$/;
+
+export function parseGovernorDetail(bodyText: string): MpGovernorDetailView | null {
+  const record = asRecord(parseJsonBody(bodyText));
+  if (!record) return null;
+  const state = asTrimmedString(record.state);
+  const stateName = asTrimmedString(record.stateName);
+  const countryId = asTrimmedString(record.countryId);
+  if (!state || !stateName || !countryId) return null;
+  if (!isGovernorStateId(state)) return null;
+  const officials = record.officials === undefined ? null : asRecord(record.officials);
+  if (!officials) return null;
+  const governorRaw = officials.governor;
+  if (governorRaw === undefined || governorRaw === null) {
+    return { state, stateName, countryId, officeType: null, holderName: null };
+  }
+  const governor = asRecord(governorRaw);
+  if (!governor) return null;
+  const officeType = asTrimmedString(governor.officeType);
+  if (!officeType || !GOVERNOR_OFFICE_TYPE.test(officeType)) return null;
+  // The holder is named only when a live character stands behind the
+  // record: a banned holder redacts to a null character with the name and
+  // party cleared, which reads as vacant or undisclosed.
+  const characterId = asTrimmedString(governor.characterId ?? null);
+  const holderName = asTrimmedString(governor.characterName ?? null);
+  return {
+    state,
+    stateName,
+    countryId,
+    officeType,
+    holderName: characterId && holderName ? holderName : null,
   };
 }
 

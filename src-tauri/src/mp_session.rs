@@ -92,7 +92,8 @@ pub mod error {
 /// parameter instead; see [`fetch_corporation_path`]. The union detail
 /// read takes an id parameter instead; see [`fetch_union_path`]. The
 /// cabinet detail read takes a country code plus a position id instead;
-/// see [`fetch_cabinet_path`].
+/// see [`fetch_cabinet_path`]. The governor detail read takes a country
+/// code plus a region id instead; see [`fetch_governor_path`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MpFetchOp {
     /// Legacy read-only session probe; 200 `{active:true,...}` signed in,
@@ -144,6 +145,16 @@ pub enum MpFetchOp {
     /// seat slug (snake_case, one camelCase: generalSecretary); see
     /// [`is_cabinet_country_code`] and [`is_cabinet_position_id`].
     CabinetDetail,
+    /// Standing governor-office roster; GET
+    /// /api/country/[code]/region/[id]/officials (public, 400 on an
+    /// invalid country, 404 on an unknown state; a seat with no governor
+    /// record answers 200 with no governor entry, and a banned holder
+    /// redacts to a null character). The country code is the lowercase
+    /// client-nav `governorOffice.countryCode` (a COUNTRY_CONFIGS key like
+    /// us/sco) and the region id is the stored uppercase client-nav
+    /// `governorOffice.stateId` (like CA/SN); see
+    /// [`is_governor_country_code`] and [`is_governor_state_id`].
+    GovernorDetail,
 }
 
 impl MpFetchOp {
@@ -163,6 +174,7 @@ impl MpFetchOp {
             "corporation-detail" => Some(Self::CorporationDetail),
             "union-detail" => Some(Self::UnionDetail),
             "cabinet-detail" => Some(Self::CabinetDetail),
+            "governor-detail" => Some(Self::GovernorDetail),
             _ => None,
         }
     }
@@ -183,6 +195,7 @@ impl MpFetchOp {
             Self::CorporationDetail => "/api/corporations",
             Self::UnionDetail => "/api/unions",
             Self::CabinetDetail => "/api/country",
+            Self::GovernorDetail => "/api/country",
         }
     }
 }
@@ -643,6 +656,44 @@ fn fetch_cabinet_path(country_code: &str, position_id: &str) -> Result<String, S
     ))
 }
 
+/// Governor officials country key: the client-nav `governorOffice.countryCode`
+/// (a COUNTRY_CONFIGS key like us/sco; the route uppercases it before
+/// lookup). Two or three ASCII letters, any case; the builder lowercases so
+/// the pinned path is canonical. Anything else never leaves the bridge.
+fn is_governor_country_code(value: &str) -> bool {
+    (value.len() == 2 || value.len() == 3) && value.bytes().all(|byte| byte.is_ascii_alphabetic())
+}
+
+/// Governor officials region key: the stored client-nav `governorOffice.stateId`
+/// (uppercase like CA/SN/BEO; the route uppercases before querying).
+/// ASCII letters, digits, and underscores only, bounded by
+/// [`MP_SESSION_MAX_STATE_ID_CHARS`] (the server MAX_REGION_ID_LENGTH);
+/// the builder uppercases so the pinned path carries the stored form.
+/// URL-safe by construction, so the key embeds in the path with no
+/// encoding step that could smuggle query text.
+fn is_governor_state_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= MP_SESSION_MAX_STATE_ID_CHARS
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+}
+
+/// Build the exact governor officials request path from a validated
+/// country-plus-region reference. Both segments are path segments (never
+/// query pairs) and carry no pagination.
+fn fetch_governor_path(country_code: &str, state_id: &str) -> Result<String, String> {
+    if !is_governor_country_code(country_code) || !is_governor_state_id(state_id) {
+        return Err(error::BAD_ARG.to_string());
+    }
+    Ok(format!(
+        "{}/{}/region/{}/officials",
+        MpFetchOp::GovernorDetail.path(),
+        country_code.to_ascii_lowercase(),
+        state_id.to_ascii_uppercase()
+    ))
+}
+
 /// Validate a mutation payload and return the canonical body to send. Unknown
 /// fields are stripped; the server ignores them, and the bridge never
 /// forwards what it did not explicitly model.
@@ -960,6 +1011,27 @@ fn is_cabinet_path(path: &str) -> bool {
     }
 }
 
+fn is_governor_path(path: &str) -> bool {
+    let rest = match path.strip_prefix("/api/country/") {
+        Some(rest) => rest,
+        None => return false,
+    };
+    let mut segments = rest.split('/');
+    match (
+        segments.next(),
+        segments.next(),
+        segments.next(),
+        segments.next(),
+    ) {
+        (Some(code), Some("region"), Some(state), Some("officials")) => {
+            segments.next().is_none()
+                && is_governor_country_code(code)
+                && is_governor_state_id(state)
+        }
+        _ => false,
+    }
+}
+
 /// Re-check a fully formed method+path+query against the allowlist. Defense
 /// in depth: the call is built by [`fetch_path_and_query`]/[`mutate_path`],
 /// [`fetch_election_path`], [`fetch_corporation_path`],
@@ -993,7 +1065,7 @@ fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
         }
         ("GET", path) if path.starts_with("/api/unions/") => query.is_none() && is_union_path(path),
         ("GET", path) if path.starts_with("/api/country/") => {
-            query.is_none() && is_cabinet_path(path)
+            query.is_none() && (is_cabinet_path(path) || is_governor_path(path))
         }
         ("POST", "/api/actions/execute") | ("PATCH", "/api/notifications") => query.is_none(),
         ("PUT", "/api/notifications/preferences") => query.is_none(),
@@ -1480,7 +1552,8 @@ async fn run_session_call(
 
 /// Per-detail identifiers for [`mp_session_fetch`]. The election, corporation,
 /// and union slots each serve one detail read; the cabinet slot takes the
-/// country/position pair for its read. Every slot must be absent on all other
+/// country/position pair for its read and the governor slot takes the
+/// country/region pair for its read. Every slot must be absent on all other
 /// ops and present (validated) on its own. Grouped so the command stays a
 /// thin boundary over the pinned path builders instead of growing one
 /// parameter per detail read.
@@ -1496,6 +1569,10 @@ pub struct MpFetchDetail {
     pub cabinet_country_code: Option<String>,
     #[serde(default, rename = "cabinetPositionId")]
     pub cabinet_position_id: Option<String>,
+    #[serde(default, rename = "governorCountryCode")]
+    pub governor_country_code: Option<String>,
+    #[serde(default, rename = "governorStateId")]
+    pub governor_state_id: Option<String>,
 }
 
 /// Fetch one allowlisted read through the live-site session. Resolves with
@@ -1519,6 +1596,8 @@ pub async fn mp_session_fetch(
                 || detail.union_id.is_some()
                 || detail.cabinet_country_code.is_some()
                 || detail.cabinet_position_id.is_some()
+                || detail.governor_country_code.is_some()
+                || detail.governor_state_id.is_some()
             {
                 return Err(error::UNSUPPORTED_OP.to_string());
             }
@@ -1535,6 +1614,8 @@ pub async fn mp_session_fetch(
                 || detail.union_id.is_some()
                 || detail.cabinet_country_code.is_some()
                 || detail.cabinet_position_id.is_some()
+                || detail.governor_country_code.is_some()
+                || detail.governor_state_id.is_some()
             {
                 return Err(error::UNSUPPORTED_OP.to_string());
             }
@@ -1551,6 +1632,8 @@ pub async fn mp_session_fetch(
                 || detail.corporation_id.is_some()
                 || detail.cabinet_country_code.is_some()
                 || detail.cabinet_position_id.is_some()
+                || detail.governor_country_code.is_some()
+                || detail.governor_state_id.is_some()
             {
                 return Err(error::UNSUPPORTED_OP.to_string());
             }
@@ -1566,6 +1649,8 @@ pub async fn mp_session_fetch(
                 || detail.election_id.is_some()
                 || detail.corporation_id.is_some()
                 || detail.union_id.is_some()
+                || detail.governor_country_code.is_some()
+                || detail.governor_state_id.is_some()
             {
                 return Err(error::UNSUPPORTED_OP.to_string());
             }
@@ -1579,12 +1664,35 @@ pub async fn mp_session_fetch(
                 .ok_or_else(|| error::BAD_ARG.to_string())?;
             fetch_cabinet_path(country, position)?
         }
+        MpFetchOp::GovernorDetail => {
+            if limit.is_some()
+                || offset.is_some()
+                || detail.election_id.is_some()
+                || detail.corporation_id.is_some()
+                || detail.union_id.is_some()
+                || detail.cabinet_country_code.is_some()
+                || detail.cabinet_position_id.is_some()
+            {
+                return Err(error::UNSUPPORTED_OP.to_string());
+            }
+            let country = detail
+                .governor_country_code
+                .as_deref()
+                .ok_or_else(|| error::BAD_ARG.to_string())?;
+            let state = detail
+                .governor_state_id
+                .as_deref()
+                .ok_or_else(|| error::BAD_ARG.to_string())?;
+            fetch_governor_path(country, state)?
+        }
         _ => {
             if detail.election_id.is_some()
                 || detail.corporation_id.is_some()
                 || detail.union_id.is_some()
                 || detail.cabinet_country_code.is_some()
                 || detail.cabinet_position_id.is_some()
+                || detail.governor_country_code.is_some()
+                || detail.governor_state_id.is_some()
             {
                 return Err(error::BAD_ARG.to_string());
             }
@@ -2426,6 +2534,57 @@ mod tests {
     }
 
     #[test]
+    fn governor_detail_resolves_to_the_pinned_officials_read() {
+        assert_eq!(
+            MpFetchOp::from_id("governor-detail"),
+            Some(MpFetchOp::GovernorDetail)
+        );
+        assert_eq!(MpFetchOp::GovernorDetail.path(), "/api/country");
+        assert_eq!(MpFetchOp::from_id("GOVERNOR-DETAIL"), None);
+        assert_eq!(MpFetchOp::from_id("governor"), None);
+        assert_eq!(MpFetchOp::from_id("officials"), None);
+        // The audited officials read: lowercase country key plus stored
+        // uppercase region key. Either case is accepted and canonicalized,
+        // matching the route's own case-insensitive lookup.
+        assert_eq!(
+            fetch_governor_path("us", "CA").unwrap(),
+            "/api/country/us/region/CA/officials"
+        );
+        assert_eq!(
+            fetch_governor_path("US", "ca").unwrap(),
+            "/api/country/us/region/CA/officials"
+        );
+        assert_eq!(
+            fetch_governor_path("sco", "HU_BUD").unwrap(),
+            "/api/country/sco/region/HU_BUD/officials"
+        );
+        // Traversal, query smuggling, sibling routes, overlong keys, and
+        // drift all fail closed. A hyphenated key can never be a real
+        // region id.
+        for (code, state) in [
+            ("", "CA"),
+            ("u", "CA"),
+            ("ussr", "CA"),
+            ("u1", "CA"),
+            ("us ", "CA"),
+            ("us", ""),
+            ("us", "C-A"),
+            ("us", "CA/los"),
+            ("us", "CA?view=full"),
+            ("us", "CA/../admin"),
+            ("us", "../admin/maintenance"),
+            ("../admin", "CA"),
+            ("us", "xxxxxxxxxxxxxxxx"),
+            ("us", "xxxxxxxxxxxxxxxxx"),
+        ] {
+            assert!(
+                fetch_governor_path(code, state).is_err(),
+                "{code:?}/{state:?} must be rejected"
+            );
+        }
+    }
+
+    #[test]
     fn fetch_detail_slots_deserialize_from_the_camel_case_wire_shape() {
         // The bridge sends one nested `detail` object with camelCase keys;
         // null and missing keys both mean absent, matching the old flat
@@ -2436,6 +2595,8 @@ mod tests {
             "unionId": null,
             "cabinetCountryCode": "us",
             "cabinetPositionId": "secretary_of_state",
+            "governorCountryCode": "us",
+            "governorStateId": "CA",
         }))
         .unwrap();
         assert!(detail.election_id.is_none());
@@ -2446,16 +2607,23 @@ mod tests {
             detail.cabinet_position_id.as_deref(),
             Some("secretary_of_state")
         );
+        assert_eq!(detail.governor_country_code.as_deref(), Some("us"));
+        assert_eq!(detail.governor_state_id.as_deref(), Some("CA"));
         let empty: MpFetchDetail = serde_json::from_value(serde_json::json!({})).unwrap();
         assert!(empty.election_id.is_none());
         assert!(empty.corporation_id.is_none());
         assert!(empty.union_id.is_none());
         assert!(empty.cabinet_country_code.is_none());
         assert!(empty.cabinet_position_id.is_none());
+        assert!(empty.governor_country_code.is_none());
+        assert!(empty.governor_state_id.is_none());
         // Snake-case keys are not the wire shape and must not bind.
         let drift: MpFetchDetail =
             serde_json::from_value(serde_json::json!({ "cabinet_country_code": "us" })).unwrap();
         assert!(drift.cabinet_country_code.is_none());
+        let governor_drift: MpFetchDetail =
+            serde_json::from_value(serde_json::json!({ "governor_state_id": "CA" })).unwrap();
+        assert!(governor_drift.governor_state_id.is_none());
     }
 
     #[test]
@@ -2503,6 +2671,55 @@ mod tests {
         assert!(!is_allowlisted_call(
             "DELETE",
             "/api/country/us/executive/cabinet/secretary_of_state/briefing"
+        ));
+    }
+
+    #[test]
+    fn governor_allowlist_pins_officials_path_and_validated_segments() {
+        for allowed in [
+            "/api/country/us/region/CA/officials",
+            "/api/country/sco/region/SN/officials",
+            "/api/country/wal/region/HU_BUD/officials",
+        ] {
+            assert!(
+                is_allowlisted_call("GET", allowed),
+                "{allowed} must be allowed"
+            );
+        }
+        for denied in [
+            "/api/country",
+            "/api/country/",
+            "/api/country/us",
+            "/api/country/us/region",
+            "/api/country/us/region/CA",
+            "/api/country/us/region/CA/officials/",
+            "/api/country/ussr/region/CA/officials",
+            "/api/country/u1/region/CA/officials",
+            "/api/country/us/region/C-A/officials",
+            "/api/country/us/region/CA/officials?view=full",
+            "/api/country/us/region/CA/appoint",
+            "/api/country/us/region/CA/fire",
+            "/api/country/us/region/CA/officials/../fire",
+            "/api/country/us/legislature",
+            "/api/country/us/executive/cabinet/secretary_of_state/briefing/../fire",
+            "https://ahousedividedgame.com/api/country/us/region/CA/officials",
+        ] {
+            assert!(
+                !is_allowlisted_call("GET", denied),
+                "{denied} must be rejected"
+            );
+        }
+        assert!(!is_allowlisted_call(
+            "POST",
+            "/api/country/us/region/CA/officials"
+        ));
+        assert!(!is_allowlisted_call(
+            "PATCH",
+            "/api/country/us/region/CA/officials"
+        ));
+        assert!(!is_allowlisted_call(
+            "DELETE",
+            "/api/country/us/region/CA/officials"
         ));
     }
 

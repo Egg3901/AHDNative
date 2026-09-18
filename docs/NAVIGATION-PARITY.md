@@ -571,12 +571,27 @@ snake_case seat slug validated in TS and Rust, letterhead plus roster
 facts only, on-demand load with expiry eviction and 404 honesty,
 read-only article with Back to Standing). A withheld office
 ({canView:false}) shows restriction titles instead of departmental
-record; a vacant seat names no holder. The governor row stays
-display-only: no audited governor JSON endpoint exists. Evidence:
+record; a vacant seat names no holder. Evidence:
 `src/ui/MpCabinetDetail.test.tsx` (21 rendered at 320/390/1280px).
 
-Remaining gaps (issues #359 and #510 stay open): Native MP still has no
-governor-office detail surface; that row stays display-only. Per-screen action/data depth and
+Governor slice (this change, issues #359 and #510 stay open): the
+Standing governor row now drills into the audited public GET
+/api/country/[code]/region/[id]/officials read (`governor-detail`
+fetch op, lowercase 2-3 letter country key plus stored uppercase
+region key validated in TS and Rust, state identity plus the office
+holder only, on-demand load with expiry eviction and 404 honesty,
+read-only article with Back to Standing). Sibling benches never
+surface and the stored holder party key stays server-side; a vacant
+seat or a banned holder redacted to a null character names no holder.
+All five Standing capability rows now have authoritative MP
+destinations. Evidence: `src/mp/adapter.test.ts`,
+`src/mp/validators.test.ts`, `src/mp/endpoints.test.ts`,
+`src/mp/bridge.test.ts`, `src/ui/MpGovernorDetail.test.tsx` (21
+rendered at 320/390/1280px), and the updated
+`src/ui/MpStandingCapabilities510.test.tsx` (corporation plus
+governor drill-ins with display-only siblings at 320/390/1280px).
+
+Remaining gaps (issues #359 and #510 stay open): per-screen action/data depth and
 physical-iPhone smoke remain as in section 8.
 ## 15. Regions-directory surface links (#510, post-0.1.9 audit)
 
