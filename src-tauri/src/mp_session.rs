@@ -1478,38 +1478,52 @@ async fn run_session_call(
     }
 }
 
+/// Per-detail identifiers for [`mp_session_fetch`]. The election, corporation,
+/// and union slots each serve one detail read; the cabinet slot takes the
+/// country/position pair for its read. Every slot must be absent on all other
+/// ops and present (validated) on its own. Grouped so the command stays a
+/// thin boundary over the pinned path builders instead of growing one
+/// parameter per detail read.
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct MpFetchDetail {
+    #[serde(default, rename = "electionId")]
+    pub election_id: Option<String>,
+    #[serde(default, rename = "corporationId")]
+    pub corporation_id: Option<String>,
+    #[serde(default, rename = "unionId")]
+    pub union_id: Option<String>,
+    #[serde(default, rename = "cabinetCountryCode")]
+    pub cabinet_country_code: Option<String>,
+    #[serde(default, rename = "cabinetPositionId")]
+    pub cabinet_position_id: Option<String>,
+}
+
 /// Fetch one allowlisted read through the live-site session. Resolves with
 /// the raw JSON body; the TypeScript adapter validates and projects it.
-/// `election_id` serves the election detail read only, `corporation_id`
-/// serves the corporation detail read only, `union_id` serves the union
-/// detail read only, and `cabinet_country_code` + `cabinet_position_id`
-/// serve the cabinet detail read only: each must be absent on every other
-/// op and present (validated) on its own.
+/// The `detail` slots serve the detail reads only (see [`MpFetchDetail`]).
 #[tauri::command(rename_all = "camelCase")]
 pub async fn mp_session_fetch(
     app: tauri::AppHandle,
     op_id: String,
     limit: Option<u32>,
     offset: Option<u32>,
-    election_id: Option<String>,
-    corporation_id: Option<String>,
-    union_id: Option<String>,
-    cabinet_country_code: Option<String>,
-    cabinet_position_id: Option<String>,
+    detail: Option<MpFetchDetail>,
 ) -> Result<String, String> {
+    let detail = detail.unwrap_or_default();
     let op = MpFetchOp::from_id(op_id.trim()).ok_or_else(|| error::UNSUPPORTED_OP.to_string())?;
     let path_and_query = match op {
         MpFetchOp::ElectionDetail => {
             if limit.is_some()
                 || offset.is_some()
-                || corporation_id.is_some()
-                || union_id.is_some()
-                || cabinet_country_code.is_some()
-                || cabinet_position_id.is_some()
+                || detail.corporation_id.is_some()
+                || detail.union_id.is_some()
+                || detail.cabinet_country_code.is_some()
+                || detail.cabinet_position_id.is_some()
             {
                 return Err(error::UNSUPPORTED_OP.to_string());
             }
-            let id = election_id
+            let id = detail
+                .election_id
                 .as_deref()
                 .ok_or_else(|| error::BAD_ARG.to_string())?;
             fetch_election_path(id)?
@@ -1517,14 +1531,15 @@ pub async fn mp_session_fetch(
         MpFetchOp::CorporationDetail => {
             if limit.is_some()
                 || offset.is_some()
-                || election_id.is_some()
-                || union_id.is_some()
-                || cabinet_country_code.is_some()
-                || cabinet_position_id.is_some()
+                || detail.election_id.is_some()
+                || detail.union_id.is_some()
+                || detail.cabinet_country_code.is_some()
+                || detail.cabinet_position_id.is_some()
             {
                 return Err(error::UNSUPPORTED_OP.to_string());
             }
-            let id = corporation_id
+            let id = detail
+                .corporation_id
                 .as_deref()
                 .ok_or_else(|| error::BAD_ARG.to_string())?;
             fetch_corporation_path(id)?
@@ -1532,14 +1547,15 @@ pub async fn mp_session_fetch(
         MpFetchOp::UnionDetail => {
             if limit.is_some()
                 || offset.is_some()
-                || election_id.is_some()
-                || corporation_id.is_some()
-                || cabinet_country_code.is_some()
-                || cabinet_position_id.is_some()
+                || detail.election_id.is_some()
+                || detail.corporation_id.is_some()
+                || detail.cabinet_country_code.is_some()
+                || detail.cabinet_position_id.is_some()
             {
                 return Err(error::UNSUPPORTED_OP.to_string());
             }
-            let id = union_id
+            let id = detail
+                .union_id
                 .as_deref()
                 .ok_or_else(|| error::BAD_ARG.to_string())?;
             fetch_union_path(id)?
@@ -1547,26 +1563,28 @@ pub async fn mp_session_fetch(
         MpFetchOp::CabinetDetail => {
             if limit.is_some()
                 || offset.is_some()
-                || election_id.is_some()
-                || corporation_id.is_some()
-                || union_id.is_some()
+                || detail.election_id.is_some()
+                || detail.corporation_id.is_some()
+                || detail.union_id.is_some()
             {
                 return Err(error::UNSUPPORTED_OP.to_string());
             }
-            let country = cabinet_country_code
+            let country = detail
+                .cabinet_country_code
                 .as_deref()
                 .ok_or_else(|| error::BAD_ARG.to_string())?;
-            let position = cabinet_position_id
+            let position = detail
+                .cabinet_position_id
                 .as_deref()
                 .ok_or_else(|| error::BAD_ARG.to_string())?;
             fetch_cabinet_path(country, position)?
         }
         _ => {
-            if election_id.is_some()
-                || corporation_id.is_some()
-                || union_id.is_some()
-                || cabinet_country_code.is_some()
-                || cabinet_position_id.is_some()
+            if detail.election_id.is_some()
+                || detail.corporation_id.is_some()
+                || detail.union_id.is_some()
+                || detail.cabinet_country_code.is_some()
+                || detail.cabinet_position_id.is_some()
             {
                 return Err(error::BAD_ARG.to_string());
             }
@@ -2405,6 +2423,39 @@ mod tests {
                 "{code:?}/{position:?} must be rejected"
             );
         }
+    }
+
+    #[test]
+    fn fetch_detail_slots_deserialize_from_the_camel_case_wire_shape() {
+        // The bridge sends one nested `detail` object with camelCase keys;
+        // null and missing keys both mean absent, matching the old flat
+        // null-defaulted args with no behavior change downstream.
+        let detail: MpFetchDetail = serde_json::from_value(serde_json::json!({
+            "electionId": null,
+            "corporationId": null,
+            "unionId": null,
+            "cabinetCountryCode": "us",
+            "cabinetPositionId": "secretary_of_state",
+        }))
+        .unwrap();
+        assert!(detail.election_id.is_none());
+        assert!(detail.corporation_id.is_none());
+        assert!(detail.union_id.is_none());
+        assert_eq!(detail.cabinet_country_code.as_deref(), Some("us"));
+        assert_eq!(
+            detail.cabinet_position_id.as_deref(),
+            Some("secretary_of_state")
+        );
+        let empty: MpFetchDetail = serde_json::from_value(serde_json::json!({})).unwrap();
+        assert!(empty.election_id.is_none());
+        assert!(empty.corporation_id.is_none());
+        assert!(empty.union_id.is_none());
+        assert!(empty.cabinet_country_code.is_none());
+        assert!(empty.cabinet_position_id.is_none());
+        // Snake-case keys are not the wire shape and must not bind.
+        let drift: MpFetchDetail =
+            serde_json::from_value(serde_json::json!({ "cabinet_country_code": "us" })).unwrap();
+        assert!(drift.cabinet_country_code.is_none());
     }
 
     #[test]

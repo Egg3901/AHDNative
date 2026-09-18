@@ -100,11 +100,13 @@ export function tauriMpBridgeHost(): MpBridgeHost {
         opId: op,
         limit: limit ?? null,
         offset: offset ?? null,
-        electionId: electionId ?? null,
-        corporationId: corporationId ?? null,
-        unionId: unionId ?? null,
-        cabinetCountryCode: cabinetCountryCode ?? null,
-        cabinetPositionId: cabinetPositionId ?? null,
+        detail: {
+          electionId: electionId ?? null,
+          corporationId: corporationId ?? null,
+          unionId: unionId ?? null,
+          cabinetCountryCode: cabinetCountryCode ?? null,
+          cabinetPositionId: cabinetPositionId ?? null,
+        },
       })) as string;
     },
     mutate: async (op, payload) => {
