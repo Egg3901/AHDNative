@@ -196,11 +196,13 @@ immutable formula package. Tracked open in #91.
 | AP | `donorActionCost`: `min(20, round(4 + (lvl/75)^1.4*16))` (`catalog.ts:146-149,223`) | `getDonorActionCost` identical (`actions.ts:231-237`) |
 | Monetary | fundCost 3,000 base; `execute.ts:325-327` `round((3000 + lvl*1500)/1000)*1000`, **gdpScalar 1.0** | `getBuildDonorBaseFundCost = round((3000+lvl*1500)*clamp(gdpPerCapita/baseline,0.85,2.0)/1000)*1000`, then divided by fundraising statMultiplier (`actions.ts:196-207,468`) |
 | State in/out | `player.donorBaseLevel += 1` (`execute.ts:449-452`) | same (`actions.ts:451-477`) |
-| RPG | none | fundraising (discounts cost, and drives use-growth) |
-| Currency | direct `player.funds` | frozen `campaignRate` |
-| Status | **partial** | - |
+| RPG | applied (Fundraising divides cost via shared `actionFundCost`) | fundraising (discounts cost, and drives use-growth) |
+| Currency | frozen `campaignAnchorToLocal` via shared `actionFundCost` | frozen `campaignRate` |
+| Status | **partial (cost pipeline ported minus gdpScalar)** | - |
 
-Blocker: gdpScalar, fundraising discount and currency missing; AP curve and base formula match. Native card copy/static baseCost 6 is a stale UI label the dynamic helper overrides, same as reference (`actions.ts:455`).
+Blocker: gdpScalar missing; AP curve, base formula, Fundraising discount and
+frozen-currency conversion match (converted 2026-09-18, see update note below).
+Native card copy/static baseCost 6 is a stale UI label the dynamic helper overrides, same as reference (`actions.ts:455`).
 
 ### 8. `convertCash` (hub "Personal Campaign Donation")
 
@@ -277,7 +279,7 @@ dispositions:
 | `rollDebatePrep` | `packages/engine/src/stats/debatePrep.ts:30` | yes (`execute.ts:480`) |
 | `campaignActionCost` / `donorActionCost` | `catalog.ts:137-149` | yes |
 | `campaignCanvass` | `packages/engine/src/actions/campaignCanvass.ts:42` | **no** - reachable only via `politics.ts:694-723` campaign management |
-| `campaignAnchorToLocal` / `campaignLocalRate` | `packages/engine/src/campaigns/campaignCurrency.ts:41-45` | **no** for all 11 hub actions (used by campaign-upgrade only) |
+| `campaignAnchorToLocal` / `campaignLocalRate` | `packages/engine/src/campaigns/campaignCurrency.ts:41-45` | **yes for `poll`/`pollLarge`/`buildDonorBase`** via `actionFundCost`; still **no** for `campaign`/`advertise` costs and the `fundraise` yield credit |
 | `statMultiplier` | `packages/game-rules/stats/statMultiplier.ts` | **no** - no player stat state to feed it |
 
 ## Summary
@@ -287,8 +289,9 @@ dispositions:
 - The dominant cross-cutting gaps are: **gdpScalar** (reference clamps
   GDP-per-capita against a country baseline, 0.85-2.0; Native hardcodes 1.0),
   **RPG stat multipliers** (charisma/intellect/fundraising absent from Native
-  player state), and **frozen campaign-currency conversion** (helper exists,
-  unwired).
+  player state), and **frozen campaign-currency conversion** (helper exists;
+  wired for `poll`/`pollLarge`/`buildDonorBase` since 2026-09-18, still unwired
+  for `campaign`/`advertise` costs and the `fundraise` yield credit).
 - `canvass` is the worst case: a neutral proxy under a reference label, with
   the correct port living on a different surface.
 - `joinParty`/`leaveParty` carry Native-invented AP and turn-based cooldowns
@@ -300,6 +303,34 @@ No formulas were changed. This satisfies #91 acceptance criterion 1 (the
 per-action table). Criteria 2-4 (port only field-backed multipliers, atomic AP
 and funds, and createWorld/executeAction/save/reload/turn verification) remain
 open, as do the RPG and currency contexts.
+
+## Update 2026-09-18: buildDonorBase frozen-currency cost (criterion 2 slice)
+
+`actionFundCost` (`packages/engine/src/actions/fundCost.ts`) now converts the
+`buildDonorBase` anchor cost to local at the frozen base rate, joining the
+already-converted `poll`/`pollLarge`. The pipeline mirrors the reference
+(`src/lib/actions.ts` buildDonorBase effect: anchor base, Fundraising-stat
+division; `executeAction.ts` boundary: anchor x frozen `campaignRate`):
+stat division first, then `campaignAnchorToLocal`. US (rate 1.0) charges are
+byte-identical to before; a UK level-1 cost quotes and debits 3,750 local
+instead of 5,000 anchor-as-local. Quote and charge share the one source, and
+the outer `executeAction` accounting snapshot restores AP/funds on refusal, so
+a one-unit-under quote attempt changes nothing.
+
+Evidence: `packages/engine/src/actions/fundCost.test.ts` (quote goldens with
+UK 0.75 / RU 2.22 literals, UK execute-charges-quote, under-quote
+refusal-without-mutation, save/reload continuation). Focused runs green:
+fundCost (12), actions.sim + campaignAtomic + poll.sim (31). Full
+typecheck/verify/build owed via the shared scheduler; no physical-device
+claim.
+
+Explicitly not changed: `campaign`/`advertise` costs and the `fundraise`
+yield credit still use anchor-as-local; gdpScalar still 1.0; turn-income,
+donations and transfers were not re-denominated. No schema or save-format
+change: `player.funds` stays local-denominated, so old saves need no
+migration, only future non-US charges compute correctly. No UI/layout change:
+phone 390px, Dynamic Island clearance, desktop behavior and Liquid Glass are
+untouched.
 
 Related: [MECHANICS-PARITY.md](MECHANICS-PARITY.md), [SHARED-RULES.md](SHARED-RULES.md),
 [ENGINE-ADAPTATIONS.md](ENGINE-ADAPTATIONS.md), [ROADMAP.md](ROADMAP.md) M07.
