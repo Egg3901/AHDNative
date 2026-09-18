@@ -105,6 +105,7 @@ describe("persistent bottom-control composition (#436)", () => {
     { selector: "\\.ahd-drawer", base: "0.7rem", label: "drawer chrome" },
     { selector: "\\.ahd-drawer-quick", base: "0.5rem", label: "drawer quick bar" },
     { selector: "\\.ahd-creation-actions", base: "0.6rem", label: "creation sticky bar" },
+    { selector: "\\.ahd-wallet", base: "0.75rem", label: "wallet surface" },
   ])("floors the $label above the indicator without moving its base", ({ selector, base, label }) => {
     // padding-bottom or the padding shorthand (creation bar): either way the
     // declaration must compose base, fail-safe, and env() via max().
