@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MpModeScreen } from "./MpModeScreen";
 import type { MpBridgeHost } from "../mp/bridge";
 
@@ -144,6 +144,47 @@ describe("MP footer measurement (#436)", () => {
     rect.mockReturnValue({ height: 137 } as DOMRect);
     resizeCallbacks[0]();
     expect(screenEl.style.getPropertyValue("--ahd-footer-height")).toBe(
+      "137px",
+    );
+  });
+
+  it("re-publishes after the admin round trip remounts the footer", async () => {
+    stubResizeObserver();
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      height: 137,
+    } as DOMRect);
+    render(<MpModeScreen host={readyHost()} onExit={() => {}} />);
+    // The header buttons stay disabled until the mount load settles.
+    await waitFor(() =>
+      expect(screen.getByText("Playing as Ada")).toBeInTheDocument(),
+    );
+    const footer = screen.getByRole("contentinfo", {
+      name: "Multiplayer navigation",
+    });
+    const firstScreen = footer.closest("main.ahd-screen") as HTMLElement;
+    expect(firstScreen.style.getPropertyValue("--ahd-footer-height")).toBe(
+      "137px",
+    );
+
+    // Admin status swaps the whole main element out; Back mounts a fresh
+    // one. The mount-only measurement never re-fires there, so the fresh
+    // screen would fall back to the 6rem floor under a taller large-text
+    // footer.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Admin status" }),
+    );
+    expect(
+      screen.queryByRole("contentinfo", { name: "Multiplayer navigation" }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+
+    const returnedFooter = screen.getByRole("contentinfo", {
+      name: "Multiplayer navigation",
+    });
+    const returnedScreen = returnedFooter.closest(
+      "main.ahd-screen",
+    ) as HTMLElement;
+    expect(returnedScreen.style.getPropertyValue("--ahd-footer-height")).toBe(
       "137px",
     );
   });
