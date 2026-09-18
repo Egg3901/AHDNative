@@ -676,6 +676,14 @@ export interface Politician {
    * one action today" status as W12's player.savingsHolder.
    */
   cash: number;
+  /**
+   * Optional foreign-currency personal balances. Cross-border wires credit
+   * the transfer currency here when it differs from this politician's home
+   * currency, matching AHDGame Character.currencyBalances.personal. Home-
+   * currency receipts land in `cash`; absent means zero and old saves omit
+   * the field entirely. Never auto-converted.
+   */
+  currencyBalances?: { personal: Record<string, number> };
 }
 
 export interface PoliticianIdeology {

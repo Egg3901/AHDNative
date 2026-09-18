@@ -373,6 +373,32 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
   The production build with the corporation/macro correction passed all 22
   browser scenarios, including bond trade/relaunch at phone size.
 
+## Cross-border wire checkpoint (#316)
+
+- Finance: personal wires now settle cross-border through the worker action.
+  The transfer currency travels with the transfer and the recipient is
+  credited in the same currency bucket, so there is no FX conversion, no fee
+  and no delayed settlement, per the authoritative AHDGame `e364c0495`
+  `src/app/api/characters/[id]/wire/route.ts` forex-enabled branch. Home-
+  currency legs move `cash`; foreign legs move
+  `currencyBalances.personal[ccy]` on the sender and on the recipient
+  (new optional field on `Politician`, absent means zero, old saves omit it).
+- Eligibility, denomination selection, per-currency balance debits/credits,
+  anchor-denominated quota (amount / sender-home rate), insufficient-funds
+  refusal, single-transition atomicity, save/reload and determinism are
+  covered at the engine seam (`packages/engine/src/finance/wireTransfer.ts`)
+  and through `executeAction`/`GameSession.act`, including forex-off
+  same-country fallback, fail-closed missing rates and turn-phase ordering
+  (turns preserve wire balances; quota resets after the 24-turn window).
+- Exact residuals: no per-transfer ledger rows or recipient inbox
+  notification (solo has no financial-tx log or MP inbox; news only); the
+  24-turn new-character barrier is not ported (single persistent player, no
+  multi-account surface); currency codes match exactly with no silent
+  normalization. No engine formulas changed.
+- Validation: 20 focused engine wire tests and 4 new session wire tests
+  pass alongside the 7 pre-existing session finance tests. Full typecheck,
+  full suites, build and verify belong to the shared scheduler/CI.
+
 ## Campaign timing checkpoint, 2026-09-10
 
 - M04: campaign income, maintenance, media support and existing investment now
