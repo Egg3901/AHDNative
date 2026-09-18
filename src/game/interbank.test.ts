@@ -35,7 +35,7 @@ function twoBankSave(): string {
 }
 
 /** The synthetic market peer: the only US-chartered bank that is not the lender. */
-function peerIdOf(world: { corporations: Record<string, { countryId: string; bankCharter?: unknown }> }): string {
+function peerIdOf(world: { corporations: Record<string, { countryId?: string; bankCharter?: unknown }> }): string {
   return (Object.keys(world.corporations) as string[]).find(
     (id) => id !== "US-financial" && world.corporations[id]!.countryId === "US" && world.corporations[id]!.bankCharter,
   )!;
