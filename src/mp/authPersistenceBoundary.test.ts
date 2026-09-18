@@ -60,7 +60,7 @@ describe("both surfaces keep the persistent platform profile", () => {
   it("no auth surface is ever built incognito", () => {
     const incognito = [".incognito", "("].join("");
     for (const [label, source] of [["ask.rs", ASK], ["lib.rs", LIB], ["mp_session.rs", MP_SESSION]] as const) {
-      expect(production(source)).not.toContain(incognito, `${label} must use the persistent jar`);
+      expect(production(source)).not.toContain(incognito);
     }
   });
 
@@ -77,7 +77,7 @@ describe("neither surface logs or persists raw session material", () => {
     for (const [label, source] of [["ask.rs", ASK], ["lib.rs", LIB], ["mp_session.rs", MP_SESSION]] as const) {
       const body = production(source);
       for (const macro of ["println!", "eprintln!", "dbg!"]) {
-        expect(body).not.toContain(macro, `${label} must not print (${macro})`);
+      expect(body).not.toContain(macro);
       }
     }
   });
@@ -85,9 +85,9 @@ describe("neither surface logs or persists raw session material", () => {
   it("Rust production persists no session material", () => {
     for (const [label, source] of [["ask.rs", ASK], ["mp_session.rs", MP_SESSION]] as const) {
       const body = production(source);
-      expect(body).not.toContain("localStorage", `${label} must not persist sessions`);
-      expect(body).not.toContain("sessionStorage", `${label} must not persist sessions`);
-      expect(body).not.toContain("document.cookie", `${label} must not persist sessions`);
+      expect(body).not.toContain("localStorage");
+      expect(body).not.toContain("sessionStorage");
+      expect(body).not.toContain("document.cookie");
     }
   });
 });
