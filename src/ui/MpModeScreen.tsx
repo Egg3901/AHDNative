@@ -639,7 +639,7 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                   <dt>Status</dt>
                   <dd>
                     {snapshot.turn.isProcessing
-                      ? `Processing${snapshot.turn.processingLabel ? `: ${snapshot.turn.processingLabel}` : ""}`
+                      ? `Processing${snapshot.turn.processingLabel ? `: ${snapshot.turn.processingLabel}` : ""}${snapshot.turn.processingProgress !== null ? ` (${Math.round(snapshot.turn.processingProgress)}%)` : ""}`
                       : snapshot.turn.paused
                         ? `Paused${snapshot.turn.pauseReason ? `: ${snapshot.turn.pauseReason}` : ""}`
                         : snapshot.turn.isActive === false
@@ -651,6 +651,9 @@ export function MpModeScreen({ host, onAsk, onExit }: MpModeScreenProps) {
                   ) : turnPlayerPaced ? (
                     <><dt>Schedule</dt><dd>Player paced</dd></>
                   ) : null}
+                  {snapshot.turn.isProcessing && snapshot.turn.processingTargetTurn !== null && (
+                    <><dt>Target</dt><dd>Turn {snapshot.turn.processingTargetTurn}</dd></>
+                  )}
                   {snapshot.presence && (
                     <><dt>Online</dt><dd>{snapshot.presence.online} player{snapshot.presence.online !== 1 ? "s" : ""} online</dd></>
                   )}
