@@ -49,7 +49,7 @@ export interface CharacterCreation {
   avatarUrl?: string | null;
   profileHeaderUrl?: string | null;
 }
-export interface NewGameOptions { era: string; countryId: string; playerName: string; seed: string; mode?: SingleplayerMode; homeRegionId?: string; initialization?: WorldInitialization; creation?: CharacterCreation; featureFlags?: WorldFeatureFlags; difficulty?: SingleplayerDifficulty; autonomyLevel?: NppAutonomyLevel;
+export interface NewGameOptions { era: string; countryId: string; playerName: string; seed: string; startDate?: string; mode?: SingleplayerMode; homeRegionId?: string; initialization?: WorldInitialization; creation?: CharacterCreation; featureFlags?: WorldFeatureFlags; difficulty?: SingleplayerDifficulty; autonomyLevel?: NppAutonomyLevel;
   foundingElections?: boolean; }
 export interface EraChoice {
   id: string;

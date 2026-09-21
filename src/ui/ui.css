@@ -1634,3 +1634,17 @@ details[open] > .ahd-trend-table-disclosure::after {
 @media (prefers-contrast: more) {
   .ahd-wallet .ahd-card { border-width: 2px; }
 }
+.ahd-era-date { border: 1px solid var(--ahd-border); border-radius: 12px; padding: 0.85rem; background: color-mix(in srgb, var(--ahd-card) 82%, transparent); }
+.ahd-era-date-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
+.ahd-era-date-heading strong { display: block; margin-top: 0.2rem; font-size: 1.45rem; font-variant-numeric: tabular-nums; }
+.ahd-era-date-heading small { color: var(--ahd-muted); font-size: 0.78rem; }
+.ahd-era-glow-track { position: relative; height: 3rem; margin-top: 0.55rem; }
+.ahd-era-bars { position: absolute; inset: 0.5rem 0 0.25rem; display: flex; align-items: end; gap: 2px; overflow: hidden; }
+.ahd-era-bars span { flex: 1 1 0; min-width: 0; height: 45%; border-radius: 999px; background: var(--ahd-border); transition: height 120ms ease, background 120ms ease, box-shadow 120ms ease; }
+.ahd-era-bars span.is-anchor { height: 100%; }
+.ahd-era-bars span.is-lit { background: var(--ahd-primary); box-shadow: 0 0 9px color-mix(in srgb, var(--ahd-primary) 72%, transparent); }
+.ahd-era-glow-track input { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; cursor: ew-resize; opacity: 0; }
+.ahd-era-glow-track i { position: absolute; z-index: 3; top: 0; width: 4px; height: 100%; border-radius: 999px; background: white; box-shadow: 0 0 8px 3px color-mix(in srgb, var(--ahd-primary) 80%, transparent); pointer-events: none; }
+.ahd-era-anchors { display: flex; justify-content: space-between; gap: 0.25rem; }
+.ahd-era-anchors button { min-height: 36px; border: 0; border-radius: 7px; padding: 0 0.55rem; color: var(--ahd-muted); background: transparent; font: inherit; font-size: 0.72rem; font-weight: 750; }
+.ahd-era-anchors button.is-active { color: var(--ahd-primary); background: color-mix(in srgb, var(--ahd-primary) 14%, transparent); }
