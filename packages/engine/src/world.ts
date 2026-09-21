@@ -322,13 +322,6 @@ export function listEras(): EraInfo[] {
 export function listPlayableCountries(era: string): PlayableCountryInfo[] {
   const pack = getPackByEra(era);
   if (!pack) throw new Error(`Unknown era: ${era}`);
-  const startDate = options.startDate ?? pack.era.startDate;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || Number.isNaN(Date.parse(`${startDate}T00:00:00Z`))) {
-    throw new Error("Start date must be a valid ISO calendar date");
-  }
-  if (startDate < pack.era.startDate) {
-    throw new Error(`Start date cannot precede the ${pack.era.label} content anchor`);
-  }
   return pack.countries.filter((c) => c.playable).map((c) => ({ id: c.id, name: c.name }));
 }
 
@@ -582,6 +575,13 @@ export function createWorld(options: NewWorldOptions): WorldState {
   const era = options.era;
   const pack = getPackByEra(era);
   if (!pack) throw new Error(`Unknown era: ${era}`);
+  const startDate = options.startDate ?? pack.era.startDate;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || Number.isNaN(Date.parse(`${startDate}T00:00:00Z`))) {
+    throw new Error("Start date must be a valid ISO calendar date");
+  }
+  if (startDate < pack.era.startDate) {
+    throw new Error(`Start date cannot precede the ${pack.era.label} content anchor`);
+  }
   const initialization = options.initialization ?? DEFAULT_WORLD_INITIALIZATION;
   if (initialization !== "historical" && initialization !== "founding") {
     throw new Error(`Unknown world initialization: ${String(initialization)}`);
