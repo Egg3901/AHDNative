@@ -2260,3 +2260,25 @@ Honest gaps: no per-action reference outcome copy (AHDGame card/modal
 detail beyond the engine message); failures stay transient banner text
 with no persisted rejected-attempt record; canvass-targeting work on
 another branch is untouched; no physical-device run.
+
+## Outstanding issue reconciliation, 2026-09-23
+
+- Closed #295, #307, #320, #321, #323, and #326 after checklist/evidence
+  review of merged implementation PRs and successful hosted `verify` checks:
+  #295 (#417/#503), #307 (#545), #320 (#542/#504), #321 (#546), #323 (#563),
+  and #326 (#559). The #295 acquisition, save/load, regional and company UI
+  evidence is detailed above; current-main focused tests were acquisition 8/8,
+  session 8/8, related UI 61/61, and `npm run typecheck` exit 0.
+- #308 is now `status: partial`: coupon, maturity, supported buyback/default
+  state, atomic flows and reload tests are delivered by #547, with phase order
+  in #550 and hosted verification green. Creditor asset/ownership consequences
+  on corporate default remain unimplemented; bondholders currently retain
+  frozen holdings at the default quote. Market pool/escrow/FX and restructuring
+  remain unsupported.
+- #322 remains `status: partial` because the labor-nudges metric writer needed
+  to apply worker political feedback is still absent. #299 remains partial:
+  regional inventory and linked buy/list controls exist, while bargaining and
+  nationalization fan-out plus rendered source visual comparison remain open.
+- Parent trackers now record #211 as 4/7 child issues complete, #110 as 4/5,
+  and #114 as 4/5. #109 has all five child slices closed, while its broader
+  combined stress/save/turn acceptance remains partial and open.
