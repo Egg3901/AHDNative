@@ -10,11 +10,14 @@
  * Alabama (AL).
  */
 import { describe, expect, it, vi } from "vitest";
+import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWorld } from "@ahdclient/engine";
 import { projectRegions } from "../game/regions";
+import { GameSession } from "../game/session";
 import type { MarketsView } from "../game/markets";
+import { MarketsRoute } from "./MarketsRoute";
 import { RegionsRoute } from "./RegionsRoute";
 
 function makeMarkets(): MarketsView {
@@ -27,7 +30,9 @@ function makeMarkets(): MarketsView {
     marketsPhaseEnabled: true,
     economyPhaseEnabled: true,
     corporationsPhaseEnabled: true,
-    countries: [{ id: "US", name: "United States", currency: "USD", listingCount: 1 }],
+    countries: [
+      { id: "US", name: "United States", currency: "USD", listingCount: 1 },
+    ],
     listings: [
       {
         id: "US-media",
@@ -68,12 +73,19 @@ function makeMarkets(): MarketsView {
         playerShares: 0,
         playerAvgCostPerShare: null,
         npcShares: 5_100_000,
-        shareholders: [{ holder: "npc", shares: 5_100_000, avgCostPerShare: null }],
+        shareholders: [
+          { holder: "npc", shares: 5_100_000, avgCostPerShare: null },
+        ],
         controllingHolder: "npc",
         earningsHistory: [],
         priceHistory: [],
         buy: { id: "buyShares", name: "Buy Shares", cost: 0, available: true },
-        sell: { id: "sellShares", name: "Sell Shares", cost: 0, available: false },
+        sell: {
+          id: "sellShares",
+          name: "Sell Shares",
+          cost: 0,
+          available: false,
+        },
       },
     ],
     sectors: [],
@@ -81,7 +93,12 @@ function makeMarkets(): MarketsView {
 }
 
 const world = () =>
-  createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "regions-route-sectors" });
+  createWorld({
+    era: "1953",
+    countryId: "US",
+    playerName: "Alex",
+    seed: "regions-route-sectors",
+  });
 
 describe("RegionsRoute sector inventory", () => {
   it("renders no sector card without a markets load", async () => {
@@ -92,7 +109,9 @@ describe("RegionsRoute sector inventory", () => {
         busy={false}
       />,
     );
-    expect(await screen.findByRole("heading", { name: "Alabama" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Alabama" }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: "Corporate sectors" }),
     ).not.toBeInTheDocument();
@@ -113,11 +132,15 @@ describe("RegionsRoute sector inventory", () => {
         onSectorSale={onSectorSale}
       />,
     );
-    expect(await screen.findByRole("heading", { name: "Alabama" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Alabama" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Corporate sectors" }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/1 regional sector.*1 for sale/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/1 regional sector.*1 for sale/i),
+    ).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: "Buy media sector (US.MEDI)" }),
@@ -126,11 +149,121 @@ describe("RegionsRoute sector inventory", () => {
       assetId: "corporate-sector:US:media:US-media",
     });
 
-    await user.click(screen.getByRole("button", { name: "View US-media company" }));
+    await user.click(
+      screen.getByRole("button", { name: "View US-media company" }),
+    );
     expect(onDrill).toHaveBeenCalledWith(
       { route: "regions", detailId: "AL" },
       "markets",
       "US-media",
     );
+  });
+
+  it("drills from a region to company sale controls and runs list/unlist on the real session", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(window, "innerWidth", {
+      value: 390,
+      configurable: true,
+    });
+    const session = new GameSession();
+    session.create({
+      era: "1953",
+      countryId: "US",
+      playerName: "Alex",
+      seed: "region-sector-sale-flow",
+    });
+    const assetId = session
+      .markets()
+      .listings.find((entry) => entry.id === "US-media")!.sectorAsset.id;
+    expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(
+      true,
+    );
+    expect(session.listSectorForSale(assetId).ok).toBe(true);
+    expect(session.unlistSectorForSale(assetId).ok).toBe(true);
+
+    // Record the regional split using the same persisted asset field consumed by
+    // projectMarkets; fresh worlds intentionally begin with national assets.
+    const saved = JSON.parse(session.serialize("2026-09-23T00:00:00.000Z")) as {
+      world: { corporateSectors: Record<string, { stateId: string | null }> };
+    };
+    saved.world.corporateSectors[assetId]!.stateId = "AL";
+    session.load(JSON.stringify(saved));
+
+    function RegionalSaleFlow() {
+      const [route, setRoute] = useState<"regions" | "markets">("regions");
+      const [detailId, setDetailId] = useState<string | undefined>("AL");
+      const [revision, setRevision] = useState(0);
+      const routeRevision = { revision };
+      const onSectorSale = (
+        op: "list" | "update" | "unlist" | "buy",
+        params: { assetId: string; priceAnchor?: number },
+      ) => {
+        if (op === "list") session.listSectorForSale(params.assetId);
+        else if (op === "unlist") session.unlistSectorForSale(params.assetId);
+        else if (op === "update")
+          session.updateSectorListing(params.assetId, params.priceAnchor);
+        else session.buySectorForSale(params.assetId);
+        setRevision((value) => value + 1);
+      };
+      const onDrill = (
+        _origin: { route: string; detailId?: string },
+        next: string,
+        id?: string,
+      ) => {
+        if (next !== "regions" && next !== "markets") return;
+        setRoute(next);
+        setDetailId(id);
+      };
+      return route === "regions" ? (
+        <RegionsRoute
+          load={async (query) => session.regions(query)}
+          loadMarkets={async () => session.markets()}
+          revision={routeRevision}
+          busy={false}
+          initialId={detailId}
+          onDrill={onDrill}
+          onSectorSale={onSectorSale}
+        />
+      ) : (
+        <MarketsRoute
+          load={async () => session.markets()}
+          revision={routeRevision}
+          busy={false}
+          onAction={vi.fn()}
+          onSectorSale={onSectorSale}
+          initialId={detailId}
+        />
+      );
+    }
+
+    render(<RegionalSaleFlow />);
+    expect(
+      await screen.findByRole("heading", { name: "Alabama" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Not for sale")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "View US-media company" }),
+    );
+
+    const list = await screen.findByRole("button", {
+      name: "List media sector for sale",
+    });
+    expect(list).toBeEnabled();
+    await user.click(list);
+    expect(
+      await screen.findByRole("button", { name: "Unlist media sector" }),
+    ).toBeEnabled();
+    expect(
+      session.markets().listings.find((entry) => entry.id === "US-media")!
+        .sectorAsset.forSale,
+    ).not.toBeNull();
+
+    await user.click(
+      screen.getByRole("button", { name: "Unlist media sector" }),
+    );
+    expect(
+      session.markets().listings.find((entry) => entry.id === "US-media")!
+        .sectorAsset.forSale,
+    ).toBeNull();
   });
 });

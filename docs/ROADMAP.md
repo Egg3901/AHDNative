@@ -1426,8 +1426,16 @@ and removed. The smoke helper now walks the conversation; no engine change.
   stateId join and player-acquisition readback) and
   `src/ui/RegionsRoute.test.tsx` (markets wiring, drill). No
   physical-device claims; jsdom pins content and containment styles.
+  A further integrated route test in `src/ui/RegionsRoute.test.tsx` (2026-09-23)
+  composes the real RegionsRoute and MarketsRoute with a real GameSession at a
+  390px viewport: it drills Alabama to US-media, lists the sector for sale,
+  verifies the session projection, then unlists it and verifies the cleared
+  state. The fixture records the Alabama split in the persisted asset field
+  consumed by the projection. This verifies routing and command integration;
+  rendered source-screen comparison and physical-device behavior remain open.
   Remaining #299 gap: union bargaining/dues UI (#297) and
-  nationalization/secession fan-out (#298).
+  nationalization/secession fan-out (#298), plus rendered source-screen
+  comparison.
 
 ## Corporate-sector sale vertical slice, 2026-09-15 (#294 / #211)
 
