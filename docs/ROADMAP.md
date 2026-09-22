@@ -1451,6 +1451,31 @@ and removed. The smoke helper now walks the conversation; no engine change.
   (for-sale validation), `src/game/sectorSaleSession.test.ts` (player flow,
   atomicity, persistence), and the #294 block in `src/ui/MarketsPanel.test.tsx`.
 
+## Corporate-sector acquisition and ownership transfer, 2026-09-23 (#295)
+
+- The public engine command validates player authority, recorded asking price,
+  currency, available cash, and current ownership before transferring the
+  recorded sector to the player. A successful purchase debits player cash,
+  credits the seller corporation, clears the sale listing, and leaves the
+  corporation's labor and production record intact. Refusals preserve the
+  serialized world.
+- The `GameSession` boundary exposes buy alongside the existing list, update,
+  and unlist commands. Ownership, cash, and listing state survive save/load;
+  pre-acquisition saves default to corporation ownership.
+- The company detail UI exposes owner-gated list/update/unlist controls and
+  the live Buy action. The regional card links to that company detail and
+  returns to the selected region, while its own Buy action dispatches directly
+  for recorded regional listings.
+- Evidence on current `origin/main`: `corporateSectorAcquire.test.ts` (8),
+  `sectorSaleSession.test.ts` (8), and the regional/market UI suites
+  `RegionSectorAssets.test.tsx`, `RegionsRoute.test.tsx`, and
+  `MarketsPanel.test.tsx` (61) pass. `npm run typecheck` completed without
+  diagnostics. UI tests pin content and touch-target contracts at
+  320/390/desktop widths; they are not physical-device visual comparisons.
+- Remaining corporate-sector program issues under #211 are bargaining/dues
+  integration (#297), nationalization/secession fan-out (#298), and the
+  dependent regional UI acceptance remainder (#299).
+
 ## Player polling checkpoint, 2026-09-15 (#38)
 
 - `poll` and `pollLarge` are live through the public `executeAction` contract
