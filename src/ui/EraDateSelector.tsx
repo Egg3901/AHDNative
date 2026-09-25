@@ -2,7 +2,7 @@ import type { EraChoice } from "../game/types";
 
 const MIN_YEAR = 1953;
 const MAX_YEAR = 2027;
-const WEEKS_PER_YEAR = 48;
+const WEEKS_PER_YEAR = 53;
 
 export function resetDateIso(year: number, week: number): string {
   const date = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));

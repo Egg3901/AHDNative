@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NewGameScreen } from "./NewGameScreen";
 import type { EraChoice } from "../game/types";
@@ -27,6 +27,18 @@ const ERAS: SetupEra[] = [
 ];
 
 describe("NewGameScreen", () => {
+  it("lets a player start in the final week of 2027", async () => {
+    const user = userEvent.setup();
+    const onStart = vi.fn();
+    render(<NewGameScreen eras={ERAS} busy={false} onStart={onStart} onBack={vi.fn()} />);
+    const date = screen.getByRole("slider", { name: "Starting year and week" }) as HTMLInputElement;
+    expect(Number(date.max) - Number(date.min) + 1).toBe(75 * 53);
+    fireEvent.change(date, { target: { value: date.max } });
+    expect(date).toHaveAttribute("aria-valuetext", "2027, week 53");
+    await user.type(screen.getByLabelText(/your name/i), "Ada");
+    await user.click(screen.getByRole("button", { name: /^start$/i }));
+    expect(onStart).toHaveBeenCalledWith(expect.objectContaining({ era: "1991", startDate: "2027-12-31" }));
+  });
   it("renders eras and allows era/country selection", async () => {
     const user = userEvent.setup();
     const onStart = vi.fn();
