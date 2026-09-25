@@ -1,8 +1,8 @@
 # Save compatibility: authentic v42 interchange
 
-Characterization of public save interchange between the historical v42 engine and this repository's current v44 engine. It is not a downgrade writer, not an AHDGame parity proof, and not a full-suite run.
+Characterization of public save interchange between the historical v42 engine and this repository's Native engine. The recorded run below used an older Native schema; it is not a current cross-engine parity result. Current Native is schema 48. The bounded v42 projection and its current hashes are recorded in [the interchange depth record](V42-INTERCHANGE-DEPTH.md). Progressed political saves require the owner-approved versioned current-SP successor (#116/#122), not the immutable v42 turn engine.
 
-Pinned v42 source: [Egg3901/AHDClient@c5017542c860f5f94b7d4b4d5cfea2939b28995d](https://github.com/Egg3901/AHDClient/commit/c5017542c860f5f94b7d4b4d5cfea2939b28995d) (`feat(singleplayer): add world controls and feature flags`). Native engine in this tree is SCHEMA_VERSION **44**. A current-schema save with `schemaVersion` rewritten to 42 is not an authentic v42 fixture and was not used as one.
+Pinned v42 source: [Egg3901/AHDClient@c5017542c860f5f94b7d4b4d5cfea2939b28995d](https://github.com/Egg3901/AHDClient/commit/c5017542c860f5f94b7d4b4d5cfea2939b28995d) (`feat(singleplayer): add world controls and feature flags`). Native engine in this tree is SCHEMA_VERSION **48** (`packages/engine/src/world.ts`). A current-schema save with `schemaVersion` rewritten to 42 is not an authentic v42 fixture and was not used as one.
 
 ## Run
 
@@ -33,16 +33,16 @@ The live mint from the pinned engine must match that SHA. The envelope is `ahdso
 
 Fixed inputs match the fixture. Action: `convertCash` 2000.
 
-## Claims this harness supports
+## Claims the recorded historical run supports
 
 | Claim | Result on the recorded run |
 |---|---|
 | Authentic v42 mint | Passed. Pinned engine SCHEMA_VERSION 42. Envelope and `world.meta.schemaVersion` are 42. `countryPolitics` absent. `player.homeRegionId` absent. |
 | Fixture matches live mint | Passed. Gzip gunzips to the mint SHA above. |
-| Native loads authentic v42 | Passed. `deserializeSave` migrates to schema 44, seeds `countryPolitics` (DD/RU/UK/US), sets `player.homeRegionId` to `null`, and initializes empty `subsidies`. |
+| Native loads authentic v42 | Passed on the recorded older Native engine. Its migration seeded `countryPolitics` (DD/RU/UK/US), set `player.homeRegionId` to `null`, and initialized empty `subsidies`. Current Native migrates to schema 48; this row does not pin its output hash. |
 | Repeated Native loads are deterministic | Passed. Two independent loads of the same v42 bytes serialize identically, then stay identical through `convertCash`, two turns, reload one twin, and a third turn. |
 | v42 reader continuation is deterministic | Passed. Same action/turn/reload sequence on the v42 engine: twin saves match at every step. |
-| Historical honest v43 writer is rejected by the v42 reader | Passed in the recorded v43 run. Current v44 saves are likewise newer than v42 and require the compatibility projector. |
+| Historical honest v43 writer is rejected by the v42 reader | Passed in the recorded v43 run. Current schema-48 saves are likewise newer than v42 and require the compatibility projector. |
 
 SHA-256 of `serializeSave` at create and after the third turn:
 
@@ -51,7 +51,7 @@ SHA-256 of `serializeSave` at create and after the third turn:
 | v42 pin | `471352be87c8887dcc6ae02f465b898272f62843b5e0861a45138c2de7f58cdc` | `1884891452d25a4c8501713efa006533324ff15b3fbd5088a0ca1521cdcc3777` |
 | Native after v42 load | `ee57dbf8cd58d148d68e5714f6df5c132e8f04812afc734d0e834a30f1444154` | `04dee870ddf455467358c695af0117ba98fa75265cc28ffe889452e34ec368a0` |
 
-Those Native hashes are the migrated v43 document, not the v42 bytes. They are not required to match the v42 pin.
+Those Native hashes are from the recorded migrated v43 document, not the v42 bytes or the current schema-48 writer. They are not required to match the v42 pin.
 
 v42 pin `convertCash`: `Converted 2000 cash to 1000 funds.` Native after load: same.
 
@@ -74,7 +74,7 @@ Do not waive those mechanics to force an export.
 
 ## Version relabeling probe
 
-Rewriting a v43 envelope and `world.meta.schemaVersion` to 42 is **inauthentic**. The current v42 `deserializeSave` still accepts that rewrite: `assertCurrentWorldState` checks required fields, not a whitelist, so `countryPolitics` and `homeRegionId` are smuggled through. This harness records that acceptance. It does not treat the rewrite as a v42 fixture.
+Rewriting a newer envelope and `world.meta.schemaVersion` to 42 is **inauthentic**. In the recorded v43 probe, the v42 `deserializeSave` accepted that rewrite: `assertCurrentWorldState` checks required fields, not a whitelist, so `countryPolitics` and `homeRegionId` were smuggled through. This harness records that observation. It does not treat the rewrite as a v42 fixture or prove that a current schema-48 save can safely be relabeled.
 
 Acceptance alone does not certify cross-version semantics or a lossless round-trip. Unknown extension fields are tolerated by the old reader. The engine projector uses an explicit field policy and old-reader continuation hashes; see [interchange depth](V42-INTERCHANGE-DEPTH.md). This tree does not change either reader or silently relabel new saves.
 
@@ -128,10 +128,10 @@ The refined contract harness passed 23 checks with zero errors in 7.2 seconds. I
 A [local v42 export tool](SAVE-EXPORT-TOOL.md) calls the engine `projectSaveToV42` via the `src/game/saveCompatibility.ts` app wrapper. The engine remains the sole world projector.
 
 - Authentic fixture (`fixtures/v42-1953-US.save.json.gz`): returned byte-identical. `homeRegionId` is absent.
-- Native-fresh pre-turn 1953 US: written as a schema 42 **extension** document that keeps `homeRegionId` `"AL"` and drops reconstructable `countryPolitics`. That is not the authentic mint. Old-reader SHA-256 of that extension: `f141e9a919d8a6626c53a1ca6c4c9856ec5ccc97410b0a4c2ba8d61ba3aaa320`.
-- Progressed `countryPolitics` after a Native turn, relabeled v43, and corrupt input are refused. Exclusive-create CLI rules are unchanged.
+- Native-fresh pre-turn 1953 US: written as a schema 42 **extension** document that keeps `homeRegionId` `"AL"` and drops reconstructable `countryPolitics`. That is not the authentic mint. The current projection SHA-256 is `404370ac2e43de737ce3e664fafde05f34a8298bb51db2de9de8ae6de6c59b03`, independently checked by the old reader/writer as recorded in [the interchange depth record](V42-INTERCHANGE-DEPTH.md). The previous `f141e9a9…` hash described older Native output.
+- Progressed `countryPolitics` after a Native turn, version relabeling, and corrupt input are refused. Exclusive-create CLI rules are unchanged.
 
-This is not full interchange of progressed worlds. Native `serializeSave` still emits schema 44. Native file export remains unresolved. Field policy: [interchange depth](V42-INTERCHANGE-DEPTH.md). Investigation evidence: [the investigation](SAVE-WRITER-INVESTIGATION.md).
+This is not full interchange of progressed worlds. Native `serializeSave` emits schema 48. Native file export remains unresolved. Field policy: [interchange depth](V42-INTERCHANGE-DEPTH.md). Investigation evidence: [the investigation](SAVE-WRITER-INVESTIGATION.md).
 
 
 ## Native notification metadata
