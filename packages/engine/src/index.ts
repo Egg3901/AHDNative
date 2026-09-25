@@ -361,6 +361,7 @@ export {
   CURRENT_SP_COLLECTION_POLICY,
   CURRENT_SP_PROVENANCE,
   parseCurrentSpSnapshot,
+  verifyCurrentSpCollectionHashes,
 } from "./interchange/currentSpSnapshot.js";
 export type {
   CurrentSpCollectionManifestEntry,

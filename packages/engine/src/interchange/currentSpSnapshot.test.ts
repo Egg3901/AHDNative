@@ -1,11 +1,20 @@
+import { createHash } from "node:crypto";
 import { describe,expect,it } from "vitest";
 import { CURRENT_SP_COLLECTION_POLICY,CURRENT_SP_INTERCHANGE_CONTRACT,CURRENT_SP_LAUNCHER_METADATA_CONTRACT,CURRENT_SP_PROVENANCE,parseCurrentSpSnapshot } from "./currentSpSnapshot.js";
+import { verifyCurrentSpCollectionHashes } from "../index.js";
 import { SCHEMA_VERSION } from "../world.js";
 const A="a".repeat(64),B="b".repeat(64);
 function fixture(over:Record<string,unknown>={}){return {format:"ahd-current-sp-snapshot",version:1,source:{product:"AHDGame",revision:CURRENT_SP_PROVENANCE.game.revision,sourcePath:CURRENT_SP_PROVENANCE.game.sourcePath},declaredRulesetSha256:A,declaredContentSha256:B,manifest:[{name:"gameConfig",documentCount:1,declaredSha256:A}],collections:{gameConfig:[{turn:12}]},...over};}
 describe("#300 current SP snapshot contract",()=>{
 it("pins provenance and validates metadata without enabling transfer",()=>{expect(CURRENT_SP_INTERCHANGE_CONTRACT.directions).toEqual({gameToNative:"contract-only",nativeToGame:"contract-only"});expect(parseCurrentSpSnapshot(fixture())).toMatchObject({transferStatus:"contract-only",snapshot:{collections:{gameConfig:[{turn:12}]}}});});
 it("advertises the live Native engine schema, not a pinned copy (#122)",()=>{expect(CURRENT_SP_PROVENANCE.native.schemaVersion).toBe(SCHEMA_VERSION);expect(CURRENT_SP_INTERCHANGE_CONTRACT.nativeSchemaVersion).toBe(SCHEMA_VERSION);expect(CURRENT_SP_PROVENANCE.native.sourcePath).toBe("packages/engine/src/world.ts");});
+it("rejects a collection whose declared digest does not match its documents before transfer (#302)",()=>{
+  const digest=(text:string)=>createHash("sha256").update(text).digest("hex");
+  const good=fixture({manifest:[{name:"gameConfig",documentCount:1,declaredSha256:digest('[{"turn":12}]')}]});
+  expect(verifyCurrentSpCollectionHashes(parseCurrentSpSnapshot(good).snapshot,digest)).toBe(true);
+  const changed=fixture({manifest:[{name:"gameConfig",documentCount:1,declaredSha256:digest('[{"turn":12}]')}],collections:{gameConfig:[{turn:13}]}});
+  expect(()=>verifyCurrentSpCollectionHashes(parseCurrentSpSnapshot(changed).snapshot,digest)).toThrow(/gameConfig.*digest/);
+});
 it("publishes launcher metadata and all 363 pinned collection classifications",()=>{expect(CURRENT_SP_LAUNCHER_METADATA_CONTRACT).toMatchObject({classification:"metadata-only",fields:["slot","name","preset","createdAt","lastPlayedAt","turn","character","setup"]});expect(CURRENT_SP_COLLECTION_POLICY).toHaveLength(363);expect(new Set(CURRENT_SP_COLLECTION_POLICY.map(r=>r.name)).size).toBe(363);expect(CURRENT_SP_COLLECTION_POLICY.every(r=>r.sourcePath.endsWith(`@${CURRENT_SP_PROVENANCE.game.revision}`))).toBe(true);expect(CURRENT_SP_COLLECTION_POLICY.find(r=>r.name==="politicalParties")).toMatchObject({status:"mapping-required",target:"parties"});expect(CURRENT_SP_COLLECTION_POLICY.find(r=>r.name==="partyMembers")).toMatchObject({status:"missing"});});
 it("rejects drift, malformed hashes, unknown, excluded, missing, duplicate, and undeclared collections",()=>{expect(()=>parseCurrentSpSnapshot({...fixture(),extra:true})).toThrow("unknown=extra");expect(()=>parseCurrentSpSnapshot({...fixture(),declaredRulesetSha256:"bad"})).toThrow("declaredRulesetSha256");expect(()=>parseCurrentSpSnapshot({...fixture(),source:{...fixture().source,revision:"wrong"}})).toThrow("provenance");for(const [name,message] of [["invented","unknown"],["users","exclude"],["partyMembers","missing"]])expect(()=>parseCurrentSpSnapshot({...fixture(),manifest:[{name,documentCount:0,declaredSha256:A}],collections:{[name]:[]}})).toThrow(message);expect(()=>parseCurrentSpSnapshot({...fixture(),manifest:[{name:"gameConfig",documentCount:1,declaredSha256:A},{name:"gameConfig",documentCount:1,declaredSha256:A}]})).toThrow("duplicate");expect(()=>parseCurrentSpSnapshot({...fixture(),collections:{gameConfig:[{}],bills:[]}})).toThrow("absent from manifest");expect(()=>parseCurrentSpSnapshot({...fixture(),manifest:[{name:"gameConfig",documentCount:2,declaredSha256:A}]})).toThrow("count mismatch");});
 });
