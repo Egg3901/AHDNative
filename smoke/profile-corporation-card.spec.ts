@@ -10,14 +10,29 @@
  * that role "Sector owner", never CEO, and shows no salary or dividends
  * because the engine records neither.
  *
- * The jsdom suites (src/game/profileCorporation.test.ts,
- * src/ui/ProfileCorporationCard.test.tsx, src/ui/CorporationDetailReturn80
- * .test.tsx) cover projection, panel and shell wiring. This spec is the
- * rendered evidence through the integrated app at 320px and 390px: the
- * fixture enters through the same worker/store path as a native resume,
- * the card appears on Profile, "View company" opens the working company
- * detail with Back to Profile, a page reload resumes the saved owner and the
- * card is still there, and a save whose owner reverted renders no card.
+ * The jsdom suites cover projection, panel and shell wiring:
+ *   src/game/profileCorporation.test.ts
+ *   src/ui/ProfileCorporationCard.test.tsx
+ *   src/ui/CorporationDetailReturn80.test.tsx
+ * This spec is the rendered evidence through the integrated app at 320px
+ * and 390px: the fixture enters through the same worker/store path as a
+ * native resume, the card appears on Profile, "View company" opens the
+ * working company detail with Back to Profile, a page reload resumes the
+ * saved owner and the card is still there, and a save whose owner reverted
+ * renders no card.
+ *
+ * Fixture provenance: public actions (buyShares, listSectorForSale,
+ * buySectorForSale) plus test-only save setup. The serialized save is edited
+ * twice outside the action flow: `world.player.cash` is raised to the listed
+ * asking price so the purchase can be funded, and the "reverted" variant sets
+ * `corporateSectors[assetId].owner` back to "corporation" because no player
+ * action releases a sector. Both edited saves are re-loaded through
+ * GameSession.load (save validation) before use.
+ *
+ * Reproduce: PLAYWRIGHT_CHROMIUM_EXECUTABLE=$(which google-chrome) \
+ *   npx playwright test smoke/profile-corporation-card.spec.ts
+ * Screenshots land in artifacts/smoke/profile-corporation-*.png (ignored by
+ * git; regenerate rather than commit).
  */
 import { test, expect, type Page } from '@playwright/test';
 import { gunzipSync } from 'node:zlib';
@@ -29,9 +44,10 @@ const OPTIONS = { era: '1953', countryId: 'US', seed: 'native-profile-card-51-sm
 const SAVED_AT = '2026-09-18T00:00:00.000Z';
 
 /**
- * Public owner flow: buy a recorded share (sale authority), list the sector,
- * fund the asking price through a save round-trip, then acquire. Returns the
- * serialized owner save plus the same save with the owner reverted.
+ * Owner fixture: buy a recorded share (sale authority), list the sector,
+ * fund the asking price by editing the serialized save, reload, then acquire
+ * through the public command. Returns the owner save plus a test-only
+ * variant whose recorded owner was reverted in the save.
  */
 function ownerFixtures(): { owner: string; reverted: string; ticker: string } {
   const session = new GameSession();

@@ -62,14 +62,25 @@ renders, and links that detail with a Back frame to Profile. Salary and
 dividends render as unavailable notes because the engine has no CEO salary
 flow and no dividend system; they are not zeros.
 
-Evidence: `src/game/profileCorporation.test.ts` (projection, save/reload,
-owner reverted, removed corporation fails load), `src/ui/ProfileCorporationCard
-.test.tsx` and `src/ui/CorporationDetailReturn80.test.tsx` (panel and shell
-wiring, jsdom 320/390/desktop), and `smoke/profile-corporation-card.spec.ts`
-(rendered Chromium flow at 320px and 390px: owner fixture through the resume
-path, card present, View company opens the detail, Back to profile, page
-reload keeps the card, reverted owner and ordinary player render no card;
-screenshots under `artifacts/smoke/profile-corporation-*.png`).
+Evidence:
+
+- `src/game/profileCorporation.test.ts`: projection, save/reload, owner
+  reverted, removed corporation fails load.
+- `src/ui/ProfileCorporationCard.test.tsx` and
+  `src/ui/CorporationDetailReturn80.test.tsx`: panel and shell wiring, jsdom
+  at 320/390/desktop.
+- `smoke/profile-corporation-card.spec.ts`: rendered Chromium flow at 320px
+  and 390px. The owner fixture is built from public actions (`buyShares`,
+  `listSectorForSale`, `buySectorForSale`) plus test-only save setup
+  (`player.cash` raised to the asking price; a second variant with
+  `corporateSectors[*].owner` reverted, since no player action releases a
+  sector), each re-validated through `GameSession.load` and then loaded via
+  the #506 resume-path hook. Asserts card present, View company opens the
+  detail, Back to profile, page reload keeps the card, reverted owner and
+  ordinary player render no card. Run
+  `PLAYWRIGHT_CHROMIUM_EXECUTABLE=$(which google-chrome) npx playwright test smoke/profile-corporation-card.spec.ts`;
+  screenshots are regenerated under `artifacts/smoke/profile-corporation-*.png`
+  (git-ignored, not committed).
 
 Remaining before closure: a recorded CEO relationship and its vacancy rule,
 CEO salary and dividend income from the corporation projection, the reference
