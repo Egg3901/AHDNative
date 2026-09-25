@@ -866,6 +866,11 @@ function executeActionInner(
         return { ok: false, error: `Catalog entry unavailable: ${leg.blockingSystem ?? "unported system"} — PORT-STUB` };
       }
       const countryId = params.sponsorCountryId ?? world.player.countryId;
+      if (countryId !== world.player.countryId) {
+        actor.actions += cost;
+        if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+        return { ok: false, error: "Cannot sponsor a bill outside the player's country" };
+      }
       if (leg.countryId !== countryId) {
         actor.actions += cost;
         if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];

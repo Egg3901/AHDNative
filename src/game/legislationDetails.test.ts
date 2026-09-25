@@ -76,6 +76,13 @@ describe("legislationDetails query (detached, bounded)", () => {
     });
   });
 
+  it("exposes Ireland's authored VAT options and sends the chosen 23% rate through the player contract", () => {
+    const world = createWorld({ era: "1991", countryId: "IE", seed: "ie-vat-screen", playerName: "P", mode: "hos" });
+    const proposal = buildLegislationDetails(world).proposals.find((entry) => entry.id === "ie_vat_rate");
+    expect(proposal?.taxPolicy?.options?.find((option) => option.rate === 23)).toMatchObject({ id: "ie_vat_rate_opt_6" });
+    expect(sponsorParamsForLegislation("ie_vat_rate", { taxRate: 23 })).toEqual({ catalogId: "ie_vat_rate", taxRate: 23 });
+  });
+
   it("shows a sponsored bill in its origin-chamber active partition with selected-bill details", () => {
     const world = hosWorld();
     expect(executeAction(world, "player", "sponsorBill", {

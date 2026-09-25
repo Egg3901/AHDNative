@@ -246,6 +246,25 @@ describe("LegislationDetailsPanel", () => {
     expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "us.tax.incomeTax", taxRate: 42, originChamber: "house" });
   });
 
+  it("lets an Irish player choose the authored 23% VAT option", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const LegislationDetailsPanel = await renderPanel();
+    const query = makeQuery();
+    query.selectedProposal = {
+      id: "ie_vat_rate", title: "Value Added Tax", description: "Irish VAT rate",
+      kind: "tax", category: "economy", allowedScope: "national", targets: [],
+      taxPolicy: { scope: "federal", taxType: "salesTax", minRate: 0, maxRate: 35, step: 2, baselineRate: 21,
+        options: [{ id: "ie_vat_rate_opt_5", rate: 21, economic: 0, social: 0 }, { id: "ie_vat_rate_opt_6", rate: 23, economic: 0, social: 0 }] },
+      sponsorAvailable: true, sponsorCost: 4,
+    };
+    query.proposals.push(query.selectedProposal);
+    render(<LegislationDetailsPanel query={query} busy={false} onAction={onAction} />);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Tax rate" }), "23");
+    await user.click(screen.getByRole("button", { name: /sponsor bill/i }));
+    expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "ie_vat_rate", taxRate: 23, originChamber: "house" });
+  });
+
   it("votes on an open bill through the supported vote action", async () => {
     const user = userEvent.setup();
     const onAction = vi.fn();

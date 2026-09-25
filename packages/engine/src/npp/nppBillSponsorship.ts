@@ -136,6 +136,29 @@ export const nppBillSponsorshipPhase: TurnPhase = {
       const catalogEntry = getLaw(chosen.id);
       if (!catalogEntry || catalogEntry.status !== "available") continue;
 
+      // AHDGame proposeNppNationalBill builds a concrete option provision and
+      // rejects the current option and an option already in an active bill.
+      // Match selectNppBill's nearest-point platform fit on the authored
+      // economic/social plane for tax ladders. A bill with no selected rate
+      // would otherwise enact the catalog baseline and undo a player's law.
+      const taxPolicy = catalogEntry.kind === "tax" ? catalogEntry.taxPolicy : undefined;
+      const currentTaxRate = taxPolicy?.scope === "federal"
+        ? world.budgets[countryId]?.taxRates[taxPolicy.taxType as keyof NonNullable<typeof world.budgets[string]>["taxRates"]]
+        : undefined;
+      const selectedTaxOption = taxPolicy?.options?.filter((option) =>
+        option.rate !== (currentTaxRate ?? taxPolicy.baselineRate) &&
+        !world.bills.some((bill) =>
+          bill.countryId === countryId &&
+          bill.legislationTypeId === chosen.id &&
+          !["failed", "withdrawn", "signed", "override_failed"].includes(bill.status) &&
+          bill.provisions.some((provision) => provision.policyOptionId === option.id),
+        ),
+      ).sort((left, right) =>
+        Math.hypot(sponsor.ideology.economic - left.economic, sponsor.ideology.social - left.social) -
+        Math.hypot(sponsor.ideology.economic - right.economic, sponsor.ideology.social - right.social),
+      )[0];
+      if (taxPolicy && !selectedTaxOption) continue;
+
       // Check sponsor has enough AP/funds indirectly: sponsorship costs 4 AP.
       // Mainline bills are auto-proposed with nppSponsored flag; they cost no
       // direct funds but represent legislative agenda. We deduct 4 AP if possible;
@@ -154,14 +177,20 @@ export const nppBillSponsorshipPhase: TurnPhase = {
         countryId,
         category: chosen.category,
         legislationTypeId: chosen.id,
-        effectDirection: 1,
+        effectDirection: selectedTaxOption
+          ? (selectedTaxOption.rate > (currentTaxRate ?? taxPolicy!.baselineRate) ? 1 : -1)
+          : 1,
+        ...(selectedTaxOption ? { selectedRate: selectedTaxOption.rate } : {}),
         provisions: [
           {
             type: "policy" as const,
             legislationTypeId: chosen.id,
-            effectDirection: 1,
-            economic: 0,
-            social: 0,
+            ...(selectedTaxOption ? { policyOptionId: selectedTaxOption.id } : {}),
+            effectDirection: selectedTaxOption
+              ? (selectedTaxOption.rate > (currentTaxRate ?? taxPolicy!.baselineRate) ? 1 : -1)
+              : 1,
+            economic: selectedTaxOption?.economic ?? 0,
+            social: selectedTaxOption?.social ?? 0,
           },
         ],
         originChamber,

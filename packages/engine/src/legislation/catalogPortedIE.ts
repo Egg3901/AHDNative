@@ -87,10 +87,9 @@ export const CATALOG_IE: CatalogEntry[] = [
     description: "Sets the standard VAT rate on goods and services",
     category: "tax",
     allowedScope: "national",
-    taxPolicy: { scope: "federal", taxType: "salesTax", minRate: 0, maxRate: 35, step: 2, baselineRate: 21 },
+    taxPolicy: { scope: "federal", taxType: "salesTax", minRate: 0, maxRate: 35, step: 2, baselineRate: 21, options: [{"id":"ie_vat_rate_opt_0","rate":0,"economic":-5,"social":-2},{"id":"ie_vat_rate_opt_1","rate":5,"economic":-4,"social":-1},{"id":"ie_vat_rate_opt_2","rate":9,"economic":-3,"social":-1},{"id":"ie_vat_rate_opt_3","rate":13.5,"economic":-2,"social":-1},{"id":"ie_vat_rate_opt_4","rate":17,"economic":-1,"social":-1},{"id":"ie_vat_rate_opt_5","rate":21,"economic":0,"social":0},{"id":"ie_vat_rate_opt_6","rate":23,"economic":0,"social":0},{"id":"ie_vat_rate_opt_7","rate":25,"economic":1,"social":1},{"id":"ie_vat_rate_opt_8","rate":27,"economic":2,"social":1},{"id":"ie_vat_rate_opt_9","rate":30,"economic":4,"social":1},{"id":"ie_vat_rate_opt_10","rate":35,"economic":5,"social":2}] },
     targets: [{"metricId":"economic.costOfLiving","weight":-1},{"metricId":"economic.gdpGrowth","weight":-0.25},{"metricId":"economic.povertyRate","weight":-0.6},{"metricId":"economic.smallBusinessFormation","weight":-0.3},{"metricId":"governance.budgetBalance","weight":-0.5}],
-    status: "unavailable",
-    blockingSystem: "budget/taxRateLadder",
+    status: "available",
   },
   {
     // source: ieLegislationTypes.ts ie_customs_tariff_rate; baselineRate from budget policyDefaults option ie_customs_tariff_rate_opt_0

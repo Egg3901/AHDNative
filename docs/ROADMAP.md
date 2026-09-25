@@ -951,7 +951,7 @@ Country-specific cabinet, court and appointment controls beyond the surfaced
 office classification remain owned by #63, #65 and #101 rather than being
 silently represented as implemented here.
 
-#282 complete. The generated unavailable-law inventory accounts for all 269
+#282 complete. The generated unavailable-law inventory initially accounted for 269
 Native PORT-STUB rows: 257 JP/DE/IE/CN/BR seed rows and 12 hand-ported
 US/UK/RU/DD rows. Each record preserves its AHDGame source revision and path,
 scope, authored eligibility prerequisites and effect targets, plus the named
@@ -959,17 +959,16 @@ Native subsystem required before release. Five Native-only US placeholder ids
 have no matching row at the pinned AHDGame revision and say so explicitly.
 `generateCatalogs.ts --check` detects drift without changing availability, and
 the focused inventory contract proves exact coverage against the public catalog.
+Three rows marked available have since reduced the live unavailable count to 266;
+availability alone does not establish player reachability (see #283).
 
-#283 complete. Japan's Consumption Tax Act is the first bounded executable row
-from that inventory. Its national scope, exact 11 authored rate options,
-economic values, sales-tax destination, and weighted political targets come
-from the pinned Japan seed. Sponsorship rejects unauthored rates and records
-the source option plus the direction of the move from the current budget rate.
-The public legislation flow covers proposal, both Diet chamber votes,
-pocket-sign enactment, gradual tax-rate effect, replacement, repeal, and save
-reload. The generator now owns the one-row availability allowlist and leaves
-the other 268 catalog rows unavailable with named blockers. This is not a claim
-of full Japan catalog parity.
+#283 partial (corrected 2026-09-25). Japan's Consumption Tax Act retains its
+source-authored catalog row and tax mechanics, but the earlier public-flow test
+used a US Head of State with `sponsorCountryId: JP`. AHDGame requires a
+same-country elected seat or sovereign role, and no Native era currently makes
+Japan a playable character country. The test now rejects that foreign proposal.
+The remaining gate is a real Japan character flow through proposal, voting,
+enactment, replacement or repeal, and save/reload.
 
 #288 partial. Brazil's Imposto de Renda Statute is the first bounded executable
 BR row from that inventory. Its national scope, exact 6 authored rate options
@@ -980,9 +979,19 @@ the move from the current budget rate. The public legislation flow covers
 proposal, both National Congress chamber votes, pocket-sign enactment, gradual
 tax-rate effect, replacement, repeal back toward the catalog baseline, and save
 reload, all driven in-country because BR is playable in the 1991 pack. The
-generator allowlist now owns two executable rows and leaves the other 267
+generator allowlist now owns three executable rows and leaves the other 266
 catalog rows unavailable with named blockers. This is not a claim of full
 Brazil catalog parity: the remaining 13 BR rows stay unavailable.
+
+#284 partial. Ireland's 1991 VAT row now has its eleven source-authored rates,
+including the 23% option, in the generated catalog. An Irish Head of State can
+choose an authored rate in Legislation; the public action and turn flow covers
+proposal, voting, enactment, phase-in, repeal, and save/reload. Foreign
+sponsorship is rejected. Autonomous tax bills now carry a concrete authored
+option and avoid the current rate and an active duplicate. Their option choice
+uses the reference platform-distance rule, but the full AHDGame agenda and
+urgency selection is still missing. The other 57 IE rows remain unavailable
+with named blockers. Do not treat this bounded slice as whole-country parity.
 
 #241 complete. `NewGameScreen` captures the reference world-setup fields and
 carries them through `NewGameOptions` into the engine `NewWorldOptions`:

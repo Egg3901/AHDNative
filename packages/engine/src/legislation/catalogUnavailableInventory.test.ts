@@ -34,7 +34,6 @@ const TAX_SOURCE_VECTOR: Record<string, readonly [string, string, string, readon
   ie_prsi: ["IE", "national", "payrollTax", [0, 2, 4, 6, 8, 11, 14, 17, 20, 23, 26]],
   ie_stamp_duty: ["IE", "national", "stampDuty", [0, .5, 1, 2, 3, 5, 7.5, 10, 12, 15, 20]],
   ie_usc: ["IE", "national", "universalSocialCharge", [0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20]],
-  ie_vat_rate: ["IE", "national", "salesTax", [0, 5, 9, 13.5, 17, 21, 23, 25, 27, 30, 35]],
   jp_customs_tariff: ["JP", "national", "tariffs", [0, 1, 2, 3, 3.5, 4, 6, 8, 12, 16, 20]],
   jp_domestic_corporation_tax: ["JP", "national", "domesticCorporateTax", [0, 5, 9, 14, 18, 23, 28, 32, 37, 41, 46]],
   jp_fixed_asset_tax: ["JP", "state", "fixedAssetTax", [0, .2, .5, .8, 1.1, 1.4, 1.8, 2.2, 3, 4, 5]],
@@ -51,11 +50,11 @@ const UNMATCHED_SOURCE_VECTOR = [
 
 describe("unavailable law source inventory", () => {
   it("matches the pinned source vector independently of the Native catalog", () => {
-    expect(UNAVAILABLE_LAW_INVENTORY).toHaveLength(267);
+    expect(UNAVAILABLE_LAW_INVENTORY).toHaveLength(266);
     expect(Object.fromEntries(["JP", "DE", "IE", "CN", "BR", "US", "UK", "RU", "DD"].map((countryId) => [
       countryId,
       UNAVAILABLE_LAW_INVENTORY.filter((row) => row.countryId === countryId).length,
-    ]))).toEqual({ JP: 62, DE: 60, IE: 58, CN: 62, BR: 13, US: 9, UK: 1, RU: 1, DD: 1 });
+    ]))).toEqual({ JP: 62, DE: 60, IE: 57, CN: 62, BR: 13, US: 9, UK: 1, RU: 1, DD: 1 });
     for (const id of ["de_trade_tax", "cn_provincial_resource_tax", "jp_resident_tax", "jp_fixed_asset_tax"]) {
       expect(UNAVAILABLE_LAW_INVENTORY.find((row) => row.id === id), id).toMatchObject({
         nativeScope: "regional",
@@ -67,7 +66,7 @@ describe("unavailable law source inventory", () => {
     expect(UNAVAILABLE_LAW_INVENTORY.find((row) => row.id === "de_trade_tax")?.authoredRateOptions.map((option) => option.rate)).toEqual([200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600]);
     expect(UNAVAILABLE_LAW_INVENTORY.find((row) => row.id === "cn_provincial_resource_tax")?.authoredRateOptions.map((option) => option.rate)).toEqual([0, 1, 2, 4, 5, 6, 8, 10, 12, 16, 20]);
     const taxes = UNAVAILABLE_LAW_INVENTORY.filter((row) => row.taxRateChange !== null);
-    expect(Object.keys(TAX_SOURCE_VECTOR)).toHaveLength(39);
+    expect(Object.keys(TAX_SOURCE_VECTOR)).toHaveLength(38);
     expect(Object.fromEntries(taxes.map((tax) => [tax.id, [
       tax.countryId, tax.sourceScope, tax.taxRateChange!.taxType,
       tax.authoredRateOptions.map((option) => option.rate),

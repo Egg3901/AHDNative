@@ -63,7 +63,7 @@ const sourceRootArg = process.argv.indexOf("--source-root");
 const sourceRoot = path.resolve(sourceRootArg >= 0 ? process.argv[sourceRootArg + 1] ?? "" : process.cwd());
 type InventoryRow = { id: string; countryId: string; nativeScope: string; sourceScope: string | null; prerequisites: string[]; authoredTargets: string[]; taxRateChange: { scope: string; taxType: string } | null; authoredRateOptions: Array<{ id: string; rate: number }>; blockingSystem: string; sourcePath: string; sourceMatch: "matched" | "unmatched" };
 const inventory: InventoryRow[] = [];
-const EXECUTABLE_LAW_IDS = new Set(["jp_consumption_tax", "br_income_tax_rate"]);
+const EXECUTABLE_LAW_IDS = new Set(["jp_consumption_tax", "br_income_tax_rate", "ie_vat_rate"]);
 
 assertPinnedSourceCheckout(sourceRoot, SOURCE_REVISION);
 

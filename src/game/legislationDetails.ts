@@ -103,6 +103,7 @@ export interface LegislationTaxPolicyView {
   maxRate: number;
   step: number;
   baselineRate: number;
+  options?: Array<{ id: string; rate: number; economic: number; social: number }>;
 }
 
 export interface LegislationProposalDetails {
@@ -199,6 +200,7 @@ export function sponsorParamsForLegislation(
           maxRate: entry.taxPolicy.maxRate,
           step: entry.taxPolicy.step,
           baselineRate: entry.taxPolicy.baselineRate,
+          ...(entry.taxPolicy.options ? { options: entry.taxPolicy.options } : {}),
         },
         opts.taxRate,
       ),

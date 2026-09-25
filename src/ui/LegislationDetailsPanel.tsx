@@ -209,6 +209,7 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
       lastExternalProposalId.current = externalId;
       if (externalId) {
         setCatalogId(externalId);
+        setTaxRate("");
         return;
       }
     }
@@ -411,7 +412,7 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
               className="ahd-select"
               aria-label="Available legislation"
               value={proposal?.id ?? ""}
-              onChange={(e) => setCatalogId(e.target.value)}
+              onChange={(e) => { setCatalogId(e.target.value); setTaxRate(""); }}
               disabled={busy}
             >
               {query.proposals.map((p) => (
@@ -462,20 +463,36 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
             {proposal.taxPolicy ? (
               <label className="ahd-field" style={{ maxWidth: "12rem" }}>
                 <span className="ahd-label">
-                  Tax rate ({proposal.taxPolicy.minRate}% to {proposal.taxPolicy.maxRate}%, step {proposal.taxPolicy.step}%)
+                  {proposal.taxPolicy.options?.length
+                    ? "Tax rate (authored options)"
+                    : `Tax rate (${proposal.taxPolicy.minRate}% to ${proposal.taxPolicy.maxRate}%, step ${proposal.taxPolicy.step}%)`}
                 </span>
-                <input
-                  className="ahd-input"
-                  aria-label="Tax rate"
-                  type="number"
-                  min={proposal.taxPolicy.minRate}
-                  max={proposal.taxPolicy.maxRate}
-                  step={proposal.taxPolicy.step}
-                  placeholder={String(proposal.taxPolicy.baselineRate)}
-                  value={taxRate}
-                  onChange={(e) => setTaxRate(e.target.value)}
-                  disabled={busy}
-                />
+                {proposal.taxPolicy.options?.length ? (
+                  <select
+                    className="ahd-select"
+                    aria-label="Tax rate"
+                    value={taxRate || String(proposal.taxPolicy.baselineRate)}
+                    onChange={(e) => setTaxRate(e.target.value)}
+                    disabled={busy}
+                  >
+                    {proposal.taxPolicy.options.map((option) => (
+                      <option key={option.id} value={option.rate}>{option.rate}%</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    className="ahd-input"
+                    aria-label="Tax rate"
+                    type="number"
+                    min={proposal.taxPolicy.minRate}
+                    max={proposal.taxPolicy.maxRate}
+                    step={proposal.taxPolicy.step}
+                    placeholder={String(proposal.taxPolicy.baselineRate)}
+                    value={taxRate}
+                    onChange={(e) => setTaxRate(e.target.value)}
+                    disabled={busy}
+                  />
+                )}
               </label>
             ) : null}
             <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap" }}>
