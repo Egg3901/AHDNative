@@ -11,7 +11,15 @@ npx vitest run --config vitest.config.ts scripts/benchmark-late-game.test.ts
 /root/bin/lakeside-check-queue enqueue --workdir "$PWD" --label ahdnative-late-game-20 --priority normal -- npx tsx scripts/benchmark-late-game.ts --samples=20 --warmup=2
 ```
 
-The two-sample integrated probe passed locally on 2026-09-25. A queued 20-sample result and its source revision must be pasted into the private device record before using it as a Linux baseline. The two-sample test is a replay/instrumentation check, not a statistical p95 claim. The shared scheduler is required while host load is high.
+The two-sample integrated probe passed locally on 2026-09-25. The shared scheduler then completed a 20-sample run at source `9e8dcb2ba1f8bd0588569416ad624d6cfa0f392d` (clean checkout), with two warmups. The uncompressed fixture SHA-256 was `a08a9e6e718483266760b68ff54b9895a213454a8ceabca5dde301accb8e4cc7`; every trial produced output SHA-256 `baa4995d01579a3934edb48eaf62a6763817483b24a6815b69052f0d5a97b834` and a 13,776,741-byte serialized save.
+
+| Linux public-engine boundary | p50 | p95 |
+| --- | ---: | ---: |
+| Deserialize | 529 ms | 1,671 ms |
+| Advance one turn | 6,379 ms | 10,601 ms |
+| Serialize | 268 ms | 556 ms |
+
+Command: `npx tsx scripts/benchmark-late-game.ts --samples=20 --warmup=2`. Scheduler job `20260925T045356Z-1584b9c1` passed on 2026-09-25. These are wall-clock measurements on a shared, loaded Linux host; they are neither controlled device timings nor a mobile go/no-go. Keep the complete individual sample array in the private device record. The shared scheduler is required while host load is high.
 
 ## Local durability and player-flow checks
 
