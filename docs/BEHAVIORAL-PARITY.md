@@ -45,6 +45,38 @@ values are not replaced with zeros or borrowed from NPC politicians. This remain
 a partial profile port. The whole-game issue tracker is
 [#28](https://github.com/Egg3901/AHDNative/issues/28).
 
+## Conditional corporation card (#51, partial)
+
+AHDGame `src/app/profile/page.tsx` renders `CeoCorporationCard` only when a
+corporation records `ceoId === character._id` with `ceoVacant` not true, and
+links `/corporation/[id]`. The card itself shows the logo, name, an optional
+"national enterprise" note and the link; salary and dividend income live
+elsewhere on the reference profile.
+
+Native has no CEO relationship: corporations carry no `ceoId`/`ceoVacant` and
+are NPC-run (`packages/engine/src/corporation/types.ts`). The only recorded
+ownership is the #295 sector asset (`CorporateSectorAsset.owner === "player"`),
+so the Profile card gates on that, labels the role "Sector owner" (never CEO),
+copies its values verbatim from the Markets `MarketListing` the company detail
+renders, and links that detail with a Back frame to Profile. Salary and
+dividends render as unavailable notes because the engine has no CEO salary
+flow and no dividend system; they are not zeros.
+
+Evidence: `src/game/profileCorporation.test.ts` (projection, save/reload,
+owner reverted, removed corporation fails load), `src/ui/ProfileCorporationCard
+.test.tsx` and `src/ui/CorporationDetailReturn80.test.tsx` (panel and shell
+wiring, jsdom 320/390/desktop), and `smoke/profile-corporation-card.spec.ts`
+(rendered Chromium flow at 320px and 390px: owner fixture through the resume
+path, card present, View company opens the detail, Back to profile, page
+reload keeps the card, reverted owner and ordinary player render no card;
+screenshots under `artifacts/smoke/profile-corporation-*.png`).
+
+Remaining before closure: a recorded CEO relationship and its vacancy rule,
+CEO salary and dividend income from the corporation projection, the reference
+logo/brand treatment, and physical-device validation. At 320px the rendered
+money values in the shared profile rows wrap inside the number (for example
+`$21,285,000,774.0` / `0`); this is a layout finding, not a data error.
+
 ## Saved profile identity
 
 AHDGame `ProfilePictureUpload.tsx`, `api/upload/avatar/route.ts` and
