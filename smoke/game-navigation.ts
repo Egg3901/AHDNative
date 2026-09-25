@@ -52,7 +52,7 @@ export async function openGameMenu(page: Page) {
 const NATION_DESTINATIONS = new Set([
   'Elections', 'Parties', 'Start a party', 'Caucuses', 'Politicians',
   'Presidential election', 'Political metrics', 'Referendums', 'Legislature',
-  'Bills and proposals', 'Policy', 'Economy', 'National Budget', 'National Metrics',
+  'Bills and proposals', 'Policy', 'Cabinet office', 'Economy', 'National Budget', 'National Metrics',
 ]);
 const WORLD_DESTINATIONS = new Set([
   'Stock market', 'Bonds', 'Banking', 'Nations', 'News', 'World settings',
