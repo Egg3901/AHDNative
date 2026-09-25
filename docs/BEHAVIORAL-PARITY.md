@@ -84,9 +84,15 @@ Evidence:
 
 Remaining before closure: a recorded CEO relationship and its vacancy rule,
 CEO salary and dividend income from the corporation projection, the reference
-logo/brand treatment, and physical-device validation. At 320px the rendered
-money values in the shared profile rows wrap inside the number (for example
-`$21,285,000,774.0` / `0`); this is a layout finding, not a data error.
+logo/brand treatment, and physical-device validation. This layout slice fixes the
+separate 320px presentation finding: the corporation card stacks label/value
+rows at that width so `$21,285,000,774.00` stays on one line. A rendered
+money-line assertion failed before the CSS change (two line fragments for
+Corporate cash) and the 320px owner flow passed afterward, with the screenshot
+inspected. The four-case local suite passed 3/4; the 390px owner case reached
+company detail and timed out on `page.reload` at its 90-second limit on the
+loaded shared host. The 390px screenshot showed the pre-existing two-column
+layout; this local run does not claim a complete 390px resume pass.
 
 ## Saved profile identity
 
