@@ -1,102 +1,37 @@
-# v42 interchange depth
+# Historical v42 interchange boundary
 
-Field and behavior matrix for public save interchange between Native schema 44 and the historical v42 engine. Companion to [save compatibility](SAVE-COMPATIBILITY.md). Not AHDGame parity, not in-app export, and not a claim that every Native world can round-trip.
+This document records the bounded save projection to the pinned AHDClient v42 engine. It is separate from the current AHDClient/AHDGame SP snapshot contract (#122, #301–#304) and the owner-approved versioned successor required for progressed political play (#116). The historical engine is `Egg3901/AHDClient@c5017542c860f5f94b7d4b4d5cfea2939b28995d`; Native currently writes `SCHEMA_VERSION` 48. See [save compatibility](SAVE-COMPATIBILITY.md).
 
-Pinned v42 engine: Egg3901/AHDClient@`c5017542c860f5f94b7d4b4d5cfea2939b28995d`. Native `SCHEMA_VERSION` 44. Public contract: `createWorld`, `executeAction`, `advanceTurn`, `serializeSave`, `deserializeSave`, `projectSaveToV42`.
+## What the old engine can do
 
-## Exact additive save shape (1953 US)
+Its public `deserializeSave` rejects an envelope above schema 42, migrates older schemas, and checks required fields without whitelisting extra keys. Its `serializeSave` uses `JSON.stringify` on `{ format, schemaVersion: world.meta.schemaVersion, savedAt, world }`. It therefore preserves unknown `countryPolitics` and string `player.homeRegionId` fields when reading and writing. Its turn pipeline never advances `countryPolitics`. Reader/writer preservation alone does **not** make a progressed political save playable there.
 
-Live JSON key diff of the authentic fixture versus Native `createWorld` / `deserializeSave` then `serializeSave` for seed `v42-interchange-v1`, player `Validator`, era `1953`, country `US`:
+Native `projectSaveToV42` accepts the authentic v42 fixture byte for byte and a bounded Native fresh world before political progress. It removes `countryPolitics` only when Native can restore the same record by migration and refuses progressed worlds and unsupported state. It keeps a string `homeRegionId` as an old-reader-preserved extension; a null home region is omitted to match the authentic mint. A document with that extra string is not the authentic v42 mint. The projector rejects a mere schema relabel that keeps unsupported political state. The implementation is in `packages/engine/src/save.ts`, exported from the engine and `src/game/saveCompatibility.ts`, and used by `scripts/export-save-v42.ts`.
 
-| Location | Authentic v42 mint | Native schema 44 |
-|---|---|---|
-| Envelope / `world.meta.schemaVersion` | 42 | 44 |
-| `world.countryPolitics` | absent | required record, RNG-free seed at create, eased each Native turn |
-| `player.homeRegionId` | absent | `"AL"` on Native-fresh; `null` after authentic v42 migration |
-| `world.subsidies` | absent | required array; active entries make v42 projection fail closed |
+## Reproducible projection evidence
 
-No other world or player keys differ on this mint. Feature-flag keys are the same. Native `countryPoliticsPhase` maps onto the existing `governments` flag and does not consume the turn RNG stream.
-
-Dropping both additive fields from Native-fresh 1953 US, UK, RU, and 1979 US worlds reproduced the live v42 `serializeSave` bytes for those mints. That drop is not an export policy: it discards Native home-region identity.
-
-## Historical reader and writer
-
-v42 `serializeSave` is `JSON.stringify` of `{ format, schemaVersion: world.meta.schemaVersion, savedAt, world }`. v42 `deserializeSave` rejects schema greater than 42, migrates older schemas forward, then `assertCurrentWorldState` checks required fields. It does not whitelist keys.
-
-Consequence: extra `player.homeRegionId` and `world.countryPolitics` survive v42 parse. That is not authenticity. Relabeling a v43 envelope to 42 while keeping those fields is still inauthentic.
-
-Live oracle on the pinned engine, Native-fresh 1953 US projected to schema 42:
-
-| Document | v42 `deserializeSave` then `serializeSave` | v42 `advanceTurn` |
-|---|---|---|
-| Keep `homeRegionId` `"AL"`, drop `countryPolitics` | byte-identical to input | `"AL"` still present; `countryPolitics` still absent |
-| Keep both additive fields | byte-identical to input | `"AL"` still present; `countryPolitics` frozen (phase does not exist) |
-
-v42 never assigns `world.player` wholesale and never reads `homeRegionId`. The extra string is identity, not a simulated gauge.
-
-## Field policy
-
-| Field | Authentic mint | Old reader | Old turn pipeline | Native restore if dropped | Policy |
-|---|---|---|---|---|---|
-| `schemaVersion` (envelope and meta) | 42 | required; 43 rejected | stamps 42 on write | n/a | Stamp 42 only after the field policy below succeeds |
-| `world.countryPolitics` | absent | tolerated extra; not required | not updated | v42 to v43 migration re-seeds from live macro at the current turn (one history sample, instantaneous targets). After a Native turn this is not the eased gauges or the accumulated history | Drop only when re-seed equals the original record. Refuse progressed worlds. Do not smuggle live gauges |
-| `player.homeRegionId` string | absent | tolerated extra | unused, preserved | Native migration keeps a present string; `undefined` becomes `null`, which is not `"AL"` | Keep as an opaque extra. This is how Native-fresh identity survives without inventing a v42 mechanic |
-| `player.homeRegionId` null | absent | n/a | n/a | migration writes `null` | Delete the key so the document matches authentic v42 |
-| All other world/player keys on this mint | present | required | shared simulation | identity | Pass through unchanged |
-
-Reversibility uses structural deep equality on the original parsed envelope versus the `deserializeSave` result of the candidate (array order preserved, record key order ignored, enumerable own keys including `__proto__`, primitives `===`). Native-fresh `createWorld` inserts `countryPolitics` in a different object-key slot than the v42 to v43 migration, so byte identity of the whole schema 43 document can fail even when values match. Extra own keys that restore would drop are refused. There is no numeric tolerance and no gameplay edit.
-
-## Proven projections (SHA-256 of public `serializeSave` at `2026-09-10T00:00:00.000Z`)
-
-Independent old-reader evidence: pinned v42 `deserializeSave` then `serializeSave` of the projected bytes equaled the projection.
+The hashes below are SHA-256 of public projected save bytes using `savedAt = 2026-09-10T00:00:00.000Z`. The two Native projection hashes were independently checked by loading and reserializing those bytes with the pinned old reader/writer; output was byte-identical. The test records these fixed oracle values in `packages/engine/src/save.v42Projection.test.ts`.
 
 | Input | Projection | SHA-256 |
-|---|---|---|
-| Authentic fixture / live v42 mint | identity | `471352be87c8887dcc6ae02f465b898272f62843b5e0861a45138c2de7f58cdc` |
-| Native-fresh 1953 US (home `"AL"`) | schema 42, `homeRegionId` `"AL"`, no `countryPolitics` | `f141e9a919d8a6626c53a1ca6c4c9856ec5ccc97410b0a4c2ba8d61ba3aaa320` |
-| Same world after `convertCash` 2000 | same shape | `e281fc2736afa82ee26f82d90d541bd17465605d8f5e81123820efe5e7eb91da` |
-| Native load of authentic fixture, no Native turn | identity of the fixture | same as mint |
-| Native-fresh or migrated world after one Native turn | refused | n/a |
+| --- | --- | --- |
+| Authentic 1953 US fixture | unchanged | `471352be87c8887dcc6ae02f465b898272f62843b5e0861a45138c2de7f58cdc` |
+| Native fresh 1953 US, home `AL` | schema 42, home `AL`, no `countryPolitics` | `404370ac2e43de737ce3e664fafde05f34a8298bb51db2de9de8ae6de6c59b03` |
+| Same Native world after `convertCash` 2000 | same bounded shape | `389c8c242abe894a494b43d226387651aa62c46663d7ae98e374781a53f62065` |
+| Native world after a political turn | refused | n/a |
 
-`convertCash` message on both engines: `Converted 2000 cash to 1000 funds.`
+The prior version of this document listed `f141e9a9…` and `e281fc27…` for the Native projections. Those values no longer describe the current Native output; the fixed values above match the present tests and independent old reader. The prior claims that no other world/player keys differed at mint and that shared fields matched after three turns were also stale. A current comparison found nine t=0 leaf differences, including player funds, donor base and party regime status, and 39,119 shared-field differences after one turn. This projection test establishes the stated reader/writer behavior only; it is not a mechanics parity result.
 
-Shared remaining fields (everything except the two additive keys and schema numbers) of Native-fresh 1953 US versus live v42 mint matched after `convertCash` and after three turns. That path does not prove arbitrary actions, elections, or later careers.
+## Why progressed saves require a successor
 
-## Irreducible mechanical differences
+On a recorded 1953 US Native turn, political approval history grows from one sample to two while approval and unrest ease. Re-seeding a world from current macro values loses that history and those eased values. Carrying the record as an opaque extra through v42 leaves it frozen during v42 turns. Consequently, #116 completion uses a versioned current SP successor and a compatible turn engine, with explicit political-state mapping, both transfer directions, continuation, and independent AHDGame reference traces. Historical v42 projection remains bounded and fail-closed; no progressed political save may be described as v42 compatible.
 
-**Progressed `countryPolitics`.** After one Native turn on this 1953 US world, US approval history had two samples (turns 0 and 1, eased 56.3 then 54.3) with unrest 10.9. Re-seeding at turn 1 produced one sample at 49.3 and unrest 11.3. Legitimacy happened to match. History length and eased gauges are sequential state. Schema 42 has no equivalent record. Smuggling the object through the old reader freezes it: a further v42 turn left approval at 54.3 with two samples, while Native continued to 54.4 / three samples / unrest 12.7. That is not compatibility of the mechanic. The projector refuses.
+The current snapshot descriptor and transfer policy live under `packages/engine/src/interchange/`; its Native schema number must follow the engine's live schema constant. Contract-only directions do not demonstrate either export or import. The #117/#281 parity gate must compare source-backed scenarios before a mechanics or round-trip claim.
 
-**Authentic mint versus Native-fresh identity.** A schema 42 document that carries `homeRegionId` `"AL"` is not the authentic mint. The mint omits the key. Native-fresh export is an extension document the old reader preserved. Re-import into Native restores `"AL"` and re-seeds `countryPolitics` to the same values. Importing the authentic mint still yields `homeRegionId: null` because v42 never selected a home region.
-
-**Relabel-keep-both.** Stamping 42 while leaving `countryPolitics` in place is the already-recorded inauthentic rewrite. The old reader accepts it. Native round-trip can even be byte-identical. It is still not a v42 document: the old engine does not maintain the gauges.
-
-**Engine adaptations after the v42 pin.** Referendum FNV variance and TFP basket inputs changed in this tree after the historical pin. They did not fire on this three-turn 1953 US `convertCash` path. They remain a continuation risk on worlds that exercise those systems.
-
-## Engine API and CLI wiring
-
-`projectSaveToV42(contents)` in `packages/engine/src/save.ts`, exported from `packages/engine/src/index.ts`. `src/game/saveCompatibility.ts` re-exports that function. The local export CLI (`scripts/export-save-v42.ts`) calls the same projector and writes the projected bytes on exclusive create.
-
-Succeeds when:
-
-1. Envelope and meta are already 42, Native `deserializeSave` accepts the document, `countryPolitics` is absent, and `homeRegionId` is absent or a string. The authentic fixture takes this path and is returned byte-identical. A schema 42 document that keeps `homeRegionId` `"AL"` is the Native-fresh **extension** document, not the authentic mint (the mint omits the key).
-2. Envelope and meta are 43, `countryPolitics` is present, and Native load of the stripped document (schema 42, `countryPolitics` deleted, null `homeRegionId` deleted, string `homeRegionId` kept) restores the original schema 43 values, including gauges, history, and home region.
-
-This is not full interchange. Progressed `countryPolitics` is refused. Native `serializeSave` still emits schema 43.
-
-Tests: `packages/engine/src/save.v42Projection.test.ts` (engine projector, including key-order and extra own-key cases). App re-export: `src/game/saveCompatibility.test.ts`. CLI spawn: `scripts/export-save-v42.test.ts`.
-
-## Next executable design
-
-1. Add one more oracle-backed action on the same 1953 US world only if the old reader hash is captured the same way. Do not expand into elections until `compactResolvedNpcBallots` is checked on a resolved-ballot fixture; it is a no-op on the unplayed mint.
-2. Do not add a keep-`countryPolitics` export. If a later slice wants Native round-trip of progressed gauges, that is a Native-only sidecar or schema 43 file, not schema 42.
-3. Other era/country pairs at create already matched v42 mint bytes after dropping both additive fields (UK `EMI`, RU `CAS`, 1979 US `AL`). Certify them with the keep-home projector only after recording their old-reader hashes.
-4. In-app / native-slot export and device QA stay out of this slice.
-
-## Commands
+## Local checks
 
 ```sh
 npx vitest run --config packages/engine/vitest.config.ts packages/engine/src/save.v42Projection.test.ts
 npx vitest run --config vitest.config.ts src/game/saveCompatibility.test.ts scripts/export-save-v42.test.ts
 ```
 
-Oracle probe used the pinned v42 engine read-only. No signing, no commit.
+These are local contract checks, not an iOS build or physical-device result.
