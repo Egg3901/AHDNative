@@ -131,7 +131,7 @@ export function creationChoices(era: string, countryId: string): CreationChoices
 }
 
 export function gameChoices(): EraChoice[] {
-  return listEras().map((era) => ({ id: era.id, label: era.label,
+  return listEras().map((era) => ({ id: era.id, label: era.label, startDate: era.startDate,
     countries: listPlayableCountries(era.id).map((country) => ({
       id: country.id, name: country.name,
       regions: listRegions(era.id, country.id).map((region) => ({ id: region.id, name: region.name })),

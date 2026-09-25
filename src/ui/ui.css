@@ -1650,3 +1650,7 @@ details[open] > .ahd-trend-table-disclosure::after {
 .ahd-era-anchors .ahd-era-input { inset: 0; width: 100%; height: 100%; clip: auto; cursor: pointer; }
 .ahd-era-anchors label:has(.ahd-era-input:focus-visible) { box-shadow: var(--ahd-focus); }
 .ahd-era-anchors label.is-active { color: var(--ahd-primary); background: color-mix(in srgb, var(--ahd-primary) 14%, transparent); }
+@media (max-width: 360px) {
+  .ahd-era-date-heading { align-items: flex-start; flex-direction: column; gap: 0.35rem; }
+  .ahd-era-date-heading strong { white-space: nowrap; }
+}

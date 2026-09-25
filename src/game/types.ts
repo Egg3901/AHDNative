@@ -54,6 +54,8 @@ export interface NewGameOptions { era: string; countryId: string; playerName: st
 export interface EraChoice {
   id: string;
   label: string;
+  /** Authored first playable date for this era; older test adapters may omit it. */
+  startDate?: string;
   countries: {
     id: string;
     name: string;

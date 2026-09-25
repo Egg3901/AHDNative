@@ -134,7 +134,10 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
     }
   }, [eras, era]);
 
-  const options: NewGameOptions = { era, countryId, playerName, seed: seed.trim(), startDate: resetDateIso(startYear, startWeek), mode, homeRegionId, initialization, featureFlags, difficulty, autonomyLevel };
+  const selectedDate = resetDateIso(startYear, startWeek);
+  const anchorDate = eras.find((choice) => choice.id === era)?.startDate;
+  const startDate = anchorDate && selectedDate < anchorDate ? anchorDate : selectedDate;
+  const options: NewGameOptions = { era, countryId, playerName, seed: seed.trim(), startDate, mode, homeRegionId, initialization, featureFlags, difficulty, autonomyLevel };
   const fieldErrors = useMemo(() => (touched ? validate(options, eras) : {}), [touched, options, eras]);
   const canSubmit = useMemo(() => Object.keys(validate(options, eras)).length === 0, [options, eras]);
 
@@ -151,7 +154,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
     // Never submit HoS with a null governing party; the engine would bind a
     // career-equivalent player while the UI claimed HoS.
     const finalMode = mode === "hos" && !previewParty ? "career" : mode;
-    onStart({ era, countryId, playerName: playerName.trim(), seed: seed.trim(), startDate: resetDateIso(startYear, startWeek), mode: finalMode, homeRegionId, initialization, featureFlags: { ...featureFlags }, difficulty, autonomyLevel });
+    onStart({ era, countryId, playerName: playerName.trim(), seed: seed.trim(), startDate, mode: finalMode, homeRegionId, initialization, featureFlags: { ...featureFlags }, difficulty, autonomyLevel });
   };
 
   return (

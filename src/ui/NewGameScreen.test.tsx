@@ -12,7 +12,7 @@ const REP = { id: "US_REP", name: "Republican Party", abbreviation: "REP", color
 const LAB = { id: "UK_LAB", name: "Labour Party", abbreviation: "LAB", color: "#E4003B", logoUrl: null as string | null };
 
 const ERAS: SetupEra[] = [
-  { id: "1953", label: "1953", countries: [
+  { id: "1953", label: "1953", startDate: "1953-01-06", countries: [
     { id: "US", name: "United States", regions: [{ id: "US-CA", name: "California" }, { id: "US-NY", name: "New York" }], headOfStateOffice: "president", rulingPartyByInitialization: { founding: REP, historical: REP } },
     // Matches the real 1953 UK pack: Founding commons is all-vacancy so no
     // governing party; Historical projects the synthetic winner roster (Labour).
@@ -27,6 +27,14 @@ const ERAS: SetupEra[] = [
 ];
 
 describe("NewGameScreen", () => {
+  it("starts the default 1953 world on its authored content anchor", async () => {
+    const user = userEvent.setup();
+    const onStart = vi.fn();
+    render(<NewGameScreen eras={ERAS} busy={false} onStart={onStart} onBack={vi.fn()} />);
+    await user.type(screen.getByLabelText(/your name/i), "Ada");
+    await user.click(screen.getByRole("button", { name: /^start$/i }));
+    expect(onStart).toHaveBeenCalledWith(expect.objectContaining({ era: "1953", startDate: "1953-01-06" }));
+  });
   it("lets a player start in the final week of 2027", async () => {
     const user = userEvent.setup();
     const onStart = vi.fn();
