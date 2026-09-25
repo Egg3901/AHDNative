@@ -1030,6 +1030,23 @@ focused session test proves selected rules remain authoritative after save and
 reload. Difficulty, autonomy tier, and world-simulation mode remain in #334
 until they have real Native engine consumers.
 
+World-start date checkpoint, 2026-09-25 (PR #673; #240/#118 partial): the
+shared New game flow now retains authored era presets and lets a player choose
+an exact seven-day week start through December 31, 2027. The selected date
+reaches the local `createWorld` boundary and date-aware demographic inputs;
+invalid calendar days are rejected there. A newly chosen era starts no earlier
+than its authored content anchor (1953 begins January 6). Focused tests were
+red before the final-week, invalid-day and 1953-anchor corrections, then green.
+The final 320px/390px selector interactions passed locally and both screenshots
+were inspected without horizontal overflow. Hosted verify at `23a2dd0` passed,
+including the integrated real SP create/action/turn/save/relaunch browser smoke;
+PR #673 merged as `1cbfaec`. The loaded-host focused local smoke hit its
+90-second limit after turn 1 and before Save; the hosted pass is the completed
+integrated result. AHDGame `SingleplayerHome.tsx` supplies the authored-era
+baseline; Native's week selection is an added control. Missing 1999/2007/2023
+packs, playable-country differences, and broader #240 creation/HoS/imagery
+acceptance remain open. The selector does not make those dates fully playable.
+
 #334 partial (difficulty axis). The canonical difficulty values (easy/normal/
 hard, default normal) and the exact NPP resource tuning table are ported from
 AHDGame (`new-game/route.ts`, `db/types/gameState.ts`,
