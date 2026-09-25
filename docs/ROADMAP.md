@@ -119,6 +119,16 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Evidence: `packages/engine/src/budget/fiscalDirectives.test.ts` (8 tests: step/queue, convergence, ramp replacement, small-move landing, unknown-field guard, spending, rejection refunds, save/reload), `packages/engine/src/hos.test.ts` tax test updated to the phase-in trajectory, `src/game/executiveControls.test.ts` (availability, queueing, rollback, save/close/reload), `src/ui/ExecutiveControls.test.tsx` (live-projection tab, card execution, empty career tab, phone CSS). Focused runs: 36 engine, 4 session, 4 UI tests pass. No full verify/typecheck/build run here; owed to the shared scheduler.
 - Limits: full policy proposal/sponsorship/debate/enactment/rejection/expiry lifecycle, ministerial order issue flow (#105 children), and budget/approval/election consequence surfacing remain open under #65. No physical-device claims; Linux tests only.
 
+## Native trace-capture checkpoint, 2026-09-25 (#281 partial / #117)
+
+- `captureNativeTurnTrace` records Native phases, observed shared-stream RNG
+  states with replay-verified draws and country-scoped domain mutations through
+  the public `advanceTurn` observer. It does not change the turn outcome.
+- Against the pinned AHDGame fixtures, comparison fails closed at
+  `input.canonicalInputSha256`. There is no normalized input, field map or
+  phase alignment yet. No cross-engine parity is claimed. Remaining acceptance
+  is listed in [AHDGame differential traces](AHDGAME-DIFFERENTIAL-TRACES.md).
+
 ## Differential trace-contract checkpoint, 2026-09-15 (#279 / #117)
 
 - The engine-neutral trace contract records pinned engine identity, normalized
