@@ -1426,8 +1426,16 @@ and removed. The smoke helper now walks the conversation; no engine change.
   stateId join and player-acquisition readback) and
   `src/ui/RegionsRoute.test.tsx` (markets wiring, drill). No
   physical-device claims; jsdom pins content and containment styles.
+  A further integrated route test in `src/ui/RegionsRoute.test.tsx` (2026-09-23)
+  composes the real RegionsRoute and MarketsRoute with a real GameSession at a
+  390px viewport: it drills Alabama to US-media, lists the sector for sale,
+  verifies the session projection, then unlists it and verifies the cleared
+  state. The fixture records the Alabama split in the persisted asset field
+  consumed by the projection. This verifies routing and command integration;
+  rendered source-screen comparison and physical-device behavior remain open.
   Remaining #299 gap: union bargaining/dues UI (#297) and
-  nationalization/secession fan-out (#298).
+  nationalization/secession fan-out (#298), plus rendered source-screen
+  comparison.
 
 ## Corporate-sector sale vertical slice, 2026-09-15 (#294 / #211)
 
@@ -1450,6 +1458,31 @@ and removed. The smoke helper now walks the conversation; no engine change.
   Focused evidence: `packages/engine/src/corporation/corporateSectorAssets.test.ts`
   (for-sale validation), `src/game/sectorSaleSession.test.ts` (player flow,
   atomicity, persistence), and the #294 block in `src/ui/MarketsPanel.test.tsx`.
+
+## Corporate-sector acquisition and ownership transfer, 2026-09-23 (#295)
+
+- The public engine command validates player authority, recorded asking price,
+  currency, available cash, and current ownership before transferring the
+  recorded sector to the player. A successful purchase debits player cash,
+  credits the seller corporation, clears the sale listing, and leaves the
+  corporation's labor and production record intact. Refusals preserve the
+  serialized world.
+- The `GameSession` boundary exposes buy alongside the existing list, update,
+  and unlist commands. Ownership, cash, and listing state survive save/load;
+  pre-acquisition saves default to corporation ownership.
+- The company detail UI exposes owner-gated list/update/unlist controls and
+  the live Buy action. The regional card links to that company detail and
+  returns to the selected region, while its own Buy action dispatches directly
+  for recorded regional listings.
+- Evidence on current `origin/main`: `corporateSectorAcquire.test.ts` (8),
+  `sectorSaleSession.test.ts` (8), and the regional/market UI suites
+  `RegionSectorAssets.test.tsx`, `RegionsRoute.test.tsx`, and
+  `MarketsPanel.test.tsx` (61) pass. `npm run typecheck` completed without
+  diagnostics. UI tests pin content and touch-target contracts at
+  320/390/desktop widths; they are not physical-device visual comparisons.
+- Remaining corporate-sector program issues under #211 are bargaining/dues
+  integration (#297), nationalization/secession fan-out (#298), and the
+  dependent regional UI acceptance remainder (#299).
 
 ## Player polling checkpoint, 2026-09-15 (#38)
 
@@ -2235,3 +2268,25 @@ Honest gaps: no per-action reference outcome copy (AHDGame card/modal
 detail beyond the engine message); failures stay transient banner text
 with no persisted rejected-attempt record; canvass-targeting work on
 another branch is untouched; no physical-device run.
+
+## Outstanding issue reconciliation, 2026-09-23
+
+- Closed #295, #307, #320, #321, #323, and #326 after checklist/evidence
+  review of merged implementation PRs and successful hosted `verify` checks:
+  #295 (#417/#503), #307 (#545), #320 (#542/#504), #321 (#546), #323 (#563),
+  and #326 (#559). The #295 acquisition, save/load, regional and company UI
+  evidence is detailed above; current-main focused tests were acquisition 8/8,
+  session 8/8, related UI 61/61, and `npm run typecheck` exit 0.
+- #308 is now `status: partial`: coupon, maturity, supported buyback/default
+  state, atomic flows and reload tests are delivered by #547, with phase order
+  in #550 and hosted verification green. Creditor asset/ownership consequences
+  on corporate default remain unimplemented; bondholders currently retain
+  frozen holdings at the default quote. Market pool/escrow/FX and restructuring
+  remain unsupported.
+- #322 remains `status: partial` because the labor-nudges metric writer needed
+  to apply worker political feedback is still absent. #299 remains partial:
+  regional inventory and linked buy/list controls exist, while bargaining and
+  nationalization fan-out plus rendered source visual comparison remain open.
+- Parent trackers now record #211 as 4/7 child issues complete, #110 as 4/5,
+  and #114 as 4/5. #109 has all five child slices closed, while its broader
+  combined stress/save/turn acceptance remains partial and open.
