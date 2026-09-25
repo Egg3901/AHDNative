@@ -123,6 +123,14 @@ describe("character creation fields persist through createWorld and save/load (#
     expect(restored.player.avatarUrl).toBe(avatar);
   });
 
+  it("rejects a saved avatar that exceeds the reference portrait cap (#242/#44)", () => {
+    const save = JSON.parse(serializeSave(createWorld(base), "2026-09-14T00:00:00.000Z")) as {
+      world: { player: { avatarUrl?: string } };
+    };
+    save.world.player.avatarUrl = `data:image/png;base64,${"A".repeat(2_800_000)}`;
+    expect(() => deserializeSave(JSON.stringify(save))).toThrow(/invalid player avatar/);
+  });
+
   it("does not mutate the caller's demographics object when a wealth tier is folded in", () => {
     const demographics = { race: "white", gender: "male", education: "college", wealth: "low" } as const;
     const caller = { ...demographics } as Record<string, unknown>;

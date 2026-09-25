@@ -166,6 +166,12 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 ## Save hardening checkpoint
 
 - Main integration CI completed successfully before this batch.
+- Player-image save validation now uses the same reference upload limits as
+  world creation: 2 MB for a portrait and 4 MB for a profile header. A saved
+  portrait that creation would reject also fails closed on import (#242/#44).
+  The public save-load test was red before the fix and green after; the
+  historical v42 projection suite remains 15/15 green with this workspace's
+  content package. This is local contract evidence, not device durability.
 - Native validation now extracts metadata without allocating a second world tree. A bounded local synthetic listing fell from 180 to 115 ms and peak process memory from 46,336 to 19,220 KiB. See [storage evidence](SAVE-STORAGE.md); no phone performance claim.
 - Removed the full save-list rescan from each autosaved action/turn.
 - Added explicit delete/cancel controls, failure handling and disposal of a deleted active session. Eight production-browser smoke tests and 11 Rust correctness tests pass; the manual memory profile is separate and ignored by CI.
