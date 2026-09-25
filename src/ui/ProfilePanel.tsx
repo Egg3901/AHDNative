@@ -1069,7 +1069,7 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
       </section>
 
       {(profile.corporations ?? []).length > 0 ? (
-        <section aria-label="Corporation" className="ahd-card ahd-card-pad">
+        <section aria-label="Corporation" className="ahd-card ahd-card-pad ahd-profile-corporation">
           <h2 className="ahd-h2">Corporation</h2>
           {(profile.corporations ?? []).map((entry) => (
             <article key={entry.id} aria-label={entry.name} style={{ marginTop: "0.55rem" }}>

@@ -105,6 +105,25 @@ for (const width of [320, 390]) {
     await expect(section).toContainText('Sector owner');
     await expect(section).toContainText('Corporate cash');
     await expect(section).toContainText('Your shares');
+    if (width === 320) {
+      // The player's currency figures must remain readable as whole values.
+      // A page-width check alone misses a number split across two lines.
+      const moneyLines = await section.evaluate((root) => {
+        return ['Corporate cash', 'Revenue', 'Share price'].map((label) => {
+          const row = [...root.querySelectorAll('dt')].find((term) => term.textContent === label)?.parentElement;
+          const value = row?.querySelector('dd')?.firstChild;
+          if (!value) throw new Error(`Missing value for ${label}`);
+          const range = document.createRange();
+          range.selectNodeContents(value);
+          return { label, lines: range.getClientRects().length };
+        });
+      });
+      expect(moneyLines).toEqual([
+        { label: 'Corporate cash', lines: 1 },
+        { label: 'Revenue', lines: 1 },
+        { label: 'Share price', lines: 1 },
+      ]);
+    }
     // Salary and dividends stay honest gaps: notes, never fabricated values.
     await expect(section).toContainText('Not recorded by the engine');
     await expect(section).toContainText('no dividend system');

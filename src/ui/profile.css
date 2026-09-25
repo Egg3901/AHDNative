@@ -327,6 +327,15 @@ button.ahd-profile-chip:disabled {
   .ahd-profile-photo { width: 4rem; height: 4rem; }
 }
 
+@media (max-width: 360px) {
+  .ahd-profile-corporation .ahd-profile-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.2rem;
+  }
+
+  .ahd-profile-corporation .ahd-profile-row dd { text-align: left; }
+}
+
 /* 320px phones (#371): tighten the overlap so the portrait, chips and place
    links hold in a 320px column with no sideways scroll. */
 @media (max-width: 360px) {
