@@ -13,6 +13,7 @@ import { assignUsSeatGeography } from "./elections/seatGeography.js";
 import { CENTRAL_BANK_COUNTRY_ANCHORS, CHAIR_TERM_TURNS } from "./centralBank/constants.js";
 import { seedCorporations, tickerForSector } from "./corporation/founding.js";
 import { rngFromSeed } from "./rng.js";
+import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } from "./playerImages.js";
 import type { WorldState } from "./types.js";
 import type { CorporationType, ShareholderEntry } from "./corporation/types.js";
 import { CEO_INITIAL_SHARES, NPC_FOUNDER_SHARE_FRACTION, DEFAULT_SHARE_PRICE } from "./market/constants.js";
@@ -83,12 +84,6 @@ function isValidDemographics(value: Record<string, unknown>): boolean {
     typeof value["education"] === "string" && DEMOGRAPHIC_EDUCATION_VALUES.has(value["education"] as string) &&
     typeof value["wealth"] === "string" && DEMOGRAPHIC_WEALTH_VALUES.has(value["wealth"] as string)
   );
-}
-
-/** Offline raster data URL guard for creation images (mirrors app profileValidation). */
-function isSafeRaster(value: unknown): boolean {
-  if (typeof value !== "string" || value.length > Math.ceil(4 * 1024 * 1024 / 3) * 4 + 32) return false;
-  return /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value);
 }
 
 export type ProjectSaveToV42Result =
@@ -538,7 +533,7 @@ function assertCurrentWorldState(world: WorldState): void {
     }
   }
   const profileHeader = player["profileHeaderUrl"];
-  if (profileHeader !== undefined && profileHeader !== null && !isSafeRaster(profileHeader)) {
+  if (profileHeader !== undefined && profileHeader !== null && !isPlayerImageUrl(profileHeader, MAX_PLAYER_HEADER_BYTES)) {
     throw new Error("Not a valid save file: invalid player profile header");
   }
   // #48: onboarding/tutorial prompt states are optional booleans. Absent
@@ -550,10 +545,10 @@ function assertCurrentWorldState(world: WorldState): void {
       throw new Error(`Not a valid save file: invalid player ${field}`);
     }
   }
-  // #242: the portrait shares the header raster envelope; a corrupt or
-  // non-raster value must be rejected here, not persisted and rendered.
+  // #242: the portrait shares the raster format, but its 2 MB cap is lower
+  // than the header's 4 MB cap. Import must enforce the same rule as creation.
   const avatar = player["avatarUrl"];
-  if (avatar !== undefined && avatar !== null && !isSafeRaster(avatar)) {
+  if (avatar !== undefined && avatar !== null && !isPlayerImageUrl(avatar, MAX_PLAYER_AVATAR_BYTES)) {
     throw new Error("Not a valid save file: invalid player avatar");
   }
   // Stored poll snapshots (#38): absent until commissioned; present values
