@@ -88,7 +88,7 @@ mark (`app-icon.svg`) is removed; nothing is generated or redrawn.
 Provenance (public sources, byte-identical copy):
 
 - AHDGame `d4baf899fd8bd529099f03d7410807143604e2e5`, `public/ahd-logo.png`.
-- AHDClient `378126dcb6c5b3366d182b442c6395d548b5edf5`,
+- AHDClient `62ecdba085c6899d4ab6761571524b88a39cec1e`,
   `apps/desktop/src/assets/ahd-logo.png`.
 - Both are the same 500x500 RGBA asset, SHA-256
   `1a7fe54f33c781d6b7741277a20a9e800ca5525a0fbea790a7109c3e119f66a9`.
