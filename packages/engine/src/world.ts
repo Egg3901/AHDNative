@@ -220,6 +220,8 @@ export interface NewWorldOptions {
   homeRegionId?: string;
   /** Era id from listEras(). */
   era: string;
+  /** Exact ISO calendar date. The selected era remains the authored seed pack. */
+  startDate?: string;
   overrides?: WorldOverrides;
   /** Optional singleplayer simulation controls. Unspecified controls default on. */
   featureFlags?: Partial<WorldFeatureFlags>;
@@ -573,6 +575,14 @@ export function createWorld(options: NewWorldOptions): WorldState {
   const era = options.era;
   const pack = getPackByEra(era);
   if (!pack) throw new Error(`Unknown era: ${era}`);
+  const startDate = options.startDate ?? pack.era.startDate;
+  const startDateMs = Date.parse(`${startDate}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || Number.isNaN(startDateMs) || new Date(startDateMs).toISOString().slice(0, 10) !== startDate) {
+    throw new Error("Start date must be a valid ISO calendar date");
+  }
+  if (startDate < pack.era.startDate) {
+    throw new Error(`Start date cannot precede the ${pack.era.label} content anchor`);
+  }
   const initialization = options.initialization ?? DEFAULT_WORLD_INITIALIZATION;
   if (initialization !== "historical" && initialization !== "founding") {
     throw new Error(`Unknown world initialization: ${String(initialization)}`);
@@ -826,7 +836,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
 
   // ── Demographics (W16) ──────────────────────────────────────────
   const { demographicCategories, stateDemographics, baselineDemographics, laborForces, census } =
-    seedDemographics(pack, regions, worldSeedDate(pack.era.startDate));
+    seedDemographics(pack, regions, worldSeedDate(startDate));
 
   // ── Budgets (W2) ───────────────────────────────────────────
   const { budgets, regionalBudgets } = seedBudgets(pack, regions);
@@ -863,7 +873,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
   // One entry per country carrying a MARKETIZATION_SCHEDULE (RU/DD in the
   // 1953 pack). Seeded at the era-schedule level for the world's start year;
   // commandEconomyPhase drifts it every turn.
-  const startYear = Number(pack.era.startDate.slice(0, 4));
+  const startYear = Number(startDate.slice(0, 4));
   const commandEconomy: WorldState["commandEconomy"] = {};
   for (const countryId of Object.keys(MARKETIZATION_SCHEDULE)) {
     if (!countries[countryId]?.playable) continue;
@@ -961,7 +971,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
       seed: options.seed,
       rng: rng.state(),
       turn: 0,
-      date: pack.era.startDate,
+      date: startDate,
       era: pack.era.id,
       // W33: eraCrossing guard field, seeded to the starting era so a fresh
       // world never fires a spurious crossing on turn 1. See phases/eraCrossing.ts.
@@ -1088,7 +1098,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
     committees,
     enactedLaws: [],
     stateBills: [],
-    news: [{ turn: 0, date: pack.era.startDate, headline: "A new game begins." }],
+    news: [{ turn: 0, date: startDate, headline: "A new game begins." }],
     bankLoans: [],
     interbankLoans: [],
     depositInsurance: {},

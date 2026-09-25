@@ -13,6 +13,7 @@ import type { NppAutonomyLevel } from "@ahdclient/engine";
 import type { EraChoice, NewGameOptions, NewGameScreenProps, WorldInitialization } from "../game/types";
 import { hosOfficeCopy } from "./hosOfficeCopy";
 import { PartyMark } from "./PartyMark";
+import { EraDateSelector, resetDateIso } from "./EraDateSelector";
 import "./ui.css";
 
 function validate(opts: NewGameOptions, eras: EraChoice[]): Record<string, string> {
@@ -71,6 +72,8 @@ function hosSeatingNotice(country: { name: string; headOfStateOffice: string | n
 
 export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScreenProps) {
   const [era, setEra] = useState(() => eras[0]?.id ?? "");
+  const [startYear, setStartYear] = useState(() => Number.parseInt(eras[0]?.id ?? "1953", 10));
+  const [startWeek, setStartWeek] = useState(1);
   const [countryId, setCountryId] = useState(() => eras[0]?.countries[0]?.id ?? "");
   const [mode, setMode] = useState<"career" | "hos" | "worldsim">("career");
   const [difficulty, setDifficulty] = useState<"easy" | "normal" | "hard">("normal");
@@ -131,7 +134,10 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
     }
   }, [eras, era]);
 
-  const options: NewGameOptions = { era, countryId, playerName, seed: seed.trim(), mode, homeRegionId, initialization, featureFlags, difficulty, autonomyLevel };
+  const selectedDate = resetDateIso(startYear, startWeek);
+  const anchorDate = eras.find((choice) => choice.id === era)?.startDate;
+  const startDate = anchorDate && selectedDate < anchorDate ? anchorDate : selectedDate;
+  const options: NewGameOptions = { era, countryId, playerName, seed: seed.trim(), startDate, mode, homeRegionId, initialization, featureFlags, difficulty, autonomyLevel };
   const fieldErrors = useMemo(() => (touched ? validate(options, eras) : {}), [touched, options, eras]);
   const canSubmit = useMemo(() => Object.keys(validate(options, eras)).length === 0, [options, eras]);
 
@@ -148,7 +154,7 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
     // Never submit HoS with a null governing party; the engine would bind a
     // career-equivalent player while the UI claimed HoS.
     const finalMode = mode === "hos" && !previewParty ? "career" : mode;
-    onStart({ era, countryId, playerName: playerName.trim(), seed: seed.trim(), mode: finalMode, homeRegionId, initialization, featureFlags: { ...featureFlags }, difficulty, autonomyLevel });
+    onStart({ era, countryId, playerName: playerName.trim(), seed: seed.trim(), startDate, mode: finalMode, homeRegionId, initialization, featureFlags: { ...featureFlags }, difficulty, autonomyLevel });
   };
 
   return (
@@ -172,33 +178,18 @@ export function NewGameScreen({ eras, busy, error, onStart, onBack }: NewGameScr
 
           <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: "0.85rem 0 0", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
             <div>
-              <p className="ahd-label" id="era-label" style={{ marginBottom: "0.4rem" }}>Era</p>
-              <div role="radiogroup" aria-labelledby="era-label" className="ahd-grid ahd-grid-2">
-                {eras.map((e) => {
-                  const selected = e.id === era;
-                  return (
-                    <label
-                      key={e.id}
-                      className={selected ? "ahd-era-card ahd-era-card-selected" : "ahd-era-card"}
-                      style={{
-                        cursor: busy ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      <input
-                        type="radio"
-                        name="era"
-                        value={e.id}
-                        checked={selected}
-                        onChange={() => setEra(e.id)}
-                        className="ahd-era-input"
-                        aria-label={e.label}
-                      />
-                      <span style={{ fontWeight: 750, fontSize: "0.92rem" }}>{e.label}</span>
-                      <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{e.countries.length} countries</span>
-                    </label>
-                  );
-                })}
-              </div>
+              <EraDateSelector
+                eras={eras}
+                era={era}
+                year={startYear}
+                week={startWeek}
+                disabled={busy}
+                onChange={(next) => {
+                  setEra(next.era);
+                  setStartYear(next.year);
+                  setStartWeek(next.week);
+                }}
+              />
               {fieldErrors.era ? <p className="ahd-error-text" role="alert">{fieldErrors.era}</p> : null}
             </div>
 
