@@ -176,6 +176,11 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Both transfer directions remain `contract-only`. #301 through #304 own real
   exporters, adapters, continuation evidence and exact player-facing claims.
   Historical schema-v42 compatibility remains separately tracked in #116.
+- Metadata drift fix (#122, partial): `CURRENT_SP_PROVENANCE.native` had a
+  pinned `schemaVersion: 44` while the engine was at `SCHEMA_VERSION` 48. The
+  contract now reads `SCHEMA_VERSION` from `world.ts` and a contract test
+  asserts equality, so the advertised schema cannot drift again. Transfer
+  directions stay `contract-only`; no save semantics changed.
 
 - Save hardening PR #5 passed CI and merged.
 - Minted a real schema-v42 fixture using clean AHDClient source at `c5017542c860f5f94b7d4b4d5cfea2939b28995d`. Compressed fixture and SHA-256 provenance are committed; no version relabeling was used to create it.
