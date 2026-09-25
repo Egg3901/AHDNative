@@ -176,6 +176,28 @@ describe("LandingScreen", () => {
     expect(actions).toContainElement(screen.getByRole("button", { name: `Delete ${longName}` }));
   });
 
+  it("keeps entry and bottom controls visible at 320px with a saved game (#436)", () => {
+    // Entry-shell safe-area acceptance: at the narrowest phone width, with a
+    // saved game present, the primary entry action and every bottom control
+    // the landing bottom floor protects (Help, Settings, save Continue, build
+    // label) stay mounted and visible instead of clipping or parking under
+    // the home indicator. Geometry-only: jsdom performs no layout, and
+    // nothing here is physical-device evidence.
+    Object.defineProperty(window, "innerWidth", { value: 320, configurable: true });
+    Object.defineProperty(window, "innerHeight", { value: 568, configurable: true });
+    try {
+      render(<LandingScreen {...props({ saves: SAVES })} />);
+      expect(screen.getByRole("button", { name: "New game" })).toBeVisible();
+      expect(screen.getByRole("button", { name: "Help" })).toBeVisible();
+      expect(screen.getByRole("button", { name: "Settings" })).toBeVisible();
+      expect(screen.getByRole("button", { name: "Continue Ada" })).toBeVisible();
+      expect(screen.getByText("Test build")).toBeVisible();
+    } finally {
+      Object.defineProperty(window, "innerWidth", { value: 1024, configurable: true });
+      Object.defineProperty(window, "innerHeight", { value: 768, configurable: true });
+    }
+  });
+
   it("cancels the deletion confirmation without deleting", async () => {
     const user = userEvent.setup();
     const p = props({ saves: SAVES, pendingDelete: SAVES[0] });
