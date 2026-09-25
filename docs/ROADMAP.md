@@ -186,6 +186,12 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
 - Both transfer directions remain `contract-only`. #301 through #304 own real
   exporters, adapters, continuation evidence and exact player-facing claims.
   Historical schema-v42 compatibility remains separately tracked in #116.
+- Collection integrity prerequisite (#302, partial): the public
+  `verifyCurrentSpCollectionHashes` check now rejects a declared digest that
+  differs from `JSON.stringify` of its collection documents. A red public
+  contract test became green and the five focused snapshot tests pass. The
+  parser still reports `contract-only`; source export, ruleset/content identity,
+  field mapping and turn continuation are not implemented by this check.
 - Metadata drift fix (#122, partial): `CURRENT_SP_PROVENANCE.native` had a
   pinned `schemaVersion: 44` while the engine was at `SCHEMA_VERSION` 48. The
   contract now reads `SCHEMA_VERSION` from `world.ts` and a contract test

@@ -37,3 +37,20 @@ export function parseCurrentSpSnapshot(input:unknown):ParsedCurrentSpSnapshot {
   const undeclared=Object.keys(collections).filter(name=>!seen.has(name));if(undeclared.length)throw new Error(`collections: payload absent from manifest: ${undeclared.join(",")}`);
   const snapshot:CurrentSpSnapshot={format:"ahd-current-sp-snapshot",version:1,source:{product:"AHDGame",revision:CURRENT_SP_PROVENANCE.game.revision,sourcePath:CURRENT_SP_PROVENANCE.game.sourcePath},declaredRulesetSha256:hash(root.declaredRulesetSha256,"declaredRulesetSha256"),declaredContentSha256:hash(root.declaredContentSha256,"declaredContentSha256"),manifest,collections:Object.fromEntries(manifest.map(row=>[row.name,collections[row.name] as CurrentSpJson[]]))};return {snapshot,transferStatus:"contract-only"};
 }
+
+/** Verify the document bytes represented by each declared collection digest.
+ * The source exporter must hash JSON.stringify(docs) before emitting the
+ * snapshot; array and object-key order are part of that exact contract.
+ */
+export function verifyCurrentSpCollectionHashes(
+  snapshot: CurrentSpSnapshot,
+  sha256: (contents: string) => string,
+): true {
+  for (const row of snapshot.manifest) {
+    const docs = snapshot.collections[row.name];
+    if (!docs || sha256(JSON.stringify(docs)) !== row.declaredSha256) {
+      throw new Error(`Collection ${row.name} digest mismatch`);
+    }
+  }
+  return true;
+}
