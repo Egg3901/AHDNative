@@ -15,6 +15,18 @@ describe("custom world start date", () => {
     expect(world.news[0]?.date).toBe("1994-04-23");
   });
 
+  it("rejects a calendar date that ISO parsing would roll into another month", () => {
+    expect(() =>
+      createWorld({
+        era: "1991",
+        startDate: "2027-02-30",
+        countryId: "US",
+        playerName: "Player",
+        seed: "invalid-calendar-date",
+      }),
+    ).toThrow(/valid ISO calendar date/);
+  });
+
   it("rejects a date before the selected content anchor", () => {
     expect(() =>
       createWorld({

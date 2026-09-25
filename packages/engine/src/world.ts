@@ -576,7 +576,8 @@ export function createWorld(options: NewWorldOptions): WorldState {
   const pack = getPackByEra(era);
   if (!pack) throw new Error(`Unknown era: ${era}`);
   const startDate = options.startDate ?? pack.era.startDate;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || Number.isNaN(Date.parse(`${startDate}T00:00:00Z`))) {
+  const startDateMs = Date.parse(`${startDate}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || Number.isNaN(startDateMs) || new Date(startDateMs).toISOString().slice(0, 10) !== startDate) {
     throw new Error("Start date must be a valid ISO calendar date");
   }
   if (startDate < pack.era.startDate) {
