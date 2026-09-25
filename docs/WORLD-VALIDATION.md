@@ -17,7 +17,7 @@ Requires `npm ci` once. Uses the existing `tsx` dependency. Does not invoke `vit
 
 `createWorld`, `listEras`, `listPlayableCountries`, `executeAction`, `advanceTurn`, `serializeSave`, `deserializeSave`.
 
-Combos are derived at runtime from `listEras()` × `listPlayableCountries(era)`. This import has **21** playable era/country pairs (the expected count matched).
+Combos are derived at runtime from `listEras()` × `listPlayableCountries(era)`. Current packs derive **17** playable era/country pairs (4+4+5+4): JP/DE (1991, 2019) and BR (2019) are present as economy-preview entries with `playable:false`, and `createWorld` rejects them fail-closed (pinned by `packages/engine/src/eraCoverage.test.ts` and `packages/content/src/supportedMatrix.test.ts`). The recorded run below exercised **21** pairs on [Egg3901/AHDNative@16e4c9a](https://github.com/Egg3901/AHDNative/commit/16e4c9a829eea425139bd083e9df46d8c1737c19), whose 1991/2019 packs still marked JP/DE playable; its hashes are preserved as that run's evidence, not as current coverage.
 
 Fixed inputs:
 

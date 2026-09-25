@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deserializeSave, serializeSave } from "./save.js";
 import {
   createWorld,
+  listCountries,
   listEras,
   listPlayableCountries,
   SCHEMA_VERSION,
@@ -35,6 +36,43 @@ describe("era coverage: selection (#118)", () => {
         createWorld({ seed: "reject-era", playerName: "P", countryId: "US", era }),
       ).toThrow(/Unknown era/);
       expect(() => listPlayableCountries(era)).toThrow(/Unknown era/);
+    }
+  });
+
+  it("derives exactly 17 supported combos from the shipped packs (not 21)", () => {
+    // Source-backed contract for #118: JP/DE (1991, 2019) and BR (2019)
+    // are economy-preview entries, not playable countries. The derived
+    // set below must stay in sync with SUPPORTED_MATRIX and the
+    // world-validation/matrix docs; any playable-flag change fails here.
+    const derived: string[] = [];
+    for (const era of listEras()) {
+      for (const c of listPlayableCountries(era.id)) derived.push(`${era.id}/${c.id}`);
+    }
+    derived.sort();
+    expect(derived).toEqual([
+      "1953/DD", "1953/RU", "1953/UK", "1953/US",
+      "1979/DD", "1979/RU", "1979/UK", "1979/US",
+      "1991/BR", "1991/CN", "1991/IE", "1991/UK", "1991/US",
+      "2019/CN", "2019/IE", "2019/UK", "2019/US",
+    ]);
+  });
+
+  it("economy-preview entries stay present but fail closed on selection", () => {
+    // JP/DE (1991, 2019) and BR (2019) keep their authored economic
+    // records in the pack yet are unavailable: listCountries reports
+    // playable:false and createWorld rejects them without fallback.
+    const preview: Array<[string, string]> = [
+      ["1991", "JP"], ["1991", "DE"],
+      ["2019", "JP"], ["2019", "DE"], ["2019", "BR"],
+    ];
+    expect(preview.length).toBe(5);
+    for (const [era, countryId] of preview) {
+      const entry = listCountries(era).find((c) => c.id === countryId);
+      expect(entry, `${era}/${countryId} present in pack`).toBeDefined();
+      expect(entry!.playable).toBe(false);
+      expect(() =>
+        createWorld({ seed: "preview-reject", playerName: "P", countryId, era }),
+      ).toThrow(/not playable/);
     }
   });
 
