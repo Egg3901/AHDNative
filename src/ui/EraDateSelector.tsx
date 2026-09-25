@@ -48,9 +48,7 @@ export function EraDateSelector({
       <div className="ahd-era-date-heading">
         <div>
           <span className="ahd-label">Starting date</span>
-          <strong>
-            {year} <small>Week {week}</small>
-          </strong>
+          <strong>{year} · Week {week}</strong>
         </div>
         <span className="ahd-muted">
           {eras.find((item) => item.id === era)?.label ?? era} base
@@ -88,17 +86,24 @@ export function EraDateSelector({
       </div>
       <div className="ahd-era-anchors">
         {anchors.map(({ choice, year: anchorYear }) => (
-          <button
+          <label
             key={choice.id}
-            type="button"
-            disabled={disabled}
             className={choice.id === era ? "is-active" : ""}
-            onClick={() =>
-              onChange({ era: choice.id, year: anchorYear, week: 1 })
-            }
           >
+            <input
+              type="radio"
+              name="era"
+              value={choice.id}
+              checked={choice.id === era}
+              disabled={disabled}
+              onChange={() =>
+                onChange({ era: choice.id, year: anchorYear, week: 1 })
+              }
+              className="ahd-era-input"
+              aria-label={choice.label}
+            />
             {anchorYear}
-          </button>
+          </label>
         ))}
       </div>
     </div>

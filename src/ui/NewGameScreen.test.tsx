@@ -31,8 +31,8 @@ describe("NewGameScreen", () => {
     const user = userEvent.setup();
     const onStart = vi.fn();
     render(<NewGameScreen eras={ERAS} busy={false} onStart={onStart} onBack={vi.fn()} />);
-    expect(screen.getByText("1953")).toBeInTheDocument();
-    expect(screen.getByText("1991")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "1953" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "1991" })).toBeInTheDocument();
     const select = screen.getByLabelText(/country/i) as HTMLSelectElement;
     expect(select.value).toBe("US");
     await user.click(screen.getByLabelText("1991"));
