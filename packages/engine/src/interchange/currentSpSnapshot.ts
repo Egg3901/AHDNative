@@ -1,11 +1,12 @@
 import { PINNED_GAME_COLLECTION_POLICY } from "./currentSpCollections.generated.js";
+import { SCHEMA_VERSION } from "../world.js";
 
 export type CurrentSpJson = null | boolean | number | string | CurrentSpJson[] | { [key: string]: CurrentSpJson };
 
 export const CURRENT_SP_PROVENANCE = {
   client: { product: "AHDClient", revision: "6c9ee98ce1331c24042bb48628839f6b3997dde4", sourcePath: "apps/desktop/src-tauri/src/desktop.rs" },
   game: { product: "AHDGame", revision: "d4baf899fd8bd529099f03d7410807143604e2e5", sourcePath: "src/lib/admin/seed/seedManifest.ts" },
-  native: { product: "AHDNative", schemaVersion: 44, sourcePath: "packages/engine/src/save.ts" },
+  native: { product: "AHDNative", schemaVersion: SCHEMA_VERSION, sourcePath: "packages/engine/src/world.ts" },
 } as const;
 export const CURRENT_SP_LAUNCHER_METADATA_CONTRACT = { provenance: CURRENT_SP_PROVENANCE.client, classification: "metadata-only", fields: ["slot", "name", "preset", "createdAt", "lastPlayedAt", "turn", "character", "setup"] } as const;
 export const CURRENT_SP_INTERCHANGE_CONTRACT = { format: "ahd-current-sp-snapshot", version: 1, clientRevision: CURRENT_SP_PROVENANCE.client.revision, gameRevision: CURRENT_SP_PROVENANCE.game.revision, nativeSchemaVersion: CURRENT_SP_PROVENANCE.native.schemaVersion, directions: { gameToNative: "contract-only", nativeToGame: "contract-only" } } as const;
