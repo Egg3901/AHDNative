@@ -51,7 +51,7 @@ export type { WorldRng, RngState } from "./rng.js";
 export { dateForTurn, eraForDate, nextEraForDate, addDaysIso, START_DATE, DAYS_PER_TURN } from "./calendar.js";
 export type { TurnPhase, TurnReport, PhaseTiming } from "./phases/types.js";
 export * from "./differential/trace.js";
-export { captureNativeTurnTrace } from "./differential/nativeCapture.js";
+export { captureNativeTurnTrace, MAX_NATIVE_TRACE_DRAWS_PER_PHASE } from "./differential/nativeCapture.js";
 export type { CaptureNativeTurnTraceOptions, NativeTurnTraceCapture } from "./differential/nativeCapture.js";
 export * from "./npp/nameGenerator.js";
 export * from "./npp/nameEra.js";

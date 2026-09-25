@@ -44,23 +44,32 @@ blocked for #281 until AHDGame exposes those draws.
 
 ## Native capture (#281, partial)
 
-`captureNativeTurnTrace(world, { fixtureId, era, revision, sha256 })` is
-exported from `@ahdclient/engine`. It advances one turn through the public
+`captureNativeTurnTrace(world, { fixtureId, era, revision, savedAt, sha256 })`
+is exported from `@ahdclient/engine`. It advances one turn through the public
 `advanceTurn` `afterPhase` observer and emits a schema-v1 `native` trace. The
-turn outcome is byte-identical to an unobserved `advanceTurn`.
+turn outcome is identical to an unobserved `advanceTurn`. If capture fails, it
+throws mid-turn and the world must be discarded.
 
 - Phases are the ones `advanceTurn` actually ran, in run order.
 - RNG `before`/`after` are observed states of the shared `advanceTurn` sfc32
   stream. `draws` are the exact `next()` outputs between them, replayed from
-  `before` and rejected unless they reach `after`. Phase-local generators
+  `before` and rejected unless they reach `after`. The draw count comes from the
+  counter word. Above `MAX_NATIVE_TRACE_DRAWS_PER_PHASE` (1,000,000, or the
+  `maxDrawsPerPhase` option) the capture throws before allocating anything. A
+  real turn draws about 0.1M in total. Phase-local generators
   (`intraparty/phases.ts` `forkRng`, `judiciary/scotusTurn.ts`) are declared
   `unobserved-fail-closed` in `after.unobservedStreams`, not reported as absent.
 - Observations use the exporter's `{ mutations: [{ path, before, after }] }`
-  shape and diff rule, scoped to the player's country: politician
-  `actions`/`funds` (resources), election records, national and regional
-  budgets, enacted laws (policies) and country news (player consequences).
-  These are Native field names, not a canonical Mongo-to-Native field map.
-- `input.source.sha256` hashes the sorted-key pre-turn world payload.
+  shape and diff rule, scoped to the player's country. The domains are: the
+  human player's `cash`/`funds`/`actions` plus politician `actions`/`funds`
+  (resources), election records, national and regional budgets, enacted laws
+  (policies) and country news (player consequences). When a key exists on only
+  one side, the mutation also carries `presence: { before, after }`, so an
+  absent field is not mistaken for `null`. The pinned AHDGame exporter treats
+  absent as `null` (`?? null`), which is an upstream delta. These are Native
+  field names, not a canonical Mongo-to-Native field map.
+- `input.source.sha256` hashes the exact `serializeSave(world, savedAt)`
+  bytes. The same world and `savedAt` reproduce it after save/reload.
   `input.canonicalInputSha256` hashes the Native initial domain observation, so
   it is not yet the shared normalized input.
 
