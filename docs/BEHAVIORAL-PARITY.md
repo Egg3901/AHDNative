@@ -109,6 +109,45 @@ The worker validates edits atomically and the app saves through its existing
 repository. Failed saves keep the biography editor and draft available for retry.
 Read-only profile queries keep image bytes out of routine action/turn responses.
 
+## Cabinet ministerial-order player flow (#262)
+
+Reference source: AHDGame `e364c0495`,
+`src/app/country/[code]/executive/cabinet/[positionId]/office/page.tsx`
+and its `components/MinisterialOrderPanel.tsx`. That player route keeps a
+position-specific office open while issuing an order, gives one result message,
+shows active orders and remaining ministerial actions, and lets the server
+refresh the office. The US Treasury catalog at
+`src/lib/countries/us/cabinet/orders.ts` defines Emergency Fiscal Stimulus as
+24 turns with `economic.unemploymentRate` modifier `-0.03` nationwide.
+
+Native's mobile cabinet selector adapts the position URL to the drawer. A
+Head-of-State US player can sponsor their own Treasury nomination through the
+public session command. The engine confirms the seat on turn 24; only then
+does the drawer expose Cabinet office and its issue control. The focused
+`src/ui/CabinetPlayerFlow262.test.tsx` suite passed 5/5: vacant-office
+refusal, natural seat confirmation, valid/duplicate/unknown order results,
+next-turn application, and exact office projection after save/reload. The
+earlier acceptance tests that directly inserted cabinet rows are not used as
+proof of player reachability.
+
+`smoke/cabinet-player-flow.spec.ts` passed both 320px and 390px integrated
+flows through the real app: open the drawer destination, issue the order,
+save, reload, and reopen it. It generates the loaded save by those public
+nomination and turn commands; it does not insert a cabinet member or order.
+Screenshot inspection at both widths caught an office-selection reset after
+issue and duplicate feedback. A failing browser assertion recorded the
+duplicate result; the screen now keeps Treasury selected across the detail
+refresh and shows one inline result. The final local two-width run passed,
+including an assertion that the complete active-order card can scroll clear
+of the fixed footer. Reproduce with
+`npm run test:smoke -- smoke/cabinet-player-flow.spec.ts`; screenshots are
+regenerated in ignored `artifacts/smoke/cabinet-player-*.png`.
+
+This verifies the bounded order player flow and mobile rendering on Linux.
+It does not claim the rest of AHDGame's cabinet office modules, exact
+cross-engine turn outputs, or physical-device behavior; those remain tracked
+under #105/#281 and #43/#44.
+
 ## Next acceptance slices
 
 | Slice | Required evidence | Status |

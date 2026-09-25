@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { describe, expect, it, vi, afterEach, beforeAll } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { GameSession } from "../game/session";
@@ -60,8 +60,27 @@ function metricOf(session: GameSession): number | undefined {
  * arrives (no save-seeding fallback).
  */
 let seatedSave = "";
+beforeAll(() => {
+  const session = new GameSession();
+  session.create({ ...OPTIONS });
+  const sponsor = session.act("sponsorCabinetNomination", {
+    countryId: "US",
+    positionId: POSITION,
+    nomineeId: "player",
+  });
+  expect(sponsor.ok).toBe(true);
+  expect(sponsor.ok && sponsor.message).toContain("The Senate votes by turn 24");
+  let seated = false;
+  for (let i = 0; i < 25 && !seated; i++) {
+    seated = !session.cabinetOffice().positions.find((entry) => entry.id === POSITION)?.isVacant;
+    if (!seated) session.advance();
+  }
+  expect(seated).toBe(true);
+  seatedSave = session.serialize(SAVED_AT);
+}, 240_000);
+
 function seatedSession(): GameSession {
-  if (!seatedSave) throw new Error("seated save was never produced: the confirmation case failed first");
+  if (!seatedSave) throw new Error("seated save was never produced: nomination confirmation failed");
   const session = new GameSession();
   session.load(seatedSave);
   return session;
@@ -106,23 +125,14 @@ describe("cabinet ministerial-order player flow (#262)", () => {
     expect(session.cabinetOffice().activeOrders).toEqual([]);
   });
 
-  it("seats the sponsored player through engine confirmation", { timeout: 240_000 }, () => {
-    const session = new GameSession();
-    session.create({ ...OPTIONS });
-    const sponsor = session.act("sponsorCabinetNomination", {
-      countryId: "US",
-      positionId: POSITION,
-      nomineeId: "player",
+  it("seats the sponsored player through engine confirmation", () => {
+    const office = seatedSession().cabinetOffice();
+    expect(office.turn).toBe(24);
+    expect(office.positions.find((entry) => entry.id === POSITION)).toMatchObject({
+      holderName: "Alex",
+      isPlayerHolder: true,
+      isVacant: false,
     });
-    expect(sponsor.ok).toBe(true);
-    expect(sponsor.ok && sponsor.message).toContain("The Senate votes by turn 24");
-    let seated = false;
-    for (let i = 0; i < 25 && !seated; i++) {
-      seated = !session.cabinetOffice().positions.find((entry) => entry.id === POSITION)?.isVacant;
-      if (!seated) session.advance();
-    }
-    expect(seated).toBe(true);
-    seatedSave = session.serialize(SAVED_AT);
   });
 
   it("issues, refuses, applies on turn, and survives reload", { timeout: 120_000 }, () => {

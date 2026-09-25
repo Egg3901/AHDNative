@@ -164,6 +164,10 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   // Selected hub category survives route changes so Profile/footer deep-links
   // and returns never lose the player's filter selection.
   const [actionsCategory, setActionsCategory] = useState<ActionsCategoryFilter>("all");
+  // The cabinet query unmounts its panel on each world revision. Keep the
+  // player's selected office here so an issued order does not jump to a
+  // different (possibly vacant) portfolio when the result refreshes.
+  const [cabinetPositionId, setCabinetPositionId] = useState<string>();
   // Nations browse context (the reference's "Switch nation view") survives route
   // changes the same way, so returning to Nations lands on the viewed nation.
   // It only changes whose details are shown — never the player's country.
@@ -216,6 +220,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   const resourceButtonRefs = useRef<Partial<Record<ResourceId, HTMLButtonElement | null>>>({});
 
   const saveNotice = message === "Game saved." || message === "Saved game loaded.";
+  const cabinetInlineFeedback = route === "government" && world.cabinet !== null && Boolean(loadCabinetOffice && onIssueCabinetOrder);
   // One world clock for every in-game date surface on this screen (#226).
   const clock: GameClock = {
     turn: world.turn,
@@ -596,7 +601,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
         <h1 className="ahd-sr-only">A House Divided · {pageTitle(route)}</h1>
         {busy && message ? <div className="ahd-notice" role="status" aria-live="polite" style={{ marginBottom: "0.6rem" }}>{message}</div> : null}
         {error ? <div className="ahd-alert" role="alert" style={{ marginBottom: "0.6rem" }}>{error}</div> : null}
-        {!busy && message && !error && !saveNotice ? <div className="ahd-notice" role="status" style={{ marginBottom: "0.6rem" }}>{message}</div> : null}
+        {!busy && message && !error && !saveNotice && !cabinetInlineFeedback ? <div className="ahd-notice" role="status" style={{ marginBottom: "0.6rem" }}>{message}</div> : null}
         {isTabRoute(route) ? (
         <section
           id={tabPanelId}
@@ -841,7 +846,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
               </div>
             </div>
           ) : loadCabinetOffice && onIssueCabinetOrder ? (
-            <DetailQuery load={loadCabinetOffice} revision={world} label="Cabinet office">{office => <CabinetOfficePanel office={office} busy={busy} notice={error ? { kind: "error", text: error } : message ? { kind: "ok", text: message } : null} onIssue={onIssueCabinetOrder} />}</DetailQuery>
+            <DetailQuery load={loadCabinetOffice} revision={world} label="Cabinet office">{office => <CabinetOfficePanel office={office} busy={busy} notice={error ? { kind: "error", text: error } : message ? { kind: "ok", text: message } : null} onIssue={onIssueCabinetOrder} selectedPositionId={cabinetPositionId} onSelectPosition={setCabinetPositionId} />}</DetailQuery>
           ) : (
             // #510 honest unavailable state: the shell must say the cabinet
             // service is not connected and offer a way out, never a blank region.

@@ -24,6 +24,8 @@ export interface CabinetOfficePanelProps {
   busy: boolean;
   notice: CabinetOfficeNotice | null;
   onIssue: (input: IssueCabinetOrderInput) => void;
+  selectedPositionId?: string;
+  onSelectPosition?: (positionId: string) => void;
 }
 
 function effectLabel(metric: string, modifier: number): string {
@@ -31,9 +33,10 @@ function effectLabel(metric: string, modifier: number): string {
   return `${metric} ${sign}${modifier}`;
 }
 
-export function CabinetOfficePanel({ office, busy, notice, onIssue }: CabinetOfficePanelProps) {
+export function CabinetOfficePanel({ office, busy, notice, onIssue, selectedPositionId, onSelectPosition }: CabinetOfficePanelProps) {
   const positions = office.positions;
-  const [positionId, setPositionId] = useState(positions[0]?.id ?? "");
+  const [localPositionId, setLocalPositionId] = useState(positions[0]?.id ?? "");
+  const positionId = selectedPositionId ?? localPositionId;
   const position = positions.find((candidate) => candidate.id === positionId) ?? positions[0];
   const [orderId, setOrderId] = useState<string | undefined>(undefined);
   const order = position?.orders.find((candidate) => candidate.id === orderId) ?? position?.orders[0];
@@ -90,7 +93,11 @@ export function CabinetOfficePanel({ office, busy, notice, onIssue }: CabinetOff
                 aria-label="Cabinet office"
                 value={position?.id ?? ""}
                 disabled={busy}
-                onChange={(event) => { setPositionId(event.target.value); setOrderId(undefined); }}
+                onChange={(event) => {
+                  setLocalPositionId(event.target.value);
+                  onSelectPosition?.(event.target.value);
+                  setOrderId(undefined);
+                }}
               >
                 {positions.map((entry) => (
                   <option key={entry.id} value={entry.id}>
