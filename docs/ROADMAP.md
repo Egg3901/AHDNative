@@ -107,7 +107,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 
 - Physical iOS gameplay/lifecycle/performance evidence does not exist yet.
 - Historical engine mechanics differ from current AHDGame in known systems. Reuse is an integration starting point, not parity certification.
-- Authentic v42 import now passes for the pinned 1953 US fixture. Current v43 output is rejected by the old v42 reader. The engine projector and local export CLI write authentic fixtures byte-identical and Native-fresh pre-turn worlds as a keep-home schema 42 extension (not the authentic mint). Progressed `countryPolitics` still cannot round-trip without loss and is refused.
+- Authentic v42 import now passes for the pinned 1953 US fixture. Current schema 48 output is rejected by the old v42 reader. The engine projector and local export CLI write authentic fixtures byte-identical and Native-fresh pre-turn worlds as a keep-home schema 42 extension (not the authentic mint). Progressed `countryPolitics` still cannot round-trip without loss and is refused; its completion target is the versioned successor with a compatible turn engine (#116/#122).
 - The private iOS preview has passed signing, upload and Apple processing. Full phone playthrough, lifecycle and measured performance remain unverified; 1.0.0 is still gated.
 
 Status changes must cite an actual commit, test result, artifact or explicit blocker. Completed shell/RNG/replay groundwork does not imply a playable release.

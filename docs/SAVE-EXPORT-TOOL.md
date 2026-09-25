@@ -32,7 +32,7 @@ These CLI cases are included in the normal `npm test` verification batch.
 | Genuine v42 fixture (`fixtures/v42-1953-US.save.json.gz`, SHA-256 `471352be87c8887dcc6ae02f465b898272f62843b5e0861a45138c2de7f58cdc`) | exit 0, output byte-identical to input |
 | Output path already exists | exit 1, existing file left untouched |
 | Invalid save (unparseable JSON) | exit 1, no output created |
-| Native-fresh pre-turn v43 world (`homeRegionId "AL"`) | exit 0, schema 42 extension with `homeRegionId` `"AL"` and no `countryPolitics`, SHA-256 `f141e9a919d8a6626c53a1ca6c4c9856ec5ccc97410b0a4c2ba8d61ba3aaa320` |
+| Native-fresh pre-turn schema 48 world (`homeRegionId "AL"`) | exit 0, schema 42 extension with `homeRegionId` `"AL"` and no `countryPolitics`, SHA-256 `404370ac2e43de737ce3e664fafde05f34a8298bb51db2de9de8ae6de6c59b03` |
 | Progressed Native world (one `advanceTurn`) | exit 1 naming `countryPolitics`, no output created |
 | Schema-relabeled v43 envelope | exit 1 as not authentic schema 42, no output created |
 | `--help` | exit 0, usage on stdout |
@@ -46,7 +46,7 @@ source is never overwritten.
 - No browser or native export. This is a local filesystem developer tool.
 - The Native-fresh output is a v42 extension document. It is not the
   authentic mint, which omits `homeRegionId`.
-- Progressed `countryPolitics`, relabeled v43, and other schema versions
+- Progressed `countryPolitics`, a relabeled newer save, and unsupported schema versions
   still fail closed; see `docs/SAVE-WRITER-INVESTIGATION.md` and
   `docs/V42-INTERCHANGE-DEPTH.md`.
 - No AHDGame parity, no full progressed interchange, no device or signing

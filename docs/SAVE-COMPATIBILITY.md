@@ -66,7 +66,7 @@ The v42-to-v43 migration adds two WorldState fields (`packages/engine/src/save.t
 
 Evidence:
 
-- Native `serializeSave` stamps `schemaVersion` from `world.meta.schemaVersion` (44). The v42 reader rejects that envelope before walking fields.
+- Native `serializeSave` stamps `schemaVersion` from `world.meta.schemaVersion` (currently 48). The v42 reader rejects that envelope before walking fields.
 - A Native-fresh 1953 US world in this tree writes `player.homeRegionId` as a real region (`AL`). A migrated authentic v42 world gets `homeRegionId: null` because v42 never selected one. Those are different player identities. The engine projector keeps a string `homeRegionId` as an opaque extra the old reader preserved; it does not invent a v42 home-region mechanic.
 - Dropping progressed `countryPolitics` discards live gauges and approval history. The old engine does not run that phase, so easing cannot be reconstructed. The projector refuses those worlds instead of smuggling frozen gauges.
 
