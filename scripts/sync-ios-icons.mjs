@@ -24,6 +24,9 @@ export function syncIosIcons(appleDirectory, sourceDirectory) {
     // Tauri's template repeats equal-size phone/tablet files with a -1 suffix.
     const source = join(sourceDirectory, entry.filename.replace(/-1(?=\.png$)/, ""));
     const bytes = readFileSync(source);
+    if (bytes[24] !== 8 || bytes[25] !== 2) {
+      throw new Error(`iOS icons must be opaque 8-bit RGB without alpha: ${entry.filename}`);
+    }
     const size = entry.size.split("x").map(Number);
     const scale = Number.parseFloat(entry.scale);
     if (bytes.subarray(1, 4).toString() !== "PNG" ||

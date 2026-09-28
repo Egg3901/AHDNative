@@ -23,6 +23,16 @@ test("replaces generated placeholder slots, including duplicated iPad names", ()
       readFileSync(join(catalog, image.filename)),
       readFileSync(join(source, image.filename.replace(/-1(?=\.png$)/, ""))),
     );
+    const invalidSource = join(temp, "invalid-source");
+    mkdirSync(invalidSource);
+    for (const image of images) {
+      const name = image.filename.replace(/-1(?=\.png$)/, "");
+      const bytes = readFileSync(join(source, name));
+      // Simulate an RGBA header, the App Store's rejected input class.
+      bytes[25] = 6;
+      writeFileSync(join(invalidSource, name), bytes);
+    }
+    assert.throws(() => syncIosIcons(temp, invalidSource), /without alpha/);
     images[0].size = "57x57";
     writeFileSync(join(catalog, "Contents.json"), JSON.stringify({ images }));
     assert.throws(() => syncIosIcons(temp, source), /Wrong dimensions/);
