@@ -52,7 +52,7 @@ describe("LandingScreen", () => {
     render(<LandingScreen {...props()} />);
     const logo = document.querySelector("img.ahd-landing-logo") as HTMLImageElement | null;
     expect(logo).not.toBeNull();
-    expect(logo?.getAttribute("src")).toContain("ahd-logo.png");
+    expect(logo?.getAttribute("src")).toContain("ahd-logo-steel-blue.png");
     // The h1 already names the game, so the logo stays decorative (reference parity).
     expect(logo?.alt).toBe("");
     // Square intrinsic size pins the aspect ratio before the PNG loads.

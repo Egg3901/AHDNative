@@ -80,7 +80,30 @@ Provenance (read-only `git show`, no runtime/ops material copied):
 - No `.env`, credentials, signing, download URLs, server auth or marketing
   copy were read or copied. Only the files named above were inspected.
 
-## Canonical logo (issue #148)
+## Native steel-blue identity (2026-09-28)
+
+The owner requested a steely blue-gray variant of the AHDClient bell logo.
+`public/ahd-logo-steel-blue.png` is the 1254x1254 RGBA edit made with the
+built-in image generation tool from AHDClient's canonical 500x500 reference.
+The original `public/ahd-logo.png` remains unchanged for provenance. The
+variant carries the established bell-and-ring identity with a slate bell,
+steel-blue ring, white interior, and transparent exterior. It is a derived
+raster rendition, not a byte-identical or pixel-exact recolor.
+
+Edit prompt: recolor only the canonical AHDClient Liberty Bell badge; preserve
+its silhouette, crack, mounting, ring and composition; steel blue-gray ring
+(#64798a), dark slate blue-gray bell (#354c5e), white interior and linework;
+transparent outside; no text, new objects, metallic effects or shadows.
+
+The launcher, favicon, touch icon, README and generated platform icon sets use
+the variant. Regenerate with `tauri icon public/ahd-logo-steel-blue.png --output
+src-tauri/icons`, removing the CLI's identical `-1.png` iOS duplicates.
+Normalize Android legacy/round outputs to 48/72/96/144/192 pixels per density
+from the source PNG on white; the CLI's default legacy outputs are undersized.
+Rights remain with Lakeside Games. This asset update does not trigger an
+AHDNative release; installed-device appearance needs the next app build.
+
+## Original canonical logo provenance (issue #148)
 
 The launcher now uses the established AHD identity. The temporary letter-A
 mark (`app-icon.svg`) is removed; nothing is generated or redrawn.
