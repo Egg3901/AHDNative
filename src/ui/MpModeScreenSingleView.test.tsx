@@ -1,3 +1,4 @@
+import { openMpMenu } from "./mpNavigation.test-helpers";
 /**
  * Single-view mobile slice for the Native multiplayer screen (#362).
  *
@@ -110,8 +111,9 @@ describe("MpModeScreen single-view drill-in at 320px", () => {
     render(<MpModeScreen host={fakeHost(readyScript()).host} onExit={() => {}} />);
     await screen.findByRole("heading", { name: "Ada" });
 
+    await openMpMenu();
     const sections = screen.getByRole("navigation", { name: "Multiplayer sections" });
-    expect(within(sections).getByRole("button", { name: "Status" })).toBeInTheDocument();
+    expect(within(sections).getByRole("button", { name: "Profile" })).toBeInTheDocument();
     expect(within(sections).getByRole("button", { name: "Actions" })).toBeInTheDocument();
     expect(within(sections).getByRole("button", { name: /Inbox/ })).toBeInTheDocument();
     expect(within(sections).getByRole("button", { name: "Mail" })).toBeInTheDocument();
@@ -120,10 +122,10 @@ describe("MpModeScreen single-view drill-in at 320px", () => {
     expect(window.location.hash).toBe("#mp-actions");
     expect(document.getElementById("mp-actions")).toHaveFocus();
 
-    const backs = screen.getAllByRole("button", { name: "Back to sections" });
-    expect(backs.length).toBeGreaterThanOrEqual(4);
+    const backs = screen.getAllByRole("button", { name: "Back to profile" });
+    expect(backs).toHaveLength(1);
     await user.click(backs[0]);
-    expect(window.location.hash).toBe("#mp-top");
+    expect(window.location.hash).toBe("#mp-profile");
   });
 
   it("keeps Ask and Menu reachable after drilling in", async () => {
@@ -134,6 +136,7 @@ describe("MpModeScreen single-view drill-in at 320px", () => {
     render(<MpModeScreen host={fakeHost(readyScript()).host} onAsk={onAsk} onExit={onExit} />);
     await screen.findByRole("heading", { name: "Ada" });
 
+    await openMpMenu();
     const sections = screen.getByRole("navigation", { name: "Multiplayer sections" });
     await user.click(within(sections).getByRole("button", { name: /Inbox/ }));
 
@@ -141,7 +144,8 @@ describe("MpModeScreen single-view drill-in at 320px", () => {
     await user.click(navigation.getByRole("button", { name: "Ask" }));
     expect(onAsk).toHaveBeenCalledTimes(1);
     await user.click(navigation.getByRole("button", { name: "Menu" }));
-    expect(onExit).toHaveBeenCalledTimes(1);
+    expect(onExit).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Game menu" })).toBeVisible();
   });
 
   it("uses wrap-safe CSS so the section nav never clips at 320px", () => {

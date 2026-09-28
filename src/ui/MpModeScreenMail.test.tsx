@@ -1,3 +1,4 @@
+import { openMpMenu, openMpDestination } from "./mpNavigation.test-helpers";
 /**
  * Native player-mail contract for the multiplayer mode screen (#359).
  *
@@ -148,6 +149,8 @@ describe("MpModeScreen player mail at 390px", () => {
     setViewport(390);
     const user = userEvent.setup();
     render(<MpModeScreen host={fakeHost(mailScript()).host} onExit={() => {}} />);
+    await screen.findByRole("heading", { name: "Ada" });
+    await openMpDestination("Mail");
     const mail = await screen.findByRole("region", { name: "Player mail" });
     expect(within(mail).getByText("Hello")).toBeInTheDocument();
     expect(within(mail).getByText("Re: Hello")).toBeInTheDocument();
@@ -169,6 +172,8 @@ describe("MpModeScreen player mail at 390px", () => {
       }),
     );
     render(<MpModeScreen host={host} onExit={() => {}} />);
+    await screen.findByRole("heading", { name: "Ada" });
+    await openMpDestination("Mail");
     const mail = await screen.findByRole("region", { name: "Player mail" });
 
     await user.click(within(mail).getByRole("button", { name: "Send mail" }));
@@ -201,6 +206,8 @@ describe("MpModeScreen player mail at 390px", () => {
       }),
     );
     render(<MpModeScreen host={host} onExit={() => {}} />);
+    await screen.findByRole("heading", { name: "Ada" });
+    await openMpDestination("Mail");
     const mail = await screen.findByRole("region", { name: "Player mail" });
 
     await user.click(within(mail).getByRole("button", { name: /Open Hello from Bo/ }));
@@ -225,6 +232,8 @@ describe("MpModeScreen player mail at 390px", () => {
         onExit={() => {}}
       />,
     );
+    await screen.findByRole("heading", { name: "Ada" });
+    await openMpDestination("Mail");
     const mail = await screen.findByRole("region", { name: "Player mail" });
     await user.click(within(mail).getByRole("button", { name: /Open Hello/ }));
     expect(within(mail).queryByRole("button", { name: "Reply" })).not.toBeInTheDocument();
@@ -246,9 +255,12 @@ describe("MpModeScreen player mail at 390px", () => {
       }),
     );
     render(<MpModeScreen host={host} onExit={() => {}} />);
+    await screen.findByRole("heading", { name: "Ada" });
+    await openMpDestination("Mail");
     const mail = await screen.findByRole("region", { name: "Player mail" });
     expect(within(mail).getByText("Hello")).toBeInTheDocument();
     expect(within(mail).getByText("Re: Hello")).toBeInTheDocument();
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: "Admin status" }));
     expect(await screen.findByRole("heading", { name: /site status/i })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Player mail" })).not.toBeInTheDocument();
@@ -261,7 +273,7 @@ describe("MpModeScreen player mail at 390px", () => {
     expect(within(mailAgain).getByText("World")).toBeInTheDocument();
     expect(within(mailAgain).getByRole("button", { name: "Send mail" })).toBeInTheDocument();
     const navigation = within(screen.getByRole("navigation", { name: "Primary" }));
-    expect(navigation.getByRole("link", { name: "Profile" })).toHaveAttribute("href", "#mp-profile");
-    expect(navigation.getByRole("link", { name: "Actions" })).toHaveAttribute("href", "#mp-actions");
+    expect(navigation.getByRole("button", { name: "Profile" })).toBeEnabled();
+    expect(navigation.getByRole("button", { name: "Actions" })).toBeEnabled();
   });
 });

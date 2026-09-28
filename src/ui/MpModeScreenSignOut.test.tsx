@@ -1,3 +1,4 @@
+import { openMpMenu, openMpDestination } from "./mpNavigation.test-helpers";
 /**
  * @vitest-environment jsdom
  *
@@ -69,6 +70,7 @@ describe("MpModeScreen sign out", () => {
     render(<MpModeScreen host={host} onExit={() => {}} />);
     await waitFor(() => expect(screen.getByText("Playing as Ada")).toBeInTheDocument());
 
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: /sign out/i }));
     expect(mutateSpy).toHaveBeenCalledWith("auth-logout", {});
 
@@ -86,12 +88,15 @@ describe("MpModeScreen sign out", () => {
     render(<MpModeScreen host={host} onExit={() => {}} />);
     await waitFor(() => expect(screen.getByText("Playing as Ada")).toBeInTheDocument());
 
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: /sign out/i }));
 
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
     // Identity and authed views stand: nothing was half-cleared.
     expect(screen.getByText("Playing as Ada")).toBeInTheDocument();
+    await openMpMenu();
     expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
   });
 });
 
@@ -142,13 +147,16 @@ describe("MpModeScreen throttled unlink", () => {
     render(<MpModeScreen host={host} onExit={() => {}} />);
     await waitFor(() => expect(screen.getByText("Playing as Ada")).toBeInTheDocument());
 
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: /sign out/i }));
 
     // Honest pressure state: backoff line, Slow down card, kept identity.
     await waitFor(() => expect(screen.getByRole("heading", { name: "Slow down" })).toBeInTheDocument());
     expect(screen.getByText("Try again in about 45 seconds.")).toBeInTheDocument();
     expect(screen.getByText("Playing as Ada")).toBeInTheDocument();
+    await openMpMenu();
     expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
     expect(mutateSpy).toHaveBeenCalledWith("auth-logout", {});
 
     // Reconnect recovers the ready session; the retry unlink then lands the
@@ -157,6 +165,7 @@ describe("MpModeScreen throttled unlink", () => {
     await waitFor(() => expect(screen.queryByRole("heading", { name: "Slow down" })).not.toBeInTheDocument());
     expect(screen.getByText("Playing as Ada")).toBeInTheDocument();
 
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: /sign out/i }));
     await waitFor(() => expect(screen.getByRole("heading", { name: /sign in to play multiplayer/i })).toBeInTheDocument());
     expect(screen.queryByText("Playing as Ada")).not.toBeInTheDocument();
@@ -243,6 +252,7 @@ describe("MpModeScreen unlink-to-switch residue", () => {
     render(<MpModeScreen host={host} onExit={() => {}} />);
     await waitFor(() => expect(screen.getByText("Playing as Ada")).toBeInTheDocument());
 
+    await openMpDestination("Mail");
     // Ada opens her mail and starts a draft.
     await user.click(screen.getByRole("button", { name: /open ada secret thread/i }));
     await waitFor(() => expect(screen.getByLabelText("Open mail")).toBeInTheDocument());
@@ -251,6 +261,7 @@ describe("MpModeScreen unlink-to-switch residue", () => {
     expect((screen.getByPlaceholderText("Subject") as HTMLInputElement).value).toBe("Ada draft subject");
 
     // Unlink: the sign-in card (switch path) replaces the authed views.
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: /sign out/i }));
     await waitFor(() => expect(screen.getByRole("heading", { name: /sign in to play multiplayer/i })).toBeInTheDocument());
 
@@ -261,6 +272,7 @@ describe("MpModeScreen unlink-to-switch residue", () => {
 
     // Bo loads his mail on the same reused mail id: a stale reader
     // selection would visibly reopen here on Bo's row.
+    await openMpDestination("Mail");
     await user.click(screen.getByRole("button", { name: /refresh mail/i }));
     await waitFor(() => expect(screen.getAllByText("Bo thread").length).toBeGreaterThan(0));
 

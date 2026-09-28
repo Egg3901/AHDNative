@@ -1,3 +1,4 @@
+import { openMpMenu, openMpDestination } from "./mpNavigation.test-helpers";
 /**
  * MP wallet/portfolio reachability slice (#507, #84).
  *
@@ -80,6 +81,8 @@ afterEach(() => {
 async function renderReadyWallet(width: number, height: number, cashOnHand?: number | null) {
   setViewport(width, height);
   render(<MpModeScreen host={readyHost(cashOnHand)} onExit={() => {}} />);
+  await screen.findByRole("heading", { name: "Ada" });
+  await openMpDestination("Wallet");
   return screen.findByRole("region", { name: "Wallet" });
 }
 
@@ -110,12 +113,13 @@ describe("MP wallet reachability at 390px", () => {
     expect(queries.getByText(/no multiplayer read in this build/i)).toBeInTheDocument();
 
     // Sections nav reaches the wallet; the section returns to the list.
+    await openMpMenu();
     const sections = screen.getByRole("navigation", { name: "Multiplayer sections" });
     await user.click(within(sections).getByRole("button", { name: "Wallet" }));
     expect(window.location.hash).toBe("#mp-wallet");
     const backRow = (wallet as HTMLElement).nextElementSibling as HTMLElement;
-    await user.click(within(backRow).getByRole("button", { name: "Back to sections" }));
-    expect(window.location.hash).toBe("#mp-top");
+    await user.click(within(backRow).getByRole("button", { name: "Back to profile" }));
+    expect(window.location.hash).toBe("#mp-profile");
   });
 });
 
@@ -123,10 +127,11 @@ describe("MP wallet reachability at 1280px", () => {
   it("renders the same wallet content without phone-only affordances", async () => {
     const wallet = await renderReadyWallet(1280, 800);
     const queries = within(wallet as HTMLElement);
-    expect(screen.getByRole("heading", { name: "Wallet" })).toBeInTheDocument();
+    expect(within(wallet).getByRole("heading", { name: "Wallet" })).toBeInTheDocument();
     expect(queries.getByText("1000")).toBeInTheDocument();
     expect(queries.getByText(/savings, stock holdings, portfolio trends/i)).toBeInTheDocument();
     expect(queries.queryByRole("button", { name: /deposit|withdraw/i })).not.toBeInTheDocument();
+    await openMpMenu();
     const sections = screen.getByRole("navigation", { name: "Multiplayer sections" });
     expect(within(sections).getByRole("button", { name: "Wallet" })).toBeInTheDocument();
   });

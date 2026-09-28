@@ -1,3 +1,4 @@
+import { openMpMenu } from "./mpNavigation.test-helpers";
 /**
  * Rendered presence/countdown contract for the Native multiplayer mode
  * screen (#359 presence slice).
@@ -383,6 +384,7 @@ describe("MpModeScreen presence freshness", () => {
     render(<MpModeScreen host={host} onExit={() => {}} />);
     await screen.findByRole("heading", { name: "Ada" });
     expect(await screen.findByText("10 players online")).toBeInTheDocument();
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: "Refresh" }));
     expect(await screen.findByText("11 players online")).toBeInTheDocument();
     expect(calls.filter((call) => call === "fetch:players-online")).toHaveLength(2);

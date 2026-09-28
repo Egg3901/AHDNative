@@ -1,3 +1,4 @@
+import { openMpMenu } from "./mpNavigation.test-helpers";
 /**
  * MP governor office drill-in (#359 governor slice, #510).
  *
@@ -283,6 +284,7 @@ describe.each([320, 390, 1280])("MP governor office drill-in at %spx (#359)", (w
     const standing = await screen.findByRole("article", { name: "Standing" });
     await user.click(within(standing).getByRole("button", { name: "View governorship" }));
     expect(await screen.findByRole("article", { name: "Governor detail" })).toBeInTheDocument();
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: "Refresh" }));
     expect(await screen.findByRole("heading", { name: "Session expired" })).toBeInTheDocument();
     expect(screen.queryByRole("article", { name: "Governor detail" })).toBeNull();

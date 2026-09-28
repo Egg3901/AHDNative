@@ -7,6 +7,7 @@
  * unavailable reason renders from the GameSession projection, which mirrors
  * engine executeAction validation; executeAction remains authoritative.
  */
+import { ActionCategories } from "./ActionCategories";
 import { useState } from "react";
 import type { ActionCategory, ActionView, GameScreenProps } from "../game/types";
 import type { ActionHistoryEntry } from "../game/notifications";
@@ -282,26 +283,8 @@ export function ActionsHub({
           </div>
         </section>
       ) : null}
-      <div role="tablist" aria-label="Filter actions by category" style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap" }}>
-        {ACTION_HUB_CATEGORIES.map((c) => {
-          const { eligible, total } = countFor(c.id);
-          const active = category === c.id;
-          return (
-            <button
-              key={c.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              aria-label={`${c.label}, ${eligible} of ${total} available`}
-              className="ahd-btn ahd-btn-sm"
-              data-active={active ? "true" : undefined}
-              onClick={() => onCategoryChange(c.id)}
-            >
-              {c.label} <span className="ahd-badge" aria-hidden="true">{eligible}/{total}</span>
-            </button>
-          );
-        })}
-      </div>
+      <ActionCategories selected={category} onSelect={onCategoryChange}
+        items={ACTION_HUB_CATEGORIES.map((item) => ({ ...item, ...countFor(item.id) }))} />
 
       {visible.length === 0 ? (
         <div className="ahd-empty">No actions available.</div>

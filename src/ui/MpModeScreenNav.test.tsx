@@ -84,10 +84,45 @@ function nav(query: HTMLElement) {
 describe.each([320, 390])("MP footer navigation at %spx", (width) => {
   it("keeps Profile, Actions, Ask, and Menu persistently reachable", async () => {
     const queries = nav(await renderReady(width));
-    expect(queries.getByRole("link", { name: "Profile" })).toHaveAttribute("href", "#mp-profile");
-    expect(queries.getByRole("link", { name: "Actions" })).toHaveAttribute("href", "#mp-actions");
+    expect(queries.getByRole("button", { name: "Profile" })).toHaveAttribute("aria-current", "page");
+    expect(queries.getByRole("button", { name: "Actions" })).toBeEnabled();
     expect(queries.getByRole("button", { name: "Ask" })).toBeInTheDocument();
     expect(queries.getByRole("button", { name: "Menu" })).toBeInTheDocument();
+  });
+
+  it("opens on Profile and switches destinations without a long scrolling page", async () => {
+    const user = userEvent.setup();
+    const primary = await renderReady(width);
+    expect(screen.getByRole("region", { name: "Multiplayer status" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Player actions" })).toBeNull();
+    await user.click(within(primary).getByRole("button", { name: "Actions" }));
+    expect(screen.getByRole("region", { name: "Player actions" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Multiplayer status" })).toBeNull();
+    await user.click(within(primary).getByRole("button", { name: "Profile" }));
+    expect(screen.getByRole("region", { name: "Multiplayer status" })).toBeVisible();
+  });
+
+  it("keeps authoritative resources reachable while away from Profile", async () => {
+    const user = userEvent.setup();
+    await renderReady(width);
+    const footer = within(screen.getByRole("contentinfo", { name: "Multiplayer navigation" }));
+    expect(footer.getByText("Turn 12")).toBeVisible();
+    await user.click(footer.getByRole("button", { name: "Cash on hand: 1,000" }));
+    expect(screen.getByRole("region", { name: "Wallet" })).toBeVisible();
+    await user.click(footer.getByRole("button", { name: "Action points: 3" }));
+    expect(screen.getByRole("region", { name: "Player actions" })).toBeVisible();
+  });
+
+  it("groups server actions using the same categories as singleplayer", async () => {
+    const user = userEvent.setup();
+    const primary = await renderReady(width);
+    await user.click(within(primary).getByRole("button", { name: "Actions" }));
+    await user.click(screen.getByRole("tab", { name: /^Fundraising/ }));
+    expect(screen.getByRole("button", { name: /^Fundraise:/ })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /^Quick Poll:/ })).toBeNull();
+    await user.click(screen.getByRole("tab", { name: /^Intelligence/ }));
+    expect(screen.getByRole("button", { name: /^Quick Poll:/ })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /^Fundraise:/ })).toBeNull();
   });
 
   it("renders the shared SVG icon language, not ad hoc text glyphs", async () => {
@@ -99,7 +134,7 @@ describe.each([320, 390])("MP footer navigation at %spx", (width) => {
       ["Ask", ASK_ICON_PATH],
       ["Menu", MENU_ICON_PATH],
     ] as const) {
-      const button = queries.getByRole(name === "Profile" || name === "Actions" ? "link" : "button", { name });
+      const button = queries.getByRole("button", { name });
       const svg = button.querySelector("svg");
       expect(svg).not.toBeNull();
       expect(svg).toHaveAttribute("aria-hidden", "true");
@@ -109,7 +144,7 @@ describe.each([320, 390])("MP footer navigation at %spx", (width) => {
     expect(element.textContent).not.toMatch(/[●?☰]/);
   });
 
-  it("routes Ask/Menu callbacks without replacing shared destinations", async () => {
+  it("opens the game menu without exiting the live session", async () => {
     const user = userEvent.setup();
     const onAsk = vi.fn();
     const onExit = vi.fn();
@@ -119,6 +154,14 @@ describe.each([320, 390])("MP footer navigation at %spx", (width) => {
     await user.click(queries.getByRole("button", { name: "Ask" }));
     expect(onAsk).toHaveBeenCalledTimes(1);
     await user.click(queries.getByRole("button", { name: "Menu" }));
+    expect(onExit).not.toHaveBeenCalled();
+    const drawer = screen.getByRole("dialog", { name: "Game menu" });
+    expect(within(drawer).getByRole("button", { name: "Exit multiplayer" })).toBeVisible();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "Game menu" })).not.toBeInTheDocument();
+    expect(queries.getByRole("button", { name: "Menu" })).toHaveFocus();
+    await user.click(queries.getByRole("button", { name: "Menu" }));
+    await user.click(within(screen.getByRole("dialog", { name: "Game menu" })).getByRole("button", { name: "Exit multiplayer" }));
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 });
@@ -127,11 +170,11 @@ describe.each([320, 390])("MP footer destination focus at %spx", (width) => {
   it("moves focus to the section like the in-screen jump-nav does", async () => {
     const user = userEvent.setup();
     const queries = nav(await renderReady(width));
-    await user.click(queries.getByRole("link", { name: "Profile" }));
+    await user.click(queries.getByRole("button", { name: "Profile" }));
     expect(window.location.hash).toBe("#mp-profile");
     expect(document.getElementById("mp-profile")).toHaveFocus();
 
-    await user.click(queries.getByRole("link", { name: "Actions" }));
+    await user.click(queries.getByRole("button", { name: "Actions" }));
     expect(window.location.hash).toBe("#mp-actions");
     expect(document.getElementById("mp-actions")).toHaveFocus();
   });

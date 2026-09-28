@@ -1654,3 +1654,11 @@ details[open] > .ahd-trend-table-disclosure::after {
   .ahd-era-date-heading { align-items: flex-start; flex-direction: column; gap: 0.35rem; }
   .ahd-era-date-heading strong { white-space: nowrap; }
 }
+
+/* Mounted MP destinations retain drafts while the shared shell exposes one page. */
+.ahd-mp [hidden] { display: none !important; }
+.ahd-mp-heading { padding-block: 0.25rem; }
+.ahd-mp .ahd-drawer-nav { display: flex; flex-direction: column; gap: 0.25rem; }
+
+.ahd-mp .ahd-mp-resources { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ahd-mp .ahd-drawer-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.75rem; }

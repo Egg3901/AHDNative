@@ -1,3 +1,4 @@
+import { openMpMenu } from "./mpNavigation.test-helpers";
 /**
  * MP cabinet briefing drill-in (#359 cabinet slice, #510).
  *
@@ -272,6 +273,7 @@ describe.each([320, 390, 1280])("MP cabinet briefing drill-in at %spx (#359)", (
     const standing = await screen.findByRole("article", { name: "Standing" });
     await user.click(within(standing).getByRole("button", { name: "View office" }));
     expect(await screen.findByRole("article", { name: "Cabinet detail" })).toBeInTheDocument();
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: "Refresh" }));
     expect(await screen.findByRole("heading", { name: "Session expired" })).toBeInTheDocument();
     expect(screen.queryByRole("article", { name: "Cabinet detail" })).toBeNull();
