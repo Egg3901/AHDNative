@@ -100,8 +100,12 @@ the variant. Regenerate with `tauri icon public/ahd-logo-steel-blue.png --output
 src-tauri/icons`, removing the CLI's identical `-1.png` iOS duplicates.
 Normalize Android legacy/round outputs to 48/72/96/144/192 pixels per density
 from the source PNG on white; the CLI's default legacy outputs are undersized.
-Rights remain with Lakeside Games. This asset update does not trigger an
-AHDNative release; installed-device appearance needs the next app build.
+Rights remain with Lakeside Games. The release workflow copies these files into the generated Xcode AppIcon
+catalog after `tauri ios init`, including duplicate phone/tablet filename slots.
+Before publishing, it compares the actual IPA iPhone/iPad icon pixels against
+the approved files, decoding Apple CgBI PNGs. Build 1.18 predated this packaging
+check and incorrectly retained Tauri placeholders; the correction is tracked
+under issue #148. Physical installed-device appearance still needs owner review.
 
 ## Original canonical logo provenance (issue #148)
 

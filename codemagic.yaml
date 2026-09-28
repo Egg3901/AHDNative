@@ -61,6 +61,8 @@ workflows:
           set -eu
           export APPLE_DEVELOPMENT_TEAM="$TAURI_APPLE_DEVELOPMENT_TEAM"
           npm run tauri -- ios init --ci --skip-targets-install
+      - name: Install approved app icons into generated Xcode catalog
+        script: node scripts/sync-ios-icons.mjs
       - name: Prepare existing Xcode signing settings
         script: python3 scripts/prepare-ios-signing.py src-tauri/gen/apple/ahdnative.xcodeproj/project.pbxproj
       - name: Restrict export to internal TestFlight
@@ -79,6 +81,17 @@ workflows:
           set -eu
           export APPLE_DEVELOPMENT_TEAM="$TAURI_APPLE_DEVELOPMENT_TEAM"
           npm run tauri -- ios build --ci --target aarch64 --export-method app-store-connect --build-number "$BUILD_NUMBER"
+      - name: Verify installed app icons before upload
+        script: |
+          set -eu
+          python3 - <<'PYTHON'
+          import subprocess
+          from pathlib import Path
+          ipas = list(Path("src-tauri/gen/apple/build").rglob("*.ipa"))
+          if len(ipas) != 1:
+              raise SystemExit("Expected one IPA for icon verification")
+          subprocess.run(["python3", "scripts/verify-ios-ipa-icons.py", str(ipas[0])], check=True)
+          PYTHON
     artifacts:
       - src-tauri/gen/apple/build/**/*.ipa
     publishing:
