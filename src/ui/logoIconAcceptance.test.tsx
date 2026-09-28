@@ -48,6 +48,12 @@ describe("canonical AHD logo asset (#148)", () => {
     expect(size).toEqual({ width: 500, height: 500, bitDepth: 8, colorType: 6 });
   });
 
+  it("bundles the Native steel-blue variant offline", () => {
+    expect(pngSize(join(ROOT, "public/ahd-logo-steel-blue.png"))).toEqual({
+      width: 1254, height: 1254, bitDepth: 8, colorType: 6,
+    });
+  });
+
   it("renders the mark decorative, square and offline on the launcher", () => {
     render(
       <LandingScreen
@@ -74,7 +80,7 @@ describe("canonical AHD logo asset (#148)", () => {
     const logo = document.querySelector("img.ahd-landing-logo") as HTMLImageElement | null;
     expect(logo).not.toBeNull();
     // Offline bundle: relative self path, never a remote URL.
-    expect(logo?.getAttribute("src")).toContain("ahd-logo.png");
+    expect(logo?.getAttribute("src")).toContain("ahd-logo-steel-blue.png");
     expect(logo?.getAttribute("src")).not.toMatch(/^https?:/);
     // Decorative: the h1 already names the game (reference parity).
     expect(logo?.alt).toBe("");
@@ -98,11 +104,11 @@ describe("browser chrome icon reference (#148)", () => {
     for (const rel of ['rel="icon"', 'rel="apple-touch-icon"']) {
       const match = html.match(new RegExp(`<link[^>]*${rel}[^>]*>`, "i"));
       expect(match).not.toBeNull();
-      expect(match?.[0]).toContain("ahd-logo.png");
+      expect(match?.[0]).toContain("ahd-logo-steel-blue.png");
       expect(match?.[0]).not.toMatch(/^https?:/m);
       expect(match?.[0]).not.toContain("http");
     }
-    expect(existsSync(join(ROOT, "public/ahd-logo.png"))).toBe(true);
+    expect(existsSync(join(ROOT, "public/ahd-logo-steel-blue.png"))).toBe(true);
   });
 });
 

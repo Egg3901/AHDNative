@@ -25,11 +25,10 @@ for (const size of [
   });
 }
 
-// #148 responsive identity acceptance: the canonical AHD mark must render
-// square, loaded at its 500x500 source, contained in each viewport, decorative
-// beside the accessible heading, and load with no external asset request
-// (offline-bundled). AHDGame/AHDClient ship identical logo bytes; the phone
-// render regressed while the HTML `height` attribute held it at 96px.
+// #148 responsive identity acceptance: the Native steel-blue variant must
+// render square at its 1254x1254 source size, remain contained and decorative,
+// and load offline. The original canonical source is retained separately.
+// The phone render previously regressed when HTML height held it at 96px.
 for (const size of [
   { width: 320, height: 568, name: '320' },
   { width: 390, height: 844, name: '390' },
@@ -52,7 +51,7 @@ for (const size of [
       const box = node.getBoundingClientRect();
       const style = getComputedStyle(node);
       return {
-        loaded: node.complete && node.naturalWidth === 500 && node.naturalHeight === 500,
+        loaded: node.complete && node.naturalWidth === 1254 && node.naturalHeight === 1254,
         square: Math.abs(box.width - box.height) < 0.5,
         contained: box.left >= 0 && box.right <= innerWidth && box.top >= 0 && box.bottom <= innerHeight,
         objectFit: style.objectFit,
