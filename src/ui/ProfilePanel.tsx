@@ -38,7 +38,8 @@ import { useRef, useState } from "react";
 import type { ProfileUpdate, ProfileView } from "../game/profileTypes";
 import type { DrawerRouteId } from "./MobileNavigation";
 import { campaignSongId } from "../game/profileValidation";
-import { RouteHero, profileHeroImage } from "./RouteHero";
+import { profileHeroImage } from "./RouteHero";
+import { ProfileIdentity } from "./ProfileIdentity";
 import { CampaignSongPlayer } from "./CampaignSongPlayer";
 import { PolicyCompass, policyAxisLabel, type CompassMarker } from "./PolicyCompass";
 import { ResourceBreakdown } from "./ResourceBreakdown";
@@ -88,11 +89,6 @@ const HEADER_MAX_BYTES = 4 * 1024 * 1024;
 const HEADER_WIDTH = 1400;
 const HEADER_HEIGHT = 400;
 const BIO_MAX = 500;
-
-function initials(name: string): string {
-  const first = name.trim().charAt(0);
-  return first ? first.toUpperCase() : "?";
-}
 
 function money(amount: number, currency: string): string {
   try {
@@ -423,83 +419,38 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
   return (
     <div className="ahd-stack ahd-profile">
       <section aria-label="Character" className="ahd-card ahd-card-pad ahd-profile-header ahd-hero">
-        <RouteHero
-          image={profileHeroImage(profile.profileHeaderUrl)}
-          alt={profile.profileHeaderUrl ? `${profile.name} profile header` : "Politicians meeting in a national chamber"}
+        <ProfileIdentity
+          name={profile.name}
+          heroImage={profileHeroImage(profile.profileHeaderUrl)}
+          heroAlt={profile.profileHeaderUrl ? `${profile.name} profile header` : "Politicians meeting in a national chamber"}
           eyebrow={profile.country.name}
-          title={profile.name}
-          className="ahd-profile-hero"
+          avatarUrl={profile.avatarUrl}
+          party={profile.party ? {
+            name: profile.party.name,
+            color: profile.party.color,
+            onSelect: () => onNavigate("partyDetails", profile.party?.id),
+            disabled: busy,
+          } : null}
+          partyFallbackText="Independent"
+          office={profile.office && profile.officeDestination ? {
+            label: profile.office,
+            onSelect: () => onNavigate(profile.officeDestination!.route, profile.officeDestination!.id),
+            disabled: busy,
+          } : profile.office ? { label: profile.office } : null}
+          officeFallbackText="No office"
+          home={profile.homeRegion ? {
+            label: profile.homeRegion.name,
+            onSelect: () => onNavigate("state", profile.homeRegion?.id),
+            disabled: busy,
+          } : null}
+          homeFallbackText="Home region not recorded"
+          country={{
+            label: profile.country.name,
+            onSelect: () => onNavigate("nations", profile.country.id),
+            disabled: busy,
+          }}
+          flag={<CountryFlag countryId={profile.country.id} countryName={profile.country.name} era={era} size="sm" />}
         />
-        <div className="ahd-profile-hero-id">
-          <div className="ahd-profile-photo">
-            {profile.avatarUrl ? (
-              <img
-                src={profile.avatarUrl}
-                alt={`${profile.name} profile picture`}
-                className="ahd-profile-photoimg"
-              />
-            ) : (
-              <span aria-hidden="true" className="ahd-profile-initials">
-                {initials(profile.name)}
-              </span>
-            )}
-          </div>
-          <div className="ahd-profile-idtext">
-            <div className="ahd-profile-chips">
-              {profile.party ? (
-                <button
-                  type="button"
-                  className="ahd-profile-chip"
-                  style={{ borderColor: profile.party.color, color: profile.party.color }}
-                  onClick={() => onNavigate("partyDetails", profile.party?.id)}
-                  disabled={busy}
-                >
-                  {profile.party.name}
-                </button>
-              ) : (
-                <span className="ahd-profile-chip ahd-profile-chip-static">Independent</span>
-              )}
-              {profile.office && profile.officeDestination ? (
-                <button
-                  type="button"
-                  className="ahd-profile-chip"
-                  onClick={() => onNavigate(profile.officeDestination!.route, profile.officeDestination!.id)}
-                  disabled={busy}
-                >
-                  {profile.office}
-                </button>
-              ) : (
-                <span className="ahd-profile-chip ahd-profile-chip-static">
-                  {profile.office ?? "No office"}
-                </span>
-              )}
-            </div>
-            <div className="ahd-profile-places">
-              {profile.homeRegion ? (
-                <button
-                  type="button"
-                  className="ahd-profile-link"
-                  onClick={() => onNavigate("state", profile.homeRegion?.id)}
-                  disabled={busy}
-                >
-                  {profile.homeRegion.name}
-                </button>
-              ) : (
-                <span className="ahd-muted">Home region not recorded</span>
-              )}
-              <span aria-hidden="true" className="ahd-muted"> · </span>
-              <CountryFlag countryId={profile.country.id} countryName={profile.country.name} era={era} size="sm" />
-              <button
-                type="button"
-                className="ahd-profile-link"
-                onClick={() => onNavigate("nations", profile.country.id)}
-                disabled={busy}
-              >
-                {profile.country.name}
-              </button>
-            </div>
-          </div>
-        </div>
         <div className="ahd-profile-photoactions">
           <input
             ref={fileRef}
