@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { gameReady, completeCharacterCreation, openGameMenu, saveGame, exitGame } from './game-navigation';
 
 /**
- * #242: a real player builds the six-step reference character file, acts, saves,
+ * #242: a real player builds the seven-step reference character file, acts, saves,
  * closes/relaunches and resumes, and every creation field survives. This runs
  * against the real worker and IndexedDB persistence, not a mock world.
  */
@@ -14,7 +14,7 @@ test('character creation fields survive action, turn, save, relaunch and resume'
   await page.getByLabel('Country', { exact: true }).selectOption('US');
   await page.getByRole('button', { name: 'Start', exact: true }).click();
 
-  // The conversational presentation (#335) walks the six reference steps in
+  // The conversational presentation (#335) walks the seven reference steps in
   // order with their labels. Each step fits the compact phone viewport.
   async function expectFitsPhone() {
     const overflow = await page.evaluate(
@@ -26,7 +26,7 @@ test('character creation fields survive action, turn, save, relaunch and resume'
   // Step 1 Country: informational, with direct progress to every section.
   await expect(page.getByRole('heading', { name: /^Country/ })).toBeVisible();
   await expect(page.getByRole('navigation', { name: /Creation progress/i })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Current step, step 1 of 6: Country/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Current step, step 1 of 7: Country/ })).toBeVisible();
   await expectFitsPhone();
   await page.getByRole('button', { name: /Continue to The politician/i }).click();
 
@@ -59,11 +59,17 @@ test('character creation fields survive action, turn, save, relaunch and resume'
   await page.getByRole('button', { name: 'DEM Democratic Party', exact: true }).click();
   await page.getByRole('button', { name: /Continue to Stats/i }).click();
 
-  // Step 6 Stats: a full allocation, then submit.
+  // Step 6 Stats: a full allocation, then Review before submit.
   await expect(page.getByRole('heading', { name: /^Stats/ })).toBeVisible();
   await expectFitsPhone();
   await page.getByRole('button', { name: 'Increase Charisma', exact: true }).click();
   await page.getByRole('button', { name: 'Spread evenly', exact: true }).click();
+  await page.getByRole('button', { name: /Continue to Review/i }).click();
+
+  // Step 7 Review: editable summary, then submit.
+  await expect(page.getByRole('heading', { name: /^Review/ })).toBeVisible();
+  await expect(page.getByTestId('creation-review-summary')).toContainText('Creation Player');
+  await expectFitsPhone();
   await page.getByRole('button', { name: 'Create character', exact: true }).click();
   await gameReady(page);
 

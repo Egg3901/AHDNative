@@ -416,6 +416,25 @@ describe("ProfilePanel", () => {
     expect(onUpdateProfile).not.toHaveBeenCalled();
   });
 
+  it("rejects a GIF picture with the same MIME message creation uses", async () => {
+    const onUpdateProfile = vi.fn(async () => true);
+    renderPanel({}, { onUpdateProfile });
+    const gif = new File(["gif-bytes"], "anim.gif", { type: "image/gif" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [gif] } });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Only JPEG, PNG or WebP pictures are allowed.");
+    expect(onUpdateProfile).not.toHaveBeenCalled();
+  });
+
+  it("rejects a GIF header with the shared header MIME message", async () => {
+    const onUpdateProfile = vi.fn(async () => true);
+    renderPanel({ profileHeaderUrl: null }, { onUpdateProfile });
+    const gif = new File(["gif-bytes"], "banner.gif", { type: "image/gif" });
+    fireEvent.change(screen.getByLabelText("Choose profile header"), { target: { files: [gif] } });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Only JPEG, PNG or WebP headers are allowed.");
+    expect(onUpdateProfile).not.toHaveBeenCalled();
+  });
+
   it("rejects an oversized picture without updating", async () => {
     const onUpdateProfile = vi.fn(async () => true);
     renderPanel({}, { onUpdateProfile });

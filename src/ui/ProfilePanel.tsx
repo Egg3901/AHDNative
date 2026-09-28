@@ -37,7 +37,11 @@
 import { useRef, useState } from "react";
 import type { ProfileUpdate, ProfileView } from "../game/profileTypes";
 import type { DrawerRouteId } from "./MobileNavigation";
-import { campaignSongId } from "../game/profileValidation";
+import {
+  PROFILE_IMAGE_MIME_TYPES,
+  campaignSongId,
+  validateProfileImagePick,
+} from "../game/profileValidation";
 import { profileHeroImage } from "./RouteHero";
 import { ProfileIdentity } from "./ProfileIdentity";
 import { CampaignSongPlayer } from "./CampaignSongPlayer";
@@ -81,11 +85,8 @@ export interface ProfilePanelProps {
   viewerDisablesAutoplay?: boolean;
 }
 
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_BYTES = 2 * 1024 * 1024;
 const AVATAR_EDGE = 256;
 // Reference profile-header preset (imageOptimize.ts profileHeader: 1400x400 @ 80).
-const HEADER_MAX_BYTES = 4 * 1024 * 1024;
 const HEADER_WIDTH = 1400;
 const HEADER_HEIGHT = 400;
 const BIO_MAX = 500;
@@ -145,15 +146,11 @@ function toHeaderDataUrl(file: File, dataUrl: string): Promise<string> {
 }
 
 function validatePicture(file: File): string | null {
-  if (!ACCEPTED_TYPES.includes(file.type)) return "Only JPEG, PNG or WebP pictures are allowed.";
-  if (file.size > MAX_BYTES) return "Picture must be under 2 MB.";
-  return null;
+  return validateProfileImagePick(file, "picture");
 }
 
 function validateHeader(file: File): string | null {
-  if (!ACCEPTED_TYPES.includes(file.type)) return "Only JPEG, PNG or WebP headers are allowed.";
-  if (file.size > HEADER_MAX_BYTES) return "Header must be under 4 MB.";
-  return null;
+  return validateProfileImagePick(file, "header");
 }
 
 export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, onSelectConstituency, viewerDisablesAutoplay = false }: ProfilePanelProps) {
@@ -455,7 +452,7 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
           <input
             ref={fileRef}
             type="file"
-            accept={ACCEPTED_TYPES.join(",")}
+            accept={PROFILE_IMAGE_MIME_TYPES.join(",")}
             className="ahd-profile-file"
             aria-label="Choose profile picture"
             aria-describedby="ahd-profile-photo-hint"
@@ -496,7 +493,7 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
           <input
             ref={headerRef}
             type="file"
-            accept={ACCEPTED_TYPES.join(",")}
+            accept={PROFILE_IMAGE_MIME_TYPES.join(",")}
             className="ahd-profile-file"
             aria-label="Choose profile header"
             aria-describedby="ahd-profile-header-hint"

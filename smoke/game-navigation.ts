@@ -15,7 +15,7 @@ export async function completeCharacterCreation(page: Page, options: { party?: s
   await expect(page.getByRole('heading', { name: /Create your politician/ })).toBeVisible();
   // The conversational presentation (#335/#336) shows one canonical step at a
   // time: Country (informational) -> The politician -> Home region ->
-  // Where you stand -> Party -> Stats. Walk it in order.
+  // Where you stand -> Party -> Stats -> Review. Walk it in order.
   await page.getByRole('button', { name: /Continue to The politician/i }).click();
   await page.getByRole('button', { name: 'Female', exact: true }).click();
   await page.getByRole('button', { name: 'White', exact: true }).click();
@@ -40,6 +40,7 @@ export async function completeCharacterCreation(page: Page, options: { party?: s
   for (let i = 0; i < 9; i++) await page.getByRole('button', { name: 'Increase Debate', exact: true }).click();
   for (let i = 0; i < 9; i++) await page.getByRole('button', { name: 'Increase Statecraft', exact: true }).click();
   for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Increase Business Acumen', exact: true }).click();
+  await page.getByRole('button', { name: /Continue to Review/i }).click();
   await page.getByRole('button', { name: 'Create character', exact: true }).click();
 }
 
