@@ -9,7 +9,7 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MpModeScreen } from "./MpModeScreen";
 import {
@@ -181,11 +181,11 @@ describe.each([320, 390])("MP footer destination focus at %spx", (width) => {
     const queries = nav(await renderReady(width));
     await user.click(queries.getByRole("button", { name: "Profile" }));
     expect(window.location.hash).toBe("#mp-profile");
-    expect(document.getElementById("mp-profile")).toHaveFocus();
+    await waitFor(() => expect(document.getElementById("mp-profile")).toHaveFocus());
 
     await user.click(queries.getByRole("button", { name: "Actions" }));
     expect(window.location.hash).toBe("#mp-actions");
-    expect(document.getElementById("mp-actions")).toHaveFocus();
+    await waitFor(() => expect(document.getElementById("mp-actions")).toHaveFocus());
   });
 });
 
