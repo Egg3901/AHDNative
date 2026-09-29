@@ -243,7 +243,9 @@ export function BottomNav({
   menuButtonRef,
   onNavigate,
   onOpenMenu,
+  disabledTabs = [],
 }: {
+  disabledTabs?: BottomTabId[];
   route: DrawerRouteId;
   menuOpen: boolean;
   menuButtonRef: React.RefObject<HTMLButtonElement | null>;
@@ -254,8 +256,8 @@ export function BottomNav({
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
-    const order: (BottomTabId | "menu")[] = ["profile", "actions", "ask", "menu"];
-    const buttons = Array.from(e.currentTarget.querySelectorAll("button"));
+    const order: (BottomTabId | "menu")[] = [...BOTTOM_TABS.filter((tab) => !disabledTabs.includes(tab.id)).map((tab) => tab.id), "menu"];
+    const buttons = Array.from(e.currentTarget.querySelectorAll("button:not([disabled])"));
     const focused = buttons.indexOf(document.activeElement as HTMLButtonElement);
     const idx = focused >= 0 ? focused : order.indexOf(destination);
     const next = order[(idx + (e.key === "ArrowRight" ? 1 : order.length - 1)) % order.length];
@@ -283,6 +285,8 @@ export function BottomNav({
             aria-label={t.label}
             aria-current={active ? (route === t.id ? "page" : "location") : undefined}
             data-active={active ? "true" : undefined}
+            disabled={disabledTabs.includes(t.id)}
+            title={disabledTabs.includes(t.id) ? `${t.label} is unavailable here` : undefined}
             onClick={() => onNavigate(t.id)}
           >
             <NavIcon path={t.path} label="" />
@@ -376,6 +380,67 @@ export interface DrawerRoleConditions {
   myElectionRaceId?: string | null;
 }
 
+/** Shared modal behavior and native drawer chrome for both game adapters. */
+export function GameDrawerFrame({ open, docked, menuButtonRef, onClose, children }: {
+  open: boolean;
+  docked?: boolean;
+  menuButtonRef: React.RefObject<HTMLButtonElement | null>;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const drawerRef = useRef<HTMLElement | null>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
+  useEffect(() => {
+    if (!open || docked) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const drawer = drawerRef.current;
+    (drawer?.querySelector<HTMLButtonElement>('.ahd-drawer-nav [aria-current="page"]')
+      ?? drawer?.querySelector<HTMLButtonElement>(".ahd-drawer-nav button:not([disabled])")
+      ?? drawer?.querySelector<HTMLButtonElement>("button:not([disabled])"))?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        closeRef.current();
+        return;
+      }
+      if (e.key !== "Tab" || !drawer) return;
+      const items = Array.from(drawer.querySelectorAll<HTMLElement>("button:not([disabled])"));
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("keydown", onKey, true);
+      menuButtonRef.current?.focus();
+    };
+  }, [open, docked, menuButtonRef]);
+
+  if (!open && !docked) return null;
+
+  return <>
+    {docked ? null : <div className="ahd-drawer-backdrop" aria-hidden="true" onClick={onClose} />}
+    <aside ref={drawerRef} id={docked ? "ahd-drawer-docked" : "ahd-drawer"}
+      role={docked ? "complementary" : "dialog"} aria-modal={docked ? undefined : true}
+      aria-label={docked ? "Game navigation" : "Game menu"}
+      className={docked ? "ahd-drawer ahd-drawer-docked" : "ahd-drawer"}
+      data-pane={docked ? "navigation" : undefined}>
+      {children}
+    </aside>
+  </>;
+}
+
 export function GameDrawer({
   open,
   route,
@@ -448,7 +513,6 @@ export function GameDrawer({
   metricsAvailable?: boolean;
   referendumsAvailable?: boolean;
 }) {
-  const drawerRef = useRef<HTMLElement | null>(null);
   const activeGroup = MENU_GROUPS.find((group) =>
     [...group.items, ...(group.sections ?? []).flatMap((section) => section.items)]
       .some((item) => item.id === route),
@@ -472,44 +536,6 @@ export function GameDrawer({
       return new Set(deflated);
     });
   }, [open, activeGroup]);
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
-
-  useEffect(() => {
-    if (!open || docked) return;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const drawer = drawerRef.current;
-    drawer?.querySelector<HTMLButtonElement>('.ahd-drawer-nav [aria-current="page"], .ahd-drawer-nav button')?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        closeRef.current();
-        return;
-      }
-      if (e.key !== "Tab" || !drawer) return;
-      const items = Array.from(drawer.querySelectorAll<HTMLElement>("button:not([disabled])"));
-      if (items.length === 0) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKey, true);
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      document.removeEventListener("keydown", onKey, true);
-      menuButtonRef.current?.focus();
-    };
-  }, [open, menuButtonRef]);
-
-  if (!open && !docked) return null;
-
   // #510 capability-gated rows. The reference omits (never disables) the
   // Political Metrics row outside the playable pipeline and the Referendums
   // row without an active campaign; Native omits on the projected signal.
@@ -526,17 +552,7 @@ export function GameDrawer({
   }));
 
   return (
-    <>
-      {docked ? null : <div className="ahd-drawer-backdrop" aria-hidden="true" onClick={onClose} />}
-      <aside
-        ref={drawerRef}
-        id={docked ? "ahd-drawer-docked" : "ahd-drawer"}
-        role={docked ? "complementary" : "dialog"}
-        aria-modal={docked ? undefined : true}
-        aria-label={docked ? "Game navigation" : "Game menu"}
-        className={docked ? "ahd-drawer ahd-drawer-docked" : "ahd-drawer"}
-        data-pane={docked ? "navigation" : undefined}
-      >
+    <GameDrawerFrame open={open} docked={docked} menuButtonRef={menuButtonRef} onClose={onClose}>
         {/* #366 composition: compact identity header. Same three facts the
             reference profile card shows (name, party/country, turn/date),
             tightened to two truncated lines so the 320px first viewport keeps
@@ -722,7 +738,6 @@ export function GameDrawer({
             </button>
           ))}
         </div>
-      </aside>
-    </>
+    </GameDrawerFrame>
   );
 }

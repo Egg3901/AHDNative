@@ -6,6 +6,33 @@ export const MAX_PROFILE_HEADER_BYTES = 4 * 1024 * 1024;
 export const MAX_BIO_LENGTH = 500;
 export const MAX_CAMPAIGN_SONG_LENGTH = 300;
 
+/**
+ * MIME types the offline save envelope persists. Creation and Profile pickers
+ * share this set so a file accepted at create is still accepted on Profile
+ * save. GIF is excluded: `safeRaster` only keeps PNG, JPEG and WebP data URLs.
+ */
+export const PROFILE_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+export type ProfileImageKind = "picture" | "header";
+
+export function isAllowedProfileImageType(type: string): boolean {
+  return (PROFILE_IMAGE_MIME_TYPES as readonly string[]).includes(type);
+}
+
+export function profileImageTypeMessage(kind: ProfileImageKind): string {
+  return kind === "header"
+    ? "Only JPEG, PNG or WebP headers are allowed."
+    : "Only JPEG, PNG or WebP pictures are allowed.";
+}
+
+export function validateProfileImagePick(file: File, kind: ProfileImageKind): string | null {
+  if (!isAllowedProfileImageType(file.type)) return profileImageTypeMessage(kind);
+  const max = kind === "header" ? MAX_PROFILE_HEADER_BYTES : MAX_PROFILE_IMAGE_BYTES;
+  if (file.size > max) {
+    return kind === "header" ? "Header must be under 4 MB." : "Picture must be under 2 MB.";
+  }
+  return null;
+}
+
 /** Matches AHDGame's accepted YouTube URL shapes and canonical 11-character id. */
 export function campaignSongId(value: string): string | null {
   const input = value.trim();

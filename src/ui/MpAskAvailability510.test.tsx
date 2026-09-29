@@ -139,8 +139,8 @@ describe.each([320, 390, 1280])("MP Ask without a host callback at %spx (#510)",
     expect(ask).toBeDisabled();
     expect(ask).toHaveAttribute("title", "Ask is unavailable here");
     // The hierarchy never shifts: all four destinations stay in place.
-    expect(primary.getByRole("link", { name: "Profile" })).toBeInTheDocument();
-    expect(primary.getByRole("link", { name: "Actions" })).toBeInTheDocument();
+    expect(primary.getByRole("button", { name: "Profile" })).toBeInTheDocument();
+    expect(primary.getByRole("button", { name: "Actions" })).toBeInTheDocument();
     expect(primary.getByRole("button", { name: "Menu" })).toBeEnabled();
   });
 });

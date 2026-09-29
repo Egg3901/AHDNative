@@ -10,15 +10,15 @@ A native app port of the game at [Egg3901/AHDGame](https://github.com/Egg3901/AH
 
 **Singleplayer.** Runs locally on the device through a pinned reusable engine and supports offline play. New game, actions, turns, save, app reload and resume.
 
-**Multiplayer (later).** Will connect to the existing authoritative AHDGame server; the device never runs authoritative simulation. Existing authentication is preserved.
+**Multiplayer.** Connects to the existing authoritative AHDGame server through the native session bridge. Profile, supported actions, inbox, mail and capability-gated detail summaries are available. Full gameplay parity remains in progress; the device never runs authoritative multiplayer simulation.
 
-**One UI.** Both modes share React screens and interaction patterns, with adapters at the game data and action boundary. Players do not pass through a separate AHDClient application. The visual baseline is the actual MP/SP interface in AHDGame (see [UI reference](docs/UI-REFERENCE.md)).
+**One UI.** Both modes share native drawer and bottom navigation, Profile identity, action filters and device preferences, with adapters at the game data and action boundary. The [mode matrix](docs/NATIVE-MODE-PARITY.md) records remaining screen and data gaps. Players do not pass through a separate AHDClient application. The visual baseline is the actual MP/SP interface in AHDGame (see [UI reference](docs/UI-REFERENCE.md)).
 
 Fundraise now consumes [Game-owned shared rules](docs/SHARED-RULES.md) through a generated package pinned to an immutable AHDGame revision. The remaining engine systems are still being brought into parity.
 
 ## Status
 
-Development preview 0.1.9 is the current source candidate. The latest published source prerelease is `preview/0.1.8-1`; the latest delivered internal build is iOS 0.1.9 build 1.15 (source `preview/0.1.9-2`), delivered as a private internal TestFlight build through manual Codemagic to the Owner review group. Windows delivery is a private unsigned x64 owner-review build. These are not public store releases or a 1.0.0 claim, and owner feedback and physical-device validation remain open in [issue #124](https://github.com/Egg3901/AHDNative/issues/124). What holds today:
+Development preview 0.1.9 is the current source candidate. The latest published source prerelease is `preview/0.1.8-1`; the latest delivered internal build is iOS 0.1.9 build 1.20 (source `preview/0.1.9-installed-icon-opaque`), delivered privately through manual Codemagic to Internal Testers. Windows delivery is a private unsigned x64 owner-review build. These are not public store releases or a 1.0.0 claim, and owner feedback and physical-device validation remain open in [issue #124](https://github.com/Egg3901/AHDNative/issues/124). What holds today:
 
 - Main runs a local singleplayer world through React game screens and a dedicated simulation worker. New game, actions, turns, save, app reload and resume have passed a real browser smoke test at phone screen size.
 - Bottom navigation and a side drawer reach politics, national economy/budget/policy, home region, nations, portfolio and banking. Turn, save and exit controls live in the drawer. The compact footer opens full resource details. Full feature parity is still in progress.
@@ -44,7 +44,7 @@ React 19 UI (Vite, Tauri webview)
   -> native save store (Rust app-data; IndexedDB under browser QA)
 ```
 
-MP later reuses the same screens against the AHDGame server API instead of the local worker.
+MP uses the authoritative AHDGame server API through its existing native session bridge. Shared presentation components consume each mode's explicit data and action adapters.
 
 ## Running it locally
 

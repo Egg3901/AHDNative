@@ -23,8 +23,8 @@ describe("HelpPanel", () => {
 
     expect(screen.getByRole("heading", { name: "Available here" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Still unavailable here" })).toBeInTheDocument();
-    expect(screen.getByText(/multiplayer accounts, live server play, and player mail are not part of this offline app/i)).toBeInTheDocument();
-    expect(screen.getByText(/does not expose the full AHDGame world destinations/i)).toBeInTheDocument();
+    expect(screen.getByText(/live server play and player mail are available in Multiplayer/i)).toBeInTheDocument();
+    expect(screen.getByText(/full AHDGame destinations.*still being brought into parity/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /wiki.*network required/i }));
     await user.click(screen.getByRole("button", { name: /game guides.*network required/i }));
     await user.click(screen.getByRole("button", { name: /service status.*network required/i }));
@@ -47,12 +47,12 @@ describe("HelpPanel", () => {
     expect(screen.getByText(/confirmed deletion/i)).toBeInTheDocument();
   });
 
-  it("keeps authenticated account and feedback controls inside Multiplayer", () => {
+  it("keeps offline help separate from the multiplayer account", () => {
     render(<HelpPanel />);
 
     expect(screen.queryByRole("button", { name: /account settings/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /feedback and suggestions/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/account settings, feedback, the suggestions board, and quick suggest screenshot capture are available inside multiplayer/i)).toBeInTheDocument();
-    expect(screen.getByText(/after AHDGame authenticates that surface/i)).toBeInTheDocument();
+    expect(screen.getByText(/Multiplayer keeps its account and server data separate from your offline worlds/i)).toBeInTheDocument();
+    expect(screen.getByText(/require a network connection and an authenticated account/i)).toBeInTheDocument();
   });
 });

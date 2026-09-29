@@ -4,11 +4,13 @@
  * Mirrors the public AHDGame reference `src/app/create-character/page.tsx` step
  * order and labels exactly:
  *   1 Country -> 2 The politician -> 3 Home region -> 4 Where you stand ->
- *   5 Party -> 6 Stats
+ *   5 Party -> 6 Stats -> 7 Review
  * with the reference sub-components' behaviour: `ChipGroup` option sets
  * (creatorOptions.ts), the -5..+5 compass with `nearestParty`/`alignmentBand`
  * (registration/alignment.ts), `StatPointAllocator` (STAT_FREE_POINTS/STAT_MIN),
  * the one-party briefing (OnePartyStateNotice) and the imperial notice.
+ * Stats stay in the conversation because Native always persists the seven-key
+ * RPG block; there is no rpgStatsEnabled off path on this screen.
  *
  * Layout is mobile-first and differs from the reference (radio groups and a
  * slider instead of a drag grid), but the order, meaning and labels do not.
@@ -61,6 +63,11 @@ import type {
   CharacterWealth,
 } from "../game/types";
 import type { HomeRegionContext } from "@ahdclient/engine";
+import {
+  PROFILE_IMAGE_MIME_TYPES,
+  isAllowedProfileImageType,
+  profileImageTypeMessage,
+} from "../game/profileValidation";
 import { HomeRegionPicker } from "./HomeRegionPicker";
 import { PolicyCompass, policyAxisLabel } from "./PolicyCompass";
 import { PartyMark } from "./PartyMark";
@@ -107,9 +114,8 @@ const STAT_LABELS: Record<StatKey, string> = {
 // All images stay local data URLs; nothing is fetched from the network.
 const PORTRAIT_MAX_BYTES = 2 * 1024 * 1024;
 const HEADER_MAX_BYTES = 4 * 1024 * 1024;
-// Reference useImagePick ALLOWED_IMAGE_TYPES, in the same order.
-const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-const IMAGE_TYPE_MESSAGE = "Use a JPEG, PNG, WebP, or GIF image.";
+// Shared with Profile: the save envelope only persists PNG, JPEG and WebP.
+const IMAGE_TYPES = PROFILE_IMAGE_MIME_TYPES;
 
 function readDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -493,12 +499,12 @@ export function CharacterCreationScreen({
   const [activeStep, setActiveStep] = useState(1);
   const [maxReachedStep, setMaxReachedStep] = useState(1);
   const [reviewAll, setReviewAll] = useState(false);
-  // Headings for the six canonical steps, in order. After a user-initiated
+  // Headings for the seven canonical steps, in order. After a user-initiated
   // step change the new step's heading takes focus so keyboard and screen
   // reader users land at the start of the fresh prompt instead of on a
   // removed Continue button. Mount never steals focus.
   const headingRefs = useRef<(HTMLHeadingElement | null)[]>([]);
-  // Progress-strip buttons in step order. At 320/390px only ~2 of the six
+  // Progress-strip buttons in step order. At 320/390px only ~2 of the seven
   // pills fit, so the new current pill is scrolled into view on step change.
   const progressRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const mountedRef = useRef(false);
@@ -569,7 +575,24 @@ export function CharacterCreationScreen({
   const spent = STAT_FREE_POINTS - remaining;
   const statsComplete = remaining === 0;
   const canSubmit = nameComplete && backgroundComplete && Boolean(homeRegionId) && compassTouched && partyTouched && statsComplete;
-  const stepComplete = [true, nameComplete && backgroundComplete, Boolean(homeRegionId), compassTouched, partyTouched, statsComplete];
+  const stepComplete = [true, nameComplete && backgroundComplete, Boolean(homeRegionId), compassTouched, partyTouched, statsComplete, canSubmit];
+  const stepLabels = ["Country", "The politician", `Home ${regionNoun}`, "Where you stand", "Party", "Stats", "Review"];
+  const stepCount = stepLabels.length;
+  const reviewStep = stepCount;
+  const stepSummaries = [
+    `${selection.countryName} (${selection.era})`,
+    name.trim() || "Not answered",
+    homeRegionOptions.find((region) => region.id === homeRegionId)?.name ?? regions.find((region) => region.id === homeRegionId)?.name ?? "Not answered",
+    compassTouched ? ideologyLabel(position) : "Not answered",
+    partyTouched ? (selectedParty?.name ?? "Independent") : "Not answered",
+    statsComplete ? "All points allocated" : `${remaining} points remaining`,
+    canSubmit ? "Ready to file" : "Complete every step to file",
+  ];
+  const openStep = (step: number) => {
+    setReviewAll(false);
+    setActiveStep(step);
+    setMaxReachedStep((reached) => Math.max(reached, step));
+  };
   // Phone-first guidance: one plain line per step naming exactly what still
   // blocks Continue, using the same completeness rules as the buttons.
   const stepHint = reviewAll
@@ -594,16 +617,9 @@ export function CharacterCreationScreen({
               : "Move either slider, or use its - and + buttons, to set your position.")
             : activeStep === 5
               ? (partyTouched ? "Party choice recorded." : "Pick a party, or choose Independent on purpose.")
-              : (statsComplete ? "All points allocated." : `${remaining} of ${STAT_FREE_POINTS} points remaining.`);
-  const stepLabels = ["Country", "The politician", `Home ${regionNoun}`, "Where you stand", "Party", "Stats"];
-  const stepSummaries = [
-    `${selection.countryName} (${selection.era})`,
-    name.trim() || "Not answered",
-    homeRegionOptions.find((region) => region.id === homeRegionId)?.name ?? regions.find((region) => region.id === homeRegionId)?.name ?? "Not answered",
-    compassTouched ? ideologyLabel(position) : "Not answered",
-    partyTouched ? (selectedParty?.name ?? "Independent") : "Not answered",
-    statsComplete ? "All points allocated" : `${remaining} points remaining`,
-  ];
+              : activeStep === 6
+                ? (statsComplete ? "All points allocated." : `${remaining} of ${STAT_FREE_POINTS} points remaining.`)
+                : (canSubmit ? "Read your file before you file it. Anything can still change." : "Complete every step to create your politician.");
 
   const selectParty = (id: string | null) => {
     setPartyTouched(true);
@@ -647,7 +663,7 @@ export function CharacterCreationScreen({
   const pickPortrait = async (file: File | undefined) => {
     if (!file) return;
     setPortraitError(null);
-    if (!IMAGE_TYPES.includes(file.type)) return setPortraitError(IMAGE_TYPE_MESSAGE);
+    if (!isAllowedProfileImageType(file.type)) return setPortraitError(profileImageTypeMessage("picture"));
     if (file.size > PORTRAIT_MAX_BYTES) return setPortraitError("Portrait must be under 2 MB.");
     try { setPortraitUrl(await resizeLocal(file, 256, 256, 0.85, PORTRAIT_MAX_BYTES)); }
     catch { setPortraitError("That file could not be read as an image."); }
@@ -656,7 +672,7 @@ export function CharacterCreationScreen({
   const pickHeader = async (file: File | undefined) => {
     if (!file) return;
     setHeaderError(null);
-    if (!IMAGE_TYPES.includes(file.type)) return setHeaderError(IMAGE_TYPE_MESSAGE);
+    if (!isAllowedProfileImageType(file.type)) return setHeaderError(profileImageTypeMessage("header"));
     if (file.size > HEADER_MAX_BYTES) return setHeaderError("Header must be under 4 MB.");
     try { setHeaderUrl(await resizeLocal(file, 1400, 400, 0.80, HEADER_MAX_BYTES)); }
     catch { setHeaderError("That file could not be read as an image."); }
@@ -727,12 +743,12 @@ export function CharacterCreationScreen({
                     aria-current={isActive ? "step" : undefined}
                     aria-label={
                       isActive
-                        ? `Current step, step ${step} of 6: ${label}`
+                        ? `Current step, step ${step} of ${stepCount}: ${label}`
                         : reached
-                          ? `Go to step ${step} of 6: ${label}${done ? ", done" : ""}`
-                          : `Step ${step} of 6: ${label}, not reached yet`
+                          ? `Go to step ${step} of ${stepCount}: ${label}${done ? ", done" : ""}`
+                          : `Step ${step} of ${stepCount}: ${label}, not reached yet`
                     }
-                    onClick={() => { setReviewAll(false); setActiveStep(step); }}
+                    onClick={() => openStep(step)}
                     className={
                       isActive
                         ? "ahd-creation-progress-dot ahd-creation-progress-current"
@@ -750,18 +766,18 @@ export function CharacterCreationScreen({
           </ol>
         </nav>
         <p role="status" className="ahd-creation-live">
-          {reviewAll ? "Reviewing all six sections" : `Step ${activeStep} of 6: ${stepLabels[activeStep - 1]}`}
+          {reviewAll ? "Reviewing all six sections" : `Step ${activeStep} of ${stepCount}: ${stepLabels[activeStep - 1]}`}
         </p>
 
         <section className="ahd-creation-conversation" aria-label="Creation conversation">
           <p className="ahd-label">Your candidate file</p>
-          {stepLabels.map((label, index) => ({ label, step: index + 1 })).filter(({ step }) => step <= maxReachedStep && step !== activeStep).map(({ label, step }) => (
+          {stepLabels.map((label, index) => ({ label, step: index + 1 })).filter(({ step }) => step <= maxReachedStep && step !== activeStep && step !== reviewStep).map(({ label, step }) => (
             <button
               key={step}
               type="button"
               className="ahd-creation-answer"
               aria-label={`Edit ${label}: ${stepSummaries[step - 1]}`}
-              onClick={() => { setReviewAll(false); setActiveStep(step); }}
+              onClick={() => openStep(step)}
             >
               <span>{label}</span>
               <strong>{stepSummaries[step - 1]}</strong>
@@ -1033,6 +1049,42 @@ export function CharacterCreationScreen({
               <button type="button" className="ahd-btn ahd-btn-sm" onClick={resetStats} disabled={remaining >= STAT_FREE_POINTS}>Reset</button>
             </div>
           </StepPanel>
+
+          <StepPanel
+            hidden={reviewAll || activeStep !== reviewStep}
+            step={reviewStep}
+            title="Review"
+            subtitle="Read your file before you file it. Anything can still change."
+            complete={canSubmit}
+            headingRef={(element) => { headingRefs.current[reviewStep - 1] = element; }}
+            focusable={!reviewAll && activeStep === reviewStep}
+          >
+            <dl className="ahd-creation-country-card" data-testid="creation-review-summary" style={{ margin: 0 }}>
+              {stepLabels.slice(0, 6).map((label, index) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{stepSummaries[index]}</dd>
+                </div>
+              ))}
+              <div>
+                <dt>Background</dt>
+                <dd>{[GENDER_OPTIONS.find((item) => item.value === gender)?.label,
+                  RACE_OPTIONS.find((item) => item.value === race)?.label,
+                  EDUCATION_OPTIONS.find((item) => item.value === education)?.label,
+                  WEALTH_OPTIONS.find((item) => item.value === wealth)?.label].filter(Boolean).join(" · ") || "Not answered"}</dd>
+              </div>
+              <div><dt>Policy positions</dt><dd>Economic: {economic} · Social: {social}</dd></div>
+              <div><dt>Allocated stats</dt><dd>{STAT_KEYS.map((key) => `${STAT_LABELS[key]}: ${stats[key]}`).join(" · ")}</dd></div>
+              <div>
+                <dt>Portrait</dt>
+                <dd>{portraitUrl ? "Added" : "None"}</dd>
+              </div>
+              <div>
+                <dt>Header</dt>
+                <dd>{headerUrl ? "Added" : "None"}</dd>
+              </div>
+            </dl>
+          </StepPanel>
         </div>
 
         {choices?.imperialEligible ? (
@@ -1051,7 +1103,7 @@ export function CharacterCreationScreen({
           <p className="ahd-creation-hint" data-testid="creation-step-hint" id="creation-step-hint" style={{ flex: "1 1 100%", margin: 0 }}>
             {stepHint}
           </p>
-          {reviewAll || activeStep === 6 ? (
+          {reviewAll || activeStep === reviewStep ? (
             <button type="button" className="ahd-btn ahd-btn-primary" onClick={handleSubmit} disabled={busy} aria-busy={busy} aria-describedby="creation-step-hint">
               {busy ? <span className="ahd-spinner" aria-hidden /> : null}
               {busy ? "Creating" : "Create character"}
@@ -1062,11 +1114,7 @@ export function CharacterCreationScreen({
               className="ahd-btn ahd-btn-primary"
               disabled={!stepComplete[activeStep - 1] || busy}
               aria-describedby="creation-step-hint"
-              onClick={() => {
-                const next = Math.min(6, activeStep + 1);
-                setActiveStep(next);
-                setMaxReachedStep((reached) => Math.max(reached, next));
-              }}
+              onClick={() => openStep(Math.min(stepCount, activeStep + 1))}
             >
               Continue to {stepLabels[activeStep]}
             </button>
@@ -1077,7 +1125,7 @@ export function CharacterCreationScreen({
             onClick={() => activeStep > 1 && !reviewAll ? setActiveStep((step) => step - 1) : onBack()}
             disabled={busy}
           >Back</button>
-          {(reviewAll || activeStep === 6) && !canSubmit ? <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>Complete every step to create your politician.</span> : null}
+          {(reviewAll || activeStep === reviewStep) && !canSubmit ? <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>Complete every step to create your politician.</span> : null}
         </div>
       </div>
     </div>

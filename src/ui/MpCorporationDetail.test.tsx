@@ -1,3 +1,4 @@
+import { openMpMenu } from "./mpNavigation.test-helpers";
 /**
  * MP corporation detail drill-in (#359 corporation slice).
  *
@@ -188,6 +189,7 @@ describe.each([320, 390, 1280])("MP corporation detail drill-in at %spx (#359)",
     const standing = await screen.findByRole("article", { name: "Standing" });
     await user.click(within(standing).getByRole("button", { name: "View company" }));
     expect(await screen.findByRole("article", { name: "Corporation detail" })).toBeInTheDocument();
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: "Refresh" }));
     expect(await screen.findByRole("heading", { name: "Session expired" })).toBeInTheDocument();
     expect(screen.queryByRole("article", { name: "Corporation detail" })).toBeNull();

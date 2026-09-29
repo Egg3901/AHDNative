@@ -152,11 +152,9 @@ describe("ProfilePanel", () => {
     expect(onNavigate).toHaveBeenCalledWith("state", "LON");
   });
 
-  it("explains when constituency selection is unavailable", () => {
+  it("omits the reference constituency selector for an ineligible character", () => {
     renderPanel();
-    expect(screen.getByRole("region", { name: "Constituency" })).toHaveTextContent(
-      "Constituency selection is available only to sitting UK Commons members and Prime Ministers.",
-    );
+    expect(screen.queryByRole("region", { name: "Constituency" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Constituency" })).not.toBeInTheDocument();
   });
 
@@ -250,7 +248,7 @@ describe("ProfilePanel", () => {
     const sections = Array.from(document.querySelectorAll(".ahd-profile > section"))
       .map((node) => node.getAttribute("aria-label"));
     expect(sections).toEqual([
-      "Character", "Constituency", "Campaign song", "Biography", "Political standing", "Character stats",
+      "Character", "Campaign song", "Biography", "Political standing", "Character stats",
       "Policy and demographics", "Finances", "Career history", "Achievements",
     ]);
     expect(screen.getByText("In at the Ground Floor")).toBeInTheDocument();
@@ -413,6 +411,25 @@ describe("ProfilePanel", () => {
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [file] } });
     expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(onUpdateProfile).not.toHaveBeenCalled();
+  });
+
+  it("rejects a GIF picture with the same MIME message creation uses", async () => {
+    const onUpdateProfile = vi.fn(async () => true);
+    renderPanel({}, { onUpdateProfile });
+    const gif = new File(["gif-bytes"], "anim.gif", { type: "image/gif" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [gif] } });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Only JPEG, PNG or WebP pictures are allowed.");
+    expect(onUpdateProfile).not.toHaveBeenCalled();
+  });
+
+  it("rejects a GIF header with the shared header MIME message", async () => {
+    const onUpdateProfile = vi.fn(async () => true);
+    renderPanel({ profileHeaderUrl: null }, { onUpdateProfile });
+    const gif = new File(["gif-bytes"], "banner.gif", { type: "image/gif" });
+    fireEvent.change(screen.getByLabelText("Choose profile header"), { target: { files: [gif] } });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Only JPEG, PNG or WebP headers are allowed.");
     expect(onUpdateProfile).not.toHaveBeenCalled();
   });
 

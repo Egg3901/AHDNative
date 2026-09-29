@@ -1,3 +1,4 @@
+import { openMpMenu } from "./mpNavigation.test-helpers";
 /**
  * @vitest-environment jsdom
  *
@@ -176,6 +177,7 @@ describe("SP-to-MP-to-SP switching lifecycle", () => {
       const { unmount } = render(<MpModeScreen host={host} onExit={onExit} />);
       await screen.findByRole("heading", { name: "Ada" });
 
+      await openMpMenu();
       // The SP drawer wording must never appear as a usable MP control.
       expect(screen.queryByRole("button", { name: /end turn/i })).toBeNull();
       expect(screen.queryByRole("button", { name: /^save$/i })).toBeNull();
@@ -205,6 +207,7 @@ describe("SP-to-MP-to-SP switching lifecycle", () => {
     render(<MpModeScreen host={host} onExit={onExit} />);
     await screen.findByRole("heading", { name: "Ada" });
 
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: "Refresh" }));
     expect(
       await screen.findByRole("heading", { name: "Session expired" }),
@@ -217,10 +220,12 @@ describe("SP-to-MP-to-SP switching lifecycle", () => {
     ).toBeNull();
     // Recovery stays reachable: retry, provider reconnect, and exit home.
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    await openMpMenu();
     expect(
       screen.getByRole("button", { name: "Exit multiplayer" }),
     ).toBeInTheDocument();
 
+    await user.keyboard("{Escape}");
     await user.click(
       screen.getByRole("button", { name: "Continue with Discord" }),
     );
@@ -251,6 +256,7 @@ describe("SP-to-MP-to-SP switching lifecycle", () => {
     render(<MpModeScreen host={host} onExit={() => {}} />);
     await screen.findByRole("heading", { name: "Ada" });
 
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: "Refresh" }));
     expect(
       await screen.findByRole("heading", { name: "Connection lost" }),
@@ -284,11 +290,13 @@ describe("SP-to-MP-to-SP switching lifecycle", () => {
     render(<MpModeScreen host={host} onExit={onExit} />);
     await screen.findByRole("heading", { name: "Ada" });
 
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: "Refresh" }));
     await screen.findByRole("heading", { name: "Session expired" });
 
     // The persistent way out stays usable from the degraded state: exit
     // returns home (App unmounts the session) without touching the SP save.
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: "Exit multiplayer" }));
     expect(onExit).toHaveBeenCalledTimes(1);
   });
@@ -309,9 +317,11 @@ describe("SP-to-MP-to-SP switching lifecycle", () => {
     render(<MpModeScreen host={host} onExit={onExit} />);
     await screen.findByRole("heading", { name: "Ada" });
 
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: "Refresh" }));
     await screen.findByRole("heading", { name: "Connection lost" });
 
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: "Exit multiplayer" }));
     expect(onExit).toHaveBeenCalledTimes(1);
   });

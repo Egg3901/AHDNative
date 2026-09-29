@@ -98,7 +98,7 @@ function renderPanel(profile: ProfileView, props: Record<string, unknown> = {}) 
 }
 
 describe("profile onboarding and guided-tour prompts", () => {
-  it("renders both prompts with readable copy after the constituency card", () => {
+  it("renders prompts after identity when no constituency selector applies", () => {
     const onNavigate = vi.fn();
     renderPanel(makeProfile(), { onNavigate });
 
@@ -110,12 +110,12 @@ describe("profile onboarding and guided-tour prompts", () => {
     const tour = screen.getByRole("region", { name: "Guided tour" });
     expect(within(tour).getByText(/mark the tour complete/i)).toBeInTheDocument();
 
-    // Reference order (AHDGame profile page): constituency, onboarding, tutorial.
+    // Reference omits the constituency selector for ineligible characters.
     const sections = Array.from(document.querySelectorAll("section[aria-label]")).map((s) =>
       s.getAttribute("aria-label"),
     );
-    expect(sections.indexOf("Constituency")).toBeGreaterThan(-1);
-    expect(sections.indexOf("Getting started")).toBeGreaterThan(sections.indexOf("Constituency"));
+    expect(sections).not.toContain("Constituency");
+    expect(sections.indexOf("Getting started")).toBeGreaterThan(sections.indexOf("Character"));
     expect(sections.indexOf("Guided tour")).toBeGreaterThan(sections.indexOf("Getting started"));
   });
 

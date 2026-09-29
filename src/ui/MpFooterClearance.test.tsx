@@ -1,3 +1,4 @@
+import { openMpMenu } from "./mpNavigation.test-helpers";
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -170,6 +171,7 @@ describe("MP footer measurement (#436)", () => {
     // one. The mount-only measurement never re-fires there, so the fresh
     // screen would fall back to the 6rem floor under a taller large-text
     // footer.
+    await openMpMenu();
     fireEvent.click(
       screen.getByRole("button", { name: "Admin status" }),
     );

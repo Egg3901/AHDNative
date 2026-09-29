@@ -18,7 +18,7 @@ checking for an existing world and character. Signed-in multiplayer also opens
 Native now starts and resumes character games on Profile. The invented national
 Overview landing is removed. Economy, Budget, Policy and other existing game
 destinations remain in the drawer. The bottom controls are Profile, Actions,
-Parties and Menu. End Turn, Save and Exit remain in the drawer as requested.
+Ask and Menu. End Turn, Save and Exit remain in the drawer as requested.
 
 ## Profile is still partial
 

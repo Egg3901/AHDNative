@@ -1,3 +1,4 @@
+import { openMpMenu } from "./mpNavigation.test-helpers";
 /**
  * MP election detail drill-in (#359 election slice).
  *
@@ -208,6 +209,7 @@ describe.each([320, 390, 1280])("MP election detail drill-in at %spx (#359)", (w
     const standing = await screen.findByRole("article", { name: "Standing" });
     await user.click(within(standing).getByRole("button", { name: "View race" }));
     expect(await screen.findByRole("article", { name: "Election detail" })).toBeInTheDocument();
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: "Refresh" }));
     expect(await screen.findByRole("heading", { name: "Session expired" })).toBeInTheDocument();
     expect(screen.queryByRole("article", { name: "Election detail" })).toBeNull();

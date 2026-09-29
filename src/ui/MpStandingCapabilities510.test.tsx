@@ -1,3 +1,4 @@
+import { openMpMenu, openMpDestination } from "./mpNavigation.test-helpers";
 /**
  * MP Standing capability audit (#359/#510).
  *
@@ -196,15 +197,14 @@ describe.each([320, 390, 1280])("MP Standing capabilities at %spx (#359/#510)", 
     const user = userEvent.setup();
     render(<MpModeScreen host={fakeHost(readyScript()).host} onExit={() => {}} />);
     await screen.findByRole("article", { name: "Standing" });
+    await openMpMenu();
     const sections = screen.getByRole("navigation", { name: "Multiplayer sections" });
     await user.click(within(sections).getByRole("button", { name: "Actions" }));
     expect(window.location.hash).toBe("#mp-actions");
-    await user.click(within(sections).getByRole("button", { name: "Status" }));
+    await openMpDestination("Profile");
     expect(window.location.hash).toBe("#mp-profile");
-    const backs = screen.getAllByRole("button", { name: "Back to sections" });
-    expect(backs.length).toBeGreaterThan(0);
-    await user.click(backs[0]);
-    expect(window.location.hash).toBe("#mp-top");
+    expect(screen.getByRole("article", { name: "Standing" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Back to profile" })).toBeNull();
   });
 
   it("evicts standing on auth expiry and restores it on reconnect", async () => {
@@ -229,6 +229,7 @@ describe.each([320, 390, 1280])("MP Standing capabilities at %spx (#359/#510)", 
       />,
     );
     expect(await screen.findByRole("article", { name: "Standing" })).toBeInTheDocument();
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: "Refresh" }));
     // Expiry evicts every authed projection: no stale corporation, union,
     // election, cabinet, or governor row may survive.
@@ -252,10 +253,12 @@ describe.each([320, 390, 1280])("MP Standing capabilities at %spx (#359/#510)", 
     });
     render(<MpModeScreen host={host} onExit={() => {}} />);
     await screen.findByRole("article", { name: "Standing" });
+    await openMpDestination("Actions");
     await user.click(screen.getByRole("button", { name: /Rest/ }));
     // The server message is the whole story; the previously loaded standing
     // stands and no refresh is claimed.
     expect(await screen.findByRole("alert")).toHaveTextContent("Automated access is not permitted");
+    await openMpDestination("Profile");
     const standing = screen.getByRole("article", { name: "Standing" });
     expect(within(standing).getByText("#42")).toBeInTheDocument();
     expect(calls.filter((call) => call.startsWith("fetch:character-me"))).toHaveLength(1);

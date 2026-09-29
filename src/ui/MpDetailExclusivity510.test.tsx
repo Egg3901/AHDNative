@@ -1,3 +1,4 @@
+import { openMpDestination } from "./mpNavigation.test-helpers";
 /**
  * MP Standing drill-in exclusivity (#510/#359 state-preserving navigation).
  *
@@ -141,6 +142,7 @@ describe.each([390, 1280])("MP drill-in exclusivity at %spx (#510)", (width) => 
     await user.click(within(standing).getByRole("button", { name: "View race" }));
     await screen.findByRole("article", { name: "Election detail" });
 
+    await openMpDestination("Profile");
     // The second drill-in takes the single detail slot: the first closes.
     await user.click(within(standing).getByRole("button", { name: "View company" }));
     await screen.findByRole("article", { name: "Corporation detail" });

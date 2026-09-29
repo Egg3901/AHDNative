@@ -9,6 +9,15 @@ order, conditional controls and action flows. Responsive layout does not authori
 a new game hierarchy. The national Overview landing is superseded by Profile.
 [Behavioral parity](BEHAVIORAL-PARITY.md) records source evidence and remaining gaps.
 
+## Current native presentation correction
+
+The owner reaffirmed AHDGame consistency with one native UI for MP and SP.
+The [mode matrix](NATIVE-MODE-PARITY.md) records the shared drawer/bottom bar,
+Profile identity, Actions presentation, MP resource footer, draft-preserving
+navigation and creation Review correction under #694. These are bounded UI
+improvements. Full MP destinations, SP mechanics and device gates stay open;
+#510 is the navigation acceptance ledger, not a completed-parity claim.
+
 ## Priority one: navigation and persistent footer feature parity
 
 Owner direction: mobile-first layout can differ, but navigation and footer functionality must match the MP/SP feature surface. The [source inventory](NAVIGATION-PARITY.md) records destinations, submenus, conditional entries and status-bar interactions against AHDGame. A label or empty page is not completion.
@@ -1353,12 +1362,38 @@ Native renders the honest notice rather than an imperial form; a rendered
 AHDGame-vs-Native creation screenshot comparison and physical-device run were
 not captured. The issue stays open with `status: partial`.
 
+### Creation Review step and image MIME alignment, 2026-09-29 (#242 remainder)
+
+The conversation now closes with the reference Review step
+(`CONVERSATION_STEP_IDS` in AHDGame `conversationSteps.ts`): Country, The
+politician, Home region, Where you stand, Party, Stats, Review. Stats stay
+visible because Native always persists the seven-key RPG block; there is no
+`rpgStatsEnabled` off path on this screen. Review summarizes every captured
+field, including optional portrait and header, and earlier answers stay
+editable before submit. Create character lives on Review (and on the existing
+Review-all overlay). The overlay remains the classic all-at-once fill path.
+
+Portrait and header picks share `PROFILE_IMAGE_MIME_TYPES` and
+`validateProfileImagePick` with Profile (`src/game/profileValidation.ts`).
+GIF is refused in both places with the same messages. The save envelope still
+only persists PNG, JPEG and WebP data URLs. Size caps stay 2 MB portrait /
+4 MB header; decode-and-resize is unchanged.
+
+Evidence: `src/game/profileValidation.test.ts` (shared MIME/size contract),
+`src/ui/CharacterCreationScreen.test.tsx` (Review walk, editable summary, GIF
+refusal), `src/ui/ProfilePanel.test.tsx` (GIF picture/header refusal),
+`src/ui/CharacterCreationMobilePresentation.test.tsx` (seven-step strip).
+Focused UI + helper tests green. Smoke helper and
+`smoke/character-creation.spec.ts` walk Review before submit; Playwright was
+not run in this pass. No full typecheck, verify, or build.
+
 ### Conversational mobile presentation (#335 / #336)
 
-The owner-authorized Native adaptation now presents the same six sourced
+The owner-authorized Native adaptation now presents the same seven sourced
 creation steps one at a time. Completed answers form an editable candidate-file
-transcript, Back follows the reached step history, and Review all details keeps
-the direct six-section path available. The layer is local and deterministic:
+transcript, Back follows the reached step history, Review is the closing
+conversation step, and Review all details keeps the direct six-section fill
+path available. The layer is local and deterministic:
 it preserves the existing controls, validation, defaults and final
 `CharacterCreation` contract instead of generating or inferring answers. Focused
 rendered tests cover canonical progression, earlier-answer editing, the direct

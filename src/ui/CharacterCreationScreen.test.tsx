@@ -84,6 +84,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     await user.click(screen.getByRole("button", { name: "DEM Democratic Party" }));
     await user.click(screen.getByRole("button", { name: /Continue to Stats/i }));
     await user.click(screen.getByRole("button", { name: /Spread evenly/i }));
+    await user.click(screen.getByRole("button", { name: /Continue to Review/i }));
     await user.click(screen.getByRole("button", { name: /Create character/i }));
 
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
@@ -92,6 +93,53 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
       partyId: "US_DEM",
       policies: { economic: 1, social: -1 },
     }));
+  });
+
+  it("closes the conversation with a Review step that summarizes every field and stays editable", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<CharacterCreationScreen {...props({ onSubmit })} />);
+
+    await user.click(screen.getByRole("button", { name: /Continue to The politician/i }));
+    await completeBackground(user);
+    await user.click(screen.getByRole("button", { name: /Continue to Home state/i }));
+    await user.click(screen.getByRole("radio", { name: /^California/ }));
+    await user.click(screen.getByRole("button", { name: /Continue to Where you stand/i }));
+    fireEvent.change(screen.getByLabelText(/Economic position/), { target: { value: "1" } });
+    fireEvent.change(screen.getByLabelText(/Social position/), { target: { value: "-1" } });
+    await user.click(screen.getByRole("button", { name: /Continue to Party/i }));
+    await user.click(screen.getByRole("button", { name: "DEM Democratic Party" }));
+    await user.click(screen.getByRole("button", { name: /Continue to Stats/i }));
+    await user.click(screen.getByRole("button", { name: /Spread evenly/i }));
+    expect(screen.queryByRole("button", { name: /Create character/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Continue to Review/i }));
+
+    expect(screen.getByRole("heading", { name: /^Review/ })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Step 7 of 7: Review");
+    const summary = screen.getByTestId("creation-review-summary");
+    expect(summary).toHaveTextContent("United States (1953)");
+    expect(summary).toHaveTextContent("Eleanor Vance");
+    expect(summary).toHaveTextContent("California");
+    expect(summary).toHaveTextContent("Democratic Party");
+    expect(summary).toHaveTextContent("All points allocated");
+    expect(summary).toHaveTextContent("Female · White · College · Middle Income");
+    expect(summary).toHaveTextContent("Economic: 1 · Social: -1");
+    expect(summary).toHaveTextContent("Charisma: 4");
+    expect(screen.getByRole("heading", { name: /^Review/ }).closest("section")).toHaveTextContent(
+      "Read your file before you file it. Anything can still change.",
+    );
+
+    await user.click(screen.getByRole("button", { name: /Edit The politician: Eleanor Vance/i }));
+    expect(screen.getByRole("heading", { name: /The politician/ })).toBeInTheDocument();
+    const name = screen.getByLabelText(/^Name/);
+    await user.clear(name);
+    await user.type(name, "Ada Lovelace");
+    await user.click(screen.getByRole("button", { name: /Go to step 7 of 7: Review/i }));
+    expect(screen.getByTestId("creation-review-summary")).toHaveTextContent("Ada Lovelace");
+
+    await user.click(screen.getByRole("button", { name: /Create character/i }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0]![0].name).toBe("Ada Lovelace");
   });
 
   it("uses step Back after progression and preserves the outer Back action at Country (#336)", async () => {
@@ -475,7 +523,7 @@ describe("CharacterCreationScreen portrait/header identity (#348)", () => {
     const bad = new File(["not an image"], "notes.txt", { type: "text/plain" });
     fireEvent.change(screen.getByTestId("candidate-identity").querySelector("#creation-portrait")!, { target: { files: [bad] } });
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Use a JPEG, PNG, WebP, or GIF image.");
+    expect(alert).toHaveTextContent("Only JPEG, PNG or WebP pictures are allowed.");
     expect(screen.queryByTestId("candidate-portrait-photo")).not.toBeInTheDocument();
   });
 
@@ -523,34 +571,33 @@ describe("CharacterCreationScreen portrait/header identity (#348)", () => {
     }
   });
 
-  it("flattens a GIF pick to the persisted raster envelope on submit", async () => {
-    stubDecodableImage();
-    // jsdom ships no canvas encoder; stand in for the browser re-encode.
-    const getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ drawImage() { } } as unknown as CanvasRenderingContext2D);
-    const toDataURLSpy = vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockReturnValue("data:image/webp;base64,ZmFrZQ==");
-    try {
-      const user = userEvent.setup();
-      const onSubmit = vi.fn();
-      render(<CharacterCreationScreen {...props({ onSubmit })} />);
-      const gif = new File(["gif-bytes"], "anim.gif", { type: "image/gif" });
-      fireEvent.change(screen.getByTestId("candidate-identity").querySelector("#creation-portrait")!, { target: { files: [gif] } });
-      await screen.findByTestId("candidate-portrait-photo");
-      await completeBackground(user);
-      fireEvent.change(screen.getByLabelText(/Economic position/), { target: { value: "-3" } });
-      fireEvent.change(screen.getByLabelText(/Social position/), { target: { value: "-2" } });
-      await user.click(screen.getByRole("button", { name: "DEM Democratic Party" }));
-      await user.click(screen.getByRole("button", { name: /Spread evenly/i }));
-      await user.click(screen.getByRole("button", { name: /Create character/ }));
-      expect(onSubmit).toHaveBeenCalledTimes(1);
-      const creation = onSubmit.mock.calls[0]![0];
-      // The save/profile envelope only persists PNG, JPEG and WebP rasters;
-      // a GIF pick must never ride the submit contract as data:image/gif.
-      expect(creation.avatarUrl).toMatch(/^data:image\/(png|jpeg|webp);base64,/);
-    } finally {
-      getContextSpy.mockRestore();
-      toDataURLSpy.mockRestore();
-      vi.unstubAllGlobals();
-    }
+  it("rejects a GIF portrait with the shared Profile MIME message and never submits it", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<CharacterCreationScreen {...props({ onSubmit })} />);
+    await openDirectReview(user);
+    const gif = new File(["gif-bytes"], "anim.gif", { type: "image/gif" });
+    fireEvent.change(screen.getByTestId("candidate-identity").querySelector("#creation-portrait")!, { target: { files: [gif] } });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Only JPEG, PNG or WebP pictures are allowed.");
+    expect(screen.queryByTestId("candidate-portrait-photo")).not.toBeInTheDocument();
+    await completeBackground(user);
+    fireEvent.change(screen.getByLabelText(/Economic position/), { target: { value: "-3" } });
+    fireEvent.change(screen.getByLabelText(/Social position/), { target: { value: "-2" } });
+    await user.click(screen.getByRole("button", { name: "DEM Democratic Party" }));
+    await user.click(screen.getByRole("button", { name: /Spread evenly/i }));
+    await user.click(screen.getByRole("button", { name: /Create character/ }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0]![0].avatarUrl).toBeNull();
+  });
+
+  it("rejects a GIF header with the shared header MIME message", async () => {
+    const user = userEvent.setup();
+    render(<CharacterCreationScreen {...props()} />);
+    await openDirectReview(user);
+    const gif = new File(["gif-bytes"], "banner.gif", { type: "image/gif" });
+    fireEvent.change(screen.getByTestId("candidate-identity").querySelector("#creation-header")!, { target: { files: [gif] } });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Only JPEG, PNG or WebP headers are allowed.");
+    expect(screen.queryByTestId("candidate-header-photo")).not.toBeInTheDocument();
   });
 
   it("passes a header under the 4 MB cap through without re-encoding", async () => {

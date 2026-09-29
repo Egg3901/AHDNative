@@ -1,3 +1,4 @@
+import { openMpMenu } from "./mpNavigation.test-helpers";
 /**
  * MP Settings entry/return parity (#510, settings route family).
  *
@@ -69,23 +70,25 @@ describe.each([320, 390, 1280])("MP settings entry at %spx (#510)", (width) => {
     );
     await screen.findByRole("heading", { name: "Ada" });
 
+    await openMpMenu();
     const sections = within(screen.getByRole("navigation", { name: "Multiplayer sections" }));
     const entry = sections.getByRole("button", { name: "Settings" });
     await user.click(entry);
 
     // The shared device surface renders in place with its Appearance section.
-    expect(await screen.findByRole("heading", { name: "Settings" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Settings", level: 1 })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Text size" })).toBeInTheDocument();
 
     // A choice reports through the typed callback; the MP session stays mounted.
     await user.click(screen.getByRole("radio", { name: "Large" }));
     expect(onPreferencesChange).toHaveBeenCalledWith({ ...DEFAULT_PREFERENCES, textSize: "large" });
-    expect(screen.getByRole("heading", { name: "Ada" })).toBeInTheDocument();
+    expect(screen.getByText("Playing as Ada")).toBeInTheDocument();
 
     // Back restores the MP section list, never the SP drawer or home.
     // The settings section renders last, so its Back row is the last one.
-    const backRows = screen.getAllByRole("button", { name: "Back to sections" });
+    const backRows = screen.getAllByRole("button", { name: "Back to profile" });
     await user.click(backRows[backRows.length - 1]!);
+    await openMpMenu();
     expect(
       within(screen.getByRole("navigation", { name: "Multiplayer sections" })).getByRole("button", {
         name: "Settings",
@@ -98,6 +101,7 @@ describe.each([320, 390, 1280])("MP settings entry at %spx (#510)", (width) => {
     render(<MpModeScreen host={readyHost()} onExit={() => {}} />);
     await screen.findByRole("heading", { name: "Ada" });
 
+    await openMpMenu();
     const sections = within(screen.getByRole("navigation", { name: "Multiplayer sections" }));
     const entry = sections.getByRole("button", { name: "Settings" });
     expect(entry).toBeDisabled();

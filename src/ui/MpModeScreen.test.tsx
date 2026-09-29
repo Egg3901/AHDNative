@@ -1,3 +1,4 @@
+import { openMpMenu, openMpDestination } from "./mpNavigation.test-helpers";
 /**
  * Rendered contract for the Native multiplayer mode screen (#359).
  *
@@ -102,12 +103,13 @@ describe("MpModeScreen at 320px", () => {
     // Wallet section (#507 reachability slice), both from character-me.
     expect(screen.getAllByText("1000")).toHaveLength(2);
 
+    await openMpDestination("Actions");
     const actions = screen.getByRole("region", { name: "Player actions" });
     const runsGroup = within(actions).getByRole("group", { name: "Batch runs" });
     const runButtons = new Set(within(runsGroup).getAllByRole("button"));
     const buttons = within(actions).getAllByRole("button").filter((button) => !runButtons.has(button));
     // Exactly the nine audited server actions: nothing more is offered.
-    expect(buttons.map((button) => button.textContent)).toEqual([
+    expect(buttons.map((button) => button.getAttribute("aria-label")?.split(":")[0])).toEqual([
       "Fundraise",
       "Campaign",
       "Run Advertisements",
@@ -120,9 +122,12 @@ describe("MpModeScreen at 320px", () => {
     ]);
     expect(within(actions).getByPlaceholderText("e.g. CA")).toBeInTheDocument();
 
+    await openMpDestination("Inbox");
     expect(screen.getByRole("region", { name: "Notifications" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Player mail" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Mark all read" })).toBeInTheDocument();
+    await openMpDestination("Mail");
+    expect(screen.getByRole("region", { name: "Player mail" })).toBeInTheDocument();
+    await openMpMenu();
     expect(screen.getByRole("button", { name: "Refresh" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Exit multiplayer" })).toBeInTheDocument();
   });
@@ -154,6 +159,7 @@ describe("MpModeScreen at 320px", () => {
     });
     render(<MpModeScreen host={host} onExit={() => {}} />);
     await screen.findByRole("heading", { name: "Ada" });
+    await openMpDestination("Actions");
 
     const runs = screen.getByRole("group", { name: "Batch runs" });
     const timesFive = within(runs).getByRole("button", { name: "×5" });
@@ -163,7 +169,7 @@ describe("MpModeScreen at 320px", () => {
     calls.length = 0;
     await user.click(screen.getByRole("button", { name: /Fundraise/ }));
     expect(await screen.findByText("Ran 5 fundraisers!")).toBeInTheDocument();
-    expect(screen.getAllByText("900")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Cash on hand: 900" })).toBeVisible();
     expect(calls[0]).toMatch(/^mutate:execute-action:.*"count":5/);
     expect(calls.slice(1, 6)).toEqual(["fetch:auth-session", "fetch:character-me", "fetch:turn-status", "fetch:client-nav", "fetch:notifications"]);
   });
@@ -174,6 +180,7 @@ describe("MpModeScreen at 320px", () => {
     const { host, calls } = fakeHost(readyScript());
     render(<MpModeScreen host={host} onExit={() => {}} />);
     await screen.findByRole("heading", { name: "Ada" });
+    await openMpDestination("Actions");
     await user.click(screen.getByRole("button", { name: "×10" }));
     await user.click(screen.getByRole("button", { name: /Rest/ }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Batch execution is not available");
@@ -236,6 +243,7 @@ describe("MpModeScreen at 390px", () => {
     });
     render(<MpModeScreen host={host} onExit={() => {}} />);
     await screen.findByText(/Turn processed/);
+    await openMpDestination("Inbox");
 
     await user.clear(screen.getByLabelText(/Snooze length/));
     await user.type(screen.getByLabelText(/Snooze length/), "60");
@@ -265,6 +273,7 @@ describe("MpModeScreen at 390px", () => {
     });
     render(<MpModeScreen host={host} onExit={() => {}} />);
     await screen.findByText(/Turn processed/);
+    await openMpDestination("Inbox");
 
     await user.selectOptions(screen.getByLabelText(/Notification type/), "turn_advance");
     await user.click(screen.getByRole("button", { name: "Mute" }));
@@ -304,6 +313,7 @@ describe("MpModeScreen on desktop", () => {
     });
     render(<MpModeScreen host={host} onExit={() => {}} />);
     await screen.findByRole("heading", { name: "Ada" });
+    await openMpDestination("Actions");
     calls.length = 0;
     await user.click(screen.getByRole("button", { name: /Fundraise/ }));
     expect(await screen.findByText("Raised 250 from donors!")).toBeInTheDocument();
@@ -335,6 +345,7 @@ describe("MpModeScreen on desktop", () => {
     });
     render(<MpModeScreen host={host} onExit={() => {}} />);
     await screen.findByRole("heading", { name: "Ada" });
+    await openMpDestination("Actions");
     await user.click(screen.getByRole("button", { name: /Rest/ }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Automated access is not permitted");
     expect(screen.getAllByText("1000")).toHaveLength(2);
@@ -436,6 +447,7 @@ describe("MpModeScreen on desktop", () => {
     });
     render(<MpModeScreen host={host} onExit={() => {}} />);
     await screen.findByRole("heading", { name: "Ada" });
+    await openMpDestination("Actions");
     await user.click(screen.getByRole("button", { name: /Rest/ }));
     expect(await screen.findByRole("alert")).toHaveTextContent("The game is currently paused.");
     expect(screen.getAllByText("1000")).toHaveLength(2);
@@ -467,8 +479,10 @@ describe("MpModeScreen on desktop", () => {
       />,
     );
     await screen.findByRole("heading", { name: "Ada" });
+    await openMpDestination("Actions");
     await user.click(screen.getByRole("button", { name: /Quick Poll/ }));
     expect(await screen.findByText(/Try again in about 45 seconds/)).toBeInTheDocument();
+    await openMpDestination("Profile");
     expect(screen.getByRole("heading", { name: "Ada" })).toBeInTheDocument();
   });
 
@@ -488,6 +502,7 @@ describe("MpModeScreen on desktop", () => {
     });
     render(<MpModeScreen host={host} onExit={() => {}} />);
     await screen.findByText(/Turn processed/);
+    await openMpDestination("Inbox");
     await user.click(screen.getByRole("button", { name: "Mark read" }));
     expect(await screen.findByText("Notification marked as read.")).toBeInTheDocument();
   });
@@ -504,6 +519,7 @@ describe("MpModeScreen on desktop", () => {
     const onExit = vi.fn();
     render(<MpModeScreen host={fakeHost(readyScript()).host} onExit={onExit} />);
     await screen.findByRole("heading", { name: "Ada" });
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: "Exit multiplayer" }));
     expect(onExit).toHaveBeenCalledTimes(1);
     expect(setItem).not.toHaveBeenCalled();
@@ -517,12 +533,13 @@ describe("MpModeScreen on desktop", () => {
     render(<MpModeScreen host={fakeHost(readyScript()).host} onAsk={onAsk} onExit={onExit} />);
     await screen.findByRole("heading", { name: "Ada" });
     const navigation = within(screen.getByRole("navigation", { name: "Primary" }));
-    expect(navigation.getByRole("link", { name: "Profile" })).toHaveAttribute("href", "#mp-profile");
-    expect(navigation.getByRole("link", { name: "Actions" })).toHaveAttribute("href", "#mp-actions");
+    expect(navigation.getByRole("button", { name: "Profile" })).toHaveAttribute("aria-current", "page");
+    expect(navigation.getByRole("button", { name: "Actions" })).toBeEnabled();
     await user.click(navigation.getByRole("button", { name: "Ask" }));
     expect(onAsk).toHaveBeenCalledTimes(1);
     await user.click(navigation.getByRole("button", { name: "Menu" }));
-    expect(onExit).toHaveBeenCalledTimes(1);
+    expect(onExit).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Game menu" })).toBeVisible();
   });
 
   it("opens read-only admin status and returns to player mail without mutating", async () => {
@@ -566,8 +583,10 @@ describe("MpModeScreen on desktop", () => {
     });
     render(<MpModeScreen host={host} onExit={() => {}} />);
     await screen.findByRole("heading", { name: "Ada" });
+    await openMpDestination("Mail");
     expect(screen.getByRole("region", { name: "Player mail" })).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: "Admin status" }));
     expect(await screen.findByRole("heading", { name: /site status/i })).toBeInTheDocument();
     expect(screen.getByText("partial", { selector: "dd" })).toBeInTheDocument();
@@ -577,7 +596,8 @@ describe("MpModeScreen on desktop", () => {
     expect(calls.filter((call) => call.startsWith("mutate:"))).toHaveLength(0);
     expect(calls).toEqual(expect.arrayContaining(["fetch:mail-inbox", "fetch:mail-sent", "fetch:client-nav", "fetch:admin-maintenance"]));
     await user.click(screen.getByRole("button", { name: "Back" }));
-    expect(await screen.findByRole("heading", { name: "Ada" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Player mail" })).toBeVisible();
+    await openMpDestination("Mail");
     expect(screen.getByRole("region", { name: "Player mail" })).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();
   });

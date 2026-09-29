@@ -42,16 +42,16 @@ function setViewportWidth(width: number) {
 }
 
 describe("CharacterCreationScreen mobile presentation (#335)", () => {
-  it("lists all six canonical sections in order with the active step marked", () => {
+  it("lists all seven canonical sections in order with the active step marked", () => {
     render(<CharacterCreationScreen {...props()} />);
     const nav = screen.getByRole("navigation", { name: /Creation progress/i });
     expect(nav).toBeInTheDocument();
     const items = nav.querySelectorAll("li");
-    expect(items).toHaveLength(6);
-    const current = screen.getByRole("button", { name: "Current step, step 1 of 6: Country" });
+    expect(items).toHaveLength(7);
+    const current = screen.getByRole("button", { name: "Current step, step 1 of 7: Country" });
     expect(current).toHaveAttribute("aria-current", "step");
-    for (const label of ["The politician", "Home state", "Where you stand", "Party", "Stats"]) {
-      const pending = screen.getByRole("button", { name: new RegExp(`Step \\d of 6: ${label}, not reached yet`) });
+    for (const label of ["The politician", "Home state", "Where you stand", "Party", "Stats", "Review"]) {
+      const pending = screen.getByRole("button", { name: new RegExp(`Step \\d of 7: ${label}, not reached yet`) });
       expect(pending).toBeDisabled();
     }
   });
@@ -63,13 +63,13 @@ describe("CharacterCreationScreen mobile presentation (#335)", () => {
     await user.click(screen.getByRole("button", { name: /Continue to The politician/i }));
     await completeBackground(user);
     await user.click(screen.getByRole("button", { name: /Continue to Home state/i }));
-    expect(screen.getByRole("button", { name: /Go to step 2 of 6: The politician/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Go to step 2 of 7: The politician/ })).toBeEnabled();
 
-    await user.click(screen.getByRole("button", { name: /Go to step 1 of 6: Country/ }));
+    await user.click(screen.getByRole("button", { name: /Go to step 1 of 7: Country/ }));
     expect(screen.getByRole("heading", { name: /^Country/ })).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Step 1 of 6: Country");
+    expect(screen.getByRole("status")).toHaveTextContent("Step 1 of 7: Country");
 
-    await user.click(screen.getByRole("button", { name: /Go to step 2 of 6: The politician/ }));
+    await user.click(screen.getByRole("button", { name: /Go to step 2 of 7: The politician/ }));
     expect(screen.getByRole("heading", { name: /The politician/ })).toBeInTheDocument();
     // The earlier background answers survived the round trip.
     expect(screen.getByRole("button", { name: "Female" })).toHaveAttribute("aria-pressed", "true");
@@ -82,7 +82,7 @@ describe("CharacterCreationScreen mobile presentation (#335)", () => {
     render(<CharacterCreationScreen {...props({ onBack })} />);
 
     await user.click(screen.getByRole("button", { name: /Continue to The politician/i }));
-    await user.click(screen.getByRole("button", { name: /Go to step 1 of 6: Country/ }));
+    await user.click(screen.getByRole("button", { name: /Go to step 1 of 7: Country/ }));
     // Step Back from a jumped-to step still walks the reached history.
     await user.click(screen.getByRole("button", { name: /Continue to The politician/i }));
     await user.click(screen.getByRole("button", { name: /^Back$/i }));
@@ -104,13 +104,13 @@ describe("CharacterCreationScreen mobile presentation (#335)", () => {
     await user.click(screen.getByRole("button", { name: /Continue to The politician/i }));
     const politicianHeading = screen.getByRole("heading", { name: /The politician/ });
     expect(document.activeElement).toBe(politicianHeading);
-    expect(screen.getByRole("status")).toHaveTextContent("Step 2 of 6: The politician");
+    expect(screen.getByRole("status")).toHaveTextContent("Step 2 of 7: The politician");
 
     // Keyboard-only jump: focus the reached step and press Enter.
-    screen.getByRole("button", { name: /Go to step 1 of 6: Country/ }).focus();
+    screen.getByRole("button", { name: /Go to step 1 of 7: Country/ }).focus();
     await user.keyboard("{Enter}");
     expect(document.activeElement).toBe(screen.getByRole("heading", { name: /^Country/ }));
-    expect(screen.getByRole("status")).toHaveTextContent("Step 1 of 6: Country");
+    expect(screen.getByRole("status")).toHaveTextContent("Step 1 of 7: Country");
   });
 
   it("scrolls the new current progress pill into view on step change", async () => {
@@ -129,15 +129,15 @@ describe("CharacterCreationScreen mobile presentation (#335)", () => {
       expect(seen).toHaveLength(0);
 
       await user.click(screen.getByRole("button", { name: /Continue to The politician/i }));
-      const current = screen.getByRole("button", { name: "Current step, step 2 of 6: The politician" });
+      const current = screen.getByRole("button", { name: "Current step, step 2 of 7: The politician" });
       const calls = seen.filter((entry) => entry.pill === current);
       expect(calls).toHaveLength(1);
       expect(calls[0]!.args).toEqual({ block: "nearest", inline: "nearest" });
 
       // Keyboard-only jump back scrolls that pill instead.
-      screen.getByRole("button", { name: /Go to step 1 of 6: Country/ }).focus();
+      screen.getByRole("button", { name: /Go to step 1 of 7: Country/ }).focus();
       await user.keyboard("{Enter}");
-      const country = screen.getByRole("button", { name: "Current step, step 1 of 6: Country" });
+      const country = screen.getByRole("button", { name: "Current step, step 1 of 7: Country" });
       expect(seen.filter((entry) => entry.pill === country)).toHaveLength(1);
     } finally {
       proto.scrollIntoView = original;
@@ -196,6 +196,7 @@ describe("CharacterCreationScreen mobile presentation (#335)", () => {
     await user.click(screen.getByRole("button", { name: "DEM Democratic Party" }));
     await user.click(screen.getByRole("button", { name: /Continue to Stats/i }));
     await user.click(screen.getByRole("button", { name: /Spread evenly/i }));
+    await user.click(screen.getByRole("button", { name: /Continue to Review/i }));
     await user.click(screen.getByRole("button", { name: /Create character/i }));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);

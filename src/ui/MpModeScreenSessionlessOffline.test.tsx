@@ -1,3 +1,4 @@
+import { openMpMenu } from "./mpNavigation.test-helpers";
 /**
  * @vitest-environment jsdom
  *
@@ -110,6 +111,7 @@ describe("MpModeScreen sessionless offline", () => {
     render(<MpModeScreen host={host} onExit={() => {}} />);
     await screen.findByRole("heading", { name: "Ada" });
 
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: "Refresh" }));
 
     // Honest mid-session recovery: kept state stays visible, Reconnect

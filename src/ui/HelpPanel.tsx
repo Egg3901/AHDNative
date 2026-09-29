@@ -103,13 +103,13 @@ export function HelpPanel({ openExternal = openSupportDestination }: HelpPanelPr
         </ul>
         {openError ? <p role="alert" className="ahd-alert" style={{ margin: 0 }}>{openError}</p> : null}
         <p style={{ margin: 0 }}>
-          Account settings, feedback, the suggestions board, and Quick Suggest screenshot capture are available inside Multiplayer after AHDGame authenticates that surface. Open Multiplayer from the home screen to use them. The offline app cannot inspect or reuse that account session.
+          Open Multiplayer from the home screen to sign in to the live game. Multiplayer keeps its account and server data separate from your offline worlds. Use the support links above for feedback and help.
         </p>
       </HelpSection>
 
       <HelpSection title="Still unavailable here">
         <p style={{ margin: 0 }}>
-          Multiplayer accounts, live server play, and player mail are not part of this offline app. The current local screen also does not expose the full AHDGame world destinations such as corporation management and unions.
+          Live server play and player mail are available in Multiplayer. They require a network connection and an authenticated account. Offline worlds remain separate, and full AHDGame destinations such as corporation management and unions are still being brought into parity.
         </p>
         <p style={{ margin: 0 }}>
           Maps, changing your played country, regional legislative actions, and several advanced country systems remain unavailable. You can inspect regions and browse other nations. This project is development software; this page describes current behavior and does not claim a released native product.

@@ -1,3 +1,4 @@
+import { openMpMenu } from "./mpNavigation.test-helpers";
 /**
  * MP union detail drill-in (#359 union slice).
  *
@@ -236,6 +237,7 @@ describe.each([320, 390, 1280])("MP union detail drill-in at %spx (#359)", (widt
     const standing = await screen.findByRole("article", { name: "Standing" });
     await user.click(within(standing).getByRole("button", { name: "View union" }));
     expect(await screen.findByRole("article", { name: "Union detail" })).toBeInTheDocument();
+    await openMpMenu();
     await user.click(screen.getByRole("button", { name: "Refresh" }));
     expect(await screen.findByRole("heading", { name: "Session expired" })).toBeInTheDocument();
     expect(screen.queryByRole("article", { name: "Union detail" })).toBeNull();
