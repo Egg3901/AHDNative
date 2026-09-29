@@ -11,7 +11,7 @@ import { openMpMenu } from "./mpNavigation.test-helpers";
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MpModeScreen } from "./MpModeScreen";
 import type { MpBridgeHost } from "../mp/bridge";
@@ -120,7 +120,7 @@ describe("MpModeScreen single-view drill-in at 320px", () => {
 
     await user.click(within(sections).getByRole("button", { name: "Actions" }));
     expect(window.location.hash).toBe("#mp-actions");
-    expect(document.getElementById("mp-actions")).toHaveFocus();
+    await waitFor(() => expect(document.getElementById("mp-actions")).toHaveFocus());
 
     const backs = screen.getAllByRole("button", { name: "Back to profile" });
     expect(backs).toHaveLength(1);
