@@ -26,7 +26,9 @@ exposes SP turn/save commands. All existing server mutations remain authoritativ
 and home/country composition. SP supplies its persisted fields and working links;
 MP supplies only fields projected by its server adapter. Unknown offices or
 unavailable links are not fabricated. Shared styles reserve space above the
-portrait overlap so the character's name remains readable.
+portrait overlap so the character's name remains readable. The SP constituency
+selector follows the reference eligibility gate instead of showing an unrelated
+UK office notice to ineligible characters.
 
 `ActionCategories` shares category filters. SP supplies eligible counts and local
 quotes. MP lists its existing audited action set without claiming eligibility it

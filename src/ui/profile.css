@@ -33,6 +33,8 @@
   padding-bottom: 4.25rem;
 }
 
+.ahd-profile-header > .ahd-help { margin: 0; }
+
 .ahd-profile-hero .ahd-h1 {
   overflow-wrap: anywhere;
 }

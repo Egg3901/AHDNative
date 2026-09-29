@@ -532,12 +532,10 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
         ) : null}
       </section>
 
-      <section aria-label="Constituency" className="ahd-card ahd-card-pad">
+      {profile.constituency.eligible && <section aria-label="Constituency" className="ahd-card ahd-card-pad">
         <h2 className="ahd-h2">
           {profile.constituency.officeType === "primeMinister" ? "Prime Minister constituency" : "Commons constituency"}
         </h2>
-        {profile.constituency.eligible ? (
-          <>
             <p className="ahd-muted">Choose a constituency inside the UK region tied to your elected office.</p>
             <label className="ahd-field" htmlFor="ahd-profile-constituency">
               <span className="ahd-label">Constituency</span>
@@ -576,11 +574,7 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
               ) : null}
             </div>
             {constituencyError ? <p className="ahd-alert" role="alert">{constituencyError}</p> : null}
-          </>
-        ) : (
-          <p className="ahd-muted">{profile.constituency.unavailableReason}</p>
-        )}
-      </section>
+      </section>}
 
       {showOnboarding ? (
         <section aria-label="Getting started" className="ahd-card ahd-card-pad">

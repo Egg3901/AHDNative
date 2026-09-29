@@ -152,11 +152,9 @@ describe("ProfilePanel", () => {
     expect(onNavigate).toHaveBeenCalledWith("state", "LON");
   });
 
-  it("explains when constituency selection is unavailable", () => {
+  it("omits the reference constituency selector for an ineligible character", () => {
     renderPanel();
-    expect(screen.getByRole("region", { name: "Constituency" })).toHaveTextContent(
-      "Constituency selection is available only to sitting UK Commons members and Prime Ministers.",
-    );
+    expect(screen.queryByRole("region", { name: "Constituency" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Constituency" })).not.toBeInTheDocument();
   });
 
@@ -250,7 +248,7 @@ describe("ProfilePanel", () => {
     const sections = Array.from(document.querySelectorAll(".ahd-profile > section"))
       .map((node) => node.getAttribute("aria-label"));
     expect(sections).toEqual([
-      "Character", "Constituency", "Campaign song", "Biography", "Political standing", "Character stats",
+      "Character", "Campaign song", "Biography", "Political standing", "Character stats",
       "Policy and demographics", "Finances", "Career history", "Achievements",
     ]);
     expect(screen.getByText("In at the Ground Floor")).toBeInTheDocument();
