@@ -1067,6 +1067,15 @@ export function CharacterCreationScreen({
                 </div>
               ))}
               <div>
+                <dt>Background</dt>
+                <dd>{[GENDER_OPTIONS.find((item) => item.value === gender)?.label,
+                  RACE_OPTIONS.find((item) => item.value === race)?.label,
+                  EDUCATION_OPTIONS.find((item) => item.value === education)?.label,
+                  WEALTH_OPTIONS.find((item) => item.value === wealth)?.label].filter(Boolean).join(" · ") || "Not answered"}</dd>
+              </div>
+              <div><dt>Policy positions</dt><dd>Economic: {economic} · Social: {social}</dd></div>
+              <div><dt>Allocated stats</dt><dd>{STAT_KEYS.map((key) => `${STAT_LABELS[key]}: ${stats[key]}`).join(" · ")}</dd></div>
+              <div>
                 <dt>Portrait</dt>
                 <dd>{portraitUrl ? "Added" : "None"}</dd>
               </div>

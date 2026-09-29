@@ -5,13 +5,13 @@ import userEvent from "@testing-library/user-event";
 /** Exercise the same drawer path players use, retaining the mounted session. */
 export async function openMpMenu() {
   if (!screen.queryByRole("dialog", { name: "Game menu" })) {
-    await userEvent.click(screen.getByRole("button", { name: "Menu", exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Menu" }));
   }
   return screen.getByRole("dialog", { name: "Game menu" });
 }
 
 export async function openMpDestination(name: "Profile" | "Actions" | "Wallet" | "Inbox" | "Mail" | "Settings") {
   const drawer = await openMpMenu();
-  await userEvent.click(within(drawer).getByRole("button", { name: name === "Inbox" ? /^Inbox/ : name, exact: name !== "Inbox" }));
+  await userEvent.click(within(drawer).getByRole("button", { name: name === "Inbox" ? /^Inbox/ : name }));
   await waitFor(() => expect(screen.queryByRole("dialog", { name: "Game menu" })).toBeNull());
 }

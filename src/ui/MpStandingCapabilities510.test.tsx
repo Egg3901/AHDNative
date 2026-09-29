@@ -203,10 +203,8 @@ describe.each([320, 390, 1280])("MP Standing capabilities at %spx (#359/#510)", 
     expect(window.location.hash).toBe("#mp-actions");
     await openMpDestination("Profile");
     expect(window.location.hash).toBe("#mp-profile");
-    const backs = screen.getAllByRole("button", { name: "Back to profile" });
-    expect(backs.length).toBeGreaterThan(0);
-    await user.click(backs[0]);
-    expect(window.location.hash).toBe("#mp-profile");
+    expect(screen.getByRole("article", { name: "Standing" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Back to profile" })).toBeNull();
   });
 
   it("evicts standing on auth expiry and restores it on reconnect", async () => {

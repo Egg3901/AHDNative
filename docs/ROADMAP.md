@@ -9,6 +9,15 @@ order, conditional controls and action flows. Responsive layout does not authori
 a new game hierarchy. The national Overview landing is superseded by Profile.
 [Behavioral parity](BEHAVIORAL-PARITY.md) records source evidence and remaining gaps.
 
+## Current native presentation correction
+
+The owner reaffirmed AHDGame consistency with one native UI for MP and SP.
+The [mode matrix](NATIVE-MODE-PARITY.md) records the shared drawer/bottom bar,
+Profile identity, Actions presentation, MP resource footer, draft-preserving
+navigation and creation Review correction under #694. These are bounded UI
+improvements. Full MP destinations, SP mechanics and device gates stay open;
+#510 is the navigation acceptance ledger, not a completed-parity claim.
+
 ## Priority one: navigation and persistent footer feature parity
 
 Owner direction: mobile-first layout can differ, but navigation and footer functionality must match the MP/SP feature surface. The [source inventory](NAVIGATION-PARITY.md) records destinations, submenus, conditional entries and status-bar interactions against AHDGame. A label or empty page is not completion.

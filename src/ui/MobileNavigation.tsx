@@ -397,7 +397,9 @@ export function GameDrawerFrame({ open, docked, menuButtonRef, onClose, children
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const drawer = drawerRef.current;
-    drawer?.querySelector<HTMLButtonElement>('.ahd-drawer-nav [aria-current="page"], .ahd-drawer-nav button')?.focus();
+    (drawer?.querySelector<HTMLButtonElement>('.ahd-drawer-nav [aria-current="page"]')
+      ?? drawer?.querySelector<HTMLButtonElement>(".ahd-drawer-nav button:not([disabled])")
+      ?? drawer?.querySelector<HTMLButtonElement>("button:not([disabled])"))?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();

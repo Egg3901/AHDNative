@@ -125,6 +125,15 @@ describe.each([320, 390])("MP footer navigation at %spx", (width) => {
     expect(screen.queryByRole("button", { name: /^Fundraise:/ })).toBeNull();
   });
 
+  it("carries the shared Profile identity and bundled artwork into MP", async () => {
+    await renderReady(width);
+    const profile = within(screen.getByRole("article", { name: "Player" }));
+    expect(profile.getByRole("img", { name: "Politicians meeting in a national chamber" })).toHaveAttribute("src", "/static/heroes/politicians.webp");
+    expect(profile.getByRole("heading", { name: "Ada", level: 1 })).toBeVisible();
+    expect(profile.getByText("Labor")).toBeVisible();
+    expect(profile.queryByText("No office")).toBeNull();
+  });
+
   it("renders the shared SVG icon language, not ad hoc text glyphs", async () => {
     const element = await renderReady(width);
     const queries = nav(element);
@@ -207,4 +216,19 @@ describe("MP footer shared-system parity", () => {
     expect(element.querySelector("iframe")).toBeNull();
     expect(element.innerHTML).not.toMatch(/https?:\/\//);
   });
+});
+
+it("keeps the multiplayer shell and mail draft through an embedded Ask visit", async () => {
+  const user = userEvent.setup();
+  render(<MpModeScreen host={readyHost()} onExit={() => {}} askContent={<p>Ask conversation</p>} />);
+  await screen.findByRole("heading", { name: "Ada" });
+  await user.click(screen.getByRole("button", { name: "Menu" }));
+  await user.click(within(screen.getByRole("dialog", { name: "Game menu" })).getByRole("button", { name: "Mail" }));
+  await user.type(screen.getByPlaceholderText("Subject"), "Keep this draft");
+  await user.click(within(screen.getByRole("navigation", { name: "Primary" })).getByRole("button", { name: "Ask" }));
+  expect(screen.getByText("Ask conversation")).toBeVisible();
+  expect(screen.getByRole("navigation", { name: "Primary" })).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Menu" }));
+  await user.click(within(screen.getByRole("dialog", { name: "Game menu" })).getByRole("button", { name: "Mail" }));
+  expect(screen.getByPlaceholderText("Subject")).toHaveValue("Keep this draft");
 });

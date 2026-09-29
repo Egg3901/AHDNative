@@ -122,6 +122,9 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     expect(summary).toHaveTextContent("California");
     expect(summary).toHaveTextContent("Democratic Party");
     expect(summary).toHaveTextContent("All points allocated");
+    expect(summary).toHaveTextContent("Female · White · College · Middle Income");
+    expect(summary).toHaveTextContent("Economic: 1 · Social: -1");
+    expect(summary).toHaveTextContent("Charisma: 4");
     expect(screen.getByRole("heading", { name: /^Review/ }).closest("section")).toHaveTextContent(
       "Read your file before you file it. Anything can still change.",
     );

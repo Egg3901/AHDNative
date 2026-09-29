@@ -240,7 +240,7 @@ export function App() {
       <AskPanel surface="main" onBeforeSignIn={async () => { if (world) await run(save); }} />
     </div>
   </div></main>;
-  if (screen === 'mp') return <MpModeScreen onAsk={() => { askReturn.current = 'mp'; setScreen('ask'); }} onExit={() => setScreen('home')} preferences={presentation.value} onPreferencesChange={changePreferences} preferencesError={presentation.error} />;
+  if (screen === 'mp') return <MpModeScreen askContent={<AskPanel surface="main" onBeforeSignIn={async () => { if (world) await run(save); }} />} onExit={() => setScreen('home')} preferences={presentation.value} onPreferencesChange={changePreferences} preferencesError={presentation.error} />;
   if (screen === 'new') return <NewGameScreen eras={eras} busy={busy} error={error} onStart={start} onBack={() => setScreen('home')} />;
   if (screen === 'creation' && pendingSetup) {
     const era = eras.find((entry) => entry.id === pendingSetup.era);

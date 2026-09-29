@@ -23,6 +23,7 @@
  * Existing class names and accessible names are preserved so SP
  * player-flow tests and CSS apply unchanged.
  */
+import "./profile.css";
 import type { ReactNode } from "react";
 import { RouteHero } from "./RouteHero";
 

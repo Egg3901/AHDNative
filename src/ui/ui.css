@@ -1662,3 +1662,5 @@ details[open] > .ahd-trend-table-disclosure::after {
 
 .ahd-mp .ahd-mp-resources { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .ahd-mp .ahd-drawer-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.75rem; }
+
+.ahd-mp-profile-identity { grid-column: 1 / -1; }

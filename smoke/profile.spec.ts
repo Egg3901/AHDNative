@@ -15,6 +15,10 @@ test('profile picture, biography and standing survive a real save and resume', a
   await startProfile(page, 'Profile Player');
   const profile = page.getByRole('region', { name: 'Profile', exact: true });
   const footer = page.getByRole('contentinfo');
+  const title = await profile.getByRole('heading', { name: 'Profile Player', exact: true }).boundingBox();
+  const identity = await profile.locator('.ahd-profile-hero-id').boundingBox();
+  expect(title!.y + title!.height).toBeLessThanOrEqual(identity!.y);
+
   await expect(profile.getByRole('region', { name: 'Political standing' })).toContainText('25 / 200');
   await expect(profile).toContainText('Infamy');
   await expect(profile.getByRole('region', { name: 'Finances' })).toContainText('Donor network');

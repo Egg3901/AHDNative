@@ -8,7 +8,8 @@ import { formatTurnCountdown } from "../mp/validators";
 import { MpAdminScreen } from "./MpAdminScreen";
 import { ActionCategories } from "./ActionCategories";
 import { ACTION_HUB_CATEGORIES, type ActionsCategoryFilter } from "./ActionsHub";
-import { RouteHero } from "./RouteHero";
+import { RouteHero, PROFILE_HERO_IMAGE } from "./RouteHero";
+import { ProfileIdentity } from "./ProfileIdentity";
 import { SettingsPanel, type SettingsPanelProps } from "./SettingsPanel";
 import { installFooterClearance } from "./footerClearance";
 import "./ui.css";
@@ -25,6 +26,8 @@ import "./ui.css";
 export interface MpModeScreenProps {
   host?: MpBridgeHost;
   onAsk?: () => void;
+  /** Embedded Ask keeps the MP session and unsent drafts mounted. */
+  askContent?: React.ReactNode;
   onExit: () => void;
   /**
    * Device presentation settings (#510 settings family). The panel is
@@ -86,7 +89,7 @@ const MP_ACTION_CATEGORIES: Record<string, ActionsCategoryFilter> = {
   poll: "intelligence", pollLarge: "intelligence", debatePrep: "intelligence",
 };
 
-export function MpModeScreen({ host, onAsk, onExit, preferences, onPreferencesChange, preferencesError }: MpModeScreenProps) {
+export function MpModeScreen({ host, onAsk, askContent, onExit, preferences, onPreferencesChange, preferencesError }: MpModeScreenProps) {
   const sessionRef = useRef<MpModeSession | null>(null);
   if (!sessionRef.current) sessionRef.current = new MpModeSession(host ?? tauriMpBridgeHost());
   const [actionCategory, setActionCategory] = useState<ActionsCategoryFilter>("all");
@@ -491,6 +494,19 @@ export function MpModeScreen({ host, onAsk, onExit, preferences, onPreferencesCh
     return installFooterClearance(footerRef.current, screenRef.current);
   }, [adminOpen]);
 
+  useEffect(() => {
+    if (phase === "loading") return;
+    const details: Record<string, boolean> = {
+      "mp-election": electionOpen && !!snapshot.electionDetail,
+      "mp-corporation": corporationOpen && !!snapshot.corporationDetail,
+      "mp-union": unionOpen && !!snapshot.unionDetail,
+      "mp-cabinet": cabinetOpen && !!snapshot.cabinetDetail,
+      "mp-governor": governorOpen && !!snapshot.governorDetail,
+    };
+    if (activeSection in details && !details[activeSection]) setActiveSection("mp-profile");
+  }, [activeSection, phase, electionOpen, corporationOpen, unionOpen, cabinetOpen, governorOpen,
+    snapshot.electionDetail, snapshot.corporationDetail, snapshot.unionDetail, snapshot.cabinetDetail, snapshot.governorDetail]);
+
   if (adminOpen) {
     return <MpAdminScreen host={host} onBack={() => setAdminOpen(false)} />;
   }
@@ -546,7 +562,7 @@ export function MpModeScreen({ host, onAsk, onExit, preferences, onPreferencesCh
         <header className="ahd-mp-row ahd-mp-heading" aria-label="Multiplayer header">
           <div style={{ minWidth: 0 }}>
             <p className="ahd-eyebrow">Multiplayer</p>
-            {activeSection !== "mp-settings" && activeSection !== "mp-actions" && <h1 className="ahd-h1" id="mp-top" tabIndex={-1}>{({ "mp-profile": "Profile", "mp-actions": "Actions", "mp-wallet": "Wallet", "mp-inbox": "Notifications", "mp-mail": "Mail", "mp-settings": "Settings" } as Record<string, string>)[activeSection] ?? "Details"}</h1>}
+            {activeSection !== "mp-profile" && activeSection !== "mp-settings" && activeSection !== "mp-actions" && activeSection !== "mp-ask" && <h1 className="ahd-h1" id="mp-top" tabIndex={-1}>{({ "mp-profile": "Profile", "mp-actions": "Actions", "mp-wallet": "Wallet", "mp-inbox": "Notifications", "mp-mail": "Mail", "mp-settings": "Settings" } as Record<string, string>)[activeSection] ?? "Details"}</h1>}
             {snapshot.username && <p className="ahd-muted" style={{ margin: 0 }}>Playing as {snapshot.username}</p>}
           </div>
         </header>
@@ -614,12 +630,13 @@ export function MpModeScreen({ host, onAsk, onExit, preferences, onPreferencesCh
         {snapshot.character && (
           <>
           <section id="mp-profile" className="ahd-mp-grid" aria-label="Multiplayer status" tabIndex={-1} hidden={activeSection !== "mp-profile"}>
-            <article className="ahd-card ahd-card-pad" aria-label="Player">
-              <h2 className="ahd-h2">{snapshot.character.name}</h2>
+            <article className="ahd-card ahd-card-pad ahd-profile-header ahd-hero ahd-mp-profile-identity" aria-label="Player">
+              <ProfileIdentity name={snapshot.character.name} heroImage={PROFILE_HERO_IMAGE}
+                heroAlt="Politicians meeting in a national chamber" eyebrow="Profile"
+                party={snapshot.character.party ? { name: snapshot.character.party } : null}
+                home={snapshot.character.homeState ? { label: snapshot.character.homeState } : null}
+                country={{ label: snapshot.character.countryId ?? "Country not reported" }} />
               <dl className="ahd-mp-facts">
-                {snapshot.character.party && (<><dt>Party</dt><dd>{snapshot.character.party}</dd></>)}
-                {snapshot.character.homeState && (<><dt>Home</dt><dd>{snapshot.character.homeState}</dd></>)}
-                {snapshot.character.countryId && (<><dt>Country</dt><dd>{snapshot.character.countryId}</dd></>)}
                 {snapshot.character.actions !== null && (<><dt>Action points</dt><dd>{snapshot.character.actions}</dd></>)}
                 {snapshot.character.cashOnHand !== null && (<><dt>Cash on hand</dt><dd>{snapshot.character.cashOnHand}</dd></>)}
                 {snapshot.character.corporationName && (<><dt>Corporation</dt><dd>{snapshot.character.corporationName}</dd></>)}
@@ -772,11 +789,7 @@ export function MpModeScreen({ host, onAsk, onExit, preferences, onPreferencesCh
               </article>
             )}
           </section>
-          <div hidden={activeSection !== "mp-profile"} className="ahd-mp-row ahd-mp-back">
-            <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" onClick={() => jumpTo("mp-top")}>
-              Back to profile
-            </button>
-          </div>
+
           </>
         )}
 
@@ -1351,6 +1364,7 @@ export function MpModeScreen({ host, onAsk, onExit, preferences, onPreferencesCh
           </div>
           </>
         )}
+        {activeSection === "mp-ask" && askContent && <section id="mp-ask" className="ahd-ask-embed" aria-label="Ask" tabIndex={-1}>{askContent}</section>}
       </div>
       <GameDrawerFrame open={menuOpen} menuButtonRef={menuButtonRef} onClose={() => setMenuOpen(false)}>
         <div className="ahd-drawer-identity">
@@ -1360,21 +1374,21 @@ export function MpModeScreen({ host, onAsk, onExit, preferences, onPreferencesCh
         {snapshot.character && (
           <nav className="ahd-drawer-nav" aria-label="Multiplayer sections">
             <span className="ahd-label">Profile</span>
-            <button className="ahd-drawer-item" aria-current={activeSection === "mp-profile" ? "page" : undefined} onClick={() => navigateFromMenu("mp-profile")}>
+            <button className="ahd-drawer-item" aria-current={activeSection === "mp-profile" ? "page" : undefined} data-active={activeSection === "mp-profile" ? "true" : undefined} onClick={() => navigateFromMenu("mp-profile")}>
               Profile
             </button>
-            <button className="ahd-drawer-item" onClick={() => navigateFromMenu("mp-actions")}>
+            <button className="ahd-drawer-item" aria-current={activeSection === "mp-actions" ? "page" : undefined} data-active={activeSection === "mp-actions" ? "true" : undefined} onClick={() => navigateFromMenu("mp-actions")}>
               Actions
             </button>
-            <button className="ahd-drawer-item" onClick={() => navigateFromMenu("mp-wallet")}>
+            <button className="ahd-drawer-item" aria-current={activeSection === "mp-wallet" ? "page" : undefined} data-active={activeSection === "mp-wallet" ? "true" : undefined} onClick={() => navigateFromMenu("mp-wallet")}>
               Wallet
             </button>
             {snapshot.inbox && (
-              <button className="ahd-drawer-item" onClick={() => navigateFromMenu("mp-inbox")}>
+              <button className="ahd-drawer-item" aria-current={activeSection === "mp-inbox" ? "page" : undefined} data-active={activeSection === "mp-inbox" ? "true" : undefined} onClick={() => navigateFromMenu("mp-inbox")}>
                 Inbox{snapshot.inbox.unreadCount > 0 ? ` (${snapshot.inbox.unreadCount} unread)` : ""}
               </button>
             )}
-            <button className="ahd-drawer-item" onClick={() => navigateFromMenu("mp-mail")}>
+            <button className="ahd-drawer-item" aria-current={activeSection === "mp-mail" ? "page" : undefined} data-active={activeSection === "mp-mail" ? "true" : undefined} onClick={() => navigateFromMenu("mp-mail")}>
               Mail
             </button>
             {/* #510 settings family: Settings (including Appearance) is
@@ -1385,7 +1399,7 @@ export function MpModeScreen({ host, onAsk, onExit, preferences, onPreferencesCh
                 unwired-Ask footer precedent. */}
             <button
               className="ahd-drawer-item"
-              onClick={() => navigateFromMenu("mp-settings")}
+              aria-current={activeSection === "mp-settings" ? "page" : undefined} data-active={activeSection === "mp-settings" ? "true" : undefined} onClick={() => navigateFromMenu("mp-settings")}
               disabled={preferences === undefined || onPreferencesChange === undefined}
               title={preferences === undefined || onPreferencesChange === undefined ? "Settings are unavailable here" : undefined}
             >
@@ -1432,10 +1446,10 @@ export function MpModeScreen({ host, onAsk, onExit, preferences, onPreferencesCh
               <span className="ahd-status-btn-label">Inbox</span><span className="ahd-mono ahd-status-btn-value">{snapshot.inbox.unreadCount}</span>
             </button>}
           </div>}
-          <BottomNav route={activeSection === "mp-profile" ? "profile" : activeSection === "mp-actions" ? "actions" : "settings"}
+          <BottomNav route={activeSection === "mp-profile" ? "profile" : activeSection === "mp-actions" ? "actions" : activeSection === "mp-ask" ? "ask" : activeSection === "mp-wallet" ? "portfolio" : "settings"}
             menuOpen={menuOpen} menuButtonRef={menuButtonRef}
-            disabledTabs={onAsk ? [] : ["ask"]}
-            onNavigate={(next) => next === "ask" ? onAsk?.() : jumpTo(`mp-${next}`)}
+            disabledTabs={onAsk || askContent ? [] : ["ask"]}
+            onNavigate={(next) => next === "ask" && !askContent ? onAsk?.() : jumpTo(`mp-${next}`)}
             onOpenMenu={() => setMenuOpen(true)} />
         </div>
       </footer>
