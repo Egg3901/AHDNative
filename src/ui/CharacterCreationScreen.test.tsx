@@ -56,7 +56,7 @@ describe("CharacterCreationScreen reference flow (#242)", () => {
     await openDirectReview(user);
     await completeBackground(user);
     fireEvent.change(screen.getByLabelText(/Economic position/), { target: { value: "1" } });
-    await user.click(screen.getByRole("button", { name: "Independent", exact: true }));
+    await user.click(screen.getByRole("button", { name: /^Independent$/ }));
     expect(screen.queryByRole("button", { name: "Increase Energy" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Create character/ }));
     expect(onSubmit).toHaveBeenCalledTimes(1);
