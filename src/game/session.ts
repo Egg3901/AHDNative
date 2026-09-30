@@ -22,7 +22,7 @@ import { projectPolitics, projectPartyMembership } from "./politics";
 import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
-  ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, lendInterbank, quoteInterbankMax, repayInterbank,
+  ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, reallocatePlayerStats,
   getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
@@ -353,6 +353,18 @@ export class GameSession {
 
   /** Truthful imperial identity for an imperial save; null for ordinary ones. */
   imperialProfile() { return projectImperialProfile(this.requireWorld()); }
+
+  allocateStats(stats: Record<string, number>): GameView {
+    const candidate = structuredClone(this.requireWorld());
+    allocatePlayerStats(candidate, stats);
+    return this.commit(candidate);
+  }
+
+  reallocateStats(stats: Record<string, number>): GameView {
+    const candidate = structuredClone(this.requireWorld());
+    reallocatePlayerStats(candidate, stats);
+    return this.commit(candidate);
+  }
 
   updateProfile(update: ProfileUpdate): GameView {
     const valid = validateProfileUpdate(update);

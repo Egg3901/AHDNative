@@ -67,7 +67,7 @@ export function projectProfile(world: WorldState): ProfileView {
   const tutorialDismissed = player.tutorialDismissed === true;
   // #242: the full stat block is surfaced when any stat is recorded. Legacy
   // saves with only energy/debate still report those keys.
-  const stats = player.stats && Object.keys(player.stats).length > 0
+  const stats = world.featureFlags.rpgStats && player.stats && Object.keys(player.stats).length > 0
     ? { ...player.stats }
     : null;
   const demographics = player.demographics ?? null;

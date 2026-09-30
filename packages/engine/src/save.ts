@@ -2738,6 +2738,9 @@ export function deserializeSave(raw: string): WorldState {
     // renumber is needed.
     if (typeof campaign.campaignStrength !== "number") campaign.campaignStrength = 0;
   }
+  // Pre-#48 Native saves always applied recorded stats. Preserve that ruleset
+  // when the new key is absent; present malformed values still fail closed.
+  if (save.world.featureFlags.rpgStats === undefined) save.world.featureFlags.rpgStats = true;
   assertCurrentWorldState(save.world);
   // #295: persisted sector-owner default. Saves written before the
   // acquisition slice carry materialized assets without the field; missing

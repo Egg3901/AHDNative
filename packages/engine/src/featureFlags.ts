@@ -31,6 +31,7 @@ export const WORLD_FEATURE_FLAG_DEFINITIONS = [
   { key: "policyEffects", label: "Policy effects", description: "Ministerial orders and enacted-policy effects." },
   { key: "extraction", label: "Resource extraction", description: "Prospecting results and contract offers." },
   { key: "achievements", label: "Achievements", description: "Achievement evaluation and awards." },
+  { key: "rpgStats", label: "Character stats", description: "Stat allocation, reallocation, and character attributes." },
 ] as const;
 
 export type WorldFeatureFlag = (typeof WORLD_FEATURE_FLAG_DEFINITIONS)[number]["key"];
@@ -129,6 +130,7 @@ const AHDGAME_RELATED_FLAGS = {
     { key: "contractIssuanceEnabled", default: "unverified" },
   ],
   achievements: [],
+  rpgStats: [{ key: "rpgStatsEnabled", default: "on" }],
 } satisfies Record<WorldFeatureFlag, readonly AhdGameRelatedFlag[]>;
 
 const AHDGAME_COUNTERPARTS: Partial<Record<WorldFeatureFlag, string>> = {
@@ -136,6 +138,7 @@ const AHDGAME_COUNTERPARTS: Partial<Record<WorldFeatureFlag, string>> = {
   commandEconomy: "commandEconomyEnabled",
   coldWar: "coldWarEnabled",
   conflicts: "conflictsEnabled",
+  rpgStats: "rpgStatsEnabled",
 };
 
 export const AHDGAME_FEATURE_FLAG_AUDIT: Record<WorldFeatureFlag, AhdGameFeatureFlagAuditEntry> =
