@@ -96,11 +96,19 @@ export async function loadFixture(page: Page, fixture: Buffer) {
   }, fixture.toString('utf8'));
 }
 
-export async function gameReady(page: Page) {
+export async function gameReady(page: Page, options: { keepStatAllocationGate?: boolean } = {}) {
   await closeGameMenu(page);
   await expect(page.getByRole('contentinfo')).toBeVisible();
   await expect(page.getByRole('contentinfo')).not.toContainText('Processing');
   await expect(page.getByText('Loading profile...', { exact: true })).toHaveCount(0);
+  // Older engine-built fixtures may predate character allocation. Defer its
+  // new entry gate through the public UI before unrelated gameplay smoke.
+  // The dedicated stat lifecycle smoke keeps and verifies this gate itself.
+  const allocation = page.getByRole('dialog', { name: 'Allocate Your Stats' });
+  if (!options.keepStatAllocationGate && await allocation.isVisible()) {
+    await allocation.getByRole('button', { name: 'Maybe later' }).click();
+    await expect(allocation).toHaveCount(0);
+  }
 }
 
 export async function navigateGame(page: Page, name: string) {

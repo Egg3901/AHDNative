@@ -1,6 +1,6 @@
 /**
- * Singleplayer simulation controls. All controls default on so an untouched
- * world remains byte-for-byte compatible with the original full pipeline.
+ * Singleplayer simulation and character controls. All controls default on
+ * to preserve the original full pipeline and enabled character mechanics.
  * Core clock, action refresh, history, and news maintenance are deliberately
  * not switchable because other systems rely on those invariants.
  */

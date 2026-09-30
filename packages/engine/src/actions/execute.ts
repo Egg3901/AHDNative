@@ -1,3 +1,4 @@
+import { effectivePlayerStats } from "../stats/allocation.js";
 /**
  * Typed action execution API.
  * Ports src/lib/actions/commands/executeAction.ts validation (cost/cooldown/eligibility)
@@ -336,7 +337,7 @@ function executeActionInner(
     donorBaseLevel: actor.donorBaseLevel ?? 0,
     catalogFundCost: catalog.fundCost,
     countryId: actor.countryId,
-    ...(found.kind === "player" && actor.stats ? { stats: actor.stats } : {}),
+    ...(found.kind === "player" && effectivePlayerStats(world) ? { stats: effectivePlayerStats(world) } : {}),
   });
   if (fundCost > 0) {
     // Prefer campaign funds; allow actor.funds only (player funds field)
@@ -401,6 +402,7 @@ function executeActionInner(
   // costs no AP and draws no RNG (the branch below re-checks before its draw;
   // the outer wrapper refunds accounting on any failure).
   if (actionId === "debatePrep") {
+    if (!world.featureFlags.rpgStats) return { ok: false, error: "The stat system is not currently enabled." };
     if (found.kind !== "player") return { ok: false, error: "Only the player can train Debate (politicians have no stat block)" };
     if (world.player.stats?.debate === undefined) {
       return { ok: false, error: "Allocate your stats before training Debate (missing Debate stat)" };
@@ -428,7 +430,7 @@ function executeActionInner(
   const actorCountry = actor.countryId;
 
   if (actionId === "fundraise") {
-    const yieldAmt = fundraiseYield(actor.donorBaseLevel ?? 0, actor.politicalInfluence ?? 0, actor.stats);
+    const yieldAmt = fundraiseYield(actor.donorBaseLevel ?? 0, actor.politicalInfluence ?? 0, found.kind === "player" ? effectivePlayerStats(world) : undefined);
     actor.funds = (actor.funds ?? 0) + yieldAmt;
     return { ok: true, message: `Raised ${yieldAmt} from donors.` };
   }
@@ -442,7 +444,7 @@ function executeActionInner(
     const threshold = 50;
     const rate = 1 / 75;
     const penalty = cur > threshold ? (cur - threshold) * rate : 0;
-    const mult = statMultiplier(found.kind === "player" ? (actor as { stats?: { charisma?: number } }).stats?.charisma ?? NEUTRAL_STAT : NEUTRAL_STAT);
+    const mult = statMultiplier(found.kind === "player" ? effectivePlayerStats(world)?.charisma ?? NEUTRAL_STAT : NEUTRAL_STAT);
     const gain = Math.max(0.1, (baseGain - penalty) * mult);
     actor.politicalInfluence = Math.min(100, cur + gain);
     // Also queue support accrual for candidateSupport entry if politician
@@ -462,7 +464,7 @@ function executeActionInner(
     const cur = actor.favorability ?? 50;
     const baseGain = 3;
     const penalty = cur > 70 ? (cur - 70) * 0.1 : 0;
-    const mult = statMultiplier(found.kind === "player" ? (actor as { stats?: { charisma?: number } }).stats?.charisma ?? NEUTRAL_STAT : NEUTRAL_STAT);
+    const mult = statMultiplier(found.kind === "player" ? effectivePlayerStats(world)?.charisma ?? NEUTRAL_STAT : NEUTRAL_STAT);
     const gain = Math.max(1, Math.floor((baseGain - penalty) * mult));
     actor.favorability = Math.min(100, cur + gain);
     return { ok: true, message: `Advertised: +${gain} favorability.` };

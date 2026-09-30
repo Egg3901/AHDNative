@@ -44,7 +44,7 @@ export interface CharacterCreation {
   policies: { economic: number; social: number };
   demographics: CharacterDemographics;
   /** Full seven-key RPG stat allocation (28-point budget). */
-  stats: Record<string, number>;
+  stats?: Record<string, number>;
   /** Optional offline portrait/header raster data URLs. */
   avatarUrl?: string | null;
   profileHeaderUrl?: string | null;
@@ -298,6 +298,7 @@ export interface GameScreenProps {
   loadProfileDestination?: () => Promise<"profile" | "imperial">;
   loadImperialProfile?: () => Promise<import("./profileTypes").ImperialProfileView | null>;
   onUpdateProfile: (update: import("./profileTypes").ProfileUpdate) => Promise<boolean>;
+  onStatAllocation?: import("./profileTypes").StatAllocationHandler;
   onSelectConstituency: (constituencyId: string) => Promise<boolean>;
   preferences: Preferences;
   onPreferencesChange: (value: Preferences) => void;
@@ -379,6 +380,8 @@ export interface CreationChoices {
 }
 
 export interface CharacterCreationScreenProps {
+  /** Saved world gate, matching the reference conditional Stats step. */
+  rpgStatsEnabled?: boolean;
   /** The world-setup selection made in NewGameScreen. */
   selection: { era: string; countryId: string; countryName: string; regionNoun: "state" | "region" };
   /** World-setup player name, prefilled as the character name (same person). */

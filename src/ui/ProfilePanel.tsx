@@ -19,9 +19,8 @@
  *   src/app/profile/components/OnboardingCard.tsx, OnboardingChecklist.tsx and
  *   src/components/tutorial/ReplayTutorialButton.tsx (the getting-started and
  *   guided-tour prompts after the constituency card, with persisted
- *   dismiss/complete state; the reference stat-allocation banner and
- *   reallocation control have no local ruleset action behind them, so RPG
- *   allocation stays read-only with an honest unavailable note — #48).
+ *   dismiss/complete state), plus the ruleset-gated stat-allocation reminder,
+ *   allocator and one-free-reset control backed by saved session commands (#48).
  *   src/app/profile/components/PolicyDemographicsCard.tsx and
  *   src/components/PoliticalCompass.tsx (the "Policy and demographics" card: the
  *   player's projected policy axes on a plain-SVG compass, a party marker from
@@ -36,6 +35,7 @@
  */
 import { useRef, useState } from "react";
 import type { ProfileUpdate, ProfileView } from "../game/profileTypes";
+import { StatAllocationControls } from "./StatAllocationControls";
 import type { DrawerRouteId } from "./MobileNavigation";
 import {
   PROFILE_IMAGE_MIME_TYPES,
@@ -83,6 +83,7 @@ export interface ProfilePanelProps {
   onUpdateProfile: (update: ProfileUpdate) => Promise<boolean>;
   onSelectConstituency: (constituencyId: string) => Promise<boolean>;
   viewerDisablesAutoplay?: boolean;
+  onStatAllocation?: import("../game/profileTypes").StatAllocationHandler;
 }
 
 const AVATAR_EDGE = 256;
@@ -153,7 +154,7 @@ function validateHeader(file: File): string | null {
   return validateProfileImagePick(file, "header");
 }
 
-export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, onSelectConstituency, viewerDisablesAutoplay = false }: ProfilePanelProps) {
+export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, onSelectConstituency, onStatAllocation, viewerDisablesAutoplay = false }: ProfilePanelProps) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const headerRef = useRef<HTMLInputElement | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -576,6 +577,7 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
             {constituencyError ? <p className="ahd-alert" role="alert">{constituencyError}</p> : null}
       </section>}
 
+      {!profile.stats && <StatAllocationControls allocation={profile.statAllocation} busy={busy} onSubmit={onStatAllocation} onUpdateProfile={onUpdateProfile} />}
       {showOnboarding ? (
         <section aria-label="Getting started" className="ahd-card ahd-card-pad">
           <h2 className="ahd-h2">Getting started</h2>
@@ -836,16 +838,17 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
       </section>
 
       {profile.stats ? (
-        <section aria-label="Character stats" className="ahd-card ahd-card-pad">
+        <section aria-label="Character stats" tabIndex={-1} className="ahd-card ahd-card-pad">
           <h2 className="ahd-h2">Character stats</h2>
+          <StatAllocationControls allocation={profile.statAllocation} busy={busy} onSubmit={onStatAllocation} onUpdateProfile={onUpdateProfile} />
           <dl className="ahd-profile-rows">
             {STAT_META_ORDER.map((key) => {
               const value = profile.stats![key];
               if (value == null) return null;
               // Source-backed effect readout: the engine's own statBonus table
               // (energy reports its action-cap/bank numbers, every other stat
-              // its outcome multiplier). No allocation costs are shown because
-              // the local ruleset exposes no allocation action.
+              // its outcome multiplier). Allocation and the single reset
+              // consume no cash or AP, matching the reference routes.
               const bonus = statBonus(key, value);
               return (
                 <div className="ahd-profile-row" key={key}>
@@ -861,9 +864,6 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
           <p className="ahd-help">
             Every stat ranges 1 to 10 on the engine's own scale. A higher stat shifts the
             corresponding action outcome by a gentle multiplier (see Actions for quoted costs).
-          </p>
-          <p className="ahd-muted ahd-profile-unavailable-note">
-            Stat reallocation is not available in offline play yet.
           </p>
         </section>
       ) : null}

@@ -233,6 +233,13 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     return { ok: false, error: "Not a valid save file: missing savedAt" };
   }
   const homeRegionId = player["homeRegionId"];
+  const featureFlags = world["featureFlags"];
+  if (isRecord(featureFlags) && featureFlags["rpgStats"] === false) {
+    return {
+      ok: false,
+      error: `RPG stats are disabled in this ruleset. Schema 42 always applies RPG stats; keep this save as schema ${SCHEMA_VERSION}`,
+    };
+  }
   if (homeRegionId !== null && homeRegionId !== undefined && typeof homeRegionId !== "string") {
     return {
       ok: false,
@@ -374,6 +381,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   delete candidateWorld["fomcNominations"];
   delete candidateWorld["difficulty"];
   delete candidateWorld["nppAutonomyLevel"];
+  // Historical readers have no RPG switch and always apply saved stats.
+  // Native restores the enabled default when loading their flag shape.
+  const candidateFlags = candidateWorld["featureFlags"];
+  if (isRecord(candidateFlags)) delete candidateFlags["rpgStats"];
   const candidateCorporations = candidateWorld["corporations"] as Record<string, Record<string, unknown>>;
   for (const corp of Object.values(candidateCorporations)) {
     delete corp["sentimentMultiplier"];
@@ -523,6 +534,26 @@ function assertCurrentWorldState(world: WorldState): void {
         throw new Error(`Not a valid save file: invalid player stat ${key}`);
       }
     }
+  }
+  for (const key of ["statsAllocated", "statsReallocationUsed", "statAllocationDismissed"] as const) {
+    if (player[key] !== undefined && typeof player[key] !== "boolean") {
+      throw new Error(`Not a valid save file: invalid player ${key}`);
+    }
+  }
+  if (player["statsAllocated"] === true && (!isRecord(stats) || STAT_KEYS.some(key => stats[key] === undefined))) {
+    throw new Error("Not a valid save file: allocated player has incomplete stats");
+  }
+  if (player["statsReallocationUsed"] === true && player["statsAllocated"] === false) {
+    throw new Error("Not a valid save file: reallocation used before allocation");
+  }
+  const statXp = player["statXp"];
+  if (statXp !== undefined && (!isRecord(statXp) || Object.entries(statXp).some(([key, xp]) =>
+    !STAT_KEYS.includes(key as (typeof STAT_KEYS)[number]) || typeof xp !== "number" || !Number.isFinite(xp) || xp < 0))) {
+    throw new Error("Not a valid save file: invalid player stat XP");
+  }
+  const decayAnchor = player["debateDecayAnchor"];
+  if (decayAnchor !== undefined && (typeof decayAnchor !== "string" || !/^\d{4}-\d{2}-\d{2}(T.*)?$/.test(decayAnchor) || !Number.isFinite(Date.parse(decayAnchor)))) {
+    throw new Error("Not a valid save file: invalid player debate decay anchor");
   }
   // #242: demographics and the optional header are player-identity extras. They
   // are optional, but a present value must match the reference option sets.

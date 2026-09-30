@@ -22,7 +22,7 @@ import { projectPolitics, projectPartyMembership } from "./politics";
 import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
-  ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, reallocatePlayerStats,
+  ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
   getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
@@ -800,7 +800,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     actions: (isWorldsimMode(player.mode) ? [] : player.mode === "hos" ? HOS_ACTIONS : ACTIONS).map(({ id, requires, category, prerequisite }) => {
       const entry = ACTION_CATALOG[id];
       const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
-      const fundCost = quoteFundCost(id, entry.fundCost, player.donorBaseLevel, cost, player.countryId, player.stats);
+      const fundCost = quoteFundCost(id, entry.fundCost, player.donorBaseLevel, cost, player.countryId, effectivePlayerStats(world));
       const cooldownTurns = Math.max(0, (player.actionCooldowns[id] ?? 0) - world.meta.turn);
       // Gate order mirrors executeAction validation; executeAction stays authoritative.
       // The debatePrep Debate-stat preflight is mirrored here so the hub never
@@ -812,13 +812,14 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
         : fundCost > 0 && player.funds < fundCost ? `Not enough funds. Requires ${fundCost}.`
         : id === "fundraise" && !isFundraiseEligible(player.donorBaseLevel) ? "No donor base. Use Build Donor Network first."
         : id === "convertCash" && player.cash <= 0 ? "No cash to convert."
+        : id === "debatePrep" && !world.featureFlags.rpgStats ? "The stat system is not currently enabled."
         : id === "debatePrep" && player.stats?.debate === undefined ? "Allocate your stats before training Debate."
         : id === "canvass" && !Object.values(world.regions).some((region) => region.countryId === country.id) ? "No regions recorded for your country."
         : id === "leaveParty" && !player.partyId ? "You are independent."
         : id === "joinParty" ? joinPartyDisabledReason(world) : undefined;
       return { id, name: entry.name, description: entry.description, cost, available: !reason,
         category, fundCost, cooldownTurns,
-        ...(id === "fundraise" && isFundraiseEligible(player.donorBaseLevel) ? { fundsGain: fundraiseQuote(player.donorBaseLevel, player.politicalInfluence, player.stats) } : {}),
+        ...(id === "fundraise" && isFundraiseEligible(player.donorBaseLevel) ? { fundsGain: fundraiseQuote(player.donorBaseLevel, player.politicalInfluence, effectivePlayerStats(world)) } : {}),
         ...(requires ? { requires } : {}), ...(prerequisite ? { prerequisite } : {}),
         ...(reason ? { disabledReason: reason } : {}) };
     }),

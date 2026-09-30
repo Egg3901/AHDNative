@@ -274,7 +274,7 @@ export function projectPlayerActionRefresh(world: WorldState): PlayerActionProje
   const refresh = base + seatBonus + cabinetBonus + chairBonus;
   // Imported Energy is optional; absent legacy stats retain baseline limits.
   // Full allocation/XP stays #48/#91.
-  const energy = world.player.stats?.energy ?? STAT_MIN;
+  const energy = (world.featureFlags.rpgStats ? world.player.stats?.energy : undefined) ?? STAT_MIN;
   const { cap, threshold } = energyActionLimits(energy);
   const actions = world.player.actions;
   const penalty = actions > threshold ? ACTION_HOARD_PENALTY : 0;

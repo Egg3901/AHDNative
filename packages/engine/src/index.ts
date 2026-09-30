@@ -375,4 +375,5 @@ export type {
 } from "./interchange/currentSpSnapshot.js";
 export { DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS } from "./finance/wireTransfer.js";
 export type { WireTransferResult } from "./finance/wireTransfer.js";
-export { allocatePlayerStats, hasAllocatedStats, reallocatePlayerStats } from "./stats/allocation.js";
+export { allocatePlayerStats, effectivePlayerStats, hasAllocatedStats, reallocatePlayerStats } from "./stats/allocation.js";
+export { suggestStatBuild } from "./stats/suggestedBuild.js";

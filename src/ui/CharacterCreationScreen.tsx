@@ -9,8 +9,8 @@
  * (creatorOptions.ts), the -5..+5 compass with `nearestParty`/`alignmentBand`
  * (registration/alignment.ts), `StatPointAllocator` (STAT_FREE_POINTS/STAT_MIN),
  * the one-party briefing (OnePartyStateNotice) and the imperial notice.
- * Stats stay in the conversation because Native always persists the seven-key
- * RPG block; there is no rpgStatsEnabled off path on this screen.
+ * The ruleset's RPG switch omits Stats and its saved block when disabled.
+ * Review then follows Party as the sixth step, matching the reference condition.
  *
  * Layout is mobile-first and differs from the reference (radio groups and a
  * slider instead of a drag grid), but the order, meaning and labels do not.
@@ -477,7 +477,7 @@ function CandidateIdentityCard({
 }
 
 export function CharacterCreationScreen({
-  selection, initialName, regions, initialHomeRegionId, choices, loading, busy, error, onSubmit, onBack,
+  selection, initialName, regions, initialHomeRegionId, choices, loading, busy, error, onSubmit, onBack, rpgStatsEnabled = true,
 }: CharacterCreationScreenProps) {
   const [name, setName] = useState(initialName);
   const [gender, setGender] = useState<CharacterGender | "">("");
@@ -573,10 +573,10 @@ export function CharacterCreationScreen({
   const backgroundCount = backgroundAnswers.filter(Boolean).length;
   const missingBackground = (["Gender", "Race", "Education", "Wealth"] as const).filter((_, index) => !backgroundAnswers[index]);
   const spent = STAT_FREE_POINTS - remaining;
-  const statsComplete = remaining === 0;
+  const statsComplete = !rpgStatsEnabled || remaining === 0;
   const canSubmit = nameComplete && backgroundComplete && Boolean(homeRegionId) && compassTouched && partyTouched && statsComplete;
-  const stepComplete = [true, nameComplete && backgroundComplete, Boolean(homeRegionId), compassTouched, partyTouched, statsComplete, canSubmit];
-  const stepLabels = ["Country", "The politician", `Home ${regionNoun}`, "Where you stand", "Party", "Stats", "Review"];
+  const stepComplete = [true, nameComplete && backgroundComplete, Boolean(homeRegionId), compassTouched, partyTouched, ...(rpgStatsEnabled ? [statsComplete] : []), canSubmit];
+  const stepLabels = ["Country", "The politician", `Home ${regionNoun}`, "Where you stand", "Party", ...(rpgStatsEnabled ? ["Stats"] : []), "Review"];
   const stepCount = stepLabels.length;
   const reviewStep = stepCount;
   const stepSummaries = [
@@ -585,7 +585,7 @@ export function CharacterCreationScreen({
     homeRegionOptions.find((region) => region.id === homeRegionId)?.name ?? regions.find((region) => region.id === homeRegionId)?.name ?? "Not answered",
     compassTouched ? ideologyLabel(position) : "Not answered",
     partyTouched ? (selectedParty?.name ?? "Independent") : "Not answered",
-    statsComplete ? "All points allocated" : `${remaining} points remaining`,
+    ...(rpgStatsEnabled ? [statsComplete ? "All points allocated" : `${remaining} points remaining`] : []),
     canSubmit ? "Ready to file" : "Complete every step to file",
   ];
   const openStep = (step: number) => {
@@ -596,7 +596,7 @@ export function CharacterCreationScreen({
   // Phone-first guidance: one plain line per step naming exactly what still
   // blocks Continue, using the same completeness rules as the buttons.
   const stepHint = reviewAll
-    ? "Reviewing all six sections. Every answer stays editable."
+    ? `Reviewing all ${rpgStatsEnabled ? "six" : "five"} sections. Every answer stays editable.`
     : activeStep === 1
       ? "Country and era are set in world setup. Continue when ready."
       : activeStep === 2
@@ -617,7 +617,7 @@ export function CharacterCreationScreen({
               : "Move either slider, or use its - and + buttons, to set your position.")
             : activeStep === 5
               ? (partyTouched ? "Party choice recorded." : "Pick a party, or choose Independent on purpose.")
-              : activeStep === 6
+              : activeStep === 6 && rpgStatsEnabled
                 ? (statsComplete ? "All points allocated." : `${remaining} of ${STAT_FREE_POINTS} points remaining.`)
                 : (canSubmit ? "Read your file before you file it. Anything can still change." : "Complete every step to create your politician.");
 
@@ -709,7 +709,7 @@ export function CharacterCreationScreen({
         education: education as CharacterEducation,
         wealth: wealth as CharacterWealth,
       },
-      stats: { ...stats },
+      ...(rpgStatsEnabled ? { stats: { ...stats } } : {}),
       avatarUrl: portraitUrl,
       profileHeaderUrl: headerUrl,
     });
@@ -1007,7 +1007,7 @@ export function CharacterCreationScreen({
             ) : null}
           </StepPanel>
 
-          <StepPanel
+          {rpgStatsEnabled && <StepPanel
             hidden={!reviewAll && activeStep !== 6}
             step={6}
             title="Stats"
@@ -1048,7 +1048,7 @@ export function CharacterCreationScreen({
               <button type="button" className="ahd-btn ahd-btn-sm" onClick={spreadEvenly} disabled={remaining <= 0}>Spread evenly</button>
               <button type="button" className="ahd-btn ahd-btn-sm" onClick={resetStats} disabled={remaining >= STAT_FREE_POINTS}>Reset</button>
             </div>
-          </StepPanel>
+          </StepPanel>}
 
           <StepPanel
             hidden={reviewAll || activeStep !== reviewStep}
@@ -1074,7 +1074,7 @@ export function CharacterCreationScreen({
                   WEALTH_OPTIONS.find((item) => item.value === wealth)?.label].filter(Boolean).join(" · ") || "Not answered"}</dd>
               </div>
               <div><dt>Policy positions</dt><dd>Economic: {economic} · Social: {social}</dd></div>
-              <div><dt>Allocated stats</dt><dd>{STAT_KEYS.map((key) => `${STAT_LABELS[key]}: ${stats[key]}`).join(" · ")}</dd></div>
+              {rpgStatsEnabled && <div><dt>Allocated stats</dt><dd>{STAT_KEYS.map((key) => `${STAT_LABELS[key]}: ${stats[key]}`).join(" · ")}</dd></div>}
               <div>
                 <dt>Portrait</dt>
                 <dd>{portraitUrl ? "Added" : "None"}</dd>

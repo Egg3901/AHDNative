@@ -15,6 +15,75 @@ const STAMP = "2026-09-30T00:00:00.000Z";
 const savedWorld = (session: GameSession) => JSON.parse(session.serialize(STAMP)).world;
 
 describe("stat allocation lifecycle through the public saved session", () => {
+  it("keeps old partial stats and flag defaults readable while requesting the full allocation", () => {
+    const session = new GameSession();
+    session.create({ ...OPTIONS, creation: undefined });
+    const old = JSON.parse(session.serialize(STAMP));
+    old.world.player.stats = { energy: 7, debate: 4 };
+    delete old.world.featureFlags.rpgStats;
+    session.load(JSON.stringify(old));
+    expect(session.profile().statAllocation).toMatchObject({ needsAllocation: true, dismissed: false });
+    expect(session.profile().stats).toBeNull();
+    expect(savedWorld(session).player.stats).toEqual({ energy: 7, debate: 4 });
+    expect(savedWorld(session).featureFlags.rpgStats).toBe(true);
+    session.allocateStats(BALANCED);
+    expect(session.profile().stats).toEqual(BALANCED);
+  });
+
+  it("uses baseline action limits and refuses Debate training without spending when stats are disabled", () => {
+    const session = new GameSession();
+    session.create(OPTIONS);
+    expect(session.profile().standing.actionCap).toBe(217);
+    session.updateWorldFeatureFlags({ rpgStats: false });
+    expect(session.profile().standing.actionCap).toBe(200);
+    expect(session.profile().resourceDetails.actions.threshold).toBe(100);
+    expect(session.view().actions.find(action => action.id === "debatePrep")).toMatchObject({ available: false });
+    const before = session.serialize(STAMP);
+    expect(session.act("debatePrep")).toMatchObject({ ok: false, error: "The stat system is not currently enabled." });
+    expect(session.serialize(STAMP)).toBe(before);
+  });
+
+  it("projects the source-backed legacy suggestion and persists defer, return, and allocation eligibility", () => {
+    const session = new GameSession();
+    session.create({ ...OPTIONS, creation: undefined });
+    const legacy = JSON.parse(session.serialize(STAMP));
+    Object.assign(legacy.world.player, { funds: 50_000, favorability: 50, politicalInfluence: 0, donorBaseLevel: 0 });
+    session.load(JSON.stringify(legacy));
+    expect(session.profile().statAllocation).toMatchObject({
+      needsAllocation: true, dismissed: false, canReallocate: false,
+      // Executed independently from pinned AHDGame suggestedBuild.ts.
+      suggestion: { charisma: 10, debate: 3, energy: 6, fundraising: 3, businessAcumen: 2, statecraft: 2, intellect: 2 },
+    });
+    session.updateProfile({ statAllocationDismissed: true });
+    const reloaded = new GameSession();
+    reloaded.load(session.serialize(STAMP));
+    expect(reloaded.profile().statAllocation).toMatchObject({ needsAllocation: true, dismissed: true });
+    reloaded.updateProfile({ statAllocationDismissed: false });
+    expect(reloaded.profile().statAllocation?.dismissed).toBe(false);
+    reloaded.allocateStats(BALANCED);
+    expect(reloaded.profile().statAllocation).toMatchObject({ needsAllocation: false, canReallocate: true });
+    reloaded.reallocateStats(REALLOCATED);
+    expect(reloaded.profile().statAllocation?.canReallocate).toBe(false);
+  });
+
+  it("refuses malformed saved allocation state without replacing the live session", () => {
+    const session = new GameSession();
+    session.create(OPTIONS);
+    const good = session.serialize(STAMP);
+    for (const patch of [
+      { statsAllocated: "yes" }, { statsReallocationUsed: 1 },
+      { statAllocationDismissed: "yes" }, { statXp: { charisma: -0.1 } },
+      { statXp: { unknown: 0.2 } }, { debateDecayAnchor: "not-a-date" },
+      { statsAllocated: true, stats: { energy: 4 } },
+      { statsAllocated: false, statsReallocationUsed: true },
+    ]) {
+      const corrupted = JSON.parse(good);
+      Object.assign(corrupted.world.player, patch);
+      expect(() => session.load(JSON.stringify(corrupted))).toThrow();
+      expect(session.serialize(STAMP)).toBe(good);
+    }
+  });
+
   it("hides saved stats and refuses both allocation commands while the RPG ruleset is disabled", () => {
     const session = new GameSession();
     session.create(OPTIONS);

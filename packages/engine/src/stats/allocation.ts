@@ -11,6 +11,11 @@ export function hasAllocatedStats(player: PlayerCharacter): boolean {
   return player.statsAllocated ?? STAT_KEYS.every(key => player.stats?.[key] !== undefined);
 }
 
+/** Ruleset gating preserves the saved block while readers use neutral effects. */
+export function effectivePlayerStats(world: WorldState, player: Pick<PlayerCharacter, "stats"> = world.player) {
+  return world.featureFlags.rpgStats ? player.stats : undefined;
+}
+
 export function allocatePlayerStats(world: WorldState, input: unknown): void {
   if (!world.featureFlags.rpgStats) throw new Error("The stat system is not currently enabled.");
   const validation = validateStatAllocation(input);

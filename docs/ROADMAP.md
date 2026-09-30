@@ -18,6 +18,21 @@ navigation and creation Review correction under #694. These are bounded UI
 improvements. Full MP destinations, SP mechanics and device gates stay open;
 #510 is the navigation acceptance ledger, not a completed-parity claim.
 
+## Profile allocation completion checkpoint, 2026-09-30 (#48)
+
+The local Profile now has the full deferred legacy allocation and single free
+reset flow, ruleset-gated stats, creation gating and persisted eligibility.
+Reference routes, allocator, suggestion and seeded default were refreshed
+through AHDGame `f77a426f769a10cae59c17511053f076dacec0a0`; the seven-stat,
+28-point, one-free-reset contract is unchanged. Allocation/reset spend no
+cash, campaign funds or AP. Existing onboarding/tutorial completion, dismissal
+and replay combine with this flow to satisfy the four #48 criteria.
+
+See [acceptance evidence and remaining scope](STAT-ALLOCATION-PARITY.md).
+Historical v42 export hashes remain unchanged and RPG-off exports are refused.
+Complete XP/decay/action-context parity remains #91; MP depth remains #510;
+current played Client/Game SP interchange and device proof retain their gates.
+
 ## MP wallet and savings checkpoint, 2026-09-30
 
 - Wallet now projects the authoritative campaign, personal and savings
@@ -1381,9 +1396,9 @@ not captured. The issue stays open with `status: partial`.
 
 The conversation now closes with the reference Review step
 (`CONVERSATION_STEP_IDS` in AHDGame `conversationSteps.ts`): Country, The
-politician, Home region, Where you stand, Party, Stats, Review. Stats stay
-visible because Native always persists the seven-key RPG block; there is no
-`rpgStatsEnabled` off path on this screen. Review summarizes every captured
+politician, Home region, Where you stand, Party, Stats, Review. The later #48
+completion adds the local RPG switch: disabled worlds skip Stats and omit the
+saved block. Review summarizes every captured
 field, including optional portrait and header, and earlier answers stay
 editable before submit. Create character lives on Review (and on the existing
 Review-all overlay). The overlay remains the classic all-at-once fill path.

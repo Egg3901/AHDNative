@@ -1,4 +1,4 @@
-import { ACHIEVEMENT_CATALOG, ACHIEVEMENT_COUNT_TRIGGERS, achievementCountProgress, type WorldState } from "@ahdclient/engine";
+import { ACHIEVEMENT_CATALOG, ACHIEVEMENT_COUNT_TRIGGERS, achievementCountProgress, hasAllocatedStats, suggestStatBuild, type WorldState } from "@ahdclient/engine";
 import { projectResources } from "./resources";
 import { campaignSongId, safeAvatarUrl, safeHeaderUrl } from "./profileValidation";
 import type { ProfileAchievement, ProfileView } from "./profileTypes";
@@ -67,7 +67,7 @@ export function projectProfile(world: WorldState): ProfileView {
   const tutorialDismissed = player.tutorialDismissed === true;
   // #242: the full stat block is surfaced when any stat is recorded. Legacy
   // saves with only energy/debate still report those keys.
-  const stats = world.featureFlags.rpgStats && player.stats && Object.keys(player.stats).length > 0
+  const stats = world.featureFlags.rpgStats && hasAllocatedStats(player) && player.stats && Object.keys(player.stats).length > 0
     ? { ...player.stats }
     : null;
   const demographics = player.demographics ?? null;
@@ -134,6 +134,19 @@ export function projectProfile(world: WorldState): ProfileView {
       showPrompt: !tutorialCompleted && !tutorialDismissed,
     },
     stats,
+    statAllocation: world.featureFlags.rpgStats ? {
+      needsAllocation: !hasAllocatedStats(player),
+      dismissed: player.statAllocationDismissed === true,
+      canReallocate: hasAllocatedStats(player) && player.statsReallocationUsed !== true,
+      suggestion: hasAllocatedStats(player) ? null : suggestStatBuild({
+        // Native has no recorded CEO relationship yet (#51). Sector ownership
+        // is not a CEO signal. Use only the recorded career/finance inputs.
+        donorBaseLevel: player.donorBaseLevel, campaignFunds: player.funds,
+        favorability: player.favorability, politicalInfluence: player.politicalInfluence,
+        hasOffice: player.legislativeSeat != null || player.mode === "hos",
+        careerLength: world.elections.filter(election => election.status === "resolved" && election.winners?.includes("player")).length,
+      }),
+    } : null,
     demographics,
     profileHeaderUrl,
     corporations: projectProfileCorporations(world),
