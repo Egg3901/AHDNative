@@ -136,7 +136,7 @@ describe("MP wallet unknown cash", () => {
   it("names an unreported balance instead of $0", async () => {
     const wallet = await renderReadyWallet(390, 844, null);
     const queries = within(wallet as HTMLElement);
-    expect(queries.getByText(/not reported by the server/i)).toBeInTheDocument();
+    expect(queries.getByText("Not reported by the server", { exact: true })).toBeInTheDocument();
     expect(queries.queryByText("$0.00")).not.toBeInTheDocument();
     expect(queries.queryByText("0", { exact: true })).not.toBeInTheDocument();
   });
