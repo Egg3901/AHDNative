@@ -10,7 +10,7 @@ import {
 
 /**
  * Character signals used to derive a sensible suggested stat build for a
- * grandfathered character. All fields optional , a fully-empty input still
+ * grandfathered character. All fields are optional; a fully-empty input still
  * yields a legal build (the normalizer guarantees this).
  */
 export interface SuggestBuildInput {

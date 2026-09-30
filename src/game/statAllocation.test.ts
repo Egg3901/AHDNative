@@ -15,6 +15,18 @@ const STAMP = "2026-09-30T00:00:00.000Z";
 const savedWorld = (session: GameSession) => JSON.parse(session.serialize(STAMP)).world;
 
 describe("stat allocation lifecycle through the public saved session", () => {
+  it("offers no character prompts or allocation commands in a playerless spectator save", () => {
+    const session = new GameSession();
+    session.create({ ...OPTIONS, mode: "worldsim", creation: undefined });
+    expect(session.profile()).toMatchObject({
+      onboarding: { showPrompt: false }, tutorial: { showPrompt: false },
+      stats: null, statAllocation: null,
+    });
+    const before = session.serialize(STAMP);
+    expect(() => session.allocateStats(BALANCED)).toThrow("no player character");
+    expect(() => session.reallocateStats(BALANCED)).toThrow("no player character");
+    expect(session.serialize(STAMP)).toBe(before);
+  });
   it("keeps old partial stats and flag defaults readable while requesting the full allocation", () => {
     const session = new GameSession();
     session.create({ ...OPTIONS, creation: undefined });

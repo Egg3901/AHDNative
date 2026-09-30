@@ -63,11 +63,11 @@ export function projectProfile(world: WorldState): ProfileView {
   // reference NewPlayerBanner gate); the replay prompt stays applicable until
   // marked complete or dismissed. Absent flags read as unresolved.
   const onboardingDismissed = player.onboardingDismissed === true;
+  const hasCharacter = player.mode !== "worldsim";
   const tutorialCompleted = player.tutorialCompleted === true;
   const tutorialDismissed = player.tutorialDismissed === true;
-  // #242: the full stat block is surfaced when any stat is recorded. Legacy
-  // saves with only energy/debate still report those keys.
-  const stats = world.featureFlags.rpgStats && hasAllocatedStats(player) && player.stats && Object.keys(player.stats).length > 0
+  // Legacy partial blocks stay saved until a complete allocation is chosen.
+  const stats = hasCharacter && world.featureFlags.rpgStats && hasAllocatedStats(player) && player.stats && Object.keys(player.stats).length > 0
     ? { ...player.stats }
     : null;
   const demographics = player.demographics ?? null;
@@ -127,14 +127,14 @@ export function projectProfile(world: WorldState): ProfileView {
     policies: player.policies
       ? { economic: player.policies.economic, social: player.policies.social }
       : null,
-    onboarding: { dismissed: onboardingDismissed, showPrompt: !onboardingDismissed },
+    onboarding: { dismissed: onboardingDismissed, showPrompt: hasCharacter && !onboardingDismissed },
     tutorial: {
       completed: tutorialCompleted,
       dismissed: tutorialDismissed,
-      showPrompt: !tutorialCompleted && !tutorialDismissed,
+      showPrompt: hasCharacter && !tutorialCompleted && !tutorialDismissed,
     },
     stats,
-    statAllocation: world.featureFlags.rpgStats ? {
+    statAllocation: hasCharacter && world.featureFlags.rpgStats ? {
       needsAllocation: !hasAllocatedStats(player),
       dismissed: player.statAllocationDismissed === true,
       canReallocate: hasAllocatedStats(player) && player.statsReallocationUsed !== true,

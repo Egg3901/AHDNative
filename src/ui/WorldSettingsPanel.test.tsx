@@ -13,10 +13,10 @@ describe("WorldSettingsPanel", () => {
         onChange={vi.fn()}
       />,
     );
-    // #352: the canonical engine map holds exactly 26 rules; pin the count so
+    // #352/#48: 26 phase controls plus the RPG gate; pin the count so
     // a dropped definition fails here instead of passing against itself.
-    expect(WORLD_FEATURE_FLAG_DEFINITIONS).toHaveLength(26);
-    expect(screen.getAllByRole("checkbox")).toHaveLength(26);
+    expect(WORLD_FEATURE_FLAG_DEFINITIONS).toHaveLength(27);
+    expect(screen.getAllByRole("checkbox")).toHaveLength(27);
     for (const definition of WORLD_FEATURE_FLAG_DEFINITIONS) {
       const toggle = screen.getByRole("checkbox", { name: definition.label });
       expect(screen.getByText(definition.description)).toBeInTheDocument();

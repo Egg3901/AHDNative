@@ -144,7 +144,7 @@ export interface ProfileView {
   tutorial?: { completed: boolean; dismissed: boolean; showPrompt: boolean };
   /**
    * Full seven-key RPG stat block (#242), read from world.player.stats. Null
-   * when the save records none (legacy saves carry at most Energy/Debate).
+   * before a full allocation, when the RPG gate is off, or in spectator mode.
    */
   stats: Record<string, number> | null;
   /** RPG flag on: initial allocation/reminder and the single free reset. */

@@ -17,6 +17,7 @@ export function effectivePlayerStats(world: WorldState, player: Pick<PlayerChara
 }
 
 export function allocatePlayerStats(world: WorldState, input: unknown): void {
+  if (world.player.mode === "worldsim") throw new Error("This spectator world has no player character.");
   if (!world.featureFlags.rpgStats) throw new Error("The stat system is not currently enabled.");
   const validation = validateStatAllocation(input);
   if (!validation.ok) throw new Error(validation.error);
@@ -28,6 +29,7 @@ export function allocatePlayerStats(world: WorldState, input: unknown): void {
 }
 
 export function reallocatePlayerStats(world: WorldState, input: unknown): void {
+  if (world.player.mode === "worldsim") throw new Error("This spectator world has no player character.");
   if (!world.featureFlags.rpgStats) throw new Error("The stat system is not currently enabled.");
   const validation = validateStatAllocation(input);
   if (!validation.ok) throw new Error(validation.error);

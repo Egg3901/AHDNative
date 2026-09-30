@@ -50,6 +50,8 @@ Profile hides both stats and allocation controls. Commands refuse without
 mutating resources or RNG. Existing stat-dependent action quotes and execution
 use baseline effects, action cap 200 and bank threshold 100; Debate training is
 unavailable. Re-enabling restores the saved spread and prior reset eligibility.
+Playerless spectator saves show no character prompts or allocation controls,
+and refuse both allocation commands, matching the source worldsim boundary.
 
 Allocation, dismissal, reset use, XP and decay anchor cross the normal session,
 worker and save boundary. Invalid saved marker types, incomplete explicitly
