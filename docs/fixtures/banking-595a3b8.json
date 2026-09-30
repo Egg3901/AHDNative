@@ -1,0 +1,521 @@
+{
+  "revision": "595a3b8a9e32e6a25848556a9e05ce5cc6d6e450",
+  "paths": [
+    "src/lib/constants/turnTime.ts",
+    "src/lib/banking/rules/boundary.ts",
+    "src/lib/banking/rules/capabilities.ts",
+    "src/lib/banking/rules/balanceSheet.ts",
+    "src/lib/banking/rules/lifecycle.ts",
+    "src/lib/banking/rules/discountWindow.ts",
+    "src/lib/banking/rules/decide.ts",
+    "src/lib/banking/rules/facilityInterest.ts",
+    "src/lib/banking/regulationQ.ts"
+  ],
+  "charterCapabilities": {
+    "retail": {
+      "acceptPlayerDeposits": {
+        "allowed": true
+      },
+      "acceptNpcFunding": {
+        "allowed": true
+      },
+      "householdLending": {
+        "allowed": true
+      },
+      "namedCorporationLending": {
+        "allowed": true
+      },
+      "namedCharacterLending": {
+        "allowed": true
+      },
+      "interbankLending": {
+        "allowed": true
+      },
+      "interbankBorrowing": {
+        "allowed": false,
+        "reason": "charter_type"
+      },
+      "proprietaryTrading": {
+        "allowed": false,
+        "reason": "charter_type"
+      },
+      "discountWindow": {
+        "allowed": true
+      },
+      "centralBankMargin": {
+        "allowed": false,
+        "reason": "charter_type"
+      },
+      "serviceLoanBook": {
+        "allowed": true
+      },
+      "setRates": {
+        "allowed": true
+      },
+      "branchNetwork": {
+        "allowed": true
+      }
+    },
+    "investment": {
+      "acceptPlayerDeposits": {
+        "allowed": false,
+        "reason": "charter_type"
+      },
+      "acceptNpcFunding": {
+        "allowed": false,
+        "reason": "charter_type"
+      },
+      "householdLending": {
+        "allowed": false,
+        "reason": "charter_type"
+      },
+      "namedCorporationLending": {
+        "allowed": true
+      },
+      "namedCharacterLending": {
+        "allowed": false,
+        "reason": "charter_type"
+      },
+      "interbankLending": {
+        "allowed": false,
+        "reason": "charter_type"
+      },
+      "interbankBorrowing": {
+        "allowed": true
+      },
+      "proprietaryTrading": {
+        "allowed": true
+      },
+      "discountWindow": {
+        "allowed": false,
+        "reason": "charter_type"
+      },
+      "centralBankMargin": {
+        "allowed": true
+      },
+      "serviceLoanBook": {
+        "allowed": true
+      },
+      "setRates": {
+        "allowed": false,
+        "reason": "charter_type"
+      },
+      "branchNetwork": {
+        "allowed": false,
+        "reason": "charter_type"
+      }
+    },
+    "universal": {
+      "acceptPlayerDeposits": {
+        "allowed": true
+      },
+      "acceptNpcFunding": {
+        "allowed": true
+      },
+      "householdLending": {
+        "allowed": true
+      },
+      "namedCorporationLending": {
+        "allowed": true
+      },
+      "namedCharacterLending": {
+        "allowed": true
+      },
+      "interbankLending": {
+        "allowed": true
+      },
+      "interbankBorrowing": {
+        "allowed": true
+      },
+      "proprietaryTrading": {
+        "allowed": true
+      },
+      "discountWindow": {
+        "allowed": true
+      },
+      "centralBankMargin": {
+        "allowed": true
+      },
+      "serviceLoanBook": {
+        "allowed": true
+      },
+      "setRates": {
+        "allowed": true
+      },
+      "branchNetwork": {
+        "allowed": true
+      }
+    }
+  },
+  "historicalDeposit": {
+    "minOffset": -4,
+    "maxOffset": -0.5
+  },
+  "historicalLending": {
+    "minOffset": 0.5,
+    "maxOffset": 6
+  },
+  "modernDeposit": {
+    "minOffset": -4,
+    "maxOffset": 0.5
+  },
+  "modernLending": {
+    "minOffset": 0.25,
+    "maxOffset": 8
+  },
+  "historicalDepositEdge": [
+    {
+      "offset": -4,
+      "allowed": true
+    },
+    {
+      "offset": -0.5,
+      "allowed": true
+    },
+    {
+      "offset": -0.49,
+      "allowed": false
+    }
+  ],
+  "marginDraw": {
+    "allowed": true,
+    "derived": {
+      "cbMarginDebtAfter": 48000,
+      "ratePercent": 6.5
+    },
+    "transition": {
+      "key": "cb_margin_draw:000000000000000000000001:0:draw",
+      "kind": "cb_margin_draw",
+      "turn": 0,
+      "currency": "USD",
+      "legs": [
+        {
+          "kind": "mint",
+          "amount": 47000,
+          "note": "central bank creates the margin advance"
+        },
+        {
+          "kind": "credit",
+          "amount": 47000,
+          "collection": "corporations",
+          "filter": {
+            "_id": {
+              "$oid": "000000000000000000000001"
+            },
+            "bankCharter.status": "active"
+          },
+          "path": "bankCharter.cashReserves",
+          "note": "margin advance arrives in the vault"
+        }
+      ],
+      "projections": [
+        {
+          "collection": "corporations",
+          "filter": {
+            "_id": {
+              "$oid": "000000000000000000000001"
+            }
+          },
+          "update": {
+            "$inc": {
+              "bankCharter.cbMarginDebt": 47000
+            }
+          },
+          "note": "margin principal owed to the central bank"
+        },
+        {
+          "collection": "centralBanks",
+          "filter": {
+            "_id": "US"
+          },
+          "update": {
+            "$inc": {
+              "netMoneyCreatedLifetime": 47000
+            }
+          },
+          "note": "money created at the central bank"
+        }
+      ],
+      "event": {
+        "kind": "charter.issued",
+        "command": "bank.cbMargin.draw",
+        "statusAfter": "active",
+        "amount": 47000,
+        "meta": {
+          "operation": "cb_margin_draw"
+        }
+      }
+    }
+  },
+  "marginOverCap": {
+    "allowed": false,
+    "refusal": {
+      "code": "cap",
+      "cap": "cbMarginCollateral",
+      "max": 0
+    },
+    "message": "Draw would exceed CB margin collateral cap"
+  },
+  "marginRepay": {
+    "allowed": true,
+    "derived": {
+      "repaid": 47000,
+      "cbMarginDebtAfter": 0
+    },
+    "transition": {
+      "key": "cb_margin_repay:000000000000000000000001:0:repay",
+      "kind": "cb_margin_repay",
+      "turn": 0,
+      "currency": "USD",
+      "legs": [
+        {
+          "kind": "debit",
+          "amount": 47000,
+          "collection": "corporations",
+          "filter": {
+            "_id": {
+              "$oid": "000000000000000000000001"
+            },
+            "bankCharter.status": "active"
+          },
+          "path": "bankCharter.cashReserves",
+          "note": "margin repayment leaves the vault"
+        },
+        {
+          "kind": "burn",
+          "amount": 47000,
+          "note": "central bank retires the advance"
+        }
+      ],
+      "projections": [
+        {
+          "collection": "corporations",
+          "filter": {
+            "_id": {
+              "$oid": "000000000000000000000001"
+            },
+            "bankCharter.cbMarginDebt": {
+              "$gte": 47000
+            }
+          },
+          "update": {
+            "$inc": {
+              "bankCharter.cbMarginDebt": -47000
+            }
+          },
+          "note": "margin principal repaid"
+        },
+        {
+          "collection": "centralBanks",
+          "filter": {
+            "_id": "US"
+          },
+          "update": {
+            "$inc": {
+              "netMoneyCreatedLifetime": -47000
+            }
+          },
+          "note": "money retired at the central bank"
+        }
+      ],
+      "event": {
+        "kind": "charter.issued",
+        "command": "bank.cbMargin.repay",
+        "statusAfter": "active",
+        "amount": -47000,
+        "meta": {
+          "operation": "cb_margin_repay"
+        }
+      }
+    }
+  },
+  "marginInterest": {
+    "paid": 63.645833333333336,
+    "shortfall": 0,
+    "transition": {
+      "key": "interest",
+      "kind": "cb_margin_interest",
+      "turn": 1,
+      "currency": "USD",
+      "legs": [
+        {
+          "kind": "debit",
+          "amount": 63.645833333333336,
+          "collection": "corporations",
+          "filter": {
+            "_id": {
+              "$oid": "000000000000000000000001"
+            },
+            "bankCharter.status": "active"
+          },
+          "path": "bankCharter.cashReserves",
+          "note": "bank pays central-bank facility interest"
+        },
+        {
+          "kind": "credit",
+          "amount": 63.645833333333336,
+          "collection": "centralBanks",
+          "filter": {
+            "_id": "US"
+          },
+          "path": "reserveBalance",
+          "note": "central bank receives facility interest"
+        }
+      ],
+      "projections": [
+        {
+          "collection": "corporations",
+          "filter": {
+            "_id": {
+              "$oid": "000000000000000000000001"
+            },
+            "bankCharter.status": "active"
+          },
+          "update": {
+            "$inc": {
+              "bankCharter.cbMarginArrears": 0,
+              "bankCharter.lastBankingIncome": -63.645833333333336,
+              "bankCharter.lastBankingFacilityInterest": 63.645833333333336
+            },
+            "$set": {
+              "bankCharter.lastCbMarginTurn": 1,
+              "bankCharter.lastBankingIncomeTurn": 1
+            }
+          },
+          "note": "original facility charge, unpaid liability and servicing turn"
+        }
+      ],
+      "event": {
+        "kind": "loan.paid",
+        "command": "bank.turn.facilityInterest",
+        "amount": 63.645833333333336
+      }
+    }
+  },
+  "windowInterest": {
+    "paid": 166.66833333333332,
+    "shortfall": 0,
+    "transition": {
+      "key": "interest",
+      "kind": "discount_window_interest",
+      "turn": 1,
+      "currency": "USD",
+      "legs": [
+        {
+          "kind": "debit",
+          "amount": 166.66833333333332,
+          "collection": "corporations",
+          "filter": {
+            "_id": {
+              "$oid": "000000000000000000000001"
+            },
+            "bankCharter.status": "active"
+          },
+          "path": "bankCharter.cashReserves",
+          "note": "bank pays central-bank facility interest"
+        },
+        {
+          "kind": "credit",
+          "amount": 166.66833333333332,
+          "collection": "centralBanks",
+          "filter": {
+            "_id": "US"
+          },
+          "path": "reserveBalance",
+          "note": "central bank receives facility interest"
+        }
+      ],
+      "projections": [
+        {
+          "collection": "corporations",
+          "filter": {
+            "_id": {
+              "$oid": "000000000000000000000001"
+            },
+            "bankCharter.status": "active"
+          },
+          "update": {
+            "$inc": {
+              "bankCharter.discountWindowArrears": 0,
+              "bankCharter.lastBankingIncome": -166.66833333333332,
+              "bankCharter.lastBankingFacilityInterest": 166.66833333333332
+            },
+            "$set": {
+              "bankCharter.lastDiscountWindowTurn": 1,
+              "bankCharter.lastBankingIncomeTurn": 1
+            }
+          },
+          "note": "original facility charge, unpaid liability and servicing turn"
+        }
+      ],
+      "event": {
+        "kind": "loan.paid",
+        "command": "bank.turn.facilityInterest",
+        "amount": 166.66833333333332
+      }
+    }
+  },
+  "marginShortfall": {
+    "paid": 40,
+    "shortfall": 95.41666666666666,
+    "transition": {
+      "key": "interest",
+      "kind": "cb_margin_interest",
+      "turn": 1,
+      "currency": "USD",
+      "legs": [
+        {
+          "kind": "debit",
+          "amount": 40,
+          "collection": "corporations",
+          "filter": {
+            "_id": {
+              "$oid": "000000000000000000000001"
+            },
+            "bankCharter.status": "active"
+          },
+          "path": "bankCharter.cashReserves",
+          "note": "bank pays central-bank facility interest"
+        },
+        {
+          "kind": "credit",
+          "amount": 40,
+          "collection": "centralBanks",
+          "filter": {
+            "_id": "US"
+          },
+          "path": "reserveBalance",
+          "note": "central bank receives facility interest"
+        }
+      ],
+      "projections": [
+        {
+          "collection": "corporations",
+          "filter": {
+            "_id": {
+              "$oid": "000000000000000000000001"
+            },
+            "bankCharter.status": "active"
+          },
+          "update": {
+            "$inc": {
+              "bankCharter.cbMarginArrears": 95.41666666666666,
+              "bankCharter.lastBankingIncome": -135.41666666666666,
+              "bankCharter.lastBankingFacilityInterest": 135.41666666666666
+            },
+            "$set": {
+              "bankCharter.lastCbMarginTurn": 1,
+              "bankCharter.lastBankingIncomeTurn": 1
+            }
+          },
+          "note": "original facility charge, unpaid liability and servicing turn"
+        }
+      ],
+      "event": {
+        "kind": "loan.delinquent",
+        "command": "bank.turn.facilityInterest",
+        "amount": 40
+      }
+    }
+  }
+}

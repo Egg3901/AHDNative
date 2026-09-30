@@ -145,3 +145,15 @@ the footer share these engine projections, including imported Energy limits.
 [Player resource parity](PLAYER-RESOURCE-PARITY.md) records the pinned source,
 legacy defaults, tests and remaining related systems. The non-reference manual
 clout exchange is retired; this does not add a new game action.
+
+
+## Banking facilities and charter permissions (#109, 2026-10-01)
+
+Current rules at Game `595a3b8` (unchanged on refresh to `88199e77`) replace
+released Native charter/denomination cuts, add collateral margin servicing,
+restore CB mint/burn/interest receipts and senior estate priority, and validate
+optional saved policies, corridors and accounting. Commands commit session clones
+on success. Historical projection fails closed for unsupported banking state.
+[Evidence and remaining parent scope](BANKING-LIFECYCLE.md) includes the actual
+reference-rule execution harness and its immutable output. There is no complete
+banking, player-console, four-asset-book or physical-device parity claim.

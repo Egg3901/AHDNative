@@ -22,7 +22,7 @@ import { projectPolitics, projectPartyMembership } from "./politics";
 import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
-  ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
+  ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
   getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
@@ -405,12 +405,64 @@ export class GameSession {
   /**
    * Interbank lending commands (#326 engine commands). Each runs against a
    * clone and commits only on success, so a refusal (unknown bank,
-   * inactive charter, self-lending, cross-country, over headroom-share,
+   * inactive charter, self-lending, mismatched currency, over headroom-share,
    * insufficient cash, nothing to repay) leaves the live world untouched
    * and surfaces the engine's exact error. The quote reads the same
    * headroom rule the command enforces, so it can never disagree.
    */
   interbankQuote(lenderCorpId: string) { return quoteInterbankMax(this.requireWorld(), lenderCorpId); }
+
+  setBankRates(corpId: string, depositOffset: number, lendingOffset: number) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = setBankRates(candidate, corpId, depositOffset, lendingOffset);
+    if (result.ok) this.commit(candidate);
+    return result;
+  }
+
+  drawCbMargin(corpId: string, amount: number) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = drawCbMargin(candidate, corpId, amount);
+    if (result.ok) this.commit(candidate);
+    return result;
+  }
+
+  repayCbMargin(corpId: string, amount: number) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = repayCbMargin(candidate, corpId, amount);
+    if (result.ok) this.commit(candidate);
+    return result;
+  }
+
+  drawDiscountWindow(corpId: string, amount: number) {
+    return this.settleBankFacility(world => drawDiscountWindow(world, corpId, amount));
+  }
+
+  repayDiscountWindow(corpId: string, amount: number) {
+    return this.settleBankFacility(world => repayDiscountWindow(world, corpId, amount));
+  }
+
+  openBankPosition(bankCorpId: string, asset: string, ref: string, units: number) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = openPropPosition(candidate, { bankCorpId, asset, ref, units });
+    if (result.ok) this.commit(candidate);
+    return result;
+  }
+
+  closeBankPosition(bankCorpId: string, asset: string, ref: string, units: number) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = closePropPosition(candidate, { bankCorpId, asset, ref, units });
+    if (result.ok) this.commit(candidate);
+    return result;
+  }
+
+  private settleBankFacility<T>(command: (world: WorldState) => T) {
+    const candidate = structuredClone(this.requireWorld());
+    let value: T;
+    try { value = command(candidate); }
+    catch (error) { return { ok: false as const, error: error instanceof Error ? error.message : String(error) }; }
+    this.commit(candidate);
+    return { ok: true as const, value };
+  }
 
   lendInterbank(lenderCorpId: string, borrowerCorpId: string, amount: number, ratePercent: number) {
     const candidate = structuredClone(this.requireWorld());
@@ -988,7 +1040,7 @@ function projectFinance(world: WorldState): FinanceView {
   };
   const banks: BankOption[] = [{ id: "centralBank", name: "Central Bank", kind: "central" }];
   for (const corp of Object.values(world.corporations)) {
-    if (corp.bankCharter?.status !== "active") continue;
+    if (!world.featureFlags.banking || !charterMay(corp.bankCharter, "acceptPlayerDeposits") || bankCurrency(world, corp) !== homeCurrency(world, player.countryId)) continue;
     banks.push({ id: corp.id, name: corp.tickerSymbol ?? corp.id, kind: "bank" });
   }
   banks.sort((a, b) => Number(b.kind === "central") - Number(a.kind === "central") || a.id.localeCompare(b.id));

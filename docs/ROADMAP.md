@@ -327,8 +327,9 @@ Status changes must cite an actual commit, test result, artifact or explicit blo
   with their absent consumer named. The turn phase rejects them without
   creating metric state or recording an application. No generic public-safety
   value substitutes for a missing military, readiness, or appropriation store.
-- Parent #263 is complete when #275 and #276 merge. The broader unit military
-  pipeline remains outside this ministerial-order tracker.
+- #275 and #276 delivered bounded consumers. Parent #263 remains partial
+  pending its integrated player-flow, downstream and current-reference gates.
+  The broader unit military pipeline remains outside this tracker.
 - Resources: existing engine constants drive refresh/hoarding/cap and current-influence fund generation/tax details; disabled income phases are respected. Recent recorded balances are available. Office bonuses are shown as the imported engine actually implements them, not invented from MP rules. Full footer mechanics parity remains open.
 - Performance: optional politics/world queries run only while visible. On the existing turn-95 fixture, embedding politics in routine responses had increased JSON payload from 174,384 to 2,797,081 bytes. On-demand queries reduce the final routine response to 194,264 bytes, including new national history and resource data. In a 15-sample Linux characterization, routine view median was 1.15 ms versus 1.01 ms at the baseline. This is view construction only, not worker transport, turn p95 or phone performance.
 - Mechanics: reference-exact referendum variance and TFP basket/input wiring are integrated with independent vectors and public turn/save replay tests. Full referendum lifecycle, state-metric inputs and phase-order drift remain open. [Engine adaptations](ENGINE-ADAPTATIONS.md) records changes from the pinned import without rewriting its baseline manifest.
@@ -2414,3 +2415,22 @@ another branch is untouched; no physical-device run.
 - Parent trackers now record #211 as 4/7 child issues complete, #110 as 4/5,
   and #114 as 4/5. #109 has all five child slices closed, while its broader
   combined stress/save/turn acceptance remains partial and open.
+
+
+## Banking facility and charter checkpoint, 2026-10-01 (#109)
+
+- Shared charter permissions, same-currency lending/holder selection and atomic
+  source rate corridors now apply to session commands and savings choices.
+- Collateral-backed CB margin draw/repay/servicing is wired. Window and margin
+  advances/repayment update the CB creation counter; exact facility interest
+  credits CB reserves. Both facilities share the senior estate tier.
+- Banking and prop policy gates freeze the relevant commands and turn consumers;
+  malformed banking saves and unsafe historical exports fail before replacement.
+- Current Game rules were executed for independent vectors at `595a3b8`; a refresh
+  to `88199e77` found no changes in the relevant source paths. The combined
+  session deposit/interbank/window/equity/margin lifecycle resumes deterministically.
+- #109 stays partial. Player charter/console flow, four-asset prop coverage,
+  supervision/lifecycle gates, full deposit/backstop/audit consumers and the
+  complete source-backed player journey are still required. See
+  [banking lifecycle evidence](BANKING-LIFECYCLE.md). The five closed child slices
+  do not close the parent. No paid build or device-validation claim.

@@ -84,3 +84,17 @@ and disabled-family execution tests remain in
   turn and headless-simulation profile boundary.
 - Native `packages/engine/src/featureFlags.ts`: definitions, audit map, strict
   resolver, and phase-family mapping.
+
+
+## Banking policy refresh (#109, 2026-10-01)
+
+Game `595a3b8` `banking/rules/policy.ts` establishes a different read-default
+source than the original seed audit: private banking is off unless explicitly
+true; prop trading and contagion are on when banking is enabled unless false.
+Native retains its historically enabled `banking` family default. It now gates
+bank commands and the window phase as well as banking/solvency. The optional
+world-level `bankPropTradingEnabled` policy defaults on when absent and controls
+interbank, margin and the prop desk independently of window servicing. It is
+separate from the strict 27-key Native `featureFlags` object, so supplying server
+aliases in that object still refuses. This is a save policy projection with no
+new admin or player charter console. See [banking evidence](BANKING-LIFECYCLE.md).

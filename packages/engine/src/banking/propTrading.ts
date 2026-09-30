@@ -25,18 +25,16 @@
  * - B7 supervision gate (capitalStanding mayDistribute refusal): no
  *   supervisory substrate exists in solo, so the gate is absent. The leverage
  *   cap below is the enforced risk limit.
- * - Prop-trading kill switch (source isBankPropTradingEnabled): solo has no
- *   prop switch (the banking feature flag gates the turn phases, not the
- *   desk), so every active investment/universal charter may trade.
+ * - Desk commands honor banking and the saved optional prop policy.
  * - Per-currency forex cap: no forex asset, so nothing to cap.
- * - Interbank/margin servicing (#326/#327, unmerged): the equity-base terms
- *   exist as charter fields and are subtracted exactly as the source does,
- *   but no wave services those debts here.
+ * - Interbank and CB margin service before the window and solvency pass.
  */
 
 import type { WorldState } from "../types.js";
-import type { BankCharter, BankCharterType, PropPosition } from "./types.js";
+import type { BankCharter, PropPosition } from "./types.js";
 import { roundMoney } from "./constants.js";
+import { charterMay } from "./capabilities.js";
+export { charterTypeOf } from "./capabilities.js";
 
 /** Source: propTrading.ts PROP_LEVERAGE_MULTIPLE (verbatim, provisional). */
 export const PROP_LEVERAGE_MULTIPLE = 3;
@@ -83,37 +81,12 @@ function finiteOrZero(value: number | undefined): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
-/** Charter type with absent-means-retail (pre-#328 saves and seeds carry no type). */
-export function charterTypeOf(
-  charter: BankCharter | undefined,
-): BankCharterType {
-  if (
-    charter?.charterType === "investment" ||
-    charter?.charterType === "universal"
-  )
-    return charter.charterType;
-  return "retail";
+/** Structural capabilities share the reference permission table. */
+export function isPropCharter(charter: BankCharter | undefined): charter is BankCharter {
+  return charterMay(charter, "proprietaryTrading");
 }
-
-/**
- * Source: isPropCharter (charterMay "proprietaryTrading") - investment and
- * universal charters only, and active. Retail charters never carry the
- * capability (source: src/lib/banking/rules/capabilities.ts BY_TYPE).
- */
-export function isPropCharter(
-  charter: BankCharter | undefined,
-): charter is BankCharter {
-  if (!charter || charter.status !== "active") return false;
-  const type = charterTypeOf(charter);
-  return type === "investment" || type === "universal";
-}
-
-/** Source: charterKinds.ts isDepositTakingCharter - retail and universal take deposits; investment does not. */
-export function isDepositTakingCharter(
-  charter: BankCharter | undefined,
-): boolean {
-  if (!charter || charter.status !== "active") return false;
-  return charterTypeOf(charter) !== "investment";
+export function isDepositTakingCharter(charter: BankCharter | undefined): boolean {
+  return charterMay(charter, "acceptNpcFunding");
 }
 
 /**
@@ -190,6 +163,7 @@ function propDenial(
   world: WorldState,
   bankCorpId: string,
 ): { charter: BankCharter } | { ok: false; error: string } {
+  if (!world.featureFlags.banking || world.bankPropTradingEnabled === false) return { ok: false, error: "Bank prop trading is not enabled" };
   const corp = world.corporations[bankCorpId];
   const charter = corp?.bankCharter;
   if (!charter)
