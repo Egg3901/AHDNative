@@ -300,7 +300,7 @@ describe("wallet SP/MP reachability", () => {
     expect(ids).toContain("banking");
   });
 
-  it("marks the wallet unavailable in multiplayer instead of showing SP balances", () => {
+  it("keeps offline finance separate from the multiplayer wallet", () => {
     render(
       <FinancePanel
         finance={makeFinance()}
@@ -311,7 +311,7 @@ describe("wallet SP/MP reachability", () => {
       />,
     );
     expect(
-      screen.getByRole("note", { name: /wallet unavailable in multiplayer/i }),
+      screen.getByRole("note", { name: /offline finance panel unavailable in multiplayer/i }),
     ).toHaveTextContent(/unavailable in multiplayer/i);
     expect(screen.queryByText("Acme Steel")).not.toBeInTheDocument();
   });
