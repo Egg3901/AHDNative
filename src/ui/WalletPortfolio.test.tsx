@@ -312,7 +312,7 @@ describe("wallet SP/MP reachability", () => {
     );
     expect(
       screen.getByRole("note", { name: /offline finance panel unavailable in multiplayer/i }),
-    ).toHaveTextContent(/unavailable in multiplayer/i);
+    ).toHaveTextContent(/live currency balances and savings accounts/i);
     expect(screen.queryByText("Acme Steel")).not.toBeInTheDocument();
   });
 });
