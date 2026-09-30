@@ -35,7 +35,7 @@ describe("authoritative MP wallet", () => {
     })} onExit={() => {}} />);
     await screen.findByRole("heading", { name: "Ada" });
     await openMpDestination("Wallet");
-    const wallet = screen.getByRole("region", { name: "Wallet", exact: true });
+    const wallet = screen.getByRole("region", { name: "Wallet" });
     expect(within(wallet).getByText("Campaign funds (GBP)")).toBeVisible();
     expect(within(wallet).getByText("1,250")).toBeVisible();
     const balances = within(wallet).getByRole("table", { name: "Currency balances" });
