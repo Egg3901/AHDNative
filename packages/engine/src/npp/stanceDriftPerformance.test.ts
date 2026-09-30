@@ -10,6 +10,13 @@ it("scans regional registrations at most once per region, preserving the pre-cac
   let scans = 0;
   world.partyRegions = new Proxy(world.partyRegions, { ownKeys(target) { scans++; return Reflect.ownKeys(target); } });
   expect(processNppStanceDrift(world, rngFromSeed("unused"))).toEqual({ drifted: 1498 });
+  // Keep the existing golden document: #48 adds only the enabled RPG gate.
+  // The phase still runs against the complete current world and flag map.
+  const preRpgDocument = () => {
+    const { rpgStats, ...legacyFlags } = world.featureFlags;
+    expect(rpgStats).toBe(true);
+    return JSON.stringify({ ...world, featureFlags: legacyFlags });
+  };
   // Captured from the real unoptimized phase, before introducing any cache.
   // Re-pinned #242: one-party packs now carry the authored `regimeStatus`
   // marker (ruling/approved), which is part of every seeded party record.
@@ -20,7 +27,7 @@ it("scans regional registrations at most once per region, preserving the pre-cac
   // propBookMarkValue on all 4 seeded charters). Proven source-backed, not
   // behavioral drift: deleting exactly those default keys reproduces the
   // pre-#328 goldens byte-exact, and drift counts are unchanged (1498/1500).
-  expect(createHash("sha256").update(JSON.stringify(world)).digest("hex")).toBe("b836320139e6af7f668d2ce81957e588bc489ce75483b1259201e28b00f2e632");
+  expect(createHash("sha256").update(preRpgDocument()).digest("hex")).toBe("b836320139e6af7f668d2ce81957e588bc489ce75483b1259201e28b00f2e632");
   // JSON hashing above performs one additional enumeration of the proxied map.
   expect(scans - 1).toBeLessThanOrEqual(Object.keys(world.regions).length);
   for (const party of Object.values(world.parties)) {
@@ -29,5 +36,5 @@ it("scans regional registrations at most once per region, preserving the pre-cac
   }
   world.meta.turn = 12;
   expect(processNppStanceDrift(world, rngFromSeed("unused"))).toEqual({ drifted: 1500 });
-  expect(createHash("sha256").update(JSON.stringify(world)).digest("hex")).toBe("6a137dcba4868dc63b555fa243b88eb4df0b961faf59a89c05ac245e268029bd");
+  expect(createHash("sha256").update(preRpgDocument()).digest("hex")).toBe("6a137dcba4868dc63b555fa243b88eb4df0b961faf59a89c05ac245e268029bd");
 });
