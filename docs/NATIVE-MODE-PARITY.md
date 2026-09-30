@@ -47,7 +47,7 @@ breakdown is inferred from an unqualified cash number.
 | Profile | Persisted character, standing, policy, finances and conditional sections | Shared identity plus reported AP/cash and Standing | MP full profile projection/editing; SP military/business and engine-backed omissions |
 | Actions | Categorized local commands with quotes | Categorized existing nine server actions and batch controls | Targeting journeys, complete catalog and consistent quoted eligibility |
 | Ask | Embedded panel | Embedded panel retains MP session and drafts | Physical-device sign-in return |
-| Wallet / Portfolio / Banking | Local balances, holdings and commands | Reported cash only | MP finance reads and writes |
+| Wallet / Portfolio / Banking | Local balances, holdings and commands | Reported aggregate, campaign funds, currency balances and server savings commands | Bank selection, FX, loans, holdings and monetary-policy controls |
 | Notifications | Preview and local inbox | Server inbox and existing read/snooze/archive/preferences | MP preview and meaningful notification deep links |
 | Player mail | Not applicable to offline players | Inbox, sent, reader, reply and compose | Recipient discovery, full reference social flow |
 | Settings | Shared device preferences | Same component | Physical-device dynamic text and transparency |

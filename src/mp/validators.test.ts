@@ -91,6 +91,8 @@ describe("parseCharacterMe", () => {
       cashOnHand: 1250.5,
       actions: 3,
       corporationName: "Acme",
+      wallet: null,
+      avatarUrl: null,
     });
   });
 
@@ -110,6 +112,31 @@ describe("parseCharacterMe", () => {
     );
     expect(parsed?.cashOnHand).toBeNull();
     expect(parsed?.name).toBe("Ada");
+  });
+
+  it("keeps known wallet units while rejecting malformed or missing maps", () => {
+    const character = { _id: "c1", name: "Ada", cashOnHand: 500, homeCurrency: "GBP",
+      currencyBalances: { campaign: 1250, personal: { GBP: 300, USD: 200 } } };
+    expect(parseCharacterMe(JSON.stringify({ character }))?.wallet).toEqual({
+      homeCurrency: "GBP", campaign: 1250, personal: { GBP: 300, USD: 200 }, savings: null,
+    });
+    for (const patch of [
+      { homeCurrency: "" },
+      { currencyBalances: { campaign: 1250, personal: { GBP: "300" } } },
+      { currencyBalances: { campaign: 1250, personal: [] } },
+    ]) {
+      const view = parseCharacterMe(JSON.stringify({ character: { ...character, ...patch } }));
+      expect(view?.wallet).toBeNull();
+      expect(view?.cashOnHand).toBe(500);
+    }
+  });
+
+  it("accepts server HTTPS portraits and drops unsafe URLs", () => {
+    const view = (avatarUrl: string) => parseCharacterMe(JSON.stringify({ character: { _id: "c1", name: "Ada", avatarUrl } }));
+    expect(view("https://cdn.example.test/portrait.png")?.avatarUrl).toBe("https://cdn.example.test/portrait.png");
+    for (const url of ["javascript:alert(1)", "data:image/png;base64,AAAA", "http://cdn.example.test/portrait.png", "https://user:password@cdn.example.test/portrait.png", "/portrait.png"]) {
+      expect(view(url)?.avatarUrl).toBeNull();
+    }
   });
 });
 

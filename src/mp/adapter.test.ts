@@ -188,6 +188,7 @@ describe("MpModeSession enter", () => {
       userId: null,
       username: null,
       character: null,
+      savings: null,
       turn: null,
       capabilities: null,
       electionDetail: null,

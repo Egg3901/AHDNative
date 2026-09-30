@@ -10,6 +10,7 @@ import { ActionCategories } from "./ActionCategories";
 import { ACTION_HUB_CATEGORIES, type ActionsCategoryFilter } from "./ActionsHub";
 import { RouteHero, PROFILE_HERO_IMAGE } from "./RouteHero";
 import { ProfileIdentity } from "./ProfileIdentity";
+import { MpWalletPanel } from "./MpWalletPanel";
 import { SettingsPanel, type SettingsPanelProps } from "./SettingsPanel";
 import { installFooterClearance } from "./footerClearance";
 import "./ui.css";
@@ -54,6 +55,7 @@ const IDLE: MpSnapshot = {
   userId: null,
   username: null,
   character: null,
+  savings: null,
   turn: null,
   capabilities: null,
   electionDetail: null,
@@ -632,6 +634,7 @@ export function MpModeScreen({ host, onAsk, askContent, onExit, preferences, onP
           <section id="mp-profile" className="ahd-mp-grid" aria-label="Multiplayer status" tabIndex={-1} hidden={activeSection !== "mp-profile"}>
             <article className="ahd-card ahd-card-pad ahd-profile-header ahd-hero ahd-mp-profile-identity" aria-label="Player">
               <ProfileIdentity name={snapshot.character.name} heroImage={PROFILE_HERO_IMAGE}
+                avatarUrl={snapshot.character.avatarUrl}
                 heroAlt="Politicians meeting in a national chamber" eyebrow="Profile"
                 party={snapshot.character.party ? { name: snapshot.character.party } : null}
                 home={snapshot.character.homeState ? { label: snapshot.character.homeState } : null}
@@ -1052,26 +1055,17 @@ export function MpModeScreen({ host, onAsk, askContent, onExit, preferences, onP
           </>
         )}
 
-        {/* Wallet reachability slice (#507, #84): the only audited
-          * multiplayer money figure is character-me `cashOnHand`, already
-          * loaded with the session, so this section projects it with no new
-          * endpoint. Savings, holdings, trends, and deposit/withdraw have no
-          * allowlisted bridge read (finance surfaces are deliberately absent
-          * in src/mp/endpoints.ts) and stay named-absent, never SP values.
-          * Back returns to the section list, never into local SP state. */}
+        {/* Wallet uses character-me denominations and on-demand savings.
+          * Every transfer is confirmed by re-reading the server; no local
+          * engine balance or exchange-rate calculation enters MP. */}
         {snapshot.character && (
           <>
           <section id="mp-wallet" className="ahd-card ahd-card-pad" aria-label="Wallet" tabIndex={-1} hidden={activeSection !== "mp-wallet"}>
-            <h2 className="ahd-h2">Wallet</h2>
-            <p className="ahd-muted" style={{ marginTop: 0 }}>
-              Live cash balance from your character record. Savings, stock
-              holdings, portfolio trends, and deposit/withdraw have no
-              multiplayer read in this build, so only cash on hand is shown.
-            </p>
-            <dl className="ahd-mp-facts">
-              <dt>Cash on hand</dt>
-              <dd>{snapshot.character.cashOnHand !== null ? snapshot.character.cashOnHand : "Not reported by the server"}</dd>
-            </dl>
+            <MpWalletPanel key={`${snapshot.userId}:${snapshot.character.id}`} character={snapshot.character}
+              savings={snapshot.savings} busy={busy || phase !== "ready"}
+              onLoad={() => { void runGeneral(s => s.loadSavings()); }}
+              onOpen={currency => { void runGeneral(s => s.openSavings(currency)); }}
+              onTransfer={(direction, currency, amount) => { void runGeneral(s => s.transferSavings(direction, currency, amount)); }} />
           </section>
           <div hidden={activeSection !== "mp-wallet"} className="ahd-mp-row ahd-mp-back">
             <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" onClick={() => jumpTo("mp-top")}>

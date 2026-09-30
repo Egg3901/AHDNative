@@ -18,6 +18,21 @@ navigation and creation Review correction under #694. These are bounded UI
 improvements. Full MP destinations, SP mechanics and device gates stay open;
 #510 is the navigation acceptance ledger, not a completed-parity claim.
 
+## MP wallet and savings checkpoint, 2026-09-30
+
+- Wallet now projects the authoritative campaign, personal and savings
+  denominations from character-me. The aggregate cash figure keeps its
+  existing units; Native performs no currency conversion.
+- On-demand savings exposes server APY, account status, interest and credit
+  timing. Open/deposit/withdraw commands confirm both character and savings
+  reads before reporting success. Refusals preserve balances; expiry and
+  stale requests clear or cannot restore private state.
+- Server HTTPS portraits now render through shared Profile identity.
+- Evidence and source pin: [MP wallet contract](MP-WALLET-PARITY.md).
+  #76 and #510 remain partial. Bank selection, loans, FX, policy, complete
+  route/action depth and physical-iPhone acceptance remain open. #77 and
+  #143 are reference only for this bounded finance batch.
+
 ## Priority one: navigation and persistent footer feature parity
 
 Owner direction: mobile-first layout can differ, but navigation and footer functionality must match the MP/SP feature surface. The [source inventory](NAVIGATION-PARITY.md) records destinations, submenus, conditional entries and status-bar interactions against AHDGame. A label or empty page is not completion.

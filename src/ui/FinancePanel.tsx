@@ -648,13 +648,12 @@ export function FinancePanel({ finance, section, busy, onAction, onNavigate, onO
     const other = section === "portfolio" ? "banking" : "portfolio";
     return (
       <div className="ahd-wallet">
-        <div className="ahd-card ahd-card-pad" role="note" aria-label="Wallet unavailable in multiplayer">
+        <div className="ahd-card ahd-card-pad" role="note" aria-label="Offline finance panel unavailable in multiplayer">
           <h2 className="ahd-h2">{section === "portfolio" ? "Portfolio" : "Banking"}</h2>
           <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: "0.4rem 0 0" }}>
-            Wallet and portfolio balances are unavailable in multiplayer in this build:
-            the bridge has no allowlisted portfolio or banking read, so no balances
-            are shown here. Your live cash on hand is in the multiplayer Wallet
-            section, from your character record.
+            Open the multiplayer Wallet section for live currency balances and
+            savings accounts. This panel uses offline finances. Multiplayer
+            holdings, bank selection, loans and policy controls remain unavailable.
           </p>
           {onNavigate ? (
             <button

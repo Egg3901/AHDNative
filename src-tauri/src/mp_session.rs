@@ -101,6 +101,8 @@ pub enum MpFetchOp {
     AuthSession,
     /// Authenticated character sheet; 401 signed out.
     CharacterMe,
+    /// Authenticated per-currency savings/APY/account flags; no query arguments.
+    SavingsAccounts,
     /// Navbar essentials; guest data when signed out.
     ClientNav,
     /// Turn/year/processing/countdown; public but fresher via the session.
@@ -162,6 +164,7 @@ impl MpFetchOp {
         match id {
             "auth-session" => Some(Self::AuthSession),
             "character-me" => Some(Self::CharacterMe),
+            "savings-accounts" => Some(Self::SavingsAccounts),
             "client-nav" => Some(Self::ClientNav),
             "turn-status" => Some(Self::TurnStatus),
             "players-online" => Some(Self::PlayersOnline),
@@ -183,6 +186,7 @@ impl MpFetchOp {
         match self {
             Self::AuthSession => "/api/auth/session",
             Self::CharacterMe => "/api/character/me",
+            Self::SavingsAccounts => "/api/character/savings",
             Self::ClientNav => "/api/client-nav",
             Self::TurnStatus => "/api/game/turn/status",
             Self::PlayersOnline => "/api/players/online",
@@ -242,6 +246,9 @@ pub enum MpMutateOp {
     /// only bridge call that ends an account link; everything else reads or
     /// acts through the live session.
     AuthLogout,
+    SavingsOpen,
+    SavingsDeposit,
+    SavingsWithdraw,
 }
 
 impl MpMutateOp {
@@ -261,13 +268,22 @@ impl MpMutateOp {
             "mail-sent-delete" => Some(Self::MailSentDelete),
             "mail-report" => Some(Self::MailReport),
             "auth-logout" => Some(Self::AuthLogout),
+            "savings-open" => Some(Self::SavingsOpen),
+            "savings-deposit" => Some(Self::SavingsDeposit),
+            "savings-withdraw" => Some(Self::SavingsWithdraw),
             _ => None,
         }
     }
 
     fn method(self) -> &'static str {
         match self {
-            Self::ExecuteAction | Self::MailSend | Self::MailReport | Self::AuthLogout => "POST",
+            Self::ExecuteAction
+            | Self::MailSend
+            | Self::MailReport
+            | Self::AuthLogout
+            | Self::SavingsOpen
+            | Self::SavingsDeposit
+            | Self::SavingsWithdraw => "POST",
             Self::NotificationPreference => "PUT",
             Self::MailDelete | Self::MailSentDelete => "DELETE",
             Self::NotificationRead
@@ -296,6 +312,9 @@ impl MpMutateOp {
             Self::MailSend | Self::MailRead | Self::MailDelete | Self::MailReport => "/api/mail",
             Self::MailSentDelete => "/api/mail/sent",
             Self::AuthLogout => "/api/auth/logout",
+            Self::SavingsOpen => "/api/character/savings/open",
+            Self::SavingsDeposit => "/api/character/savings/deposit",
+            Self::SavingsWithdraw => "/api/character/savings/withdraw",
         }
     }
 }
@@ -703,6 +722,30 @@ fn mutate_body(op: MpMutateOp, payload: &serde_json::Value) -> Result<serde_json
         .ok_or_else(|| error::BAD_ARG.to_string())?;
     let get_str = |key: &str| object.get(key).and_then(serde_json::Value::as_str);
     match op {
+        MpMutateOp::SavingsOpen | MpMutateOp::SavingsDeposit | MpMutateOp::SavingsWithdraw => {
+            // AHDGame 6ed11a3d ZOD_ACTIVE_CURRENCY_ENUM. The server owns
+            // denomination rounding, affordability, opening and holder rules.
+            const CURRENCIES: &[&str] = &[
+                "USD", "GBP", "JPY", "EUR", "IEP", "CNY", "BRL", "NGN", "SUR", "DDM", "FRF", "ITL",
+                "ESP", "SEK", "TRL", "GRD", "ATS", "FIM",
+            ];
+            let currency = get_str("currency").ok_or_else(|| error::BAD_ARG.to_string())?;
+            if !CURRENCIES.contains(&currency) {
+                return Err(error::BAD_ARG.to_string());
+            }
+            let mut body = serde_json::json!({ "currency": currency });
+            if op != MpMutateOp::SavingsOpen {
+                let amount = object
+                    .get("amount")
+                    .and_then(serde_json::Value::as_f64)
+                    .ok_or_else(|| error::BAD_ARG.to_string())?;
+                if !amount.is_finite() || amount <= 0.0 {
+                    return Err(error::BAD_ARG.to_string());
+                }
+                body["amount"] = serde_json::json!(amount);
+            }
+            Ok(body)
+        }
         MpMutateOp::ExecuteAction => {
             let action_type = get_str("actionType").ok_or_else(|| error::BAD_ARG.to_string())?;
             if !EXECUTE_ACTION_TYPES.contains(&action_type) {
@@ -1045,6 +1088,7 @@ fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
     match (method, path) {
         ("GET", "/api/auth/session")
         | ("GET", "/api/character/me")
+        | ("GET", "/api/character/savings")
         | ("GET", "/api/client-nav")
         | ("GET", "/api/game/turn/status")
         | ("GET", "/api/players/online")
@@ -1070,6 +1114,9 @@ fn is_allowlisted_call(method: &str, path_and_query: &str) -> bool {
         ("POST", "/api/actions/execute") | ("PATCH", "/api/notifications") => query.is_none(),
         ("PUT", "/api/notifications/preferences") => query.is_none(),
         ("POST", "/api/mail") | ("POST", "/api/auth/logout") => query.is_none(),
+        ("POST", "/api/character/savings/open")
+        | ("POST", "/api/character/savings/deposit")
+        | ("POST", "/api/character/savings/withdraw") => query.is_none(),
         ("PATCH", path) if is_mail_item_path(path) => query.is_none(),
         ("DELETE", path) if is_mail_item_path(path) || is_mail_sent_item_path(path) => {
             query.is_none()
@@ -2208,6 +2255,82 @@ mod tests {
         ));
         assert!(!is_allowlisted_call("PUT", "/api/notifications"));
         assert!(!is_allowlisted_call("DELETE", "/api/notifications"));
+    }
+
+    #[test]
+    fn savings_calls_pin_paths_and_strip_untrusted_fields() {
+        assert_eq!(
+            MpFetchOp::from_id("savings-accounts"),
+            Some(MpFetchOp::SavingsAccounts)
+        );
+        assert_eq!(
+            fetch_path_and_query(MpFetchOp::SavingsAccounts, None, None).unwrap(),
+            "/api/character/savings"
+        );
+        assert!(fetch_path_and_query(MpFetchOp::SavingsAccounts, Some(1), None).is_err());
+        assert!(is_allowlisted_call("GET", "/api/character/savings"));
+        for (id, op, path) in [
+            (
+                "savings-open",
+                MpMutateOp::SavingsOpen,
+                "/api/character/savings/open",
+            ),
+            (
+                "savings-deposit",
+                MpMutateOp::SavingsDeposit,
+                "/api/character/savings/deposit",
+            ),
+            (
+                "savings-withdraw",
+                MpMutateOp::SavingsWithdraw,
+                "/api/character/savings/withdraw",
+            ),
+        ] {
+            assert_eq!(MpMutateOp::from_id(id), Some(op));
+            assert_eq!((op.method(), op.path()), ("POST", path));
+            assert!(is_allowlisted_call("POST", path));
+            assert!(!is_allowlisted_call("GET", path));
+            assert!(!is_allowlisted_call(
+                "POST",
+                &format!("{path}?userId=other")
+            ));
+            let body = mutate_body(op, &serde_json::json!({ "currency": "GBP", "amount": 25.5, "userId": "other", "holder": "other", "path": "/api/admin" })).unwrap();
+            let expected = if op == MpMutateOp::SavingsOpen {
+                serde_json::json!({ "currency": "GBP" })
+            } else {
+                serde_json::json!({ "currency": "GBP", "amount": 25.5 })
+            };
+            assert_eq!(body, expected);
+            for currency in ["GBP?x=1", "gbp", "CAD", "", "../USD"] {
+                assert!(mutate_body(
+                    op,
+                    &serde_json::json!({ "currency": currency, "amount": 1 })
+                )
+                .is_err());
+            }
+            if op != MpMutateOp::SavingsOpen {
+                for amount in [
+                    serde_json::json!(0),
+                    serde_json::json!(-1),
+                    serde_json::json!("25"),
+                    serde_json::Value::Null,
+                ] {
+                    assert!(mutate_body(
+                        op,
+                        &serde_json::json!({ "currency": "GBP", "amount": amount })
+                    )
+                    .is_err());
+                }
+            }
+        }
+        assert!(!is_allowlisted_call(
+            "GET",
+            "/api/character/savings?currency=GBP"
+        ));
+        assert!(!is_allowlisted_call(
+            "POST",
+            "/api/character/savings/transfer"
+        ));
     }
 
     #[test]
