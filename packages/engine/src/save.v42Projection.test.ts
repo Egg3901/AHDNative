@@ -27,6 +27,17 @@ const NATIVE_FRESH_CONVERT_KEEP_HOME_SHA = "389c8c242abe894a494b43d226387651aa62
 const FIXTURE_GZ = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures/v42-1953-US.save.json.gz");
 const WORLD_OPTS = { seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" } as const;
 
+it("keeps the historical v42 flag shape and refuses its unsupported RPG-off ruleset", () => {
+  const world = createWorld(WORLD_OPTS);
+  const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
+  expect(projected.ok).toBe(true);
+  if (!projected.ok) throw new Error(projected.error);
+  expect(JSON.parse(projected.contents).world.featureFlags).not.toHaveProperty("rpgStats");
+  expect(deserializeSave(projected.contents).featureFlags.rpgStats).toBe(true);
+  world.featureFlags.rpgStats = false;
+  expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({ ok: false, error: expect.stringContaining("RPG stats") });
+});
+
 function sha256(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }

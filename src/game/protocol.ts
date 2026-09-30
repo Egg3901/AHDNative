@@ -14,6 +14,8 @@ export type GameCommand =
   | { type: "profileDestination" }
   | { type: "imperialProfile" }
   | { type: "updateProfile"; update: ProfileUpdate }
+  | { type: "allocateStats"; stats: Record<string, number> }
+  | { type: "reallocateStats"; stats: Record<string, number> }
   | { type: "selectConstituency"; constituencyId: string }
   | { type: "worldFeatureFlags"; flags: Partial<WorldFeatureFlags> }
   | { type: "politics" }

@@ -6,6 +6,12 @@ not only destination access. The current entry is Profile; the invented national
 Overview landing is removed. See [behavioral parity](BEHAVIORAL-PARITY.md) for
 source-backed acceptance and the next profile/action slices.
 
+Profile allocation completion, 2026-09-30 (#48): local onboarding/tutorial
+prompts and replay combine with a saved legacy allocation reminder, full
+allocator, one free reset and RPG ruleset gate. Creation also omits Stats when
+disabled. Reference refreshed through AHDGame `f77a426`; see
+[acceptance evidence](STAT-ALLOCATION-PARITY.md). MP full Profile remains #510.
+
 - Date: 2026-09-10. AHDGame source commit `e364c0495` (public repo Egg3901/AHDGame).
 - AHDNative worktree commit `fbc9e90` (`feat: connect election victories to legislature actions (#8)`).
 - Scope: player-visible top navigation + persistent footer status bar. SiteFooter links listed separately.

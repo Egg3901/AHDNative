@@ -954,6 +954,16 @@ export interface PlayerCharacter {
    * seven-key allocation is written at creation (#48/#91 own later reallocation).
    */
   stats?: PlayerStats;
+  /** Allocation lifecycle; absent on old Native saves is inferred from a full stat block. */
+  statsAllocated?: boolean;
+  /** Grandfather allocation was deferred; Profile keeps its return reminder. */
+  statAllocationDismissed?: boolean;
+  /** The single free reset has been spent. Absent means unused. */
+  statsReallocationUsed?: boolean;
+  /** Recorded earned growth. Reallocation clears it; XP producers remain #91. */
+  statXp?: Partial<Record<import("./stats/characterStats.js").StatKey, number>>;
+  /** Offline allocation/reset anchor uses the saved game date. */
+  debateDecayAnchor?: string;
   /**
    * Getting-started prompt state (#48). Ports Character.onboardingDismissed
    * (src/lib/db/types/character.ts), read by the reference profile as

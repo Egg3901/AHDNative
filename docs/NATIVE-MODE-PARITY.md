@@ -64,8 +64,11 @@ SP data. Track full navigation under #510, imagery under #143, creation under
 Creation ends on an editable Review step. The summary shows identity/background,
 home region, policy values, party, allocated stats and optional media presence.
 Creation and Profile accept the same JPEG/PNG/WebP picks, with existing size and
-decoding constraints. Native's RPG step remains required; conditional RPG-off and
-imperial creation are not added by this slice.
+decoding constraints. Conditional RPG-off and imperial creation were not added
+by the shared-shell slice. The subsequent #48
+allocation flow now respects the local RPG gate: an RPG-off creation skips Stats
+and omits its saved block. Profile supports deferred legacy allocation and the
+single free reset when enabled. See [allocation parity](STAT-ALLOCATION-PARITY.md).
 
 Focused tests cover shared SP/MP navigation, server refusal/expiry, mail,
 capability details, shared Profile rendering and creation. Browser acceptance

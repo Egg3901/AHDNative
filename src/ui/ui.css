@@ -1670,3 +1670,12 @@ details[open] > .ahd-trend-table-disclosure::after {
 .ahd-mp .ahd-drawer-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.75rem; }
 
 .ahd-mp-profile-identity { grid-column: 1 / -1; }
+.ahd-stat-modal-backdrop { box-sizing: border-box; position: fixed; inset: 0; z-index: 1400; background: rgb(0 0 0 / 65%); overflow-y: auto; display: flex; align-items: flex-start; justify-content: center; padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); }
+.ahd-stat-modal { box-sizing: border-box; width: min(100%, 36rem); margin: 0; flex: none; }
+.ahd-stat-tools { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: .75rem; }
+.ahd-stat-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; border-bottom: 1px solid var(--ahd-border); padding-block: .5rem; }
+.ahd-stat-row > div:first-child { min-width: 0; }
+.ahd-stat-stepper { display: flex; align-items: center; gap: .35rem; flex: none; }
+.ahd-stat-stepper .ahd-btn { min-width: 44px; min-height: 44px; }
+.ahd-stat-stepper output { min-width: 1.3rem; text-align: center; }
+@media (max-width: 360px) { .ahd-stat-row { flex-wrap: wrap; } .ahd-stat-stepper { margin-left: auto; } }

@@ -2,6 +2,9 @@ import type { ResourceDetailsView } from "./resources";
 import type { CharacterDemographics } from "./types";
 import type { ProfileCorporationEntry } from "./profileCorporation";
 
+export type StatAllocationMode = "allocate" | "reallocate";
+export type StatAllocationHandler = (mode: StatAllocationMode, stats: Record<string, number>) => Promise<boolean>;
+
 export interface ProfileUpdate {
   bio?: string;
   avatarUrl?: string | null;
@@ -20,6 +23,7 @@ export interface ProfileUpdate {
    */
   tutorialCompleted?: boolean;
   tutorialDismissed?: boolean;
+  statAllocationDismissed?: boolean;
 }
 
 /** One catalog achievement surfaced as a profile record (earned or locked). */
@@ -140,9 +144,16 @@ export interface ProfileView {
   tutorial?: { completed: boolean; dismissed: boolean; showPrompt: boolean };
   /**
    * Full seven-key RPG stat block (#242), read from world.player.stats. Null
-   * when the save records none (legacy saves carry at most Energy/Debate).
+   * before a full allocation, when the RPG gate is off, or in spectator mode.
    */
   stats: Record<string, number> | null;
+  /** RPG flag on: initial allocation/reminder and the single free reset. */
+  statAllocation?: {
+    needsAllocation: boolean;
+    dismissed: boolean;
+    canReallocate: boolean;
+    suggestion: import("@ahdclient/engine").CharacterStats | null;
+  } | null;
   /** Character-creation demographics (#242). Null on legacy saves that predate creation. */
   demographics: CharacterDemographics | null;
   /** Optional wide profile header raster data URL (#242). Null when unset. */

@@ -1,4 +1,4 @@
-import { ACHIEVEMENT_CATALOG, ACHIEVEMENT_COUNT_TRIGGERS, achievementCountProgress, type WorldState } from "@ahdclient/engine";
+import { ACHIEVEMENT_CATALOG, ACHIEVEMENT_COUNT_TRIGGERS, achievementCountProgress, hasAllocatedStats, suggestStatBuild, type WorldState } from "@ahdclient/engine";
 import { projectResources } from "./resources";
 import { campaignSongId, safeAvatarUrl, safeHeaderUrl } from "./profileValidation";
 import type { ProfileAchievement, ProfileView } from "./profileTypes";
@@ -63,11 +63,11 @@ export function projectProfile(world: WorldState): ProfileView {
   // reference NewPlayerBanner gate); the replay prompt stays applicable until
   // marked complete or dismissed. Absent flags read as unresolved.
   const onboardingDismissed = player.onboardingDismissed === true;
+  const hasCharacter = player.mode !== "worldsim";
   const tutorialCompleted = player.tutorialCompleted === true;
   const tutorialDismissed = player.tutorialDismissed === true;
-  // #242: the full stat block is surfaced when any stat is recorded. Legacy
-  // saves with only energy/debate still report those keys.
-  const stats = player.stats && Object.keys(player.stats).length > 0
+  // Legacy partial blocks stay saved until a complete allocation is chosen.
+  const stats = hasCharacter && world.featureFlags.rpgStats && hasAllocatedStats(player) && player.stats && Object.keys(player.stats).length > 0
     ? { ...player.stats }
     : null;
   const demographics = player.demographics ?? null;
@@ -127,13 +127,26 @@ export function projectProfile(world: WorldState): ProfileView {
     policies: player.policies
       ? { economic: player.policies.economic, social: player.policies.social }
       : null,
-    onboarding: { dismissed: onboardingDismissed, showPrompt: !onboardingDismissed },
+    onboarding: { dismissed: onboardingDismissed, showPrompt: hasCharacter && !onboardingDismissed },
     tutorial: {
       completed: tutorialCompleted,
       dismissed: tutorialDismissed,
-      showPrompt: !tutorialCompleted && !tutorialDismissed,
+      showPrompt: hasCharacter && !tutorialCompleted && !tutorialDismissed,
     },
     stats,
+    statAllocation: hasCharacter && world.featureFlags.rpgStats ? {
+      needsAllocation: !hasAllocatedStats(player),
+      dismissed: player.statAllocationDismissed === true,
+      canReallocate: hasAllocatedStats(player) && player.statsReallocationUsed !== true,
+      suggestion: hasAllocatedStats(player) ? null : suggestStatBuild({
+        // Native has no recorded CEO relationship yet (#51). Sector ownership
+        // is not a CEO signal. Use only the recorded career/finance inputs.
+        donorBaseLevel: player.donorBaseLevel, campaignFunds: player.funds,
+        favorability: player.favorability, politicalInfluence: player.politicalInfluence,
+        hasOffice: player.legislativeSeat != null || player.mode === "hos",
+        careerLength: world.elections.filter(election => election.status === "resolved" && election.winners?.includes("player")).length,
+      }),
+    } : null,
     demographics,
     profileHeaderUrl,
     corporations: projectProfileCorporations(world),

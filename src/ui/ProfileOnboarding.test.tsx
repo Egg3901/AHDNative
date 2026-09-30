@@ -9,9 +9,8 @@
  * and large text; the final cases drive the real GameSession
  * (create/update/serialize/load) and render the reloaded profile through the
  * panel, so prompt save-reload behavior is covered through the actual screen.
- * RPG stat effects render from the engine's own statBonus table, and
- * reallocation stays an explicit unavailable note because the local ruleset
- * exposes no allocation action.
+ * RPG stat effects render from the engine's own statBonus table. The real
+ * allocation and one-free-reset flow is covered in StatAllocationFlow.test.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
@@ -263,9 +262,9 @@ describe("profile RPG stat effects", () => {
     expect(
       within(stats).getByText("228 action stockpile cap · bank up to 114"),
     ).toBeInTheDocument();
-    expect(
-      within(stats).getByText("Stat reallocation is not available in offline play yet."),
-    ).toBeInTheDocument();
+    // A fixture without the allocation capability/callback advertises no reset.
+    // The real allocation and free-reset player flow is StatAllocationFlow.test.
+    expect(within(stats).queryByRole("button", { name: "Reallocate (1 free)" })).not.toBeInTheDocument();
   });
 });
 
@@ -327,10 +326,9 @@ describe("profile onboarding rendered large text", () => {
 const SAVED_AT = "2026-09-10T00:00:00.000Z";
 
 /**
- * The real session only records RPG stats when the character-creation file
- * allocates them (#242), so the save-reload cases below create through that
- * real path. A bare world-setup create carries no stats and the Character
- * stats section stays hidden, which is the ruleset boundary, not a prompt bug.
+ * These save-reload cases allocate through character creation (#242).
+ * Legacy saves without a full block instead receive the allocation gate;
+ * their real Profile flow is covered in StatAllocationFlow.test.
  */
 function createSessionWithStats(seed: string): GameSession {
   const stats = Object.fromEntries(STAT_KEYS.map((key) => [key, 4])) as CharacterStats;

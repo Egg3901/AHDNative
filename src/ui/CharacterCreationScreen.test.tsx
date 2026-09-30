@@ -49,6 +49,20 @@ async function openDirectReview(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe("CharacterCreationScreen reference flow (#242)", () => {
+  it("skips the stat allocator and submits no stat block when the world disables RPG stats", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<CharacterCreationScreen {...props({ rpgStatsEnabled: false, onSubmit })} />);
+    await openDirectReview(user);
+    await completeBackground(user);
+    fireEvent.change(screen.getByLabelText(/Economic position/), { target: { value: "1" } });
+    await user.click(screen.getByRole("button", { name: /^Independent$/ }));
+    expect(screen.queryByRole("button", { name: "Increase Energy" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Create character/ }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0]![0].stats).toBeUndefined();
+  });
+
   it("progresses through the canonical steps and keeps completed answers directly editable (#336)", async () => {
     const user = userEvent.setup();
     render(<CharacterCreationScreen {...props()} />);

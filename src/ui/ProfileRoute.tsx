@@ -10,7 +10,7 @@ import { ImperialProfileNotice } from './ImperialProfileNotice';
  * ordinary save — and any gate without loaders — renders the ordinary
  * Profile as before.
  */
-export function ProfileRoute({ load, loadDestination, loadImperial, revision, era, busy, onNavigate, onUpdateProfile, onSelectConstituency, viewerDisablesAutoplay }: {
+export function ProfileRoute({ load, loadDestination, loadImperial, revision, era, busy, onNavigate, onUpdateProfile, onStatAllocation, onSelectConstituency, viewerDisablesAutoplay }: {
   load: () => Promise<ProfileView>; revision: object; busy: boolean;
   loadDestination?: () => Promise<"profile" | "imperial">;
   loadImperial?: () => Promise<ImperialProfileView | null>;
@@ -18,6 +18,7 @@ export function ProfileRoute({ load, loadDestination, loadImperial, revision, er
   era?: string;
   onNavigate: (route: DrawerRouteId, id?: string) => void;
   onUpdateProfile: (update: ProfileUpdate) => Promise<boolean>;
+  onStatAllocation?: import("../game/profileTypes").StatAllocationHandler;
   onSelectConstituency: (constituencyId: string) => Promise<boolean>;
   viewerDisablesAutoplay?: boolean;
 }) {
@@ -56,6 +57,6 @@ export function ProfileRoute({ load, loadDestination, loadImperial, revision, er
   return <>
     {error && <div className="ahd-alert" role="alert">{error} <button type="button" className="ahd-btn" onClick={() => setAttempt(n => n + 1)}>Retry profile</button></div>}
     {!profile && loading && <p role="status">Loading profile...</p>}
-    {profile && <ProfilePanel profile={profile} era={era} busy={busy || loading || !!error} onNavigate={onNavigate} onUpdateProfile={onUpdateProfile} onSelectConstituency={onSelectConstituency} viewerDisablesAutoplay={viewerDisablesAutoplay} />}
+    {profile && <ProfilePanel profile={profile} era={era} busy={busy || loading || !!error} onNavigate={onNavigate} onUpdateProfile={onUpdateProfile} onStatAllocation={onStatAllocation} onSelectConstituency={onSelectConstituency} viewerDisablesAutoplay={viewerDisablesAutoplay} />}
   </>;
 }

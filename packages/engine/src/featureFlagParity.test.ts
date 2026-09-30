@@ -22,6 +22,7 @@ describe("AHDGame feature flag audit (#36)", () => {
       commandEconomy: "commandEconomyEnabled",
       coldWar: "coldWarEnabled",
       conflicts: "conflictsEnabled",
+      rpgStats: "rpgStatsEnabled",
     });
     for (const entry of Object.values(AHDGAME_FEATURE_FLAG_AUDIT)) {
       expect(entry.nativeDefault).toBe("on");

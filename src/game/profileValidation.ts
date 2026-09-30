@@ -73,7 +73,7 @@ function safeRaster(value: unknown, maxBytes: number): string | null {
 export function validateProfileUpdate(value: ProfileUpdate): ProfileUpdate {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Choose a profile change to save.');
   const keys = Object.keys(value);
-  if (!keys.length || keys.some(key => !['bio', 'avatarUrl', 'profileHeaderUrl', 'campaignSongUrl', 'campaignSongAutoplay', 'onboardingDismissed', 'tutorialCompleted', 'tutorialDismissed'].includes(key))) throw new Error('Unknown profile change.');
+  if (!keys.length || keys.some(key => !['bio', 'avatarUrl', 'profileHeaderUrl', 'campaignSongUrl', 'campaignSongAutoplay', 'onboardingDismissed', 'tutorialCompleted', 'tutorialDismissed', 'statAllocationDismissed'].includes(key))) throw new Error('Unknown profile change.');
   const update: ProfileUpdate = {};
   if (Object.hasOwn(value, 'bio')) {
     if (typeof value.bio !== 'string' || value.bio.length > MAX_BIO_LENGTH) throw new Error('Bio must be 500 characters or fewer.');
@@ -110,6 +110,10 @@ export function validateProfileUpdate(value: ProfileUpdate): ProfileUpdate {
   if (Object.hasOwn(value, 'tutorialDismissed')) {
     if (typeof value.tutorialDismissed !== 'boolean') throw new Error('Choose whether to dismiss the guided tour.');
     update.tutorialDismissed = value.tutorialDismissed;
+  }
+  if (Object.hasOwn(value, 'statAllocationDismissed')) {
+    if (typeof value.statAllocationDismissed !== 'boolean') throw new Error('Choose whether to defer stat allocation.');
+    update.statAllocationDismissed = value.statAllocationDismissed;
   }
   return update;
 }

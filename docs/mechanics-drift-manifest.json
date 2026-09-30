@@ -6,7 +6,10 @@
     "src/lib",
     "src/simulation",
     "src/data",
-    "src/types"
+    "src/types",
+    "src/app/api/character/allocate-stats",
+    "src/app/api/character/reallocate-stats",
+    "src/components/stats"
   ],
   "slices": [
     {
@@ -167,6 +170,24 @@
         "packages/engine/src/intraparty/",
         "packages/engine/src/unions/",
         "packages/engine/src/npp/"
+      ]
+    },
+    {
+      "id": "character-stats",
+      "description": "RPG allocation, single-use reset, suggested builds, stat effects and ruleset gate",
+      "paths": [
+        "src/lib/stats/",
+        "src/app/api/character/allocate-stats/",
+        "src/app/api/character/reallocate-stats/",
+        "src/components/stats/",
+        "src/lib/seeds/reference/featureFlagDefaults.ts"
+      ],
+      "consumers": [
+        "packages/engine/src/stats/",
+        "packages/engine/src/featureFlags.ts",
+        "src/game/statAllocation.test.ts",
+        "src/ui/StatAllocationControls.tsx",
+        "docs/STAT-ALLOCATION-PARITY.md"
       ]
     }
   ]

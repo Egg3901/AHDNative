@@ -42,7 +42,7 @@ export const partyInfluenceTurnPhase: TurnPhase = {
     if (projected) {
       player.partyInfluence = projected.next;
       if (projected.bonusActions > 0) {
-        player.actions = Math.min(energyActionLimits(source.stats?.energy ?? 1).cap, player.actions + projected.bonusActions);
+        player.actions = Math.min(energyActionLimits((world.featureFlags.rpgStats ? source.stats?.energy : undefined) ?? 1).cap, player.actions + projected.bonusActions);
       }
     }
 

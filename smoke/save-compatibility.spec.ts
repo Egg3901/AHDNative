@@ -9,9 +9,10 @@ const historicalSave = gunzipSync(readFileSync(new URL('../fixtures/v42-1953-US.
 test('an authentic v42 save loads, advances, and reloads through the game UI', async ({ page }) => {
   await page.goto('/');
   await loadFixture(page, historicalSave);
+  // Observe load before readiness defers the legacy allocation prompt and saves Profile.
+  await expect(page.getByRole('status').filter({ hasText: 'Saved game loaded' })).toBeVisible();
   await gameReady(page);
   await expect(page.getByRole('contentinfo')).toContainText('Turn 0 ·');
-  await expect(page.getByRole('status')).toContainText('Saved game loaded');
   await advanceGame(page);
   await gameReady(page);
   await expect(page.getByRole('contentinfo')).toContainText('Turn 1 ·');

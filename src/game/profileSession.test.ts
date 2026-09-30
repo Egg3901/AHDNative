@@ -97,7 +97,8 @@ describe('profile through the saved game session', () => {
     const session = new GameSession(); session.create(options);
     const raw = JSON.parse(session.serialize(savedAt));
     raw.world.player.policies = { economic: -2, social: 3 };
-    raw.world.player.stats = { energy: 8, debate: 6 };
+    // A complete recorded allocation, including growth above the initial budget.
+    raw.world.player.stats = { charisma: 4, debate: 6, energy: 8, fundraising: 4, businessAcumen: 4, statecraft: 4, intellect: 4 };
     raw.world.achievementsEarned = ['turn_one'];
     const race = {
       id: 'house:US:US-NY:c1', electionType: 'house', countryId: 'US', state: 'US-NY',

@@ -246,6 +246,7 @@ export function App() {
     const era = eras.find((entry) => entry.id === pendingSetup.era);
     const country = era?.countries.find((entry) => entry.id === pendingSetup.countryId);
     return <CharacterCreationScreen
+      rpgStatsEnabled={pendingSetup.featureFlags?.rpgStats !== false}
       selection={{
         era: pendingSetup.era,
         countryId: pendingSetup.countryId,
@@ -267,6 +268,10 @@ export function App() {
     setWorld(await client.current!.updateProfile(update));
     await save();
     setMessage("Profile saved.");
+  })} onStatAllocation={(mode, stats) => run(async () => {
+    setWorld(await (mode === 'allocate' ? client.current!.allocateStats(stats) : client.current!.reallocateStats(stats)));
+    await save();
+    setMessage(mode === 'allocate' ? "Stats allocated." : "Stats reallocated.");
   })} onSelectConstituency={constituencyId => run(async () => {
     setWorld(await client.current!.selectConstituency(constituencyId));
     await save();
