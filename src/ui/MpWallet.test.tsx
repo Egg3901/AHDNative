@@ -2,15 +2,9 @@ import { openMpMenu, openMpDestination } from "./mpNavigation.test-helpers";
 /**
  * MP wallet/portfolio reachability slice (#507, #84).
  *
- * The bridge contract has no allowlisted portfolio or banking read (finance
- * surfaces are deliberately absent in src/mp/endpoints.ts), so the only
- * source-backed MP money figure is character-me `cashOnHand`. These tests
- * pin the honest slice through the real MpModeScreen: a reachable Wallet
- * section projecting that authoritative figure at 390px and 1280px, an
- * explicit unknown (never $0) when the server omits it, a working
- * section/return path, and no SP balances, holdings, or money controls.
- * FinancePanel mode="mp" keeps the matching unavailable reason with its
- * cross-navigation intact.
+ * Older character responses may omit denominations. Keep their aggregate
+ * cash available without manufacturing wallet balances. Savings loads only
+ * on demand. Local FinancePanel balances never leak into the MP wallet.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
@@ -110,7 +104,8 @@ describe("MP wallet reachability at 390px", () => {
     expect(queries.getByText("1000")).toBeInTheDocument();
     expect(queries.queryByText("Acme Steel")).not.toBeInTheDocument();
     expect(queries.queryByRole("button", { name: /deposit|withdraw/i })).not.toBeInTheDocument();
-    expect(queries.getByText(/no multiplayer read in this build/i)).toBeInTheDocument();
+    expect(queries.getByText("Currency balances are not reported by the server.")).toBeInTheDocument();
+    expect(queries.getByRole("button", { name: "Savings accounts" })).toBeInTheDocument();
 
     // Sections nav reaches the wallet; the section returns to the list.
     await openMpMenu();
@@ -129,7 +124,7 @@ describe("MP wallet reachability at 1280px", () => {
     const queries = within(wallet as HTMLElement);
     expect(within(wallet).getByRole("heading", { name: "Wallet" })).toBeInTheDocument();
     expect(queries.getByText("1000")).toBeInTheDocument();
-    expect(queries.getByText(/savings, stock holdings, portfolio trends/i)).toBeInTheDocument();
+    expect(queries.getByText("Currency balances are not reported by the server.")).toBeInTheDocument();
     expect(queries.queryByRole("button", { name: /deposit|withdraw/i })).not.toBeInTheDocument();
     await openMpMenu();
     const sections = screen.getByRole("navigation", { name: "Multiplayer sections" });
@@ -141,7 +136,7 @@ describe("MP wallet unknown cash", () => {
   it("names an unreported balance instead of $0", async () => {
     const wallet = await renderReadyWallet(390, 844, null);
     const queries = within(wallet as HTMLElement);
-    expect(queries.getByText(/not reported by the server/i)).toBeInTheDocument();
+    expect(queries.getByText("Not reported by the server", { exact: true })).toBeInTheDocument();
     expect(queries.queryByText("$0.00")).not.toBeInTheDocument();
     expect(queries.queryByText("0", { exact: true })).not.toBeInTheDocument();
   });
@@ -163,8 +158,8 @@ describe("FinancePanel MP unavailable state", () => {
           mode="mp"
         />,
       );
-      const note = screen.getByRole("note", { name: /wallet unavailable in multiplayer/i });
-      expect(note).toHaveTextContent(/no allowlisted portfolio or banking read/i);
+      const note = screen.getByRole("note", { name: /offline finance panel unavailable in multiplayer/i });
+      expect(note).toHaveTextContent(/live currency balances and savings accounts/i);
       expect(note).toHaveTextContent(/multiplayer wallet section/i);
       // No SP balances or holdings leak through the unavailable state.
       expect(screen.queryByText("Acme Steel")).not.toBeInTheDocument();

@@ -84,6 +84,50 @@ export interface MpCharacterView {
   cashOnHand: number | null;
   actions: number | null;
   corporationName: string | null;
+  wallet: MpWalletView | null;
+  avatarUrl: string | null;
+}
+
+export interface MpWalletView {
+  homeCurrency: string;
+  campaign: number | null;
+  personal: Record<string, number>;
+  savings: Record<string, number> | null;
+}
+
+function currencyBalances(value: unknown): Record<string, number> | null {
+  const record = asRecord(value);
+  if (!record) return null;
+  const balances: Record<string, number> = {};
+  for (const [code, amount] of Object.entries(record)) {
+    if (!/^[A-Z]{3}$/.test(code) || asNumber(amount) === null) return null;
+    balances[code] = amount as number;
+  }
+  return balances;
+}
+
+function parseWallet(character: Record<string, unknown>): MpWalletView | null {
+  const homeCurrency = asTrimmedString(character.homeCurrency);
+  const balances = asRecord(character.currencyBalances);
+  const personal = balances && currencyBalances(balances.personal);
+  if (!homeCurrency || !/^[A-Z]{3}$/.test(homeCurrency) || !personal) return null;
+  return {
+    homeCurrency,
+    campaign: asNumber(balances?.campaign),
+    personal,
+    savings: currencyBalances(balances?.savings),
+  };
+}
+
+function profileImage(value: unknown): string | null {
+  const text = asTrimmedString(value);
+  if (!text || text.length > 2048) return null;
+  try {
+    const url = new URL(text);
+    return url.protocol === "https:" && !url.username && !url.password ? url.href : null;
+  } catch {
+    return null;
+  }
 }
 
 /** character-me: projects only audited fields; the rest stays server-side. */
@@ -104,6 +148,8 @@ export function parseCharacterMe(bodyText: string): MpCharacterView | null {
     cashOnHand: character.cashOnHand === undefined ? null : asNumber(character.cashOnHand),
     actions: character.actions === undefined ? null : asNumber(character.actions),
     corporationName: corporation ? asTrimmedString(corporation.name ?? null) : null,
+    wallet: parseWallet(character),
+    avatarUrl: profileImage(character.avatarUrl),
   };
 }
 

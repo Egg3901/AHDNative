@@ -41,6 +41,7 @@ import {
   type MpUnionDetailView,
 } from "./validators";
 import type { MpMutateOpId } from "./endpoints";
+import { isSavingsCurrency, parseSavings, savingsAck, type MpSavingsView } from "./savings";
 
 /**
  * Native multiplayer mode session (#359). The server owns all state: this
@@ -67,6 +68,7 @@ export interface MpSnapshot {
   userId: string | null;
   username: string | null;
   character: MpCharacterView | null;
+  savings: MpSavingsView | null;
   turn: MpTurnView | null;
   /** Server-derived navigation capabilities (client-nav projection). */
   capabilities: MpCapabilitiesView | null;
@@ -105,6 +107,7 @@ const INITIAL_SNAPSHOT: MpSnapshot = {
   userId: null,
   username: null,
   character: null,
+  savings: null,
   turn: null,
   capabilities: null,
   electionDetail: null,
@@ -132,13 +135,14 @@ export const MP_MAIL_LIMIT = 50;
 
 function emptyAuthed(): Pick<
   MpSnapshot,
-  "character" | "turn" | "capabilities" | "electionDetail" | "corporationDetail" | "unionDetail" | "cabinetDetail" | "governorDetail" | "inbox" | "mailInbox" | "mailSent" | "presence"
+  "character" | "savings" | "turn" | "capabilities" | "electionDetail" | "corporationDetail" | "unionDetail" | "cabinetDetail" | "governorDetail" | "inbox" | "mailInbox" | "mailSent" | "presence"
 > {
-  return { character: null, turn: null, capabilities: null, electionDetail: null, corporationDetail: null, unionDetail: null, cabinetDetail: null, governorDetail: null, inbox: null, mailInbox: null, mailSent: null, presence: null };
+  return { character: null, savings: null, turn: null, capabilities: null, electionDetail: null, corporationDetail: null, unionDetail: null, cabinetDetail: null, governorDetail: null, inbox: null, mailInbox: null, mailSent: null, presence: null };
 }
 
 export class MpModeSession {
   private snapshot: MpSnapshot = { ...INITIAL_SNAPSHOT };
+  private accountGeneration = 0;
 
   constructor(private readonly host: MpBridgeHost) {}
 
@@ -153,12 +157,14 @@ export class MpModeSession {
 
   /** Drop all remote state: mode exit and account switches land here. */
   exit(): MpSnapshot {
+    this.accountGeneration++;
     this.snapshot = { ...INITIAL_SNAPSHOT };
     return this.get();
   }
 
   /** Full authenticated load: probe, then player/turn/capabilities/inbox in order. */
   async enter(): Promise<MpSnapshot> {
+    this.accountGeneration++;
     this.set({ ...emptyAuthed(), phase: "loading", notice: null, error: null, retryAfter: null });
     return this.refreshAuthed();
   }
@@ -169,8 +175,10 @@ export class MpModeSession {
    * switch or expiry is caught here too, never just on entry.
    */
   async refresh(): Promise<MpSnapshot> {
+    const hadSavings = this.snapshot.savings !== null;
     this.set({ phase: "loading", notice: null, error: null, retryAfter: null });
-    return this.refreshAuthed();
+    const refreshed = await this.refreshAuthed();
+    return refreshed.phase === "ready" && hadSavings ? this.loadSavings() : refreshed;
   }
 
   /**
@@ -271,6 +279,54 @@ export class MpModeSession {
       return this.set({ notice: message });
     }
     return this.applyRemoteFailure(result, "action");
+  }
+
+  /** Savings are read on demand from Wallet and retained only in this account's memory. */
+  async loadSavings(): Promise<MpSnapshot> {
+    if (!this.snapshot.userId) return this.get();
+    const account = this.snapshot.userId;
+    const epoch = this.accountGeneration;
+    this.set({ error: null, notice: null, retryAfter: null });
+    const result = await mpFetch(this.host, "savings-accounts");
+    if (this.snapshot.userId !== account || this.accountGeneration !== epoch) return this.get();
+    if (result.kind !== "ok") return this.applyAuthedReadFailure(result);
+    const savings = parseSavings(result.bodyText);
+    if (!savings) return this.set({ savings: null, phase: "server-error", error: "The savings accounts answered in an unexpected shape." });
+    return this.set({ savings, phase: "ready", error: null, retryAfter: null });
+  }
+
+  async openSavings(currency: unknown): Promise<MpSnapshot> {
+    return this.savingsMutation("savings-open", currency);
+  }
+
+  async transferSavings(direction: "deposit" | "withdraw", currency: unknown, amount: unknown): Promise<MpSnapshot> {
+    if (direction !== "deposit" && direction !== "withdraw") return this.set({ error: "Choose deposit or withdraw." });
+    return this.savingsMutation(direction === "deposit" ? "savings-deposit" : "savings-withdraw", currency, amount);
+  }
+
+  private async savingsMutation(op: "savings-open" | "savings-deposit" | "savings-withdraw", currency: unknown, amount?: unknown): Promise<MpSnapshot> {
+    if (!this.snapshot.userId || this.snapshot.phase !== "ready") return this.set({ error: "Reconnect before changing savings." });
+    if (!isSavingsCurrency(currency)) return this.set({ error: "Choose a supported savings currency." });
+    const transfer = op !== "savings-open";
+    if (transfer && (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0)) {
+      return this.set({ error: "Enter a positive savings amount." });
+    }
+    const account = this.snapshot.userId;
+    const epoch = this.accountGeneration;
+    this.set({ error: null, notice: null, retryAfter: null });
+    const result = await mpMutate(this.host, op, { currency, ...(transfer ? { amount } : {}) });
+    if (this.snapshot.userId !== account || this.accountGeneration !== epoch) return this.get();
+    if (result.kind !== "ok") return this.applyRemoteFailure(result, "action");
+    const confirmed = savingsAck(result.bodyText, currency, transfer);
+    if (confirmed === null) return this.set({ phase: "server-error", error: "The savings request answered in an unexpected shape. Refresh before trying again." });
+    const refreshed = await this.refreshAuthed();
+    if (refreshed.phase !== "ready" || refreshed.userId !== account || this.accountGeneration !== epoch) return refreshed;
+    const loaded = await this.loadSavings();
+    if (loaded.phase !== "ready" || loaded.userId !== account || this.accountGeneration !== epoch) return loaded;
+    const displayAmount = typeof confirmed === "number" ? confirmed.toLocaleString("en-US") : "";
+    const notice = op === "savings-open" ? `Savings account opened (${currency}).`
+      : `${op === "savings-deposit" ? "Deposited" : "Withdrew"} ${displayAmount} ${currency}.`;
+    return this.set({ notice });
   }
 
   async markNotificationRead(id: unknown): Promise<MpSnapshot> {
@@ -756,27 +812,33 @@ export class MpModeSession {
    * account. Any 401 expires the session.
    */
   private async refreshAuthed(): Promise<MpSnapshot> {
+    const generation = this.accountGeneration;
     const probe = await mpFetch(this.host, "auth-session");
+    if (this.accountGeneration !== generation) return this.get();
     if (this.applyProbe(probe) !== "signed-in") return this.get();
     const me = await mpFetch(this.host, "character-me");
+    if (this.accountGeneration !== generation) return this.get();
     if (me.kind !== "ok") return this.applyAuthedReadFailure(me);
     const character = parseCharacterMe(me.bodyText);
     if (!character) {
       return this.set({ phase: "server-error", error: "The player record answered in an unexpected shape." });
     }
     const turnResult = await mpFetch(this.host, "turn-status");
+    if (this.accountGeneration !== generation) return this.get();
     if (turnResult.kind !== "ok") return this.applyAuthedReadFailure(turnResult);
     const turn = parseTurnStatus(turnResult.bodyText);
     if (!turn) {
       return this.set({ phase: "server-error", error: "The turn record answered in an unexpected shape." });
     }
     const capsResult = await mpFetch(this.host, "client-nav");
+    if (this.accountGeneration !== generation) return this.get();
     if (capsResult.kind !== "ok") return this.applyAuthedReadFailure(capsResult);
     const capabilities = parseClientNav(capsResult.bodyText);
     if (!capabilities) {
       return this.set({ phase: "server-error", error: "The capabilities record answered in an unexpected shape." });
     }
     const inboxResult = await mpFetch(this.host, "notifications", MP_INBOX_LIMIT, 0);
+    if (this.accountGeneration !== generation) return this.get();
     if (inboxResult.kind !== "ok") return this.applyAuthedReadFailure(inboxResult);
     const inbox = parseInbox(inboxResult.bodyText);
     if (!inbox) {

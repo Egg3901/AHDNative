@@ -209,8 +209,21 @@
  *   writes) is deliberately absent: mode changes can take the site
  *   offline and stay out of the mobile slice.
  *
- * Deliberately absent (#361 shrinks the v1 set to the above): every other
- * mutation surface (legislature, elections, travel, finance, corporations,
+ * Savings slice audited at 6ed11a3d41f6dbc82b4cb81ab9d6fc90438208b9:
+ * - savings-accounts GET /api/character/savings, requireBasicAuth, no-store.
+ *   Returns APY, opened flags, balances, earned/pending interest and turns
+ *   until credit. Character absent: 404; session absent: 401.
+ * - savings-open POST /api/character/savings/open {currency}.
+ * - savings-deposit / savings-withdraw POST the corresponding savings path
+ *   with {currency, amount}. All requireBasicAuth and SAVINGS_WALLET_LIMITS.
+ *   Server owns rounding, forex gates, sufficient balance and atomic writes.
+ *   200 {success:true,currency,amount?}; 400 refusal, 401 expiry, 429 limit.
+ *   Native allows only the active currency enum and a finite positive amount,
+ *   strips holder/user/path fields, and re-reads balances before success.
+ *   No holder routing, bank selection, FX, loans or policy writes are modeled.
+ *
+ * Deliberately absent (#361 plus the savings slice): every other
+ * mutation surface (legislature, elections, travel, remaining finance, corporations,
  * guilds), preference snooze/unsnooze, notification DELETE, and
  * local turn advancement — MP turns advance on the server schedule only.
  *
@@ -273,6 +286,7 @@ export const MP_ORIGIN = "https://ahousedividedgame.com";
 export type MpFetchOpId =
   | "auth-session"
   | "character-me"
+  | "savings-accounts"
   | "client-nav"
   | "turn-status"
   | "players-online"
@@ -301,7 +315,10 @@ export type MpMutateOpId =
   | "mail-delete"
   | "mail-sent-delete"
   | "mail-report"
-  | "auth-logout";
+  | "auth-logout"
+  | "savings-open"
+  | "savings-deposit"
+  | "savings-withdraw";
 
 export type MpExecuteActionType =
   | "fundraise"
