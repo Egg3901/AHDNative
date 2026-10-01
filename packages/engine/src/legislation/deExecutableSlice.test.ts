@@ -135,6 +135,7 @@ describe("Germany national tax laws (#287)", () => {
     // rate/100. Revenue settles before the tax-rate ramp in the source turn
     // order, so the next stepped rate affects receipts on the following turn.
     expectSourceSalesTax(world, 20);
+    expect(first.votesFor).toBeGreaterThan(first.votesAgainst);
     expect(world.enactedLaws.filter((law) => law.id === "de_vat_rate" && law.repealedAtTurn === undefined)).toHaveLength(1);
 
     delete world.player.actionCooldowns.sponsorBill;
