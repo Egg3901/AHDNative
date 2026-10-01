@@ -45,6 +45,7 @@ import { seedCapitalStock } from "./economy/capitalStock.js";
 import type { UnownedSectorState } from "./economy/types.js";
 import { seedTfpLeaves } from "./metrics/tfpSeed.js";
 import { seedMinisterialTargets } from "./metrics/ministerialTargetSeed.js";
+import { seedPoliticalBoards } from "./metrics/politicalBoardSeed.js";
 import { computeNationalMetrics } from "./metrics/nationalMetrics.js";
 
 // v29: W30 governors (governors/governorAddresses/governorOrders). This wave
@@ -1209,6 +1210,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
   // nationalMetrics (prev-turn to the first macro read) is the seed basket.
   seedTfpLeaves(world);
   seedMinisterialTargets(world);
+  seedPoliticalBoards(world);
   computeNationalMetrics(world);
   return world;
 }
