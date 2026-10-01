@@ -194,7 +194,7 @@ describe("banking lifecycle through GameSession", () => {
     expect(final.centralBanks.US!.netMoneyCreatedLifetime).toBe(0);
   });
   it("refuses historical projection of banking policies and facility accounting the old reader cannot execute", () => {
-    // Isolate the banking guard from the fresh-world SOE export refusal.
+    // Isolate the banking guard from the fresh-world SOE and TFP export refusals.
     const world = deserializeSave(gunzipSync(readFileSync(new URL("../../fixtures/v42-1953-US.save.json.gz", import.meta.url))).toString("utf8"));
     for (const key of Object.keys(world.featureFlags) as (keyof typeof world.featureFlags)[]) world.featureFlags[key] = true;
     expect(projectSaveToV42(serializeSave(world, STAMP)).ok).toBe(true);

@@ -28,6 +28,13 @@ function loadAuthenticV42(): string {
 }
 
 describe("schema 42 projection of public save envelopes", () => {
+  it("refuses fresh TFP state that the historical engine does not consume", () => {
+    const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false, error: expect.stringContaining("Regional metric records"),
+    });
+  });
+
   it("reproduces the authentic v42 fixture from a Native-migrated current-schema reload", () => {
     expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(44);
     const authentic = loadAuthenticV42();

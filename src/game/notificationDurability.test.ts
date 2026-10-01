@@ -51,7 +51,7 @@ describe('notification save transaction', () => {
   });
 
   it('keeps app inbox metadata through the supported v42 projection', () => {
-    // Fresh SOE worlds are deliberately outside historical v42 support.
+    // Fresh SOE/TFP worlds are deliberately outside historical v42 support.
     // Use the authentic old save to isolate supported app metadata export.
     const session = new GameSession();
     session.load(gunzipSync(readFileSync(new URL('../../fixtures/v42-1953-US.save.json.gz', import.meta.url))).toString('utf8'));

@@ -63,7 +63,10 @@ Documentation tasks #33/#35 have a complete source audit and corrected current
 rows/comments. Their checklists and prior closure labels are reconciled with
 merged verification, without claiming the linked mechanics are complete.
 
-#40 remains partial for real default-world TFP inputs/progression, #41 for
+#40 remains partial for complete regional TFP evolution. Fresh source-backed
+leaves and cabinet progression are implemented in the current input slice;
+state/federal spending, sector-revenue and registry dependencies remain open.
+#41 remains partial for
 unit combat and player war/peace/intelligence/naval-air flows, and #94 for the
 rendered subsidy flow and command-economy plan/credit controls. Their earlier
 bounded documentation/subsidy closures do not satisfy those full completion

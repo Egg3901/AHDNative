@@ -52,6 +52,18 @@ function freshDir(): string {
 }
 
 describe("export-save-v42 CLI", () => {
+  it("refuses fresh TFP state without creating a historical export", () => {
+    const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    const dir = freshDir();
+    const input = join(dir, "in.save.json");
+    const output = join(dir, "out.save.json");
+    writeFileSync(input, serializeSave(world, SAVED_AT));
+    const run = runCli("--input", input, "--output", output);
+    expect(run.status).not.toBe(0);
+    expect(existsSync(output)).toBe(false);
+    expect(run.stderr).toContain("Regional metric records");
+  }, 60_000);
+
   it("exports the genuine v42 fixture byte-identical", () => {
     const authentic = loadAuthenticV42();
     expect(sha256(authentic)).toBe(FIXTURE_SHA);

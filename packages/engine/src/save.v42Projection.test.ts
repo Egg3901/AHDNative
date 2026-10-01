@@ -79,6 +79,19 @@ it("refuses fresh SOE production state that the historical reader cannot continu
 });
 
 describe("projectSaveToV42 public envelope", () => {
+  it("refuses fresh Game-seeded regional TFP inputs rather than exporting a frozen v42 extension", () => {
+    const world = createWorld(WORLD_OPTS);
+    expect(world.player.homeRegionId).toBe("AL");
+    expect(world.regionalMetrics.CA?.["education.workforceSkill"]?.value).toBe(50);
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false, error: expect.stringContaining("Regional metric records"),
+    });
+    expect(executeAction(world, "player", "convertCash", { amount: 2000 }).ok).toBe(true);
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false, error: expect.stringContaining("Regional metric records"),
+    });
+  });
+
   it("refuses an authentic-schema label carrying unsupported SOE production", () => {
     const document = JSON.parse(loadAuthenticV42());
     document.world.corporations["RU-manufacturing"].soe = {
