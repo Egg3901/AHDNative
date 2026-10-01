@@ -59,8 +59,8 @@ test('Germany singleplayer Chancellor decrees, replaces and resumes a VAT law at
   await proposeVat('20');
   await enactVat('20');
   await navigateGame(page, 'National Budget');
-  const vatRow = page.getByRole('listitem').filter({ hasText: /^VAT / });
-  await expect(vatRow).toContainText(/20% rate/);
+  const vatRow = page.getByRole('listitem').filter({ hasText: 'VAT' });
+  await expect(vatRow).toContainText('20.0% rate');
 
   // Save/reload at 320px, then exercise a real replacement through the same UI.
   await page.setViewportSize({ width: 320, height: 844 });
@@ -73,7 +73,7 @@ test('Germany singleplayer Chancellor decrees, replaces and resumes a VAT law at
   await proposeVat('22');
   await enactVat('22');
   await navigateGame(page, 'National Budget');
-  await expect(page.getByRole('listitem').filter({ hasText: /^VAT / })).toContainText(/22% rate/);
+  await expect(page.getByRole('listitem').filter({ hasText: 'VAT' })).toContainText('22.0% rate');
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await saveGame(page);
@@ -83,7 +83,7 @@ test('Germany singleplayer Chancellor decrees, replaces and resumes a VAT law at
   await navigateGame(page, 'Bills and proposals');
   await expect(page.getByRole('article', { name: 'Statutory VAT Act' }).filter({ hasText: 'Germany Law Player' }).filter({ hasText: /signed/i })).toHaveCount(1);
   await navigateGame(page, 'National Budget');
-  await expect(page.getByRole('listitem').filter({ hasText: /^VAT / })).toContainText(/22% rate/);
+  await expect(page.getByRole('listitem').filter({ hasText: 'VAT' })).toContainText('22.0% rate');
 
   expect(errors).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
