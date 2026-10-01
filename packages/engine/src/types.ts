@@ -32,6 +32,10 @@ export interface WorldState {
   meta: WorldMeta;
   /** Player-owned switches for deterministic singleplayer simulation families. */
   featureFlags: WorldFeatureFlags;
+  /** Optional country rate-corridor laws; absent uses the reference preset defaults. */
+  bankingLaws?: Record<string, import("./banking/rates.js").BankingLaw>;
+  /** Reference bankPropTradingEnabled: absent enables interbank, margin and prop books. */
+  bankPropTradingEnabled?: boolean;
   /**
    * Singleplayer difficulty chosen at world creation (issue #334). Says how
    * competently autonomous politicians perform via `singleplayerNppTuning`;

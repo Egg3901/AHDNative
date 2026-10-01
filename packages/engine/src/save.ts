@@ -39,6 +39,7 @@ import { validateUnionOrganizers } from "./unions/organizers.js";
 import { validateUnionContributionLedger } from "./unions/contributions.js";
 import { validatePlayerLineOfCredit } from "./finance/playerLineOfCredit.js";
 import type { BankCharter } from "./banking/types.js";
+import { validateBankingState } from "./banking/validate.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
 import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
 import {
@@ -240,6 +241,17 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
       error: `RPG stats are disabled in this ruleset. Schema 42 always applies RPG stats; keep this save as schema ${SCHEMA_VERSION}`,
     };
   }
+  if (hasOwn(world, "bankingLaws") || hasOwn(world, "bankPropTradingEnabled")) {
+    return { ok: false, error: `Banking policies cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
+  const centralBanks = world["centralBanks"];
+  if (isRecord(centralBanks)) {
+    for (const bank of Object.values(centralBanks)) {
+      if (isRecord(bank) && (hasOwn(bank, "reserveBalance") || hasOwn(bank, "netMoneyCreatedLifetime"))) {
+        return { ok: false, error: `Central-bank facility accounting cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+      }
+    }
+  }
   if (homeRegionId !== null && homeRegionId !== undefined && typeof homeRegionId !== "string") {
     return {
       ok: false,
@@ -344,6 +356,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     // pressure above.
     const charter = value["bankCharter"];
     if (isRecord(charter)) {
+      if (["lastCbMarginTurn", "lastDiscountWindowTurn", "lastBankingIncome", "lastBankingFacilityInterest", "lastBankingIncomeTurn"].some(key => hasOwn(charter, key)) ||
+        ["discountWindowDebt", "discountWindowArrears", "cbMarginDebt", "cbMarginArrears", "interbankDebt"].some(key => typeof charter[key] === "number" && (charter[key] as number) > 0)) {
+        return { ok: false, error: `Corporation ${corpId} has banking facility state that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+      }
       const charterType = charter["charterType"];
       if (charterType !== undefined && charterType !== "retail") {
         return {
@@ -2773,6 +2789,7 @@ export function deserializeSave(raw: string): WorldState {
   // when the new key is absent; present malformed values still fail closed.
   if (save.world.featureFlags.rpgStats === undefined) save.world.featureFlags.rpgStats = true;
   assertCurrentWorldState(save.world);
+  validateBankingState(save.world);
   // #295: persisted sector-owner default. Saves written before the
   // acquisition slice carry materialized assets without the field; missing
   // degrades to the #293 default ("corporation") and keeps every loaded row

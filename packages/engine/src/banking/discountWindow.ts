@@ -1,59 +1,20 @@
 /**
- * Discount-window draw, repayment, and per-turn servicing — #327 port of
- * AHDGame's B8 facility at pinned revision e364c0495.
- *
- * Sources (verbatim math unless noted):
- *  - src/lib/banking/rules/discountWindow.ts (DISCOUNT_WINDOW_SPREAD_PP,
- *    DISCOUNT_WINDOW_CAP_FRACTION, DISCOUNT_WINDOW_STIGMA,
- *    discountWindowRatePercent, quoteDiscountWindow, canDraw,
- *    discountWindowStigma)
- *  - src/lib/banking/rules/decide.ts draw_discount_window / repay_discount_window
- *    branches (eligibility order, rounded move, cap re-gate, clamp repay to
- *    outstanding, insufficient-cash refusal)
- *  - src/lib/turn/bankingTurn.ts serviceInterbankAndCbMargin B8 block
- *    (interest paid to the central bank, shortfall accrued as arrears,
- *    per-turn idempotency stamp)
- *  - src/lib/banking/depositBookReturn.ts (window debt + arrears senior to
- *    depositors on failure; claims extinguished on resolution)
- *
- * Solo adaptations (cited, not silently dropped):
- *  - Charter capability: Native charters one retail-only deposit-taking type
- *    (see npcBanks.ts file doc — no investment/universal types, no charter
- *    switching), so every active charter structurally carries the window
- *    capability. The reference's "not_deposit_taking" refusal for investment
- *    charters cannot arise here and is documented rather than modelled.
- *  - Deposit base: the cap sizes against cash-backed npcDeposits only. Player
- *    savings are a pointer, not cash the bank holds (see balanceSheet.ts and
- *    banking/bankingTurn.ts file docs), and Native has no
- *    playerDepositsAreLiabilities switch, so playerDeposits never enter the
- *    cap — the reference's legacy-pointer behavior, kept.
- *  - Money creation: drawing mints (cash appears in the vault) and repayment
- *    burns (cash destroyed), exactly as the reference's mint/burn legs do.
- *    Native central banks carry no reserveBalance / netMoneyCreatedLifetime
- *    ledger (see centralBank/types.ts scope cut), so there is no creation
- *    counter to move and no CB revenue account for interest: interest paid is
- *    destroyed with the same burn semantics as a repayment. Documented
- *    residual, not a silent retune.
- *  - Rounding: the decision gates the unrounded amount via canDraw, then
- *    re-gates debt + rounded draw <= cap (the reference's own two-step order:
- *    decide.ts validates, the guarded write re-gates). Single-threaded solo
- *    has no concurrent writer to re-gate against, so both checks run up front
- *    in the same order; whole-unit money makes them agree everywhere except a
- *    sub-unit sliver where the pair refuses together.
- *  - Arrears have no repayment path in the reference either (repay clamps to
- *    discountWindowDebt; arrears accrue on shortfall and are extinguished on
- *    failure) — kept verbatim. Stigma "recovery" is automatic: it scales with
- *    cap usage, so repaying principal reduces it to zero at full repayment.
- *  - RNG-free, deterministic, single-writer: failure atomicity is by
- *    validate-before-mutate (every refusal throws before touching WorldState),
- *    the same simplification bankingTurn.ts and lineOfCredit.ts establish.
+ * Discount window: AHDGame 595a3b8 rules/discountWindow.ts, rules/decide.ts,
+ * facilityInterest.ts and depositBookReturn.ts. Active deposit takers draw
+ * up to 25% of cash-backed NPC deposits at prime + 3. Player savings remain
+ * pointers and do not back the cap. Draws/repayments mint/burn with the CB
+ * creation counter; interest transfers to CB reserves without rounding.
+ * Principal repayment leaves arrears, matching the reference. Repayment and
+ * servicing can discharge investment-bank window debt in older Native saves.
+ * Commands validate before mutation; GameSession commits only on success.
  */
 
 import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import type { Corporation } from "../corporation/types.js";
 import type { BankCharter } from "./types.js";
-import { TURNS_PER_YEAR, roundMoney } from "./constants.js";
+import { charterMay } from "./capabilities.js";
+import { serviceFacilityInterest } from "./facilityInterest.js";
 
 /** Penalty over prime, in percentage points. Source: rules/discountWindow.ts DISCOUNT_WINDOW_SPREAD_PP. */
 export const DISCOUNT_WINDOW_SPREAD_PP = 3;
@@ -65,6 +26,7 @@ export const DISCOUNT_WINDOW_CAP_FRACTION = 0.25;
 export const DISCOUNT_WINDOW_STIGMA = 0.1;
 
 export type DiscountWindowDenial =
+  | "not_deposit_taking"
   | "charter_inactive"
   | "no_deposits"
   | "cap_exhausted"
@@ -104,16 +66,15 @@ export function quoteDiscountWindow(
 
 /**
  * May this bank draw `amount`, and if not, why? Source: canDraw (verbatim
- * order: status, capability, amount, deposits, cap). The capability leg is
- * the solo structural answer — every Native charter is a deposit-taking
- * retail charter (see file doc), so only status is checked.
+ * order: status, capability, amount, deposits, cap).
  */
 export function canDraw(
-  charter: Pick<BankCharter, "status" | "npcDeposits" | "discountWindowDebt"> | null | undefined,
+  charter: Pick<BankCharter, "status" | "charterType" | "npcDeposits" | "discountWindowDebt"> | null | undefined,
   amount: number,
   primeRate: number,
 ): { ok: true; quote: DiscountWindowQuote } | { ok: false; reason: DiscountWindowDenial } {
   if (!charter || charter.status !== "active") return { ok: false, reason: "charter_inactive" };
+  if (!charterMay(charter, "discountWindow")) return { ok: false, reason: "not_deposit_taking" };
   if (!Number.isFinite(amount) || amount <= 0) return { ok: false, reason: "invalid_amount" };
 
   const quote = quoteDiscountWindow(charter, primeRate);
@@ -139,6 +100,7 @@ export function discountWindowStigma(
 }
 
 const DENIAL_MESSAGES: Record<DiscountWindowDenial, string> = {
+  not_deposit_taking: "Only deposit-taking charters may draw on the window.",
   charter_inactive: "The bank holds no active charter.",
   no_deposits: "The window is sized against the deposit base, and this bank has none.",
   cap_exhausted:
@@ -147,6 +109,7 @@ const DENIAL_MESSAGES: Record<DiscountWindowDenial, string> = {
 };
 
 function requireBank(world: WorldState, bankCorpId: string): { corp: Corporation; charter: BankCharter } {
+  if (!world.featureFlags.banking) throw new Error("Private banking is not enabled");
   const corp = world.corporations[bankCorpId];
   const charter = corp?.bankCharter;
   if (!corp || !charter || charter.status !== "active") {
@@ -175,6 +138,9 @@ export function drawDiscountWindow(
   const bank = world.centralBanks[corp.countryId];
   if (!bank) throw new Error("The borrowing bank's central bank is missing, so the draw cannot be priced.");
 
+  const allowed = canDraw(charter, amount, bank.primeRate);
+  if (!allowed.ok) throw new Error(DENIAL_MESSAGES[allowed.reason]);
+
   if (!Number.isFinite(amount) || amount <= 0) throw new Error(DENIAL_MESSAGES.invalid_amount);
   const quote = quoteDiscountWindow(charter, bank.primeRate);
   if (quote.capAnchor <= 0) throw new Error(DENIAL_MESSAGES.no_deposits);
@@ -190,6 +156,7 @@ export function drawDiscountWindow(
   const ratePercent = discountWindowRatePercent(bank.primeRate);
   charter.cashReserves = Math.max(0, charter.cashReserves) + move;
   charter.discountWindowDebt = nonNegative(charter.discountWindowDebt) + move;
+  bank.netMoneyCreatedLifetime = (bank.netMoneyCreatedLifetime ?? 0) + move;
   return { outstanding: charter.discountWindowDebt, ratePercent };
 }
 
@@ -209,7 +176,9 @@ export function repayDiscountWindow(
   bankCorpId: string,
   amount: number,
 ): DiscountWindowRepayResult {
-  const { charter } = requireBank(world, bankCorpId);
+  const { corp, charter } = requireBank(world, bankCorpId);
+  const bank = world.centralBanks[corp.countryId];
+  if (!bank) throw new Error("The borrowing bank's central bank is missing");
 
   const outstanding = nonNegative(charter.discountWindowDebt);
   if (outstanding <= 0) throw new Error("Nothing is outstanding on the window.");
@@ -222,6 +191,7 @@ export function repayDiscountWindow(
 
   charter.cashReserves = Math.max(0, charter.cashReserves) - repay;
   charter.discountWindowDebt = outstanding - repay;
+  bank.netMoneyCreatedLifetime = (bank.netMoneyCreatedLifetime ?? 0) - repay;
   return { repaid: repay, outstandingAfter: charter.discountWindowDebt };
 }
 
@@ -237,27 +207,8 @@ export function repayDiscountWindow(
  * lastDiscountWindowTurn.
  */
 export function serviceDiscountWindowInterest(world: WorldState, turn: number): void {
-  for (const corp of Object.values(world.corporations)) {
-    const charter = corp.bankCharter;
-    if (!charter || charter.status !== "active") continue;
-    if (nonNegative(charter.discountWindowDebt) <= 0) continue;
-    if (charter.lastDiscountWindowTurn === turn) continue;
-    const bank = world.centralBanks[corp.countryId];
-    if (!bank) continue;
-
-    const debt = nonNegative(charter.discountWindowDebt);
-    const rate = discountWindowRatePercent(bank.primeRate);
-    const interestDue = roundMoney((debt * (rate / 100)) / TURNS_PER_YEAR);
-    const cash = Math.max(0, charter.cashReserves);
-    const paid = Math.min(interestDue, cash);
-    const shortfall = Math.max(0, interestDue - paid);
-
-    if (paid > 0) charter.cashReserves = cash - paid;
-    if (shortfall > 0) {
-      charter.discountWindowArrears = nonNegative(charter.discountWindowArrears) + shortfall;
-    }
-    charter.lastDiscountWindowTurn = turn;
-  }
+  if (!world.featureFlags.banking) return;
+  serviceFacilityInterest(world, turn, "discountWindow", discountWindowRatePercent);
 }
 
 export const discountWindowTurnPhase: TurnPhase = {

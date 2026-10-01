@@ -41,6 +41,7 @@ function charterPeer(world: World): Corporation {
   const base = lenderOf(world).bankCharter!;
   peer.bankCharter = {
     ...structuredClone(base),
+    charterType: "investment",
     cashReserves: 500_000,
     npcDeposits: 0,
     totalLoans: 0,
@@ -140,13 +141,14 @@ describe("lendInterbank — origination", () => {
     expect(snapshot(world)).toBe(before);
   });
 
-  it("refuses cross-country lending (solo analog of the currency-match rule)", () => {
+  it("refuses mismatched interbank currencies", () => {
     const world = createWorld(OPTS);
     fundLender(world);
     const foreign = Object.values(world.corporations).find((c) => c.countryId !== "US" && c.bankCharter)!;
+    foreign.bankCharter!.charterType = "investment";
     const before = snapshot(world);
     const result = lendInterbank(world, "US-financial", foreign.id, 1_000, 3);
-    expect(result).toEqual({ ok: false, error: "Lender and borrower must be chartered in the same country" });
+    expect(result).toEqual({ ok: false, error: "Lender and borrower must have the same currency" });
     expect(snapshot(world)).toBe(before);
   });
 

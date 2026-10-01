@@ -23,6 +23,7 @@ function twoBankSave(): string {
   const peer = Object.values(world.corporations).find((c) => c.countryId === "US" && c.id !== "US-financial" && !c.bankCharter)!;
   peer.bankCharter = {
     ...structuredClone(lender.bankCharter!),
+    charterType: "investment",
     cashReserves: 500_000,
     npcDeposits: 0,
     totalLoans: 0,
@@ -53,6 +54,16 @@ function charterCash(session: GameSession, corpId: string): number {
 }
 
 describe("interbank session seam", () => {
+  it("refuses a retail borrower atomically, as the reference charter capability table requires", () => {
+    const raw = JSON.parse(twoBankSave());
+    const peerId = peerIdOf(raw.world);
+    raw.world.corporations[peerId].bankCharter.charterType = "retail";
+    const session = new GameSession();
+    session.load(JSON.stringify(raw));
+    const before = session.serialize("2026-09-18T00:00:00.000Z");
+    expect(session.lendInterbank("US-financial", peerId, 100_000, 4.8).ok).toBe(false);
+    expect(session.serialize("2026-09-18T00:00:00.000Z")).toBe(before);
+  });
   it("lends through the session command and persists the loan across save/reload", () => {
     const session = new GameSession();
     session.load(twoBankSave());

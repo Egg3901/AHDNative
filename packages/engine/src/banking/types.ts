@@ -1,38 +1,17 @@
 /**
- * Private banking types — W12 port of mainline's chartered-bank subdocument
- * and its satellite collections.
+ * Native banking state. The original retail cluster and #325-329 supply
+ * deposit/loan/insurance books, borrowings, interbank and equity prop books.
+ * #109 at AHDGame 595a3b8 adds margin servicing/turn keys, facility accounting,
+ * rate corridors and shared charter permissions. Optional new fields keep
+ * older Native saves unchanged until the corresponding facility is used.
  *
- * Source: <mainline-checkout>/src/lib/db/types/bank.ts (BankCharter,
- * BankLoan, DepositInsuranceFund — fields kept are the subset this wave's
- * scope actually reads/writes; see banking/bankingTurn.ts and
- * banking/bankSolvencyTurn.ts file docs for the full scope-cut rationale).
- *
- * Scope cut (cited, not silently dropped): mainline's BankCharter also
- * carries InterbankLoan rows, the central-bank margin facility, and their
- * idempotency fields. #325 adds the optional aggregate debts and
- * proprietary mark needed for canonical accounting; #327 ports the
- * discount-window lifecycle (discountWindow.ts); #328 adds the equity
- * prop-book lifecycle (open/close/mark/forced liquidation) on
- * investment/universal charters. Regulation Q rate
- * corridors, charter-switch cooldowns, a blacklist, opt-in loan approval, and
- * B7 supervisory capital-adequacy stress testing (capitalStanding,
- * appliedStressLossFraction, undercapitalizedSinceTurn). All of that sits
- * behind mainline's SEPARATE `bankPropTradingEnabled` kill
- * switch (src/lib/banking/featureFlag.ts isBankPropTradingEnabled) or is
- * player-console UX with no origination action ported yet in AHDClient (no
- * "request a bank loan" / "open an investment charter" action exists). W12
- * ports the retail/deposit-taking core only: one bank per playable country
- * (see npcBanks.ts), NPC household deposits + interest, the NPC household
- * bulk loan book, deposit insurance, and solvency/failure. #328 adds the
- * prop-book lifecycle on investment/universal charters (which no wave
- * issues yet - seeded banks stay retail). Prop transactions beyond that
- * lifecycle, the margin facility, charter switching, Regulation Q,
- * supervision and loan approval are out of scope for this wave — flagged for
- * operator review, not silently ported partial. Interbank lend/repay/interest
- * servicing used to sit in that list; #326 ports it (see banking/interbank.ts).
+ * Parent gaps remain: charter issuance/switch/revocation, player bank console,
+ * bond/index/forex prop assets, blacklist and loan approvals, supervisory
+ * capital standing/stress, and complete deposit settlement/audit integration.
+ * See docs/BANKING-LIFECYCLE.md. Seeded banks remain retail.
  */
 
-/** Solo charters only the deposit-taking type; see file doc for the cut. */
+/** Revocation/estate stages beyond active and failed remain a parent gap. */
 export type BankCharterStatus = "active" | "failed";
 
 /**
@@ -118,7 +97,7 @@ export interface BankCharter {
    * Source: BankCharter.propBookMarkValue.
    */
   propBookMarkValue?: number;
-  /** CEO-set offsets against prime; solo has no rate-console action, so these stay at their charter default (0). Source: BankCharter.depositOffset/lendingOffset. */
+  /** Offsets against prime; the session rate setter validates both before writing. Source: BankCharter.depositOffset/lendingOffset. */
   depositOffset: number;
   lendingOffset: number;
   /** Which credit bands the bank originates household loans into. Source: BankCharter.lendingProfile. */
@@ -138,6 +117,11 @@ export interface BankCharter {
    * load unchanged (absent reads as never-serviced).
    */
   lastDiscountWindowTurn?: number | null;
+  lastCbMarginTurn?: number | null;
+  /** Saved original facility charge and income attribution, including unpaid interest. */
+  lastBankingIncome?: number;
+  lastBankingFacilityInterest?: number;
+  lastBankingIncomeTurn?: number;
   /** Idempotency key for bankSolvencyTurn. Source: BankCharter.lastSolvencyTurn. */
   lastSolvencyTurn: number | null;
   failedTurn: number | null;

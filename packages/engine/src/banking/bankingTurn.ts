@@ -9,24 +9,12 @@
  * real WorldState players), named-loan servicing, the NPC household bulk
  * loan book, and the deposit-insurance premium.
  *
- * Scope cut vs mainline (cited once, applies to this whole module — see
- * banking/types.ts file doc for the itemized list): no central-bank margin
- * line, no proprietary trading book. Those sit behind mainline's separate
- * `bankPropTradingEnabled` kill switch (isBankPropTradingEnabled).
- * Mainline's dedicated `serviceInterbankAndCbMargin` pass is split here:
- * the interbank-interest half is wired below (#326, slot (g), ungated —
- * native banking has no kill switch, see banking/interbank.ts file doc)
- * and the B8 discount-window leg is ported separately in
- * banking/discountWindow.ts, which runs as its own phase immediately after
- * this one (see phases/registry.ts) — this module simply never calls that
- * pass.
- *
- * Ordering within one bank's pass mirrors mainline processOneBank exactly:
- * (a) NPC deposit flow, (b) deposit interest, (c) insurance premium,
- * (d) named-loan servicing, (e) NPC household bulk book — then (g) the
- * interbank-interest pass runs once after every bank's pass, mirroring
- * mainline's serviceInterbankAndCbMargin slot (its CB margin and
- * discount-window halves belong to #327).
+ * The reference facility pass remains split across adjacent Native phases:
+ * interbank then CB margin settle here after all bank passes; the window
+ * settles immediately afterward. Banking gates the entire cluster; the
+ * optional prop policy freezes interbank/margin while window servicing
+ * continues. Investment charters service named loans only.
+ * See docs/BANKING-LIFECYCLE.md for remaining reference gaps.
  */
 
 import type { TurnPhase } from "../phases/types.js";
@@ -35,6 +23,8 @@ import type { Corporation } from "../corporation/types.js";
 import type { BankLoan } from "./types.js";
 import { serviceInterbankLoans } from "./interbank.js";
 import { bankEquity } from "./balanceSheet.js";
+import { charterMay } from "./capabilities.js";
+import { serviceCbMarginInterest } from "./cbMargin.js";
 import {
   ARREARS_DEFAULT_TURNS,
   CREDIT_BANDS,
@@ -278,6 +268,7 @@ function serviceNpcBulkBook(
 export const bankingTurnPhase: TurnPhase = {
   name: "bankingTurn",
   run(world) {
+    if (!world.featureFlags.banking) return;
     const turn = world.meta.turn;
 
     const activeCharters = Object.values(world.corporations).filter(
@@ -288,6 +279,7 @@ export const bankingTurnPhase: TurnPhase = {
     // per-loan lastProcessedTurn key keeps it idempotent.
     if (activeCharters.length === 0) {
       serviceInterbankLoans(world, turn);
+      serviceCbMarginInterest(world, turn);
       return;
     }
 
@@ -297,6 +289,7 @@ export const bankingTurnPhase: TurnPhase = {
     // NPC_DEPOSIT_MAX_TOTAL_SHARE, exactly as mainline's per-currency pass does).
     const byCountry = new Map<string, Corporation[]>();
     for (const corp of activeCharters) {
+      if (!charterMay(corp.bankCharter, "acceptNpcFunding")) continue;
       const list = byCountry.get(corp.countryId) ?? [];
       list.push(corp);
       byCountry.set(corp.countryId, list);
@@ -319,6 +312,14 @@ export const bankingTurnPhase: TurnPhase = {
       const charter = corp.bankCharter!;
       const bank = world.centralBanks[corp.countryId];
       if (!bank) continue;
+
+      // Investment charters service named loans without attracting household
+      // funding, paying deposit interest/premiums, or originating household loans.
+      if (!charterMay(charter, "acceptNpcFunding")) {
+        for (const loan of servicedLoansForBank(world, corp.id, turn)) serviceNamedLoan(world, charter, loan, turn);
+        charter.lastBankingTurn = turn;
+        continue;
+      }
 
       const depositRatePercent = effectiveDepositRatePercent(bank.primeRate, charter.depositOffset);
       const lendingRatePercent = effectiveLendingRatePercent(bank.primeRate, charter.lendingOffset);
@@ -394,8 +395,8 @@ export const bankingTurnPhase: TurnPhase = {
     }
 
     // (g) Interbank interest, borrower vault to lender vault, after every
-    // bank's pass — source's serviceInterbankAndCbMargin slot (the CB
-    // margin/discount-window halves are #327's, not silently skipped here).
+    // bank's pass, followed by margin interest; window interest is next.
     serviceInterbankLoans(world, turn);
+    serviceCbMarginInterest(world, turn);
   },
 };

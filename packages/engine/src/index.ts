@@ -129,6 +129,11 @@ export {
   writeOffLenderSideInterbankOnFailure,
 } from "./banking/interbank.js";
 export type { InterbankLoan, InterbankQuote, InterbankResult, InterbankServiceSummary } from "./banking/interbank.js";
+export { bankRateCorridors, setBankRates } from "./banking/rates.js";
+export { drawCbMargin, repayCbMargin, cbMarginRatePercent } from "./banking/cbMargin.js";
+export { drawDiscountWindow, repayDiscountWindow } from "./banking/discountWindow.js";
+export { openPropPosition, closePropPosition } from "./banking/propTrading.js";
+export { bankCurrency, charterMay } from "./banking/capabilities.js";
 export * from "./ministerialOrders/catalog.js";
 export * from "./ministerialOrders/issue.js";
 export * from "./ministerialOrders/lifecycle.js";

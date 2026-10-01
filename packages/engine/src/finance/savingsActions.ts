@@ -11,21 +11,14 @@
  * is only reachable via a save edit or cheat today." This wave closes that
  * gap with real actions.
  *
- * Solo simplification (cited): mainline's moveCharacterSavings is
- * multi-currency (per-currency savings buckets) and validates a target
- * bank's charter currency match + blacklist. Solo's player.savings is a
- * single-currency pool (see PlayerCharacter.savings file doc — solo has no
- * per-character currency wallets), so the currency-match check is
- * structurally inapplicable; the blacklist is PORT-STUB (banking/types.ts
- * file doc already cuts blacklist entirely — "Prop trading, interbank, CB
- * margin, discount window, charter switching, Regulation Q, supervision and
- * loan approval are out of scope"). What IS ported: target must be
- * "centralBank" or an ACTIVE deposit-taking bank charter, and a move into a
- * private bank is capped by its cached depositCeiling (bankingTurn.ts
- * recomputes this each turn) — moving away from a bank (including to
- * "centralBank") is always allowed, mirroring mainline's own asymmetry.
+ * Native exposes one home-currency savings balance. Holder selection uses
+ * the shared active/deposit-taking capability and country-budget currency
+ * match, and the cached ceiling. Returning to the central bank remains
+ * available when private banking is disabled. Blacklists and authoritative
+ * cash-backed player-deposit settlement remain parent gaps (#76/#109/#111).
  */
 import type { WorldState } from "../types.js";
+import { bankCurrency, charterMay } from "../banking/capabilities.js";
 
 export type SavingsActionResult = { ok: true } | { ok: false; error: string };
 
@@ -62,9 +55,11 @@ export function moveSavingsHolder(world: WorldState, holder: string): SavingsAct
   }
   const bank = world.corporations[holder];
   if (!bank) return { ok: false, error: "Bank corporation not found" };
-  if (!bank.bankCharter || bank.bankCharter.status !== "active") {
+  if (!bank.bankCharter || !world.featureFlags.banking || !charterMay(bank.bankCharter, "acceptPlayerDeposits")) {
     return { ok: false, error: "Target bank must have an active deposit-taking charter" };
   }
+  const currency = world.budgets[player.countryId]?.currencyCode ?? world.exchangeRates[player.countryId]?.currencyCode;
+  if (!currency || bankCurrency(world, bank) !== currency) return { ok: false, error: "Bank and savings must have the same currency" };
   if (player.savingsHolder !== holder) {
     const ceiling = bank.bankCharter.depositCeiling;
     const projected = bank.bankCharter.totalDeposits + player.savings;

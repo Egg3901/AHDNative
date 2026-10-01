@@ -1,62 +1,21 @@
 /**
- * Atomic interbank lending and servicing — issue #326.
+ * Atomic interbank commands and interest-only servicing. Original #326 port
+ * from AHDGame e364c0495; #109 refreshes capability, currency, and policy gates
+ * against 595a3b8. Retail/universal lend; investment/universal borrow. The
+ * shared Native bank denomination is the country's budget currency.
  *
- * Ports AHDGame `src/lib/banking/interbank.ts` (lend/repay entry points),
- * `src/lib/banking/rules/decide.ts` (`lend_interbank` / `repay_interbank`
- * cases), `src/lib/banking/rules/interbankServicing.ts` (interest-only
- * servicing, arrears, default/write-off), and the lender-side halves of
- * `src/lib/turn/bankSolvencyTurn.ts` (interbank defaults feed confidence;
- * a failed lender's live loans die with it), all at pinned revision
- * e364c04954ed628beef73a993a8e9e156650a31e.
- *
- * Lifecycle (source-verbatim): a lender moves vault cash to a borrower,
- * booking an interest-only loan record plus the borrower's `interbankDebt`.
- * Principal returns only through explicit repayment. Each turn the borrower
- * owes one turn of simple interest; a shortfall counts an arrears turn and
- * the ARREARS_DEFAULT_TURNS-th consecutive shortfall defaults the loan,
- * clearing the borrower's debt with no cash moving. Interbank loans are NOT
- * part of retail `totalLoans`.
- *
- * Solo adaptations (cited, not silently dropped):
- * - No charter types are ported (see banking/types.ts file doc: every solo
- *   bank is retail-like). Source gates lending on retail/universal and
- *   borrowing on investment/universal; here both sides need an *active*
- *   charter. The type distinction is a residual, not a silent pass.
- * - No currency system is ported (see banking/constants.ts file doc), so
- *   source's lender/borrower currency-match rule is enforced as same-country.
- * - No settlement journal / DB ceremony: solo mutates WorldState
- *   synchronously with no concurrent writers (same simplification as
- *   bankingTurn.ts serviceNamedLoan). Every command validates fully before
- *   mutating, so a refusal leaves state byte-identical.
- * - Source interbank loans carry no term/maturity (interest-only with
- *   principal via repay); there is no maturity behavior to port. The issue's
- *   "maturities" acceptance is satisfied by documenting this, not inventing
- *   one.
- * - Discount-window servicing does not exist natively yet (issue #327 owns
- *   it), so there is no shared facility pass to order against. Relative
- *   order actually wired here: interbank interest settles inside
- *   bankingTurnPhase after every bank's deposit/interest/premium/named/NPC
- *   pass and before bankSolvencyTurnPhase evaluates confidence — matching
- *   source's bankingTurn (incl. interbank) before solvency order.
- * - No feature-flag gate is ported: source refuses lend/repay with
- *   "Interbank lending is not enabled" unless the policy enables both
- *   privateBanking and propTrading. Native declares privateBankingEnabled
- *   (featureFlags.ts) but nothing reads it — native banking is always on,
- *   so an active charter is the whole enablement check. Gating only
- *   interbank on an otherwise unread flag would invent a kill switch solo
- *   never had.
- * - Borrower-side claims against a failed bank are settled by
- *   bankSolvencyTurn's resolution sweep in source priority order
- *   (depositBookReturn.ts tier 3, issue #329): live loans against the failed
- *   borrower recover pro rata from the estate cash left after the
- *   central-bank facilities and depositors, the unpaid remainder is recorded
- *   as a lender loss, and the borrower's `interbankDebt` is extinguished
- *   with the estate.
+ * Synchronous validate-before-mutate settlement replaces Mongo's journal;
+ * GameSession commits a clone only on success. Existing retail borrower debts
+ * from older Native saves remain repayable and serviced without upgrading
+ * their charter. New retail borrowing is refused. Failed-borrower claims
+ * settle through the source creditor waterfall; failed-lender loans write off.
+ * See docs/BANKING-LIFECYCLE.md for proof and remaining parent requirements.
  */
 
 import type { WorldState } from "../types.js";
 import type { Corporation } from "../corporation/types.js";
 import { ARREARS_DEFAULT_TURNS, RESERVE_REQUIREMENT, TURNS_PER_YEAR } from "./constants.js";
+import { bankCurrency, charterMay } from "./capabilities.js";
 
 /** Max share of lendable headroom one lender may place on interbank. Source: rules/decide.ts INTERBANK_MAX_SHARE_OF_LENDABLE. */
 export const INTERBANK_MAX_SHARE_OF_LENDABLE = 0.5;
@@ -120,7 +79,7 @@ export function lenderInterbankOutstanding(world: WorldState, lenderCorpId: stri
  */
 export function quoteInterbankMax(world: WorldState, lenderCorpId: string): InterbankQuote {
   const lender = world.corporations[lenderCorpId];
-  if (!activeCharter(lender)) return { maxByShare: 0, lenderCash: 0, max: 0 };
+  if (!world.featureFlags.banking || world.bankPropTradingEnabled === false || !activeCharter(lender) || !charterMay(lender.bankCharter, "interbankLending")) return { maxByShare: 0, lenderCash: 0, max: 0 };
   const headroom = interbankHeadroom(lender.bankCharter);
   const maxByShare = Math.max(0, INTERBANK_MAX_SHARE_OF_LENDABLE * headroom - lenderInterbankOutstanding(world, lenderCorpId));
   const lenderCash = Math.max(0, lender.bankCharter.cashReserves);
@@ -149,6 +108,7 @@ export function lendInterbank(
   amount: number,
   ratePercent: number,
 ): InterbankResult<InterbankLoan> {
+  if (!world.featureFlags.banking || world.bankPropTradingEnabled === false) return { ok: false, error: "Interbank lending is not enabled" };
   const lender = world.corporations[lenderCorpId];
   if (!lender) return { ok: false, error: "Lender corporation not found" };
   const borrower = world.corporations[borrowerCorpId];
@@ -156,7 +116,11 @@ export function lendInterbank(
   if (!activeCharter(lender)) return { ok: false, error: "Only active chartered banks may lend on the interbank market" };
   if (!activeCharter(borrower)) return { ok: false, error: "Borrower must have an active bank charter" };
   if (lenderCorpId === borrowerCorpId) return { ok: false, error: "A bank cannot lend to itself on the interbank market" };
-  if (borrower.countryId !== lender.countryId) return { ok: false, error: "Lender and borrower must be chartered in the same country" };
+  if (!charterMay(lender.bankCharter, "interbankLending")) return { ok: false, error: "This charter cannot lend on the interbank market" };
+  if (!charterMay(borrower.bankCharter, "interbankBorrowing")) return { ok: false, error: "This charter cannot borrow on the interbank market" };
+  const lenderCurrency = bankCurrency(world, lender);
+  const borrowerCurrency = bankCurrency(world, borrower);
+  if (!lenderCurrency || lenderCurrency !== borrowerCurrency) return { ok: false, error: "Lender and borrower must have the same currency" };
   const principal = positiveAmount(amount);
   if (principal === null) return { ok: false, error: "Amount must be a positive number" };
   if (!Number.isFinite(ratePercent) || ratePercent < 0) return { ok: false, error: "Rate must be a non-negative number" };
@@ -199,6 +163,7 @@ export function lendInterbank(
  * resets arrearsTurns).
  */
 export function repayInterbank(world: WorldState, loanId: string, amount: number): InterbankResult<{ repaid: number; outstanding: number }> {
+  if (!world.featureFlags.banking || world.bankPropTradingEnabled === false) return { ok: false, error: "Interbank lending is not enabled" };
   const loan = world.interbankLoans.find((l) => l.id === loanId);
   if (!loan || loan.status !== "current") return { ok: false, error: "Interbank loan not found or not current" };
   const borrower = world.corporations[loan.borrowerCorpId];
@@ -243,6 +208,7 @@ export interface InterbankServiceSummary {
  */
 export function serviceInterbankLoans(world: WorldState, turn: number): InterbankServiceSummary {
   const summary: InterbankServiceSummary = { loansServiced: 0, interestPaid: 0, writtenOff: 0, defaults: 0 };
+  if (!world.featureFlags.banking || world.bankPropTradingEnabled === false) return summary;
   for (const loan of world.interbankLoans) {
     if (loan.status !== "current" || loan.lastProcessedTurn === turn) continue;
     const outstanding = Math.max(0, loan.outstanding);

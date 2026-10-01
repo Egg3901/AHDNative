@@ -249,6 +249,7 @@ const PHASE_FEATURE_FLAGS: Readonly<Record<string, WorldFeatureFlag>> = {
   playerRandomEvents: "events",
   crisisTurn: "events",
   bankingTurn: "banking",
+  discountWindowTurn: "banking",
   bankSolvencyTurn: "banking",
   governorAPRegen: "governors",
   governorOrders: "governors",

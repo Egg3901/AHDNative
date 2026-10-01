@@ -39,7 +39,7 @@
  *  - rateHistory (per-change audit log with changedBy/changedByName): needs a
  *    character to attribute the change to. interestRateHistory (turn/rate only)
  *    is kept — it drives the monetary-lag term in macroCountryTurn.
- *  - governmentControlled / bankReserveRequirement / forexRevenue / reserveBalance
+ *  - governmentControlled / bankReserveRequirement / forexRevenue
  *    / monetaryOperations / treasuryTransferHistory / lobbying / credit-rating
  *    consumers: all belong to unported systems (private banking, forex, LOC,
  *    Treasury reserve transfers). Out of scope for W3.
@@ -171,6 +171,10 @@ export interface FomcNomination {
 /** Source: db/types/centralBank.ts CentralBank (ported subset — see file doc). */
 export interface CentralBank {
   countryId: string;
+  /** Facility-interest cash receipts; absent on older saves means zero. */
+  reserveBalance?: number;
+  /** Facility advances minted less repayments/resolution cash burned; may be negative on legacy debt. */
+  netMoneyCreatedLifetime?: number;
   /** Quarter-point-gridded policy rate. Source: db/types/centralBank.ts CentralBank.primeRate. */
   primeRate: number;
   /**

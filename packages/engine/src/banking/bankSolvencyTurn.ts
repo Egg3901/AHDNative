@@ -64,6 +64,7 @@ export interface BankSolvencyTurnSummary {
 export const bankSolvencyTurnPhase: TurnPhase = {
   name: "bankSolvencyTurn",
   run(world) {
+    if (!world.featureFlags.banking) return;
     const turn = world.meta.turn;
     const summary: BankSolvencyTurnSummary = {
       banksEvaluated: 0,
@@ -135,7 +136,7 @@ function evaluateOneBank(
   const charter = corp.bankCharter!;
   const bank = world.centralBanks[corp.countryId];
   const depositTaking = isDepositTakingCharter(charter);
-  const propRunning = isPropCharter(charter);
+  const propRunning = world.bankPropTradingEnabled !== false && isPropCharter(charter);
   if (!bank) return { failed: false, forcedLiquidation: false, depositTaking };
 
   // Source evaluateOneBank: the prop book is marked BEFORE confidence so
@@ -264,14 +265,9 @@ function resolveFailedBank(world: WorldState, corp: Corporation, turn: number, s
   let available = Math.max(0, charter.cashReserves);
 
   // (0) Senior central-bank facilities, before depositors.
-  // Source: depositBookReturn.ts waterfall tier 1 (window debt + arrears, one
-  // tier with the margin line). Repaid window money retires: Native carries
-  // no netMoneyCreatedLifetime counter (centralBank/types.ts scope cut), so
-  // the paid leg simply leaves circulation, symmetric with
-  // repayDiscountWindow. The margin line has no servicing substrate natively
-  // (nothing originates it), so its recorded claim is extinguished with the
-  // estate rather than paid — source creditorClaimProjections clears all
-  // four central-bank fields on resolution either way.
+  // Source 595a3b8 depositBookReturn.ts: margin and window (principal plus
+  // arrears) share one senior CB tier. Recovered cash burns; the unpaid
+  // claim is extinguished without burning money that was never recovered.
   const windowOwed =
     (typeof charter.discountWindowDebt === "number" && Number.isFinite(charter.discountWindowDebt)
       ? Math.max(0, charter.discountWindowDebt)
@@ -279,7 +275,10 @@ function resolveFailedBank(world: WorldState, corp: Corporation, turn: number, s
     (typeof charter.discountWindowArrears === "number" && Number.isFinite(charter.discountWindowArrears)
       ? Math.max(0, charter.discountWindowArrears)
       : 0);
-  available = Math.max(0, available - Math.min(available, windowOwed));
+  const marginOwed = Math.max(0, charter.cbMarginDebt ?? 0) + Math.max(0, charter.cbMarginArrears ?? 0);
+  const centralBankPaid = Math.min(available, windowOwed + marginOwed);
+  available -= centralBankPaid;
+  if (bank && centralBankPaid > 0) bank.netMoneyCreatedLifetime = (bank.netMoneyCreatedLifetime ?? 0) - centralBankPaid;
   charter.discountWindowDebt = 0;
   charter.discountWindowArrears = 0;
   charter.cbMarginDebt = 0;
