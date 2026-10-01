@@ -69,7 +69,8 @@ test('Germany singleplayer Chancellor decrees, replaces and resumes a VAT law at
   await page.reload();
   await page.getByRole('button', { name: 'Continue Germany Law Player', exact: true }).click();
   await gameReady(page);
-  await expect(page.getByRole('region', { name: 'Profile', exact: true })).toContainText(/Chancellor/i);
+  await navigateGame(page, 'Actions');
+  await expect(page.getByText(/Permanent Head of State · Chancellor/i)).toBeVisible();
   await proposeVat('22');
   await enactVat('22');
   await navigateGame(page, 'National Budget');
