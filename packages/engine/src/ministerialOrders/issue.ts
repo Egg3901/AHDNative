@@ -21,7 +21,7 @@
 import type { WorldState } from "../types.js";
 import { cabinetPositionsForCountry } from "../cabinet/constants.js";
 import { normalizeMinisterialActionPool, withMinisterialAction } from "../cabinet/ministerialActionPool.js";
-import { classifyMinisterialOrders, getMinisterialOrders } from "./catalog.js";
+import { classifyMinisterialOrders, getMinisterialOrders, resolveRegionalOrderMetric } from "./catalog.js";
 import {
   computeMinisterialOrderExpiresTurn,
   isMinisterialOrderActive,
@@ -83,9 +83,9 @@ export function issueMinisterialOrder(world: WorldState, input: IssueMinisterial
     effects = [];
     for (const effect of config.effects) {
       if (effect.scope === "regional") {
-        const stored = world.regionalMetrics[target]?.[effect.metric]?.value;
-        if (!Number.isFinite(stored)) throw new Error(`Order unavailable: unsupportedMetric:${effect.metric}`);
-        effects.push({ metric: effect.metric, modifier: effect.modifier, scope: "regional", regionId: target });
+        const metric = resolveRegionalOrderMetric(world, target, effect.metric);
+        if (!metric) throw new Error(`Order unavailable: unsupportedMetric:${effect.metric}`);
+        effects.push({ metric, modifier: effect.modifier, scope: "regional", regionId: target });
       } else if (world.nationalMetrics[input.countryId]?.[effect.metric] === undefined) {
         throw new Error(`Order unavailable: unsupportedMetric:${effect.metric}`);
       } else {

@@ -20,7 +20,7 @@ import type {
 import type { MarketListing } from "../game/markets";
 import type { GameScreenProps } from "../game/types";
 import { RegionViewerCard } from "./RegionViewerCard";
-import { RegionMacroCard, RegionSectorsCard } from "./RegionEconomyCards";
+import { RegionEconomicIndicators, RegionMacroCard, RegionSectorsCard } from "./RegionEconomyCards";
 import { RegionSectorAssetsCard } from "./RegionSectorAssets";
 import { CountryFlag, resolveCountryFlagCode } from "./CountryFlag";
 import type { DrawerRouteId } from "./MobileNavigation";
@@ -715,6 +715,7 @@ function SelectedRegion({
       </div>
 
       <div className="ahd-grid ahd-grid-2">
+        <RegionEconomicIndicators metrics={selected.metrics} />
         <RegionMacroCard macro={selected.economy.macro} currency={currency} />
         <RegionSectorsCard sectors={selected.economy.sectors} currency={currency} />
       </div>

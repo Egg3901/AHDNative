@@ -47,9 +47,12 @@ export function isDefensePosition(positionId: string): boolean {
 }
 
 function missingDefenseConsumer(sourceMetric: string): string {
+  // Current Game routes safety and trust through its political cabinet
+  // snapshot, consumed by regional per-source residuals. Approval is an
+  // outcome that the source mapping deliberately leaves without a driver.
   return sourceMetric === "governmentApproval"
-    ? "governmentApprovals"
-    : `nationalMetrics.${sourceMetric}`;
+    ? "unmappedSourceOutcome:governmentApproval"
+    : "politicalCabinetContribution";
 }
 
 export function unavailableDefenseOrderEffects(
@@ -87,6 +90,18 @@ function resolveNationalMetric(world: WorldState, countryId: string, sourceMetri
   const matches = [...NATIVE_NATIONAL_METRIC_PATHS].filter((path) => (
     path.endsWith(`.${sourceMetric}`) && hasTarget(path)
   ));
+  return matches.length === 1 ? matches[0]! : null;
+}
+
+/** Resolve source bare keys only to an existing supported regional metric. */
+export function resolveRegionalOrderMetric(world: WorldState, regionId: string, sourceMetric: string): string | null {
+  const metrics = world.regionalMetrics[regionId] ?? {};
+  if (sourceMetric.includes(".")) {
+    return NATIVE_NATIONAL_METRIC_PATHS.has(sourceMetric) && Number.isFinite(metrics[sourceMetric]?.value)
+      ? sourceMetric : null;
+  }
+  const matches = [...NATIVE_NATIONAL_METRIC_PATHS].filter((path) =>
+    path.endsWith(`.${sourceMetric}`) && Number.isFinite(metrics[path]?.value));
   return matches.length === 1 ? matches[0]! : null;
 }
 
