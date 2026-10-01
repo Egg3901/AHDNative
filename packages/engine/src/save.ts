@@ -44,6 +44,7 @@ import { validateUnionContributionLedger } from "./unions/contributions.js";
 import { makeSeedSoeState } from "./commandEconomy/soe.js";
 import { validateCorporateBondSettlementLedger } from "./bonds/corporateBondDefaultSettlement.js";
 import { validatePlayerLineOfCredit } from "./finance/playerLineOfCredit.js";
+import { validateNationalSavingsPools } from "./finance/playerSavingsInterest.js";
 import type { BankCharter } from "./banking/types.js";
 import { validateBankingState } from "./banking/validate.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
@@ -289,6 +290,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const centralBanks = world["centralBanks"];
   if (isRecord(centralBanks)) {
     for (const bank of Object.values(centralBanks)) {
+      if (isRecord(bank) && typeof bank["nationalSavingsBalance"] === "number" && bank["nationalSavingsBalance"] > 0) {
+        return { ok: false, error: `Active national savings pool state cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+      }
       if (isRecord(bank) && (hasOwn(bank, "reserveBalance") || hasOwn(bank, "netMoneyCreatedLifetime"))) {
         return { ok: false, error: `Central-bank facility accounting cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
       }
@@ -3257,6 +3261,7 @@ export function deserializeSave(raw: string): WorldState {
   if (save.world.player.lineOfCredit !== undefined) {
     validatePlayerLineOfCredit(save.world.player.lineOfCredit);
   }
+  validateNationalSavingsPools(save.world);
   // #322: bargaining campaigns + collective agreements. Saves written before
   // the bargaining slice carry no maps; missing degrades to empty (no open
   // campaigns, no enforceable agreements) and every loaded row is kept
