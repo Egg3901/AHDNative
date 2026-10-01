@@ -6,7 +6,6 @@ import {
   canJoinCaucus,
   canLeaveCaucus,
   canSetCaucusTaxRate,
-  getActionCost,
   quotePartyCaucusAction,
   type PartyCaucusEffect,
   type WorldState,
@@ -23,8 +22,10 @@ import type { ActionView } from "./types";
  * setCaucusTaxRate (caucusId + caucusTaxRate) and disbandCaucus (caucusId)
  * from #60. Whip, chair elections and NPP recruit are not catalog actions.
  *
- * Founding costs one 25k charge, owned by the engine caucus helper. The
- * chair-only edits charge no AP or funds, matching the reference PATCH/DELETE.
+ * Founding, join, leave, tax and disband charge no AP or funds, matching the
+ * source create/join/leave/PATCH/DELETE routes. Native foundParty stays the
+ * immediate 8 AP + 100k / NPP cofounder proxy; source charter draft is free
+ * with 3 human cofounders and is not a public action yet.
  */
 
 export const CAUCUS_CREATE_COST = CAUCUS_CREATE_FUND_COST;
@@ -97,10 +98,9 @@ export interface CaucusManagementView {
 
 type CaucusMembershipActionId = "createCaucus" | "joinCaucus" | "leaveCaucus";
 /**
- * Chair-only caucus actions (#60). Only these two ids are projectable: the
- * six party/caucus quote actions live in the engine partyCaucus seam, while
- * whip, chair elections and NPP recruit are not public engine actions and
- * stay unavailable (they are omitted, never quoted).
+ * Chair-only caucus actions. These ids share the engine partyCaucus quote
+ * with founding/join/leave. Whip, chair elections and NPP recruit are not
+ * public engine actions and stay unavailable (they are omitted, never quoted).
  */
 export type CaucusChairActionId = "setCaucusTaxRate" | "disbandCaucus";
 
@@ -118,56 +118,36 @@ function actionView(world: WorldState, id: CaucusMembershipActionId, reason: str
   const quote = quotePartyCaucusAction(world.player, id);
   return {
     id, name: entry.name, description: entry.description, cost: quote.actionCost,
+    fundCost: quote.fundCost,
     consequences: describePartyCaucusEffect(quote.effect),
     available: !reason, ...(reason ? { disabledReason: reason } : {}),
   };
 }
 
 /**
- * Consequence lines for the chair-only actions, read from the state transition
- * each engine helper applies (caucus.ts setCaucusTaxRate/disbandCaucus): the
- * tax edit writes the 0-5 rate, the soft-disband empties memberIds, vacates
- * both chair seats and clears the disbanding player's caucusId. Neither
- * charges action points or funds (catalog baseCost 0, fundCost 0).
- */
-function describeCaucusChairEffect(id: CaucusChairActionId): string[] {
-  return id === "disbandCaucus"
-    ? ["Clears all members and vacates the chair seats"]
-    : ["Sets the caucus campaign-fund levy"];
-}
-
-/**
- * Shared cost/eligibility/consequence projection for the chair-only pair
- * (#60, #61). The AP price uses the player's real stats through the same
- * getActionCost call executeActionInner prices (execute.ts), the fund charge
- * is the same catalog fundCost the dispatcher debits, and eligibility runs
- * the same canSetCaucusTaxRate/canDisbandCaucus checks the dispatcher
- * enforces, so the panel's disabled reason matches the action's rejection.
- * executeAction remains authoritative; per-input values (the proposed tax
- * rate) are validated by the engine at dispatch.
+ * Shared cost/eligibility/consequence projection for the chair-only pair.
+ * Charge and consequence come from quotePartyCaucusAction, the same
+ * projection executeActionInner charges, and eligibility runs the same
+ * canSetCaucusTaxRate/canDisbandCaucus checks the dispatcher enforces, so
+ * the panel's disabled reason matches the action's rejection. Authority is
+ * the recorded chairId. executeAction remains authoritative; per-input
+ * values (the proposed tax rate) are validated by the engine at dispatch.
  */
 export function projectCaucusChairAction(
   world: WorldState,
   caucusId: string,
   id: CaucusChairActionId,
 ): ActionView {
-  const player = world.player;
   const entry = ACTION_CATALOG[id];
-  const cost = getActionCost(
-    entry,
-    player.donorBaseLevel ?? 0,
-    player.politicalInfluence ?? 0,
-    player.favorability ?? 50,
-  );
+  const quote = quotePartyCaucusAction(world.player, id);
   const check = id === "setCaucusTaxRate"
     ? canSetCaucusTaxRate(world, caucusId)
     : canDisbandCaucus(world, caucusId);
   const reason = check.ok ? undefined : check.error;
-  const consequences = describeCaucusChairEffect(id);
   return {
-    id, name: entry.name, description: entry.description, cost,
-    fundCost: entry.fundCost,
-    consequences,
+    id, name: entry.name, description: entry.description, cost: quote.actionCost,
+    fundCost: quote.fundCost,
+    consequences: describePartyCaucusEffect(quote.effect),
     available: !reason, ...(reason ? { disabledReason: reason } : {}),
   };
 }
@@ -198,9 +178,8 @@ export function slugifyCaucusName(name: string): string {
 
 export function projectCaucusCreate(world: WorldState): CaucusCreateStatus {
   const player = world.player;
-  // AP price and single 25k fund charge come from the shared party/caucus
-  // projection the dispatcher charges (#61), so this quote cannot disagree with
-  // what createCaucus debits.
+  // AP price and fund charge come from the shared party/caucus projection
+  // the dispatcher charges, so this quote cannot disagree with createCaucus.
   const quote = quotePartyCaucusAction(player, "createCaucus");
   const cost = quote.actionCost;
   const remaining = cooldownRemaining(world, "createCaucus");
@@ -238,7 +217,7 @@ export function projectCaucusCreate(world: WorldState): CaucusCreateStatus {
  * (caucus.ts: trim length, slugify, party-scoped uniqueness among active
  * caucuses). Tax is 0-CAUCUS_TAX_MAX. Funds, AP and membership come from
  * projectCaucusCreate so the verdict matches executeAction, including the
- * single 25k entry gate. executeAction stays authoritative.
+ * source-free entry gate. executeAction stays authoritative.
  */
 export function validateCaucusFounding(
   world: WorldState,

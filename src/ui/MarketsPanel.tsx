@@ -772,7 +772,17 @@ function CompanyDetail({
   onOpenRegion?: (regionId: string) => void;
 }) {
   const [shares, setShares] = useState("");
+  const [salaryPerTurn, setSalaryPerTurn] = useState(String(listing.ceoSalaryPerTurn ?? 0));
+  const [dividendRate, setDividendRate] = useState(String(listing.dividendRate ?? 0));
   const [error, setError] = useState<string | null>(null);
+  const [compensationError, setCompensationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSalaryPerTurn(String(listing.ceoSalaryPerTurn ?? 0));
+    setDividendRate(String(listing.dividendRate ?? 0));
+    setError(null);
+    setCompensationError(null);
+  }, [listing.id]);
 
   const parsed = parseShareCount(shares);
   const buyEval = parsed == null ? null : evaluateShareTrade("buy", listing, parsed, markets, listing.buy);
@@ -803,6 +813,22 @@ function CompanyDetail({
     }
     setError(null);
     onAction(side === "buy" ? "buyShares" : "sellShares", { corpId: listing.id, shares: n });
+  };
+
+  const activePlayerCeo = listing.ceoId === "player" && listing.ceoVacant !== true;
+  const eligibleCeoResidence = listing.isStateOwned ||
+    (!!listing.headquartersRegionId && markets.playerHomeRegionId === listing.headquartersRegionId);
+  const canVoteForCeo = listing.playerShares > 0 && markets.playerCountryId === listing.countryId &&
+    eligibleCeoResidence && !activePlayerCeo;
+  const setCompensation = () => {
+    const salary = Number(salaryPerTurn);
+    const dividend = Number(dividendRate);
+    if (!Number.isFinite(salary) || salary < 0 || !Number.isFinite(dividend) || dividend < 0 || dividend > 25) {
+      setCompensationError("Enter a non-negative salary and a dividend rate from 0 to 25%.");
+      return;
+    }
+    setCompensationError(null);
+    onAction("setCorporationCompensation", { corpId: listing.id, salaryPerTurn: salary, dividendRate: dividend });
   };
 
   return (
@@ -916,6 +942,51 @@ function CompanyDetail({
         )}
         <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: "0.35rem 0 0" }}>
           Public float: {listing.publicFloat.toLocaleString()} shares. Ownership reflects only the holders recorded in world state.
+        </p>
+      </div>
+
+      <div className="ahd-card ahd-card-pad" aria-label="CEO and shareholder actions">
+        <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>CEO and dividends</h3>
+        <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.35rem 0 0" }}>
+          {activePlayerCeo ? "You are the recorded CEO." : listing.ceoVacant ? "The CEO seat is vacant." : "The issuer is currently NPC-led."}
+        </p>
+        {canVoteForCeo ? (
+          <button type="button" className="ahd-btn ahd-btn-sm" style={{ minHeight: 44, marginTop: "0.45rem" }}
+            onClick={() => onAction("voteCeo", { corpId: listing.id, candidateId: "player" })} disabled={busy}>
+            Vote yourself as CEO
+          </button>
+        ) : null}
+        {listing.pendingCeoId === "player" ? (
+          <button type="button" className="ahd-btn ahd-btn-sm" style={{ minHeight: 44, marginTop: "0.45rem" }}
+            onClick={() => onAction("acceptCeoAppointment", { corpId: listing.id })} disabled={busy}>
+            Accept CEO appointment
+          </button>
+        ) : null}
+        {activePlayerCeo ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem", marginTop: "0.45rem" }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: "0.2rem", fontSize: "0.78rem" }}>
+              CEO salary per turn ({listing.currency})
+              <input aria-label="CEO salary per turn" type="number" min="0" max={Math.max(0, listing.revenue) * 1.25}
+                step="0.01" value={salaryPerTurn} onChange={(event) => setSalaryPerTurn(event.target.value)} />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "0.2rem", fontSize: "0.78rem" }}>
+              Dividend rate (%)
+              <input aria-label="Dividend rate" type="number" min="0" max="25" step="0.1"
+                value={dividendRate} onChange={(event) => setDividendRate(event.target.value)} />
+            </label>
+            <button type="button" className="ahd-btn ahd-btn-sm" style={{ minHeight: 44, alignSelf: "flex-start" }}
+              onClick={setCompensation} disabled={busy}>
+              Save compensation
+            </button>
+            <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" style={{ minHeight: 44, alignSelf: "flex-start" }}
+              onClick={() => onAction("resignCeo", { corpId: listing.id })} disabled={busy}>
+              Resign as CEO
+            </button>
+          </div>
+        ) : null}
+        {compensationError ? <p role="alert" className="ahd-error">{compensationError}</p> : null}
+        <p className="ahd-muted" style={{ fontSize: "0.72rem", margin: "0.4rem 0 0" }}>
+          CEO candidacy follows the corporation's recorded headquarters region. Salary settles before tax; dividends are limited to 25% of positive after-tax income.
         </p>
       </div>
 

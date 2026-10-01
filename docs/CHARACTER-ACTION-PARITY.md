@@ -44,11 +44,12 @@ card no longer requests a region that the source character action never targets.
 The hub now opens [demographic canvassing](DEMOGRAPHIC-CANVASSING.md), with
 source-backed batch quotes, chosen audience and saved electoral effects. Remaining
 #57 scope includes joint audiences, presidential travel/surrogate writer journeys
-and the other targeted action selectors. Party join/leave AP pricing and the wider party/
-caucus preview, recruitment, tax and disband contract remain under #61. The
-original eleven-entry audit includes these unresolved differences; this
-checkpoint therefore does not close #91. Full hosted checks and integrated
-mobile action evidence remain required before merge.
+and other targeted action selectors. Native party join/leave and caucus
+create/join/leave/tax/disband now quote and charge zero AP and funds, matching
+the source routes. Recruitment and source charter draft/ratification remain
+under #61/#95; Native foundParty remains the immediate 8 AP/100k NPP proxy.
+The original eleven-entry audit retains those unresolved differences, so #91
+stays open. Historical tables below retain their audit-baseline prices.
 
 ## Scope boundary (explicit)
 

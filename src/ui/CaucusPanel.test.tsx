@@ -9,8 +9,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function action(id: string, available: boolean, cost: number, disabledReason?: string, consequences?: string[]): ActionView {
-  return { id, name: id, description: "", cost, available,
+function action(id: string, available: boolean, cost: number, disabledReason?: string, consequences?: string[], fundCost = 0): ActionView {
+  return { id, name: id, description: "", cost, fundCost, available,
     ...(disabledReason ? { disabledReason } : {}),
     ...(consequences ? { consequences } : {}) };
 }
@@ -26,16 +26,16 @@ function makeManagement(): CaucusManagementView {
     playerCaucusName: null,
     caucusCount: 1,
     create: {
-      actionCost: 4, fundCost: 25_000, fundsRequired: 25_000,
+      actionCost: 0, fundCost: 0, fundsRequired: 0,
       funds: 152_000, actions: 9, cooldownRemaining: 0,
       taxMin: 0, taxMax: 5, nameMinLength: 3,
       available: true,
       effect: {
-        partyFundsDelta: -25_000, partyMembership: "none", caucusMembership: "create",
+        partyFundsDelta: 0, partyMembership: "none", caucusMembership: "create",
         clearsCaucusMembership: false, startsPartySwitchCooldown: false,
       },
-      consequences: ["Charges 25,000 campaign funds", "Creates the caucus and makes you its first member"],
-      action: action("createCaucus", true, 4),
+      consequences: ["Creates the caucus and makes you its first member"],
+      action: action("createCaucus", true, 0, undefined, ["Creates the caucus and makes you its first member"], 0),
     },
     caucuses: [
       {
@@ -52,8 +52,8 @@ function makeManagement(): CaucusManagementView {
         viceChairName: null,
         viceChairState: "vacant",
         playerRole: "non-member",
-        join: action("joinCaucus", true, 2, undefined, ["Joins you to this caucus"]),
-        leave: action("leaveCaucus", false, 1, "You are not a member of this caucus."),
+        join: action("joinCaucus", true, 0, undefined, ["Joins you to this caucus"]),
+        leave: action("leaveCaucus", false, 0, "You are not a member of this caucus."),
         setTax: action("setCaucusTaxRate", false, 0, "Only the caucus chair can set the tax rate"),
         disband: action("disbandCaucus", false, 0, "Only the caucus chair can disband the caucus"),
       },
@@ -74,10 +74,10 @@ function makeChairManagement(): CaucusManagementView {
       chairName: "Alex",
       chairState: "known",
       playerRole: "chair",
-      join: action("joinCaucus", false, 2, "Already in a caucus; leave it first"),
-      leave: action("leaveCaucus", true, 1),
+      join: action("joinCaucus", false, 0, "Already in a caucus; leave it first"),
+      leave: action("leaveCaucus", true, 0, undefined, ["Removes you from this caucus"]),
       setTax: action("setCaucusTaxRate", true, 0, undefined, ["Sets the caucus campaign-fund levy"]),
-      disband: action("disbandCaucus", true, 0, undefined, ["Clears all members and vacates the chair seats"]),
+      disband: action("disbandCaucus", true, 0, undefined, ["Clears all members and vacates the chair seats", "Ends any caucus membership you hold"]),
     }],
   };
 }
@@ -108,6 +108,7 @@ describe("CaucusPanel", () => {
     expect(onAction).toHaveBeenCalledWith("joinCaucus", { caucusId: "caucus-blue-dog-caucus-99-0" });
 
     onAction.mockClear();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     const member = {
       ...management,
       playerCaucusId: "caucus-blue-dog-caucus-99-0",
@@ -115,18 +116,44 @@ describe("CaucusPanel", () => {
       caucuses: [{
         ...management.caucuses[0]!,
         isPlayerCaucus: true,
-        join: action("joinCaucus", false, 2, "Already in a caucus; leave it first"),
-        leave: action("leaveCaucus", true, 1),
+        isPlayerChair: false,
+        playerRole: "member" as const,
+        join: action("joinCaucus", false, 0, "Already in a caucus; leave it first"),
+        leave: action("leaveCaucus", true, 0, undefined, ["Removes you from this caucus"]),
       }],
     };
     rerender(<CaucusPanel management={member} busy={false} onAction={onAction} />);
     await user.click(screen.getByRole("button", { name: "Leave Blue Dog Caucus" }));
+    expect(confirm).toHaveBeenCalledWith("Leave Blue Dog Caucus?");
     expect(onAction).toHaveBeenCalledWith("leaveCaucus");
+  });
+
+  it("does not dispatch leave when the member cancels the confirmation", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    const management = makeManagement();
+    const member = {
+      ...management,
+      playerCaucusId: "caucus-blue-dog-caucus-99-0",
+      playerCaucusName: "Blue Dog Caucus",
+      caucuses: [{
+        ...management.caucuses[0]!,
+        isPlayerCaucus: true,
+        isPlayerChair: false,
+        playerRole: "member" as const,
+        join: action("joinCaucus", false, 0, "Already in a caucus; leave it first"),
+        leave: action("leaveCaucus", true, 0, undefined, ["Removes you from this caucus"]),
+      }],
+    };
+    render(<CaucusPanel management={member} busy={false} onAction={onAction} />);
+    await user.click(screen.getByRole("button", { name: "Leave Blue Dog Caucus" }));
+    expect(onAction).not.toHaveBeenCalled();
   });
 
   it("states the engine consequences of founding and joining before confirmation", () => {
     render(<CaucusPanel management={makeManagement()} busy={false} onAction={vi.fn()} />);
-    expect(screen.getByText(/Charges 25,000 campaign funds/)).toBeTruthy();
+    expect(screen.getByText(/Founding is free/)).toBeTruthy();
     expect(screen.getByText(/Creates the caucus and makes you its first member/)).toBeTruthy();
     expect(screen.getByText(/Joins you to this caucus/)).toBeTruthy();
   });
@@ -250,11 +277,11 @@ describe("CaucusPanel", () => {
     management.create = {
       ...management.create,
       available: false,
-      disabledReason: "Not enough funds. Creating a caucus needs 25000 funds available.",
-      action: action("createCaucus", false, 4, "Not enough funds. Creating a caucus needs 25000 funds available."),
+      disabledReason: "Must be a party member to create a caucus",
+      action: action("createCaucus", false, 0, "Must be a party member to create a caucus"),
     };
     render(<CaucusPanel management={management} busy={false} onAction={vi.fn()} />);
-    expect(screen.getAllByText("Not enough funds. Creating a caucus needs 25000 funds available.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Must be a party member to create a caucus").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Found caucus" }).hasAttribute("disabled")).toBe(true);
   });
 });

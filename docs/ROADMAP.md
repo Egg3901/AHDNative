@@ -1,5 +1,15 @@
 # AHDNative roadmap
 
+## CEO Profile card checkpoint, 2026-10-01 (#51)
+
+Recorded CEO/vacancy and public shareholder vote, acceptance, compensation and
+resignation now drive the shared Profile/company projection. Source issuer
+identity, factory/brand treatment and state-enterprise note are preserved.
+Both 320px/390px real-player journeys complete two normal save/reloads, including
+card absence after resignation. [Behavior and acceptance evidence](BEHAVIORAL-PARITY.md)
+record the bounded completion; whole corporate mechanics #107, current SP
+interchange and physical-device gates remain open. Full hosted review is pending
+before issue closure.
 ## Corporate-sector union player checkpoint, 2026-10-01 (#297)
 
 Public organization, weighted leadership/acceptance, wage-based dues, sector
@@ -7,7 +17,7 @@ organization and employer bargaining now use represented corporate-sector
 workers and locals. Source escalation/withdrawal and weighted ratification
 produce saved strikes or agreements. The actual 390px browser journey passes
 through normal save/reload. [Acceptance evidence](UNION-LEADERSHIP-PARITY.md)
-records the original criteria; final hosted review is pending before closure.
+records the original criteria. Full hosted verification passed at `1379573`; PR707 merged as `f9dd7e1` and #297 is checked and confirmed closed.
 Worker political feedback and wider union mechanics remain #322/#114.
 
 ## Regional sector trading checkpoint, 2026-10-01 (#299)
@@ -20,8 +30,7 @@ regional assets, since fresh worlds still seed national assets. The comparison
 uses Game's pinned regional and sector page hierarchy, with no pixel equivalence
 or physical-device claim. See [regional trading evidence](REGIONAL-SECTOR-TRADING.md).
 
-#297 and #322 remain partial. Source-backed leadership, complete employer
-authority and downstream political feedback still require implementation. The
+#322/#114 retain wider worker political feedback and labor acceptance. The bounded #297 leadership, dues, organizing and bargaining criteria are complete. The
 unsafe public NPC-response and arbitrary-ballot wrappers are excluded. The unused neutral-50 labor
 metric overlay is excluded from this batch.
 
@@ -999,6 +1008,26 @@ and disband controls. Whip, health, recruitment, elections, color,
 description, motto and rename remain unrecorded with no public engine action;
 recruitment and leadership changes through validated commands remain the next
 #60 work.
+
+## Party/caucus quote and source costs checkpoint (#61 partial)
+
+#61 partial: create, join, leave, tax-edit and disband now quote and charge
+0 AP and 0 campaign funds, matching AHDGame
+`954f1c21781e6e767455a15eed40f73993d89a8b` POST/PATCH/DELETE caucus routes
+and party leave. `quotePartyCaucusAction` is the one projection the
+dispatcher, session DTO and UI confirmation read. Chair tax/disband
+authority is the recorded `chairId`, never `memberIds[0]`. The recorded
+chair cannot self-leave and must disband or hand over. A declined action
+leaves the full serialized world unchanged. Caucus leave confirms with
+`Leave ${name}?`. Native `foundParty` stays the 8 AP + 100k immediate/NPP
+cofounder proxy; source `draftCharter` / `ratifyCharter` (3 eligible human
+cofounders, 14-turn expiry, adjacency/Overton) is not a public action
+(#95). Evidence: `src/game/partyCaucusSourceParity.test.ts`,
+`src/game/caucusManagement.test.ts`,
+`packages/engine/src/actions/partyCaucus.test.ts`,
+`src/ui/CaucusPanel.test.tsx`. [Caucus evidence](CAUCUS-MANAGEMENT.md)
+records the source routes and the exact unchecked remainder. This does not
+close #61 or #95.
 
 ## World and new-game setup checkpoint, 2026-09-14 (#241)
 
