@@ -19,6 +19,7 @@ import {
   getActionCost,
   getCatalog,
   getLaw,
+  proposalNpiCost,
   type WorldState,
 } from "@ahdclient/engine";
 import {
@@ -129,6 +130,7 @@ export interface LegislationProposalDetails {
   sponsorAvailable: boolean;
   sponsorDisabledReason?: string;
   sponsorCost: number;
+  sponsorNpiCost: number;
 }
 
 export interface LegislationBillDetails extends LegislationBillMeta {
@@ -240,40 +242,48 @@ export function buildLegislationDetails(
 
   const proposals: LegislationProposalDetails[] = getCatalog(countryId, Number(world.meta.date.slice(0, 4)))
     .filter((entry) => entry.status === "available")
-    .map((entry) => ({
-      id: entry.id,
-      title: entry.title,
-      description: entry.description,
-      kind: entry.kind,
-      category: entry.category,
-      allowedScope: entry.allowedScope,
-      ...(entry.baselineLevel !== undefined ? { baselineLevel: entry.baselineLevel } : {}),
-      ...(entry.levels
-        ? {
-            levels: entry.levels.map((level, index) => ({
-              index,
-              name: level.name,
-              description: level.description,
-              ...(level.gdpCostFraction !== undefined ? { gdpCostFraction: level.gdpCostFraction } : {}),
-              ...(level.incomeCostFraction !== undefined ? { incomeCostFraction: level.incomeCostFraction } : {}),
-              ...(level.gdpRevenueFraction !== undefined ? { gdpRevenueFraction: level.gdpRevenueFraction } : {}),
-            })),
-          }
-        : {}),
-      ...(entry.taxPolicy ? { taxPolicy: { ...entry.taxPolicy } } : {}),
-      targets: entry.targets.map((t) => ({ ...t })),
-      ...(entry.effect
-        ? {
-            effect: {
-              ...(entry.effect.economy ? { economy: { ...entry.effect.economy } } : {}),
-              ...(entry.effect.partySupport ? { partySupport: { ...entry.effect.partySupport } } : {}),
-            },
-          }
-        : {}),
-      sponsorAvailable: sponsor.available,
-      ...(sponsor.disabledReason ? { sponsorDisabledReason: sponsor.disabledReason } : {}),
-      sponsorCost: sponsor.cost,
-    }));
+    .map((entry) => {
+      const npiCost = proposalNpiCost(entry);
+      const unaffordableNpi = (player.nationalInfluence ?? 0) < npiCost;
+      const disabledReason = sponsor.disabledReason ?? (unaffordableNpi
+        ? `Not enough national influence (${npiCost} required).`
+        : undefined);
+      return {
+        id: entry.id,
+        title: entry.title,
+        description: entry.description,
+        kind: entry.kind,
+        category: entry.category,
+        allowedScope: entry.allowedScope,
+        ...(entry.baselineLevel !== undefined ? { baselineLevel: entry.baselineLevel } : {}),
+        ...(entry.levels
+          ? {
+              levels: entry.levels.map((level, index) => ({
+                index,
+                name: level.name,
+                description: level.description,
+                ...(level.gdpCostFraction !== undefined ? { gdpCostFraction: level.gdpCostFraction } : {}),
+                ...(level.incomeCostFraction !== undefined ? { incomeCostFraction: level.incomeCostFraction } : {}),
+                ...(level.gdpRevenueFraction !== undefined ? { gdpRevenueFraction: level.gdpRevenueFraction } : {}),
+              })),
+            }
+          : {}),
+        ...(entry.taxPolicy ? { taxPolicy: { ...entry.taxPolicy } } : {}),
+        targets: entry.targets.map((t) => ({ ...t })),
+        ...(entry.effect
+          ? {
+              effect: {
+                ...(entry.effect.economy ? { economy: { ...entry.effect.economy } } : {}),
+                ...(entry.effect.partySupport ? { partySupport: { ...entry.effect.partySupport } } : {}),
+              },
+            }
+          : {}),
+        sponsorAvailable: !disabledReason,
+        ...(disabledReason ? { sponsorDisabledReason: disabledReason } : {}),
+        sponsorCost: sponsor.cost,
+        sponsorNpiCost: npiCost,
+      };
+    });
 
   const voteGate = (
     billCountryId: string,

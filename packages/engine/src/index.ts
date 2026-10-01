@@ -87,6 +87,47 @@ export type {
   PartyCaucusEffect,
   PartyCaucusQuote,
 } from "./actions/partyCaucus.js";
+export {
+  NPP_INFLUENCE_STREAM_LABEL,
+  NPP_INFLUENCE_MISSING_STUBBORNNESS,
+  RELATIONSHIP_INFLUENCE_TYPES,
+  INFLUENCE_ACTIONS,
+  INFLUENCE_LIMITS,
+  INFLUENCE_MODIFIERS,
+  isRelationshipInfluenceType,
+  recordedNppStubbornness,
+  playerNppRelationshipKey,
+  nppInfluenceStreamSeed,
+  forkNppInfluenceRng,
+  calculateNppInfluenceChance,
+  determineNppInfluenceOutcome,
+  nppInfluenceRelationshipChange,
+  nppInfluenceOutcomeMessage,
+  quoteNppInfluence,
+  resolveNppInfluence,
+} from "./npp/nppInfluence.js";
+export type {
+  RelationshipInfluenceType,
+  InfluenceActionConfig,
+  NppInfluenceCalculation,
+  NppInfluenceOutcome,
+  NppInfluenceAttemptRecord,
+  NppInfluenceQuote,
+  NppInfluenceQuoteOk,
+} from "./npp/nppInfluence.js";
+export {
+  CAUCUS_NPP_RECRUIT_MIN_RELATIONSHIP,
+  CAUCUS_NPP_RECRUIT_COOLDOWN_TURNS,
+  listCaucusNppRecruitOptions,
+  quoteRecruitCaucusNpp,
+  applyRecruitCaucusNpp,
+  caucusNppRecruitCooldownRemaining,
+} from "./npp/caucusRecruit.js";
+export type {
+  CaucusNppRecruitStatus,
+  CaucusNppRecruitOption,
+  CaucusNppRecruitQuote,
+} from "./npp/caucusRecruit.js";
 export * from "./endorsement.js";
 export type * from "./types.js";
 export * as electionEngine from "./electionEngine/index.js";
@@ -326,6 +367,7 @@ export type { OpsTreeState, OpsChannelTotals } from "./campaigns/opsCurrentEffec
 // Authoritative player action refresh projection (#31), shared by the
 // actionRefresh phase and the Profile/footer resource breakdowns.
 export { projectPlayerActionRefresh, resolvePlayerSeat } from "./actions/officeBonus.js";
+export { BILL_PROPOSE_ACTION_COST, FIRST_PROVISION_NPI_COST, proposalNpiCost } from "./legislation/proposalCosts.js";
 export type { PlayerActionProjection, PlayerSeat } from "./actions/officeBonus.js";
 
 // #49: the national-influence per-turn gain is projected from the exact function

@@ -37,11 +37,14 @@ test('domestic shares can be bought, partly sold and retained across relaunch', 
 });
 
 test('an elected player proposes a tax rate and reopens the actual bill after relaunch', async ({ page }) => {
+  test.setTimeout(300_000);
   const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-elected-1953-US.save.json.gz', import.meta.url)));
   await page.goto('/');
   await loadFixture(page, fixture);
   await gameReady(page);
-  await advanceGame(page); // The real saved sponsorship cooldown ends at turn 99.
+  // Earn the source-required 5 NPI from the genuine recorded House office.
+  // This also ends the historical sponsorship cooldown.
+  for (let i = 0; i < 4; i += 1) await advanceGame(page);
   await gameReady(page);
   const openBills = async () => {
     await navigateGame(page, 'Bills and proposals');

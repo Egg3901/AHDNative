@@ -58,6 +58,8 @@ export type ActionId =
   | "leaveCaucus"
   | "setCaucusTaxRate"
   | "disbandCaucus"
+  | "influenceNpp"
+  | "recruitCaucusNpp"
   | "endorse"
   | "sponsorBill"
   | "voteOnBill"
@@ -403,6 +405,26 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     systems: ["caucus"],
     status: "available",
   },
+  influenceNpp: {
+    id: "influenceNpp",
+    name: "Influence NPP",
+    description: "Personal relationship influence of a same-country NPP. Relationship-only types (loyalty, favorability, influence, cooperation) write relationship; they do not mutate NPP statistics. Costs and chance come from src/lib/influence. Dedicated npp-influence RNG stream.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["npp/relationship"],
+    status: "available",
+  },
+  recruitCaucusNpp: {
+    id: "recruitCaucusNpp",
+    name: "Recruit NPP to Caucus",
+    description: "Chair-only free recruitment of a same-party, same-country NPP with relationship at least 60. Source POST members/route.ts memberType=npp charges no AP or funds. 12-turn caucus-global cooldown.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: CAUCUS_DISBAND_FUND_COST,
+    systems: ["caucus"],
+    status: "available",
+  },
   endorse: {
     id: "endorse",
     name: "Endorse",
@@ -416,8 +438,8 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   sponsorBill: {
     id: "sponsorBill" as ActionId,
     name: "Sponsor Bill",
-    description: "Sponsor a bill from the legislation catalog. Requires holding a legislative seat (career) or government sponsorship (HoS). Cost 4 AP. Ports src/lib/congress/billProposal.ts seat gate and catalog validation.",
-    baseCost: 4,
+    description: "Propose a bill from the legislation catalog. Requires holding a legislative seat (career) or government sponsorship (HoS). Costs 10 AP plus the provision's national influence cost.",
+    baseCost: 10,
     cooldown: 1,
     fundCost: 0,
     systems: ["legislation/bills"],

@@ -115,8 +115,22 @@ function makePolitics(): PoliticsView {
       action: { id: "requestReferendum", name: "Request Referendum", description: "", cost: 3, available: true },
     },
     politicians: [
-      { id: "US-3", name: "Sam Winner", partyId: "US_DEM", partyName: "Democratic Party", office: "Senate · TX", age: 55, economic: -2, social: -1, influence: 40, favorability: 60, infamy: 0, activeRaceIds: [] },
-      { id: "US-4", name: "Lou Loser", partyId: "US_REP", partyName: "Republican Party", office: null, age: 61, economic: 2, social: 3, influence: 20, favorability: 45, infamy: 5, activeRaceIds: ["house:US:AL:c1"] },
+      {
+        id: "US-3", name: "Sam Winner", partyId: "US_DEM", partyName: "Democratic Party", office: "Senate · TX", age: 55, economic: -2, social: -1, influence: 40, favorability: 60, infamy: 0, activeRaceIds: [],
+        relationshipScore: 12,
+        lastInfluence: null,
+        influenceOptions: [
+          {
+            type: "boost_loyalty", name: "Strengthen Party Loyalty",
+            description: "Reinforce the NPP's commitment and loyalty to the party",
+            actionCost: 3, fundCost: 10000, finalChance: 80,
+            successDelta: 10, failureDelta: -5, backfireDelta: -25,
+            available: true,
+            action: { id: "influenceNpp", name: "Strengthen Party Loyalty", description: "", cost: 3, fundCost: 10000, available: true, requires: "targetPoliticianId" },
+          },
+        ],
+      },
+      { id: "US-4", name: "Lou Loser", partyId: "US_REP", partyName: "Republican Party", office: null, age: 61, economic: 2, social: 3, influence: 20, favorability: 45, infamy: 5, activeRaceIds: ["house:US:AL:c1"], relationshipScore: 0, lastInfluence: null, influenceOptions: [] },
     ],
   };
 }
@@ -573,6 +587,72 @@ describe("PoliticsPanel elections", () => {
 });
 
 describe("PoliticsPanel politicians", () => {
+  it("keeps the influence review when the authoritative action refuses", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn().mockResolvedValue(false);
+    const PoliticsPanel = await renderPanel();
+    render(<PoliticsPanel politics={makePolitics()} section="politicians" clock={CLOCK} busy={false} onAction={onAction} />);
+    await user.selectOptions(screen.getByLabelText("Influence approach"), "boost_loyalty");
+    await user.click(screen.getByRole("button", { name: "Confirm Strengthen Party Loyalty" }));
+    expect(screen.queryByLabelText("Influence result")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm Strengthen Party Loyalty" })).toBeInTheDocument();
+  });
+
+  it("runs influence select, review, confirm and result", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn().mockResolvedValue(true);
+    const PoliticsPanel = await renderPanel();
+    const politics = makePolitics();
+    const { rerender } = render(<PoliticsPanel politics={politics} section="politicians" clock={CLOCK} busy={false} onAction={onAction} />);
+    expect(screen.getByText("Relationship")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Influence approach"), "boost_loyalty");
+    expect(screen.getByText(/80% chance/)).toBeInTheDocument();
+    expect(screen.getByText(/Cost 3 actions/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Confirm Strengthen Party Loyalty" }));
+    expect(onAction).toHaveBeenCalledWith("influenceNpp", { targetId: "US-3", influenceType: "boost_loyalty" });
+    const after = makePolitics();
+    after.politicians[0] = {
+      ...after.politicians[0]!,
+      relationshipScore: 22,
+      lastInfluence: {
+        type: "boost_loyalty", outcome: "success",
+        message: "Sam Winner has agreed to your request.",
+        roll: 12, relationshipChange: 10,
+      },
+    };
+    rerender(<PoliticsPanel politics={after} section="politicians" clock={CLOCK} busy={false} onAction={onAction} />);
+    expect(screen.getByLabelText("Influence result")).toHaveTextContent("Sam Winner has agreed to your request.");
+    expect(screen.getByText(/Relationship now 22/)).toBeInTheDocument();
+  });
+
+  it("does not invent a chance when personality stubbornness is unrecorded", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const PoliticsPanel = await renderPanel();
+    const politics = makePolitics();
+    const option = politics.politicians[0]!.influenceOptions[0]!;
+    politics.politicians[0] = {
+      ...politics.politicians[0]!,
+      influenceOptions: [{
+        ...option,
+        finalChance: null,
+        available: false,
+        disabledReason: "This NPP has no recorded personality stubbornness.",
+        action: {
+          ...option.action,
+          available: false,
+          disabledReason: "This NPP has no recorded personality stubbornness.",
+        },
+      }],
+    };
+    render(<PoliticsPanel politics={politics} section="politicians" clock={CLOCK} busy={false} onAction={onAction} />);
+    await user.selectOptions(screen.getByLabelText("Influence approach"), "boost_loyalty");
+    expect(screen.queryByText(/% chance/)).toBeNull();
+    expect(screen.getByText("This NPP has no recorded personality stubbornness.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm Strengthen Party Loyalty" })).toBeDisabled();
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
   it("filters by party and shows actual fields with active races", async () => {
     const user = userEvent.setup();
     const PoliticsPanel = await renderPanel();

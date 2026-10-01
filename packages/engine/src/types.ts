@@ -73,6 +73,8 @@ export interface WorldState {
     | { id: string; countryId: string; kind: "spending"; field: string; value: number; proposedTurn: number }
     | { id: string; countryId: string; kind: "tax"; field: string; value: number; proposedTurn: number }
   >;
+  /** Transient keys already stepped this turn; prevents a second fiscal-tail step. */
+  taxRatePhaseInStartedThisTurn?: string[];
   /** Append-only feed of notable events, newest last. Trimmed by maintenance. */
   news: NewsItem[];
   /** Parties seeded from mainline party seeds. Keyed by party id. */
@@ -177,6 +179,24 @@ export interface WorldState {
    * NPP_SPONSOR_TYPE_REPEAT_COOLDOWN_TURNS throttling.
    */
   nppSponsorLastTurn: Record<string, number>;
+  /**
+   * Dedicated NPP relationship-influence RNG (`${seed}:npp-influence`).
+   * Materialized on first draw so fresh-world serialize hashes stay stable.
+   */
+  nppInfluenceRng?: import("./rng.js").RngState;
+  /**
+   * Player NPP influence attempts this save. Optional; omitted until first use.
+   * Source: NPPInfluenceAttempt in src/lib/influence/executor.ts.
+   */
+  nppInfluenceAttempts?: Array<{
+    targetId: string;
+    turn: number;
+    influenceType: "boost_loyalty" | "boost_favorability" | "boost_influence" | "reduce_stubbornness";
+    outcome: "success" | "failure" | "backfire";
+    roll: number;
+    relationshipChange: number;
+    message: string;
+  }>;
   /**
    * Central banks, one per playable country (US/UK/RU/DD). Ports src/lib/db/types/centralBank.ts
    * CentralBank (subset — see centralBank/types.ts file doc for what's cut and why). Schema v17.
@@ -735,6 +755,11 @@ export interface Politician {
    * the field entirely. Never auto-converted.
    */
   currencyBalances?: { personal: Record<string, number> };
+  /**
+   * Optional retirement marker. Absent or null means the NPP is active.
+   * Source NPP.retiredAt; Native politicians historically omitted this field.
+   */
+  retiredAt?: string | null;
 }
 
 export interface PoliticianIdeology {
@@ -1379,6 +1404,12 @@ export interface Caucus {
   /** Absent in legacy saves; do not infer a leader from member ordering. */
   chairId?: string | null;
   viceChairId?: string | null;
+  /**
+   * Turn of the last successful NPP recruit into this caucus. Absent means
+   * never recruited. Source caucus-global 12-turn cooldown
+   * (CAUCUS_NPP_RECRUIT_COOLDOWN_TURNS).
+   */
+  lastNppRecruitTurn?: number;
 }
 
 /**
@@ -1679,6 +1710,10 @@ export interface NppRelationship {
   /** Score in [-100, 100]; decays toward 0 */
   score: number;
   updatedAtTurn: number;
+  /** Last personal influence attempt turn (source NPPRelationship.lastAttemptTurn). */
+  lastAttemptTurn?: number;
+  totalAttempts?: number;
+  successfulAttempts?: number;
 }
 
 export interface WorldModifier {

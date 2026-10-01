@@ -22,10 +22,11 @@ import { UNEMPLOYMENT_MIN, UNEMPLOYMENT_MAX } from "../economy/macroConstants.js
 import { triggerDebtCeilingCrisis } from "../budget/debtCeiling.js";
 import { applyCurrencyUnionProvision } from "../finance/currencyUnion.js";
 import type { PolicyLedgerEntry } from "../policyEffects/types.js";
-import { stepTaxRate, needsPhaseIn } from "../budget/taxRatePhaseIn.js";
+import { markTaxRatePhaseInStartedThisTurn, stepTaxRate, needsPhaseIn } from "../budget/taxRatePhaseIn.js";
 import { calculateBudgetRevenue } from "../budget/revenue.js";
 import { regionalGdpAbsolute, applyStateTaxToRegionalRevenue } from "../budget/regionalBudget.js";
 import { rebuildPolicyBudgets } from "../policyEffects/budget.js";
+import { energyActionLimits } from "../actions/officeBonus.js";
 import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
 
 const VOTING_TURNS = 2;
@@ -309,8 +310,10 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
       const stepped = stepTaxRate(current, target);
       budget.taxRates = { ...budget.taxRates, [taxType]: stepped };
       const pending = { ...(budget.taxRatePhaseIn ?? {}) };
-      if (needsPhaseIn(current, target)) pending[taxType] = target;
-      else delete pending[taxType];
+      if (needsPhaseIn(current, target)) {
+        pending[taxType] = target;
+        markTaxRatePhaseInStartedThisTurn(world, bill.countryId, taxType);
+      } else delete pending[taxType];
       budget.taxRatePhaseIn = pending;
       budget.revenue = calculateBudgetRevenue(budget.taxRates, budget.taxBases, budget.revenue.other);
       budget.surplus = budget.revenue.total - budget.spending.total;
@@ -470,6 +473,26 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
     expiresAtTurn: bill.expiresAtTurn ?? null,
   };
   world.enactedLaws.push(enacted);
+
+  // AHDGame billEnactment.ts refunds the proposal charge on passage. Keep the
+  // refund attached to the bill and idempotent so a save/reload or repeated
+  // enactment projection cannot credit the player twice.
+  if (
+    bill.sponsorId === "player" &&
+    !bill.proposalCostsRefunded &&
+    (bill.proposalActionCost ?? 0) > 0
+  ) {
+    const refundNpi = bill.proposalNpiCost ?? 0;
+    const energy = world.featureFlags.rpgStats ? world.player.stats?.energy ?? 1 : 1;
+    world.player.actions = Math.min(
+      energyActionLimits(energy).cap,
+      world.player.actions + (bill.proposalActionCost ?? 0),
+    );
+    if (refundNpi > 0) {
+      world.player.nationalInfluence = (world.player.nationalInfluence ?? 0) + refundNpi;
+    }
+    bill.proposalCostsRefunded = true;
+  }
 
   // Emit news
   world.news.push({ turn: world.meta.turn, date: world.meta.date, headline: `Bill signed: ${bill.title}` });
