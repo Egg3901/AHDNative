@@ -93,6 +93,7 @@ function UnionRow({ union, playerActions, busy, onCommand }: {
                 min="0"
                 max={union.maxDuesPerWorkerAnnual}
                 step="0.01"
+                disabled={busy}
                 value={duesDraft}
                 onChange={(event) => setDuesDraft(event.currentTarget.value)}
                 aria-label={`Annual dues per member for ${union.name}`}
