@@ -1,5 +1,25 @@
 # AHDNative roadmap
 
+## Verified CEO card closure, 2026-10-01 (#51)
+
+PR706 full hosted verification passed at exact `9276713` and merged as
+`e6731b3`. All four original Profile card criteria are checked and GitHub
+closure is confirmed; the partial label is removed. Actual 320px/390px
+public appointment, compensation, turn, two normal reloads and resignation
+verify shared company values, detail navigation and persisted role changes.
+#107 retains plants, R&D, full NPP strategy and plan-gravity scope. Physical
+device and full MP acceptance remain their separate issues.
+
+## CEO Profile card checkpoint, 2026-10-01 (#51)
+
+Recorded CEO/vacancy and public shareholder vote, acceptance, compensation and
+resignation now drive the shared Profile/company projection. Source issuer
+identity, factory/brand treatment and state-enterprise note are preserved.
+Both 320px/390px real-player journeys complete two normal save/reloads, including
+card absence after resignation. [Behavior and acceptance evidence](BEHAVIORAL-PARITY.md)
+record the bounded completion; whole corporate mechanics #107, current SP
+interchange and physical-device gates remain open. Full hosted review is pending
+before issue closure.
 ## Corporate-sector union player checkpoint, 2026-10-01 (#297)
 
 Public organization, weighted leadership/acceptance, wage-based dues, sector
@@ -7,7 +27,9 @@ organization and employer bargaining now use represented corporate-sector
 workers and locals. Source escalation/withdrawal and weighted ratification
 produce saved strikes or agreements. The actual 390px browser journey passes
 through normal save/reload. [Acceptance evidence](UNION-LEADERSHIP-PARITY.md)
-records the original criteria; final hosted review is pending before closure.
+records the original criteria. PR707 full hosted verify passed at exact head
+`1379573`, merged as `f9dd7e1`, and #297 is confirmed closed with incomplete
+labels removed. #211 has 5 of 7 child issues complete.
 Worker political feedback and wider union mechanics remain #322/#114.
 
 ## Regional sector trading checkpoint, 2026-10-01 (#299)
@@ -20,8 +42,9 @@ regional assets, since fresh worlds still seed national assets. The comparison
 uses Game's pinned regional and sector page hierarchy, with no pixel equivalence
 or physical-device claim. See [regional trading evidence](REGIONAL-SECTOR-TRADING.md).
 
-#297 and #322 remain partial. Source-backed leadership, complete employer
-authority and downstream political feedback still require implementation. The
+#297 is closed after PR707 verified leadership, employer authority and the
+organization/dues/strike/bargaining/save lifecycle. #322 remains partial for
+downstream worker political feedback. The
 unsafe public NPC-response and arbitrary-ballot wrappers are excluded. The unused neutral-50 labor
 metric overlay is excluded from this batch.
 
@@ -999,6 +1022,28 @@ and disband controls. Whip, health, recruitment, elections, color,
 description, motto and rename remain unrecorded with no public engine action;
 recruitment and leadership changes through validated commands remain the next
 #60 work.
+
+## Party/caucus quote and source costs checkpoint (#61 partial)
+
+#61 partial: create, join, leave, tax-edit and disband now quote and charge
+0 AP and 0 campaign funds, matching AHDGame
+`954f1c21781e6e767455a15eed40f73993d89a8b` POST/PATCH/DELETE caucus routes
+and party leave. `quotePartyCaucusAction` is the one projection the
+dispatcher, session DTO and UI confirmation read. Chair tax/disband
+authority is the recorded `chairId`, never `memberIds[0]`. The recorded
+chair cannot self-leave and must disband or hand over. A declined action
+leaves the full serialized world unchanged. Caucus leave confirms with
+`Leave ${name}?`. Native `foundParty` stays the 8 AP + 100k immediate/NPP
+cofounder proxy; source `draftCharter` / `ratifyCharter` (3 eligible human
+cofounders, 14-turn expiry, adjacency/Overton) is not a public action
+(#95). Evidence: `src/game/partyCaucusSourceParity.test.ts`,
+`src/game/caucusManagement.test.ts`,
+`packages/engine/src/actions/partyCaucus.test.ts`,
+`src/ui/CaucusPanel.test.tsx`. [Caucus evidence](CAUCUS-MANAGEMENT.md)
+records the source routes and the exact unchecked remainder. PR708 full hosted
+verify passed at `f6068fd` and merged as `19d344d`; all three actual 390px
+public founding/chair refusal, tax/disband, and non-chair membership journeys
+pass through normal reload. This does not close #61 or #95.
 
 ## World and new-game setup checkpoint, 2026-09-14 (#241)
 
@@ -2477,7 +2522,7 @@ another branch is untouched; no physical-device run.
   to apply worker political feedback is still absent. #299 remains partial:
   regional inventory and linked buy/list controls exist, while bargaining and
   nationalization fan-out plus rendered source visual comparison remain open.
-- Parent trackers now record #211 as 4/7 child issues complete, #110 as 4/5,
+- Parent trackers now record #211 as 5/7 child issues complete, #110 as 4/5,
   and #114 as 4/5. #109 has all five child slices closed, while its broader
   combined stress/save/turn acceptance remains partial and open.
 

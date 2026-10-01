@@ -727,13 +727,13 @@ it("quotes join/leave AP and consequences that match what the session charges (#
   const session = new GameSession();
   session.create({ ...options, seed: "party-caucus-quote" });
   const independent = session.politics().parties.find((p) => p.id === DEM)!;
-  expect(independent.join.cost).toBe(2);
+  expect(independent.join.cost).toBe(0);
   const apBefore = session.view().player.actions;
   expect(session.act("joinParty", { partyId: DEM }).ok).toBe(true);
-  expect(session.view().player.actions).toBe(apBefore - independent.join.cost);
+  expect(session.view().player.actions).toBe(apBefore);
 
   const member = session.politics().parties.find((p) => p.id === DEM)!;
-  expect(member.leave.cost).toBe(1);
+  expect(member.leave.cost).toBe(0);
   expect(member.leave.consequences).toEqual(["Makes you independent", "Ends any caucus membership you hold"]);
   // A different party still states the join consequence plus the switch cooldown.
   const rep = session.politics().parties.find((p) => p.id === REP)!;

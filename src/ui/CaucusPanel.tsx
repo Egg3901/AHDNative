@@ -64,9 +64,8 @@ export function CaucusPanel({ management, busy, onAction }: CaucusPanelProps) {
               : "You are independent."}
         </p>
         <p className="ahd-help" role="note" style={{ marginTop: "0.3rem" }}>
-          Caucuses are opt-in sub-groups inside your party. Founding costs {create.actionCost} actions
-          and {formatFinanceMoney(create.fundCost, management.currency)}. Tax ({create.taxMin}-{create.taxMax}%)
-          is set when the caucus is created.
+          Caucuses are opt-in sub-groups inside your party. Founding is free.
+          Tax ({create.taxMin}-{create.taxMax}%) is set when the caucus is created.
           {create.consequences.length > 0 ? ` Effects: ${create.consequences.join(" · ")}.` : ""}
         </p>
       </div>
@@ -94,7 +93,9 @@ export function CaucusPanel({ management, busy, onAction }: CaucusPanelProps) {
           </button>
           <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
             {!create.available ? (create.disabledReason ?? "Unavailable")
-              : `Cost ${create.actionCost} actions and ${formatFinanceMoney(create.fundCost, management.currency)}`}
+              : create.actionCost > 0 || create.fundCost > 0
+                ? `Cost ${create.actionCost} actions and ${formatFinanceMoney(create.fundCost, management.currency)}`
+                : "Free"}
           </span>
         </div>
       </div>}
@@ -143,7 +144,10 @@ export function CaucusPanel({ management, busy, onAction }: CaucusPanelProps) {
                       onClick={() => {
                         if (!canAct) return;
                         if (membershipKind === "join") onAction("joinCaucus", { caucusId: caucus.id });
-                        else onAction("leaveCaucus");
+                        else {
+                          if (!window.confirm(`Leave ${caucus.name}?`)) return;
+                          onAction("leaveCaucus");
+                        }
                       }}>
                       {caucus.isPlayerCaucus ? "Leave caucus" : "Join caucus"}
                     </button>

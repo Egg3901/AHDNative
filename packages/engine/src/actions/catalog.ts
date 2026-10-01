@@ -22,8 +22,12 @@ import { REQUEST_AP_COST } from "../referendum/request.js";
 import {
   CAUCUS_CREATE_ACTION_COST,
   CAUCUS_CREATE_FUND_COST,
+  CAUCUS_DISBAND_ACTION_COST,
+  CAUCUS_DISBAND_FUND_COST,
   CAUCUS_JOIN_ACTION_COST,
   CAUCUS_LEAVE_ACTION_COST,
+  CAUCUS_TAX_ACTION_COST,
+  CAUCUS_TAX_FUND_COST,
   PARTY_FOUND_ACTION_COST,
   PARTY_FOUND_FUND_COST,
   PARTY_JOIN_ACTION_COST,
@@ -72,6 +76,10 @@ export type ActionId =
   | "voteCoalitionDisband"
   | "buyShares"
   | "sellShares"
+  | "voteCeo"
+  | "acceptCeoAppointment"
+  | "resignCeo"
+  | "setCorporationCompensation"
   | "crisisBailout"
   | "crisisStimulus"
   | "crisisRespond"
@@ -348,7 +356,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   createCaucus: {
     id: "createCaucus",
     name: "Create Caucus",
-    description: "Create a caucus inside your current party. Requires party membership, caucusId null. Cost 4 AP + 25k funds, taxRate 0-5% per src/lib/db/types/caucus.ts.",
+    description: "Create a caucus inside your current party. Requires party membership and no current caucus. Source POST caucuses/route.ts charges no AP or funds; taxRate 0-5%.",
     baseCost: CAUCUS_CREATE_ACTION_COST,
     cooldown: 0,
     fundCost: CAUCUS_CREATE_FUND_COST,
@@ -358,7 +366,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   joinCaucus: {
     id: "joinCaucus",
     name: "Join Caucus",
-    description: "Join an existing caucus in your party. Requires same party, not already in a caucus. Cost 2 AP per src/app/api/country/[code]/parties/[id]/caucuses/[slug]/members/route.ts.",
+    description: "Join an existing caucus in your party. Requires same party and no current caucus. Source POST members/route.ts charges no AP or funds.",
     baseCost: CAUCUS_JOIN_ACTION_COST,
     cooldown: 0,
     fundCost: 0,
@@ -368,7 +376,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   leaveCaucus: {
     id: "leaveCaucus",
     name: "Leave Caucus",
-    description: "Leave current caucus. Cost 1 AP.",
+    description: "Leave the current caucus. Chairs must disband or hand over first. Source DELETE members/[memberId]/route.ts charges no AP or funds.",
     baseCost: CAUCUS_LEAVE_ACTION_COST,
     cooldown: 0,
     fundCost: 0,
@@ -379,9 +387,9 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     id: "setCaucusTaxRate",
     name: "Set Caucus Tax Rate",
     description: "Chair-only edit of the caucus campaign-fund levy (0-5%). Ports PATCH src/app/api/country/[code]/parties/[id]/caucuses/[slug]/route.ts, which charges no action points or funds.",
-    baseCost: 0,
+    baseCost: CAUCUS_TAX_ACTION_COST,
     cooldown: 0,
-    fundCost: 0,
+    fundCost: CAUCUS_TAX_FUND_COST,
     systems: ["caucus"],
     status: "available",
   },
@@ -389,9 +397,9 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     id: "disbandCaucus",
     name: "Disband Caucus",
     description: "Chair-only soft-disband: marks the caucus disbanded, clears its members and vacates the chair seats. Ports DELETE src/app/api/country/[code]/parties/[id]/caucuses/[slug]/route.ts, which charges no action points or funds.",
-    baseCost: 0,
+    baseCost: CAUCUS_DISBAND_ACTION_COST,
     cooldown: 0,
-    fundCost: 0,
+    fundCost: CAUCUS_DISBAND_FUND_COST,
     systems: ["caucus"],
     status: "available",
   },
@@ -590,6 +598,49 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["market"],
+    status: "available",
+  },
+  // Source: AHDGame corporations/[id]/ceo/{vote,accept,resign}. Native has one
+  // persistent player identity and stores the weighted shareholder ballot in
+  // the corporation save record.
+  voteCeo: {
+    id: "voteCeo",
+    name: "Vote for CEO",
+    description: "Cast your shareholder vote for a corporation CEO candidate.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporation/governance"],
+    status: "available",
+  },
+  acceptCeoAppointment: {
+    id: "acceptCeoAppointment",
+    name: "Accept CEO Appointment",
+    description: "Accept the CEO appointment offered by the corporation's shareholders.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporation/governance"],
+    status: "available",
+  },
+  resignCeo: {
+    id: "resignCeo",
+    name: "Resign as CEO",
+    description: "Resign from your corporation CEO position and leave the seat vacant.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporation/governance"],
+    status: "available",
+  },
+  setCorporationCompensation: {
+    id: "setCorporationCompensation",
+    name: "Set CEO Salary and Dividend Rate",
+    description: "Set the corporation's per-turn CEO salary and dividend rate as its CEO.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporation/governance", "corporation/dividends"],
     status: "available",
   },
   // ── W31 crisis action hooks ─────────────────────────────────────

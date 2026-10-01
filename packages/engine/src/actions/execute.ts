@@ -48,9 +48,10 @@ import type { ExtractableResource } from "../commodity/constants.js";
 import { depositToSavings, withdrawFromSavings, moveSavingsHolder } from "../finance/savingsActions.js";
 import { wireTransfer as wireTransferFn } from "../finance/wireTransfer.js";
 import { rollDebatePrep } from "../stats/debatePrep.js";
-import { validateBondIssuerIdentity } from "../bonds/corporateBonds.js";
+import { isCorpStateOwned, validateBondIssuerIdentity } from "../bonds/corporateBonds.js";
 import { rngFromState } from "../rng.js";
 import { isOrderFlowPriceEligible } from "../market/orderFlow.js";
+import { reconcileCeoAppointment } from "../corporation/ceoGovernance.js";
 import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
 import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
 
@@ -82,6 +83,8 @@ export type ExecuteActionParams = {
   // Intra-party ballots
   intrapartyElectionId?: string;
   candidateId?: string;
+  salaryPerTurn?: number;
+  dividendRate?: number;
   committeeCandidateIds?: string[];
   coalitionId?: string;
   coalitionName?: string;
@@ -1486,6 +1489,78 @@ function executeActionInner(
       return { ok: false, error: String(e) };
     }
   }
+  if (actionId === "voteCeo" || actionId === "acceptCeoAppointment" || actionId === "resignCeo" || actionId === "setCorporationCompensation") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player may manage this CEO relationship" };
+    const corpId = params.corpId;
+    if (!corpId) return { ok: false, error: `${actionId} requires corpId` };
+    const corp = world.corporations[corpId];
+    if (!corp) return { ok: false, error: `Unknown corporation: ${corpId}` };
+
+    if (actionId === "voteCeo") {
+      if (params.candidateId !== "player") return { ok: false, error: "The only available candidate is the player" };
+      if (world.player.countryId !== corp.countryId) return { ok: false, error: "You must reside in the corporation's country to vote for its CEO" };
+      if (!isCorpStateOwned(corp)) {
+        if (!corp.headquartersRegionId || !world.regions[corp.headquartersRegionId]) return { ok: false, error: "This corporation's source-authored HQ region is not present in this era" };
+        if (world.player.homeRegionId !== corp.headquartersRegionId) return { ok: false, error: "You must reside in the corporation's HQ region to be a CEO candidate" };
+      }
+      const holding = corp.shareholders.find((shareholder) => shareholder.holder === "player");
+      if (!holding || holding.shares <= 0 || !Number.isFinite(holding.shares)) {
+        return { ok: false, error: "You must hold shares to vote for the corporation CEO" };
+      }
+      const votes = (corp.ceoVotes ?? []).filter((vote) => vote.voterId !== "player");
+      votes.push({ voterId: "player", candidateId: "player", shares: holding.shares });
+      corp.ceoVotes = votes;
+      const leader = reconcileCeoAppointment(corp);
+      const bondConflict = Object.values(world.bonds).some((bond) => bond.issuerType === "corporation" && bond.corporationId === corp.id && bond.holders.some((holder) => holder.holderId === "player" && holder.units > 0));
+      if (leader === "player" && bondConflict) delete corp.pendingCeoId;
+      if (corp.pendingCeoId !== "player") return { ok: true, message: "Your vote was recorded; current shareholders have not offered you the CEO position" };
+      return { ok: true, message: `Your ${holding.shares} shareholder votes nominate you as CEO of ${corp.tickerSymbol}` };
+    }
+
+    if (actionId === "acceptCeoAppointment") {
+      // Reconcile the persisted offer against the current cap table immediately
+      // before acceptance. Offers in a save can outlive a trade or a newer ballot.
+      const leader = reconcileCeoAppointment(corp);
+      const bondConflict = Object.values(world.bonds).some((bond) => bond.issuerType === "corporation" && bond.corporationId === corp.id && bond.holders.some((holder) => holder.holderId === "player" && holder.units > 0));
+      if (leader === "player" && bondConflict) delete corp.pendingCeoId;
+      if (corp.pendingCeoId !== "player") return { ok: false, error: "No CEO appointment is pending for you" };
+      if (world.player.countryId !== corp.countryId) return { ok: false, error: "You must reside in the corporation's country to accept its CEO position" };
+      if (!isCorpStateOwned(corp)) {
+        if (!corp.headquartersRegionId || !world.regions[corp.headquartersRegionId]) return { ok: false, error: "This corporation's source-authored HQ region is not present in this era" };
+        if (world.player.homeRegionId !== corp.headquartersRegionId) return { ok: false, error: "You must reside in the corporation's HQ region to accept its CEO position" };
+      }
+      const other = Object.values(world.corporations).find((candidate) => candidate.id !== corp.id && candidate.ceoId === "player" && candidate.ceoVacant !== true);
+      if (other) return { ok: false, error: `You are already CEO of ${other.tickerSymbol}; resign before accepting another position` };
+      if (bondConflict) return { ok: false, error: "Sell this corporation's bonds before accepting its CEO position" };
+      corp.ceoId = "player";
+      corp.ceoType = "player";
+      corp.ceoVacant = false;
+      delete corp.pendingCeoId;
+      return { ok: true, message: `You are now CEO of ${corp.tickerSymbol}` };
+    }
+
+    if (actionId === "setCorporationCompensation") {
+      if (corp.ceoId !== "player" || corp.ceoVacant === true) return { ok: false, error: "Only the active CEO may set corporation compensation" };
+      const salary = params.salaryPerTurn;
+      const dividendRate = params.dividendRate;
+      if (!Number.isFinite(salary) || salary! < 0 || salary! > Math.max(0, corp.revenue) * 1.25) {
+        return { ok: false, error: "salaryPerTurn must be finite, non-negative, and no more than 1.25 times current corporation revenue" };
+      }
+      if (!Number.isFinite(dividendRate) || dividendRate! < 0 || dividendRate! > 25) {
+        return { ok: false, error: "dividendRate must be finite and between 0 and 25 percent" };
+      }
+      corp.ceoSalaryPerTurn = salary!;
+      corp.dividendRate = dividendRate!;
+      return { ok: true, message: `Set ${corp.tickerSymbol} CEO salary to ${salary} per turn and dividend rate to ${dividendRate}%` };
+    }
+
+    if (corp.ceoId !== "player" || corp.ceoVacant === true) return { ok: false, error: "You are not the active CEO of this corporation" };
+    corp.ceoVacant = true;
+    delete corp.pendingCeoId;
+    corp.ceoVotes = [];
+    return { ok: true, message: `You resigned as CEO of ${corp.tickerSymbol}; the position is vacant` };
+  }
+
   if (actionId === "buyShares" || actionId === "sellShares") {
     // Simplified market order: ports mainline's buyPublicShares/sellPublicShares
     // "instant" retail path only (price = corp.sharePrice, no brokerage fee —
@@ -1567,6 +1642,7 @@ function executeActionInner(
     if (holding.shares === 0) {
       corp.shareholders = corp.shareholders.filter((sh) => sh !== holding);
     }
+    reconcileCeoAppointment(corp);
     player.cash = (player.cash ?? 0) + notional;
     if (orderFlowEligible) {
       corp.orderFlowWindowSellValue = (corp.orderFlowWindowSellValue ?? 0) + notional;
@@ -2055,6 +2131,15 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.corpId && params.shares !== undefined && Number.isInteger(params.shares) && params.shares > 0
         ? null
         : `${actionId} requires corpId and a positive integer shares amount`;
+    case "voteCeo":
+      return params.corpId && params.candidateId ? null : "voteCeo requires corpId and candidateId";
+    case "acceptCeoAppointment":
+    case "resignCeo":
+      return params.corpId ? null : `${actionId} requires corpId`;
+    case "setCorporationCompensation":
+      return params.corpId && Number.isFinite(params.salaryPerTurn) && Number.isFinite(params.dividendRate)
+        ? null
+        : "setCorporationCompensation requires corpId, salaryPerTurn, and dividendRate";
     case "buyBond":
     case "sellBond":
       return params.bondId && params.units !== undefined && Number.isInteger(params.units) && params.units > 0

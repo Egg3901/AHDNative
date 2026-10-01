@@ -19,17 +19,10 @@ import { corporateSectorAssets } from "./corporateSectorAssets.js";
  *   explicitly (commands/sectorOperations/listSectorForSale.ts). Unlist is
  *   CEO-only and clears forSale
  *   (commands/sectorOperations/unlistSectorForSale.ts).
- * - Authority: the reference gates on requireCeo (the corporation's CEO
- *   identity). Native has no CEO user: corporations are NPC-run and ownership
- *   is only the recorded Corporation.shareholders roster (npc founder block
- *   plus the single player block, see corporation/types.ts ShareholderKind).
- *   The port therefore gates on that roster: the actor must hold a positive
- *   recorded block. Requiring the controlling block instead would dead-end
- *   the player flow (the NPC founder holds 51% while the public float is
- *   only 49%, so the player can never out-hold the founder through market
- *   purchases); any-positive-block keeps buy-a-share-then-list real and
- *   matches the SectorSummary.owned (>= 1 player share) signal the directory
- *   already uses.
+ * - Authority: Native listing retains the existing source-backed positive
+ *   shareholder-block rule. CEO identity now exists independently, but this
+ *   earlier market command remains a shareholding capability; owning shares
+ *   or a sector asset never manufactures CEO status.
  * - Annualizer: the reference annualizes DAILY revenue by
  *   GAME_DAYS_PER_YEAR = TURNS_PER_YEAR / TURNS_PER_DAY (48/24 = 2, see
  *   sectorValuation.ts and turnTime.ts "48 turns = 1 year, 1 turn = 1 week").
