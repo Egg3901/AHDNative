@@ -2,6 +2,10 @@ import {
   ACTION_CATALOG, addDaysIso, calculateCampaignIncome, calculateMaintenanceCosts,
   campaignAnchorToLocal, campaignKey, canJoinParty, canLeaveParty, describeOpsCurrentEffect,
   getActionCost, quotePartyCaucusAction,
+  INFLUENCE_ACTIONS, INFLUENCE_LIMITS, RELATIONSHIP_INFLUENCE_TYPES,
+  calculateNppInfluenceChance, playerNppRelationshipKey, quoteNppInfluence,
+  recordedNppStubbornness,
+  type RelationshipInfluenceType,
   getCampaignFamilyScalar, getEffectiveBranchCost, RALLY_IMMEDIATE_SHARE,
   RALLY_SPREAD_TURNS, SUPPORT_RALLY_ACTION_COST, SUPPORT_RALLY_FULL_VALUE,
   SUPPORT_RALLY_TOUR_TICK_ACTION_COST,
@@ -347,12 +351,38 @@ export interface PoliticsElectionDetail {
   presidential: PoliticsPresidentialView | null;
 }
 
+export interface PoliticsNppInfluenceOption {
+  type: RelationshipInfluenceType;
+  name: string;
+  description: string;
+  actionCost: number;
+  fundCost: number;
+  finalChance: number | null;
+  successDelta: number;
+  failureDelta: number;
+  backfireDelta: number;
+  available: boolean;
+  disabledReason?: string;
+  action: ActionView;
+}
+
+export interface PoliticsNppInfluenceAttemptView {
+  type: RelationshipInfluenceType;
+  outcome: "success" | "failure" | "backfire";
+  message: string;
+  roll: number;
+  relationshipChange: number;
+}
+
 export interface PoliticsPoliticianView {
   id: string; name: string; partyId: string; partyName: string;
   office: string | null; age: number;
   economic: number; social: number;
   influence: number; favorability: number; infamy: number;
   activeRaceIds: string[];
+  relationshipScore: number;
+  influenceOptions: PoliticsNppInfluenceOption[];
+  lastInfluence: PoliticsNppInfluenceAttemptView | null;
 }
 
 export interface PoliticsReferendumView {
@@ -1452,13 +1482,64 @@ export function projectPolitics(world: WorldState): PoliticsView {
   }
 
   const politicians = world.politicians.filter((p) => p.countryId === player.countryId)
-    .map((p) => ({
-      id: p.id, name: p.name, partyId: p.partyId, partyName: partyName(p.partyId),
-      office: officeLabel(world, p.chamberKey, p.electedState, p.senateClass),
-      age: p.age, economic: p.ideology.economic, social: p.ideology.social,
-      influence: p.partyInfluence, favorability: p.favorability, infamy: p.infamy,
-      activeRaceIds: activeRaceIdsByPolitician.get(p.id) ?? [],
-    }))
+    .map((p) => {
+      const relationshipScore = world.nppRelationships[playerNppRelationshipKey(p.id)]?.score ?? 0;
+      const last = [...(world.nppInfluenceAttempts ?? [])].reverse().find((row) => row.targetId === p.id);
+      const stubbornness = recordedNppStubbornness(p);
+      const influenceOptions = RELATIONSHIP_INFLUENCE_TYPES.map((type) => {
+        const config = INFLUENCE_ACTIONS[type];
+        const calculation = stubbornness === null ? null : calculateNppInfluenceChance({
+          actorPartyId: player.partyId,
+          actorCountryId: player.countryId,
+          actorPoliticalInfluence: player.politicalInfluence ?? 0,
+          actorFavorability: player.favorability ?? 0,
+          nppPartyId: p.partyId,
+          nppCountryId: p.countryId,
+          stubbornness,
+          extraAnchor: 0,
+          relationshipScore,
+          influenceType: type,
+        });
+        const quote = quoteNppInfluence(world, { targetId: p.id, influenceType: type });
+        const reason = quote.ok ? undefined : quote.error;
+        return {
+          type,
+          name: config.name,
+          description: config.description,
+          actionCost: config.actionCost,
+          fundCost: campaignAnchorToLocal(config.baseFundCost, player.countryId),
+          finalChance: calculation?.finalChance ?? null,
+          successDelta: INFLUENCE_LIMITS.RELATIONSHIP_CHANGE_SUCCESS,
+          failureDelta: INFLUENCE_LIMITS.RELATIONSHIP_CHANGE_FAILURE,
+          backfireDelta: INFLUENCE_LIMITS.RELATIONSHIP_CHANGE_BACKFIRE,
+          available: quote.ok,
+          ...(reason ? { disabledReason: reason } : {}),
+          action: {
+            id: "influenceNpp" as const,
+            name: config.name,
+            description: config.description,
+            cost: config.actionCost,
+            fundCost: campaignAnchorToLocal(config.baseFundCost, player.countryId),
+            available: quote.ok,
+            ...(reason ? { disabledReason: reason } : {}),
+            requires: "targetPoliticianId" as const,
+          },
+        };
+      });
+      return {
+        id: p.id, name: p.name, partyId: p.partyId, partyName: partyName(p.partyId),
+        office: officeLabel(world, p.chamberKey, p.electedState, p.senateClass),
+        age: p.age, economic: p.ideology.economic, social: p.ideology.social,
+        influence: p.partyInfluence, favorability: p.favorability, infamy: p.infamy,
+        activeRaceIds: activeRaceIdsByPolitician.get(p.id) ?? [],
+        relationshipScore,
+        influenceOptions,
+        lastInfluence: last ? {
+          type: last.influenceType, outcome: last.outcome, message: last.message,
+          roll: last.roll, relationshipChange: last.relationshipChange,
+        } : null,
+      };
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const parties = Object.values(world.parties).filter((party) => party.countryId === country.id)

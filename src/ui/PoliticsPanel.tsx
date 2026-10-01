@@ -1148,16 +1148,23 @@ function CampaignSection({ politics, busy, onAction, initialId, clock }: Omit<Po
   );
 }
 
-function PoliticiansSection({ politics, busy, onOpenElection, initialId }: Omit<PoliticsPanelProps, "section" | "onAction">) {
+function PoliticiansSection({ politics, busy, onAction, onOpenElection, initialId }: Omit<PoliticsPanelProps, "section">) {
   const [partyId, setPartyId] = useState("all");
   const [selectedId, setSelectedId] = useState(initialId ?? "");
+  const [influenceType, setInfluenceType] = useState("");
+  const [influenceStep, setInfluenceStep] = useState<"pick" | "review" | "result">("pick");
   const filtered = useMemo(() => politics.politicians.filter((p) => partyId === "all" || p.partyId === partyId),
     [politics.politicians, partyId]);
   useEffect(() => {
     if (!filtered.some((p) => p.id === selectedId)) setSelectedId(filtered[0]?.id ?? "");
   }, [filtered, selectedId]);
   const selected: PoliticsPoliticianView | null = filtered.find((p) => p.id === selectedId) ?? null;
+  useEffect(() => {
+    setInfluenceType("");
+    setInfluenceStep("pick");
+  }, [selectedId]);
   const raceTitle = (id: string) => politics.elections.find((e) => e.id === id)?.title ?? id;
+  const option = selected?.influenceOptions.find((entry) => entry.type === influenceType) ?? null;
 
   return (
     <div className="ahd-stack">
@@ -1195,8 +1202,74 @@ function PoliticiansSection({ politics, busy, onOpenElection, initialId }: Omit<
             <div className="ahd-kv"><dt>Influence</dt><dd className="ahd-mono">{score(selected.influence)}</dd></div>
             <div className="ahd-kv"><dt>Favorability</dt><dd className="ahd-mono">{score(selected.favorability)}</dd></div>
             <div className="ahd-kv"><dt>Infamy</dt><dd className="ahd-mono">{score(selected.infamy)}</dd></div>
+            <div className="ahd-kv"><dt>Relationship</dt><dd className="ahd-mono">{selected.relationshipScore}</dd></div>
             <div className="ahd-kv"><dt>Active races</dt><dd>{selected.activeRaceIds.length > 0 ? selected.activeRaceIds.map(id => onOpenElection ? <button key={id} className="ahd-btn ahd-btn-sm" onClick={() => onOpenElection(id)} disabled={busy}>View {raceTitle(id)}</button> : <span key={id}>{raceTitle(id)} </span>) : "None"}</dd></div>
           </dl>
+          {selected.influenceOptions.length > 0 ? (
+            <div style={{ marginTop: "0.75rem", borderTop: "1px dashed var(--ahd-border)", paddingTop: "0.55rem" }}>
+              <h3 className="ahd-h2" style={{ fontSize: "0.82rem" }}>Influence NPP</h3>
+              <p className="ahd-muted" style={{ fontSize: "0.72rem", marginTop: "0.2rem" }}>
+                Personal relationship influence. A resolved attempt writes relationship only; it does not change this NPP's statistics.
+              </p>
+              {influenceStep === "pick" || influenceStep === "review" ? (
+                <label className="ahd-field" style={{ maxWidth: "22rem", marginTop: "0.45rem" }}>
+                  <span className="ahd-label">Approach</span>
+                  <select className="ahd-select" aria-label="Influence approach" value={influenceType}
+                    onChange={(e) => { setInfluenceType(e.target.value); setInfluenceStep(e.target.value ? "review" : "pick"); }}
+                    disabled={busy}>
+                    <option value="">Choose an approach</option>
+                    {selected.influenceOptions.map((entry) => (
+                      <option key={entry.type} value={entry.type}>{entry.name}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              {influenceStep === "review" && option ? (
+                <div style={{ marginTop: "0.45rem" }}>
+                  <p className="ahd-help" role="note">{option.description}</p>
+                  <p className="ahd-muted" style={{ fontSize: "0.72rem", marginTop: "0.25rem" }}>
+                    Cost {option.actionCost} actions and {formatFinanceMoney(option.fundCost, politics.currency)}
+                    {option.finalChance != null ? ` · ${option.finalChance}% chance` : ""}
+                    {" · "}Success {option.successDelta >= 0 ? "+" : ""}{option.successDelta}
+                    {" / "}failure {option.failureDelta}
+                    {" / "}backfire {option.backfireDelta}
+                  </p>
+                  <div style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap", marginTop: "0.45rem" }}>
+                    <button type="button" className="ahd-btn ahd-btn-primary ahd-btn-sm"
+                      aria-label={`Confirm ${option.name}`}
+                      disabled={busy || !option.available}
+                      aria-disabled={busy || !option.available}
+                      onClick={() => {
+                        if (!option.available) return;
+                        onAction("influenceNpp", { targetId: selected.id, influenceType: option.type });
+                        setInfluenceStep("result");
+                      }}>
+                      Confirm {option.name}
+                    </button>
+                    <button type="button" className="ahd-btn ahd-btn-sm" aria-label="Cancel influence"
+                      disabled={busy} onClick={() => { setInfluenceType(""); setInfluenceStep("pick"); }}>
+                      Cancel
+                    </button>
+                  </div>
+                  {!option.available ? <p className="ahd-help" role="note">{option.disabledReason}</p> : null}
+                </div>
+              ) : null}
+              {influenceStep === "result" ? (
+                <div style={{ marginTop: "0.45rem" }} role="status" aria-label="Influence result">
+                  <p style={{ fontSize: "0.82rem" }}>{selected.lastInfluence?.message ?? "Attempt recorded."}</p>
+                  <p className="ahd-muted" style={{ fontSize: "0.72rem", marginTop: "0.2rem" }}>
+                    Relationship now {selected.relationshipScore}
+                    {selected.lastInfluence ? ` (${selected.lastInfluence.relationshipChange >= 0 ? "+" : ""}${selected.lastInfluence.relationshipChange})` : ""}
+                  </p>
+                  <button type="button" className="ahd-btn ahd-btn-sm" style={{ marginTop: "0.4rem" }}
+                    aria-label="Done with influence result"
+                    disabled={busy} onClick={() => { setInfluenceType(""); setInfluenceStep("pick"); }}>
+                    Done
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </article>
       ) : null}
     </div>
@@ -1613,7 +1686,7 @@ export function PoliticsPanel({ politics, section, busy, onAction, initialId, on
   if (section === "presidential") return <PresidentialRaceSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} onOpenCampaign={onOpenCampaign} onOpenPolitician={onOpenPolitician} clock={clock} />;
   if (section === "metrics") return <PoliticalMetricsSection politics={politics} nation={nation} era={era} onNavigate={onNavigate} />;
   if (section === "referendums") return <ReferendumsSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} clock={clock} />;
-  if (section === "politicians") return <PoliticiansSection politics={politics} busy={busy} initialId={initialId} onOpenElection={onOpenElection} clock={clock} />;
+  if (section === "politicians") return <PoliticiansSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} onOpenElection={onOpenElection} clock={clock} />;
   return <PartiesSection politics={politics} busy={busy} onAction={onAction} initialId={initialId} clock={clock} />;
 }
 
