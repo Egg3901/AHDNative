@@ -172,7 +172,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     status: "available",
   },
   // PORT-STUB: forex-denominated bond issuance (cross-currency sovereign float) requires FX system.
-  // Visible as unavailable so the UI can gray it out with a named blocker rather than invent a rate.
+  // No issuance catalog entry or player command is exposed for this path.
   // Source: sovereign.ts currencyCode via resolveCountryCurrencyCode (needs FX for cross-currency settlement).
   // Blocked: forex
   // Corporate-bond issuance is also stubbed: needs corporation credit + bondHolderOps corporate path.

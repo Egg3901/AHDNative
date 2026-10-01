@@ -9,6 +9,21 @@ order, conditional controls and action flows. Responsive layout does not authori
 a new game hierarchy. The national Overview landing is superseded by Profile.
 [Behavioral parity](BEHAVIORAL-PARITY.md) records source evidence and remaining gaps.
 
+## Wiring and acceptance audit, 2026-10-01
+
+The source/caller/player inventory in [HELPER-WIRING-INVENTORY.md](HELPER-WIRING-INVENTORY.md)
+is refreshed against Native `3eb8367`; sampled Game authority is `88199e77`.
+Documentation tasks #33/#35 have a complete source audit and corrected current
+rows/comments. Their checklists and prior closure labels are reconciled with
+merged verification, without claiming the linked mechanics are complete.
+
+#40 remains partial for real default-world TFP inputs/progression, #41 for
+unit combat and player war/peace/intelligence/naval-air flows, and #94 for the
+rendered subsidy flow and command-economy plan/credit controls. Their earlier
+bounded documentation/subsidy closures do not satisfy those full completion
+requirements. No mechanics, playable flags, save schema or phase order change
+in this audit.
+
 ## Current native presentation correction
 
 The owner reaffirmed AHDGame consistency with one native UI for MP and SP.

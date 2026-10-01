@@ -117,8 +117,9 @@ export const fiscalYearPhase: TurnPhase = {
 
 // ── Regional budget processing (generic) ─────────────────────────────
 // Source: src/lib/turn/regionalBudget.ts processRegionalBudgets (generic).
-// Country-specific JP/DE variants remain unported (issue #103); JP and DE
-// are playable in the 1991 and 2019 packs and use this generic processor.
+// Country-specific JP/DE variants remain unported (issue #103). JP and DE
+// are economy entries, not player countries, in the 1991 and 2019 packs.
+// The generic processor consumes any recorded regional budget rows.
 export const regionalBudgetProcessingPhase: TurnPhase = {
   name: "regionalBudgetProcessing",
   run(world) {

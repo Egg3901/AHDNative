@@ -7,6 +7,30 @@ with AHDGame `d4baf899fd8bd529099f03d7410807143604e2e5`. It records the full
 phase map. It does not reorder the whole pipeline or claim that Native engine
 goldens establish AHDGame parity.
 
+## Current bounded dependency checkpoint, 2026-10-01
+
+Checked against Native `3eb8367` production callers. The full map below
+retains its pinned Game comparison and historical audit scope; it is not a
+fresh whole-engine trace at current Game. Current differential evidence stays
+under #117/#281.
+
+- Registry order is `corporationTurnPhase`, `unionsTurnPhase`,
+  `nppUnionBehaviorPhase`, `pensionTurnPhase`, `macroCountryTurnPhase`.
+  Macro consumes the same-turn corporate revenue snapshot; the phases between
+  those two do not turn it into a prior-turn snapshot.
+- The campaign cluster precedes `voteAccumulationPhase`, with
+  `campaignSpendResetPhase` after the tally. No phase changes in this audit.
+- `bankingTurnPhase` services interbank and margin; adjacent
+  `discountWindowTurnPhase` services the window. Bond/credit and share-price
+  writers precede `bankSolvencyTurnPhase`. #109 retains player and downstream
+  acceptance; [banking evidence](BANKING-LIFECYCLE.md) records the partial batch.
+- Ministerial issuance is wired through the cabinet session/UI command and
+  registered apply phase, before policy effects. #105/#263 retain magnitude,
+  defense and full downstream/default-region scope.
+- Referendum request, hash variance, consent and actuation have production
+  callers. The earlier missing-call claims are historical; office/country
+  coverage remains #72/#118. See [helper inventory](HELPER-WIRING-INVENTORY.md).
+
 ## Corrected dependency
 
 AHDGame executes `corporationTurn` before `macroCountryTurn` in
@@ -19,9 +43,9 @@ and `corporationTurnPhase` near the tail. On the first advance, macro therefore
 read the bootstrap snapshot where `current` equaled `previous`; corporate
 output reached macro growth on the following turn.
 
-The registry now places `corporationTurnPhase` immediately before
-`macroCountryTurnPhase`. This is the smallest change that restores the direct
-reference dependency while leaving the other Native tail placements intact.
+The original move placed `corporationTurnPhase` immediately before
+`macroCountryTurnPhase`. The later union/pension insertion preserves the
+same-turn snapshot edge in the current order shown above.
 `corporationTurnPhase` does not accept or call the shared RNG. The move itself
 does not consume or shift the RNG stream. Later state-dependent phases can of
 course observe the intended current-turn economy values.
@@ -88,16 +112,16 @@ once below. Names sharing a disposition are grouped to keep the map readable.
 | `bannedShareholderRelease`, `inactiveShareholderShareRelease` | missing | No Native shareholder-status release phase. Corporation ownership lifecycle is [#107](https://github.com/Egg3901/AHDNative/issues/107). |
 | `coldWarTension` | same-edge | `coldWarTensionPhase`; Native places the cold-war group at the tail. Its same-turn inputs are `nuclearProductionPhase` and `warsTurnPhase`. |
 | `actionRefresh`, `fundGeneration` | same-edge | `actionRefreshPhase`, then `fundGenerationPhase`. |
-| `corporationTurn` | same-edge | `corporationTurnPhase` immediately precedes `macroCountryTurnPhase`, so macro reads this turn's revenue snapshot. |
-| `unionsTurn`, `nppUnionBehavior` | same-edge, reversed locally | `nppUnionBehaviorPhase`, then `unionsTurnPhase`. Both are RNG-free, but the order differs from AHDGame. Full labor and timing parity is [#114](https://github.com/Egg3901/AHDNative/issues/114). |
+| `corporationTurn` | same-edge | `corporationTurnPhase` precedes the union/NPP/pension phases and `macroCountryTurnPhase`; macro reads this turn's revenue snapshot. |
+| `unionsTurn`, `nppUnionBehavior` | same-edge | `unionsTurnPhase`, then `nppUnionBehaviorPhase`; the former reversed order was corrected. Full labor and timing parity is [#114](https://github.com/Egg3901/AHDNative/issues/114). |
 | `partyInfluenceTurn`, `caucusTax`, `nppFundGeneration` | same-edge | Native preserves party influence before caucus tax. `nppFundGenerationPhase` runs earlier than AHDGame and is currently a no-op. Party lifecycle gaps are [#95](https://github.com/Egg3901/AHDNative/issues/95). |
 | `savingsInterestTurn` | missing helper wiring | Pure savings-interest processing exists but is absent from `TURN_PHASES`; [#111](https://github.com/Egg3901/AHDNative/issues/111). |
 | `npcBankPolicyTurn` | missing | No policy phase; [#109](https://github.com/Egg3901/AHDNative/issues/109). |
 | `bankingTurn` | same-edge | `bankingTurnPhase`, followed by `bankSolvencyTurnPhase`. Bank-held deposit work combined here does not replace the missing character savings phase. |
 | `savingsShadowTurn` | missing | No registered equivalent; [#111](https://github.com/Egg3901/AHDNative/issues/111). |
-| `pensionTurn` | same-edge | `pensionTurnPhase` runs immediately after `unionsTurnPhase`, preserving the AHDGame relative order `corporationTurn` < `unionsTurn` < `pensionTurn` (e364c0495 `turnPhaseNames.ts`): the charge sweep debits corporate `liquidCapital` settled by `corporationTurnPhase` and prices dues off the represented-sector population `unionsTurnPhase` just settled. Absolute tail placement follows this registry's append-only convention, same deviation as the unions cluster. Full lifecycle is [#315](https://github.com/Egg3901/AHDNative/issues/315); the bargaining rate writer stays [#322](https://github.com/Egg3901/AHDNative/issues/322). |
+| `pensionTurn` | same-edge | `pensionTurnPhase` follows `unionsTurnPhase` and `nppUnionBehaviorPhase`, preserving the AHDGame relative order `corporationTurn` < `unionsTurn` < `pensionTurn` (e364c0495 `turnPhaseNames.ts`): the charge sweep debits corporate `liquidCapital` settled by `corporationTurnPhase` and prices dues off the represented-sector population `unionsTurnPhase` just settled. Absolute tail placement follows this registry's append-only convention, same deviation as the unions cluster. Full lifecycle is [#315](https://github.com/Egg3901/AHDNative/issues/315); the bargaining rate writer stays [#322](https://github.com/Egg3901/AHDNative/issues/322). |
 | `prospectingResolution` | same-edge | `resolveProspectsPhase`; its current tail placement differs. Regional scope remains [#115](https://github.com/Egg3901/AHDNative/issues/115). |
-| `macroCountryTurn` | same-edge | `macroCountryTurnPhase` reads corporation output from the immediately preceding phase. Remaining inputs are [#106](https://github.com/Egg3901/AHDNative/issues/106). |
+| `macroCountryTurn` | same-edge | `macroCountryTurnPhase` reads same-turn corporation output after union/NPP/pension processing. Remaining inputs are [#106](https://github.com/Egg3901/AHDNative/issues/106). |
 | `bondTurn` | combined-into | `sovereignIssuancePhase`, `bondCouponMaturityPhase`, and `npcBondHolderPhase`, in that dependency order. Issuance/default gaps are [#110](https://github.com/Egg3901/AHDNative/issues/110). |
 | `commodityPrices`, `contractSettlement` | same-edge | `commodityPricesPhase` immediately precedes `contractSettlementPhase`, so settlement reads the current price. |
 | `lineOfCreditTurn` | missing helper wiring | Pure line-of-credit turn math exists but is not registered; [#111](https://github.com/Egg3901/AHDNative/issues/111). |
@@ -147,14 +171,14 @@ once below. Names sharing a disposition are grouped to keep the map readable.
 | `jpRegionalBudgetProcessing`, `deRegionalBudgetProcessing` | missing | Generic regional processing is not equivalent to these country formulas; [#103](https://github.com/Egg3901/AHDNative/issues/103). |
 | `crisisTurn` | same-edge | `crisisTurnPhase`. |
 | `intelligenceTurn`, `navairOperations` | missing | No Native intelligence or unit-level navair turn; [#41](https://github.com/Egg3901/AHDNative/issues/41). |
-| `ministerialOrders` | same-edge | `ministerialOrdersPhase` immediately precedes `policyEffectsPhase`, so policy recomputation sees current order effects. Issuance remains [#105](https://github.com/Egg3901/AHDNative/issues/105). |
+| `ministerialOrders` | same-edge | `ministerialOrdersPhase` immediately precedes `policyEffectsPhase`, so policy recomputation sees current order effects. Source magnitude and full downstream acceptance remain [#105](https://github.com/Egg3901/AHDNative/issues/105). |
 | `metricEngine` | combined-into | `nationalMetricsPhase` plus `economicModelPhase`; aggregation precedes the economic model. Missing source inputs are [#40](https://github.com/Egg3901/AHDNative/issues/40) and [#106](https://github.com/Egg3901/AHDNative/issues/106). |
 | `demographicFlows`, `census`, `eraCrossing` | same-edge | Direct Native phases; their absolute slots differ. |
 | `metricActivation` | combined-into | `nationalMetricsPhase` calls the era-gated metric activation helper. |
 | `nationalMetrics`, `fiscalBaseGrowth`, `economicModel`, `tradeGrowthMirror`, `inflationRecalc`, `commandEconomy`, `ledgerPreForexSnapshot`, `forexTurn`, `centralBankChairTurn` | same-edge | Direct Native phases. Native preserves trade growth -> mirror -> inflation and pre-FX snapshot -> FX causal edges, but splits the cluster across its registry tail. |
 | `fomcMeetings`, `fomcNominations`, `nppMonetaryOperations`, `centralBankChairExecutiveRemoval` | missing | Central-bank board and nomination lifecycle is [#119](https://github.com/Egg3901/AHDNative/issues/119). |
 | `centralBankChairSelection` | same-edge | `centralBankChairSelectionPhase` follows the chair turn. |
-| `independenceDesireDrift`, `referendumLifecycle`, `partyMemberCountReconcile` | same-edge | Matching direct order for the first two; party reconciliation is registered earlier in Native. Referendum completion gaps are [#42](https://github.com/Egg3901/AHDNative/issues/42). |
+| `independenceDesireDrift`, `referendumLifecycle`, `partyMemberCountReconcile` | same-edge | Matching direct order for the first two; party reconciliation is registered earlier in Native. Request/consent/actuation are wired (#42/#70); broader country/office coverage remains #72/#118. |
 | `metricHistory`, `approvalSnapshot`, `interestRateSnapshot`, `partyHistorySnapshot`, `portfolioSnapshot`, `corpPortfolioSnapshot`, `stockExchangeSnapshot`, `investorRankingSnapshot`, `wealthListSnapshot`, `gameHealthSnapshot`, `moneySupplySnapshot`, `ledgerBalanceSnapshot` | combined-into | `recordWorldHistoryPhase` stores Native's bounded offline history fields after all mutable mechanics. It does not claim Mongo collection equivalence. |
 | `auditAnomalyScan`, `suspiciousDetection` | inapplicable | Server anti-abuse/operator diagnostics over shared multiplayer data. |
 | `ledgerReconcile` | inapplicable | Native has no double-entry ledger collection to reconcile. `history/invariants.ts` offers explicit local conservation checks to callers, but it is not registered or represented as AHDGame ledger parity. Finance gaps remain [#111](https://github.com/Egg3901/AHDNative/issues/111). |

@@ -261,7 +261,8 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // regionalBudgetProcessing, both after metricEngine and before final diagnostics.
   // Solo deviation: placed at tail to avoid shifting existing RNG streams; re-golden will restore mainline order.
   // Unported variants: JP (src/lib/turn/jpRegionalBudget.ts) and DE (src/lib/turn/deRegionalBudget.ts), issue #103.
-  // JP and DE are playable in the 1991 and 2019 packs and use the generic processor.
+  // JP and DE are economy entries, not player countries, in the 1991/2019 packs.
+  // The generic processor consumes recorded regional budget rows, not playable flags.
   //
   // W8 tradeGrowthPhase inserted immediately before fiscalBaseGrowthPhase,
   // mirroring mainline's real ordering (stateEffectsPhase.ts runs

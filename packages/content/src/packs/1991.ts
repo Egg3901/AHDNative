@@ -43,10 +43,9 @@ import { ukRegions1991 } from "./ukRegions1991.js";
  * below are EXTERNAL historical references (published 1991 annual national
  * averages), not mainline-authored. Documented gap, not fabrication.
  *
- * No states/regions/demographics table is shipped for this era (same
- * documented gap as 1979.ts — mainline's states1991.ts /
- * registrationLanes1991.ts are real and citable for a future wave; this
- * pack uses the engine's existing opaque-region fallback).
+ * The state layer below combines generated mainline roster rows with the
+ * authored US and UK era bundles. Each generated file records its own source
+ * revision and remaining fields; this is not full regional-mechanics parity.
  */
 export const pack1991: SeedPack = {
   packVersion: 1,
