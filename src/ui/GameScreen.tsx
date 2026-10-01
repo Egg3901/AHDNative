@@ -14,7 +14,7 @@ import { WorldSettingsPanel } from "./WorldSettingsPanel";
 import { HelpPanel } from "./HelpPanel";
 import { WorldPanel } from "./WorldPanel";
 import { DetailQuery } from "./DetailQuery";
-import { NationPanel } from "./NationPanel";
+import { NationPanel, SubsidyLegislationControls } from "./NationPanel";
 import { EMPTY_SEARCH_SNAPSHOT, SearchPanel, type SearchPanelSnapshot } from "./SearchPanel";
 import type { SearchResult } from "../game/search";
 import { MarketsRoute } from "./MarketsRoute";
@@ -79,7 +79,7 @@ function pageTitle(route: RouteId): string {
 
 const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
   nations: "Nations", worldDirectory: "World directory", worldMap: "World map", state: "Home region",
-  economy: "Economy", budget: "Budget", metrics: "National metrics", policy: "Policy",
+  economy: "Economy", budget: "Budget", metrics: "National metrics", policy: "Policy", commandEconomy: "Command economy",
   legislationDetails: "Legislation details",
   markets: "Stock market",
   sectors: "Sectors",
@@ -580,6 +580,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
       roleConditions={roleConditions}
       metricsAvailable={world.capabilityNav?.metricsAvailable}
       referendumsAvailable={world.capabilityNav?.referendumsAvailable}
+      commandEconomyAvailable={world.player.mode === "hos" && world.nation.commandEconomy?.available === true}
       onAdvanceTurn={onAdvanceTurn}
       onSave={onSave}
       onExit={onExit}
@@ -705,7 +706,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           ) : null}
 
           {route === "legislature" ? (
-            <div className="ahd-stack"><button className="ahd-btn" onClick={() => go("legislationDetails")}>Browse bills and proposals</button><LegislaturePanel legislature={world.legislature} busy={busy} onAction={onAction} clock={clock} />{detailBack ? <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={detailBack.onBack}>{detailBack.name}</button> : null}</div>
+            <div className="ahd-stack"><SubsidyLegislationControls nation={world.nation} busy={busy} onAction={onAction} /><button className="ahd-btn" onClick={() => go("legislationDetails")}>Browse bills and proposals</button><LegislaturePanel legislature={world.legislature} busy={busy} onAction={onAction} clock={clock} />{detailBack ? <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" onClick={detailBack.onBack}>{detailBack.name}</button> : null}</div>
           ) : null}
 
           {route === "elections" ? (
@@ -811,13 +812,15 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           tabIndex={0}
           style={{ outline: "none" }}
         >
-          {(route === "economy" || route === "budget" || route === "policy") && (
+          {(route === "economy" || route === "budget" || route === "policy" || route === "commandEconomy") && (
             <NationPanel
               nation={world.nation}
               section={route}
               clock={clock}
               era={world.era}
               onNavigate={navigate}
+              onAction={onAction}
+              busy={busy}
             />
           )}
           {route === "metrics" && (world.capabilityNav?.metricsAvailable === false ? (
@@ -829,6 +832,8 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
               clock={clock}
               era={world.era}
               onNavigate={navigate}
+              onAction={onAction}
+              busy={busy}
             />
           ))}
           {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={route === "nations" ? (detailId ?? nationContext) : detailId} onSelectNation={route === "nations" ? (id) => { setDetailId(undefined); setNationContext(id); } : undefined} onNavigate={navigate} onDrill={drillViewer} onOpenParty={openParty} onOpenElection={openElection} />}</DetailQuery>}

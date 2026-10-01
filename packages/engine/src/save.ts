@@ -39,6 +39,7 @@ import {
 } from "./corporation/corporateSectorAssets.js";
 import { validateUnionOrganizers } from "./unions/organizers.js";
 import { validateUnionContributionLedger } from "./unions/contributions.js";
+import { makeSeedSoeState } from "./commandEconomy/soe.js";
 import { validateCorporateBondSettlementLedger } from "./bonds/corporateBondDefaultSettlement.js";
 import { validatePlayerLineOfCredit } from "./finance/playerLineOfCredit.js";
 import type { BankCharter } from "./banking/types.js";
@@ -186,6 +187,16 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
         error:
           "This schema 42 document still carries countryPolitics; it is not an authentic schema 42 save",
       };
+    }
+    const authenticCorporations = world["corporations"];
+    if (isRecord(authenticCorporations) && Object.values(authenticCorporations).some(corp =>
+      isRecord(corp) && (hasOwn(corp, "soe") || hasOwn(corp, "legacySoeProjection")))) {
+      return { ok: false, error: "This schema 42 document carries SOE production; it is not an authentic schema 42 save" };
+    }
+    const authenticCommandStates = world["commandEconomy"];
+    if (isRecord(authenticCommandStates) && Object.values(authenticCommandStates).some(state =>
+      isRecord(state) && ["pendingDirectives", "sectorCredit", "directedCreditBySector"].some(key => hasOwn(state, key)))) {
+      return { ok: false, error: "This schema 42 document carries Gosbank directive state; it is not an authentic schema 42 save" };
     }
     const authenticSubsidies = world["subsidies"];
     if (Array.isArray(authenticSubsidies) && authenticSubsidies.length > 0) {
@@ -451,6 +462,29 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     }
   }
 
+  const commandStates = world["commandEconomy"];
+  if (isRecord(commandStates)) {
+    for (const state of Object.values(commandStates)) {
+      if (isRecord(state) && ["pendingDirectives", "sectorCredit", "directedCreditBySector"].some(key => hasOwn(state, key))) {
+        return { ok: false, error: "Gosbank directive and allocation state cannot be continued by schema 42. Keep this Native save." };
+      }
+    }
+  }
+  // Only a reconstructable legacy seed can be removed. Fresh or progressed
+  // SOE production has no consumer in the historical reader, even if it
+  // preserves unfamiliar JSON fields.
+  for (const [corpId, value] of Object.entries(corporations)) {
+    if (!isRecord(value) || !hasOwn(value, "soe")) continue;
+    const provenance = value["legacySoeProjection"];
+    const sector = CORPORATION_TYPES.find(candidate => candidate === value["sectorType"]);
+    if (!isRecord(provenance) || sector === undefined || typeof value["revenue"] !== "number" ||
+        Object.keys(provenance).some(key => key !== "countryOwnerId" && key !== "ownershipState") ||
+        !structurallyEqual(value["soe"], makeSeedSoeState(sector, value["revenue"])) ||
+        value["countryOwnerId"] !== value["countryId"] || value["ownershipState"] !== "stateOwned") {
+      return { ok: false, error: `Corporation ${corpId} has SOE production state that schema 42 cannot continue. Keep this Native save.` };
+    }
+  }
+
   const candidateSave = structuredClone(save);
   const candidateWorld = candidateSave["world"] as Record<string, unknown>;
   const candidateMeta = candidateWorld["meta"] as Record<string, unknown>;
@@ -472,6 +506,15 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (isRecord(candidateFlags)) delete candidateFlags["rpgStats"];
   const candidateCorporations = candidateWorld["corporations"] as Record<string, Record<string, unknown>>;
   for (const [corpId, corp] of Object.entries(candidateCorporations)) {
+    const soeProvenance = corp["legacySoeProjection"];
+    if (isRecord(soeProvenance)) {
+      delete corp["soe"];
+      delete corp["legacySoeProjection"];
+      for (const key of ["countryOwnerId", "ownershipState"] as const) {
+        if (hasOwn(soeProvenance, key)) corp[key] = soeProvenance[key];
+        else delete corp[key];
+      }
+    }
     // v49/v50 migrations may supply only canonical source identity to a
     // legacy save. Remove that provenance-marked default on downgrade so an
     // unchanged schema-42 save stays byte-identical. Current/fresh issuer
@@ -914,6 +957,127 @@ function compactResolvedNpcBallots(world: WorldState): void {
     record["votes"] = Array.isArray(playerVote) && playerVote.every((candidate) => typeof candidate === "string")
       ? { player: playerVote }
       : {};
+  }
+}
+
+function validateCommandEconomySave(world: WorldState): void {
+  const raw = (world as unknown as Record<string, unknown>)["commandEconomy"];
+  if (raw === undefined) return;
+  if (!isRecord(raw)) throw new Error("Not a valid save file: commandEconomy must be a country map");
+
+  const currentTurn = world.meta.turn;
+  for (const [countryId, value] of Object.entries(raw)) {
+    if (!world.countries[countryId] || !isRecord(value) || value["countryId"] !== countryId) {
+      throw new Error(`Not a valid save file: command-economy country identity does not match ${countryId}`);
+    }
+    const validSoeSectors = new Set<string>(Object.values(world.corporations)
+      .filter((corporation) => corporation.countryId === countryId && corporation.soe)
+      .map((corporation) => corporation.soe!.sector));
+    for (const key of ["creditAggressiveness", "budgetSoftness"] as const) {
+      const posture = value[key];
+      if (posture !== undefined && (typeof posture !== "number" || !Number.isFinite(posture) || posture < 0 || posture > 1)) {
+        throw new Error(`Not a valid save file: command-economy ${key} for ${countryId} must be finite in [0,1]`);
+      }
+    }
+    const validateSectorMap = (sectorMap: unknown, key: string, allowNull: boolean) => {
+      if (sectorMap === null && allowNull) return;
+      if (!isRecord(sectorMap)) throw new Error(`Not a valid save file: ${countryId} ${key} must be a sector map`);
+      for (const [sector, weight] of Object.entries(sectorMap)) {
+        if (!validSoeSectors.has(sector) || typeof weight !== "number" || !Number.isFinite(weight) || weight < 0 || weight > 1_000_000) {
+          throw new Error(`Not a valid save file: ${countryId} ${key}.${sector} must be a known sector with a finite weight in [0,1000000]`);
+        }
+      }
+    };
+    if (value["sectorCredit"] !== undefined) validateSectorMap(value["sectorCredit"], "sectorCredit", false);
+    if (value["directedCreditBySector"] !== undefined) {
+      const readout = value["directedCreditBySector"];
+      if (!isRecord(readout)) throw new Error(`Not a valid save file: ${countryId} directedCreditBySector must be a sector map`);
+      for (const [sector, amount] of Object.entries(readout)) {
+        if (!validSoeSectors.has(sector) || typeof amount !== "number" || !Number.isFinite(amount) || amount < 0) {
+          throw new Error(`Not a valid save file: ${countryId} directedCreditBySector.${sector} must be a known sector with finite non-negative credit`);
+        }
+      }
+    }
+
+    const pending = value["pendingDirectives"];
+    if (pending === undefined) continue; // Older saves predate player directives.
+    if (!Array.isArray(pending)) throw new Error(`Not a valid save file: ${countryId} pendingDirectives must be an array`);
+    const ids = new Set<string>();
+    for (const directive of pending) {
+      if (!isRecord(directive)) throw new Error(`Not a valid save file: ${countryId} contains an invalid Gosbank directive`);
+      const id = directive["id"];
+      if (typeof id !== "string" || id.trim().length === 0 || ids.has(id)) {
+        throw new Error(`Not a valid save file: ${countryId} Gosbank directive IDs must be non-empty and unique`);
+      }
+      ids.add(id);
+      if (directive["countryId"] !== countryId) {
+        throw new Error(`Not a valid save file: directive countryId must match ${countryId}`);
+      }
+      const proposedTurn = directive["proposedTurn"];
+      const effectiveTurn = directive["effectiveTurn"];
+      if (
+        !Number.isInteger(proposedTurn) || proposedTurn !== currentTurn ||
+        !Number.isInteger(effectiveTurn) || effectiveTurn !== (proposedTurn as number) + 1
+      ) {
+        throw new Error(`Not a valid save file: directive effectiveTurn must be the next turn after the current turn for ${countryId}`);
+      }
+      if (!id.startsWith(`gosbank-${countryId}-${String(proposedTurn)}-`)) {
+        throw new Error(`Not a valid save file: Gosbank directive ID must match its country and proposal turn for ${countryId}`);
+      }
+      const hasCredit = directive["creditAggressiveness"] !== undefined;
+      const hasSoftness = directive["budgetSoftness"] !== undefined;
+      const hasSectorCredit = directive["sectorCredit"] !== undefined;
+      if (!hasCredit && !hasSoftness && !hasSectorCredit) {
+        throw new Error(`Not a valid save file: Gosbank directive for ${countryId} must set a posture or sector-credit weights`);
+      }
+      if (hasSectorCredit) validateSectorMap(directive["sectorCredit"], "pending sectorCredit", true);
+      for (const key of ["creditAggressiveness", "budgetSoftness"] as const) {
+        const posture = directive[key];
+        if (posture !== undefined && (typeof posture !== "number" || !Number.isFinite(posture) || posture < 0 || posture > 1)) {
+          throw new Error(`Not a valid save file: directive ${key} for ${countryId} must be finite in [0,1]`);
+        }
+      }
+    }
+  }
+}
+
+/** Upgrade old planned-economy saves from their recorded corporation revenue, never invented capacity. */
+function backfillSourceSeededSoeState(world: WorldState): void {
+  for (const corporation of Object.values(world.corporations)) {
+    const commandState = world.commandEconomy[corporation.countryId];
+    if (corporation.soe || !commandState || commandState.marketizationLevel >= 70) continue;
+    corporation.legacySoeProjection = {
+      ...(corporation.countryOwnerId === undefined ? {} : { countryOwnerId: corporation.countryOwnerId }),
+      ...(corporation.ownershipState === undefined ? {} : { ownershipState: corporation.ownershipState }),
+    };
+    corporation.countryOwnerId = corporation.countryId;
+    corporation.ownershipState = "stateOwned";
+    corporation.soe = makeSeedSoeState(corporation.sectorType, corporation.revenue);
+  }
+}
+
+function validateSoeSave(world: WorldState): void {
+  for (const corporation of Object.values(world.corporations)) {
+    const soe = corporation.soe;
+    const provenance = corporation.legacySoeProjection;
+    if (provenance !== undefined && (!soe || !isRecord(provenance) ||
+        Object.keys(provenance).some(key => key !== "countryOwnerId" && key !== "ownershipState") ||
+        (provenance.countryOwnerId !== undefined && typeof provenance.countryOwnerId !== "string") ||
+        (provenance.ownershipState !== undefined && provenance.ownershipState !== "private" && provenance.ownershipState !== "stateOwned"))) {
+      throw new Error(`Not a valid save file: ${corporation.id} has invalid legacy SOE provenance`);
+    }
+    if (!soe) continue;
+    if (soe.sector !== corporation.sectorType || corporation.ownershipState !== "stateOwned" || corporation.countryOwnerId !== corporation.countryId) {
+      throw new Error(`Not a valid save file: ${corporation.id} SOE identity/ownership does not match its corporation`);
+    }
+    for (const key of ["capacity", "output", "planTarget", "efficiency", "cumulativeLosses"] as const) {
+      if (!Number.isFinite(soe[key]) || soe[key] < 0) {
+        throw new Error(`Not a valid save file: ${corporation.id} SOE ${key} must be finite and non-negative`);
+      }
+    }
+    if (soe.directorId !== null && typeof soe.directorId !== "string") {
+      throw new Error(`Not a valid save file: ${corporation.id} SOE directorId must be a character ID or null`);
+    }
   }
 }
 
@@ -2993,7 +3157,10 @@ export function deserializeSave(raw: string): WorldState {
   // Pre-#48 Native saves always applied recorded stats. Preserve that ruleset
   // when the new key is absent; present malformed values still fail closed.
   if (save.world.featureFlags.rpgStats === undefined) save.world.featureFlags.rpgStats = true;
+  backfillSourceSeededSoeState(save.world);
   assertCurrentWorldState(save.world);
+  validateCommandEconomySave(save.world);
+  validateSoeSave(save.world);
   validateBankingState(save.world);
   validateCanvassState(save.world);
   // #295: persisted sector-owner default. Saves written before the

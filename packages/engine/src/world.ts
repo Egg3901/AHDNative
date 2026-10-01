@@ -34,10 +34,11 @@ import {
 import { CENTRAL_BANK_COUNTRY_ANCHORS, CHAIR_TERM_TURNS } from "./centralBank/constants.js";
 import type { CentralBank } from "./centralBank/types.js";
 import { seedCorporations, SOURCE_NPP_HEADQUARTERS_REGION } from "./corporation/founding.js";
+import { makeSeedSoeState } from "./commandEconomy/soe.js";
 import { seedNpcBanks } from "./banking/npcBanks.js";
 import { seedUnions } from "./unions/founding.js";
 import { seedExchangeRates } from "./forex/founding.js";
-import { MARKETIZATION_SCHEDULE, scheduledMarketizationLevel, NPP_DEFAULT_BUDGET_SOFTNESS, NPP_DEFAULT_INTERNAL_REPRESSION, NPP_DEFAULT_REFORMISM } from "./commandEconomy/constants.js";
+import { MARKETIZATION_SCHEDULE, scheduledMarketizationLevel, NPP_DEFAULT_BUDGET_SOFTNESS, NPP_DEFAULT_CREDIT_AGGRESSIVENESS, NPP_DEFAULT_INTERNAL_REPRESSION, NPP_DEFAULT_REFORMISM } from "./commandEconomy/constants.js";
 import type { CommandEconomyState } from "./commandEconomy/types.js";
 import { seedCapitalStock } from "./economy/capitalStock.js";
 import type { UnownedSectorState } from "./economy/types.js";
@@ -874,6 +875,15 @@ export function createWorld(options: NewWorldOptions): WorldState {
     rng,
     0,
   );
+  // Mainline seeds the RU/DD multi-sector state-enterprise layer from authored
+  // corporation revenue. Use the same source SOE seed kernel so Native starts
+  // with recorded plan/output and 10% capacity headroom, never invented units.
+  for (const corporation of Object.values(corporations)) {
+    if (!MARKETIZATION_SCHEDULE[corporation.countryId]) continue;
+    corporation.countryOwnerId = corporation.countryId;
+    corporation.ownershipState = "stateOwned";
+    corporation.soe = makeSeedSoeState(corporation.sectorType, corporation.foundingRevenue);
+  }
   const corpRevenueSnapshots: WorldState["corpRevenueSnapshots"] = {};
   for (const corp of Object.values(corporations)) {
     const existing = corpRevenueSnapshots[corp.countryId];
@@ -911,6 +921,8 @@ export function createWorld(options: NewWorldOptions): WorldState {
       governmentReformism: NPP_DEFAULT_REFORMISM,
       internalRepression: NPP_DEFAULT_INTERNAL_REPRESSION,
       budgetSoftness: NPP_DEFAULT_BUDGET_SOFTNESS,
+      creditAggressiveness: NPP_DEFAULT_CREDIT_AGGRESSIVENESS,
+      pendingDirectives: [],
     };
     commandEconomy[countryId] = state;
   }

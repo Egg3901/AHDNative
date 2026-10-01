@@ -55,11 +55,21 @@ export const UK_CABINET_POSITIONS: readonly CabinetPosition[] = [
   { id: "work_pensions_secretary", name: "Secretary of State for Work and Pensions", order: 14, yearEnabled: 1775 },
 ] as const;
 
+/** The source bank liaison office that carries Native's RU Gosbank-chair authority. */
+export const RU_CABINET_POSITIONS: readonly CabinetPosition[] = [
+  { id: "gosbank_liaison", name: "Council Liaison to Gosbank", order: 1, yearEnabled: 1922 },
+] as const;
+export const DD_CABINET_POSITIONS: readonly CabinetPosition[] = [
+  { id: "gosbank_liaison", name: "Council Liaison to Staatsbank", order: 1, yearEnabled: 1949 },
+] as const;
+
 // PORT-STUB: non-US/UK cabinets modelled as opaque lists — exact yearEnabled/name shapes
 // are deferred until those countries' legislature/cabinet systems are fully ported.
 export const CABINET_POSITIONS_BY_COUNTRY: Record<string, readonly CabinetPosition[]> = {
   US: US_CABINET_POSITIONS,
   UK: UK_CABINET_POSITIONS,
+  RU: RU_CABINET_POSITIONS,
+  DD: DD_CABINET_POSITIONS,
   // W61 roster: ported position tables (cabinet/positionsPorted.ts); filled via the
   // parliamentary direct-appointment path like the UK.
   JP: JP_CABINET_POSITIONS,

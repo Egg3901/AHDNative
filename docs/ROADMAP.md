@@ -10,6 +10,15 @@ controlled eligibility tests do not claim a player-earned recruitment journey.
 [Source behavior and remaining scope](NPP-RELATIONSHIP-PARITY.md) preserve the
 three-human charter and wider targeted-action gaps. Full hosted review is pending.
 
+## Subsidy and Gosbank controls checkpoint, 2026-10-01 (#94 partial)
+
+National subsidy proposal/voting/signing and pending credit posture/sector weights
+now have real player controls, source authority, saved lifecycle and budget/overlay
+consumers. Public engine tests and actual 320px/390px two-reload journeys pass.
+[Source comparison](ECONOMIC-CONTROL-PARITY.md) records the remaining default
+Game plants-mode capital/replacement chain, director request weighting and state
+subsidy scope. #94 stays open; the corporate prerequisites remain in #107.
+
 ## Verified CEO card closure, 2026-10-01 (#51)
 
 PR706 full hosted verification passed at exact `9276713` and merged as
@@ -28,8 +37,7 @@ identity, factory/brand treatment and state-enterprise note are preserved.
 Both 320px/390px real-player journeys complete two normal save/reloads, including
 card absence after resignation. [Behavior and acceptance evidence](BEHAVIORAL-PARITY.md)
 record the bounded completion; whole corporate mechanics #107, current SP
-interchange and physical-device gates remain open. Full hosted review is pending
-before issue closure.
+interchange and physical-device gates remain open. Full hosted review passed for PR706 at9276713; merged e6731b3 and #51 is confirmed closed.
 ## Corporate-sector union player checkpoint, 2026-10-01 (#297)
 
 Public organization, weighted leadership/acceptance, wage-based dues, sector

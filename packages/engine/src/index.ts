@@ -148,6 +148,7 @@ export {
 export type { ElectoralCollegeResult } from "./elections/presidentialElectoralCollege.js";
 export * from "./cabinet/types.js";
 export * from "./cabinet/constants.js";
+export * from "./commandEconomy/authority.js";
 export * from "./cabinet/nominationLifecycle.js";
 export * from "./cabinet/transition.js";
 export * from "./corporation/corporateSectorAssets.js";
