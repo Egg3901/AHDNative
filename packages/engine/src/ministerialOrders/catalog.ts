@@ -76,12 +76,16 @@ const NATIVE_NATIONAL_METRIC_PATHS = new Set([
 
 function resolveNationalMetric(world: WorldState, countryId: string, sourceMetric: string): string | null {
   const metrics = world.nationalMetrics[countryId] ?? {};
+  const hasTarget = (path: string) => Number.isFinite(metrics[path]?.value)
+    && (!Object.values(TFP_METRIC_PATHS).includes(path)
+      || Object.values(world.regions).some((region) => region.countryId === countryId
+        && Number.isFinite(world.regionalMetrics[region.id]?.[path]?.value)));
   if (NATIVE_NATIONAL_METRIC_PATHS.has(sourceMetric)) {
-    return Number.isFinite(metrics[sourceMetric]?.value) ? sourceMetric : null;
+    return hasTarget(sourceMetric) ? sourceMetric : null;
   }
   if (sourceMetric.includes(".")) return null;
   const matches = [...NATIVE_NATIONAL_METRIC_PATHS].filter((path) => (
-    path.endsWith(`.${sourceMetric}`) && Number.isFinite(metrics[path]?.value)
+    path.endsWith(`.${sourceMetric}`) && hasTarget(path)
   ));
   return matches.length === 1 ? matches[0]! : null;
 }

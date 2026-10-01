@@ -101,4 +101,15 @@ describe("ministerial order catalog public boundary", () => {
       expect(transit.blocker).toBe("unsupportedMetric:infrastructure.publicTransit");
     }
   });
+
+  it("blocks a national-only TFP leaf whose regional writer has no recorded target", () => {
+    const world = createWorld({ era: "1953", countryId: "US", playerName: "Catalog Test", seed: "orders-no-regional-target" });
+    world.regionalMetrics = {};
+    const skills = classifyMinisterialOrders(world, "US", "secretary_of_education")
+      .find((order) => order.id === "workforce_skills_initiative");
+    expect(skills?.availability).toBe("blocked");
+    if (skills?.availability === "blocked") {
+      expect(skills.blocker).toBe("unsupportedMetric:education.workforceSkill");
+    }
+  });
 });
