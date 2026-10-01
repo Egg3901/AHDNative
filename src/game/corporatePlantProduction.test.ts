@@ -3,7 +3,7 @@ import type { WorldState } from "@ahdclient/engine";
 import { GameSession } from "./session";
 
 function sessionWorld(session: GameSession): WorldState {
-  return (session as unknown as { requireWorld(): WorldState }).requireWorld();
+  return JSON.parse(session.serialize("2026-10-01T00:00:00.000Z")).world as WorldState;
 }
 
 describe("corporate plants through GameSession", () => {
