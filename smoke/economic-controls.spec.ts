@@ -58,9 +58,8 @@ for (const width of [320, 390]) {
     await expect(page.getByLabel('Budget softness')).toHaveValue('0.23');
     await expect(page.getByLabel('energy credit weight')).toHaveValue('80');
     await expect(page.getByLabel('manufacturing credit weight')).toHaveValue('20');
-    await navigateGame(page, 'National Budget');
+    // The source Gosbank report is on Command Economy, separate from Budget.
     await expect(page.getByLabel('Last turn Gosbank credit')).toContainText('energy');
-    await navigateGame(page, 'Command Economy');
     await saveGame(page);
     await page.reload();
     await expect(page.getByRole('button', { name: 'Continue Economic Controls Player', exact: true })).toBeVisible();
