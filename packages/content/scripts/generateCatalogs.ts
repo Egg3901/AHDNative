@@ -135,7 +135,7 @@ function emit(c: string, types: LT[]): void {
       }
       if (base === undefined) { base = rates[Math.floor(rates.length / 2)] ?? 0; taxNote = "baselineRate = median authored option (no policyDefaults entry for this preset; PORT-STUB)"; }
       const options = isAvailable
-        ? `, options: ${JSON.stringify((t.policyOptions ?? []).flatMap((option) => typeof option.rate === "number" ? [{ id: option.id, rate: option.rate, economic: option.economic ?? 0, social: option.social ?? 0 }] : []))}`
+        ? `, options: ${JSON.stringify((t.policyOptions ?? []).flatMap((option) => typeof option.rate === "number" ? [{ id: option.id, rate: option.rate, ...(typeof option.effectDirection === "number" ? { effectDirection: option.effectDirection } : {}), economic: option.economic ?? 0, social: option.social ?? 0 }] : []))}`
         : "";
       taxPolicy = `    taxPolicy: { scope: ${q(t.taxRateChange!.scope)}, taxType: ${q(t.taxRateChange!.taxType)}, minRate: ${min}, maxRate: ${max}, step: ${step || 1}, baselineRate: ${base}${options} },\n`;
       tax++;
