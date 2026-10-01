@@ -58,6 +58,7 @@ const ASK_NAVIGATION_HOSTS: &[&str] = &[
     "discord.com",
     "accounts.google.com",
     "www.google.com",
+    "appleid.apple.com",
 ];
 
 /// The Ask auth surface may stay inside the Ask service, the auth broker
@@ -98,9 +99,12 @@ const ONLINE_HOST: &str = "ahousedividedgame.com";
 #[cfg(desktop)]
 const AUXILIARY_ONLINE_HOSTS: &[&str] = &[
     "www.ahousedividedgame.com",
+    // Cloudflare Turnstile on sign-up and password reset runs in an iframe.
+    "challenges.cloudflare.com",
     "discord.com",
     "accounts.google.com",
     "www.google.com",
+    "appleid.apple.com",
 ];
 
 #[cfg(desktop)]
@@ -108,6 +112,45 @@ fn is_online_origin(url: &Url) -> bool {
     url.scheme() == "https"
         && url.host_str() == Some(ONLINE_HOST)
         && url.port_or_known_default() == Some(443)
+}
+
+/// Hosts that only ever appear as embedded frames: video players, ad and
+/// consent frames. WKWebView (iOS and macOS) reports iframe loads to the
+/// navigation policy with no main-frame flag (wry 0.55), so these must never
+/// be treated as a page the player asked to open elsewhere.
+#[cfg(desktop)]
+const EMBED_ONLY_HOSTS: &[&str] = &[
+    "www.youtube-nocookie.com",
+    "youtube-nocookie.com",
+    "googleads.g.doubleclick.net",
+    "td.doubleclick.net",
+    "pagead2.googlesyndication.com",
+    "tpc.googlesyndication.com",
+    "fundingchoicesmessages.google.com",
+    "www.googletagmanager.com",
+];
+
+#[cfg(desktop)]
+fn is_embed_only(url: &Url) -> bool {
+    let Some(host) = url.host_str() else {
+        return false;
+    };
+    EMBED_ONLY_HOSTS.contains(&host)
+        || (matches!(host, "www.youtube.com" | "youtube.com" | "m.youtube.com")
+            && url.path().starts_with("/embed/"))
+}
+
+/// Schemes that only back frames and in-page resources, never a page to open.
+#[cfg(desktop)]
+fn is_frame_scheme(url: &Url) -> bool {
+    matches!(url.scheme(), "about" | "blob" | "data")
+}
+
+/// Desktop keeps frame resources inside the webview: a campaign song embed
+/// plays in place and a blank frame is not bounced to the browser.
+#[cfg(desktop)]
+pub(crate) fn is_frame_resource(url: &Url) -> bool {
+    is_frame_scheme(url) || is_embed_only(url)
 }
 
 #[cfg(desktop)]
@@ -140,6 +183,9 @@ async fn open_mp_auth_window(app: tauri::AppHandle, url: Url) -> Result<(), Stri
         .center()
         .resizable(true)
         .on_navigation(move |url| {
+            if is_frame_resource(url) {
+                return true;
+            }
             if is_online_navigation_allowed(url) {
                 true
             } else {
@@ -393,8 +439,8 @@ pub fn run() {
 mod tests {
     use super::{
         external_destination_url, is_account_session_cookie, is_ask_navigation_allowed,
-        is_online_navigation_allowed, is_online_origin, mobile_mp_launcher_url, mp_sign_in_path,
-        mp_signin_return_home, mp_signin_watch_done, ASK_URL,
+        is_frame_resource, is_online_navigation_allowed, is_online_origin, mobile_mp_launcher_url,
+        mp_sign_in_path, mp_signin_return_home, mp_signin_watch_done, ASK_URL,
     };
 
     #[test]
@@ -603,6 +649,7 @@ mod tests {
             "https://discord.com/oauth2/authorize",
             "https://accounts.google.com/o/oauth2/v2/auth",
             "https://www.google.com/",
+            "https://appleid.apple.com/auth/authorize",
         ] {
             assert!(is_online_navigation_allowed(
                 &allowed.parse::<Url>().unwrap()
@@ -613,11 +660,113 @@ mod tests {
             "https://login.discord.com/",
             "https://accounts.google.com:444/",
             "https://example.com/",
+            "http://appleid.apple.com/auth/authorize",
+            "https://appleid.apple.com:444/auth/authorize",
+            "https://appleid.apple.com.evil.example/auth/authorize",
+            "https://apple.com.evil.example/auth/authorize",
         ] {
             assert!(!is_online_navigation_allowed(
                 &denied.parse::<Url>().unwrap()
             ));
         }
+    }
+
+    #[test]
+    fn frame_resources_are_recognised_without_swallowing_real_links() {
+        // Client 799a992 drift: Turnstile, blank/blob/data frames and
+        // embed-only hosts stay inside desktop webviews; real page links
+        // (including YouTube watch pages) still leave through the opener.
+        let blank: Url = "about:blank".parse().unwrap();
+        let srcdoc: Url = "about:srcdoc".parse().unwrap();
+        let blob: Url = "blob:https://ahousedividedgame.com/abc".parse().unwrap();
+        let data: Url = "data:text/html,<p>hi</p>".parse().unwrap();
+        let nocookie: Url = "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
+            .parse()
+            .unwrap();
+        let embed: Url = "https://www.youtube.com/embed/dQw4w9WgXcQ".parse().unwrap();
+        let mobile_embed: Url = "https://m.youtube.com/embed/dQw4w9WgXcQ".parse().unwrap();
+        let ad: Url = "https://googleads.g.doubleclick.net/pagead/ads"
+            .parse()
+            .unwrap();
+        let consent: Url = "https://fundingchoicesmessages.google.com/e/f?x=1"
+            .parse()
+            .unwrap();
+        let watch: Url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            .parse()
+            .unwrap();
+        let channel: Url = "https://www.youtube.com/@somechannel".parse().unwrap();
+        let lookalike: Url = "https://www.youtube-nocookie.com.evil.example/embed/x"
+            .parse()
+            .unwrap();
+        let evil_embed: Url = "https://youtube.com.evil.example/embed/x".parse().unwrap();
+        let turnstile: Url =
+            "https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/turnstile/"
+                .parse()
+                .unwrap();
+
+        for frame in [
+            &blank,
+            &srcdoc,
+            &blob,
+            &data,
+            &nocookie,
+            &embed,
+            &mobile_embed,
+            &ad,
+            &consent,
+        ] {
+            assert!(is_frame_resource(frame), "{frame} must stay in the webview");
+        }
+        for page in [&watch, &channel, &lookalike, &evil_embed, &turnstile] {
+            assert!(
+                !is_frame_resource(page),
+                "{page} must not be treated as a frame"
+            );
+        }
+        // Turnstile stays in the sign-in window through the allowlist, not
+        // the frame rule.
+        assert!(is_online_navigation_allowed(&turnstile));
+    }
+
+    #[test]
+    fn online_navigation_allows_the_turnstile_iframe_origin_exactly() {
+        let turnstile: Url =
+            "https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/turnstile/"
+                .parse()
+                .unwrap();
+        assert!(is_online_navigation_allowed(&turnstile));
+        for denied in [
+            "http://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/turnstile/",
+            "https://challenges.cloudflare.com:444/",
+            "https://challenges.cloudflare.com.evil.example/",
+            "https://evil-challenges.cloudflare.com/",
+        ] {
+            assert!(
+                !is_online_navigation_allowed(&denied.parse::<Url>().unwrap()),
+                "{denied} must stay out of the webview"
+            );
+        }
+    }
+
+    #[test]
+    fn desktop_auth_windows_keep_frame_resources_in_place() {
+        // Every desktop surface guarding remote navigation must consult the
+        // frame rule, or iframe loads bounce to the system browser. The
+        // hidden cold-boot restore window composes the same rule inline.
+        for (file, source) in [
+            ("lib.rs", include_str!("lib.rs")),
+            ("ask.rs", include_str!("ask.rs")),
+        ] {
+            assert!(
+                source.contains("is_frame_resource(url)"),
+                "{file} must consult the frame rule"
+            );
+        }
+        let session = include_str!("mp_session.rs");
+        assert!(
+            session.contains("is_frame_resource(url)"),
+            "mp_session.rs must consult the frame rule"
+        );
     }
 
     #[test]
@@ -633,7 +782,8 @@ mod tests {
         let google: Url = "https://accounts.google.com/o/oauth2/v2/auth"
             .parse()
             .unwrap();
-        for allowed in [&service, &broker, &game, &discord, &google] {
+        let apple: Url = "https://appleid.apple.com/auth/authorize".parse().unwrap();
+        for allowed in [&service, &broker, &game, &discord, &google, &apple] {
             assert!(
                 is_ask_navigation_allowed(allowed),
                 "{allowed} should stay in-app"
@@ -645,6 +795,9 @@ mod tests {
             "https://ask.evil.example.com/",
             "https://ask-lakesidegames-net.example.com/",
             "https://example.com/",
+            "http://appleid.apple.com/auth/authorize",
+            "https://appleid.apple.com:444/auth/authorize",
+            "https://appleid.apple.com.evil.example/auth/authorize",
         ] {
             assert!(
                 !is_ask_navigation_allowed(&denied.parse::<Url>().unwrap()),
