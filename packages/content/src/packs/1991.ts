@@ -3,6 +3,7 @@ import { BUDGETS_1991 } from "./budgets1991.js";
 import { ROSTER_1991_PARTIES, ROSTER_1991_LEGISLATURES, ROSTER_1991_STATES } from "./roster1991.js";
 import { usStates1991 } from "./usStates1991.js";
 import { ukRegions1991 } from "./ukRegions1991.js";
+import { US_CORPORATION_HEADQUARTERS_REGIONS } from "./corporationHeadquarters.js";
 
 /**
  * Ported from mainline AHDGame ("1991-default" preset) — real authored 1991
@@ -133,6 +134,7 @@ export const pack1991: SeedPack = {
   // State layer (regions, apportionment, registration) generated from mainline's
   // per-era bundles by scripts/generateStateLayer.ts; see each file's header.
   states: [...ROSTER_1991_STATES, ...usStates1991, ...ukRegions1991],
+  corporationHeadquartersRegions: [...US_CORPORATION_HEADQUARTERS_REGIONS],
   // Authored national budgets for every playable country (generateBudgets.ts).
   budgets: BUDGETS_1991,
   parties: [

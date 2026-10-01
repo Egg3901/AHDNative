@@ -8,6 +8,16 @@ consumers. Public engine tests and actual 320px/390px two-reload journeys pass.
 [Source comparison](ECONOMIC-CONTROL-PARITY.md) records the remaining default
 Game plants-mode capital/replacement chain, director request weighting and state
 subsidy scope. #94 stays open; the corporate prerequisites remain in #107.
+
+## CEO Profile card checkpoint, 2026-10-01 (#51)
+
+Recorded CEO/vacancy and public shareholder vote, acceptance, compensation and
+resignation now drive the shared Profile/company projection. Source issuer
+identity, factory/brand treatment and state-enterprise note are preserved.
+Both 320px/390px real-player journeys complete two normal save/reloads, including
+card absence after resignation. [Behavior and acceptance evidence](BEHAVIORAL-PARITY.md)
+record the bounded completion; whole corporate mechanics #107, current SP
+interchange and physical-device gates remain open. Full hosted review passed for PR706 at9276713; merged e6731b3 and #51 is confirmed closed.
 ## Corporate-sector union player checkpoint, 2026-10-01 (#297)
 
 Public organization, weighted leadership/acceptance, wage-based dues, sector
@@ -1006,6 +1016,26 @@ and disband controls. Whip, health, recruitment, elections, color,
 description, motto and rename remain unrecorded with no public engine action;
 recruitment and leadership changes through validated commands remain the next
 #60 work.
+
+## Party/caucus quote and source costs checkpoint (#61 partial)
+
+#61 partial: create, join, leave, tax-edit and disband now quote and charge
+0 AP and 0 campaign funds, matching AHDGame
+`954f1c21781e6e767455a15eed40f73993d89a8b` POST/PATCH/DELETE caucus routes
+and party leave. `quotePartyCaucusAction` is the one projection the
+dispatcher, session DTO and UI confirmation read. Chair tax/disband
+authority is the recorded `chairId`, never `memberIds[0]`. The recorded
+chair cannot self-leave and must disband or hand over. A declined action
+leaves the full serialized world unchanged. Caucus leave confirms with
+`Leave ${name}?`. Native `foundParty` stays the 8 AP + 100k immediate/NPP
+cofounder proxy; source `draftCharter` / `ratifyCharter` (3 eligible human
+cofounders, 14-turn expiry, adjacency/Overton) is not a public action
+(#95). Evidence: `src/game/partyCaucusSourceParity.test.ts`,
+`src/game/caucusManagement.test.ts`,
+`packages/engine/src/actions/partyCaucus.test.ts`,
+`src/ui/CaucusPanel.test.tsx`. [Caucus evidence](CAUCUS-MANAGEMENT.md)
+records the source routes and the exact unchecked remainder. This does not
+close #61 or #95.
 
 ## World and new-game setup checkpoint, 2026-09-14 (#241)
 

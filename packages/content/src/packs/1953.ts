@@ -3,6 +3,7 @@ import { usStates1953 } from "./usStates1953.js";
 import { ukRegions1953 } from "./ukRegions1953.js";
 import { ruRegions1953 } from "./ruRegions1953.js";
 import { ddRegions1953 } from "./ddRegions1953.js";
+import { US_CORPORATION_HEADQUARTERS_REGIONS } from "./corporationHeadquarters.js";
 
 /**
  * Generated from mainline AHDGame  -  DO NOT HAND-EDIT.
@@ -111,6 +112,7 @@ export const pack1953: SeedPack = {
     },
   ],
   states: [...usStates1953, ...ukRegions1953, ...ruRegions1953, ...ddRegions1953],
+  corporationHeadquartersRegions: [...US_CORPORATION_HEADQUARTERS_REGIONS],
   countries: [
     {
       id: "US",

@@ -312,6 +312,17 @@ describe("state layer (regions, apportionment) per pack", () => {
     }
   });
 
+  it("keeps the Game-authored DC corporation HQ as residence geography without political state seeding", () => {
+    for (const pack of PACKS) {
+      expect(pack.corporationHeadquartersRegions).toContainEqual({
+        id: "DC",
+        countryId: "US",
+        name: "District of Columbia",
+      });
+      expect((pack.states ?? []).some((region) => region.id === "DC")).toBe(false);
+    }
+  });
+
   it("UK: 12 regions whose council seats sum to the regionalCouncil chamber", () => {
     for (const pack of PACKS) {
       const uk = (pack.states ?? []).filter((s) => s.countryId === "UK");

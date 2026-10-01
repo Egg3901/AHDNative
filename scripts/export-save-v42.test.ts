@@ -16,14 +16,19 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
-import { advanceTurn, createWorld, deserializeSave, serializeSave } from "@ahdclient/engine";
+import { advanceTurn, createWorld, deserializeSave, projectSaveToV42, serializeSave } from "@ahdclient/engine";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, "..");
 const CLI = join(REPO_ROOT, "scripts", "export-save-v42.ts");
 const FIXTURE_GZ = join(REPO_ROOT, "fixtures", "v42-1953-US.save.json.gz");
+const PRE_CEO_FRESH_SOURCE_GZ = join(REPO_ROOT, "fixtures", "native-fresh-pre-ceo-source.save.json.gz");
+const V42_OLD_READER_IDENTITY_PROOF = join(REPO_ROOT, "fixtures", "v42-current-identity-old-reader-proof.json");
 const FIXTURE_SHA = "471352be87c8887dcc6ae02f465b898272f62843b5e0861a45138c2de7f58cdc";
-const NATIVE_FRESH_KEEP_HOME_SHA = "404370ac2e43de737ce3e664fafde05f34a8298bb51db2de9de8ae6de6c59b03";
+// Captured from af2f59b718ccb26beafa41e0c44b9bdcc1b47e7e with the exact
+// createWorld arguments below, before #51 added source-backed issuer identity.
+const PRE_CEO_FRESH_V42_SHA = "404370ac2e43de737ce3e664fafde05f34a8298bb51db2de9de8ae6de6c59b03";
+const V42_READER_COMMIT = "c5017542c860f5f94b7d4b4d5cfea2939b28995d";
 const SAVED_AT = "2026-09-10T00:00:00.000Z";
 
 function sha256(text: string): string {
@@ -76,6 +81,21 @@ describe("export-save-v42 CLI", () => {
     expect(readFileSync(output, "utf8")).toBe(authentic);
   }, 60_000);
 
+  it("projects the pinned pre-#51 source world to its historical v42 bytes", () => {
+    const historicalSource = gunzipSync(readFileSync(PRE_CEO_FRESH_SOURCE_GZ)).toString("utf8");
+    const sourceEnvelope = JSON.parse(historicalSource) as { schemaVersion: number; world: { meta: { schemaVersion: number } } };
+    expect(sourceEnvelope.schemaVersion).toBe(48);
+    expect(sourceEnvelope.world.meta.schemaVersion).toBe(48);
+    const dir = freshDir();
+    const input = join(dir, "in.save.json");
+    const output = join(dir, "out.save.json");
+    const migrated = deserializeSave(historicalSource);
+    writeFileSync(input, serializeSave(migrated, SAVED_AT));
+    const run = runCli("--input", input, "--output", output);
+    expect(run.status).toBe(0);
+    expect(sha256(readFileSync(output, "utf8"))).toBe(PRE_CEO_FRESH_V42_SHA);
+  }, 60_000);
+
   it("refuses when the output already exists and leaves it untouched", () => {
     const dir = freshDir();
     const input = join(dir, "in.save.json");
@@ -100,6 +120,80 @@ describe("export-save-v42 CLI", () => {
     expect(run.stderr).toContain("unparseable JSON");
   }, 60_000);
 
+  it("projects isolated source issuer identity without unsupported regional metric records", () => {
+    const identityOnly = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    // This controlled identity-only document excludes fresh SOE production.
+    // The engine suite independently proves that normal SOE saves refuse v42.
+    for (const corporation of Object.values(identityOnly.corporations)) delete corporation.soe;
+    const world = deserializeSave(serializeSave(identityOnly, SAVED_AT));
+    expect(world.player.homeRegionId).toBe("AL");
+    // Isolate the supported issuer-identity extension. The separate fresh
+    // world case above proves normal TFP worlds fail closed.
+    world.regionalMetrics = {};
+    const projection = projectSaveToV42(serializeSave(world, SAVED_AT));
+    expect(projection.ok).toBe(true);
+    if (!projection.ok) throw new Error(projection.error);
+    const reloaded = deserializeSave(projection.contents);
+    const oldReaderProof = JSON.parse(readFileSync(V42_OLD_READER_IDENTITY_PROOF, "utf8")) as {
+      sourceCommit: string;
+      readerCommit: string;
+      readerSchema: number;
+      before: { region: Record<string, unknown>; corporation: Record<string, unknown> };
+      after: { region: Record<string, unknown>; corporation: Record<string, unknown> };
+    };
+    expect(oldReaderProof.readerCommit).toBe(V42_READER_COMMIT);
+    expect(oldReaderProof.readerSchema).toBe(42);
+    expect(oldReaderProof.sourceCommit).toBe("abb33daeb45bfe26241f047804ccac8c25781781");
+    expect(oldReaderProof.after).toEqual(oldReaderProof.before);
+    expect(oldReaderProof.before).toEqual({
+      region: {
+        id: "DC",
+        countryId: "US",
+        name: "District of Columbia",
+        corporationHeadquartersOnly: true,
+      },
+      corporation: {
+        name: "Daily Media",
+        brandColor: "#06b6d4",
+        headquartersRegionId: "DC",
+      },
+    });
+    expect(reloaded.regions.DC).toMatchObject(oldReaderProof.after.region);
+    expect(reloaded.corporations["US-media"]).toMatchObject(oldReaderProof.after.corporation);
+    const dir = freshDir();
+    const input = join(dir, "in.save.json");
+    const output = join(dir, "out.save.json");
+    writeFileSync(input, serializeSave(world, SAVED_AT));
+    const run = runCli("--input", input, "--output", output);
+    expect(run.status).toBe(0);
+    const contents = readFileSync(output, "utf8");
+    const parsed = JSON.parse(contents) as {
+      schemaVersion: number;
+      world: {
+        meta: { schemaVersion: number };
+        countryPolitics?: unknown;
+        player: { homeRegionId?: unknown };
+        regions?: Record<string, { id?: unknown; countryId?: unknown; corporationHeadquartersOnly?: unknown }>;
+        corporations?: Record<string, { name?: unknown; brandColor?: unknown; headquartersRegionId?: unknown }>;
+      };
+    };
+    expect(parsed.schemaVersion).toBe(42);
+    expect(parsed.world.meta.schemaVersion).toBe(42);
+    expect(parsed.world.player.homeRegionId).toBe("AL");
+    expect(Object.prototype.hasOwnProperty.call(parsed.world, "countryPolitics")).toBe(false);
+    expect(parsed.world.regions?.DC).toEqual({
+      id: "DC",
+      countryId: "US",
+      name: "District of Columbia",
+      corporationHeadquartersOnly: true,
+    });
+    expect(parsed.world.corporations?.["US-media"]).toMatchObject({
+      name: "Daily Media",
+      brandColor: "#06b6d4",
+      headquartersRegionId: "DC",
+    });
+  }, 60_000);
+
   it("exports the historical pre-control pre-turn world as the keep-home v42 extension", () => {
     const world = deserializeSave(gunzipSync(readFileSync(join(REPO_ROOT, "fixtures", "native-fresh-pre-ceo-source.save.json.gz"))).toString("utf8"));
     expect(world.player.homeRegionId).toBe("AL");
@@ -110,7 +204,7 @@ describe("export-save-v42 CLI", () => {
     const run = runCli("--input", input, "--output", output);
     expect(run.status).toBe(0);
     const contents = readFileSync(output, "utf8");
-    expect(sha256(contents)).toBe(NATIVE_FRESH_KEEP_HOME_SHA);
+    expect(sha256(contents)).toBe(PRE_CEO_FRESH_V42_SHA);
     const parsed = JSON.parse(contents) as {
       schemaVersion: number;
       world: { meta: { schemaVersion: number }; countryPolitics?: unknown; player: { homeRegionId?: unknown } };

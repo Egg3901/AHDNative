@@ -475,7 +475,7 @@ describe("save/reload — old saves and round-trips", () => {
     const raw = JSON.stringify({ format: "ahdsolo-save", schemaVersion: 47, savedAt: "2026-01-01T00:00:00Z", world });
     const loaded = deserializeSave(raw);
     expect(loaded.meta.schemaVersion).toBe(SCHEMA_VERSION);
-    expect(SCHEMA_VERSION).toBe(48);
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(48);
     expect(loaded.interbankLoans).toEqual([]);
   });
 
