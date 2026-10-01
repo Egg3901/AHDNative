@@ -55,6 +55,8 @@ The reference is AHDGame `cb66acdf0129616b8a09902727e9b58715c8bacb`:
 - `packages/engine/src/trade/corporateTrade.test.ts`: independent two-country
   source-clearing/value-conservation vector; embargo and planned-economy curtain
   behavior; federal healthcare, planned media, and household source vectors.
+- `packages/engine/src/trade/clearing.test.ts`: source feasibility caps and
+  conservation after structural-zero constraints.
 - `packages/engine/src/corporation/plantProduction.test.ts`: physical regional
   supply/input legs conserve into their country rows.
 - `src/game/corporateTradeFlow.test.ts`: actual `GameSession` turn, persisted
@@ -64,8 +66,11 @@ The reference is AHDGame `cb66acdf0129616b8a09902727e9b58715c8bacb`:
   listed issuer.
 - `src/ui/MarketsPanel.test.tsx`: the actual read-only route receipt and
   commodity context render in Markets.
-- Engine typecheck is queued through the shared check scheduler; its final
-  result is not yet recorded here.
+- Engine typecheck job `20261001T201905Z-8d824bde` failed on diagnostics in
+  unions, referendum, and other engine modules. No diagnostics remained in
+  `src/trade/clearing.ts` or `src/trade/corporateTrade.ts` after the strict-safe
+  fix. This result does not establish those remaining diagnostics are baseline
+  errors relative to `main`.
 
 ## Original #77 acceptance disposition
 
