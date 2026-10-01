@@ -4,7 +4,7 @@
  * AHDGame's processNppGovernment writes governingAgenda/fiscalStance only for
  * a formed government with an NPC NPP head; the bill phase consumes those
  * saved fields on later turns. Ireland is `econ` / `enabledForPlayers:false`
- * in both source presets supported here (1991 and 2019). Native does not run
+ * in all Native-supported source presets (1953, 1979, 1991, and 2019). Native does not run
  * this producer for the pending government or a player Taoiseach.
  *
  * Sources: AHDGame cb66acdf0129616b8a09902727e9b58715c8bacb,
@@ -690,10 +690,10 @@ function domainHealthFor(
   return health;
 }
 
-function sourceNpcManagedInPreset(countryId: string, era: string): boolean {
+export function sourceNpcManagedInPreset(countryId: string, era: string): boolean {
   // Source cb66acdf eraRoster.ts classifies IE as econ-only (players disabled)
-  // in exactly the supported 1991 and 2019 packs.
-  return countryId === "IE" && (era === "1991" || era === "2019");
+  // in each Native-supported pack: 1953, 1979, 1991, and 2019.
+  return countryId === "IE" && ["1953", "1979", "1991", "2019"].includes(era);
 }
 
 function clearDirectives(government: GovernmentState): void {

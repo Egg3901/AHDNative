@@ -14,6 +14,7 @@ import {
   crisisAgendaIntake,
   nppGovernmentDirectivesPhase,
   refreshIrishNpcGovernmentDirectives,
+  sourceNpcManagedInPreset,
 } from "./directives.js";
 
 function formNpcGovernment(world: ReturnType<typeof createWorld>): string {
@@ -99,6 +100,14 @@ describe("source Ireland NPP governing directives", () => {
     expect(phaseNames.indexOf("nppGovernmentDirectives")).toBeLessThan(
       phaseNames.indexOf("pmAppointment"),
     );
+  });
+
+  it("matches source NPC-management eligibility in every shipped Native era", () => {
+    expect(["1953", "1979", "1991", "2019"].map((era) =>
+      sourceNpcManagedInPreset("IE", era),
+    )).toEqual([true, true, true, true]);
+    expect(sourceNpcManagedInPreset("US", "1991")).toBe(false);
+    expect(sourceNpcManagedInPreset("IE", "1960")).toBe(false);
   });
 
   it("matches independently executed Game agenda and fiscal stance vector", () => {
