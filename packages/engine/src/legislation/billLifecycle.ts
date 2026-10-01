@@ -22,7 +22,7 @@ import { UNEMPLOYMENT_MIN, UNEMPLOYMENT_MAX } from "../economy/macroConstants.js
 import { triggerDebtCeilingCrisis } from "../budget/debtCeiling.js";
 import { applyCurrencyUnionProvision } from "../finance/currencyUnion.js";
 import type { PolicyLedgerEntry } from "../policyEffects/types.js";
-import { stepTaxRate, needsPhaseIn } from "../budget/taxRatePhaseIn.js";
+import { markTaxRatePhaseInStartedThisTurn, stepTaxRate, needsPhaseIn } from "../budget/taxRatePhaseIn.js";
 import { calculateBudgetRevenue } from "../budget/revenue.js";
 import { regionalGdpAbsolute, applyStateTaxToRegionalRevenue } from "../budget/regionalBudget.js";
 import { rebuildPolicyBudgets } from "../policyEffects/budget.js";
@@ -309,8 +309,10 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
       const stepped = stepTaxRate(current, target);
       budget.taxRates = { ...budget.taxRates, [taxType]: stepped };
       const pending = { ...(budget.taxRatePhaseIn ?? {}) };
-      if (needsPhaseIn(current, target)) pending[taxType] = target;
-      else delete pending[taxType];
+      if (needsPhaseIn(current, target)) {
+        pending[taxType] = target;
+        markTaxRatePhaseInStartedThisTurn(world, bill.countryId, taxType);
+      } else delete pending[taxType];
       budget.taxRatePhaseIn = pending;
       budget.revenue = calculateBudgetRevenue(budget.taxRates, budget.taxBases, budget.revenue.other);
       budget.surplus = budget.revenue.total - budget.spending.total;

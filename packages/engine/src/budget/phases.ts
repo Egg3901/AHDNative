@@ -49,16 +49,29 @@ export const fiscalBaseGrowthPhase: TurnPhase = {
       budget.revenue = rev;
       // Keep surplus consistent
       budget.surplus = rev.total - budget.spending.total;
-      // Ticket #1102: mainline treasuryTurn.ts walks pending rates after the
-      // corporation revenue refresh. Reached targets drop out on their own.
+      // Ticket #1102: walk any enacted tax-rate change one step toward its
+      // target (mainline treasuryTurn.ts). Enactment/directive phases already
+      // make the source's first step earlier in this turn, so do not advance
+      // those new targets twice in one advanceTurn call.
       if (budget.taxRatePhaseIn && Object.keys(budget.taxRatePhaseIn).length > 0) {
-        const ramp = advanceTaxRatePhaseIn(budget.taxRates as unknown as Record<string, number>, budget.taxRatePhaseIn as Record<string, number>);
+        const startedThisTurn = new Set(world.taxRatePhaseInStartedThisTurn ?? []);
+        const skipped: Record<string, number> = {};
+        const advancing: Record<string, number> = {};
+        for (const [taxType, target] of Object.entries(budget.taxRatePhaseIn)) {
+          if (startedThisTurn.has(`${budget.countryId}:${taxType}`)) skipped[taxType] = target;
+          else advancing[taxType] = target;
+        }
+        const ramp = advanceTaxRatePhaseIn(
+          budget.taxRates as unknown as Record<string, number>,
+          advancing,
+        );
         if (ramp.changed) {
           budget.taxRates = { ...budget.taxRates, ...(ramp.rates as Partial<typeof budget.taxRates>) };
-          budget.taxRatePhaseIn = ramp.pending as typeof budget.taxRatePhaseIn;
         }
+        budget.taxRatePhaseIn = { ...ramp.pending, ...skipped } as typeof budget.taxRatePhaseIn;
       }
     }
+    delete world.taxRatePhaseInStartedThisTurn;
   },
 };
 

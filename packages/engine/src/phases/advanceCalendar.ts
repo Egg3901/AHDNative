@@ -4,6 +4,7 @@ import type { TurnPhase } from "./types.js";
 export const advanceCalendarPhase: TurnPhase = {
   name: "advanceCalendar",
   run(world) {
+    delete world.taxRatePhaseInStartedThisTurn;
     world.meta.turn += 1;
     if (world.meta.preIteration?.active === true) return;
     world.meta.date = addDaysIso(world.meta.date, DAYS_PER_TURN);
