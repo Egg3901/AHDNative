@@ -1,5 +1,16 @@
 # AHDNative roadmap
 
+## CEO Profile card checkpoint, 2026-10-01 (#51)
+
+Recorded CEO/vacancy and public shareholder vote, acceptance, compensation and
+resignation now drive the shared Profile/company projection. Source issuer
+identity, factory/brand treatment and state-enterprise note are preserved.
+Both 320px/390px real-player journeys complete two normal save/reloads, including
+card absence after resignation. [Behavior and acceptance evidence](BEHAVIORAL-PARITY.md)
+record the bounded completion; whole corporate mechanics #107, current SP
+interchange and physical-device gates remain open. Full hosted review is pending
+before issue closure.
+
 ## Demographic canvassing checkpoint, 2026-10-01 (#57 / #91 partial)
 
 The source standalone Voter Canvassing flow replaces the old region-only proxy:

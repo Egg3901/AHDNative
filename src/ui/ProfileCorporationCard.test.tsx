@@ -111,6 +111,22 @@ describe("#51 profile corporation card", () => {
     expect(onNavigate).toHaveBeenCalledWith("markets", "US-media");
   });
 
+  it("shows the source national-enterprise note for a recorded state-enterprise CEO", () => {
+    const session = new GameSession();
+    session.create(CEO_OPTIONS);
+    expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
+    expect(session.act("voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);
+    expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
+    // Nationalization is outside this card slice. Load a valid recorded
+    // state-enterprise fixture through the public save boundary.
+    const saved = JSON.parse(session.serialize(SAVED_AT));
+    saved.world.corporations["US-media"].ownershipState = "stateOwned";
+    saved.world.corporations["US-media"].countryOwnerId = "US";
+    session.load(JSON.stringify(saved));
+    renderPanel(session.profile(), vi.fn());
+    expect(corporationSection()!.textContent).toContain("National enterprise");
+  });
+
   it("supports the complete shareholder CEO and compensation path on the company detail", async () => {
     const session = new GameSession();
     session.create(CEO_OPTIONS);

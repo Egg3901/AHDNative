@@ -1029,6 +1029,7 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
                   </span>
                   <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
                     {entry.name} <span className="ahd-muted">({entry.ticker})</span>
+                    {entry.isStateOwned && <span className="ahd-profile-sub">National enterprise</span>}
                     <span className="ahd-profile-sub">{entry.countryName} · {entry.sectorLabel}</span>
                   </span>
                 </span>
