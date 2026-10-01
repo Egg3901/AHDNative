@@ -1573,6 +1573,8 @@ export interface Region {
   id: string;
   countryId: string;
   name: string;
+  /** Original aggregate country whose successful referendum produced this recorded sub-region. */
+  sourceCountryId?: string;
   /** Residence geography only; intentionally omitted from state voter/economic systems. */
   corporationHeadquartersOnly?: boolean;
   /** Migration provenance: this HQ-only row was absent from the legacy save. */

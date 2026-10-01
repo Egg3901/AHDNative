@@ -534,7 +534,6 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
       return { ok: false, error: `Corporation ${corpId} has SOE production state that schema 42 cannot continue. Keep this Native save.` };
     }
   }
-
   const candidateSave = structuredClone(save);
   const candidateWorld = candidateSave["world"] as Record<string, unknown>;
   const candidateMeta = candidateWorld["meta"] as Record<string, unknown>;

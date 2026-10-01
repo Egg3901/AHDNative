@@ -62,6 +62,7 @@ import {
   stepCorporateSectorStrikes,
   type CorporationLabourFactors,
 } from "./corporationLabour.js";
+import { syncSourceRegionalSectorReceipts } from "./sourceRegionalSectorSeed.js";
 import { runCorporatePlantProductionTurn } from "./plantProduction.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { makeRdInnovationRng } from "./rdInnovationRng.js";
@@ -326,16 +327,22 @@ export const corporationTurnPhase: TurnPhase = {
     // strike resolution steps after the corp math (reference sector-pass
     // order: production effects from turn-start state, then the step).
     const labour = loadCorporationLabourState(world, world.meta.turn);
-    const subsidies = Array.isArray(world.subsidies) ? world.subsidies : [];
     const labourByCorp = new Map(
       Object.keys(world.corporations).map((corpId) => [corpId, labourFactorsForCorporation(world, corpId, labour)]),
     );
     runCorporatePlantProductionTurn(world, new Map(
       [...labourByCorp].map(([corpId, factors]) => [corpId, factors.outputFactor]),
     ));
+    const subsidies = Array.isArray(world.subsidies) ? world.subsidies : [];
     for (const corp of Object.values(world.corporations)) {
       const taxRatePct = world.budgets?.[corp.countryId]?.taxRates.domesticCorporateTax ?? DEFAULT_CORPORATE_TAX_RATE_PCT;
       const currencyCode = world.budgets?.[corp.countryId]?.currencyCode ?? world.exchangeRates?.[corp.countryId]?.currencyCode ?? "XXX";
+      const labourFactors = labourByCorp.get(corp.id)!;
+      const subsidyMargin = subsidyMarginModifierForCorporation(subsidies, corp);
+      const labourAndSubsidy = {
+        ...labourFactors,
+        marginModifierPP: labourFactors.marginModifierPP + subsidyMargin,
+      };
       const asset = Object.values(world.corporateSectors ?? {}).find((candidate) => candidate.corporationId === corp.id);
       const fx = world.exchangeRates?.[corp.countryId]?.rate ?? 1;
       const marketizationLevel = world.commandEconomy[corp.countryId]?.marketizationLevel ?? 100;
@@ -348,12 +355,7 @@ export const corporationTurnPhase: TurnPhase = {
         marketizationLevel,
         currentTargetRate: corp.targetGrowthRate,
       });
-      const labourFactors = labourByCorp.get(corp.id)!;
-      const subsidyMargin = subsidyMarginModifierForCorporation(subsidies, corp);
-      runCorporationTurn(corp, taxRatePct, {
-        ...labourFactors,
-        marginModifierPP: labourFactors.marginModifierPP + subsidyMargin,
-      }, { player: world.player, currencyCode }, true, {
+      runCorporationTurn(corp, taxRatePct, labourAndSubsidy, { player: world.player, currencyCode }, true, {
         localPerAnchor: fx,
         avgWageLevel: asset?.wageLevel ?? 1,
       }, {
@@ -364,6 +366,7 @@ export const corporationTurnPhase: TurnPhase = {
       updateNppCorporationFinancialPolicy(corp, world.meta.era, fx);
     }
     runCorporateRdInnovations(world);
+    syncSourceRegionalSectorReceipts(world);
     stepCorporateSectorStrikes(world, world.meta.turn, labour);
 
     // Per-country revenue rollup for the macro growth-signal wire (see file doc).

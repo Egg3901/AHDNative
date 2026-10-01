@@ -57,6 +57,8 @@ import { isOrderFlowPriceEligible } from "../market/orderFlow.js";
 import { isPlannedEconomy } from "../commandEconomy/constants.js";
 import { canPlayerOperateGosbank } from "../commandEconomy/authority.js";
 import { reconcileCeoAppointment } from "../corporation/ceoGovernance.js";
+import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
+import { nationalizeDistressedCorporation } from "../corporation/nationalization.js";
 import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
 import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecruit.js";
 import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
@@ -108,6 +110,8 @@ export type ExecuteActionParams = {
   whipMode?: "hard" | "soft";
   // W10 markets
   corpId?: string;
+  corporationId?: string;
+  tier?: "seizure";
   shares?: number;
   // W13 bonds
   bondId?: string;
@@ -2233,6 +2237,22 @@ function executeActionInner(
     }
     return { ok: true, message: `Wired ${amount} ${res.currency} to ${res.recipientName}` };
   }
+  if (actionId === "nationalizeCorporation") {
+    if (found.kind !== "player") {
+      actor.actions += cost;
+      return { ok: false, error: "Only the sitting head of government may order an executive nationalization." };
+    }
+    if (params.tier !== "seizure") {
+      actor.actions += cost;
+      return { ok: false, error: "Executive nationalization currently supports only the source seizure tier." };
+    }
+    const result = nationalizeDistressedCorporation(world, params.corporationId ?? "", actorId);
+    if (!result.ok) {
+      actor.actions += cost;
+      return result;
+    }
+    return { ok: true, message: result.message };
+  }
 
   return { ok: false, error: `No effect for ${actionId}` };
 }
@@ -2339,6 +2359,10 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.corpId && params.shares !== undefined && Number.isInteger(params.shares) && params.shares > 0
         ? null
         : `${actionId} requires corpId and a positive integer shares amount`;
+    case "nationalizeCorporation":
+      return params.corporationId && params.tier === "seizure"
+        ? null
+        : "nationalizeCorporation requires corporationId and tier 'seizure'";
     case "voteCeo":
       return params.corpId && params.candidateId ? null : "voteCeo requires corpId and candidateId";
     case "acceptCeoAppointment":

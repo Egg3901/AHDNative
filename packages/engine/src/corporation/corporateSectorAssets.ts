@@ -33,6 +33,8 @@ export interface CorporateSectorAsset {
   countryId: string;
   stateId: string | null;
   sectorType: CorporationType;
+  /** Recorded local turnover for a region-level slice of Native's aggregate issuer. */
+  revenue?: number;
   /** Source CorporateSector output-unit stock under the default plants tier. */
   capitalStock?: number;
   /** Paid plant basis in anchor (USD-era) currency, matching Game field semantics. */
@@ -182,7 +184,7 @@ export function projectCorporateSector(world: WorldState, asset: CorporateSector
   }
   return {
     ...asset,
-    revenue: corporation.revenue,
+    revenue: asset.revenue ?? corporation.revenue,
     profitMargin: corporation.profitMargin,
     targetGrowthRate: corporation.targetGrowthRate,
     currentGrowthRate: corporation.currentGrowthRate,
