@@ -33,7 +33,7 @@ for (const width of [320, 390]) {
       await page.getByRole('button', { name: 'Trade Union Strength and Worker Protections', exact: true }).click();
       await expect(page.getByRole('heading', { name: 'Trade Union Strength and Worker Protections', exact: true })).toBeVisible();
       await expect(page.getByRole('table', { name: 'Regional breakdown' }).getByRole('row', { name: /London.*53\.9/ })).toBeVisible();
-      await expect(page.getByText('Ministerial orders', { exact: true })).toBeVisible();
+      await expect(page.getByText(/^Ministerial orders \+0\.1 points$/)).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
     };
     await openMetric();
