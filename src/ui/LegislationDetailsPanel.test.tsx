@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { createWorld } from "@ahdclient/engine";
+import { buildLegislationDetails } from "../game/legislationDetails";
 import type { LegislationDetailsQuery, LegislationBillDetails } from "../game/legislationDetails";
 
 function makeQuery(): LegislationDetailsQuery {
@@ -65,7 +67,7 @@ function makeQuery(): LegislationDetailsQuery {
         ],
         targets: [{ metricId: "economy.workerSecurity", weight: 1 }],
         effect: { economy: { unemploymentRate: -0.002 }, partySupport: { supportDelta: 1 } },
-        sponsorAvailable: true, sponsorCost: 4,
+        sponsorAvailable: true, sponsorCost: 10, sponsorNpiCost: 5,
       },
       {
         id: "us.tax.incomeTax",
@@ -75,7 +77,7 @@ function makeQuery(): LegislationDetailsQuery {
         taxPolicy: { scope: "federal", taxType: "incomeTax", minRate: 0, maxRate: 60, step: 1, baselineRate: 35 },
         targets: [],
         effect: { economy: { growthRate: -0.0005 } },
-        sponsorAvailable: true, sponsorCost: 4,
+        sponsorAvailable: true, sponsorCost: 10, sponsorNpiCost: 5,
       },
     ],
     selectedBill: null,
@@ -256,13 +258,61 @@ describe("LegislationDetailsPanel", () => {
       kind: "tax", category: "economy", allowedScope: "national", targets: [],
       taxPolicy: { scope: "federal", taxType: "salesTax", minRate: 0, maxRate: 35, step: 2, baselineRate: 21,
         options: [{ id: "ie_vat_rate_opt_5", rate: 21, economic: 0, social: 0 }, { id: "ie_vat_rate_opt_6", rate: 23, economic: 0, social: 0 }] },
-      sponsorAvailable: true, sponsorCost: 4,
+      sponsorAvailable: true, sponsorCost: 10, sponsorNpiCost: 5,
     };
     query.proposals.push(query.selectedProposal);
     render(<LegislationDetailsPanel query={query} busy={false} onAction={onAction} />);
     await user.selectOptions(screen.getByRole("combobox", { name: "Tax rate" }), "23");
     await user.click(screen.getByRole("button", { name: /sponsor bill/i }));
     expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "ie_vat_rate", taxRate: 23, originChamber: "house" });
+  });
+
+  it("lets a Chinese Head of State propose an authored VAT option", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const LegislationDetailsPanel = await renderPanel();
+    const world = createWorld({
+      seed: "cn-law-ui-2019",
+      playerName: "China Player",
+      countryId: "CN",
+      era: "2019",
+      mode: "hos",
+    });
+    world.player.nationalInfluence = 5;
+    const freshQuery = buildLegislationDetails(world);
+    freshQuery.selectedProposal = freshQuery.proposals.find((proposal) => proposal.id === "cn_value_added_tax") ?? null;
+    expect(freshQuery.office).toBe("Head of state");
+    expect(freshQuery.selectedProposal?.taxPolicy?.options?.map((option) => option.rate)).toContain(15);
+    expect(freshQuery.selectedProposal).toMatchObject({ sponsorAvailable: true, sponsorCost: 10, sponsorNpiCost: 5 });
+    render(<LegislationDetailsPanel query={freshQuery} busy={false} onAction={onAction} />);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Tax rate" }), "15");
+    await user.click(screen.getByRole("button", { name: /sponsor bill/i }));
+    expect(onAction).toHaveBeenCalledWith("sponsorBill", {
+      catalogId: "cn_value_added_tax",
+      taxRate: 15,
+      originChamber: freshQuery.chambers[0]?.chamberKey,
+    });
+  });
+
+  it("keeps a zero-NPI source tariff proposal available while gating a five-NPI tax proposal", async () => {
+    const LegislationDetailsPanel = await renderPanel();
+    const world = createWorld({
+      seed: "cn-law-ui-source-cost-gate",
+      playerName: "China Player",
+      countryId: "CN",
+      era: "2019",
+      mode: "hos",
+    });
+    const query = buildLegislationDetails(world);
+    const vat = query.proposals.find((proposal) => proposal.id === "cn_value_added_tax");
+    const tariff = query.proposals.find((proposal) => proposal.id === "cn_customs_tariff");
+    expect(vat).toMatchObject({ sponsorAvailable: false, sponsorNpiCost: 5 });
+    expect(vat?.sponsorDisabledReason).toContain("national influence");
+    expect(tariff).toMatchObject({ sponsorAvailable: true, sponsorCost: 10, sponsorNpiCost: 0 });
+    query.selectedProposal = vat ?? null;
+    render(<LegislationDetailsPanel query={query} busy={false} onAction={vi.fn()} />);
+    expect(screen.getByText("Cost 10 actions + 5 national influence")).toBeInTheDocument();
+    expect(screen.getByText(/Not enough national influence/)).toBeInTheDocument();
   });
 
   it("votes on an open bill through the supported vote action", async () => {

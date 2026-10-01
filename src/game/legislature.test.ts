@@ -15,6 +15,13 @@ import {
 const options = { era: "1953", countryId: "US", seed: "native-legislature-v1", playerName: "Alex" };
 const savedAt = "2026-09-10T00:00:00.000Z";
 
+function governmentSave(): string {
+  const world = createWorld({ ...options, mode: "hos" });
+  // Supply the source-required budget for this scoped bill lifecycle fixture.
+  world.player.nationalInfluence = 5;
+  return serializeSave(world, savedAt);
+}
+
 describe("legislature through the session contract", () => {
   it("shows country proposals but requires office before sponsoring", () => {
     const session = new GameSession();
@@ -29,7 +36,7 @@ describe("legislature through the session contract", () => {
   });
   it("loads a government save, sponsors a real bill and preserves its separate voting gate", () => {
     const session = new GameSession();
-    session.load(serializeSave(createWorld({ ...options, mode: "hos" }), savedAt));
+    session.load(governmentSave());
     expect(session.view().legislature.office).toBe("Head of state");
     expect(session.act("sponsorBill", { catalogId: "us.economy.workerSecurity.primary" }).ok).toBe(true);
     const bill = session.view().legislature.bills.find((b) => b.sponsorName === "Alex")!;
@@ -60,11 +67,16 @@ describe("legislature through the session contract", () => {
     expect(race?.winnerNames).toEqual([
       "Muse", "Priya Russell",
     ]);
+    // Sponsorship consumes 5 NPI, earned by the actual elected-office writer.
+    for (let turns = 0; turns < 6 && JSON.parse(session.serialize(savedAt)).world.player.nationalInfluence < 5; turns++) {
+      session.advance();
+    }
+    expect(JSON.parse(session.serialize(savedAt)).world.player.nationalInfluence).toBeGreaterThanOrEqual(5);
     expect(session.act("sponsorBill", { catalogId: "us.economy.workerSecurity.primary" }).ok).toBe(true);
     const loaded = new GameSession(); loaded.load(session.serialize(savedAt));
     expect(loaded.view().legislature.office).toBe("House of Representatives · United States");
     expect(loaded.view().elections.find((e) => e.id === race?.id)?.winnerNames).toEqual(race?.winnerNames);
-  }, 20_000);
+  }, 60_000);
 });
 
 describe("legislature navigation through the session boundary", () => {
@@ -206,7 +218,7 @@ describe("legislature navigation through the session boundary", () => {
 
   it("links sponsorship and the floor schedule to the selected chamber across a turn", () => {
     const session = new GameSession();
-    session.load(serializeSave(createWorld({ ...options, mode: "hos" }), savedAt));
+    session.load(governmentSave());
     expect(session.act("sponsorBill", {
       catalogId: "us.economy.workerSecurity.primary",
       originChamber: "house",

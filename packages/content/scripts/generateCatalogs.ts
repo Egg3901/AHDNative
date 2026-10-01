@@ -63,7 +63,7 @@ const sourceRootArg = process.argv.indexOf("--source-root");
 const sourceRoot = path.resolve(sourceRootArg >= 0 ? process.argv[sourceRootArg + 1] ?? "" : process.cwd());
 type InventoryRow = { id: string; countryId: string; nativeScope: string; sourceScope: string | null; prerequisites: string[]; authoredTargets: string[]; taxRateChange: { scope: string; taxType: string } | null; authoredRateOptions: Array<{ id: string; rate: number }>; blockingSystem: string; sourcePath: string; sourceMatch: "matched" | "unmatched" };
 const inventory: InventoryRow[] = [];
-const EXECUTABLE_LAW_IDS = new Set(["jp_consumption_tax", "br_income_tax_rate", "ie_vat_rate"]);
+const EXECUTABLE_LAW_IDS = new Set(["jp_consumption_tax", "br_income_tax_rate", "ie_vat_rate", "cn_value_added_tax", "cn_enterprise_income_tax", "cn_individual_income_tax", "cn_social_insurance_contribution", "cn_customs_tariff"]);
 
 assertPinnedSourceCheckout(sourceRoot, SOURCE_REVISION);
 
@@ -135,7 +135,7 @@ function emit(c: string, types: LT[]): void {
       }
       if (base === undefined) { base = rates[Math.floor(rates.length / 2)] ?? 0; taxNote = "baselineRate = median authored option (no policyDefaults entry for this preset; PORT-STUB)"; }
       const options = isAvailable
-        ? `, options: ${JSON.stringify((t.policyOptions ?? []).flatMap((option) => typeof option.rate === "number" ? [{ id: option.id, rate: option.rate, economic: option.economic ?? 0, social: option.social ?? 0 }] : []))}`
+        ? `, options: ${JSON.stringify((t.policyOptions ?? []).flatMap((option) => typeof option.rate === "number" ? [{ id: option.id, rate: option.rate, ...(typeof option.effectDirection === "number" ? { effectDirection: option.effectDirection } : {}), economic: option.economic ?? 0, social: option.social ?? 0 }] : []))}`
         : "";
       taxPolicy = `    taxPolicy: { scope: ${q(t.taxRateChange!.scope)}, taxType: ${q(t.taxRateChange!.taxType)}, minRate: ${min}, maxRate: ${max}, step: ${step || 1}, baselineRate: ${base}${options} },\n`;
       tax++;

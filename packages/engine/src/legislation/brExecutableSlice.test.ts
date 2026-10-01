@@ -36,6 +36,8 @@ describe("Brazil executable legislation slice", () => {
     const world = createWorld({ seed: "br-law", playerName: "P", countryId: "BR", era: "1991" });
     world.player.mode = "hos";
     world.player.actions = 100;
+    // Scoped lifecycle fixture funds proposals at source 10 AP / 5 NPI each.
+    world.player.nationalInfluence = 15;
     const startingRate = world.budgets.BR!.taxRates.incomeTax;
 
     const invalid = executeAction(world, "player", "sponsorBill", { catalogId: LAW_ID, taxRate: 11 });
@@ -47,7 +49,7 @@ describe("Brazil executable legislation slice", () => {
     expect(world.bills.at(-1)).toMatchObject({
       legislationTypeId: LAW_ID,
       selectedRate: 24,
-      effectDirection: 1,
+      effectDirection: -1,
       status: "proposed",
     });
     const first = world.bills.at(-1)!;
@@ -61,7 +63,7 @@ describe("Brazil executable legislation slice", () => {
     world.player.legislativeSeat = null;
     expect(executeAction(world, "player", "sponsorBill", { catalogId: LAW_ID, taxRate: 0 }).ok).toBe(true);
     const replacement = world.bills.at(-1)!;
-    expect(replacement.effectDirection).toBe(-1);
+    expect(replacement.effectDirection).toBe(1);
     passBill(world, replacement);
     expect(world.budgets.BR!.taxRates.incomeTax).toBe(startingRate);
     expect(world.budgets.BR!.taxRatePhaseIn?.incomeTax).toBe(0);
