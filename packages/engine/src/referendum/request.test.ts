@@ -21,7 +21,7 @@ describe("requestReferendum action (issue #42)", () => {
 
     const result = executeAction(world, "player", "requestReferendum", { regionId: "SCO" });
 
-    expect(result).toEqual({ ok: true, message: "SCO independence referendum granted." });
+    expect(result).toEqual({ ok: true, message: "SCO independence referendum granted.", changes: { actions: -3 } });
     expect(world.referendums).toHaveLength(1);
     expect(world.referendums[0]).toMatchObject({
       id: "referendum-SCO-0",

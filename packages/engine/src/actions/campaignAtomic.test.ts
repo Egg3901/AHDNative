@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
 import { executeAction } from "./execute.js";
 
-const OPTIONS = { era: "1953", countryId: "US", seed: "issue-88-atomic", playerName: "Alex" } as const;
+const OPTIONS = { era: "1953", countryId: "US", seed: "issue-88-atomic", playerName: "Alex",
+  stats: { charisma: 3, debate: 3, energy: 3, fundraising: 3, businessAcumen: 3, statecraft: 3, intellect: 10 } } as const;
 
 describe("#88 campaign accounting", () => {
   it("charges player action points and funds together and returns a structured result", () => {
