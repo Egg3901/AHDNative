@@ -160,8 +160,10 @@ describe("#261 validated ministerial order issue command", () => {
     expect(world.cabinetMembers[0]!.ministerialActions).toBe(0);
   });
 
-  it("keeps defense orders unavailable with a named blocker", () => {
+  it("keeps defense orders unavailable when historical political state is absent", () => {
     const world = worldWithHolder(holder({ positionId: "secretary_of_defense" }));
+    delete world.regionalPoliticalMetrics;
+    delete world.politicalCabinetContributions;
 
     expect(() => issueMinisterialOrder(world, {
       countryId: "US",
