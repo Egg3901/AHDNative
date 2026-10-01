@@ -16,7 +16,7 @@ describe("RegionsPanel", () => {
     const world = createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "regions-extraction-panel" });
     world.executives.US = { countryId: "US", presidentId: "player", presidentParty: null, termStartTurn: 0, vicePresidentId: null, vicePresidentParty: null };
     const onAction = vi.fn();
-    const view = render(<RegionsPanel query={projectRegions(world, { regionId: "TX" })} onQueryChange={vi.fn()} directoryOpen={false} onDirectoryOpenChange={vi.fn()} onAction={onAction} />);
+    render(<RegionsPanel query={projectRegions(world, { regionId: "TX" })} onQueryChange={vi.fn()} directoryOpen={false} onDirectoryOpenChange={vi.fn()} onAction={onAction} />);
 
     expect(screen.getByRole("region", { name: "Texas extraction contracts" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Commission national survey" })).toBeEnabled();
@@ -35,7 +35,7 @@ describe("RegionsPanel", () => {
     corporation.ceoType = "player";
     corporation.ceoVacant = false;
     const onAction = vi.fn();
-    render(<RegionsPanel query={projectRegions(world, { regionId: "TX" })} onQueryChange={vi.fn()} directoryOpen={false} onDirectoryOpenChange={vi.fn()} onAction={onAction} />);
+    const view = render(<RegionsPanel query={projectRegions(world, { regionId: "TX" })} onQueryChange={vi.fn()} directoryOpen={false} onDirectoryOpenChange={vi.fn()} onAction={onAction} />);
 
     const expand = screen.getByRole("button", { name: "Expand extraction operations" });
     fireEvent.click(expand);

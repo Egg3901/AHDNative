@@ -77,6 +77,7 @@ function ActionCard({
   const [amount, setAmount] = useState("10");
   const [partyId, setPartyId] = useState(parties[0]?.id ?? "");
   const [regionId, setRegionId] = useState(regions[0]?.id ?? "");
+  const [corporationId, setCorporationId] = useState(action.choices?.[0]?.id ?? "");
   const [budgetCategory, setBudgetCategory] = useState("defense");
   const [taxField, setTaxField] = useState("incomeTax");
 
@@ -115,6 +116,12 @@ function ActionCard({
       }
       setRegionError(null);
       params.regionId = regionId;
+    }
+    if (action.requires === "corporation") {
+      const corporation = action.choices?.find((choice) => choice.id === corporationId) ?? action.choices?.[0];
+      if (!corporation) return;
+      params.corporationId = corporation.id;
+      params.tier = "seizure";
     }
     if (action.requires === "budgetSpending") {
       const value = Number(amount);
@@ -218,6 +225,15 @@ function ActionCard({
           {selectedRegion ? <div className="ahd-help" aria-live="polite">Target: {selectedRegion.name}. This region is sent with the action.</div> : null}
           {regionError ? <span id={`region-error-${action.id}`} className="ahd-error-text" role="alert">{regionError}</span> : null}
         </div>
+      ) : null}
+      {action.requires === "corporation" ? (
+        <label className="ahd-field" style={{ maxWidth: "20rem" }}>
+          <span className="ahd-label">Distressed corporation</span>
+          <select className="ahd-select" value={action.choices?.some((choice) => choice.id === corporationId) ? corporationId : action.choices?.[0]?.id ?? ""} onChange={(event) => setCorporationId(event.target.value)} disabled={busy || !action.available || !action.choices?.length} aria-label={`Corporation for ${action.name}`}>
+            {action.choices?.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}
+            {!action.choices?.length ? <option value="">No eligible corporations</option> : null}
+          </select>
+        </label>
       ) : null}
 
       <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap" }}>

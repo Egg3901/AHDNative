@@ -33,15 +33,18 @@ import { seedCountryPolitics } from "./countryPolitics/overview.js";
 import {
   backfillSectorOwner,
   backfillSectorWorkforce,
+  backfillSectorPlantCapital,
   calculateSectorWorkers,
   initialRepresentingUnionId,
   validateCorporateSectorAssets,
 } from "./corporation/corporateSectorAssets.js";
+import { validatePlantMarketDemand } from "./corporation/plantDemand.js";
 import { validateUnionOrganizers } from "./unions/organizers.js";
 import { validateUnionContributionLedger } from "./unions/contributions.js";
 import { makeSeedSoeState } from "./commandEconomy/soe.js";
 import { validateCorporateBondSettlementLedger } from "./bonds/corporateBondDefaultSettlement.js";
 import { validatePlayerLineOfCredit } from "./finance/playerLineOfCredit.js";
+import { validateNationalSavingsPools } from "./finance/playerSavingsInterest.js";
 import type { BankCharter } from "./banking/types.js";
 import { validateBankingState } from "./banking/validate.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
@@ -171,6 +174,19 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   }
   const save = parsed;
   const world = parsed["world"];
+  // The pinned v42 turn reader has no corporate issuer servicing, buyback or
+  // settlement path. Keeping an issuer row as an opaque extension would retain
+  // bytes but freeze coupons/default/maturity consequences in that reader.
+  // Refuse the projection while any corporate bond exists rather than imply
+  // behavioral interchange from unknown-field preservation alone.
+  const bondRows = world["bonds"];
+  if (isRecord(bondRows) && Object.values(bondRows).some((row) => isRecord(row) && row["issuerType"] === "corporation")) {
+    return { ok: false, error: "Corporate bond lifecycle state cannot be projected to the schema 42 turn reader; keep this Native save." };
+  }
+  const poolRows = world["bondMarketPools"];
+  if (isRecord(poolRows) && Object.keys(poolRows).length > 0) {
+    return { ok: false, error: "Bond market pool cash cannot be projected to the schema 42 turn reader; keep this Native save." };
+  }
   const meta = world["meta"] as Record<string, unknown>;
   const player = world["player"] as Record<string, unknown>;
   const turnoutRows = world["regionTurnouts"];
@@ -262,9 +278,21 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (hasOwn(world, "bankingLaws") || hasOwn(world, "bankPropTradingEnabled")) {
     return { ok: false, error: `Banking policies cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
+  const savingsPolicy = world["savingsAccountsPolicy"];
+  if (
+    isRecord(savingsPolicy) &&
+    savingsPolicy["mode"] === "authoritative" &&
+    Array.isArray(savingsPolicy["readCurrencies"]) &&
+    savingsPolicy["readCurrencies"].length > 0
+  ) {
+    return { ok: false, error: `Authoritative savings-holder policy cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
   const centralBanks = world["centralBanks"];
   if (isRecord(centralBanks)) {
     for (const bank of Object.values(centralBanks)) {
+      if (isRecord(bank) && typeof bank["nationalSavingsBalance"] === "number" && bank["nationalSavingsBalance"] > 0) {
+        return { ok: false, error: `Active national savings pool state cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+      }
       if (isRecord(bank) && (hasOwn(bank, "reserveBalance") || hasOwn(bank, "netMoneyCreatedLifetime"))) {
         return { ok: false, error: `Central-bank facility accounting cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
       }
@@ -337,6 +365,37 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const interbankLoans = world["interbankLoans"];
   if (Array.isArray(interbankLoans) && interbankLoans.length > 0) {
     return { ok: false, error: `Interbank loan records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
+  const nppInfluenceAttempts = world["nppInfluenceAttempts"];
+  if (Array.isArray(nppInfluenceAttempts) && nppInfluenceAttempts.length > 0) {
+    return { ok: false, error: `NPP influence attempt records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
+  if (hasOwn(world, "nppInfluenceRng")) {
+    return { ok: false, error: `NPP influence RNG progress cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
+  const nppRelationships = world["nppRelationships"];
+  if (isRecord(nppRelationships)) {
+    for (const rel of Object.values(nppRelationships)) {
+      if (isRecord(rel) && (hasOwn(rel, "lastAttemptTurn") || hasOwn(rel, "totalAttempts") || hasOwn(rel, "successfulAttempts"))) {
+        return { ok: false, error: `NPP influence relationship progress cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+      }
+    }
+  }
+  const caucuses = world["caucuses"];
+  if (Array.isArray(caucuses)) {
+    for (const caucus of caucuses) {
+      if (isRecord(caucus) && hasOwn(caucus, "lastNppRecruitTurn")) {
+        return { ok: false, error: `Caucus NPP recruitment progress cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+      }
+    }
+  }
+  const politicians = world["politicians"];
+  if (Array.isArray(politicians)) {
+    for (const politician of politicians) {
+      if (isRecord(politician) && hasOwn(politician, "retiredAt") && politician["retiredAt"]) {
+        return { ok: false, error: `Retired NPP records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+      }
+    }
   }
   const corporations = world["corporations"];
   if (!isRecord(corporations)) {
@@ -431,6 +490,28 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     }
   }
 
+  // Preserve the earlier market/governance refusal before checking R&D.
+  for (const [corpId, value] of Object.entries(corporations)) {
+    if (!isRecord(value)) continue;
+    const rdAmounts = ["rdBudgetPerTurn", "rdScore", "lastRdSpendPerTurn", "lastRdCapacityGain"].map((field) => value[field]);
+    const hasNonzeroRdState = rdAmounts.some((amount) =>
+      amount !== undefined && (typeof amount !== "number" || !Number.isFinite(amount) || amount !== 0),
+    );
+    if (hasNonzeroRdState) {
+      return { ok: false, error: `Corporation ${corpId} has R&D state that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+    }
+  }
+
+  // The actual v42 engine has no corporate plant-production/market phase.
+  // Keeping unfamiliar JSON keys cannot continue the recorded production.
+  const sectorAssets = world["corporateSectors"];
+  const hasPlantCapacity = isRecord(sectorAssets) && Object.values(sectorAssets).some(asset =>
+    isRecord(asset) && ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity"].some(field => hasOwn(asset, field)),
+  );
+  if (hasOwn(world, "plantMarketDemand") || hasPlantCapacity) {
+    return { ok: false, error: `Plant production and market state cannot be continued by schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
+
   const commandStates = world["commandEconomy"];
   if (isRecord(commandStates)) {
     for (const state of Object.values(commandStates)) {
@@ -453,7 +534,6 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
       return { ok: false, error: `Corporation ${corpId} has SOE production state that schema 42 cannot continue. Keep this Native save.` };
     }
   }
-
   const candidateSave = structuredClone(save);
   const candidateWorld = candidateSave["world"] as Record<string, unknown>;
   const candidateMeta = candidateWorld["meta"] as Record<string, unknown>;
@@ -465,6 +545,8 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   delete candidateWorld["subsidies"];
   delete candidateWorld["regionalMetrics"];
   delete candidateWorld["fomcNominations"];
+  delete candidateWorld["nppInfluenceAttempts"];
+  delete candidateWorld["nppInfluenceRng"];
   delete candidateWorld["difficulty"];
   delete candidateWorld["nppAutonomyLevel"];
   // Historical readers have no RPG switch and always apply saved stats.
@@ -518,6 +600,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     delete corp["orderFlowWindowBuyValue"];
     delete corp["orderFlowWindowSellValue"];
     delete corp["priceHistory"];
+    delete corp["rdBudgetPerTurn"];
+    delete corp["rdScore"];
+    delete corp["lastRdSpendPerTurn"];
+    delete corp["lastRdCapacityGain"];
     // #328: default prop-book state is dropped so the projected bytes stay
     // identical to an authentic schema 42 document; the reload backfill
     // re-seeds the same retail charter, empty book, and zero mark.
@@ -562,15 +648,18 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     savedAt,
     world: restoredWorld,
   };
-  if (structurallyEqual(save, restoredSave)) {
-    return { ok: true, contents: candidate };
-  }
   if (!structurallyEqual(world["countryPolitics"], restoredWorld.countryPolitics)) {
     return {
       ok: false,
       error:
         `countryPolitics live gauges are not reconstructable from schema 42. Exporting would drop national approval, legitimacy, unrest, or approval history. Keep this save as schema ${SCHEMA_VERSION}`,
     };
+  }
+  if (world["centralBankPricingPhaseIn"] !== undefined) {
+    return { ok: false, error: `Central-bank pricing phase-in state cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
+  if (structurallyEqual(save, restoredSave)) {
+    return { ok: true, contents: candidate };
   }
   if (player["homeRegionId"] !== restoredWorld.player.homeRegionId) {
     return {
@@ -639,6 +728,27 @@ function assertCurrentWorldState(world: WorldState): void {
     (player["homeRegionId"] !== null && typeof player["homeRegionId"] !== "string")
   ) {
     throw new Error("Not a valid save file: invalid world state");
+  }
+
+  const pricingState = value["centralBankPricingPhaseIn"];
+  if (
+    pricingState !== undefined &&
+    (!isRecord(pricingState) || typeof pricingState["startedTurn"] !== "number" ||
+      !Number.isFinite(pricingState["startedTurn"]) || pricingState["startedTurn"] < 0 ||
+      !Number.isInteger(pricingState["startedTurn"]))
+  ) {
+    throw new Error("Not a valid save file: invalid central-bank pricing phase state");
+  }
+  const savingsPolicy = value["savingsAccountsPolicy"];
+  if (savingsPolicy !== undefined) {
+    if (
+      !isRecord(savingsPolicy) ||
+      !["off", "shadow", "authoritative"].includes(String(savingsPolicy["mode"])) ||
+      !Array.isArray(savingsPolicy["readCurrencies"]) ||
+      !savingsPolicy["readCurrencies"].every((currency) => typeof currency === "string" && currency.length > 0)
+    ) {
+      throw new Error("Not a valid save file: invalid savings-accounts policy");
+    }
   }
 
   // Legacy saves omit NI. Present values must be valid uncapped reputation.
@@ -3159,6 +3269,7 @@ export function deserializeSave(raw: string): WorldState {
     // left for the validator below to fail closed on. Applies to
     // current-schema saves too, so no version renumber is needed.
     backfillSectorWorkforce(save.world, save.world.corporateSectors);
+    backfillSectorPlantCapital(save.world, save.world.corporateSectors);
     validateCorporateSectorAssets(save.world, save.world.corporateSectors);
   }
   // #320: union organizer rows. Saves written before the organizer slice
@@ -3167,6 +3278,9 @@ export function deserializeSave(raw: string): WorldState {
   // backfill above, so no version renumber is needed. Present-but-invalid
   // rows fail closed through validateUnionOrganizers. Union strength keeps
   // the reference absent-means-zero rule explicitly.
+  if (save.world.plantMarketDemand !== undefined) {
+    validatePlantMarketDemand(save.world);
+  }
   if (save.world.unionOrganizers !== undefined) {
     validateUnionOrganizers(save.world, save.world.unionOrganizers);
   }
@@ -3193,6 +3307,7 @@ export function deserializeSave(raw: string): WorldState {
   if (save.world.player.lineOfCredit !== undefined) {
     validatePlayerLineOfCredit(save.world.player.lineOfCredit);
   }
+  validateNationalSavingsPools(save.world);
   // #322: bargaining campaigns + collective agreements. Saves written before
   // the bargaining slice carry no maps; missing degrades to empty (no open
   // campaigns, no enforceable agreements) and every loaded row is kept

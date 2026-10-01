@@ -15,6 +15,19 @@ function action(id: string, available: boolean, cost: number, disabledReason?: s
     ...(consequences ? { consequences } : {}) };
 }
 
+function recruit(available: boolean, options: CaucusManagementView["caucuses"][number]["recruit"]["options"] = []) {
+  return {
+    minimumRelationship: 60,
+    cooldownTurns: 12,
+    cooldownRemaining: 0,
+    options,
+    selectedAction: action("recruitCaucusNpp", available, 0, available ? undefined : "Only the Caucus Chair can review recruitable NPPs.", [
+      "Requires relationship 60",
+      "12-turn caucus cooldown after a successful recruit",
+    ]),
+  };
+}
+
 function makeManagement(): CaucusManagementView {
   return {
     countryId: "US",
@@ -56,6 +69,7 @@ function makeManagement(): CaucusManagementView {
         leave: action("leaveCaucus", false, 0, "You are not a member of this caucus."),
         setTax: action("setCaucusTaxRate", false, 0, "Only the caucus chair can set the tax rate"),
         disband: action("disbandCaucus", false, 0, "Only the caucus chair can disband the caucus"),
+        recruit: recruit(false),
       },
     ],
   };
@@ -78,6 +92,11 @@ function makeChairManagement(): CaucusManagementView {
       leave: action("leaveCaucus", true, 0, undefined, ["Removes you from this caucus"]),
       setTax: action("setCaucusTaxRate", true, 0, undefined, ["Sets the caucus campaign-fund levy"]),
       disband: action("disbandCaucus", true, 0, undefined, ["Clears all members and vacates the chair seats", "Ends any caucus membership you hold"]),
+      recruit: recruit(true, [{
+        id: "US-3", name: "Sam Winner", office: "Senate",
+        relationshipScore: 72, eligible: true, status: "eligible",
+        statusLabel: "Eligible", cooldownRemaining: 0,
+      }]),
     }],
   };
 }
@@ -243,6 +262,34 @@ describe("CaucusPanel", () => {
     render(<CaucusPanel management={makeManagement()} busy={false} onAction={vi.fn()} />);
     expect(screen.queryByLabelText("Caucus tax for Blue Dog Caucus")).toBeNull();
     expect(screen.queryByRole("button", { name: "Disband Blue Dog Caucus" })).toBeNull();
+    expect(screen.queryByText("Recruit NPP to Caucus")).toBeNull();
+  });
+
+  it("does not report recruitment when the authoritative action refuses", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn().mockResolvedValue(false);
+    render(<CaucusPanel management={makeChairManagement()} busy={false} onAction={onAction} />);
+    await user.selectOptions(screen.getByLabelText("Recruit NPP to Blue Dog Caucus"), "US-3");
+    await user.click(screen.getByRole("button", { name: "Recruit Sam Winner to Blue Dog Caucus" }));
+    expect(screen.queryByLabelText("Recruit result for Blue Dog Caucus")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Recruit Sam Winner to Blue Dog Caucus" })).toBeInTheDocument();
+  });
+
+  it("lets the chair review and recruit an eligible NPP", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn().mockResolvedValue(true);
+    render(<CaucusPanel management={makeChairManagement()} busy={false} onAction={onAction} />);
+    expect(screen.getByText("Recruit NPP to Caucus")).toBeTruthy();
+    expect(screen.getByText(/Caucus recruitment is gated by the Chair's relationship with that NPP/)).toBeTruthy();
+    expect(screen.getByText(/Relationship must be at least 60, and the caucus goes on a 12-turn cooldown after a successful NPP recruitment/)).toBeTruthy();
+    await user.selectOptions(screen.getByLabelText("Recruit NPP to Blue Dog Caucus"), "US-3");
+    expect(screen.getByText(/Relationship 72/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Recruit Sam Winner to Blue Dog Caucus" }));
+    expect(onAction).toHaveBeenCalledWith("recruitCaucusNpp", {
+      caucusId: "caucus-blue-dog-caucus-99-0",
+      targetId: "US-3",
+    });
+    expect(screen.getByLabelText("Recruit result for Blue Dog Caucus")).toBeTruthy();
   });
 
   it("shows recorded chair, vice-chair and player role without hiding chair controls", () => {
@@ -267,9 +314,10 @@ describe("CaucusPanel", () => {
     expect(screen.getByText(/Your role: not a member/)).toBeTruthy();
   });
 
-  it("names health, whip, recruitment and elections as unrecorded instead of inventing values", () => {
+  it("names health, whip and elections as unrecorded and shows chair NPP recruitment", () => {
     render(<CaucusPanel management={makeManagement()} busy={false} onAction={vi.fn()} />);
-    expect(screen.getByText(/Health, whip, recruitment and elections are not recorded/)).toBeTruthy();
+    expect(screen.getByText(/Health, whip and elections are not recorded in this save/)).toBeTruthy();
+    expect(screen.getByText(/saved seats, members, tax, treasury and chair NPP recruitment/)).toBeTruthy();
   });
 
   it("shows the engine disabled reason when founding is unavailable", () => {

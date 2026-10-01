@@ -12,12 +12,14 @@ import {
 const WORLD = { era: "1953", countryId: "US", seed: "issue-294-sale", playerName: "Alex" } as const;
 const SAVED_AT = "2026-09-15T00:00:00.000Z";
 
-/** World with a recorded player share block so the player passes sale authority. */
+/** World with a recorded player CEO so the player passes sale authority. */
 function worldWithPlayerShares() {
   const world = createWorld(WORLD);
   const assets = corporateSectorAssets(world);
   const asset = Object.values(assets).find((candidate) => candidate.corporationId === "US-media")!;
   world.corporations["US-media"]!.shareholders.push({ holder: "player", shares: 100, avgCostPerShare: 1 });
+  world.corporations["US-media"]!.ceoId = "player";
+  world.corporations["US-media"]!.ceoVacant = false;
   return { world, asset };
 }
 
@@ -71,17 +73,38 @@ describe("#294 sale listing commands", () => {
     expect(world.corporateSectors![asset.id]!.forSale).toEqual({ priceAnchor: expected.priceAnchor });
   });
 
-  it("refuses to list for a non-shareholder and leaves the world untouched", () => {
+  it("refuses to list for a shareholder who is not the CEO and leaves the world untouched", () => {
     const world = createWorld(WORLD);
     const assets = corporateSectorAssets(world);
     const asset = Object.values(assets).find((candidate) => candidate.corporationId === "US-media")!;
+    world.corporations["US-media"]!.shareholders.push({ holder: "player", shares: 100, avgCostPerShare: 1 });
+    world.corporations["US-media"]!.ceoId = "npc";
     const before = structuredClone(world.corporateSectors);
 
     const result = listCorporateSectorForSale(world, asset.id, "player");
     expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/shareholder/i);
+    expect(result.error).toMatch(/CEO/i);
     expect(world.corporateSectors![asset.id]!.forSale).toBeNull();
     expect(world.corporateSectors).toEqual(before);
+  });
+
+  it("refuses listing changes while the player CEO seat is vacant", () => {
+    const { world, asset } = worldWithPlayerShares();
+    world.corporations[asset.corporationId]!.ceoVacant = true;
+    expect(listCorporateSectorForSale(world, asset.id, "player").error).toMatch(/CEO/i);
+    world.corporateSectors![asset.id]!.forSale = { priceAnchor: 500 };
+    expect(updateCorporateSectorListing(world, asset.id, "player", 600).error).toMatch(/CEO/i);
+    expect(unlistCorporateSectorForSale(world, asset.id, "player").error).toMatch(/CEO/i);
+    expect(world.corporateSectors![asset.id]!.forSale).toEqual({ priceAnchor: 500 });
+  });
+
+  it("refuses state-owned issuers from private sector sale listings", () => {
+    const { world, asset } = worldWithPlayerShares();
+    world.corporations[asset.corporationId]!.ownershipState = "stateOwned";
+    const result = listCorporateSectorForSale(world, asset.id, "player");
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/state enterprises cannot list/i);
+    expect(world.corporateSectors![asset.id]!.forSale).toBeNull();
   });
 
   it("refuses to list a sector with no positive price anchor", () => {
@@ -141,12 +164,13 @@ describe("#294 sale listing commands", () => {
     expect(world.corporateSectors![asset.id]!.forSale).toBeNull();
   });
 
-  it("refuses update and unlist for a non-shareholder without touching the anchor", () => {
+  it("refuses update and unlist for a non-CEO after the CEO seat changes without touching the anchor", () => {
     const { world, asset } = worldWithPlayerShares();
     expect(listCorporateSectorForSale(world, asset.id, "player").ok).toBe(true);
     const anchor = world.corporateSectors![asset.id]!.forSale;
     world.corporations[asset.corporationId]!.shareholders =
       world.corporations[asset.corporationId]!.shareholders.filter((entry) => entry.holder !== "player");
+    world.corporations[asset.corporationId]!.ceoId = "npc";
 
     expect(updateCorporateSectorListing(world, asset.id, "player", 999).ok).toBe(false);
     expect(unlistCorporateSectorForSale(world, asset.id, "player").ok).toBe(false);

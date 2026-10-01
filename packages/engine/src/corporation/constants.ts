@@ -207,6 +207,77 @@ export const CEO_ARCHETYPE_MODIFIERS: Record<CeoArchetype, CeoArchetypeModifiers
   },
 };
 
+// Source AHDGame constants/corporations.ts R&D budget-to-score path.
+export const RD_BASE_GAIN_PER_TURN = 1;
+export const RD_BUDGET_SCALE = 0.65;
+export const RD_DIMINISHING_THRESHOLD = 100;
+export const RD_DECAY_RATE = 0.03;
+export const RD_INNOVATION_INTERVAL = 6;
+export const RD_INNOVATION_SCORE_THRESHOLD = 200;
+export const RD_REGULAR_BOOST_MIN = 0.02;
+export const RD_REGULAR_BOOST_MAX = 0.1;
+export const RD_EXTRACTION_BOOST_MIN = 0.01;
+export const RD_EXTRACTION_BOOST_MAX = 0.1;
+
+/** Source calcRdGrowth, input is source daily anchor-currency budget. */
+export function calcRdGrowth(dailyBudget: number, currentScore: number): number {
+  if (!Number.isFinite(dailyBudget) || dailyBudget <= 0) return 0;
+  const excess = Math.max(0, currentScore - RD_DIMINISHING_THRESHOLD);
+  const diminishing = RD_DIMINISHING_THRESHOLD / (RD_DIMINISHING_THRESHOLD + currentScore + excess);
+  return (RD_BASE_GAIN_PER_TURN + RD_BUDGET_SCALE * Math.log(1 + dailyBudget / 100_000)) * diminishing;
+}
+
+/** Source calcRdScoreAfterTurn, with the optional source morale multiplier on spend growth. */
+export function calcRdScoreAfterTurn(currentScore: number, dailyBudget: number): number {
+  const score = Number.isFinite(currentScore) ? Math.max(0, currentScore) : 0;
+  return Math.max(0, score * (1 - RD_DECAY_RATE) + calcRdGrowth(dailyBudget, score));
+}
+
+/** Source rdMoraleFactor, bounded to the authored ±15% range. */
+export function rdMoraleFactor(avgWageLevel: number): number {
+  const wage = Number.isFinite(avgWageLevel) ? avgWageLevel : 1;
+  return Math.max(0.85, Math.min(1.15, 1 + 0.5 * (wage - 1)));
+}
+
+const COMMAND_PLAN_PRIORITY: Readonly<Record<string, number>> = {
+  defense: 1.25,
+  manufacturing: 1.2,
+  extraction: 1.15,
+  energy: 1.15,
+  chemical_industries: 1.1,
+  logistics: 0.95,
+  retail: 0.7,
+  agriculture: 0.65,
+};
+
+/** Source era monetary table trendGdpGrowth values for Native's authored command-economy corridor. */
+export function sourcePlanTrendGdpGrowth(countryId: string, year: number): number | undefined {
+  if (countryId === "RU") {
+    if (year >= 1953 && year < 1979) return 6;
+    if (year >= 1979 && year < 1991) return 2.5;
+    if (year === 1991) return -5;
+  }
+  if (countryId === "DD" && year >= 1953 && year < 1979) return 3;
+  return undefined;
+}
+
+/** Source sectorGrowthPolicy plan gravity, only in the fully-command band. */
+export function sourcePlannedTargetRate(input: {
+  countryId: string;
+  sectorType: string;
+  year: number;
+  marketizationLevel: number;
+  currentTargetRate: number;
+}): number | undefined {
+  if (input.marketizationLevel >= 30) return undefined;
+  const trend = sourcePlanTrendGdpGrowth(input.countryId, input.year);
+  if (trend === undefined) return undefined;
+  const priority = COMMAND_PLAN_PRIORITY[input.sectorType] ?? 1;
+  const plannedTarget = Math.round(trend * priority * 100) / 100;
+  const towardPlan = input.currentTargetRate + Math.max(-0.02, Math.min(0.02, plannedTarget - input.currentTargetRate));
+  return Math.max(0, Math.round(towardPlan * 100) / 100);
+}
+
 // ── Insolvency / dissolution ─────────────────────────────────────────────
 
 /**

@@ -269,7 +269,7 @@ export function App() {
       onBack={() => { setScreen('new'); setPendingSetup(null); setCreationChoices(null); }}
     />;
   }
-  if (screen === 'game' && world) return <GameScreen newsStorageKey={slot.current!} loadProfile={loadProfile} loadProfileDestination={loadProfileDestination} loadImperialProfile={loadImperialProfile} onUpdateProfile={update => run(async () => {
+  if (screen === 'game' && world) return <GameScreen newsStorageKey={slot.current!} contextKey={slot.current!} loadProfile={loadProfile} loadProfileDestination={loadProfileDestination} loadImperialProfile={loadImperialProfile} onUpdateProfile={update => run(async () => {
     setWorld(await client.current!.updateProfile(update));
     await save();
     setMessage("Profile saved.");
@@ -293,12 +293,18 @@ export function App() {
     onDeleteNotification={(id) => void run(async () => { setWorld(await client.current!.deleteNotification(id)); await save(false); })}
     onMarkAllNotificationsRead={() => void run(async () => { setWorld(await client.current!.markAllNotificationsRead()); await save(false); })}
     onAdvanceTurn={() => void run(async () => { setWorld(await client.current!.advance()); await save(); })}
-    onAction={(id, params) => void run(async () => {
-      const response = await client.current!.act(id, params); setWorld(response.view);
-      if (response.result.ok) { await save(); setMessage(response.result.message); } else setError(response.result.error);
-    })}
+    onAction={async (id, params) => {
+      let accepted = false;
+      await run(async () => {
+        const response = await client.current!.act(id, params); setWorld(response.view);
+        if (response.result.ok) {
+          await save(); setMessage(response.result.message); accepted = true;
+        } else setError(response.result.error);
+      });
+      return accepted;
+    }}
     onSectorSale={(op, params) => void run(async () => {
-      const response = await client.current!.sectorSale(op, params.assetId, params.priceAnchor);
+      const response = await client.current!.sectorSale(op, params.assetId, params.priceAnchor, params.buyerCorporationId);
       setWorld(response.view);
       if (response.result.ok) {
         await save();

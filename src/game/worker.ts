@@ -40,7 +40,7 @@ self.addEventListener("message", (event: MessageEvent<GameRequest>) => {
           : command.op === "update"
             ? session.updateSectorListing(command.assetId, command.priceAnchor)
             : command.op === "buy"
-              ? session.buySectorForSale(command.assetId)
+              ? session.buySectorForSale(command.assetId, command.buyerCorporationId ?? "")
               : session.unlistSectorForSale(command.assetId);
         value = { result, view: session.view() };
         break;

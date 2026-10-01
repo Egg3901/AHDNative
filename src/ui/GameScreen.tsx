@@ -146,7 +146,7 @@ const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
   { id: "favorability", short: "Favorability", label: "Favorability" },
 ];
 
-export function GameScreen({ loadProfile, loadProfileDestination, loadImperialProfile, onUpdateProfile, onStatAllocation, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadUnionManagement, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, newsStorageKey, onAdvanceTurn, onSave, onExit, onAction, onSectorSale, onUnionCommand, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
+export function GameScreen({ loadProfile, loadProfileDestination, loadImperialProfile, onUpdateProfile, onStatAllocation, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadUnionManagement, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, newsStorageKey, contextKey, onAdvanceTurn, onSave, onExit, onAction, onSectorSale, onUnionCommand, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("profile");
   const [detailId, setDetailId] = useState<string>();
   // #510 bounded return stack: detail routes remember the chain of browse
@@ -839,7 +839,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
           {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={route === "nations" ? (detailId ?? nationContext) : detailId} onSelectNation={route === "nations" ? (id) => { setDetailId(undefined); setNationContext(id); } : undefined} onNavigate={navigate} onDrill={drillViewer} onOpenParty={openParty} onOpenElection={openElection} />}</DetailQuery>}
           {route === "worldMap" && <WorldMapRoute loadOverview={loadWorldOverview} loadRegions={loadRegions} revision={world} section={preferences.worldMapSection} onSectionChange={(worldMapSection) => onPreferencesChange({ ...preferences, worldMapSection })} onNavigate={navigate} />}
           {route === "worldDirectory" && <DetailQuery load={loadWorldOverview} revision={world} label="World directory">{overview => <WorldDirectoryPanel overview={overview} onNavigate={navigate} />}</DetailQuery>}
-          {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} loadMarkets={loadMarkets} revision={world} busy={busy} onNavigate={navigate} onDrill={drillViewer} onSectorSale={onSectorSale} onAction={onAction} />}
+          {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} loadMarkets={loadMarkets} revision={world} contextKey={contextKey} busy={busy} onNavigate={navigate} onDrill={drillViewer} onSectorSale={onSectorSale} onAction={onAction} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "government" && (world.cabinet === null ? (
             // #510 honest no-seat state: the drawer hides this destination
@@ -908,7 +908,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
             <PoliticsRoute load={loadPolitics} revision={world} section="metrics" nation={world.nation} era={world.era} onNavigate={navigate} busy={busy} onAction={onAction} clock={clock} />
           ))}
           {route === "campaignDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="campaign" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
-          {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} clock={clock} />}
+          {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} contextKey={newsStorageKey} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} clock={clock} />}
           {route === "referendums" && <PoliticsRoute load={loadPolitics} revision={world} section="referendums" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
           {route === "banking" ? <FinancePanel finance={world.finance} section="banking" busy={busy} onAction={onAction} onNavigate={(next) => go(next)} countryId={world.countryId} /> : null}
           {route === "notifications" ? (

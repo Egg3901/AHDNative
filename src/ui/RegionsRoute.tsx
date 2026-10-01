@@ -5,8 +5,9 @@ import { DetailQuery } from "./DetailQuery";
 import { RegionsPanel } from "./RegionsPanel";
 import type { DrawerRouteId } from "./MobileNavigation";
 
-export function RegionsRoute({ load, loadMarkets, revision, busy, initialId, onNavigate, onDrill, onSectorSale, onAction }: {
+export function RegionsRoute({ load, loadMarkets, revision, busy, initialId, onNavigate, onDrill, onSectorSale, contextKey, onAction }: {
   load: (query?: RegionsQuery) => Promise<RegionsView>; revision: object; busy: boolean;
+  contextKey?: string;
   /**
    * Recorded markets projection for the regional corporate-sector inventory
    * (#299). Absent on surfaces without a markets load; the detail then
@@ -54,9 +55,9 @@ export function RegionsRoute({ load, loadMarkets, revision, busy, initialId, onN
     if (onDrill) onDrill({ route: "regions", detailId: query.regionId ?? undefined }, "markets", listingId);
     else onNavigate?.("markets", listingId);
   }, [onDrill, onNavigate, query.regionId]);
-  return <DetailQuery load={request} revision={revision} label="Regions">
+  return <DetailQuery load={request} revision={revision} label="Regions" retainOnRevision contextKey={contextKey}>
     {view => loadMarkets ? (
-      <DetailQuery load={loadMarkets} revision={revision} label="Markets">
+      <DetailQuery load={loadMarkets} revision={revision} label="Markets" retainOnRevision contextKey={contextKey}>
         {markets => <RegionsPanel query={view} onQueryChange={setQuery} busy={busy} directoryOpen={directoryOpen} onDirectoryOpenChange={setDirectoryOpen} onNavigate={handleViewerNavigate} onOpenParty={handleOpenParty} onOpenElection={handleOpenElection} onAction={onAction} sectorAssets={{ listings: markets.listings, playerCash: markets.playerCash, onSectorSale, onOpenCompany: handleOpenCompany }} />}
       </DetailQuery>
     ) : (
