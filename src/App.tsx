@@ -18,6 +18,7 @@ import { clearTestHooks, installTestHooks } from './game/testHooks';
 import { MpModeScreen } from './ui/MpModeScreen';
 import { AskPanel } from './ask/AskPanel';
 import { installIosViewport } from './ui/iosViewport';
+import type { GameCommand } from './game/protocol';
 
 export function App() {
   const [presentation, setPresentation] = useState(loadPreferences);
@@ -87,6 +88,10 @@ export function App() {
   const loadMarkets = useCallback(() => {
     if (!client.current) return Promise.reject(new Error("Start or load a game first."));
     return client.current.markets();
+  }, []);
+  const loadUnionManagement = useCallback(() => {
+    if (!client.current) return Promise.reject(new Error("Start or load a game first."));
+    return client.current.unionManagement();
   }, []);
   const loadLegislation = useCallback((selection?: LegislationSelection) => {
     if (!client.current) return Promise.reject(new Error("Start or load a game first."));
@@ -283,7 +288,7 @@ export function App() {
   })} preferences={presentation.value} onPreferencesChange={changePreferences} preferencesError={presentation.error} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadCabinetOffice={loadCabinetOffice} onIssueCabinetOrder={(input) => void run(async () => {
       const response = await client.current!.issueCabinetOrder(input); setWorld(response.view);
       if (response.result.ok) { await save(); setMessage(response.result.message); } else setError(response.result.error);
-    })} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={busy} error={error} message={message}
+    })} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadUnionManagement={loadUnionManagement} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={busy} error={error} message={message}
     onMarkNotificationRead={(id) => void run(async () => { setWorld(await client.current!.markNotificationRead(id)); await save(false); })}
     onDeleteNotification={(id) => void run(async () => { setWorld(await client.current!.deleteNotification(id)); await save(false); })}
     onMarkAllNotificationsRead={() => void run(async () => { setWorld(await client.current!.markAllNotificationsRead()); await save(false); })}
@@ -299,6 +304,16 @@ export function App() {
         await save();
         setMessage(op === "list" ? "Sector listed for sale." : op === "update" ? "Sale listing updated." : op === "buy" ? "Sector acquired." : "Sector unlisted.");
       } else setError(response.result.error);
+    })}
+    onUnionCommand={(command: Extract<GameCommand, { type: "unionCommand" }>) => void run(async () => {
+      const response = await client.current!.unionCommand(command);
+      setWorld(response.view);
+      const result = response.result as { ok?: boolean; reason?: string };
+      if (result.ok === false) setError(result.reason ?? "The union command was refused.");
+      else {
+        await save();
+        setMessage(command.op === "organize" ? "Organizing drive recorded." : command.op === "organizeSector" ? "Sector organizing drive recorded." : command.op === "dues" ? "Annual dues updated." : command.op === "vote" ? "Leadership ballot recorded." : command.op === "accept" ? "Union presidency accepted." : command.op === "call" ? "Bargaining campaign opened." : command.op === "ratify" ? "Ratification vote recorded." : "Union bargaining offer updated.");
+      }
     })}
     // #149: GameScreen reuses this as AskPanel onBeforeSignIn, which the panel
     // awaits before the provider bounce. Return the settled save (not void)

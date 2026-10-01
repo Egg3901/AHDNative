@@ -19,9 +19,12 @@ import { SECTOR_BUY_ALREADY_OWNED, SECTOR_LIST_OWNER_ONLY, evaluateSectorBuy, pa
 import { COMMODITY_HERO_ALT, MARKETS_LIST_HERO_IMAGE, RouteHero, companyHero, companyHeroAlt } from "./RouteHero";
 import type { MarketListing, MarketsView, SectorSummary, ShareholderKind, TradeRouteSummary } from "../game/markets";
 import type { GameScreenProps } from "../game/types";
+import type { GameCommand } from "../game/protocol";
 import { formatFinanceMoney } from "./FinancePanel";
 import { useDualPaneLayout } from "./dualPane";
 import { TrendChart } from "./TrendChart";
+import { UnionManagementPanel } from "./UnionManagementPanel";
+import type { UnionManagementView } from "../game/unionManagement";
 
 export interface MarketsPanelProps {
   markets: MarketsView;
@@ -30,6 +33,8 @@ export interface MarketsPanelProps {
   busy: boolean;
   onAction: GameScreenProps["onAction"];
   onSectorSale?: GameScreenProps["onSectorSale"];
+  onUnionCommand?: (command: Extract<GameCommand, { type: "unionCommand" }>) => void;
+  unions?: UnionManagementView;
   /** Opens the linked region detail (the existing regions destination). */
   onOpenRegion?: (regionId: string) => void;
 }
@@ -1095,7 +1100,7 @@ function CompanyDetail({
   );
 }
 
-export function MarketsPanel({ markets, busy, onAction, onSectorSale, initialId = null, onSelect, onOpenRegion }: MarketsPanelProps) {
+export function MarketsPanel({ markets, unions, busy, onAction, onSectorSale, onUnionCommand = () => {}, initialId = null, onSelect, onOpenRegion }: MarketsPanelProps) {
   const [query, setQuery] = useState("");
   // Default context: the player's own country, mirroring AHDGame's sectors page
   // (src/app/sectors/page.tsx), which preselects the corporation/character
@@ -1183,6 +1188,7 @@ export function MarketsPanel({ markets, busy, onAction, onSectorSale, initialId 
   // Back control still clears the selection.
   const browse = (
     <>
+      {unions ? <UnionManagementPanel state={unions} busy={busy} onCommand={onUnionCommand} /> : null}
       <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
         <label className="ahd-field">
           <span className="ahd-label">Search</span>

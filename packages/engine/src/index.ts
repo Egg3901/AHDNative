@@ -112,6 +112,30 @@ export * from "./cabinet/transition.js";
 export * from "./corporation/corporateSectorAssets.js";
 export * from "./corporation/corporateSectorSale.js";
 export * from "./corporation/corporateSectorAcquire.js";
+// Public single-player seam for source-backed union bargaining commands.
+export {
+  answerBargainingCampaignAsEmployer,
+  castRatificationBallot,
+  moveBargainingCampaignAsUnion,
+  openBargainingCampaignAction,
+} from "./unions/actions.js";
+export type {
+  CastBallotArgs,
+  CastBallotResult,
+  EmployerAnswerArgs,
+  OpenCampaignArgs,
+  UnionMoveArgs,
+  UnionMoveResult,
+} from "./unions/actions.js";
+export type { BargainingCampaign, CollectiveAgreement } from "./unions/campaigns.js";
+export type { BargainingTerms } from "./unions/bargaining.js";
+export { organizeSectorAction, organizeSectorTreasuryCost, organizeUnionAction } from "./unions/organizingActions.js";
+export { setUnionDuesAction } from "./unions/duesActions.js";
+export type { SetUnionDuesResult } from "./unions/duesActions.js";
+export { averageAnnualWage, duesIncomePerTurn, maxDuesForWage, unionMembers } from "./unions/dues.js";
+export { representedSectorsForUnion } from "./unions/sectorAggregation.js";
+export { acceptUnionLeadership, castUnionLeadershipVote } from "./unions/leadership.js";
+export { BARGAINING_ESCALATION_SUPPORT, nextBargainingEscalationLevel } from "./unions/bargaining.js";
 // Issue #326: atomic interbank lending and servicing. Types travel through
 // `export type * from "./types.js"` (WorldState.interbankLoans); these are
 // the commands, quote, and turn servicing the banking phases share with the
