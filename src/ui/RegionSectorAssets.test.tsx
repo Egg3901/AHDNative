@@ -188,7 +188,7 @@ describe("RegionSectorAssetsCard", () => {
       });
       expect(within(list).getAllByRole("listitem")).toHaveLength(2);
       // Recorded facts ride on the rows: ownership, workers, union, sale state.
-      expect(within(list).getByText("Unowned")).toBeInTheDocument();
+      expect(within(list).getByText("Owned by US-media")).toBeInTheDocument();
       expect(within(list).getByText(/you hold 2 shares/i)).toBeInTheDocument();
       expect(within(list).getByText("Union: Media Workers")).toBeInTheDocument();
       expect(within(list).getByText("No union recorded")).toBeInTheDocument();

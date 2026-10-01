@@ -21,6 +21,9 @@ persist; no stale Buy control or horizontal overflow remains. Fresh worlds seed
 national assets, so the regional fixture does not claim regional initialization
 or asset splitting is implemented. No physical-device result is claimed.
 
-Disposition: #299 closes only after the full hosted gate passes. #297 and #322
+Disposition: #299 remains partial. Its current purchase command uses personal
+cash and records character ownership. Game instead requires CEO authority, buyer
+corporation capital, seller proceeds and corporate asset transfer or merge. That
+source purchase journey remains required before closure. #297 and #322
 remain partial for leadership, employer authority and political consequences;
 #211 and #114 are reference only and stay open for their broader acceptance.

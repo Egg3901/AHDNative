@@ -26,15 +26,6 @@ import {
   getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
-import {
-  answerBargainingCampaignAsEmployer,
-  castRatificationBallot,
-  moveBargainingCampaignAsUnion,
-  openBargainingCampaignAction,
-  organizeSectorAction,
-  organizeUnionAction,
-  type BargainingTerms,
-} from "@ahdclient/engine";
 import type { ActionCategory, ActionView, BankOption, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
 import { isWorldsimMode } from "@ahdclient/engine";
 import {
@@ -532,81 +523,6 @@ export class GameSession {
   partyManagement() { return projectPartyManagement(this.requireWorld()); }
 
   markets() { return projectMarkets(this.requireWorld()); }
-
-  organizeUnion(unionId: string) {
-    const candidate = structuredClone(this.requireWorld());
-    const result = organizeUnionAction(candidate, unionId);
-    this.commit(candidate);
-    return result;
-  }
-
-  organizeUnionSector(unionId: string, assetId: string) {
-    const candidate = structuredClone(this.requireWorld());
-    const result = organizeSectorAction(candidate, unionId, assetId);
-    this.commit(candidate);
-    return result;
-  }
-
-  /** Bargaining rows persisted by the union commands and normal save format. */
-  unionBargaining() {
-    const world = this.requireWorld();
-    return {
-      campaigns: structuredClone(Object.values(world.bargainingCampaigns ?? {})),
-      agreements: structuredClone(Object.values(world.collectiveAgreements ?? {})),
-    };
-  }
-
-  /** Call an employer to bargain over its recorded CorporateSector locals. */
-  callUnionBargaining(unionId: string, employerCorporationId: string, terms: BargainingTerms) {
-    const candidate = structuredClone(this.requireWorld());
-    const campaign = openBargainingCampaignAction(candidate, {
-      unionId, employerCorporationId, terms, turn: candidate.meta.turn,
-    });
-    this.commit(candidate);
-    return structuredClone(campaign);
-  }
-
-  /** Apply the employer's NPC answer through the same command used by turn autoplay. */
-  answerUnionBargaining(
-    campaignId: string,
-    action: "accept" | "counter" | "reject",
-    terms?: BargainingTerms,
-  ) {
-    const candidate = structuredClone(this.requireWorld());
-    const campaign = answerBargainingCampaignAsEmployer(candidate, {
-      campaignId, action, ...(terms ? { terms } : {}), turn: candidate.meta.turn,
-    });
-    this.commit(candidate);
-    return structuredClone(campaign);
-  }
-
-  /** Union-side accept/counter/withdraw/escalate at the current save turn. */
-  moveUnionBargaining(
-    campaignId: string,
-    action: "accept" | "counter" | "withdraw" | "escalate",
-    terms?: BargainingTerms,
-  ) {
-    const candidate = structuredClone(this.requireWorld());
-    const result = moveBargainingCampaignAsUnion(candidate, {
-      campaignId, action, ...(terms ? { terms } : {}), turn: candidate.meta.turn,
-    });
-    this.commit(candidate);
-    return structuredClone(result);
-  }
-
-  /** Cast or replace a weighted union-organizer ratification ballot. */
-  castUnionRatificationBallot(
-    campaignId: string,
-    voterCharacterId: string,
-    vote: "ratify" | "reject",
-  ) {
-    const candidate = structuredClone(this.requireWorld());
-    const result = castRatificationBallot(candidate, {
-      campaignId, voterCharacterId, vote, turn: candidate.meta.turn,
-    });
-    this.commit(candidate);
-    return structuredClone(result);
-  }
 
   /**
    * #294: direct corporate-sector sale commands. These run outside the

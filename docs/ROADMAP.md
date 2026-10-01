@@ -10,9 +10,9 @@ regional assets, since fresh worlds still seed national assets. The comparison
 uses Game's pinned regional and sector page hierarchy, with no pixel equivalence
 or physical-device claim. See [regional trading evidence](REGIONAL-SECTOR-TRADING.md).
 
-#297 and #322 remain partial. Organizing and bargaining session commands are
-available; source-backed leadership, complete employer authority and downstream
-political feedback still require implementation. The unused neutral-50 labor
+#297 and #322 remain partial. Source-backed leadership, complete employer
+authority and downstream political feedback still require implementation. The
+unsafe public NPC-response and arbitrary-ballot wrappers are excluded. The unused neutral-50 labor
 metric overlay is excluded from this batch.
 
 
