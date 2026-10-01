@@ -1,8 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { buyPlantCapacity, capacityPricePerUnitAnchor, DEFAULT_SECTOR_OUTPUT_MIX, plantReplacementCostAnchor, seedPlantCapital } from "./plantCapacity.js";
+import { createWorld } from "../world.js";
+import { buyPlantCapacity, capacityPricePerUnitAnchor, corporateSectorBasePrices, DEFAULT_SECTOR_OUTPUT_MIX, plantReplacementCostAnchor, seedPlantCapital } from "./plantCapacity.js";
 
 describe("corporate plant capital at the public asset boundary", () => {
   const manufacturingPrices = { steel: 11.466666666666667, building_materials: 5.733333333333333 } as const;
+
+  it("prices source extraction capacity from the selected recipe's revenue per unit", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "capacity-strategy-pricing-source", playerName: "Alex" });
+    const prices = corporateSectorBasePrices(world);
+
+    // Independently executed AHDGame cb66acdf capacityPricePerUnit at
+    // year=1953, eraUnitScale=69.76744186046511, strategyId=standard and
+    // rare_earth_mining. Native uses those same recorded era prices/scale.
+    expect(capacityPricePerUnitAnchor("extraction", prices, "standard")).toBeCloseTo(3.8370017846519926, 9);
+    expect(capacityPricePerUnitAnchor("extraction", prices, "rare_earth_mining")).toBeCloseTo(1254.1666666666665, 9);
+  });
 
   it("matches the pinned Game seed and list-price identities for a 1953 manufacturing sector", () => {
     const seeded = seedPlantCapital({

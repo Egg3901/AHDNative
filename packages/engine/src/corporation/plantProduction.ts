@@ -7,7 +7,7 @@ import {
   advancePlantCapitalTurn,
   capacityPricePerUnitAnchor,
   corporateSectorBasePrices,
-  DEFAULT_SECTOR_OUTPUT_MIX,
+  sectorSupplyMix,
 } from "./plantCapacity.js";
 import type { CommodityType } from "../commodity/constants.js";
 import type { WorldState } from "../types.js";
@@ -58,7 +58,7 @@ export function runCorporatePlantProductionTurn(
     const corporation = world.corporations[asset.corporationId];
     if (!corporation || corporation.suspended === true) continue;
 
-    const listPrice = capacityPricePerUnitAnchor(asset.sectorType, basePrices);
+    const listPrice = capacityPricePerUnitAnchor(asset.sectorType, basePrices, asset.strategyId);
     const capacityBefore = asset.capitalStock ?? 0;
     const delivered = deliverBuildOrders(asset.buildQueue ?? [], world.meta.turn);
     if (delivered.units > 0 || delivered.cost > 0 || (asset.buildQueue?.length ?? 0) > delivered.remaining.length) {
@@ -72,11 +72,11 @@ export function runCorporatePlantProductionTurn(
     }
     const capital = advancePlantCapitalTurn({
       capitalStock: asset.capitalStock ?? capacityBefore,
-      capacityBookAnchor: asset.capacityBookAnchor,
+      ...(asset.capacityBookAnchor !== undefined ? { capacityBookAnchor: asset.capacityBookAnchor } : {}),
       landedCreditAnchor: 0,
       capacityPricePerUnitAnchor: listPrice,
     });
-    const defaultRates = DEFAULT_SECTOR_OUTPUT_MIX[asset.sectorType] ?? {};
+    const defaultRates = sectorSupplyMix(asset.sectorType, asset.strategyId);
     // Regional miners keep the full source standard-strategy basis, while a
     // missing regional resource has zero production/sell-through. This mirrors
     // Game's per-resource capacity haircut without re-normalizing available

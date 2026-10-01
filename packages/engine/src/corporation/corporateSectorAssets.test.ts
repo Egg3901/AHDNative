@@ -105,6 +105,28 @@ describe("#293 corporate-sector asset core", () => {
     expect(corporateSectorPlantReplacementFloor(world, id)).toBeCloseTo(494_116.0714285714, 7);
   });
 
+  it("prices extraction credit and replacement against the recorded source strategy", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "rare-earth-capacity-basis", playerName: "Alex" });
+    const id = "corporate-sector:US:extraction:US-extraction";
+    const asset = corporateSectorAssets(world)[id]!;
+    asset.strategyId = "rare_earth_mining";
+    asset.capitalStock = 10_000;
+    asset.capacityBookAnchor = 12_541_666.666666665;
+
+    // Direct AHDGame cb66acdf capacityPricePerUnit invocation at 1953,
+    // scale=69.76744186046511, strategy=rare_earth_mining returns
+    // 1254.1666666666665. The source replacement formula is stock × 0.0005
+    // × that strategy price; a 12,541.666666666665 credit therefore buys 10.
+    expect(applyCorporateSectorPlantCredit(world, id, 12_541.666666666665)).toEqual({
+      unitsAdded: 10,
+      creditPaidAnchor: 12_541.666666666665,
+    });
+    expect(corporateSectorPlantReplacementFloor(world, id)).toBeCloseTo(6_277.104166666666, 8);
+    const restored = deserializeSave(serializeSave(world, "2026-10-01T00:00:00.000Z"));
+    expect(restored.corporateSectors?.[id]?.strategyId).toBe("rare_earth_mining");
+    expect(corporateSectorPlantReplacementFloor(restored, id)).toBeCloseTo(6_277.104166666666, 8);
+  });
+
   it("accepts null or a positive finite asking price and rejects every other stored listing (#294)", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "issue-294-forsale", playerName: "Alex" });
     const assets = corporateSectorAssets(world);

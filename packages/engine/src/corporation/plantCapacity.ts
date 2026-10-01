@@ -41,6 +41,69 @@ export const DEFAULT_SECTOR_OUTPUT_MIX: Partial<Record<CorporationType, Partial<
   extraction: { iron: 0.25, coal: 0.22, oil: 0.14, rare_earth: 0.14, natural_gas: 0.14, timber: 0.12 },
 };
 
+/**
+ * Source-authored extraction production methods available without tech unlocks
+ * in the 1953 Game ruleset (SECTOR_STRATEGIES, cb66acdf). Native currently
+ * supports these operation rows as persisted asset identities; it does not
+ * yet port Game's CEO retool command, transition interpolation/cooldown, or
+ * technology-unlock tree. Missing strategyId is the source `standard` row.
+ */
+export const EXTRACTION_STRATEGIES = {
+  standard: {
+    supply: DEFAULT_SECTOR_OUTPUT_MIX.extraction!,
+    demand: { energy: 0.2, vehicles: 0.15, freight: 0.1, chemicals: 0.08, construction_services: 0.03 },
+  },
+  iron_mining: {
+    supply: { iron: 0.78 },
+    demand: { energy: 0.25, vehicles: 0.15, freight: 0.12, steel: 0.05, ordnance: 0.08 },
+  },
+  oil_gas: {
+    supply: { oil: 0.58, natural_gas: 0.32 },
+    demand: { energy: 0.2, steel: 0.1, vehicles: 0.1, chemicals: 0.15, ordnance: 0.02 },
+  },
+  rare_earth_mining: {
+    supply: { rare_earth: 0.72 },
+    demand: { energy: 0.25, chemicals: 0.2, vehicles: 0.1, freight: 0.1, ordnance: 0.07 },
+  },
+  coal_mining: {
+    supply: { coal: 0.72 },
+    demand: { energy: 0.2, vehicles: 0.15, freight: 0.15, ordnance: 0.09 },
+  },
+  timber_logging: {
+    supply: { timber: 0.64 },
+    demand: { vehicles: 0.2, energy: 0.15, freight: 0.15, construction_services: 0.05 },
+  },
+} satisfies Record<string, {
+  supply: Partial<Record<CommodityType, number>>;
+  demand: Partial<Record<CommodityType, number>>;
+}>;
+
+export type ExtractionStrategyId = keyof typeof EXTRACTION_STRATEGIES;
+
+/** Source getStrategy's extraction recipe lookup; unknown IDs fail closed. */
+export function sectorSupplyMix(
+  sectorType: CorporationType,
+  strategyId?: string | null,
+): Partial<Record<CommodityType, number>> {
+  if (sectorType !== "extraction") return DEFAULT_SECTOR_OUTPUT_MIX[sectorType] ?? {};
+  const id = strategyId ?? "standard";
+  const strategy = EXTRACTION_STRATEGIES[id as ExtractionStrategyId];
+  if (!strategy) throw new Error(`Unknown extraction strategy ${id}`);
+  return strategy.supply;
+}
+
+/** Source getStrategy's extraction input recipe lookup; unknown IDs fail closed. */
+export function sectorDemandMix(
+  sectorType: CorporationType,
+  strategyId?: string | null,
+): Partial<Record<CommodityType, number>> | undefined {
+  if (sectorType !== "extraction") return undefined;
+  const id = strategyId ?? "standard";
+  const strategy = EXTRACTION_STRATEGIES[id as ExtractionStrategyId];
+  if (!strategy) throw new Error(`Unknown extraction strategy ${id}`);
+  return strategy.demand;
+}
+
 export interface PlantCapitalSeed {
   capitalStock: number;
   capacityBookAnchor: number;
@@ -84,13 +147,14 @@ export function seedPlantCapital(input: {
   revenueLocal: number;
   localPerAnchor: number;
   sectorType: CorporationType;
+  strategyId?: string | null;
   basePrices: Partial<Record<CommodityType, number>>;
 }): PlantCapitalSeed {
   const { revenueLocal, localPerAnchor, sectorType, basePrices } = input;
   if (!Number.isFinite(revenueLocal) || revenueLocal <= 0 || !Number.isFinite(localPerAnchor) || localPerAnchor <= 0) {
     return { capitalStock: 0, capacityBookAnchor: 0 };
   }
-  const supply = DEFAULT_SECTOR_OUTPUT_MIX[sectorType] ?? {};
+  const supply = sectorSupplyMix(sectorType, input.strategyId);
   let unitYield = 0;
   for (const [rawCommodity, rawRate] of Object.entries(supply)) {
     const commodity = rawCommodity as CommodityType;
@@ -115,8 +179,9 @@ export function seedPlantCapital(input: {
 export function capacityPricePerUnitAnchor(
   sectorType: CorporationType,
   basePrices: Partial<Record<CommodityType, number>>,
+  strategyId?: string | null,
 ): number {
-  const supply = DEFAULT_SECTOR_OUTPUT_MIX[sectorType] ?? {};
+  const supply = sectorSupplyMix(sectorType, strategyId);
   let unitYield = 0;
   for (const [rawCommodity, rawRate] of Object.entries(supply)) {
     const basePrice = basePrices[rawCommodity as CommodityType];
