@@ -2,8 +2,10 @@ import { navigateGame, gameReady, advanceGame, loadFixture } from './game-naviga
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
+import { GameSession } from '../src/game/session';
 
-test('a real career founds, leaves and rejoins a caucus, then resumes its membership', async ({ page }) => {
+test('a real career founds a caucus, cannot leave its chair vacant, and resumes its membership', async ({ page }) => {
+  test.setTimeout(180_000);
   const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-elected-1953-US.save.json.gz', import.meta.url)));
   await page.goto('/');
   await loadFixture(page, fixture);
@@ -20,10 +22,8 @@ test('a real career founds, leaves and rejoins a caucus, then resumes its member
   await page.getByRole('button', { name: 'Found caucus', exact: true }).click();
   await expect(page.getByText('You belong to Blue Dog Caucus.', { exact: true })).toBeVisible();
   await expect(page.getByRole('listitem').filter({ hasText: 'Blue Dog Caucus' })).toContainText('Tax 2.5%');
-  await page.getByRole('button', { name: 'Leave Blue Dog Caucus', exact: true }).click();
-  await expect(page.getByText('You are not in a caucus.', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Join Blue Dog Caucus', exact: true }).click();
-  await expect(page.getByText('You belong to Blue Dog Caucus.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Leave Blue Dog Caucus', exact: true })).toBeDisabled();
+  await expect(page.getByText(/Chairs can't leave the caucus directly/i)).toBeVisible();
   await gameReady(page);
   await page.reload();
   await page.getByRole('button', { name: 'Continue Muse', exact: true }).click();
@@ -37,6 +37,7 @@ test('a real career founds, leaves and rejoins a caucus, then resumes its member
 });
 
 test('the caucus chair edits the tax rate and disbands through the reference controls, then resumes disbanded', async ({ page }) => {
+  test.setTimeout(240_000);
   const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-elected-1953-US.save.json.gz', import.meta.url)));
   await page.goto('/');
   await loadFixture(page, fixture);
@@ -76,4 +77,46 @@ test('the caucus chair edits the tax rate and disbands through the reference con
   await expect(page.getByRole('listitem').filter({ hasText: 'Blue Dog Caucus' })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: 'artifacts/smoke/mobile-caucus-chair-controls.png', fullPage: true });
+});
+
+test('a non-chair joins, confirms leaving, rejoins, and resumes without losing the caucus', async ({ page }) => {
+  test.setTimeout(180_000);
+  // Public party departure vacates the founding chair. The authentic career
+  // fixture has already completed the party-switch cooldown, so rejoining
+  // its former party leaves a genuine non-chair caucus membership available.
+  const session = new GameSession();
+  session.load(gunzipSync(readFileSync(new URL('../fixtures/career-elected-1953-US.save.json.gz', import.meta.url))).toString('utf8'));
+  const partyId = session.partyManagement().parties.find((party) => party.isPlayerParty)!.id;
+  expect(session.act('createCaucus', { caucusName: 'Civic Forum', caucusTaxRate: 1.5 }).ok).toBe(true);
+  expect(session.act('leaveParty').ok).toBe(true);
+  expect(session.act('joinParty', { partyId }).ok).toBe(true);
+  expect(session.caucusManagement().caucuses[0]).toMatchObject({ isPlayerChair: false, isPlayerCaucus: false });
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await loadFixture(page, Buffer.from(session.serialize('2026-10-01T00:00:00.000Z')));
+  await gameReady(page);
+  await navigateGame(page, 'Caucuses');
+  await page.getByRole('button', { name: 'Join Civic Forum', exact: true }).click();
+  await expect(page.getByText('You belong to Civic Forum.', { exact: true })).toBeVisible();
+  page.once('dialog', async (dialog) => {
+    expect(dialog.message()).toBe('Leave Civic Forum?');
+    await dialog.dismiss();
+  });
+  await page.getByRole('button', { name: 'Leave Civic Forum', exact: true }).click();
+  await expect(page.getByText('You belong to Civic Forum.', { exact: true })).toBeVisible();
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Leave Civic Forum', exact: true }).click();
+  await expect(page.getByText('You are not in a caucus.', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Join Civic Forum', exact: true }).click();
+  await expect(page.getByText('You belong to Civic Forum.', { exact: true })).toBeVisible();
+  await gameReady(page);
+  await page.reload();
+  await page.getByRole('button', { name: 'Continue Muse', exact: true }).click();
+  await gameReady(page);
+  await navigateGame(page, 'Caucuses');
+  await expect(page.getByText('You belong to Civic Forum.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Civic Forum' })).toContainText('Tax 1.5%');
+  expect(errors).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
