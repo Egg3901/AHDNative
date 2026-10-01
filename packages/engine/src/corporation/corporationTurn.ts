@@ -55,6 +55,7 @@ import { getEraNominalScale } from "../commodity/constants.js";
 import { isCommandEconomy } from "../commandEconomy/constants.js";
 import { DAYS_PER_TURN } from "../calendar.js";
 import { pushEarningsHistory } from "../market/earnings.js";
+import { subsidyMarginModifierForCorporation } from "../budget/subsidyBudget.js";
 import {
   labourFactorsForCorporation,
   loadCorporationLabourState,
@@ -325,6 +326,7 @@ export const corporationTurnPhase: TurnPhase = {
     // strike resolution steps after the corp math (reference sector-pass
     // order: production effects from turn-start state, then the step).
     const labour = loadCorporationLabourState(world, world.meta.turn);
+    const subsidies = Array.isArray(world.subsidies) ? world.subsidies : [];
     const labourByCorp = new Map(
       Object.keys(world.corporations).map((corpId) => [corpId, labourFactorsForCorporation(world, corpId, labour)]),
     );
@@ -346,7 +348,12 @@ export const corporationTurnPhase: TurnPhase = {
         marketizationLevel,
         currentTargetRate: corp.targetGrowthRate,
       });
-      runCorporationTurn(corp, taxRatePct, labourByCorp.get(corp.id), { player: world.player, currencyCode }, true, {
+      const labourFactors = labourByCorp.get(corp.id)!;
+      const subsidyMargin = subsidyMarginModifierForCorporation(subsidies, corp);
+      runCorporationTurn(corp, taxRatePct, {
+        ...labourFactors,
+        marginModifierPP: labourFactors.marginModifierPP + subsidyMargin,
+      }, { player: world.player, currencyCode }, true, {
         localPerAnchor: fx,
         avgWageLevel: asset?.wageLevel ?? 1,
       }, {

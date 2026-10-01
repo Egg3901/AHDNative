@@ -403,14 +403,19 @@ describe("save/reload", () => {
     expect(validateBondIssuerIdentity(restored, restored.bonds[res.bondId]!)).toBeNull();
   });
 
-  it("keeps saves without corporate state byte-stable (no new keys, no migration)", () => {
+  it("keeps saves without corporate bonds byte-stable, including recorded source SOE ownership", () => {
     const world = createWorld(OPTS);
     for (const bond of Object.values(world.bonds)) {
       expect("corporationId" in bond).toBe(false);
     }
     for (const corp of Object.values(world.corporations)) {
-      expect("countryOwnerId" in corp).toBe(false);
-      expect("ownershipState" in corp).toBe(false);
+      if (corp.soe) {
+        expect(corp.countryOwnerId).toBe(corp.countryId);
+        expect(corp.ownershipState).toBe("stateOwned");
+      } else {
+        expect("countryOwnerId" in corp).toBe(false);
+        expect("ownershipState" in corp).toBe(false);
+      }
     }
     const raw = serializeSave(world, "2026-09-01T00:00:00.000Z");
     const restored = deserializeSave(raw);

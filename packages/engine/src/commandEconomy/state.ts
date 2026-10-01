@@ -1,7 +1,6 @@
 /**
  * Command-economy macro-state kernels — solo port of
- * src/lib/economy/commandEconomyState.ts (P1 + P3 subset; the v2 P1 Gosbank
- * directed-credit/SOE-capacity layer is PORT-STUB, see phases.ts file doc).
+ * src/lib/economy/commandEconomyState.ts (including v2 Gosbank issuance).
  *
  * Pure, deterministic, NaN-guarded math for the planned-economy readouts
  * stored on WorldState.commandEconomy (mainline: FederalBudget.economicFactors
@@ -47,12 +46,7 @@ const SECOND_ECONOMY_ADJUST = 0.25;
  * up.
  *
  * @param planFulfillment aggregate SOE plan fulfillment (1.0 = on plan).
- *        PORT-STUB always 1 in solo — AHDClient has no per-SOE plan-target/
- *        directed-credit system (see phases.ts file doc), so the unmet-plan
- *        goods-deficit term (mainline's PLAN_SHORTFALL_GOODS_DEFICIT) never
- *        fires; the model runs on the wage/GDP gap alone.
- * @param creditInjection PORT-STUB always 0 in solo — no Gosbank directed
- *        credit issuance is ported (mainline's overhangInjectionFromIssuance).
+ * @param creditInjection source Gosbank monetized issuance contribution.
  */
 export function accumulateOverhang(
   prevOverhang: number,
@@ -75,6 +69,27 @@ export function accumulateOverhang(
   const injection = Number.isFinite(creditInjection) ? Math.max(0, creditInjection) : 0;
   const relief = clamp(secondEconomyRelief, 0, OVERHANG_CAP);
   return clamp(prev * OVERHANG_DECAY + flow + injection - relief, 0, OVERHANG_CAP);
+}
+
+/** Source commandEconomyState.ts CREDIT_OVERHANG_SCALE. */
+export const CREDIT_OVERHANG_SCALE = 1;
+
+/** Source commandEconomyState.ts directedCreditIssuance. */
+export function directedCreditIssuance(totalCredit: number, savingsCoverage = 0.4): number {
+  const credit = Number.isFinite(totalCredit) && totalCredit > 0 ? totalCredit : 0;
+  return credit * (1 - clamp(savingsCoverage, 0, 1));
+}
+
+/** Source commandEconomyState.ts overhangInjectionFromIssuance. */
+export function overhangInjectionFromIssuance(
+  monetizedIssuance: number,
+  planBase: number,
+  plannedShare: number,
+): number {
+  const issuance = Number.isFinite(monetizedIssuance) && monetizedIssuance > 0 ? monetizedIssuance : 0;
+  const base = Number.isFinite(planBase) && planBase > 0 ? planBase : 0;
+  if (base === 0) return 0;
+  return clamp(CREDIT_OVERHANG_SCALE * (issuance / base) * 100 * clamp(plannedShare, 0, 1), 0, OVERHANG_CAP);
 }
 
 /**
