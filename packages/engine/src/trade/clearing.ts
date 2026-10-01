@@ -134,7 +134,7 @@ export function clearCommodity(input: CommodityClearingInput): CommodityClearing
 
   for (const exporter of exporters) {
     for (const importer of importers) {
-      if (matrix[exporter][importer]! > 0) flow[exporter][importer] = matrix[exporter][importer]!;
+      if (matrix[exporter]![importer]! > 0) flow[exporter]![importer] = matrix[exporter]![importer]!;
     }
   }
 
