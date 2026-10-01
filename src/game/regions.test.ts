@@ -405,4 +405,23 @@ describe("projectRegions", () => {
     view.selected!.economy.sectors.length = 0;
     expect(JSON.stringify(held)).toBe(before);
   });
+
+  it("carries recorded race and holder links on every directory row (#73)", () => {
+    const world = electedWorld();
+    const held = structuredClone(world);
+    held.governors.AL.governorId = "player";
+    const view = projectRegions(held, { directoryPageSize: 100 });
+
+    expect(view.directory.length).toBeGreaterThan(1);
+    for (const row of view.directory) {
+      expect(row.races.length).toBeLessThanOrEqual(3);
+      for (const race of row.races) {
+        expect(race.id.length).toBeGreaterThan(0);
+        expect(race.label.length).toBeGreaterThan(0);
+      }
+    }
+    const alabama = view.directory.find((row) => row.id === "AL")!;
+    expect(alabama.races.map((race) => race.id)).toContain("house:US:AL:c2");
+    expect(alabama.officeHolder).toEqual({ id: "player", name: world.player.name, isPlayer: true });
+  });
 });

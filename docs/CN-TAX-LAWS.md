@@ -1,5 +1,18 @@
 # China national tax-law acceptance (#286)
 
+## Current correction, 2026-10-01
+
+#286 is reopened. Game `96831835fb6b28983aa14fe66cb6eae9ecfde84c`
+uses `mayRuleByDecree` and `enactSingleplayerDecree` for local same-country
+SP head-of-state proposals, signing and applying effects immediately. The prior
+Native HoS vote/signing browser path below diverged from that source contract.
+Its closure statement is superseded. Source-authored options and bounded career
+engine tests remain evidence for their stated scope; corrected real CN SP costs,
+effects, replacement and save/resume are pending. A fresh source sample at
+`cb66acdf0129616b8a09902727e9b58715c8bacb` leaves these authority paths unchanged.
+
+## Prior bounded delivery evidence
+
 The bounded executable slice contains VAT, enterprise income tax, individual
 income tax, social-insurance contributions and customs tariff. Their exact
 option identifiers, rate ladders, economic/social axes, political effect directions and legal defaults
@@ -51,6 +64,5 @@ catalog slice and still needs its target, marketization and regime consumers.
 coverage, current Client interchange and physical-device proof are not claimed.
 Full hosted verification passed at exact PR #710 head `50d29f5083f788237a56a58008249efea4349e38`
 ([run](https://github.com/Egg3901/AHDNative/actions/runs/36865271074)).
-Merged as `748f74f24f6277596b0a3f4e1c0154849e4c4090`; original #286 acceptance
-is checked and closed. Current Game main `88fb2de96503a98eb25bc4b77f54f3308dfb45d2`
-leaves the active law mechanics unchanged. #101 remains open for its full scope.
+Merged as `748f74f24f6277596b0a3f4e1c0154849e4c4090`. The original closure
+claim is superseded by the SP decree correction above. #286 and #101 remain open.

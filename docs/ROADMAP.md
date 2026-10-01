@@ -12,6 +12,29 @@ credit servicing are now implemented with original #111 acceptance awaiting
 combined verification. Corporate-funded #299 purchase also integrates physical
 ledger conservation; its complete original flow and fresh gate remain required.
 
+## Regional extraction lifecycle checkpoint, 2026-10-01 (#115)
+
+Regional prospecting, source-resource-backed starter capacity, CEO-approved
+expansion, extraction contracts, royalties and regional budget settlement now
+run through public player/session actions. The saved Texas journey reaches
+production, settles royalties and resumes with the recorded regional balances;
+actual Chromium flows passed at 390px and 320px. [Original acceptance mapping
+and source-pricing limits](REGIONAL-EXTRACTION-115-EVIDENCE.md) record the
+independent vectors and remaining generic strategy/technology pricing gap.
+The full hosted integration gate remains pending.
+
+## Source geographic maps and local Hall checkpoint, 2026-10-01 (#73 partial)
+
+Offline country/subdivision shapes, country-scoped browsing, real entity links
+and local recorded-life standings now pass actual 320px/390px save/resume
+journeys. [PR #712](https://github.com/Egg3901/AHDNative/pull/712) merged at
+`6e5ad55` after exact `98b239d` passed the [full gate](https://github.com/Egg3901/AHDNative/actions/runs/36882208965).
+The supported preference/mobile-width criterion is checked; #73 stays partial.
+Map vectors use Game `01797b27`, checked against current `cb66acdf`.
+Complete map modes/country coverage, foreign regional detail and server-wide
+history remain open under #73; [source comparison](WORLD-MAP-PARITY.md)
+records the boundary. Integration preserves the merged command economy route.
+
 ## NPP relationship and recruitment checkpoint, 2026-10-01 (#57 / #61 partial)
 
 Politicians now expose four source relationship approaches with reviewed target,
@@ -24,19 +47,22 @@ three-human charter and wider targeted-action gaps. [PR #715](https://github.com
 merged at `741083a` after the [full hosted gate](https://github.com/Egg3901/AHDNative/actions/runs/36873625730)
 passed at exact head `313dd59`. Both issues remain open and partial.
 
-## Verified China law checkpoint, 2026-10-01 (#286 closed)
+## China law checkpoint, 2026-10-01 (#286 reopened)
 
 The bounded five-tax China slice is merged in [PR #710](https://github.com/Egg3901/AHDNative/pull/710)
 at `748f74f24f6277596b0a3f4e1c0154849e4c4090`, after
 [full verification](https://github.com/Egg3901/AHDNative/actions/runs/36865271074)
 passed at exact head `50d29f5083f788237a56a58008249efea4349e38`.
-Original #286 acceptance is checked and closed: source options/directions, public
-proposal/vote/signing, immediate fiscal effect, replacement, saved ramp/reload and
-actual CN player tariff flow at 320px/390px. See [source and evidence](CN-TAX-LAWS.md).
+The source options and bounded engine tax effects are delivered. Current-source
+audit found that local same-country SP head-of-state proposals enact immediately
+by decree, while the prior Native CN HoS browser flow queued votes and signing.
+#286 is reopened until that authority path, costs, effects, replacement and actual
+save/resume flow are corrected and verified. See [source and evidence](CN-TAX-LAWS.md).
 #101 stays open: Japan, Germany, Ireland and RU/DD cross-system slices remain,
-as do broader catalog/source coverage. Current Game `96831835` preserves the
-active mechanics vectors. GitHub has 59 open issues, down from 63; this count
-includes partial and blocked work and does not mean all 59 are untouched.
+as do broader catalog/source coverage. Current sampled Game `cb66acdf` preserves
+the decree contract from `96831835`; its newer stock, strategy advisory and trade
+changes remain tracked separately. GitHub has 60 open issues, down from 63; this
+count includes partial and blocked work.
 
 ## Subsidy and Gosbank controls checkpoint, 2026-10-01 (#94 partial)
 
@@ -45,7 +71,8 @@ now have real player controls, source authority, saved lifecycle and budget/over
 consumers. Public engine tests and actual 320px/390px two-reload journeys pass.
 [Source comparison](ECONOMIC-CONTROL-PARITY.md) records the remaining default
 Game plants-mode capital/replacement chain, director request weighting and state
-subsidy scope. #94 stays open; the corporate prerequisites remain in #107.
+subsidy scope. PR705 passed full verification at `fba4905`, merged as `a17c5de`,
+and the original #94 checklist remains partial; corporate prerequisites remain #107.
 
 ## Verified CEO card closure, 2026-10-01 (#51)
 

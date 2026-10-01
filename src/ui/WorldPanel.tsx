@@ -237,7 +237,7 @@ function NationDetail({ nation, current, clock, era, onNavigate }: { nation: Wor
         </div>
       ) : null}
       <p className="ahd-help" role="note" style={{ marginTop: "0.4rem" }}>
-        Plotted geography is unavailable offline: the World map is a directory of the same recorded nations and regions.
+        World map shows offline nation shapes and the recorded region directory. Bundled subdivision maps depend on the selected country.
       </p>
     </article>
   );

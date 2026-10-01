@@ -229,7 +229,9 @@ function projectMyOfficeRow(
     }
   }
 
-  if (player.mode === "hos") {
+  // Head of state is the player's own office: show it only on regions of the
+  // player's country so browsing another nation's directory stays detached.
+  if (player.mode === "hos" && countryId === player.countryId) {
     return {
       kind: "headOfState",
       label: "Head of state",

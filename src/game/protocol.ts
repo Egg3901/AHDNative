@@ -1,3 +1,4 @@
+import type { HallOfFameQuery } from "./hallOfFame";
 import type { GameActionParams } from "./actionInput";
 import type { ProfileUpdate } from "./profileTypes";
 import type { RegionsQuery } from "./regions";
@@ -30,6 +31,7 @@ export type GameCommand =
   | { type: "bondMarket" }
   | { type: "search"; query: string; filter?: SearchFilter }
   | { type: "worldOverview" }
+  | { type: "hallOfFame"; query?: HallOfFameQuery }
   | { type: "legislation"; selection?: LegislationSelection }
   | { type: "advance" }
   | { type: "action"; actionId: string; params?: GameActionParams }
