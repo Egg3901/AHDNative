@@ -8,7 +8,9 @@ chance/cost, cancellation, accepted outcome and normal save/resume. Actual
 60-point relationship, same-party/country and 12-turn cooldown contract. Its
 controlled eligibility tests do not claim a player-earned recruitment journey.
 [Source behavior and remaining scope](NPP-RELATIONSHIP-PARITY.md) preserve the
-three-human charter and wider targeted-action gaps. Full hosted review is pending.
+three-human charter and wider targeted-action gaps. [PR #715](https://github.com/Egg3901/AHDNative/pull/715)
+merged at `741083a` after the [full hosted gate](https://github.com/Egg3901/AHDNative/actions/runs/36873625730)
+passed at exact head `313dd59`. Both issues remain open and partial.
 
 ## Verified China law checkpoint, 2026-10-01 (#286 closed)
 
@@ -20,7 +22,7 @@ Original #286 acceptance is checked and closed: source options/directions, publi
 proposal/vote/signing, immediate fiscal effect, replacement, saved ramp/reload and
 actual CN player tariff flow at 320px/390px. See [source and evidence](CN-TAX-LAWS.md).
 #101 stays open: Japan, Germany, Ireland and RU/DD cross-system slices remain,
-as do broader catalog/source coverage. Current Game `88fb2de` preserves the
+as do broader catalog/source coverage. Current Game `96831835` preserves the
 active mechanics vectors. GitHub has 59 open issues, down from 63; this count
 includes partial and blocked work and does not mean all 59 are untouched.
 

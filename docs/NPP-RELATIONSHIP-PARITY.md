@@ -38,7 +38,12 @@ refresh unmounted the result, then passed at 320px and 390px after the refresh f
 Both journeys use an unmodified fresh session, cancel and confirm a source-eligible
 approach, observe exact charged resources and target relationship, save normally,
 reload and resume without page errors or horizontal overflow. The focused route,
-panel and query checks passed 55 tests; the full hosted gate remains required.
+panel and query checks passed 55 tests. The integrated CN/NPP engine checks
+passed 25 tests. The [full hosted gate](https://github.com/Egg3901/AHDNative/actions/runs/36873625730)
+passed at exact head `313dd598d58039dd8c38ecd68d1c6adb7f8757fb`;
+[PR #715](https://github.com/Egg3901/AHDNative/pull/715) merged as
+`741083a2a3c4f3d7118b601ccd53260061ef749c`. A read-only refresh through Game
+`96831835fb6b28983aa14fe66cb6eae9ecfde84c` preserves the sampled contracts.
 
 ## Issue disposition
 
