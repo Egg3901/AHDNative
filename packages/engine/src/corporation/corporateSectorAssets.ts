@@ -5,6 +5,7 @@ import {
   buyPlantCapacity,
   capacityPricePerUnitAnchor,
   corporateSectorBasePrices,
+  plantReplacementCostAnchor,
   seedPlantCapital,
 } from "./plantCapacity.js";
 
@@ -451,6 +452,17 @@ export function applyCorporateSectorPlantCredit(
   asset.capitalStock = purchased.capitalStock;
   asset.capacityBookAnchor = purchased.capacityBookAnchor;
   return { unitsAdded, creditPaidAnchor: creditAnchor };
+}
+
+/** Exact one-turn wear bill at the source capacity list price, in anchor money. */
+export function corporateSectorPlantReplacementFloor(world: WorldState, sectorId: string): number {
+  const asset = corporateSectorAssets(world)[sectorId];
+  if (!asset) throw new Error(`Unknown corporate sector ${sectorId}`);
+  const price = capacityPricePerUnitAnchor(asset.sectorType, corporateSectorBasePrices(world));
+  return plantReplacementCostAnchor({
+    capitalStock: asset.capitalStock ?? 0,
+    capacityPricePerUnitAnchor: price,
+  });
 }
 
 /** Lazy materialization preserves the serialized shape and hashes of untouched schema-44 worlds. */
