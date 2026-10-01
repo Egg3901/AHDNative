@@ -58,6 +58,7 @@ const ASK_NAVIGATION_HOSTS: &[&str] = &[
     "discord.com",
     "accounts.google.com",
     "www.google.com",
+    "appleid.apple.com",
 ];
 
 /// The Ask auth surface may stay inside the Ask service, the auth broker
@@ -101,6 +102,7 @@ const AUXILIARY_ONLINE_HOSTS: &[&str] = &[
     "discord.com",
     "accounts.google.com",
     "www.google.com",
+    "appleid.apple.com",
 ];
 
 #[cfg(desktop)]
@@ -603,6 +605,7 @@ mod tests {
             "https://discord.com/oauth2/authorize",
             "https://accounts.google.com/o/oauth2/v2/auth",
             "https://www.google.com/",
+            "https://appleid.apple.com/auth/authorize",
         ] {
             assert!(is_online_navigation_allowed(
                 &allowed.parse::<Url>().unwrap()
@@ -613,6 +616,10 @@ mod tests {
             "https://login.discord.com/",
             "https://accounts.google.com:444/",
             "https://example.com/",
+            "http://appleid.apple.com/auth/authorize",
+            "https://appleid.apple.com:444/auth/authorize",
+            "https://appleid.apple.com.evil.example/auth/authorize",
+            "https://apple.com.evil.example/auth/authorize",
         ] {
             assert!(!is_online_navigation_allowed(
                 &denied.parse::<Url>().unwrap()
@@ -633,7 +640,8 @@ mod tests {
         let google: Url = "https://accounts.google.com/o/oauth2/v2/auth"
             .parse()
             .unwrap();
-        for allowed in [&service, &broker, &game, &discord, &google] {
+        let apple: Url = "https://appleid.apple.com/auth/authorize".parse().unwrap();
+        for allowed in [&service, &broker, &game, &discord, &google, &apple] {
             assert!(
                 is_ask_navigation_allowed(allowed),
                 "{allowed} should stay in-app"
@@ -645,6 +653,9 @@ mod tests {
             "https://ask.evil.example.com/",
             "https://ask-lakesidegames-net.example.com/",
             "https://example.com/",
+            "http://appleid.apple.com/auth/authorize",
+            "https://appleid.apple.com:444/auth/authorize",
+            "https://appleid.apple.com.evil.example/auth/authorize",
         ] {
             assert!(
                 !is_ask_navigation_allowed(&denied.parse::<Url>().unwrap()),
