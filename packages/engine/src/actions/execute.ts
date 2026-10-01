@@ -957,7 +957,11 @@ function executeActionInner(
             : undefined;
         const effectiveCurrentRate = typeof currentRate === "number" ? currentRate : tp.baselineRate;
         if (selectedTaxRate === effectiveCurrentRate) return { ok: false, error: `Tax rate is already ${selectedTaxRate}` };
-        taxEffectDirection = selectedTaxRate > effectiveCurrentRate ? 1 : -1;
+        // Tax option stance is authored independently from its numeric rate.
+        // For example, Ireland's 23% VAT option is centrist even though it is
+        // a two-point increase from the 1991 Native baseline; keep fiscal
+        // selectedRate/phase-in separate from this political bill effect.
+        taxEffectDirection = selectedTaxOption?.effectDirection ?? (selectedTaxRate > effectiveCurrentRate ? 1 : -1);
       }
       const npiCost = proposalNpiCost(leg);
       const availableNpi = world.player.nationalInfluence ?? 0;
