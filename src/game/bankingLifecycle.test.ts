@@ -3,7 +3,9 @@
  * vectors documented in docs/BANKING-LIFECYCLE.md.
  */
 import { beforeAll, describe, expect, it } from "vitest";
-import { createWorld, projectSaveToV42, serializeSave } from "@ahdclient/engine";
+import { createWorld, deserializeSave, projectSaveToV42, serializeSave } from "@ahdclient/engine";
+import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 import type { WorldState } from "@ahdclient/engine";
 import { GameSession } from "./session";
 
@@ -192,7 +194,8 @@ describe("banking lifecycle through GameSession", () => {
     expect(final.centralBanks.US!.netMoneyCreatedLifetime).toBe(0);
   });
   it("refuses historical projection of banking policies and facility accounting the old reader cannot execute", () => {
-    const world = structuredClone(seed);
+    // Isolate the banking guard from the fresh-world TFP export refusal.
+    const world = deserializeSave(gunzipSync(readFileSync(new URL("../../fixtures/v42-1953-US.save.json.gz", import.meta.url))).toString("utf8"));
     for (const key of Object.keys(world.featureFlags) as (keyof typeof world.featureFlags)[]) world.featureFlags[key] = true;
     expect(projectSaveToV42(serializeSave(world, STAMP)).ok).toBe(true);
     for (const edit of [
