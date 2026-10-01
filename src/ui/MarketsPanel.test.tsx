@@ -120,7 +120,7 @@ function makeMarkets(overrides: Partial<MarketsView> = {}): MarketsView {
         fx: { available: true, rate: 1, baseRate: 1, regime: "pegged", updatedTurn: 0 },
         corporateTrade: {
           turn: 1, exports: 1250, imports: 400, net: 850, topPartner: "UK",
-          commodityFlows: [{ commodity: "electronics", partner: "UK", direction: "exports", units: 50, value: 1250 }],
+          commodityFlows: [{ commodity: "electronics", partner: "UK", direction: "exports", units: 50, value: 1250, pricePerUnit: 25 }],
         },
       },
       {
@@ -1042,7 +1042,8 @@ describe("MarketsPanel trade routes (#77)", () => {
     expect(screen.getByText(/FX: 0\.357 GBP per anchor/)).toBeInTheDocument();
     expect(screen.getByText(/Corporate trade \(turn 1\): exports .*1,250.* imports .*400.* net .*850.* partner UK/)).toBeInTheDocument();
     expect(screen.getByText(/electronics exports UK: 50 units · 1,250 anchor/)).toBeInTheDocument();
-    expect(screen.getByText(/household demand uses only regions with source population and GDP rows/)).toBeInTheDocument();
+    expect(screen.getByText(/electronics exports UK: 50 units · 1,250 anchor at 25 anchor\/unit/)).toBeInTheDocument();
+    expect(screen.getByText(/flows use represented national commodity prices/)).toBeInTheDocument();
   });
 
   it("shows explicit unavailable copy for missing growth and FX rows", async () => {

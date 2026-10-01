@@ -464,7 +464,7 @@ function TradeRoutesCard({ routes, countryName }: { routes: TradeRouteSummary[];
           ? (countryName
             ? `No trade routes recorded in ${countryName}.`
             : "No trade routes recorded.")
-          : `Recorded per-country trade context (${routes.length} ${routes.length === 1 ? "route" : "routes"}). Corporate output trades against recorded corporate, household, and government demand at the current global commodity price; household demand uses only regions with source population and GDP rows.`}
+          : `Recorded per-country trade context (${routes.length} ${routes.length === 1 ? "route" : "routes"}). Recorded corporate output clears against available corporate, household, and government demand; flows use represented national commodity prices. Household demand uses only regions with source population and GDP rows.`}
       </p>
       {routes.length === 0 ? null : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
@@ -500,7 +500,7 @@ function TradeRoutesCard({ routes, countryName }: { routes: TradeRouteSummary[];
               </span>
               {route.corporateTrade?.commodityFlows.slice(0, 3).map((flow, index) => (
                 <span key={`${flow.commodity}:${flow.partner}:${flow.direction}:${index}`} className="ahd-muted" style={{ fontSize: "0.74rem" }}>
-                  {flow.commodity.replaceAll("_", " ")} {flow.direction} {flow.partner}: {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(flow.units)} units · {anchorValue(flow.value)}
+                  {flow.commodity.replaceAll("_", " ")} {flow.direction} {flow.partner}: {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(flow.units)} units · {anchorValue(flow.value)}{flow.pricePerUnit == null ? "" : ` at ${anchorValue(flow.pricePerUnit)}/unit`}
                 </span>
               ))}
             </li>

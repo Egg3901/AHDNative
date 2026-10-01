@@ -170,6 +170,8 @@ export interface WorldState {
     byCountry: Record<string, { exports: number; imports: number; net: number; topPartner: string | null }>;
     flow: Record<string, Record<string, number>>;
     byCommodity: Record<string, Record<string, Record<string, { units: number; value: number }>>>;
+    /** Source national price used to value each commodity flow by exporter country. */
+    priceByCommodity?: Record<string, Record<string, number>>;
   };
   /** Extraction contracts. Ports src/lib/db/types/extractionContract.ts. */
   extractionContracts: ExtractionContract[];

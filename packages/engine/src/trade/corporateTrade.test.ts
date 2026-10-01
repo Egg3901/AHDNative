@@ -5,7 +5,7 @@ import { rebuildCorporatePlantInputDemand } from "../corporation/plantDemand.js"
 import { COMMODITY_BASE_PRICES } from "../commodity/constants.js";
 
 describe("corporate-only country trade receipts", () => {
-  it("clears measured output against source-rate country input and conserves the global-price value", () => {
+  it("clears measured output against country input and values exports at the source national price", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "corporate-trade-vector", playerName: "Player" });
     world.countries = { US: world.countries.US!, UK: world.countries.UK! };
     world.commodityPrices.electronics!.globalPrice = 7.5;
@@ -18,15 +18,17 @@ describe("corporate-only country trade receipts", () => {
 
     recordCorporateTradeSnapshot(world);
 
-    // Independent two-country vector: a sole exporter has 100 units and the
-    // sole importer is short 50, so the source feasibility-bounded clearing
-    // can move exactly 50 units. Native has only the current global price row.
-    expect(world.corporateTradeSnapshot!.flow.US!.UK).toBe(375);
+    // Independent Game vector: national prices use the source 500-unit
+    // stabilizer and logarithmic price formula. US (S=100,D=0) produces
+    // 7.5 / (1 + .7*|ln(500/600)|) = 6.65. The sole importer is short 50,
+    // and source trade valuation uses the exporter national price.
+    expect(world.corporateTradeSnapshot!.priceByCommodity.electronics!.US).toBe(6.65);
+    expect(world.corporateTradeSnapshot!.flow.US!.UK).toBe(332.5);
     expect(world.corporateTradeSnapshot!.byCountry.US).toEqual({
-      exports: 375, imports: 0, net: 375, topPartner: "UK",
+      exports: 332.5, imports: 0, net: 332.5, topPartner: "UK",
     });
     expect(world.corporateTradeSnapshot!.byCountry.UK).toEqual({
-      exports: 0, imports: 375, net: -375, topPartner: "US",
+      exports: 0, imports: 332.5, net: -332.5, topPartner: "US",
     });
     expect(world.corporateTradeSnapshot!.byCountry.US!.net + world.corporateTradeSnapshot!.byCountry.UK!.net).toBe(0);
   });
@@ -65,6 +67,25 @@ describe("corporate-only country trade receipts", () => {
     expect(world.corporateTradeSnapshot!.flow.RU!.US).toBeUndefined();
     expect(world.corporateTradeSnapshot!.flow.YU!.US).toBeGreaterThan(0);
     expect(world.corporateTradeSnapshot!.byCountry.US!.topPartner).toBe("YU");
+  });
+
+  it("uses the source administered/dual-track national price for planned countries", () => {
+    const world = createWorld({ era: "1953", countryId: "RU", seed: "planned-country-trade-price", playerName: "Player" });
+    world.countries = { RU: world.countries.RU! };
+    world.commandEconomy.RU!.marketizationLevel = 10;
+    world.commodityPrices.electronics!.globalPrice = 10;
+    world.plantMarketDemand = {
+      external: {}, corporateInputs: {},
+      corporateOutputSupplyByCountry: { RU: { electronics: 100 } },
+    };
+
+    recordCorporateTradeSnapshot(world);
+
+    // Source vector: market price = round(10 / (1 + .7*ln(600/500)), 2) =
+    // 8.87; administered = 10*1.12; plan share at level 10 is 6/7.
+    expect(world.corporateTradeSnapshot!.priceByCommodity.electronics!.RU).toBeCloseTo(
+      (10 * 1.12) * (6 / 7) + 8.87 * (1 / 7), 5,
+    );
   });
 
   it("records source federal healthcare demand by country and GDP-weighted real region", () => {

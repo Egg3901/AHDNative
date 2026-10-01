@@ -40,10 +40,17 @@ The reference is AHDGame `cb66acdf0129616b8a09902727e9b58715c8bacb`:
   geographic weights, active Native organization FTAs, shared recorded
   organization memberships, organization embargo blocks, and scheduled
   planned-economy curtains (including Yugoslavia's exemption) are honored.
+- National route values use the source `computeMarketPrice` pressure curve and
+  the source 500-unit national stabilizer on each represented country's
+  recorded output and demand. Planned and dual-track countries use the source
+  administered 12% turnover markup and `plannedShare`; the resulting per-turn
+  country prices are saved beside the trade receipt. Flow values use the
+  exporter's national price, matching Game `valueTradeSnapshot`.
 - Native has no Game tariff rows, embargo cap rows, naval blockade closure, or
-  per-country commodity price. The trade receipt therefore leaves tariff/cap/
-  blockade mechanics unavailable and values each commodity leg at the
-  recorded global price. It does not substitute the budget's economy-wide
+  per-country commodity-price history/scarcity inputs. The national-price
+  calculation therefore uses the recorded global price as its effective-base
+  anchor and represented country balances only. It leaves tariff/cap/blockade
+  mechanics unavailable and does not substitute the budget's economy-wide
   tariff rate for Game's importer/sector/origin tariff.
 - The engine saves country receipts and bilateral commodity quantities/values;
   Markets projects exports, imports, net, partner, and up to three commodity
@@ -54,7 +61,8 @@ The reference is AHDGame `cb66acdf0129616b8a09902727e9b58715c8bacb`:
 
 - `packages/engine/src/trade/corporateTrade.test.ts`: independent two-country
   source-clearing/value-conservation vector; embargo and planned-economy curtain
-  behavior; federal healthcare, planned media, and household source vectors.
+  behavior; national-price/turnover-markup vector; federal healthcare, planned
+  media, and household source vectors.
 - `packages/engine/src/corporation/plantProduction.test.ts`: physical regional
   supply/input legs conserve into their country rows.
 - `src/game/corporateTradeFlow.test.ts`: actual `GameSession` turn, persisted
@@ -75,8 +83,8 @@ The reference is AHDGame `cb66acdf0129616b8a09902727e9b58715c8bacb`:
    context:** corporate output is cleared bilaterally with supported source
    restrictions and persisted commodity context. Household demand is available
    only for represented regions; non-corporate/state supply and absent-country
-   household rows are not apportioned. Trade cash settlement, national-price
-   quotes, tariff rows, embargo caps, and blockade closure remain absent.
+  household rows are not apportioned. Trade cash settlement, ongoing national-
+  price history, tariff rows, embargo caps, and blockade closure remain absent.
 3. **Corporate issuance, dealer pools, and default/restructuring lifecycle UI:**
    not implemented by this slice.
 4. **Atomicity and save/reload/turn verification:** verified for this corporate

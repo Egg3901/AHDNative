@@ -159,7 +159,6 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // macroCountryTurn for this dependency. This phase is RNG-free, so moving
   // this single causal edge does not consume or shift the shared RNG stream.
   corporationTurnPhase,
-  corporateTradeSnapshotPhase,
   // #323 union cluster at the source-backed edge: mainline runs
   // corporationTurn (index 5) < unionsTurn (6) < nppUnionBehavior (7) <
   // … < pensionTurn (15) < macroCountryTurn (17) (turnPhaseNames.ts at
@@ -222,6 +221,11 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   nppBehaviorPhase,
   billLifecyclePhase,
   commodityPricesPhase,
+  // Saved route receipts use the current turn's applied commodity-price
+  // anchor, matching Game's valueTradeSnapshot after pricing. This projection
+  // is RNG-free and consumes the measured supply already captured by
+  // corporationTurn, so its placement does not shift the RNG stream.
+  corporateTradeSnapshotPhase,
   contractSettlementPhase,
   // Elections run at the end of the ported subset for now: inserting them at
   // mainline's absolute position would shift the shared rng stream under every

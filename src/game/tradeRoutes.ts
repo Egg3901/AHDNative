@@ -13,6 +13,8 @@
  *   corporation's recorded `orderFlowWindowBuyValue`/`orderFlowWindowSellValue`
  *   notionals plus the `orderFlowMultiplier`/`sentimentMultiplier` the market
  *   phase applies, and `insolventSinceTurn` for the default-lifecycle edge.
+ * - Commodity `pricePerUnit` reads the saved exporter-country national price;
+ *   older receipts without that saved map report it as null.
  *
  * Deliberately absent (engine records no such state, so there is nothing
  * honest to project): bid/ask books, dealer spreads, FX quotes/settlement,
@@ -42,14 +44,14 @@ export interface TradeRouteSummary {
   /** Recorded annual trade-growth percent; null when no budget/factor is recorded. */
   tradeGrowth: number | null;
   fx: TradeFxState;
-  /** Saved corporate-only trade clearing, valued at the Native global price. */
+  /** Saved corporate-only clearing, valued at the exporter country price when recorded. */
   corporateTrade?: {
     turn: number;
     exports: number;
     imports: number;
     net: number;
     topPartner: string | null;
-    commodityFlows: Array<{ commodity: string; partner: string; direction: "exports" | "imports"; units: number; value: number }>;
+    commodityFlows: Array<{ commodity: string; partner: string; direction: "exports" | "imports"; units: number; value: number; pricePerUnit: number | null }>;
   };
 }
 
@@ -111,8 +113,9 @@ export function projectTradeRoutes(world: WorldState): TradeRouteSummary[] {
             commodityFlows: Object.entries(world.corporateTradeSnapshot.byCommodity).flatMap(([commodity, byExporter]) =>
               Object.entries(byExporter).flatMap(([exporter, destinations]) =>
                 Object.entries(destinations).flatMap(([importer, row]) => {
-                  if (exporter === countryId) return [{ commodity, partner: importer, direction: "exports" as const, ...row }];
-                  if (importer === countryId) return [{ commodity, partner: exporter, direction: "imports" as const, ...row }];
+                  const pricePerUnit = world.corporateTradeSnapshot?.priceByCommodity?.[commodity]?.[exporter] ?? null;
+                  if (exporter === countryId) return [{ commodity, partner: importer, direction: "exports" as const, ...row, pricePerUnit }];
+                  if (importer === countryId) return [{ commodity, partner: exporter, direction: "imports" as const, ...row, pricePerUnit }];
                   return [];
                 }),
               ),
