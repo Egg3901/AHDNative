@@ -1679,3 +1679,14 @@ details[open] > .ahd-trend-table-disclosure::after {
 .ahd-stat-stepper .ahd-btn { min-width: 44px; min-height: 44px; }
 .ahd-stat-stepper output { min-width: 1.3rem; text-align: center; }
 @media (max-width: 360px) { .ahd-stat-row { flex-wrap: wrap; } .ahd-stat-stepper { margin-left: auto; } }
+/* #73 geographic world map: Natural Earth 1:110m shapes (public domain),
+   flat equirectangular projection. Selectable nations carry the primary
+   stroke; the player country gets the filled treatment; unregistered land
+   and geometry gaps render dimmed and inert. Focus outlines stay visible
+   for keyboard selection. */
+.ahd-geo-selectable { fill: var(--ahd-card-elevated); stroke: var(--ahd-primary); stroke-width: 1.5; }
+.ahd-geo-player { fill: var(--ahd-primary); stroke: var(--ahd-fg); stroke-width: 1.5; }
+.ahd-geo-spotlight { fill: var(--ahd-primary); stroke: var(--ahd-fg); stroke-width: 2.5; }
+.ahd-geo-inert { fill: var(--ahd-card); stroke: var(--ahd-border); stroke-width: 0.75; }
+.ahd-geo-dimmed { fill: var(--ahd-card); stroke: var(--ahd-border); stroke-width: 0.5; opacity: 0.55; }
+g[role="button"]:focus-visible path { outline: 3px solid var(--ahd-focus); outline-offset: 1px; }

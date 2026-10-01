@@ -28,14 +28,26 @@ describe("preferences", () => {
     expect(parsePreferences({ textSize: "huge", reducedMotion: "sometimes", reducedTransparency: "frosted" })).toEqual(DEFAULT_PREFERENCES);
     expect(parsePreferences({ worldMapSection: "globe" })).toEqual(DEFAULT_PREFERENCES);
     expect(parsePreferences({ worldMapSection: "regions" })).toEqual({ ...DEFAULT_PREFERENCES, worldMapSection: "regions" });
+    expect(parsePreferences({ worldMapView: "orbit", hallOfFameScope: "era", hallOfFameRankBy: "wealth", hallOfFameEra: "founding" })).toEqual(DEFAULT_PREFERENCES);
+    // Old invented-board prefs migrate to the source defaults; the saved
+    // era value is ignored (era filtering is the scope filter now).
+    expect(parsePreferences({ worldMapView: "country", hallOfFameScope: "party", hallOfFameRankBy: "influence", hallOfFameEra: "all" })).toEqual({
+      ...DEFAULT_PREFERENCES,
+      worldMapView: "country",
+    });
+    expect(parsePreferences({ hallOfFameScope: "current", hallOfFameRankBy: "netWorth" })).toEqual({
+      ...DEFAULT_PREFERENCES,
+      hallOfFameScope: "current",
+      hallOfFameRankBy: "netWorth",
+    });
   });
 
   it("loads and saves a normalized device preference record", () => {
     const storage = new MemoryStorage();
     expect(loadPreferences(storage)).toEqual({ value: DEFAULT_PREFERENCES, error: null });
 
-    const saved = savePreferences({ textSize: "large", reducedMotion: "on", reducedTransparency: "on", disableAutoplayOnOtherProfiles: true, worldMapSection: "regions" }, storage);
-    expect(saved).toEqual({ value: { textSize: "large", reducedMotion: "on", reducedTransparency: "on", disableAutoplayOnOtherProfiles: true, worldMapSection: "regions" }, error: null });
+    const saved = savePreferences({ textSize: "large", reducedMotion: "on", reducedTransparency: "on", disableAutoplayOnOtherProfiles: true, worldMapSection: "regions", worldMapView: "country", hallOfFameScope: "current", hallOfFameRankBy: "netWorth" }, storage);
+    expect(saved).toEqual({ value: { textSize: "large", reducedMotion: "on", reducedTransparency: "on", disableAutoplayOnOtherProfiles: true, worldMapSection: "regions", worldMapView: "country", hallOfFameScope: "current", hallOfFameRankBy: "netWorth" }, error: null });
     expect(storage.getItem(PREFERENCES_STORAGE_KEY)).toBe(JSON.stringify(saved.value));
     expect(loadPreferences(storage)).toEqual(saved);
   });
@@ -49,8 +61,8 @@ describe("preferences", () => {
       value: DEFAULT_PREFERENCES,
       error: "Device preferences could not be loaded. Default settings are in use.",
     });
-    expect(savePreferences({ textSize: "large", reducedMotion: "off", reducedTransparency: "off", disableAutoplayOnOtherProfiles: true, worldMapSection: "nations" }, broken)).toEqual({
-      value: { textSize: "large", reducedMotion: "off", reducedTransparency: "off", disableAutoplayOnOtherProfiles: true, worldMapSection: "nations" },
+    expect(savePreferences({ textSize: "large", reducedMotion: "off", reducedTransparency: "off", disableAutoplayOnOtherProfiles: true, worldMapSection: "nations", worldMapView: "world", hallOfFameScope: "all", hallOfFameRankBy: "legacy" }, broken)).toEqual({
+      value: { textSize: "large", reducedMotion: "off", reducedTransparency: "off", disableAutoplayOnOtherProfiles: true, worldMapSection: "nations", worldMapView: "world", hallOfFameScope: "all", hallOfFameRankBy: "legacy" },
       error: "Device preferences could not be saved. Your choice is active for this session.",
     });
     expect(loadPreferences(null)).toEqual({
@@ -61,7 +73,7 @@ describe("preferences", () => {
 
   it("applies presentation attributes without requiring storage", () => {
     const target = { documentElement: { dataset: {} as DOMStringMap } };
-    applyPreferencesToDocument({ textSize: "large", reducedMotion: "system", reducedTransparency: "on", disableAutoplayOnOtherProfiles: false, worldMapSection: "nations" }, target);
+    applyPreferencesToDocument({ textSize: "large", reducedMotion: "system", reducedTransparency: "on", disableAutoplayOnOtherProfiles: false, worldMapSection: "nations", worldMapView: "world", hallOfFameScope: "all", hallOfFameRankBy: "legacy" }, target);
     expect(target.documentElement.dataset.textSize).toBe("large");
     expect(target.documentElement.dataset.reducedMotion).toBe("system");
     expect(target.documentElement.dataset.reducedTransparency).toBe("on");

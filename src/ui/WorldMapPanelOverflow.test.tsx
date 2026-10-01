@@ -47,7 +47,12 @@ function makeLongMap() {
       regionsCountryName={projected.playerCountryName}
       section="nations"
       onSectionChange={onSectionChange}
+      view="world"
+      onViewChange={vi.fn()}
+      hallOfFame={null}
+      onOpenHallOfFame={vi.fn()}
       onNavigate={onNavigate}
+      onOpenElection={vi.fn()}
     />,
   );
   return { overview, onNavigate, homeId: regions[0]!.id };
@@ -65,7 +70,11 @@ describe("world map directory row containment", () => {
   it("keeps a long nation name with two badges inside the row and selectable", () => {
     const { onNavigate } = makeLongMap();
 
-    const row = screen.getByRole("button", { name: `Open ${LONG_NATION} nation details` });
+    // The directory row is the only match for this name (the geographic
+    // shape uses "Open ... on the map"); it is the real <button> element.
+    const row = screen
+      .getAllByRole("button", { name: `Open ${LONG_NATION} nation details` })
+      .find((element) => element.tagName === "BUTTON")!;
     expect(row).toBeEnabled();
     // Label ships inside the shrink containment; both badges stay on the row.
     const label = row.querySelector(".ahd-world-row-label-text");
@@ -93,7 +102,9 @@ describe("world map directory row containment", () => {
   it("preserves the desktop row treatment: touch target, split alignment, left text", () => {
     makeLongMap();
 
-    const row = screen.getByRole("button", { name: `Open ${LONG_NATION} nation details` });
+    const row = screen
+      .getAllByRole("button", { name: `Open ${LONG_NATION} nation details` })
+      .find((element) => element.tagName === "BUTTON")!;
     expect(row).toHaveStyle({ minHeight: "3.1rem", justifyContent: "space-between", textAlign: "left" });
     const regionRow = screen.getByRole("button", { name: `Open ${LONG_REGION} region details` });
     expect(regionRow).toHaveStyle({ minHeight: "3.1rem", justifyContent: "space-between", textAlign: "left" });

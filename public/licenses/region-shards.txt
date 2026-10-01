@@ -1,0 +1,72 @@
+Region subdivision shards (GeoJSON FeatureCollection, one feature per
+region tagged properties.regionCode = the game's states._id)
+=====================================================================
+
+Assets: public/geo/*.json (9 files, ~2.8 MB total; ru-regions.json alone
+is 1,924,111 bytes).
+
+Source: AHDGame public/*.json at immutable rev
+954f1c21781e6e767455a15eed40f73993d89a8b, copied verbatim (md5-verified
+against both the pinned rev and the live checkout on import; all match).
+No geometry edited, added, repositioned, or reprojected. Files kept in
+public/ (not bundled imports) so each country's shard lazy-loads only
+when its map renders; the 1.9 MB Russia asset never enters the JS bundle.
+
+Shard key (AHDGame module -> file -> Native countries/eras):
+
+- src/lib/maps/usaGeometry.ts -> usa-regions.json
+  50 states + DC (built by scripts/geo/build-usa-geo.mjs from us-atlas
+  us-states-10m.json TopoJSON, FIPS -> state code; territories dropped).
+  Native records DC as a corporation headquarters only. It has no political
+  region directory entry, so its feature is present but never selectable.
+  1953 rosters carry 48 states (no AK/HI until statehood); later eras 50.
+  Rendered with an AlbersUsa composite (CONUS + inset AK/HI), as source.
+- src/lib/maps/britishIslesGeometry.ts -> british-isles-regions.json
+  UK NUTS1 (12) + IE regions (8); built by
+  scripts/geo/build-british-isles-geo.mjs. One source for the UK map, the
+  IE map, and the world overlay; ownership is read live from the save.
+- src/lib/countries/ru/data/ruGeometry.ts -> ru-regions.json
+  14 USSR macro-regions (10 RSFSR economic regions dissolved from
+  Click-That-Hood russia.geojson federal subjects + KAZ/TRA/CAS/MOL union
+  republics from Natural Earth 1:50m; built by scripts/geo/build-ru-geo.mjs).
+  Far-East longitudes are unwrapped past the antimeridian (19..191 span).
+- src/lib/countries/dd/data/ddGeometry.ts -> dd-regions.json
+  East Berlin (BEO) single-feature shard lifted from Brandenburg's interior
+  ring (scripts/geo/build-dd-geo.mjs); fills BB's enclave hole exactly.
+  DD's five Laender render from the germany shard by live ownership.
+- src/lib/countries/br/data/brazilGeometry.ts -> br-regions.json
+  5 hand-authored macro-regions, tagged by scripts/geo/tag-region-shard.mjs.
+- src/lib/countries/cn/data/chinaGeometry.ts -> cn-regions.json (modern)
+  and cn-regions-1991.json (pre-handover). Same 7 codes in both; the
+  renderer selects by game time (Hong Kong handover July 1, 1997).
+  Macau's Dec 1999 handover is not modeled separately (source limitation).
+- src/lib/countries/de/data/germanyGeometry.ts -> germany-regions.json
+  16 Laender from de-laender.json (Bremen HB->BRE; West Berlin BE its own
+  feature; Brandenburg carries the Berlin enclave hole).
+  Source world-overlay fold (BE renders under Brandenburg's owner) is a
+  globe-union concern and does not apply to per-region Native rendering.
+- src/lib/maps/japanGeometry.ts -> japan-regions.json
+  8 macro-regions dissolved from the 47 prefectures of
+  japan-prefectures.json (scripts/geo/build-japan-geo.mjs).
+
+Rights: Natural Earth data is public domain
+(https://www.naturalearthdata.com/about/terms-of-use/). us-atlas derives
+from U.S. Census Bureau / Natural Earth sources. No attribution is legally
+required; this file records provenance anyway. No boreholes, no
+third-party licensed shapes, no invented territories: shard coverage ends
+where the source manifest (src/lib/maps/regionManifest.ts REGION_SHARDS
+at the pinned rev) ends. Countries with no Native region records and no
+shard (e.g. FR/IT/ES/SE/TR/NG in Native saves) render an honest
+unavailable note, never invented polygons.
+
+Reference behavior preserved (RegionalGeoMap.tsx + useRegionGeometry.ts +
+countryMapConfigs.tsx at the pinned rev):
+- region identity is the code; which country a shared-shard shape renders
+  under is read live from states.countryId (British-Isles model).
+- degenerate rings (< 4 positions; cn-regions.json HN carries a one-point
+  ring) are dropped before render so one bad ring cannot take the map down.
+- US labels show the state code; BR/RU/BEO use the compact overrides in
+  src/game/regionGeo.ts (ported from US_LABEL_OVERRIDES,
+  BR_LABEL_OVERRIDES, RU_LABEL_OVERRIDES, DD_LABEL_OVERRIDES).
+- per-country boxes mirror the source viewBoxes (US 960x600 AlbersUsa,
+  CN 480x340, default 280x400 portrait Mercator fit).

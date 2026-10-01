@@ -31,6 +31,8 @@ function makeOverview(overrides: Partial<WorldOverviewView> = {}): WorldOverview
         id: "US",
         name: "United States",
         playable: true,
+        races: [],
+        leader: null,
         currency: "USD",
         economy: {
           gdpMillions: 387_000,
@@ -79,6 +81,8 @@ function makeOverview(overrides: Partial<WorldOverviewView> = {}): WorldOverview
         id: "FR",
         name: "France",
         playable: false,
+        races: [],
+        leader: null,
         currency: "FRF",
         economy: {
           gdpMillions: 47_000,

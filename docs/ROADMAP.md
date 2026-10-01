@@ -12,6 +12,18 @@ credit servicing are now implemented with original #111 acceptance awaiting
 combined verification. Corporate-funded #299 purchase also integrates physical
 ledger conservation; its complete original flow and fresh gate remain required.
 
+## Source geographic maps and local Hall checkpoint, 2026-10-01 (#73 partial)
+
+Offline country/subdivision shapes, country-scoped browsing, real entity links
+and local recorded-life standings now pass actual 320px/390px save/resume
+journeys. [PR #712](https://github.com/Egg3901/AHDNative/pull/712) merged at
+`6e5ad55` after exact `98b239d` passed the [full gate](https://github.com/Egg3901/AHDNative/actions/runs/36882208965).
+The supported preference/mobile-width criterion is checked; #73 stays partial.
+Map vectors use Game `01797b27`, checked against current `cb66acdf`.
+Complete map modes/country coverage, foreign regional detail and server-wide
+history remain open under #73; [source comparison](WORLD-MAP-PARITY.md)
+records the boundary. Integration preserves the merged command economy route.
+
 ## NPP relationship and recruitment checkpoint, 2026-10-01 (#57 / #61 partial)
 
 Politicians now expose four source relationship approaches with reviewed target,
@@ -48,7 +60,8 @@ now have real player controls, source authority, saved lifecycle and budget/over
 consumers. Public engine tests and actual 320px/390px two-reload journeys pass.
 [Source comparison](ECONOMIC-CONTROL-PARITY.md) records the remaining default
 Game plants-mode capital/replacement chain, director request weighting and state
-subsidy scope. #94 stays open; the corporate prerequisites remain in #107.
+subsidy scope. PR705 passed full verification at `fba4905`, merged as `a17c5de`,
+and the original #94 checklist remains partial; corporate prerequisites remain #107.
 
 ## Verified CEO card closure, 2026-10-01 (#51)
 
