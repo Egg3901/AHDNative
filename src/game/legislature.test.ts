@@ -22,6 +22,15 @@ function governmentSave(): string {
   return serializeSave(world, savedAt);
 }
 
+function chamberSave(): string {
+  const world = createWorld({ ...options, mode: "career" });
+  // A recorded House member exercises chamber timing, independent of the
+  // direct singleplayer head-of-state decree tested below.
+  world.player.legislativeSeat = { chamberKey: "house", countryId: "US" };
+  world.player.nationalInfluence = 5;
+  return serializeSave(world, savedAt);
+}
+
 describe("legislature through the session contract", () => {
   it("shows country proposals but requires office before sponsoring", () => {
     const session = new GameSession();
@@ -34,19 +43,26 @@ describe("legislature through the session contract", () => {
     expect(session.act("sponsorBill", { catalogId: "us.economy.workerSecurity.primary" }).ok).toBe(false);
     expect(session.serialize(savedAt)).toBe(before);
   });
-  it("loads a government save, sponsors a real bill and preserves its separate voting gate", () => {
+  it("loads an SP head-of-state save and enacts its decree without a chamber vote", () => {
     const session = new GameSession();
     session.load(governmentSave());
     expect(session.view().legislature.office).toBe("Head of state");
     expect(session.act("sponsorBill", { catalogId: "us.economy.workerSecurity.primary" }).ok).toBe(true);
     const bill = session.view().legislature.bills.find((b) => b.sponsorName === "Alex")!;
-    expect(bill).toMatchObject({ title: "Fair Labor Standards and Employment Security Act", status: "proposed", playerVote: null });
-    expect(session.view().legislature.sponsor.available).toBe(false);
-    const loaded = new GameSession(); loaded.load(session.serialize(savedAt)); loaded.advance();
-    expect(loaded.view().legislature.bills.find((b) => b.id === bill.id)).toMatchObject({ status: "active", voting: { available: false } });
-    expect(loaded.view().legislature.sponsor).toMatchObject({ available: false, disabledReason: "Available in 1 turn." });
+    expect(bill).toMatchObject({
+      title: "Fair Labor Standards and Employment Security Act",
+      status: "signed", playerVote: null, votesFor: 0, votesAgainst: 0,
+      voting: { available: false },
+    });
+    expect(session.view().legislature.schedule?.some((entry) => entry.billId === bill.id)).toBe(false);
+    const loaded = new GameSession();
+    loaded.load(session.serialize(savedAt));
     loaded.advance();
-    expect(loaded.view().legislature.sponsor.available).toBe(true);
+    expect(loaded.view().legislature.bills.find((entry) => entry.id === bill.id))
+      .toMatchObject({ status: "signed", voting: { available: false } });
+    expect(JSON.parse(loaded.serialize(savedAt)).world.player.nationalInfluence).toBe(2.5);
+    loaded.advance();
+    expect(JSON.parse(loaded.serialize(savedAt)).world.player.nationalInfluence).toBe(5);
     const before = loaded.serialize(savedAt);
     expect(loaded.act("voteOnBill", { billId: bill.id, vote: "for" }).ok).toBe(false);
     expect(loaded.serialize(savedAt)).toBe(before);
@@ -218,7 +234,7 @@ describe("legislature navigation through the session boundary", () => {
 
   it("links sponsorship and the floor schedule to the selected chamber across a turn", () => {
     const session = new GameSession();
-    session.load(governmentSave());
+    session.load(chamberSave());
     expect(session.act("sponsorBill", {
       catalogId: "us.economy.workerSecurity.primary",
       originChamber: "house",
