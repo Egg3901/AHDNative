@@ -48,6 +48,7 @@ import {
   DEFAULT_CORPORATE_TAX_RATE_PCT,
 } from "./constants.js";
 import { pushEarningsHistory } from "../market/earnings.js";
+import { subsidyMarginModifierForCorporation } from "../budget/subsidyBudget.js";
 import {
   labourFactorsForCorporation,
   loadCorporationLabourState,
@@ -215,10 +216,16 @@ export const corporationTurnPhase: TurnPhase = {
     // strike resolution steps after the corp math (reference sector-pass
     // order: production effects from turn-start state, then the step).
     const labour = loadCorporationLabourState(world, world.meta.turn);
+    const subsidies = Array.isArray(world.subsidies) ? world.subsidies : [];
     for (const corp of Object.values(world.corporations)) {
       const taxRatePct = world.budgets?.[corp.countryId]?.taxRates.domesticCorporateTax ?? DEFAULT_CORPORATE_TAX_RATE_PCT;
       const currencyCode = world.budgets?.[corp.countryId]?.currencyCode ?? world.exchangeRates?.[corp.countryId]?.currencyCode ?? "XXX";
-      runCorporationTurn(corp, taxRatePct, labourFactorsForCorporation(world, corp.id, labour), { player: world.player, currencyCode });
+      const labourFactors = labourFactorsForCorporation(world, corp.id, labour);
+      const subsidyMargin = subsidyMarginModifierForCorporation(subsidies, corp);
+      runCorporationTurn(corp, taxRatePct, {
+        ...labourFactors,
+        marginModifierPP: labourFactors.marginModifierPP + subsidyMargin,
+      }, { player: world.player, currencyCode });
       checkInsolvency(corp, world.meta.turn);
     }
     stepCorporateSectorStrikes(world, world.meta.turn, labour);

@@ -26,6 +26,25 @@ export interface CommandEconomyState {
   governmentReformism: number;
   /** Internal-repression dial [0 none .. 1 heavy], derived from reformism. */
   internalRepression: number;
-  /** Gosbank soft-budget dial [0 hard .. 1 soft]. PORT-STUB NPP default (no player directive). */
+  /** Gosbank soft-budget dial [0 hard .. 1 soft], defaulting to NPP posture until directed. */
   budgetSoftness: number;
+  /** Player-set Gosbank credit dial. Older saves use the reference NPP default. */
+  creditAggressiveness?: number;
+  /** Optional Gosbank per-sector weighting; absent means automatic allocation. */
+  sectorCredit?: Record<string, number>;
+  /** Last turn's per-sector Gosbank issuance, as currency amounts. */
+  directedCreditBySector?: Record<string, number>;
+  /** Costed actions become active at the next turn boundary. */
+  pendingDirectives?: CommandEconomyDirective[];
+}
+
+export interface CommandEconomyDirective {
+  id: string;
+  countryId: string;
+  proposedTurn: number;
+  effectiveTurn: number;
+  creditAggressiveness?: number;
+  budgetSoftness?: number;
+  /** Null clears the explicit weighting and restores automatic allocation. */
+  sectorCredit?: Record<string, number> | null;
 }

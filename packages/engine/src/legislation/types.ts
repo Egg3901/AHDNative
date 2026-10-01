@@ -101,6 +101,7 @@ export type BillProvisionType =
   | "partySupport"
   | "tariff"
   | "subsidy"
+  | "end_subsidy"
   | "nationalize"
   | "privatize"
   // W28: currency union accession. Source: src/lib/billEnactment.ts
@@ -116,6 +117,11 @@ export interface BillProvision {
   economic?: number;
   social?: number;
   proposedRate?: number;
+  /** AHDGame subsidyEffects.ts provision payload. */
+  subsidyScopeType?: "economy_wide" | "sector";
+  targetSectorType?: string | null;
+  targetStrategyId?: string | null;
+  domesticOnly?: boolean;
   /** Target union id for type "currency_union". Source: finance/currencyUnion.ts. */
   currencyUnionId?: string;
   // For economy/partySupport provisions, carry delta payload via catalog

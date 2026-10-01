@@ -3,7 +3,7 @@
 Thin local wrapper over engine `projectSaveToV42`, reached through the
 `src/game/saveCompatibility.ts` re-export. Reads one save file, projects
 it to schema 42, writes a new file. Authentic fixtures stay byte-identical.
-Native-fresh pre-turn worlds become the keep-home extension document, not
+Historical pre-control pre-turn worlds become the keep-home extension document, not
 the authentic mint. That is all it does.
 
 ## Command
@@ -32,7 +32,7 @@ These CLI cases are included in the normal `npm test` verification batch.
 | Genuine v42 fixture (`fixtures/v42-1953-US.save.json.gz`, SHA-256 `471352be87c8887dcc6ae02f465b898272f62843b5e0861a45138c2de7f58cdc`) | exit 0, output byte-identical to input |
 | Output path already exists | exit 1, existing file left untouched |
 | Invalid save (unparseable JSON) | exit 1, no output created |
-| Native-fresh pre-turn schema 48 world (`homeRegionId "AL"`) | exit 0, schema 42 extension with `homeRegionId` `"AL"` and no `countryPolitics`, SHA-256 `404370ac2e43de737ce3e664fafde05f34a8298bb51db2de9de8ae6de6c59b03` |
+| Historical pre-control pre-turn schema 48 world (`homeRegionId "AL"`) | exit 0, schema 42 extension with `homeRegionId` `"AL"` and no `countryPolitics`, SHA-256 `404370ac2e43de737ce3e664fafde05f34a8298bb51db2de9de8ae6de6c59b03` |
 | Progressed Native world (one `advanceTurn`) | exit 1 naming `countryPolitics`, no output created |
 | Schema-relabeled v43 envelope | exit 1 as not authentic schema 42, no output created |
 | `--help` | exit 0, usage on stdout |
@@ -44,10 +44,15 @@ source is never overwritten.
 ## Not claimed
 
 - No browser or native export. This is a local filesystem developer tool.
-- The Native-fresh output is a v42 extension document. It is not the
+- The historical pre-control output is a v42 extension document. It is not the
   authentic mint, which omits `homeRegionId`.
 - Progressed `countryPolitics`, a relabeled newer save, and unsupported schema versions
   still fail closed; see `docs/SAVE-WRITER-INVESTIGATION.md` and
   `docs/V42-INTERCHANGE-DEPTH.md`.
 - No AHDGame parity, no full progressed interchange, no device or signing
   claims. No new dependency (node builtins plus the existing engine import).
+
+Current fresh worlds with SOE/Gosbank state are refused: the old reader does not
+run those consumers. Legacy SOE seeds are stripped only when unchanged and
+exactly reconstructable on Native reload. Historical fixture hashes are retained
+instead of replacing them with current creation hashes.

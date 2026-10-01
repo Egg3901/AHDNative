@@ -1,3 +1,4 @@
+import type { GameActionParams } from "./actionInput";
 import type { CapabilityNavSupport } from "./capabilityNav";
 import type { MyCorporationLink } from "./identityOrg";
 import type { LegislationDetailsQuery, LegislationSelection } from "./legislationDetails";
@@ -322,7 +323,7 @@ export interface GameScreenProps {
   /** Save-slot identity for per-save news selection and read state. */
   newsStorageKey?: string;
   onAdvanceTurn: () => void; onSave: () => void; onExit: () => void;
-  onAction: (id: string, params?: Record<string, string | number>) => void;
+  onAction: (id: string, params?: GameActionParams) => void;
   /**
    * Direct corporate-sector sale commands (#294) plus player acquisition
    * (#295): list, update, unlist, or buy a recorded sector-asset listing as

@@ -245,11 +245,11 @@ describe("M1: economic-direction levers (HoS-only, call existing budget function
     expect(world.budgets["US"]!.taxRates.incomeTax).toBe(target);
   });
 
-  it("command-economy lever stays honestly unavailable (PORT-STUB); subsidy enactment is live (#94)", () => {
+  it("rejects Gosbank controls for a market economy; subsidy enactment is live (#94)", () => {
     const world = createWorld(HOS_OPTS);
     const command = executeAction(world, "player", "commandEconomyDirective", {});
     expect(command.ok).toBe(false);
-    if (!command.ok) expect(command.error).toMatch(/unavailable/);
+    if (!command.ok) expect(command.error).toMatch(/No planned-economy Gosbank system/);
     // setSubsidyRate now executes: missing op still fails closed, and career
     // mode is gated before any world mutation.
     const missingOp = executeAction(world, "player", "setSubsidyRate", {});

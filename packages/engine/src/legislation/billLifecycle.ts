@@ -27,6 +27,7 @@ import { calculateBudgetRevenue } from "../budget/revenue.js";
 import { regionalGdpAbsolute, applyStateTaxToRegionalRevenue } from "../budget/regionalBudget.js";
 import { rebuildPolicyBudgets } from "../policyEffects/budget.js";
 import { energyActionLimits } from "../actions/officeBonus.js";
+import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
 
 const VOTING_TURNS = 2;
 const EXEC_WINDOW_TURNS = 2;
@@ -321,6 +322,29 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
   // State-scope tax laws target a region's budget (issue #100).
   if (catalog?.kind === "tax" && catalog.taxPolicy && catalog.taxPolicy.scope === "state") {
     applyStateTaxChange(world, bill, catalog, bill.selectedRate);
+  }
+
+  // National subsidy provisions share the ordinary bill vote/sign lifecycle.
+  // Source: AHDGame src/lib/subsidies/subsidyEffects.ts; state-scope subsidy
+  // budgets remain unavailable in this solo model.
+  for (const provision of bill.provisions) {
+    if (provision.type !== "subsidy" && provision.type !== "end_subsidy") continue;
+    const scopeType = provision.subsidyScopeType;
+    if (scopeType !== "economy_wide" && scopeType !== "sector") continue;
+    const spec = {
+      countryId: bill.countryId,
+      scopeType,
+      targetSectorType: provision.targetSectorType ?? null,
+      targetStrategyId: provision.targetStrategyId ?? null,
+      domesticOnly: provision.type === "subsidy" ? provision.domesticOnly ?? false : false,
+    } as const;
+    if (provision.type === "subsidy") {
+      const result = enactNationalSubsidy(world.subsidies ?? [], spec);
+      if (result.ok) world.subsidies = result.subsidies;
+    } else {
+      const result = endNationalSubsidy(world.subsidies ?? [], spec);
+      if (result.ok) world.subsidies = result.subsidies;
+    }
   }
 
   // W28: currency union accession provisions (finance/currencyUnion.ts).

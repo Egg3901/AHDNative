@@ -17,7 +17,7 @@ import { projectSaveToV42 } from "../src/game/saveCompatibility";
 const USAGE = `usage: npx tsx scripts/export-save-v42.ts --input <save.json> --output <v42.save.json>
 
 Project a save envelope to schema 42 for local developer interchange.
-Authentic v42 fixtures stay byte-identical. Native-fresh pre-turn worlds
+Authentic v42 fixtures stay byte-identical. Historical pre-control pre-turn worlds
 are written as the keep-home extension document. Writes the projected
 bytes verbatim on success only, never overwrites an existing file, and
 never overwrites the input.
