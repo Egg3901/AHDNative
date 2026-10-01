@@ -15,4 +15,11 @@ describe("source political boards at the public save boundary", () => {
       ok: false, error: expect.stringContaining("Political board"),
     });
   });
+  it("rejects a political board attached to another country's region on reload", () => {
+    const world = createWorld({ era: "2019", countryId: "UK", seed: "political-save", playerName: "Alex" });
+    const saved = JSON.parse(serializeSave(world, "2026-10-01T00:00:00.000Z"));
+    saved.world.regionalPoliticalMetrics.LON.countryId = "US";
+    expect(() => deserializeSave(JSON.stringify(saved))).toThrow(/Political board.*LON.*country/);
+  });
+
 });

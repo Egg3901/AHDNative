@@ -529,6 +529,10 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // append-only convention). Relative order mirrors mainline exactly:
   // independenceDesireDrift BEFORE referendumLifecycle, "so a settled
   // No-vote dampens the just-updated desire value" (mainline's own comment).
+  // Game political dynamics completes in the state-effects batch before
+  // referendum actuation transfers jurisdictions. It consumes the previous
+  // cabinet snapshot before ministerialOrders replaces it below.
+  politicalCabinetResidualPhase,
   independenceDesireDriftPhase,
   referendumLifecyclePhase,
   // W6 metric engine cluster at END before newsMaintenance — ordering deviation:
@@ -625,9 +629,6 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // ministerialOrders -> policyEffects, stateEffectsPhase.ts:107-126) so
   // policyEffects' target recompute reads the order-shocked nationalMetrics
   // value the same turn, same as mainline.
-  // Source political dynamics reads the previous snapshot before orders
-  // replace it. Same-turn effects must not double-drive the political board.
-  politicalCabinetResidualPhase,
   ministerialOrdersPhase,
   policyEffectsPhase,
   // W11 (extraction/prospecting) + W35 (player wealth/wires/achievements)

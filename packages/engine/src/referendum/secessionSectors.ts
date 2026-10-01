@@ -61,6 +61,7 @@ export function expandSecededSectorRegions(world: WorldState, countryId: "SCO" |
   if (!seeds) return;
   if (world.regions[seeds[0]!.id]) return;
   const seedGdpTotal = seeds.reduce((sum, row) => sum + (row.gdp ?? 0), 0);
+  const politicalBoard = world.regionalPoliticalMetrics?.[countryId];
 
   for (const seed of seeds) {
     world.regions[seed.id] = {
@@ -75,6 +76,13 @@ export function expandSecededSectorRegions(world: WorldState, countryId: "SCO" |
       censusRegion: seed.censusRegion,
     };
     world.capitalStock[seed.id] = (world.capitalStock[countryId] ?? 0) * ((seed.gdp ?? 0) / seedGdpTotal);
+    // Game fanoutPolicy marks politicalMetrics cloneIdentical: scores and
+    // cabinet residuals are intensive records, not apportioned quantities.
+    if (politicalBoard && world.regionalPoliticalMetrics) {
+      world.regionalPoliticalMetrics[seed.id] = structuredClone(politicalBoard);
+      world.regionalPoliticalMetrics[seed.id]!.countryId = countryId;
+      delete world.regionalPoliticalMetrics[seed.id]!.residuals;
+    }
   }
   for (const asset of Object.values(world.corporateSectors ?? {}).filter((row) => row.stateId === countryId)) {
     asset.countryId = countryId;
@@ -122,5 +130,6 @@ export function expandSecededSectorRegions(world: WorldState, countryId: "SCO" |
     delete world.regionTurnouts[countryId];
   }
   delete world.regions[countryId];
+  if (world.regionalPoliticalMetrics) delete world.regionalPoliticalMetrics[countryId];
   delete world.capitalStock[countryId];
 }
