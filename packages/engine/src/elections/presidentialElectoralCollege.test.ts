@@ -43,6 +43,7 @@ describe("electoralVotesByState — EV apportionment (1953)", () => {
   it("matches mainline HOUSE_SEATS_1953 + 2 senators per state, 48 states, no DC/AK/HI", () => {
     const world = createWorld(OPTS);
     const ev = electoralVotesByState(world, "US");
+    expect(world.regions.DC?.corporationHeadquartersOnly).toBe(true);
     expect(Object.keys(ev).sort()).toEqual(Object.keys(HOUSE_SEATS_1953).sort());
     for (const [stateId, seats] of Object.entries(HOUSE_SEATS_1953)) {
       expect(ev[stateId]).toBe(seats + 2);
@@ -148,7 +149,7 @@ describe("allocateElectoralVotes — winner-take-all goldens", () => {
 function liveSeats(world: WorldState, countryId = "US"): Record<string, number> {
   const seats: Record<string, number> = {};
   for (const region of Object.values(world.regions)) {
-    if (region.countryId !== countryId) continue;
+    if (region.countryId !== countryId || region.corporationHeadquartersOnly === true) continue;
     seats[region.id] = region.houseSeats ?? 0;
   }
   return seats;

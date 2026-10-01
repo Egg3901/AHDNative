@@ -19,8 +19,8 @@ import { eraToPreset } from "../electionEngine/resolution/constants.js";
  * of living only in the helper's own tests.
  *
  * NO-INVENTED-GEOGRAPHY GUARANTEE: the helper's DC entry is intersected
- * back to live `world.regions` — no shipped pack models DC as a region
- * (no House seats, no demographics, no tally), so emitting DC would invent
+ * back to live `world.regions` — the recorded DC headquarters-only row has no political electorate
+ * (no House seats, demographics or tally), so emitting DC would invent
  * electors the EC path can never allocate. Likewise ME/NE stay
  * winner-take-all: AHDClient has no congressional-district entities at all
  * (house races are single per-state multi-seat contests — see
@@ -43,7 +43,7 @@ import { eraToPreset } from "../electionEngine/resolution/constants.js";
 export function electoralVotesByState(world: WorldState, countryId: string): Record<string, number> {
   const seats: Record<string, number> = {};
   for (const region of Object.values(world.regions)) {
-    if (region.countryId !== countryId) continue;
+    if (region.countryId !== countryId || region.corporationHeadquartersOnly === true) continue;
     seats[region.id] = region.houseSeats ?? 0;
   }
   const liveYear = Number(world.meta.date.slice(0, 4));

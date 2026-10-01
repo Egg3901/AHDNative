@@ -79,15 +79,44 @@ export interface CorpCeoPersonality {
 }
 
 /**
- * One NPC corporation. Every W9-seeded corp is single-sector and NPC-run
- * (ceoType "npp" in mainline terms — there is no player-corporation surface
- * yet; that is a later UI wave, U3).
+ * One single-sector corporation. W9-seeded issuers start NPP-run; the solo
+ * player can later win and accept a shareholder CEO offer. This does not
+ * create a player-owned corporation or transfer the issuer's sector assets.
  */
 export interface Corporation {
   id: string;
+  /** Local company identity; no remote logo URL is generated for offline issuers. */
+  name?: string;
+  brandColor?: string;
   countryId: string;
+  /** Authored seed HQ region; absent when the source capital region is not in the loaded era. */
+  headquartersRegionId?: string;
+  /** Which v50 source identity values were filled only to migrate a legacy save. */
+  legacyProjectionDefaults?: {
+    name?: true;
+    brandColor?: true;
+    headquartersRegionId?: true;
+  };
   /** Mainline issuer lifecycle. Legacy Native corporations are NPP-run when absent. */
   ceoType?: "npp" | "player";
+  /** Stable local character key for the solo player; absent on NPC-led corps. */
+  ceoId?: string;
+  /** Explicit vacancy flag; an absent value preserves the legacy NPP incumbent. */
+  ceoVacant?: boolean;
+  /** Current shareholder-vote leader awaiting acceptance. */
+  pendingCeoId?: string;
+  /** Latest ballot by holder, weighted by the holder's actual shares. */
+  ceoVotes?: Array<{ voterId: string; candidateId: string; shares: number }>;
+  /** CEO compensation in local currency per Native turn (one week). */
+  ceoSalaryPerTurn?: number;
+  /** Dividend payout percentage of positive after-tax operating income. */
+  dividendRate?: number;
+  /** Realized cash outputs, retained for Profile and save/reload. */
+  lastCeoSalaryPaid?: number;
+  lastDividendPoolPaid?: number;
+  lastPlayerDividendPaid?: number;
+  /** Dividend pool owed to holders without a Native cash account. */
+  lastUnpostedDividendPaid?: number;
   /** Suspended corporations are frozen and excluded from NPP auto-dissolution. */
   suspended?: boolean;
   sectorType: CorporationType;

@@ -4,6 +4,7 @@ import { GameSession } from "./session";
 import { projectProfileCorporations } from "./profileCorporation";
 
 const OPTIONS = { era: "1953", countryId: "US", seed: "native-profile-ceo-51", playerName: "Alex" };
+const CEO_OPTIONS = { era: "1953", countryId: "US", homeRegionId: "DC", seed: "native-profile-ceo-51", playerName: "Alex" };
 const SAVED_AT = "2026-09-18T00:00:00.000Z";
 
 /** Recorded sector-asset id for US-media through the public markets projection. */
@@ -48,6 +49,67 @@ describe("#51 profile corporation projection", () => {
     expect(session.profile().corporations).toEqual([]);
   });
 
+  it("seats a shareholder through the public CEO vote and accept flow, then persists the identity", () => {
+    const session = new GameSession();
+    session.create(CEO_OPTIONS);
+    expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
+    const vote = session.act("voteCeo", { corpId: "US-media", candidateId: "player" });
+    expect(vote.ok, vote.error).toBe(true);
+    expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
+    expect(session.act("setCorporationCompensation", {
+      corpId: "US-media",
+      salaryPerTurn: 1_000,
+      dividendRate: 25,
+    }).ok).toBe(true);
+    session.advance();
+
+    const card = session.profile().corporations;
+    expect(card).toHaveLength(1);
+    expect(card![0]).toMatchObject({ id: "US-media", role: "ceo", ceoSalaryPerTurn: 1_000 });
+    expect(card![0]!.dividendIncomePerTurn).toBeGreaterThan(0);
+
+    const reloaded = new GameSession();
+    reloaded.load(session.serialize(SAVED_AT));
+    expect(reloaded.profile().corporations).toEqual(card);
+    expect(session.act("resignCeo", { corpId: "US-media" }).ok).toBe(true);
+    expect(session.profile().corporations).toEqual([]);
+    const resigned = new GameSession();
+    resigned.load(session.serialize(SAVED_AT));
+    expect(resigned.profile().corporations).toEqual([]);
+  });
+
+  it("does not offer or seat a non-shareholder and preserves the world on rejection", () => {
+    const session = new GameSession();
+    session.create(OPTIONS);
+    const before = session.serialize(SAVED_AT);
+    expect(session.act("voteCeo", { corpId: "US-media", candidateId: "player" })).toMatchObject({ ok: false });
+    expect(session.act("acceptCeoAppointment", { corpId: "US-media" })).toMatchObject({ ok: false });
+    expect(session.serialize(SAVED_AT)).toBe(before);
+  });
+
+  it("refuses a CEO ballot for a corporation outside the player's country", () => {
+    const session = new GameSession();
+    session.create({ ...OPTIONS, countryId: "UK" });
+    expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
+    expect(session.act("voteCeo", { corpId: "US-media", candidateId: "player" })).toMatchObject({
+      ok: false,
+      error: "You must reside in the corporation's country to vote for its CEO",
+    });
+  });
+
+  it("requires residence in the authored HQ region rather than any region in the same country", () => {
+    const session = new GameSession();
+    session.create(CEO_OPTIONS);
+    expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
+    const away = new GameSession();
+    away.create({ ...CEO_OPTIONS, homeRegionId: "NY" });
+    expect(away.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
+    expect(away.act("voteCeo", { corpId: "US-media", candidateId: "player" })).toMatchObject({
+      ok: false,
+      error: "You must reside in the corporation's HQ region to be a CEO candidate",
+    });
+  });
+
   it("copies the owned listing verbatim from the same projection the company detail renders", () => {
     const { session } = sessionOwningMedia();
     const world = deserializeSave(session.serialize(SAVED_AT));
@@ -70,6 +132,11 @@ describe("#51 profile corporation projection", () => {
       playerShares: listing.playerShares,
       playerAvgCostPerShare: listing.playerAvgCostPerShare,
       controllingHolder: listing.controllingHolder,
+      brandColor: listing.brandColor,
+      isStateOwned: false,
+      role: "sector owner",
+      ceoSalaryPerTurn: 0,
+      dividendIncomePerTurn: 0,
       scope: listing.sectorAsset.scope,
       regionName: listing.sectorAsset.regionName,
     });

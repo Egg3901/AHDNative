@@ -6,6 +6,16 @@ by this issue. This file is the capability-boundary contract from the #86
 checklist: what lives offline, what lives behind the authenticated server
 adapter, and which reference behavior each side mirrors.
 
+Apple sign-in navigation was refreshed against AHDClient
+`7f3a5e620bac129b1dfb2ae973f723240ed61b3a` on 2026-10-01. Native's
+desktop game sign-in window and shared Ask policy now allow the exact
+`appleid.apple.com` host over HTTPS on port 443, alongside the existing
+provider hosts. HTTP, alternate ports and lookalike hosts remain external.
+Both actual Rust navigation tests failed before this allowlist update and
+passed after it in a focused source-fragment probe using the locked URL
+parser. Full Tauri checks are part of the hosted gate; authenticated device
+acceptance remains #363/#510.
+
 ## Offline SP boundary
 
 The offline app is a local singleplayer game with no network dependency:

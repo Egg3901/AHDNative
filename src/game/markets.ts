@@ -159,6 +159,17 @@ export interface MarketListing {
   shareholders: MarketShareholder[];
   /** Recorded holder with the largest block, or null when none is recorded or the top is tied. */
   controllingHolder: ShareholderKind | null;
+  /** Explicit persisted CEO identity and latest realized compensation outputs. */
+  ceoId?: string;
+  ceoVacant?: boolean;
+  pendingCeoId?: string;
+  headquartersRegionId?: string;
+  brandColor?: string;
+  isStateOwned: boolean;
+  ceoSalaryPerTurn?: number;
+  dividendRate?: number;
+  lastCeoSalaryPaid?: number;
+  lastPlayerDividendPaid?: number;
   /** Recorded executed-trade flow, multipliers, and insolvency marker (#77 slice).
    * Older persisted/read-only projections may omit this field; projectMarkets
    * always supplies it for current worlds.
@@ -309,6 +320,7 @@ export const SECTOR_LIST_OWNER_ONLY =
 
 export interface MarketsView {
   playerCountryId: string;
+  playerHomeRegionId?: string | null;
   playerCash: number;
   playerCurrency: string;
   playerActions: number;
@@ -457,7 +469,7 @@ export function projectMarkets(world: WorldState): MarketsView {
     return {
       id: corp.id,
       ticker,
-      name: corp.id,
+      name: corp.name ?? corp.id,
       countryId: corp.countryId,
       countryName: country?.name ?? corp.countryId,
       sectorType: corp.sectorType,
@@ -490,6 +502,16 @@ export function projectMarkets(world: WorldState): MarketsView {
         avgCostPerShare: shareholder.avgCostPerShare ?? null,
       })),
       controllingHolder: controllingHolder(corp.shareholders),
+      ...(corp.ceoId !== undefined ? { ceoId: corp.ceoId } : {}),
+      ...(corp.ceoVacant !== undefined ? { ceoVacant: corp.ceoVacant } : {}),
+      ...(corp.pendingCeoId !== undefined ? { pendingCeoId: corp.pendingCeoId } : {}),
+      ...(corp.headquartersRegionId !== undefined ? { headquartersRegionId: corp.headquartersRegionId } : {}),
+      ...(corp.brandColor !== undefined ? { brandColor: corp.brandColor } : {}),
+      isStateOwned: corp.ownershipState === "stateOwned" || corp.countryOwnerId !== undefined,
+      ...(corp.ceoSalaryPerTurn !== undefined ? { ceoSalaryPerTurn: corp.ceoSalaryPerTurn } : {}),
+      ...(corp.dividendRate !== undefined ? { dividendRate: corp.dividendRate } : {}),
+      ...(corp.lastCeoSalaryPaid !== undefined ? { lastCeoSalaryPaid: corp.lastCeoSalaryPaid } : {}),
+      ...(corp.lastPlayerDividendPaid !== undefined ? { lastPlayerDividendPaid: corp.lastPlayerDividendPaid } : {}),
       orderFlow: {
         buyWindow: corp.orderFlowWindowBuyValue ?? null,
         sellWindow: corp.orderFlowWindowSellValue ?? null,
@@ -617,6 +639,7 @@ export function projectMarkets(world: WorldState): MarketsView {
 
   return {
     playerCountryId: player.countryId,
+    playerHomeRegionId: player.homeRegionId,
     playerCash: player.cash,
     playerCurrency,
     playerActions: player.actions,

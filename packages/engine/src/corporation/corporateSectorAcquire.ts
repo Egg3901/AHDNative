@@ -22,9 +22,8 @@ import { corporateSectorAssets } from "./corporateSectorAssets.js";
  *
  * Native adaptations (nothing beyond them is ported):
  * - Buyer is the player character, not a corporation. Native has no
- *   player-run corporations and no CEO users (corporation/types.ts: corps
- *   are single-sector and NPC-run; a player-corporation surface is a later
- *   wave), so there is no buyer corp to authorize, debit, or receive the
+ *   player-run corporations (the player may separately hold a CEO identity
+ *   for an NPC issuer), so there is no buyer corp to authorize, debit, or receive the
  *   asset — and corp-to-corp transfer is structurally impossible (one
  *   aggregate corporation per country/sector, so any same-country same-type
  *   buyer IS the seller). Authority is therefore the actor kind: only
