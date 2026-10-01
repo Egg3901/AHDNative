@@ -351,7 +351,10 @@ export const bankingTurnPhase: TurnPhase = {
       // the bank vault and receive the full posted rate here.
       const currency = world.budgets[corp.countryId]?.currencyCode ?? "USD";
       const authoritativeSavings = savingsReadsAuthoritative(world, currency);
-      const inflationPercent = (world.countries[corp.countryId]?.economy.inflationRate ?? 0) * 100;
+      // Match Game's bank inflationHistory.at(-1): use the budget rate settled
+      // on the prior turn, not the country economy field that later phases may
+      // already have advanced independently.
+      const inflationPercent = world.budgets[corp.countryId]?.economicFactors.inflationRate ?? 0;
       const cbBaseApy = savingsApyPercent(bank.primeRate ?? 0, inflationPercent);
       const playerRate = authoritativeSavings
         ? depositRatePercent
