@@ -5,7 +5,7 @@ export type DrawerRouteId =
   | "actions" | "parties" | "legislature" | "elections" | "news"
   | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "campaignDetails"
   | "politicians" | "presidentialDetails" | "politicalMetrics"
-  | "economy" | "budget" | "policy" | "metrics" | "nations" | "worldDirectory" | "worldMap" | "hallOfFame" | "state" | "government"
+  | "economy" | "budget" | "policy" | "metrics" | "commandEconomy" | "nations" | "worldDirectory" | "worldMap" | "hallOfFame" | "state" | "government"
   | "help" | "settings" | "legislationDetails" | "markets" | "sectors" | "search"
   | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications" | "referendums"
   | "worldSettings" | "ask";
@@ -136,6 +136,7 @@ export const MENU_GROUPS: DrawerNavGroup[] = [
           { id: "economy", label: "Economy" },
           { id: "budget", label: "National Budget" },
           { id: "metrics", label: "National Metrics" },
+          { id: "commandEconomy", label: "Command Economy" },
         ],
       },
     ],
@@ -474,6 +475,7 @@ export function GameDrawer({
   cabinetAvailable,
   metricsAvailable,
   referendumsAvailable,
+  commandEconomyAvailable,
 }: {
   open: boolean;
   /**
@@ -521,6 +523,7 @@ export function GameDrawer({
    */
   metricsAvailable?: boolean;
   referendumsAvailable?: boolean;
+  commandEconomyAvailable?: boolean;
 }) {
   const activeGroup = MENU_GROUPS.find((group) =>
     [...group.items, ...(group.sections ?? []).flatMap((section) => section.items)]
@@ -552,11 +555,12 @@ export function GameDrawer({
   const capabilityHidden = (id: DrawerRouteId): boolean =>
     ((id === "politicalMetrics" || id === "metrics") && metricsAvailable === false)
     || (id === "referendums" && referendumsAvailable === false);
+  const commandEconomyHidden = (id: DrawerRouteId): boolean => id === "commandEconomy" && commandEconomyAvailable === false;
   const visibleGroups = MENU_GROUPS.map((group) => ({
     ...group,
-    items: group.items.filter((item) => !capabilityHidden(item.id)),
+    items: group.items.filter((item) => !capabilityHidden(item.id) && !commandEconomyHidden(item.id)),
     sections: group.sections
-      ?.map((section) => ({ ...section, items: section.items.filter((item) => !capabilityHidden(item.id)) }))
+      ?.map((section) => ({ ...section, items: section.items.filter((item) => !capabilityHidden(item.id) && !commandEconomyHidden(item.id)) }))
       .filter((section) => section.items.length > 0),
   }));
 
@@ -644,7 +648,11 @@ export function GameDrawer({
             // Conditional rows (#510) count exactly as rendered: the gated
             // presidential row drops out, member-only/candidacy rows add in.
             const visibleSectionItems = (items: DrawerNavLink[]) =>
-              visibleItems(items).filter((item) => roleConditions?.presidentialAvailable !== false || item.id !== "presidentialDetails");
+              visibleItems(items).filter((item) =>
+                (roleConditions?.presidentialAvailable !== false || item.id !== "presidentialDetails")
+                && !capabilityHidden(item.id)
+                && !commandEconomyHidden(item.id),
+              );
             const deepCount = (group.sections ?? []).reduce((n, section) => n + visibleSectionItems(section.items).length, 0)
               + (group.label === "Nation" && roleConditions?.myParty ? 1 : 0);
             const sectionId = `ahd-drawer-section-${group.label.toLowerCase()}`;

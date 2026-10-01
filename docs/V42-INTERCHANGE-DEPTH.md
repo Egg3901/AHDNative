@@ -6,7 +6,7 @@ This document records the bounded save projection to the pinned AHDClient v42 en
 
 Its public `deserializeSave` rejects an envelope above schema 42, migrates older schemas, and checks required fields without whitelisting extra keys. Its `serializeSave` uses `JSON.stringify` on `{ format, schemaVersion: world.meta.schemaVersion, savedAt, world }`. It therefore preserves unknown `countryPolitics` and string `player.homeRegionId` fields when reading and writing. Its turn pipeline never advances `countryPolitics`. Reader/writer preservation alone does **not** make a progressed political save playable there.
 
-Native `projectSaveToV42` accepts the authentic v42 fixture byte for byte and a bounded Native fresh world before political progress. It removes `countryPolitics` only when Native can restore the same record by migration and refuses progressed worlds and unsupported state. It keeps a string `homeRegionId` as an old-reader-preserved extension; a null home region is omitted to match the authentic mint. A document with that extra string is not the authentic v42 mint. The projector rejects a mere schema relabel that keeps unsupported political state. The implementation is in `packages/engine/src/save.ts`, exported from the engine and `src/game/saveCompatibility.ts`, and used by `scripts/export-save-v42.ts`.
+Native `projectSaveToV42` accepts the authentic v42 fixture byte for byte and a bounded historical pre-control Native world before political progress. It removes `countryPolitics` only when Native can restore the same record by migration and refuses progressed worlds and unsupported state. It keeps a string `homeRegionId` as an old-reader-preserved extension; a null home region is omitted to match the authentic mint. A document with that extra string is not the authentic v42 mint. The projector rejects a mere schema relabel that keeps unsupported political state. The implementation is in `packages/engine/src/save.ts`, exported from the engine and `src/game/saveCompatibility.ts`, and used by `scripts/export-save-v42.ts`.
 
 ## Reproducible projection evidence
 
@@ -15,7 +15,7 @@ The hashes below are SHA-256 of public projected save bytes using `savedAt = 202
 | Input | Projection | SHA-256 |
 | --- | --- | --- |
 | Authentic 1953 US fixture | unchanged | `471352be87c8887dcc6ae02f465b898272f62843b5e0861a45138c2de7f58cdc` |
-| Native fresh 1953 US, home `AL` | schema 42, home `AL`, no `countryPolitics` | `404370ac2e43de737ce3e664fafde05f34a8298bb51db2de9de8ae6de6c59b03` |
+| Historical pre-control Native 1953 US, home `AL` | schema 42, home `AL`, no `countryPolitics` | `404370ac2e43de737ce3e664fafde05f34a8298bb51db2de9de8ae6de6c59b03` |
 | Same Native world after `convertCash` 2000 | same bounded shape | `389c8c242abe894a494b43d226387651aa62c46663d7ae98e374781a53f62065` |
 | Native world after a political turn | refused | n/a |
 
@@ -35,3 +35,10 @@ npx vitest run --config vitest.config.ts src/game/saveCompatibility.test.ts scri
 ```
 
 These are local contract checks, not an iOS build or physical-device result.
+
+Fresh Native worlds now carry SOE/Gosbank production state that the historical
+reader cannot continue and are refused. `native-fresh-pre-ceo-source.save.json.gz`
+retains actual pre-control creation bytes with source provenance, preserving the
+historical hashes above. A migrated authentic v42 save can still export exactly
+while its source-seeded SOE overlay is unchanged. Active directives, credit
+allocation and changed production refuse export rather than dropping state.

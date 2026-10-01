@@ -1,4 +1,5 @@
 import type { HallOfFameQuery } from "./hallOfFame";
+import type { GameActionParams } from "./actionInput";
 import type { ProfileUpdate } from "./profileTypes";
 import type { RegionsQuery } from "./regions";
 import type { LegislationSelection } from "./legislationDetails";
@@ -33,7 +34,7 @@ export type GameCommand =
   | { type: "hallOfFame"; query?: HallOfFameQuery }
   | { type: "legislation"; selection?: LegislationSelection }
   | { type: "advance" }
-  | { type: "action"; actionId: string; params?: Record<string, string | number> }
+  | { type: "action"; actionId: string; params?: GameActionParams }
   | { type: "sectorSale"; op: "list" | "update" | "unlist" | "buy"; assetId: string; priceAnchor?: number }
   | { type: "unionCommand"; op: "organize"; unionId: string }
   | { type: "unionCommand"; op: "vote"; unionId: string }
