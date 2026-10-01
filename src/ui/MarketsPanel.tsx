@@ -19,9 +19,12 @@ import { SECTOR_BUY_ALREADY_OWNED, SECTOR_LIST_OWNER_ONLY, evaluateSectorBuy, pa
 import { COMMODITY_HERO_ALT, MARKETS_LIST_HERO_IMAGE, RouteHero, companyHero, companyHeroAlt } from "./RouteHero";
 import type { MarketListing, MarketsView, SectorSummary, ShareholderKind, TradeRouteSummary } from "../game/markets";
 import type { GameScreenProps } from "../game/types";
+import type { GameCommand } from "../game/protocol";
 import { formatFinanceMoney } from "./FinancePanel";
 import { useDualPaneLayout } from "./dualPane";
 import { TrendChart } from "./TrendChart";
+import { UnionManagementPanel } from "./UnionManagementPanel";
+import type { UnionManagementView } from "../game/unionManagement";
 
 export interface MarketsPanelProps {
   markets: MarketsView;
@@ -30,6 +33,8 @@ export interface MarketsPanelProps {
   busy: boolean;
   onAction: GameScreenProps["onAction"];
   onSectorSale?: GameScreenProps["onSectorSale"];
+  onUnionCommand?: (command: Extract<GameCommand, { type: "unionCommand" }>) => void;
+  unions?: UnionManagementView;
   /** Opens the linked region detail (the existing regions destination). */
   onOpenRegion?: (regionId: string) => void;
 }
@@ -597,16 +602,20 @@ function TradeContextCard({ listing }: { listing: MarketListing }) {
  * the engine validates, so an enabled Buy means the session command proceeds;
  * every refusal shows its exact gate reason.
  */
-function SectorSaleControls({
+export function SectorSaleControls({
   listing,
   playerCash,
   busy,
   onSectorSale,
+  showBuy = true,
+  labelSuffix = "",
 }: {
   listing: MarketListing;
   playerCash: number;
   busy: boolean;
   onSectorSale?: GameScreenProps["onSectorSale"];
+  showBuy?: boolean;
+  labelSuffix?: string;
 }) {
   const [price, setPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -682,11 +691,11 @@ function SectorSaleControls({
               </button>
             </div>
           </div>
-          {playerOwned ? (
+          {!showBuy && playerOwned ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_BUY_ALREADY_OWNED}
             </span>
-          ) : !isOwner ? (
+          ) : !showBuy && !isOwner ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_LIST_OWNER_ONLY}
             </span>
@@ -705,11 +714,11 @@ function SectorSaleControls({
           >
             List for sale
           </button>
-          {playerOwned ? (
+          {!showBuy && playerOwned ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_BUY_ALREADY_OWNED}
             </span>
-          ) : !isOwner ? (
+          ) : !showBuy && !isOwner ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_LIST_OWNER_ONLY}
             </span>
@@ -717,26 +726,26 @@ function SectorSaleControls({
         </div>
       )}
       <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-        <button
+        {showBuy ? <button
           type="button"
           className="ahd-btn ahd-btn-sm"
           onClick={() => onSectorSale?.("buy", { assetId: listing.sectorAsset.id })}
           disabled={buyDisabled}
           aria-disabled={buyDisabled}
-          aria-label={`Buy ${listing.sectorLabel} sector`}
+          aria-label={`Buy ${listing.sectorLabel} sector${labelSuffix}`}
           style={{ minHeight: 44, alignSelf: "flex-start" }}
         >
           Buy sector
-        </button>
-        {buyEval.available ? (
+        </button> : null}
+        {showBuy && buyEval.available ? (
           <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
             Asking {formatFinanceMoney(buyEval.priceAnchor ?? 0, listing.currency)} · No action-point cost
           </span>
-        ) : (
+        ) : showBuy ? (
           <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
             {buyEval.disabledReason}
           </span>
-        )}
+        ) : null}
       </div>
     </div>
   );
@@ -1160,7 +1169,7 @@ function CompanyDetail({
   );
 }
 
-export function MarketsPanel({ markets, busy, onAction, onSectorSale, initialId = null, onSelect, onOpenRegion }: MarketsPanelProps) {
+export function MarketsPanel({ markets, unions, busy, onAction, onSectorSale, onUnionCommand = () => {}, initialId = null, onSelect, onOpenRegion }: MarketsPanelProps) {
   const [query, setQuery] = useState("");
   // Default context: the player's own country, mirroring AHDGame's sectors page
   // (src/app/sectors/page.tsx), which preselects the corporation/character
@@ -1248,6 +1257,7 @@ export function MarketsPanel({ markets, busy, onAction, onSectorSale, initialId 
   // Back control still clears the selection.
   const browse = (
     <>
+      {unions ? <UnionManagementPanel state={unions} busy={busy} onCommand={onUnionCommand} /> : null}
       <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
         <label className="ahd-field">
           <span className="ahd-label">Search</span>

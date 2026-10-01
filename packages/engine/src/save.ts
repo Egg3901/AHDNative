@@ -2128,7 +2128,7 @@ export function deserializeSave(raw: string): WorldState {
         if (!Array.isArray(u["activeServices"])) u["activeServices"] = [];
         if (typeof u["politicalContributionPct"] !== "number") u["politicalContributionPct"] = 0;
         if (typeof u["unionization"] !== "number") u["unionization"] = 25;
-        if (!("ownerType" in u) || (u["ownerType"] !== "npp" && u["ownerType"] !== null)) {
+        if (!("ownerType" in u) || (u["ownerType"] !== "npp" && u["ownerType"] !== "player" && u["ownerType"] !== null)) {
           if (u["ownerType"] === undefined) u["ownerType"] = null;
         }
         if (!("ownerId" in u) || (typeof u["ownerId"] !== "string" && u["ownerId"] !== null)) {
