@@ -122,7 +122,7 @@ describe("MobileNavigation", () => {
     const menu = screen.getByRole("dialog", { name: "Game menu" });
     const nation = within(menu).getByRole("button", { name: "Nation" });
     await user.click(nation);
-    await user.click(within(menu).getAllByRole("button", { name: "Economy", exact: true })[0]!);
+    await user.click(within(menu).getAllByRole("button", { name: "Economy" })[0]!);
     expect(within(menu).queryByRole("button", { name: "Command Economy" })).toBeNull();
 
     rerender(<GameDrawer {...props} commandEconomyAvailable />);

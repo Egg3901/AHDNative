@@ -1,3 +1,4 @@
+import type { GameActionParams } from "../game/actionInput";
 import { useEffect, useState } from "react";
 import type {
   NationDestination,
@@ -26,7 +27,7 @@ export interface NationPanelProps {
   era?: string | null;
   /** Opens a linked consequence destination. Omitted in read-only renders. */
   onNavigate?: (route: NationDestination, detailId?: string) => void;
-  onAction?: (id: string, params?: Record<string, string | number | boolean>) => void;
+  onAction?: (id: string, params?: GameActionParams) => void;
   busy?: boolean;
 }
 
@@ -376,6 +377,11 @@ function EconomicControls({ nation, onAction, busy, mode }: { nation: NationView
             <KeyValue label="Black-market premium" value={fractionPercent(nation.commandEconomy.blackMarketPremium, 1)} />
             <KeyValue label="State ownership" value={`${number(nation.stateOwnershipConcentration ?? 0, 1)} / 100`} />
           </dl>
+          {nation.commandEconomy.directedCreditBySector && Object.keys(nation.commandEconomy.directedCreditBySector).length > 0 ? (
+            <div className="ahd-muted" style={{ fontSize: "0.7rem", marginTop: "0.4rem" }} aria-label="Last turn Gosbank credit">
+              Last-turn credit: {Object.entries(nation.commandEconomy.directedCreditBySector).map(([sector, amount]) => `${sector} ${number(amount)}`).join(" · ")}
+            </div>
+          ) : null}
           {nation.commandEconomy.available ? (
             <form
               className="ahd-stack"
@@ -615,11 +621,6 @@ function BudgetSection({ nation, era, onNavigate }: { nation: NationView; era?: 
               {budget.revenue.components.map((line) => <MoneyLine key={line.id} line={line} currency={budget.currency} />)}
             </ul>
           )}
-          {nation.commandEconomy.directedCreditBySector && Object.keys(nation.commandEconomy.directedCreditBySector).length > 0 ? (
-            <div className="ahd-muted" style={{ fontSize: "0.7rem", marginTop: "0.4rem" }} aria-label="Last turn Gosbank credit">
-              Last-turn credit: {Object.entries(nation.commandEconomy.directedCreditBySector).map(([sector, amount]) => `${sector} ${number(amount)}`).join(" · ")}
-            </div>
-          ) : null}
           <div className="ahd-divider" style={{ margin: "0.7rem 0 0.55rem" }} />
           <KeyValue label="Total revenue" value={budgetMoney(budget.revenue.total)} />
         </div>

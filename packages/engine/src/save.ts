@@ -821,7 +821,7 @@ function validateCommandEconomySave(world: WorldState): void {
     if (!world.countries[countryId] || !isRecord(value) || value["countryId"] !== countryId) {
       throw new Error(`Not a valid save file: command-economy country identity does not match ${countryId}`);
     }
-    const validSoeSectors = new Set(Object.values(world.corporations)
+    const validSoeSectors = new Set<string>(Object.values(world.corporations)
       .filter((corporation) => corporation.countryId === countryId && corporation.soe)
       .map((corporation) => corporation.soe!.sector));
     for (const key of ["creditAggressiveness", "budgetSoftness"] as const) {

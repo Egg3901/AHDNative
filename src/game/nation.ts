@@ -277,7 +277,7 @@ export interface NationView {
   budget: NationBudgetView;
   metrics: NationMetricsView;
   policy: NationPolicyView;
-  playerMode?: "career" | "hos";
+  playerMode?: WorldState["player"]["mode"];
   playerCanOperateGosbank?: boolean;
   playerCanProposeNationalBills?: boolean;
   subsidies?: NationSubsidyView[];

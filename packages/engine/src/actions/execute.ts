@@ -1895,7 +1895,7 @@ function executeActionInner(
         return { ok: false, error: `${name} must be a finite value in [0,1]` };
       }
     }
-    const validSoeSectors = new Set(Object.values(world.corporations)
+    const validSoeSectors = new Set<string>(Object.values(world.corporations)
       .filter((corporation) => corporation.countryId === countryId && corporation.soe)
       .map((corporation) => corporation.soe!.sector));
     const sectorCredit: Record<string, number> = {};
