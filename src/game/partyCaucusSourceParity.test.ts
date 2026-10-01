@@ -37,4 +37,25 @@ describe("source party and caucus charges through the player session", () => {
     expect(resumed.view().player.actions).toBe(before.actions);
     expect(resumed.view().player.funds).toBe(before.funds);
   });
+
+  it("leaves a party freely, vacates its caucus chair and retains the join cooldown after reload", () => {
+    // Game leave/route.ts resets party clout, closes faction membership,
+    // vacates seats and retains the old join cooldown without any debit.
+    const session = new GameSession();
+    session.create({ era: "1953", countryId: "US", seed: "party-free-leave", playerName: "Morgan" });
+    expect(session.act("joinParty", { partyId: "US_DEM" }).ok).toBe(true);
+    expect(session.act("createCaucus", { caucusName: "Civic Forum" }).ok).toBe(true);
+    const before = session.view().player;
+    expect(session.act("leaveParty").ok).toBe(true);
+    expect(session.view().player.actions).toBe(before.actions);
+    expect(session.view().player.funds).toBe(before.funds);
+    const resumed = new GameSession();
+    resumed.load(session.serialize(SAVED_AT));
+    expect(resumed.partyManagement().parties.some((party) => party.isPlayerParty)).toBe(false);
+    expect(resumed.caucusManagement().playerCaucusId).toBeNull();
+    expect(resumed.act("joinParty", { partyId: "US_REP" })).toMatchObject({ ok: false, error: expect.stringContaining("24") });
+    expect(resumed.view().player.actions).toBe(before.actions);
+    expect(resumed.view().player.funds).toBe(before.funds);
+  });
+
 });

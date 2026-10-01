@@ -21,7 +21,8 @@ export const PARTY_FOUND_FUND_COST = 100_000;
 // Game join/route.ts applies membership without a personal resource debit.
 export const PARTY_JOIN_ACTION_COST = 0;
 /** Leave Party action-point price. */
-export const PARTY_LEAVE_ACTION_COST = 1;
+// Game leave/route.ts resets membership and clout without a personal debit.
+export const PARTY_LEAVE_ACTION_COST = 0;
 
 /** Create Caucus action-point price. */
 export const CAUCUS_CREATE_ACTION_COST = 0;
