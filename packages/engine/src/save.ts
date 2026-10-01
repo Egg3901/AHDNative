@@ -534,6 +534,12 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
       return { ok: false, error: `Corporation ${corpId} has SOE production state that schema 42 cannot continue. Keep this Native save.` };
     }
   }
+  // A v42 reader retains unfamiliar JSON but cannot advance these boards.
+  // Refuse their state rather than export a frozen extension.
+  if (["regionalPoliticalMetrics", "politicalCabinetContributions"].some(key =>
+    isRecord(world[key]) && Object.keys(world[key]).length > 0)) {
+    return { ok: false, error: "Political board and cabinet driver state cannot be continued by schema 42. Keep this Native save." };
+  }
   const candidateSave = structuredClone(save);
   const candidateWorld = candidateSave["world"] as Record<string, unknown>;
   const candidateMeta = candidateWorld["meta"] as Record<string, unknown>;
