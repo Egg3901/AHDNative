@@ -139,6 +139,11 @@ describe("projectSaveToV42 public envelope", () => {
     const world = loadHistoricalFresh();
     advanceTurn(world);
     expect(world.countryPolitics["US"]!.approvalHistory.length).toBeGreaterThan(1);
+    // Isolate the original country-history guard from newly paid NPC R&D
+    // and compensation. Their active lifecycle refusals have separate tests.
+    for (const corp of Object.values(world.corporations)) {
+      for (const field of ["rdBudgetPerTurn", "rdScore", "lastRdSpendPerTurn", "lastRdCapacityGain", "ceoSalaryPerTurn", "dividendRate", "lastCeoSalaryPaid", "lastDividendPoolPaid", "lastPlayerDividendPaid", "lastUnpostedDividendPaid"] as const) corp[field] = 0;
+    }
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projected.ok).toBe(false);
     if (projected.ok) throw new Error("expected countryPolitics refusal");

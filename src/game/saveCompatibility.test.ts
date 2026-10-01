@@ -65,10 +65,18 @@ describe("schema 42 projection of public save envelopes", () => {
   });
 
   it("projects isolated source issuer identity without unsupported regional metric records", () => {
-    const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    const world = deserializeSave(gunzipSync(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../../fixtures/native-fresh-pre-ceo-source.save.json.gz"))).toString("utf8"));
+    const identities = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    world.regions.DC = structuredClone(identities.regions.DC!);
+    for (const [id, corp] of Object.entries(world.corporations)) {
+      const identity = identities.corporations[id]!;
+      corp.name = identity.name;
+      corp.brandColor = identity.brandColor;
+      corp.headquartersRegionId = identity.headquartersRegionId;
+      delete corp.legacyProjectionDefaults;
+    }
     expect(world.player.homeRegionId).toBe("AL");
-    // Isolate the supported identity extension from the fresh TFP guard.
-    world.regionalMetrics = {};
+    // Keep identity proof separate from fresh TFP and plant lifecycle state.
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projected.ok).toBe(true);
     if (!projected.ok) throw new Error(projected.error);

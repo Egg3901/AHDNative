@@ -353,13 +353,6 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     const hasNonzeroCeoAmount = ceoAmounts.some((amount) =>
       amount !== undefined && (typeof amount !== "number" || !Number.isFinite(amount) || amount !== 0),
     );
-    const rdAmounts = ["rdBudgetPerTurn", "rdScore", "lastRdSpendPerTurn", "lastRdCapacityGain"].map((field) => value[field]);
-    const hasNonzeroRdState = rdAmounts.some((amount) =>
-      amount !== undefined && (typeof amount !== "number" || !Number.isFinite(amount) || amount !== 0),
-    );
-    if (hasNonzeroRdState) {
-      return { ok: false, error: `Corporation ${corpId} has R&D state that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
-    }
     if (
       (value["ceoType"] !== undefined && value["ceoType"] !== "npp") ||
       value["ceoId"] !== undefined ||
@@ -426,6 +419,18 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
           error: `Corporation ${corpId} has a proprietary mark that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}`,
         };
       }
+    }
+  }
+
+  // Preserve the earlier market/governance refusal before checking R&D.
+  for (const [corpId, value] of Object.entries(corporations)) {
+    if (!isRecord(value)) continue;
+    const rdAmounts = ["rdBudgetPerTurn", "rdScore", "lastRdSpendPerTurn", "lastRdCapacityGain"].map((field) => value[field]);
+    const hasNonzeroRdState = rdAmounts.some((amount) =>
+      amount !== undefined && (typeof amount !== "number" || !Number.isFinite(amount) || amount !== 0),
+    );
+    if (hasNonzeroRdState) {
+      return { ok: false, error: `Corporation ${corpId} has R&D state that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
     }
   }
 

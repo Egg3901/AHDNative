@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { executeAction } from "../actions/execute.js";
 import { projectSaveToV42, serializeSave, deserializeSave } from "../save.js";
@@ -185,7 +187,9 @@ describe("corporation R&D lifecycle", () => {
   });
 
   it("keeps R&D and breakthrough growth off the legacy v42 projection", () => {
-    const world = createWorld({ era: "1953", countryId: "US", seed: "rd-v42-refuse", playerName: "Alex" });
+    // Isolate R&D on an authentic reader-supported save, without fresh TFP,
+    // plants or CEO state masking this specific unsupported lifecycle.
+    const world = deserializeSave(gunzipSync(readFileSync(new URL("../../../../fixtures/v42-1953-US.save.json.gz", import.meta.url))).toString("utf8"));
     world.corporations["US-media"]!.rdScore = 1;
     const projection = projectSaveToV42(serializeSave(world, "2026-10-01T00:00:00.000Z"));
     expect(projection.ok).toBe(false);
