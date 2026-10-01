@@ -8,6 +8,15 @@ consumers. Public engine tests and actual 320px/390px two-reload journeys pass.
 [Source comparison](ECONOMIC-CONTROL-PARITY.md) records the remaining default
 Game plants-mode capital/replacement chain, director request weighting and state
 subsidy scope. #94 stays open; the corporate prerequisites remain in #107.
+## Corporate-sector union player checkpoint, 2026-10-01 (#297)
+
+Public organization, weighted leadership/acceptance, wage-based dues, sector
+organization and employer bargaining now use represented corporate-sector
+workers and locals. Source escalation/withdrawal and weighted ratification
+produce saved strikes or agreements. The actual 390px browser journey passes
+through normal save/reload. [Acceptance evidence](UNION-LEADERSHIP-PARITY.md)
+records the original criteria. Full hosted verification passed at `1379573`; PR707 merged as `f9dd7e1` and #297 is checked and confirmed closed.
+Worker political feedback and wider union mechanics remain #322/#114.
 
 ## Regional sector trading checkpoint, 2026-10-01 (#299)
 
@@ -19,8 +28,7 @@ regional assets, since fresh worlds still seed national assets. The comparison
 uses Game's pinned regional and sector page hierarchy, with no pixel equivalence
 or physical-device claim. See [regional trading evidence](REGIONAL-SECTOR-TRADING.md).
 
-#297 and #322 remain partial. Source-backed leadership, complete employer
-authority and downstream political feedback still require implementation. The
+#322/#114 retain wider worker political feedback and labor acceptance. The bounded #297 leadership, dues, organizing and bargaining criteria are complete. The
 unsafe public NPC-response and arbitrary-ballot wrappers are excluded. The unused neutral-50 labor
 metric overlay is excluded from this batch.
 

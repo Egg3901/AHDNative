@@ -21,6 +21,7 @@ self.addEventListener("message", (event: MessageEvent<GameRequest>) => {
       case "caucusManagement": value = session.caucusManagement(); break;
       case "partyManagement": value = session.partyManagement(); break;
       case "markets": value = session.markets(); break;
+      case "unionManagement": value = session.unionManagement(); break;
       case "politics": value = session.politics(); break;
       case "profile": value = session.profile(); break;
       case "profileDestination": value = session.profileDestination(); break;
@@ -41,6 +42,25 @@ self.addEventListener("message", (event: MessageEvent<GameRequest>) => {
             : command.op === "buy"
               ? session.buySectorForSale(command.assetId)
               : session.unlistSectorForSale(command.assetId);
+        value = { result, view: session.view() };
+        break;
+      }
+      case "unionCommand": {
+        const result = command.op === "organize"
+          ? session.organizeUnion(command.unionId)
+          : command.op === "organizeSector"
+            ? session.organizeUnionSector(command.unionId, command.assetId)
+            : command.op === "dues"
+              ? session.setUnionDues(command.unionId, command.duesPerWorkerAnnual)
+          : command.op === "vote"
+            ? session.castUnionLeadershipVote(command.unionId)
+            : command.op === "accept"
+              ? session.acceptUnionLeadership(command.unionId)
+              : command.op === "call"
+              ? session.callUnionBargaining(command.unionId, command.employerId, command.terms)
+                : command.op === "move"
+                  ? session.moveUnionBargaining(command.campaignId, command.action, command.terms)
+                  : session.castUnionRatificationBallot(command.campaignId, command.vote);
         value = { result, view: session.view() };
         break;
       }
