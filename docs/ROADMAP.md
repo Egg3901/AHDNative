@@ -1,5 +1,15 @@
 # AHDNative roadmap
 
+## Corporate finance integration, 2026-10-01 (#110 / #107 / #111)
+
+Corporate issuance, pool-priced public-float retirement and physical realized-sale
+valuation now integrate with source savings phase timing and current macro gap
+bounds. [Acceptance evidence](CORPORATE-FINANCE-BOND-PARITY.md) records the
+independent vectors, actual two-width issuance/buyback/resume and source consumers.
+The combined full gate remains pending. #107 stays partial for wider corporate
+management/modifiers and #111 for national savings eligibility and foreign-wallet
+credit servicing. Neither parent closes from a passing bounded component alone.
+
 ## Subsidy and Gosbank controls checkpoint, 2026-10-01 (#94 partial)
 
 National subsidy proposal/voting/signing and pending credit posture/sector weights
