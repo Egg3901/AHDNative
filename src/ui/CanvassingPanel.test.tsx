@@ -7,7 +7,7 @@ import { CanvassingPanel } from "./CanvassingPanel";
 function setup(countryId = "US") {
   const session = new GameSession();
   const view = session.create({ era: "1953", countryId, seed: "canvass-panel", playerName: "Canvasser" }).canvassing!;
-  const onAction = vi.fn((id: string, params?: Record<string, unknown>) => session.act(id, params));
+  const onAction = vi.fn(async (id: string, params?: Record<string, unknown>) => session.act(id, params).ok);
   render(<CanvassingPanel view={view} busy={false} onAction={onAction} onBack={vi.fn()} />);
   return { session, view, onAction };
 }

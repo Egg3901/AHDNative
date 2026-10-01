@@ -366,6 +366,37 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (Array.isArray(interbankLoans) && interbankLoans.length > 0) {
     return { ok: false, error: `Interbank loan records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
+  const nppInfluenceAttempts = world["nppInfluenceAttempts"];
+  if (Array.isArray(nppInfluenceAttempts) && nppInfluenceAttempts.length > 0) {
+    return { ok: false, error: `NPP influence attempt records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
+  if (hasOwn(world, "nppInfluenceRng")) {
+    return { ok: false, error: `NPP influence RNG progress cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
+  const nppRelationships = world["nppRelationships"];
+  if (isRecord(nppRelationships)) {
+    for (const rel of Object.values(nppRelationships)) {
+      if (isRecord(rel) && (hasOwn(rel, "lastAttemptTurn") || hasOwn(rel, "totalAttempts") || hasOwn(rel, "successfulAttempts"))) {
+        return { ok: false, error: `NPP influence relationship progress cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+      }
+    }
+  }
+  const caucuses = world["caucuses"];
+  if (Array.isArray(caucuses)) {
+    for (const caucus of caucuses) {
+      if (isRecord(caucus) && hasOwn(caucus, "lastNppRecruitTurn")) {
+        return { ok: false, error: `Caucus NPP recruitment progress cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+      }
+    }
+  }
+  const politicians = world["politicians"];
+  if (Array.isArray(politicians)) {
+    for (const politician of politicians) {
+      if (isRecord(politician) && hasOwn(politician, "retiredAt") && politician["retiredAt"]) {
+        return { ok: false, error: `Retired NPP records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+      }
+    }
+  }
   const corporations = world["corporations"];
   if (!isRecord(corporations)) {
     return { ok: false, error: "Schema 42 projection cannot validate corporation market state" };
@@ -515,6 +546,8 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   delete candidateWorld["subsidies"];
   delete candidateWorld["regionalMetrics"];
   delete candidateWorld["fomcNominations"];
+  delete candidateWorld["nppInfluenceAttempts"];
+  delete candidateWorld["nppInfluenceRng"];
   delete candidateWorld["difficulty"];
   delete candidateWorld["nppAutonomyLevel"];
   // Historical readers have no RPG switch and always apply saved stats.
