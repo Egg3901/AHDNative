@@ -53,6 +53,41 @@ describe("corporate-only country trade receipts", () => {
     expect(world.corporateTradeSnapshot!.byCountry.UK!.imports).toBe(0);
   });
 
+  it("applies the recorded importer customs tariff to flow affinity and exempts active FTAs", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "corporate-trade-tariff", playerName: "Player" });
+    world.meta.date = "2020-01-06";
+    world.countries = { US: world.countries.US!, CN: world.countries.CN!, UK: world.countries.UK! };
+    world.plantMarketDemand = {
+      external: {}, corporateInputs: {},
+      corporateOutputSupplyByCountry: { US: { electronics: 100 } },
+      corporateInputsByCountry: { CN: { electronics: 100 }, UK: { electronics: 100 } },
+    };
+
+    recordCorporateTradeSnapshot(world);
+    const untariffedCnFlow = world.corporateTradeSnapshot!.byCommodity.electronics!.US!.CN!.units;
+    world.tradeTariffs = [{
+      id: "cn-customs-tariff", countryId: "CN", scopeType: "economy_wide", rate: 25,
+      sourceBillId: "cn-customs-bill", createdTurn: 0, updatedTurn: 0,
+    }];
+    recordCorporateTradeSnapshot(world);
+    const tariffedCnFlow = world.corporateTradeSnapshot!.byCommodity.electronics!.US!.CN!.units;
+    expect(tariffedCnFlow).toBeLessThan(untariffedCnFlow);
+
+    world.internationalOrgs = {
+      treaty: {
+        id: "treaty", name: "Trade agreement", foundedYear: 2010, members: ["CN", "US"],
+        resolutions: [{ id: "fta-cn-us", type: "free_trade_agreement", status: "active", parties: ["CN", "US"], adoptedTurn: 0 }],
+      },
+    } as typeof world.internationalOrgs;
+    const tariff = world.tradeTariffs;
+    world.tradeTariffs = [];
+    recordCorporateTradeSnapshot(world);
+    const ftaUntariffedFlow = world.corporateTradeSnapshot!.byCommodity.electronics!.US!.CN!.units;
+    world.tradeTariffs = tariff;
+    recordCorporateTradeSnapshot(world);
+    expect(world.corporateTradeSnapshot!.byCommodity.electronics!.US!.CN!.units).toBeCloseTo(ftaUntariffedFlow, 8);
+  });
+
   it("keeps planned and market economies behind the source trade curtain, with YU exempt", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "corporate-trade-curtain", playerName: "Player" });
     world.countries = { US: world.countries.US!, RU: world.countries.RU!, YU: world.countries.YU! };

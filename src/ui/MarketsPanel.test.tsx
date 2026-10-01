@@ -1059,6 +1059,7 @@ describe("MarketsPanel trade routes (#77)", () => {
               listingCount: 1,
               tradeGrowth: null,
               fx: { available: false, rate: null, baseRate: null, regime: null, updatedTurn: null },
+              customsTariff: { ratePercent: 10, sourceBillId: "bill-cn-customs" },
             },
           ],
         })}
@@ -1068,6 +1069,7 @@ describe("MarketsPanel trade routes (#77)", () => {
     );
     expect(screen.getByText(/No trade growth recorded/)).toBeInTheDocument();
     expect(screen.getByText(/No FX record/)).toBeInTheDocument();
+    expect(screen.getByText("Customs tariff: 10% · bill-cn-customs")).toBeInTheDocument();
   });
 
   it("shows an explicit empty state when the filtered country has no routes", async () => {

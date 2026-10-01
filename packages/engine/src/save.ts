@@ -773,6 +773,19 @@ function assertCurrentWorldState(world: WorldState): void {
       throw new Error("Not a valid save file: invalid bill proposalCostsRefunded");
     }
   }
+  const tradeTariffs = value["tradeTariffs"];
+  if (tradeTariffs !== undefined) {
+    if (!Array.isArray(tradeTariffs)) throw new Error("Not a valid save file: invalid trade tariffs");
+    for (const row of tradeTariffs) {
+      if (!isRecord(row) || typeof row["id"] !== "string" || typeof row["countryId"] !== "string" ||
+          row["scopeType"] !== "economy_wide" || typeof row["sourceBillId"] !== "string" ||
+          typeof row["rate"] !== "number" || !Number.isFinite(row["rate"]) || row["rate"] < 0 || row["rate"] > 100 ||
+          !Number.isSafeInteger(row["createdTurn"]) || (row["createdTurn"] as number) < 0 ||
+          !Number.isSafeInteger(row["updatedTurn"]) || (row["updatedTurn"] as number) < 0) {
+        throw new Error("Not a valid save file: invalid trade tariff row");
+      }
+    }
+  }
   const partyInfluence = player["partyInfluence"];
   if (partyInfluence !== undefined && (typeof partyInfluence !== "number" || !Number.isFinite(partyInfluence) || partyInfluence < 0)) {
     throw new Error("Not a valid save file: invalid player party influence");

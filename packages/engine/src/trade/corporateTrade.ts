@@ -2,6 +2,7 @@ import type { CommodityType } from "../commodity/constants.js";
 import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import { clearCommodity } from "./clearing.js";
+import { tariffAdjustedAffinity, reconcileTradeTariffs, tradeTariffs } from "./tariffs.js";
 
 const BASE_AFFINITY: Readonly<Record<string, number>> = {
   "BR-US": 1.4, "CN-US": 1.5, "JP-US": 1.3, "UK-US": 1.4,
@@ -63,11 +64,10 @@ function affinity(world: WorldState, commodity: CommodityType, exporter: string,
   if (blocked(world, commodity, exporter, importer)) return 0;
   if (curtained(world, exporter) !== curtained(world, importer)) return 0;
   let value = BASE_AFFINITY[pairKey(exporter, importer)] ?? 1;
-  if (activeFta(world, exporter, importer)) value *= 1.6;
+  const ftaCovered = activeFta(world, exporter, importer);
+  if (ftaCovered) value *= 1.6;
   if (sharedBloc(world, exporter, importer)) value *= 1.25;
-  // Native has no origin/sector tariff rows or blockade state. Its national
-  // budget tariff percentage is not substituted for Game's product tariff.
-  return value;
+  return tariffAdjustedAffinity(value, tradeTariffs(world), importer, ftaCovered);
 }
 
 /**
@@ -77,6 +77,7 @@ function affinity(world: WorldState, commodity: CommodityType, exporter: string,
  * apportioned into countries.
  */
 export function recordCorporateTradeSnapshot(world: WorldState): void {
+  reconcileTradeTariffs(world);
   const supplyByCountry = world.plantMarketDemand?.corporateOutputSupplyByCountry ?? {};
   const demandByCountry = world.plantMarketDemand?.corporateInputsByCountry ?? {};
   const governmentDemandByCountry = world.plantMarketDemand?.governmentDemandByCountry ?? {};

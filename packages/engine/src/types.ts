@@ -174,6 +174,8 @@ export interface WorldState {
     /** Native recorded global unit price applied to this receipt's commodity flows. */
     valuationPriceByCommodity?: Record<string, number>;
   };
+  /** Reconciled importer tariff records from signed customs tariff bills. */
+  tradeTariffs?: import("./trade/tariffs.js").TradeTariffRecord[];
   /** Extraction contracts. Ports src/lib/db/types/extractionContract.ts. */
   extractionContracts: ExtractionContract[];
   /** Regions per playable country. W38: US 48 real states (AK/HI absent); UK/RU/DD retain 3 opaque each until W39. */

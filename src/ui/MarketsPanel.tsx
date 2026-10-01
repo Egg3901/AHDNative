@@ -494,6 +494,11 @@ function TradeRoutesCard({ routes, countryName }: { routes: TradeRouteSummary[];
                   : "No FX record"}
               </span>
               <span className="ahd-muted" style={{ fontSize: "0.74rem" }}>
+                {route.customsTariff
+                  ? `Customs tariff: ${route.customsTariff.ratePercent}% · ${route.customsTariff.sourceBillId}`
+                  : "No customs tariff record"}
+              </span>
+              <span className="ahd-muted" style={{ fontSize: "0.74rem" }}>
                 {route.corporateTrade
                   ? `Corporate trade (turn ${route.corporateTrade.turn}): exports ${anchorValue(route.corporateTrade.exports)} · imports ${anchorValue(route.corporateTrade.imports)} · net ${anchorValue(route.corporateTrade.net)}${route.corporateTrade.topPartner ? ` · partner ${route.corporateTrade.topPartner}` : ""}`
                   : "No corporate trade receipt recorded"}
