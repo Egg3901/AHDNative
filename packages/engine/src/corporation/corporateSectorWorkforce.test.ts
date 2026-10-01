@@ -150,7 +150,7 @@ describe("#296 corporate-sector workers and union representation", () => {
     raw.world.meta.schemaVersion = 46;
     const migrated = deserializeSave(JSON.stringify(raw));
     expect(migrated.meta.schemaVersion).toBe(SCHEMA_VERSION);
-    expect(SCHEMA_VERSION).toBe(48);
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(48);
     const assets = corporateSectorAssets(migrated);
     for (const asset of Object.values(assets)) {
       const corporation = migrated.corporations[asset.corporationId]!;

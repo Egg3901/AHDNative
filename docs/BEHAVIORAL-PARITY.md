@@ -45,54 +45,40 @@ values are not replaced with zeros or borrowed from NPC politicians. This remain
 a partial profile port. The whole-game issue tracker is
 [#28](https://github.com/Egg3901/AHDNative/issues/28).
 
-## Conditional corporation card (#51, partial)
+## Conditional corporation card (#51)
 
-AHDGame `src/app/profile/page.tsx` renders `CeoCorporationCard` only when a
-corporation records `ceoId === character._id` with `ceoVacant` not true, and
-links `/corporation/[id]`. The card itself shows the logo, name, an optional
-"national enterprise" note and the link; salary and dividend income live
-elsewhere on the reference profile.
+The source Profile query renders `CeoCorporationCard` for an exact recorded
+`ceoId` with `ceoVacant` not true. At AHDGame
+`954f1c21781e6e767455a15eed40f73993d89a8b` it shows issuer name, a 56px brand
+frame with the canonical factory fallback, a national-enterprise note when
+state-owned, and a corporation detail link. Salary/dividends appear elsewhere
+on the source profile; Native also exposes them in the actionable card.
 
-Native has no CEO relationship: corporations carry no `ceoId`/`ceoVacant` and
-are NPC-run (`packages/engine/src/corporation/types.ts`). The only recorded
-ownership is the #295 sector asset (`CorporateSectorAsset.owner === "player"`),
-so the Profile card gates on that, labels the role "Sector owner" (never CEO),
-copies its values verbatim from the Markets `MarketListing` the company detail
-renders, and links that detail with a Back frame to Profile. Salary and
-dividends render as unavailable notes because the engine has no CEO salary
-flow and no dividend system; they are not zeros.
+Native now records live shareholder-weighted CEO voting, pending appointment,
+acceptance, resignation and vacancy. Private appointments require the source
+headquarters residence; state enterprises require the matching country. The
+US DC headquarters is residence-only geography, never an invented electorate.
+Shares alone do not imply CEO status. Persisted sector ownership remains a
+separate honest card role.
 
-Evidence:
+Profile and company detail use the same `MarketListing` issuer, currency, cash,
+shares, brand and actual latest-turn salary/dividend values. The source 1.25x
+revenue salary cap and 0..25% dividend range are enforced; payouts settle once
+in the corporation turn. The detail opens from Profile and returns to it.
 
-- `src/game/profileCorporation.test.ts`: projection, save/reload, owner
-  reverted, removed corporation fails load.
-- `src/ui/ProfileCorporationCard.test.tsx` and
-  `src/ui/CorporationDetailReturn80.test.tsx`: panel and shell wiring, jsdom
-  at 320/390/desktop.
-- `smoke/profile-corporation-card.spec.ts`: rendered Chromium flow at 320px
-  and 390px. The owner fixture is built from public actions (`buyShares`,
-  `listSectorForSale`, `buySectorForSale`) plus test-only save setup
-  (`player.cash` raised to the asking price; a second variant with
-  `corporateSectors[*].owner` reverted, since no player action releases a
-  sector), each re-validated through `GameSession.load` and then loaded via
-  the #506 resume-path hook. Asserts card present, View company opens the
-  detail, Back to profile, page reload keeps the card, reverted owner and
-  ordinary player render no card. Run
-  `PLAYWRIGHT_CHROMIUM_EXECUTABLE=$(which google-chrome) npx playwright test smoke/profile-corporation-card.spec.ts`;
-  screenshots are regenerated under `artifacts/smoke/profile-corporation-*.png`
-  (git-ignored, not committed).
+Evidence: `ceoGovernance.test.ts`, `ceoCompensation.test.ts`,
+`profileCorporation.test.ts`, `ProfileCorporationCard.test.tsx`, and
+`smoke/profile-corporation-card.spec.ts`. The actual 320px/390px Chromium
+journeys create a character at the source HQ, buy a share, vote and accept,
+set compensation, advance, save/reload, resign, and save/reload again. Both
+normal reloads retain the matching role/card or its absence, with no page
+errors or horizontal overflow. A saved state-enterprise display fixture also
+proves the source conditional note; it does not claim a nationalization action.
 
-Remaining before closure: a recorded CEO relationship and its vacancy rule,
-CEO salary and dividend income from the corporation projection, the reference
-logo/brand treatment, and physical-device validation. This layout slice fixes the
-separate 320px presentation finding: the corporation card stacks label/value
-rows at that width so `$21,285,000,774.00` stays on one line. A rendered
-money-line assertion failed before the CSS change (two line fragments for
-Corporate cash) and the 320px owner flow passed afterward, with the screenshot
-inspected. The four-case local suite passed 3/4; the 390px owner case reached
-company detail and timed out on `page.reload` at its 90-second limit on the
-loaded shared host. The 390px screenshot showed the pre-existing two-column
-layout; this local run does not claim a complete 390px resume pass.
+Legacy identity provenance may be stripped only while unchanged. Authentic
+v42 and earlier fresh-world oracle bytes are retained; active CEO governance
+and payouts refuse historical export. Current SP transfer and physical-device
+lifecycle/performance remain separately tracked in #122/#304/#43/#44/#510.
 
 ## Saved profile identity
 

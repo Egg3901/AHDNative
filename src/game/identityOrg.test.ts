@@ -43,8 +43,8 @@ describe("#51/#84 drawer My Corporation signal", () => {
 
   it("links the owned corporation through the live view", () => {
     const session = sessionOwningMedia();
-    expect(projectMyCorporation(deserializeSave(session.serialize(SAVED_AT)))).toEqual({ id: "US-media", name: "US-media" });
-    expect(session.view().myCorporation).toEqual({ id: "US-media", name: "US-media" });
+    expect(projectMyCorporation(deserializeSave(session.serialize(SAVED_AT)))).toEqual({ id: "US-media", name: "Daily Media" });
+    expect(session.view().myCorporation).toEqual({ id: "US-media", name: "Daily Media" });
   });
 
   it("follows persisted ownership across save and reload, and vanishes when the role reverts", () => {

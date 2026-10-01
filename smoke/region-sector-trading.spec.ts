@@ -48,7 +48,7 @@ for (const width of [320, 390]) {
     await page.getByRole('button', { name: 'List media sector for sale' }).click();
     await page.getByRole('button', { name: 'List energy sector for sale' }).click();
     await expect(card).toContainText('2 for sale');
-    const media = card.getByRole('listitem').filter({ hasText: 'US-media' });
+    const media = card.getByRole('listitem').filter({ has: page.getByRole('button', { name: 'Update media sector price' }) });
     await media.getByRole('textbox', { name: 'Asking price' }).fill('100');
     await media.getByRole('button', { name: 'Update media sector price' }).click();
     await expect(media).toContainText('$100.00');
@@ -60,10 +60,10 @@ for (const width of [320, 390]) {
     await gameReady(page);
     card = await openCalifornia(page);
     await expect(card).toContainText('2 for sale');
-    await expect(card.getByRole('listitem').filter({ hasText: 'US-media' })).toContainText('$100.00');
+    await expect(card.getByRole('listitem').filter({ has: page.getByRole('button', { name: 'Update media sector price' }) })).toContainText('$100.00');
 
     await page.getByRole('button', { name: 'Buy media sector (US.MEDI)' }).click();
-    await expect(card.getByRole('listitem').filter({ hasText: 'US-media' })).toContainText('Owned by you');
+    await expect(card.getByRole('listitem').filter({ has: page.getByRole('button', { name: 'View Daily Media company' }) })).toContainText('Owned by you');
     await page.getByRole('button', { name: 'Unlist energy sector' }).click();
     await expect(card).toContainText('0 for sale');
     await saveGame(page);

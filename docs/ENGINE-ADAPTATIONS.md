@@ -83,13 +83,15 @@ algorithms. Earlier lag statements above describe previous checkpoints.
 
 ## Caucus action accounting
 
-`executeAction` now validates founding before shared accounting and lets the
-caucus helper own the single existing 25k charge. This removes the accidental
-50k entry threshold without changing the net price or 4 AP cost. Non-finite
-and out-of-range tax inputs reject without mutation. Eight public action tests
-cover the price boundaries and rejected-save identity. The pinned AHDGame
-founding route does not debit funds/AP; Native's inherited prices and other
-caucus mechanics are still reference gaps. See [caucus evidence](CAUCUS-MANAGEMENT.md).
+Create, join, leave, tax-edit and disband now charge 0 AP and 0 campaign
+funds, matching the source Game create/join/leave/PATCH/DELETE routes at
+`954f1c21781e6e767455a15eed40f73993d89a8b`. `quotePartyCaucusAction` is the
+shared charge-plus-consequence projection for the dispatcher, session DTO
+and panel confirmation. Chair tax/disband authority is the recorded
+`chairId`, never `memberIds[0]`. The recorded chair cannot self-leave.
+Declined actions leave the serialized world unchanged. Native `foundParty`
+stays the 8 AP + 100k immediate/NPP cofounder proxy; source charter draft
+is unwired (#95). See [caucus evidence](CAUCUS-MANAGEMENT.md).
 
 ## Occupation mobilization
 

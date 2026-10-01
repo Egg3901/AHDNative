@@ -101,7 +101,8 @@ describe('player party standing through saved sessions', () => {
     expect(session.act('createCaucus', { caucusName: 'Reform Club' }).ok).toBe(true);
     session.advance();
     expect(session.profile().standing.partyInfluence).toBe(5);
-    expect(session.act('leaveCaucus').ok).toBe(true);
+    const caucusId = session.caucusManagement().caucuses[0]!.id;
+    expect(session.act('disbandCaucus', { caucusId }).ok).toBe(true);
     session.advance();
     expect(session.profile().standing.partyInfluence).toBe(7.8);
   });

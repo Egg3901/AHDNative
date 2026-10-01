@@ -147,7 +147,7 @@ export function gameChoices(): EraChoice[] {
   return listEras().map((era) => ({ id: era.id, label: era.label, startDate: era.startDate,
     countries: listPlayableCountries(era.id).map((country) => ({
       id: country.id, name: country.name,
-      regions: listRegions(era.id, country.id).map((region) => ({ id: region.id, name: region.name })),
+      regions: listCreationHomeRegions(era.id, country.id).map((region) => ({ id: region.id, name: region.name })),
       headOfStateOffice: headOfStateOfficeForCountry(country.id),
       rulingPartyByInitialization: {
         founding: rulingPartyForCountry(era.id, country.id, "founding"),

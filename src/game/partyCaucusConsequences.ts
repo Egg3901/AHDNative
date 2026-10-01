@@ -33,6 +33,8 @@ export function describePartyCaucusEffect(effect: PartyCaucusEffect): string[] {
     case "create": lines.push("Creates the caucus and makes you its first member"); break;
     case "join": lines.push("Joins you to this caucus"); break;
     case "leave": lines.push("Removes you from this caucus"); break;
+    case "tax": lines.push("Sets the caucus campaign-fund levy"); break;
+    case "disband": lines.push("Clears all members and vacates the chair seats"); break;
     default: break;
   }
   if (effect.clearsCaucusMembership) {
