@@ -97,6 +97,12 @@ export function joinCaucus(world: WorldState, caucusId: string): CaucusResult {
 
 export function canLeaveCaucus(world: WorldState): CaucusResult {
   if (!world.player.caucusId) return { ok: false, error: "Not in a caucus" };
+  const caucus = world.caucuses.find((entry) => entry.id === world.player.caucusId);
+  // Source membership DELETE reserves chair succession for elections or
+  // disbanding. Leaving the parent party still performs its separate cleanup.
+  if (caucus?.chairId === "player") {
+    return { ok: false, error: "Chairs can't leave the caucus directly; disband the caucus or hand the chair off via the next election." };
+  }
   return { ok: true };
 }
 

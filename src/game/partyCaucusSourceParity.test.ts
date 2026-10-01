@@ -58,4 +58,20 @@ describe("source party and caucus charges through the player session", () => {
     expect(resumed.view().player.funds).toBe(before.funds);
   });
 
+
+  it("requires a caucus chair to hand over or disband instead of leaving and preserves rejected state", () => {
+    // Source members/[memberId]/route.ts rejects chair self-removal with403.
+    const session = new GameSession();
+    session.create({ era: "1953", countryId: "US", seed: "caucus-chair-leave", playerName: "Morgan" });
+    expect(session.act("joinParty", { partyId: "US_DEM" }).ok).toBe(true);
+    expect(session.act("createCaucus", { caucusName: "Civic Forum" }).ok).toBe(true);
+    const before = session.serialize(SAVED_AT);
+    expect(session.act("leaveCaucus")).toMatchObject({ ok: false, error: expect.stringContaining("Chairs can't leave") });
+    expect(session.serialize(SAVED_AT)).toBe(before);
+    const resumed = new GameSession();
+    resumed.load(before);
+    expect(resumed.caucusManagement().caucuses[0]?.leave).toMatchObject({ available: false, disabledReason: expect.stringContaining("Chairs can't leave") });
+    expect(resumed.caucusManagement().caucuses[0]?.disband.available).toBe(true);
+  });
+
 });
