@@ -52,7 +52,7 @@ describe("campaignTargetedAd", () => {
       regionId: race.state!,
       demographicCategory: target.category._id,
       demographicGroup: target.group.id,
-    })).toEqual({ ok: true, message: `Bought targeted ads for ${target.group.name} voters in ${race.state}.` });
+    })).toEqual({ ok: true, message: `Bought targeted ads for ${target.group.name} voters in ${race.state}.`, changes: { actions: -1, funds: -100 } });
     expect(world.player.actions).toBe(29);
     expect(world.player.funds).toBe(2_900);
     expect(campaign.targetedAdModifiers?.[`${target.category._id}:${target.group.id}`]).toBeCloseTo(0.01, 10);

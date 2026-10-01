@@ -33,6 +33,7 @@ describe("debatePrep execution", () => {
     const result = executeAction(world, "player", "debatePrep");
     expect(result).toEqual({
       ok: true,
+      changes: { actions: -1 },
       message: "Breakthrough in the briefing room: your Debate skill improved (+1).",
     });
     expect(world.player.actions).toBe(before - 1);
@@ -46,6 +47,7 @@ describe("debatePrep execution", () => {
     const result = executeAction(world, "player", "debatePrep");
     expect(result).toEqual({
       ok: true,
+      changes: { actions: -1 },
       message: "You studied hard, but no breakthrough this time.",
     });
     expect(world.player.actions).toBe(before - 1);

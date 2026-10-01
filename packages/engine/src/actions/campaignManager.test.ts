@@ -40,7 +40,7 @@ describe("campaignManager", () => {
     expect(executeAction(world, "player", "campaignManager", {
       electionId: race.id,
       managerId: manager!.id,
-    })).toEqual({ ok: true, message: `${manager!.name} appointed as campaign manager.` });
+    })).toEqual({ ok: true, message: `${manager!.name} appointed as campaign manager.`, changes: {} });
     expect(campaign.actions).toBe(campaignActions);
     expect(campaign).toMatchObject({ managerId: manager!.id, managerName: manager!.name });
 
@@ -52,7 +52,7 @@ describe("campaignManager", () => {
     expect(executeAction(saved, "player", "campaignManager", {
       electionId: race.id,
       managerId: "",
-    })).toEqual({ ok: true, message: "Campaign manager cleared." });
+    })).toEqual({ ok: true, message: "Campaign manager cleared.", changes: {} });
     expect(saved.campaigns[campaignKey(race.id, "player")]).not.toHaveProperty("managerId");
   });
 

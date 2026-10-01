@@ -1073,7 +1073,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
       cash: startingCash ?? (playerCashOverride !== undefined ? playerCashOverride : 10_000),
       ...(playerPolicies !== undefined ? { policies: playerPolicies } : {}),
       ...(playerDemographics !== undefined ? { demographics: playerDemographics } : {}),
-      ...(playerStats !== undefined ? { stats: playerStats } : {}),
+      ...(playerStats !== undefined ? { stats: playerStats, debateDecayAnchorTurn: 0 } : {}),
       ...(playerAvatarUrl !== undefined ? { avatarUrl: playerAvatarUrl } : {}),
       ...(playerProfileHeaderUrl !== undefined ? { profileHeaderUrl: playerProfileHeaderUrl } : {}),
       actions: 25,

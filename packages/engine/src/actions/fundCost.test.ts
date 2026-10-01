@@ -45,11 +45,24 @@ describe("action fund cost shares one stat-scaled source (#242)", () => {
   });
 });
 
+// Isolate stat/currency accounting at the source's neutral GDP baseline.
+function pricedWorld(options: Parameters<typeof createWorld>[0]) {
+  const world = createWorld({ ...options, stats: options.stats ?? spiked("intellect") });
+  const home = world.regions[world.player.homeRegionId!]!;
+  home.gdp = world.player.countryId === "UK" ? 274 : 2557;
+  home.population = 1_000_000;
+  return world;
+}
+function quoteContext(world: ReturnType<typeof createWorld>) {
+  const home = world.regions[world.player.homeRegionId!]!;
+  return { stats: world.player.stats, gdpMillions: home.gdp, population: home.population, era: world.meta.era };
+}
+
 describe("executeAction charges exactly the quoted campaign cost (#242)", () => {
   it("charges the high-Intellect campaign cost the quote advertises, at the affordability edge", () => {
     const stats = spiked("intellect");
-    const world = createWorld({ ...base, homeRegionId: "NY", stats });
-    const quoted = actionFundCost({ actionId: "campaign", actionCost: 1, donorBaseLevel: 0, stats, catalogFundCost: 20_000 });
+    const world = pricedWorld({ ...base, homeRegionId: "NY", stats });
+    const quoted = actionFundCost({ actionId: "campaign", actionCost: 1, donorBaseLevel: 0, stats, catalogFundCost: 20_000, ...quoteContext(world) });
     // Fund the exact quote: the charge must not exceed it, or the edge attempt fails.
     world.player.funds = quoted;
     const before = world.player.funds;
@@ -61,14 +74,14 @@ describe("executeAction charges exactly the quoted campaign cost (#242)", () => 
 
   it("rejects the campaign one unit under the quoted cost", () => {
     const stats = spiked("intellect");
-    const world = createWorld({ ...base, homeRegionId: "NY", stats });
-    const quoted = actionFundCost({ actionId: "campaign", actionCost: 1, donorBaseLevel: 0, stats, catalogFundCost: 20_000 });
+    const world = pricedWorld({ ...base, homeRegionId: "NY", stats });
+    const quoted = actionFundCost({ actionId: "campaign", actionCost: 1, donorBaseLevel: 0, stats, catalogFundCost: 20_000, ...quoteContext(world) });
     world.player.funds = quoted - 1;
     expect(executeAction(world, "player", "campaign", { regionId: "NY" }).ok).toBe(false);
   });
 
   it("does not discount advertise with Intellect", () => {
-    const world = createWorld({ ...base, homeRegionId: "NY", stats: spiked("intellect") });
+    const world = pricedWorld({ ...base, homeRegionId: "NY", stats: spiked("intellect") });
     world.player.funds = 1_000_000;
     const before = world.player.funds;
     const result = executeAction(world, "player", "advertise");
@@ -92,7 +105,7 @@ describe("executeAction charges exactly the quoted campaign cost (#242)", () => 
 
   it("charges the Fundraising-scaled buildDonorBase cost", () => {
     const stats = spiked("fundraising");
-    const world = createWorld({ ...base, homeRegionId: "NY", stats });
+    const world = pricedWorld({ ...base, homeRegionId: "NY", stats });
     expect(world.player.donorBaseLevel).toBe(1);
     const quoted = actionFundCost({
       actionId: "buildDonorBase",
@@ -100,6 +113,7 @@ describe("executeAction charges exactly the quoted campaign cost (#242)", () => 
       donorBaseLevel: world.player.donorBaseLevel,
       stats,
       catalogFundCost: 3_000,
+      ...quoteContext(world),
     });
     world.player.funds = 1_000_000;
     const before = world.player.funds;
@@ -115,7 +129,7 @@ describe("buildDonorBase frozen-currency charge is transaction-safe (#91)", () =
   const uk = { era: "1953", countryId: "UK", playerName: "Alex", seed: "native-donor-fx" } as const;
 
   it("charges exactly the quoted local cost on a UK world", () => {
-    const world = createWorld(uk);
+    const world = pricedWorld(uk);
     world.player.actions = 50;
     world.player.funds = 1_000_000;
     const quoted = actionFundCost({
@@ -124,6 +138,7 @@ describe("buildDonorBase frozen-currency charge is transaction-safe (#91)", () =
       donorBaseLevel: world.player.donorBaseLevel,
       catalogFundCost: 3_000,
       countryId: "UK",
+      ...quoteContext(world),
     });
     const before = { actions: world.player.actions, funds: world.player.funds, level: world.player.donorBaseLevel };
     const result = executeAction(world, "player", "buildDonorBase");
@@ -134,7 +149,7 @@ describe("buildDonorBase frozen-currency charge is transaction-safe (#91)", () =
   });
 
   it("refuses one unit under the quoted local cost without touching AP or funds", () => {
-    const world = createWorld(uk);
+    const world = pricedWorld(uk);
     world.player.actions = 50;
     const quoted = actionFundCost({
       actionId: "buildDonorBase",
@@ -142,6 +157,7 @@ describe("buildDonorBase frozen-currency charge is transaction-safe (#91)", () =
       donorBaseLevel: world.player.donorBaseLevel,
       catalogFundCost: 3_000,
       countryId: "UK",
+      ...quoteContext(world),
     });
     world.player.funds = quoted - 1;
     const before = { actions: world.player.actions, funds: world.player.funds, level: world.player.donorBaseLevel };
@@ -153,7 +169,7 @@ describe("buildDonorBase frozen-currency charge is transaction-safe (#91)", () =
   });
 
   it("preserves the converted charge across save/reload", () => {
-    const world = createWorld(uk);
+    const world = pricedWorld(uk);
     world.player.actions = 50;
     world.player.funds = 1_000_000;
     const first = executeAction(world, "player", "buildDonorBase");
@@ -168,6 +184,7 @@ describe("buildDonorBase frozen-currency charge is transaction-safe (#91)", () =
       donorBaseLevel: resumed.player.donorBaseLevel,
       catalogFundCost: 3_000,
       countryId: "UK",
+      ...quoteContext(resumed),
     });
     const before = resumed.player.funds;
     const second = executeAction(resumed, "player", "buildDonorBase");

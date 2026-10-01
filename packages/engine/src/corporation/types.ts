@@ -97,6 +97,10 @@ export interface CorpCeoPersonality {
 export interface Corporation {
   id: string;
   countryId: string;
+  /** Mainline issuer lifecycle. Legacy Native corporations are NPP-run when absent. */
+  ceoType?: "npp" | "player";
+  /** Suspended corporations are frozen and excluded from NPP auto-dissolution. */
+  suspended?: boolean;
   sectorType: CorporationType;
   personality: CorpCeoPersonality;
   archetype: CeoArchetype;

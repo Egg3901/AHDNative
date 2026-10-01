@@ -267,6 +267,7 @@ export {
 } from "./campaigns/upgradeCosts.js";
 export type { OpsBranchKey, UpgradeCategory } from "./campaigns/upgradeCosts.js";
 export { campaignAnchorToLocal, campaignLocalRate } from "./campaigns/campaignCurrency.js";
+export { characterActionDisabledReason } from "./actions/characterEligibility.js";
 export { calculateCampaignIncome } from "./campaigns/income.js";
 export { calculateMaintenanceCosts } from "./campaigns/maintenance.js";
 export { campaignKey, ensureCampaign } from "./campaigns/lifecycle.js";
