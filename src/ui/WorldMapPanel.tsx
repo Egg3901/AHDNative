@@ -418,14 +418,14 @@ export function WorldMapPanel({
         <section className="ahd-card ahd-card-pad" aria-label="Hall of Fame summary">
           <h2 className="ahd-h2">Hall of Fame</h2>
           <p className="ahd-muted" style={{ margin: "0.35rem 0 0", fontSize: "0.76rem" }}>
-            Top {topStandings.length} of {hallOfFame.total} recorded figures. The cross-player
+            Top {topStandings.length} of {hallOfFame.total} recorded {hallOfFame.total === 1 ? "life" : "lives"}. The cross-player
             board lives on the authoritative server.
           </p>
           <ol style={{ margin: "0.55rem 0 0", paddingLeft: "1.25rem", display: "flex", flexDirection: "column", gap: "0.3rem" }}>
             {topStandings.map((entry) => (
               <li key={entry.id} style={{ fontSize: "0.82rem" }}>
                 <span style={{ fontWeight: 700 }}>{entry.rank}.</span> {entry.name}
-                {entry.isPlayer ? " (you)" : ""} · {entry.score} standing
+                {entry.isPlayer ? " (you)" : ""} · {entry.score} Legacy Score
               </li>
             ))}
           </ol>

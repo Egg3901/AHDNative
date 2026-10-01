@@ -251,7 +251,16 @@ export function playerShareValueAnchor(world: WorldState): number {
   return total;
 }
 
-/** Anchor value of recorded player bond holdings (units * face * price). */
+/**
+ * Anchor value of recorded player bond holdings (units * face * price).
+ * Audited: there is no separate corporate-bond store — corporate issues
+ * live in the same `world.bonds` map (`issuerType: "corporation"`,
+ * `packages/engine/src/bonds/corporateBonds.ts`) with the same holder rows,
+ * so this single loop already values sovereign AND corporate holdings and
+ * must not gain a second store (that would double-count). Recorded
+ * `faceValue` is read per bond rather than the `BOND_UNIT_FACE_VALUE`
+ * constant so a future denomination change cannot drift the board.
+ */
 export function playerBondValueAnchor(world: WorldState): number {
   const rates = world.exchangeRates as Record<string, FxEntry | undefined>;
   const byCurrency = new Map<string, number>();

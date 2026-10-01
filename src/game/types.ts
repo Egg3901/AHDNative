@@ -316,6 +316,12 @@ export interface GameScreenProps {
   loadLegislation: (selection?: LegislationSelection) => Promise<LegislationDetailsQuery>;
   loadWorldOverview: () => Promise<WorldOverviewView>;
   loadPolitics: () => Promise<PoliticsView>;
+  /**
+   * Hall of Fame DTO query (#73). Optional: the authoritative MP adapter
+   * has no leaderboard endpoint yet, so MP surfaces omit it and the route
+   * states the board is unavailable there instead of faking rows.
+   */
+  loadHallOfFame?: (query?: import("./hallOfFame").HallOfFameQuery) => Promise<import("./hallOfFame").HallOfFameView>;
   world: GameView; busy: boolean; message?: string; error?: string;
   /** Save-slot identity for per-save news selection and read state. */
   newsStorageKey?: string;

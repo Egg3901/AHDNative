@@ -1,3 +1,4 @@
+import type { HallOfFameQuery } from "./game/hallOfFame";
 import type { RegionsQuery } from "./game/regions";
 import type { SearchFilter } from "./game/search";
 import type { LegislationSelection } from "./game/legislationDetails";
@@ -95,6 +96,10 @@ export function App() {
   const loadWorldOverview = useCallback(() => {
     if (!client.current) return Promise.reject(new Error("Start or load a game first."));
     return client.current.worldOverview();
+  }, []);
+  const loadHallOfFame = useCallback((query?: HallOfFameQuery) => {
+    if (!client.current) return Promise.reject(new Error("Start or load a game first."));
+    return client.current.hallOfFame(query);
   }, []);
   const loadPolitics = useCallback(() => {
     if (!client.current) return Promise.reject(new Error('Start or load a game first.'));
@@ -283,7 +288,7 @@ export function App() {
   })} preferences={presentation.value} onPreferencesChange={changePreferences} preferencesError={presentation.error} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadCabinetOffice={loadCabinetOffice} onIssueCabinetOrder={(input) => void run(async () => {
       const response = await client.current!.issueCabinetOrder(input); setWorld(response.view);
       if (response.result.ok) { await save(); setMessage(response.result.message); } else setError(response.result.error);
-    })} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={busy} error={error} message={message}
+    })} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} loadHallOfFame={loadHallOfFame} world={world} busy={busy} error={error} message={message}
     onMarkNotificationRead={(id) => void run(async () => { setWorld(await client.current!.markNotificationRead(id)); await save(false); })}
     onDeleteNotification={(id) => void run(async () => { setWorld(await client.current!.deleteNotification(id)); await save(false); })}
     onMarkAllNotificationsRead={() => void run(async () => { setWorld(await client.current!.markAllNotificationsRead()); await save(false); })}

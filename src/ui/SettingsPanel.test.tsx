@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { SettingsPanel } from "./SettingsPanel";
 import type { Preferences } from "../preferences";
 
-const DEFAULTS: Preferences = { textSize: "standard", reducedMotion: "system", reducedTransparency: "system", disableAutoplayOnOtherProfiles: false, worldMapSection: "nations", worldMapView: "world", hallOfFameScope: "all", hallOfFameRankBy: "standing", hallOfFameEra: "current" };
+const DEFAULTS: Preferences = { textSize: "standard", reducedMotion: "system", reducedTransparency: "system", disableAutoplayOnOtherProfiles: false, worldMapSection: "nations", worldMapView: "world", hallOfFameScope: "all", hallOfFameRankBy: "legacy" };
 
 describe("SettingsPanel", () => {
   it("shows the presentation controls and selected values", () => {

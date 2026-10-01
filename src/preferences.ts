@@ -7,12 +7,19 @@ export type ReducedTransparency = "system" | "on" | "off";
 export type WorldMapSection = "nations" | "regions";
 /** World map schematic context. Both contexts are implemented (#73). */
 export type WorldMapView = "world" | "country";
-/** Hall of Fame leaderboard scope: every recorded figure or the player's party. */
-export type HallOfFameScope = "all" | "party";
-/** Hall of Fame ranking: standing composite or raw political influence. */
-export type HallOfFameRankBy = "standing" | "influence";
-/** Hall of Fame era filter: the save's current era or every recorded era. */
-export type HallOfFameEra = "current" | "all";
+/**
+ * Hall of Fame leaderboard scope (#73, source names): every recorded life
+ * or only the save's current era. The old "party" scope ranked NPC
+ * politicians and was never a reference filter; saved "party" values fall
+ * back to the source default.
+ */
+export type HallOfFameScope = "all" | "current";
+/**
+ * Hall of Fame ranking (#73, source names): the Legacy Score composite or
+ * forex-normalized net worth. The old "standing"/"influence" values ranked
+ * an invented composite and raw influence; both fall back to "legacy".
+ */
+export type HallOfFameRankBy = "legacy" | "netWorth";
 
 export interface Preferences {
   textSize: TextSize;
@@ -23,7 +30,6 @@ export interface Preferences {
   worldMapView: WorldMapView;
   hallOfFameScope: HallOfFameScope;
   hallOfFameRankBy: HallOfFameRankBy;
-  hallOfFameEra: HallOfFameEra;
 }
 
 export interface PreferenceStorage {
@@ -50,8 +56,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   worldMapSection: "nations",
   worldMapView: "world",
   hallOfFameScope: "all",
-  hallOfFameRankBy: "standing",
-  hallOfFameEra: "current",
+  hallOfFameRankBy: "legacy",
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -90,15 +95,15 @@ export function parsePreferences(value: unknown): Preferences {
     worldMapView: parsed.worldMapView === "world" || parsed.worldMapView === "country"
       ? parsed.worldMapView
       : DEFAULT_PREFERENCES.worldMapView,
-    hallOfFameScope: parsed.hallOfFameScope === "all" || parsed.hallOfFameScope === "party"
+    // Old "party"/"standing"/"influence" values ranked the invented NPC
+    // board; they migrate to the source defaults. hallOfFameEra is dropped:
+    // era filtering is the scope filter now, so a saved era value is ignored.
+    hallOfFameScope: parsed.hallOfFameScope === "all" || parsed.hallOfFameScope === "current"
       ? parsed.hallOfFameScope
       : DEFAULT_PREFERENCES.hallOfFameScope,
-    hallOfFameRankBy: parsed.hallOfFameRankBy === "standing" || parsed.hallOfFameRankBy === "influence"
+    hallOfFameRankBy: parsed.hallOfFameRankBy === "legacy" || parsed.hallOfFameRankBy === "netWorth"
       ? parsed.hallOfFameRankBy
       : DEFAULT_PREFERENCES.hallOfFameRankBy,
-    hallOfFameEra: parsed.hallOfFameEra === "current" || parsed.hallOfFameEra === "all"
-      ? parsed.hallOfFameEra
-      : DEFAULT_PREFERENCES.hallOfFameEra,
   };
 }
 

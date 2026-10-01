@@ -146,7 +146,7 @@ const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
   { id: "favorability", short: "Favorability", label: "Favorability" },
 ];
 
-export function GameScreen({ loadProfile, loadProfileDestination, loadImperialProfile, onUpdateProfile, onStatAllocation, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, world, busy, message, error, newsStorageKey, onAdvanceTurn, onSave, onExit, onAction, onSectorSale, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
+export function GameScreen({ loadProfile, loadProfileDestination, loadImperialProfile, onUpdateProfile, onStatAllocation, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadLegislation, loadPolitics, loadWorldOverview, loadHallOfFame, world, busy, message, error, newsStorageKey, onAdvanceTurn, onSave, onExit, onAction, onSectorSale, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("profile");
   const [detailId, setDetailId] = useState<string>();
   // #510 bounded return stack: detail routes remember the chain of browse
@@ -829,8 +829,19 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
             />
           ))}
           {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={route === "nations" ? (detailId ?? nationContext) : detailId} onSelectNation={route === "nations" ? (id) => { setDetailId(undefined); setNationContext(id); } : undefined} onNavigate={navigate} onDrill={drillViewer} onOpenParty={openParty} onOpenElection={openElection} />}</DetailQuery>}
-          {route === "worldMap" && <WorldMapRoute loadOverview={loadWorldOverview} loadRegions={loadRegions} loadPolitics={loadPolitics} loadProfile={loadProfile} revision={world} section={preferences.worldMapSection} onSectionChange={(worldMapSection) => onPreferencesChange({ ...preferences, worldMapSection })} view={preferences.worldMapView} onViewChange={(worldMapView) => onPreferencesChange({ ...preferences, worldMapView })} onNavigate={navigate} onOpenElection={openElection} onOpenHallOfFame={() => go("hallOfFame")} />}
-          {route === "hallOfFame" && <HallOfFameRoute loadOverview={loadWorldOverview} loadPolitics={loadPolitics} loadProfile={loadProfile} revision={world} query={{ rankBy: preferences.hallOfFameRankBy, scope: preferences.hallOfFameScope, era: preferences.hallOfFameEra }} onQueryChange={(next) => onPreferencesChange({ ...preferences, hallOfFameRankBy: next.rankBy, hallOfFameScope: next.scope, hallOfFameEra: next.era })} onNavigate={navigate} onOpenElection={openElection} />}
+          {route === "worldMap" && <WorldMapRoute loadOverview={loadWorldOverview} loadRegions={loadRegions} loadHallOfFame={loadHallOfFame ? () => loadHallOfFame() : undefined} revision={world} section={preferences.worldMapSection} onSectionChange={(worldMapSection) => onPreferencesChange({ ...preferences, worldMapSection })} view={preferences.worldMapView} onViewChange={(worldMapView) => onPreferencesChange({ ...preferences, worldMapView })} onNavigate={navigate} onOpenElection={openElection} onOpenHallOfFame={() => go("hallOfFame")} />}
+          {route === "hallOfFame" && (loadHallOfFame ? (
+            <HallOfFameRoute loadHallOfFame={loadHallOfFame} revision={world} query={{ rankBy: preferences.hallOfFameRankBy, scope: preferences.hallOfFameScope }} onQueryChange={(next) => onPreferencesChange({ ...preferences, hallOfFameRankBy: next.rankBy, hallOfFameScope: next.scope })} onNavigate={navigate} onOpenElection={openElection} />
+          ) : (
+            <div className="ahd-stack">
+              <h2 className="ahd-h2">Hall of Fame</h2>
+              <div className="ahd-empty" role="note">The Hall of Fame board is unavailable because its service is not connected. Your game is intact; continue elsewhere and return once the service is wired.</div>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => go("profile")}>Go to profile</button>
+                <button type="button" className="ahd-btn ahd-btn-sm" onClick={() => go("actions")}>Go to actions</button>
+              </div>
+            </div>
+          ))}
           {route === "worldDirectory" && <DetailQuery load={loadWorldOverview} revision={world} label="World directory">{overview => <WorldDirectoryPanel overview={overview} onNavigate={navigate} />}</DetailQuery>}
           {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} loadMarkets={loadMarkets} revision={world} busy={busy} onNavigate={navigate} onDrill={drillViewer} onSectorSale={onSectorSale} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}

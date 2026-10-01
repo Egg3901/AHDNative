@@ -7,6 +7,7 @@ import type { PartyManagementView } from "./partyManagement";
 import type { SearchFilter, SearchResults } from "./search";
 import type { MarketsView } from "./markets";
 import type { LegislationDetailsQuery, LegislationSelection } from "./legislationDetails";
+import type { HallOfFameQuery, HallOfFameView } from "./hallOfFame";
 import type { WorldOverviewView } from "./worldOverview";
 import type { PoliticsView } from "./politics";
 import type { GameCommand, GameResponse } from "./protocol";
@@ -47,6 +48,7 @@ export class GameClient {
   create(options: NewGameOptions) { return this.send<GameView>({ type: "create", options }); }
   legislation(selection: LegislationSelection = {}) { return this.send<LegislationDetailsQuery>({ type: "legislation", selection }); }
   worldOverview() { return this.send<WorldOverviewView>({ type: "worldOverview" }); }
+  hallOfFame(query: HallOfFameQuery = {}) { return this.send<HallOfFameView>({ type: "hallOfFame", query }); }
   search(query: string, filter?: SearchFilter) { return this.send<SearchResults>({ type: "search", query, filter }); }
   bondMarket() { return this.send<BondMarketView>({ type: "bondMarket" }); }
   regions(query: RegionsQuery = {}) { return this.send<RegionsView>({ type: "regions", query }); }

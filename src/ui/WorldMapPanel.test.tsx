@@ -3,25 +3,19 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { createWorld } from "@ahdclient/engine";
 import { projectWorldOverview, type WorldOverviewView } from "../game/worldOverview";
 import { projectRegions, type RegionDirectoryRow } from "../game/regions";
-import { projectPolitics } from "../game/politics";
-import { projectProfile } from "../game/profile";
 import { projectHallOfFame, type HallOfFameView } from "../game/hallOfFame";
 import type { WorldMapSection, WorldMapView } from "../preferences";
 import { WorldMapPanel } from "./WorldMapPanel";
 
-// One shared world: the politics/profile projections behind the Hall of
-// Fame summary cost several seconds, so every test renders the same save.
+// One shared world: world creation costs several seconds, so every test
+// renders the same save.
 let fixture!: { overview: WorldOverviewView; regions: RegionDirectoryRow[]; regionsTotal: number; regionsCountryName: string; hallOfFame: HallOfFameView };
 
 beforeAll(() => {
   const world = createWorld({ era: "1953", countryId: "US", playerName: "Ada", seed: "world-map" });
   const overview = projectWorldOverview(world);
   const regions = projectRegions(world, { directoryPage: 0, directoryPageSize: 100 });
-  const hallOfFame = projectHallOfFame({
-    overview,
-    politics: projectPolitics(world),
-    profile: projectProfile(world),
-  });
+  const hallOfFame = projectHallOfFame(world);
   fixture = {
     overview,
     regions: regions.directory,

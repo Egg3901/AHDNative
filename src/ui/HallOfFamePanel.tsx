@@ -1,17 +1,17 @@
 /**
- * HallOfFamePanel: the offline singleplayer standings board (#73).
+ * HallOfFamePanel: the offline singleplayer life board (#73).
  *
- * Rows come from `projectHallOfFame`: the recorded player plus the
- * player-country politician roster, in the projector's deterministic order
- * (this panel never re-sorts). Scope (all/party), ranking
- * (standing/influence), and era (current/all) filters are the caller's
- * persisted preferences, applied through `onQueryChange`.
+ * Rows come from `projectHallOfFame` through the GameSession/worker query:
+ * exactly one recorded local life (the player), ranked by the reference's
+ * own metrics — composite Legacy Score or forex-normalized net worth —
+ * with `scope` (all lives / current era) and `rankBy` (legacy / netWorth)
+ * filters. This panel never re-sorts and never invents rows: no NPC
+ * politicians, no raw-influence ranking, no party filter.
  *
- * Reference: AHDGame `src/app/world/legacy/page.tsx` ranks every life ever
- * played across all game iterations (pinned rev 08820d1). That board reads
- * cross-player Mongo records the offline device never sees, so the
- * cross-player table stays tracked for the later authoritative MP
- * integration and is stated as such, never rendered as a table.
+ * Reference: AHDGame `src/app/world/legacy/page.tsx` (pinned rev 954f1c2).
+ * That board reads cross-player Mongo records the offline device never
+ * sees, so the cross-player table stays tracked for the later authoritative
+ * MP integration and is stated as such, never rendered as a table.
  */
 import type { HallOfFameQuery, HallOfFameView } from "../game/hallOfFame";
 import type { DrawerRouteId } from "./MobileNavigation";
@@ -20,7 +20,7 @@ export interface HallOfFamePanelProps {
   view: HallOfFameView;
   query: Required<HallOfFameQuery>;
   onQueryChange: (query: Required<HallOfFameQuery>) => void;
-  /** Player figure opens Profile; recorded politicians open Politicians. */
+  /** The life opens Profile; its home region opens Regions; races open elections. */
   onNavigate?: (route: DrawerRouteId, id?: string) => void;
   /** Recorded unresolved races open the existing election detail route. */
   onOpenElection?: (id: string) => void;
@@ -53,13 +53,18 @@ function FilterButton({
 
 /**
  * Phone-sized page cap, matching the reference board's TOP_N = 50
- * (`src/app/world/legacy/page.tsx` at pinned rev 08820d1). The projector
- * keeps the full deterministic order; the panel shows the top slice.
+ * (`src/app/world/legacy/page.tsx` at the pinned rev). The projector keeps
+ * the full deterministic order; the panel shows the top slice.
  */
 export const HALL_OF_FAME_PAGE_SIZE = 50;
 
+function formatAmount(value: number): string {
+  if (!Number.isFinite(value)) return "0";
+  return value.toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+
 export function HallOfFamePanel({ view, query, onQueryChange, onNavigate, onOpenElection }: HallOfFamePanelProps) {
-  const metricLabel = query.rankBy === "influence" ? "Influence" : "Standing";
+  const metricLabel = query.rankBy === "netWorth" ? "Net worth" : "Legacy Score";
   const page = view.entries.slice(0, HALL_OF_FAME_PAGE_SIZE);
   // The player row is always visible: pinned after the page when it ranks
   // outside the top slice. Rank numbers stay the projector's own.
@@ -73,7 +78,7 @@ export function HallOfFamePanel({ view, query, onQueryChange, onNavigate, onOpen
         </div>
         <h1 className="ahd-h1" style={{ marginTop: "0.22rem" }}>Hall of Fame</h1>
         <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: "0.32rem 0 0" }}>
-          {view.total} recorded figures in this save. The cross-player leaderboard lives on the
+          {view.total} recorded {view.total === 1 ? "life" : "lives"} on this device. The cross-player leaderboard lives on the
           authoritative server and is not available offline.
         </p>
       </div>
@@ -83,48 +88,32 @@ export function HallOfFamePanel({ view, query, onQueryChange, onNavigate, onOpen
           <FilterButton
             pressed={query.scope === "all"}
             onClick={() => onQueryChange({ ...query, scope: "all" })}
-            label="Show every recorded figure"
+            label="Show every recorded life"
           >
-            Everyone
+            Every life
           </FilterButton>
           <FilterButton
-            pressed={query.scope === "party"}
-            onClick={() => onQueryChange({ ...query, scope: "party" })}
-            label="Show only my party"
+            pressed={query.scope === "current"}
+            onClick={() => onQueryChange({ ...query, scope: "current" })}
+            label="Show only the current era"
           >
-            My party
+            Current era
           </FilterButton>
         </div>
         <div role="group" aria-label="Leaderboard ranking" style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap", marginTop: "0.45rem" }}>
           <FilterButton
-            pressed={query.rankBy === "standing"}
-            onClick={() => onQueryChange({ ...query, rankBy: "standing" })}
-            label="Rank by standing"
+            pressed={query.rankBy === "legacy"}
+            onClick={() => onQueryChange({ ...query, rankBy: "legacy" })}
+            label="Rank by Legacy Score"
           >
-            Standing
+            Legacy Score
           </FilterButton>
           <FilterButton
-            pressed={query.rankBy === "influence"}
-            onClick={() => onQueryChange({ ...query, rankBy: "influence" })}
-            label="Rank by influence"
+            pressed={query.rankBy === "netWorth"}
+            onClick={() => onQueryChange({ ...query, rankBy: "netWorth" })}
+            label="Rank by net worth"
           >
-            Influence
-          </FilterButton>
-        </div>
-        <div role="group" aria-label="Leaderboard era" style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap", marginTop: "0.45rem" }}>
-          <FilterButton
-            pressed={query.era === "current"}
-            onClick={() => onQueryChange({ ...query, era: "current" })}
-            label="Show the current era"
-          >
-            Current era
-          </FilterButton>
-          <FilterButton
-            pressed={query.era === "all"}
-            onClick={() => onQueryChange({ ...query, era: "all" })}
-            label="Show every era"
-          >
-            Every era
+            Net worth
           </FilterButton>
         </div>
       </div>
@@ -133,23 +122,22 @@ export function HallOfFamePanel({ view, query, onQueryChange, onNavigate, onOpen
         <h2 className="ahd-h2">Standings</h2>
         {view.entries.length === 0 ? (
           <div className="ahd-empty" style={{ marginTop: "0.55rem" }}>
-            No recorded figures match these filters. There are no unresolved races to show instead.
+            No recorded lives match these filters. There are no unresolved races to show instead.
           </div>
         ) : (
           <div className="ahd-mp-wallet-table" style={{ marginTop: "0.55rem" }}>
             <table aria-label="Hall of Fame standings">
               <caption className="ahd-muted" style={{ fontSize: "0.72rem", textAlign: "left", paddingBottom: "0.4rem" }}>
-                Ranked by {query.rankBy === "influence" ? "raw political influence" : "the standing composite"}.
+                Ranked by {query.rankBy === "netWorth" ? "forex-normalized net worth" : "the Legacy Score composite"}.
                 Showing the top {page.length} of {view.total}
                 {shown.length > page.length ? ", plus your pinned row" : ""}. Choosing a name opens that
-                figure&apos;s profile.
+                life&apos;s profile.
               </caption>
               <thead>
                 <tr>
                   <th scope="col">Rank</th>
                   <th scope="col">Name</th>
-                  <th scope="col">Party</th>
-                  <th scope="col">Office</th>
+                  <th scope="col">Highest office</th>
                   <th scope="col">{metricLabel}</th>
                   <th scope="col">Race</th>
                 </tr>
@@ -162,13 +150,9 @@ export function HallOfFamePanel({ view, query, onQueryChange, onNavigate, onOpen
                       <button
                         type="button"
                         className="ahd-btn ahd-btn-ghost ahd-btn-sm"
-                        onClick={() => entry.isPlayer
-                          ? onNavigate?.("profile")
-                          : onNavigate?.(entry.profileRoute, entry.id)}
+                        onClick={() => onNavigate?.(entry.profileRoute)}
                         disabled={!onNavigate}
-                        aria-label={entry.isPlayer
-                          ? `${entry.name}, your character, open profile`
-                          : `${entry.name}, recorded politician, open politician details`}
+                        aria-label={`${entry.name}, your character, open profile`}
                         style={{ minHeight: "2.75rem" }}
                       >
                         {entry.name}
@@ -176,9 +160,8 @@ export function HallOfFamePanel({ view, query, onQueryChange, onNavigate, onOpen
                       </button>
                       <div className="ahd-muted" style={{ fontSize: "0.68rem" }}>{entry.era}</div>
                     </td>
-                    <td>{entry.partyName ?? "No party"}</td>
-                    <td>{entry.office ?? "No office"}</td>
-                    <td>{query.rankBy === "influence" ? entry.influence : entry.score}</td>
+                    <td>{entry.highestOffice ?? "No office held"}</td>
+                    <td>{formatAmount(query.rankBy === "netWorth" ? entry.netWorth : entry.score)}</td>
                     <td>
                       {entry.activeRaceIds.length === 0 ? (
                         <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>No unresolved races</span>
@@ -207,6 +190,73 @@ export function HallOfFamePanel({ view, query, onQueryChange, onNavigate, onOpen
           </div>
         )}
       </section>
+
+      {player && (
+        <section className="ahd-card ahd-card-pad" aria-label="Life details">
+          <h2 className="ahd-h2">Life details</h2>
+          <dl style={{ margin: "0.55rem 0 0", display: "grid", gap: "0.3rem", fontSize: "0.78rem" }}>
+            <div style={{ display: "flex", gap: "0.4rem" }}>
+              <dt className="ahd-muted">Legacy Score</dt>
+              <dd style={{ margin: 0 }}>{formatAmount(player.score)}</dd>
+            </div>
+            <div style={{ display: "flex", gap: "0.4rem" }}>
+              <dt className="ahd-muted">Net worth</dt>
+              <dd style={{ margin: 0 }}>{formatAmount(player.netWorth)}</dd>
+            </div>
+            <div style={{ display: "flex", gap: "0.4rem" }}>
+              <dt className="ahd-muted">Current office</dt>
+              <dd style={{ margin: 0 }}>{player.office ?? "None"}</dd>
+            </div>
+            <div style={{ display: "flex", gap: "0.4rem" }}>
+              <dt className="ahd-muted">Country</dt>
+              <dd style={{ margin: 0 }}>{player.countryName}</dd>
+            </div>
+            <div style={{ display: "flex", gap: "0.4rem" }}>
+              <dt className="ahd-muted">Party</dt>
+              <dd style={{ margin: 0 }}>{player.partyName ?? "No party"}</dd>
+            </div>
+            <div style={{ display: "flex", gap: "0.4rem" }}>
+              <dt className="ahd-muted">Home region</dt>
+              <dd style={{ margin: 0 }}>
+                {player.homeRegion ? (
+                  <button
+                    type="button"
+                    className="ahd-btn ahd-btn-ghost ahd-btn-sm"
+                    onClick={() => onNavigate?.("regions", player.homeRegion!.id)}
+                    disabled={!onNavigate}
+                    aria-label={`${player.homeRegion.name}, open region details`}
+                    style={{ minHeight: "2.75rem" }}
+                  >
+                    {player.homeRegion.name}
+                  </button>
+                ) : (
+                  "Not recorded"
+                )}
+              </dd>
+            </div>
+            <div style={{ display: "flex", gap: "0.4rem" }}>
+              <dt className="ahd-muted">Score breakdown</dt>
+              <dd style={{ margin: 0 }}>
+                influence {formatAmount(player.scoreBreakdown.nationalInfluence + player.scoreBreakdown.partyInfluence)},
+                {" "}achievements {formatAmount(player.scoreBreakdown.achievements)},
+                {" "}office {formatAmount(player.scoreBreakdown.officeTier)},
+                {" "}infamy {formatAmount(player.scoreBreakdown.infamyPenalty)},
+                {" "}wealth {formatAmount(player.scoreBreakdown.wealth)}
+              </dd>
+            </div>
+            <div style={{ display: "flex", gap: "0.4rem" }}>
+              <dt className="ahd-muted">Net worth breakdown</dt>
+              <dd style={{ margin: 0 }}>
+                cash {formatAmount(player.netWorthBreakdown.personal)},
+                {" "}savings {formatAmount(player.netWorthBreakdown.savings)},
+                {" "}shares {formatAmount(player.netWorthBreakdown.shares)},
+                {" "}bonds {formatAmount(player.netWorthBreakdown.bonds)},
+                {" "}index funds {formatAmount(player.netWorthBreakdown.indexFunds)}
+              </dd>
+            </div>
+          </dl>
+        </section>
+      )}
     </div>
   );
 }
