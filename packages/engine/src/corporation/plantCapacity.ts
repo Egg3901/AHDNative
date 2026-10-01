@@ -43,6 +43,39 @@ export interface PlantCapitalSeed {
   capacityBookAnchor: number;
 }
 
+export interface PlantCapitalTurn extends PlantCapitalSeed {
+  landedUnits: number;
+  depreciationFactor: number;
+}
+
+/** Game's plants-tier stock and paid-basis advance (`plantsCapacity.ts`). */
+export function advancePlantCapitalTurn(input: {
+  capitalStock: number;
+  capacityBookAnchor?: number;
+  landedCreditAnchor: number;
+  capacityPricePerUnitAnchor: number;
+  depreciationPerTurn?: number;
+}): PlantCapitalTurn {
+  const stock = Number.isFinite(input.capitalStock) ? Math.max(0, input.capitalStock) : 0;
+  const price = Number.isFinite(input.capacityPricePerUnitAnchor)
+    ? Math.max(0, input.capacityPricePerUnitAnchor)
+    : 0;
+  const credit = Number.isFinite(input.landedCreditAnchor) ? Math.max(0, input.landedCreditAnchor) : 0;
+  const depreciation = Number.isFinite(input.depreciationPerTurn)
+    ? Math.max(0, Math.min(1, input.depreciationPerTurn ?? 0))
+    : PLANT_CAPITAL_DEPRECIATION_PER_TURN;
+  const landedUnits = credit > 0 && price > 0 ? credit / price : 0;
+  const preDepreciationStock = stock + landedUnits;
+  const capitalStock = preDepreciationStock * (1 - depreciation);
+  const depreciationFactor = preDepreciationStock > 0 ? capitalStock / preDepreciationStock : 1;
+  const priorBook = validBook(input.capacityBookAnchor, stock, price);
+  const capacityBookAnchor = (priorBook + (landedUnits > 0 ? credit : 0)) * depreciationFactor;
+  if (![capitalStock, capacityBookAnchor, landedUnits, depreciationFactor].every(Number.isFinite)) {
+    return { capitalStock: 0, capacityBookAnchor: 0, landedUnits: 0, depreciationFactor: 1 };
+  }
+  return { capitalStock, capacityBookAnchor, landedUnits, depreciationFactor };
+}
+
 /** Ports Game `seedCapitalStock` and the source paid-list-price book fallback. */
 export function seedPlantCapital(input: {
   revenueLocal: number;

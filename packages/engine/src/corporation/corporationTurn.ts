@@ -54,6 +54,7 @@ import {
   stepCorporateSectorStrikes,
   type CorporationLabourFactors,
 } from "./corporationLabour.js";
+import { runCorporatePlantProductionTurn } from "./plantProduction.js";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -73,6 +74,7 @@ export function runCorporationTurn(
   taxRatePct: number,
   labourFactors: CorporationLabourFactors = { outputFactor: 1, marginModifierPP: 0, strikeActive: false },
   settlement?: { player: PlayerCharacter; currencyCode: string },
+  plantsTier: boolean = false,
 ): void {
   const priorRevenue = corp.revenue;
   const priorMargin = corp.effectiveProfitMargin || corp.profitMargin;
@@ -91,13 +93,15 @@ export function runCorporationTurn(
     : trended;
 
   const perTurnGrowthRate = newCurrentGrowthRate / GROWTH_RATE_TURNS_PER_YEAR;
-  const growthCost = calculateGrowthCost(priorRevenue, perTurnGrowthRate);
+  const growthCost = plantsTier ? 0 : calculateGrowthCost(priorRevenue, perTurnGrowthRate);
   // #322: labour output hit lands here, exactly once per turn (the unions
   // pass never touches revenue). Worlds with no live action read factor 1.
   const outputFactor = Number.isFinite(labourFactors.outputFactor)
     ? Math.max(0, Math.min(1, labourFactors.outputFactor))
     : 1;
-  const newRevenue = priorRevenue * (1 + perTurnGrowthRate / 100) * outputFactor;
+  const newRevenue = plantsTier
+    ? priorRevenue
+    : priorRevenue * (1 + perTurnGrowthRate / 100) * outputFactor;
 
   // #322: strike margin penalty while an asset strikes unprotected
   // (reference strikeMarginModifier). Transient: it leaves with the strike.
@@ -215,10 +219,16 @@ export const corporationTurnPhase: TurnPhase = {
     // strike resolution steps after the corp math (reference sector-pass
     // order: production effects from turn-start state, then the step).
     const labour = loadCorporationLabourState(world, world.meta.turn);
+    const labourByCorp = new Map(
+      Object.keys(world.corporations).map((corpId) => [corpId, labourFactorsForCorporation(world, corpId, labour)]),
+    );
+    runCorporatePlantProductionTurn(world, new Map(
+      [...labourByCorp].map(([corpId, factors]) => [corpId, factors.outputFactor]),
+    ));
     for (const corp of Object.values(world.corporations)) {
       const taxRatePct = world.budgets?.[corp.countryId]?.taxRates.domesticCorporateTax ?? DEFAULT_CORPORATE_TAX_RATE_PCT;
       const currencyCode = world.budgets?.[corp.countryId]?.currencyCode ?? world.exchangeRates?.[corp.countryId]?.currencyCode ?? "XXX";
-      runCorporationTurn(corp, taxRatePct, labourFactorsForCorporation(world, corp.id, labour), { player: world.player, currencyCode });
+      runCorporationTurn(corp, taxRatePct, labourByCorp.get(corp.id), { player: world.player, currencyCode }, true);
       checkInsolvency(corp, world.meta.turn);
     }
     stepCorporateSectorStrikes(world, world.meta.turn, labour);

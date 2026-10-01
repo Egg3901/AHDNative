@@ -1,4 +1,5 @@
 import type { WorldState } from "../types.js";
+import type { CommodityType } from "../commodity/constants.js";
 import type { CorporationType } from "./types.js";
 import { getRateForCountry } from "../forex/conversion.js";
 import {
@@ -38,6 +39,16 @@ export interface CorporateSectorAsset {
   capitalStock?: number;
   /** Paid plant basis in anchor (USD-era) currency, matching Game field semantics. */
   capacityBookAnchor?: number;
+  /** Physical units produced this turn, in source output-units/day. */
+  producedUnits?: number;
+  /** Physical units sold this turn, in source output-units/day. */
+  soldUnits?: number;
+  /** Mix-weighted realized sell-through, 0–1. */
+  soldFraction?: number;
+  /** Realized sales in Native local-currency-per-week units. */
+  realizedRevenue?: number;
+  /** Actual fill fraction by produced commodity. */
+  soldByCommodity?: Partial<Record<CommodityType, number>>;
   /** Staffed headcount, derived from recorded revenue (#296). */
   workers: number;
   /** Seeded-union owner for the (countryId, sectorType) pair, or null when unrepresented (#296). */
@@ -252,6 +263,21 @@ export function validateSectorPlantCapital(asset: CorporateSectorAsset): void {
     if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value) || value < 0)) {
       throw new Error(`Corporate sector ${asset.id} has invalid ${field}`);
     }
+  }
+  for (const field of ["producedUnits", "soldUnits", "realizedRevenue"] as const) {
+    const value = asset[field];
+    if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value) || value < 0)) {
+      throw new Error(`Corporate sector ${asset.id} has invalid ${field}`);
+    }
+  }
+  if (asset.soldFraction !== undefined &&
+      (typeof asset.soldFraction !== "number" || !Number.isFinite(asset.soldFraction) || asset.soldFraction < 0 || asset.soldFraction > 1)) {
+    throw new Error(`Corporate sector ${asset.id} has invalid soldFraction`);
+  }
+  if (asset.soldByCommodity !== undefined && Object.values(asset.soldByCommodity).some((value) =>
+    typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1,
+  )) {
+    throw new Error(`Corporate sector ${asset.id} has invalid soldByCommodity`);
   }
 }
 
