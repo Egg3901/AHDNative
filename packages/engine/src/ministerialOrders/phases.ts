@@ -20,6 +20,7 @@ import { isMinisterialOrderActive, normalizeMinisterialOrderLifecycle } from "./
 import { unavailableDefenseOrderEffects } from "./catalog.js";
 import { TFP_METRIC_PATHS } from "../demographics/laborForce.js";
 import { computeNationalMetricsForCountry } from "../metrics/nationalMetrics.js";
+import { NEUTRAL_STAT, statMultiplier } from "../stats/characterStats.js";
 
 const tfpPaths = new Set(Object.values(TFP_METRIC_PATHS));
 
@@ -75,6 +76,11 @@ export function runMinisterialOrders(world: WorldState): MinisterialOrdersResult
         continue;
       }
     }
+    // Game968 scales by the issuing Character's Statecraft before combining
+    // and capping effects. Native NPP records have no stat block, so they
+    // retain the source's neutral fallback for an absent issuer stat.
+    const issuerStrength = order.characterId === "player"
+      ? statMultiplier(world.player.stats?.statecraft ?? NEUTRAL_STAT) : 1;
     let applied = false;
     for (const effect of order.effects) {
       if (effect.scope === "regional") {
@@ -95,7 +101,7 @@ export function runMinisterialOrders(world: WorldState): MinisterialOrdersResult
         applied = true;
         const key = `${effect.regionId}:${effect.metric}`;
         const entry = regional.get(key) ?? { regionId: effect.regionId, metric: effect.metric, total: 0 };
-        entry.total += effect.modifier;
+        entry.total += effect.modifier * issuerStrength;
         regional.set(key, entry);
         continue;
       }
@@ -106,7 +112,7 @@ export function runMinisterialOrders(world: WorldState): MinisterialOrdersResult
         entry = { countryId: order.countryId, metric: effect.metric, total: 0 };
         combined.set(key, entry);
       }
-      entry.total += effect.modifier;
+      entry.total += effect.modifier * issuerStrength;
     }
     if (applied) order.lastAppliedTurn = world.meta.turn;
   }

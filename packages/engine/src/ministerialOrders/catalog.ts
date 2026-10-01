@@ -90,6 +90,18 @@ function resolveNationalMetric(world: WorldState, countryId: string, sourceMetri
   return matches.length === 1 ? matches[0]! : null;
 }
 
+/** Resolve source bare keys only to an existing supported regional metric. */
+export function resolveRegionalOrderMetric(world: WorldState, regionId: string, sourceMetric: string): string | null {
+  const metrics = world.regionalMetrics[regionId] ?? {};
+  if (sourceMetric.includes(".")) {
+    return NATIVE_NATIONAL_METRIC_PATHS.has(sourceMetric) && Number.isFinite(metrics[sourceMetric]?.value)
+      ? sourceMetric : null;
+  }
+  const matches = [...NATIVE_NATIONAL_METRIC_PATHS].filter((path) =>
+    path.endsWith(`.${sourceMetric}`) && Number.isFinite(metrics[path]?.value));
+  return matches.length === 1 ? matches[0]! : null;
+}
+
 /**
  * Classify source orders against the actual Native world. Regional definitions
  * require an issuance-time target before their now-live consumer can validate

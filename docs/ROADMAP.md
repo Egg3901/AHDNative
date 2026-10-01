@@ -1,5 +1,17 @@
 # AHDNative roadmap
 
+## Regional ministerial target checkpoint, 2026-10-01 (#263 / #105 partial)
+
+Fresh UK/DE regional unemployment rows now come from the actual immutable
+Game seed loader. Authored veterans orders resolve their bare target path,
+apply issuer Statecraft before source strength/cap, and preserve changed values
+through normal turns and save/reload. Three public session checks and the
+rendered region-result check pass after failing first. London4.5 becomes4.441;
+region detail shows4.4% at source precision, with Scotland unchanged3.8%.
+[Source behavior and remaining consumers](REGIONAL-MINISTERIAL-TARGETS.md)
+record the controlled held-office fixture and missing political cabinet channel.
+#263 remains open; broader regional metric hierarchy and military stores remain.
+
 ## NPP relationship and recruitment checkpoint, 2026-10-01 (#57 / #61 partial)
 
 Politicians now expose four source relationship approaches with reviewed target,
