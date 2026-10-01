@@ -52,7 +52,14 @@ const SUBNATIONAL_SEAT_CHAMBER: Record<string, string> = {
 };
 
 export interface RegionsQuery {
-  /** Selected region id. Ignored when it is not in the player's country. */
+  /**
+   * Selected country scope. Defaults to the player's country; a value naming
+   * no country in the save falls back to the player's country. Eligibility is
+   * presence in the save — browsing another nation's directory is detached
+   * (never attaches WorldState) and read-only, mirroring the world map.
+   */
+  countryId?: string | null;
+  /** Selected region id. Ignored when it is not in the selected country. */
   regionId?: string | null;
   directoryQuery?: string;
   directoryPage?: number;
@@ -216,6 +223,9 @@ export interface RegionsView {
   date: string;
   playerCountryId: string;
   playerCountryName: string;
+  /** The directory scope: the queried country, or the player's when ineligible. */
+  selectedCountryId: string;
+  selectedCountryName: string;
   playerHomeRegionId: string | null;
   currency: string | null;
   directoryQuery: string;
@@ -609,7 +619,11 @@ function projectDetail(
 export function projectRegions(world: WorldState, query: RegionsQuery = {}): RegionsView {
   const playerCountry = world.countries[world.player.countryId];
   if (!playerCountry) throw new Error("The save does not contain the player's country.");
-  const countryId = playerCountry.id;
+  const requestedCountryId = typeof query.countryId === "string" && query.countryId.length > 0
+    ? query.countryId.toUpperCase()
+    : null;
+  const selectedCountry = (requestedCountryId && world.countries[requestedCountryId]) ?? playerCountry;
+  const countryId = selectedCountry.id;
   const homeId = typeof world.player.homeRegionId === "string" && world.player.homeRegionId.length > 0
     ? world.player.homeRegionId
     : null;
@@ -637,8 +651,10 @@ export function projectRegions(world: WorldState, query: RegionsQuery = {}): Reg
     era: world.meta.era,
     turn: world.meta.turn,
     date: world.meta.date,
-    playerCountryId: countryId,
+    playerCountryId: playerCountry.id,
     playerCountryName: playerCountry.name,
+    selectedCountryId: countryId,
+    selectedCountryName: selectedCountry.name,
     playerHomeRegionId: homeId && countryRegions.some((region) => region.id === homeId) ? homeId : null,
     currency: homeCurrency(world, countryId),
     directoryQuery,

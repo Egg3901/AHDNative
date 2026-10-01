@@ -358,6 +358,8 @@ const loadRegions = async () => ({
   date: "1953-01-01",
   playerCountryId: "US",
   playerCountryName: "United States",
+  selectedCountryId: "US",
+  selectedCountryName: "United States",
   playerHomeRegionId: null,
   currency: "USD",
   directoryQuery: "",

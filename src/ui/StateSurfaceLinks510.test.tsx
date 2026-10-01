@@ -140,7 +140,7 @@ function overviewLoader(region: unknown) {
 }
 
 const loadRegions = async () => ({
-  era: "1953", turn: 1, date: "1953-01-01", playerCountryId: "US", playerCountryName: "United States",
+  era: "1953", turn: 1, date: "1953-01-01", playerCountryId: "US", playerCountryName: "United States", selectedCountryId: "US", selectedCountryName: "United States",
   playerHomeRegionId: "CA", currency: "USD", directoryQuery: "", directoryPage: 0, directoryPageSize: 20,
   directoryTotal: 1, directoryPageCount: 1,
   directory: [{ id: "CA", name: "California", isHome: true, population: 120, gdpMillions: 50 }],

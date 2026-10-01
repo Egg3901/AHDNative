@@ -48,7 +48,7 @@ const US_LABELS: Record<string, string> = {
   AL: "AL", AK: "AK", AZ: "AZ", AR: "AR", CA: "CA", CO: "CO", CT: "CT",
   DE: "DE", FL: "FL", GA: "GA", HI: "HI", ID: "ID", IL: "IL", IN: "IN",
   IA: "IA", KS: "KS", KY: "KY", LA: "LA", ME: "ME", MD: "MD", MA: "MA",
-  MI: "MI", MN: "MN", MS: "MS", MO: "MO", MT: "MT", NE: "NE", NV: "NV",
+  MI: "MI", MN: "MN", MS: "MS", MO: "MO", MT: "MT", NE: "NE", NV: "NV", DC: "DC",
   NH: "NH", NJ: "NJ", NM: "NM", NY: "NY", NC: "NC", ND: "ND", OH: "OH",
   OK: "OK", OR: "OR", PA: "PA", RI: "RI", SC: "SC", SD: "SD", TN: "TN",
   TX: "TX", UT: "UT", VT: "VT", VA: "VA", WA: "WA", WV: "WV", WI: "WI",
@@ -255,17 +255,27 @@ export function projectMercator(lon: number, lat: number, frame: MercatorFrame):
 // AlbersUsa composite (US only): CONUS conic equal-area plus 0.35-scale
 // Alaska and full-scale Hawaii insets, USGS standard parallels, and the d3
 // clip fractions so each point resolves to exactly one segment. Constants
-// ported from d3-geo albersUsa.js (rotation/clip/scale) and albers.js
-// (CONUS parallels); the rotation composition (rotate then center as an
-// additional [-x, -y] rotation) matches d3-geo projection.recenter.
-// Calibrated point-for-point against d3-geo geoAlbersUsa; see the report.
+// ported from d3-geo 3.1.1 albersUsa.js (rotate/center/parallels per segment,
+// per-segment scale, translate offsets, clip fractions) and albers.js
+// (CONUS parallels). Composition matches projection/index.js recenter: the
+// rotate entry is a pre-rotation spin about the polar axis, while center is
+// NOT a rotation — the raw-projected center is pinned to the translate by a
+// post-projection shift. Point-for-point oracle: d3-geo 3.1.1 geoAlbersUsa at
+// the same scale/translate (see the calibration report); the clip epsilon
+// (1e-6 px) is the only deliberate omission.
 // ---------------------------------------------------------------------------
 
 interface AlbersSegment {
   /** Standard parallels, degrees. */
   parallels: [number, number];
-  /** Composed rotation: rotate([a, 0]).center([b, c]) === rotation(a - b, -c). */
-  rotateLon: number;
+  /** Pre-rotation spin about the polar axis, degrees (d3 .rotate([a, 0])). */
+  rotate: number;
+  /**
+   * d3 .center([lon, lat]): its raw conic projection is pinned to the
+   * segment translate (projection/index.js recenter), shifting — never
+   * re-projecting — every point.
+   */
+  centerLon: number;
   centerLat: number;
   scaleRatio: number;
   translateDx: number;
@@ -275,7 +285,8 @@ interface AlbersSegment {
 
 const LOWER48: AlbersSegment = {
   parallels: [29.5, 45.5],
-  rotateLon: 96 - -0.6,
+  rotate: 96,
+  centerLon: -0.6,
   centerLat: 38.7,
   scaleRatio: 1,
   translateDx: 0,
@@ -285,7 +296,8 @@ const LOWER48: AlbersSegment = {
 
 const ALASKA: AlbersSegment = {
   parallels: [55, 65],
-  rotateLon: 154 - -2,
+  rotate: 154,
+  centerLon: -2,
   centerLat: 58.5,
   scaleRatio: 0.35,
   translateDx: -0.307,
@@ -295,7 +307,8 @@ const ALASKA: AlbersSegment = {
 
 const HAWAII: AlbersSegment = {
   parallels: [8, 18],
-  rotateLon: 157 - -3,
+  rotate: 157,
+  centerLon: -3,
   centerLat: 19.9,
   scaleRatio: 1,
   translateDx: -0.205,
@@ -319,28 +332,15 @@ function conicParams(parallels: [number, number]): ConicParams {
 }
 
 /**
- * d3-geo rotation(rotateLon, -centerLat) applied to a lon/lat pair: spin by
- * rotateLon about the polar axis, then tilt by -centerLat about the equator
- * crossing, matching rotation.js (rotationLambda then rotationPhiGamma).
+ * d3-geo pre-rotation spin about the polar axis (rotation.js
+ * forwardRotationLambda): lambda shifts by the segment rotate, wrapped once
+ * back into [-pi, pi] exactly as d3 does.
  */
-export function rotateSpherical(lonDeg: number, latDeg: number, rotateLonDeg: number, tiltDeg: number): [number, number] {
-  const dLambda = rotateLonDeg * D2R;
-  const dPhi = tiltDeg * D2R;
-  const cosPhi = Math.cos(latDeg * D2R);
-  let x = Math.cos(lonDeg * D2R) * cosPhi;
-  const y = Math.sin(lonDeg * D2R) * cosPhi;
-  let z = Math.sin(latDeg * D2R);
-  // Rotation about the polar (z) axis by dLambda.
-  const cosL = Math.cos(dLambda);
-  const sinL = Math.sin(dLambda);
-  const x1 = x * cosL - y * sinL;
-  const y1 = x * sinL + y * cosL;
-  // Tilt about the y axis by dPhi (d3 rotationPhiGamma with gamma = 0).
-  const cosP = Math.cos(dPhi);
-  const sinP = Math.sin(dPhi);
-  x = x1 * cosP + z * sinP;
-  z = z * cosP - x1 * sinP;
-  return [Math.atan2(y1, x), Math.asin(Math.max(-1, Math.min(1, z)))];
+function spinLambda(lonRad: number, rotateDeg: number): number {
+  const TAU = 2 * Math.PI;
+  let lambda = lonRad + rotateDeg * D2R;
+  if (Math.abs(lambda) > Math.PI) lambda -= Math.round(lambda / TAU) * TAU;
+  return lambda;
 }
 
 function projectConic(rotLon: number, rotLat: number, params: ConicParams): [number, number] {
@@ -348,6 +348,22 @@ function projectConic(rotLon: number, rotLat: number, params: ConicParams): [num
   const theta = rotLon * params.n;
   return [r * Math.sin(theta), params.r0 - r * Math.cos(theta)];
 }
+
+interface PreparedSegment {
+  segment: AlbersSegment;
+  params: ConicParams;
+  /** Raw conic projection of the (unrotated) d3 center, pinned to translate. */
+  xc: number;
+  yc: number;
+}
+
+function prepareSegment(segment: AlbersSegment): PreparedSegment {
+  const params = conicParams(segment.parallels);
+  const [xc, yc] = projectConic(segment.centerLon * D2R, segment.centerLat * D2R, params);
+  return { segment, params, xc, yc };
+}
+
+const PREPARED_SEGMENTS: PreparedSegment[] = ALBERS_SEGMENTS.map(prepareSegment);
 
 export interface AlbersUsaFrame {
   width: number;
@@ -362,20 +378,24 @@ export interface AlbersUsaFrame {
 function segmentProjectsTo(
   lon: number,
   lat: number,
-  segment: AlbersSegment,
-  params: ConicParams,
+  prepared: PreparedSegment,
   frame: AlbersUsaFrame,
 ): [number, number] | null {
+  const { segment, params, xc, yc } = prepared;
   const k = frame.scale * segment.scaleRatio;
+  // d3 albersUsa.translate: insets offset by fractions of the LOWER48 scale.
   const tx = frame.ox + frame.scale * segment.translateDx;
   const ty = frame.oy + frame.scale * segment.translateDy;
-  const [rotLon, rotLat] = rotateSpherical(lon, lat, segment.rotateLon, -segment.centerLat);
-  const [px, py] = projectConic(rotLon, rotLat, params);
-  const x = tx + k * px;
-  const y = ty - k * py;
-  // Clip test in k units, matching d3's clipExtent fractions (epsilon out).
-  const nx = (x - frame.ox) / frame.scale - segment.translateDx;
-  const ny = (y - frame.oy) / frame.scale - segment.translateDy;
+  // d3 recenter: spin, raw-project, then pin the raw-projected center to the
+  // translate (a shift, not a second rotation).
+  const [px, py] = projectConic(spinLambda(lon * D2R, segment.rotate), lat * D2R, params);
+  const x = tx + k * (px - xc);
+  const y = ty + k * (yc - py);
+  // Clip test in lower48 k units about the lower48 translate, matching d3's
+  // clipExtent fractions verbatim (the inset offsets are baked into the
+  // fraction values themselves; epsilon 1e-6 px out).
+  const nx = (x - frame.ox) / frame.scale;
+  const ny = (y - frame.oy) / frame.scale;
   const [[x0, y0], [x1, y1]] = segment.clip;
   if (nx < x0 || nx > x1 || ny < y0 || ny > y1) return null;
   return [x, y];
@@ -388,9 +408,8 @@ function segmentProjectsTo(
  * (open ocean, territories outside the composite): not drawn, never moved.
  */
 export function projectAlbersUsa(lon: number, lat: number, frame: AlbersUsaFrame): [number, number] | null {
-  for (const segment of ALBERS_SEGMENTS) {
-    const params = conicParams(segment.parallels);
-    const out = segmentProjectsTo(lon, lat, segment, params, frame);
+  for (const prepared of PREPARED_SEGMENTS) {
+    const out = segmentProjectsTo(lon, lat, prepared, frame);
     if (out) return out;
   }
   return null;
@@ -412,9 +431,8 @@ export function albersUsaFrameFor(features: RegionGeoFeature[], width: number, h
     eachCoord(feature.geometry.coordinates, (lon, lat) => {
       // Fit in unit space: try every segment (a ring's points all land in
       // one segment; unit-space extents union them all).
-      for (const segment of ALBERS_SEGMENTS) {
-        const params = conicParams(segment.parallels);
-        const out = segmentProjectsTo(lon, lat, segment, params, unit);
+      for (const prepared of PREPARED_SEGMENTS) {
+        const out = segmentProjectsTo(lon, lat, prepared, unit);
         if (out) {
           any = true;
           if (out[0] < minX) minX = out[0];
