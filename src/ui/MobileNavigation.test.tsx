@@ -357,7 +357,7 @@ describe("MobileNavigation", () => {
     // Sectors entry (#89) and the World directory entry (#73).
     const ids = drawerRouteIds();
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(35);
+    expect(ids).toHaveLength(36);
     expect(css).toMatch(/\.ahd-drawer-group\s*\+\s*\.ahd-drawer-group\s*\{[^}]*border-top:/);
   });
 
@@ -640,7 +640,7 @@ describe("MobileNavigation", () => {
     // Every drawer row carries its label in a truncating span with a hover
     // title, so long/localized strings cannot push neighbouring content out.
     const rows = document.querySelectorAll("#ahd-drawer .ahd-drawer-item");
-    expect(rows.length).toBe(35);
+    expect(rows.length).toBe(36);
     for (const row of Array.from(rows)) {
       const label = row.querySelector(":scope > .ahd-drawer-item-label");
       expect(label).not.toBeNull();
@@ -659,7 +659,7 @@ describe("MobileNavigation", () => {
     expect(css).toMatch(/\.ahd-drawer-item-label\s*\{[^}]*flex:\s*1 1 auto[^}]*min-width:\s*0[^}]*text-overflow:\s*ellipsis[^}]*white-space:\s*nowrap/);
     expect(css).toMatch(/\.ahd-drawer-item\s+\.ahd-badge\s*\{[^}]*flex:\s*0 0 auto/);
     expect(css).toMatch(/\.ahd-drawer-item[^{]*\{[^}]*min-height:\s*44px/);
-    expect(drawerRouteIds()).toHaveLength(35);
+    expect(drawerRouteIds()).toHaveLength(36);
   });
 
   it("truncates long/localized bottom-nav labels in place at 320px without losing routes", () => {
