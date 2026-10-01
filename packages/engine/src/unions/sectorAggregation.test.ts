@@ -41,6 +41,27 @@ describe("#320 deterministic sector-worker aggregation", () => {
     );
   });
 
+  it("prices dues from each represented asset's recorded unionization and wage index", () => {
+    const world = createWorld(WORLD);
+    const union = world.unions["US-manufacturing"]!;
+    union.unionization = 40;
+    const assets = corporateSectorAssets(world);
+    const target = Object.values(assets).find((asset) => asset.corporationId === "US-manufacturing")!;
+    for (const asset of Object.values(assets)) asset.representingUnionId = null;
+    target.representingUnionId = union.id;
+    target.unionization = 80;
+    target.wageLevel = 1.25;
+
+    const row = representedSectorsForUnion(world, union)[0]!;
+    const labor = totalLaborForceForCountry(world, "US");
+    const payroll = world.budgets.US!.taxBases!.wagesAndSalaries!;
+    const dailyPayrollPerWorker = (payroll / labor) / GAME_DAYS_PER_YEAR;
+
+    expect(row.unionization).toBe(80);
+    expect(row.wagePerWorker).toBe(dailyPayrollPerWorker * 1.25);
+    expect(unionMembers([row])).toBe(Math.round(target.workers * 0.8));
+  });
+
   it("excludes unrepresented sectors from every union's rows", () => {
     const world = createWorld(WORLD);
     const assets = corporateSectorAssets(world);

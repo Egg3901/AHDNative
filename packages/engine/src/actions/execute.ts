@@ -1,3 +1,4 @@
+import { applyCanvass, quoteCanvass } from "./canvass.js";
 import { effectivePlayerStats } from "../stats/allocation.js";
 import { accrueCharacterActionXp } from "../stats/progression.js";
 import { characterActionDisabledReason } from "./characterEligibility.js";
@@ -55,6 +56,8 @@ import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/propos
 
 export type ExecuteActionParams = {
   regionId?: string;
+  /** Source canvassing batch size, 1 through 50. */
+  count?: number;
   amount?: number; // for convertCash
   partyId?: string;
   caucusId?: string;
@@ -361,8 +364,11 @@ function executeActionInner(
   // partyCaucusCharge projection (#61) so the displayed quote and this charge
   // read one source (actions/partyCaucus.ts); every other action uses its
   // catalog entry directly.
+  const canvass = actionId === "canvass" && found.kind === "player" ? quoteCanvass(world, params) : null;
+  if (canvass && !canvass.ok) return canvass;
+  if (canvass?.ok && canvass.error) return { ok: false, error: canvass.error };
   const partyCaucus = isPartyCaucusActionId(actionId) ? partyCaucusCharge(actor, actionId) : null;
-  const cost = partyCaucus
+  const cost = canvass?.ok ? canvass.actions : partyCaucus
     ? partyCaucus.actionCost
     : actionId === "sponsorBill"
       ? BILL_PROPOSE_ACTION_COST
@@ -376,7 +382,7 @@ function executeActionInner(
   // Game character quotes price the actor's home state, not a UI target.
   const actionRegion = world.regions[actor.homeRegionId ?? ""];
   const playerStats = found.kind === "player" ? effectivePlayerStats(world) : undefined;
-  const fundCost = partyCaucus ? partyCaucus.fundCost : actionFundCost({
+  const fundCost = canvass?.ok ? canvass.funds : partyCaucus ? partyCaucus.fundCost : actionFundCost({
     actionId,
     actionCost: cost,
     donorBaseLevel: actor.donorBaseLevel ?? 0,
@@ -576,32 +582,8 @@ function executeActionInner(
     return { ok: true, message: "You studied hard, but no breakthrough this time." };
   }
   if (actionId === "canvass") {
-    const regionId = params.regionId!;
-    // Region choices come from recorded world data only: the region record
-    // and its turnout row must both exist, and the region must belong to the
-    // actor's country. Runs after the shared AP/fund charge, but the outer
-    // wrapper restores accounting on every failure, so rejection is atomic.
-    const record = world.regions[regionId];
-    const rt = world.regionTurnouts[regionId];
-    if (!record || !rt) return { ok: false, error: `Unknown region ${regionId}` };
-    if (record.countryId !== actorCountry) {
-      return { ok: false, error: `Canvass is only available in your country (${record.name} is in ${record.countryId}).` };
-    }
-    // Apply a boost similar to partyGOTV but directly
-    const party = actorPartyId ? world.parties[actorPartyId] : null;
-    const groups = getVoterGroups(actorCountry);
-    const eligible = groups.filter((g) => {
-      if (!party) return true;
-      return Math.abs(party.economicPosition - g.economicLean) <= 2 && Math.abs(party.socialPosition - g.socialLean) <= 2;
-    });
-    if (eligible.length === 0) return { ok: true, message: "No eligible voter groups." };
-    const group = eligible[0]!;
-    const align = party ? calculateAlignmentMultiplier(party.economicPosition, party.socialPosition, group.economicLean, group.socialLean) : 1;
-    const boost = (15_000 / DOLLARS_PER_TURNOUT_POINT) * align; // fixed spend metaphor
-    if (!rt.modifiers[DEFAULT_GOTV_CATEGORY]) rt.modifiers[DEFAULT_GOTV_CATEGORY] = {};
-    if (!(group.id in (rt.modifiers[DEFAULT_GOTV_CATEGORY] ?? {}))) rt.modifiers[DEFAULT_GOTV_CATEGORY]![group.id] = 0;
-    applyBoost(rt.modifiers, DEFAULT_GOTV_CATEGORY, group.id, boost);
-    return { ok: true, message: `Canvassed ${record.name} (+${boost.toFixed(2)} turnout).` };
+    if (!canvass?.ok) return { ok: false, error: "Canvass requires a player character." };
+    return { ok: true, message: applyCanvass(world, canvass) };
   }
   if (actionId === "organize") {
     const regionId = params.regionId!;
