@@ -766,6 +766,8 @@ function CompanyDetail({
   const [shares, setShares] = useState("");
   const [salaryPerTurn, setSalaryPerTurn] = useState(String(listing.ceoSalaryPerTurn ?? 0));
   const [dividendRate, setDividendRate] = useState(String(listing.dividendRate ?? 0));
+  const [bondFaceValue, setBondFaceValue] = useState("100000");
+  const [bondMaturityTurns, setBondMaturityTurns] = useState("96");
   const [rdBudgetPerTurn, setRdBudgetPerTurn] = useState(String(listing.rdBudgetPerTurn ?? 0));
   const [error, setError] = useState<string | null>(null);
   const [compensationError, setCompensationError] = useState<string | null>(null);
@@ -824,6 +826,20 @@ function CompanyDetail({
     }
     setCompensationError(null);
     onAction("setCorporationCompensation", { corpId: listing.id, salaryPerTurn: salary, dividendRate: dividend, rdBudgetPerTurn: rdBudget });
+  };
+  const issueBond = () => {
+    const faceValue = Number(bondFaceValue);
+    const maturityTurns = Number(bondMaturityTurns);
+    if (!Number.isFinite(faceValue) || faceValue < 100_000) {
+      setCompensationError("Corporate bonds require at least 100000 in anchor currency.");
+      return;
+    }
+    if (![96, 240, 336].includes(maturityTurns)) {
+      setCompensationError("Choose a 2, 5, or 7 year corporate bond term.");
+      return;
+    }
+    setCompensationError(null);
+    onAction("issueCorporateBond", { corpId: listing.id, faceValue, maturityTurns });
   };
 
   return (
@@ -995,6 +1011,33 @@ function CompanyDetail({
             <button type="button" className="ahd-btn ahd-btn-ghost ahd-btn-sm" style={{ minHeight: 44, alignSelf: "flex-start" }}
               onClick={() => onAction("resignCeo", { corpId: listing.id })} disabled={busy}>
               Resign as CEO
+            </button>
+            <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0.45rem 0 0" }}>Issue corporate bond</h4>
+            {listing.corporateBondQuote ? (
+              <p style={{ margin: 0, fontSize: "0.76rem" }}>
+                {listing.corporateBondQuote.available
+                  ? `Rating ${listing.corporateBondQuote.creditRating} · 2y ${listing.corporateBondQuote.couponRates[96].toFixed(2)}% · 5y ${listing.corporateBondQuote.couponRates[240].toFixed(2)}% · 7y ${listing.corporateBondQuote.couponRates[336].toFixed(2)}% · max $${Math.floor(listing.corporateBondQuote.maximumFaceValue).toLocaleString()}`
+                  : listing.corporateBondQuote.reason}
+              </p>
+            ) : null}
+            <label style={{ display: "flex", flexDirection: "column", gap: "0.2rem", fontSize: "0.78rem" }}>
+              Face value (USD accounting anchor)
+              <input aria-label="Corporate bond face value" type="number" min="100000" step="1000"
+                value={bondFaceValue} onChange={(event) => setBondFaceValue(event.target.value)} disabled={busy} />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "0.2rem", fontSize: "0.78rem" }}>
+              Bond term
+              <select aria-label="Corporate bond term" value={bondMaturityTurns}
+                onChange={(event) => setBondMaturityTurns(event.target.value)} disabled={busy}>
+                <option value="96">2 years</option>
+                <option value="240">5 years</option>
+                <option value="336">7 years</option>
+              </select>
+            </label>
+            <button type="button" className="ahd-btn ahd-btn-sm" style={{ minHeight: 44, alignSelf: "flex-start" }}
+              onClick={issueBond} disabled={busy || listing.corporateBondQuote?.available === false
+                || (listing.corporateBondQuote !== undefined && Number(bondFaceValue) > listing.corporateBondQuote.maximumFaceValue)}>
+              Issue corporate bond
             </button>
           </div>
         ) : null}

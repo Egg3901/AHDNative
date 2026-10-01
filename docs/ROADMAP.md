@@ -56,6 +56,24 @@ financial units, expected results and unsupported pool/escrow/restructuring stat
 Full verification and merged closure evidence remain recorded in GitHub #308;
 #110/#111/#107/#211 retain their broader acceptance scope.
 
+## Corporate bond issuance and physical finance checkpoint, 2026-10-01 (#110 / #107 partial)
+
+Player-CEO corporate issuance, truthful issuer listings, source-pool ask and
+FX-settled public-float buyback now connect to the recorded corporate bond
+servicing lifecycle. Plants-mode issuance values sold receipts on the source
+daily/hourly/annual basis; an independently executed Game vector pins the
+Native weekly-to-Game daily conversion. Focused engine/session/UI tests and
+real 320px/390px save/reload player journeys pass on the candidate head.
+Root review and the hosted full gate remain pending. See
+[corporate finance and bond evidence](CORPORATE-FINANCE-BOND-PARITY.md).
+
+The same integration includes physical plant production and R&D spend,
+innovation score and capacity breakthroughs, plus CEO compensation and
+shareholder dividends. This advances #107 only: full corporate modifier and
+P&L behavior, CEO/NPP decisions, complete command-economy plan gravity, and
+the source extraction R&D prerequisite flow remain open. The innovation
+capacity effect is not national TFP.
+
 The owner delegates uncertain feature decisions to the implementation team. The lodestar is native iOS and Android UI for SP first, then MP, with performance central to every decision. The target is a unified mobile/desktop app with local offline SP and server-authoritative MP. iOS SP comes first. This roadmap records real completion evidence; card counts are not a progress percentage.
 
 ## Required throughout: existing game behavior and hierarchy

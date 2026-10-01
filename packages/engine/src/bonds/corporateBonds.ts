@@ -41,6 +41,14 @@ export const CORPORATE_BOND_TERM_PREMIUMS: Record<BondMaturityTurns, number> = {
   336: 1.75,
 };
 
+/** AHDGame `constants/bonds.ts`: issuance policy for public issuers. */
+export const CORPORATE_BOND_ISSUANCE_COOLDOWN_TURNS = 24;
+export const CORPORATE_BOND_REVENUE_CAP_FRACTION = 0.25;
+export const CORPORATE_BOND_MIN_PER_ISSUE_CAP = 500_000_000;
+export const CORPORATE_BOND_MIN_HEADROOM = 10_000;
+export const CORPORATE_BOND_MAX_LEVERAGE = 2;
+export const CORPORATE_BOND_MAX_EXIT_LEVERAGE = 1;
+
 /**
  * Canonical state-ownership reader. Source: nationalCorporation.ts
  * `isStateOwned()` — state-owned when a countryOwnerId is present OR
@@ -226,7 +234,7 @@ export function issueCorporateBond(
     issuerType: "corporation",
     corporationId,
     countryId: corp.countryId,
-    issuerName: corporationId,
+    issuerName: corp.name ?? corporationId,
     faceValue: BOND_UNIT_FACE_VALUE,
     couponRate,
     maturityTurns: params.maturityTurns,

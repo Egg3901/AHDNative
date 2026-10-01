@@ -134,6 +134,36 @@ function makeMarkets(overrides: Partial<MarketsView> = {}): MarketsView {
 
 const loadPanel = async () => (await import("./MarketsPanel")).MarketsPanel;
 
+it("lets only the recorded player CEO submit a corporate bond from company detail", async () => {
+  const user = userEvent.setup();
+  const onAction = vi.fn();
+  const MarketsPanel = await loadPanel();
+  const ceoListing = makeListing({ ceoId: "player", ceoVacant: false, name: "Daily Media", corporateBondQuote: {
+    available: true,
+    currencyCode: "USD",
+    exchangeRate: 1,
+    minimumFaceValue: 100_000,
+    maximumFaceValue: 2_000_000,
+    cooldownTurnsRemaining: 0,
+    creditRating: "A",
+    couponRates: { 96: 4.5, 240: 5.5, 336: 6.25 },
+  } });
+  const { unmount } = render(<MarketsPanel markets={makeMarkets({ listings: [ceoListing] })} initialId="US-media" busy={false} onAction={onAction} />);
+  expect(screen.getByRole("heading", { name: "CEO and dividends" })).toBeInTheDocument();
+  expect(screen.getByText(/Rating A · 2y 4.50% · 5y 5.50% · 7y 6.25% · max \$2,000,000/)).toBeInTheDocument();
+  await user.clear(screen.getByLabelText("Corporate bond face value"));
+  await user.type(screen.getByLabelText("Corporate bond face value"), "250000");
+  await user.selectOptions(screen.getByLabelText("Corporate bond term"), "240");
+  await user.click(screen.getByRole("button", { name: "Issue corporate bond" }));
+  expect(onAction).toHaveBeenCalledWith("issueCorporateBond", {
+    corpId: "US-media", faceValue: 250000, maturityTurns: 240,
+  });
+
+  unmount();
+  render(<MarketsPanel markets={makeMarkets({ listings: [makeListing()] })} initialId="US-media" busy={false} onAction={vi.fn()} />);
+  expect(screen.queryByRole("button", { name: "Issue corporate bond" })).not.toBeInTheDocument();
+});
+
 function makeSector(overrides: Partial<SectorSummary> = {}): SectorSummary {
   return {
     sectorType: "media",

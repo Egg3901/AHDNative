@@ -13,7 +13,9 @@
 import {
   ACTION_CATALOG,
   getActionCost,
+  quoteCorporateBondIssuance,
   seedCorporateSectorAssets,
+  type CorporateBondIssuanceQuote,
   type CorporateSectorOwner,
   type WorldState,
 } from "@ahdclient/engine";
@@ -174,6 +176,8 @@ export interface MarketListing {
   isStateOwned: boolean;
   ceoSalaryPerTurn?: number;
   dividendRate?: number;
+  /** Live source-style corporate bond primary issuance preview for the seated player CEO. */
+  corporateBondQuote?: CorporateBondIssuanceQuote;
   rdBudgetPerTurn?: number;
   rdScore?: number;
   lastRdSpendPerTurn?: number;
@@ -541,6 +545,9 @@ export function projectMarkets(world: WorldState): MarketsView {
       isStateOwned: corp.ownershipState === "stateOwned" || corp.countryOwnerId !== undefined,
       ...(corp.ceoSalaryPerTurn !== undefined ? { ceoSalaryPerTurn: corp.ceoSalaryPerTurn } : {}),
       ...(corp.dividendRate !== undefined ? { dividendRate: corp.dividendRate } : {}),
+      ...(corp.ceoType === "player" && corp.ceoId === "player" && corp.ceoVacant !== true
+        ? { corporateBondQuote: quoteCorporateBondIssuance(world, corp.id) }
+        : {}),
       ...(corp.rdBudgetPerTurn !== undefined ? { rdBudgetPerTurn: corp.rdBudgetPerTurn } : {}),
       ...(corp.rdScore !== undefined ? { rdScore: corp.rdScore } : {}),
       ...(corp.lastRdSpendPerTurn !== undefined ? { lastRdSpendPerTurn: corp.lastRdSpendPerTurn } : {}),

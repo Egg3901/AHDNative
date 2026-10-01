@@ -52,7 +52,7 @@ describe("corporate issuance (cite: bond.ts CORPORATE_BOND_MATURITY_ISSUANCE_OPT
     expect(bond.issuerType).toBe("corporation");
     expect(bond.corporationId).toBe(corpId);
     expect(bond.countryId).toBe(corp.countryId);
-    expect(bond.issuerName).toBe(corpId);
+    expect(bond.issuerName).toBe(corp.name);
     expect(bond.faceValue).toBe(BOND_UNIT_FACE_VALUE);
     expect(bond.totalIssued).toBe(100 * BOND_UNIT_FACE_VALUE);
     expect(bond.publicFloat).toBe(100);
@@ -168,6 +168,67 @@ describe("issuance rejection", () => {
     const res = issueCorporateBond(world, corpId, { totalUnits: 10, maturityTurns: 96 });
     expect(res.ok).toBe(false);
     expect(Object.keys(world.bonds)).toHaveLength(0);
+  });
+});
+
+describe("player CEO corporate issuance action", () => {
+  it("issues only for the seated CEO and carries the recorded bond through save/reload", () => {
+    const world = createWorld({ ...OPTS, countryId: "UK", homeRegionId: "LON", seed: "corp-bond-live-issue" });
+    const corp = world.corporations["UK-media"]!;
+    world.player.actions = 10;
+    world.player.cash = Math.max(world.player.cash, corp.sharePrice * corp.publicFloat);
+
+    expect(executeAction(world, "player", "issueCorporateBond", {
+      corpId: corp.id, faceValue: 500_000, maturityTurns: 240,
+    })).toMatchObject({ ok: false, error: "Only the active CEO may issue corporation bonds" });
+    expect(Object.values(world.bonds).filter((bond) => bond.issuerType === "corporation")).toHaveLength(0);
+
+    expect(executeAction(world, "player", "buyShares", { corpId: corp.id, shares: corp.publicFloat }).ok).toBe(true);
+    expect(executeAction(world, "player", "voteCeo", { corpId: corp.id, candidateId: "player" }).ok).toBe(true);
+    expect(executeAction(world, "player", "acceptCeoAppointment", { corpId: corp.id }).ok).toBe(true);
+
+    const capitalBeforeIssue = corp.liquidCapital;
+    const issued = executeAction(world, "player", "issueCorporateBond", {
+      corpId: corp.id, faceValue: 500_000, maturityTurns: 240,
+    });
+    expect(issued.ok).toBe(true);
+    if (!issued.ok) return;
+    const bond = world.bonds[`cbond-${world.meta.turn}-${corp.id}`]!;
+    expect(bond).toMatchObject({
+      issuerType: "corporation",
+      corporationId: corp.id,
+      issuerName: corp.name,
+      faceValue: 1_000,
+      totalIssued: Math.floor((500_000 * world.exchangeRates.UK!.rate) / BOND_UNIT_FACE_VALUE) * BOND_UNIT_FACE_VALUE,
+      publicFloat: Math.floor((500_000 * world.exchangeRates.UK!.rate) / BOND_UNIT_FACE_VALUE),
+      currencyCode: "GBP",
+      maturityTurns: 240,
+    });
+    expect(corp.liquidCapital - capitalBeforeIssue).toBe(bond.totalIssued);
+    expect(executeAction(world, "player", "issueCorporateBond", {
+      corpId: corp.id, faceValue: 500_000, maturityTurns: 240,
+    })).toMatchObject({ ok: false, error: expect.stringContaining("cooldown") });
+
+    const reloaded = deserializeSave(serializeSave(world, "2026-10-01T00:00:00.000Z"));
+    expect(reloaded.bonds[bond.id]).toEqual(bond);
+    expect(reloaded.corporations[corp.id]?.ceoId).toBe("player");
+  });
+
+  it("rejects non-CEO actors and source-invalid issuance terms without mutation", () => {
+    const world = createWorld({ ...OPTS, seed: "corp-bond-live-reject" });
+    const corp = world.corporations["US-media"]!;
+    const actorId = world.politicians[0]!.id;
+    const before = JSON.stringify({ bonds: world.bonds, capital: corp.liquidCapital });
+    expect(executeAction(world, actorId, "issueCorporateBond", {
+      corpId: corp.id, faceValue: 500_000, maturityTurns: 240,
+    })).toMatchObject({ ok: false, error: "Only the player may issue corporation bonds" });
+    expect(executeAction(world, "player", "issueCorporateBond", {
+      corpId: corp.id, faceValue: 99_000, maturityTurns: 240,
+    }).ok).toBe(false);
+    expect(executeAction(world, "player", "issueCorporateBond", {
+      corpId: corp.id, faceValue: 500_000, maturityTurns: 48,
+    }).ok).toBe(false);
+    expect(JSON.stringify({ bonds: world.bonds, capital: corp.liquidCapital })).toBe(before);
   });
 });
 
@@ -293,7 +354,11 @@ describe("public float conservation", () => {
     expect(serviced.lastCouponTurn).toBe(world.meta.turn);
     expect(serviced.matured).toBe(false);
     expect(serviced.defaulted).toBe(false);
-    expect(serviced.marketPrice).toBe(1.0);
+    // AHDGame reprices every live corporate issue from the conservative
+    // credit score before servicing; the separately pinned source vector
+    // above proves the exact input/calculator/price path.
+    expect(serviced.marketPrice).toBeGreaterThan(0);
+    expect(serviced.marketPrice).toBeLessThan(1);
     expect(serviced.publicFloat).toBe(100);
     expect(world.player.cash).toBe(cashBefore);
     expect(validateBondIssuerIdentity(world, serviced)).toBeNull();
