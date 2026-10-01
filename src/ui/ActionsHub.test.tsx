@@ -716,11 +716,13 @@ describe("ActionsHub", () => {
     });
 
     let actionResult: ReturnType<GameSession["act"]> | undefined;
-    const onAction = (id: string, params?: GameActionParams) =>
-      (actionResult = session.act(id, {
+    const onAction = async (id: string, params?: GameActionParams) => {
+      actionResult = session.act(id, {
         corporationId: String(params?.corporationId ?? ""),
         tier: "seizure",
-      }));
+      });
+      return actionResult.ok;
+    };
     const user = userEvent.setup();
     render(
       <ActionsHub
