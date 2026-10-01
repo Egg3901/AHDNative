@@ -239,6 +239,9 @@ describe("export-save-v42 CLI", () => {
 
   it("refuses a schema-relabeled v43 envelope without creating output", () => {
     const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    // Exercise the historical identity gate, independently of newer boards.
+    delete world.regionalPoliticalMetrics;
+    delete world.politicalCabinetContributions;
     const relabeled = JSON.parse(serializeSave(world, SAVED_AT)) as {
       schemaVersion: number;
       world: { meta: { schemaVersion: number } };
