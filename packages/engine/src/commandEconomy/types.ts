@@ -30,6 +30,10 @@ export interface CommandEconomyState {
   budgetSoftness: number;
   /** Player-set Gosbank credit dial. Older saves use the reference NPP default. */
   creditAggressiveness?: number;
+  /** Optional Gosbank per-sector weighting; absent means automatic allocation. */
+  sectorCredit?: Record<string, number>;
+  /** Last turn's per-sector Gosbank issuance, as currency amounts. */
+  directedCreditBySector?: Record<string, number>;
   /** Costed actions become active at the next turn boundary. */
   pendingDirectives?: CommandEconomyDirective[];
 }
@@ -41,4 +45,6 @@ export interface CommandEconomyDirective {
   effectiveTurn: number;
   creditAggressiveness?: number;
   budgetSoftness?: number;
+  /** Null clears the explicit weighting and restores automatic allocation. */
+  sectorCredit?: Record<string, number> | null;
 }

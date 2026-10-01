@@ -31,4 +31,19 @@ describe("command economy save validation", () => {
     });
     expect(() => deserializeSave(malformed)).toThrow(/directive effectiveTurn must be the next turn/);
   });
+
+  it("rejects invalid saved sector weights and malformed SOE identity", () => {
+    const badWeight = withMutatedCommandEconomy((state) => { state.sectorCredit = { energy: Number.POSITIVE_INFINITY }; });
+    expect(() => deserializeSave(badWeight)).toThrow(/sectorCredit.energy.*finite weight/);
+
+    const foreignSector = withMutatedCommandEconomy((state) => { state.sectorCredit = { unregistered_sector: 1 }; });
+    expect(() => deserializeSave(foreignSector)).toThrow(/sectorCredit.unregistered_sector.*finite weight/);
+
+    const envelope = JSON.parse(serializeSave(createWorld(OPTIONS), "2026-10-01T00:00:00.000Z")) as {
+      world: { corporations: Record<string, { soe?: Record<string, unknown> }> };
+    };
+    const energy = Object.values(envelope.world.corporations).find((corp) => corp.soe?.sector === "energy")!;
+    energy.soe!.capacity = Number.NaN;
+    expect(() => deserializeSave(JSON.stringify(envelope))).toThrow(/SOE capacity must be finite and non-negative/);
+  });
 });

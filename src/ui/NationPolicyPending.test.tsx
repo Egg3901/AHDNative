@@ -4,7 +4,7 @@
  * empty state, using the live session projection (no invented fixtures).
  */
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWorld, type WorldState } from "@ahdclient/engine";
 import { projectNation } from "../game/nation";
@@ -102,10 +102,11 @@ describe("player economic controls (#94/#75)", () => {
       directiveOp: "setGosbankPosture",
       creditAggressiveness: 0.1,
       budgetSoftness: 0.1,
+      sectorCredit: {},
     });
   });
 
-  it("keeps Gosbank controls out of market-country economies and hides all controls from career mode", () => {
+  it("keeps Gosbank controls out of market-country economies and gates career mode by bank-chair authority", () => {
     const us = createWorld({ era: "1953", countryId: "US", seed: "market-controls-ui", playerName: "Alex", mode: "hos" });
     const { rerender } = render(<SubsidyLegislationControls nation={projectNation(us)} onAction={vi.fn()} />);
     expect(screen.getByRole("heading", { level: 2, name: "National subsidies" })).toBeInTheDocument();
@@ -114,5 +115,33 @@ describe("player economic controls (#94/#75)", () => {
     const career = createWorld({ era: "1953", countryId: "RU", seed: "career-controls-ui", playerName: "Alex", mode: "career" });
     rerender(<SubsidyLegislationControls nation={projectNation(career)} onAction={vi.fn()} />);
     expect(screen.queryByRole("region", { name: "National subsidies" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Command economy" })).not.toBeInTheDocument();
+
+    career.cabinetMembers.push({
+      countryId: "RU", positionId: "gosbank_liaison", characterId: "player", characterName: "Alex", partyId: null,
+      appointedBy: null, appointedAtTurn: 0, confirmedAtTurn: 0,
+    });
+    rerender(<NationPanel nation={projectNation(career)} section="commandEconomy" clock={CLOCK} onAction={vi.fn()} />);
+    expect(screen.getByRole("heading", { name: "Command economy" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Queue Gosbank directive" })).toBeEnabled();
+  });
+
+  it("shows the resolved Gosbank posture when the live nation projection changes", async () => {
+    const session = new GameSession();
+    session.create({ era: "1953", countryId: "RU", seed: "command-controls-resolved", playerName: "Alex", mode: "hos" });
+    const { rerender } = render(<NationPanel nation={projectNation(worldOf(session))} section="commandEconomy" clock={CLOCK} onAction={(id, params) => { session.act(id, params); }} />);
+
+    expect(session.act("commandEconomyDirective", {
+      directiveOp: "setGosbankPosture",
+      creditAggressiveness: 0.67,
+      budgetSoftness: 0.23,
+    }).ok).toBe(true);
+    session.advance();
+    rerender(<NationPanel nation={projectNation(worldOf(session))} section="commandEconomy" clock={CLOCK} onAction={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Credit aggressiveness")).toHaveValue("0.67");
+      expect(screen.getByLabelText("Budget softness")).toHaveValue("0.23");
+    });
   });
 });

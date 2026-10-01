@@ -48,6 +48,7 @@ import { validateBondIssuerIdentity } from "../bonds/corporateBonds.js";
 import { rngFromState } from "../rng.js";
 import { isOrderFlowPriceEligible } from "../market/orderFlow.js";
 import { isPlannedEconomy } from "../commandEconomy/constants.js";
+import { canPlayerOperateGosbank } from "../commandEconomy/authority.js";
 
 export type ExecuteActionParams = {
   regionId?: string;
@@ -111,6 +112,7 @@ export type ExecuteActionParams = {
   directiveOp?: "setGosbankPosture";
   creditAggressiveness?: number;
   budgetSoftness?: number;
+  sectorCredit?: Record<string, number>;
   // W11 extraction/prospecting
   resource?: string;
   share?: number;
@@ -1845,7 +1847,7 @@ function executeActionInner(
   }
   if (actionId === "commandEconomyDirective") {
     if (found.kind !== "player") return { ok: false, error: "Only the player can direct Gosbank policy" };
-    if (world.player.mode !== "hos") return { ok: false, error: "Gosbank directives require Head of State mode" };
+    if (!canPlayerOperateGosbank(world)) return { ok: false, error: "Only the Gosbank chair or head of government can set state credit policy" };
     const countryId = world.player.countryId;
     const commandState = world.commandEconomy[countryId];
     if (!commandState || !isPlannedEconomy(commandState.marketizationLevel)) {
@@ -1859,13 +1861,25 @@ function executeActionInner(
     }
     const hasCredit = params.creditAggressiveness !== undefined;
     const hasSoftness = params.budgetSoftness !== undefined;
-    if (!hasCredit && !hasSoftness) {
-      return { ok: false, error: "A Gosbank directive must set creditAggressiveness or budgetSoftness" };
+    const hasSectorCredit = params.sectorCredit !== undefined;
+    if (!hasCredit && !hasSoftness && !hasSectorCredit) {
+      return { ok: false, error: "A Gosbank directive must set a posture dial or sector-credit weights" };
     }
     for (const [name, value] of [["creditAggressiveness", params.creditAggressiveness], ["budgetSoftness", params.budgetSoftness]] as const) {
       if (value !== undefined && (!Number.isFinite(value) || value < 0 || value > 1)) {
         return { ok: false, error: `${name} must be a finite value in [0,1]` };
       }
+    }
+    const validSoeSectors = new Set(Object.values(world.corporations)
+      .filter((corporation) => corporation.countryId === countryId && corporation.soe)
+      .map((corporation) => corporation.soe!.sector));
+    const sectorCredit: Record<string, number> = {};
+    for (const [sector, weight] of Object.entries(params.sectorCredit ?? {})) {
+      if (!Number.isFinite(weight) || weight < 0 || weight > 1_000_000) {
+        return { ok: false, error: `sectorCredit.${sector} must be a finite value in [0,1000000]` };
+      }
+      // Source route silently drops sectors outside commandEconomySoeSectors(country).
+      if (validSoeSectors.has(sector)) sectorCredit[sector] = weight;
     }
     const pendingDirectives = commandState.pendingDirectives ?? [];
     const directive = {
@@ -1875,6 +1889,7 @@ function executeActionInner(
       effectiveTurn: world.meta.turn + 1,
       ...(hasCredit ? { creditAggressiveness: params.creditAggressiveness! } : {}),
       ...(hasSoftness ? { budgetSoftness: params.budgetSoftness! } : {}),
+      ...(hasSectorCredit ? { sectorCredit: Object.keys(sectorCredit).length ? sectorCredit : null } : {}),
     };
     commandState.pendingDirectives = [...pendingDirectives, directive];
     return { ok: true, message: `Gosbank posture for ${countryId} is queued for turn ${directive.effectiveTurn}.` };

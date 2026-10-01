@@ -15,7 +15,7 @@ import { seedCorporations, tickerForSector } from "./corporation/founding.js";
 import { rngFromSeed } from "./rng.js";
 import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } from "./playerImages.js";
 import type { WorldState } from "./types.js";
-import type { CorporationType, ShareholderEntry } from "./corporation/types.js";
+import { type CorporationType, type ShareholderEntry } from "./corporation/types.js";
 import { CEO_INITIAL_SHARES, NPC_FOUNDER_SHARE_FRACTION, DEFAULT_SHARE_PRICE } from "./market/constants.js";
 import { seedUnions } from "./unions/founding.js";
 import {
@@ -37,6 +37,7 @@ import {
 } from "./corporation/corporateSectorAssets.js";
 import { validateUnionOrganizers } from "./unions/organizers.js";
 import { validateUnionContributionLedger } from "./unions/contributions.js";
+import { makeSeedSoeState } from "./commandEconomy/soe.js";
 import { validatePlayerLineOfCredit } from "./finance/playerLineOfCredit.js";
 import type { BankCharter } from "./banking/types.js";
 import { validateBankingState } from "./banking/validate.js";
@@ -810,10 +811,32 @@ function validateCommandEconomySave(world: WorldState): void {
     if (!world.countries[countryId] || !isRecord(value) || value["countryId"] !== countryId) {
       throw new Error(`Not a valid save file: command-economy country identity does not match ${countryId}`);
     }
+    const validSoeSectors = new Set(Object.values(world.corporations)
+      .filter((corporation) => corporation.countryId === countryId && corporation.soe)
+      .map((corporation) => corporation.soe!.sector));
     for (const key of ["creditAggressiveness", "budgetSoftness"] as const) {
       const posture = value[key];
       if (posture !== undefined && (typeof posture !== "number" || !Number.isFinite(posture) || posture < 0 || posture > 1)) {
         throw new Error(`Not a valid save file: command-economy ${key} for ${countryId} must be finite in [0,1]`);
+      }
+    }
+    const validateSectorMap = (sectorMap: unknown, key: string, allowNull: boolean) => {
+      if (sectorMap === null && allowNull) return;
+      if (!isRecord(sectorMap)) throw new Error(`Not a valid save file: ${countryId} ${key} must be a sector map`);
+      for (const [sector, weight] of Object.entries(sectorMap)) {
+        if (!validSoeSectors.has(sector) || typeof weight !== "number" || !Number.isFinite(weight) || weight < 0 || weight > 1_000_000) {
+          throw new Error(`Not a valid save file: ${countryId} ${key}.${sector} must be a known sector with a finite weight in [0,1000000]`);
+        }
+      }
+    };
+    if (value["sectorCredit"] !== undefined) validateSectorMap(value["sectorCredit"], "sectorCredit", false);
+    if (value["directedCreditBySector"] !== undefined) {
+      const readout = value["directedCreditBySector"];
+      if (!isRecord(readout)) throw new Error(`Not a valid save file: ${countryId} directedCreditBySector must be a sector map`);
+      for (const [sector, amount] of Object.entries(readout)) {
+        if (!validSoeSectors.has(sector) || typeof amount !== "number" || !Number.isFinite(amount) || amount < 0) {
+          throw new Error(`Not a valid save file: ${countryId} directedCreditBySector.${sector} must be a known sector with finite non-negative credit`);
+        }
       }
     }
 
@@ -844,15 +867,46 @@ function validateCommandEconomySave(world: WorldState): void {
       }
       const hasCredit = directive["creditAggressiveness"] !== undefined;
       const hasSoftness = directive["budgetSoftness"] !== undefined;
-      if (!hasCredit && !hasSoftness) {
-        throw new Error(`Not a valid save file: Gosbank directive for ${countryId} must set at least one posture`);
+      const hasSectorCredit = directive["sectorCredit"] !== undefined;
+      if (!hasCredit && !hasSoftness && !hasSectorCredit) {
+        throw new Error(`Not a valid save file: Gosbank directive for ${countryId} must set a posture or sector-credit weights`);
       }
+      if (hasSectorCredit) validateSectorMap(directive["sectorCredit"], "pending sectorCredit", true);
       for (const key of ["creditAggressiveness", "budgetSoftness"] as const) {
         const posture = directive[key];
         if (posture !== undefined && (typeof posture !== "number" || !Number.isFinite(posture) || posture < 0 || posture > 1)) {
           throw new Error(`Not a valid save file: directive ${key} for ${countryId} must be finite in [0,1]`);
         }
       }
+    }
+  }
+}
+
+/** Upgrade old planned-economy saves from their recorded corporation revenue, never invented capacity. */
+function backfillSourceSeededSoeState(world: WorldState): void {
+  for (const corporation of Object.values(world.corporations)) {
+    const commandState = world.commandEconomy[corporation.countryId];
+    if (corporation.soe || !commandState || commandState.marketizationLevel >= 70) continue;
+    corporation.countryOwnerId = corporation.countryId;
+    corporation.ownershipState = "stateOwned";
+    corporation.soe = makeSeedSoeState(corporation.sectorType, corporation.revenue);
+  }
+}
+
+function validateSoeSave(world: WorldState): void {
+  for (const corporation of Object.values(world.corporations)) {
+    const soe = corporation.soe;
+    if (!soe) continue;
+    if (soe.sector !== corporation.sectorType || corporation.ownershipState !== "stateOwned" || corporation.countryOwnerId !== corporation.countryId) {
+      throw new Error(`Not a valid save file: ${corporation.id} SOE identity/ownership does not match its corporation`);
+    }
+    for (const key of ["capacity", "output", "planTarget", "efficiency", "cumulativeLosses"] as const) {
+      if (!Number.isFinite(soe[key]) || soe[key] < 0) {
+        throw new Error(`Not a valid save file: ${corporation.id} SOE ${key} must be finite and non-negative`);
+      }
+    }
+    if (soe.directorId !== null && typeof soe.directorId !== "string") {
+      throw new Error(`Not a valid save file: ${corporation.id} SOE directorId must be a character ID or null`);
     }
   }
 }
@@ -2845,8 +2899,10 @@ export function deserializeSave(raw: string): WorldState {
   // Pre-#48 Native saves always applied recorded stats. Preserve that ruleset
   // when the new key is absent; present malformed values still fail closed.
   if (save.world.featureFlags.rpgStats === undefined) save.world.featureFlags.rpgStats = true;
+  backfillSourceSeededSoeState(save.world);
   assertCurrentWorldState(save.world);
   validateCommandEconomySave(save.world);
+  validateSoeSave(save.world);
   validateBankingState(save.world);
   // #295: persisted sector-owner default. Saves written before the
   // acquisition slice carry materialized assets without the field; missing

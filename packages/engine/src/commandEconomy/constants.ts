@@ -92,10 +92,9 @@ export const SOE_PERF_BASELINE = 1.0;
 
 /**
  * The signed per-turn change in marketization level (before clamping), from
- * the three free drivers. PORT-STUB: `soePerf` is always SOE_PERF_BASELINE in
- * solo (no per-SOE plan-fulfillment tracking — see phases.ts file doc), so
- * this term is always exactly 0; black-market pressure and policy stance are
- * both real, wired inputs.
+ * the three free drivers. RU/DD pass measured capacity utilisation from their
+ * source-seeded SOE overlays; countries without those overlays use the neutral
+ * performance baseline.
  */
 export function marketizationDrift(
   blackMarketPressure: number,

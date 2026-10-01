@@ -56,6 +56,17 @@ export const CORPORATION_TYPES = [
 
 export type CorporationType = (typeof CORPORATION_TYPES)[number];
 
+/** Source corporation.soe command-economy overlay, in the corporation's own currency. */
+export interface SoeState {
+  sector: CorporationType;
+  capacity: number;
+  output: number;
+  planTarget: number;
+  efficiency: number;
+  cumulativeLosses: number;
+  directorId: string | null;
+}
+
 export interface CorporationPricePoint {
   turn: number;
   price: number;
@@ -108,8 +119,9 @@ export interface Corporation {
   /**
    * Country owner for state-owned / nationalized corporations.
    * Source: corporation.ts `countryOwnerId`. Absent on private corps.
-   * Ported for the #307 corporate-bond issuer/owner slice; nationalization
-   * flows that write it remain out of scope.
+   * Ported for the #307 corporate-bond issuer/owner slice and source-seeded
+   * RU/DD command-economy enterprises; player nationalization actions remain
+   * outside this slice.
    */
   countryOwnerId?: string;
   /**
@@ -118,6 +130,8 @@ export interface Corporation {
    * directly. Source: corporation.ts `ownershipState` + `isStateOwned()`.
    */
   ownershipState?: "private" | "stateOwned";
+  /** Present on source command-country state enterprises. */
+  soe?: SoeState;
   foundedAtTurn: number;
   /** Turn persistent insolvency began; null when solvent. */
   insolventSinceTurn: number | null;

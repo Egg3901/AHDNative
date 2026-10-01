@@ -1,4 +1,4 @@
-import { getLaw, type WorldState } from "@ahdclient/engine";
+import { canPlayerOperateGosbank, getLaw, type WorldState } from "@ahdclient/engine";
 
 /** One recorded national economy point from WorldState.history.macro. */
 export interface NationMacroHistoryPoint {
@@ -223,12 +223,16 @@ export interface NationCommandEconomyView {
   blackMarketPremium: number;
   creditAggressiveness: number;
   budgetSoftness: number;
+  creditSectors: string[];
+  sectorCredit?: Record<string, number>;
+  directedCreditBySector?: Record<string, number>;
   pendingDirectives: Array<{
     id: string;
     proposedTurn: number;
     effectiveTurn: number;
     creditAggressiveness?: number;
     budgetSoftness?: number;
+    sectorCredit?: Record<string, number> | null;
   }>;
 }
 
@@ -274,6 +278,7 @@ export interface NationView {
   metrics: NationMetricsView;
   policy: NationPolicyView;
   playerMode?: "career" | "hos";
+  playerCanOperateGosbank?: boolean;
   playerCanProposeNationalBills?: boolean;
   subsidies?: NationSubsidyView[];
   subsidyAnnualCost?: number;
@@ -1058,6 +1063,7 @@ export function projectNation(world: WorldState): NationView {
       pending: projectPendingDirectives(world, countryId, labels),
     },
     playerMode: world.player.mode,
+    playerCanOperateGosbank: canPlayerOperateGosbank(world),
     playerCanProposeNationalBills: world.player.mode === "hos" || world.player.legislativeSeat?.countryId === countryId,
     subsidies: (world.subsidies ?? []).filter((subsidy) => subsidy.countryId === countryId).map((subsidy) => ({
       id: subsidy.id,
@@ -1079,12 +1085,19 @@ export function projectNation(world: WorldState): NationView {
       blackMarketPremium: world.commandEconomy[countryId]!.blackMarketPremium,
       creditAggressiveness: world.commandEconomy[countryId]!.creditAggressiveness ?? 0.55,
       budgetSoftness: world.commandEconomy[countryId]!.budgetSoftness ?? 0.85,
+      creditSectors: Object.values(world.corporations)
+        .filter((corporation) => corporation.countryId === countryId && corporation.soe)
+        .map((corporation) => corporation.sectorType)
+        .sort(),
+      ...(world.commandEconomy[countryId]!.sectorCredit ? { sectorCredit: { ...world.commandEconomy[countryId]!.sectorCredit } } : {}),
+      ...(world.commandEconomy[countryId]!.directedCreditBySector ? { directedCreditBySector: { ...world.commandEconomy[countryId]!.directedCreditBySector } } : {}),
       pendingDirectives: (world.commandEconomy[countryId]!.pendingDirectives ?? []).map((directive) => ({
         id: directive.id,
         proposedTurn: directive.proposedTurn,
         effectiveTurn: directive.effectiveTurn,
         ...(directive.creditAggressiveness !== undefined ? { creditAggressiveness: directive.creditAggressiveness } : {}),
         ...(directive.budgetSoftness !== undefined ? { budgetSoftness: directive.budgetSoftness } : {}),
+        ...(directive.sectorCredit !== undefined ? { sectorCredit: directive.sectorCredit ? { ...directive.sectorCredit } : null } : {}),
       })),
     } : null,
     stateOwnershipConcentration: budget.stateOwnershipConcentration,
