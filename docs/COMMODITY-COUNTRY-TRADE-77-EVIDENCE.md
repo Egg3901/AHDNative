@@ -46,12 +46,17 @@ The reference is AHDGame `cb66acdf0129616b8a09902727e9b58715c8bacb`:
   administered 12% turnover markup and `plannedShare`; the resulting per-turn
   country prices are saved beside the trade receipt. Flow values use the
   exporter's national price, matching Game `valueTradeSnapshot`.
-- Native has no Game tariff rows, embargo cap rows, naval blockade closure, or
-  per-country commodity-price history/scarcity inputs. The national-price
-  calculation therefore uses the recorded global price as its effective-base
-  anchor and represented country balances only. It leaves tariff/cap/blockade
-  mechanics unavailable and does not substitute the budget's economy-wide
-  tariff rate for Game's importer/sector/origin tariff.
+- This is a source-shaped national-price calculation, not full price parity:
+  Game's `effBaseFor(country)` uses nominal base price, a country reachable-book
+  scarcity multiplier, and lagged cost pass-through. Native does not retain
+  those country-scoped inputs, so this slice anchors the source pressure curve
+  at Native's current global price, which already contains its own global
+  pressure and drift. That anchor is an explicit approximation, not Game's
+  effective base. The per-country result is a saved trade valuation and does
+  not replace Native's current global-price phase or create price history.
+- Native has no Game tariff rows, embargo cap rows, or naval blockade closure.
+  It leaves those mechanics unavailable and does not substitute the budget's
+  economy-wide tariff rate for Game's importer/sector/origin tariff.
 - The engine saves country receipts and bilateral commodity quantities/values;
   Markets projects exports, imports, net, partner, and up to three commodity
   flows per country. Imports stay visible for countries without a listed
