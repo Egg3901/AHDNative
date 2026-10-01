@@ -248,6 +248,43 @@ describe("playerLineOfCreditPhase", () => {
     expect(reloaded.player.lineOfCredit!.drawFrozen).toBe(false);
   });
 
+  it("services foreign personal cash across public turns with reload-equivalent continuation", () => {
+    const start = createWorld(OPTS);
+    start.player.cash = 0;
+    start.player.savings = 0;
+    start.player.currencyBalances = { personal: { GBP: 20 } };
+    start.player.lineOfCredit = {
+      balance: 1000,
+      denomination: "USD",
+      arrears: 0,
+      drawFrozen: false,
+    };
+    const uninterrupted = structuredClone(start);
+    const resumedStart = deserializeSave(
+      serializeSave(start, "2026-10-01T00:00:00.000Z"),
+    );
+
+    advanceTurn(uninterrupted);
+    advanceTurn(resumedStart);
+    expect(uninterrupted.player.currencyBalances!.personal.GBP).toBeLessThan(
+      20,
+    );
+    expect(uninterrupted.player.lineOfCredit!.balance).toBeLessThan(1000);
+    expect(resumedStart.player).toEqual(uninterrupted.player);
+
+    const resumed = deserializeSave(
+      serializeSave(resumedStart, "2026-10-01T00:00:00.000Z"),
+    );
+    const uninterruptedTwin = structuredClone(uninterrupted);
+    advanceTurn(resumed);
+    advanceTurn(uninterruptedTwin);
+    expect(resumed.player).toEqual(uninterruptedTwin.player);
+    expect(resumed.player.currencyBalances!.personal.GBP).toBeLessThan(
+      start.player.currencyBalances!.personal.GBP,
+    );
+    expect(resumed.player.lineOfCredit!.drawFrozen).toBe(false);
+  });
+
   it("is deterministic: the same input always produces the same output", () => {
     const first = fundedWorld();
     const second = structuredClone(first);
@@ -336,6 +373,18 @@ describe("playerLineOfCreditPhase", () => {
     expect(() => deserializeSave(serializeSave(world))).toThrow(
       "Invalid GBP personal wallet balance",
     );
+  });
+
+  it("refuses a malformed current FX quote before mutating wallets or debt", () => {
+    const world = fundedWorld();
+    world.player.cash = 0;
+    world.player.currencyBalances = { personal: { GBP: 20 } };
+    world.exchangeRates.UK!.rate = Number.NaN;
+    const before = JSON.stringify(world);
+    expect(() => playerLineOfCreditPhase.run(world, RNG)).toThrow(
+      "Invalid GBP exchange rate",
+    );
+    expect(JSON.stringify(world)).toBe(before);
   });
 
   it("rejects present-but-invalid line state at the save boundary", () => {

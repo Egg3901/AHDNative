@@ -125,6 +125,25 @@ export function validatePlayerLineOfCreditWallet(
   }
 }
 
+function validatePresentFxRates(
+  world: WorldState,
+  home: string,
+  denomination: string,
+): void {
+  for (const currency of new Set([denomination, ...FOREX_ACTIVE_CURRENCIES])) {
+    const row = world.exchangeRates[getCountryIdForCurrency(currency)];
+    if (row === undefined) continue; // Game also skips a missing rate row.
+    const hasFunds =
+      currency === denomination ||
+      availableForCurrency(world, currency, home) > 0;
+    if (hasFunds && (!Number.isFinite(row.rate) || row.rate <= 0)) {
+      throw new Error(
+        `Invalid ${currency} exchange rate for line-of-credit servicing`,
+      );
+    }
+  }
+}
+
 /** Face rate (local per 1 anchor) for a currency from the live FX table. */
 function rateFor(world: WorldState, currency: string): number {
   const anchor = getCountryIdForCurrency(currency);
@@ -196,9 +215,11 @@ export const playerLineOfCreditPhase: TurnPhase = {
     if (!loc) return;
     validatePlayerLineOfCredit(loc);
     validatePlayerLineOfCreditWallet(world.player);
+    const denomination = loc.denomination;
+    const home = homeCurrencyFor(world, world.player.countryId);
+    validatePresentFxRates(world, home, denomination);
     const centralBankPricing = ensureCentralBankPricingPhaseIn(world);
 
-    const denomination = loc.denomination;
     const mode = loc.paymentMode ?? "pi";
     const balance = loc.balance;
     const arrears = loc.arrears;
@@ -217,7 +238,6 @@ export const playerLineOfCreditPhase: TurnPhase = {
       primeByBankId,
       denomination,
     );
-    const home = homeCurrencyFor(world, world.player.countryId);
     const primeForHome = resolvePrimeForCurrency(primeByBankId, home);
 
     // Borrower spread from solo-observable inputs through the reference
