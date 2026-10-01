@@ -9,6 +9,7 @@
 import type { TurnPhase } from "../phases/types.js";
 import {
   computeSavingsInterestForTurn,
+  FOREX_ACTIVE_CURRENCIES,
   SAVINGS_CREDIT_INTERVAL_TURNS,
   getBankId,
   getCountryIdForCurrency,
@@ -106,7 +107,13 @@ function refreshNativeSavingsPool(
   homeBalance: number,
 ): void {
   const poolBalance = Math.round(Math.max(0, homeBalance) * 100) / 100;
-  for (const [id, bank] of Object.entries(world.centralBanks)) {
-    bank.nationalSavingsBalance = id === homeBankId ? poolBalance : 0;
+  const activeBankIds = new Set(
+    FOREX_ACTIVE_CURRENCIES.map((code) =>
+      getBankId(getCountryIdForCurrency(code)),
+    ),
+  );
+  for (const id of activeBankIds) {
+    const bank = world.centralBanks[id];
+    if (bank) bank.nationalSavingsBalance = id === homeBankId ? poolBalance : 0;
   }
 }
