@@ -1,5 +1,15 @@
 # AHDNative roadmap
 
+## NPP relationship and recruitment checkpoint, 2026-10-01 (#57 / #61 partial)
+
+Politicians now expose four source relationship approaches with reviewed target,
+chance/cost, cancellation, accepted outcome and normal save/resume. Actual
+320px/390px journeys pass. Chair-only free NPP caucus recruitment uses the source
+60-point relationship, same-party/country and 12-turn cooldown contract. Its
+controlled eligibility tests do not claim a player-earned recruitment journey.
+[Source behavior and remaining scope](NPP-RELATIONSHIP-PARITY.md) preserve the
+three-human charter and wider targeted-action gaps. Full hosted review is pending.
+
 ## Verified CEO card closure, 2026-10-01 (#51)
 
 PR706 full hosted verification passed at exact `9276713` and merged as

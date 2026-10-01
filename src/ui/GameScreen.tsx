@@ -903,7 +903,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
             <PoliticsRoute load={loadPolitics} revision={world} section="metrics" nation={world.nation} era={world.era} onNavigate={navigate} busy={busy} onAction={onAction} clock={clock} />
           ))}
           {route === "campaignDetails" && <PoliticsRoute load={loadPolitics} revision={world} section="campaign" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
-          {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} clock={clock} />}
+          {route === "politicians" && <PoliticsRoute load={loadPolitics} revision={world} contextKey={newsStorageKey} section="politicians" initialId={detailId} onOpenElection={openElection} busy={busy} onAction={onAction} clock={clock} />}
           {route === "referendums" && <PoliticsRoute load={loadPolitics} revision={world} section="referendums" initialId={detailId} busy={busy} onAction={onAction} clock={clock} />}
           {route === "banking" ? <FinancePanel finance={world.finance} section="banking" busy={busy} onAction={onAction} onNavigate={(next) => go(next)} countryId={world.countryId} /> : null}
           {route === "notifications" ? (
