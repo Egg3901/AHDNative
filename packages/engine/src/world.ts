@@ -93,6 +93,7 @@ import {
 // v33->v34->35->36->37 chain depending on merge order, same pattern as every
 // prior multi-wave resolver note in save.ts (see v16->v17, v27->v28, etc.).
 import { computeFormation } from "./government/formation.js";
+import { seatSingleplayerHeadOfGovernment } from "./government/singleplayerHeadOfGovernment.js";
 import { GOVERNMENT_CHAMBER_BY_COUNTRY, GOVERNOR_COUNTRIES } from "./government/constants.js";
 import { EXECUTIVE_OFFICE_BY_COUNTRY } from "./actions/officeRegistry.js";
 
@@ -1189,6 +1190,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
       }
     }
   }
+  seatSingleplayerHeadOfGovernment(world);
   assignUsSeatGeography(world);
   assignRegionalSeatGeography(world);
   // W12: charter the financial-sector NPC corp of every playable country as
