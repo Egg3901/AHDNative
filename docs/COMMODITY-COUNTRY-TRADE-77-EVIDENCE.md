@@ -5,10 +5,8 @@ trade cleared from recorded corporate production. It does not close #77.
 
 ## Source contract
 
-The reference is AHDGame `163fec66518d7a09fa9fe6cfdc29b55d2c6ff6c4`. The source
-tariff, proposal, affinity, and commodity-clearing files listed below are
-unchanged from the earlier checked `cb66acdf0129616b8a09902727e9b58715c8bacb`
-pin:
+The authoritative reference is AHDGame `origin/main` at
+`cb66acdf0129616b8a09902727e9b58715c8bacb`:
 
 - `src/lib/turn/commodity/commodityPriceTurn.ts` builds state, country, and
   global commodity ledgers, resolves the demand legs, clears trade, and records

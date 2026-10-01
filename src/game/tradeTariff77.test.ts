@@ -67,6 +67,49 @@ describe("signed customs tariff trade effect (#77)", () => {
     expect(result.error).toContain("Must hold a legislative seat");
   });
 
+  it("does not treat HoS mode alone as the source sovereign-decree authority", () => {
+    const session = new GameSession();
+    session.create({ era: "2019", countryId: "CN", seed: "cn-tariff-decree-flag", playerName: "Player", mode: "hos" });
+    const save = JSON.parse(session.serialize(stamp)) as { world: { player: { permanentHeadOfState: boolean } } };
+    save.world.player.permanentHeadOfState = false;
+    const altered = new GameSession();
+    altered.load(JSON.stringify(save));
+
+    const result = altered.act("sponsorBill", { catalogId: "trade.customs_tariff", tariffRate: 10 });
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("Must hold a legislative seat in the player's country");
+  });
+
+  it("blocks another tariff at the same scope while the first bill is nonterminal", () => {
+    const career = new GameSession();
+    career.create({ era: "2019", countryId: "CN", seed: "cn-tariff-duplicate-scope", playerName: "Player" });
+    const electedChamber = career.view().legislature.chambers?.find((chamber) => chamber.elected);
+    expect(electedChamber).toBeDefined();
+    const save = JSON.parse(career.serialize(stamp)) as {
+      world: {
+        player: { legislativeSeat: { countryId: string; chamberKey: string } | null };
+        bills: Array<{ status: string }>;
+      };
+    };
+    save.world.player.legislativeSeat = { countryId: "CN", chamberKey: electedChamber!.key };
+    const seated = new GameSession();
+    seated.load(JSON.stringify(save));
+    expect(seated.act("sponsorBill", { catalogId: "trade.customs_tariff", tariffRate: 10 }).ok).toBe(true);
+
+    const enrolledSave = JSON.parse(seated.serialize(stamp)) as {
+      world: { bills: Array<{ status: string }>; player: { actionCooldowns: Record<string, number> } };
+    };
+    expect(enrolledSave.world.bills[0]?.status).toBe("active");
+    enrolledSave.world.bills[0]!.status = "enrolled";
+    // Model a later player action after the catalog cooldown has elapsed.
+    delete enrolledSave.world.player.actionCooldowns.sponsorBill;
+    const enrolled = new GameSession();
+    enrolled.load(JSON.stringify(enrolledSave));
+    const duplicate = enrolled.act("sponsorBill", { catalogId: "trade.customs_tariff", tariffRate: 12 });
+    expect(duplicate.ok).toBe(false);
+    expect(duplicate.error).toContain("Another active bill already proposes a tariff at this scope");
+  });
+
   it("leaves the CN customs tax law on the ordinary one-point fiscal phase-in path", () => {
     const session = new GameSession();
     session.create({ era: "2019", countryId: "CN", seed: "cn-customs-tax-remains-tax", playerName: "Player", mode: "hos" });

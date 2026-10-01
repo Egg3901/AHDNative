@@ -948,7 +948,7 @@ function executeActionInner(
     const catalogId = params.catalogId;
     if (!catalogId) return { ok: false, error: "sponsorBill requires catalogId" };
     // Seed gating: must hold a legislative seat per mainline seat check; HoS mode grants bypass later
-    const player = world.player as unknown as { legislativeSeat: { chamberKey: string; countryId: string } | null; mode: string; partyId: string | null };
+    const player = world.player as unknown as { legislativeSeat: { chamberKey: string; countryId: string } | null; mode: string; partyId: string | null; permanentHeadOfState?: boolean };
     if (player.mode !== "hos" && !player.legislativeSeat) {
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
@@ -975,7 +975,8 @@ function executeActionInner(
       const countryId = world.player.countryId;
       const legislature = world.legislatures[countryId];
       const seat = player.legislativeSeat;
-      if (player.mode !== "hos") {
+      const sovereignDecree = player.mode === "hos" && player.permanentHeadOfState === true;
+      if (!sovereignDecree) {
         if (!seat || seat.countryId !== countryId) return reject("Must hold a legislative seat in the player's country to sponsor bills");
         const chamber = legislature?.chambers.find((row) => row.key === seat.chamberKey && row.elected);
         if (!chamber) return reject("The player's legislative seat is not in an elected chamber");
@@ -984,11 +985,11 @@ function executeActionInner(
         }
       }
       if (world.bills.some((bill) => bill.countryId === countryId &&
-        ["proposed", "active", "active_other", "active_both"].includes(bill.status) &&
+        !["failed", "withdrawn", "signed", "override_failed"].includes(bill.status) &&
         bill.provisions.some((provision) => provision.type === "tariff" && provision.tariffScopeType === "economy_wide"))) {
         return reject("Another active bill already proposes a tariff at this scope. Wait for it to resolve before proposing the same change.");
       }
-      const originChamber = player.mode === "hos"
+      const originChamber = sovereignDecree
         ? legislature?.chambers.find((row) => row.elected)?.key ?? legislature?.chambers[0]?.key ?? "house"
         : seat!.chamberKey;
       const id = `bill-${world.meta.turn}-${world.bills.length + 1}-trade.customs_tariff`;
@@ -1025,7 +1026,7 @@ function executeActionInner(
         committeeId: null,
       };
       world.bills.push(bill);
-      if (player.mode === "hos") {
+      if (sovereignDecree) {
         bill.status = "signed";
         bill.enactedAtTurn = world.meta.turn;
         bill.updatedAtTurn = world.meta.turn;
