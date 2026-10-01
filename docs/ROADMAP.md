@@ -32,6 +32,17 @@ correction; career ownership/conservation and secession fan-out are delivered.
 #107 retains wider corporate management and strategy/technology price inputs.
 Current sampled Game is `cb66acdf`; Client is `799a9920`.
 
+## Regional extraction lifecycle checkpoint, 2026-10-01 (#115)
+
+Regional prospecting, source-resource-backed starter capacity, CEO-approved
+expansion, extraction contracts, royalties and regional budget settlement now
+run through public player/session actions. The saved Texas journey reaches
+production, settles royalties and resumes with the recorded regional balances;
+actual Chromium flows passed at 390px and 320px. [Original acceptance mapping
+and source-pricing limits](REGIONAL-EXTRACTION-115-EVIDENCE.md) record the
+independent vectors and remaining generic strategy/technology pricing gap.
+The full hosted integration gate remains pending.
+
 ## Source geographic maps and local Hall checkpoint, 2026-10-01 (#73 partial)
 
 Offline country/subdivision shapes, country-scoped browsing, real entity links

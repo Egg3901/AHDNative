@@ -2,6 +2,8 @@ import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import type { ExtractableResource } from "../commodity/constants.js";
 import type { ExtractionContract } from "../types.js";
+import { anchorToLocal, rateForLocalBalance } from "../forex/conversion.js";
+import { resolveExtractionContractIssuer, isNationalExtractionIssuer, isStateExtractionIssuer } from "./authority.js";
 import {
   CONTRACT_OFFER_EXPIRY_TURNS,
   CONTRACT_ROYALTY_RATE_MIN,
@@ -15,14 +17,12 @@ import {
 
 export type IssueContractOfferResult = { ok: true; contractId: string } | { ok: false; error: string };
 
+export type ExtractionContractActionResult = { ok: true } | { ok: false; error: string };
+
 /**
  * Player-issued extraction-contract OFFER (offer -> accept flow). Ports
- * src/lib/extraction/commands/issueContractOffer.ts at solo's simplified
- * authorization model: PORT-STUB the issuer-authority-law lookup
- * (getResourceContractAuthority — no such law exists in solo) and PORT-STUB
- * state-level issuance (no governor office system — see prospecting.ts file
- * doc for the same cut). Every offer is national-government, gated on HoS
- * mode like every other government action in this codebase.
+ * src/lib/extraction/commands/issueContractOffer.ts. The national/state issuer
+ * level is derived from the enacted authority act and the recorded player role.
  *
  * The target corporation is resolved automatically: W9's founding.ts seeds at
  * most one single-sector "extraction" corp per country
@@ -68,11 +68,22 @@ export function issueContractOffer(
   if (!corp) {
     return { ok: false, error: `No extraction corporation operates in ${params.countryId}` };
   }
+  if (corp.sectorType !== "extraction") {
+    return { ok: false, error: "Contracts can only be offered to extraction corporations." };
+  }
+  const regionalOperation = Object.values(world.corporateSectors ?? {}).some(
+    (asset) => asset.corporationId === corpId && asset.sectorType === "extraction" && asset.stateId === params.regionId,
+  );
+  if (!regionalOperation) {
+    return { ok: false, error: `The extraction corporation has no operations in ${params.regionId}.` };
+  }
+  const issuerLevel = resolveExtractionContractIssuer(world, params.countryId, params.regionId);
+  if (!issuerLevel) return { ok: false, error: "The player holds no extraction-issuing office allowed by the current authority act." };
 
   const committed = world.extractionContracts
     .filter(
-      (c) =>
-        c.stateId === params.regionId && c.resource === params.resource && (c.status === "offered" || c.status === "active"),
+        (c) =>
+        c.stateId === params.regionId && c.resource === params.resource && c.revokedTurn == null && (c.status === "offered" || c.status === "active"),
     )
     .reduce((sum, c) => sum + c.share, 0);
   const remainingHeadroom = GOVT_CONTRACT_MAX_TOTAL_SHARE - committed;
@@ -93,8 +104,8 @@ export function issueContractOffer(
     resource: params.resource,
     share: params.share,
     grantedTurn: turn,
-    grantedByLevel: "national",
-    grantedBy: params.countryId,
+    grantedByLevel: issuerLevel,
+    grantedBy: issuerLevel === "state" ? params.regionId : params.countryId,
     status: "offered",
     signingFeeAnchor: params.signingFeeAnchor,
     royaltyRatePerTurn: params.royaltyRatePerTurn,
@@ -110,6 +121,87 @@ export function issueContractOffer(
     headline: `Government offers ${corp.tickerSymbol} a ${params.resource} extraction contract in ${params.regionId}.`,
   });
   return { ok: true, contractId: id };
+}
+
+/** CEO response to a source-style open offer. The turn phase only auto-accepts
+ * offers for NPC-led issuers; a player-led corporation must use this public
+ * action, as in AHDGame's CEO-only acceptance route. */
+export function acceptExtractionContractOffer(
+  world: WorldState,
+  contractId: string,
+): ExtractionContractActionResult {
+  const contract = world.extractionContracts.find((candidate) => candidate.id === contractId);
+  if (!contract || contract.status !== "offered" || contract.revokedTurn != null) {
+    return { ok: false, error: "This contract is not an open offer." };
+  }
+  if (contract.offerExpiresTurn != null && contract.offerExpiresTurn <= world.meta.turn) {
+    return { ok: false, error: "This offer has expired." };
+  }
+  const corporation = contract.corporationId ? world.corporations[contract.corporationId] : undefined;
+  if (!corporation || corporation.ceoId !== "player" || corporation.ceoVacant === true) {
+    return { ok: false, error: "Only this corporation's active CEO can accept the offer." };
+  }
+  const signingFeeAnchor = contract.signingFeeAnchor ?? 0;
+  const signingFeeLocal = anchorToLocal(signingFeeAnchor, rateForLocalBalance(world, corporation.countryId));
+  if (corporation.liquidCapital < signingFeeLocal) {
+    return { ok: false, error: "The corporation cannot afford the signing fee." };
+  }
+  const issuerBudget = world.budgets[contract.countryId];
+  const stateBudget = contract.grantedByLevel === "state" ? world.regionalBudgets[contract.stateId] : undefined;
+  if (signingFeeLocal > 0 && !stateBudget && !issuerBudget) {
+    return { ok: false, error: "The issuing government budget is unavailable." };
+  }
+
+  corporation.liquidCapital -= signingFeeLocal;
+  const issuerReceipt = anchorToLocal(signingFeeAnchor, rateForLocalBalance(world, contract.countryId));
+  if (contract.grantedByLevel === "state" && stateBudget) {
+    stateBudget.revenue.resourceRoyalties = (stateBudget.revenue.resourceRoyalties ?? 0) + issuerReceipt;
+    stateBudget.revenue.total += issuerReceipt;
+    stateBudget.balance = stateBudget.revenue.total - stateBudget.spending.total;
+  } else if (issuerBudget) {
+    issuerBudget.treasuryBalance += issuerReceipt;
+  }
+  contract.status = "active";
+  contract.activatedTurn = world.meta.turn;
+  contract.expiresTurn = world.meta.turn + (contract.termTurns ?? CONTRACT_TERM_TURNS_MIN);
+  delete contract.offerExpiresTurn;
+  return { ok: true };
+}
+
+/** Counterparty CEO declines an open offer; declined offers release capacity headroom. */
+export function declineExtractionContractOffer(
+  world: WorldState,
+  contractId: string,
+): ExtractionContractActionResult {
+  const contract = world.extractionContracts.find((candidate) => candidate.id === contractId);
+  if (!contract || contract.status !== "offered" || contract.revokedTurn != null) {
+    return { ok: false, error: "This contract is not an open offer." };
+  }
+  const corporation = contract.corporationId ? world.corporations[contract.corporationId] : undefined;
+  if (!corporation || corporation.ceoId !== "player" || corporation.ceoVacant === true) {
+    return { ok: false, error: "Only this corporation's active CEO can decline the offer." };
+  }
+  contract.status = "declined";
+  contract.revokedTurn = world.meta.turn;
+  return { ok: true };
+}
+
+/** Issuer revocation preserves the source terminal marker and prevents later settlement. */
+export function revokeExtractionContract(
+  world: WorldState,
+  contractId: string,
+): ExtractionContractActionResult {
+  const contract = world.extractionContracts.find((candidate) => candidate.id === contractId);
+  if (!contract || (contract.status !== "offered" && contract.status !== "active") || contract.revokedTurn != null) {
+    return { ok: false, error: "This contract is already terminated." };
+  }
+  const nationalIssuer = contract.grantedByLevel === "national" && isNationalExtractionIssuer(world, contract.countryId);
+  const stateIssuer = contract.grantedByLevel === "state" && isStateExtractionIssuer(world, contract.countryId, contract.stateId);
+  if (!nationalIssuer && !stateIssuer) {
+    return { ok: false, error: "Only the issuing authority can revoke this contract." };
+  }
+  contract.revokedTurn = world.meta.turn;
+  return { ok: true };
 }
 
 /**
@@ -129,10 +221,12 @@ export const contractOfferAcceptancePhase: TurnPhase = {
     const turn = world.meta.turn;
     for (const contract of world.extractionContracts) {
       if (contract.status !== "offered") continue;
+      if (contract.revokedTurn != null) continue;
       if (contract.corporationId == null) continue; // stubbed counterparty, nothing to accept
       if (contract.offerExpiresTurn != null && contract.offerExpiresTurn <= turn) continue; // let settlement expire it
       const corp = world.corporations[contract.corporationId];
       if (!corp) continue;
+      if (corp.ceoId === "player" && corp.ceoVacant !== true) continue;
       const signingFee = contract.signingFeeAnchor ?? 0;
       if (corp.liquidCapital < signingFee) continue; // can't afford yet; try again next turn
 

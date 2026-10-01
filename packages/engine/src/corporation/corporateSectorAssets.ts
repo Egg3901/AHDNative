@@ -27,6 +27,15 @@ import {
  */
 export type CorporateSectorOwner = "corporation" | "player";
 
+/** Source plants-tier capacity order (Game db/types/corporation.ts). */
+export interface SectorBuildOrder {
+  unitsOrdered: number;
+  costPaidAnchor: number;
+  startTurn: number;
+  onlineTurn: number;
+  smooth?: boolean;
+}
+
 export interface CorporateSectorAsset {
   id: string;
   corporationId: string;
@@ -39,6 +48,12 @@ export interface CorporateSectorAsset {
   capitalStock?: number;
   /** Paid plant basis in anchor (USD-era) currency, matching Game field semantics. */
   capacityBookAnchor?: number;
+  /** Capacity still under construction. Orders deliver linearly when smooth. */
+  buildQueue?: SectorBuildOrder[];
+  /** Paid anchor cost of capacity still under construction. */
+  constructionInProgressAnchor?: number;
+  /** Turn the asset entered the plants capacity model. */
+  plantsStartTurn?: number;
   /** Physical units produced this turn, in source output-units/day. */
   producedUnits?: number;
   /** Physical units sold this turn, in source output-units/day. */
@@ -278,6 +293,22 @@ export function validateSectorPlantCapital(asset: CorporateSectorAsset): void {
     typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1,
   )) {
     throw new Error(`Corporate sector ${asset.id} has invalid soldByCommodity`);
+  }
+  if (asset.constructionInProgressAnchor !== undefined &&
+      (!Number.isFinite(asset.constructionInProgressAnchor) || asset.constructionInProgressAnchor < 0)) {
+    throw new Error(`Corporate sector ${asset.id} has invalid constructionInProgressAnchor`);
+  }
+  if (asset.plantsStartTurn !== undefined && (!Number.isInteger(asset.plantsStartTurn) || asset.plantsStartTurn < 0)) {
+    throw new Error(`Corporate sector ${asset.id} has invalid plantsStartTurn`);
+  }
+  if (asset.buildQueue !== undefined && (!Array.isArray(asset.buildQueue) || asset.buildQueue.some((order) =>
+    !Number.isFinite(order.unitsOrdered) || order.unitsOrdered <= 0 ||
+    !Number.isFinite(order.costPaidAnchor) || order.costPaidAnchor < 0 ||
+    !Number.isInteger(order.startTurn) || order.startTurn < 0 ||
+    !Number.isInteger(order.onlineTurn) || order.onlineTurn <= order.startTurn ||
+    (order.smooth !== undefined && typeof order.smooth !== "boolean"),
+  ))) {
+    throw new Error(`Corporate sector ${asset.id} has invalid buildQueue`);
   }
 }
 

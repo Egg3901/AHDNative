@@ -1515,7 +1515,9 @@ export interface ExtractionContract {
   /** Per-turn royalty rate (fraction of contracted capacity market value). */
   royaltyRatePerTurn: number;
   /** Lifecycle status. */
-  status: "offered" | "active" | "expired" | "defaulted" | "revoked";
+  status: "offered" | "active" | "declined" | "expired" | "defaulted" | "revoked";
+  /** Source revokedTurn marker; terminally excludes an offer/contract from rights and settlement. */
+  revokedTurn?: number;
   /** Granted turn. */
   grantedTurn: number;
   /** Grant level. */

@@ -5,9 +5,63 @@ import { deserializeSave, serializeSave } from "../save.js";
 import { executeAction } from "../actions/execute.js";
 import { launchProspectingSurvey } from "./prospecting.js";
 import { issueContractOffer } from "./contracts.js";
+import { getResourceContractAuthority, isNationalExtractionIssuer, resolveExtractionContractIssuer } from "./authority.js";
 import { prospectCostAnchor, prospectDurationTurns } from "./constants.js";
+import { corporateSectorAssets } from "../corporation/corporateSectorAssets.js";
+import { EXTRACTION_STARTER_BUILD_TURNS, EXTRACTION_STARTER_UNITS } from "./operations.js";
 
-const OPTS = { seed: "w11-extraction-seed", playerName: "Tester", countryId: "US", era: "1953" } as const;
+const OPTS = { seed: "w11-extraction-seed", playerName: "Tester", countryId: "US", era: "1953", homeRegionId: "DC" } as const;
+const seatNationalIssuer = (w: ReturnType<typeof createWorld>) => {
+  w.executives.US = { countryId: "US", presidentId: "player", presidentParty: null, termStartTurn: 0, vicePresidentId: null, vicePresidentParty: null };
+};
+const seatPlayerExtractionCeo = (w: ReturnType<typeof createWorld>) => {
+  const corporation = w.corporations[`${w.player.countryId}-extraction`]!;
+  expect(executeAction(w, "player", "buyShares", { corpId: corporation.id, shares: 1 }).ok).toBe(true);
+  expect(executeAction(w, "player", "voteCeo", { corpId: corporation.id, candidateId: "player" }).ok).toBe(true);
+  expect(corporation.pendingCeoId).toBe("player");
+  expect(executeAction(w, "player", "acceptCeoAppointment", { corpId: corporation.id }).ok).toBe(true);
+  return corporation;
+};
+const addRegionalExtractionOperation = (w: ReturnType<typeof createWorld>, regionId = "TX") => {
+  const corporation = seatPlayerExtractionCeo(w);
+  const result = executeAction(w, "player", "expandRegionalExtraction", { regionId });
+  expect(result.ok).toBe(true);
+  return corporation;
+};
+
+describe("source extraction issuer authority", () => {
+  it("defaults federal, prefers a qualified national issuer under concurrent licensing, and requires the recorded governor under state-only licensing", () => {
+    const w = createWorld(OPTS);
+    w.executives.US = { countryId: "US", presidentId: "player", presidentParty: null, termStartTurn: 0, vicePresidentId: null, vicePresidentParty: null };
+    w.governors.TX = { stateId: "TX", countryId: "US", governorId: "player", governorParty: null, governorName: "Tester", termStartTurn: 0, gubernatorialActions: 4, lastActionGrantedTurn: 0, lastAddressTurn: null };
+    expect(getResourceContractAuthority(w, "US")).toBe("national");
+    expect(resolveExtractionContractIssuer(w, "US", "TX")).toBe("national");
+
+    w.enactedLaws.push({ id: "resource_extraction_authority", countryId: "US", billId: "concurrent", enactedAtTurn: 1, level: 1, scope: "national", expiresAtTurn: null });
+    expect(getResourceContractAuthority(w, "US")).toBe("both");
+    expect(resolveExtractionContractIssuer(w, "US", "TX")).toBe("national");
+
+    w.executives.US!.presidentId = "npc-president";
+    w.enactedLaws.push({ id: "resource_extraction_authority", countryId: "US", billId: "state-only", enactedAtTurn: 2, level: 2, scope: "national", expiresAtTurn: null });
+    expect(getResourceContractAuthority(w, "US")).toBe("state");
+    expect(resolveExtractionContractIssuer(w, "US", "TX")).toBe("state");
+    expect(resolveExtractionContractIssuer(w, "US", "PA")).toBeNull();
+  });
+
+  it("keeps non-US content national-only when the source act is absent", () => {
+    const w = createWorld({ ...OPTS, countryId: "UK", homeRegionId: "SCO" });
+    expect(getResourceContractAuthority(w, "UK")).toBe("national");
+    expect(resolveExtractionContractIssuer(w, "UK", "SCO")).toBeNull();
+    w.governments.UK = {
+      countryId: "UK", chamberKey: "commons", status: "formed", formationType: "majority",
+      governingPartyId: null, coalitionPartyIds: null, pmPoliticianId: "player",
+      totalSeatsSupporting: 1, majorityThreshold: 1, totalSeats: 1, seatsByParty: {},
+      lostMajority: false, formedTurn: 0, pmVacancyDeadlineTurn: null,
+      snapElectionsUsed: 0, lastSnapElectionTurn: null, confidence: 75,
+    };
+    expect(isNationalExtractionIssuer(w, "UK")).toBe(true);
+  });
+});
 
 describe("stateResourceCapacities seeding", () => {
   it("seeds real per-state US capacity with headroom applied", () => {
@@ -58,6 +112,7 @@ describe("prospecting", () => {
   it("launches and charges treasury; resolves after era-scaled duration", () => {
     const w = createWorld(OPTS);
     w.player.mode = "hos";
+    w.executives.US = { countryId: "US", presidentId: "player", presidentParty: null, termStartTurn: 0, vicePresidentId: null, vicePresidentParty: null };
     w.player.actions = 10;
     const budgetBefore = w.budgets["US"]!.treasuryBalance;
     const res = executeAction(w, "player", "launchProspect", { regionId: "TX", resource: "oil" });
@@ -77,14 +132,14 @@ describe("prospecting", () => {
 
   it("rejects a resource with no deposit in the region", () => {
     const w = createWorld(OPTS);
-    w.player.mode = "hos";
+    seatNationalIssuer(w);
     const res = launchProspectingSurvey(w, { countryId: "US", regionId: "RI", resource: "oil" });
     expect(res.ok).toBe(false);
   });
 
   it("caps active surveys per government at 3", () => {
     const w = createWorld(OPTS);
-    w.player.mode = "hos";
+    seatNationalIssuer(w);
     const regions: Array<[string, "oil" | "natural_gas" | "coal"]> = [
       ["TX", "oil"],
       ["TX", "natural_gas"],
@@ -101,7 +156,7 @@ describe("prospecting", () => {
   it("determinism: identical seeds resolve identically", () => {
     const mk = () => {
       const w = createWorld({ seed: "prospect-det", playerName: "P", countryId: "US", era: "1953" });
-      w.player.mode = "hos";
+      seatNationalIssuer(w);
       launchProspectingSurvey(w, { countryId: "US", regionId: "TX", resource: "oil" });
       return w;
     };
@@ -128,7 +183,8 @@ describe("extraction contract issuance + NPC acceptance", () => {
     // and one without, across the same single turn.
     const mkWorld = () => createWorld(OPTS);
     const withOffer = mkWorld();
-    withOffer.player.mode = "hos";
+    seatNationalIssuer(withOffer);
+    addRegionalExtractionOperation(withOffer);
     withOffer.player.actions = 10;
     const corp = withOffer.corporations["US-extraction"]!;
     expect(corp).toBeDefined();
@@ -146,6 +202,11 @@ describe("extraction contract issuance + NPC acceptance", () => {
     expect(contract.corporationId).toBe("US-extraction");
 
     const without = mkWorld();
+    addRegionalExtractionOperation(without);
+    withOffer.corporations["US-extraction"]!.ceoId = undefined;
+    withOffer.corporations["US-extraction"]!.ceoType = "npp";
+    without.corporations["US-extraction"]!.ceoId = undefined;
+    without.corporations["US-extraction"]!.ceoType = "npp";
 
     advanceTurn(withOffer);
     advanceTurn(without);
@@ -160,9 +221,115 @@ describe("extraction contract issuance + NPC acceptance", () => {
     expect(treasuryDelta).toBe(1000);
   });
 
+  it("holds a player-CEO offer open until the CEO accepts through the public action contract", () => {
+    const w = createWorld(OPTS);
+    seatNationalIssuer(w);
+    const corp = addRegionalExtractionOperation(w);
+    w.player.actions = 100;
+    const offered = executeAction(w, "player", "issueExtractionContract", {
+      regionId: "TX", resource: "oil", share: 0.1, royaltyRatePerTurn: 0.01, termTurns: 24, signingFeeAnchor: 100,
+    });
+    expect(offered.ok).toBe(true);
+    const contract = w.extractionContracts[0]!;
+
+    advanceTurn(w);
+    expect(contract.status).toBe("offered");
+    const cashBefore = corp.liquidCapital;
+    const accepted = executeAction(w, "player", "acceptExtractionContract", { contractId: contract.id });
+
+    expect(accepted.ok).toBe(true);
+    expect(contract.status).toBe("active");
+    expect(corp.liquidCapital).toBe(cashBefore - 100);
+    expect(contract.activatedTurn).toBe(w.meta.turn);
+    expect(contract.expiresTurn).toBe(w.meta.turn + 24);
+  });
+
+  it("runs a state-issued prospect, CEO contract, starter build, production, royalties, and save reload", () => {
+    const w = createWorld(OPTS);
+    w.enactedLaws.push({ id: "resource_extraction_authority", countryId: "US", billId: "state-only", enactedAtTurn: 0, level: 2, scope: "national", expiresAtTurn: null });
+    w.governors.TX = { stateId: "TX", countryId: "US", governorId: "player", governorParty: null, governorName: "Tester", termStartTurn: 0, gubernatorialActions: 4, lastActionGrantedTurn: 0, lastAddressTurn: null };
+    const corp = addRegionalExtractionOperation(w);
+    const operation = Object.values(corporateSectorAssets(w)).find((asset) => asset.corporationId === corp.id && asset.stateId === "TX")!;
+    w.player.actions = 100;
+
+    const survey = executeAction(w, "player", "launchProspect", { regionId: "TX", resource: "oil", issuerLevel: "state" });
+    expect(survey.ok).toBe(true);
+    expect(w.governors.TX.gubernatorialActions).toBe(3);
+    expect(w.regionalBudgets.TX!.spending.resourceProspecting).toBeGreaterThan(0);
+    const offer = executeAction(w, "player", "issueExtractionContract", {
+      regionId: "TX", resource: "oil", share: 0.1, royaltyRatePerTurn: 0.01, termTurns: 120, signingFeeAnchor: 100,
+    });
+    expect(offer.ok).toBe(true);
+    const contract = w.extractionContracts[0]!;
+    expect(contract.grantedByLevel).toBe("state");
+
+    expect(executeAction(w, "player", "acceptExtractionContract", { contractId: contract.id }).ok).toBe(true);
+    expect(contract.status).toBe("active");
+    const capacity = w.stateResourceCapacities.TX!.resources.oil!;
+    advanceTurn(w);
+
+    const expectedRoyalty = 0.01 * 0.1 * capacity * w.commodityPrices.oil!.globalPrice;
+    expect(operation.capitalStock).toBeGreaterThan(0);
+    expect(operation.producedUnits).toBeGreaterThan(0);
+    expect(operation.soldByCommodity).toMatchObject({ iron: 0, rare_earth: 0, timber: 0 });
+    expect(operation.buildQueue?.[0]?.onlineTurn).toBeGreaterThan(w.meta.turn);
+    expect(operation.realizedRevenue).toBeGreaterThan(0);
+    expect(contract.lastSettlementTurn).toBe(w.meta.turn);
+    expect(w.regionalBudgets.TX!.revenue.resourceRoyalties).toBeCloseTo(100 + expectedRoyalty, 6);
+    expect(w.regionalBudgets.TX!.revenue.total).toBeGreaterThan(w.regionalBudgets.TX!.revenue.councilTax + w.regionalBudgets.TX!.revenue.businessRates + w.regionalBudgets.TX!.revenue.grant);
+    const firstTurnRoyaltyBudget = w.regionalBudgets.TX!.revenue.resourceRoyalties;
+    for (let i = 0; i < EXTRACTION_STARTER_BUILD_TURNS - 1; i += 1) advanceTurn(w);
+    expect(w.prospectingSurveys[0]!.status).toMatch(/succeeded|failed/);
+    expect(operation.buildQueue).toEqual([]);
+    expect(operation.constructionInProgressAnchor).toBe(0);
+    expect(operation.capitalStock).toBeGreaterThan(EXTRACTION_STARTER_UNITS * 0.8);
+    expect(operation.capacityBookAnchor).toBeGreaterThan(0);
+    expect(operation.producedUnits).toBeGreaterThan(0);
+    expect(operation.realizedRevenue).toBeGreaterThan(0);
+    expect(w.regionalBudgets.TX!.revenue.resourceRoyalties).toBeGreaterThan(firstTurnRoyaltyBudget);
+    const restored = deserializeSave(serializeSave(w, "2026-10-01T00:00:00.000Z"));
+    expect(Object.values(corporateSectorAssets(restored))).toContainEqual(expect.objectContaining({
+      id: operation.id,
+      capitalStock: operation.capitalStock,
+      capacityBookAnchor: operation.capacityBookAnchor,
+      producedUnits: operation.producedUnits,
+      realizedRevenue: operation.realizedRevenue,
+      buildQueue: operation.buildQueue,
+    }));
+    expect(restored.extractionContracts.find((item) => item.id === contract.id)).toMatchObject({ status: "active", grantedByLevel: "state", lastSettlementTurn: w.meta.turn });
+    expect(restored.regionalBudgets.TX!.revenue.resourceRoyalties).toBe(w.regionalBudgets.TX!.revenue.resourceRoyalties);
+    expect(restored.regionalBudgets.TX!.spending.resourceProspecting).toBe(w.regionalBudgets.TX!.spending.resourceProspecting);
+  }, 600_000);
+
+  it("lets the CEO decline an offer and the recorded issuer revoke an accepted contract", () => {
+    const w = createWorld(OPTS);
+    seatNationalIssuer(w);
+    const corp = addRegionalExtractionOperation(w);
+    const issue = () => executeAction(w, "player", "issueExtractionContract", {
+      regionId: "TX", resource: "oil", share: 0.1, royaltyRatePerTurn: 0.01, termTurns: 24, signingFeeAnchor: 0,
+    });
+
+    expect(issue().ok).toBe(true);
+    const declined = w.extractionContracts[0]!;
+    expect(executeAction(w, "player", "declineExtractionContract", { contractId: declined.id }).ok).toBe(true);
+    expect(declined.status).toBe("declined");
+    expect(declined.revokedTurn).toBe(w.meta.turn);
+
+    expect(issue().ok).toBe(true);
+    const revoked = w.extractionContracts[1]!;
+    expect(executeAction(w, "player", "acceptExtractionContract", { contractId: revoked.id }).ok).toBe(true);
+    expect(executeAction(w, "player", "revokeExtractionContract", { contractId: revoked.id }).ok).toBe(true);
+    const royaltiesBefore = w.budgets.US!.revenue.other;
+    advanceTurn(w);
+    expect(revoked.revokedTurn).toBe(0);
+    expect(revoked.lastSettlementTurn).not.toBe(w.meta.turn);
+    expect(w.budgets.US!.revenue.other).toBe(royaltiesBefore);
+  });
+
   it("enforces the 75% total-contracted-share cap", () => {
     const w = createWorld(OPTS);
-    w.player.mode = "hos";
+    seatNationalIssuer(w);
+    addRegionalExtractionOperation(w);
     const first = issueContractOffer(w, {
       countryId: "US",
       regionId: "TX",
@@ -213,7 +380,7 @@ describe("W11 schema", () => {
   it("bumps SCHEMA_VERSION to 36 and round-trips through save/load", () => {
     expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(36);
     const w = createWorld(OPTS);
-    w.player.mode = "hos";
+    seatNationalIssuer(w);
     launchProspectingSurvey(w, { countryId: "US", regionId: "TX", resource: "oil" });
     const raw = serializeSave(w, "2026-01-01T00:00:00.000Z");
     const loaded = deserializeSave(raw);
