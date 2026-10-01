@@ -74,3 +74,12 @@ Those source paths supersede the old inventory's legacy store assumptions.
 Named unavailable controls do not complete the missing source mechanics.
 #263 remains open for the full source consumers and integrated country/role
 player flows. The separate military pipeline PORT-STUB remains intact.
+
+## Integrated validation
+
+The final application typecheck passed. Seventeen rendered regional/cabinet UI
+checks passed, including the new source-visible regional outcome. Twenty-three
+public-session, issuance, targeting and defense-classification tests passed.
+The actual immutable Game ministerial turn oracle passed both macro and political
+family cases. The held-office fixture remains controlled; source political
+cabinet residuals and complete SP appointment authority remain open.
