@@ -215,7 +215,8 @@ function currentPoliticalTfpInputs(world: WorldState, countryId: string): Partia
     let weighted = 0;
     let total = 0;
     for (const region of Object.values(world.regions)) {
-      if (region.countryId !== countryId || !(region.population > 0)) continue;
+      const population = region.population ?? 0;
+      if (region.countryId !== countryId || !(population > 0)) continue;
       const board = world.regionalPoliticalMetrics?.[region.id];
       const projection = board?.countryId === countryId
         ? legacyPoliticalHalfFromBoard(board.values, { countryId, year })?.[category]?.[metricId]?.value
@@ -224,8 +225,8 @@ function currentPoliticalTfpInputs(world: WorldState, countryId: string): Partia
         ? projection
         : world.regionalMetrics?.[region.id]?.[path]?.value;
       if (typeof regionalValue !== "number" || !Number.isFinite(regionalValue)) continue;
-      weighted += regionalValue * region.population;
-      total += region.population;
+      weighted += regionalValue * population;
+      total += population;
     }
     if (total > 0) out[field] = weighted / total;
   }

@@ -32,11 +32,12 @@ function gameWeightedProjection(world: WorldState, countryId: string, path: stri
   let total = 0;
   let weight = 0;
   for (const region of Object.values(world.regions)) {
-    if (region.countryId !== countryId || !(region.population > 0)) continue;
+    const population = region.population ?? 0;
+    if (region.countryId !== countryId || !(population > 0)) continue;
     const value = gameProjectedRegionValue(world, region.id, path);
     if (value === undefined) continue;
-    total += value * region.population;
-    weight += region.population;
+    total += value * population;
+    weight += population;
   }
   return weight > 0 ? Math.round((total / weight) * 1000) / 1000 : undefined;
 }
