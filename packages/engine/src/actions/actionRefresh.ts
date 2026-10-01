@@ -9,6 +9,7 @@
 
 import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
+import { flushCharacterStatXp } from "../stats/progression.js";
 import { playerNationalInfluenceGain } from "./playerInfluence.js";
 import { projectPlayerActionRefresh } from "./officeBonus.js";
 import { calculateFavorabilityAboveThresholdPenalty } from "./favorability.js";
@@ -66,6 +67,7 @@ export const actionRefreshPhase: TurnPhase = {
     const player = world.player;
     if (typeof player.actions === "number") {
       player.actions = projectPlayerActionRefresh(world).next;
+      flushCharacterStatXp(world);
       if (typeof player.politicalInfluence === "number") {
         // Game d4baf899 shared/constants/formulas.ts calculateNationalInfluenceGain
         // and turn/actionRefresh.ts: use pre-decay influence; reputation is uncapped.

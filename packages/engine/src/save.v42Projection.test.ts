@@ -96,7 +96,7 @@ describe("projectSaveToV42 public envelope", () => {
   it("projects convertCash on that Native-fresh world to the recorded v42-reader hash", () => {
     const world = createWorld(WORLD_OPTS);
     const result = executeAction(world, "player", "convertCash", { amount: 2000 });
-    expect(result).toEqual({ ok: true, message: "Converted 2000 cash to 1000 funds." });
+    expect(result).toEqual({ ok: true, message: "Converted 2000 cash to 1000 funds.", changes: { actions: -2, cash: -2000, funds: 1000 } });
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projected.ok).toBe(true);
     if (!projected.ok) throw new Error(projected.error);
