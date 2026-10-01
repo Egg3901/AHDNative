@@ -137,7 +137,7 @@ export function RegionSectorAssetsCard({
                       ? "Owned by you"
                       : listing.playerShares > 0
                         ? `You hold ${listing.playerShares.toLocaleString("en-US")} ${listing.playerShares === 1 ? "share" : "shares"}`
-                        : "Unowned"}
+                        : `Owned by ${listing.name}`}
                   </span>
                   <span>
                     Workers:{" "}
