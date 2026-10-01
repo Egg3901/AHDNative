@@ -423,6 +423,13 @@ describe("China's executable national budget-tax slice (#286)", () => {
     // the source-generated election and each action uses its authored price.
     world.player.actions = 200;
     world.player.nationalInfluence = 100;
+    const sourceVectorVoter = world.politicians.find(
+      (politician) => politician.countryId === "CN" && politician.chamberKey === "npc" && politician.partyId === "CN_CDL",
+    );
+    expect(sourceVectorVoter).toBeDefined();
+    sourceVectorVoter!.ideology = { economic: -3, social: 0 };
+    sourceVectorVoter!.donorBaseLevel = 3;
+    sourceVectorVoter!.personality = { loyalty: 80, ambition: 50, stubbornness: 20 };
     const careerBills: Array<{ id: string; lawId: (typeof TAX_LAWS)[number]["id"]; before: number; selected: number; taxType: keyof BudgetTaxRates }> = [];
 
     for (const row of TAX_LAWS) {
@@ -431,7 +438,7 @@ describe("China's executable national budget-tax slice (#286)", () => {
       const taxType = row.taxType as keyof BudgetTaxRates;
       const beforeRate = world.budgets.CN!.taxRates[taxType];
       const option = [...(policy.options ?? [])]
-        .filter((candidate) => candidate.rate !== beforeRate && candidate.economic > 0)
+        .filter((candidate) => candidate.rate !== beforeRate && candidate.economic < 0)
         .sort((a, b) => Math.abs(a.economic) - Math.abs(b.economic) || Math.abs(a.rate - beforeRate) - Math.abs(b.rate - beforeRate))[0];
       expect(option, row.id).toBeDefined();
       const sponsored = executeAction(world, "player", "sponsorBill", { catalogId: row.id, taxRate: option!.rate });
@@ -447,6 +454,14 @@ describe("China's executable national budget-tax slice (#286)", () => {
       if (proposalNpiCost(law) > 0) expect(sponsored.changes?.nationalInfluence).toBe(-proposalNpiCost(law));
       careerBills.push({ id: bill.id, lawId: row.id, before: beforeRate, selected: option!.rate, taxType });
       advanceTurn(world); // the native sponsor cooldown expires on its authored later turn
+      if (row.id === "cn_value_added_tax") {
+        // Independently executed Game cb66acdf source vector for this recorded
+        // opposition voter and 11% VAT option: forces (60, 0, 0, 36), resolving
+        // FOR. The public turn records that NPC ballot after the proposed bill
+        // has crossed into its active stage.
+        const bill = world.bills.find((candidate) => candidate.id === careerBills.at(-1)!.id)!;
+        expect(bill.votes[sourceVectorVoter!.id], row.id).toBe("for");
+      }
     }
     for (let i = 0; i < 8 && careerBills.some((entry) => {
       const bill = world.bills.find((candidate) => candidate.id === entry.id)!;

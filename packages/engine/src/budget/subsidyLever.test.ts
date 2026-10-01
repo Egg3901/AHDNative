@@ -5,7 +5,10 @@ import { deserializeSave, serializeSave } from "../save.js";
 import { createWorld } from "../world.js";
 import { SECTOR_SUBSIDIES_SPENDING_KEY } from "./subsidyBudget.js";
 
-const HOS_OPTS = { seed: "subsidy-bill-test", playerName: "Tester", countryId: "US", era: "1953", mode: "hos" } as const;
+// The 1953 HoS seat and its source party are both US_REP. Supplying the
+// character's actual party affiliation gives policyless bills the source
+// party-line input; without it every NPC correctly abstains.
+const HOS_OPTS = { seed: "subsidy-bill-test", playerName: "Tester", countryId: "US", era: "1953", mode: "hos", partyId: "US_REP" } as const;
 function line(world: ReturnType<typeof createWorld>, countryId = "US"): number {
   return world.budgets[countryId]!.spending.byCategory[SECTOR_SUBSIDIES_SPENDING_KEY] ?? 0;
 }
