@@ -58,7 +58,14 @@ const SUBNATIONAL_SEAT_CHAMBER: Record<string, string> = {
 };
 
 export interface RegionsQuery {
-  /** Selected region id. Ignored when it is not in the player's country. */
+  /**
+   * Selected country scope. Defaults to the player's country; a value naming
+   * no country in the save falls back to the player's country. Eligibility is
+   * presence in the save — browsing another nation's directory is detached
+   * (never attaches WorldState) and read-only, mirroring the world map.
+   */
+  countryId?: string | null;
+  /** Selected region id. Ignored when it is not in the selected country. */
   regionId?: string | null;
   directoryQuery?: string;
   directoryPage?: number;
@@ -82,12 +89,30 @@ export interface RegionOfficialView {
   party: RegionPartyRef | null;
 }
 
+/** Recorded race in this region, for directory link-outs to the existing race route. */
+export interface RegionDirectoryRace {
+  id: string;
+  label: string;
+  status: string;
+}
+
+/** Recorded holder of this region's governor office, for profile link-outs. */
+export interface RegionDirectoryHolder {
+  id: string;
+  name: string;
+  isPlayer: boolean;
+}
+
 export interface RegionDirectoryRow {
   id: string;
   name: string;
   isHome: boolean;
   population: number | null;
   gdpMillions: number | null;
+  /** Recorded races in this region (unresolved first), capped for directory use. */
+  races: RegionDirectoryRace[];
+  /** Recorded governor-office holder; null when the save records none. */
+  officeHolder: RegionDirectoryHolder | null;
 }
 
 export interface RegionPartySupport {
@@ -223,6 +248,9 @@ export interface RegionsView {
   date: string;
   playerCountryId: string;
   playerCountryName: string;
+  /** The directory scope: the queried country, or the player's when ineligible. */
+  selectedCountryId: string;
+  selectedCountryName: string;
   playerHomeRegionId: string | null;
   currency: string | null;
   directoryQuery: string;
@@ -304,6 +332,39 @@ function politicianName(world: WorldState, id: string): string {
 function chamberName(world: WorldState, countryId: string, chamberKey: string): string {
   const named = world.legislatures[countryId]?.chambers.find((chamber) => chamber.key === chamberKey)?.name;
   return named ?? humanize(chamberKey);
+}
+
+/** Directory link cap: rows stay phone-sized; the full list lives on the region detail. */
+export const REGION_DIRECTORY_RACE_LIMIT = 3;
+
+function directoryRaces(
+  world: WorldState,
+  countryId: string,
+  regionId: string,
+): RegionDirectoryRace[] {
+  return world.elections
+    .filter((election) => election.countryId === countryId && election.state === regionId)
+    .sort((left, right) =>
+      Number(left.status === "resolved") - Number(right.status === "resolved") ||
+      left.startTurn - right.startTurn ||
+      left.id.localeCompare(right.id)
+    )
+    .slice(0, REGION_DIRECTORY_RACE_LIMIT)
+    .map((election) => ({
+      id: election.id,
+      label: chamberName(world, countryId, election.chamberKey),
+      status: election.status,
+    }));
+}
+
+function directoryHolder(world: WorldState, regionId: string): RegionDirectoryHolder | null {
+  const office = world.governors?.[regionId];
+  if (!office) return null;
+  const holder = officialRef(world, office.governorId, office.governorParty) ?? (
+    office.governorName ? { id: null, name: office.governorName, party: null } : null
+  );
+  if (!holder || !holder.id) return null;
+  return { id: holder.id, name: holder.name, isPlayer: holder.id === "player" };
 }
 
 function projectOffice(world: WorldState, regionId: string): RegionOfficeView | null {
@@ -620,7 +681,11 @@ function projectDetail(
 export function projectRegions(world: WorldState, query: RegionsQuery = {}): RegionsView {
   const playerCountry = world.countries[world.player.countryId];
   if (!playerCountry) throw new Error("The save does not contain the player's country.");
-  const countryId = playerCountry.id;
+  const requestedCountryId = typeof query.countryId === "string" && query.countryId.length > 0
+    ? query.countryId.toUpperCase()
+    : null;
+  const selectedCountry = (requestedCountryId ? world.countries[requestedCountryId] : undefined) ?? playerCountry;
+  const countryId = selectedCountry.id;
   const homeId = typeof world.player.homeRegionId === "string" && world.player.homeRegionId.length > 0
     ? world.player.homeRegionId
     : null;
@@ -648,8 +713,10 @@ export function projectRegions(world: WorldState, query: RegionsQuery = {}): Reg
     era: world.meta.era,
     turn: world.meta.turn,
     date: world.meta.date,
-    playerCountryId: countryId,
+    playerCountryId: playerCountry.id,
     playerCountryName: playerCountry.name,
+    selectedCountryId: countryId,
+    selectedCountryName: selectedCountry.name,
     playerHomeRegionId: homeId && countryRegions.some((region) => region.id === homeId) ? homeId : null,
     currency: homeCurrency(world, countryId),
     directoryQuery,
@@ -663,6 +730,8 @@ export function projectRegions(world: WorldState, query: RegionsQuery = {}): Reg
       isHome: homeId === region.id,
       population: finiteOrNull(region.population),
       gdpMillions: finiteOrNull(region.gdp),
+      races: directoryRaces(world, countryId, region.id),
+      officeHolder: directoryHolder(world, region.id),
     })),
     selected: selectedRegion ? projectDetail(world, selectedRegion, query, homeId) : null,
   };

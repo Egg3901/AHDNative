@@ -52,9 +52,11 @@ describe("subsidy cost from live corporations (#39)", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("projects a subsidy-free current world to v42", () => {
+  it("keeps a subsidy-free current world with regional TFP state in the Native schema", () => {
     const world = createWorld(OPTS);
-    expect(projectSaveToV42(serializeSave(world, "2026-09-11T00:00:00.000Z")).ok).toBe(true);
+    const projection = projectSaveToV42(serializeSave(world, "2026-09-11T00:00:00.000Z"));
+    expect(projection.ok).toBe(false);
+    if (!projection.ok) expect(projection.error).toContain("Regional metric records");
   });
 
   it("migrates a v43 world with an empty subsidy collection", () => {

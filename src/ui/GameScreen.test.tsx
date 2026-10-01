@@ -1,7 +1,8 @@
 import type { ProfileView } from "../game/profileTypes";
 import { DEFAULT_PREFERENCES } from "../preferences";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, waitFor } from "@testing-library/react";
+import { GameSession } from "../game/session";
 import userEvent from "@testing-library/user-event";
 import { GameScreen } from "./GameScreen";
 import { MENU_GROUPS } from "./MobileNavigation";
@@ -139,6 +140,31 @@ async function navigate(user: ReturnType<typeof userEvent.setup>, name: string) 
 }
 
 describe("GameScreen", () => {
+  it("keeps map standings loaded when unrelated screen state rerenders", async () => {
+    const user = userEvent.setup();
+    const session = new GameSession();
+    const world = session.create({ era: "1953", countryId: "US", seed: "map-query-stability", playerName: "Ada" });
+    const loadHallOfFame = vi.fn(async () => session.hallOfFame());
+    const props = {
+      ...preferencesProps,
+      loadProfile: async () => session.profile(),
+      loadPolitics: async () => session.politics(),
+      search, loadBondMarket, loadCaucusManagement, loadPartyManagement, loadMarkets, loadLegislation,
+      loadWorldOverview: async () => session.worldOverview(),
+      loadRegions: async () => session.regions(),
+      loadHallOfFame,
+      world, busy: false,
+      onAdvanceTurn: vi.fn(), onSave: vi.fn(), onExit: vi.fn(), onAction: vi.fn(),
+      onUpdateWorldFeatureFlags: vi.fn(),
+    };
+    const rendered = render(<GameScreen {...props} />);
+    await navigate(user, "World map");
+    await screen.findByRole("region", { name: "Hall of Fame summary" }, { timeout: 15000 });
+    expect(loadHallOfFame).toHaveBeenCalledTimes(1);
+    rendered.rerender(<GameScreen {...props} message="Game saved." />);
+    await waitFor(() => expect(screen.getByRole("region", { name: "Hall of Fame summary" })).toBeInTheDocument());
+    expect(loadHallOfFame).toHaveBeenCalledTimes(1);
+  }, 60000);
   it("opens on the player profile, matching the existing game entry flow", async () => {
     const world = makeWorld();
     render(<GameScreen {...preferencesProps} loadProfile={async () => profileFor(world)} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={false} onAdvanceTurn={vi.fn()} onSave={vi.fn()} onExit={vi.fn()} onUpdateWorldFeatureFlags={vi.fn()} onAction={vi.fn()} />);
@@ -395,10 +421,10 @@ describe("GameScreen", () => {
     const loadNations = async () => ({
       era: "1953", turn: 1, date: "1953-01-01", playerCountryId: "US", playerHomeRegionId: "CA",
       nations: [
-        { id: "US", name: "United States", playable: true, currency: "USD",
+        { id: "US", name: "United States", playable: true, currency: "USD", races: [], leader: null,
           economy: { gdpMillions: 387_000, growthRate: 0.046, inflationRate: 0.0075, unemploymentRate: 0.029, outputGap: -1.25 },
           government: emptyGovernment },
-        { id: "FR", name: "France", playable: false, currency: "FRF",
+        { id: "FR", name: "France", playable: false, currency: "FRF", races: [], leader: null,
           economy: { gdpMillions: 47_000, growthRate: 0.035, inflationRate: 0.025, unemploymentRate: 0.02, outputGap: 0 },
           government: emptyGovernment },
       ],
@@ -990,12 +1016,14 @@ describe("GameScreen navigation menu", () => {
       expect(within(identity).getByRole("button", { name: label })).toBeInTheDocument();
     }
     expect(within(menu).getByRole("group", { name: "Actions" })).toBeInTheDocument();
-    // Reference destinations with no Native surface (Hall of Fame, My
-    // Corporation, Unions, Crises, Sectors) must not appear as placeholder rows.
-    // World map now exists as its own directory route (#73).
-    for (const label of ["Hall of Fame", "My Corporation", "Unions", "Crises", "Sectors", "Currency Exchange", "Trade", "IMF"]) {
+    // Reference destinations with no Native surface (My Corporation,
+    // Unions and Crises) must not appear as placeholder rows. World
+    // map and Hall of Fame exist as real routes (#73).
+    for (const label of ["My Corporation", "Unions", "Crises", "Currency Exchange", "Trade", "IMF"]) {
       expect(within(menu).queryByRole("button", { name: label })).not.toBeInTheDocument();
     }
+    await user.click(within(menu).getByRole("button", { name: "World" }));
+    expect(within(menu).getByRole("button", { name: "Hall of Fame" })).toBeInTheDocument();
   });
 
   it("renders Banking from world.finance and deposits through the real action", async () => {

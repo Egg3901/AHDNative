@@ -43,7 +43,7 @@ import { validateUnionOrganizers } from "./unions/organizers.js";
 import { validateUnionContributionLedger } from "./unions/contributions.js";
 import { makeSeedSoeState } from "./commandEconomy/soe.js";
 import { validateCorporateBondSettlementLedger } from "./bonds/corporateBondDefaultSettlement.js";
-import { validatePlayerLineOfCredit } from "./finance/playerLineOfCredit.js";
+import { validatePlayerLineOfCredit, validatePlayerLineOfCreditWallet } from "./finance/playerLineOfCredit.js";
 import { validateNationalSavingsPools } from "./finance/playerSavingsInterest.js";
 import type { BankCharter } from "./banking/types.js";
 import { validateBankingState } from "./banking/validate.js";
@@ -3339,6 +3339,7 @@ export function deserializeSave(raw: string): WorldState {
   // save/load leaves untouched worlds byte-identical.
   if (save.world.player.lineOfCredit !== undefined) {
     validatePlayerLineOfCredit(save.world.player.lineOfCredit);
+    validatePlayerLineOfCreditWallet(save.world.player);
   }
   validateNationalSavingsPools(save.world);
   // #322: bargaining campaigns + collective agreements. Saves written before

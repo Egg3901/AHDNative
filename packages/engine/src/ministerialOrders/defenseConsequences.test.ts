@@ -28,9 +28,11 @@ describe("#276 defense ministerial order consequences", () => {
       expect(order.unavailableEffects).toEqual(
         order.effects.map((effect) => ({
           metric: effect.metric,
+          // Independently executed current Game processor writes safety/trust
+          // into its political snapshot. Approval is deliberately unmapped.
           missingConsumer: effect.metric === "governmentApproval"
-            ? "governmentApprovals"
-            : `nationalMetrics.${effect.metric}`,
+            ? "unmappedSourceOutcome:governmentApproval"
+            : "politicalCabinetContribution",
         })),
       );
     }
@@ -82,7 +84,7 @@ describe("#276 defense ministerial order consequences", () => {
     expect(result.rejectedDefenseOrders).toEqual([{
       orderId: "uk-review-unavailable",
       catalogOrderId: "national_defence_review",
-      missingConsumers: ["governmentApprovals"],
+      missingConsumers: ["unmappedSourceOutcome:governmentApproval"],
       reason: "unavailableConsumer",
     }]);
   });

@@ -1,5 +1,5 @@
 /**
- * Corporation plant-capacity substrate from AHDGame 954f1c2178.
+ * Corporation plant-capacity substrate from AHDGame cb66acdf0129616b8a09902727e9b58715c8bacb.
  *
  * `capitalStock` is the source CorporateSector output-unit stock and
  * `capacityBookAnchor` is its paid USD-era book value. Native corporate revenue
@@ -17,7 +17,7 @@ export const PLANT_CAPITAL_SEED_HEADROOM = 1.1;
 export const PLANT_CAPITAL_DEPRECIATION_PER_TURN = 0.0005;
 const GROWTH_COST_MULTIPLIER = 3;
 
-/** Game's ungated standard-strategy output mix (`SECTOR_STRATEGIES`, standard). */
+/** Game's ungated standard-strategy output mix (`SECTOR_STRATEGIES`, standard), source cb66acdf. */
 export const DEFAULT_SECTOR_OUTPUT_MIX: Partial<Record<CorporationType, Partial<Record<CommodityType, number>>>> = {
   manufacturing: { steel: 0.4, building_materials: 0.2 },
   technology: { electronics: 0.35, software: 0.35 },

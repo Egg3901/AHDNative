@@ -3,8 +3,8 @@
  *
  * Both home-region surfaces (RegionsPanel detail and WorldPanel state section)
  * render these, so the two can never disagree. Macro reads Country.economy —
- * the engine keeps those five indicators once per country and records no
- * per-region growth/inflation/unemployment series, so the card says so.
+ * the engine keeps those five macro indicators once per country. Supported
+ * regional StateMetrics are shown separately in the selected region detail.
  * Sectors read WorldState.corporations: Native seeds one corporation per
  * (country, sectorType) with no region id (corporation/types.ts), so the board
  * is the country's sector output and is labelled as such. Absent records render
@@ -111,7 +111,7 @@ export function RegionMacroCard({ macro, currency }: { macro: RegionMacroView | 
     <div className="ahd-card ahd-card-pad">
       <h2 className="ahd-h2">National macro</h2>
       <p className="ahd-muted" style={{ margin: "0.3rem 0 0", fontSize: "0.72rem" }}>
-        Recorded once per country; Native keeps no per-region growth, inflation or unemployment series.
+        Country-wide annualized indicators.
       </p>
       {macro === null ? (
         <div className="ahd-empty" style={{ marginTop: "0.6rem" }}>No national economy record.</div>
@@ -125,6 +125,20 @@ export function RegionMacroCard({ macro, currency }: { macro: RegionMacroView | 
         </dl>
       )}
     </div>
+  );
+}
+
+/** Game's regional Economic indicators board, for supported recorded rows. */
+export function RegionEconomicIndicators({ metrics }: { metrics: Record<string, number> }) {
+  const unemployment = metrics["economic.unemploymentRate"];
+  if (!Number.isFinite(unemployment)) return null;
+  return (
+    <section className="ahd-card ahd-card-pad">
+      <h2 className="ahd-h2">Economic indicators</h2>
+      <dl className="ahd-stack" style={{ marginTop: "0.6rem", gap: "0.42rem" }}>
+        <KeyValue label="Unemployment Rate" value={pointsPercent(unemployment!)} />
+      </dl>
+    </section>
   );
 }
 

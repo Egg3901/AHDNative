@@ -1,3 +1,14 @@
+## Final integrated verification and closure
+
+[PR #714](https://github.com/Egg3901/AHDNative/pull/714) merged as `65aebad`
+after exact `ec4b19a` passed [full hosted verification](https://github.com/Egg3901/AHDNative/actions/runs/36895445082).
+All original #110 and #111 criteria are checked with per-row evidence in their
+issue bodies. Both issues are confirmed closed with partial labels removed.
+#299 is also closed for source corporate funding, physical ledger conservation
+and its actual two-width public trading and save/resume flow. #107 remains partial.
+#298 remains partial for directly seated canonical SP head-of-government authority;
+the career ownership and secession evidence below does not resolve that gap.
+
 # Corporate finance and bond issuance checkpoint
 
 This checkpoint records the supported Native implementation for original
@@ -112,6 +123,13 @@ is pending. Original #111 stays open until all four acceptance rows pass.
 Wires transfer the selected currency unchanged, with no fee; source FX is used
 only for the sender's anchor-denominated quota. Adding a transfer conversion or
 fee would diverge from Game's actual route.
+
+Integrated supplemental LOC, wire and subsidy suites pass 55 tests. Invalid
+foreign personal wallets now fail at load as well as servicing. An independently
+executed Game `quoteLocService` at USD1/GBP2.01 debits GBP2.02, pays USD4.06
+of the USD4.07 schedule and freezes further draws despite a funded foreign wallet;
+Native preserves this source cent-rounding behavior. Current Game `cb66acdf`
+leaves these servicing rules unchanged from `96831835`.
 
 Physical sales also exposed Native's stale output-gap clamp. Independently
 executed current Game vectors now constrain both persisted gap and headline

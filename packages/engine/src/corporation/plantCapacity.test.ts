@@ -40,7 +40,7 @@ describe("corporate plant capital at the public asset boundary", () => {
 
   it("uses AHDGame's standard diversified extraction production rates", () => {
     // Independent vector from AHDGame src/lib/constants/sectorStrategies.ts
-    // extraction.standard at immutable source revision 96831835.
+    // extraction.standard at immutable source revision cb66acdf0129616b8a09902727e9b58715c8bacb.
     expect(DEFAULT_SECTOR_OUTPUT_MIX.extraction).toEqual({
       iron: 0.25,
       coal: 0.22,
