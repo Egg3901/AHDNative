@@ -49,10 +49,11 @@ Focused commands and results on the follow-on worktree:
 - `git diff --check`: passed.
 
 The root `npm run build` passed through `tsc --noEmit` and the Vite production
-build (scheduled job `20261001T210716Z-3e21b9f2`). The first package-level
-content typecheck exposed implicit-any source-catalog diagnostics; the
-generator now has an explicit source law shape and that package typecheck is
-queued. The engine package typecheck still reports test-only diagnostics,
+build (scheduled job `20261001T210716Z-3e21b9f2`). The content package
+typecheck passed after adding an explicit source law shape at the dynamic
+Game catalog boundary (scheduled job `20261001T211340Z-8e544ea9`); the
+content roster test passed 36/36 after merging the current #717 roster fix.
+The engine package typecheck still reports test-only diagnostics,
 including one-argument `characterParity.test.ts` calls, `fundCost.test.ts`
 optional-property/duplicate-field diagnostics, and stale `WorldRng` /
 partial-world fixtures. Those package-wide diagnostics were not
