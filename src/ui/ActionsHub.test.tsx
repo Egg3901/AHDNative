@@ -1,3 +1,4 @@
+import type { GameActionParams } from "../game/actionInput";
 import { readFileSync } from "node:fs";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -715,7 +716,7 @@ describe("ActionsHub", () => {
     });
 
     let actionResult: ReturnType<GameSession["act"]> | undefined;
-    const onAction = (id: string, params?: Record<string, string | number>) =>
+    const onAction = (id: string, params?: GameActionParams) =>
       (actionResult = session.act(id, {
         corporationId: String(params?.corporationId ?? ""),
         tier: "seizure",

@@ -21,7 +21,7 @@ function savedWorld(session: GameSession) {
           regionId?: string;
         } | null;
       };
-      regions: Record<string, { countryId: string }>;
+      regions: Record<string, { countryId: string; independenceDesire?: number }>;
       corporateSectors: Record<
         string,
         {

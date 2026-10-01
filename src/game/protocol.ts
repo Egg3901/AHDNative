@@ -34,7 +34,9 @@ export type GameCommand =
   | { type: "advance" }
   | { type: "action"; actionId: string; params?: GameActionParams }
   | { type: "sectorSale"; op: "list" | "update" | "unlist" | "buy"; assetId: string; priceAnchor?: number; buyerCorporationId?: string }
-  | { type: "unionCommand"; op: "organize" | "vote" | "accept"; unionId: string }
+  | { type: "unionCommand"; op: "organize"; unionId: string }
+  | { type: "unionCommand"; op: "vote"; unionId: string }
+  | { type: "unionCommand"; op: "accept"; unionId: string }
   | { type: "unionCommand"; op: "organizeSector"; unionId: string; assetId: string }
   | { type: "unionCommand"; op: "dues"; unionId: string; duesPerWorkerAnnual: number }
   | { type: "unionCommand"; op: "call"; unionId: string; employerId: string; terms: import("@ahdclient/engine").BargainingTerms }
