@@ -991,12 +991,13 @@ describe("GameScreen navigation menu", () => {
     }
     expect(within(menu).getByRole("group", { name: "Actions" })).toBeInTheDocument();
     // Reference destinations with no Native surface (My Corporation,
-    // Unions, Crises, Sectors) must not appear as placeholder rows. World
+    // Unions and Crises) must not appear as placeholder rows. World
     // map and Hall of Fame exist as real routes (#73).
-    for (const label of ["My Corporation", "Unions", "Crises", "Sectors", "Currency Exchange", "Trade", "IMF"]) {
+    for (const label of ["My Corporation", "Unions", "Crises", "Currency Exchange", "Trade", "IMF"]) {
       expect(within(menu).queryByRole("button", { name: label })).not.toBeInTheDocument();
     }
-    expect(within(menu).getByRole("button", { name: "Hall of Fame" })).toBeInTheDocument();
+    await user.click(within(menu).getByRole("button", { name: "World", exact: true }));
+    expect(within(menu).getByRole("button", { name: "Hall of Fame", exact: true })).toBeInTheDocument();
   });
 
   it("renders Banking from world.finance and deposits through the real action", async () => {

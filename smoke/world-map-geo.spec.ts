@@ -21,7 +21,7 @@ async function openWorldMap(page: import('@playwright/test').Page) {
     await dialog.getByRole('button', { name: 'World', exact: true }).click();
   }
   await map.click();
-  await expect(page.getByRole('group', { name: /world nations geographic map/i })).toBeVisible();
+  await expect(page.getByRole('group', { name: /world nations geographic map|on the world map, flat projection/i })).toBeVisible();
 }
 
 test('390px: geographic map selection, Hall of Fame flow, saved view survives reload', async ({ page }) => {
@@ -32,9 +32,11 @@ test('390px: geographic map selection, Hall of Fame flow, saved view survives re
   const map = page.getByRole('group', { name: /world nations geographic map/i });
   await expect(map.locator('path[data-feature-id="250"]')).toHaveCount(1);
   await expect(map.locator('path[data-feature-id="834"]')).toHaveCount(1);
-  // SVG g actors never report DOM-visible to Playwright; dispatch the
-  // real click event so the production handler (not a test hook) navigates.
-  await map.getByRole('button', { name: 'Open France on the map' }).dispatchEvent('click');
+  // Tap mainland France. Its multipart feature also includes French Guiana,
+  // so the bounding-box center falls outside the actual country shape.
+  const bounds = await map.boundingBox();
+  if (!bounds) throw new Error('Geographic map has no visible bounds');
+  await page.mouse.click(bounds.x + bounds.width * (182.3 / 360), bounds.y + bounds.height * (41.2 / 180));
   await expect(map).toBeHidden();
   await expect(page.getByRole('heading', { name: 'France' }).first()).toBeVisible();
 
@@ -72,7 +74,8 @@ test('320px: keyboard map selection without horizontal overflow', async ({ page 
 
   const map = page.getByRole('group', { name: /world nations geographic map/i });
   const france = map.getByRole('button', { name: 'Open France on the map' });
-  await france.dispatchEvent('keydown', { key: 'Enter' } as never);
+  await france.focus();
+  await france.press('Enter');
   await expect(map).toBeHidden();
   await expect(page.getByRole('heading', { name: 'France' }).first()).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
