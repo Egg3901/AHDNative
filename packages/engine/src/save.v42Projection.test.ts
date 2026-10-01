@@ -22,13 +22,11 @@ import {
 
 const SAVED_AT = "2026-09-10T00:00:00.000Z";
 const FIXTURE_SHA = "471352be87c8887dcc6ae02f465b898272f62843b5e0861a45138c2de7f58cdc";
-const NATIVE_FRESH_KEEP_HOME_SHA = "404370ac2e43de737ce3e664fafde05f34a8298bb51db2de9de8ae6de6c59b03";
-const NATIVE_FRESH_CONVERT_KEEP_HOME_SHA = "389c8c242abe894a494b43d226387651aa62c46663d7ae98e374781a53f62065";
 const FIXTURE_GZ = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures/v42-1953-US.save.json.gz");
 const WORLD_OPTS = { seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" } as const;
 
 it("keeps the historical v42 flag shape and refuses its unsupported RPG-off ruleset", () => {
-  const world = createWorld(WORLD_OPTS);
+  const world = deserializeSave(loadAuthenticV42());
   const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
   expect(projected.ok).toBe(true);
   if (!projected.ok) throw new Error(projected.error);
@@ -74,40 +72,17 @@ describe("projectSaveToV42 public envelope", () => {
     expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });
   });
 
-  it("projects a Native-fresh 1953 US world with homeRegionId AL as a v42 extension the old reader preserved", () => {
+  it("refuses fresh Game-seeded regional TFP inputs rather than exporting a frozen v42 extension", () => {
     const world = createWorld(WORLD_OPTS);
     expect(world.player.homeRegionId).toBe("AL");
-    const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
-    expect(projected.ok).toBe(true);
-    if (!projected.ok) throw new Error(projected.error);
-    const parsed = parseProjected(projected.contents);
-    expect(parsed.schemaVersion).toBe(42);
-    expect(parsed.metaSchema).toBe(42);
-    expect(parsed.hasCountryPolitics).toBe(false);
-    expect(parsed.hasHomeRegionId).toBe(true);
-    expect(parsed.homeRegionId).toBe("AL");
-    expect(sha256(projected.contents)).toBe(NATIVE_FRESH_KEEP_HOME_SHA);
-    const restored = deserializeSave(projected.contents);
-    expect(restored.meta.schemaVersion).toBe(SCHEMA_VERSION);
-    expect(restored.player.homeRegionId).toBe("AL");
-    expect(restored.countryPolitics).toEqual(world.countryPolitics);
-  });
-
-  it("projects convertCash on that Native-fresh world to the recorded v42-reader hash", () => {
-    const world = createWorld(WORLD_OPTS);
-    const result = executeAction(world, "player", "convertCash", { amount: 2000 });
-    expect(result).toEqual({ ok: true, message: "Converted 2000 cash to 1000 funds." });
-    const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
-    expect(projected.ok).toBe(true);
-    if (!projected.ok) throw new Error(projected.error);
-    expect(sha256(projected.contents)).toBe(NATIVE_FRESH_CONVERT_KEEP_HOME_SHA);
-    expect(parseProjected(projected.contents).homeRegionId).toBe("AL");
-    expect(parseProjected(projected.contents).hasCountryPolitics).toBe(false);
-    const restored = deserializeSave(projected.contents);
-    expect(restored.player.homeRegionId).toBe("AL");
-    expect(restored.player.cash).toBe(world.player.cash);
-    expect(restored.player.funds).toBe(world.player.funds);
-    expect(restored.countryPolitics).toEqual(world.countryPolitics);
+    expect(world.regionalMetrics.CA?.["education.workforceSkill"]?.value).toBe(50);
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false, error: expect.stringContaining("Regional metric records"),
+    });
+    expect(executeAction(world, "player", "convertCash", { amount: 2000 }).ok).toBe(true);
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false, error: expect.stringContaining("Regional metric records"),
+    });
   });
 
   it("projects a Native-migrated authentic v42 world back to the fixture bytes", () => {
@@ -118,7 +93,7 @@ describe("projectSaveToV42 public envelope", () => {
   });
 
   it("refuses a Native world after a turn mutates countryPolitics history", () => {
-    const world = createWorld(WORLD_OPTS);
+    const world = deserializeSave(loadAuthenticV42());
     advanceTurn(world);
     expect(world.countryPolitics["US"]!.approvalHistory.length).toBeGreaterThan(1);
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
@@ -165,7 +140,7 @@ describe("projectSaveToV42 public envelope", () => {
   });
 
   it("refuses a Native world with live market pressure state", () => {
-    const world = createWorld(WORLD_OPTS);
+    const world = deserializeSave(loadAuthenticV42());
     world.corporations["US-manufacturing"]!.orderFlowWindowBuyValue = 1;
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projected.ok).toBe(false);
@@ -188,8 +163,8 @@ describe("projectSaveToV42 public envelope", () => {
     expect(projected.error).toMatch(/charter|proprietary|schema 42/);
   });
 
-  it("projects a Native-fresh envelope whose record keys are reversed", () => {
-    const world = createWorld(WORLD_OPTS);
+  it("projects a migrated authentic envelope whose record keys are reversed", () => {
+    const world = deserializeSave(loadAuthenticV42());
     const original = JSON.parse(serializeSave(world, SAVED_AT)) as Record<string, unknown>;
     const originalWorld = original["world"] as Record<string, unknown>;
     const reversedWorld: Record<string, unknown> = {};
@@ -211,14 +186,14 @@ describe("projectSaveToV42 public envelope", () => {
     expect(parsed.schemaVersion).toBe(42);
     expect(parsed.metaSchema).toBe(42);
     expect(parsed.hasCountryPolitics).toBe(false);
-    expect(parsed.homeRegionId).toBe("AL");
+    expect(parsed.homeRegionId).toBeUndefined();
     const restored = deserializeSave(projected.contents);
-    expect(restored.player.homeRegionId).toBe("AL");
+    expect(restored.player.homeRegionId).toBeNull();
     expect(restored.countryPolitics).toEqual(world.countryPolitics);
   });
 
   it("refuses extra own keys including __proto__ that Native restore would drop", () => {
-    const world = createWorld(WORLD_OPTS);
+    const world = deserializeSave(loadAuthenticV42());
     const original = JSON.parse(serializeSave(world, SAVED_AT)) as {
       world: { countryPolitics: Record<string, Record<string, unknown>> };
     };

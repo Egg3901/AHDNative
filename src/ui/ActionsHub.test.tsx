@@ -182,30 +182,26 @@ describe("ActionsHub", () => {
     expect(within(card).getByText(/1 AP/i)).toBeInTheDocument();
   });
 
-  it("shows the selected canvass region and sends it with the action (#57)", async () => {
+  it("opens the dedicated voter targeting flow without charging a proxy action (#57)", async () => {
+    const session = new GameSession();
+    const live = session.create({ era: "1953", countryId: "US", seed: "canvass-hub", playerName: "Alex" });
     const onAction = vi.fn();
+    const onCanvass = vi.fn();
     const user = userEvent.setup();
-    const canvass: ActionView[] = [
-      { id: "canvass", name: "Canvass", description: "GOTV canvass.", cost: 3, available: true, requires: "region", category: "influence", fundCost: 15000, cooldownTurns: 0, prerequisite: "Choose a region." },
-    ];
-    render(<ActionsHub actions={canvass} {...props} onAction={onAction} category="all" onCategoryChange={() => {}} />);
+    render(<ActionsHub actions={live.actions} {...props} onAction={onAction} onCanvass={onCanvass} category="all" onCategoryChange={() => {}} />);
     const card = screen.getByRole("article", { name: /^canvass$/i });
-    expect(within(card).getByText(/target: midwest/i)).toBeInTheDocument();
-    await user.click(within(card).getByRole("button", { name: /take action: canvass/i }));
-    expect(onAction).toHaveBeenCalledWith("canvass", { regionId: "r1" });
+    expect(within(card).getByText(/1 AP/)).toBeInTheDocument();
+    await user.click(within(card).getByRole("button", { name: /voter canvassing/i }));
+    expect(onCanvass).toHaveBeenCalledOnce();
+    expect(onAction).not.toHaveBeenCalled();
   });
 
-  it("blocks a region action with a readable error when no regions are recorded (#57)", async () => {
-    const onAction = vi.fn();
-    const user = userEvent.setup();
-    const canvass: ActionView[] = [
-      { id: "canvass", name: "Canvass", description: "GOTV canvass.", cost: 3, available: true, requires: "region", category: "influence", fundCost: 15000, cooldownTurns: 0, prerequisite: "Choose a region." },
-    ];
-    render(<ActionsHub actions={canvass} {...props} regions={[]} onAction={onAction} category="all" onCategoryChange={() => {}} />);
-    const card = screen.getByRole("article", { name: /^canvass$/i });
-    await user.click(within(card).getByRole("button", { name: /take action: canvass/i }));
-    expect(within(card).getByRole("alert")).toHaveTextContent(/no regions available/i);
-    expect(onAction).not.toHaveBeenCalled();
+  it("omits character canvassing in spectator mode (#57)", () => {
+    const session = new GameSession();
+    const live = session.create({ era: "1953", countryId: "US", seed: "canvass-spectator", playerName: "Alex", mode: "worldsim" });
+    render(<ActionsHub actions={live.actions} {...props} onCanvass={vi.fn()} category="all" onCategoryChange={() => {}} />);
+    expect(screen.queryByRole("article", { name: /^canvass$/i })).not.toBeInTheDocument();
+    expect(screen.getByText("No actions available.")).toBeInTheDocument();
   });
 
   it("locks the hub Join Party row with the cooldown reason from the live projection", async () => {

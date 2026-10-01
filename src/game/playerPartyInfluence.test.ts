@@ -128,6 +128,7 @@ describe('player party standing through saved sessions', () => {
 
   it('uses zero old clout for the first pool and policy distance for later grants', () => {
     const original = new GameSession(); original.create(options);
+    original.allocateStats({ charisma: 3, debate: 3, energy: 10, fundraising: 3, businessAcumen: 3, statecraft: 3, intellect: 3 });
     const saved: { world: WorldState } = JSON.parse(original.serialize(savedAt));
     const party = saved.world.parties.US_DEM!;
     saved.world.player.partyId = party.id;
@@ -172,6 +173,7 @@ describe('player party standing through saved sessions', () => {
 
   it('campaigns for state influence without spending or fabricating party clout', () => {
     const original = new GameSession(); original.create(options);
+    original.allocateStats({ charisma: 3, debate: 3, energy: 10, fundraising: 3, businessAcumen: 3, statecraft: 3, intellect: 3 });
     const saved: { world: WorldState } = JSON.parse(original.serialize(savedAt));
     saved.world.player.partyId = 'US_DEM';
     saved.world.player.partyInfluence = 25;
@@ -179,7 +181,7 @@ describe('player party standing through saved sessions', () => {
     saved.world.player.funds = 100_000;
     const session = new GameSession(); session.load(JSON.stringify(saved));
     expect(session.act('campaign').ok).toBe(true);
-    expect(session.profile().standing).toMatchObject({ politicalInfluence: 1, partyInfluence: 25 });
+    expect(session.profile().standing).toMatchObject({ politicalInfluence: 0.9, partyInfluence: 25 });
     const before = session.serialize(savedAt);
     const rejected = session.act('investInfluence');
     expect(rejected.ok).toBe(false);

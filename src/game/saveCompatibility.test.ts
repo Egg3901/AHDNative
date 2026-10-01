@@ -44,7 +44,7 @@ describe("schema 42 projection of public save envelopes", () => {
   it("projects convertCash on that migrated world to the recorded v42 oracle hash", () => {
     const world = deserializeSave(loadAuthenticV42());
     const result = executeAction(world, "player", "convertCash", { amount: 2000 });
-    expect(result).toEqual({ ok: true, message: "Converted 2000 cash to 1000 funds." });
+    expect(result).toEqual({ ok: true, message: "Converted 2000 cash to 1000 funds.", changes: { actions: -2, cash: -2000, funds: 1000 } });
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projected.ok).toBe(true);
     if (!projected.ok) throw new Error(projected.error);
@@ -57,26 +57,11 @@ describe("schema 42 projection of public save envelopes", () => {
     expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });
   });
 
-  it("projects a Native-fresh schema 43 world as a v42 extension that keeps homeRegionId AL", () => {
+  it("refuses fresh TFP state that the historical engine does not consume", () => {
     const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
-    expect(world.player.homeRegionId).toBe("AL");
-    const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
-    expect(projected.ok).toBe(true);
-    if (!projected.ok) throw new Error(projected.error);
-    const parsed = JSON.parse(projected.contents) as {
-      schemaVersion: number;
-      world: { meta: { schemaVersion: number }; countryPolitics?: unknown; player: { homeRegionId?: unknown } };
-    };
-    expect(parsed.schemaVersion).toBe(42);
-    expect(parsed.world.meta.schemaVersion).toBe(42);
-    expect(parsed.world.player.homeRegionId).toBe("AL");
-    expect(Object.prototype.hasOwnProperty.call(parsed.world, "countryPolitics")).toBe(false);
-    // Re-pinned #242: one-party packs now carry the authored `regimeStatus`
-    // party marker, which appears in the projected Native-fresh envelope.
-    expect(sha256(projected.contents)).toBe("404370ac2e43de737ce3e664fafde05f34a8298bb51db2de9de8ae6de6c59b03");
-    const restored = deserializeSave(projected.contents);
-    expect(restored.player.homeRegionId).toBe("AL");
-    expect(restored.countryPolitics).toEqual(world.countryPolitics);
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false, error: expect.stringContaining("Regional metric records"),
+    });
   });
 
   it("refuses a migrated world after a Native turn mutates countryPolitics", () => {

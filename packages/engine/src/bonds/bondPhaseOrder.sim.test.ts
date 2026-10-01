@@ -183,29 +183,6 @@ describe("corporate maturity at the public seam", () => {
   });
 });
 
-describe("corporate default at the public seam", () => {
-  it("freezes the paper with zero flows when the issuer cannot cover the turn", () => {
-    const [a, b] = twinWorlds();
-    // Coupon 4800%/yr => 1000/unit/turn; 200M units => 200B obligation,
-    // far above the ~101B post-corporationTurn capital, so servicing defaults.
-    const bond = craftCorporate(a, { units: 200_000_000, couponRate: 4800, held: 5 });
-
-    advanceTurn(a);
-    advanceTurn(b);
-
-    const after = a.bonds[bond.id]!;
-    expect(after.defaulted).toBe(true);
-    expect(after.defaultedAtTurn).toBe(a.meta.turn);
-    expect(after.marketPrice).toBe(0.1);
-    expect(after.matured).toBe(false);
-    // Atomic zero-flow default: no issuer debit, no holder credit.
-    expect(a.corporations[CORP_ID]!.liquidCapital).toBe(b.corporations[CORP_ID]!.liquidCapital);
-    expect(a.player.cash).toBe(b.player.cash);
-    // Holdings frozen on the paper.
-    expect(after.holders.find((h) => h.holderId === "player")?.units).toBe(5);
-  });
-});
-
 describe("#309 edge: share repricing reads post-servicing issuer capital", () => {
   it("prices the coupon-paying issuer below its bond-free twin after one public turn", () => {
     const [a, b] = twinWorlds();

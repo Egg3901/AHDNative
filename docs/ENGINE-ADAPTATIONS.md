@@ -120,19 +120,21 @@ Ports `ACTIONS.debatePrep` (`src/lib/actions.ts`) and `rollDebatePrep`
   AP lasts; the real-time 72h clock governs decay, not execution), so the
   catalog sets `cooldown: 0` and repeat attempts are AP-gated. No turn
   equivalent was invented.
-- The mainline RPG-stats flag and "allocate your stats" gates have no Native
-  counterpart yet (no flag, no allocation step until #48/#91), so the action
-  rejects a missing `stats.debate` before any AP charge or RNG draw and the
-  shared accounting wrapper refunds the attempt fully. Successful rolls persist
-  `player.stats.debate`.
+- Native now persists the RPG flag and full allocation/reset lifecycle. A
+  disabled flag or missing `stats.debate` rejects before AP or RNG changes.
+  Successful rolls persist `player.stats.debate`.
 - The draw flows through `world.meta.rng` (read + writeback, same pattern as
   `advanceTurn`), so save/load mid-campaign and deterministic replay hold.
-- Mainline skips generic use-growth XP for debatePrep; Native has no
-  `statXp` system, so there is nothing to exclude.
+- Debate Prep is excluded from the saved generic action-XP ledger. Successful
+  character actions train their source stat and Energy; turn refresh consumes
+  the ledger once. Current Game code disables generic idle decay.
 - NPC politicians carry no stat block, so the action is player-only; the
   shared accounting wrapper refunds AP on that refusal.
-- The 72h Debate decay clock and debate-participation practice rolls are not
-  ported (separate systems, out of #37 scope).
+- The source's 72-hour Debate clock maps to 72 completed SP turns, following
+  the existing membership hour/turn convention. Saved turn anchors are seeded
+  on allocation/reset; old saves without them adopt the current turn without
+  retroactive debt. Calendar weeks and host wall time do not drive this clock.
+  Debate-participation practice remains a separate unported system.
 - Copy note: mainline card/effect text still says "10% chance" but the coded
   constant is `0.15`; Native states 15% to match behavior.
 

@@ -1,3 +1,4 @@
+import { validateCanvassState } from "./actions/canvass.js";
 import { EXTERNAL_BROAD_MONEY_GDP_SHARE, SCHEMA_VERSION } from "./world.js";
 import { STAT_KEYS } from "./stats/characterStats.js";
 import { isWorldFeatureFlag, resolveWorldFeatureFlags, WORLD_FEATURE_FLAG_DEFINITIONS } from "./featureFlags.js";
@@ -37,6 +38,7 @@ import {
 } from "./corporation/corporateSectorAssets.js";
 import { validateUnionOrganizers } from "./unions/organizers.js";
 import { validateUnionContributionLedger } from "./unions/contributions.js";
+import { validateCorporateBondSettlementLedger } from "./bonds/corporateBondDefaultSettlement.js";
 import { validatePlayerLineOfCredit } from "./finance/playerLineOfCredit.js";
 import type { BankCharter } from "./banking/types.js";
 import { validateBankingState } from "./banking/validate.js";
@@ -169,6 +171,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const world = parsed["world"];
   const meta = world["meta"] as Record<string, unknown>;
   const player = world["player"] as Record<string, unknown>;
+  const turnoutRows = world["regionTurnouts"];
+  if (isRecord(turnoutRows)) for (const [regionId, row] of Object.entries(turnoutRows)) {
+    if (isRecord(row) && hasOwn(row, "campaignModifiers")) return { ok: false, error: `regionTurnouts.${regionId}.campaignModifiers cannot be projected to schema 42. Keep this Native save.` };
+  }
   const envelopeSchema = save["schemaVersion"];
   const metaSchema = meta["schemaVersion"];
 
@@ -568,6 +574,10 @@ function assertCurrentWorldState(world: WorldState): void {
     throw new Error("Not a valid save file: invalid player stat XP");
   }
   const decayAnchor = player["debateDecayAnchor"];
+  const decayAnchorTurn = player["debateDecayAnchorTurn"];
+  if (decayAnchorTurn !== undefined && (typeof decayAnchorTurn !== "number" || !Number.isSafeInteger(decayAnchorTurn) || decayAnchorTurn < 0)) {
+    throw new Error("Not a valid save file: invalid player debate decay turn");
+  }
   if (decayAnchor !== undefined && (typeof decayAnchor !== "string" || !/^\d{4}-\d{2}-\d{2}(T.*)?$/.test(decayAnchor) || !Number.isFinite(Date.parse(decayAnchor)))) {
     throw new Error("Not a valid save file: invalid player debate decay anchor");
   }
@@ -2030,7 +2040,7 @@ export function deserializeSave(raw: string): WorldState {
         if (!Array.isArray(u["activeServices"])) u["activeServices"] = [];
         if (typeof u["politicalContributionPct"] !== "number") u["politicalContributionPct"] = 0;
         if (typeof u["unionization"] !== "number") u["unionization"] = 25;
-        if (!("ownerType" in u) || (u["ownerType"] !== "npp" && u["ownerType"] !== null)) {
+        if (!("ownerType" in u) || (u["ownerType"] !== "npp" && u["ownerType"] !== "player" && u["ownerType"] !== null)) {
           if (u["ownerType"] === undefined) u["ownerType"] = null;
         }
         if (!("ownerId" in u) || (typeof u["ownerId"] !== "string" && u["ownerId"] !== null)) {
@@ -2790,6 +2800,7 @@ export function deserializeSave(raw: string): WorldState {
   if (save.world.featureFlags.rpgStats === undefined) save.world.featureFlags.rpgStats = true;
   assertCurrentWorldState(save.world);
   validateBankingState(save.world);
+  validateCanvassState(save.world);
   // #295: persisted sector-owner default. Saves written before the
   // acquisition slice carry materialized assets without the field; missing
   // degrades to the #293 default ("corporation") and keeps every loaded row
@@ -2824,6 +2835,12 @@ export function deserializeSave(raw: string): WorldState {
   // leaves untouched worlds byte-identical.
   if (save.world.unionContributionLedger !== undefined) {
     validateUnionContributionLedger(save.world, save.world.unionContributionLedger);
+  }
+  // #308: resolved bond-default claimants remain auditable after the live
+  // instruments and dissolved issuer have been retired. Legacy saves keep
+  // this field absent; malformed retained records fail closed.
+  if (save.world.corporateBondSettlementLedger !== undefined) {
+    validateCorporateBondSettlementLedger(save.world.corporateBondSettlementLedger);
   }
   // #314: player line-of-credit servicing state. Saves written before the
   // slice carry no field; missing degrades to no line and the phase no-ops,

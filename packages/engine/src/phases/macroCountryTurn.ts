@@ -225,17 +225,12 @@ export const macroCountryTurnPhase: TurnPhase = {
       // registry, so this read is last turn's row (C3 lag). Missing keys fall
       // back to TFP_REFERENCE_INPUTS (TFP_BASELINE 1.2).
       //
-      // #40 input gate: nationalMetricsPhase now aggregates the six leaves from
-      // the recorded per-region rows in WorldState.regionalMetrics (the real
-      // regional-scope policy store, schema v45) so a recorded input reaches
-      // this basket instead of being dropped. It is STILL not closed for a
-      // default world: there is no seed-time per-region source for these six
-      // leaves (E01_PER_STATE_METRICS; types.ts Region carries population/GDP/
-      // labor only), and no available law/order targets them, so a default
-      // 1953/1979/1991/2019 world records no rows and stays at TFP_BASELINE.
-      // Education/infrastructure/urbanization therefore still do NOT move
-      // growth on a default world. Do not substitute synthetic seeds or a
-      // national stand-in for the missing regional input.
+      // #40 input gate: createWorld seeds the six Game TFP paths onto playable
+      // regions (metrics/tfpSeed.ts) and nationalMetricsPhase aggregates them
+      // population-weighted, era-gated. This read is the previous turn's row,
+      // including t0 nationalMetrics written at createWorld. Missing keys still
+      // fall back to TFP_REFERENCE_INPUTS. Do not invent a national stand-in
+      // for a country/era Game does not supply.
       const regionIds = Object.values(world.regions)
         .filter((r) => r.countryId === id)
         .map((r) => r.id);

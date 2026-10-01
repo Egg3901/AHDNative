@@ -71,10 +71,14 @@ export interface Union {
    * round-trips through saves.
    */
   suspended?: boolean;
-  /** Whether this union is NPC-led (mainline ownerType "npp") or vacant. W15 NPP behavior fills this. */
-  ownerType?: "npp" | null;
-  /** Politician id of the NPP leader, or null if vacant. */
+  /** Whether this union is NPP-led, player-led, or vacant. */
+  ownerType?: "npp" | "player" | null;
+  /** NPP politician id, `player` for the local player, or null when vacant. */
   ownerId?: string | null;
+  /** Weighted organizer ballot by organizer character id; absent on pre-election saves. */
+  leadershipVotes?: Record<string, string>;
+  /** Source-style pending presidency offer. Acceptance changes ownership. */
+  pendingLeaderCharacterId?: string | null;
   /**
    * Uncapped organizing power, the sum of every organize drive run on this
    * union less 0.5%/turn decay (#320). Gates the leadership election and

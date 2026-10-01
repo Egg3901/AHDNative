@@ -6,6 +6,7 @@ import type { BondMarketView } from "./bondMarket";
 import type { PartyManagementView } from "./partyManagement";
 import type { SearchFilter, SearchResults } from "./search";
 import type { MarketsView } from "./markets";
+import type { UnionManagementView } from "./unionManagement";
 import type { LegislationDetailsQuery, LegislationSelection } from "./legislationDetails";
 import type { HallOfFameQuery, HallOfFameView } from "./hallOfFame";
 import type { WorldOverviewView } from "./worldOverview";
@@ -60,6 +61,7 @@ export class GameClient {
   caucusManagement() { return this.send<CaucusManagementView>({ type: "caucusManagement" }); }
   partyManagement() { return this.send<PartyManagementView>({ type: "partyManagement" }); }
   markets() { return this.send<MarketsView>({ type: "markets" }); }
+  unionManagement() { return this.send<UnionManagementView>({ type: "unionManagement" }); }
   politics() { return this.send<PoliticsView>({ type: "politics" }); }
   profile() { return this.send<ProfileView>({ type: "profile" }); }
   profileDestination() { return this.send<"profile" | "imperial">({ type: "profileDestination" }); }
@@ -80,6 +82,9 @@ export class GameClient {
         ? { type: "sectorSale", op, assetId }
         : { type: "sectorSale", op, assetId, priceAnchor },
     );
+  }
+  unionCommand(command: Extract<GameCommand, { type: "unionCommand" }>) {
+    return this.send<{ result: unknown; view: GameView }>(command);
   }
   serialize(savedAt: string, includeSaveNotice = false) { return this.send<string>({ type: "serialize", savedAt, ...(includeSaveNotice ? { includeSaveNotice: true } : {}) }); }
   load(contents: string) { return this.send<GameView>({ type: "load", contents }); }

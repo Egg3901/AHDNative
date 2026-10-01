@@ -26,14 +26,14 @@ const creation: CharacterCreation = {
   stats: fundraisingBuild(),
 };
 
-function expectCreationIntact(session: GameSession) {
+function expectCreationIntact(session: GameSession, energyXp = 0) {
   const profile = session.profile();
   expect(profile.name).toBe("Eleanor Vance");
   expect(profile.homeRegion?.id).toBe("CA");
   expect(profile.party?.id).toBe("US_DEM");
   expect(profile.policies).toEqual({ economic: -2, social: -2 });
   expect(profile.demographics).toEqual(creation.demographics);
-  expect(profile.stats).toEqual(fundraisingBuild());
+  expect(profile.stats).toEqual({ ...fundraisingBuild(), energy: expect.closeTo(3 + energyXp, 12) });
 }
 
 describe("character-creation player flow through the public session (#242)", () => {
@@ -59,13 +59,13 @@ describe("character-creation player flow through the public session (#242)", () 
     expect(loaded.view().turn).toBe(1);
     expect(loaded.view().player).toMatchObject({ name: "Eleanor Vance", homeRegionId: "CA" });
     expect(loaded.view().player.partyName).toMatch(/Democratic/);
-    expectCreationIntact(loaded);
+    expectCreationIntact(loaded, 0.09);
 
     // Continue in the relaunched session: the persisted stats still drive
     // actions and the world still advances.
     expect(loaded.act("fundraise").ok).toBe(true);
     loaded.advance();
     expect(loaded.view().turn).toBe(2);
-    expectCreationIntact(loaded);
+    expectCreationIntact(loaded, 0.12);
   });
 });

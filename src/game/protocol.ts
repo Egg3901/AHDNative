@@ -21,6 +21,7 @@ export type GameCommand =
   | { type: "worldFeatureFlags"; flags: Partial<WorldFeatureFlags> }
   | { type: "politics" }
   | { type: "markets" }
+  | { type: "unionManagement" }
   | { type: "regions"; query?: RegionsQuery }
   | { type: "cabinetOffice" }
   | { type: "issueCabinetOrder"; positionId: string; orderId: string; targetRegionId?: string }
@@ -34,6 +35,14 @@ export type GameCommand =
   | { type: "advance" }
   | { type: "action"; actionId: string; params?: Record<string, string | number> }
   | { type: "sectorSale"; op: "list" | "update" | "unlist" | "buy"; assetId: string; priceAnchor?: number }
+  | { type: "unionCommand"; op: "organize"; unionId: string }
+  | { type: "unionCommand"; op: "vote"; unionId: string }
+  | { type: "unionCommand"; op: "accept"; unionId: string }
+  | { type: "unionCommand"; op: "organizeSector"; unionId: string; assetId: string }
+  | { type: "unionCommand"; op: "dues"; unionId: string; duesPerWorkerAnnual: number }
+  | { type: "unionCommand"; op: "call"; unionId: string; employerId: string; terms: import("@ahdclient/engine").BargainingTerms }
+  | { type: "unionCommand"; op: "move"; campaignId: string; action: "accept" | "counter" | "withdraw" | "escalate"; terms?: import("@ahdclient/engine").BargainingTerms }
+  | { type: "unionCommand"; op: "ratify"; campaignId: string; vote: "ratify" | "reject" }
   | { type: "serialize"; savedAt: string; includeSaveNotice?: boolean }
   | { type: "load"; contents: string }
   | { type: "notificationsRead"; id: string }

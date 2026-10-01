@@ -289,6 +289,7 @@ export interface GameView {
   metrics: MetricView[]; parties: PartyView[]; elections: ElectionView[]; news: NewsView[];
   actions: ActionView[]; regions: { id: string; name: string }[];
   polls: PollingView;
+  canvassing?: import("./canvassing").CanvassingView;
   notifications: import("./notifications").NotificationInbox;
   actionHistory?: import("./notifications").ActionHistoryEntry[];
 }
@@ -313,6 +314,7 @@ export interface GameScreenProps {
   onIssueCabinetOrder?: (input: import("./cabinetOffice").IssueCabinetOrderInput) => void;
   loadPartyManagement: () => Promise<import("./partyManagement").PartyManagementView>;
   loadMarkets: () => Promise<import("./markets").MarketsView>;
+  loadUnionManagement?: () => Promise<import("./unionManagement").UnionManagementView>;
   loadLegislation: (selection?: LegislationSelection) => Promise<LegislationDetailsQuery>;
   loadWorldOverview: () => Promise<WorldOverviewView>;
   loadPolitics: () => Promise<PoliticsView>;
@@ -334,6 +336,8 @@ export interface GameScreenProps {
    * surfaces without sale UI render the listing controls disabled.
    */
   onSectorSale?: (op: "list" | "update" | "unlist" | "buy", params: { assetId: string; priceAnchor?: number }) => void;
+  /** Player-authored union organization and bargaining commands; NPC replies remain turn-owned. */
+  onUnionCommand?: (command: Extract<import("./protocol").GameCommand, { type: "unionCommand" }>) => void;
   onMarkNotificationRead: (id: string) => void;
   onDeleteNotification: (id: string) => void;
   onMarkAllNotificationsRead: () => void;
