@@ -42,6 +42,9 @@ export interface Bill {
   regionId?: string;
   /** Tax bills: the target rate (%) the sponsor selected from the catalog's taxPolicy ladder. Schema v41. */
   selectedRate?: number;
+  /** Source proposal accounting retained with this bill for the public ledger. */
+  proposalActionCost?: number;
+  proposalNpiCost?: number;
   provisions: BillProvision[];
   originChamber: BillChamber;
   currentChamber: BillChamber;

@@ -10,6 +10,7 @@ import { createWorld } from "../world.js";
 describe("federal tax enactment phase-in uses one source step per turn", () => {
   it("steps at signing, skips the same-turn fiscal tail, then resumes after save/reload", () => {
     const world = createWorld({ seed: "ie-tax-phase-order", playerName: "P", countryId: "IE", era: "1991" });
+    world.governments.IE!.status = "formed";
     world.player.mode = "hos";
     world.player.actions = 100;
     world.player.nationalInfluence = 5;

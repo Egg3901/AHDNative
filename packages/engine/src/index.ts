@@ -66,6 +66,8 @@ export type { FundCostInput } from "./actions/fundCost.js";
 export { CAMPAIGN_TARGETED_AD_CAP } from "./actions/campaignTargetedAd.js";
 export * from "./actions/polling.js";
 export { getCatalog, getLaw } from "./legislation/catalog.js";
+export { proposalNpiCost, BILL_PROPOSE_ACTION_COST, FIRST_PROVISION_NPI_COST } from "./legislation/proposalCosts.js";
+export { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "./legislation/freeze.js";
 export type { Bill, Committee, EnactedLaw } from "./legislation/types.js";
 export * from "./membership.js";
 export * from "./caucus.js";
@@ -226,6 +228,7 @@ export {
   OUTPUT_GAP_BOUND,
 } from "./economy/macroConstants.js";
 export { GOVERNMENT_CHAMBER_BY_COUNTRY } from "./government/constants.js";
+export * from "./government/pmAppointment.js";
 export { EXTRACTABLE_RESOURCES } from "./commodity/constants.js";
 export type { ExtractableResource } from "./commodity/constants.js";
 // #242 character-creation stats/wealth/alignment. Pure rules shared by the

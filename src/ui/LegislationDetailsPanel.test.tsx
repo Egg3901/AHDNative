@@ -65,7 +65,7 @@ function makeQuery(): LegislationDetailsQuery {
         ],
         targets: [{ metricId: "economy.workerSecurity", weight: 1 }],
         effect: { economy: { unemploymentRate: -0.002 }, partySupport: { supportDelta: 1 } },
-        sponsorAvailable: true, sponsorCost: 4,
+        sponsorAvailable: true, sponsorCost: 10, sponsorNpiCost: 5,
       },
       {
         id: "us.tax.incomeTax",
@@ -75,7 +75,7 @@ function makeQuery(): LegislationDetailsQuery {
         taxPolicy: { scope: "federal", taxType: "incomeTax", minRate: 0, maxRate: 60, step: 1, baselineRate: 35 },
         targets: [],
         effect: { economy: { growthRate: -0.0005 } },
-        sponsorAvailable: true, sponsorCost: 4,
+        sponsorAvailable: true, sponsorCost: 10, sponsorNpiCost: 5,
       },
     ],
     selectedBill: null,
@@ -256,13 +256,49 @@ describe("LegislationDetailsPanel", () => {
       kind: "tax", category: "economy", allowedScope: "national", targets: [],
       taxPolicy: { scope: "federal", taxType: "salesTax", minRate: 0, maxRate: 35, step: 2, baselineRate: 21,
         options: [{ id: "ie_vat_rate_opt_5", rate: 21, economic: 0, social: 0 }, { id: "ie_vat_rate_opt_6", rate: 23, economic: 0, social: 0 }] },
-      sponsorAvailable: true, sponsorCost: 4,
+      sponsorAvailable: true, sponsorCost: 10, sponsorNpiCost: 5,
     };
     query.proposals.push(query.selectedProposal);
     render(<LegislationDetailsPanel query={query} busy={false} onAction={onAction} />);
     await user.selectOptions(screen.getByRole("combobox", { name: "Tax rate" }), "23");
     await user.click(screen.getByRole("button", { name: /sponsor bill/i }));
     expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "ie_vat_rate", taxRate: 23, originChamber: "house" });
+  });
+
+  it("proposes the source 0% VAT option through the public bill path for an enacted law", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const LegislationDetailsPanel = await renderPanel();
+    const query = makeQuery();
+    query.enactedLaws = [{
+      id: "ie_vat_rate", title: "Statutory Value-Added Tax Act", level: 0,
+      enactedAtTurn: 4, scope: "national",
+    }];
+    const vatProposal = {
+      id: "ie_vat_rate", title: "Value Added Tax", description: "Irish VAT rate",
+      kind: "tax" as const, category: "economy", allowedScope: "national" as const,
+      taxPolicy: { scope: "federal" as const, taxType: "salesTax", minRate: 0, maxRate: 35, step: 2, baselineRate: 21,
+        options: [{ id: "ie_vat_rate_opt_0", rate: 0, economic: -5, social: -2 }] },
+      targets: [], sponsorAvailable: true, sponsorCost: 10, sponsorNpiCost: 5,
+    };
+    query.proposals.push(vatProposal);
+    render(<LegislationDetailsPanel query={query} busy={false} onAction={onAction} />);
+    await user.click(screen.getByRole("button", { name: "Propose 0% VAT: Statutory Value-Added Tax Act" }));
+    expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "ie_vat_rate", taxRate: 0, originChamber: "house" });
+  });
+
+  it("renders the parliamentary formation freeze as the reason the proposal is unavailable", async () => {
+    const LegislationDetailsPanel = await renderPanel();
+    const query = makeQuery();
+    query.proposals[0] = {
+      ...query.proposals[0]!,
+      sponsorAvailable: false,
+      sponsorDisabledReason: "Government is in formation; legislation is frozen until a PM is seated",
+    };
+    query.selectedProposal = query.proposals[0];
+    render(<LegislationDetailsPanel query={query} busy={false} onAction={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Sponsor bill" })).toBeDisabled();
+    expect(screen.getByText("Government is in formation; legislation is frozen until a PM is seated")).toBeInTheDocument();
   });
 
   it("votes on an open bill through the supported vote action", async () => {

@@ -477,6 +477,42 @@ function assertSaveWorldRoot(value: unknown): asserts value is WorldState {
   }
 }
 
+function validatePmAppointmentVotes(world: WorldState): void {
+  const records = (world as unknown as Record<string, unknown>)["pmAppointmentVotes"];
+  if (!Array.isArray(records)) throw new Error("Not a valid save file: invalid PM appointment votes");
+  const ids = new Set<string>();
+  for (const raw of records) {
+    if (!isRecord(raw)) throw new Error("Not a valid save file: invalid PM appointment vote");
+    const vote = raw;
+    const turnFields = [vote["openedTurn"], vote["closesTurn"]];
+    if (
+      typeof vote["id"] !== "string" || vote["id"].length === 0 || ids.has(vote["id"]) ||
+      vote["countryId"] !== "IE" || vote["chamberKey"] !== "dail" ||
+      typeof vote["partyId"] !== "string" || !world.parties[vote["partyId"]] ||
+      (vote["coalitionId"] !== null && (typeof vote["coalitionId"] !== "string" || !world.coalitions.some((coalition) => coalition.id === vote["coalitionId"]))) ||
+      (vote["coalitionPartyIds"] !== null && (!Array.isArray(vote["coalitionPartyIds"]) || vote["coalitionPartyIds"].length < 2 || new Set(vote["coalitionPartyIds"]).size !== vote["coalitionPartyIds"].length || !vote["coalitionPartyIds"].every((partyId) => typeof partyId === "string" && world.parties[partyId]?.countryId === "IE"))) ||
+      vote["nomineeId"] !== "player" || typeof vote["nomineeName"] !== "string" || vote["nomineeName"].length === 0 ||
+      (vote["formationType"] !== "majority" && vote["formationType"] !== "minority" && vote["formationType"] !== "coalition") ||
+      !turnFields.every((turn) => typeof turn === "number" && Number.isSafeInteger(turn) && turn >= 0) ||
+      (vote["closesTurn"] as number) <= (vote["openedTurn"] as number) ||
+      !["active", "passed", "failed", "cancelled"].includes(String(vote["status"])) ||
+      !isRecord(vote["votes"]) ||
+      typeof vote["votesFor"] !== "number" || !Number.isSafeInteger(vote["votesFor"]) || vote["votesFor"] < 0 ||
+      typeof vote["votesAgainst"] !== "number" || !Number.isSafeInteger(vote["votesAgainst"]) || vote["votesAgainst"] < 0 ||
+      (vote["closedTurn"] !== null && (typeof vote["closedTurn"] !== "number" || !Number.isSafeInteger(vote["closedTurn"]) || vote["closedTurn"] < (vote["openedTurn"] as number)))
+    ) throw new Error("Not a valid save file: invalid PM appointment vote");
+    ids.add(vote["id"]);
+    for (const [voterId, choice] of Object.entries(vote["votes"])) {
+      if ((voterId !== "player" && !world.politicians.some((politician) => politician.id === voterId)) || (choice !== "aye" && choice !== "nay")) {
+        throw new Error("Not a valid save file: invalid PM appointment ballot");
+      }
+    }
+    if ((vote["status"] === "active") !== (vote["closedTurn"] === null)) {
+      throw new Error("Not a valid save file: inconsistent PM appointment vote lifecycle");
+    }
+  }
+}
+
 const REQUIRED_WORLD_ARRAYS = [
   "politicians", "elections", "referendums", "impeachments", "charters", "caucuses",
   "endorsements", "extractionContracts", "prospectingSurveys", "achievementsEarned",
@@ -484,7 +520,7 @@ const REQUIRED_WORLD_ARRAYS = [
   "cabinetMembers", "cabinetNominations", "supremeCourtSeats", "scotusNominations", "docketCases",
   "ukJudicialReviewCases", "activeWorldModifiers", "crises", "playerEventLog", "governorAddresses",
   "governorOrders", "bills", "committees", "enactedLaws", "stateBills", "news", "bankLoans", "interbankLoans",
-  "vitalSignsHistory", "ministerialOrders", "conflicts", "settlements", "subsidies",
+  "vitalSignsHistory", "ministerialOrders", "conflicts", "settlements", "subsidies", "pmAppointmentVotes",
 ] as const;
 
 const REQUIRED_WORLD_RECORDS = [
@@ -2798,6 +2834,12 @@ export function deserializeSave(raw: string): WorldState {
   // Pre-#48 Native saves always applied recorded stats. Preserve that ruleset
   // when the new key is absent; present malformed values still fail closed.
   if (save.world.featureFlags.rpgStats === undefined) save.world.featureFlags.rpgStats = true;
+  // PM appointment ballots are an additive save field; pre-feature and older
+  // current-schema saves have no vote history to recover.
+  if (!Array.isArray((save.world as unknown as Record<string, unknown>)["pmAppointmentVotes"])) {
+    (save.world as unknown as Record<string, unknown>)["pmAppointmentVotes"] = [];
+  }
+  validatePmAppointmentVotes(save.world);
   assertCurrentWorldState(save.world);
   validateBankingState(save.world);
   validateCanvassState(save.world);

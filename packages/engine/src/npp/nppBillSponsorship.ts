@@ -23,6 +23,7 @@ import type { WorldRng } from "../rng.js";
 import type { Bill } from "../legislation/types.js";
 import { getLaw, AVAILABLE_CATALOG } from "../legislation/catalog.js";
 import { effectiveNppAutonomyLevelForCountry } from "../nppAutonomyLevel.js";
+import { isLegislationFrozen } from "../legislation/freeze.js";
 
 const ACTIVE_CAP = 3; // per country active nppSponsored bills cap (solo neutral; mainline 3 for non-player, 2 for player)
 const COOLDOWN_TURNS = 12; // per-type repeat cooldown (mainline NPP_SPONSOR_TYPE_REPEAT_COOLDOWN_TURNS)
@@ -96,6 +97,9 @@ export const nppBillSponsorshipPhase: TurnPhase = {
     // overwhelming legislation tests and economy goldens). Deterministic via hash.
     const countryIds = Object.keys(world.legislatures).sort();
     for (const countryId of countryIds) {
+      // Source `isLegislationFrozen`: pending parliamentary formation blocks
+      // both player and NPP proposals until a PM is seated.
+      if (isLegislationFrozen(world, countryId)) continue;
       // Issue #345: sponsorship is tier-gated autonomous activity. Below the
       // effective v0 floor (off anywhere, below v2 in the player country) no
       // NPP sponsors here. The default v4 tier leaves every country active,
@@ -145,7 +149,7 @@ export const nppBillSponsorshipPhase: TurnPhase = {
       const currentTaxRate = taxPolicy?.scope === "federal"
         ? world.budgets[countryId]?.taxRates[taxPolicy.taxType as keyof NonNullable<typeof world.budgets[string]>["taxRates"]]
         : undefined;
-      const selectedTaxOption = taxPolicy?.options?.filter((option) =>
+      const validTaxOptions = taxPolicy?.options?.filter((option) =>
         option.rate !== (currentTaxRate ?? taxPolicy.baselineRate) &&
         !world.bills.some((bill) =>
           bill.countryId === countryId &&
@@ -153,9 +157,32 @@ export const nppBillSponsorshipPhase: TurnPhase = {
           !["failed", "withdrawn", "signed", "override_failed"].includes(bill.status) &&
           bill.provisions.some((provision) => provision.policyOptionId === option.id),
         ),
-      ).sort((left, right) =>
-        Math.hypot(sponsor.ideology.economic - left.economic, sponsor.ideology.social - left.social) -
-        Math.hypot(sponsor.ideology.economic - right.economic, sponsor.ideology.social - right.social),
+      );
+      // Source selectNppBill urgency for fiscal/tax domains is positive when
+      // inflation is above 4%. At a formed government, a persisted fiscal
+      // stance takes precedence; Ireland's authored starting government is
+      // pending (ieGovernmentFormation.ts), so its reference sponsorship pass
+      // has no agenda or fiscal directive and uses this conditions path. Native
+      // stores inflation as a fraction while the reference selector receives
+      // percent, so convert at this boundary.
+      const inflationRatePercent = (world.countries[countryId]?.economy.inflationRate ?? 0) * 100;
+      const inflationUrgency = inflationRatePercent > 4;
+      const urgencyDirectedOptions = inflationUrgency
+        ? validTaxOptions?.filter((option) => option.effectDirection === 1)
+        : undefined;
+      const optionSlate = urgencyDirectedOptions?.length ? urgencyDirectedOptions : validTaxOptions;
+      // selectNppBill scores the current NPP organization policy, not a
+      // historical startup copy. Native has no separate NPP entity, so the
+      // corresponding live policy is the sponsor party's current axes. Those
+      // values evolve with Native's party stance phase and survive saves; never
+      // freeze the initial platform for later sponsorships.
+      const sponsorPolicy = world.parties[majorityParty] ?? {
+        economicPosition: sponsor.ideology.economic,
+        socialPosition: sponsor.ideology.social,
+      };
+      const selectedTaxOption = optionSlate?.sort((left, right) =>
+        Math.hypot(sponsorPolicy.economicPosition - left.economic, sponsorPolicy.socialPosition - left.social) -
+        Math.hypot(sponsorPolicy.economicPosition - right.economic, sponsorPolicy.socialPosition - right.social),
       )[0];
       if (taxPolicy && !selectedTaxOption) continue;
 

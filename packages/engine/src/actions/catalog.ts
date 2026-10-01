@@ -61,6 +61,8 @@ export type ActionId =
   | "endorse"
   | "sponsorBill"
   | "voteOnBill"
+  | "proposePmAppointment"
+  | "votePmAppointment"
   | "repealLaw"
   | "invokeFilibuster"
   | "declareCandidacy"
@@ -412,8 +414,8 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   sponsorBill: {
     id: "sponsorBill" as ActionId,
     name: "Sponsor Bill",
-    description: "Sponsor a bill from the legislation catalog. Requires holding a legislative seat (career) or government sponsorship (HoS). Cost 4 AP. Ports src/lib/congress/billProposal.ts seat gate and catalog validation.",
-    baseCost: 4,
+    description: "Sponsor a bill from the legislation catalog. Requires holding a legislative seat (career) or government sponsorship (HoS). Source proposal costs 10 AP and 5 NPI per ordinary policy provision; tariff provisions cost no NPI.",
+    baseCost: 10,
     cooldown: 1,
     fundCost: 0,
     systems: ["legislation/bills"],
@@ -427,6 +429,26 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["legislation/voting"],
+    status: "available",
+  },
+  proposePmAppointment: {
+    id: "proposePmAppointment",
+    name: "Nominate Taoiseach",
+    description: "A Dáil member who chairs a party with enough seats may nominate themselves for a source 24-turn appointment vote.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["government/pmAppointment"],
+    status: "available",
+  },
+  votePmAppointment: {
+    id: "votePmAppointment",
+    name: "Vote on Taoiseach Appointment",
+    description: "Cast an aye or nay in an active Dáil Taoiseach appointment vote.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["government/pmAppointment"],
     status: "available",
   },
   repealLaw: {

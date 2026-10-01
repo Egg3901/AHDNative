@@ -136,7 +136,13 @@ function processCountry(world: WorldState, countryId: string, chamberKey: string
   if (electionResolvedThisTurn) {
     resetToPending(gov, chamber, turn);
   } else if (gov.status === "formed") {
-    const pm = gov.pmPoliticianId ? world.politicians.find((p) => p.id === gov.pmPoliticianId) : undefined;
+    const pm = gov.pmPoliticianId === "player"
+      ? (world.player.legislativeSeat?.countryId === countryId &&
+        world.player.legislativeSeat.chamberKey === chamberKey &&
+        world.player.partyId === gov.governingPartyId
+          ? { chamberKey, countryId }
+          : undefined)
+      : gov.pmPoliticianId ? world.politicians.find((p) => p.id === gov.pmPoliticianId) : undefined;
     if (!pm || pm.chamberKey !== chamberKey || pm.countryId !== countryId) {
       resetToPending(gov, chamber, turn);
       world.news.push({

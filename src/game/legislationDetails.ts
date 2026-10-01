@@ -19,6 +19,10 @@ import {
   getActionCost,
   getCatalog,
   getLaw,
+  isLegislationFrozen,
+  LEGISLATION_FREEZE_MESSAGE,
+  proposalNpiCost,
+  BILL_PROPOSE_ACTION_COST,
   type WorldState,
 } from "@ahdclient/engine";
 import {
@@ -129,6 +133,16 @@ export interface LegislationProposalDetails {
   sponsorAvailable: boolean;
   sponsorDisabledReason?: string;
   sponsorCost: number;
+  sponsorNpiCost: number;
+}
+
+export interface LegislationEnactedLawView {
+  id: string;
+  title: string;
+  level: number;
+  enactedAtTurn: number;
+  scope: "national" | "regional";
+  regionId?: string;
 }
 
 export interface LegislationBillDetails extends LegislationBillMeta {
@@ -153,6 +167,8 @@ export interface LegislationDetailsQuery {
   /** Open bills with status + next procedural action. */
   schedule: LegislationFloorScheduleEntry[];
   proposals: LegislationProposalDetails[];
+  /** Current enacted laws, including prior same-type statutes superseded by later bills. */
+  enactedLaws?: LegislationEnactedLawView[];
   selectedBill: LegislationBillDetails | null;
   selectedProposal: LegislationProposalDetails | null;
   sponsorSupportsLevelChoice: false;
@@ -221,26 +237,41 @@ export function buildLegislationDetails(
     legConfig?.chambers.find((c) => c.key === key)?.name ?? key;
   const seat = player.legislativeSeat as { chamberKey: string; countryId: string } | null;
 
-  const sponsorGate = (entry: { id: "sponsorBill" }): { available: boolean; disabledReason?: string; cost: number } => {
-    const catalog = ACTION_CATALOG[entry.id];
-    const cost = getActionCost(catalog, player.donorBaseLevel, player.politicalInfluence, player.favorability);
-    const remaining = (player.actionCooldowns[entry.id] ?? 0) - world.meta.turn;
+  const sponsorGate = (influenceCost: number): { available: boolean; disabledReason?: string; cost: number } => {
+    const cost = BILL_PROPOSE_ACTION_COST;
+    const remaining = (player.actionCooldowns.sponsorBill ?? 0) - world.meta.turn;
     const reason =
-      !seat && player.mode !== "hos"
+      isLegislationFrozen(world, countryId)
+        ? LEGISLATION_FREEZE_MESSAGE
+        : !seat && player.mode !== "hos"
         ? "Win a legislative seat before sponsoring a bill."
         : remaining > 0
           ? `Available in ${remaining} ${remaining === 1 ? "turn" : "turns"}.`
-          : player.actions < cost
-            ? "Not enough action points."
-            : undefined;
+        : player.actions < cost
+          ? "Not enough action points."
+          : (player.nationalInfluence ?? 0) < influenceCost
+            ? `Not enough national influence (need ${influenceCost}).`
+          : undefined;
     return { available: !reason, ...(reason ? { disabledReason: reason } : {}), cost };
   };
 
-  const sponsor = sponsorGate({ id: "sponsorBill" });
+  const enactedLaws = world.enactedLaws
+    .filter((law) => law.countryId === countryId && law.repealedAtTurn === undefined && (law.expiresAtTurn == null || law.expiresAtTurn > world.meta.turn))
+    .map((law) => ({
+      id: law.id,
+      title: getLaw(law.id)?.title ?? law.id,
+      level: law.level,
+      enactedAtTurn: law.enactedAtTurn,
+      scope: law.scope,
+      ...(law.regionId ? { regionId: law.regionId } : {}),
+    }));
 
   const proposals: LegislationProposalDetails[] = getCatalog(countryId, Number(world.meta.date.slice(0, 4)))
     .filter((entry) => entry.status === "available")
-    .map((entry) => ({
+    .map((entry) => {
+      const nationalInfluenceCost = proposalNpiCost(entry);
+      const sponsor = sponsorGate(nationalInfluenceCost);
+      return ({
       id: entry.id,
       title: entry.title,
       description: entry.description,
@@ -273,7 +304,9 @@ export function buildLegislationDetails(
       sponsorAvailable: sponsor.available,
       ...(sponsor.disabledReason ? { sponsorDisabledReason: sponsor.disabledReason } : {}),
       sponsorCost: sponsor.cost,
-    }));
+      sponsorNpiCost: nationalInfluenceCost,
+    });
+    });
 
   const voteGate = (
     billCountryId: string,
@@ -442,6 +475,7 @@ export function buildLegislationDetails(
     committees,
     schedule,
     proposals,
+    enactedLaws,
     selectedBill,
     selectedProposal,
     sponsorSupportsLevelChoice: false,
