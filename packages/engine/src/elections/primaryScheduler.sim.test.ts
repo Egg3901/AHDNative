@@ -85,7 +85,7 @@ describe("primary ballot scheduler", () => {
     expect(race.candidates.map((candidate) => candidate.id)).toEqual([opponentId]);
   });
 
-  it("persists the source-visible 72-snapshot window across normal turns and save reload", () => {
+  it("preserves complete primary snapshot history across save reload and resumed turns", () => {
     const { world, race } = setupRace();
     world.nppAutonomyLevel = "off";
     race.primaryEndTurn = 100;
@@ -96,27 +96,21 @@ describe("primary ballot scheduler", () => {
     expect(race.primarySnapshots).toHaveLength(80);
     world.elections.push({ ...race, id: `${race.id}:finalized`, status: "resolved" });
     const saveContents = serializeSave(world, "2026-09-11T00:00:00Z");
-    const projectedWorld = JSON.parse(saveContents).world as typeof world;
-    expect(projectedWorld.elections[0]?.primarySnapshots).toHaveLength(72);
-    expect(projectedWorld.elections[0]?.primarySnapshots?.map((snapshot) => snapshot.turn)).toEqual(
-      Array.from({ length: 72 }, (_, index) => index + 9),
-    );
-    const finalizedProjection = projectedWorld.elections.find((entry) => entry.id === `${race.id}:finalized`);
-    expect(finalizedProjection?.status).toBe("resolved");
-    expect(finalizedProjection?.primarySnapshots).toEqual(projectedWorld.elections[0]?.primarySnapshots);
-    // Save projection is non-mutating; the running Native session keeps the
-    // full phase history just as the source stores all rows separately.
-    expect(race.primarySnapshots).toHaveLength(80);
+    const savedWorld = JSON.parse(saveContents).world as typeof world;
+    expect(savedWorld.elections[0]?.primarySnapshots).toHaveLength(80);
+    const finalizedSave = savedWorld.elections.find((entry) => entry.id === `${race.id}:finalized`);
+    expect(finalizedSave?.status).toBe("resolved");
+    expect(finalizedSave?.primarySnapshots).toEqual(savedWorld.elections[0]?.primarySnapshots);
 
     const reloaded = deserializeSave(saveContents);
     const restoredRace = reloaded.elections[0]!;
-    expect(restoredRace.primarySnapshots).toEqual(projectedWorld.elections[0]?.primarySnapshots);
+    expect(restoredRace.primarySnapshots).toEqual(savedWorld.elections[0]?.primarySnapshots);
 
     advanceTurn(reloaded);
-    expect(restoredRace.primarySnapshots).toHaveLength(73);
+    expect(restoredRace.primarySnapshots).toHaveLength(81);
     const resumed = deserializeSave(serializeSave(reloaded, "2026-09-11T00:00:00Z"));
-    expect(resumed.elections[0]?.primarySnapshots).toHaveLength(72);
-    expect(resumed.elections[0]?.primarySnapshots?.[0]?.turn).toBe(10);
+    expect(resumed.elections[0]?.primarySnapshots).toHaveLength(81);
+    expect(resumed.elections[0]?.primarySnapshots?.[0]?.turn).toBe(1);
     expect(resumed.elections[0]?.primarySnapshots?.at(-1)?.turn).toBe(81);
   });
 });

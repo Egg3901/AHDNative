@@ -1,6 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { createWorld, executeAction, recomputeComposition, rngFromSeed, serializeSave } from "@ahdclient/engine";
-import { nationalPartyElectionsPhase } from "../packages/engine/src/intraparty/phases.js";
+import { advanceTurn, createWorld, executeAction, serializeSave } from "@ahdclient/engine";
 import {
   advanceGame,
   gameReady,
@@ -11,38 +10,50 @@ import {
 
 function playableIrishSeatSave(): Buffer {
   const world = createWorld({
-    seed: "ireland-vat-public-lifecycle",
+    seed: "ie-seat-region-scan",
     playerName: "Irish VAT Player",
     countryId: "IE",
     era: "1991",
+    stats: { charisma: 10, debate: 3, energy: 3, fundraising: 3, businessAcumen: 3, statecraft: 3, intellect: 3 },
   });
   world.nppAutonomyLevel = "off";
-  world.player.legislativeSeat = { countryId: "IE", chamberKey: "dail" };
-  world.player.actions = 200;
-  world.player.nationalInfluence = 0;
   world.player.mode = "career";
-  world.player.politicalInfluence = 100;
+  world.player.homeRegionId = "COR";
   if (!executeAction(world, "player", "joinParty", { partyId: "IE_FF" }).ok) {
     throw new Error("Expected player to join the source-seeded Irish party through the public action");
   }
-  recomputeComposition(world, "IE", "dail");
-  // The integration fixture represents a legal elected-member starting point,
-  // but party-chair authority is earned by the real Native national chair
-  // election actions and resolver. This keeps the public PM nomination open.
-  world.meta.turn = 24;
-  const rng = rngFromSeed("ireland-vat-party-chair-election");
-  nationalPartyElectionsPhase.run(world, rng);
-  const chairElection = world.nationalPartyElections.find((election) => election.partyId === "IE_FF" && election.position === "chair" && election.status === "voting");
-  if (!chairElection) throw new Error("Expected the Irish party chair ballot to be active");
-  if (!executeAction(world, "player", "contestPartyLeadership", { intrapartyElectionId: chairElection.id }).ok) {
-    throw new Error("Expected player to contest the chair ballot after the source tenure threshold");
+  // Eligibility is produced by the normal turn pipeline, campaign actions,
+  // ballot accumulation, and election resolvers. This is a deterministic
+  // starting-save bootstrap, not a browser-driven 96-turn career speedrun.
+  for (let turn = 0; turn < 96; turn++) {
+    advanceTurn(world);
+    const dailElection = world.elections.find(
+      (election) => election.countryId === "IE" && election.electionType === "dail" && election.state === "COR" && election.status === "active",
+    );
+    if (dailElection && !dailElection.candidates.some((candidate) => candidate.id === "player")) {
+      executeAction(world, "player", "declareCandidacy", { electionId: dailElection.id });
+    }
+    if (dailElection?.candidates.some((candidate) => candidate.id === "player")) {
+      executeAction(world, "player", "campaign", {});
+      executeAction(world, "player", "advertise", {});
+    }
+
+    for (const ballot of world.nationalPartyElections) {
+      if (ballot.partyId !== "IE_FF" || ballot.position !== "chair" || ballot.status !== "voting") continue;
+      if (!ballot.candidateIds.includes("player")) {
+        executeAction(world, "player", "contestPartyLeadership", { intrapartyElectionId: ballot.id });
+      }
+      if (ballot.candidateIds.includes("player") && !ballot.votes.player) {
+        executeAction(world, "player", "votePartyLeadership", { intrapartyElectionId: ballot.id, candidateId: "player" });
+      }
+    }
   }
-  if (!executeAction(world, "player", "votePartyLeadership", { intrapartyElectionId: chairElection.id, candidateId: "player" }).ok) {
-    throw new Error("Expected player to vote in the chair ballot");
+  if (world.player.legislativeSeat?.countryId !== "IE" || world.player.legislativeSeat.chamberKey !== "dail") {
+    throw new Error("Expected normal Irish Dáil election phases to award the player a seat");
   }
-  world.meta.turn = chairElection.endTurn;
-  nationalPartyElectionsPhase.run(world, rng);
-  if (world.parties.IE_FF?.chairId !== "player") throw new Error("Expected the real chair-election resolver to grant nomination authority");
+  if (world.parties.IE_FF?.chairId !== "player") {
+    throw new Error("Expected normal Irish party-election phases to award the player the party chair");
+  }
   return Buffer.from(serializeSave(world, "2026-10-01T00:00:00.000Z"));
 }
 

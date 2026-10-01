@@ -130,7 +130,11 @@ export async function saveGame(page: Page) {
   await openGameMenu(page);
   const save = page.getByRole('button', { name: 'Save game', exact: true });
   await save.click();
-  await expect(save).toBeEnabled();
+  // The button remains enabled while the asynchronous IndexedDB/Tauri write
+  // runs. Wait for the app's success notice so storage errors fail this helper.
+  await expect(
+    page.getByRole('dialog', { name: 'Game menu' }).getByText('Game saved.', { exact: true }),
+  ).toBeVisible({ timeout: 30_000 });
   await gameReady(page);
 }
 
