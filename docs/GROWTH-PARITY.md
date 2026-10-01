@@ -1,5 +1,37 @@
 # Growth / TFP parity slice (M04 bounded)
 
+## Default-world input checkpoint, 2026-10-01
+
+Fresh playable worlds now seed the six recorded regional leaves from AHDGame
+`08820d108bf986d519aed28c2963690dd772c652` and aggregate the active leaves by
+recorded region population. The source executor and committed vectors cover
+all 17 supported country/era combinations. US 1953/1979 inputs are authored;
+US 1991/2019 execute the source randomization order with the dedicated
+`${seed}:tfp-leaves` stream. This is the explicit offline randomness convention,
+not a claim to reproduce an arbitrary live Mongo world. Authentic old saves
+without leaves keep their missing-input fallback.
+
+Source Education and infrastructure ministerial orders now persist their
+national contribution to the existing regional leaves. National and regional
+contributions share the source strength and cap before aggregation. The public
+session test nominates the Education holder, issues Workforce Skills Initiative,
+advances, saves, reloads and continues. The source `.04 * 1.25` increment reaches
+the basket through real regional state. Two increments add `.1` skill and
+`.0016666666666666668` annual TFP; the existing three-decimal macro gap can round
+that small change away. The independent 4.5/0.5 R&D vectors still establish the
+macro basket consumer and replay behavior.
+
+The actual historical AHDClient reader at `c5017542` accepts opaque regional
+leaves but drops their national aggregation on its next turn. Historical v42
+export therefore continues to refuse nonempty regional metrics. The authentic
+v42 fixture and migrated-fixture oracle hashes remain unchanged. New worlds
+must keep their current Native save.
+
+#40 remains partial for the full source regional evolution chain, including
+state/federal spending, regional sector revenue, registry dependencies and
+their downstream consumers. #106 remains partial for the wider macro map.
+The earlier checkpoints below describe their original bounded revisions.
+
 Date: 2026-09-10. Worktree `fix/growth-parity` based on `main` `b4892fee8a05e155cf9c511264bfdba0c33f996a`. No commit.
 
 ## Source pins

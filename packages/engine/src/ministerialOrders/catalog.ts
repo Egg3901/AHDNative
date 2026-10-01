@@ -1,5 +1,6 @@
 import type { WorldState } from "../types.js";
 import { cabinetPositionsForCountry } from "../cabinet/constants.js";
+import { TFP_METRIC_PATHS } from "../demographics/laborForce.js";
 import { AUTHORED_MINISTERIAL_ORDERS } from "./catalogData.js";
 
 export interface MinisterialOrderEffectDefinition {
@@ -70,13 +71,18 @@ const NATIVE_NATIONAL_METRIC_PATHS = new Set([
   "economic.inflationRate",
   "economic.unemploymentRate",
   "governance.budgetBalance",
+  ...Object.values(TFP_METRIC_PATHS),
 ]);
 
 function resolveNationalMetric(world: WorldState, countryId: string, sourceMetric: string): string | null {
   const metrics = world.nationalMetrics[countryId] ?? {};
-  if (NATIVE_NATIONAL_METRIC_PATHS.has(sourceMetric)) return sourceMetric;
+  if (NATIVE_NATIONAL_METRIC_PATHS.has(sourceMetric)) {
+    return Number.isFinite(metrics[sourceMetric]?.value) ? sourceMetric : null;
+  }
   if (sourceMetric.includes(".")) return null;
-  const matches = [...NATIVE_NATIONAL_METRIC_PATHS].filter((path) => path.endsWith(`.${sourceMetric}`) && (metrics[path] || NATIVE_NATIONAL_METRIC_PATHS.has(path)));
+  const matches = [...NATIVE_NATIONAL_METRIC_PATHS].filter((path) => (
+    path.endsWith(`.${sourceMetric}`) && Number.isFinite(metrics[path]?.value)
+  ));
   return matches.length === 1 ? matches[0]! : null;
 }
 

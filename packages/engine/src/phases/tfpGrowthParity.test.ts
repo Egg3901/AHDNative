@@ -31,31 +31,39 @@ function injectTfpMetrics(world: WorldState, countryId: string, inputs: Record<s
 }
 
 describe("tfpBasket public advanceTurn / save-replay boundary", () => {
-  it("default 1953 US has no TFP basket metrics, so the missing-input gate stays open", () => {
+  it("default 1953 US seeds TFP basket metrics so the first macro read is off the 1.2 fallback", () => {
     const world = createWorld(OPTS);
-    expect(world.nationalMetrics["US"]?.[TFP_PATHS.rdIntensity]).toBeUndefined();
+    expect(world.nationalMetrics["US"]?.[TFP_PATHS.rdIntensity]?.value).toEqual(expect.any(Number));
+    expect(world.nationalMetrics["US"]?.[TFP_PATHS.broadbandAccess]).toBeUndefined();
+    const seeded = tfpBasket({
+      rdIntensity: world.nationalMetrics["US"]![TFP_PATHS.rdIntensity]!.value,
+      workforceSkill: world.nationalMetrics["US"]![TFP_PATHS.workforceSkill]!.value,
+      transportEfficiency: world.nationalMetrics["US"]![TFP_PATHS.transportEfficiency]!.value,
+      powerGridReliability: world.nationalMetrics["US"]![TFP_PATHS.powerGridReliability]!.value,
+      urbanizationRate: world.nationalMetrics["US"]![TFP_PATHS.urbanizationRate]!.value,
+    });
+    expect(seeded).not.toBe(1.2);
     advanceTurn(world);
     const metrics = world.nationalMetrics["US"] ?? {};
     for (const path of Object.values(TFP_PATHS)) {
-      expect(metrics[path], path).toBeUndefined();
+      if (path === TFP_PATHS.broadbandAccess) {
+        expect(metrics[path], path).toBeUndefined();
+      } else {
+        expect(metrics[path]?.value, path).toEqual(expect.any(Number));
+      }
     }
   });
 
-  it("preserves baseline growth when prior-turn metrics are absent or at TFP_REFERENCE_INPUTS", () => {
-    const absent = createWorld(OPTS);
+  it("injecting TFP_REFERENCE_INPUTS over the seed restores the 1.2 first-turn potential", () => {
+    const seeded = createWorld(OPTS);
     const reference = createWorld(OPTS);
     injectTfpMetrics(reference, "US", TFP_REFERENCE_INPUTS);
     expect(tfpBasket(TFP_REFERENCE_INPUTS)).toBe(1.2);
 
-    advanceTurn(absent);
+    advanceTurn(seeded);
     advanceTurn(reference);
 
-    expect(reference.countries["US"]!.economy.growthRate).toBe(absent.countries["US"]!.economy.growthRate);
-    expect(reference.countries["US"]!.economy.outputGap).toBe(absent.countries["US"]!.economy.outputGap);
-    expect(reference.countries["US"]!.economy.unemploymentRate).toBe(
-      absent.countries["US"]!.economy.unemploymentRate,
-    );
-    expect(reference.countries["US"]!.economy.gdp).toBe(absent.countries["US"]!.economy.gdp);
+    expect(reference.countries["US"]!.economy.outputGap).not.toBe(seeded.countries["US"]!.economy.outputGap);
   });
 
   it("materially different actual rdIntensity moves first-turn output gap and unemployment per upstream rules", () => {
@@ -84,9 +92,9 @@ describe("tfpBasket public advanceTurn / save-replay boundary", () => {
     expect(lowEcon.outputGap).toBeLessThanOrEqual(15);
 
     // Gap carry: next turn's gdpGrowth = potential + (gap - prevGap)*48.
-    // Default nationalMetrics rebuild drops TFP keys, so both worlds fall
-    // back to TFP_BASELINE on turn 2; the remaining growth gap is the
-    // upstream output-gap response to turn-1 potential, not a second TFP hit.
+    // The tail rebuilds TFP from the same regional seed on both worlds, so
+    // turn 2 uses the same basket; the remaining growth gap is the upstream
+    // output-gap response to turn-1 potential, not a second TFP hit.
     advanceTurn(high);
     advanceTurn(low);
     expect(high.countries["US"]!.economy.growthRate).toBeGreaterThan(low.countries["US"]!.economy.growthRate);

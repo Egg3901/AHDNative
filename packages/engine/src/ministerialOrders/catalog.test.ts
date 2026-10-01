@@ -84,10 +84,21 @@ describe("ministerial order catalog public boundary", () => {
             issuedAtTurn: world.meta.turn,
             effects: order.resolvedEffects,
           }];
-          expect(runMinisterialOrders(world).metricsUpdated).toBe(order.resolvedEffects.length);
+          expect(runMinisterialOrders(world).metricsUpdated).toBeGreaterThanOrEqual(order.resolvedEffects.length);
           expect(order.resolvedEffects.some((effect, index) => world.nationalMetrics[countryId]![effect.metric]!.value !== before[index])).toBe(true);
         }
       }
+    }
+  });
+
+  it("does not authorize an injected metric that is not on the source-backed allowlist", () => {
+    const world = createWorld({ era: "1953", countryId: "US", playerName: "Catalog Test", seed: "orders-injected" });
+    world.nationalMetrics["US"]!["infrastructure.publicTransit"] = { value: 40 };
+    const transit = classifyMinisterialOrders(world, "US", "secretary_of_transportation")
+      .find((order) => order.id === "public_transit_expansion");
+    expect(transit?.availability).toBe("blocked");
+    if (transit?.availability === "blocked") {
+      expect(transit.blocker).toBe("unsupportedMetric:infrastructure.publicTransit");
     }
   });
 });
