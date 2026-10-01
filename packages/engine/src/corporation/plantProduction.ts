@@ -155,6 +155,12 @@ export function runCorporatePlantProductionTurn(
     }
   }
 
+  // Source sectorCalculations.ts accumulates every sector's anchor revenue
+  // into its corporation (corpRevenue += r.hourlyRevenue) and re-denominates
+  // the total into corp-home currency on write. Writing corporation.revenue
+  // inside the per-asset loop lets the last asset overwrite earlier receipts,
+  // so accumulate anchor revenue per corporation here and settle once below.
+  const revenueAnchorPerDayByCorp = new Map<string, number>();
   for (const seller of sellers) {
     const { asset, supplyRates, mixPriceAnchor, productionCapacity, outputFactor } = seller;
     const corporation = world.corporations[asset.corporationId];
@@ -192,7 +198,25 @@ export function runCorporatePlantProductionTurn(
     asset.realizedRevenue = realizedRevenue;
     asset.soldByCommodity = soldByCommodity;
     asset.workers = calculateSectorWorkers(realizedRevenue, null);
-    corporation.revenue = realizedRevenue;
+    revenueAnchorPerDayByCorp.set(
+      corporation.id,
+      (revenueAnchorPerDayByCorp.get(corporation.id) ?? 0) + revenueAnchorPerDay,
+    );
+  }
+
+  // One write per corporation: the anchor-day total re-denominated into the
+  // corp-home reporting currency. Per-asset host-local receipts above are
+  // preserved untouched, and labour headcount keeps reading the asset leg.
+  // Full source corporate strategy (corp-level marketing/logistics/R&D
+  // overhead, consolidated tax apportionment, bond legs) remains unported;
+  // see corporationTurn.ts for the settled subset.
+  for (const [corporationId, anchorPerDay] of revenueAnchorPerDayByCorp) {
+    const corporation = world.corporations[corporationId];
+    if (!corporation) continue;
+    // Same factor order as the per-asset receipt (anchor x rate x days), so
+    // a single domestic asset settles bit-identical to its recorded receipt.
+    const weeklyLocal = anchorPerDay * getRateForCountry(world, corporation.countryId) * DAYS_PER_TURN;
+    corporation.revenue = Number.isFinite(weeklyLocal) ? Math.max(0, weeklyLocal) : 0;
   }
 
   // The next turn and price phase read the measured physical output, never

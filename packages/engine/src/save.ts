@@ -38,6 +38,7 @@ import {
   initialRepresentingUnionId,
   validateCorporateSectorAssets,
 } from "./corporation/corporateSectorAssets.js";
+import { validatePlantMarketDemand } from "./corporation/plantDemand.js";
 import { validateUnionOrganizers } from "./unions/organizers.js";
 import { validateUnionContributionLedger } from "./unions/contributions.js";
 import { validateCorporateBondSettlementLedger } from "./bonds/corporateBondDefaultSettlement.js";
@@ -2988,6 +2989,9 @@ export function deserializeSave(raw: string): WorldState {
   // backfill above, so no version renumber is needed. Present-but-invalid
   // rows fail closed through validateUnionOrganizers. Union strength keeps
   // the reference absent-means-zero rule explicitly.
+  if (save.world.plantMarketDemand !== undefined) {
+    validatePlantMarketDemand(save.world);
+  }
   if (save.world.unionOrganizers !== undefined) {
     validateUnionOrganizers(save.world, save.world.unionOrganizers);
   }

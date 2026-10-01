@@ -144,10 +144,44 @@ export function rebuildCorporatePlantInputDemand(world: WorldState): void {
     row.globalSupply = externalSupply + previousCorporateOutput;
     const sourceSupply = row.globalSupply;
     const unscaledFloor = stabilizer + scaledDemand / eraUnitScale;
+    // Source computeRawSupplyDemand bounds the PRE-calibration demand at
+    // supply x 1.5 / calibration, and the caller multiplies by calibration
+    // after, so a capped commodity reads exactly 1.5x supply. Comparing the
+    // already-calibrated demand against the pre-calibration cap overstates
+    // capped calibrated commodities by 1 / calibration. Keep min/max in
+    // pre-calibration units and calibrate once at the end.
+    const rawDemand = stabilizer + scaledDemand;
     const demandCap = sourceSupply * 1.5 / calibration;
-    const demandBeforeStabilizer = eraUnitScale > 1
-      ? Math.max(unscaledFloor, Math.min((stabilizer + scaledDemand) * calibration, demandCap))
-      : (stabilizer + scaledDemand) * calibration;
+    const preCalibrationDemand = rawDemand <= demandCap ? rawDemand : Math.max(unscaledFloor, demandCap);
+    const demandBeforeStabilizer = preCalibrationDemand * calibration;
     row.globalDemand = Number.isFinite(demandBeforeStabilizer) ? demandBeforeStabilizer : stabilizer;
+  }
+}
+
+/**
+ * Strict plant-market-book validation at the save boundary. Absent stays
+ * absent (pre-plants saves and fresh worlds carry no book; the turn rebuild
+ * creates it), so untouched saves stay byte-identical. A present book must
+ * carry all four legs as records of finite nonnegative unit balances;
+ * anything else is corruption and fails closed before the turn can read it.
+ * Unknown extra keys on the book are ignored for forward compatibility, but
+ * every recorded balance must be a valid number.
+ */
+export function validatePlantMarketDemand(world: WorldState): void {
+  const book = world.plantMarketDemand;
+  if (book === undefined) return;
+  if (typeof book !== "object" || book === null || Array.isArray(book)) {
+    throw new Error("World has an invalid plant market book");
+  }
+  for (const field of ["external", "corporateInputs", "externalSupply", "corporateOutputSupply"] as const) {
+    const leg = (book as unknown as Record<string, unknown>)[field];
+    if (typeof leg !== "object" || leg === null || Array.isArray(leg)) {
+      throw new Error(`World plant market book has an invalid ${field} leg`);
+    }
+    for (const [commodity, units] of Object.entries(leg as Record<string, unknown>)) {
+      if (typeof units !== "number" || !Number.isFinite(units) || units < 0) {
+        throw new Error(`World plant market book has invalid ${field} for ${commodity}`);
+      }
+    }
   }
 }

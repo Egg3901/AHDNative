@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { advancePlantCapitalTurn } from "./plantCapacity.js";
+import { advancePlantCapitalTurn, DEFAULT_SECTOR_OUTPUT_MIX } from "./plantCapacity.js";
 import { corporatePlantProductionPhase, demandThrottleFactor, throttleSoldUnits } from "./plantProduction.js";
+import { runCorporationTurn } from "./corporationTurn.js";
+import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { createWorld } from "../world.js";
 import { advanceTurn } from "../engine.js";
 import { deserializeSave, serializeSave } from "../save.js";
@@ -100,12 +102,13 @@ describe("plants-tier corporate production", () => {
     world.corporations = { ["US-manufacturing"]: world.corporations["US-manufacturing"]! };
     rebuildCorporatePlantInputDemand(world);
 
-    // Exact Game `computeRawSupplyDemand` result executed from immutable
-    // source 01797b2708. It seeds 50k stabilizers, uses daily nameplate value
-    // 329,410,714.2857143 and rates energy=.15 / iron=.10, era scale=69.767;
-    // the source 1.5× cap keeps these rows at the unscaled-pressure floor.
-    expect(world.commodityPrices.energy!.globalDemand).toBeCloseTo(873_526.7857142858, 5);
-    expect(world.commodityPrices.iron!.globalDemand).toBeCloseTo(324_508.9285714286, 5);
+    // Game `computeRawSupplyDemand` at immutable source 01797b2708, executed
+    // directly: the floor/cap pass runs in pre-calibration units and the
+    // caller calibrates after, so a floor-bound row reads floor x calibration
+    // (energy 873,526.7857142858 x 0.55). The prior expectation pinned the
+    // uncalibrated floor, overstating calibrated rows by 1 / calibration.
+    expect(world.commodityPrices.energy!.globalDemand).toBeCloseTo(480_439.7321428572, 5);
+    expect(world.commodityPrices.iron!.globalDemand).toBeCloseTo(146_029.01785714287, 5); // cap-bound row reads 1.5x supply post calibration
     expect(world.commodityPrices.steel!.globalDemand).toBe(41_000);
   });
 
@@ -133,5 +136,109 @@ describe("plants-tier corporate production", () => {
     expect(restored.corporateSectors).toEqual(direct.corporateSectors);
     expect(restored.corporations).toEqual(direct.corporations);
     expect(restored.commodityPrices).toEqual(direct.commodityPrices);
+  });
+
+  it("accumulates every asset's receipts into the owning corporation instead of last-asset-wins", () => {
+    // Source sectorCalculations.ts at 01797b2708 sums each sector's anchor
+    // hourly revenue into corpRevenue (corpRevenue += r.hourlyRevenue), then
+    // re-denominates into corp-home currency on write. Source-executed FX
+    // vectors from the pinned commit (corporationCapital.ts):
+    // readCorpEconomicAnchor(1.2M at 2.5) = 480k anchor,
+    // readCorpEconomicAnchor(0.8M at 0.5) = 1.6M anchor,
+    // writeCorpEconomicLocal(2.08M at 2.5) = 5.2M corp-local.
+    const world = createWorld({ era: "1953", countryId: "US", seed: "plants-multi-asset", playerName: "Alex" });
+    const corpId = "US-manufacturing";
+    world.corporations = { [corpId]: world.corporations[corpId]! };
+    const regionId = Object.keys(world.regions).find((key) => world.regions[key]!.countryId === "US")!;
+    const baseId = `corporate-sector:US:manufacturing:${corpId}`;
+    const secondId = `${baseId}:regional`;
+    world.exchangeRates["US"] = { ...world.exchangeRates["US"]!, rate: 2.5 };
+    world.corporateSectors = {
+      [baseId]: {
+        id: baseId, corporationId: corpId, countryId: "US", stateId: null,
+        sectorType: "manufacturing", workers: 1, representingUnionId: null,
+        forSale: null, owner: "corporation",
+      },
+      [secondId]: {
+        id: secondId, corporationId: corpId, countryId: "US", stateId: regionId,
+        sectorType: "manufacturing", workers: 1, representingUnionId: null,
+        forSale: null, owner: "corporation",
+      },
+    };
+    const assets = corporateSectorAssets(world);
+    assets[secondId]!.capitalStock = (assets[secondId]!.capitalStock ?? 0) / 2;
+    corporatePlantProductionPhase.run(world);
+
+    const first = world.corporateSectors[baseId]!;
+    const second = world.corporateSectors[secondId]!;
+    expect(first.realizedRevenue).toBeGreaterThan(0);
+    expect(second.realizedRevenue).toBeGreaterThan(0);
+    expect(second.realizedRevenue).toBeLessThan(first.realizedRevenue!);
+    // The bug under test wrote corporation.revenue inside the per-asset loop,
+    // so the second (smaller) receipt overwrote the first. The source contract
+    // is the sum, reported in corp-home currency through the anchor total.
+    expect(world.corporations[corpId]!.revenue).toBeCloseTo(
+      first.realizedRevenue! + second.realizedRevenue!, 6,
+    );
+    // Recorded per-asset local revenue and labour outputs are preserved.
+    expect(first.soldUnits).toBeGreaterThan(second.soldUnits!);
+    expect(first.workers).toBeGreaterThan(second.workers!);
+  });
+
+  it("consumes plant receipts once in runCorporationTurn without synthetic regrowth", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "plants-once", playerName: "Alex" });
+    const corpId = "US-manufacturing";
+    world.corporations = { [corpId]: world.corporations[corpId]! };
+    const baseId = `corporate-sector:US:manufacturing:${corpId}`;
+    world.corporateSectors = {
+      [baseId]: {
+        id: baseId, corporationId: corpId, countryId: "US", stateId: null,
+        sectorType: "manufacturing", workers: 1, representingUnionId: null,
+        forSale: null, owner: "corporation",
+      },
+    };
+    corporatePlantProductionPhase.run(world);
+    const corp = world.corporations[corpId]!;
+    const receipts = corp.revenue;
+    expect(receipts).toBe(world.corporateSectors[baseId]!.realizedRevenue);
+    const earningsBefore = corp.earningsHistory.length;
+    runCorporationTurn(corp, 30, { outputFactor: 1, marginModifierPP: 0, strikeActive: false }, undefined, true);
+    expect(corp.revenue).toBe(receipts);
+    expect(corp.earningsHistory.length).toBe(earningsBefore + 1);
+  });
+
+  it("bounds calibrated demand at 1.5x supply in post-calibration units", () => {
+    // Source-executed vector from computeRawSupplyDemand at 01797b2708
+    // (ledgerUnitScale 69.767, energy calibration 0.55): a 1.6M-unit energy
+    // input leg against 50k supply reads ledger demand 136,363.64 pre
+    // calibration (supply x 1.5 / 0.55), truncated 832,500 in calibrated
+    // units, so the caller-calibrated demand is exactly 75,000 = 1.5x supply.
+    // The native bug compared already-calibrated demand against the
+    // pre-calibration cap and read 136,364 (1.82x supply).
+    const world = createWorld({ era: "1953", countryId: "US", seed: "plants-cap-bound", playerName: "Alex" });
+    const corpId = "US-manufacturing";
+    world.corporations = { [corpId]: world.corporations[corpId]! };
+    const id = `corporate-sector:US:manufacturing:${corpId}`;
+    const base = world.commodityPrices;
+    const mix = DEFAULT_SECTOR_OUTPUT_MIX["manufacturing"] ?? {};
+    let unitYield = 0;
+    for (const [commodity, rate] of Object.entries(mix)) {
+      unitYield += (rate ?? 0) / base[commodity]!.basePrice;
+    }
+    const mixPrice = 1 / unitYield;
+    const targetLeg = 1_600_000;
+    const produced = targetLeg * base["energy"]!.basePrice / (0.15 * mixPrice);
+    world.corporateSectors = {
+      [id]: {
+        id, corporationId: corpId, countryId: "US", stateId: null,
+        sectorType: "manufacturing", capitalStock: produced, producedUnits: produced,
+        capacityBookAnchor: 0, workers: 1, representingUnionId: null,
+        forSale: null, owner: "corporation",
+      },
+    };
+    base["energy"]!.globalDemand = 0;
+    base["energy"]!.globalSupply = 50_000;
+    rebuildCorporatePlantInputDemand(world);
+    expect(world.commodityPrices["energy"]!.globalDemand).toBeCloseTo(75_000, 3);
   });
 });
