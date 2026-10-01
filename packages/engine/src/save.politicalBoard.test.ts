@@ -35,5 +35,12 @@ describe("source political boards at the public save boundary", () => {
     // dynamics. Older readers reject it instead of freezing unknown state.
     expect(JSON.parse(serializeSave(loaded, "2026-10-01T00:00:00.000Z")).schemaVersion).toBe(51);
   });
+  it("refuses malformed or out-of-scale recorded political scores before continuation", () => {
+    const saved = JSON.parse(serializeSave(createWorld({ era: "2019", countryId: "UK", seed: "political-save", playerName: "Alex" }), "2026-10-01T00:00:00.000Z"));
+    for (const value of [null, "broken", -1, 101]) {
+      saved.world.regionalPoliticalMetrics.LON.values["economy.workerSecurity"] = value;
+      expect(() => deserializeSave(JSON.stringify(saved))).toThrow(/Political board.*LON.*value/);
+    }
+  });
 
 });
