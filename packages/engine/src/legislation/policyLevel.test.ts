@@ -15,13 +15,15 @@ const HOS_OPTIONS = {
 describe("program law policy levels", () => {
   it("sponsors the exact selected catalog option and records its source direction ladder", () => {
     const world = createWorld(HOS_OPTIONS);
+    // Scoped law-selection fixture funds the source 10 AP / 5 NPI proposal.
+    world.player.nationalInfluence = 5;
 
     const result = executeAction(world, "player", "sponsorBill", {
       catalogId: "us.economy.workerSecurity.primary",
       policyOptionId: "l3",
     });
 
-    expect(result).toEqual({ ok: true, message: expect.stringContaining("Sponsored bill"), changes: { actions: -4 } });
+    expect(result).toEqual({ ok: true, message: expect.stringContaining("Sponsored bill"), changes: { actions: -10, nationalInfluence: -5 } });
     expect(world.bills[0]?.provisions[0]).toMatchObject({
       policyOptionId: "l3",
       effectDirection: 1,
@@ -31,6 +33,8 @@ describe("program law policy levels", () => {
 
   it("rejects an option that is absent from the catalog without changing the world", () => {
     const world = createWorld(HOS_OPTIONS);
+    // Scoped law-selection fixture funds the source 10 AP / 5 NPI proposal.
+    world.player.nationalInfluence = 5;
     const before = structuredClone(world);
 
     const result = executeAction(world, "player", "sponsorBill", {
@@ -44,6 +48,8 @@ describe("program law policy levels", () => {
 
   it("rejects program option ids for tax sliders without changing the world", () => {
     const world = createWorld(HOS_OPTIONS);
+    // Scoped law-selection fixture funds the source 10 AP / 5 NPI proposal.
+    world.player.nationalInfluence = 5;
     const before = structuredClone(world);
 
     const result = executeAction(world, "player", "sponsorBill", {
@@ -60,6 +66,8 @@ describe("program law policy levels", () => {
 
   it("rejects a valid option when the catalog law belongs to another sponsor country", () => {
     const world = createWorld(HOS_OPTIONS);
+    // Scoped law-selection fixture funds the source 10 AP / 5 NPI proposal.
+    world.player.nationalInfluence = 5;
     const before = structuredClone(world);
 
     const result = executeAction(world, "player", "sponsorBill", {
@@ -77,6 +85,8 @@ describe("program law policy levels", () => {
 
   it("keeps the existing default sponsorship shape when no level is selected", () => {
     const world = createWorld(HOS_OPTIONS);
+    // Scoped law-selection fixture funds the source 10 AP / 5 NPI proposal.
+    world.player.nationalInfluence = 5;
 
     const result = executeAction(world, "player", "sponsorBill", {
       catalogId: "us.economy.workerSecurity.primary",
@@ -92,6 +102,7 @@ describe("program law policy levels", () => {
     const expectedDirections = [-1, -1, 0, 1, 1];
     for (let index = 0; index < expectedDirections.length; index++) {
       const world = createWorld({ ...HOS_OPTIONS, seed: `policy-level-${index}` });
+      world.player.nationalInfluence = 5;
       const result = executeAction(world, "player", "sponsorBill", {
         catalogId: "us.economy.workerSecurity.primary",
         policyOptionId: `l${index}`,
@@ -104,6 +115,8 @@ describe("program law policy levels", () => {
 
   it("carries the selected option through enactment and save reload", () => {
     const world = createWorld(HOS_OPTIONS);
+    // Scoped law-selection fixture funds the source 10 AP / 5 NPI proposal.
+    world.player.nationalInfluence = 5;
     const legislature = world.legislatures.US!;
     legislature.bicameral = false;
     legislature.chambers = [legislature.chambers[0]!];
@@ -141,6 +154,8 @@ describe("program law policy levels", () => {
   it("keeps source program levels out of legacy instant effects while recording policy direction", () => {
     const enact = (policyOptionId: "l2" | "l3") => {
       const world = createWorld(HOS_OPTIONS);
+    // Scoped law-selection fixture funds the source 10 AP / 5 NPI proposal.
+    world.player.nationalInfluence = 5;
       const legislature = world.legislatures.US!;
       legislature.bicameral = false;
       legislature.chambers = [legislature.chambers[0]!];

@@ -1,6 +1,6 @@
 import { calculateBudgetRevenue } from "./revenue.js";
 import { calculateBudgetSpending } from "./spending.js";
-import { needsPhaseIn, stepTaxRate } from "./taxRatePhaseIn.js";
+import { markTaxRatePhaseInStartedThisTurn, needsPhaseIn, stepTaxRate } from "./taxRatePhaseIn.js";
 import type { WorldState } from "../types.js";
 import type { TurnPhase } from "../phases/types.js";
 
@@ -34,8 +34,10 @@ export const fiscalDirectivesPhase: TurnPhase = {
         const stepped = stepTaxRate(current, directive.value);
         budget.taxRates = { ...budget.taxRates, [key]: stepped };
         const pending = { ...(budget.taxRatePhaseIn ?? {}) };
-        if (needsPhaseIn(current, directive.value)) pending[key] = directive.value;
-        else delete pending[key];
+        if (needsPhaseIn(current, directive.value)) {
+          pending[key] = directive.value;
+          markTaxRatePhaseInStartedThisTurn(world, directive.countryId, key);
+        } else delete pending[key];
         budget.taxRatePhaseIn = pending;
         budget.revenue = calculateBudgetRevenue(budget.taxRates, budget.taxBases, budget.revenue.other);
       }

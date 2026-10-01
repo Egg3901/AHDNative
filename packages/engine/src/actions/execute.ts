@@ -56,6 +56,7 @@ import { canPlayerOperateGosbank } from "../commandEconomy/authority.js";
 import { reconcileCeoAppointment } from "../corporation/ceoGovernance.js";
 import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
 import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecruit.js";
+import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
 
 export type ExecuteActionParams = {
   regionId?: string;
@@ -167,7 +168,7 @@ export type ExecuteActionParams = {
 };
 
 export type ExecuteActionResult =
-  | { ok: true; message: string; changes?: Partial<Record<"actions" | "funds" | "cash" | "infamy" | "politicalInfluence" | "favorability" | "donorBaseLevel", number>> }
+  | { ok: true; message: string; changes?: Partial<Record<"actions" | "funds" | "cash" | "infamy" | "politicalInfluence" | "nationalInfluence" | "favorability" | "donorBaseLevel", number>> }
   | { ok: false; error: string };
 
 function findActor(world: WorldState, actorId: string): { kind: "player" | "politician"; entity: any } | null {
@@ -235,6 +236,7 @@ export function executeAction(
     cash?: number;
     infamy?: number;
     politicalInfluence?: number;
+    nationalInfluence?: number;
     favorability?: number;
     donorBaseLevel?: number;
     actionCooldowns: Record<string, number>;
@@ -247,6 +249,7 @@ export function executeAction(
         cash: actor.cash,
         infamy: actor.infamy,
         politicalInfluence: actor.politicalInfluence,
+        nationalInfluence: actor.nationalInfluence,
         favorability: actor.favorability,
         donorBaseLevel: actor.donorBaseLevel,
         actionCooldowns: { ...actor.actionCooldowns },
@@ -259,7 +262,7 @@ export function executeAction(
     if (result.ok && actorId === "player") accrueCharacterActionXp(world, actionId);
     if (result.ok && actor && accounting) {
       const changes: Extract<ExecuteActionResult, { ok: true }>["changes"] = {};
-      for (const key of ["actions", "funds", "cash", "infamy", "politicalInfluence", "favorability", "donorBaseLevel"] as const) {
+      for (const key of ["actions", "funds", "cash", "infamy", "politicalInfluence", "nationalInfluence", "favorability", "donorBaseLevel"] as const) {
         const previous = accounting[key];
         const current = actor[key];
         if (typeof previous === "number" && typeof current === "number" && current !== previous) changes[key] = current - previous;
@@ -274,13 +277,14 @@ export function executeAction(
 }
 
 function restoreActionAccounting(
-  actor: { actions: number; funds: number; cash?: number; infamy?: number; politicalInfluence?: number; favorability?: number; donorBaseLevel?: number; actionCooldowns: Record<string, number>; actionCounts?: Record<string, number> },
+  actor: { actions: number; funds: number; cash?: number; infamy?: number; politicalInfluence?: number; nationalInfluence?: number; favorability?: number; donorBaseLevel?: number; actionCooldowns: Record<string, number>; actionCounts?: Record<string, number> },
   snapshot: {
     actions: number;
     funds: number;
     cash: number | undefined;
     infamy: number | undefined;
     politicalInfluence: number | undefined;
+    nationalInfluence: number | undefined;
     favorability: number | undefined;
     donorBaseLevel: number | undefined;
     actionCooldowns: Record<string, number>;
@@ -289,7 +293,7 @@ function restoreActionAccounting(
 ): void {
   actor.actions = snapshot.actions;
   actor.funds = snapshot.funds;
-  for (const key of ["cash", "infamy", "politicalInfluence", "favorability", "donorBaseLevel"] as const) {
+  for (const key of ["cash", "infamy", "politicalInfluence", "nationalInfluence", "favorability", "donorBaseLevel"] as const) {
     const previous = snapshot[key];
     if (previous === undefined) delete actor[key];
     else actor[key] = previous;
@@ -387,7 +391,9 @@ function executeActionInner(
   const partyCaucus = isPartyCaucusActionId(actionId) ? partyCaucusCharge(actor, actionId) : null;
   const cost = canvass?.ok ? canvass.actions : nppInfluence?.ok ? nppInfluence.actionCost : nppRecruit?.ok ? nppRecruit.actionCost : partyCaucus
     ? partyCaucus.actionCost
-    : getActionCost(catalog, actor.donorBaseLevel ?? 0, actor.politicalInfluence ?? 0, actor.favorability ?? 50);
+    : actionId === "sponsorBill"
+      ? BILL_PROPOSE_ACTION_COST
+      : getActionCost(catalog, actor.donorBaseLevel ?? 0, actor.politicalInfluence ?? 0, actor.favorability ?? 50);
   if ((actor.actions ?? 0) < cost) return { ok: false, error: `Not enough action points. Required: ${cost}, Available: ${actor.actions}` };
 
   // Fund cost check: one stat-scaled source shared with the session quote
@@ -985,8 +991,18 @@ function executeActionInner(
             : undefined;
         const effectiveCurrentRate = typeof currentRate === "number" ? currentRate : tp.baselineRate;
         if (selectedTaxRate === effectiveCurrentRate) return { ok: false, error: `Tax rate is already ${selectedTaxRate}` };
-        taxEffectDirection = selectedTaxRate > effectiveCurrentRate ? 1 : -1;
+        // Tax option stance is authored independently from its numeric rate.
+        // For example, Ireland's 23% VAT option is centrist even though it is
+        // a two-point increase from the 1991 Native baseline; keep fiscal
+        // selectedRate/phase-in separate from this political bill effect.
+        taxEffectDirection = selectedTaxOption?.effectDirection ?? (selectedTaxRate > effectiveCurrentRate ? 1 : -1);
       }
+      const npiCost = proposalNpiCost(leg);
+      const availableNpi = world.player.nationalInfluence ?? 0;
+      if (availableNpi < npiCost) {
+        return { ok: false, error: `Not enough national influence. Required: ${npiCost}, Available: ${availableNpi}` };
+      }
+      if (npiCost > 0) world.player.nationalInfluence = availableNpi - npiCost;
       // Origin chamber: player's seat chamber or first elected chamber of country
       const legConfig = world.legislatures[countryId];
       const originChamber = params.originChamber ?? player.legislativeSeat?.chamberKey ?? legConfig?.chambers.find((c) => c.elected)?.key ?? "house";
@@ -1033,6 +1049,8 @@ function executeActionInner(
         votesAgainst: 0,
         votesAbstain: 0,
         proposedAtTurn: world.meta.turn,
+        proposalActionCost: BILL_PROPOSE_ACTION_COST,
+        ...(npiCost > 0 ? { proposalNpiCost: npiCost } : {}),
         filibusterInvocations: [],
         updatedAtTurn: world.meta.turn,
         committeeId: null,

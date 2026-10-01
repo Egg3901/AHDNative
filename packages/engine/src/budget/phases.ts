@@ -40,21 +40,38 @@ export const fiscalBaseGrowthPhase: TurnPhase = {
         after[k] = Math.round(after[k]);
       }
       budget.taxBases = after;
-      // Ticket #1102: walk any enacted tax-rate change one step toward its
-      // target (mainline treasuryTurn.ts). Reached targets drop out on their own.
-      if (budget.taxRatePhaseIn && Object.keys(budget.taxRatePhaseIn).length > 0) {
-        const ramp = advanceTaxRatePhaseIn(budget.taxRates as unknown as Record<string, number>, budget.taxRatePhaseIn as Record<string, number>);
-        if (ramp.changed) {
-          budget.taxRates = { ...budget.taxRates, ...(ramp.rates as Partial<typeof budget.taxRates>) };
-          budget.taxRatePhaseIn = ramp.pending as typeof budget.taxRatePhaseIn;
-        }
-      }
-      // Recompute revenue off grown bases so per-turn treasury accrual tracks live bases
+      // Mainline refreshes federal revenue in corporationTurn before its
+      // treasuryTurn advances an enacted tax-rate ramp. Keep this ordering:
+      // the enacted step is reflected in this turn's receipts, while the
+      // treasury step becomes the next turn's rate. Recomputing after the ramp
+      // would book one extra percentage point of tax in the same turn.
       const rev = calculateBudgetRevenue(budget.taxRates, budget.taxBases, budget.revenue.other);
       budget.revenue = rev;
       // Keep surplus consistent
       budget.surplus = rev.total - budget.spending.total;
+      // Ticket #1102: walk any enacted tax-rate change one step toward its
+      // target (mainline treasuryTurn.ts). Enactment/directive phases already
+      // make the source's first step earlier in this turn, so do not advance
+      // those new targets twice in one advanceTurn call.
+      if (budget.taxRatePhaseIn && Object.keys(budget.taxRatePhaseIn).length > 0) {
+        const startedThisTurn = new Set(world.taxRatePhaseInStartedThisTurn ?? []);
+        const skipped: Record<string, number> = {};
+        const advancing: Record<string, number> = {};
+        for (const [taxType, target] of Object.entries(budget.taxRatePhaseIn)) {
+          if (startedThisTurn.has(`${budget.countryId}:${taxType}`)) skipped[taxType] = target;
+          else advancing[taxType] = target;
+        }
+        const ramp = advanceTaxRatePhaseIn(
+          budget.taxRates as unknown as Record<string, number>,
+          advancing,
+        );
+        if (ramp.changed) {
+          budget.taxRates = { ...budget.taxRates, ...(ramp.rates as Partial<typeof budget.taxRates>) };
+        }
+        budget.taxRatePhaseIn = { ...ramp.pending, ...skipped } as typeof budget.taxRatePhaseIn;
+      }
     }
+    delete world.taxRatePhaseInStartedThisTurn;
   },
 };
 
