@@ -3,7 +3,7 @@
  *
  * The Profile corporation card ("View company") and the drawer "My
  * Corporation" identity row both open the Markets company detail for the
- * recorded player-owned sector asset. That entry must carry a return frame
+ * recorded corporation led by the player. That entry must carry a return frame
  * so the shell offers Back to the surface that opened it; landing without
  * one strands the player on the market list with no way back to Profile.
  * Rendered at 320px, 390px, and desktop width.
@@ -16,7 +16,7 @@ import { GameScreen } from "./GameScreen";
 import { MENU_GROUPS } from "./MobileNavigation";
 import { DEFAULT_PREFERENCES } from "../preferences";
 
-const OPTIONS = { era: "1953", countryId: "US", seed: "native-corp-return-80", playerName: "Alex" };
+const OPTIONS = { era: "1953", countryId: "US", seed: "native-corp-return-80", playerName: "Alex", homeRegionId: "DC" };
 const SAVED_AT = "2026-09-18T00:00:00.000Z";
 
 afterEach(() => {
@@ -29,20 +29,14 @@ function setViewport(width: number) {
   window.dispatchEvent(new Event("resize"));
 }
 
-/** A live owner session through the public sector-acquisition flow. */
+/** An active CEO appointed through the public share/vote/accept flow. */
 function owningSession(): GameSession {
   const session = new GameSession();
   session.create(OPTIONS);
   expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
-  const assetId = session.markets().listings.find((entry) => entry.id === "US-media")!.sectorAsset.id;
-  const listed = session.listSectorForSale(assetId);
-  expect(listed.ok).toBe(true);
-  const raw = JSON.parse(session.serialize(SAVED_AT));
-  raw.world.player.cash = listed.ok ? listed.priceAnchor : 0;
-  const funded = new GameSession();
-  funded.load(JSON.stringify(raw));
-  expect(funded.buySectorForSale(assetId).ok).toBe(true);
-  return funded;
+  expect(session.act("voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);
+  expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
+  return session;
 }
 
 const searchFn = async (query: string) =>

@@ -48,12 +48,16 @@ function makeListing(overrides: Partial<MarketListing> = {}): MarketListing {
     effectiveProfitMargin: 8,
     insolvent: false,
     foundedAtTurn: 0,
-    isBank: false, isStateOwned: false,
+    isBank: false,
     playerShares: 0,
     playerAvgCostPerShare: null,
     npcShares: 5_100_000,
     shareholders: [{ holder: "npc", shares: 5_100_000, avgCostPerShare: null }],
     controllingHolder: "npc",
+    ceoId: "npc",
+    ceoVacant: false,
+    isStateOwned: false,
+    sectorBuyerOptions: [{ id: "US-financial", name: "US-financial", countryId: "US", currency: "USD", liquidCapital: 50_000, rate: 1 }],
     orderFlow: {
       buyWindow: 0,
       sellWindow: 0,
@@ -275,7 +279,7 @@ describe("MarketsPanel detail and actions", () => {
     render(<MarketsPanel markets={makeMarkets()} busy={false} onAction={onAction} />);
     await user.click(screen.getByRole("button", { name: /US\.MEDI US-media/i }));
     await user.click(screen.getByRole("button", { name: /buy shares/i }));
-    expect(screen.getByRole("alert")).toHaveTextContent(/positive whole number/i);
+    expect(screen.getAllByRole("alert")[0]).toHaveTextContent(/positive whole number/i);
     expect(onAction).not.toHaveBeenCalled();
     await user.type(screen.getByLabelText("Shares"), "1.5");
     await user.click(screen.getByRole("button", { name: /buy shares/i }));
@@ -622,7 +626,7 @@ describe("MarketsPanel For Sale and sector asset (#299)", () => {
     const onAction = vi.fn();
     render(
       <MarketsPanel
-        markets={makeMarkets({ listings: [makeListing()], sectors: [makeSector()] })}
+        markets={makeMarkets({ listings: [makeListing({ ceoId: "npc" })], sectors: [makeSector()] })}
         busy={false}
         onAction={onAction}
       />,
@@ -637,7 +641,7 @@ describe("MarketsPanel For Sale and sector asset (#299)", () => {
     // Recorded zero workers render verbatim, not hidden.
     expect(screen.getByText("Workers")).toBeInTheDocument();
 
-    // No recorded shares: the listing control is held with the owner gate.
+    // A recorded NPC CEO means the player has no listing authority.
     const listForSale = screen.getByRole("button", { name: /list media sector for sale/i });
     expect(listForSale).toBeDisabled();
     expect(screen.getByText(SECTOR_LIST_OWNER_ONLY)).toBeInTheDocument();
@@ -688,7 +692,7 @@ describe("MarketsPanel For Sale and sector asset (#299)", () => {
     const MarketsPanel = await loadPanel();
     const user = userEvent.setup();
     const onSectorSale = vi.fn();
-    const listed = makeListing({
+    const listed = makeListing({ ceoId: "npc",
       sectorAsset: {
         id: "corporate-sector:US:media:US-media",
         corporationId: "US-media",
@@ -718,26 +722,26 @@ describe("MarketsPanel For Sale and sector asset (#299)", () => {
     const directoryBuy = screen.getByRole("button", { name: /buy media sector \(US\.MEDI\)/i });
     expect(directoryBuy).toBeEnabled();
     await user.click(directoryBuy);
-    expect(onSectorSale).toHaveBeenCalledWith("buy", { assetId: "corporate-sector:US:media:US-media" });
+    expect(onSectorSale).toHaveBeenCalledWith("buy", { assetId: "corporate-sector:US:media:US-media", buyerCorporationId: "US-financial" });
 
     await user.click(screen.getByRole("button", { name: /US\.MEDI US-media/i }));
     expect(screen.getByText(/anchor/i)).toBeInTheDocument();
-    // Recorded without player shares: update and unlist stay held with the owner gate,
-    // but buying needs no shares, so Buy is live.
+    // Recorded under an NPC CEO: update and unlist stay held with the CEO gate,
+    // but buying needs no seller authority, so Buy remains live.
     expect(screen.getByRole("button", { name: /update media sector price/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /unlist media sector/i })).toBeDisabled();
     expect(screen.getByText(SECTOR_LIST_OWNER_ONLY)).toBeInTheDocument();
     const detailBuy = screen.getByRole("button", { name: /^buy media sector$/i });
     expect(detailBuy).toBeEnabled();
     await user.click(detailBuy);
-    expect(onSectorSale).toHaveBeenCalledWith("buy", { assetId: "corporate-sector:US:media:US-media" });
+    expect(onSectorSale).toHaveBeenCalledWith("buy", { assetId: "corporate-sector:US:media:US-media", buyerCorporationId: "US-financial" });
   });
 });
 
 describe("MarketsPanel sector sale listing controls (#294)", () => {
   const ASSET_ID = "corporate-sector:US:media:US-media";
   const ownerListing = (overrides: Partial<MarketListing> = {}) =>
-    makeListing({ playerShares: 2, ...overrides });
+    makeListing({ ceoId: "player", ceoVacant: false, ...overrides });
 
   async function openDetail(listing: MarketListing, onSectorSale = vi.fn()) {
     const MarketsPanel = await loadPanel();
@@ -755,7 +759,7 @@ describe("MarketsPanel sector sale listing controls (#294)", () => {
     return onSectorSale;
   }
 
-  it("enables List for sale for a recorded shareholder and sends the asset id", async () => {
+  it("enables List for sale for the active CEO and sends the asset id", async () => {
     const onSectorSale = await openDetail(ownerListing());
     expect(screen.getByText("Not for sale")).toBeInTheDocument();
     const list = screen.getByRole("button", { name: /list media sector for sale/i });
@@ -791,12 +795,12 @@ describe("MarketsPanel sector sale listing controls (#294)", () => {
     expect(onSectorSale).not.toHaveBeenCalled();
   });
 
-  it("holds every listing control for a non-shareholder while keeping Buy unavailable (#295)", async () => {
+  it("holds every listing control for a non-CEO shareholder while keeping Buy unavailable (#295)", async () => {
     const MarketsPanel = await loadPanel();
     const onSectorSale = vi.fn();
     render(
       <MarketsPanel
-        markets={makeMarkets({ listings: [makeListing()], sectors: [makeSector()] })}
+        markets={makeMarkets({ listings: [makeListing({ playerShares: 2, ceoId: "npc" })], sectors: [makeSector()] })}
         busy={false}
         onAction={vi.fn()}
         onSectorSale={onSectorSale}
@@ -827,7 +831,10 @@ describe("MarketsPanel sector sale listing controls (#294)", () => {
       const MarketsPanel = await loadPanel();
       render(
         <MarketsPanel
-          markets={makeMarkets({ playerCash: cash, listings: [listing], sectors: [makeSector({ forSaleCount: 1 })] })}
+          markets={makeMarkets({ playerCash: cash, listings: [{
+            ...listing,
+            sectorBuyerOptions: listing.sectorBuyerOptions?.map((buyer) => ({ ...buyer, liquidCapital: cash })),
+          }], sectors: [makeSector({ forSaleCount: 1 })] })}
           busy={false}
           onAction={vi.fn()}
           onSectorSale={onSectorSale}
@@ -845,7 +852,7 @@ describe("MarketsPanel sector sale listing controls (#294)", () => {
       const buy = screen.getByRole("button", { name: /^buy media sector$/i });
       expect(buy).toBeEnabled();
       await userEvent.setup().click(buy);
-      expect(onSectorSale).toHaveBeenCalledWith("buy", { assetId: ASSET_ID });
+      expect(onSectorSale).toHaveBeenCalledWith("buy", { assetId: ASSET_ID, buyerCorporationId: "US-financial" });
     });
 
     it("reads you as owner and holds relist and buy with the already-owned reason", async () => {
@@ -864,7 +871,7 @@ describe("MarketsPanel sector sale listing controls (#294)", () => {
       expect(screen.getByText(/required: 5000, available: 1000/i)).toBeInTheDocument();
     });
 
-    it("holds buy with the currency gate on a foreign listing", async () => {
+    it("quotes foreign purchases through the selected buyer corporation currency", async () => {
       const base = makeListing().sectorAsset;
       const foreign = makeListing({
         countryId: "UK",
@@ -872,9 +879,11 @@ describe("MarketsPanel sector sale listing controls (#294)", () => {
         cashCurrencyMatches: false,
         sectorAsset: { ...base, countryId: "UK", owner: "corporation" as const, forSale: { priceAnchor: 5000 } },
       });
-      await openDetail(foreign);
-      expect(screen.getByRole("button", { name: /^buy media sector$/i })).toBeDisabled();
-      expect(screen.getAllByText(CROSS_CURRENCY_UNAVAILABLE).length).toBeGreaterThanOrEqual(1);
+      const onSectorSale = await openDetail(foreign);
+      const buy = screen.getByRole("button", { name: /^buy media sector$/i });
+      expect(buy).toBeEnabled();
+      await userEvent.setup().click(buy);
+      expect(onSectorSale).toHaveBeenCalledWith("buy", { assetId: ASSET_ID, buyerCorporationId: "US-financial" });
     });
 
     it("disables listing controls when busy", async () => {

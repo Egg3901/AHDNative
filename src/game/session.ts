@@ -675,18 +675,10 @@ export class GameSession {
     return result;
   }
 
-  /**
-   * #295: player acquisition of a listed sector. The engine call runs on a
-   * clone as the player and only an ok result commits, so every refusal
-   * (unknown listing, not listed, bad anchor, foreign currency, short cash,
-   * already owned) leaves the live world untouched. A success debits
-   * personal cash, credits the seller corporation, clears the listing, and
-   * records player ownership; it persists through the normal
-   * serialize/load path as recorded CorporateSectorAsset state.
-   */
-  buySectorForSale(assetId: string): SectorAcquireResult {
+  /** #295: an active player CEO buys a listed asset using corporate capital. */
+  buySectorForSale(assetId: string, buyerCorporationId = ""): SectorAcquireResult {
     const candidate = structuredClone(this.requireWorld());
-    const result = buyCorporateSectorForSale(candidate, assetId, "player");
+    const result = buyCorporateSectorForSale(candidate, assetId, buyerCorporationId);
     if (!result.ok) return result;
     this.commit(candidate);
     return result;

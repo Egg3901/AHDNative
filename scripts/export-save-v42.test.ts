@@ -134,8 +134,6 @@ describe("export-save-v42 CLI", () => {
       delete corporation.legacyProjectionDefaults;
     }
     expect(world.player.homeRegionId).toBe("AL");
-    // Isolate the supported issuer-identity extension. The separate fresh
-    // world case above proves normal TFP worlds fail closed.
     world.regionalMetrics = {};
     const projection = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projection.ok).toBe(true);

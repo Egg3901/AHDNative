@@ -322,15 +322,17 @@ export interface GameScreenProps {
   world: GameView; busy: boolean; message?: string; error?: string;
   /** Save-slot identity for per-save news selection and read state. */
   newsStorageKey?: string;
+  /** Stable save identity for keeping same-world regional details mounted during refresh. */
+  contextKey?: string;
   onAdvanceTurn: () => void; onSave: () => void; onExit: () => void;
   onAction: (id: string, params?: GameActionParams) => void;
   /**
-   * Direct corporate-sector sale commands (#294) plus player acquisition
-   * (#295): list, update, unlist, or buy a recorded sector-asset listing as
-   * the player. Outside the action catalog (no AP cost). Optional so
+   * Direct corporate-sector sale commands (#294) plus corporation acquisition
+   * (#299): list, update, unlist, or buy a recorded sector-asset listing with
+   * a CEO-authorized buyer. Outside the action catalog (no AP cost). Optional so
    * surfaces without sale UI render the listing controls disabled.
    */
-  onSectorSale?: (op: "list" | "update" | "unlist" | "buy", params: { assetId: string; priceAnchor?: number }) => void;
+  onSectorSale?: (op: "list" | "update" | "unlist" | "buy", params: { assetId: string; priceAnchor?: number; buyerCorporationId?: string }) => void;
   /** Player-authored union organization and bargaining commands; NPC replies remain turn-owned. */
   onUnionCommand?: (command: Extract<import("./protocol").GameCommand, { type: "unionCommand" }>) => void;
   onMarkNotificationRead: (id: string) => void;

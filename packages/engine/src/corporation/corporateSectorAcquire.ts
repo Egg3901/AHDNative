@@ -1,108 +1,87 @@
 import type { WorldState } from "../types.js";
-import type { ShareholderKind } from "./types.js";
+import { anchorToLocal, getRateForCountry } from "../forex/conversion.js";
+import { isPlannedEconomy } from "../commandEconomy/constants.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 
 /**
- * Corporate-sector acquisition and ownership transfer (#295).
+ * Corporate-sector acquisition (#295), sourced from AHDGame's
+ * corporations/commands/sectorOperations/buyListedSector.ts. A buyer CEO
+ * authorizes the purchase, buyer and seller corporate cash are converted from
+ * the recorded anchor price into their own local currencies, and the asset is
+ * transferred to the buyer with its host-region identity intact.
  *
- * Reference (AHDGame e364c04954ed628beef73a993a8e9e156650a31e):
- * - Buy route: commands/sectorOperations/buyListedSector.ts
- *   (POST /api/corporations/[id]/sectors/[sectorId]/buy). The buyer's CEO
- *   authorizes; the buyer corp's `liquidCapital` is debited and the seller
- *   corp's credited (each converted through the anchor at live FX); sector
- *   ownership transfers to the buyer corp (merged when the buyer already
- *   operates that type in that state: revenue/workers summed, margin
- *   revenue-weighted, purchased doc deleted); `forSale` clears on transfer
- *   (db/types/corporation.ts: "cleared on unlist or when ownership
- *   transfers"); the asking price is the anchor locked at listing time; an
- *   invalid anchor refuses with "ask the seller to relist"; a raced
- *   listing (unlisted/sold mid-flight) refunds and reports 409.
- * - Listing: commands/sectorOperations/listSectorForSale.ts (CEO-only,
- *   ported in #294 against the shareholder roster instead).
- *
- * Native adaptations (nothing beyond them is ported):
- * - Buyer is the player character, not a corporation. Native has no
- *   player-run corporations (the player may separately hold a CEO identity
- *   for an NPC issuer), so there is no buyer corp to authorize, debit, or receive the
- *   asset — and corp-to-corp transfer is structurally impossible (one
- *   aggregate corporation per country/sector, so any same-country same-type
- *   buyer IS the seller). Authority is therefore the actor kind: only
- *   "player". No shareholding in the seller is required (the reference
- *   requires none of the buyer either) and none is blocked (the reference
- *   blocks only buyer == seller, which has no Native counterpart).
- * - Funds are personal cash in a single currency. The reference converts
- *   both sides through the anchor at live FX; Native has no FX (share
- *   trades gate on cashCurrencyMatches instead — src/game/shareTrade.ts),
- *   so cross-currency purchases refuse rather than convert, and the seller
- *   corporation's `liquidCapital` is credited the exact recorded anchor.
- *   No acquisition spread exists without FX, so none is charged.
- * - Ownership is recorded on the asset (`owner: "player"`); operation stays
- *   with the recorded corporation, which remains the turn-math SSOT and
- *   keeps its revenue, workers, margin, and union state. The reference
- *   merge path has no counterpart (the player operates no sector to merge
- *   into). Routing operating income to the player owner is out of scope.
- * - Atomicity is validate-then-mutate: every refusal is returned before any
- *   field is touched, so a refused buy leaves cash, corporate capital, the
- *   listing, and ownership exactly as they were.
+ * Native's issuer economics remain aggregate: this ownership transfer does
+ * not reallocate issuer-wide revenue or turn costs. Sector workers, region,
+ * union representation and other asset state remain attached to the asset.
  */
-
-export type SectorAcquireActor = ShareholderKind;
-
 export interface SectorAcquireResult {
   ok: boolean;
   error?: string;
   priceAnchor?: number;
+  merged?: boolean;
 }
 
-function homeCurrency(world: WorldState, countryId: string): string | undefined {
-  return world.budgets[countryId]?.currencyCode ?? world.exchangeRates[countryId]?.currencyCode;
-}
-
-/**
- * Buy a listed sector at its recorded asking price. Refuses (atomically: no
- * state touched) when the asset is unknown, the actor is not the player, the
- * player already owns the sector, the sector is not listed, the recorded
- * anchor is not a positive finite price, the seller prices in a foreign
- * currency, or personal cash cannot cover the anchor.
- */
+/** Buy a listed sector. All failure paths return before any world mutation. */
 export function buyCorporateSectorForSale(
   world: WorldState,
   assetId: string,
-  actor: SectorAcquireActor,
+  buyerCorporationId: string,
 ): SectorAcquireResult {
-  const assets = corporateSectorAssets(world);
-  const asset = assets[assetId];
+  const asset = corporateSectorAssets(world)[assetId];
   if (!asset) return { ok: false, error: `Sector listing not found: ${assetId}` };
-  if (actor !== "player") {
-    return actor === "npc"
-      ? { ok: false, error: `Only the player character can buy a listed sector` }
-      : { ok: false, error: `Unknown buyer: ${String(actor)}` };
-  }
-  if (asset.owner === "player") {
-    return { ok: false, error: `You already own this sector: ${asset.id}` };
-  }
-  if (!asset.forSale) {
-    return { ok: false, error: `Sector is not currently listed for sale: ${asset.id}` };
-  }
+  if (asset.owner === "player") return { ok: false, error: `You already own this sector: ${asset.id}` };
+  if (!asset.forSale) return { ok: false, error: `Sector is not currently listed for sale: ${asset.id}` };
   const price = asset.forSale.priceAnchor;
   if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) {
-    return { ok: false, error: `Listing price is invalid; ask the seller to relist.` };
+    return { ok: false, error: "Listing price is invalid; ask the seller to relist." };
   }
-  const corporation = world.corporations[asset.corporationId];
-  const sellerCurrency = homeCurrency(world, asset.countryId);
-  const playerCurrency = homeCurrency(world, world.player.countryId);
-  if (sellerCurrency !== playerCurrency) {
-    return {
-      ok: false,
-      error: `Buying a ${sellerCurrency ?? "unknown-currency"} sector with ${playerCurrency ?? "unknown-currency"} cash is not available yet.`,
-    };
+
+  const seller = world.corporations[asset.corporationId];
+  if (!seller) return { ok: false, error: `Seller corporation not found: ${asset.corporationId}` };
+  const buyer = world.corporations[buyerCorporationId];
+  if (!buyer) return { ok: false, error: `Buyer corporation not found: ${buyerCorporationId}` };
+  if (buyer.id === seller.id) return { ok: false, error: "A corporation cannot buy its own sector." };
+  if (buyer.ceoId !== "player" || buyer.ceoVacant === true) {
+    return { ok: false, error: "You must be the active CEO of the buying corporation." };
   }
-  if (world.player.cash < price) {
-    return { ok: false, error: `Insufficient cash. Need ${price} to buy this sector.` };
+  const economy = world.commandEconomy[asset.countryId];
+  if (economy && isPlannedEconomy(economy.marketizationLevel)) {
+    return { ok: false, error: "This market is state-controlled under a command economy and is closed to private sector expansion." };
   }
-  world.player.cash -= price;
-  if (corporation) corporation.liquidCapital += price;
+
+  const buyerDebit = Math.round(anchorToLocal(price, getRateForCountry(world, buyer.countryId)));
+  const sellerCredit = Math.round(anchorToLocal(price, getRateForCountry(world, seller.countryId)));
+  if (buyer.liquidCapital < buyerDebit) {
+    return { ok: false, error: `Insufficient corporate funds. Need ${buyerDebit} to purchase this sector.` };
+  }
+
+  const assets = corporateSectorAssets(world);
+  const existingBuyerAsset = Object.values(assets).find((candidate) => candidate.id !== asset.id
+    && candidate.corporationId === buyer.id
+    && candidate.countryId === asset.countryId
+    && candidate.stateId === asset.stateId
+    && candidate.sectorType === asset.sectorType);
+  const mergedWorkers = existingBuyerAsset ? existingBuyerAsset.workers + asset.workers : undefined;
+  const mergedUnionization = existingBuyerAsset
+    ? (existingBuyerAsset.unionization ?? 0) * existingBuyerAsset.workers / mergedWorkers!
+      + (asset.unionization ?? 0) * asset.workers / mergedWorkers!
+    : undefined;
+
+  // Validation is complete. Update both corporate ledgers and the asset as one
+  // synchronous world mutation, preserving the source sector's host identity.
+  buyer.liquidCapital -= buyerDebit;
+  seller.liquidCapital += sellerCredit;
+  if (existingBuyerAsset) {
+    existingBuyerAsset.workers = mergedWorkers!;
+    existingBuyerAsset.unionization = mergedUnionization!;
+    existingBuyerAsset.representingUnionId ??= asset.representingUnionId;
+    existingBuyerAsset.strikeStartedAtTurn ??= asset.strikeStartedAtTurn;
+    existingBuyerAsset.strikeCooldownUntilTurn = Math.max(existingBuyerAsset.strikeCooldownUntilTurn ?? 0, asset.strikeCooldownUntilTurn ?? 0) || null;
+    delete assets[asset.id];
+    return { ok: true, priceAnchor: price, merged: true };
+  }
+  asset.corporationId = buyer.id;
   asset.forSale = null;
-  asset.owner = "player";
-  return { ok: true, priceAnchor: price };
+  asset.owner = "corporation";
+  return { ok: true, priceAnchor: price, merged: false };
 }

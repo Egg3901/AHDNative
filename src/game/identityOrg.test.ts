@@ -3,26 +3,17 @@ import { deserializeSave } from "@ahdclient/engine";
 import { GameSession } from "./session";
 import { projectMyCorporation } from "./identityOrg";
 
-const OPTIONS = { era: "1953", countryId: "US", seed: "native-identity-org-51", playerName: "Alex" };
+const OPTIONS = { era: "1953", countryId: "US", homeRegionId: "DC", seed: "native-identity-org-51", playerName: "Alex" };
 const SAVED_AT = "2026-09-18T00:00:00.000Z";
 
-/**
- * Full public owner flow: buy a recorded share (sale authority), list the
- * sector, fund the asking price through a save round-trip, then acquire.
- */
-function sessionOwningMedia(): GameSession {
+/** Acquire the recorded CEO role through public share, vote and acceptance commands. */
+function sessionLeadingMedia(): GameSession {
   const session = new GameSession();
   session.create(OPTIONS);
   expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
-  const assetId = session.markets().listings.find((entry) => entry.id === "US-media")!.sectorAsset.id;
-  const listed = session.listSectorForSale(assetId);
-  expect(listed.ok).toBe(true);
-  const raw = JSON.parse(session.serialize(SAVED_AT));
-  raw.world.player.cash = listed.ok ? listed.priceAnchor : 0;
-  const funded = new GameSession();
-  funded.load(JSON.stringify(raw));
-  expect(funded.buySectorForSale(assetId).ok).toBe(true);
-  return funded;
+  expect(session.act("voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);
+  expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
+  return session;
 }
 
 describe("#51/#84 drawer My Corporation signal", () => {
@@ -41,23 +32,20 @@ describe("#51/#84 drawer My Corporation signal", () => {
     expect(session.view().myCorporation).toBeUndefined();
   });
 
-  it("links the owned corporation through the live view", () => {
-    const session = sessionOwningMedia();
+  it("links the corporation led by the active CEO through the live view", () => {
+    const session = sessionLeadingMedia();
     expect(projectMyCorporation(deserializeSave(session.serialize(SAVED_AT)))).toEqual({ id: "US-media", name: "Daily Media" });
     expect(session.view().myCorporation).toEqual({ id: "US-media", name: "Daily Media" });
   });
 
-  it("follows persisted ownership across save and reload, and vanishes when the role reverts", () => {
-    const session = sessionOwningMedia();
+  it("follows the persisted CEO appointment across save and reload, and vanishes when the role reverts", () => {
+    const session = sessionLeadingMedia();
     const reloaded = new GameSession();
     reloaded.load(session.serialize(SAVED_AT));
     expect(reloaded.view().myCorporation).toEqual(session.view().myCorporation);
 
-    const raw = JSON.parse(session.serialize(SAVED_AT));
-    const assetId = session.markets().listings.find((entry) => entry.id === "US-media")!.sectorAsset.id;
-    raw.world.corporateSectors[assetId].owner = "corporation";
-    const reverted = new GameSession();
-    reverted.load(JSON.stringify(raw));
-    expect(reverted.view().myCorporation).toBeUndefined();
+    expect(reloaded.act("resignCeo", { corpId: "US-media" }).ok).toBe(true);
+    expect(reloaded.view().myCorporation).toBeUndefined();
+    expect(reloaded.markets().listings.find((entry) => entry.id === "US-media")!.playerShares).toBe(1);
   });
 });

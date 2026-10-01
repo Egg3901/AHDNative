@@ -52,19 +52,18 @@ Worker political feedback and wider union mechanics remain #322/#114.
 
 ## Regional sector trading checkpoint, 2026-10-01 (#299)
 
-Regional details share the corporation sale controls for list, reprice, unlist and
-purchase, with recorded ownership, workforce, union and company links. Public
-session and UI tests cover eligibility and persistence; the integrated Chromium
-journey at 320px and 390px saves and resumes twice. The fixture records two
-regional assets, since fresh worlds still seed national assets. The comparison
-uses Game's pinned regional and sector page hierarchy, with no pixel equivalence
-or physical-device claim. See [regional trading evidence](REGIONAL-SECTOR-TRADING.md).
-
-#297 is closed after PR707 verified leadership, employer authority and the
-organization/dues/strike/bargaining/save lifecycle. #322 remains partial for
-downstream worker political feedback. The
-unsafe public NPC-response and arbitrary-ballot wrappers are excluded. The unused neutral-50 labor
-metric overlay is excluded from this batch.
+Regional ownership, workers, unions and company/region links now share source
+CEO seller and corporate buyer controls. Listing, repricing and unlisting require
+an active private-company CEO; purchases debit the buyer corporation and credit
+the seller through source currency conversion, then transfer or merge the asset.
+The actual 320px/390px journey earns both CEO appointments through public controls
+and saves/resumes twice. The valid fixture records regional assets because fresh
+worlds still seed national assets. Full hosted verification and merge remain the
+closure gate. See [regional trading evidence](REGIONAL-SECTOR-TRADING.md).
+#211 remains open for #298 nationalization/secession; #322/#114 retain wider labor
+and worker political feedback. #297 is already checked and closed.
+The public NPC-response and arbitrary-ballot wrappers stay excluded; wider labor
+metric and worker political feedback acceptance remain open.
 
 ## Demographic canvassing checkpoint, 2026-10-01 (#57 / #91 partial)
 

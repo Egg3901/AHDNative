@@ -15,7 +15,7 @@ import {
   evaluateShareTrade,
   parseShareCount,
 } from "../game/shareTrade";
-import { SECTOR_BUY_ALREADY_OWNED, SECTOR_LIST_OWNER_ONLY, evaluateSectorBuy, parseSalePrice } from "../game/markets";
+import { SECTOR_BUY_ALREADY_OWNED, SECTOR_LIST_OWNER_ONLY, SECTOR_LIST_STATE_OWNED, evaluateSectorBuy, parseSalePrice } from "../game/markets";
 import { COMMODITY_HERO_ALT, MARKETS_LIST_HERO_IMAGE, RouteHero, companyHero, companyHeroAlt } from "./RouteHero";
 import type { MarketListing, MarketsView, SectorSummary, ShareholderKind, TradeRouteSummary } from "../game/markets";
 import type { GameScreenProps } from "../game/types";
@@ -420,8 +420,6 @@ function ForSaleDirectory({
       {forSale.length === 0 ? null : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
           {forSale.map((listing) => {
-            const buyEval = evaluateSectorBuy(listing, { playerCash });
-            const buyDisabled = busy || !buyEval.available || onSectorSale == null;
             const playerOwned = listing.sectorAsset.owner === "player";
             return (
               <li
@@ -439,28 +437,7 @@ function ForSaleDirectory({
                 <span className="ahd-muted" style={{ fontSize: "0.74rem" }}>
                   {playerOwned ? "Owned by you" : `Owned by ${listing.name}`}
                 </span>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-                  <button
-                    type="button"
-                    className="ahd-btn ahd-btn-sm"
-                    onClick={() => onSectorSale?.("buy", { assetId: listing.sectorAsset.id })}
-                    disabled={buyDisabled}
-                    aria-disabled={buyDisabled}
-                    aria-label={`Buy ${listing.sectorLabel} sector (${listing.ticker})`}
-                    style={{ minHeight: 44, alignSelf: "flex-start" }}
-                  >
-                    Buy sector
-                  </button>
-                  {buyEval.available ? (
-                    <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
-                      Asking {formatFinanceMoney(buyEval.priceAnchor ?? 0, listing.currency)} · No action-point cost
-                    </span>
-                  ) : (
-                    <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
-                      {buyEval.disabledReason}
-                    </span>
-                  )}
-                </div>
+                <SectorSaleControls listing={listing} playerCash={playerCash} busy={busy} onSectorSale={onSectorSale} showBuy labelSuffix={` (${listing.ticker})`} />
               </li>
             );
           })}
@@ -593,9 +570,8 @@ function TradeContextCard({ listing }: { listing: MarketListing }) {
 
 /**
  * Owner-only sale listing controls (#294) plus the live Buy control (#295).
- * The engine authorizes listing changes only for a recorded shareholder of
- * the corporation, so the player must hold at least one share before
- * list/update/unlist enable; everyone else sees the gate reason instead. A
+ * Game authorizes listing changes only for the active CEO, so shareholding
+ * alone does not enable list/update/unlist; everyone else sees the gate reason. A
  * player-owned sector cannot be relisted (the engine refuses with the
  * already-owned reason), so List/Update stay held with that reason while
  * Unlist keeps clearing. Buy runs evaluateSectorBuy over the same projection
@@ -618,13 +594,19 @@ export function SectorSaleControls({
   labelSuffix?: string;
 }) {
   const [price, setPrice] = useState("");
+  const [buyerCorporationId, setBuyerCorporationId] = useState(listing.sectorBuyerOptions?.[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
   const listed = listing.sectorAsset.forSale;
-  const isOwner = listing.playerShares > 0;
+  const isOwner = listing.ceoId === "player" && listing.ceoVacant !== true;
+  const stateOwned = listing.isStateOwned;
   const playerOwned = listing.sectorAsset.owner === "player";
   const disabled = busy || !isOwner || onSectorSale == null;
-  const listDisabled = disabled || playerOwned;
-  const buyEval = evaluateSectorBuy(listing, { playerCash });
+  const listDisabled = disabled || playerOwned || stateOwned;
+  const buyerOptions = listing.sectorBuyerOptions ?? [];
+  const selectedBuyerCorporationId = buyerOptions.some((option) => option.id === buyerCorporationId)
+    ? buyerCorporationId
+    : buyerOptions[0]?.id ?? "";
+  const buyEval = evaluateSectorBuy(listing, { buyerCorporationId: selectedBuyerCorporationId });
   const buyDisabled = busy || !buyEval.available || onSectorSale == null;
 
   const update = () => {
@@ -695,6 +677,8 @@ export function SectorSaleControls({
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_BUY_ALREADY_OWNED}
             </span>
+          ) : stateOwned ? (
+            <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>{SECTOR_LIST_STATE_OWNED}</span>
           ) : !isOwner ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_LIST_OWNER_ONLY}
@@ -718,6 +702,8 @@ export function SectorSaleControls({
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_BUY_ALREADY_OWNED}
             </span>
+          ) : stateOwned ? (
+            <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>{SECTOR_LIST_STATE_OWNED}</span>
           ) : !isOwner ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_LIST_OWNER_ONLY}
@@ -726,10 +712,16 @@ export function SectorSaleControls({
         </div>
       )}
       <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+        {showBuy && listing.sectorBuyerOptions?.length ? <label className="ahd-field" style={{ maxWidth: "16rem" }}>
+          <span className="ahd-label">Buy with corporation</span>
+          <select className="ahd-input" value={selectedBuyerCorporationId} onChange={(event) => setBuyerCorporationId(event.target.value)} disabled={busy} aria-label="Buy with corporation">
+            {listing.sectorBuyerOptions.map((buyer) => <option key={buyer.id} value={buyer.id}>{buyer.name} · {buyer.currency} {buyer.liquidCapital.toLocaleString()}</option>)}
+          </select>
+        </label> : null}
         {showBuy ? <button
           type="button"
           className="ahd-btn ahd-btn-sm"
-          onClick={() => onSectorSale?.("buy", { assetId: listing.sectorAsset.id })}
+          onClick={() => onSectorSale?.("buy", { assetId: listing.sectorAsset.id, buyerCorporationId: selectedBuyerCorporationId })}
           disabled={buyDisabled}
           aria-disabled={buyDisabled}
           aria-label={`Buy ${listing.sectorLabel} sector${labelSuffix}`}
@@ -739,7 +731,7 @@ export function SectorSaleControls({
         </button> : null}
         {showBuy && buyEval.available ? (
           <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
-            Asking {formatFinanceMoney(buyEval.priceAnchor ?? 0, listing.currency)} · No action-point cost
+            Asking {formatFinanceMoney(buyEval.priceAnchor ?? 0, listing.currency)} · Buyer pays {formatFinanceMoney(buyEval.priceLocal ?? 0, buyerOptions.find((buyer) => buyer.id === selectedBuyerCorporationId)?.currency ?? listing.currency)}
           </span>
         ) : showBuy ? (
           <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
@@ -1119,7 +1111,9 @@ function CompanyDetail({
         <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: 0 }}>
           Recorded sector state only. Worker and union mechanics arrive with their own slices (#296-#298).
         </p>
-        <SectorSaleControls listing={listing} playerCash={markets.playerCash} busy={busy} onSectorSale={onSectorSale} />
+        {listing.sectorAsset.recorded === false ? (
+          <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: 0 }}>This issuer no longer owns its original sector asset.</p>
+        ) : <SectorSaleControls listing={listing} playerCash={markets.playerCash} busy={busy} onSectorSale={onSectorSale} />}
       </div>
 
       <div className="ahd-card ahd-card-pad">

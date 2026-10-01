@@ -75,6 +75,8 @@ export interface MarketCountry {
  */
 export interface MarketSectorAsset {
   id: string;
+  /** False marks the legacy primary-sector fallback after its asset moved to a new owner. */
+  recorded?: boolean;
   corporationId: string;
   countryId: string;
   sectorType: string;
@@ -130,6 +132,10 @@ export interface MarketListing {
   sectorLabel: string;
   /** Recorded corporate-sector asset for this corporation's sector (#299). */
   sectorAsset: MarketSectorAsset;
+  /** Complete recorded portfolio, including sectors acquired from other issuers. */
+  sectorAssets?: MarketSectorAsset[];
+  /** Other corporations this player actively leads and may use as buyers. */
+  sectorBuyerOptions?: Array<{ id: string; name: string; countryId: string; currency: string; liquidCapital: number; rate: number }>;
   currency: string;
   cashCurrencyMatches: boolean;
   sharePrice: number;
@@ -281,6 +287,7 @@ export interface SectorBuyEvaluation {
   disabledReason?: string;
   /** Recorded asking price when listed; null when there is nothing to buy. */
   priceAnchor: number | null;
+  priceLocal?: number;
 }
 
 /** Shown when the asset carries no live listing. */
@@ -290,41 +297,38 @@ export const SECTOR_BUY_NOT_LISTED = "This sector is not listed for sale.";
 export const SECTOR_BUY_ALREADY_OWNED = "You already own this sector.";
 
 export function evaluateSectorBuy(
-  listing: Pick<MarketListing, "cashCurrencyMatches"> & {
+  listing: Pick<MarketListing, "sectorBuyerOptions"> & {
     sectorAsset: Pick<MarketSectorAsset, "forSale" | "owner">;
   },
-  view: Pick<MarketsView, "playerCash">,
+  view: { buyerCorporationId?: string },
 ): SectorBuyEvaluation {
-  // Owner first, matching the engine buy gate order: a player-owned asset
-  // reports "already owned" even when its listing was cleared on purchase.
-  if (listing.sectorAsset.owner === "player") {
-    const priceAnchor = listing.sectorAsset.forSale?.priceAnchor ?? null;
-    return { available: false, priceAnchor, disabledReason: SECTOR_BUY_ALREADY_OWNED };
-  }
   const forSale = listing.sectorAsset.forSale;
+  if (listing.sectorAsset.owner === "player") {
+    return { available: false, priceAnchor: forSale?.priceAnchor ?? null, disabledReason: SECTOR_BUY_ALREADY_OWNED };
+  }
   if (forSale == null) {
     return { available: false, priceAnchor: null, disabledReason: SECTOR_BUY_NOT_LISTED };
   }
-  if (!listing.cashCurrencyMatches) {
-    return { available: false, priceAnchor: forSale.priceAnchor, disabledReason: CROSS_CURRENCY_UNAVAILABLE };
+  const buyer = listing.sectorBuyerOptions?.find((option) => option.id === view.buyerCorporationId);
+  if (!buyer) {
+    return { available: false, priceAnchor: forSale.priceAnchor, disabledReason: "You must be CEO of another corporation to buy this sector." };
   }
-  if (view.playerCash < forSale.priceAnchor) {
+  const priceLocal = Math.round(forSale.priceAnchor * buyer.rate);
+  if (buyer.liquidCapital < priceLocal) {
     return {
       available: false,
       priceAnchor: forSale.priceAnchor,
-      disabledReason: `Not enough cash. Required: ${forSale.priceAnchor}, Available: ${view.playerCash}`,
+      priceLocal,
+      disabledReason: `Insufficient corporate funds. Required: ${priceLocal}, Available: ${buyer.liquidCapital} ${buyer.currency}`,
     };
   }
-  return { available: true, priceAnchor: forSale.priceAnchor };
+  return { available: true, priceAnchor: forSale.priceAnchor, priceLocal };
 }
 
-/**
- * Owner gate for the listing controls (#294). The engine authorizes only a
- * recorded shareholder of the corporation, so a player who holds no shares
- * sees the reason instead of an enabled control.
- */
+/** Source list and unlist commands require the active CEO, not a shareholder. */
 export const SECTOR_LIST_OWNER_ONLY =
-  "Only a recorded shareholder of this corporation can manage its sale listing. Buy at least one share first.";
+  "Only this corporation's active CEO can manage its sale listing.";
+export const SECTOR_LIST_STATE_OWNED = "State enterprises cannot list production for private sale.";
 
 export interface MarketsView {
   playerCountryId: string;
@@ -435,15 +439,20 @@ export function projectMarkets(world: WorldState): MarketsView {
   // Seed into a local map only — never assign back onto the world — then index
   // by corporation id for the per-listing join.
   const recordedAssets = world.corporateSectors ?? seedCorporateSectorAssets(world);
-  const assetByCorporation = new Map(Object.values(recordedAssets).map((asset) => [asset.corporationId, asset]));
-  const projectSectorAsset = (corporationId: string, countryId: string, sectorType: string): MarketSectorAsset => {
-    const recorded = assetByCorporation.get(corporationId);
+  const assetByCorporation = new Map<string, typeof recordedAssets[string][]>();
+  for (const asset of Object.values(recordedAssets)) {
+    const rows = assetByCorporation.get(asset.corporationId) ?? [];
+    rows.push(asset);
+    assetByCorporation.set(asset.corporationId, rows);
+  }
+  const projectSectorAsset = (recorded: typeof recordedAssets[string] | undefined, corporationId: string, countryId: string, sectorType: string): MarketSectorAsset => {
     const stateId = recorded?.stateId ?? null;
     const region = stateId != null ? world.regions[stateId] : undefined;
     const unionId = recorded?.representingUnionId ?? null;
     const union = unionId != null ? world.unions[unionId] : undefined;
     return {
       id: recorded?.id ?? `corporate-sector:${countryId}:${sectorType}:${corporationId}`,
+      recorded: recorded !== undefined,
       corporationId,
       countryId,
       sectorType,
@@ -474,6 +483,11 @@ export function projectMarkets(world: WorldState): MarketsView {
       cashCurrencyMatches: currency === playerCurrency,
     };
     const priceHistory: MarketPricePoint[] = (corp.priceHistory ?? []).map(({ turn, price }) => ({ turn, price }));
+    const corporateAssets = assetByCorporation.get(corp.id) ?? [];
+    const primaryAsset = corporateAssets.find((asset) => asset.countryId === corp.countryId && asset.sectorType === corp.sectorType);
+    const portfolioAssets = corporateAssets
+      .filter((asset) => asset !== primaryAsset)
+      .map((asset) => projectSectorAsset(asset, corp.id, asset.countryId, asset.sectorType));
     return {
       id: corp.id,
       ticker,
@@ -482,7 +496,20 @@ export function projectMarkets(world: WorldState): MarketsView {
       countryName: country?.name ?? corp.countryId,
       sectorType: corp.sectorType,
       sectorLabel: sectorLabel(corp.sectorType),
-      sectorAsset: projectSectorAsset(corp.id, corp.countryId, corp.sectorType),
+      sectorAsset: projectSectorAsset(primaryAsset, corp.id, corp.countryId, corp.sectorType),
+      ...(portfolioAssets.length > 0 ? { sectorAssets: portfolioAssets } : {}),
+      sectorBuyerOptions: Object.values(world.corporations)
+        .filter((buyer) => buyer.id !== corp.id && buyer.ceoId === "player" && buyer.ceoVacant !== true)
+        .map((buyer) => ({
+          id: buyer.id,
+          name: buyer.name ?? buyer.id,
+          countryId: buyer.countryId,
+          currency: homeCurrency(world, buyer.countryId) ?? "unknown currency",
+          liquidCapital: buyer.liquidCapital,
+          rate: Number.isFinite(world.exchangeRates[buyer.countryId]?.rate) && (world.exchangeRates[buyer.countryId]?.rate ?? 0) > 0
+            ? world.exchangeRates[buyer.countryId]!.rate
+            : (Number.isFinite(world.exchangeRates[buyer.countryId]?.baseRate) && (world.exchangeRates[buyer.countryId]?.baseRate ?? 0) > 0 ? world.exchangeRates[buyer.countryId]!.baseRate : 1),
+        })),
       currency,
       cashCurrencyMatches: trade.cashCurrencyMatches,
       sharePrice: corp.sharePrice,
