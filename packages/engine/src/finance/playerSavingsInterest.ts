@@ -22,6 +22,9 @@ export const playerSavingsInterestPhase: TurnPhase = {
   name: "playerSavingsInterest",
   run(world) {
     validateNationalSavingsPools(world);
+    if (!Number.isFinite(world.player.savings)) {
+      throw new Error("Invalid player savings balance for interest accrual");
+    }
     const pricing = ensureCentralBankPricingPhaseIn(world);
     const player = world.player;
     const countryId = player.countryId;
@@ -41,9 +44,6 @@ export const playerSavingsInterestPhase: TurnPhase = {
     // fallback (which makes the full balance eligible for that first turn).
     const priorPool = world.centralBanks[bankId]?.nationalSavingsBalance ?? 0;
     const oldBalance = player.savings;
-    if (!Number.isFinite(oldBalance)) {
-      throw new Error("Invalid player savings balance for interest accrual");
-    }
     const eligibleBalance =
       oldBalance > 0
         ? Math.min(oldBalance, priorPool > 0 ? 0.25 * priorPool : oldBalance)
