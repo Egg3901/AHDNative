@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 import { createWorld } from "../world.js";
 import { deserializeSave, projectSaveToV42, serializeSave } from "../save.js";
 import { executeAction } from "../actions/execute.js";
@@ -289,13 +291,22 @@ describe("influenceNpp through the public action", () => {
   });
 
   it("refuses a v42 projection once influence progress exists", () => {
-    const { world, target } = preparedWorld();
-    expect(projectSaveToV42(serializeSave(world, SAVED_AT)).ok).toBe(true);
+    // Preserve an actual exportable pre-CEO world as the baseline. Modern
+    // corporate governance defaults have their own independent export guard.
+    const world = deserializeSave(gunzipSync(readFileSync(new URL(
+      "../../../../fixtures/native-fresh-pre-ceo-source.save.json.gz", import.meta.url,
+    ))).toString("utf8"));
+    world.player.partyId = "US_DEM";
+    world.player.funds = 500_000;
+    world.player.actions = 20;
+    const target = samePartyTarget(world);
+    target.personality.stubbornness = 0;
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({ ok: true });
     expect(executeAction(world, "player", "influenceNpp", {
       targetId: target.id, influenceType: "boost_loyalty",
     }).ok).toBe(true);
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projected.ok).toBe(false);
-    expect(projected.ok ? "" : projected.error).toMatch(/cannot be projected to schema 42/);
+    expect(projected.ok ? "" : projected.error).toMatch(/NPP influence attempt records cannot be projected to schema 42/);
   });
 });
