@@ -179,6 +179,8 @@ export interface BudgetSeed {
     payrollTax: number;
     tariffs: number;
     salesTax: number;
+    /** DE surcharge on calculated federal income-tax receipts. */
+    solidaritySurcharge?: number;
   };
   otherRevenue: number;
   debt: { principal: number; interestRate: number; ceiling: number };

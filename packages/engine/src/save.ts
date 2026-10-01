@@ -187,6 +187,18 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (isRecord(poolRows) && Object.keys(poolRows).length > 0) {
     return { ok: false, error: "Bond market pool cash cannot be projected to the schema 42 turn reader; keep this Native save." };
   }
+  const budgets = world["budgets"];
+  if (isRecord(budgets)) for (const [countryId, row] of Object.entries(budgets)) {
+    if (!isRecord(row)) continue;
+    const rates = row["taxRates"];
+    const phaseIn = row["taxRatePhaseIn"];
+    if (
+      (isRecord(rates) && typeof rates["solidaritySurcharge"] === "number" && rates["solidaritySurcharge"] !== 0) ||
+      (isRecord(phaseIn) && Object.hasOwn(phaseIn, "solidaritySurcharge"))
+    ) {
+      return { ok: false, error: `Budget ${countryId} solidarity surcharge state cannot be projected to the schema 42 turn reader; keep this Native save.` };
+    }
+  }
   const meta = world["meta"] as Record<string, unknown>;
   const player = world["player"] as Record<string, unknown>;
   const turnoutRows = world["regionTurnouts"];
