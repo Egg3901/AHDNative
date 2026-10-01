@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
 import { rngFromSeed } from "../rng.js";
 import { bankingTurnPhase } from "./bankingTurn.js";
+import { playerSavingsInterestPhase } from "../finance/playerSavingsInterest.js";
 import type { BankLoan } from "./types.js";
 
 const OPTS = { seed: "banking-turn-test", playerName: "P", countryId: "US", era: "1953" };
@@ -71,6 +72,37 @@ describe("bankingTurnPhase — deposit interest paid by the bank (W5 PORT-STUB r
     world.meta.turn = 1;
     run(world);
     expect(world.player.savings).toBe(10_000);
+  });
+
+  it("pays only the bank premium for pointer-held savings and the full rate when the account book is authoritative", () => {
+    const makeWorld = (authoritative: boolean) => {
+      const world = createWorld(OPTS);
+      const corp = world.corporations["US-financial"]!;
+      corp.bankCharter!.cashReserves = 1_000_000;
+      corp.bankCharter!.depositOffset = 0;
+      world.centralBanks.US!.primeRate = 5;
+      world.countries.US!.economy.inflationRate = 0.02;
+      world.centralBankPricingPhaseIn = { startedTurn: 1 };
+      world.meta.turn = 1;
+      world.player.savings = 48_000;
+      world.player.savingsHolder = corp.id;
+      if (authoritative) {
+        world.savingsAccountsPolicy = { mode: "authoritative", readCurrencies: ["USD"] };
+      }
+      return world;
+    };
+
+    const pointer = makeWorld(false);
+    playerSavingsInterestPhase.run(pointer, RNG);
+    bankingTurnPhase.run(pointer, RNG);
+    expect(pointer.player.pendingSavingsInterest).toBe(15);
+    expect(pointer.player.savings).toBe(48_035);
+
+    const authoritative = makeWorld(true);
+    playerSavingsInterestPhase.run(authoritative, RNG);
+    bankingTurnPhase.run(authoritative, RNG);
+    expect(authoritative.player.pendingSavingsInterest).toBeUndefined();
+    expect(authoritative.player.savings).toBe(48_050);
   });
 
   it("scales interest down proportionally when cashReserves cannot cover the full amount due", () => {

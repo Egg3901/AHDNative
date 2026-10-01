@@ -51,6 +51,7 @@
 import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import type { PlayerLineOfCredit } from "../types.js";
+import { ensureCentralBankPricingPhaseIn } from "./centralBankPricing.js";
 import {
   computeLocBorrowerComposite,
   computeLocInterestForTurn,
@@ -117,6 +118,7 @@ export const playerLineOfCreditPhase: TurnPhase = {
     const loc = world.player.lineOfCredit;
     if (!loc) return;
     validatePlayerLineOfCredit(loc);
+    const centralBankPricing = ensureCentralBankPricingPhaseIn(world);
 
     const denomination = loc.denomination;
     const mode = loc.paymentMode ?? "pi";
@@ -193,7 +195,7 @@ export const playerLineOfCreditPhase: TurnPhase = {
       balance,
       arrears,
       primeForDenomination,
-      spread + ioSurcharge,
+      spread + ioSurcharge + centralBankPricing.spreadHikePercentPoints,
       denomination,
     );
     const postAccrualArrears = roundSavingsAmount(

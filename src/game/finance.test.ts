@@ -56,6 +56,85 @@ describe("session finance view", () => {
     });
   });
 
+  it("applies source central-bank savings and LOC phase-in across public save/reload turns", () => {
+    const savedWorld = new GameSession();
+    savedWorld.create(options);
+    const raw = JSON.parse(savedWorld.serialize(SAVED_AT)) as {
+      world: {
+        meta: { turn: number };
+        featureFlags: { centralBanks: boolean; economy: boolean; metrics: boolean };
+        player: { cash: number; savings: number; savingsHolder: string; lineOfCredit?: unknown };
+        centralBanks: Record<string, { primeRate?: number }>;
+        countries: Record<string, { economy: { inflationRate: number } }>;
+        centralBankPricingPhaseIn?: { startedTurn: number };
+      };
+    };
+    raw.world.meta.turn = 3;
+    // Hold the source-vector inputs constant through the complete public turn;
+    // the finance phases under test remain enabled.
+    raw.world.featureFlags.centralBanks = false;
+    raw.world.featureFlags.economy = false;
+    raw.world.featureFlags.metrics = false;
+    raw.world.centralBankPricingPhaseIn = { startedTurn: 0 };
+    raw.world.player.cash = 10_000;
+    raw.world.player.savings = 48_000;
+    raw.world.player.savingsHolder = "centralBank";
+    raw.world.centralBanks.US!.primeRate = 5;
+    raw.world.countries.US!.economy.inflationRate = 0.02;
+    const continued = new GameSession();
+    continued.load(JSON.stringify(raw));
+    continued.advance();
+    const afterTurnFour = JSON.parse(continued.serialize(SAVED_AT)).world as {
+      meta: { turn: number };
+      player: { pendingSavingsInterest?: number };
+    };
+    expect(afterTurnFour.meta.turn).toBe(4);
+    // Source Game 01797b2 independently yields a 0.125 rollout fraction,
+    // +0.125 pp deposit APY and $16.25 on $48,000 at this vector.
+    expect(afterTurnFour.player.pendingSavingsInterest).toBe(16.25);
+
+    const replay = new GameSession();
+    replay.load(continued.serialize(SAVED_AT));
+    replay.advance();
+    continued.advance();
+    expect(replay.serialize(SAVED_AT)).toBe(continued.serialize(SAVED_AT));
+  });
+
+  it("adds the source LOC phase-in spread to a serviced public obligation", () => {
+    const seeded = new GameSession();
+    seeded.create(options);
+    const raw = JSON.parse(seeded.serialize(SAVED_AT)) as {
+      world: {
+        meta: { turn: number };
+        featureFlags: { centralBanks: boolean; economy: boolean; metrics: boolean };
+        player: { cash: number; savings: number; savingsHolder: string; lineOfCredit?: unknown };
+        centralBanks: Record<string, { primeRate?: number }>;
+        centralBankPricingPhaseIn?: { startedTurn: number };
+      };
+    };
+    raw.world.meta.turn = 3;
+    raw.world.featureFlags.centralBanks = false;
+    raw.world.featureFlags.economy = false;
+    raw.world.featureFlags.metrics = false;
+    raw.world.centralBankPricingPhaseIn = { startedTurn: 0 };
+    raw.world.player.cash = 10_000;
+    raw.world.player.savings = 0;
+    raw.world.player.savingsHolder = "centralBank";
+    raw.world.player.lineOfCredit = {
+      balance: 1_000, arrears: 0, denomination: "USD", drawFrozen: false,
+    };
+    raw.world.centralBanks.US!.primeRate = 5;
+    const session = new GameSession();
+    session.load(JSON.stringify(raw));
+    session.advance();
+    const after = JSON.parse(session.serialize(SAVED_AT)).world as {
+      player: { lineOfCredit?: { balance: number; arrears: number } };
+    };
+    // Game 01797b2 gives $2.29 interest at turn 4 (prime 5 + borrower spread
+    // 5 + source phase-in 1); source PI payment then reduces principal $1.78.
+    expect(after.player.lineOfCredit).toMatchObject({ balance: 998.22, arrears: 0 });
+  });
+
   it("lists player share holdings in each corporation home currency", () => {
     const session = new GameSession();
     session.create(options);

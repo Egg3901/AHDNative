@@ -277,6 +277,15 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (hasOwn(world, "bankingLaws") || hasOwn(world, "bankPropTradingEnabled")) {
     return { ok: false, error: `Banking policies cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
+  const savingsPolicy = world["savingsAccountsPolicy"];
+  if (
+    isRecord(savingsPolicy) &&
+    savingsPolicy["mode"] === "authoritative" &&
+    Array.isArray(savingsPolicy["readCurrencies"]) &&
+    savingsPolicy["readCurrencies"].length > 0
+  ) {
+    return { ok: false, error: `Authoritative savings-holder policy cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
   const centralBanks = world["centralBanks"];
   if (isRecord(centralBanks)) {
     for (const bank of Object.values(centralBanks)) {
@@ -603,15 +612,18 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     savedAt,
     world: restoredWorld,
   };
-  if (structurallyEqual(save, restoredSave)) {
-    return { ok: true, contents: candidate };
-  }
   if (!structurallyEqual(world["countryPolitics"], restoredWorld.countryPolitics)) {
     return {
       ok: false,
       error:
         `countryPolitics live gauges are not reconstructable from schema 42. Exporting would drop national approval, legitimacy, unrest, or approval history. Keep this save as schema ${SCHEMA_VERSION}`,
     };
+  }
+  if (world["centralBankPricingPhaseIn"] !== undefined) {
+    return { ok: false, error: `Central-bank pricing phase-in state cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
+  if (structurallyEqual(save, restoredSave)) {
+    return { ok: true, contents: candidate };
   }
   if (player["homeRegionId"] !== restoredWorld.player.homeRegionId) {
     return {
@@ -680,6 +692,27 @@ function assertCurrentWorldState(world: WorldState): void {
     (player["homeRegionId"] !== null && typeof player["homeRegionId"] !== "string")
   ) {
     throw new Error("Not a valid save file: invalid world state");
+  }
+
+  const pricingState = value["centralBankPricingPhaseIn"];
+  if (
+    pricingState !== undefined &&
+    (!isRecord(pricingState) || typeof pricingState["startedTurn"] !== "number" ||
+      !Number.isFinite(pricingState["startedTurn"]) || pricingState["startedTurn"] < 0 ||
+      !Number.isInteger(pricingState["startedTurn"]))
+  ) {
+    throw new Error("Not a valid save file: invalid central-bank pricing phase state");
+  }
+  const savingsPolicy = value["savingsAccountsPolicy"];
+  if (savingsPolicy !== undefined) {
+    if (
+      !isRecord(savingsPolicy) ||
+      !["off", "shadow", "authoritative"].includes(String(savingsPolicy["mode"])) ||
+      !Array.isArray(savingsPolicy["readCurrencies"]) ||
+      !savingsPolicy["readCurrencies"].every((currency) => typeof currency === "string" && currency.length > 0)
+    ) {
+      throw new Error("Not a valid save file: invalid savings-accounts policy");
+    }
   }
 
   // Legacy saves omit NI. Present values must be valid uncapped reputation.

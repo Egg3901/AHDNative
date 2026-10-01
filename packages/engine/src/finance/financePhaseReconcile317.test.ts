@@ -1,7 +1,7 @@
 /**
  * Finance phase ordering and next-turn balances — #317 integration slice.
  *
- * Source-backed writer/consumer matrix (AHDGame pinned e364c0495, Native
+ * Source-backed writer/consumer matrix (AHDGame pinned 01797b2708, Native
  * owners as registered in phases/registry.ts):
  *
  * | Writer (action or phase)                 | Writes                                          | Consumer (same or next turn)                          |
@@ -9,7 +9,8 @@
  * | depositToSavings / withdrawFromSavings   | player.cash <-> player.savings                  | playerSavingsInterestPhase, playerLineOfCreditPhase,  |
  * | (finance/savingsActions.ts, action time)|                                                 | bankingTurnPhase (bank-held leg)                      |
  * | playerSavingsInterestPhase               | pendingSavingsInterest, savings +               | recordWorldHistoryPhase (terminal snapshot only);     |
- * | ("playerSavingsInterest", RNG-free)      | savingsInterestEarnedLifetime (central-bank     | bankingTurnPhase never double-pays (holder gate)      |
+ * | ("playerSavingsInterest", RNG-free)      | savingsInterestEarnedLifetime (central-bank or  | bankingTurnPhase settles private-bank premium or full |
+ * |                                          | non-authoritative private holder)                 | authoritative rate, without duplicate base            |
  * |                                          | holder only)                                    |                                                       |
  * | bankingTurnPhase ("bankingTurn",         | bank-held savings interest, NPC flows, named    | playerLineOfCreditPhase reads the settled wallet;     |
  * | RNG-free)                                | loan service, insurance premium, interbank leg  | bankSolvencyTurnPhase scores resulting cash           |
@@ -33,7 +34,7 @@
  *
  * The bond < line edge is the #317 restoration: the reference runs bondTurn
  * coupons/maturities (player-wallet credits) BEFORE lineOfCreditTurn sizes
- * the scheduled payment (turnPhaseRegistry.ts at e364c0495: bondTurn ...
+ * the scheduled payment (turnPhaseRegistry.ts at 01797b2708: bondTurn ...
  * contractSettlement ... lineOfCreditTurn ... recomputeSharePrices), so
  * coupon cash is spendable on the obligation the same turn.
  *
@@ -160,11 +161,12 @@ describe("finance phase reconcile #317", () => {
     advanceTurn(b.world);
     expect(a.world.meta.turn).toBe(1);
 
-    // Savings: pre-boundary turn accrues but does not credit. Hand math
-    // from the shared rule (real = max(0.5, 5 - 2) = 3, APY = 1.5%,
-    // per-turn = 48000 x 0.015 / 48): exactly 15 pending.
+    // Savings: Game 01797b2 starts the eight-turn rollout at world turn 0.
+    // On turn 1, its +0.25pp/8 deposit bonus is +0.03125pp. Base APY is
+    // 1.5%, combined APY 1.53125%; with source TURNS_PER_YEAR=48,
+    // $48,000 accrues $15.31 after source USD-cent rounding.
     expect(a.world.player.savings).toBe(48_000);
-    expect(a.world.player.pendingSavingsInterest).toBe(15);
+    expect(a.world.player.pendingSavingsInterest).toBe(15.31);
     expect(a.world.player.savingsInterestEarnedLifetime ?? 0).toBe(0);
     // The savings leg is blind to the credit/pension setup: twins agree.
     expect(b.world.player.savings).toBe(a.world.player.savings);
@@ -246,7 +248,7 @@ function craftCouponBond(world: World): void {
 
 describe("bond coupon funds the line payment #317", () => {
   it("services the line from post-coupon cash (bondTurn < lineOfCreditTurn)", () => {
-    // Reference edge (turnPhaseRegistry.ts at e364c0495): bondTurn credits
+    // Reference edge (turnPhaseRegistry.ts at 01797b2708): bondTurn credits
     // coupons/maturities to the player wallet BEFORE lineOfCreditTurn sizes
     // the scheduled payment. The wallet starts empty, so a pre-coupon line
     // shortfalls and freezes while a post-coupon line pays in full.

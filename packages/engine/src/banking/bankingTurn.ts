@@ -2,12 +2,10 @@
  * Banking turn phase — W12 port of src/lib/turn/bankingTurn.ts
  * processBankingTurn (+ processOneBank, servicePlayerLoan, serviceNpcBulkBook).
  *
- * Runs the NPC deposit flow, deposit interest (now correctly paid by the
- * bank for savings held there — see finance/savingsInterest.ts file doc,
- * whose own `holder !== "centralBank"` branch is intentionally never reached
- * by a wired caller: THIS phase is what actually pays that interest for
- * real WorldState players), named-loan servicing, the NPC household bulk
- * loan book, and the deposit-insurance premium.
+ * Runs the NPC deposit flow, private-bank premium or authoritative full-rate
+ * deposit interest, named-loan servicing, the NPC household bulk loan book,
+ * and the deposit-insurance premium. Pointer-held savings receive central-
+ * bank base accrual in playerSavingsInterestPhase.
  *
  * The reference facility pass remains split across adjacent Native phases:
  * interbank then CB margin settle here after all bank passes; the window
@@ -25,6 +23,8 @@ import { serviceInterbankLoans } from "./interbank.js";
 import { bankEquity } from "./balanceSheet.js";
 import { charterMay } from "./capabilities.js";
 import { serviceCbMarginInterest } from "./cbMargin.js";
+import { roundSavingsAmount, savingsApyPercent } from "../finance/savingsInterest.js";
+import { savingsReadsAuthoritative } from "../finance/centralBankPricing.js";
 import {
   ARREARS_DEFAULT_TURNS,
   CREDIT_BANDS,
@@ -345,7 +345,20 @@ export const bankingTurnPhase: TurnPhase = {
 
       // (b) Deposit interest — player pointer balance + NPC cash-backed balance,
       // paid from cashReserves, scaled down proportionally on shortfall.
-      const playerInterestDue = playerDeposits > 0 ? perTurnInterest(playerDeposits, depositRatePercent) : 0;
+      // AHDGame bankingTurn pays pointer-held player deposits only the
+      // premium above central-bank savings APY. The base is accrued by
+      // playerSavingsInterestPhase. Authoritative currencies have cash in
+      // the bank vault and receive the full posted rate here.
+      const currency = world.budgets[corp.countryId]?.currencyCode ?? "USD";
+      const authoritativeSavings = savingsReadsAuthoritative(world, currency);
+      const inflationPercent = (world.countries[corp.countryId]?.economy.inflationRate ?? 0) * 100;
+      const cbBaseApy = savingsApyPercent(bank.primeRate ?? 0, inflationPercent);
+      const playerRate = authoritativeSavings
+        ? depositRatePercent
+        : Math.max(0, depositRatePercent - cbBaseApy);
+      const playerInterestDue = playerDeposits > 0
+        ? roundSavingsAmount((playerDeposits * (playerRate / 100)) / TURNS_PER_YEAR, currency)
+        : 0;
       const npcInterestDue = perTurnInterest(charter.npcDeposits, depositRatePercent);
       const totalDue = playerInterestDue + npcInterestDue;
       const scale = totalDue > charter.cashReserves && totalDue > 0 ? charter.cashReserves / totalDue : 1;
