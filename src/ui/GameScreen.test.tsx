@@ -421,10 +421,10 @@ describe("GameScreen", () => {
     const loadNations = async () => ({
       era: "1953", turn: 1, date: "1953-01-01", playerCountryId: "US", playerHomeRegionId: "CA",
       nations: [
-        { id: "US", name: "United States", playable: true, currency: "USD",
+        { id: "US", name: "United States", playable: true, currency: "USD", races: [], leader: null,
           economy: { gdpMillions: 387_000, growthRate: 0.046, inflationRate: 0.0075, unemploymentRate: 0.029, outputGap: -1.25 },
           government: emptyGovernment },
-        { id: "FR", name: "France", playable: false, currency: "FRF",
+        { id: "FR", name: "France", playable: false, currency: "FRF", races: [], leader: null,
           economy: { gdpMillions: 47_000, growthRate: 0.035, inflationRate: 0.025, unemploymentRate: 0.02, outputGap: 0 },
           government: emptyGovernment },
       ],
@@ -1022,8 +1022,8 @@ describe("GameScreen navigation menu", () => {
     for (const label of ["My Corporation", "Unions", "Crises", "Currency Exchange", "Trade", "IMF"]) {
       expect(within(menu).queryByRole("button", { name: label })).not.toBeInTheDocument();
     }
-    await user.click(within(menu).getByRole("button", { name: "World", exact: true }));
-    expect(within(menu).getByRole("button", { name: "Hall of Fame", exact: true })).toBeInTheDocument();
+    await user.click(within(menu).getByRole("button", { name: "World" }));
+    expect(within(menu).getByRole("button", { name: "Hall of Fame" })).toBeInTheDocument();
   });
 
   it("renders Banking from world.finance and deposits through the real action", async () => {

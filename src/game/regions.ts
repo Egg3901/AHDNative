@@ -622,7 +622,7 @@ export function projectRegions(world: WorldState, query: RegionsQuery = {}): Reg
   const requestedCountryId = typeof query.countryId === "string" && query.countryId.length > 0
     ? query.countryId.toUpperCase()
     : null;
-  const selectedCountry = (requestedCountryId && world.countries[requestedCountryId]) ?? playerCountry;
+  const selectedCountry = (requestedCountryId ? world.countries[requestedCountryId] : undefined) ?? playerCountry;
   const countryId = selectedCountry.id;
   const homeId = typeof world.player.homeRegionId === "string" && world.player.homeRegionId.length > 0
     ? world.player.homeRegionId

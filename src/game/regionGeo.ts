@@ -611,7 +611,7 @@ export function projectRegionGeometry(
 
   for (const [code, list] of byCode) {
     let d = "";
-    let best: { area: number; centroid: [number, number] } | null = null;
+    const centroids: Array<{ area: number; centroid: [number, number] }> = [];
     for (const feature of list) {
       const geometry = feature.geometry;
       if (!geometry || (geometry.type !== "Polygon" && geometry.type !== "MultiPolygon")) continue;
@@ -627,7 +627,7 @@ export function projectRegionGeometry(
             d += ringToSubpaths(sub);
             const area = Math.abs(ringArea(sub));
             const centroid = ringCentroid(sub);
-            if (centroid && (!best || area > best.area)) best = { area, centroid };
+            if (centroid) centroids.push({ area, centroid });
           }
           sub = [];
         };
@@ -644,6 +644,9 @@ export function projectRegionGeometry(
       }
     }
     if (d.length === 0) continue;
+    const best = centroids.reduce<(typeof centroids)[number] | null>(
+      (largest, candidate) => !largest || candidate.area > largest.area ? candidate : largest, null,
+    );
     const name = featureName(list[0]!, recorded.get(code) ?? code);
     regions.push({
       id: code,

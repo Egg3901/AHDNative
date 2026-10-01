@@ -431,6 +431,8 @@ const loadWorldOverview = async () => ({
       id: "US",
       name: "United States",
       playable: true,
+      races: [],
+      leader: null,
       currency: "USD",
       economy: {
         gdpMillions: 387000,
@@ -466,6 +468,8 @@ const loadRegions = async () => ({
       isHome: false,
       population: 120,
       gdpMillions: 50,
+      races: [],
+      officeHolder: null,
     },
   ],
   selected: null,

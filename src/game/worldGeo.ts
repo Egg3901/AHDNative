@@ -33,7 +33,7 @@ interface GeoTopology {
     countries: {
       geometries: {
         type: "Polygon" | "MultiPolygon";
-        arcs: number[][][] | number[][][][];
+        arcs: number[][] | number[][][];
         id?: string;
         properties: { name: string };
       }[];
@@ -151,8 +151,8 @@ function decodedFeatures(): DecodedFeature[] {
   if (decodedCache) return decodedCache;
   const decoded = decodeArcs();
   decodedCache = TOPO.objects.countries.geometries.map((geometry) => {
-    const polygons: number[][][][] =
-      geometry.type === "Polygon" ? [geometry.arcs as number[][][]] : (geometry.arcs as number[][][][]);
+    const polygons: number[][][] =
+      geometry.type === "Polygon" ? [geometry.arcs as number[][]] : (geometry.arcs as number[][][]);
     let d = "";
     for (const polygon of polygons) {
       for (const ring of polygon) {

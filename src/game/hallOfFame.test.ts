@@ -49,10 +49,13 @@ function resolvedRace(overrides: {
     resolvedTurn: overrides.resolvedTurn,
     totalSeats: 1,
     chamberKey: overrides.chamberKey,
-    candidates: [{ id: "player", name: "Ada" }, { id: "npc-1", name: "Rival" }],
+    candidates: [
+      { id: "player", name: "Ada", partyId: "US_DEM", isNPP: false, incumbent: false },
+      { id: "npc-1", name: "Rival", partyId: "US_REP", isNPP: true, incumbent: false },
+    ],
     tally: { player: 3, "npc-1": 9 },
     winners: overrides.winners,
-  } as WorldState["elections"][number];
+  };
 }
 
 describe("hallOfFame query through GameSession", () => {
