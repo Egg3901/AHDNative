@@ -776,12 +776,14 @@ function CompanyDetail({
   const [dividendRate, setDividendRate] = useState(String(listing.dividendRate ?? 0));
   const [bondFaceValue, setBondFaceValue] = useState("100000");
   const [bondMaturityTurns, setBondMaturityTurns] = useState("96");
+  const [rdBudgetPerTurn, setRdBudgetPerTurn] = useState(String(listing.rdBudgetPerTurn ?? 0));
   const [error, setError] = useState<string | null>(null);
   const [compensationError, setCompensationError] = useState<string | null>(null);
 
   useEffect(() => {
     setSalaryPerTurn(String(listing.ceoSalaryPerTurn ?? 0));
     setDividendRate(String(listing.dividendRate ?? 0));
+    setRdBudgetPerTurn(String(listing.rdBudgetPerTurn ?? 0));
     setError(null);
     setCompensationError(null);
   }, [listing.id]);
@@ -825,12 +827,13 @@ function CompanyDetail({
   const setCompensation = () => {
     const salary = Number(salaryPerTurn);
     const dividend = Number(dividendRate);
-    if (!Number.isFinite(salary) || salary < 0 || !Number.isFinite(dividend) || dividend < 0 || dividend > 25) {
-      setCompensationError("Enter a non-negative salary and a dividend rate from 0 to 25%.");
+    const rdBudget = Number(rdBudgetPerTurn);
+    if (!Number.isFinite(salary) || salary < 0 || !Number.isFinite(dividend) || dividend < 0 || dividend > 25 || !Number.isFinite(rdBudget) || rdBudget < 0) {
+      setCompensationError("Enter a non-negative salary and R&D budget, and a dividend rate from 0 to 25%.");
       return;
     }
     setCompensationError(null);
-    onAction("setCorporationCompensation", { corpId: listing.id, salaryPerTurn: salary, dividendRate: dividend });
+    onAction("setCorporationCompensation", { corpId: listing.id, salaryPerTurn: salary, dividendRate: dividend, rdBudgetPerTurn: rdBudget });
   };
   const issueBond = () => {
     const faceValue = Number(bondFaceValue);
@@ -920,6 +923,20 @@ function CompanyDetail({
             <dt style={{ fontSize: "0.82rem" }}>Margin</dt>
             <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem" }}>{listing.effectiveProfitMargin}%</dd>
           </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+            <dt style={{ fontSize: "0.82rem" }}>R&amp;D score</dt>
+            <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem" }}>{(listing.rdScore ?? 0).toFixed(2)}</dd>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+            <dt style={{ fontSize: "0.82rem" }}>Last R&amp;D spend</dt>
+            <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem" }}>{formatFinanceMoney(listing.lastRdSpendPerTurn ?? 0, listing.currency)}</dd>
+          </div>
+          {(listing.lastRdCapacityGain ?? 0) > 0 ? (
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+              <dt style={{ fontSize: "0.82rem" }}>Breakthrough capacity</dt>
+              <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem" }}>{listing.lastRdCapacityGain!.toLocaleString()} units/day</dd>
+            </div>
+          ) : null}
         </dl>
         <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: "0.55rem 0 0" }}>
           Quote {listing.currency}. Your cash: {formatFinanceMoney(markets.playerCash, markets.playerCurrency)} ({markets.playerCurrency}).
@@ -990,6 +1007,11 @@ function CompanyDetail({
               <input aria-label="Dividend rate" type="number" min="0" max="25" step="0.1"
                 value={dividendRate} onChange={(event) => setDividendRate(event.target.value)} />
             </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "0.2rem", fontSize: "0.78rem" }}>
+              R&amp;D budget per turn ({listing.currency})
+              <input aria-label="R&D budget per turn" type="number" min="0" max={Math.max(0, listing.revenue) * 1.5}
+                step="0.01" value={rdBudgetPerTurn} onChange={(event) => setRdBudgetPerTurn(event.target.value)} />
+            </label>
             <button type="button" className="ahd-btn ahd-btn-sm" style={{ minHeight: 44, alignSelf: "flex-start" }}
               onClick={setCompensation} disabled={busy}>
               Save compensation
@@ -1029,7 +1051,7 @@ function CompanyDetail({
         ) : null}
         {compensationError ? <p role="alert" className="ahd-error">{compensationError}</p> : null}
         <p className="ahd-muted" style={{ fontSize: "0.72rem", margin: "0.4rem 0 0" }}>
-          CEO candidacy follows the corporation's recorded headquarters region. Salary settles before tax; dividends are limited to 25% of positive after-tax income.
+          CEO candidacy follows the corporation's recorded headquarters region. Salary and R&amp;D spend settle before tax; R&amp;D score grows from paid budget. Dividends are limited to 25% of positive after-tax income.
         </p>
       </div>
 

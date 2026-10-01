@@ -1350,7 +1350,7 @@ fn ensure_online_window(app: &tauri::AppHandle) -> Result<tauri::WebviewWindow, 
         tauri::WebviewUrl::External(url),
     )
     .visible(false)
-    .on_navigation(crate::is_online_navigation_allowed)
+    .on_navigation(|url| crate::is_frame_resource(url) || crate::is_online_navigation_allowed(url))
     .on_new_window(|_url, _features| tauri::webview::NewWindowResponse::Deny)
     .build();
     match built {

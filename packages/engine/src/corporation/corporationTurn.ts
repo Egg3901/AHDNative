@@ -46,7 +46,14 @@ import {
   trendGrowthRate,
   PERSISTENT_INSOLVENCY_GRACE_TURNS,
   DEFAULT_CORPORATE_TAX_RATE_PCT,
+  calcRdScoreAfterTurn,
+  rdMoraleFactor,
+  sourcePlannedTargetRate,
 } from "./constants.js";
+import { CEO_ARCHETYPE_MODIFIERS } from "./constants.js";
+import { getEraNominalScale } from "../commodity/constants.js";
+import { isCommandEconomy } from "../commandEconomy/constants.js";
+import { DAYS_PER_TURN } from "../calendar.js";
 import { pushEarningsHistory } from "../market/earnings.js";
 import {
   labourFactorsForCorporation,
@@ -54,6 +61,17 @@ import {
   stepCorporateSectorStrikes,
   type CorporationLabourFactors,
 } from "./corporationLabour.js";
+import { runCorporatePlantProductionTurn } from "./plantProduction.js";
+import { corporateSectorAssets } from "./corporateSectorAssets.js";
+import { makeRdInnovationRng } from "./rdInnovationRng.js";
+import {
+  RD_EXTRACTION_BOOST_MAX,
+  RD_EXTRACTION_BOOST_MIN,
+  RD_INNOVATION_INTERVAL,
+  RD_INNOVATION_SCORE_THRESHOLD,
+  RD_REGULAR_BOOST_MAX,
+  RD_REGULAR_BOOST_MIN,
+} from "./constants.js";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -73,17 +91,22 @@ export function runCorporationTurn(
   taxRatePct: number,
   labourFactors: CorporationLabourFactors = { outputFactor: 1, marginModifierPP: 0, strikeActive: false },
   settlement?: { player: PlayerCharacter; currencyCode: string },
+  plantsTier: boolean = false,
+  rdContext: { localPerAnchor?: number; avgWageLevel?: number } = {},
+  growthContext: { softBudget: boolean; plannedTargetRate?: number } = { softBudget: false },
 ): void {
   const priorRevenue = corp.revenue;
   const priorMargin = corp.effectiveProfitMargin || corp.profitMargin;
   const priorGrowthCostShare = priorRevenue > 0 ? (100 * corp.currentGrowthCost) / priorRevenue : 0;
 
-  const growthUnaffordable =
+  const growthUnaffordable = !growthContext.softBudget &&
     priorRevenue > 0 && (priorMargin <= 0 || priorGrowthCostShare >= priorMargin * GROWTH_COST_MARGIN_SHARE);
 
-  const brakedTargetRate = growthUnaffordable
-    ? Math.max(MIN_GROWTH_RATE, corp.targetGrowthRate - GROWTH_BRAKE_STEP)
-    : corp.targetGrowthRate;
+  const brakedTargetRate = growthContext.plannedTargetRate !== undefined
+    ? growthContext.plannedTargetRate
+    : growthUnaffordable
+      ? Math.max(MIN_GROWTH_RATE, corp.targetGrowthRate - GROWTH_BRAKE_STEP)
+      : corp.targetGrowthRate;
 
   const trended = trendGrowthRate(corp.currentGrowthRate, corp.targetGrowthRate);
   const newCurrentGrowthRate = growthUnaffordable
@@ -91,19 +114,27 @@ export function runCorporationTurn(
     : trended;
 
   const perTurnGrowthRate = newCurrentGrowthRate / GROWTH_RATE_TURNS_PER_YEAR;
-  const growthCost = calculateGrowthCost(priorRevenue, perTurnGrowthRate);
+  const growthCost = plantsTier ? 0 : calculateGrowthCost(priorRevenue, perTurnGrowthRate);
   // #322: labour output hit lands here, exactly once per turn (the unions
   // pass never touches revenue). Worlds with no live action read factor 1.
   const outputFactor = Number.isFinite(labourFactors.outputFactor)
     ? Math.max(0, Math.min(1, labourFactors.outputFactor))
     : 1;
-  const newRevenue = priorRevenue * (1 + perTurnGrowthRate / 100) * outputFactor;
+  const newRevenue = plantsTier
+    ? priorRevenue
+    : priorRevenue * (1 + perTurnGrowthRate / 100) * outputFactor;
 
   // #322: strike margin penalty while an asset strikes unprotected
   // (reference strikeMarginModifier). Transient: it leaves with the strike.
   const marginModifierPP = Number.isFinite(labourFactors.marginModifierPP) ? labourFactors.marginModifierPP : 0;
   const effectiveMargin = softCapEffectiveMargin(corp.profitMargin) + marginModifierPP;
-  const operatingIncomePreTax = priorRevenue * (effectiveMargin / 100) - growthCost;
+  const salaryRequestForCap = corp.ceoVacant === true || !Number.isFinite(corp.ceoSalaryPerTurn)
+    ? 0
+    : Math.max(0, corp.ceoSalaryPerTurn ?? 0);
+  const rdRequest = Number.isFinite(corp.rdBudgetPerTurn) ? Math.max(0, corp.rdBudgetPerTurn ?? 0) : 0;
+  const overheadRoom = Math.max(0, Math.max(0, priorRevenue) * 1.5 - salaryRequestForCap);
+  const rdSpend = Math.min(rdRequest, overheadRoom);
+  const operatingIncomePreTax = priorRevenue * (effectiveMargin / 100) - growthCost - rdSpend;
 
   // AHDGame sectorCalculations.ts subtracts the CEO's per-turn salary before
   // tax, caps it by projected cash and 1.25x gross revenue, then distributes
@@ -138,10 +169,19 @@ export function runCorporationTurn(
   corp.revenue = newRevenue;
   corp.effectiveProfitMargin = effectiveMargin;
   corp.lastCeoSalaryPaid = ceoSalaryPaid;
+  corp.lastRdSpendPerTurn = rdSpend;
   corp.lastDividendPoolPaid = dividendPoolPaid;
   corp.lastPlayerDividendPaid = playerDividendPaid;
   corp.lastUnpostedDividendPaid = Math.max(0, dividendPoolPaid - playerDividendPaid);
   corp.liquidCapital += netIncomeBeforeDividends - dividendPoolPaid;
+  const localPerAnchor = Number.isFinite(rdContext.localPerAnchor) && (rdContext.localPerAnchor ?? 0) > 0
+    ? rdContext.localPerAnchor!
+    : 1;
+  const dailyAnchorBudget = rdSpend / localPerAnchor / DAYS_PER_TURN;
+  const paidBudgetMorale = rdMoraleFactor(rdContext.avgWageLevel ?? 1);
+  const currentRdScore = Number.isFinite(corp.rdScore) ? Math.max(0, corp.rdScore ?? 0) : 0;
+  const scoreAfterSpend = calcRdScoreAfterTurn(currentRdScore, dailyAnchorBudget * paidBudgetMorale);
+  corp.rdScore = Math.round(scoreAfterSpend * 100) / 100;
 
   if (settlement) {
     const payout = (amount: number) => {
@@ -208,6 +248,76 @@ export function checkInsolvency(corp: Corporation, currentTurn: number): void {
   }
 }
 
+/**
+ * Current Game rdInnovation plants branch. Its dedicated SHA-256 stream is
+ * ported byte-for-byte and does not consume the world action RNG. The source
+ * DB row order is adapted to the stable insertion order of Native's seeded
+ * corporation records; Native has one aggregate sector asset per issuer.
+ */
+export function runCorporateRdInnovations(world: import("../types.js").WorldState): void {
+  const assets = corporateSectorAssets(world);
+  for (const asset of Object.values(assets)) {
+    const corp = world.corporations[asset.corporationId];
+    if (corp) corp.lastRdCapacityGain = 0;
+  }
+  if (world.meta.turn % RD_INNOVATION_INTERVAL !== 0) return;
+
+  const rng = makeRdInnovationRng(world.meta.turn);
+  const corporations = Object.values(world.corporations);
+  for (const corp of corporations) {
+    const score = Number.isFinite(corp.rdScore) ? Math.max(0, corp.rdScore ?? 0) : 0;
+    if (score <= 0 || rng() > Math.min(1, score / RD_INNOVATION_SCORE_THRESHOLD)) continue;
+    const eligible = Object.values(assets).filter((asset) => asset.corporationId === corp.id);
+    if (eligible.length === 0) continue;
+    // Native's source-backed single-sector aggregate has exactly one asset per
+    // issuer. Keeping the pick preserves future multi-asset behavior.
+    const asset = eligible[Math.floor(rng() * eligible.length)]!;
+    const min = corp.sectorType === "extraction" ? RD_EXTRACTION_BOOST_MIN : RD_REGULAR_BOOST_MIN;
+    const max = corp.sectorType === "extraction" ? RD_EXTRACTION_BOOST_MAX : RD_REGULAR_BOOST_MAX;
+    const boost = min + rng() * (max - min);
+    const stock = Number.isFinite(asset.capitalStock) ? Math.max(0, asset.capitalStock ?? 0) : 0;
+    const gain = Math.round(stock * boost * 100) / 100;
+    if (gain <= 0) continue;
+    asset.capitalStock = stock + gain;
+    corp.lastRdCapacityGain = gain;
+  }
+}
+
+/** Supported one-sector NPP budget and dividend policy from nppCorporationBehavior.ts. */
+export function updateNppCorporationFinancialPolicy(
+  corp: Corporation,
+  era: string,
+  localPerAnchor: number,
+): void {
+  if (corp.ceoType === "player" || corp.ceoVacant === true || corp.countryOwnerId || corp.ownershipState === "stateOwned") return;
+  const revenue = Number.isFinite(corp.revenue) ? Math.max(0, corp.revenue) : 0;
+  const income = revenue * (corp.effectiveProfitMargin / 100)
+    - Math.max(0, corp.lastCeoSalaryPaid ?? 0)
+    - Math.max(0, corp.lastRdSpendPerTurn ?? 0);
+  const margin = revenue > 0 ? income / revenue * 100 : 0;
+  const nominalScale = getEraNominalScale(era);
+  const cashFloorAnchor = Math.max(
+    Math.max(1, Math.round(125_000 * nominalScale)),
+    Math.round(250_000 * nominalScale * CEO_ARCHETYPE_MODIFIERS[corp.archetype].cashFloorMult),
+  );
+  const fx = Number.isFinite(localPerAnchor) && localPerAnchor > 0 ? localPerAnchor : 1;
+  const cashFloorLocal = cashFloorAnchor * fx;
+  let rdPct = 0;
+  if (income > 0 && revenue > 0 && corp.liquidCapital > cashFloorLocal) {
+    if (margin >= 25) rdPct = 0.02;
+    else if (margin >= 10) rdPct = 0.01;
+  }
+  const modifiers = CEO_ARCHETYPE_MODIFIERS[corp.archetype];
+  corp.rdBudgetPerTurn = Math.round(revenue * rdPct * modifiers.rdMult);
+
+  let dividendRate = 0;
+  if (income > 0 && corp.liquidCapital > cashFloorLocal && margin >= 15) {
+    const base = margin >= 30 ? 8 : margin >= 20 ? 5 : 3;
+    dividendRate = Math.min(25, Math.round(base * modifiers.dividendMult));
+  }
+  corp.dividendRate = dividendRate;
+}
+
 export const corporationTurnPhase: TurnPhase = {
   name: "corporationTurn",
   run(world) {
@@ -215,12 +325,38 @@ export const corporationTurnPhase: TurnPhase = {
     // strike resolution steps after the corp math (reference sector-pass
     // order: production effects from turn-start state, then the step).
     const labour = loadCorporationLabourState(world, world.meta.turn);
+    const labourByCorp = new Map(
+      Object.keys(world.corporations).map((corpId) => [corpId, labourFactorsForCorporation(world, corpId, labour)]),
+    );
+    runCorporatePlantProductionTurn(world, new Map(
+      [...labourByCorp].map(([corpId, factors]) => [corpId, factors.outputFactor]),
+    ));
     for (const corp of Object.values(world.corporations)) {
       const taxRatePct = world.budgets?.[corp.countryId]?.taxRates.domesticCorporateTax ?? DEFAULT_CORPORATE_TAX_RATE_PCT;
       const currencyCode = world.budgets?.[corp.countryId]?.currencyCode ?? world.exchangeRates?.[corp.countryId]?.currencyCode ?? "XXX";
-      runCorporationTurn(corp, taxRatePct, labourFactorsForCorporation(world, corp.id, labour), { player: world.player, currencyCode });
+      const asset = Object.values(world.corporateSectors ?? {}).find((candidate) => candidate.corporationId === corp.id);
+      const fx = world.exchangeRates?.[corp.countryId]?.rate ?? 1;
+      const marketizationLevel = world.commandEconomy[corp.countryId]?.marketizationLevel ?? 100;
+      const softBudget = isCommandEconomy(marketizationLevel);
+      const year = Number(world.meta.date.slice(0, 4));
+      const plannedTargetRate = sourcePlannedTargetRate({
+        countryId: corp.countryId,
+        sectorType: corp.sectorType,
+        year,
+        marketizationLevel,
+        currentTargetRate: corp.targetGrowthRate,
+      });
+      runCorporationTurn(corp, taxRatePct, labourByCorp.get(corp.id), { player: world.player, currencyCode }, true, {
+        localPerAnchor: fx,
+        avgWageLevel: asset?.wageLevel ?? 1,
+      }, {
+        softBudget,
+        ...(plannedTargetRate !== undefined ? { plannedTargetRate } : {}),
+      });
       checkInsolvency(corp, world.meta.turn);
+      updateNppCorporationFinancialPolicy(corp, world.meta.era, fx);
     }
+    runCorporateRdInnovations(world);
     stepCorporateSectorStrikes(world, world.meta.turn, labour);
 
     // Per-country revenue rollup for the macro growth-signal wire (see file doc).

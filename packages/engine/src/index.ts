@@ -113,6 +113,9 @@ export * from "./corporation/corporateSectorAssets.js";
 export * from "./bonds/corporateBondQuote.js";
 export * from "./bonds/corporateBondServicing.js";
 export * from "./bonds/bondMarketPool.js";
+export * from "./corporation/plantCapacity.js";
+export * from "./corporation/plantProduction.js";
+export * from "./corporation/plantDemand.js";
 export * from "./corporation/corporateSectorSale.js";
 export * from "./corporation/corporateSectorAcquire.js";
 // Public single-player seam for source-backed union bargaining commands.

@@ -128,6 +128,13 @@ export interface WorldState {
    * Per-state and per-country price maps are PORT-STUB until state scope lands.
    */
   commodityPrices: Record<string, CommodityState>;
+  /** Seeded external buyers and owned-sector inputs for the plants market book. */
+  plantMarketDemand?: {
+    external: Partial<Record<string, number>>;
+    corporateInputs: Partial<Record<string, number>>;
+    externalSupply?: Partial<Record<string, number>>;
+    corporateOutputSupply?: Partial<Record<string, number>>;
+  };
   /** Extraction contracts. Ports src/lib/db/types/extractionContract.ts. */
   extractionContracts: ExtractionContract[];
   /** Regions per playable country. W38: US 48 real states (AK/HI absent); UK/RU/DD retain 3 opaque each until W39. */

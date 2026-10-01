@@ -10,6 +10,9 @@ import {
 } from "./corporateBonds.js";
 import { calculateNativeCorporateCreditRating, corporateRatingSpread } from "./corporateCredit.js";
 import { resolveCountryCurrency } from "./denomination.js";
+import { DAYS_PER_TURN } from "../calendar.js";
+import { TURNS_PER_DAY } from "../corporation/constants.js";
+import { TURNS_PER_YEAR } from "./constants.js";
 
 export interface CorporateBondIssuanceQuote {
   available: boolean;
@@ -28,12 +31,13 @@ export interface CorporateBondIssuanceQuote {
 
 /**
  * Public issuance preview used by both the Markets DTO and action validator.
- * Mirrors Game's public corporate-bond GET/POST economics over Native's
- * supported one-sector balance sheet. Native revenue/growth cost are per-turn
- * values; Game's corporate-sector revenue is daily and callers divide its
- * profit by TURNS_PER_DAY before multiplying by TURNS_PER_YEAR. Mapping a
- * Native turn to Game's TURNS_PER_DAY units cancels that division, so both
- * value the single sector as positive per-turn profit × 48 / 15%.
+ * Once the plants demand ledger exists, use recorded realized plant receipts
+ * (local currency per Native week) and the source daily/hourly/year basis:
+ * Game's sector valuation divides daily profit by TURNS_PER_DAY then multiplies
+ * by TURNS_PER_YEAR. Native's realized receipt spans DAYS_PER_TURN, so its
+ * source-equivalent annual income is weekly profit / DAYS_PER_TURN /
+ * TURNS_PER_DAY * TURNS_PER_YEAR. Pre-plants worlds keep their established
+ * per-turn balance-sheet basis.
  */
 export function quoteCorporateBondIssuance(world: WorldState, corporationId: string): CorporateBondIssuanceQuote {
   const unavailable = (reason: string, currencyCode = "USD"): CorporateBondIssuanceQuote => ({
@@ -75,13 +79,30 @@ export function quoteCorporateBondIssuance(world: WorldState, corporationId: str
     return unavailable("Corporate bond liabilities must be finite and non-negative", currencyCode);
   }
   const existingDebtLocal = issuerBonds.reduce((sum, bond) => sum + bond.totalIssued, 0);
-  const incomePerTurnLocal = corp.revenue * (corp.effectiveProfitMargin / 100) - corp.currentGrowthCost;
-  const annualIncomeLocal = incomePerTurnLocal * 48;
+  const physicalAssets = Object.values(world.corporateSectors ?? {}).filter(
+    (asset) => asset.corporationId === corporationId,
+  );
+  const plantsMode = world.plantMarketDemand !== undefined && physicalAssets.length > 0;
+  const realizedWeeklyLocal = plantsMode
+    ? physicalAssets.reduce((sum, asset) => {
+      const realized = asset.realizedRevenue;
+      return Number.isFinite(realized) && (realized ?? 0) >= 0 ? sum + (realized ?? 0) : Number.NaN;
+    }, 0)
+    : null;
+  if (plantsMode && (!Number.isFinite(realizedWeeklyLocal) || !Number.isFinite(corp.effectiveProfitMargin))) {
+    return { ...unavailable("Plant bond valuation requires finite realized sector receipts and margin", currencyCode), exchangeRate };
+  }
+  const sourceTurnsPerNativeTurn = plantsMode ? DAYS_PER_TURN * TURNS_PER_DAY : 1;
+  const sectorRevenueLocal = plantsMode ? realizedWeeklyLocal! : corp.revenue;
+  const incomePerSourceTurnLocal = plantsMode
+    ? (sectorRevenueLocal * (corp.effectiveProfitMargin / 100)) / sourceTurnsPerNativeTurn
+    : sectorRevenueLocal * (corp.effectiveProfitMargin / 100) - corp.currentGrowthCost;
+  const annualIncomeLocal = incomePerSourceTurnLocal * TURNS_PER_YEAR;
   const sectorNpvLocal = annualIncomeLocal > 0 ? annualIncomeLocal / 0.15 : 0;
   const equityLocal = corp.liquidCapital + sectorNpvLocal;
   const totalEquityAnchor = equityLocal / exchangeRate;
   const existingDebtAnchor = existingDebtLocal / exchangeRate;
-  const annualRevenueAnchor = (corp.revenue * 48) / exchangeRate;
+  const annualRevenueAnchor = (sectorRevenueLocal * TURNS_PER_YEAR / sourceTurnsPerNativeTurn) / exchangeRate;
   const annualInterestLocal = issuerBonds.reduce((sum, bond) => sum + (bond.couponRate / 100) * bond.totalIssued, 0);
   if (![existingDebtLocal, equityLocal, totalEquityAnchor, existingDebtAnchor, annualRevenueAnchor, annualIncomeLocal, annualInterestLocal].every(Number.isFinite)) {
     return { ...unavailable("Corporate bond credit inputs exceed the supported finite range", currencyCode), exchangeRate };

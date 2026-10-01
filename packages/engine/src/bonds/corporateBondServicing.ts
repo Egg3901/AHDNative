@@ -19,16 +19,14 @@ import { resolveBondCurrency, resolveCountryCurrency } from "./denomination.js";
  * `src/lib/bonds/executeCorporationBondDefaultDissolution.ts` (national
  * corporations cannot be dissolved — state-owned issuers never default here).
  *
- * Solo cuts (cited, not silent): no FX conversion (domestic-only trade seam
- * guarantees bond currency == player home currency; the currencyBalances
- * fallback below mirrors the sovereign seam for crafted docs), no market pool
- * (the float slice of coupon/maturity cost is real issuer expense that
- * vanishes, exactly as the pool credit would receive it in mainline), no
- * escrow cover, no solvency-gate sector valuation, no restructure/refinance/
- * dissolution ladder (a solo default is terminal: paper freezes, trades
- * already blocked, no further accrual), no pool ask or cross-currency
- * settlement on buyback. Active corporate prices use the source conservative
- * current-credit-rate path; default stamps 0.1 per source Phase 4.
+ * Solo cuts (cited, not silent): no escrow cover, no solvency-gate sector
+ * valuation, no restructure/refinance/dissolution ladder (a solo default is
+ * terminal: paper freezes, trades already blocked, no further accrual), no
+ * sovereign appetite skew or continuous pool cash rebalancing. Active
+ * buybacks use a recorded local-currency pool ask and convert through source
+ * USD-anchor FX; an absent local M2/pool or required FX rate fails closed.
+ * Active corporate prices use the source conservative current-credit-rate
+ * path; default stamps 0.1 per source Phase 4.
  *
  * Atomicity: per bond, affordability of coupon + maturity is checked BEFORE
  * any mutation. A bond that cannot be covered defaults with zero flows;
@@ -256,11 +254,11 @@ export function quoteCorporateBondBuyback(world: WorldState, bond: Bond): Corpor
 }
 
 /**
- * Issuer buyback: retire float units at the current market price, funded from
- * the issuing corp's liquidCapital. Source: buyback/route.ts — cost is
- * units × face × marketPrice, publicFloat and totalIssued shrink by the
- * retired units/face, and full retirement with no holders closes the series
- * (matured, price back to par). Atomic: every check runs before any mutation.
+ * Issuer buyback: retire float units at the current market-pool ask, funded
+ * from the issuing corp's liquidCapital. Source: buyback/route.ts — publicFloat
+ * and totalIssued shrink by the retired units/face, and full retirement with
+ * no holders closes the series (matured, price back to par). Atomic: every
+ * check runs before any mutation.
  */
 export function buybackCorporateBondUnits(
   world: WorldState,

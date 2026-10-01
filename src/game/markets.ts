@@ -172,6 +172,10 @@ export interface MarketListing {
   dividendRate?: number;
   /** Live source-style corporate bond primary issuance preview for the seated player CEO. */
   corporateBondQuote?: CorporateBondIssuanceQuote;
+  rdBudgetPerTurn?: number;
+  rdScore?: number;
+  lastRdSpendPerTurn?: number;
+  lastRdCapacityGain?: number;
   lastCeoSalaryPaid?: number;
   lastPlayerDividendPaid?: number;
   /** Recorded executed-trade flow, multipliers, and insolvency marker (#77 slice).
@@ -517,6 +521,10 @@ export function projectMarkets(world: WorldState): MarketsView {
       ...(corp.ceoType === "player" && corp.ceoId === "player" && corp.ceoVacant !== true
         ? { corporateBondQuote: quoteCorporateBondIssuance(world, corp.id) }
         : {}),
+      ...(corp.rdBudgetPerTurn !== undefined ? { rdBudgetPerTurn: corp.rdBudgetPerTurn } : {}),
+      ...(corp.rdScore !== undefined ? { rdScore: corp.rdScore } : {}),
+      ...(corp.lastRdSpendPerTurn !== undefined ? { lastRdSpendPerTurn: corp.lastRdSpendPerTurn } : {}),
+      ...(corp.lastRdCapacityGain !== undefined ? { lastRdCapacityGain: corp.lastRdCapacityGain } : {}),
       ...(corp.lastCeoSalaryPaid !== undefined ? { lastCeoSalaryPaid: corp.lastCeoSalaryPaid } : {}),
       ...(corp.lastPlayerDividendPaid !== undefined ? { lastPlayerDividendPaid: corp.lastPlayerDividendPaid } : {}),
       orderFlow: {
