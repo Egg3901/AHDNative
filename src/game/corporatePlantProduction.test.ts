@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { WorldState } from "@ahdclient/engine";
+import { deserializeSave, type WorldState } from "@ahdclient/engine";
 import { GameSession } from "./session";
 
 function sessionWorld(session: GameSession): WorldState {
-  return (JSON.parse(session.serialize("2026-10-01T00:00:00.000Z")) as { world: WorldState }).world;
+  return deserializeSave(session.serialize("2026-10-01T00:00:00.000Z"));
 }
 
 describe("corporate plants through GameSession", () => {

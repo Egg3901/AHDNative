@@ -84,6 +84,7 @@ export type ExecuteActionParams = {
   candidateId?: string;
   salaryPerTurn?: number;
   dividendRate?: number;
+  rdBudgetPerTurn?: number;
   committeeCandidateIds?: string[];
   coalitionId?: string;
   coalitionName?: string;
@@ -1525,15 +1526,24 @@ function executeActionInner(
       if (corp.ceoId !== "player" || corp.ceoVacant === true) return { ok: false, error: "Only the active CEO may set corporation compensation" };
       const salary = params.salaryPerTurn;
       const dividendRate = params.dividendRate;
+      const rdBudgetPerTurn = params.rdBudgetPerTurn === undefined ? (corp.rdBudgetPerTurn ?? 0) : params.rdBudgetPerTurn;
       if (!Number.isFinite(salary) || salary! < 0 || salary! > Math.max(0, corp.revenue) * 1.25) {
         return { ok: false, error: "salaryPerTurn must be finite, non-negative, and no more than 1.25 times current corporation revenue" };
       }
       if (!Number.isFinite(dividendRate) || dividendRate! < 0 || dividendRate! > 25) {
         return { ok: false, error: "dividendRate must be finite and between 0 and 25 percent" };
       }
+      if (!Number.isFinite(rdBudgetPerTurn) || rdBudgetPerTurn! < 0) {
+        return { ok: false, error: "rdBudgetPerTurn must be finite and non-negative" };
+      }
+      const totalOverhead = salary! + rdBudgetPerTurn!;
+      if (totalOverhead > Math.max(0, corp.revenue) * 1.5) {
+        return { ok: false, error: "CEO salary and R&D budget cannot exceed 1.5 times current corporation revenue" };
+      }
       corp.ceoSalaryPerTurn = salary!;
       corp.dividendRate = dividendRate!;
-      return { ok: true, message: `Set ${corp.tickerSymbol} CEO salary to ${salary} per turn and dividend rate to ${dividendRate}%` };
+      corp.rdBudgetPerTurn = rdBudgetPerTurn!;
+      return { ok: true, message: `Set ${corp.tickerSymbol} CEO salary, dividend rate, and R&D budget` };
     }
 
     if (corp.ceoId !== "player" || corp.ceoVacant === true) return { ok: false, error: "You are not the active CEO of this corporation" };
@@ -2119,9 +2129,10 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
     case "resignCeo":
       return params.corpId ? null : `${actionId} requires corpId`;
     case "setCorporationCompensation":
-      return params.corpId && Number.isFinite(params.salaryPerTurn) && Number.isFinite(params.dividendRate)
+      return params.corpId && Number.isFinite(params.salaryPerTurn) && Number.isFinite(params.dividendRate) &&
+        (params.rdBudgetPerTurn === undefined || Number.isFinite(params.rdBudgetPerTurn))
         ? null
-        : "setCorporationCompensation requires corpId, salaryPerTurn, and dividendRate";
+        : "setCorporationCompensation requires corpId, salaryPerTurn, dividendRate, and optional rdBudgetPerTurn";
     case "buyBond":
     case "sellBond":
       return params.bondId && params.units !== undefined && Number.isInteger(params.units) && params.units > 0

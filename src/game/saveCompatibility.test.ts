@@ -152,6 +152,26 @@ describe("schema 42 projection of public save envelopes", () => {
   it("refuses a migrated world after a Native turn mutates countryPolitics", () => {
     const world = deserializeSave(loadAuthenticV42());
     advanceTurn(world);
+    // Keep this refusal focused on the existing countryPolitics mutation;
+    // the current schema's new R&D lifecycle state is independently rejected
+    // by the corporation projection guard above.
+    for (const corp of Object.values(world.corporations)) {
+      corp.rdBudgetPerTurn = 0;
+      corp.rdScore = 0;
+      corp.lastRdSpendPerTurn = 0;
+      corp.lastRdCapacityGain = 0;
+      corp.ceoId = undefined;
+      corp.ceoType = "npp";
+      corp.ceoVacant = false;
+      corp.pendingCeoId = undefined;
+      corp.ceoVotes = [];
+      corp.ceoSalaryPerTurn = 0;
+      corp.dividendRate = 0;
+      corp.lastCeoSalaryPaid = 0;
+      corp.lastDividendPoolPaid = 0;
+      corp.lastPlayerDividendPaid = 0;
+      corp.lastUnpostedDividendPaid = 0;
+    }
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projected.ok).toBe(false);
     if (projected.ok) throw new Error("expected countryPolitics refusal");

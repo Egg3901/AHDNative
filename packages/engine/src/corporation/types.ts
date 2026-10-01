@@ -111,6 +111,14 @@ export interface Corporation {
   ceoSalaryPerTurn?: number;
   /** Dividend payout percentage of positive after-tax operating income. */
   dividendRate?: number;
+  /** Local currency allocated to R&D per Native seven-day turn. */
+  rdBudgetPerTurn?: number;
+  /** Source R&D productivity score, decayed and advanced from paid spend. */
+  rdScore?: number;
+  /** R&D cash actually charged last turn, in local currency per Native turn. */
+  lastRdSpendPerTurn?: number;
+  /** Plant stock added by the latest R&D breakthrough, in source output units/day. */
+  lastRdCapacityGain?: number;
   /** Realized cash outputs, retained for Profile and save/reload. */
   lastCeoSalaryPaid?: number;
   lastDividendPoolPaid?: number;

@@ -168,6 +168,10 @@ export interface MarketListing {
   isStateOwned: boolean;
   ceoSalaryPerTurn?: number;
   dividendRate?: number;
+  rdBudgetPerTurn?: number;
+  rdScore?: number;
+  lastRdSpendPerTurn?: number;
+  lastRdCapacityGain?: number;
   lastCeoSalaryPaid?: number;
   lastPlayerDividendPaid?: number;
   /** Recorded executed-trade flow, multipliers, and insolvency marker (#77 slice).
@@ -510,6 +514,10 @@ export function projectMarkets(world: WorldState): MarketsView {
       isStateOwned: corp.ownershipState === "stateOwned" || corp.countryOwnerId !== undefined,
       ...(corp.ceoSalaryPerTurn !== undefined ? { ceoSalaryPerTurn: corp.ceoSalaryPerTurn } : {}),
       ...(corp.dividendRate !== undefined ? { dividendRate: corp.dividendRate } : {}),
+      ...(corp.rdBudgetPerTurn !== undefined ? { rdBudgetPerTurn: corp.rdBudgetPerTurn } : {}),
+      ...(corp.rdScore !== undefined ? { rdScore: corp.rdScore } : {}),
+      ...(corp.lastRdSpendPerTurn !== undefined ? { lastRdSpendPerTurn: corp.lastRdSpendPerTurn } : {}),
+      ...(corp.lastRdCapacityGain !== undefined ? { lastRdCapacityGain: corp.lastRdCapacityGain } : {}),
       ...(corp.lastCeoSalaryPaid !== undefined ? { lastCeoSalaryPaid: corp.lastCeoSalaryPaid } : {}),
       ...(corp.lastPlayerDividendPaid !== undefined ? { lastPlayerDividendPaid: corp.lastPlayerDividendPaid } : {}),
       orderFlow: {
