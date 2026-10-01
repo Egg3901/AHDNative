@@ -2655,3 +2655,16 @@ another branch is untouched; no physical-device run.
   complete source-backed player journey are still required. See
   [banking lifecycle evidence](BANKING-LIFECYCLE.md). The five closed child slices
   do not close the parent. No paid build or device-validation claim.
+
+## Source political board consumer checkpoint, 2026-10-01 (#263/#105/#510 partial)
+
+Actual Game seeds, law/macro drift, previous-turn order residuals and secession
+score fan-out now run through Native's public turn/save contract. Source London
+worker security53.858844 and cabinet residual0.9422 match independently executed
+Game results. The national Political metrics destination follows source
+category/metric/regional drilldown; actual weighted scores and order effects
+remain visible after reload. Schema51 preserves historical absence and refuses
+older-reader exports that would freeze political state. [Evidence](POLITICAL-BOARD-CONSUMERS.md)
+records targeted passing checks and the remaining original scope. These issues
+remain open pending complete supported order/defense consumers and navigation
+acceptance; no physical-device or whole-game completion is claimed.
