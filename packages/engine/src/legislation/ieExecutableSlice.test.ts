@@ -52,10 +52,33 @@ describe("Ireland executable VAT law (#284)", () => {
     expect(world.bills).toHaveLength(0);
   });
 
-  it("lets the 1991 Irish Head of State sponsor the authored 23% option", () => {
+  it("supports the source same-country HoS national decree route", () => {
+    const world = createWorld({ seed: "ie-vat-hos-decree", playerName: "P", countryId: "IE", era: "1991", mode: "hos" });
+    world.player.actions = 100;
+    world.player.nationalInfluence = 15;
+    const beforeActions = world.player.actions;
+    const beforeInfluence = world.player.nationalInfluence;
+    const result = executeAction(world, "player", "sponsorBill", { catalogId: "ie_vat_rate", taxRate: 23 });
+    expect(result.ok).toBe(true);
+    expect(world.bills.at(-1)).toMatchObject({
+      status: "signed",
+      enactedAtTurn: world.meta.turn,
+      selectedRate: 23,
+      provisions: [expect.objectContaining({ policyOptionId: "ie_vat_rate_opt_6" })],
+    });
+    expect(world.budgets.IE?.taxRates.salesTax).toBe(22);
+    expect(world.budgets.IE?.taxRatePhaseIn?.salesTax).toBe(23);
+    expect(world.player.actions).toBe(beforeActions);
+    expect(world.player.nationalInfluence).toBe(beforeInfluence);
+  });
+
+  it("lets an Irish Dáil member propose the authored 23% option", () => {
     const world = createWorld({ seed: "ie-vat-284", playerName: "P", countryId: "IE", era: "1991" });
     seatIrishGovernment(world);
-    world.player.mode = "hos";
+    world.player.mode = "career";
+    const partyId = world.governments.IE!.governingPartyId!;
+    world.player.partyId = partyId;
+    world.player.legislativeSeat = { countryId: "IE", chamberKey: "dail" };
     world.player.actions = 100;
     world.player.nationalInfluence = 5;
     expect(world.budgets.IE?.taxRates.salesTax).toBe(21);
@@ -85,7 +108,9 @@ describe("Ireland executable VAT law (#284)", () => {
 
     const zeroOptionWorld = createWorld({ seed: "ie-vat-zero-option", playerName: "P", countryId: "IE", era: "1991" });
     seatIrishGovernment(zeroOptionWorld);
-    zeroOptionWorld.player.mode = "hos";
+    zeroOptionWorld.player.mode = "career";
+    zeroOptionWorld.player.partyId = zeroOptionWorld.governments.IE!.governingPartyId!;
+    zeroOptionWorld.player.legislativeSeat = { countryId: "IE", chamberKey: "dail" };
     zeroOptionWorld.player.actions = 100;
     zeroOptionWorld.player.nationalInfluence = 5;
     const abolitionOption = executeAction(zeroOptionWorld, "player", "sponsorBill", {
@@ -168,7 +193,9 @@ describe("Ireland executable VAT law (#284)", () => {
   it("refuses the source proposal without 5 NPI and leaves saved command state unchanged", () => {
     const world = createWorld({ seed: "ie-vat-npi-gate", playerName: "P", countryId: "IE", era: "1991" });
     seatIrishGovernment(world);
-    world.player.mode = "hos";
+    world.player.mode = "career";
+    world.player.partyId = world.governments.IE!.governingPartyId!;
+    world.player.legislativeSeat = { countryId: "IE", chamberKey: "dail" };
     world.player.actions = 20;
     world.player.nationalInfluence = 4;
     const before = serializeSave(world, "2026-10-01T00:00:00.000Z");

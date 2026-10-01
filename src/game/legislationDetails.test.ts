@@ -27,6 +27,15 @@ function hosWorld(): WorldState {
   return deserializeSave(serializeSave(world, savedAt));
 }
 
+function chamberWorld(): WorldState {
+  const world = createWorld({ ...options, mode: "career" });
+  // Controlled recorded-member fixture for the ordinary chamber lifecycle.
+  // This is not a claim of a player-earned election or SP decree authority.
+  world.player.legislativeSeat = { chamberKey: "house", countryId: "US" };
+  world.player.nationalInfluence = 5;
+  return deserializeSave(serializeSave(world, savedAt));
+}
+
 describe("legislationDetails query (detached, bounded)", () => {
   it("groups bills by chamber into active and completed partitions", () => {
     const query = buildLegislationDetails(hosWorld());
@@ -90,6 +99,7 @@ describe("legislationDetails query (detached, bounded)", () => {
 
   it("shows the source formation freeze in the player proposal projection", () => {
     const world = createWorld({ era: "1991", countryId: "IE", seed: "ie-vat-freeze-screen", playerName: "P", mode: "hos" });
+    world.governments.IE!.status = "pending";
     const proposal = buildLegislationDetails(world).proposals.find((entry) => entry.id === "ie_vat_rate");
     expect(proposal).toMatchObject({
       sponsorAvailable: false,
@@ -121,7 +131,7 @@ describe("legislationDetails query (detached, bounded)", () => {
   });
 
   it("shows a sponsored bill in its origin-chamber active partition with selected-bill details", () => {
-    const world = hosWorld();
+    const world = chamberWorld();
     expect(executeAction(world, "player", "sponsorBill", {
       catalogId: "us.economy.workerSecurity.primary",
     }).ok).toBe(true);
@@ -198,7 +208,7 @@ describe("legislationDetails query (detached, bounded)", () => {
   });
 
   it("schedules the origin-chamber vote and committee referral for a sponsored bill", () => {
-    const world = hosWorld();
+    const world = chamberWorld();
     expect(executeAction(world, "player", "sponsorBill", {
       catalogId: "us.economy.workerSecurity.primary",
       originChamber: "house",

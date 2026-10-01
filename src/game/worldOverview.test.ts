@@ -81,6 +81,26 @@ it('projects role-gated home-region rows and the regional economy across the ses
   expect(reloaded.homeRegion?.viewer.governorOffice?.availableActions).toBe(3);
 });
 
+it('projects the source administrative fallback formation without narrowing its saved value', () => {
+  const session = new GameSession();
+  session.create({
+    era: '1953',
+    countryId: 'UK',
+    playerName: 'Alex',
+    seed: 'world-browser-admin-formation',
+    mode: 'hos',
+    homeRegionId: 'EMI',
+    initialization: 'historical',
+  });
+  const save = JSON.parse(session.serialize(SAVED_AT)) as {
+    world: { governments: Record<string, { formationType: string | null }> };
+  };
+  save.world.governments.UK!.formationType = 'admin';
+  session.load(JSON.stringify(save));
+
+  expect(session.worldOverview().nations.find((nation) => nation.id === 'UK')?.government.formationType).toBe('admin');
+});
+
 it('carries recorded race and leader links on every nation (#73)', () => {
   const session = new GameSession();
   session.load(serializeSave(electedWorld(), SAVED_AT));

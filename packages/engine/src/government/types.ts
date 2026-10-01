@@ -21,14 +21,12 @@ export type GovernmentFormationStatus = "pending" | "formed";
 
 /**
  * Mainline formation types: "majority" | "coalition" | "minority" | "admin".
- * "admin" (caretaker/administrator government, seeded for some countries at
- * world start rather than won by election) is PORT-STUB: solo worlds always
- * start countries with a seeded chamber composition that already resolves
- * through the ordinary majority/coalition/minority path at first formation,
- * so no country ever needs an "admin" caretaker at t0.
+ * "admin" is source-authored when direct HoS seating has no resolvable
+ * governing party after the existing formation, player-party and country
+ * configuration fallbacks. Ordinary NPC formation remains on the
+ * majority/coalition/minority path.
  */
-export type GovernmentFormationType =
-  "majority" | "coalition" | "minority" | null;
+export type GovernmentFormationType = "majority" | "coalition" | "minority" | "admin" | null;
 
 /**
  * Confidence bands, ported verbatim from mainline's OPS ruling-party
@@ -42,8 +40,7 @@ export type GovernmentFormationType =
  * is documented as persistence-only with no gameplay effect until an unshipped
  * flag, so folding it into the one shared numeric model loses nothing real.
  */
-export type ConfidenceBand =
-  "secure" | "stable" | "watchful" | "strained" | "crisis" | "critical";
+export type ConfidenceBand = "secure" | "stable" | "watchful" | "strained" | "crisis" | "critical";
 
 export interface GovernmentState {
   countryId: string;

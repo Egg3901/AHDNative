@@ -1,6 +1,7 @@
 import type { TurnPhase } from "../phases/types.js";
 import type { ElectionRecord } from "../elections/types.js";
 import type { GovernmentState } from "./types.js";
+import { isRecordedSingleplayerHeadOfGovernment, seatSingleplayerHeadOfGovernment } from "./singleplayerHeadOfGovernment.js";
 import type { Chamber, WorldState } from "../types.js";
 import { computeFormation, selectPm } from "./formation.js";
 import {
@@ -121,6 +122,10 @@ function processCountry(world: WorldState, countryId: string, chamberKey: string
   const leg = world.legislatures[countryId];
   const chamber = leg?.chambers.find((c) => c.key === chamberKey);
   if (!chamber) return;
+  if (isRecordedSingleplayerHeadOfGovernment(world, countryId)) {
+    seatSingleplayerHeadOfGovernment(world);
+    return;
+  }
   const turn = world.meta.turn;
 
   let gov = world.governments[countryId];
