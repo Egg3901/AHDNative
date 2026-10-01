@@ -28,7 +28,7 @@ const FIXTURE_GZ = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtu
 const WORLD_OPTS = { seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" } as const;
 
 it("keeps the historical v42 flag shape and refuses its unsupported RPG-off ruleset", () => {
-  const world = createWorld(WORLD_OPTS);
+  const world = loadHistoricalFresh();
   const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
   expect(projected.ok).toBe(true);
   if (!projected.ok) throw new Error(projected.error);
@@ -44,6 +44,11 @@ function sha256(text: string): string {
 
 function loadAuthenticV42(): string {
   return gunzipSync(readFileSync(FIXTURE_GZ)).toString("utf8");
+}
+
+/** Actual af2f59b pre-CEO creation bytes, retained with their historical oracle hashes. */
+function loadHistoricalFresh() {
+  return deserializeSave(gunzipSync(readFileSync(join(dirname(FIXTURE_GZ), "native-fresh-pre-ceo-source.save.json.gz"))).toString("utf8"));
 }
 
 function parseProjected(contents: string): {
@@ -68,14 +73,14 @@ function parseProjected(contents: string): {
 
 describe("projectSaveToV42 public envelope", () => {
   it("returns the authentic v42 fixture unchanged", () => {
-    expect(SCHEMA_VERSION).toBe(48);
+    expect(SCHEMA_VERSION).toBe(50);
     const authentic = loadAuthenticV42();
     expect(sha256(authentic)).toBe(FIXTURE_SHA);
     expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });
   });
 
-  it("projects a Native-fresh 1953 US world with homeRegionId AL as a v42 extension the old reader preserved", () => {
-    const world = createWorld(WORLD_OPTS);
+  it("projects a historical pre-CEO 1953 US world with homeRegionId AL as a v42 extension the old reader preserved", () => {
+    const world = loadHistoricalFresh();
     expect(world.player.homeRegionId).toBe("AL");
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projected.ok).toBe(true);
@@ -93,8 +98,8 @@ describe("projectSaveToV42 public envelope", () => {
     expect(restored.countryPolitics).toEqual(world.countryPolitics);
   });
 
-  it("projects convertCash on that Native-fresh world to the recorded v42-reader hash", () => {
-    const world = createWorld(WORLD_OPTS);
+  it("projects convertCash on that historical pre-CEO world to the recorded v42-reader hash", () => {
+    const world = loadHistoricalFresh();
     const result = executeAction(world, "player", "convertCash", { amount: 2000 });
     expect(result).toEqual({ ok: true, message: "Converted 2000 cash to 1000 funds.", changes: { actions: -2, cash: -2000, funds: 1000 } });
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
@@ -118,7 +123,7 @@ describe("projectSaveToV42 public envelope", () => {
   });
 
   it("refuses a Native world after a turn mutates countryPolitics history", () => {
-    const world = createWorld(WORLD_OPTS);
+    const world = loadHistoricalFresh();
     advanceTurn(world);
     expect(world.countryPolitics["US"]!.approvalHistory.length).toBeGreaterThan(1);
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
@@ -165,7 +170,7 @@ describe("projectSaveToV42 public envelope", () => {
   });
 
   it("refuses a Native world with live market pressure state", () => {
-    const world = createWorld(WORLD_OPTS);
+    const world = loadHistoricalFresh();
     world.corporations["US-manufacturing"]!.orderFlowWindowBuyValue = 1;
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projected.ok).toBe(false);
@@ -174,7 +179,7 @@ describe("projectSaveToV42 public envelope", () => {
   });
 
   it("refuses a Native world with live prop-book state that schema 42 cannot carry (#328)", () => {
-    const world = createWorld(WORLD_OPTS);
+    const world = loadHistoricalFresh();
     const doc = JSON.parse(serializeSave(world, SAVED_AT)) as {
       world: { corporations: Record<string, { bankCharter?: Record<string, unknown> }> };
     };
@@ -188,8 +193,8 @@ describe("projectSaveToV42 public envelope", () => {
     expect(projected.error).toMatch(/charter|proprietary|schema 42/);
   });
 
-  it("projects a Native-fresh envelope whose record keys are reversed", () => {
-    const world = createWorld(WORLD_OPTS);
+  it("projects a historical pre-CEO envelope whose record keys are reversed", () => {
+    const world = loadHistoricalFresh();
     const original = JSON.parse(serializeSave(world, SAVED_AT)) as Record<string, unknown>;
     const originalWorld = original["world"] as Record<string, unknown>;
     const reversedWorld: Record<string, unknown> = {};
@@ -218,7 +223,7 @@ describe("projectSaveToV42 public envelope", () => {
   });
 
   it("refuses extra own keys including __proto__ that Native restore would drop", () => {
-    const world = createWorld(WORLD_OPTS);
+    const world = loadHistoricalFresh();
     const original = JSON.parse(serializeSave(world, SAVED_AT)) as {
       world: { countryPolitics: Record<string, Record<string, unknown>> };
     };
@@ -242,7 +247,7 @@ describe("projectSaveToV42 public envelope", () => {
   });
 
   it("refuses a schema 43 envelope that was only relabeled 42 while keeping countryPolitics", () => {
-    const world = createWorld(WORLD_OPTS);
+    const world = loadHistoricalFresh();
     const relabeled = JSON.parse(serializeSave(world, SAVED_AT)) as {
       schemaVersion: number;
       world: { meta: { schemaVersion: number }; countryPolitics?: unknown; player: { homeRegionId?: unknown } };
