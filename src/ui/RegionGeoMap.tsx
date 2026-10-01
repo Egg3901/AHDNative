@@ -4,7 +4,7 @@
  * Loads the country's source shard (public/geo, lazy per country, never
  * bundled) through the existing loadRegionShards/projectRegionGeometry and
  * renders exactly the recorded region codes: era-dependent absence (1953
- * AK/HI, unrecorded DC) renders as absence, never as an invented shape.
+ * AK/HI) renders as absence, never as an invented shape.
  * Region identity is the recorded code (properties.regionCode); the on-map
  * text is the source label override (US codes) or the recorded name.
  *

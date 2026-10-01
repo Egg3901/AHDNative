@@ -51,13 +51,13 @@ describe("RegionGeoMap", () => {
 
     const map = await screen.findByRole("group", { name: /united states regions geographic map/i });
     const shapes = map.querySelectorAll("path[data-region-id]");
-    // 1953 roster: 48 states (no AK/HI until statehood, no DC record).
+    // 1953 directory: 48 political states plus the recorded DC corporation HQ.
     expect(shapes.length).toBe(recorded.size);
-    expect(shapes.length).toBe(48);
-    // Unrecorded shard features (AK/HI/DC) never render.
+    expect(shapes.length).toBe(49);
+    // AK/HI are absent until statehood; DC is browsable without electoral seats.
     expect(map.querySelector("path[data-region-id='AK']")).toBeNull();
     expect(map.querySelector("path[data-region-id='HI']")).toBeNull();
-    expect(map.querySelector("path[data-region-id='DC']")).toBeNull();
+    expect(map.querySelector("path[data-region-id='DC']")).not.toBeNull();
     // Source label override: the code sits on the map, full name in tooltip.
     const california = within(map).getByRole("button", { name: "Select California region" });
     expect(california.querySelector("title")?.textContent).toBe("California");
