@@ -670,7 +670,7 @@ fn open_ask_auth(app: &AppHandle) -> Result<(), String> {
         .center()
         .resizable(true)
         .on_navigation(move |url| {
-            if crate::is_ask_navigation_allowed(url) {
+            if crate::is_frame_resource(url) || crate::is_ask_navigation_allowed(url) {
                 true
             } else {
                 let _ = nav_app.opener().open_url(url.to_string(), None::<&str>);
