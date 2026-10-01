@@ -312,7 +312,7 @@ describe("RegionSectorAssetsCard", () => {
     expect(
       screen.getByRole("button", { name: "Buy media sector (US.MEDI)" }),
     ).toBeDisabled();
-    expect(screen.getByText(/you already own this sector/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/you already own this sector/i)).toHaveLength(2);
     expect(screen.getByText("Owned by you")).toBeInTheDocument();
 
     rerender(
