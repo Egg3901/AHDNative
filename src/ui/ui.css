@@ -1679,3 +1679,10 @@ details[open] > .ahd-trend-table-disclosure::after {
 .ahd-stat-stepper .ahd-btn { min-width: 44px; min-height: 44px; }
 .ahd-stat-stepper output { min-width: 1.3rem; text-align: center; }
 @media (max-width: 360px) { .ahd-stat-row { flex-wrap: wrap; } .ahd-stat-stepper { margin-left: auto; } }
+/* #73 schematic tile map: code-native SVG, no external geometry. Tiles scale
+   to the viewport width; selected tile carries the primary stroke. */
+.ahd-schematic-tile { fill: var(--ahd-card-elevated); stroke: var(--ahd-border); stroke-width: 1.5; }
+.ahd-schematic-tile-selected { fill: var(--ahd-card-elevated); stroke: var(--ahd-primary); stroke-width: 3; }
+.ahd-schematic-tile-mark { fill: var(--ahd-primary); }
+.ahd-schematic-tile-code { fill: var(--ahd-text); font-size: 15px; font-weight: 700; }
+.ahd-schematic-tile-sub { fill: var(--ahd-muted); font-size: 10.5px; }

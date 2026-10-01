@@ -80,3 +80,23 @@ it('projects role-gated home-region rows and the regional economy across the ses
   expect(reloaded.homeRegion?.viewer.myElection?.id).toBe('house:US:AL:c2');
   expect(reloaded.homeRegion?.viewer.governorOffice?.availableActions).toBe(3);
 });
+
+it('carries recorded race and leader links on every nation (#73)', () => {
+  const session = new GameSession();
+  session.load(serializeSave(electedWorld(), SAVED_AT));
+  const view = session.worldOverview();
+
+  for (const nation of view.nations) {
+    expect(nation.races.length).toBeLessThanOrEqual(3);
+    for (const race of nation.races) {
+      expect(race.id.length).toBeGreaterThan(0);
+      expect(race.label.length).toBeGreaterThan(0);
+    }
+    if (nation.leader) {
+      expect(nation.leader.id.length).toBeGreaterThan(0);
+      expect(nation.leader.name.length).toBeGreaterThan(0);
+    }
+  }
+  const playerNation = view.nations.find((nation) => nation.id === 'US')!;
+  expect(playerNation.races.length).toBeGreaterThan(0);
+});

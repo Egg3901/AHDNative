@@ -76,12 +76,30 @@ export interface RegionOfficialView {
   party: RegionPartyRef | null;
 }
 
+/** Recorded race in this region, for directory link-outs to the existing race route. */
+export interface RegionDirectoryRace {
+  id: string;
+  label: string;
+  status: string;
+}
+
+/** Recorded holder of this region's governor office, for profile link-outs. */
+export interface RegionDirectoryHolder {
+  id: string;
+  name: string;
+  isPlayer: boolean;
+}
+
 export interface RegionDirectoryRow {
   id: string;
   name: string;
   isHome: boolean;
   population: number | null;
   gdpMillions: number | null;
+  /** Recorded races in this region (unresolved first), capped for directory use. */
+  races: RegionDirectoryRace[];
+  /** Recorded governor-office holder; null when the save records none. */
+  officeHolder: RegionDirectoryHolder | null;
 }
 
 export interface RegionPartySupport {
@@ -279,6 +297,39 @@ function politicianName(world: WorldState, id: string): string {
 function chamberName(world: WorldState, countryId: string, chamberKey: string): string {
   const named = world.legislatures[countryId]?.chambers.find((chamber) => chamber.key === chamberKey)?.name;
   return named ?? humanize(chamberKey);
+}
+
+/** Directory link cap: rows stay phone-sized; the full list lives on the region detail. */
+export const REGION_DIRECTORY_RACE_LIMIT = 3;
+
+function directoryRaces(
+  world: WorldState,
+  countryId: string,
+  regionId: string,
+): RegionDirectoryRace[] {
+  return world.elections
+    .filter((election) => election.countryId === countryId && election.state === regionId)
+    .sort((left, right) =>
+      Number(left.status === "resolved") - Number(right.status === "resolved") ||
+      left.startTurn - right.startTurn ||
+      left.id.localeCompare(right.id)
+    )
+    .slice(0, REGION_DIRECTORY_RACE_LIMIT)
+    .map((election) => ({
+      id: election.id,
+      label: chamberName(world, countryId, election.chamberKey),
+      status: election.status,
+    }));
+}
+
+function directoryHolder(world: WorldState, regionId: string): RegionDirectoryHolder | null {
+  const office = world.governors?.[regionId];
+  if (!office) return null;
+  const holder = officialRef(world, office.governorId, office.governorParty) ?? (
+    office.governorName ? { id: null, name: office.governorName, party: null } : null
+  );
+  if (!holder || !holder.id) return null;
+  return { id: holder.id, name: holder.name, isPlayer: holder.id === "player" };
 }
 
 function projectOffice(world: WorldState, regionId: string): RegionOfficeView | null {
@@ -601,6 +652,8 @@ export function projectRegions(world: WorldState, query: RegionsQuery = {}): Reg
       isHome: homeId === region.id,
       population: finiteOrNull(region.population),
       gdpMillions: finiteOrNull(region.gdp),
+      races: directoryRaces(world, countryId, region.id),
+      officeHolder: directoryHolder(world, region.id),
     })),
     selected: selectedRegion ? projectDetail(world, selectedRegion, query, homeId) : null,
   };

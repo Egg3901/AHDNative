@@ -5,6 +5,14 @@ export type ReducedMotion = "system" | "on" | "off";
 export type ReducedTransparency = "system" | "on" | "off";
 /** World map/directory section shown first. Both sections are implemented. */
 export type WorldMapSection = "nations" | "regions";
+/** World map schematic context. Both contexts are implemented (#73). */
+export type WorldMapView = "world" | "country";
+/** Hall of Fame leaderboard scope: every recorded figure or the player's party. */
+export type HallOfFameScope = "all" | "party";
+/** Hall of Fame ranking: standing composite or raw political influence. */
+export type HallOfFameRankBy = "standing" | "influence";
+/** Hall of Fame era filter: the save's current era or every recorded era. */
+export type HallOfFameEra = "current" | "all";
 
 export interface Preferences {
   textSize: TextSize;
@@ -12,6 +20,10 @@ export interface Preferences {
   reducedTransparency: ReducedTransparency;
   disableAutoplayOnOtherProfiles: boolean;
   worldMapSection: WorldMapSection;
+  worldMapView: WorldMapView;
+  hallOfFameScope: HallOfFameScope;
+  hallOfFameRankBy: HallOfFameRankBy;
+  hallOfFameEra: HallOfFameEra;
 }
 
 export interface PreferenceStorage {
@@ -36,6 +48,10 @@ export const DEFAULT_PREFERENCES: Preferences = {
   reducedTransparency: "system",
   disableAutoplayOnOtherProfiles: false,
   worldMapSection: "nations",
+  worldMapView: "world",
+  hallOfFameScope: "all",
+  hallOfFameRankBy: "standing",
+  hallOfFameEra: "current",
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -71,6 +87,18 @@ export function parsePreferences(value: unknown): Preferences {
     worldMapSection: parsed.worldMapSection === "nations" || parsed.worldMapSection === "regions"
       ? parsed.worldMapSection
       : DEFAULT_PREFERENCES.worldMapSection,
+    worldMapView: parsed.worldMapView === "world" || parsed.worldMapView === "country"
+      ? parsed.worldMapView
+      : DEFAULT_PREFERENCES.worldMapView,
+    hallOfFameScope: parsed.hallOfFameScope === "all" || parsed.hallOfFameScope === "party"
+      ? parsed.hallOfFameScope
+      : DEFAULT_PREFERENCES.hallOfFameScope,
+    hallOfFameRankBy: parsed.hallOfFameRankBy === "standing" || parsed.hallOfFameRankBy === "influence"
+      ? parsed.hallOfFameRankBy
+      : DEFAULT_PREFERENCES.hallOfFameRankBy,
+    hallOfFameEra: parsed.hallOfFameEra === "current" || parsed.hallOfFameEra === "all"
+      ? parsed.hallOfFameEra
+      : DEFAULT_PREFERENCES.hallOfFameEra,
   };
 }
 
