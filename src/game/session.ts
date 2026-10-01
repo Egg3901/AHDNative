@@ -17,6 +17,7 @@ import { projectUnionManagement } from "./unionManagement";
 import { buildLegislationDetails, type LegislationSelection } from "./legislationDetails";
 import { buildChamberNavigation, buildCommitteeNavigation, buildFloorSchedule } from "./legislature";
 import { projectCabinetSponsor, projectNominationDetail, projectNominationList, projectScotusSponsor } from "./nominations";
+import { projectHallOfFame, type HallOfFameQuery } from "./hallOfFame";
 import { projectWorldOverview } from "./worldOverview";
 import { projectNation } from "./nation";
 import { projectCapabilityNav } from "./capabilityNav";
@@ -693,6 +694,12 @@ export class GameSession {
   }
 
   politics() { return projectPolitics(this.requireWorld()); }
+
+  /**
+   * Hall of Fame board (#73). The projector reads the live WorldState
+   * directly; only the detached DTO crosses to React — never the world.
+   */
+  hallOfFame(query: HallOfFameQuery = {}) { return projectHallOfFame(this.requireWorld(), query); }
 
   private requireWorld(): WorldState {
     if (!this.world) throw new Error("Start or load a game first.");

@@ -1,5 +1,14 @@
 # AHDNative roadmap
 
+## Source geographic maps and local Hall checkpoint, 2026-10-01 (#73 partial)
+
+Offline country/subdivision shapes, country-scoped browsing, real entity links
+and local recorded-life standings now pass actual 320px/390px save/resume
+journeys. Current Game source is `01797b27082b098fdf3929bb498215c94c8dda24`.
+Complete map modes/country coverage, foreign regional detail and server-wide
+history remain open under #73; [source comparison](WORLD-MAP-PARITY.md)
+records the boundary. Integration preserves the merged command economy route.
+
 ## NPP relationship and recruitment checkpoint, 2026-10-01 (#57 / #61 partial)
 
 Politicians now expose four source relationship approaches with reviewed target,
@@ -8,7 +17,9 @@ chance/cost, cancellation, accepted outcome and normal save/resume. Actual
 60-point relationship, same-party/country and 12-turn cooldown contract. Its
 controlled eligibility tests do not claim a player-earned recruitment journey.
 [Source behavior and remaining scope](NPP-RELATIONSHIP-PARITY.md) preserve the
-three-human charter and wider targeted-action gaps. Full hosted review is pending.
+three-human charter and wider targeted-action gaps. [PR #715](https://github.com/Egg3901/AHDNative/pull/715)
+merged at `741083a` after the [full hosted gate](https://github.com/Egg3901/AHDNative/actions/runs/36873625730)
+passed at exact head `313dd59`. Both issues remain open and partial.
 
 ## Verified China law checkpoint, 2026-10-01 (#286 closed)
 
@@ -20,7 +31,7 @@ Original #286 acceptance is checked and closed: source options/directions, publi
 proposal/vote/signing, immediate fiscal effect, replacement, saved ramp/reload and
 actual CN player tariff flow at 320px/390px. See [source and evidence](CN-TAX-LAWS.md).
 #101 stays open: Japan, Germany, Ireland and RU/DD cross-system slices remain,
-as do broader catalog/source coverage. Current Game `88fb2de` preserves the
+as do broader catalog/source coverage. Current Game `96831835` preserves the
 active mechanics vectors. GitHub has 59 open issues, down from 63; this count
 includes partial and blocked work and does not mean all 59 are untouched.
 
@@ -31,7 +42,8 @@ now have real player controls, source authority, saved lifecycle and budget/over
 consumers. Public engine tests and actual 320px/390px two-reload journeys pass.
 [Source comparison](ECONOMIC-CONTROL-PARITY.md) records the remaining default
 Game plants-mode capital/replacement chain, director request weighting and state
-subsidy scope. #94 stays open; the corporate prerequisites remain in #107.
+subsidy scope. PR705 passed full verification at `fba4905`, merged as `a17c5de`,
+and the original #94 checklist remains partial; corporate prerequisites remain #107.
 
 ## Verified CEO card closure, 2026-10-01 (#51)
 

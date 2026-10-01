@@ -12,6 +12,8 @@ async function startProfile(page: import('@playwright/test').Page, name: string)
 }
 
 test('profile picture, biography and standing survive a real save and resume', async ({ page }) => {
+  // Creation and two resumes each cross the real worker's 60-second boundary.
+  test.setTimeout(180_000);
   await startProfile(page, 'Profile Player');
   const profile = page.getByRole('region', { name: 'Profile', exact: true });
   const footer = page.getByRole('contentinfo');
