@@ -1,3 +1,14 @@
+## Final integrated verification and closure
+
+[PR #714](https://github.com/Egg3901/AHDNative/pull/714) merged as `65aebad`
+after exact `ec4b19a` passed [full hosted verification](https://github.com/Egg3901/AHDNative/actions/runs/36895445082).
+All original #110 and #111 criteria are checked with per-row evidence in their
+issue bodies. Both issues are confirmed closed with partial labels removed.
+#299 is also closed for source corporate funding, physical ledger conservation
+and its actual two-width public trading and save/resume flow. #107 remains partial.
+#298 remains partial for directly seated canonical SP head-of-government authority;
+the career ownership and secession evidence below does not resolve that gap.
+
 # Corporate finance and bond issuance checkpoint
 
 This checkpoint records the supported Native implementation for original

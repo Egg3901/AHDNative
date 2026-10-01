@@ -1,3 +1,15 @@
+## Current source authority gap
+
+#298 remains open and partial after merged [PR #714](https://github.com/Egg3901/AHDNative/pull/714).
+Current Game `cb66acdf` seats an SP president in canonical elected officials or an
+SP parliamentary head of government through its singleplayer government formation.
+Its nationalization route recognizes those sitting leaders without a newly won
+election. Native's merged ownership gate rejects SP/permanent holders, and some
+SP parliamentary worlds lack the corresponding canonical government record.
+The full source authority criterion is therefore unchecked until creation,
+continuation, action projection and normal save/reload preserve that authority.
+The career-holder and secession/conservation evidence below remains bounded proof.
+
 # Corporate ownership through nationalization and secession (#298)
 
 This checkpoint records the bounded Native port for the complete #298 acceptance sentence: corporate ownership/state partition effects for nationalization and referendum secession fan-out, separate from unowned revenue pools, with conservation and save/reload evidence.

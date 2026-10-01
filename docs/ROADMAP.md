@@ -12,17 +12,25 @@ region detail shows4.4% at source precision, with Scotland unchanged3.8%.
 record the controlled held-office fixture and missing political cabinet channel.
 #263 remains open; broader regional metric hierarchy and military stores remain.
 
-## Corporate finance integration, 2026-10-01 (#110 / #107 / #111)
+## Verified finance and regional trading closures, 2026-10-01 (#110 / #111 / #299)
 
-Corporate issuance, pool-priced public-float retirement and physical realized-sale
-valuation now integrate with source savings phase timing and current macro gap
-bounds. [Acceptance evidence](CORPORATE-FINANCE-BOND-PARITY.md) records the
-independent vectors, actual two-width issuance/buyback/resume and source consumers.
-The combined full gate remains pending. #107 stays partial for wider corporate
-management/modifiers. Source national savings eligibility and foreign-wallet
-credit servicing are now implemented with original #111 acceptance awaiting
-combined verification. Corporate-funded #299 purchase also integrates physical
-ledger conservation; its complete original flow and fresh gate remain required.
+[PR #714](https://github.com/Egg3901/AHDNative/pull/714) merged at `65aebad`
+after exact head `ec4b19a` passed the [full hosted gate](https://github.com/Egg3901/AHDNative/actions/runs/36895445082).
+All original criteria for corporate/sovereign bonds #110, savings/banking/pensions
+#111 and regional sector trading #299 are checked; GitHub closure is confirmed
+and partial labels are removed. Independent source vectors, atomic money/physical
+ledger tests and actual 320px/390px issuance, purchase and normal reload journeys
+support the [finance evidence](CORPORATE-FINANCE-BOND-PARITY.md) and
+[regional trading evidence](REGIONAL-SECTOR-TRADING.md).
+
+There are 57 open issues, down from 63: 41 partial, 10 not started, 3 deferred,
+2 blocked and 1 tracking. Parent #211 has 6 of 7 original children complete.
+#298 remains partial because Native still rejects directly seated SP heads of
+government whom current Game recognizes through canonical office/government
+records. Its full source authority criterion remains unchecked pending that
+correction; career ownership/conservation and secession fan-out are delivered.
+#107 retains wider corporate management and strategy/technology price inputs.
+Current sampled Game is `cb66acdf`; Client is `799a9920`.
 
 ## Source geographic maps and local Hall checkpoint, 2026-10-01 (#73 partial)
 
@@ -62,8 +70,8 @@ save/resume flow are corrected and verified. See [source and evidence](CN-TAX-LA
 #101 stays open: Japan, Germany, Ireland and RU/DD cross-system slices remain,
 as do broader catalog/source coverage. Current sampled Game `cb66acdf` preserves
 the decree contract from `96831835`; its newer stock, strategy advisory and trade
-changes remain tracked separately. GitHub has 60 open issues, down from 63; this
-count includes partial and blocked work.
+changes remain tracked separately. The current issue count and label breakdown appear in the verified finance
+checkpoint above.
 
 ## Subsidy and Gosbank controls checkpoint, 2026-10-01 (#94 partial)
 
@@ -103,7 +111,7 @@ produce saved strikes or agreements. The actual 390px browser journey passes
 through normal save/reload. [Acceptance evidence](UNION-LEADERSHIP-PARITY.md)
 records the original criteria. PR707 full hosted verify passed at exact head
 `1379573`, merged as `f9dd7e1`, and #297 is confirmed closed with incomplete
-labels removed. #211 has 5 of 7 child issues complete.
+labels removed. #211 now has 6 of 7 child issues complete after #299 closure.
 Worker political feedback and wider union mechanics remain #322/#114.
 
 ## Regional sector trading checkpoint, 2026-10-01 (#299)
@@ -141,7 +149,8 @@ regressions cover the new settlement and fail-before-mutation paths.
 [Corporate bond settlement](CORPORATE-BOND-SETTLEMENT.md) records source revisions,
 financial units, expected results and unsupported pool/escrow/restructuring state.
 Full verification and merged closure evidence remain recorded in GitHub #308;
-#110/#111/#107/#211 retain their broader acceptance scope.
+#110 and #111 are now closed by the verified finance batch above.
+#107/#211 retain their broader acceptance scope.
 
 ## Corporate bond issuance and physical finance checkpoint, 2026-10-01 (#110 / #107 partial)
 
