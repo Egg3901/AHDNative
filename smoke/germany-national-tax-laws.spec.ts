@@ -1,0 +1,88 @@
+import { expect, test } from '@playwright/test';
+import { advanceGame, completeCharacterCreation, gameReady, navigateGame, saveGame } from './game-navigation';
+
+test('Germany Chancellor authors, replaces and resumes a Bundestag VAT law at phone widths', async ({ page }) => {
+  test.setTimeout(600_000);
+  page.setDefaultTimeout(30_000);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'New game', exact: true }).click();
+  await page.getByLabel('Your name').fill('Germany Law Player');
+  await page.getByLabel('Seed', { exact: false }).fill('de-budget-laws-2019');
+  await page.getByRole('radio', { name: '2019 Start Date - Default Parties' }).check();
+  await page.getByLabel('Country', { exact: true }).selectOption('DE');
+  await page.getByLabel('Head of State').check();
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await completeCharacterCreation(page);
+  await gameReady(page);
+  await expect(page.getByRole('region', { name: 'Profile', exact: true })).toContainText(/Chancellor/i);
+
+  async function proposeVat(rate: string) {
+    await navigateGame(page, 'Legislature');
+    await page.getByRole('button', { name: 'Browse bills and proposals', exact: true }).click();
+    await page.getByRole('combobox', { name: 'Available legislation' }).selectOption('de_vat_rate');
+    await page.getByRole('combobox', { name: 'Tax rate' }).selectOption(rate);
+    await page.getByRole('button', { name: 'Sponsor bill', exact: true }).click();
+    await gameReady(page);
+  }
+
+  async function enactVat(rate: string) {
+    const bill = page.getByRole('article', { name: 'Statutory VAT Act' })
+      .filter({ hasText: 'Germany Law Player' });
+    let enacted = false;
+    for (let turn = 0; turn < 12; turn++) {
+      if (await bill.count()) {
+        const text = await bill.innerText();
+        if (/signed/i.test(text)) {
+          enacted = true;
+          break;
+        }
+      }
+      await advanceGame(page);
+    }
+    await expect(bill).toHaveCount(1);
+    expect(enacted, `German Bundestag should sign the ${rate}% VAT bill`).toBe(true);
+    await expect(bill).toContainText(/signed/i);
+    await expect(bill).toContainText(`${rate}%`);
+    await expect(bill).toContainText(/\d+ for · \d+ against/);
+  }
+
+  // Source-backed selector and authorized local Chancellor flow at 390px.
+  await proposeVat('20');
+  await enactVat('20');
+  await navigateGame(page, 'National Budget');
+  const vatRow = page.getByRole('listitem').filter({ hasText: /Mehrwertsteuer|Sales Tax/ });
+  await expect(vatRow).toContainText(/20% rate/);
+
+  // Save/reload at 320px, then exercise a real replacement through the same UI.
+  await page.setViewportSize({ width: 320, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await saveGame(page);
+  await page.reload();
+  await page.getByRole('button', { name: 'Continue Germany Law Player', exact: true }).click();
+  await gameReady(page);
+  await expect(page.getByRole('region', { name: 'Profile', exact: true })).toContainText(/Chancellor/i);
+  await proposeVat('22');
+  await enactVat('22');
+  await navigateGame(page, 'National Budget');
+  await expect(page.getByRole('listitem').filter({ hasText: /Mehrwertsteuer|Sales Tax/ })).toContainText(/22% rate/);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await saveGame(page);
+  await page.reload();
+  await page.getByRole('button', { name: 'Continue Germany Law Player', exact: true }).click();
+  await gameReady(page);
+  await navigateGame(page, 'Bills and proposals');
+  await expect(page.getByRole('article', { name: 'Statutory VAT Act' }).filter({ hasText: 'Germany Law Player' }).filter({ hasText: /22%/i }).filter({ hasText: /signed/i })).toHaveCount(1);
+  await navigateGame(page, 'National Budget');
+  await expect(page.getByRole('listitem').filter({ hasText: /Mehrwertsteuer|Sales Tax/ })).toContainText(/22% rate/);
+
+  expect(errors).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: 'artifacts/smoke/germany-vat-law-resumed-320.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: 'artifacts/smoke/germany-vat-law-resumed-390.png', fullPage: true });
+});

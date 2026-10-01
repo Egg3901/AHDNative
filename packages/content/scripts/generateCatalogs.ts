@@ -4,7 +4,8 @@
  * Emits packages/engine/src/legislation/catalogPorted{JP,DE,IE,CN,BR}.ts from
  * mainline's own per-country legislation type seeds (imported directly, no
  * transcription, no invented numbers):
- *   src/lib/seeds/{c}/{c}LegislationTypes.ts
+ *   src/lib/countries/{c}/data/{c}LegislationTypes.ts (country-moved tables)
+ *   src/lib/seeds/{c}/{c}LegislationTypes.ts (tables still in seed folders)
  *   src/lib/politicalLegislation/marginAdapter.ts ADAPTER_TIER1 (legacy
  *     "category.metricId" -> political-metric family id)
  *   src/lib/seeds/reference/budgets.ts getNationalBudgetSeedConfigsForPreset
@@ -37,18 +38,8 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { pathToFileURL } from "node:url";
 
-import { jpLegislationTypes } from "@/lib/seeds/jp/jpLegislationTypes";
-import { deLegislationTypes } from "@/lib/seeds/de/deLegislationTypes";
-import { ieLegislationTypes } from "@/lib/seeds/ie/ieLegislationTypes";
-import { cnLegislationTypes } from "@/lib/seeds/cn/cnLegislationTypes";
-import { brLegislationTypes } from "@/lib/seeds/br/brLegislationTypes";
-import { ADAPTER_TIER1 } from "@/lib/politicalLegislation/marginAdapter";
-import { getNationalBudgetSeedConfigsForPreset } from "@/lib/seeds/reference/budgets";
-import { US_LAWS } from "@/lib/politicalLegislation/laws/usLaws";
-import { UK_LAWS } from "@/lib/politicalLegislation/laws/ukLaws";
-import { RU_LAWS } from "@/lib/politicalLegislation/laws/ruLaws";
-import { DD_LAWS } from "@/lib/politicalLegislation/laws/ddLaws";
 import { STUBBED_CATALOG } from "../../engine/src/legislation/catalog.js";
 import { assertPinnedSourceCheckout } from "./catalogSourceCheckout.js";
 
@@ -57,15 +48,61 @@ const OUT = path.resolve(import.meta.dirname, "../../engine/src/legislation");
 type Opt = { id: string; name: string; rate?: number; economic?: number; social?: number; effectDirection?: number };
 type LT = { _id: string; name: string; description?: string; policyDomain?: string; nationalOnly?: boolean; allowedScope?: "state"; effectTargetsWeighted?: Array<{ metricCategoryId: string; metricId: string; weight: number }>; positions?: Array<{ positionId: string; name: string; chamber: string }>; taxRateChange?: { scope: string; taxType: string }; policyOptions?: Opt[]; isPermanent?: boolean; source?: string };
 
-const SOURCE_REVISION = "e364c04954ed628beef73a993a8e9e156650a31e";
+const SOURCE_REVISION = "96831835fb6b28983aa14fe66cb6eae9ecfde84c";
 const CHECK = process.argv.includes("--check");
 const sourceRootArg = process.argv.indexOf("--source-root");
 const sourceRoot = path.resolve(sourceRootArg >= 0 ? process.argv[sourceRootArg + 1] ?? "" : process.cwd());
+assertPinnedSourceCheckout(sourceRoot, SOURCE_REVISION);
+
+// Resolve source modules from the explicitly pinned checkout. Running this
+// generator from an adjacent Native worktree otherwise makes `@/` resolve
+// against the wrong tsconfig (or Node treat it as a package scope). The
+// source modules still load their own imports using the Game checkout's tsconfig.
+const fromSource = (file: string) => pathToFileURL(path.join(sourceRoot, file)).href;
+const [
+  { jpLegislationTypes },
+  { deLegislationTypes },
+  { ieLegislationTypes },
+  { cnLegislationTypes },
+  { brLegislationTypes },
+  { ADAPTER_TIER1 },
+  { getNationalBudgetSeedConfigsForPreset },
+  { US_LAWS },
+  { UK_LAWS },
+  { RU_LAWS },
+  { DD_LAWS },
+] = await Promise.all([
+  import(fromSource("src/lib/countries/jp/data/jpLegislationTypes.ts")),
+  import(fromSource("src/lib/countries/de/data/deLegislationTypes.ts")),
+  import(fromSource("src/lib/seeds/ie/ieLegislationTypes.ts")),
+  import(fromSource("src/lib/seeds/cn/cnLegislationTypes.ts")),
+  import(fromSource("src/lib/seeds/br/brLegislationTypes.ts")),
+  import(fromSource("src/lib/politicalLegislation/marginAdapter.ts")),
+  import(fromSource("src/lib/seeds/reference/budgets.ts")),
+  import(fromSource("src/lib/politicalLegislation/laws/usLaws.ts")),
+  import(fromSource("src/lib/politicalLegislation/laws/ukLaws.ts")),
+  import(fromSource("src/lib/politicalLegislation/laws/ruLaws.ts")),
+  import(fromSource("src/lib/politicalLegislation/laws/ddLaws.ts")),
+]);
 type InventoryRow = { id: string; countryId: string; nativeScope: string; sourceScope: string | null; prerequisites: string[]; authoredTargets: string[]; taxRateChange: { scope: string; taxType: string } | null; authoredRateOptions: Array<{ id: string; rate: number }>; blockingSystem: string; sourcePath: string; sourceMatch: "matched" | "unmatched" };
 const inventory: InventoryRow[] = [];
-const EXECUTABLE_LAW_IDS = new Set(["jp_consumption_tax", "br_income_tax_rate", "ie_vat_rate", "cn_value_added_tax", "cn_enterprise_income_tax", "cn_individual_income_tax", "cn_social_insurance_contribution", "cn_customs_tariff"]);
-
-assertPinnedSourceCheckout(sourceRoot, SOURCE_REVISION);
+const EXECUTABLE_LAW_IDS = new Set([
+  "jp_consumption_tax",
+  "br_income_tax_rate",
+  "ie_vat_rate",
+  "cn_value_added_tax",
+  "cn_enterprise_income_tax",
+  "cn_individual_income_tax",
+  "cn_social_insurance_contribution",
+  "cn_customs_tariff",
+  "de_income_tax_rate",
+  "de_solidarity_surcharge",
+  "de_vat_rate",
+  "de_domestic_corporate_tax_rate",
+  "de_foreign_corporate_tax_rate",
+  "de_payroll_social_insurance",
+  "de_customs_tariff_rate",
+]);
 
 function writeGenerated(file: string, content: string): void {
   const output = path.join(OUT, file);
@@ -96,7 +133,7 @@ function emit(c: string, types: LT[]): void {
     "/**",
     ` * ${c} legislation catalog. Generated from mainline AHDGame — DO NOT HAND-EDIT.`,
     " * Generator: packages/content/scripts/generateCatalogs.ts",
-    ` * Source: src/lib/seeds/${c.toLowerCase()}/${c.toLowerCase()}LegislationTypes.ts (${types.length} types),`,
+    ` * Source: ${c === "DE" || c === "JP" ? `src/lib/countries/${c.toLowerCase()}/data/${c.toLowerCase()}LegislationTypes.ts` : `src/lib/seeds/${c.toLowerCase()}/${c.toLowerCase()}LegislationTypes.ts`} (${types.length} types),`,
     " * src/lib/politicalLegislation/marginAdapter.ts ADAPTER_TIER1 (target mapping),",
     " * src/lib/seeds/reference/budgets.ts policyDefaults (tax baselines). See the",
     " * generator header for the mapping rules and the PORT-STUB convention.",
@@ -155,7 +192,9 @@ function emit(c: string, types: LT[]): void {
       taxRateChange: t.taxRateChange ?? null,
       authoredRateOptions: (t.policyOptions ?? []).flatMap((option) => typeof option.rate === "number" ? [{ id: option.id, rate: option.rate }] : []),
       blockingSystem: blocker,
-      sourcePath: `src/lib/seeds/${c.toLowerCase()}/${c.toLowerCase()}LegislationTypes.ts`,
+      sourcePath: c === "DE" || c === "JP"
+        ? `src/lib/countries/${c.toLowerCase()}/data/${c.toLowerCase()}LegislationTypes.ts`
+        : `src/lib/seeds/${c.toLowerCase()}/${c.toLowerCase()}LegislationTypes.ts`,
       sourceMatch: "matched",
     });
     lines.push(

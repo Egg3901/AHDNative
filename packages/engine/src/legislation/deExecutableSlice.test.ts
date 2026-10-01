@@ -1,0 +1,191 @@
+import { describe, expect, it } from "vitest";
+import { executeAction } from "../actions/execute.js";
+import { advanceTurn } from "../engine.js";
+import { deserializeSave, serializeSave } from "../save.js";
+import { createWorld } from "../world.js";
+import { getLaw } from "./catalog.js";
+import type { Bill } from "./types.js";
+
+const DE_TAX_LAWS = [
+  "de_income_tax_rate",
+  "de_solidarity_surcharge",
+  "de_vat_rate",
+  "de_domestic_corporate_tax_rate",
+  "de_foreign_corporate_tax_rate",
+  "de_payroll_social_insurance",
+  "de_customs_tariff_rate",
+] as const;
+
+function passBill(world: ReturnType<typeof createWorld>, bill: Bill): void {
+  for (let i = 0; i < 12 && bill.status !== "signed" && bill.status !== "failed"; i++) {
+    advanceTurn(world);
+  }
+  expect(bill.status).toBe("signed");
+}
+
+function expectSourceSalesTax(world: ReturnType<typeof createWorld>, rate: number): void {
+  const budget = world.budgets.DE!;
+  const sourceRevenue = budget.taxBases.taxableSales * (rate / 100);
+  // Game stores the direct float result; Native stores currency units rounded
+  // to the nearest unit. The source-derived formula should differ by < 0.5.
+  expect(Math.abs(budget.revenue.salesTax - sourceRevenue)).toBeLessThanOrEqual(0.5);
+}
+
+describe("Germany national tax laws (#287)", () => {
+  it("exposes only the seven source-authored national tax rows with their full option ladders", () => {
+    const expectedRates: Record<(typeof DE_TAX_LAWS)[number], number[]> = {
+      de_income_tax_rate: [0, 10, 20, 28, 35, 42, 45, 50, 55, 60, 65],
+      de_solidarity_surcharge: [0, 0.5, 1, 2, 4, 5.5, 6.5, 7.5, 8.5, 9.5, 10],
+      de_vat_rate: [0, 5, 7, 10, 16, 19, 20, 22, 24, 25, 28],
+      de_domestic_corporate_tax_rate: [0, 3, 5, 8, 12, 15, 18, 20, 22, 25, 30],
+      de_foreign_corporate_tax_rate: [0, 3, 5, 8, 12, 15, 18, 20, 22, 25, 30],
+      de_payroll_social_insurance: [0, 5, 10, 13, 16, 20, 22, 24, 26, 28, 30],
+      de_customs_tariff_rate: [0, 1, 2, 3, 4, 5, 6, 8, 10, 14, 20],
+    };
+    const incomeDirection = [1, 1, 1, 1, 1, 0, -1, -1, -1, -1, -1];
+    const incomeEffect = [5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5];
+    const tariffDirection = [-1, -1, -1, -1, -1, 0, 1, 1, 1, 1, 1];
+    const tariffEffect = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5];
+    const taxTypes: Record<(typeof DE_TAX_LAWS)[number], string> = {
+      de_income_tax_rate: "incomeTax",
+      de_solidarity_surcharge: "solidaritySurcharge",
+      de_vat_rate: "salesTax",
+      de_domestic_corporate_tax_rate: "domesticCorporateTax",
+      de_foreign_corporate_tax_rate: "foreignCorporateTax",
+      de_payroll_social_insurance: "payrollTax",
+      de_customs_tariff_rate: "tariffs",
+    };
+    for (const id of DE_TAX_LAWS) {
+      const law = getLaw(id);
+      expect(law, id).toMatchObject({ countryId: "DE", kind: "tax", allowedScope: "national", status: "available" });
+      expect(law?.taxPolicy?.taxType, id).toBe(taxTypes[id]);
+      const options = law?.taxPolicy?.options ?? [];
+      expect(options.map((option) => option.rate), id).toEqual(expectedRates[id]);
+      expect(options.map((option) => option.effectDirection), id).toEqual(
+        id === "de_customs_tariff_rate" ? tariffDirection : incomeDirection,
+      );
+      expect(options.map((option) => option.economic), id).toEqual(
+        id === "de_customs_tariff_rate" ? tariffEffect : incomeEffect,
+      );
+      expect(options.every((option) => option.social === 0), id).toBe(true);
+    }
+    expect(getLaw("de_vat_rate")?.taxPolicy?.options?.[6]).toMatchObject({
+      id: "de_vat_rate_opt_6",
+      rate: 20,
+      effectDirection: 1,
+      economic: 1,
+      social: 0,
+    });
+    expect(getLaw("de_trade_tax")).toMatchObject({ status: "unavailable", blockingSystem: "budget/taxRateLadder" });
+  });
+
+  it("refuses a foreign Head of State from initiating a German bill without spending resources", () => {
+    const world = createWorld({ seed: "de-tax-foreign-287", playerName: "P", countryId: "US", era: "2019", mode: "hos" });
+    world.player.actions = 100;
+    world.player.nationalInfluence = 30;
+    const beforeActions = world.player.actions;
+    const beforeInfluence = world.player.nationalInfluence;
+    expect(executeAction(world, "player", "sponsorBill", {
+      catalogId: "de_vat_rate",
+      sponsorCountryId: "DE",
+      taxRate: 20,
+    })).toMatchObject({ ok: false, error: expect.stringContaining("player's country") });
+    expect(world.player.actions).toBe(beforeActions);
+    expect(world.player.nationalInfluence).toBe(beforeInfluence);
+    expect(world.bills).toHaveLength(0);
+  });
+
+  it("lets the Germany 2019 singleplayer Chancellor propose, pass, enact, replace, repeal, and continue a Bundestag tax law", () => {
+    const world = createWorld({ seed: "de-tax-287", playerName: "P", countryId: "DE", era: "2019", mode: "hos" });
+    world.nppAutonomyLevel = "off";
+    world.player.actions = 100;
+    world.player.nationalInfluence = 30;
+    expect(world.player.currentOffice).toMatchObject({ countryId: "DE", type: "chancellor" });
+    // Independently evaluated AHDGame@96831835 DE/2019 seed vector:
+    // getNationalBudgetSeedConfigsForPreset("2019-default") gives GDP=4.5T
+    // and taxableSales ratio=.5 (budgets.ts); revenue.ts multiplies that base
+    // by VAT/100, producing 2.25T × 19% = 427.5B.
+    expect(world.budgets.DE?.taxRates.salesTax).toBe(19);
+    expect(world.budgets.DE?.taxBases.taxableSales).toBe(2_250_000_000_000);
+    expect(world.budgets.DE?.revenue.salesTax).toBe(427_500_000_000);
+
+    const invalid = executeAction(world, "player", "sponsorBill", { catalogId: "de_vat_rate", taxRate: 18 });
+    expect(invalid).toMatchObject({ ok: false, error: expect.stringContaining("not an authored option") });
+    expect(world.bills).toHaveLength(0);
+
+    expect(executeAction(world, "player", "sponsorBill", { catalogId: "de_vat_rate", taxRate: 20 }).ok).toBe(true);
+    const first = world.bills.at(-1)!;
+    expect(first).toMatchObject({
+      countryId: "DE",
+      selectedRate: 20,
+      status: "proposed",
+      proposalActionCost: 10,
+      proposalNpiCost: 5,
+    });
+    expect(world.player.actions).toBe(90);
+    expect(world.player.nationalInfluence).toBe(25);
+    expect(first.provisions[0]?.policyOptionId).toBe("de_vat_rate_opt_6");
+    // Game@968 has a single Bundestag vote and explicitly no government-
+    // pending freeze for DE. A pending cabinet cannot stall that chamber path.
+    expect(world.governments.DE).toBeDefined();
+    world.governments.DE!.status = "pending";
+    passBill(world, first);
+    expect(world.budgets.DE?.taxRates.salesTax).toBe(20);
+    // Game 96831835 src/lib/budget/revenue.ts:353 computes taxableSales ×
+    // rate/100. Revenue settles before the tax-rate ramp in the source turn
+    // order, so the next stepped rate affects receipts on the following turn.
+    expectSourceSalesTax(world, 20);
+    expect(world.enactedLaws.filter((law) => law.id === "de_vat_rate" && law.repealedAtTurn === undefined)).toHaveLength(1);
+
+    delete world.player.actionCooldowns.sponsorBill;
+    world.player.legislativeSeat = null;
+    expect(executeAction(world, "player", "sponsorBill", { catalogId: "de_vat_rate", taxRate: 22 }).ok).toBe(true);
+    const replacement = world.bills.at(-1)!;
+    passBill(world, replacement);
+    expect(world.budgets.DE?.taxRates.salesTax).toBe(21);
+    expect(world.budgets.DE?.taxRatePhaseIn?.salesTax).toBe(22);
+    expectSourceSalesTax(world, 21);
+    advanceTurn(world);
+    expect(world.budgets.DE?.taxRates.salesTax).toBe(22);
+    expectSourceSalesTax(world, 21);
+    expect(world.enactedLaws.filter((law) => law.id === "de_vat_rate" && law.repealedAtTurn === undefined)).toHaveLength(1);
+
+    delete world.player.actionCooldowns.repealLaw;
+    expect(executeAction(world, "player", "repealLaw", { catalogId: "de_vat_rate" }).ok).toBe(true);
+    const repeal = world.bills.at(-1)!;
+    passBill(world, repeal);
+    expect(world.budgets.DE?.taxRates.salesTax).toBe(21);
+    expect(world.budgets.DE?.taxRatePhaseIn?.salesTax).toBe(19);
+    expectSourceSalesTax(world, 21);
+    advanceTurn(world);
+    expect(world.budgets.DE?.taxRates.salesTax).toBe(20);
+    expectSourceSalesTax(world, 21);
+    advanceTurn(world);
+    expectSourceSalesTax(world, 20);
+    advanceTurn(world);
+    expect(world.budgets.DE?.taxRates.salesTax).toBe(19);
+    expectSourceSalesTax(world, 19);
+    expect(world.enactedLaws.some((law) => law.id === "de_vat_rate" && law.repealedAtTurn === undefined)).toBe(false);
+
+    const restored = deserializeSave(serializeSave(world));
+    expect(restored.bills.at(-1)?.status).toBe("signed");
+    advanceTurn(world);
+    advanceTurn(restored);
+    expect(restored.budgets.DE?.taxRates).toEqual(world.budgets.DE?.taxRates);
+    expect(restored.enactedLaws).toEqual(world.enactedLaws);
+  });
+
+  it("keeps the source tariff provision NPI exemption on a German proposal", () => {
+    const world = createWorld({ seed: "de-tariff-cost-287", playerName: "P", countryId: "DE", era: "2019", mode: "hos" });
+    world.player.actions = 100;
+    world.player.nationalInfluence = 30;
+    expect(executeAction(world, "player", "sponsorBill", {
+      catalogId: "de_customs_tariff_rate",
+      taxRate: 6,
+    }).ok).toBe(true);
+    expect(world.bills.at(-1)).toMatchObject({ proposalActionCost: 10 });
+    expect(world.bills.at(-1)?.proposalNpiCost).toBeUndefined();
+    expect(world.player.actions).toBe(90);
+    expect(world.player.nationalInfluence).toBe(30);
+  });
+});

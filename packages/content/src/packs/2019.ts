@@ -13,17 +13,14 @@ import { US_CORPORATION_HEADQUARTERS_REGIONS } from "./corporationHeadquarters.j
  *  - src/lib/seeds/reference/budgets.ts NATIONAL_BUDGET_SEED_CONFIGS (the
  *    base/no-suffix table mainline itself uses for 2019-default)
  *  - src/lib/constants/currencies.ts INITIAL_RATES (base table)
- *  - src/lib/constants/countries.ts COUNTRY_CONFIGS.status — 2019-default
- *    resolves playability from `accessFromConfig()` (status "active" =
- *    player), not a hardcoded era list like 1953/1979/1991. Direct
- *    enumeration of every `status` field in COUNTRY_CONFIGS finds exactly
- *    six "active" countries: US, UK, JP, DE, IE, CN.
- *
- *    Native's supported player matrix keeps US, UK, IE, and CN playable here.
- *    JP and DE remain economy-preview entries because their country-specific
- *    regional budget and political surfaces are not ported; BR/NG are also
- *    non-playable economy entries. This is the explicit inapplicable path for
- *    issue #103, not a claim that the generic regional processor ports JP/DE.
+ *  - src/lib/countries/de/institutionsFacts.ts DE_CONFIG.status = "active";
+ *    src/lib/countryAccess.ts resolves an absent countryGameStates override
+ *    from that status (`active` means player-enabled). The 2019 singleplayer
+ *    world selector maps `2019-default` to era 2019, and the character-creation
+ *    route accepts a same-country local Chancellor in head-of-state mode.
+ *    Native exposes DE only for the bounded 2019 national-law slice; the 1991
+ *    DE economy-preview remains unavailable. This does not claim complete
+ *    regional-budget or regional-politics parity.
  *  - ERA_COUNTRY_CONFIG_OVERRIDES has no "2019-default" entries (as with
  *    1979/1991) — UK legislature numbers below are the same era-neutral
  *    base COUNTRY_CONFIGS values 1979/1991 use.
@@ -79,7 +76,7 @@ export const pack2019: SeedPack = {
     {
       id: "DE",
       name: "Germany",
-      playable: false,
+      playable: true,
       economy: { gdp: 4_891_304, growthRate: 0.011, inflationRate: 0.018, unemploymentRate: 0.031 },
     },
     {

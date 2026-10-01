@@ -27,7 +27,7 @@ describe("era coverage: selection (#118)", () => {
     expect(playables("1953")).toEqual(["DD", "RU", "UK", "US"]);
     expect(playables("1979")).toEqual(["DD", "RU", "UK", "US"]);
     expect(playables("1991")).toEqual(["BR", "CN", "IE", "UK", "US"]);
-    expect(playables("2019")).toEqual(["CN", "IE", "UK", "US"]);
+    expect(playables("2019")).toEqual(["CN", "DE", "IE", "UK", "US"]);
   });
 
   it("createWorld rejects unavailable eras without falling back", () => {
@@ -39,7 +39,7 @@ describe("era coverage: selection (#118)", () => {
     }
   });
 
-  it("derives exactly 17 supported combos from the shipped packs (not 21)", () => {
+  it("derives exactly 18 supported combos from the shipped packs (not 21)", () => {
     // Source-backed contract for #118: JP/DE (1991, 2019) and BR (2019)
     // are economy-preview entries, not playable countries. The derived
     // set below must stay in sync with SUPPORTED_MATRIX and the
@@ -53,7 +53,7 @@ describe("era coverage: selection (#118)", () => {
       "1953/DD", "1953/RU", "1953/UK", "1953/US",
       "1979/DD", "1979/RU", "1979/UK", "1979/US",
       "1991/BR", "1991/CN", "1991/IE", "1991/UK", "1991/US",
-      "2019/CN", "2019/IE", "2019/UK", "2019/US",
+      "2019/CN", "2019/DE", "2019/IE", "2019/UK", "2019/US",
     ]);
   });
 
@@ -62,10 +62,9 @@ describe("era coverage: selection (#118)", () => {
     // records in the pack yet are unavailable: listCountries reports
     // playable:false and createWorld rejects them without fallback.
     const preview: Array<[string, string]> = [
-      ["1991", "JP"], ["1991", "DE"],
-      ["2019", "JP"], ["2019", "DE"], ["2019", "BR"],
+      ["1991", "JP"], ["1991", "DE"], ["2019", "JP"], ["2019", "BR"],
     ];
-    expect(preview.length).toBe(5);
+    expect(preview.length).toBe(4);
     for (const [era, countryId] of preview) {
       const entry = listCountries(era).find((c) => c.id === countryId);
       expect(entry, `${era}/${countryId} present in pack`).toBeDefined();
@@ -84,9 +83,6 @@ describe("era coverage: selection (#118)", () => {
       createWorld({ seed: "s", playerName: "P", countryId: "DE", era: "1991" }),
     ).toThrow(/not playable/);
     expect(() =>
-      createWorld({ seed: "s", playerName: "P", countryId: "DE", era: "2019" }),
-    ).toThrow(/not playable/);
-    expect(() =>
       createWorld({ seed: "s", playerName: "P", countryId: "BR", era: "2019" }),
     ).toThrow(/not playable/);
     expect(() =>
@@ -100,11 +96,11 @@ describe("era coverage: save/reload content identity (#118)", () => {
     ["1953", "US"], ["1953", "UK"], ["1953", "RU"], ["1953", "DD"],
     ["1979", "US"], ["1979", "UK"], ["1979", "RU"], ["1979", "DD"],
     ["1991", "US"], ["1991", "UK"], ["1991", "BR"], ["1991", "CN"], ["1991", "IE"],
-    ["2019", "US"], ["2019", "UK"], ["2019", "CN"], ["2019", "IE"],
+    ["2019", "US"], ["2019", "UK"], ["2019", "CN"], ["2019", "DE"], ["2019", "IE"],
   ];
 
-  it("covers all 17 supported era/country combinations", () => {
-    expect(combos.length).toBe(17);
+  it("covers all 18 supported era/country combinations", () => {
+    expect(combos.length).toBe(18);
   });
 
   it.each(combos)("(%s, %s) stamps content identity and survives a save round trip", (era, countryId) => {

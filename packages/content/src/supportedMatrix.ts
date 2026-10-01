@@ -9,7 +9,7 @@ import { getPackByEra, PACKS } from "./packs/index.js";
  * AHDGame authority — without inventing historical data or silently
  * widening playable flags.
  *
- * Pinned authority: Egg3901/AHDGame@e364c04
+ * Pinned authority: Egg3901/AHDGame@96831835
  * (src/lib/world/worldEntityManifest.ts):
  * - COLD_WAR_PLAYER = ["US","UK","RU","DD"] for 1953/1979-default.
  * - POST_COLD_WAR_PLAYER = ["US","UK"] for
@@ -76,10 +76,13 @@ export const SUPPORTED_MATRIX: EraCoverageRow[] = [
     label: "2019 Start Date - Default Parties",
     startDate: "2019-01-01",
     packVersion: 1,
-    playableCountries: ["CN", "IE", "UK", "US"],
+    playableCountries: ["CN", "DE", "IE", "UK", "US"],
     authorityPreset: "2019-default",
     authorityPlayer: ["US", "UK"],
-    playableDelta: ["CN", "IE"],
+    // DE is enabled by current Game countryAccess (active DE_CONFIG) and
+    // its 2019 character-creation route, despite the older manifest player
+    // roster containing only US/UK. Keep this scope delta explicit under #118.
+    playableDelta: ["CN", "DE", "IE"],
   },
 ];
 
