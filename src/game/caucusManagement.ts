@@ -1,12 +1,18 @@
 import {
   ACTION_CATALOG,
   CAUCUS_CREATE_FUND_COST,
+  CAUCUS_NPP_RECRUIT_COOLDOWN_TURNS,
+  CAUCUS_NPP_RECRUIT_MIN_RELATIONSHIP,
   CAUCUS_TAX_MAX,
   canDisbandCaucus,
   canJoinCaucus,
   canLeaveCaucus,
   canSetCaucusTaxRate,
+  caucusNppRecruitCooldownRemaining,
+  listCaucusNppRecruitOptions,
   quotePartyCaucusAction,
+  quoteRecruitCaucusNpp,
+  type CaucusNppRecruitOption,
   type PartyCaucusEffect,
   type WorldState,
 } from "@ahdclient/engine";
@@ -20,7 +26,7 @@ import type { ActionView } from "./types";
  * Public actions: createCaucus (caucusName plus optional caucusTaxRate 0-5),
  * joinCaucus (caucusId), leaveCaucus (no params), plus the chair-only
  * setCaucusTaxRate (caucusId + caucusTaxRate) and disbandCaucus (caucusId)
- * from #60. Whip, chair elections and NPP recruit are not catalog actions.
+ * from #60, plus chair-only recruitCaucusNpp. Whip and chair elections are not catalog actions.
  *
  * Founding, join, leave, tax and disband charge no AP or funds, matching the
  * source create/join/leave/PATCH/DELETE routes. Native foundParty stays the
@@ -81,6 +87,16 @@ export interface CaucusRosterEntry {
   setTax: ActionView;
   /** Chair-only soft-disband (#60), no AP/fund charge. */
   disband: ActionView;
+  /** Chair-only NPP recruit. GET hides needs_relationship; POST still enforces >= 60. */
+  recruit: CaucusNppRecruitView;
+}
+
+export interface CaucusNppRecruitView {
+  minimumRelationship: number;
+  cooldownTurns: number;
+  cooldownRemaining: number;
+  options: CaucusNppRecruitOption[];
+  selectedAction: ActionView;
 }
 
 export interface CaucusManagementView {
@@ -99,8 +115,8 @@ export interface CaucusManagementView {
 type CaucusMembershipActionId = "createCaucus" | "joinCaucus" | "leaveCaucus";
 /**
  * Chair-only caucus actions. These ids share the engine partyCaucus quote
- * with founding/join/leave. Whip, chair elections and NPP recruit are not
- * public engine actions and stay unavailable (they are omitted, never quoted).
+ * with founding/join/leave. Whip and chair elections are not public engine
+ * actions. NPP recruit is quoted separately from caucusRecruit.ts.
  */
 export type CaucusChairActionId = "setCaucusTaxRate" | "disbandCaucus";
 
@@ -277,13 +293,46 @@ export function projectCaucusRoster(world: WorldState): CaucusRosterEntry[] {
         .sort((a, b) => (a === player.name ? -1 : b === player.name ? 1 : a.localeCompare(b)));
       // Read-only seat/role state (#60): resolved from the recorded save, with
       // explicit unknown when a legacy save never stored the seat or the id no
-      // longer resolves. No elections, health or recruitment values are
-      // invented; those fields do not exist on the persisted Caucus.
+      // longer resolves. Health, whip and elections stay unrecorded. Chair NPP
+      // recruitment is the source members/route.ts memberType=npp writer.
       const chair = seatState(world, caucus.chairId);
       const viceChair = seatState(world, caucus.viceChairId);
       const playerRole: CaucusPlayerRole = isPlayerChair ? "chair"
         : caucus.viceChairId === "player" ? "vice-chair"
         : isPlayerCaucus ? "member" : "non-member";
+      const listed = isPlayerChair ? listCaucusNppRecruitOptions(world, caucus.id) : null;
+      const recruitOptions = listed?.ok ? listed.items : [];
+      const recruitReason = !isPlayerChair
+        ? "Only the Caucus Chair can review recruitable NPPs."
+        : listed && !listed.ok ? listed.error
+        : undefined;
+      const firstEligible = recruitOptions.find((option) => option.eligible);
+      const recruitQuote = firstEligible
+        ? quoteRecruitCaucusNpp(world, { caucusId: caucus.id, targetId: firstEligible.id })
+        : null;
+      const recruitDisabled = recruitReason
+        ?? (recruitQuote && !recruitQuote.ok ? recruitQuote.error : undefined)
+        ?? (!firstEligible && recruitOptions[0] ? recruitOptions[0].statusLabel : undefined)
+        ?? (recruitOptions.length === 0 ? "No same-party NPPs currently qualify" : undefined);
+      const recruit: CaucusNppRecruitView = {
+        minimumRelationship: CAUCUS_NPP_RECRUIT_MIN_RELATIONSHIP,
+        cooldownTurns: CAUCUS_NPP_RECRUIT_COOLDOWN_TURNS,
+        cooldownRemaining: caucusNppRecruitCooldownRemaining(world, caucus.lastNppRecruitTurn),
+        options: recruitOptions,
+        selectedAction: {
+          id: "recruitCaucusNpp",
+          name: ACTION_CATALOG.recruitCaucusNpp.name,
+          description: ACTION_CATALOG.recruitCaucusNpp.description,
+          cost: 0,
+          fundCost: 0,
+          available: !recruitDisabled && !!firstEligible,
+          ...(recruitDisabled ? { disabledReason: recruitDisabled } : {}),
+          consequences: [
+            `Requires relationship ${CAUCUS_NPP_RECRUIT_MIN_RELATIONSHIP}`,
+            `${CAUCUS_NPP_RECRUIT_COOLDOWN_TURNS}-turn caucus cooldown after a successful recruit`,
+          ],
+        },
+      };
       return {
         id: caucus.id,
         name: caucus.name,
@@ -302,6 +351,7 @@ export function projectCaucusRoster(world: WorldState): CaucusRosterEntry[] {
         leave: actionView(world, "leaveCaucus", leaveReason),
         setTax: chairActionView(world, caucus.id, "setCaucusTaxRate"),
         disband: chairActionView(world, caucus.id, "disbandCaucus"),
+        recruit,
       };
     })
     .sort((a, b) => Number(b.isPlayerCaucus) - Number(a.isPlayerCaucus) || b.memberCount - a.memberCount || a.name.localeCompare(b.name));

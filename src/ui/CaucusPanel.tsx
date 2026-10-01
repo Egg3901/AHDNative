@@ -13,9 +13,10 @@
  *   draft checks run synchronously from the DTO via caucusDraft, so typing
  *   never issues worker queries. Chair, vice-chair, roster and the player's
  *   recorded role render from the saved seats with explicit unknown copy when
- *   a legacy save never recorded them. Whip, health, recruitment, color,
- *   description, chair elections and NPP recruit are not persisted fields, so
- *   the panel names them as unrecorded instead of inventing values.
+ *   a legacy save never recorded them. Whip, health, color, description and
+ *   chair elections are not persisted fields, so the panel names them as
+ *   unrecorded instead of inventing values. Chair NPP recruit is a recorded
+ *   public action.
  *   Section navigation, the management query and action dispatch are owned by
  *   root.
  */
@@ -37,6 +38,8 @@ export function CaucusPanel({ management, busy, onAction }: CaucusPanelProps) {
   // Per-caucus chair tax draft, keyed by caucus id. A caucus the player chairs
   // seeds its input from the saved rate; unrelated caucuses are never shown one.
   const [chairTaxText, setChairTaxText] = useState<Record<string, string>>({});
+  const [recruitTarget, setRecruitTarget] = useState<Record<string, string>>({});
+  const [recruitStep, setRecruitStep] = useState<Record<string, "pick" | "review" | "result">>({});
   const create = management.create;
   const trimmedName = name.trim();
   const taxRate = Number(taxText);
@@ -204,6 +207,74 @@ export function CaucusPanel({ management, busy, onAction }: CaucusPanelProps) {
                             ? `Cost ${caucus.disband.cost} actions`
                             : `Free · ${caucus.disband.consequences?.[0] ?? "Chair controls"}`}
                       </span>
+                      <div style={{ width: "100%", marginTop: "0.55rem" }}>
+                        <h3 className="ahd-h2" style={{ fontSize: "0.82rem" }}>Recruit NPP to Caucus</h3>
+                        <p className="ahd-muted" style={{ fontSize: "0.72rem", marginTop: "0.2rem" }}>
+                          Caucus recruitment is gated by the Chair's relationship with that NPP.
+                          Relationship must be at least {caucus.recruit.minimumRelationship}, and the caucus goes on a {caucus.recruit.cooldownTurns}-turn cooldown after a successful NPP recruitment.
+                        </p>
+                        {recruitStep[caucus.id] === "result" ? (
+                          <div role="status" aria-label={`Recruit result for ${caucus.name}`} style={{ marginTop: "0.4rem" }}>
+                            <p style={{ fontSize: "0.82rem" }}>Recruitment recorded.</p>
+                            <button type="button" className="ahd-btn ahd-btn-sm" style={{ marginTop: "0.35rem" }}
+                              aria-label={`Done recruiting to ${caucus.name}`}
+                              disabled={busy}
+                              onClick={() => setRecruitStep((prev) => ({ ...prev, [caucus.id]: "pick" }))}>
+                              Done
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <label className="ahd-field" style={{ maxWidth: "22rem", marginTop: "0.4rem" }}>
+                              <span className="ahd-label">NPP</span>
+                              <select className="ahd-select" aria-label={`Recruit NPP to ${caucus.name}`}
+                                value={recruitTarget[caucus.id] ?? ""}
+                                disabled={busy || caucus.recruit.options.length === 0}
+                                onChange={(e) => {
+                                  setRecruitTarget((prev) => ({ ...prev, [caucus.id]: e.target.value }));
+                                  setRecruitStep((prev) => ({ ...prev, [caucus.id]: e.target.value ? "review" : "pick" }));
+                                }}>
+                                {caucus.recruit.options.length === 0 ? (
+                                  <option value="">{caucus.recruit.selectedAction.disabledReason ?? "No same-party NPPs currently qualify"}</option>
+                                ) : (
+                                  <>
+                                    <option value="">Choose an NPP</option>
+                                    {caucus.recruit.options.map((option) => (
+                                      <option key={option.id} value={option.id}>
+                                        {option.name} ({option.statusLabel}, rel {option.relationshipScore})
+                                      </option>
+                                    ))}
+                                  </>
+                                )}
+                              </select>
+                            </label>
+                            {(() => {
+                              const chosen = caucus.recruit.options.find((option) => option.id === recruitTarget[caucus.id]);
+                              if (!chosen) return null;
+                              const canRecruit = !busy && chosen.eligible;
+                              return (
+                                <div style={{ marginTop: "0.4rem" }}>
+                                  <p className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+                                    Relationship {chosen.relationshipScore} · {chosen.statusLabel}
+                                    {chosen.office ? ` · ${chosen.office}` : ""}
+                                  </p>
+                                  <button type="button" className="ahd-btn ahd-btn-primary ahd-btn-sm"
+                                    style={{ marginTop: "0.35rem" }}
+                                    aria-label={`Recruit ${chosen.name} to ${caucus.name}`}
+                                    disabled={!canRecruit} aria-disabled={!canRecruit}
+                                    onClick={async () => {
+                                      if (!canRecruit) return;
+                                      const accepted = await onAction("recruitCaucusNpp", { caucusId: caucus.id, targetId: chosen.id });
+                                      if (accepted === true) setRecruitStep((prev) => ({ ...prev, [caucus.id]: "result" }));
+                                    }}>
+                                    Recruit NPP
+                                  </button>
+                                </div>
+                              );
+                            })()}
+                          </>
+                        )}
+                      </div>
                     </div>
                   ) : null}
                 </li>
@@ -212,8 +283,8 @@ export function CaucusPanel({ management, busy, onAction }: CaucusPanelProps) {
           </ul>
         )}
         <p className="ahd-help" role="note" style={{ marginTop: "0.45rem" }}>
-          Health, whip, recruitment and elections are not recorded in this save, so the roster shows
-          only the saved seats, members, tax and treasury.
+          Health, whip and elections are not recorded in this save. The roster shows
+          saved seats, members, tax, treasury and chair NPP recruitment.
         </p>
       </div>
     </div>
