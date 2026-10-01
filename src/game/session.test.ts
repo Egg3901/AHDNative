@@ -122,11 +122,12 @@ describe("world setup through the session contract (#241)", () => {
     expect(view.player.mode).toBe("hos");
     expect(view.player.hosPartyId).toBe("US_REP");
     expect(view.player).toMatchObject({ permanentHeadOfState: true, currentOffice: "president" });
-    expect(view.actions.map((action) => action.id)).toEqual(["adjustBudgetSpending", "adjustTaxRate"]);
+    expect(view.actions.map((action) => action.id)).toEqual(["adjustBudgetSpending", "adjustTaxRate", "nationalizeCorporation"]);
     expect(view.actions.every((action) => action.category === "executive")).toBe(true);
     const loaded = new GameSession();
     loaded.load(session.serialize(stamp));
     expect(loaded.view().player).toMatchObject({ mode: "hos", hosPartyId: "US_REP", homeRegionId: "NY", permanentHeadOfState: true, currentOffice: "president" });
+    expect(loaded.view().actions.map((action) => action.id)).toEqual(["adjustBudgetSpending", "adjustTaxRate", "nationalizeCorporation"]);
   });
 
   it("applies Historical initialization as a real 1953 UK consequence versus Founding", () => {

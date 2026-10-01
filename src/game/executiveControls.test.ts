@@ -10,15 +10,21 @@ const HOS = { era: "1953", countryId: "US", seed: "executive-controls-test", pla
 const CAREER = { era: "1953", countryId: "US", seed: "executive-controls-test", playerName: "Alex" } as const;
 
 describe("executive controls session slice (#65/#93)", () => {
-  it("projects HoS fiscal directives separately from elected HOG nationalization", () => {
+  it("projects HoS fiscal directives and source-authorized nationalization separately from career", () => {
     const hos = new GameSession();
     const view = hos.create({ ...HOS });
     const executive = view.actions.filter((action) => action.category === "executive");
-    expect(executive.map((action) => action.id).sort()).toEqual(["adjustBudgetSpending", "adjustTaxRate"]);
-    for (const action of executive) {
+    expect(executive.map((action) => action.id).sort()).toEqual(["adjustBudgetSpending", "adjustTaxRate", "nationalizeCorporation"]);
+    for (const action of executive.filter((action) => action.id !== "nationalizeCorporation")) {
       expect(action.available).toBe(true);
       expect(action.cost).toBeGreaterThan(0);
     }
+    // The action is projected for a Head of State, but this fresh seed has no
+    // canonical sitting-head-of-government record for the authority check.
+    expect(executive.find((action) => action.id === "nationalizeCorporation")).toMatchObject({
+      available: false,
+      disabledReason: expect.stringMatching(/sitting head of government/i),
+    });
     const tax = executive.find((action) => action.id === "adjustTaxRate")!;
     expect(tax.requires).toBe("taxRate");
     expect(tax.prerequisite).toMatch(/phase/i);
