@@ -1,3 +1,4 @@
+import { validateCanvassState } from "./actions/canvass.js";
 import { EXTERNAL_BROAD_MONEY_GDP_SHARE, SCHEMA_VERSION } from "./world.js";
 import { STAT_KEYS } from "./stats/characterStats.js";
 import { isWorldFeatureFlag, resolveWorldFeatureFlags, WORLD_FEATURE_FLAG_DEFINITIONS } from "./featureFlags.js";
@@ -170,6 +171,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const world = parsed["world"];
   const meta = world["meta"] as Record<string, unknown>;
   const player = world["player"] as Record<string, unknown>;
+  const turnoutRows = world["regionTurnouts"];
+  if (isRecord(turnoutRows)) for (const [regionId, row] of Object.entries(turnoutRows)) {
+    if (isRecord(row) && hasOwn(row, "campaignModifiers")) return { ok: false, error: `regionTurnouts.${regionId}.campaignModifiers cannot be projected to schema 42. Keep this Native save.` };
+  }
   const envelopeSchema = save["schemaVersion"];
   const metaSchema = meta["schemaVersion"];
 
@@ -2795,6 +2800,7 @@ export function deserializeSave(raw: string): WorldState {
   if (save.world.featureFlags.rpgStats === undefined) save.world.featureFlags.rpgStats = true;
   assertCurrentWorldState(save.world);
   validateBankingState(save.world);
+  validateCanvassState(save.world);
   // #295: persisted sector-owner default. Saves written before the
   // acquisition slice carry materialized assets without the field; missing
   // degrades to the #293 default ("corporation") and keeps every loaded row

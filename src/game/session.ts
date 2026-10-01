@@ -1,3 +1,4 @@
+import { projectCanvassing } from "./canvassing";
 import { projectProfile } from "./profile";
 import { campaignAnchorToLocal, characterActionDisabledReason } from "@ahdclient/engine";
 import { profileDestination as profileDestinationFor, projectImperialProfile } from "./imperialProfile";
@@ -48,7 +49,7 @@ import {
 const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: ActionCategory; prerequisite?: string }[] = [
   { id: "campaign", category: "influence" },
   { id: "advertise", category: "influence" },
-  { id: "canvass", requires: "region", category: "influence", prerequisite: "Choose a region." },
+  { id: "canvass", category: "influence", prerequisite: "Choose a demographic in your eligible state." },
   { id: "joinParty", requires: "party", category: "influence", prerequisite: "Choose a party." },
   { id: "leaveParty", category: "influence", prerequisite: "Requires party membership." },
   { id: "fundraise", category: "fundraising", prerequisite: "Requires a donor network." },
@@ -708,6 +709,10 @@ function snapshotActionFields(world: WorldState): Record<string, number | string
 }
 
 function actionTarget(params: ExecuteActionParams, world: WorldState): ActionTarget | undefined {
+  if (params.regionId && params.demographicCategory && params.demographicGroup) {
+    const group = world.demographicCategories[world.player.countryId]?.find(category => category._id === params.demographicCategory)?.groups.find(group => group.id === params.demographicGroup);
+    return { kind: "demographic", id: `${params.regionId}:${params.demographicCategory}:${params.demographicGroup}`, label: `${group?.name ?? params.demographicGroup} in ${world.regions[params.regionId]?.name ?? params.regionId}` };
+  }
   const candidates: [keyof ExecuteActionParams, string, (id: string) => string | undefined][] = [
     ["regionId", "region", id => world.regions[id]?.name],
     ["partyId", "party", id => world.parties[id]?.name],
@@ -806,6 +811,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
   const player = world.player;
   const capabilityNav = projectCapabilityNav(world);
   const myCorporation = projectMyCorporation(world);
+  const canvassing = projectCanvassing(world);
   return {
     turn: world.meta.turn, date: world.meta.date, era: world.meta.era,
     foundingActive: isFoundingActive(world.elections),
@@ -848,6 +854,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     })),
     elections: projectElections(world),
     polls: projectPolling(world),
+    canvassing,
     news: world.news.map((item, sourceIndex) => ({ item, sourceIndex })).slice(-50).reverse()
       .map(({ item, sourceIndex }) => projectNewsItem(world, item, sourceIndex)),
     // Issue #346: the spectator surface offers no character actions. Career
@@ -871,7 +878,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
         : id === "convertCash" && player.cash <= 0 ? "No cash to convert."
         : id === "debatePrep" && !world.featureFlags.rpgStats ? "The stat system is not currently enabled."
         : id === "debatePrep" && player.stats?.debate === undefined ? "Allocate your stats before training Debate."
-        : id === "canvass" && !Object.values(world.regions).some((region) => region.countryId === country.id) ? "No regions recorded for your country."
+        : id === "canvass" && canvassing.error ? canvassing.error
         : id === "leaveParty" && !player.partyId ? "You are independent."
         : id === "joinParty" ? joinPartyDisabledReason(world) : undefined;
       return { id, name: entry.name, description: entry.description, cost, available: !reason,
