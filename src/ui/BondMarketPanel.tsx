@@ -13,15 +13,14 @@ import { formatFinanceMoney } from './FinancePanel';
 import { formatGameTurn, type GameClock } from '../game/gameDate';
 
 /**
- * BondMarketPanel: sovereign inventory, denomination-settled trade tickets, and a
+ * BondMarketPanel: sovereign and corporate inventory, denomination-settled trade tickets, and a
  * source-grounded market visual. Home-currency issues settle in personal cash;
  * foreign issues settle in the matching personal foreign balance (#306).
  *
  * Visual provenance (read-only inspection, no remote fetch):
  * - Status badges mirror AHDGame `src/app/bond/[id]/components/BondHeroPanel.tsx`
- *   (Sovereign / Defaulted / Matured; Native issues are all sovereign per the
- *   engine `BondIssuerType`, so the Sovereign badge is a fixed label, not a
- *   per-issue lookup). Yield to maturity uses the same helper every
+ *   (Sovereign / Corporation / Defaulted / Matured; the issuer badge reads
+ *   `Bond.issuerType`). Yield to maturity uses the same helper every
  *   reference surface calls (`calculateBondYieldToMaturityPercent`).
  * - The per-issue comparison is the offline analogue of the reference stats
  *   strip plus the ownership split from `BondOwnersSection.tsx`: the solo
@@ -97,7 +96,7 @@ export function BondMarketPanel({ market, busy, onAction, selectedId, onSelect }
   const detailCard = bond ? <div className="ahd-card ahd-card-pad" data-pane="detail">
       <h2 className="ahd-h2">{bond.issuerName} bond</h2>
       <p style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', margin: '0.35rem 0 0' }}>
-        <span className="ahd-badge">Sovereign</span>
+        <span className="ahd-badge">{bond.issuerType === 'corporation' ? 'Corporation' : 'Sovereign'}</span>
         {bond.defaulted && <span className="ahd-badge">Defaulted</span>}
         {!bond.defaulted && bond.matured && <span className="ahd-badge">Matured</span>}
         {!bond.domestic && <span className="ahd-badge">Foreign issue</span>}
@@ -139,11 +138,19 @@ export function BondMarketPanel({ market, busy, onAction, selectedId, onSelect }
           <p className="ahd-help">{quote.error ?? `Costs ${quote.cost} action${quote.cost === 1 ? '' : 's'}.`}</p>
         </div>;
       })}
+      {bond.issuerType === 'corporation' && bond.canBuyback && !bond.matured && bond.publicFloat > 0 && <div style={{ marginTop: '0.75rem' }}>
+        <button className="ahd-btn ahd-btn-sm" aria-label="Buy back corporate bond units"
+          disabled={busy || !Number.isInteger(units) || units <= 0 || units > bond.publicFloat}
+          onClick={() => onAction('buybackCorporateBond', { bondId: bond.id, units })}>
+          Buy back public float · {formatFinanceMoney(Math.round(units * (bond.buybackUnitCost ?? bond.faceValue * (bond.defaulted ? 1 : bond.marketPrice)) * 100) / 100, bond.buybackCurrencyCode ?? bond.currency)}
+        </button>
+        <p className="ahd-help">Only the active issuer CEO can retire public units. Defaulted issues are bought back at face value.</p>
+      </div>}
     </div> : null;
   return <div className="ahd-stack">
     <div className="ahd-card ahd-card-pad ahd-hero">
-      <h2 className="ahd-h2">Sovereign bonds</h2>
-      <p className="ahd-help">Government debt issues, annual coupons and your holdings. Home-currency issues settle in personal cash; foreign issues settle in the matching foreign balance.</p>
+      <h2 className="ahd-h2">Bond market</h2>
+      <p className="ahd-help">Government and corporation debt issues, annual coupons and your holdings. Each issue settles in its own denomination.</p>
       <p>Available cash: {formatFinanceMoney(market.playerCash, market.currency)}</p>
       {Object.entries(market.balances ?? {}).filter(([, amount]) => amount !== 0).map(([code, amount]) => (
         <p key={code}>Available {code} balance: {formatFinanceMoney(amount, code)}</p>

@@ -135,6 +135,39 @@ describe("projectSaveToV42 public envelope", () => {
     expect(projected).toEqual({ ok: true, contents: authentic });
   });
 
+  it("refuses corporate bond lifecycle state because the historical v42 turn reader cannot service it", () => {
+    const doc = JSON.parse(serializeSave(loadHistoricalFresh(), SAVED_AT)) as {
+      world: { bonds: Record<string, unknown> };
+    };
+    doc.world.bonds = {
+      "corp-bond-US-media-0": {
+        id: "corp-bond-US-media-0",
+        issuerType: "corporation",
+        corporationId: "US-media",
+        marketPrice: 1,
+        matured: false,
+        defaulted: false,
+      },
+    };
+    expect(projectSaveToV42(JSON.stringify(doc))).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("Corporate bond lifecycle state"),
+    });
+  });
+
+  it("refuses a saved bond pool because the v42 reader cannot reproduce cash-skew quotes", () => {
+    const doc = JSON.parse(serializeSave(loadHistoricalFresh(), SAVED_AT)) as {
+      world: Record<string, unknown>;
+    };
+    doc.world.bondMarketPools = {
+      USD: { cashLocal: 5_000, targetCashLocal: 10_000, m2Local: 200_000, liquidityTargetLocal: 10_000, lifetime: { retiredIn: 5_000 } },
+    };
+    expect(projectSaveToV42(JSON.stringify(doc))).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("Bond market pool cash"),
+    });
+  });
+
   it("refuses a Native world after a turn mutates countryPolitics history", () => {
     const world = loadHistoricalFresh();
     advanceTurn(world);

@@ -170,6 +170,19 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   }
   const save = parsed;
   const world = parsed["world"];
+  // The pinned v42 turn reader has no corporate issuer servicing, buyback or
+  // settlement path. Keeping an issuer row as an opaque extension would retain
+  // bytes but freeze coupons/default/maturity consequences in that reader.
+  // Refuse the projection while any corporate bond exists rather than imply
+  // behavioral interchange from unknown-field preservation alone.
+  const bondRows = world["bonds"];
+  if (isRecord(bondRows) && Object.values(bondRows).some((row) => isRecord(row) && row["issuerType"] === "corporation")) {
+    return { ok: false, error: "Corporate bond lifecycle state cannot be projected to the schema 42 turn reader; keep this Native save." };
+  }
+  const poolRows = world["bondMarketPools"];
+  if (isRecord(poolRows) && Object.keys(poolRows).length > 0) {
+    return { ok: false, error: "Bond market pool cash cannot be projected to the schema 42 turn reader; keep this Native save." };
+  }
   const meta = world["meta"] as Record<string, unknown>;
   const player = world["player"] as Record<string, unknown>;
   const turnoutRows = world["regionTurnouts"];

@@ -48,7 +48,10 @@ import type { ExtractableResource } from "../commodity/constants.js";
 import { depositToSavings, withdrawFromSavings, moveSavingsHolder } from "../finance/savingsActions.js";
 import { wireTransfer as wireTransferFn } from "../finance/wireTransfer.js";
 import { rollDebatePrep } from "../stats/debatePrep.js";
-import { isCorpStateOwned, validateBondIssuerIdentity } from "../bonds/corporateBonds.js";
+import { isCorpStateOwned, issueCorporateBond, validateBondIssuerIdentity } from "../bonds/corporateBonds.js";
+import { quoteCorporateBondIssuance } from "../bonds/corporateBondQuote.js";
+import { buybackCorporateBondUnits } from "../bonds/corporateBondServicing.js";
+import { BOND_UNIT_FACE_VALUE } from "../bonds/constants.js";
 import { rngFromState } from "../rng.js";
 import { isOrderFlowPriceEligible } from "../market/orderFlow.js";
 import { reconcileCeoAppointment } from "../corporation/ceoGovernance.js";
@@ -104,6 +107,9 @@ export type ExecuteActionParams = {
   // W13 bonds
   bondId?: string;
   units?: number;
+  /** Face value requested in the USD accounting anchor (source API contract). */
+  faceValue?: number;
+  maturityTurns?: number;
   // M1 economic-direction levers (Lane 12 Head of State mode)
   budgetCountryId?: string;
   budgetCategory?: string;
@@ -1543,6 +1549,72 @@ function executeActionInner(
     return { ok: true, message: `You resigned as CEO of ${corp.tickerSymbol}; the position is vacant` };
   }
 
+  if (actionId === "issueCorporateBond") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player may issue corporation bonds" };
+    const corpId = params.corpId;
+    const faceValueAnchor = params.faceValue;
+    const maturityTurns = params.maturityTurns;
+    if (!corpId || faceValueAnchor === undefined || maturityTurns === undefined) {
+      return { ok: false, error: "issueCorporateBond requires corpId, faceValue, and maturityTurns" };
+    }
+    const corp = world.corporations[corpId];
+    if (!corp) return { ok: false, error: `Unknown corporation: ${corpId}` };
+    if (corp.ceoType !== "player" || corp.ceoId !== "player" || corp.ceoVacant === true) {
+      return { ok: false, error: "Only the active CEO may issue corporation bonds" };
+    }
+    if (!Number.isFinite(faceValueAnchor) || faceValueAnchor < 100_000) {
+      return { ok: false, error: "Corporate bond face value must be at least 100000 in the accounting anchor" };
+    }
+    if (maturityTurns !== 96 && maturityTurns !== 240 && maturityTurns !== 336) {
+      return { ok: false, error: "Corporate bond maturity must be 96, 240, or 336 turns" };
+    }
+
+    const quote = quoteCorporateBondIssuance(world, corpId);
+    if (!quote.available) return { ok: false, error: quote.reason ?? "Corporate bond issuance is unavailable" };
+    if (faceValueAnchor > quote.maximumFaceValue) {
+      return { ok: false, error: `Corporate bond face value exceeds the quoted maximum of ${Math.floor(quote.maximumFaceValue)} USD accounting-anchor units` };
+    }
+    const totalUnits = Math.floor((faceValueAnchor * quote.exchangeRate) / BOND_UNIT_FACE_VALUE);
+    const totalFaceLocal = totalUnits * BOND_UNIT_FACE_VALUE;
+    if (!Number.isSafeInteger(totalUnits) || totalUnits <= 0 || !Number.isSafeInteger(totalFaceLocal)
+      || !Number.isFinite(corp.liquidCapital + totalFaceLocal)) {
+      return { ok: false, error: "Corporate bond face value is outside the supported whole-unit range" };
+    }
+
+    // Native has no bond-pool ledger. Game's no-pool fallback places the full
+    // float and credits its proceeds to the issuer, which is the supported
+    // underwriting path here.
+    const issuance = issueCorporateBond(world, corpId, {
+      totalUnits,
+      maturityTurns,
+      couponRate: quote.couponRates[maturityTurns],
+    });
+    if (!issuance.ok) return { ok: false, error: issuance.error };
+    corp.liquidCapital += totalFaceLocal;
+    return {
+      ok: true,
+      message: `Issued ${totalUnits} ${quote.currencyCode} bond units for ${corp.name ?? corp.tickerSymbol}`,
+    };
+  }
+
+  if (actionId === "buybackCorporateBond") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player may buy back corporation bonds" };
+    const bondId = params.bondId;
+    const units = params.units;
+    if (!bondId || units === undefined) return { ok: false, error: "buybackCorporateBond requires bondId and a positive integer units amount" };
+    const bond = world.bonds[bondId];
+    if (!bond) return { ok: false, error: `Unknown bond: ${bondId}` };
+    if (bond.issuerType !== "corporation" || !bond.corporationId) return { ok: false, error: `Bond ${bondId} is not a corporate issue` };
+    const issuer = world.corporations[bond.corporationId];
+    if (!issuer || issuer.ceoType !== "player" || issuer.ceoId !== "player" || issuer.ceoVacant === true) {
+      return { ok: false, error: "Only the active issuer CEO may buy back corporation bonds" };
+    }
+    const result = buybackCorporateBondUnits(world, bondId, units);
+    return result.ok
+      ? { ok: true, message: `Bought back ${result.units} units of ${issuer.name ?? issuer.tickerSymbol} bonds for ${result.cost} ${result.currencyCode}` }
+      : result;
+  }
+
   if (actionId === "buyShares" || actionId === "sellShares") {
     // Simplified market order: ports mainline's buyPublicShares/sellPublicShares
     // "instant" retail path only (price = corp.sharePrice, no brokerage fee —
@@ -2127,6 +2199,15 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.bondId && params.units !== undefined && Number.isInteger(params.units) && params.units > 0
         ? null
         : `${actionId} requires bondId and a positive integer units amount`;
+    case "issueCorporateBond":
+      return params.corpId && params.faceValue !== undefined && Number.isFinite(params.faceValue) && params.faceValue >= 100_000
+        && params.maturityTurns !== undefined && [96, 240, 336].includes(params.maturityTurns)
+        ? null
+        : "issueCorporateBond requires corpId, faceValue of at least 100000, and maturityTurns of 96, 240, or 336";
+    case "buybackCorporateBond":
+      return params.bondId && params.units !== undefined && Number.isInteger(params.units) && params.units > 0
+        ? null
+        : "buybackCorporateBond requires bondId and a positive integer units amount";
     case "adjustBudgetSpending":
       return params.budgetCategory && params.budgetAmount !== undefined && Number.isFinite(params.budgetAmount) && params.budgetAmount >= 0
         ? null

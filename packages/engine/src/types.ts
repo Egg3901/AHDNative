@@ -36,6 +36,14 @@ export interface WorldState {
   bankingLaws?: Record<string, import("./banking/rates.js").BankingLaw>;
   /** Reference bankPropTradingEnabled: absent enables interbank, margin and prop books. */
   bankPropTradingEnabled?: boolean;
+  /** Lazy source-shaped bond-pool books. Created when a bond flow first touches its currency. */
+  bondMarketPools?: Record<string, {
+    cashLocal: number;
+    targetCashLocal: number;
+    m2Local: number;
+    liquidityTargetLocal: number;
+    lifetime: Record<string, number>;
+  }>;
   /**
    * Singleplayer difficulty chosen at world creation (issue #334). Says how
    * competently autonomous politicians perform via `singleplayerNppTuning`;

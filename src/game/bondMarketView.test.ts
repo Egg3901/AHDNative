@@ -14,12 +14,12 @@ function world(overrides: Record<string, unknown> = {}): WorldState {
     countries: { US: { name: 'United States' }, UK: { name: 'United Kingdom' } },
     bonds: {
       'bond-60-US': {
-        id: 'bond-60-US', countryId: 'US', issuerName: 'United States', currencyCode: 'USD',
+        id: 'bond-60-US', issuerType: 'sovereign', countryId: 'US', issuerName: 'United States', currencyCode: 'USD',
         faceValue: 1000, marketPrice: 1, couponRate: 3.75, maturityTurn: 108,
         publicFloat: 20, holders: [], matured: false, defaulted: false,
       },
       'bond-61-UK': {
-        id: 'bond-61-UK', countryId: 'UK', issuerName: 'United Kingdom', currencyCode: 'GBP',
+        id: 'bond-61-UK', issuerType: 'sovereign', countryId: 'UK', issuerName: 'United Kingdom', currencyCode: 'GBP',
         faceValue: 1000, marketPrice: 1, couponRate: 4, maturityTurn: 146,
         publicFloat: 20, holders: [{ holderId: 'player', units: 1 }], matured: false, defaulted: false,
       },
@@ -68,5 +68,34 @@ describe('projectBondMarket denomination balances (#306)', () => {
     expect(balances).toBeDefined();
     balances!['GBP'] = 0;
     expect((base.player as { currencyBalances: { personal: Record<string, number> } }).currencyBalances.personal['GBP']).toBe(5000);
+  });
+
+  it('projects corporate issuer identity and authored company name instead of country name', () => {
+    const base = world({
+      corporations: { 'US-media': { id: 'US-media', name: 'Daily Media' } },
+      bonds: {
+        'cbond-98-US-media': {
+          id: 'cbond-98-US-media', issuerType: 'corporation', corporationId: 'US-media',
+          countryId: 'US', issuerName: 'US-media', currencyCode: 'USD', faceValue: 1000,
+          marketPrice: 1, couponRate: 5, maturityTurn: 338, issuedAtTurn: 98,
+          publicFloat: 20, holders: [], matured: false, defaulted: false,
+        },
+      },
+    });
+    expect(projectBondMarket(base).bonds[0]).toMatchObject({
+      issuerType: 'corporation', corporationId: 'US-media', issuerName: 'Daily Media',
+      canBuyback: false,
+    });
+  });
+  it('exposes issuer buyback only when the player is the active CEO', () => {
+    const base = world({
+      corporations: { 'US-media': { id: 'US-media', name: 'Daily Media', ceoType: 'player', ceoId: 'player', ceoVacant: false } },
+      bonds: {
+        'cbond-98-US-media': { id: 'cbond-98-US-media', issuerType: 'corporation', corporationId: 'US-media', countryId: 'US', issuerName: 'Daily Media', currencyCode: 'USD', faceValue: 1000, marketPrice: 1, couponRate: 5, maturityTurn: 338, issuedAtTurn: 98, publicFloat: 20, holders: [], matured: false, defaulted: false },
+      },
+    });
+    expect(projectBondMarket(base).bonds[0]?.canBuyback).toBe(true);
+    base.corporations['US-media']!.ceoVacant = true;
+    expect(projectBondMarket(base).bonds[0]?.canBuyback).toBe(false);
   });
 });
