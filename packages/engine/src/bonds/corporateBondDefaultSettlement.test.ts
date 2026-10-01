@@ -22,8 +22,9 @@ function twinWorlds() {
 function craftCorporate(
   world: ReturnType<typeof createWorld>,
   opts: { units: number; couponRate: number; held: number },
+  corporationId = CORP_ID,
 ) {
-  const res = issueCorporateBond(world, CORP_ID, {
+  const res = issueCorporateBond(world, corporationId, {
     totalUnits: opts.units,
     maturityTurns: 96,
     couponRate: opts.couponRate,
@@ -185,8 +186,12 @@ describe("corporate default at the public seam", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.error);
-    // Game NPV = (₳1m × 10% × 48 turns/year) / 15% = ₳32m.
-    // Salvage is 20% = ₳6.4m; a single ₳1k claim is senior to equity.
+    // Immutable oracle: AHDGame 08820d1 `src/lib/bonds/corporateBondDefault.ts`
+    // computes NPV as yearly profit / NPV_ANNUAL_DISCOUNT_RATE; yearly profit
+    // is `dailyProfitAnchor / TURNS_PER_DAY * TURNS_PER_YEAR`. `src/lib/constants/
+    // corporations.ts` pins the discount to 15% and dissolution salvage to 20%.
+    // Native adapts its per-turn-only sector basis: ₳1m × 10% × 48 turns/year
+    // gives ₳32m NPV and ₳6.4m salvage, senior to the single ₳1k bond claim.
     expect(result.settlement.bondRecoveryPool).toBe(1_000);
     expect(result.settlement.shareholderPool).toBe(6_499_000);
     expect(world.corporateBondSettlementLedger?.at(-1)?.salvagedSectorValue).toBe(6_400_000);
@@ -244,6 +249,7 @@ describe("corporate default at the public seam", () => {
       { ceoType: "player" as const, suspended: false },
       { ceoType: "npp" as const, suspended: true },
       { ceoType: "npp" as const, suspended: false },
+      { ceoType: "npp" as const, suspended: false, ownershipState: "stateOwned" as const, countryOwnerId: "US" },
     ]) {
       const world = createWorld({ ...OPTS, seed: `corporate-default-eligibility-${issuerState.ceoType}-${issuerState.suspended}` });
       const corp = world.corporations[CORP_ID]!;
@@ -256,7 +262,8 @@ describe("corporate default at the public seam", () => {
 
       const settlements = settleLingeringCorporateBondDefaults(world);
 
-      if (issuerState.ceoType === "npp" && !issuerState.suspended) {
+      const stateOwned = "ownershipState" in issuerState && issuerState.ownershipState === "stateOwned";
+      if (issuerState.ceoType === "npp" && !issuerState.suspended && !stateOwned) {
         expect(settlements).toHaveLength(1);
         expect(world.corporations[CORP_ID]).toBeUndefined();
       } else {
@@ -265,6 +272,51 @@ describe("corporate default at the public seam", () => {
         expect(world.bonds[bond.id]).toBe(bond);
       }
     }
+  });
+
+  it("spares a private NPP issuer under a soft command-economy budget and dissolves under a hard one", () => {
+    const world = createWorld({ ...OPTS, seed: "corporate-default-soft-budget-ru" });
+    const corporation = Object.values(world.corporations).find((row) => row.countryId === "RU")!;
+    corporation.liquidCapital = 0;
+    world.commandEconomy.RU!.budgetSoftness = 0.85;
+    const bond = craftCorporate(world, { units: 1, couponRate: 4800, held: 0 }, corporation.id);
+    bond.defaulted = true;
+    bond.defaultedAtTurn = world.meta.turn - 30;
+    world.meta.turn = bond.defaultedAtTurn + 30;
+
+    expect(settleLingeringCorporateBondDefaults(world)).toEqual([]);
+    expect(world.corporations[corporation.id]).toBe(corporation);
+    expect(world.bonds[bond.id]).toBe(bond);
+
+    world.commandEconomy.RU!.budgetSoftness = 0.49;
+    expect(settleLingeringCorporateBondDefaults(world)).toHaveLength(1);
+    expect(world.corporations[corporation.id]).toBeUndefined();
+  });
+
+  it("caps automatic dissolution at the source limit of 25 corporations per turn", () => {
+    const world = createWorld({ ...OPTS, seed: "corporate-default-dissolution-cap" });
+    const template = world.corporations[CORP_ID]!;
+    const corps: string[] = [];
+    for (let index = 0; index < 26; index++) {
+      const corporationId = `test-default-${String(index).padStart(2, "0")}`;
+      world.corporations[corporationId] = {
+        ...template,
+        id: corporationId,
+        ceoType: "npp",
+        liquidCapital: -index,
+      };
+      const bond = craftCorporate(world, { units: 1, couponRate: 4800, held: 0 }, corporationId);
+      bond.defaulted = true;
+      bond.defaultedAtTurn = world.meta.turn - 30;
+      corps.push(corporationId);
+    }
+    world.meta.turn += 30;
+
+    const settlements = settleLingeringCorporateBondDefaults(world);
+
+    expect(settlements).toHaveLength(25);
+    expect(corps.filter((id) => world.corporations[id] !== undefined)).toHaveLength(1);
+    expect(world.corporateBondSettlementLedger).toHaveLength(25);
   });
 
   it("rejects foreign-denominated claims and non-finite estate cash without partial settlement", () => {
