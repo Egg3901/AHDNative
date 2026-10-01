@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { createWorld } from "../world.js";
 import { advanceTurn } from "../engine.js";
+import { deserializeSave, serializeSave } from "../save.js";
 import {
   BOND_UNIT_FACE_VALUE,
   calculateBondMarketPrice,
@@ -8,6 +9,8 @@ import {
 } from "./constants.js";
 import { getTraceBonds, resetBondIdSequenceForTests } from "./bondTurn.js";
 import { issueCorporateBond } from "./corporateBonds.js";
+import { settleCorporateBondDefault } from "./corporateBondDefaultSettlement.js";
+import { corporateSectorAssets } from "../corporation/corporateSectorAssets.js";
 import type { Bond } from "./types.js";
 
 /**
@@ -203,6 +206,89 @@ describe("corporate default at the public seam", () => {
     expect(a.player.cash).toBe(b.player.cash);
     // Holdings frozen on the paper.
     expect(after.holders.find((h) => h.holderId === "player")?.units).toBe(5);
+  });
+
+  it("settles a lingering NPP default from the liquidation estate and clears creditor holdings", () => {
+    const world = createWorld({ ...OPTS, seed: "corporate-default-estate" });
+    const corp = world.corporations[CORP_ID]!;
+    corp.revenue = 0;
+    corp.profitMargin = 0;
+    corp.effectiveProfitMargin = 0;
+    corp.currentGrowthCost = 0;
+    corp.liquidCapital = 10_000;
+    const sectorId = Object.values(corporateSectorAssets(world)).find(
+      (asset) => asset.corporationId === CORP_ID,
+    )!.id;
+    const bond = craftCorporate(world, { units: 10_000, couponRate: 4800, held: 1_000 });
+    const playerCashBefore = world.player.cash;
+
+    advanceTurn(world);
+    expect(world.bonds[bond.id]!.defaulted).toBe(true);
+    expect(world.corporations[CORP_ID]).toBeDefined();
+    expect(world.corporateSectors![sectorId]).toBeDefined();
+
+    // Game's lingering NPP default rule settles after 30 turns. With zero
+    // sector revenue, source sector NPV is zero; the $10,000 liquid estate is
+    // shared pro-rata across $10,000,000 face, so this 10% holder receives
+    // exactly $1,000. Public float recovery belongs to Game's market pool,
+    // which Native does not model.
+    world.meta.turn = bond.defaultedAtTurn! + 29;
+    let cashAtBondPhase = world.player.cash;
+    advanceTurn(world, {
+      afterPhase(name, state) {
+        if (name === "bondCouponMaturity") cashAtBondPhase = state.player.cash;
+      },
+    });
+
+    expect(cashAtBondPhase - playerCashBefore).toBe(1_000);
+    expect(world.corporations[CORP_ID]).toBeUndefined();
+    expect(world.corporateSectors![sectorId]).toBeUndefined();
+    expect(world.bonds[bond.id]).toBeUndefined();
+    const restored = deserializeSave(serializeSave(world, "2026-10-01T00:00:00.000Z"));
+    expect(restored.corporations[CORP_ID]).toBeUndefined();
+    expect(restored.corporateSectors![sectorId]).toBeUndefined();
+    expect(restored.bonds[bond.id]).toBeUndefined();
+    expect(restored.player.cash).toBe(world.player.cash);
+  });
+
+  it("pays Native player bond and equity claims and returns public equity float to the country reserve", () => {
+    const world = createWorld({ ...OPTS, seed: "corporate-default-claimants" });
+    const corp = world.corporations[CORP_ID]!;
+    corp.revenue = 0;
+    corp.profitMargin = 0;
+    corp.effectiveProfitMargin = 0;
+    corp.currentGrowthCost = 0;
+    corp.liquidCapital = 1_000_000;
+    const playerShares = 1_000;
+    corp.shareholders = [
+      { holder: "npc", shares: corp.totalShares - corp.publicFloat - playerShares },
+      { holder: "player", shares: playerShares, avgCostPerShare: 1 },
+    ];
+    const bond = craftCorporate(world, { units: 100, couponRate: 4800, held: 10 });
+    bond.defaulted = true;
+    bond.defaultedAtTurn = world.meta.turn;
+    const playerCashBefore = world.player.cash;
+    const reserveBefore = world.centralBanks[corp.countryId]!.reserveBalance ?? 0;
+
+    const result = settleCorporateBondDefault(world, CORP_ID);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error);
+    // Source waterfall: bond claim = 100 × $1,000; liquid estate = $1m;
+    // bondholders take $100k first, leaving $900k for shareholders.
+    expect(result.settlement.bondRecoveryPool).toBe(100_000);
+    expect(result.settlement.shareholderPool).toBe(900_000);
+    expect(result.settlement.playerBondPayout).toBe(10_000);
+    expect(result.settlement.playerSharePayout).toBe(900_000 * playerShares / corp.totalShares);
+    expect(result.settlement.publicFloatSharePayout).toBe(900_000 * corp.publicFloat / corp.totalShares);
+    expect(world.player.cash - playerCashBefore).toBe(
+      result.settlement.playerBondPayout + result.settlement.playerSharePayout,
+    );
+    expect(world.centralBanks[corp.countryId]!.reserveBalance).toBe(
+      reserveBefore + result.settlement.publicFloatSharePayout,
+    );
+    expect(world.bonds[bond.id]).toBeUndefined();
+    expect(world.corporations[CORP_ID]).toBeUndefined();
   });
 });
 
