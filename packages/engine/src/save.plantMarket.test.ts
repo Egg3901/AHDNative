@@ -1,7 +1,7 @@
 /**
  * Plants settlement save boundary: the optional plant market book and the
  * recorded stock/book/telemetry fields round-trip verbatim when populated,
- * fail closed when malformed, and project to schema 42 without loss.
+ * fail closed when malformed, and refuse historical readers without a plants phase.
  * The authentic v42 oracle suite (save.v42Projection.test.ts) is untouched.
  */
 import { readFileSync } from "node:fs";
@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import {
   advanceTurn,
   createWorld,
+  corporateSectorAssets,
   deserializeSave,
   projectSaveToV42,
   serializeSave,
@@ -68,11 +69,24 @@ describe("plants settlement save boundary", () => {
     }
   });
 
-  it("projects populated plant state to schema 42 without loss", () => {
+  it("refuses recorded plant capacity before a market book exists", () => {
+    const world = loadHistoricalFresh();
+    const assets = corporateSectorAssets(world);
+    expect(Object.values(assets).some(asset => (asset.capitalStock ?? 0) > 0)).toBe(true);
+    expect(world.plantMarketDemand).toBeUndefined();
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false, error: expect.stringContaining("Plant production"),
+    });
+  });
+
+  it("refuses plant-market state that the actual v42 reader cannot advance", () => {
+    // AHDClient c501754 has synthetic corporate growth and commodity prices,
+    // but no plant-production or plant-market-demand phase. Preserving an
+    // unknown JSON field does not let that reader continue its lifecycle.
     const projected = projectSaveToV42(docWithBook(validBook()));
-    expect(projected.ok).toBe(true);
-    if (!projected.ok) throw new Error(projected.error);
-    const restored = deserializeSave(projected.contents);
-    expect(restored.plantMarketDemand).toEqual(validBook());
+    expect(projected).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("Plant production"),
+    });
   });
 });
