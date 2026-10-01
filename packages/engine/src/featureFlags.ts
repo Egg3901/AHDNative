@@ -277,6 +277,7 @@ const PHASE_FEATURE_FLAGS: Readonly<Record<string, WorldFeatureFlag>> = {
   nuclearProduction: "coldWar",
   coldWarTension: "coldWar",
   warsTurn: "conflicts",
+  politicalMetricsDynamics: "metrics",
   ministerialOrders: "policyEffects",
   policyEffects: "policyEffects",
   resolveProspects: "extraction",

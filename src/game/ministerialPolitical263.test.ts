@@ -36,6 +36,9 @@ describe("source political cabinet board through GameSession (#263)", () => {
     // Actual Game foldCabinetResiduals output for the stat10 contribution
     // 0.944, mapped before macro strength/cap: the first residual is0.9422.
     expect(resumed.regions({ regionId: "LON" }).selected?.politicalMetrics?.["economy.workerSecurity"]?.cabinetResidual).toBe(0.9422);
+    // Actual source processPoliticalMetricsDynamics with the same recorded
+    // macro unemployment and standing order, including its bounded macro term.
+    expect(resumed.regions({ regionId: "LON" }).selected?.politicalMetrics?.["economy.workerSecurity"]?.value).toBeCloseTo(53.858844, 9);
     expect(resumed.regions({ regionId: "SCO" }).selected?.politicalMetrics?.["economy.workerSecurity"]?.cabinetResidual).toBe(otherBefore);
     const secondReload = new GameSession();
     secondReload.load(resumed.serialize("2026-10-01T00:00:00.000Z"));

@@ -82,8 +82,7 @@ export function runMinisterialOrders(world: WorldState): MinisterialOrdersResult
         continue;
       }
     }
-    if (["US", "UK", "RU", "DD"].includes(order.countryId)
-      && Object.values(world.regionalPoliticalMetrics ?? {}).some(board => board.countryId === order.countryId)) {
+    if (Object.values(world.regionalPoliticalMetrics ?? {}).some(board => board.countryId === order.countryId)) {
       if (!political.has(order.countryId)) political.set(order.countryId, { national: {}, regional: {} });
     }
     // Game968 scales by the issuing Character's Statecraft before combining
