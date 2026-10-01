@@ -24,19 +24,22 @@ three-human charter and wider targeted-action gaps. [PR #715](https://github.com
 merged at `741083a` after the [full hosted gate](https://github.com/Egg3901/AHDNative/actions/runs/36873625730)
 passed at exact head `313dd59`. Both issues remain open and partial.
 
-## Verified China law checkpoint, 2026-10-01 (#286 closed)
+## China law checkpoint, 2026-10-01 (#286 reopened)
 
 The bounded five-tax China slice is merged in [PR #710](https://github.com/Egg3901/AHDNative/pull/710)
 at `748f74f24f6277596b0a3f4e1c0154849e4c4090`, after
 [full verification](https://github.com/Egg3901/AHDNative/actions/runs/36865271074)
 passed at exact head `50d29f5083f788237a56a58008249efea4349e38`.
-Original #286 acceptance is checked and closed: source options/directions, public
-proposal/vote/signing, immediate fiscal effect, replacement, saved ramp/reload and
-actual CN player tariff flow at 320px/390px. See [source and evidence](CN-TAX-LAWS.md).
+The source options and bounded engine tax effects are delivered. Current-source
+audit found that local same-country SP head-of-state proposals enact immediately
+by decree, while the prior Native CN HoS browser flow queued votes and signing.
+#286 is reopened until that authority path, costs, effects, replacement and actual
+save/resume flow are corrected and verified. See [source and evidence](CN-TAX-LAWS.md).
 #101 stays open: Japan, Germany, Ireland and RU/DD cross-system slices remain,
-as do broader catalog/source coverage. Current Game `96831835` preserves the
-active mechanics vectors. GitHub has 59 open issues, down from 63; this count
-includes partial and blocked work and does not mean all 59 are untouched.
+as do broader catalog/source coverage. Current sampled Game `cb66acdf` preserves
+the decree contract from `96831835`; its newer stock, strategy advisory and trade
+changes remain tracked separately. GitHub has 60 open issues, down from 63; this
+count includes partial and blocked work.
 
 ## Subsidy and Gosbank controls checkpoint, 2026-10-01 (#94 partial)
 

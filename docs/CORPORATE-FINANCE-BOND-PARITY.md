@@ -113,6 +113,13 @@ Wires transfer the selected currency unchanged, with no fee; source FX is used
 only for the sender's anchor-denominated quota. Adding a transfer conversion or
 fee would diverge from Game's actual route.
 
+Integrated supplemental LOC, wire and subsidy suites pass 55 tests. Invalid
+foreign personal wallets now fail at load as well as servicing. An independently
+executed Game `quoteLocService` at USD1/GBP2.01 debits GBP2.02, pays USD4.06
+of the USD4.07 schedule and freezes further draws despite a funded foreign wallet;
+Native preserves this source cent-rounding behavior. Current Game `cb66acdf`
+leaves these servicing rules unchanged from `96831835`.
+
 Physical sales also exposed Native's stale output-gap clamp. Independently
 executed current Game vectors now constrain both persisted gap and headline
 growth together: with previous gap 0, potential 2%, sector signal +100%/-100%
