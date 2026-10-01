@@ -13,42 +13,70 @@ through the worker. The query is requested only while its screen is visible.
 `CaucusPanel` uses a type-only DTO import and `validateCaucusDraft`; no engine
 runtime or per-keystroke worker requests enter React.
 
-Actions use the existing public contract:
+Actions use the existing public contract. Create, join, leave, tax-edit and
+disband all charge 0 AP and 0 campaign funds, matching the source Game routes
+at `954f1c21781e6e767455a15eed40f73993d89a8b` (empty diff vs `2480b4db`):
 
-- `createCaucus`: `{ caucusName, caucusTaxRate }`, 4 AP and 25,000 funds.
-- `joinCaucus`: `{ caucusId }`, 2 AP.
-- `leaveCaucus`: no parameters, 1 AP.
+- `createCaucus`: `{ caucusName, caucusTaxRate }`. Source POST
+  `src/app/api/country/[code]/parties/[id]/caucuses/route.ts` writes the
+  caucus, chair membership and faction pointer with no personal debit.
+- `joinCaucus`: `{ caucusId }`. Source POST
+  `.../caucuses/[slug]/members/route.ts` writes membership and `factionId`
+  with no debit. Join has no confirmation dialog.
+- `leaveCaucus`: no parameters. Source DELETE
+  `.../members/[memberId]/route.ts` closes membership with no debit. The
+  recorded chair cannot self-leave (403: disband or hand over first). Native
+  leave confirms with `Leave ${name}?`, matching
+  `SelectedCaucus.tsx`.
+- `setCaucusTaxRate`: `{ caucusId, caucusTaxRate }`. Source PATCH
+  `.../caucuses/[slug]/route.ts` writes `taxRate` with no debit. Authority is
+  the recorded `chairId`, never `memberIds[0]`.
+- `disbandCaucus`: `{ caucusId }`. Source DELETE
+  `.../caucuses/[slug]/route.ts` soft-disbands, clears memberships and
+  vacates seats with no debit. Same `chairId` gate.
 
-The dispatcher previously debited 25,000 before the domain helper checked
-and debited another 25,000, then refunded the first debit on success. The net
-charge was correct but players needed 50,000 on hand. Preflight now runs
-before shared accounting and the domain helper owns the single charge.
-Funds of 25,000, 40,000 and 50,000 all succeed at the advertised price.
-Insufficient funds reject without changing the serialized world. Invalid
-and non-finite tax inputs also reject before mutation; previously NaN could
-enter the saved caucus.
+`quotePartyCaucusAction` is the one charge-plus-consequence projection the
+dispatcher, session DTO and panel confirmation read. A declined or ineligible
+action leaves the full serialized world unchanged. Invalid and non-finite tax
+inputs reject before mutation.
+
+Native `foundParty` stays the immediate single-founder / NPP cofounder proxy
+at 8 AP + 100,000 funds. Source `draftCharter` / `ratifyCharter` is free but
+requires 3 eligible human cofounders, a 14-turn expiry and adjacency/Overton
+gates; that public draft action is not wired (#95). This slice does not
+replace that gap with cheap immediate-party creation.
 
 ## Source evidence and remaining differences
 
-The imported `packages/engine/src/caucus.ts` and action catalog define the
-prices, 3-character minimum name, party membership and 0-5% tax range. This
-slice repairs the imported cost contract; it does not certify reference costs.
+Authority for this cost/quote slice is AHDGame
+`954f1c21781e6e767455a15eed40f73993d89a8b`. A refresh through
+`2480b4db3cde3a6210000833d88f0b53e7f07917` found no changes in these routes.
+Native prices live in `packages/engine/src/actions/partyCaucusCosts.ts` and
+are the only numbers the catalog, domain helpers and UI quote.
 
-AHDGame `e364c04954ed628beef73a993a8e9e156650a31e` references:
+Source routes read for this slice:
 
-- `src/app/api/country/[code]/parties/[id]/caucuses/route.ts`: membership,
-  unique slug, founding, chair record and initial tax validation.
-- `.../caucuses/[slug]/members/route.ts`: membership lifecycle.
-- `src/app/country/[code]/parties/[id]/components/CaucusesTab.tsx`,
-  `caucus/FoundCaucusForm.tsx` and `caucus/SelectedCaucus.tsx`: visual hierarchy,
-  founding form, roster and membership controls.
+- POST `src/app/api/country/[code]/parties/[id]/caucuses/route.ts`
+- POST `src/app/api/country/[code]/parties/[id]/caucuses/[slug]/members/route.ts`
+- DELETE `src/app/api/country/[code]/parties/[id]/caucuses/[slug]/members/[memberId]/route.ts`
+- PATCH and DELETE `src/app/api/country/[code]/parties/[id]/caucuses/[slug]/route.ts`
+- POST `src/app/api/country/[code]/parties/[id]/leave/route.ts` (clears caucus
+  membership and may vacate chair/vice-chair; no personal debit)
+- `src/app/country/[code]/parties/[id]/components/caucus/SelectedCaucus.tsx`
+  (join has no confirm; leave confirms `Leave ${name}?`; disband confirms)
 
-The pinned source founding route does not debit funds or AP. Native retains
-its existing catalog charges in this bounded repair. Source names allow two
-characters; Native still requires three. Source chair/vice-chair elections,
-whips, color, description, motto, health and NPP recruitment remain absent
-from the public Native action catalog. Native's full caucus mechanics and
-source cost parity remain open.
+Delivered on #61 (partial): source-free create/join/leave; unified
+create/join/leave/tax/disband quote through dispatcher, session projection
+and UI confirmation; chair tax/disband authority on recorded `chairId`;
+chair self-leave refusal; declined actions leave serialized state unchanged.
+
+Still open on #61/#95: source charter draft/ratify as a public action (3
+human cofounders, 14-turn expiry, adjacency/Overton). Native `foundParty`
+remains the 8 AP + 100k immediate/NPP proxy and is not claimed as that gate.
+Source names allow two characters; Native still requires three. Source
+chair/vice-chair elections, whip, color, description, motto, health and NPP
+recruitment remain absent from the public Native action catalog (#60
+remainder). Do not treat this slice as closing #61 or #95.
 
 ## Chair controls (#60)
 
@@ -106,9 +134,18 @@ src/ui/CaucusPanel.test.tsx`.
 
 ## Evidence
 
-- Public engine regression: the 25k and 40k cases failed before the repair;
-  all eight accounting/invalid-tax cases pass afterward. The NaN rejection
-  also failed before its finite-value guard.
+- #61 cost/quote slice: `src/game/partyCaucusSourceParity.test.ts` covers
+  free join, free non-chair leave with declined tax leaving the save
+  byte-identical, chair tax/disband quoted and executed through the shared
+  projection, and tax/disband refused when `chairId` is null even if
+  `memberIds[0]` is the player. Original four GameSession/save tests remain.
+  `src/game/caucusManagement.test.ts` and `packages/engine/src/actions/{partyCaucus,createCaucus,caucusChairActions}.test.ts`
+  cover dispatcher charge, session projection and atomic refusals.
+  `src/ui/CaucusPanel.test.tsx` covers Free create, 0-cost join/leave, leave
+  confirm `Leave ${name}?` and cancel.
+- Historical double-debit repair: the 25k and 40k cases failed before the
+  earlier accounting fix; those prices are now 0. The NaN rejection also
+  failed before its finite-value guard.
 - Eight query/action/session scenarios and four component tests cover
   membership, tax, cross-party rejection, cost display and saved state.
 - The genuine elected 1953 US fixture advances once to turn 99, founds Blue

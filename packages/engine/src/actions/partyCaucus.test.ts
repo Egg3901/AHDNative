@@ -20,8 +20,12 @@ import {
 import {
   CAUCUS_CREATE_ACTION_COST,
   CAUCUS_CREATE_FUND_COST,
+  CAUCUS_DISBAND_ACTION_COST,
+  CAUCUS_DISBAND_FUND_COST,
   CAUCUS_JOIN_ACTION_COST,
   CAUCUS_LEAVE_ACTION_COST,
+  CAUCUS_TAX_ACTION_COST,
+  CAUCUS_TAX_FUND_COST,
 } from "../caucus.js";
 
 const OPTIONS = { era: "1953", countryId: "US", seed: "party-caucus-ssot", playerName: "Ada" } as const;
@@ -43,16 +47,24 @@ describe("partyCaucus projection (#61)", () => {
     expect(ACTION_CATALOG.createCaucus.fundCost).toBe(CAUCUS_CREATE_FUND_COST);
     expect(ACTION_CATALOG.joinCaucus.baseCost).toBe(CAUCUS_JOIN_ACTION_COST);
     expect(ACTION_CATALOG.leaveCaucus.baseCost).toBe(CAUCUS_LEAVE_ACTION_COST);
-    // The published numbers the docs and UI quote.
+    expect(ACTION_CATALOG.setCaucusTaxRate.baseCost).toBe(CAUCUS_TAX_ACTION_COST);
+    expect(ACTION_CATALOG.disbandCaucus.baseCost).toBe(CAUCUS_DISBAND_ACTION_COST);
+    expect(ACTION_CATALOG.setCaucusTaxRate.fundCost).toBe(CAUCUS_TAX_FUND_COST);
+    expect(ACTION_CATALOG.disbandCaucus.fundCost).toBe(CAUCUS_DISBAND_FUND_COST);
+    // The published numbers the docs and UI quote. Native foundParty stays the
+    // immediate 8 AP + 100k proxy; source draft/ratify is free with 3 cofounders.
     expect(FOUND_PARTY_FUND_COST).toBe(100_000);
     expect(FOUND_PARTY_ACTION_COST).toBe(8);
-    expect(CAUCUS_CREATE_FUND_COST).toBe(25_000);
-    expect(CAUCUS_CREATE_ACTION_COST).toBe(4);
+    expect(CAUCUS_CREATE_FUND_COST).toBe(0);
+    expect(CAUCUS_CREATE_ACTION_COST).toBe(0);
+    expect(CAUCUS_JOIN_ACTION_COST).toBe(0);
+    expect(CAUCUS_LEAVE_ACTION_COST).toBe(0);
   });
 
-  it("classifies exactly the six party/caucus ids", () => {
+  it("classifies the shared party/caucus quote ids including chair tax and disband", () => {
     expect([...PARTY_CAUCUS_ACTION_IDS]).toEqual([
       "foundParty", "joinParty", "leaveParty", "createCaucus", "joinCaucus", "leaveCaucus",
+      "setCaucusTaxRate", "disbandCaucus",
     ]);
     for (const id of PARTY_CAUCUS_ACTION_IDS) expect(isPartyCaucusActionId(id)).toBe(true);
     expect(isPartyCaucusActionId("fundraise")).toBe(false);
@@ -83,10 +95,16 @@ describe("partyCaucus projection (#61)", () => {
       partyFundsDelta: 0, partyMembership: "leave", startsPartySwitchCooldown: false,
     });
     expect(partyCaucusEffect("createCaucus")).toMatchObject({
-      partyFundsDelta: -25_000, caucusMembership: "create", startsPartySwitchCooldown: false,
+      partyFundsDelta: 0, caucusMembership: "create", startsPartySwitchCooldown: false,
     });
     expect(partyCaucusEffect("joinCaucus")).toMatchObject({ caucusMembership: "join" });
     expect(partyCaucusEffect("leaveCaucus")).toMatchObject({ caucusMembership: "leave" });
+    expect(partyCaucusEffect("setCaucusTaxRate")).toMatchObject({
+      partyFundsDelta: 0, caucusMembership: "tax", clearsCaucusMembership: false,
+    });
+    expect(partyCaucusEffect("disbandCaucus")).toMatchObject({
+      partyFundsDelta: 0, caucusMembership: "disband", clearsCaucusMembership: true,
+    });
   });
 
   it("combines charge and effect in quotePartyCaucusAction", () => {
@@ -120,22 +138,55 @@ describe("partyCaucus projection (#61)", () => {
 
   it("charges exactly the quoted AP and funds through the public dispatcher for the caucus actions", () => {
     const world = ready();
+    world.caucuses.push({
+      id: "caucus-existing",
+      countryId: "US",
+      partyId: "US_DEM",
+      name: "Existing Caucus",
+      treasury: 0,
+      taxRate: 1,
+      disbandedAt: null,
+      memberIds: ["npc-chair"],
+      chairId: "npc-chair",
+      viceChairId: null,
+    });
     const createQuote = partyCaucusCharge(world.player, "createCaucus");
+    expect(createQuote.actionCost).toBe(0);
+    expect(createQuote.fundCost).toBe(0);
     const fundsBefore = world.player.funds;
     const actionsBefore = world.player.actions;
     expect(executeAction(world, "player", "createCaucus", { caucusName: "Reform Caucus", caucusTaxRate: 1 }).ok).toBe(true);
     expect(world.player.actions).toBe(actionsBefore - createQuote.actionCost);
     expect(world.player.funds).toBe(fundsBefore - createQuote.fundCost);
-    const id = world.caucuses[0]!.id;
+    expect(executeAction(world, "player", "leaveCaucus").ok).toBe(false);
+    const foundedId = world.caucuses.find((caucus) => caucus.chairId === "player")!.id;
+    expect(executeAction(world, "player", "disbandCaucus", { caucusId: foundedId }).ok).toBe(true);
+
+    const joinQuote = partyCaucusCharge(world.player, "joinCaucus");
+    expect(joinQuote.actionCost).toBe(0);
+    const beforeJoin = world.player.actions;
+    expect(executeAction(world, "player", "joinCaucus", { caucusId: "caucus-existing" }).ok).toBe(true);
+    expect(world.player.actions).toBe(beforeJoin - joinQuote.actionCost);
 
     const leaveQuote = partyCaucusCharge(world.player, "leaveCaucus");
+    expect(leaveQuote.actionCost).toBe(0);
     const beforeLeave = world.player.actions;
     expect(executeAction(world, "player", "leaveCaucus").ok).toBe(true);
     expect(world.player.actions).toBe(beforeLeave - leaveQuote.actionCost);
+  });
 
-    const joinQuote = partyCaucusCharge(world.player, "joinCaucus");
-    const beforeJoin = world.player.actions;
-    expect(executeAction(world, "player", "joinCaucus", { caucusId: id }).ok).toBe(true);
-    expect(world.player.actions).toBe(beforeJoin - joinQuote.actionCost);
+  it("quotes chair tax and disband at zero and charges that through the dispatcher", () => {
+    const world = ready();
+    expect(executeAction(world, "player", "createCaucus", { caucusName: "Reform Caucus", caucusTaxRate: 1 }).ok).toBe(true);
+    const id = world.caucuses[0]!.id;
+    const taxQuote = quotePartyCaucusAction(world.player, "setCaucusTaxRate");
+    const disbandQuote = quotePartyCaucusAction(world.player, "disbandCaucus");
+    expect(taxQuote).toMatchObject({ actionCost: 0, fundCost: 0, effect: { caucusMembership: "tax" } });
+    expect(disbandQuote).toMatchObject({ actionCost: 0, fundCost: 0, effect: { caucusMembership: "disband" } });
+    const before = { actions: world.player.actions, funds: world.player.funds };
+    expect(executeAction(world, "player", "setCaucusTaxRate", { caucusId: id, caucusTaxRate: 4 }).ok).toBe(true);
+    expect(executeAction(world, "player", "disbandCaucus", { caucusId: id }).ok).toBe(true);
+    expect(world.player.actions).toBe(before.actions);
+    expect(world.player.funds).toBe(before.funds);
   });
 });

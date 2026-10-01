@@ -42,11 +42,15 @@ share home GDP, stat and frozen-currency readers with execution. The campaign
 card no longer requests a region that the source character action never targets.
 
 Remaining: the hub's old canvass proxy still needs the source demographic and
-active-state flow under #57. Party join/leave AP pricing and the wider party/
-caucus preview, recruitment, tax and disband contract remain under #61. The
-original eleven-entry audit includes these unresolved differences; this
-checkpoint therefore does not close #91. Full hosted checks and integrated
-mobile action evidence remain required before merge.
+active-state flow under #57. Native `joinParty` / `leaveParty` now charge 0 AP
+and 0 funds, matching the source join/leave routes; the historical tables
+below keep the audit-baseline 2 AP / 1 AP figures. Still under #61: unified
+party/caucus preview remainder, recruitment, and the source charter
+draft/ratify gate (#95; Native `foundParty` stays the 8 AP + 100k
+immediate/NPP proxy). The original eleven-entry audit includes these
+unresolved differences; this checkpoint therefore does not close #91. Full
+hosted checks and integrated mobile action evidence remain required before
+merge.
 
 ## Scope boundary (explicit)
 

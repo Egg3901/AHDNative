@@ -79,18 +79,22 @@ describe("player party membership join/leave", () => {
     expect(w.player.lastPartySwitchTurn).toBe(0);
   });
 
-  it("leaveParty requires membership, joinParty costs 2 AP and refunds on failure", () => {
+  it("leaveParty requires membership; joinParty is free and declined leave leaves AP unchanged", () => {
     const w = createWorld(OPTS);
-    w.player.actions = 1; // not enough for join (needs 2)
+    w.player.actions = 0;
     const res = executeAction(w, "player", "joinParty", { partyId: "US_DEM" });
-    expect(res.ok).toBe(false);
-    expect((res as { error: string }).error).toMatch(/Not enough action points/);
-    expect(w.player.actions).toBe(1); // not deducted
-    // now with enough AP, leave without party fails and refunds
+    expect(res.ok).toBe(true);
+    expect(w.player.partyId).toBe("US_DEM");
+    expect(w.player.actions).toBe(0);
+    w.player.partyId = null;
+    w.player.partyJoinedTurn = null;
+    w.player.lastPartySwitchTurn = null;
     w.player.actions = 10;
+    const before = serializeSave(w);
     const leaveRes = executeAction(w, "player", "leaveParty", {});
     expect(leaveRes.ok).toBe(false);
     expect(w.player.actions).toBe(10);
+    expect(serializeSave(w)).toBe(before);
   });
 
   it("foundParty creates new party + ratified charter, auto-joins founder, costs 8 AP + 100k funds", () => {
@@ -189,7 +193,7 @@ describe("caucus lifecycle and caucusTax", () => {
     expect(w.caucuses[0]!.taxRate).toBe(3);
     expect(w.caucuses[0]!.memberIds).toContain("player");
     expect(w.player.caucusId).toBe(w.caucuses[0]!.id);
-    expect(w.player.funds).toBe(25_000); // 50k -25k
+    expect(w.player.funds).toBe(50_000);
   });
 
   it("createCaucus fails if already in caucus or taxRate >5", () => {
@@ -222,17 +226,29 @@ describe("caucus lifecycle and caucusTax", () => {
     executeAction(w, "player", "joinParty", { partyId: "US_DEM" });
     w.player.actions = 10;
     w.player.funds = 100_000;
-    executeAction(w, "player", "createCaucus", { caucusName: "Blue Caucus" });
-    const cid = w.caucuses[0]!.id;
+    w.caucuses.push({
+      id: "caucus-blue",
+      countryId: "US",
+      partyId: "US_DEM",
+      name: "Blue Caucus",
+      treasury: 0,
+      taxRate: 1,
+      disbandedAt: null,
+      memberIds: ["npc-chair"],
+      chairId: "npc-chair",
+      viceChairId: null,
+    });
+    const cid = "caucus-blue";
+    w.player.actions = 10;
+    const join = executeAction(w, "player", "joinCaucus", { caucusId: cid });
+    expect(join.ok).toBe(true);
+    expect(w.player.caucusId).toBe(cid);
     w.player.actions = 10;
     const leave = executeAction(w, "player", "leaveCaucus", {});
     expect(leave.ok).toBe(true);
     expect(w.player.caucusId).toBe(null);
     expect(w.caucuses[0]!.memberIds.includes("player")).toBe(false);
-    w.player.actions = 10;
-    const join = executeAction(w, "player", "joinCaucus", { caucusId: cid });
-    expect(join.ok).toBe(true);
-    expect(w.player.caucusId).toBe(cid);
+    expect(executeAction(w, "player", "joinCaucus", { caucusId: cid }).ok).toBe(true);
     // try joining a caucus in different party
     const otherCaucusId = "other-caucus";
     w.caucuses.push({
