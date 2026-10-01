@@ -1,6 +1,6 @@
 import type { TurnPhase } from "./types.js";
 import { advanceCalendarPhase } from "./advanceCalendar.js";
-import { macroCountryTurnPhase } from "./macroCountryTurn.js";
+import { macroCountryTurnPhase, sourceTfpGrowthPhase } from "./macroCountryTurn.js";
 import { actionRefreshPhase } from "../actions/actionRefresh.js";
 import { fundGenerationPhase } from "../actions/fundGenerationPhase.js";
 import { commodityPricesPhase } from "../commodity/commodityPrices.js";
@@ -533,6 +533,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // referendum actuation transfers jurisdictions. It consumes the previous
   // cabinet snapshot before ministerialOrders replaces it below.
   politicalCabinetResidualPhase,
+  sourceTfpGrowthPhase,
   independenceDesireDriftPhase,
   referendumLifecyclePhase,
   // W6 metric engine cluster at END before newsMaintenance — ordering deviation:
