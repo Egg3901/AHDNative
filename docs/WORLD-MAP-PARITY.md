@@ -16,8 +16,8 @@ region or save, and never open a foreign row through the player-scoped Regions
 route. Player-country rows retain working region links.
 
 Natural Earth world geometry is public domain. Subdivision shards preserve the
-source asset provenance in `public/geo/ATTRIBUTION.md`. Nine country shard
-families are bundled; country/era coverage follows recorded region IDs, with
+source asset provenance in `public/licenses/region-shards.txt`. Nine country
+maps share the bundled shards; country/era coverage follows recorded region IDs, with
 explicit partial/unavailable text for absent shapes. The US Albers projection
 was compared to independent source projection output at 1,187 points, with
 maximum normalized discrepancy below 1.6e-13. Country shapes support pointer,
