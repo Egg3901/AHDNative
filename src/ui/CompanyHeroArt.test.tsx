@@ -249,7 +249,7 @@ describe("MarketsPanel hero bands (#378)", () => {
       effectiveProfitMargin: 8,
       insolvent: false,
       foundedAtTurn: 0,
-      isBank: false,
+      isBank: false, isStateOwned: false,
       playerShares: 0,
       playerAvgCostPerShare: null,
       npcShares: 5_100_000,

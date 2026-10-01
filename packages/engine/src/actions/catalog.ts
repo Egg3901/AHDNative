@@ -76,6 +76,10 @@ export type ActionId =
   | "voteCoalitionDisband"
   | "buyShares"
   | "sellShares"
+  | "voteCeo"
+  | "acceptCeoAppointment"
+  | "resignCeo"
+  | "setCorporationCompensation"
   | "crisisBailout"
   | "crisisStimulus"
   | "crisisRespond"
@@ -594,6 +598,49 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["market"],
+    status: "available",
+  },
+  // Source: AHDGame corporations/[id]/ceo/{vote,accept,resign}. Native has one
+  // persistent player identity and stores the weighted shareholder ballot in
+  // the corporation save record.
+  voteCeo: {
+    id: "voteCeo",
+    name: "Vote for CEO",
+    description: "Cast your shareholder vote for a corporation CEO candidate.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporation/governance"],
+    status: "available",
+  },
+  acceptCeoAppointment: {
+    id: "acceptCeoAppointment",
+    name: "Accept CEO Appointment",
+    description: "Accept the CEO appointment offered by the corporation's shareholders.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporation/governance"],
+    status: "available",
+  },
+  resignCeo: {
+    id: "resignCeo",
+    name: "Resign as CEO",
+    description: "Resign from your corporation CEO position and leave the seat vacant.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporation/governance"],
+    status: "available",
+  },
+  setCorporationCompensation: {
+    id: "setCorporationCompensation",
+    name: "Set CEO Salary and Dividend Rate",
+    description: "Set the corporation's per-turn CEO salary and dividend rate as its CEO.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporation/governance", "corporation/dividends"],
     status: "available",
   },
   // ── W31 crisis action hooks ─────────────────────────────────────

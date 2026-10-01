@@ -46,7 +46,7 @@ function makeListing(id: string, ticker: string, name: string): MarketListing {
     currency: "USD", cashCurrencyMatches: true, sharePrice: 774, fundamentalSharePrice: 774,
     totalShares: 10_000_000, publicFloat: 4_900_000, liquidCapital: 50_000, revenue: 1000,
     currentGrowthRate: 3, profitMargin: 8, effectiveProfitMargin: 8, insolvent: false,
-    foundedAtTurn: 0, isBank: false, playerShares: 0, playerAvgCostPerShare: null,
+    foundedAtTurn: 0, isBank: false, isStateOwned: false, playerShares: 0, playerAvgCostPerShare: null,
     npcShares: 5_100_000, shareholders: [{ holder: "npc", shares: 5_100_000, avgCostPerShare: null }],
     controllingHolder: "npc",
     orderFlow: { buyWindow: 0, sellWindow: 0, flowMultiplier: 1, sentimentMultiplier: 1, insolventSinceTurn: null },

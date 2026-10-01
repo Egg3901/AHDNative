@@ -1,46 +1,26 @@
 /**
- * #51 rendered player flow for the conditional Profile corporation card.
+ * #51 integrated Profile card evidence at320px and390px.
  *
- * Reference (AHDGame e364c049 src/app/profile/page.tsx +
- * components/CeoCorporationCard.tsx): the card renders only when a
- * corporation records `ceoId === character._id` with `ceoVacant` not true,
- * and links `/corporation/[id]`. Native records no CEO relationship, so the
- * gate is the only truthful ownership the engine persists: a player-owned
- * sector asset (`CorporateSectorAsset.owner === "player"`). The card labels
- * that role "Sector owner", never CEO, and shows no salary or dividends
- * because the engine records neither.
+ * Game954f1c21781e6e767455a15eed40f73993d89a8b renders the exact recorded
+ * CEO relationship when ceoVacant is not true. Native preserves that gate
+ * and separately labels a persisted sector owner without inferring CEO status.
+ * Profile and company detail share the issuer, brand and actual payout view.
  *
- * The jsdom suites cover projection, panel and shell wiring:
- *   src/game/profileCorporation.test.ts
- *   src/ui/ProfileCorporationCard.test.tsx
- *   src/ui/CorporationDetailReturn80.test.tsx
- * This spec is the rendered evidence through the integrated app at 320px
- * and 390px: the fixture enters through the same worker/store path as a
- * native resume, the card appears on Profile, "View company" opens the
- * working company detail with Back to Profile, a page reload resumes the
- * saved owner and the card is still there, and a save whose owner reverted
- * renders no card.
- *
- * Fixture provenance: public actions (buyShares, listSectorForSale,
- * buySectorForSale) plus test-only save setup. The serialized save is edited
- * twice outside the action flow: `world.player.cash` is raised to the listed
- * asking price so the purchase can be funded, and the "reverted" variant sets
- * `corporateSectors[assetId].owner` back to "corporation" because no player
- * action releases a sector. Both edited saves are re-loaded through
- * GameSession.load (save validation) before use.
- *
- * Reproduce: PLAYWRIGHT_CHROMIUM_EXECUTABLE=$(which google-chrome) \
- *   npx playwright test smoke/profile-corporation-card.spec.ts
- * Screenshots land in artifacts/smoke/profile-corporation-*.png (ignored by
- * git; regenerate rather than commit).
+ * The historical owner fixture uses public share/list/purchase commands plus
+ * serialized cash setup and owner reversion. Those cases prove only ownership.
+ * The CEO fixture is an unmodified fresh GameSession world at the source HQ;
+ * its rendered share purchase, vote, acceptance, compensation, turn, resignation
+ * and two normal save resumes establish the supported public CEO lifecycle.
+ * These are Chromium results, with physical-device acceptance tracked separately.
  */
 import { test, expect, type Page } from '@playwright/test';
 import { gunzipSync } from 'node:zlib';
 import { readFileSync } from 'node:fs';
-import { gameReady, loadFixture, navigateGame } from './game-navigation';
+import { advanceGame, gameReady, loadFixture, navigateGame } from './game-navigation';
 import { GameSession } from '../src/game/session';
 
 const OPTIONS = { era: '1953', countryId: 'US', seed: 'native-profile-card-51-smoke', playerName: 'Owner Player' };
+const CEO_OPTIONS = { ...OPTIONS, homeRegionId: 'DC', playerName: 'CEO Player' };
 const SAVED_AT = '2026-09-18T00:00:00.000Z';
 
 /**
@@ -75,6 +55,18 @@ function ownerFixtures(): { owner: string; reverted: string; ticker: string } {
 }
 
 const fixtures = ownerFixtures();
+
+/** New source-authored US corporation world for the integrated CEO flow. */
+function ceoWorldFixture(): { save: string; ticker: string } {
+  const session = new GameSession();
+  session.create(CEO_OPTIONS);
+  expect(session.profile().corporations).toEqual([]);
+  const listing = session.markets().listings.find((entry) => entry.id === 'US-media');
+  if (!listing) throw new Error('US-media listing missing from the markets projection');
+  return { save: session.serialize(SAVED_AT), ticker: listing.ticker };
+}
+
+const ceo = ceoWorldFixture();
 
 function card(page: Page) {
   return page.locator('section[aria-label="Corporation"]');
@@ -124,9 +116,11 @@ for (const width of [320, 390]) {
         { label: 'Share price', lines: 1 },
       ]);
     }
-    // Salary and dividends stay honest gaps: notes, never fabricated values.
-    await expect(section).toContainText('Not recorded by the engine');
-    await expect(section).toContainText('no dividend system');
+    // This owner has no CEO salary or settled shareholder dividend.
+    for (const label of ['CEO salary', 'Dividends']) {
+      const row = section.locator('.ahd-profile-row').filter({ has: page.getByText(label, { exact: true }) });
+      await expect(row).toContainText('$0.00');
+    }
     await expectNoHorizontalOverflow(page);
     await section.scrollIntoViewIfNeeded();
     await page.screenshot({ path: `artifacts/smoke/profile-corporation-card-${width}.png` });
@@ -176,3 +170,81 @@ test('a fresh game with no recorded ownership renders no corporation card', asyn
   await expect(page.getByRole('heading', { name: 'Career history' })).toBeVisible();
   await expect(card(page)).toHaveCount(0);
 });
+
+for (const width of [320, 390]) {
+  test(`${width}px: public CEO lifecycle shows settled income, links detail and survives reload`, async ({ page }, testInfo) => {
+    // This public flow spans worker startup, a simulated turn, and two native
+    // save resumes; its measured end-to-end path needs a larger budget than a
+    // single navigation while each reload retains its own bounded wait.
+    testInfo.setTimeout(300_000);
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/');
+    await loadFixture(page, Buffer.from(ceo.save));
+    await gameReady(page);
+    await navigateGame(page, 'Profile');
+    await expect(card(page)).toHaveCount(0);
+
+    // Seat the player through the rendered Markets controls. This executes
+    // public share purchase, weighted ballot, appointment, compensation, and
+    // end-turn settlement commands against the integrated saved world.
+    await navigateGame(page, 'Stock market');
+    await page.getByRole('button', { name: /Daily Media/ }).click();
+    await page.getByRole('textbox', { name: 'Shares' }).fill('1');
+    await page.getByRole('button', { name: /Buy shares:/ }).click();
+    await page.getByRole('button', { name: 'Vote yourself as CEO' }).click();
+    await page.getByRole('button', { name: 'Accept CEO appointment' }).click();
+    await page.getByLabel('CEO salary per turn').fill('1000');
+    await page.getByLabel('Dividend rate').fill('25');
+    await page.getByRole('button', { name: 'Save compensation' }).click();
+    await advanceGame(page);
+    await openProfile(page);
+
+    const section = card(page);
+    await expect(section).toBeVisible();
+    await expect(section).toContainText(ceo.ticker);
+    await expect(section).toContainText('CEO');
+    await expect(section).toContainText('CEO salary');
+    await expect(section).toContainText('Dividends');
+    await expect(section).toContainText('Paid last turn');
+    await expect(section).toContainText('Received last turn');
+    await expect(section.locator('[data-corporation-brand]')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await section.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `artifacts/smoke/profile-ceo-card-${width}.png` });
+
+    await section.getByRole('button', { name: 'View company: Daily Media' }).click();
+    await expect(page.getByRole('button', { name: 'Back to market list' })).toBeVisible();
+    await expect(page.getByText(ceo.ticker).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Back to profile' }).click();
+    await expect(card(page)).toBeVisible();
+
+    await page.reload({ timeout: 120_000 });
+    await page.getByRole('button', { name: 'Continue CEO Player', exact: true }).click();
+    await gameReady(page);
+    await openProfile(page);
+    await expect(card(page)).toBeVisible();
+    await expect(card(page)).toContainText('CEO');
+
+    // Resignation is also a public company-detail action. Its persisted role
+    // change removes the conditional card after the normal reload path.
+    await navigateGame(page, 'Stock market');
+    await page.getByRole('button', { name: /Daily Media/ }).click();
+    await page.getByRole('button', { name: 'Resign as CEO' }).click();
+    await navigateGame(page, 'Profile');
+    await expect(card(page)).toHaveCount(0);
+
+    // Keep the second reload in the end-to-end regression: resignation must
+    // remain absent after a fresh public resume, not only in the live session.
+    await page.reload({ timeout: 120_000 });
+    const continueButton = page.getByRole('button', { name: 'Continue CEO Player', exact: true });
+    await expect(continueButton).toBeVisible({ timeout: 120_000 });
+    await continueButton.click();
+    await gameReady(page);
+    await openProfile(page);
+    await expect(card(page)).toHaveCount(0);
+    expect(errors).toEqual([]);
+    await expectNoHorizontalOverflow(page);
+  });
+}

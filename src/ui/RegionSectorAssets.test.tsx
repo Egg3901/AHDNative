@@ -59,7 +59,7 @@ function makeListing(overrides: Partial<MarketListing> = {}): MarketListing {
     effectiveProfitMargin: 8,
     insolvent: false,
     foundedAtTurn: 0,
-    isBank: false,
+    isBank: false, isStateOwned: false,
     playerShares: 0,
     playerAvgCostPerShare: null,
     npcShares: 5_100_000,
@@ -513,7 +513,7 @@ describe("RegionSectorAssetsCard on the recorded regional split", () => {
 
     session.load(session.serialize("2026-09-15T00:00:00.000Z"));
     rendered.rerender(card());
-    const mediaRow = screen.getAllByRole("listitem").find((row) => row.textContent?.includes("US-media"))!;
+    const mediaRow = screen.getByRole("button", { name: "Update media sector price" }).closest("li")!;
     const price = within(mediaRow).getByRole("textbox", { name: "Asking price" });
     await user.type(price, "100");
     await user.click(screen.getByRole("button", { name: "Update media sector price" }));

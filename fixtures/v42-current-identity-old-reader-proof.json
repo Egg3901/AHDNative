@@ -1,0 +1,38 @@
+{
+  "sourceCommit": "abb33daeb45bfe26241f047804ccac8c25781781",
+  "readerCommit": "c5017542c860f5f94b7d4b4d5cfea2939b28995d",
+  "readerSchema": 42,
+  "creation": {
+    "seed": "v42-interchange-v1",
+    "playerName": "Validator",
+    "countryId": "US",
+    "era": "1953",
+    "savedAt": "2026-09-10T00:00:00.000Z"
+  },
+  "before": {
+    "region": {
+      "id": "DC",
+      "countryId": "US",
+      "name": "District of Columbia",
+      "corporationHeadquartersOnly": true
+    },
+    "corporation": {
+      "name": "Daily Media",
+      "brandColor": "#06b6d4",
+      "headquartersRegionId": "DC"
+    }
+  },
+  "after": {
+    "region": {
+      "id": "DC",
+      "countryId": "US",
+      "name": "District of Columbia",
+      "corporationHeadquartersOnly": true
+    },
+    "corporation": {
+      "name": "Daily Media",
+      "brandColor": "#06b6d4",
+      "headquartersRegionId": "DC"
+    }
+  }
+}

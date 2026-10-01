@@ -1,5 +1,25 @@
 # AHDNative roadmap
 
+## Verified CEO card closure, 2026-10-01 (#51)
+
+PR706 full hosted verification passed at exact `9276713` and merged as
+`e6731b3`. All four original Profile card criteria are checked and GitHub
+closure is confirmed; the partial label is removed. Actual 320px/390px
+public appointment, compensation, turn, two normal reloads and resignation
+verify shared company values, detail navigation and persisted role changes.
+#107 retains plants, R&D, full NPP strategy and plan-gravity scope. Physical
+device and full MP acceptance remain their separate issues.
+
+## CEO Profile card checkpoint, 2026-10-01 (#51)
+
+Recorded CEO/vacancy and public shareholder vote, acceptance, compensation and
+resignation now drive the shared Profile/company projection. Source issuer
+identity, factory/brand treatment and state-enterprise note are preserved.
+Both 320px/390px real-player journeys complete two normal save/reloads, including
+card absence after resignation. [Behavior and acceptance evidence](BEHAVIORAL-PARITY.md)
+record the bounded completion; whole corporate mechanics #107, current SP
+interchange and physical-device gates remain open. Full hosted review is pending
+before issue closure.
 ## Corporate-sector union player checkpoint, 2026-10-01 (#297)
 
 Public organization, weighted leadership/acceptance, wage-based dues, sector

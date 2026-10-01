@@ -1016,16 +1016,29 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
           {(profile.corporations ?? []).map((entry) => (
             <article key={entry.id} aria-label={entry.name} style={{ marginTop: "0.55rem" }}>
               <p style={{ fontWeight: 750, fontSize: "0.92rem", margin: 0, overflowWrap: "anywhere" }}>
-                {entry.ticker} <span className="ahd-muted">({entry.name})</span>
-              </p>
-              <p className="ahd-muted" style={{ fontSize: "0.78rem", margin: "0.25rem 0 0" }}>
-                {entry.countryName} · {entry.sectorLabel}
+                <span style={{ display: "flex", gap: "0.7rem", alignItems: "center", minWidth: 0 }}>
+                  <span aria-hidden="true" data-corporation-brand style={{
+                    width: 56, height: 56, flex: "0 0 56px", display: "grid", placeItems: "center",
+                    border: `1px solid ${entry.brandColor ? `${entry.brandColor}55` : "var(--ahd-border, #52606d)"}`,
+                    borderRadius: 10, color: entry.brandColor ?? "var(--ahd-muted, #8b98a5)",
+                  }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M2 20V8l6 4V8l6 4V4h4v8l4-2v10H2Z" />
+                      <path d="M6 16h.01M10 16h.01M14 16h.01M18 16h.01" />
+                    </svg>
+                  </span>
+                  <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+                    {entry.name} <span className="ahd-muted">({entry.ticker})</span>
+                    {entry.isStateOwned && <span className="ahd-profile-sub">National enterprise</span>}
+                    <span className="ahd-profile-sub">{entry.countryName} · {entry.sectorLabel}</span>
+                  </span>
+                </span>
               </p>
               <dl className="ahd-profile-rows">
                 <div className="ahd-profile-row">
                   <dt>Role</dt>
                   <dd className="ahd-mono">
-                    Sector owner
+                    {entry.role === "ceo" ? "CEO" : entry.role === "ceo and sector owner" ? "CEO and sector owner" : "Sector owner"}
                     <span className="ahd-profile-sub">
                       {entry.scope === "national" ? "National asset" : (entry.regionName ?? "Region not recorded")}
                     </span>
@@ -1067,11 +1080,11 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
                 </div>
                 <div className="ahd-profile-row">
                   <dt>CEO salary</dt>
-                  <dd className="ahd-mono ahd-profile-unavailable-note">Not recorded by the engine</dd>
+                  <dd className="ahd-mono">{money(entry.ceoSalaryPerTurn, entry.currency)}<span className="ahd-profile-sub">Paid last turn</span></dd>
                 </div>
                 <div className="ahd-profile-row">
                   <dt>Dividends</dt>
-                  <dd className="ahd-mono ahd-profile-unavailable-note">The engine has no dividend system</dd>
+                  <dd className="ahd-mono">{money(entry.dividendIncomePerTurn, entry.currency)}<span className="ahd-profile-sub">Received last turn</span></dd>
                 </div>
               </dl>
               <div className="ahd-profile-actions">
@@ -1086,10 +1099,7 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
                   View company
                 </button>
               </div>
-              <p className="ahd-help">
-                Quote {entry.currency}. Values match the company detail exactly; salary and
-                dividends are unavailable because the local engine records neither.
-              </p>
+              <p className="ahd-help">Quote {entry.currency}. Salary and dividends show the actual amounts settled in the latest turn.</p>
             </article>
           ))}
         </section>
