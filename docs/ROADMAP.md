@@ -1,5 +1,15 @@
 # AHDNative roadmap
 
+## Corporate-sector union player checkpoint, 2026-10-01 (#297)
+
+Public organization, weighted leadership/acceptance, wage-based dues, sector
+organization and employer bargaining now use represented corporate-sector
+workers and locals. Source escalation/withdrawal and weighted ratification
+produce saved strikes or agreements. The actual 390px browser journey passes
+through normal save/reload. [Acceptance evidence](UNION-LEADERSHIP-PARITY.md)
+records the original criteria; final hosted review is pending before closure.
+Worker political feedback and wider union mechanics remain #322/#114.
+
 ## Regional sector trading checkpoint, 2026-10-01 (#299)
 
 Regional details share the corporation sale controls for list, reprice, unlist and
@@ -54,7 +64,10 @@ Documentation tasks #33/#35 have a complete source audit and corrected current
 rows/comments. Their checklists and prior closure labels are reconciled with
 merged verification, without claiming the linked mechanics are complete.
 
-#40 remains partial for real default-world TFP inputs/progression, #41 for
+#40 remains partial for complete regional TFP evolution. Fresh source-backed
+leaves and cabinet progression are implemented in the current input slice;
+state/federal spending, sector-revenue and registry dependencies remain open.
+#41 remains partial for
 unit combat and player war/peace/intelligence/naval-air flows, and #94 for the
 rendered subsidy flow and command-economy plan/credit controls. Their earlier
 bounded documentation/subsidy closures do not satisfy those full completion
@@ -173,7 +186,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | M04 | Mechanics | In progress | M01 | Close phase order and TFP differences | Reference-driven tests; impacts traced |
 | M05 | Mechanics | In progress | M01 | Close electoral and content omissions | National/subnational lifecycle and all supported content |
 | M06 | Mechanics | Queued | M02,M03,M04,M05,M07,M08 | Sign off reference mechanics coverage | No unacknowledged mechanics gaps in 1.0 candidate |
-| M07 | Mechanics | In progress | M01 | Consume authoritative Game-owned rules one action/system at a time | Fundraise shared cost/yield/eligibility first; [per-action character audit](CHARACTER-ACTION-PARITY.md) covers the 11 ActionsHub entries at `cd99794` (#91, partial, no runtime claim); gdpScalar still 1.0 and campaign/advertise/fundraise-yield conversion still unwired (buildDonorBase frozen conversion wired 2026-09-18 with quote/charge/save tests); preserve complete stat/currency context before parity signoff; [Game #1724](https://github.com/Egg3901/AHDGame/issues/1724) |
+| M07 | Mechanics | In progress | M01 | Consume authoritative Game-owned rules one action/system at a time | Fundraise shared cost/yield/eligibility first; [per-action character audit](CHARACTER-ACTION-PARITY.md) records source GDP scaling, allocated stats, currency charges and gains, structured changes and action XP delivered by PR701 (#91, partial). Party/caucus source costs and the remaining audience, travel and campaign selectors still need complete player-flow parity; [Game #1724](https://github.com/Egg3901/AHDGame/issues/1724) |
 | M08 | Mechanics | In progress | M01,M07 | Detect upstream drift and gate consumer updates | Immutable source checks first; complete source coverage, update PRs and ruleset/save policy in [#120](https://github.com/Egg3901/AHDNative/issues/120) |
 | Q01 | Validation | Done | E03,S02,U07 | Integrated gameplay smoke through actual UI | Create,country,action,turn,save,close,reload,continue |
 | Q02 | Validation | Done | Q01 | Exercise error and concurrency smoke | Corrupt-save recovery,double-click turn,save failure/recovery and worker startup failure pass integrated smoke at fc87a991 |

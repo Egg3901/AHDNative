@@ -417,7 +417,7 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     description: "Chair-only free recruitment of a same-party, same-country NPP with relationship at least 60. Source POST members/route.ts memberType=npp charges no AP or funds. 12-turn caucus-global cooldown.",
     baseCost: 0,
     cooldown: 0,
-    fundCost: 0,
+    fundCost: CAUCUS_DISBAND_FUND_COST,
     systems: ["caucus"],
     status: "available",
   },

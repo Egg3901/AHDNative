@@ -47,7 +47,7 @@ source-backed batch quotes, chosen audience and saved electoral effects. Remaini
 and other targeted action selectors. Native party join/leave and caucus
 create/join/leave/tax/disband now quote and charge zero AP and funds, matching
 the source routes. Recruitment and source charter draft/ratification remain
-under #61/#95; Native foundParty remains the immediate8 AP/100k NPP proxy.
+under #61/#95; Native foundParty remains the immediate 8 AP/100k NPP proxy.
 The original eleven-entry audit retains those unresolved differences, so #91
 stays open. Historical tables below retain their audit-baseline prices.
 
