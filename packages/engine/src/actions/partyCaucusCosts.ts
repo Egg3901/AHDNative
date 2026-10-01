@@ -24,9 +24,10 @@ export const PARTY_JOIN_ACTION_COST = 0;
 export const PARTY_LEAVE_ACTION_COST = 1;
 
 /** Create Caucus action-point price. */
-export const CAUCUS_CREATE_ACTION_COST = 4;
+export const CAUCUS_CREATE_ACTION_COST = 0;
 /** Create Caucus single campaign-funds charge. */
-export const CAUCUS_CREATE_FUND_COST = 25_000;
+// Game caucuses/route.ts only writes the caucus, membership and faction pointer.
+export const CAUCUS_CREATE_FUND_COST = 0;
 /** Join Caucus action-point price. */
 export const CAUCUS_JOIN_ACTION_COST = 2;
 /** Leave Caucus action-point price. */

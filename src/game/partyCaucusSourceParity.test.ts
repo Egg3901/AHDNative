@@ -18,4 +18,23 @@ describe("source party and caucus charges through the player session", () => {
     expect(resumed.view().player.actions).toBe(created.player.actions);
     expect(resumed.view().player.funds).toBe(created.player.funds);
   });
+
+  it("creates a caucus for free and persists its chair and levy without a second charge", () => {
+    // Game 954f1c2 caucuses/route.ts creates treasury=0 and chair membership;
+    // the only character write is factionId, with no AP or fund increment.
+    const session = new GameSession();
+    session.create({ era: "1953", countryId: "US", seed: "caucus-source-costs", playerName: "Morgan" });
+    expect(session.act("joinParty", { partyId: "US_DEM" }).ok).toBe(true);
+    const before = session.view().player;
+    expect(session.act("createCaucus", { caucusName: "Civic Forum", caucusTaxRate: 2.5 }).ok).toBe(true);
+    expect(session.view().player.actions).toBe(before.actions);
+    expect(session.view().player.funds).toBe(before.funds);
+    const resumed = new GameSession();
+    resumed.load(session.serialize(SAVED_AT));
+    expect(resumed.caucusManagement().caucuses[0]).toMatchObject({
+      name: "Civic Forum", treasury: 0, taxRate: 2.5, isPlayerChair: true, isPlayerCaucus: true,
+    });
+    expect(resumed.view().player.actions).toBe(before.actions);
+    expect(resumed.view().player.funds).toBe(before.funds);
+  });
 });
