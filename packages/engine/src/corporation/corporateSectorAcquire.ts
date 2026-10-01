@@ -2,6 +2,7 @@ import type { WorldState } from "../types.js";
 import { anchorToLocal, getRateForCountry } from "../forex/conversion.js";
 import { isPlannedEconomy } from "../commandEconomy/constants.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
+import { mergeCorporateSectorPhysicalLedger } from "./physicalAssetMerge.js";
 
 /**
  * Corporate-sector acquisition (#295), sourced from AHDGame's
@@ -74,6 +75,7 @@ export function buyCorporateSectorForSale(
   if (existingBuyerAsset) {
     existingBuyerAsset.workers = mergedWorkers!;
     existingBuyerAsset.unionization = mergedUnionization!;
+    mergeCorporateSectorPhysicalLedger(existingBuyerAsset, asset);
     existingBuyerAsset.representingUnionId ??= asset.representingUnionId;
     existingBuyerAsset.strikeStartedAtTurn ??= asset.strikeStartedAtTurn;
     existingBuyerAsset.strikeCooldownUntilTurn = Math.max(existingBuyerAsset.strikeCooldownUntilTurn ?? 0, asset.strikeCooldownUntilTurn ?? 0) || null;
