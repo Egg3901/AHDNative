@@ -54,6 +54,8 @@ import { isOrderFlowPriceEligible } from "../market/orderFlow.js";
 import { isPlannedEconomy } from "../commandEconomy/constants.js";
 import { canPlayerOperateGosbank } from "../commandEconomy/authority.js";
 import { reconcileCeoAppointment } from "../corporation/ceoGovernance.js";
+import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
+import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecruit.js";
 import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
 
 export type ExecuteActionParams = {
@@ -157,6 +159,12 @@ export type ExecuteActionParams = {
   presetId?: string;
   /** Ground-game target cohort groupId; empty/absent = whole electorate. */
   cohortGroupId?: string;
+  /** Personal NPP influence target (influenceNpp / recruitCaucusNpp). */
+  targetId?: string;
+  /** Relationship-only influence type (boost_loyalty, boost_favorability, boost_influence, reduce_stubbornness). */
+  influenceType?: string;
+  /** Extra campaign-anchor funds on top of the type's baseFundCost. */
+  influenceFundAmount?: number;
 };
 
 export type ExecuteActionResult =
@@ -376,8 +384,12 @@ function executeActionInner(
   const canvass = actionId === "canvass" && found.kind === "player" ? quoteCanvass(world, params) : null;
   if (canvass && !canvass.ok) return canvass;
   if (canvass?.ok && canvass.error) return { ok: false, error: canvass.error };
+  const nppInfluence = actionId === "influenceNpp" ? quoteNppInfluence(world, params, actorId) : null;
+  if (nppInfluence && !nppInfluence.ok) return nppInfluence;
+  const nppRecruit = actionId === "recruitCaucusNpp" ? quoteRecruitCaucusNpp(world, params, actorId) : null;
+  if (nppRecruit && !nppRecruit.ok) return nppRecruit;
   const partyCaucus = isPartyCaucusActionId(actionId) ? partyCaucusCharge(actor, actionId) : null;
-  const cost = canvass?.ok ? canvass.actions : partyCaucus
+  const cost = canvass?.ok ? canvass.actions : nppInfluence?.ok ? nppInfluence.actionCost : nppRecruit?.ok ? nppRecruit.actionCost : partyCaucus
     ? partyCaucus.actionCost
     : actionId === "sponsorBill"
       ? BILL_PROPOSE_ACTION_COST
@@ -391,7 +403,7 @@ function executeActionInner(
   // Game character quotes price the actor's home state, not a UI target.
   const actionRegion = world.regions[actor.homeRegionId ?? ""];
   const playerStats = found.kind === "player" ? effectivePlayerStats(world) : undefined;
-  const fundCost = canvass?.ok ? canvass.funds : partyCaucus ? partyCaucus.fundCost : actionFundCost({
+  const fundCost = canvass?.ok ? canvass.funds : nppInfluence?.ok ? nppInfluence.fundCost : nppRecruit?.ok ? nppRecruit.fundCost : partyCaucus ? partyCaucus.fundCost : actionFundCost({
     actionId,
     actionCost: cost,
     donorBaseLevel: actor.donorBaseLevel ?? 0,
@@ -671,6 +683,19 @@ function executeActionInner(
       return { ok: false, error: res.error };
     }
     return { ok: true, message: `Joined caucus ${params.caucusId}` };
+  }
+  if (actionId === "influenceNpp") {
+    // Quote already enforced eligibility (no charge on refusal). Shared
+    // accounting deducted AP + local funds. Stochastic failure/backfire must
+    // return ok:true so the outer snapshot does not refund. Do not re-quote:
+    // the actor no longer has the AP the quote would demand.
+    if (!nppInfluence?.ok) return { ok: false, error: "influenceNpp quote missing" };
+    return resolveNppInfluence(world, nppInfluence);
+  }
+  if (actionId === "recruitCaucusNpp") {
+    const res = applyRecruitCaucusNpp(world, params);
+    if (!res.ok) return res;
+    return { ok: true, message: res.message };
   }
   if (actionId === "leaveCaucus") {
     if (found.kind !== "player") return { ok: false, error: "Only player can leave caucuses" };
@@ -2162,6 +2187,14 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.caucusId && params.caucusTaxRate !== undefined
         ? null
         : "setCaucusTaxRate requires caucusId and caucusTaxRate";
+    case "influenceNpp":
+      return params.targetId && params.influenceType
+        ? null
+        : "influenceNpp requires targetId and influenceType";
+    case "recruitCaucusNpp":
+      return params.caucusId && params.targetId
+        ? null
+        : "recruitCaucusNpp requires caucusId and targetId";
     case "endorse":
       return params.endorsedId ? null : "endorse requires endorsedId";
     case "declareCandidacy":

@@ -169,7 +169,7 @@ function makePolitics(): PoliticsView {
     }],
     referendums: [],
     referendumRequest: { applicable: false, note: "Referendums are only available in the UK in this local slice.", regions: [], action: action("requestReferendum", false, 0, "Referendums are UK-only.") },
-    politicians: [{ id: "pol1", name: "Polly", partyId: "p1", partyName: "Labor", office: null, age: 40, economic: 0, social: 0, influence: 10, favorability: 50, infamy: 0, activeRaceIds: ["house:US:AL:c2"] }],
+    politicians: [{ id: "pol1", name: "Polly", partyId: "p1", partyName: "Labor", office: null, age: 40, economic: 0, social: 0, influence: 10, favorability: 50, infamy: 0, relationshipScore: 0, influenceOptions: [], lastInfluence: null, activeRaceIds: ["house:US:AL:c2"] }],
   };
 }
 

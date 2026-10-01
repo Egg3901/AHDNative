@@ -384,7 +384,7 @@ function makePolitics(): PoliticsView {
         influence: 10,
         favorability: 50,
         infamy: 0,
-        activeRaceIds: ["e1"],
+        relationshipScore: 0, influenceOptions: [], lastInfluence: null, activeRaceIds: ["e1"],
       },
     ],
   };

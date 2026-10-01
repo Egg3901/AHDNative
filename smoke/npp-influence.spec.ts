@@ -1,0 +1,54 @@
+import { test, expect } from '@playwright/test';
+import { GameSession } from '../src/game/session';
+import { formatFinanceMoney } from '../src/ui/FinancePanel';
+import { gameReady, loadFixture, navigateGame } from './game-navigation';
+
+for (const width of [320, 390]) {
+  test(`${width}px: influence review cancellation, resolved costs and relationship survive normal resume`, async ({ page }) => {
+    test.setTimeout(300_000);
+    const session = new GameSession();
+    session.create({ era: '1953', countryId: 'US', seed: 'native-npp-browser-source', playerName: 'Ops Player' });
+    const before = session.view().player;
+    const target = session.politics().politicians.find(row => row.influenceOptions.some(option => option.type === 'boost_loyalty' && option.available));
+    if (!target) throw new Error('No source-eligible politician for the fresh player');
+    const quote = target.influenceOptions.find(option => option.type === 'boost_loyalty')!;
+    expect(quote).toMatchObject({ actionCost: 3, fundCost: 10_000 });
+    const initial = session.serialize('2026-10-01T00:00:00.000Z');
+    const outcome = session.act('influenceNpp', { targetId: target.id, influenceType: 'boost_loyalty' });
+    expect(outcome.ok).toBe(true);
+    const after = session.politics().politicians.find(row => row.id === target.id)!;
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/');
+    await loadFixture(page, Buffer.from(initial));
+    await gameReady(page);
+    await navigateGame(page, 'Politicians');
+    await page.getByLabel('Politician', { exact: true }).selectOption(target.id);
+    await page.getByLabel('Influence approach', { exact: true }).selectOption('boost_loyalty');
+    await expect(page.getByRole('button', { name: 'Confirm Strengthen Party Loyalty' })).toBeEnabled();
+    await page.getByRole('button', { name: 'Cancel influence' }).click();
+    await expect(page.getByRole('button', { name: `Campaign funds: ${formatFinanceMoney(before.funds, 'USD')}`, exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: `Action points: ${before.actions}`, exact: true })).toBeVisible();
+    await expect(page.getByRole('status', { name: 'Influence result' })).toHaveCount(0);
+    await page.getByLabel('Influence approach', { exact: true }).selectOption('boost_loyalty');
+    await page.getByRole('button', { name: 'Confirm Strengthen Party Loyalty' }).click();
+    await expect(page.getByRole('status', { name: 'Influence result' })).toContainText(after.lastInfluence!.message);
+    await gameReady(page);
+    await expect(page.getByRole('button', { name: `Campaign funds: ${formatFinanceMoney(before.funds - 10_000, 'USD')}`, exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: `Action points: ${before.actions - 3}`, exact: true })).toBeVisible();
+    const article = page.getByRole('article', { name: target.name, exact: true });
+    await expect(article.getByText('Relationship', { exact: true }).locator('..').locator('dd')).toHaveText(String(after.relationshipScore));
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `artifacts/smoke/npp-influence-${width}.png`, fullPage: true });
+    await page.reload({ timeout: 120_000 });
+    await page.getByRole('button', { name: 'Continue Ops Player', exact: true }).click();
+    await gameReady(page);
+    await navigateGame(page, 'Politicians');
+    await page.getByLabel('Politician', { exact: true }).selectOption(target.id);
+    await expect(page.getByRole('article', { name: target.name, exact: true }).getByText('Relationship', { exact: true }).locator('..').locator('dd')).toHaveText(String(after.relationshipScore));
+    await expect(page.getByRole('button', { name: `Campaign funds: ${formatFinanceMoney(before.funds - 10_000, 'USD')}`, exact: true })).toBeVisible();
+    expect(errors).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
