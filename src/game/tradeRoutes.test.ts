@@ -98,6 +98,26 @@ describe("projectTradeRoutes trade-only countries", () => {
     const routes = projectTradeRoutes(world);
     expect(routes.map(route => [route.countryId, route.listingCount, route.corporateTrade?.imports])).toContainEqual(["UK", 0, 12]);
   });
+
+  it("projects an enacted importer customs tariff alongside the saved trade receipt", () => {
+    const world = createWorld(US);
+    world.tradeTariffs = [{
+      id: "tariff-CN-economy_wide", countryId: "CN", scopeType: "economy_wide", rate: 10,
+      sourceBillId: "bill-customs", createdTurn: 4, updatedTurn: 4,
+    }];
+    world.corporateTradeSnapshot = {
+      turn: 4,
+      byCountry: { CN: { exports: 0, imports: 20, net: -20, topPartner: "US" } },
+      flow: { CN: {}, US: { CN: 20 } },
+      byCommodity: { electronics: { CN: {}, US: { CN: { units: 2, value: 20 } } } },
+      valuationPriceByCommodity: { electronics: 10 },
+    };
+
+    expect(projectTradeRoutes(world).find((route) => route.countryId === "CN")).toMatchObject({
+      customsTariff: { ratePercent: 10, sourceBillId: "bill-customs" },
+      corporateTrade: { turn: 4, imports: 20 },
+    });
+  });
 });
 
 describe("orderFlow projection", () => {

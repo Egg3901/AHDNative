@@ -44,6 +44,8 @@ export interface TradeRouteSummary {
   /** Recorded annual trade-growth percent; null when no budget/factor is recorded. */
   tradeGrowth: number | null;
   fx: TradeFxState;
+  /** Current source economy-wide importer tariff, when a tariff row exists. */
+  customsTariff?: { ratePercent: number; sourceBillId: string };
   /** Saved corporate-only clearing, valued at Native's global commodity price when recorded. */
   corporateTrade?: {
     turn: number;
@@ -84,6 +86,27 @@ function routeTradeGrowth(world: WorldState, countryId: string): number | null {
   return typeof growth === "number" && Number.isFinite(growth) ? growth : null;
 }
 
+type CorporateCommodityFlow = NonNullable<TradeRouteSummary["corporateTrade"]>["commodityFlows"][number];
+
+function routeCommodityFlows(world: WorldState, countryId: string): CorporateCommodityFlow[] {
+  const flows: CorporateCommodityFlow[] = [];
+  const snapshot = world.corporateTradeSnapshot;
+  if (!snapshot) return flows;
+  for (const [commodity, byExporter] of Object.entries(snapshot.byCommodity)) {
+    const pricePerUnit = snapshot.valuationPriceByCommodity?.[commodity] ?? null;
+    for (const [exporter, destinations] of Object.entries(byExporter)) {
+      for (const [importer, row] of Object.entries(destinations)) {
+        if (exporter === countryId) {
+          flows.push({ commodity, partner: importer, direction: "exports", ...row, pricePerUnit });
+        } else if (importer === countryId) {
+          flows.push({ commodity, partner: exporter, direction: "imports", ...row, pricePerUnit });
+        }
+      }
+    }
+  }
+  return flows.sort((a, b) => b.value - a.value || a.commodity.localeCompare(b.commodity) || a.partner.localeCompare(b.partner));
+}
+
 /**
  * One summary row per listed-corporation country or country with a recorded
  * corporate trade receipt. Imports remain visible even where no issuer is listed.
@@ -98,32 +121,27 @@ export function projectTradeRoutes(world: WorldState): TradeRouteSummary[] {
   for (const [countryId, trade] of Object.entries(world.corporateTradeSnapshot?.byCountry ?? {})) {
     if (trade.exports > 0 || trade.imports > 0) counts.set(countryId, counts.get(countryId) ?? 0);
   }
-  const routes: TradeRouteSummary[] = [...counts.entries()].map(([countryId, listingCount]) => ({
-    countryId,
-    countryName: world.countries[countryId]?.name ?? countryId,
-    currency: routeCurrency(world, countryId),
-    listingCount,
-    tradeGrowth: routeTradeGrowth(world, countryId),
-    fx: routeFx(world, countryId),
-    ...(world.corporateTradeSnapshot?.byCountry[countryId]
-      ? {
-          corporateTrade: {
-            turn: world.corporateTradeSnapshot.turn,
-            ...world.corporateTradeSnapshot.byCountry[countryId]!,
-            commodityFlows: Object.entries(world.corporateTradeSnapshot.byCommodity).flatMap(([commodity, byExporter]) =>
-              Object.entries(byExporter).flatMap(([exporter, destinations]) =>
-                Object.entries(destinations).flatMap(([importer, row]) => {
-                  const pricePerUnit = world.corporateTradeSnapshot?.valuationPriceByCommodity?.[commodity] ?? null;
-                  if (exporter === countryId) return [{ commodity, partner: importer, direction: "exports" as const, ...row, pricePerUnit }];
-                  if (importer === countryId) return [{ commodity, partner: exporter, direction: "imports" as const, ...row, pricePerUnit }];
-                  return [];
-                }),
-              ),
-            ).sort((a, b) => b.value - a.value || a.commodity.localeCompare(b.commodity) || a.partner.localeCompare(b.partner)),
-          },
-        }
-      : {}),
-  }));
+  const routes: TradeRouteSummary[] = [...counts.entries()].map(([countryId, listingCount]) => {
+    const tariff = world.tradeTariffs?.find((row) => row.countryId === countryId && row.scopeType === "economy_wide");
+    return {
+      countryId,
+      countryName: world.countries[countryId]?.name ?? countryId,
+      currency: routeCurrency(world, countryId),
+      listingCount,
+      tradeGrowth: routeTradeGrowth(world, countryId),
+      fx: routeFx(world, countryId),
+      ...(tariff ? { customsTariff: { ratePercent: tariff.rate, sourceBillId: tariff.sourceBillId } } : {}),
+      ...(world.corporateTradeSnapshot?.byCountry[countryId]
+        ? {
+            corporateTrade: {
+              turn: world.corporateTradeSnapshot.turn,
+              ...world.corporateTradeSnapshot.byCountry[countryId]!,
+              commodityFlows: routeCommodityFlows(world, countryId),
+            },
+          }
+        : {}),
+    };
+  });
   const home = world.player.countryId;
   routes.sort((a, b) => Number(b.countryId === home) - Number(a.countryId === home) || a.countryId.localeCompare(b.countryId));
   return routes;
