@@ -1,6 +1,21 @@
 # TFP remainder audit
 
-Issue [#40](https://github.com/Egg3901/AHDNative/issues/40) remains open. This note separates the accepted subsidy work from the rejected TFP runtime proposal.
+Issue [#40](https://github.com/Egg3901/AHDNative/issues/40) remains open. This note separates the accepted subsidy work, the new source-seeded input slice, and the rejected earlier TFP runtime proposal.
+
+## Source-seeded input slice, 2026-10-01
+
+The current implementation seeds all 17 playable country/era combinations
+using immutable Game seed modules and committed source-executed vectors.
+It aggregates only the six named leaves and applies source cabinet contributions
+to existing regional records, preserving their progression through Native
+save/reload. US randomized leaves use a dedicated offline RNG stream with the
+source draw order, verified by executing Game with that stream. This replaces
+the default-world omission, without reviving `09e9332` or its invented spending
+stand-ins. See [current evidence and limits](GROWTH-PARITY.md).
+
+The full regional spending/revenue and registry chain below still needs ports.
+Historical v42 export stays fail-closed: an actual old-reader turn discards the
+new national leaves, even when its serializer preserves opaque regional data.
 
 ## Already integrated
 

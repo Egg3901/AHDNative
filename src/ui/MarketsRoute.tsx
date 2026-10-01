@@ -1,13 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { GameScreenProps } from '../game/types';
+import type { GameCommand } from '../game/protocol';
 import { DetailQuery } from './DetailQuery';
 import { MarketsPanel } from './MarketsPanel';
 import type { DrawerRouteId } from './MobileNavigation';
+import type { UnionManagementView } from '../game/unionManagement';
 
-export function MarketsRoute({ load, revision, busy, onAction, onSectorSale, initialId, onNavigate, onDrill }: {
+export function MarketsRoute({ load, loadUnions, revision, busy, onAction, onSectorSale, onUnionCommand, initialId, onNavigate, onDrill }: {
   initialId?: string;
   load: GameScreenProps['loadMarkets']; revision: object;
+  loadUnions?: GameScreenProps['loadUnionManagement'];
   busy: boolean; onAction: GameScreenProps['onAction']; onSectorSale?: GameScreenProps['onSectorSale'];
+  onUnionCommand?: (command: Extract<GameCommand, { type: "unionCommand" }>) => void;
   /** Opens a linked destination (region) from the company detail. */
   onNavigate?: (route: DrawerRouteId, id?: string) => void;
   /**
@@ -34,7 +38,14 @@ export function MarketsRoute({ load, revision, busy, onAction, onSectorSale, ini
     if (onDrill) onDrill({ route: "markets", detailId: companyId ?? undefined }, "regions", regionId);
     else onNavigate?.("regions", regionId);
   };
-  return <DetailQuery load={load} revision={revision} label="Stock market">
-    {markets => <MarketsPanel markets={markets} initialId={companyId} onSelect={setCompanyId} busy={busy} onAction={onAction} onSectorSale={onSectorSale} onOpenRegion={handleOpenRegion} />}
+  const loadPage = useCallback(async () => {
+    const [markets, unions] = await Promise.all([
+      load(),
+      loadUnions ? loadUnions() : Promise.resolve<UnionManagementView | undefined>(undefined),
+    ]);
+    return { markets, unions };
+  }, [load, loadUnions]);
+  return <DetailQuery load={loadPage} revision={revision} label="Stock market">
+    {({ markets, unions }) => <MarketsPanel markets={markets} unions={unions} initialId={companyId} onSelect={setCompanyId} busy={busy} onAction={onAction} onSectorSale={onSectorSale} onUnionCommand={onUnionCommand} onOpenRegion={handleOpenRegion} />}
   </DetailQuery>;
 }

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { GameSession } from './session';
 import { projectSaveToV42 } from './saveCompatibility';
+import { readFileSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 
 const options = { era: '1953', countryId: 'US', seed: 'inbox-durability', playerName: 'Reader' };
 const savedAt = '2026-09-10T00:00:00.000Z';
@@ -49,8 +51,13 @@ describe('notification save transaction', () => {
   });
 
   it('keeps app inbox metadata through the supported v42 projection', () => {
-    const session = new GameSession(); session.create(options);
+    // Fresh TFP worlds are deliberately outside historical v42 support.
+    // Use the authentic old save to isolate supported app metadata export.
+    const session = new GameSession();
+    session.load(gunzipSync(readFileSync(new URL('../../fixtures/v42-1953-US.save.json.gz', import.meta.url))).toString('utf8'));
+    session.recordSave();
     session.markAllNotificationsRead();
+    expect(session.view().notifications.items.length).toBeGreaterThan(0);
     const projected = projectSaveToV42(session.serialize(savedAt));
     expect(projected.ok).toBe(true);
     if (!projected.ok) throw new Error(projected.error);

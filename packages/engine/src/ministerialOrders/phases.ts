@@ -18,6 +18,10 @@ import type { WorldState } from "../types.js";
 import { clampCabinetModifier, modifierSpanScale } from "./constants.js";
 import { isMinisterialOrderActive, normalizeMinisterialOrderLifecycle } from "./lifecycle.js";
 import { unavailableDefenseOrderEffects } from "./catalog.js";
+import { TFP_METRIC_PATHS } from "../demographics/laborForce.js";
+import { computeNationalMetricsForCountry } from "../metrics/nationalMetrics.js";
+
+const tfpPaths = new Set(Object.values(TFP_METRIC_PATHS));
 
 export interface RejectedRegionalOrderEffect {
   orderId: string;
@@ -108,7 +112,22 @@ export function runMinisterialOrders(world: WorldState): MinisterialOrdersResult
   }
 
   let metricsUpdated = 0;
+  const changedTfpCountries = new Set<string>();
   for (const entry of combined.values()) {
+    // Game combines national and regional orders before applying one capped
+    // delta to each StateMetrics row. Persist these supported leaves rather
+    // than changing a national aggregate that the next turn discards.
+    if (tfpPaths.has(entry.metric)) {
+      for (const region of Object.values(world.regions)) {
+        if (region.countryId !== entry.countryId) continue;
+        if (!Number.isFinite(world.regionalMetrics[region.id]?.[entry.metric]?.value)) continue;
+        const key = `${region.id}:${entry.metric}`;
+        const target = regional.get(key) ?? { regionId: region.id, metric: entry.metric, total: 0 };
+        target.total += entry.total;
+        regional.set(key, target);
+      }
+      continue;
+    }
     const capped = clampCabinetModifier(entry.total);
     if (capped === 0) continue;
     const applied = capped * modifierSpanScale(entry.metric);
@@ -127,7 +146,17 @@ export function runMinisterialOrders(world: WorldState): MinisterialOrdersResult
     metric.value = Math.round((metric.value + applied) * 1000) / 1000;
     regionalMetricsUpdated++;
     metricsUpdated++;
+    if (tfpPaths.has(entry.metric)) {
+      changedTfpCountries.add(world.regions[entry.regionId]!.countryId);
+    }
     regionsUpdated.add(entry.regionId);
+  }
+  for (const countryId of changedTfpCountries) {
+    const aggregated = computeNationalMetricsForCountry(countryId, world);
+    const national = world.nationalMetrics[countryId] ??= {};
+    for (const path of tfpPaths) {
+      if (aggregated[path]) national[path] = aggregated[path];
+    }
   }
   return {
     metricsUpdated,

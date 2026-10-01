@@ -75,6 +75,10 @@ export interface Union {
   ownerType?: "npp" | "player" | null;
   /** NPP politician id, `player` for the local player, or null when vacant. */
   ownerId?: string | null;
+  /** Weighted organizer ballot by organizer character id; absent on pre-election saves. */
+  leadershipVotes?: Record<string, string>;
+  /** Source-style pending presidency offer. Acceptance changes ownership. */
+  pendingLeaderCharacterId?: string | null;
   /**
    * Uncapped organizing power, the sum of every organize drive run on this
    * union less 0.5%/turn decay (#320). Gates the leadership election and

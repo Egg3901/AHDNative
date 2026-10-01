@@ -41,6 +41,8 @@ import { MARKETIZATION_SCHEDULE, scheduledMarketizationLevel, NPP_DEFAULT_BUDGET
 import type { CommandEconomyState } from "./commandEconomy/types.js";
 import { seedCapitalStock } from "./economy/capitalStock.js";
 import type { UnownedSectorState } from "./economy/types.js";
+import { seedTfpLeaves } from "./metrics/tfpSeed.js";
+import { computeNationalMetrics } from "./metrics/nationalMetrics.js";
 
 // v29: W30 governors (governors/governorAddresses/governorOrders). This wave
 // was pre-allocated v29 back when main was v27; the W12 banking wave landed
@@ -1188,6 +1190,10 @@ export function createWorld(options: NewWorldOptions): WorldState {
     runFoundingSweep(world, rng);
     world.meta.rng = rng.state();
   }
+  // Issue #40/#106: Game seed writes regional TFP leaves before turn 1, so t0
+  // nationalMetrics (prev-turn to the first macro read) is the seed basket.
+  seedTfpLeaves(world);
+  computeNationalMetrics(world);
   return world;
 }
 

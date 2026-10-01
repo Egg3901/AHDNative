@@ -1,0 +1,10 @@
+{
+  "sourceRepository": "Egg3901/AHDNative",
+  "sourceCommit": "af2f59b718ccb26beafa41e0c44b9bdcc1b47e7e",
+  "verifiedEquivalentTreeCommit": "5e1c0ca0fd7fa53fc31221d7cad753405d4bc280",
+  "creation": { "era": "1953", "countryId": "US", "seed": "stance-cache-proof", "playerName": "Audit" },
+  "capture": "Run public processNppStanceDrift at turn6; set all parties economicPosition=2/socialPosition=-2; run again at turn12. Serialize full world excluding only the later rpgStats flag, exactly as the original golden test.",
+  "turn6Sha256": "b836320139e6af7f668d2ce81957e588bc489ce75483b1259201e28b00f2e632",
+  "turn12Sha256": "6a137dcba4868dc63b555fa243b88eb4df0b961faf59a89c05ac245e268029bd",
+  "purpose": "Preserve historical Native regression evidence, compare exact politician outcomes, and prove all other current state is unchanged. This is not an AHDGame parity oracle."
+}

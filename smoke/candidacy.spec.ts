@@ -44,6 +44,9 @@ async function raceArticle(page: Page, title: string): Promise<Locator> {
 }
 
 test('a real career files, reloads, and withdraws through Worker UI buttons', async ({ page }) => {
+  // This complete journey starts a world, advances it, and reloads the Worker.
+  // A recorded run took 138 seconds while every individual 20-second check passed.
+  test.setTimeout(180_000);
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
