@@ -725,7 +725,8 @@ function validateGovernmentDirectives(world: WorldState): void {
     const hasAgenda = Object.prototype.hasOwnProperty.call(raw, "governingAgenda");
     const hasStance = Object.prototype.hasOwnProperty.call(raw, "fiscalStance");
     const hasPm = Object.prototype.hasOwnProperty.call(raw, "directivesForPmId");
-    if (!hasAgenda && !hasStance && !hasPm) continue;
+    const hasGoals = Object.prototype.hasOwnProperty.call(raw, "governingGoals");
+    if (!hasAgenda && !hasStance && !hasPm && !hasGoals) continue;
     if (
       countryId !== "IE" || raw["countryId"] !== "IE" || raw["status"] !== "formed" ||
       raw["pmPoliticianId"] === "player" || typeof raw["pmPoliticianId"] !== "string" ||
@@ -761,6 +762,29 @@ function validateGovernmentDirectives(world: WorldState): void {
       (stance["stance"] === "austere" && stance["direction"] !== 1) ||
       (stance["stance"] === "neutral" && stance["direction"] !== 0)
     ) throw new Error("Not a valid save file: invalid fiscal stance");
+    if (hasGoals) {
+      const goalState = raw["governingGoals"];
+      if (
+        !isRecord(goalState) || !Array.isArray(goalState["goals"]) || goalState["goals"].length > 5 ||
+        !Number.isSafeInteger(goalState["updatedTurn"]) || (goalState["updatedTurn"] as number) < 0 ||
+        (goalState["updatedTurn"] as number) > world.meta.turn
+      ) throw new Error("Not a valid save file: invalid governing goals");
+      for (const goal of goalState["goals"]) {
+        if (
+          !isRecord(goal) || typeof goal["domain"] !== "string" || goal["domain"].length === 0 ||
+          !["raise", "lower"].includes(String(goal["direction"])) ||
+          !Number.isFinite(goal["target"]) || (goal["target"] as number) < 0 || (goal["target"] as number) > 100 ||
+          !Number.isFinite(goal["priority"]) || (goal["priority"] as number) < 0 || (goal["priority"] as number) > 1 ||
+          !["active", "achieved", "failed", "revised"].includes(String(goal["status"])) ||
+          !["openedTurn", "reviewedTurn", "strikes"].every((key) => Number.isSafeInteger(goal[key]) && (goal[key] as number) >= 0) ||
+          (goal["openedTurn"] as number) > (goalState["updatedTurn"] as number) ||
+          (goal["reviewedTurn"] as number) > (goalState["updatedTurn"] as number) ||
+          !Number.isFinite(goal["openingAttainment"]) || (goal["openingAttainment"] as number) < 0 || (goal["openingAttainment"] as number) > 1 ||
+          !Number.isFinite(goal["attainment"]) || (goal["attainment"] as number) < 0 || (goal["attainment"] as number) > 1 ||
+          (goal["crisis"] !== undefined && typeof goal["crisis"] !== "boolean")
+        ) throw new Error("Not a valid save file: invalid governing goal record");
+      }
+    }
   }
 }
 

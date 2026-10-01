@@ -106,6 +106,8 @@ export interface GovernmentState {
   governingAgenda?: import("./directives.js").PersistedGoverningAgenda;
   /** Source `GovernmentFormation.fiscalStance`; authored only for an eligible NPC head. */
   fiscalStance?: import("./directives.js").PersistedFiscalStance;
+  /** Source V5 bounded standing goals, present only when autonomy is v5. */
+  governingGoals?: import("./directives.js").PersistedGoverningGoals;
   /** Native identity corresponding to source `pmNppId`; prevents stale PM directives being reused. */
   directivesForPmId?: string;
 }

@@ -39,6 +39,24 @@ export interface PersistedFiscalStance {
   intensity: number;
   computedTurn: number;
 }
+export type GoverningGoalStatus = "active" | "achieved" | "failed" | "revised";
+export interface GoverningGoalRecord {
+  domain: string;
+  direction: Exclude<AgendaDirection, "hold">;
+  target: number;
+  priority: number;
+  status: GoverningGoalStatus;
+  openedTurn: number;
+  reviewedTurn: number;
+  openingAttainment: number;
+  attainment: number;
+  strikes: number;
+  crisis?: boolean;
+}
+export interface PersistedGoverningGoals {
+  goals: GoverningGoalRecord[];
+  updatedTurn: number;
+}
 interface ConditionsSignal {
   inflationRate?: number;
   weakDomains: Record<string, number>;
@@ -76,6 +94,23 @@ const METRIC_TO_DOMAIN: Record<string, Record<string, string>> = {
     trustInstitutions: "governance",
   },
   governance: { corruptionIndex: "governance", ruleOfLaw: "governance" },
+};
+const NATIVE_CRISIS_SOURCE_SIGNALS: Record<string, Record<string, number>> = {
+  // Exact source `crisisSignalsFromEffects` outputs for the matching authored
+  // Game templates. Native stores compact effect kinds without metric paths;
+  // the shared template kind safely identifies the source effect domains.
+  "crisis.bankingCrisis": { economic_growth: 1, employment: 1 },
+  "crisis.recession": { economic_growth: 1, employment: 1 },
+  "crisis.hurricane": { employment: 1 },
+  "crisis.earthquake": { employment: 1 },
+  "crisis.massProtests": { economic_growth: 1 },
+  "crisis.oilShock": { economic_growth: 1 },
+  "crisis.tradeWar": { economic_growth: 1 },
+  "crisis.pandemic": {
+    economic_growth: 1,
+    employment: 1,
+    income_inequality: 1,
+  },
 };
 
 const ARCHETYPE_MODIFIERS = {
@@ -129,7 +164,11 @@ function conditionsFor(world: WorldState, countryId: string): ConditionsSignal {
   const metrics = world.nationalMetrics[countryId] ?? {};
   const weakDomains: Record<string, number> = {};
   const strongDomains: Record<string, number> = {};
-  for (const [category, metricMap] of Object.entries(METRIC_TO_DOMAIN)) {
+  // Game's `loadConditionsSignal` uses only `macroMetrics.economic` for
+  // countries without a political-approval board. Ireland is not a board
+  // country in either source-supported era, so don't let Native's additional
+  // metric categories create agenda signals Game cannot observe.
+  for (const [category, metricMap] of Object.entries({ economic: METRIC_TO_DOMAIN.economic! })) {
     for (const [metricId, domain] of Object.entries(metricMap)) {
       const raw = metrics[`${category}.${metricId}`]?.value;
       if (typeof raw !== "number" || !Number.isFinite(raw)) continue;
@@ -152,6 +191,28 @@ function conditionsFor(world: WorldState, countryId: string): ConditionsSignal {
     weakDomains,
     strongDomains,
   };
+}
+
+export function crisisAgendaIntake(
+  crises: WorldState["crises"],
+  countryId: string,
+): { signals: Record<string, number>; latestStartTurn: number } {
+  const signals: Record<string, number> = {};
+  let latestStartTurn = 0;
+  for (const crisis of crises) {
+    if (
+      crisis.status !== "active" ||
+      (crisis.scope !== "global" && !crisis.countryIds.includes(countryId))
+    )
+      continue;
+    const sourceSignals = NATIVE_CRISIS_SOURCE_SIGNALS[crisis.kind];
+    if (!sourceSignals) continue;
+    for (const [domain, severity] of Object.entries(sourceSignals)) {
+      signals[domain] = Math.max(signals[domain] ?? 0, severity);
+    }
+    latestStartTurn = Math.max(latestStartTurn, crisis.startTurn);
+  }
+  return { signals, latestStartTurn };
 }
 
 interface Candidate {
@@ -392,6 +453,243 @@ export function computeFiscalStance(input: {
   };
 }
 
+function goalPolicy(difficulty: WorldState["difficulty"]): {
+  goalSlots: number;
+  goalHoldTurns: number;
+} {
+  switch (difficulty ?? "normal") {
+    case "easy":
+      return { goalSlots: 2, goalHoldTurns: 168 };
+    case "hard":
+      return { goalSlots: 5, goalHoldTurns: 504 };
+    default:
+      return { goalSlots: 3, goalHoldTurns: 336 };
+  }
+}
+
+function goalAttainment(
+  goal: Pick<GoverningGoalRecord, "direction" | "target">,
+  health: Record<string, number>,
+  domain: string,
+): number | null {
+  if (goal.target <= 0) return null;
+  const value = health[domain];
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  const raw =
+    goal.direction === "raise"
+      ? value / goal.target
+      : value > 0
+        ? goal.target / value
+        : 1;
+  return Math.max(0, Math.min(1, raw));
+}
+
+function goalFeedback(
+  goals: readonly GoverningGoalRecord[],
+): Record<string, number> {
+  const feedback: Record<string, number> = {};
+  for (const goal of goals) {
+    let weight: number;
+    switch (goal.status) {
+      case "achieved":
+        weight = 0.85;
+        break;
+      case "revised":
+        weight = 1.1;
+        break;
+      case "failed":
+        weight = Math.max(0.5, 1 - 0.2 * goal.strikes);
+        break;
+      default:
+        weight = 1.05;
+    }
+    const bounded = Math.max(0.5, Math.min(1.15, weight));
+    feedback[goal.domain] =
+      goal.domain in feedback
+        ? Math.min(feedback[goal.domain]!, bounded)
+        : bounded;
+  }
+  return feedback;
+}
+
+function reviewGoverningGoals(
+  goals: readonly GoverningGoalRecord[],
+  health: Record<string, number>,
+  policy: ReturnType<typeof goalPolicy>,
+  currentTurn: number,
+): { goals: GoverningGoalRecord[]; feedback: Record<string, number> } {
+  const reviewed = goals.map((goal): GoverningGoalRecord => {
+    if (goal.status !== "active") return goal;
+    const attainment = goalAttainment(goal, health, goal.domain);
+    if (attainment === null) return { ...goal, reviewedTurn: currentTurn };
+    if (attainment >= 1)
+      return {
+        ...goal,
+        status: "achieved",
+        attainment,
+        reviewedTurn: currentTurn,
+        strikes: 0,
+      };
+    if (currentTurn - goal.openedTurn < policy.goalHoldTurns)
+      return { ...goal, attainment, reviewedTurn: currentTurn };
+    if (attainment - goal.openingAttainment >= 0.05)
+      return {
+        ...goal,
+        status: "revised",
+        attainment,
+        reviewedTurn: currentTurn,
+      };
+    return {
+      ...goal,
+      status: "failed",
+      attainment,
+      reviewedTurn: currentTurn,
+      strikes: goal.strikes + 1,
+    };
+  });
+  return { goals: reviewed, feedback: goalFeedback(reviewed) };
+}
+
+function commitGoverningGoals(
+  reviewed: readonly GoverningGoalRecord[],
+  agenda: readonly GoverningAgendaItem[],
+  health: Record<string, number>,
+  policy: ReturnType<typeof goalPolicy>,
+  currentTurn: number,
+): { goals: GoverningGoalRecord[]; agenda: GoverningAgendaItem[] } {
+  const slotCount = Math.max(1, Math.min(5, policy.goalSlots));
+  const actionable = agenda.filter((item) => item.direction !== "hold");
+  const byDomain = new Map<string, GoverningAgendaItem>();
+  for (const item of actionable)
+    if (!byDomain.has(item.domain)) byDomain.set(item.domain, item);
+  const goals: GoverningGoalRecord[] = [];
+  const taken = new Set<string>();
+  const open = (
+    item: GoverningAgendaItem,
+    previous?: GoverningGoalRecord,
+  ): GoverningGoalRecord => {
+    const direction = item.direction === "hold" ? "raise" : item.direction;
+    const attainment =
+      goalAttainment({ direction, target: item.target }, health, item.domain) ??
+      0;
+    return {
+      domain: item.domain,
+      direction,
+      target: item.target,
+      priority: item.priority,
+      status: "active",
+      openedTurn: currentTurn,
+      reviewedTurn: currentTurn,
+      openingAttainment: attainment,
+      attainment,
+      strikes: previous?.strikes ?? 0,
+      ...(item.crisis ? { crisis: true } : {}),
+    };
+  };
+
+  for (const item of actionable) {
+    if (goals.length >= slotCount) break;
+    if (!item.crisis || taken.has(item.domain)) continue;
+    goals.push(
+      open(
+        item,
+        reviewed.find((goal) => goal.domain === item.domain),
+      ),
+    );
+    taken.add(item.domain);
+  }
+  for (const goal of reviewed) {
+    if (goals.length >= slotCount) break;
+    if (taken.has(goal.domain)) continue;
+    if (goal.status === "active") {
+      const fresh = byDomain.get(goal.domain);
+      goals.push(
+        fresh && fresh.direction === goal.direction
+          ? { ...goal, target: fresh.target, priority: fresh.priority }
+          : goal,
+      );
+      taken.add(goal.domain);
+    } else if (goal.status === "revised") {
+      const fresh = byDomain.get(goal.domain);
+      goals.push(
+        open(
+          fresh && fresh.direction === goal.direction
+            ? fresh
+            : {
+                domain: goal.domain,
+                direction: goal.direction,
+                target: goal.target,
+                priority: goal.priority,
+              },
+          goal,
+        ),
+      );
+      taken.add(goal.domain);
+    }
+  }
+  for (const item of actionable) {
+    if (goals.length >= slotCount) break;
+    if (taken.has(item.domain)) continue;
+    goals.push(
+      open(
+        item,
+        reviewed.find((goal) => goal.domain === item.domain),
+      ),
+    );
+    taken.add(item.domain);
+  }
+
+  const current = new Map<string, GoverningAgendaItem>();
+  for (const item of agenda)
+    if (!current.has(item.domain)) current.set(item.domain, item);
+  const committed: GoverningAgendaItem[] = [];
+  const seen = new Set<string>();
+  for (const goal of goals) {
+    committed.push(
+      current.get(goal.domain) ?? {
+        domain: goal.domain,
+        target: goal.target,
+        direction: goal.direction,
+        priority: goal.priority,
+        ...(goal.crisis ? { crisis: true } : {}),
+      },
+    );
+    seen.add(goal.domain);
+  }
+  for (const item of agenda) {
+    if (seen.has(item.domain)) continue;
+    committed.push(item);
+    seen.add(item.domain);
+  }
+  return {
+    goals,
+    agenda: committed.slice(
+      0,
+      Math.min(6, Math.max(agenda.length, goals.length)),
+    ),
+  };
+}
+
+function domainHealthFor(
+  world: WorldState,
+  countryId: string,
+): Record<string, number> {
+  const health: Record<string, number> = {};
+  const metrics = world.nationalMetrics[countryId] ?? {};
+  // `loadDomainHealth` reads the economic macro document plus a political
+  // board. Source Ireland has no board, so its v5 goal feedback can observe
+  // economic domains only.
+  for (const [category, metricMap] of Object.entries({ economic: METRIC_TO_DOMAIN.economic! })) {
+    for (const [metricId, domain] of Object.entries(metricMap)) {
+      const value = metrics[`${category}.${metricId}`]?.value;
+      if (typeof value !== "number" || !Number.isFinite(value)) continue;
+      health[domain] =
+        domain in health ? Math.min(health[domain]!, value) : value;
+    }
+  }
+  return health;
+}
+
 function sourceNpcManagedInPreset(countryId: string, era: string): boolean {
   // Source cb66acdf eraRoster.ts classifies IE as econ-only (players disabled)
   // in exactly the supported 1991 and 2019 packs.
@@ -439,10 +737,15 @@ export function refreshIrishNpcGovernmentDirectives(
     government.governingAgenda?.computedTurn ?? -1,
     government.fiscalStance?.computedTurn ?? -1,
   );
+  const crisisIntake = crisisAgendaIntake(world.crises, countryId);
+  const crisisDemandsRecompute =
+    Object.keys(crisisIntake.signals).length > 0 &&
+    previouslyComputed < crisisIntake.latestStartTurn;
   if (
     previouslyComputed >= 0 &&
     world.meta.turn - previouslyComputed < RECOMPUTE_INTERVAL_TURNS &&
-    government.directivesForPmId === pm.id
+    government.directivesForPmId === pm.id &&
+    !crisisDemandsRecompute
   )
     return false;
   const party = world.parties[government.governingPartyId!];
@@ -452,6 +755,17 @@ export function refreshIrishNpcGovernmentDirectives(
   }
   const conditions = conditionsFor(world, countryId);
   const debtToGdpRatio = world.budgets[countryId]?.debtToGdpRatio;
+  const v5Active = nppAutonomyLevelAtLeast(autonomy, "v5");
+  const policy = goalPolicy(world.difficulty);
+  const health = v5Active ? domainHealthFor(world, countryId) : {};
+  const reviewed = v5Active
+    ? reviewGoverningGoals(
+        government.governingGoals?.goals ?? [],
+        health,
+        policy,
+        world.meta.turn,
+      )
+    : undefined;
   government.governingAgenda = computeGoverningAgenda({
     conditions,
     ideology: {
@@ -459,11 +773,27 @@ export function refreshIrishNpcGovernmentDirectives(
       social: party.socialPosition,
     },
     personality: pm.personality,
+    crises: crisisIntake.signals,
+    ...(reviewed ? { goalFeedback: reviewed.feedback } : {}),
     ...(typeof debtToGdpRatio === "number" && Number.isFinite(debtToGdpRatio)
       ? { debtToGdpRatio }
       : {}),
     currentTurn: world.meta.turn,
   });
+  if (reviewed) {
+    const commitment = commitGoverningGoals(
+      reviewed.goals,
+      government.governingAgenda.items,
+      health,
+      policy,
+      world.meta.turn,
+    );
+    government.governingAgenda.items = commitment.agenda;
+    government.governingGoals = {
+      goals: commitment.goals,
+      updatedTurn: world.meta.turn,
+    };
+  }
   government.fiscalStance = computeFiscalStance({
     agenda: government.governingAgenda.items,
     inflationRate: conditions.inflationRate ?? 0,

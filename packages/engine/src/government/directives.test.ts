@@ -2,11 +2,16 @@ import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
 import { serializeSave, deserializeSave } from "../save.js";
 import { rngFromSeed } from "../rng.js";
-import { nppBillSponsorshipPhase } from "../npp/nppBillSponsorship.js";
+import {
+  nppBillSponsorshipPhase,
+  sourceIrishTaxUrgency,
+  sourceIrishTypeCooldownElapsed,
+} from "../npp/nppBillSponsorship.js";
 import { TURN_PHASES } from "../phases/registry.js";
 import {
   computeFiscalStance,
   computeGoverningAgenda,
+  crisisAgendaIntake,
   nppGovernmentDirectivesPhase,
   refreshIrishNpcGovernmentDirectives,
 } from "./directives.js";
@@ -47,6 +52,44 @@ function formNpcGovernment(world: ReturnType<typeof createWorld>): string {
 }
 
 describe("source Ireland NPP governing directives", () => {
+  it("matches the source hot-tax urgency ramp and non-board economic-only inputs", () => {
+    // Literal values from Game selectNppBill.urgencyForType at the source 4%
+    // threshold, three points above it, and the 10-point saturation boundary.
+    expect([4, 7, 14].map(sourceIrishTaxUrgency)).toEqual([0, 0.3, 1]);
+    expect(sourceIrishTypeCooldownElapsed(10, 105)).toBe(false);
+    expect(sourceIrishTypeCooldownElapsed(10, 106)).toBe(true);
+
+    const world = createWorld({
+      seed: "ie-economic-only-source-signals",
+      playerName: "P",
+      countryId: "US",
+      era: "1991",
+    });
+    const pmId = formNpcGovernment(world);
+    world.parties[world.governments.IE!.governingPartyId!]!.economicPosition = 0;
+    world.parties[world.governments.IE!.governingPartyId!]!.socialPosition = 0;
+    world.politicians.find((person) => person.id === pmId)!.personality = {
+      loyalty: 50,
+      ambition: 25,
+      stubbornness: 25,
+    };
+    world.nationalMetrics.IE = {
+      "economic.gdpGrowth": { value: 80 },
+      "education.testPerformance": { value: 0 },
+      "healthcare.healthcareAccess": { value: 0 },
+      "environment.airQuality": { value: 0 },
+    };
+    expect(refreshIrishNpcGovernmentDirectives(world)).toBe(true);
+    expect(world.governments.IE?.governingAgenda?.items).toEqual([
+      {
+        domain: "economic_growth",
+        target: 45,
+        direction: "lower",
+        priority: 1,
+      },
+    ]);
+  });
+
   it("is registered after government formation and before player PM appointments", () => {
     const phaseNames = TURN_PHASES.map((phase) => phase.name);
     expect(phaseNames.indexOf("governmentFormation")).toBeGreaterThanOrEqual(0);
@@ -173,6 +216,105 @@ describe("source Ireland NPP governing directives", () => {
     ).toEqual({ items: [], archetype: "technocrat", computedTurn: 11 });
   });
 
+  it("maps only source-identified active crisis metrics and requests immediate recompute", () => {
+    const world = createWorld({
+      seed: "ie-directives-crisis",
+      playerName: "P",
+      countryId: "US",
+      era: "1991",
+    });
+    const pmId = formNpcGovernment(world);
+    expect(refreshIrishNpcGovernmentDirectives(world)).toBe(true);
+    const firstComputed = world.governments.IE!.governingAgenda!.computedTurn;
+
+    const sourceCases = [
+      ["crisis.bankingCrisis", { economic_growth: 1, employment: 1 }],
+      ["crisis.recession", { economic_growth: 1, employment: 1 }],
+      ["crisis.hurricane", { employment: 1 }],
+      ["crisis.earthquake", { employment: 1 }],
+      ["crisis.massProtests", { economic_growth: 1 }],
+      ["crisis.oilShock", { economic_growth: 1 }],
+      ["crisis.tradeWar", { economic_growth: 1 }],
+      [
+        "crisis.pandemic",
+        { economic_growth: 1, employment: 1, income_inequality: 1 },
+      ],
+    ] as const;
+    for (const [kind, signals] of sourceCases) {
+      expect(
+        crisisAgendaIntake(
+          [
+            {
+              id: kind,
+              kind,
+              name: kind,
+              description: "source crisis fixture",
+              scope: "country",
+              countryIds: ["IE"],
+              startTurn: firstComputed + 1,
+              durationTurns: 2,
+              effects: [],
+              status: "active",
+              wireMessageOnStart: "",
+              wireMessageOnEnd: "",
+            },
+          ],
+          "IE",
+        ),
+      ).toEqual({ signals, latestStartTurn: firstComputed + 1 });
+    }
+
+    world.meta.turn = firstComputed + 1;
+    world.crises.push({
+      id: "source-recession",
+      kind: "crisis.recession",
+      name: "Recession",
+      description: "source crisis fixture",
+      scope: "country",
+      countryIds: ["IE"],
+      startTurn: world.meta.turn,
+      durationTurns: 2,
+      effects: [],
+      status: "active",
+      wireMessageOnStart: "",
+      wireMessageOnEnd: "",
+    });
+    expect(refreshIrishNpcGovernmentDirectives(world)).toBe(true);
+    expect(world.governments.IE?.directivesForPmId).toBe(pmId);
+    expect(world.governments.IE?.governingAgenda?.computedTurn).toBe(
+      world.meta.turn,
+    );
+    expect(world.governments.IE?.governingAgenda?.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ domain: "economic_growth", crisis: true }),
+        expect.objectContaining({ domain: "employment", crisis: true }),
+      ]),
+    );
+    expect(refreshIrishNpcGovernmentDirectives(world)).toBe(false);
+
+    expect(
+      crisisAgendaIntake(
+        [
+          {
+            id: "unknown",
+            kind: "unmapped-native-kind",
+            name: "Unknown",
+            description: "",
+            scope: "country",
+            countryIds: ["IE"],
+            startTurn: world.meta.turn + 1,
+            durationTurns: 1,
+            effects: [],
+            status: "active",
+            wireMessageOnStart: "",
+            wireMessageOnEnd: "",
+          },
+        ],
+        "IE",
+      ),
+    ).toEqual({ signals: {}, latestStartTurn: 0 });
+  });
+
   it("persists only for a formed NPC head, consumes the saved fiscal direction, and resumes across save", () => {
     const world = createWorld({
       seed: "ie-directives-npc",
@@ -183,7 +325,7 @@ describe("source Ireland NPP governing directives", () => {
     const pmId = formNpcGovernment(world);
     world.countries.IE!.economy.inflationRate = 0.08;
     world.nationalMetrics.IE = { "economic.unemploymentRate": { value: 20 } };
-    nppGovernmentDirectivesPhase.run(world);
+    nppGovernmentDirectivesPhase.run(world, rngFromSeed("ie-directives-npc"));
     expect(world.governments.IE).toMatchObject({
       directivesForPmId: pmId,
       governingAgenda: { archetype: "reformer", computedTurn: world.meta.turn },
@@ -221,6 +363,165 @@ describe("source Ireland NPP governing directives", () => {
         expect.objectContaining({
           policyOptionId: "ie_vat_rate_opt_0",
           effectDirection: -1,
+        }),
+      ],
+    });
+  });
+
+  it("persists V5 standing goals and applies source active-goal feedback at the next agenda cycle", () => {
+    const world = createWorld({
+      seed: "ie-directives-v5-goals",
+      playerName: "P",
+      countryId: "US",
+      era: "1991",
+    });
+    formNpcGovernment(world);
+    world.nppAutonomyLevel = "v5";
+    world.meta.turn = 40;
+    world.countries.IE!.economy.inflationRate = 0.08;
+    world.nationalMetrics.IE = { "economic.unemploymentRate": { value: 20 } };
+    expect(refreshIrishNpcGovernmentDirectives(world)).toBe(true);
+    expect(world.governments.IE?.governingGoals).toEqual({
+      goals: [
+        {
+          domain: "income_inequality",
+          direction: "raise",
+          target: 65,
+          priority: 1,
+          status: "active",
+          openedTurn: 40,
+          reviewedTurn: 40,
+          openingAttainment: 0,
+          attainment: 0,
+          strikes: 0,
+        },
+        {
+          domain: "poverty",
+          direction: "raise",
+          target: 65,
+          priority: 1,
+          status: "active",
+          openedTurn: 40,
+          reviewedTurn: 40,
+          openingAttainment: 0,
+          attainment: 0,
+          strikes: 0,
+        },
+        {
+          domain: "healthcare",
+          direction: "raise",
+          target: 65,
+          priority: 0.8,
+          status: "active",
+          openedTurn: 40,
+          reviewedTurn: 40,
+          openingAttainment: 0,
+          attainment: 0,
+          strikes: 0,
+        },
+      ],
+      updatedTurn: 40,
+    });
+
+    const resumed = deserializeSave(
+      serializeSave(world, "2026-10-01T00:00:00.000Z"),
+    );
+    resumed.meta.turn = 208;
+    expect(refreshIrishNpcGovernmentDirectives(resumed)).toBe(true);
+    expect(
+      resumed.governments.IE?.governingGoals?.goals.map((goal) => [
+        goal.domain,
+        goal.status,
+        goal.reviewedTurn,
+      ]),
+    ).toEqual([
+      ["income_inequality", "active", 208],
+      ["poverty", "active", 208],
+      ["healthcare", "active", 208],
+    ]);
+    expect(resumed.governments.IE?.governingAgenda?.items).toEqual([
+      {
+        domain: "income_inequality",
+        target: 65,
+        direction: "raise",
+        priority: 1,
+      },
+      { domain: "poverty", target: 65, direction: "raise", priority: 1 },
+      {
+        domain: "healthcare",
+        target: 65,
+        direction: "raise",
+        priority: 0.8000000000000002,
+      },
+      {
+        domain: "employment",
+        target: 65,
+        direction: "raise",
+        priority: 0.6442577030812324,
+      },
+      {
+        domain: "education",
+        target: 65,
+        direction: "raise",
+        priority: 0.5714285714285715,
+      },
+    ]);
+    expect(
+      deserializeSave(serializeSave(resumed, "2026-10-01T00:00:00.000Z"))
+        .governments.IE?.governingGoals,
+    ).toEqual(resumed.governments.IE?.governingGoals);
+  });
+
+  it("uses a source-computed austere stance and live party platform for the released VAT option", () => {
+    const world = createWorld({
+      seed: "ie-vat-austere-directives",
+      playerName: "P",
+      countryId: "US",
+      era: "1991",
+    });
+    const pmId = formNpcGovernment(world);
+    world.politicians.find((person) => person.id === pmId)!.personality = {
+      loyalty: 50,
+      ambition: 25,
+      stubbornness: 75,
+    };
+    const partyId = world.governments.IE!.governingPartyId!;
+    world.parties[partyId]!.economicPosition = 5;
+    world.parties[partyId]!.socialPosition = 5;
+    world.countries.IE!.economy.inflationRate = 0.2;
+    world.budgets.IE!.debtToGdpRatio = 1.5;
+    world.meta.turn = 1;
+    expect(refreshIrishNpcGovernmentDirectives(world)).toBe(true);
+    expect(world.governments.IE).toMatchObject({
+      governingAgenda: { archetype: "steward", computedTurn: 1 },
+      fiscalStance: {
+        stance: "austere",
+        direction: 1,
+        intensity: 1,
+        computedTurn: 1,
+      },
+    });
+    for (
+      let turn = 1;
+      turn <= 12 &&
+      !world.bills.some((bill) => bill.nppSponsored && bill.countryId === "IE");
+      turn += 1
+    ) {
+      world.meta.turn = turn;
+      nppBillSponsorshipPhase.run(
+        world,
+        rngFromSeed("ie-vat-austere-directives"),
+      );
+    }
+    expect(
+      world.bills.find((bill) => bill.nppSponsored && bill.countryId === "IE"),
+    ).toMatchObject({
+      legislationTypeId: "ie_vat_rate",
+      selectedRate: 35,
+      provisions: [
+        expect.objectContaining({
+          policyOptionId: "ie_vat_rate_opt_10",
+          effectDirection: 1,
         }),
       ],
     });
