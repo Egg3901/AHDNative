@@ -9,6 +9,21 @@ consumers. Public engine tests and actual 320px/390px two-reload journeys pass.
 Game plants-mode capital/replacement chain, director request weighting and state
 subsidy scope. #94 stays open; the corporate prerequisites remain in #107.
 
+## Regional sector trading checkpoint, 2026-10-01 (#299)
+
+Regional details share the corporation sale controls for list, reprice, unlist and
+purchase, with recorded ownership, workforce, union and company links. Public
+session and UI tests cover eligibility and persistence; the integrated Chromium
+journey at 320px and 390px saves and resumes twice. The fixture records two
+regional assets, since fresh worlds still seed national assets. The comparison
+uses Game's pinned regional and sector page hierarchy, with no pixel equivalence
+or physical-device claim. See [regional trading evidence](REGIONAL-SECTOR-TRADING.md).
+
+#297 and #322 remain partial. Source-backed leadership, complete employer
+authority and downstream political feedback still require implementation. The
+unsafe public NPC-response and arbitrary-ballot wrappers are excluded. The unused neutral-50 labor
+metric overlay is excluded from this batch.
+
 ## Demographic canvassing checkpoint, 2026-10-01 (#57 / #91 partial)
 
 The source standalone Voter Canvassing flow replaces the old region-only proxy:
