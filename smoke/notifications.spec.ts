@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 import { gameReady, completeCharacterCreation } from './game-navigation';
 
 test('notification read state survives closing the app without a manual save', async ({ page }) => {
+  // Includes two cold worker starts; keep the actual reload assertions bounded.
+  test.setTimeout(180_000);
   await page.goto('/');
   await page.getByRole('button', { name: 'New game', exact: true }).click();
   await page.getByLabel('Your name').fill('Inbox Reader');
