@@ -41,6 +41,9 @@ export const playerSavingsInterestPhase: TurnPhase = {
     // fallback (which makes the full balance eligible for that first turn).
     const priorPool = world.centralBanks[bankId]?.nationalSavingsBalance ?? 0;
     const oldBalance = player.savings;
+    if (!Number.isFinite(oldBalance)) {
+      throw new Error("Invalid player savings balance for interest accrual");
+    }
     const eligibleBalance =
       oldBalance > 0
         ? Math.min(oldBalance, priorPool > 0 ? 0.25 * priorPool : oldBalance)
@@ -102,8 +105,8 @@ function refreshNativeSavingsPool(
   homeBankId: string,
   homeBalance: number,
 ): void {
+  const poolBalance = Math.round(Math.max(0, homeBalance) * 100) / 100;
   for (const [id, bank] of Object.entries(world.centralBanks)) {
-    bank.nationalSavingsBalance =
-      id === homeBankId ? Math.round(homeBalance * 100) / 100 : 0;
+    bank.nationalSavingsBalance = id === homeBankId ? poolBalance : 0;
   }
 }
