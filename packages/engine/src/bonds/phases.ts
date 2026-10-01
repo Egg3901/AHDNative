@@ -32,6 +32,7 @@ import {
   runNpcHolderBehavior,
 } from "./bondTurn.js";
 import { processCorporateBondTurn } from "./corporateBondServicing.js";
+import { settleLingeringCorporateBondDefaults } from "./corporateBondDefaultSettlement.js";
 
 export const sovereignIssuancePhase: TurnPhase = {
   name: "sovereignIssuance",
@@ -52,6 +53,9 @@ export const bondCouponMaturityPhase: TurnPhase = {
     // any further phase reordering; relative order here changes nothing the
     // sovereign path reads.
     void processCorporateBondTurn(world);
+    // Game gives unresolved NPP bond defaults a 30-turn cure window before
+    // dissolving the issuer and settling its creditor/shareholder estate.
+    void settleLingeringCorporateBondDefaults(world);
   },
 };
 

@@ -402,6 +402,8 @@ export interface WorldState {
    * holds v29 which will insert earlier in the chain; latest ->31 with resolver note).
    */
   bonds: Record<string, import("./bonds/types.js").Bond>;
+  /** Append-only evidence for resolved corporate bond defaults. Absent in legacy saves. */
+  corporateBondSettlementLedger?: import("./bonds/corporateBondDefaultSettlement.js").CorporateBondSettlementRecord[];
   /**
    * Forex exchange rates, one per forex-active country (see forex/constants.ts
    * INITIAL_RATES_1953). Ports src/lib/db/types/exchangeRate.ts (subset) +
