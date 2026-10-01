@@ -78,14 +78,13 @@ describe("validatePack", () => {
     expect(playable).toEqual(["DD", "RU", "UK", "US"]);
   });
 
-  it("1991 and 2019 keep JP and DE as economy-preview entries and carry no RU/DD entities", async () => {
-    // The pinned world manifest keeps JP and DE outside the post-Cold-War
-    // player roster. Native retains their economic records but does not expose
-    // unsupported country-specific regional-budget starts.
+  it("keeps preview countries unavailable while adding bounded 2019 Germany starts without RU/DD entities", async () => {
+    // Germany's 2019 bounded start now has an authored tax-law path. Its
+    // 1991 content and Japan's post-Cold-War starts remain previews.
     const { pack1991, pack2019 } = await import("./packs/index.js");
     const playable = (p: SeedPack) => p.countries.filter((c) => c.playable).map((c) => c.id).sort();
     expect(playable(pack1991)).toEqual(["BR", "CN", "IE", "UK", "US"]);
-    expect(playable(pack2019)).toEqual(["CN", "IE", "UK", "US"]);
+    expect(playable(pack2019)).toEqual(["CN", "DE", "IE", "UK", "US"]);
     for (const p of [pack1991, pack2019]) {
       expect(p.countries.some((c) => c.id === "RU" || c.id === "DD"), `${p.era.id} RU/DD`).toBe(false);
     }
@@ -350,10 +349,10 @@ describe("state layer (regions, apportionment) per pack", () => {
 });
 
 describe("post-Cold-War rosters", () => {
-  it("1991 and 2019 keep JP and DE as economy-preview entries", () => {
+  it("includes bounded 2019 Germany and retains the other authored playable rosters", () => {
     const playable = (era: string) => PACKS.find((p) => p.era.id === era)!.countries.filter((c) => c.playable).map((c) => c.id).sort();
     expect(playable("1991")).toEqual(["BR", "CN", "IE", "UK", "US"]);
-    expect(playable("2019")).toEqual(["CN", "IE", "UK", "US"]);
+    expect(playable("2019")).toEqual(["CN", "DE", "IE", "UK", "US"]);
     expect(playable("1953")).toEqual(["DD", "RU", "UK", "US"]);
     expect(playable("1979")).toEqual(["DD", "RU", "UK", "US"]);
   });
