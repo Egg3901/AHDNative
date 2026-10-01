@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { advanceTurn, createWorld, deserializeSave, executeAction, serializeSave } from "@ahdclient/engine";
 import {
   advanceGame,
@@ -9,6 +11,7 @@ import {
 } from "./game-navigation";
 
 let eligibleSeatSave: Buffer | undefined;
+let eligibleTaoiseachSave: Buffer | undefined;
 
 function playableIrishSeatSave(): Buffer {
   if (eligibleSeatSave) return Buffer.from(eligibleSeatSave);
@@ -80,11 +83,33 @@ function sourceTaoiseachWorld() {
 }
 
 function playableIrishTaoiseachSave(): Buffer {
-  return Buffer.from(serializeSave(sourceTaoiseachWorld(), "2026-10-01T00:00:00.000Z"));
+  if (eligibleTaoiseachSave) return Buffer.from(eligibleTaoiseachSave);
+  eligibleTaoiseachSave = Buffer.from(serializeSave(sourceTaoiseachWorld(), "2026-10-01T00:00:00.000Z"));
+  return Buffer.from(eligibleTaoiseachSave);
 }
 
 function signedIrishVatSave(): Buffer {
-  const world = sourceTaoiseachWorld();
+  const artifactPath = process.env.AHD_IE_VAT_SAVE_FIXTURE;
+  if (artifactPath) {
+    const save = readFileSync(artifactPath);
+    const manifest = JSON.parse(readFileSync(`${artifactPath}.manifest.json`, "utf8")) as {
+      schema?: string;
+      nativeCommit?: string;
+      gameCommit?: string;
+      saveSha256?: string;
+      signingState?: { rate?: number; target?: number };
+      convergenceState?: { rate?: number; target?: number | null };
+    };
+    const saveSha256 = createHash("sha256").update(save).digest("hex");
+    if (manifest.schema !== "ahdnative-ireland-vat-source-earned-fixture-v1") throw new Error("Irish VAT fixture manifest schema mismatch");
+    if (manifest.nativeCommit !== "6dad514de33785776952ef291f49fe184b73570b") throw new Error("Irish VAT fixture was not generated from the frozen Native source commit");
+    if (manifest.gameCommit !== "cb66acdf0129616b8a09902727e9b58715c8bacb") throw new Error("Irish VAT fixture source commit mismatch");
+    if (manifest.saveSha256 !== saveSha256) throw new Error("Irish VAT fixture checksum mismatch");
+    if (manifest.signingState?.rate !== 22 || manifest.signingState.target !== 23) throw new Error("Irish VAT fixture lacks the source signing-turn phase-in state");
+    if (manifest.convergenceState?.rate !== 23 || manifest.convergenceState.target !== null) throw new Error("Irish VAT fixture lacks the source next-turn convergence state");
+    return save;
+  }
+  const world = deserializeSave(playableIrishTaoiseachSave().toString("utf8"));
   const proposed = executeAction(world, "player", "sponsorBill", {
     catalogId: "ie_vat_rate",
     taxRate: 23,
@@ -99,8 +124,14 @@ function signedIrishVatSave(): Buffer {
       if (!vote.ok) throw new Error(`Source VAT vote failed: ${vote.error}`);
     }
   }
-  if (bill.status !== "signed" || world.budgets.IE?.taxRates.salesTax !== 23) {
-    throw new Error(`Source VAT bill did not enact at 23%: ${bill.status}, rate ${world.budgets.IE?.taxRates.salesTax}`);
+  if (bill.status !== "signed" || world.budgets.IE?.taxRates.salesTax !== 22 || world.budgets.IE?.taxRatePhaseIn?.salesTax !== 23) {
+    throw new Error(`Source VAT bill did not begin its signing-turn phase-in: ${bill.status}, rate ${world.budgets.IE?.taxRates.salesTax}, target ${world.budgets.IE?.taxRatePhaseIn?.salesTax}`);
+  }
+  // The source signing turn moves 21% to 22%; a following normal turn reaches
+  // the authored 23% target. Save the fixture after that source turn boundary.
+  advanceTurn(world);
+  if (world.budgets.IE?.taxRates.salesTax !== 23 || world.budgets.IE.taxRatePhaseIn?.salesTax !== undefined) {
+    throw new Error(`Source VAT phase-in did not converge after the next turn: rate ${world.budgets.IE?.taxRates.salesTax}, target ${world.budgets.IE?.taxRatePhaseIn?.salesTax}`);
   }
   return Buffer.from(serializeSave(world, "2026-10-01T00:00:00.000Z"));
 }
@@ -116,15 +147,18 @@ async function advanceUntilVote(page: import("@playwright/test").Page, title: st
 }
 
 async function advanceUntilLatestBillSigned(page: import("@playwright/test").Page, title: string) {
-  const latestBill = page.getByRole("article", { name: title, exact: true }).last();
+  // Completed bills are projected newest-first, so replacement checks must
+  // follow the first matching article rather than the superseded older bill.
+  const latestBill = page.getByRole("article", { name: title, exact: true }).first();
+  const statusLine = latestBill.locator("div.ahd-muted").first();
   for (
     let turn = 0;
-    turn < 12 && !(await latestBill.getByText("signed", { exact: true }).isVisible().catch(() => false));
+    turn < 12 && !(await statusLine.innerText().catch(() => "")).startsWith("signed ·");
     turn++
   ) {
     await advanceGame(page, { turnTimeoutMs: 180_000 });
   }
-  await expect(latestBill).toContainText("signed");
+  await expect(statusLine).toContainText(/^signed · Sponsored by /);
 }
 
 async function openLegislation(page: import("@playwright/test").Page) {
@@ -195,11 +229,23 @@ test("Irish PM proposes, passes and resumes the authored 23% VAT bill", async ({
   await page.screenshot({ path: testInfo.outputPath("ireland-vat-390-resumed.png"), fullPage: true });
 });
 
-test("Irish PM replaces VAT through a source bill and resumes its saved fiscal phase", async ({ page }, testInfo) => {
+test("Irish PM replaces VAT through a source bill and resumes its saved fiscal phase", async ({ context }, testInfo) => {
   test.setTimeout(1_800_000);
+  // Load the full-history source-earned save before opening a page so its
+  // synchronous deserialization does not consume the browser journey budget.
+  let fixture = signedIrishVatSave();
+  const page = await context.newPage();
+  page.on("crash", () => {
+    const memory = process.memoryUsage();
+    process.stderr.write(`[IE VAT smoke] page crashed at ${new Date().toISOString()}; test-worker rss=${memory.rss} heap=${memory.heapUsed} external=${memory.external}\n`);
+  });
+  page.on("pageerror", (error) => {
+    process.stderr.write(`[IE VAT smoke] page error at ${new Date().toISOString()}: ${error.stack ?? error.message}\n`);
+  });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await loadFixture(page, signedIrishVatSave());
+  await loadFixture(page, fixture);
+  fixture = Buffer.alloc(0);
   await gameReady(page);
   await openLegislation(page);
   const vatTitle = "Statutory Value-Added Tax Act";
@@ -212,7 +258,9 @@ test("Irish PM replaces VAT through a source bill and resumes its saved fiscal p
   await expect(page.getByRole("article", { name: vatTitle, exact: true })).toHaveCount(priorBillCount + 1);
   await advanceUntilVote(page, vatTitle);
   await advanceUntilLatestBillSigned(page, vatTitle);
-  const replacement = page.getByRole("article", { name: vatTitle, exact: true }).last();
+  // Completed bills are newest-first; the first card is the newly signed
+  // replacement, while the last card is the older 23% enactment.
+  const replacement = page.getByRole("article", { name: vatTitle, exact: true }).first();
   await replacement.getByRole("button", { name: `Show details for ${vatTitle}`, exact: true }).click();
   await expect(page.getByText("Selected rate: 25%", { exact: true })).toBeVisible();
   await saveGame(page);
@@ -220,19 +268,24 @@ test("Irish PM replaces VAT through a source bill and resumes its saved fiscal p
   await page.getByRole("button", { name: "Continue Irish VAT Player", exact: true }).click();
   await gameReady(page);
   await openLegislation(page);
-  const resumedReplacement = page.getByRole("article", { name: vatTitle, exact: true }).last();
+  const resumedReplacement = page.getByRole("article", { name: vatTitle, exact: true }).first();
   await resumedReplacement.getByRole("button", { name: `Show details for ${vatTitle}`, exact: true }).click();
   await expect(page.getByText("Selected rate: 25%", { exact: true })).toBeVisible();
   await navigateGame(page, "Policy");
   const currentTax = page.locator("dt").filter({ hasText: "Sales Tax" });
   await expect(currentTax).toHaveCount(1);
   const beforeTurn = Number.parseFloat((await currentTax.locator("xpath=.. >> dd").innerText()).replace("%", ""));
+  // The source signing turn moves 23% to 24%; the next ordinary turn reaches
+  // the authored 25% target, matching the engine lifecycle vectors.
   expect(beforeTurn).toBe(24);
   await advanceGame(page, { turnTimeoutMs: 180_000 });
   await navigateGame(page, "Policy");
   await expect(page.getByRole("heading", { name: "Current tax settings", exact: true })).toBeVisible();
-  await expect(currentTax.locator("xpath=.. >> dd")).toHaveText("25%");
+  await expect(currentTax.locator("xpath=.. >> dd")).toHaveText("25.0%");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("ireland-vat-390-policy.png"), fullPage: true });
   await page.setViewportSize({ width: 320, height: 844 });
+  await expect(currentTax.locator("xpath=.. >> dd")).toHaveText("25.0%");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("ireland-vat-320-policy.png"), fullPage: true });
 });

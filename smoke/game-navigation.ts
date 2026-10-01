@@ -89,11 +89,43 @@ export async function closeGameMenu(page: Page) {
  * explicit CI-only flag; ordinary production builds omit the hook.
  */
 export async function loadFixture(page: Page, fixture: Buffer) {
-  await page.evaluate(async (saveText: string) => {
-    const hooks = (window as unknown as { __ahdTestHooks?: { loadFixture: (contents: string) => Promise<void> } }).__ahdTestHooks;
+  let saveText = fixture.toString('utf8');
+  const chunkSize = 512 * 1024;
+  await page.evaluate(() => {
+    const hooks = (window as unknown as { __ahdTestHooks?: unknown }).__ahdTestHooks;
     if (!hooks) throw new Error('Test fixture hooks are unavailable in this build.');
-    await hooks.loadFixture(saveText);
-  }, fixture.toString('utf8'));
+    (window as unknown as { __ahdFixtureChunks?: string[] }).__ahdFixtureChunks = [];
+  });
+  // Large, full-history saves can exceed the browser protocol's single-value
+  // transport limit. Keep the fixture intact while transferring it in bounded
+  // pieces, then pass the original serialized save through the normal hook.
+  for (let offset = 0; offset < saveText.length; offset += chunkSize) {
+    let end = Math.min(offset + chunkSize, saveText.length);
+    if (end < saveText.length) {
+      const lastCodeUnit = saveText.charCodeAt(end - 1);
+      if (lastCodeUnit >= 0xd800 && lastCodeUnit <= 0xdbff) end--;
+    }
+    const chunk = saveText.slice(offset, end);
+    await page.evaluate((part: string) => {
+      (window as unknown as { __ahdFixtureChunks?: string[] }).__ahdFixtureChunks!.push(part);
+    }, chunk);
+    offset = end - chunkSize;
+  }
+  await page.evaluate(async () => {
+    const pageWindow = window as unknown as {
+      __ahdFixtureChunks?: string[];
+      __ahdTestHooks?: { loadFixture: (contents: string) => Promise<void> };
+    };
+    const hooks = pageWindow.__ahdTestHooks;
+    if (!hooks) throw new Error('Test fixture hooks are unavailable in this build.');
+    const chunks = pageWindow.__ahdFixtureChunks;
+    if (!chunks) throw new Error('Test fixture transfer was not initialized.');
+    const contents = chunks.join('');
+    chunks.length = 0;
+    delete pageWindow.__ahdFixtureChunks;
+    await hooks.loadFixture(contents);
+  });
+  saveText = '';
 }
 
 export async function gameReady(page: Page, options: { keepStatAllocationGate?: boolean } = {}) {
