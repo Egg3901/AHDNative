@@ -3,13 +3,18 @@
  *
  * Nations come from the world overview query. The region directory is loaded
  * with a full-page query (up to 100 rows) so the map lists the actual regions
- * of the player's country without inventing coordinates. Either query failure
- * shows the shared retry state, matching the other on-demand detail routes.
+ * of the player's country without inventing coordinates. The Hall of Fame
+ * summary comes from the same offline standings projection behind the
+ * Leaderboards route, with default filters. Any query failure shows the
+ * shared retry state, matching the other on-demand detail routes.
  */
 import { useCallback } from "react";
 import type { RegionsQuery, RegionsView } from "../game/regions";
 import type { WorldOverviewView } from "../game/worldOverview";
-import type { WorldMapSection } from "../preferences";
+import type { PoliticsView } from "../game/politics";
+import type { ProfileView } from "../game/profileTypes";
+import { projectHallOfFame, type HallOfFameView } from "../game/hallOfFame";
+import type { WorldMapSection, WorldMapView } from "../preferences";
 import { DetailQuery } from "./DetailQuery";
 import { WorldMapPanel } from "./WorldMapPanel";
 import type { DrawerRouteId } from "./MobileNavigation";
@@ -19,33 +24,58 @@ const FULL_DIRECTORY: RegionsQuery = { directoryPage: 0, directoryPageSize: 100 
 export function WorldMapRoute({
   loadOverview,
   loadRegions,
+  loadPolitics,
+  loadProfile,
   revision,
   section,
   onSectionChange,
+  view,
+  onViewChange,
   onNavigate,
+  onOpenElection,
+  onOpenHallOfFame,
 }: {
   loadOverview: () => Promise<WorldOverviewView>;
   loadRegions: (query?: RegionsQuery) => Promise<RegionsView>;
+  loadPolitics: () => Promise<PoliticsView>;
+  loadProfile: () => Promise<ProfileView>;
   revision: object;
   section: WorldMapSection;
   onSectionChange: (section: WorldMapSection) => void;
+  view: WorldMapView;
+  onViewChange: (view: WorldMapView) => void;
   onNavigate?: (route: DrawerRouteId, id?: string) => void;
+  onOpenElection?: (id: string) => void;
+  onOpenHallOfFame?: () => void;
 }) {
   const loadDirectory = useCallback(() => loadRegions(FULL_DIRECTORY), [loadRegions]);
+  const loadSummary = useCallback(async (): Promise<HallOfFameView> => {
+    const [overview, politics, profile] = await Promise.all([loadOverview(), loadPolitics(), loadProfile()]);
+    return projectHallOfFame({ overview, politics, profile });
+  }, [loadOverview, loadPolitics, loadProfile]);
   return (
     <DetailQuery load={loadOverview} revision={revision} label="World map">
       {(overview) => (
         <DetailQuery load={loadDirectory} revision={revision} label="World map regions">
           {(regions) => (
-            <WorldMapPanel
-              overview={overview}
-              regions={regions.directory}
-              regionsTotal={regions.directoryTotal}
-              regionsCountryName={regions.playerCountryName}
-              section={section}
-              onSectionChange={onSectionChange}
-              onNavigate={onNavigate}
-            />
+            <DetailQuery load={loadSummary} revision={revision} label="World map standings">
+              {(hallOfFame) => (
+                <WorldMapPanel
+                  overview={overview}
+                  regions={regions.directory}
+                  regionsTotal={regions.directoryTotal}
+                  regionsCountryName={regions.playerCountryName}
+                  section={section}
+                  onSectionChange={onSectionChange}
+                  view={view}
+                  onViewChange={onViewChange}
+                  hallOfFame={hallOfFame}
+                  onOpenHallOfFame={onOpenHallOfFame}
+                  onNavigate={onNavigate}
+                  onOpenElection={onOpenElection}
+                />
+              )}
+            </DetailQuery>
           )}
         </DetailQuery>
       )}

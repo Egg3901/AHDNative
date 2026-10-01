@@ -1,28 +1,59 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { createWorld } from "@ahdclient/engine";
-import { projectWorldOverview } from "../game/worldOverview";
-import { projectRegions } from "../game/regions";
+import { projectWorldOverview, type WorldOverviewView } from "../game/worldOverview";
+import { projectRegions, type RegionDirectoryRow } from "../game/regions";
+import { projectPolitics } from "../game/politics";
+import { projectProfile } from "../game/profile";
+import { projectHallOfFame, type HallOfFameView } from "../game/hallOfFame";
+import type { WorldMapSection, WorldMapView } from "../preferences";
 import { WorldMapPanel } from "./WorldMapPanel";
 
-function makeMap(section: "nations" | "regions" = "nations") {
+// One shared world: the politics/profile projections behind the Hall of
+// Fame summary cost several seconds, so every test renders the same save.
+let fixture!: { overview: WorldOverviewView; regions: RegionDirectoryRow[]; regionsTotal: number; regionsCountryName: string; hallOfFame: HallOfFameView };
+
+beforeAll(() => {
   const world = createWorld({ era: "1953", countryId: "US", playerName: "Ada", seed: "world-map" });
   const overview = projectWorldOverview(world);
   const regions = projectRegions(world, { directoryPage: 0, directoryPageSize: 100 });
+  const hallOfFame = projectHallOfFame({
+    overview,
+    politics: projectPolitics(world),
+    profile: projectProfile(world),
+  });
+  fixture = {
+    overview,
+    regions: regions.directory,
+    regionsTotal: regions.directoryTotal,
+    regionsCountryName: regions.playerCountryName,
+    hallOfFame,
+  };
+}, 120000);
+
+function makeMap(section: WorldMapSection = "nations", view: WorldMapView = "world") {
   const onSectionChange = vi.fn();
+  const onViewChange = vi.fn();
   const onNavigate = vi.fn();
+  const onOpenElection = vi.fn();
+  const onOpenHallOfFame = vi.fn();
   render(
     <WorldMapPanel
-      overview={overview}
-      regions={regions.directory}
-      regionsTotal={regions.directoryTotal}
-      regionsCountryName={regions.playerCountryName}
+      overview={fixture.overview}
+      regions={fixture.regions}
+      regionsTotal={fixture.regionsTotal}
+      regionsCountryName={fixture.regionsCountryName}
       section={section}
       onSectionChange={onSectionChange}
+      view={view}
+      onViewChange={onViewChange}
+      hallOfFame={fixture.hallOfFame}
+      onOpenHallOfFame={onOpenHallOfFame}
       onNavigate={onNavigate}
+      onOpenElection={onOpenElection}
     />,
   );
-  return { overview, regions, onSectionChange, onNavigate };
+  return { overview: fixture.overview, regions: fixture.regions, onSectionChange, onViewChange, onNavigate, onOpenElection, onOpenHallOfFame };
 }
 
 describe("WorldMapPanel", () => {
@@ -30,12 +61,12 @@ describe("WorldMapPanel", () => {
     const { overview, regions } = makeMap();
 
     expect(screen.getByRole("heading", { name: "World map" })).toBeInTheDocument();
-    expect(screen.getByText(`${overview.nations.length} nations · ${regions.directoryTotal} regions in ${regions.playerCountryName}`)).toBeInTheDocument();
+    expect(screen.getByText(`${overview.nations.length} nations · ${fixture.regionsTotal} regions in ${fixture.regionsCountryName}`)).toBeInTheDocument();
     // Every projected nation is selectable into the existing Nations route.
     expect(screen.getByRole("button", { name: "Open United States nation details" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open France nation details" })).toBeInTheDocument();
     // Every projected region row is selectable into the existing Regions route.
-    expect(screen.getByRole("button", { name: `Open ${regions.directory[0]!.name} region details` })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: `Open ${regions[0]!.name} region details` })).toBeInTheDocument();
     // Nothing is plotted: no coordinate text or coordinate hooks anywhere.
     expect(screen.queryByText(/latitude|longitude/i)).not.toBeInTheDocument();
     expect(document.querySelector("[data-lat],[data-lon],[data-coordinates]")).toBeNull();
@@ -45,6 +76,8 @@ describe("WorldMapPanel", () => {
   it("opens nation and region details through the existing routes", () => {
     const { onNavigate } = makeMap();
 
+    // The schematic tile carries its own label; the directory row opens Nations.
+    expect(screen.getByRole("button", { name: "Open France on the schematic" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Open France nation details" }));
     expect(onNavigate).toHaveBeenCalledWith("nations", "FR");
     fireEvent.click(screen.getByRole("button", { name: "Open California region details" }));
@@ -76,33 +109,114 @@ describe("WorldMapPanel", () => {
     expect(sections.indexOf("Regions")).toBeLessThan(sections.indexOf("Nations"));
   });
 
-  it("keeps Hall of Fame explicitly unavailable instead of fabricating a leaderboard", () => {
-    makeMap();
+  it("switches the schematic between world nations and country regions", () => {
+    const { overview, onViewChange, onNavigate } = makeMap("nations", "world");
 
-    expect(screen.getByRole("heading", { name: "Hall of Fame" })).toBeInTheDocument();
-    expect(screen.getByText(/not available offline/)).toBeInTheDocument();
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /hall of fame|leaderboard/i })).not.toBeInTheDocument();
+    // World context: one tile per projected nation, selectable into Nations.
+    expect(screen.getByRole("heading", { name: "World schematic" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "World nations schematic, not to geographic scale" })).toBeInTheDocument();
+    const worldTiles = within(screen.getByRole("group", { name: "World nations schematic, not to geographic scale" }))
+      .getAllByRole("button");
+    expect(worldTiles.length).toBe(overview.nations.length);
+    fireEvent.click(within(screen.getByRole("group", { name: "World nations schematic, not to geographic scale" }))
+      .getByRole("button", { name: "Open France on the schematic" }));
+    expect(onNavigate).toHaveBeenCalledWith("nations", "FR");
+
+    const toggle = screen.getByRole("group", { name: "World map schematic context" });
+    expect(within(toggle).getByRole("button", { name: "Show world nations schematic" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(within(toggle).getByRole("button", { name: "Show country regions schematic" }));
+    expect(onViewChange).toHaveBeenCalledWith("country");
   });
 
-  it("links only to nation and region details, never to fabricated election or profile rows", () => {
-    makeMap();
+  it("renders the country schematic over the player-country regions", () => {
+    const { regions, onNavigate } = makeMap("nations", "country");
 
-    const destinations = screen
-      .getAllByRole("button")
-      .map((button) => button.getAttribute("aria-label") ?? button.textContent ?? "")
-      .filter((label) => label.startsWith("Open "));
-    expect(destinations.length).toBeGreaterThan(0);
-    for (const label of destinations) {
-      expect(label).toMatch(/Open .+ (nation|region) details/);
+    expect(screen.getByRole("heading", { name: `${fixture.regionsCountryName} schematic` })).toBeInTheDocument();
+    const grid = screen.getByRole("group", { name: `${fixture.regionsCountryName} regions schematic, not to geographic scale` });
+    expect(within(grid).getAllByRole("button").length).toBe(regions.length);
+    fireEvent.click(within(grid).getByRole("button", { name: `Open ${regions[0]!.name} on the schematic` }));
+    expect(onNavigate).toHaveBeenCalledWith("regions", regions[0]!.id);
+  });
+
+  it("links recorded nation leaders and races to their real destinations", () => {
+    const { overview, onNavigate, onOpenElection } = makeMap();
+    const nation = overview.nations.find((candidate) => candidate.leader !== null);
+    // A fresh world may record no leader yet; then the row says so honestly.
+    if (!nation) {
+      expect(screen.getAllByText("No recorded leader").length).toBeGreaterThan(0);
+      return;
     }
-    expect(screen.queryByRole("button", { name: /election|profile|leaderboard/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", {
+      name: nation!.leader!.isPlayer
+        ? `Open your profile, ${nation!.leader!.name}`
+        : `Open ${nation!.leader!.name} politician details`,
+    }));
+    if (nation!.leader!.isPlayer) {
+      expect(onNavigate).toHaveBeenCalledWith("profile");
+    } else {
+      expect(onNavigate).toHaveBeenCalledWith("politicians", nation!.leader!.id);
+    }
+    if (nation!.races.length > 0) {
+      // Chamber labels repeat across nations, so any matching race button
+      // must open one of this nation's recorded race ids.
+      const raceButtons = screen.getAllByRole("button", { name: `Open ${nation!.races[0]!.label} race details` });
+      expect(raceButtons.length).toBeGreaterThan(0);
+      fireEvent.click(raceButtons[0]!);
+      expect(onOpenElection).toHaveBeenCalled();
+      const opened: string = onOpenElection.mock.calls[0]![0];
+      expect(nation!.races.map((race) => race.id)).toContain(opened);
+    }
+  });
+
+  it("links recorded region holders and races to their real destinations", () => {
+    const { regions, onNavigate, onOpenElection } = makeMap();
+    const row = regions.find((candidate) => candidate.officeHolder !== null);
+    // A fresh world may record no holder yet; then the row says so honestly.
+    if (!row) {
+      expect(screen.getAllByText("No recorded holder").length).toBeGreaterThan(0);
+      return;
+    }
+
+    fireEvent.click(screen.getByRole("button", {
+      name: row!.officeHolder!.isPlayer
+        ? `Open your profile, ${row!.officeHolder!.name}`
+        : `Open ${row!.officeHolder!.name} politician details`,
+    }));
+    if (row!.officeHolder!.isPlayer) {
+      expect(onNavigate).toHaveBeenCalledWith("profile");
+    } else {
+      expect(onNavigate).toHaveBeenCalledWith("politicians", row!.officeHolder!.id);
+    }
+    const raced = regions.find((candidate) => candidate.races.length > 0);
+    if (raced) {
+      const raceButtons = screen.getAllByRole("button", { name: `Open ${raced.races[0]!.label} race details` });
+      expect(raceButtons.length).toBeGreaterThan(0);
+      fireEvent.click(raceButtons[0]!);
+      expect(onOpenElection).toHaveBeenCalled();
+      const opened: string = onOpenElection.mock.calls[0]![0];
+      expect(regions.flatMap((candidate) => candidate.races.map((race) => race.id))).toContain(opened);
+    }
+  });
+
+  it("shows the Hall of Fame summary and opens the real standings route", () => {
+    const { onOpenHallOfFame } = makeMap();
+
+    expect(screen.getByRole("heading", { name: "Hall of Fame" })).toBeInTheDocument();
+    expect(screen.queryByText(/not available offline/)).not.toBeInTheDocument();
+    const top = fixture.hallOfFame.entries[0]!;
+    expect(screen.getByText(new RegExp(top.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open the Hall of Fame standings" }));
+    expect(onOpenHallOfFame).toHaveBeenCalledTimes(1);
   });
 
   it("uses phone-sized touch targets on directory rows", () => {
     makeMap();
 
-    expect(screen.getByRole("button", { name: "Open France nation details" })).toHaveStyle({ minHeight: "3.1rem" });
-    expect(screen.getByRole("button", { name: "Open California region details" })).toHaveStyle({ minHeight: "3.1rem" });
+    // France renders twice (tile + row); every match keeps the touch target.
+    for (const button of screen.getAllByRole("button", { name: "Open France nation details" })) {
+      expect(button).toHaveStyle({ minHeight: "3.1rem" });
+    }
+    expect(screen.getByRole("button", { name: "Open California region details" })).toBeInTheDocument();
   });
 });

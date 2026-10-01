@@ -1,6 +1,7 @@
 import { AskPanel } from "../ask/AskPanel";
 import { WorldDirectoryPanel } from "./WorldDirectoryPanel";
 import { WorldMapRoute } from "./WorldMapRoute";
+import { HallOfFameRoute } from "./HallOfFameRoute";
 import { ProfileRoute } from "./ProfileRoute";
 import { RegionsRoute } from "./RegionsRoute";
 import { CaucusPanel } from "./CaucusPanel";
@@ -77,7 +78,7 @@ function pageTitle(route: RouteId): string {
 }
 
 const REGION_LABELS: Record<Exclude<RouteId, TabId>, string> = {
-  nations: "Nations", worldDirectory: "World directory", worldMap: "World map", state: "Home region",
+  nations: "Nations", worldDirectory: "World directory", worldMap: "World map", hallOfFame: "Hall of Fame", state: "Home region",
   economy: "Economy", budget: "Budget", metrics: "National metrics", policy: "Policy",
   legislationDetails: "Legislation details",
   markets: "Stock market",
@@ -828,7 +829,8 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
             />
           ))}
           {(route === "nations" || route === "state") && <DetailQuery load={loadWorldOverview} revision={world} label="World details">{overview => <WorldPanel overview={overview} section={route} initialId={route === "nations" ? (detailId ?? nationContext) : detailId} onSelectNation={route === "nations" ? (id) => { setDetailId(undefined); setNationContext(id); } : undefined} onNavigate={navigate} onDrill={drillViewer} onOpenParty={openParty} onOpenElection={openElection} />}</DetailQuery>}
-          {route === "worldMap" && <WorldMapRoute loadOverview={loadWorldOverview} loadRegions={loadRegions} revision={world} section={preferences.worldMapSection} onSectionChange={(worldMapSection) => onPreferencesChange({ ...preferences, worldMapSection })} onNavigate={navigate} />}
+          {route === "worldMap" && <WorldMapRoute loadOverview={loadWorldOverview} loadRegions={loadRegions} loadPolitics={loadPolitics} loadProfile={loadProfile} revision={world} section={preferences.worldMapSection} onSectionChange={(worldMapSection) => onPreferencesChange({ ...preferences, worldMapSection })} view={preferences.worldMapView} onViewChange={(worldMapView) => onPreferencesChange({ ...preferences, worldMapView })} onNavigate={navigate} onOpenElection={openElection} onOpenHallOfFame={() => go("hallOfFame")} />}
+          {route === "hallOfFame" && <HallOfFameRoute loadOverview={loadWorldOverview} loadPolitics={loadPolitics} loadProfile={loadProfile} revision={world} query={{ rankBy: preferences.hallOfFameRankBy, scope: preferences.hallOfFameScope, era: preferences.hallOfFameEra }} onQueryChange={(next) => onPreferencesChange({ ...preferences, hallOfFameRankBy: next.rankBy, hallOfFameScope: next.scope, hallOfFameEra: next.era })} onNavigate={navigate} onOpenElection={openElection} />}
           {route === "worldDirectory" && <DetailQuery load={loadWorldOverview} revision={world} label="World directory">{overview => <WorldDirectoryPanel overview={overview} onNavigate={navigate} />}</DetailQuery>}
           {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} loadMarkets={loadMarkets} revision={world} busy={busy} onNavigate={navigate} onDrill={drillViewer} onSectorSale={onSectorSale} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}

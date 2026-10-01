@@ -565,23 +565,29 @@ describe("MobileNavigation", () => {
 
   it("omits reference-only destinations Native cannot reach instead of adding placeholders", () => {
     // Reference worldNavItems.ts / nationDetailsSections.ts expose Crises,
-    // Hall of Fame, International Orgs, Currency Exchange, Trade, IMF, Unions
-    // and My Corporation. Native has no route or data surface for them, so
-    // they must not appear as drawer rows (NAVIGATION-PARITY.md sections 2-3).
-    // Sectors left this list in #89 with a real World > Economy destination.
+    // International Orgs, Currency Exchange, Trade, IMF, Unions and My
+    // Corporation. Native has no route or data surface for them, so they
+    // must not appear as drawer rows (NAVIGATION-PARITY.md sections 2-3).
+    // Sectors left this list in #89 with a real World > Economy destination;
+    // Hall of Fame left it in #73 with a real World > Leaderboards route
+    // over the recorded offline standings.
     const ids = drawerRouteIds() as string[];
-    for (const id of ["crises", "hallOfFame", "myCorporation", "unions", "forex", "trade", "imf", "internationalOrgs"]) {
+    for (const id of ["crises", "myCorporation", "unions", "forex", "trade", "imf", "internationalOrgs"]) {
       expect(ids).not.toContain(id);
     }
     const labels = MENU_GROUPS
       .flatMap((group) => [...group.items, ...(group.sections ?? []).flatMap((section) => section.items)])
       .map((item) => item.label);
-    for (const label of ["Hall of Fame", "My Corporation", "Unions", "Crises", "Currency Exchange", "Trade", "IMF", "International Orgs"]) {
+    for (const label of ["My Corporation", "Unions", "Crises", "Currency Exchange", "Trade", "IMF", "International Orgs"]) {
       expect(labels).not.toContain(label);
     }
     expect(ids).toContain("worldMap");
     expect(ids).toContain("worldDirectory");
     expect(ids).toContain("sectors");
+    expect(ids).toContain("hallOfFame");
+    const world = MENU_GROUPS.find((group) => group.label === "World")!;
+    const leaderboards = world.sections!.find((section) => section.label === "Leaderboards")!;
+    expect(leaderboards.items).toEqual([{ id: "hallOfFame", label: "Hall of Fame" }]);
   });
 
   it("contains long/localized drawer labels without losing the badge at 320px", async () => {
@@ -603,7 +609,7 @@ describe("MobileNavigation", () => {
     // Every drawer row carries its label in a truncating span with a hover
     // title, so long/localized strings cannot push neighbouring content out.
     const rows = document.querySelectorAll("#ahd-drawer .ahd-drawer-item");
-    expect(rows.length).toBe(34);
+    expect(rows.length).toBe(35);
     for (const row of Array.from(rows)) {
       const label = row.querySelector(":scope > .ahd-drawer-item-label");
       expect(label).not.toBeNull();
