@@ -11,13 +11,13 @@
  * workforce record, so display headcount and dues headcount can never drift
  * apart.
  *
- * What stays demographic: Native assets record workers but not
- * per-sector unionization or wagePerWorker (the reference's CorporateSector
- * fields), so each row reuses the union's worker-weighted density and the
- * country annual wage derived from current region labor (laborForces) and
- * payroll (budget wagesAndSalaries, else gdp x 0.35 — the same payroll the
- * budget revenue uses). Per-sector wage/unionization tables remain a
- * documented gap for the bargaining slice (#322), not silently replaced.
+ * Native assets record per-sector unionization and a wage index. Each row
+ * uses its asset's unionization (falling back to the union only for older
+ * saves) and applies the asset wage index to the country annual wage derived
+ * from current region labor (laborForces) and payroll (budget
+ * wagesAndSalaries, else gdp x 0.35 — the same payroll the budget revenue
+ * uses). Native does not store absolute per-sector wages, so this is the
+ * explicit wage basis for the reference's wagePerWorker dues input.
  *
  * Determinism: assets iterate in explicit id-sorted order (the seed already
  * inserts sorted, the sort here pins it), organizers sort by identity in
@@ -72,11 +72,9 @@ export function annualWageForCountry(
 
 /**
  * Dues rows for one union: one row per recorded asset it represents, in
- * asset-id order. Workers come from the stored #296 headcount; density is
- * the union's worker-weighted unionization; the daily wage is the country
- * annual wage per worker spread over GAME_DAYS_PER_YEAR (the same
- * per-worker payroll the budget revenue uses, so dues burden reads against
- * what members actually earn).
+ * asset-id order. Workers and density come from the recorded #296 asset;
+ * daily wage is the asset wage index applied to country annual wage per
+ * worker, spread over GAME_DAYS_PER_YEAR.
  */
 export function representedSectorsForUnion(
   world: WorldState,
@@ -89,11 +87,10 @@ export function representedSectorsForUnion(
   const totalLF = totalLaborForceForCountry(world, union.countryId);
   const annualWage = annualWageForCountry(world, union.countryId, totalLF);
   const dailyWage = GAME_DAYS_PER_YEAR > 0 ? annualWage / GAME_DAYS_PER_YEAR : 0;
-  const density = Math.max(0, Math.min(100, union.unionization ?? 0));
   return represented.map((asset) => ({
     workers: asset.workers,
-    unionization: density,
-    wagePerWorker: dailyWage,
+    unionization: Math.max(0, Math.min(100, asset.unionization ?? union.unionization ?? 0)),
+    wagePerWorker: dailyWage * Math.max(0, asset.wageLevel ?? 1),
   }));
 }
 

@@ -41,8 +41,10 @@ funds, cooldowns and action counts on returned or thrown failure. Session quotes
 share home GDP, stat and frozen-currency readers with execution. The campaign
 card no longer requests a region that the source character action never targets.
 
-Remaining: the hub's old canvass proxy still needs the source demographic and
-active-state flow under #57. Party join/leave AP pricing and the wider party/
+The hub now opens [demographic canvassing](DEMOGRAPHIC-CANVASSING.md), with
+source-backed batch quotes, chosen audience and saved electoral effects. Remaining
+#57 scope includes joint audiences, presidential travel/surrogate writer journeys
+and the other targeted action selectors. Party join/leave AP pricing and the wider party/
 caucus preview, recruitment, tax and disband contract remain under #61. The
 original eleven-entry audit includes these unresolved differences; this
 checkpoint therefore does not close #91. Full hosted checks and integrated

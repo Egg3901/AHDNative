@@ -1,3 +1,4 @@
+import { decayCanvassModifiers } from "../actions/canvass.js";
 /**
  * W19 support model phase cluster (7 phases).
  * Ports mainline src/simulation/phases/turnPhaseRegistry.ts demographicsAndPartySetup
@@ -73,6 +74,7 @@ export const turnoutDecayPhase: TurnPhase = {
           groups[group] = applyTurnoutDecay(cur);
         }
       }
+      if (rt.campaignModifiers) rt.campaignModifiers = decayCanvassModifiers(rt.campaignModifiers);
       rt.lastDecayAppliedTurn = world.meta.turn;
     }
   },
