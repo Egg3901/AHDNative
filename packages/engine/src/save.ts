@@ -198,6 +198,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const metaSchema = meta["schemaVersion"];
 
   if (envelopeSchema === V42_SCHEMA && metaSchema === V42_SCHEMA) {
+    if (["regionalPoliticalMetrics", "politicalCabinetContributions"].some(key =>
+      isRecord(world[key]) && Object.keys(world[key]).length > 0)) {
+      return { ok: false, error: "Political board and cabinet driver state cannot be continued by schema 42. Keep this Native save." };
+    }
     if (hasOwn(world, "countryPolitics")) {
       return {
         ok: false,

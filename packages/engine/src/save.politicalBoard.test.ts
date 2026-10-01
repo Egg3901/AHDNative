@@ -43,4 +43,10 @@ describe("source political boards at the public save boundary", () => {
     }
   });
 
+  it("refuses political dynamics hidden under an authentic older schema label", () => {
+    const saved = JSON.parse(gunzipSync(readFileSync(new URL("../../../fixtures/v42-1953-US.save.json.gz", import.meta.url))).toString("utf8"));
+    saved.world.regionalPoliticalMetrics = createWorld({ era: "1953", countryId: "US", seed: "political-save", playerName: "Alex" }).regionalPoliticalMetrics;
+    expect(projectSaveToV42(JSON.stringify(saved))).toMatchObject({ ok: false, error: expect.stringContaining("Political board") });
+  });
+
 });
