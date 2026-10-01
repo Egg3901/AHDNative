@@ -187,6 +187,16 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
           "This schema 42 document still carries countryPolitics; it is not an authentic schema 42 save",
       };
     }
+    const authenticCorporations = world["corporations"];
+    if (isRecord(authenticCorporations) && Object.values(authenticCorporations).some(corp =>
+      isRecord(corp) && (hasOwn(corp, "soe") || hasOwn(corp, "legacySoeProjection")))) {
+      return { ok: false, error: "This schema 42 document carries SOE production; it is not an authentic schema 42 save" };
+    }
+    const authenticCommandStates = world["commandEconomy"];
+    if (isRecord(authenticCommandStates) && Object.values(authenticCommandStates).some(state =>
+      isRecord(state) && ["pendingDirectives", "sectorCredit", "directedCreditBySector"].some(key => hasOwn(state, key)))) {
+      return { ok: false, error: "This schema 42 document carries Gosbank directive state; it is not an authentic schema 42 save" };
+    }
     const authenticSubsidies = world["subsidies"];
     if (Array.isArray(authenticSubsidies) && authenticSubsidies.length > 0) {
       return { ok: false, error: "This schema 42 document still carries subsidies; it is not an authentic schema 42 save" };

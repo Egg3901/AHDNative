@@ -79,6 +79,19 @@ it("refuses fresh SOE production state that the historical reader cannot continu
 });
 
 describe("projectSaveToV42 public envelope", () => {
+  it("refuses an authentic-schema label carrying unsupported SOE production", () => {
+    const document = JSON.parse(loadAuthenticV42());
+    document.world.corporations["RU-manufacturing"].soe = {
+      sector: "manufacturing", capacity: 100, output: 80, planTarget: 80,
+      efficiency: 1, cumulativeLosses: 0, directorId: null,
+    };
+    document.world.corporations["RU-manufacturing"].countryOwnerId = "RU";
+    document.world.corporations["RU-manufacturing"].ownershipState = "stateOwned";
+    expect(projectSaveToV42(JSON.stringify(document))).toMatchObject({
+      ok: false, error: expect.stringMatching(/SOE|authentic/),
+    });
+  });
+
   it("returns the authentic v42 fixture unchanged", () => {
     expect(SCHEMA_VERSION).toBe(48);
     const authentic = loadAuthenticV42();
