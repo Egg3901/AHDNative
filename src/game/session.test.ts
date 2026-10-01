@@ -174,7 +174,8 @@ describe("actions hub projection", () => {
     expect(session.act("fundraise").ok).toBe(true);
   });
   it("offers real intelligence polls whose results project into the view and survive reload", () => {
-    const session = new GameSession(); session.create({ ...options, stats: { charisma: 3, debate: 3, energy: 3, fundraising: 3, businessAcumen: 3, statecraft: 3, intellect: 10 } });
+    const session = new GameSession(); session.create(options);
+    session.allocateStats({ charisma: 3, debate: 3, energy: 3, fundraising: 3, businessAcumen: 3, statecraft: 3, intellect: 10 });
     expect(session.view().actions.find((a) => a.id === "poll")).toMatchObject({ category: "intelligence", cost: 2, fundCost: 21_186 });
     expect(session.view().actions.find((a) => a.id === "pollLarge")).toMatchObject({ category: "intelligence", cost: 6, fundCost: 63_559 });
     expect(session.view().polls).toEqual({ quick: null, full: null });

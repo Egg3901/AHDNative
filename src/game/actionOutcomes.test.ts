@@ -1,14 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { GameSession } from "./session";
 
-const options = { era: "1953", countryId: "US", seed: "action-outcomes", playerName: "Alex",
-  stats: { charisma: 3, debate: 3, energy: 3, fundraising: 10, businessAcumen: 3, statecraft: 3, intellect: 3 } };
+const options = { era: "1953", countryId: "US", seed: "action-outcomes", playerName: "Alex" };
+function createSession() {
+  const session = new GameSession();
+  session.create(options);
+  session.allocateStats({ charisma: 3, debate: 3, energy: 3, fundraising: 10, businessAcumen: 3, statecraft: 3, intellect: 3 });
+  return session;
+}
 const savedAt = "2026-09-11T00:00:00.000Z";
 
 describe("action outcomes through the session boundary", () => {
   it("returns changed resources, influence, target and follow-up effects", () => {
-    const session = new GameSession();
-    const before = session.create(options);
+    const session = createSession();
+    const before = session.view();
     const region = before.regions[0];
     expect(session.act("convertCash", { amount: 10_000 }).ok).toBe(true);
     expect(session.act("buildDonorBase").ok).toBe(true);
@@ -30,7 +35,7 @@ describe("action outcomes through the session boundary", () => {
   });
 
   it("persists actionable result history across turns and save reload", () => {
-    const session = new GameSession(); session.create(options);
+    const session = createSession();
     expect(session.act("convertCash", { amount: 10_000 }).ok).toBe(true);
     const result = session.act("buildDonorBase");
     expect(result.ok).toBe(true);
@@ -43,8 +48,8 @@ describe("action outcomes through the session boundary", () => {
   });
 
   it("projects campaign results through Profile, party, notifications, save/reload, and the next turn", () => {
-    const session = new GameSession();
-    const initial = session.create(options);
+    const session = createSession();
+    const initial = session.view();
     const raw = JSON.parse(session.serialize(savedAt));
     raw.world.player.partyId = "US_DEM";
     raw.world.player.actions = 20;
@@ -71,7 +76,7 @@ describe("action outcomes through the session boundary", () => {
   });
 
   it("returns prerequisite failures without partial spend or history", () => {
-    const seeded = new GameSession(); seeded.create(options);
+    const seeded = createSession();
     const envelope = JSON.parse(seeded.serialize(savedAt)) as { world: { player: { funds: number } } };
     envelope.world.player.funds = 0;
     const session = new GameSession(); session.load(JSON.stringify(envelope));
