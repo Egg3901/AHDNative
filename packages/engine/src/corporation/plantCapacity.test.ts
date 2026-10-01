@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buyPlantCapacity, capacityPricePerUnitAnchor, plantReplacementCostAnchor, seedPlantCapital } from "./plantCapacity.js";
+import { buyPlantCapacity, capacityPricePerUnitAnchor, DEFAULT_SECTOR_OUTPUT_MIX, plantReplacementCostAnchor, seedPlantCapital } from "./plantCapacity.js";
 
 describe("corporate plant capital at the public asset boundary", () => {
   const manufacturingPrices = { steel: 11.466666666666667, building_materials: 5.733333333333333 } as const;
@@ -36,5 +36,18 @@ describe("corporate plant capital at the public asset boundary", () => {
       .toEqual({ capitalStock: 50, capacityBookAnchor: 90 });
     expect(buyPlantCapacity({ capitalStock: 50, creditAnchor: 0, capacityPricePerUnitAnchor: Number.NaN }))
       .toEqual({ capitalStock: 50, capacityBookAnchor: 0 });
+  });
+
+  it("uses AHDGame's standard diversified extraction production rates", () => {
+    // Independent vector from AHDGame src/lib/constants/sectorStrategies.ts
+    // extraction.standard at immutable source revision cb66acdf0129616b8a09902727e9b58715c8bacb.
+    expect(DEFAULT_SECTOR_OUTPUT_MIX.extraction).toEqual({
+      iron: 0.25,
+      coal: 0.22,
+      oil: 0.14,
+      rare_earth: 0.14,
+      natural_gas: 0.14,
+      timber: 0.12,
+    });
   });
 });

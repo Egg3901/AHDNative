@@ -9,6 +9,9 @@ import {
 import type { CommodityType, ExtractableResource } from "./constants.js";
 import { depletedCapacityPerTurn } from "../extraction/constants.js";
 import type { StateResourceCapacity } from "../extraction/types.js";
+import type { Corporation } from "../corporation/types.js";
+import type { CountryBudget, RegionalBudget } from "../budget/types.js";
+import { anchorToLocal, rateForLocalBalance } from "../forex/conversion.js";
 
 /**
  * Contract settlement turn phase.
@@ -69,6 +72,12 @@ export function settleContractsForTurn(
   commodityPrices: WorldState["commodityPrices"],
   turn: number,
   capacities?: Record<string, StateResourceCapacity>,
+  finances?: {
+    corporations: Record<string, Corporation>;
+    budgets: Record<string, CountryBudget>;
+    regionalBudgets: Record<string, RegionalBudget>;
+    world: WorldState;
+  },
 ): ContractSettlementResult {
   const result: ContractSettlementResult = {
     contractsSettled: 0,
@@ -82,6 +91,7 @@ export function settleContractsForTurn(
   };
 
   for (const contract of contracts) {
+    if (contract.revokedTurn != null || contract.status === "declined") continue;
     // Offer expiry
     if (contract.status === "offered") {
       if (contract.offerExpiresTurn != null && contract.offerExpiresTurn <= turn) {
@@ -143,7 +153,9 @@ export function settleContractsForTurn(
       }
     }
 
-    // PORT-STUB counterparty handling
+    // Legacy fixtures without a counterparty keep the historic synthetic
+    // settlement result. Player-addressable offers always have a corporation
+    // id and use the cash/budget path below.
     if (contract.corporationId == null) {
       // Stubbed corporation: always pays, no treasury movement, no missed path.
       contract.lastSettlementTurn = turn;
@@ -154,11 +166,56 @@ export function settleContractsForTurn(
       continue;
     }
 
-    // Real corporationId but corporations system not yet ported: treat as
-    // insufficient funds path for determinism testing. In real port this
-    // would be the guarded corporation.liquidCapital debit.
-    // For now, stub to "always insufficient" when corporationId is non-null
-    // but starts with "insolvent-" prefix (test hook); otherwise treat as paid.
+    const corporation = finances?.corporations[contract.corporationId];
+    if (corporation && finances) {
+      const feeLocal = anchorToLocal(dueAnchor, rateForLocalBalance(finances.world, corporation.countryId));
+      const receiverLocal = anchorToLocal(dueAnchor, rateForLocalBalance(finances.world, contract.countryId));
+      if (corporation.liquidCapital >= feeLocal) {
+        const regional = contract.grantedByLevel === "state" ? finances.regionalBudgets[contract.stateId] : undefined;
+        const national = finances.budgets[contract.countryId];
+        if (regional) {
+          regional.revenue.resourceRoyalties = (regional.revenue.resourceRoyalties ?? 0) + receiverLocal;
+          regional.revenue.total += receiverLocal;
+          regional.balance = regional.revenue.total - regional.spending.total;
+        } else if (national) {
+          national.revenue.other += receiverLocal;
+          national.revenue.total += receiverLocal;
+          national.treasuryBalance += receiverLocal;
+        } else {
+          // Missing receiver budget fails closed: no debit or depletion is
+          // recorded as a successful payment.
+          const missed = (contract.missedPayments ?? 0) + 1;
+          contract.missedPayments = missed;
+          contract.lastSettlementTurn = turn;
+          if (missed >= CONTRACT_DEFAULT_MISSED_PAYMENTS) {
+            contract.status = "defaulted";
+            result.contractsDefaulted += 1;
+          }
+          result.paymentsMissed += 1;
+          result.contractsSettled += 1;
+          continue;
+        }
+        corporation.liquidCapital -= feeLocal;
+        contract.lastSettlementTurn = turn;
+        contract.missedPayments = 0;
+        result.royaltiesPaid += 1;
+        result.totalRoyaltyAnchor += dueAnchor;
+        result.contractsSettled += 1;
+        continue;
+      }
+      const missed = (contract.missedPayments ?? 0) + 1;
+      contract.missedPayments = missed;
+      contract.lastSettlementTurn = turn;
+      if (missed >= CONTRACT_DEFAULT_MISSED_PAYMENTS) {
+        contract.status = "defaulted";
+        result.contractsDefaulted += 1;
+      }
+      result.paymentsMissed += 1;
+      result.contractsSettled += 1;
+      continue;
+    }
+
+    // Deterministic insolvency fixture hook for legacy tests.
     const isInsolventTestHook =
       typeof contract.corporationId === "string" && contract.corporationId.startsWith("insolvent-");
 
@@ -191,6 +248,11 @@ export const contractSettlementPhase: TurnPhase = {
   name: "contractSettlement",
   run(world: WorldState) {
     const turn = world.meta.turn;
-    settleContractsForTurn(world.extractionContracts, world.commodityPrices, turn, world.stateResourceCapacities);
+    settleContractsForTurn(world.extractionContracts, world.commodityPrices, turn, world.stateResourceCapacities, {
+      corporations: world.corporations,
+      budgets: world.budgets,
+      regionalBudgets: world.regionalBudgets,
+      world,
+    });
   },
 };

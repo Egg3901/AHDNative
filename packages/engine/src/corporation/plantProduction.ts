@@ -12,6 +12,7 @@ import {
 import type { CommodityType } from "../commodity/constants.js";
 import type { WorldState } from "../types.js";
 import type { CorporateSectorAsset } from "./corporateSectorAssets.js";
+import type { SectorBuildOrder } from "./corporateSectorAssets.js";
 import { CORPORATE_PLANT_MARKET_STABILIZER, rebuildCorporatePlantInputDemand } from "./plantDemand.js";
 
 const PRICE_REALIZATION_EXPONENT = 0.5;
@@ -51,20 +52,50 @@ export function runCorporatePlantProductionTurn(
   const offersByCommodity = new Map<CommodityType, PlantOffer[]>();
   const currentSupplyByCommodity = new Map<CommodityType, number>();
   const sectorPosture = new Map<string, number>();
+  const soldByAssetCommodity = new Map<string, Map<CommodityType, number>>();
 
   for (const asset of Object.values(assets).sort((a, b) => a.id.localeCompare(b.id))) {
     const corporation = world.corporations[asset.corporationId];
     if (!corporation || corporation.suspended === true) continue;
 
-    const capacityBefore = asset.capitalStock ?? 0;
     const listPrice = capacityPricePerUnitAnchor(asset.sectorType, basePrices);
+    const capacityBefore = asset.capitalStock ?? 0;
+    const delivered = deliverBuildOrders(asset.buildQueue ?? [], world.meta.turn);
+    if (delivered.units > 0 || delivered.cost > 0 || (asset.buildQueue?.length ?? 0) > delivered.remaining.length) {
+      asset.capitalStock = capacityBefore + delivered.units;
+      asset.capacityBookAnchor = (asset.capacityBookAnchor ?? 0) + delivered.cost;
+      asset.buildQueue = delivered.remaining;
+      asset.constructionInProgressAnchor = delivered.remaining.reduce(
+        (sum, order) => sum + undeliveredBuildCost(order, world.meta.turn),
+        0,
+      );
+    }
     const capital = advancePlantCapitalTurn({
-      capitalStock: capacityBefore,
+      capitalStock: asset.capitalStock ?? capacityBefore,
       capacityBookAnchor: asset.capacityBookAnchor,
       landedCreditAnchor: 0,
       capacityPricePerUnitAnchor: listPrice,
     });
-    const rates = DEFAULT_SECTOR_OUTPUT_MIX[asset.sectorType] ?? {};
+    const defaultRates = DEFAULT_SECTOR_OUTPUT_MIX[asset.sectorType] ?? {};
+    // Regional miners keep the full source standard-strategy basis, while a
+    // missing regional resource has zero production/sell-through. This mirrors
+    // Game's per-resource capacity haircut without re-normalizing available
+    // deposits into invented output.
+    const regionalResources = asset.sectorType === "extraction" && asset.stateId
+      ? world.stateResourceCapacities[asset.stateId]?.resources
+      : undefined;
+    const rates = defaultRates;
+    const availableRateTotal = regionalResources
+      ? Object.entries(rates).reduce((sum, [resource, rate]) =>
+          sum + ((regionalResources[resource as keyof typeof regionalResources] ?? 0) <= 0 ? 0 : (rate ?? 0)), 0)
+      : 1;
+    const initialFills = new Map<CommodityType, number>();
+    if (regionalResources) {
+      for (const resource of Object.keys(rates) as CommodityType[]) {
+        if ((regionalResources[resource as keyof typeof regionalResources] ?? 0) <= 0) initialFills.set(resource, 0);
+      }
+    }
+    soldByAssetCommodity.set(asset.id, initialFills);
     let rawYield = 0;
     for (const [rawCommodity, rate] of Object.entries(rates)) {
       const base = basePrices[rawCommodity as CommodityType];
@@ -84,7 +115,7 @@ export function runCorporatePlantProductionTurn(
     const requestedFactor = outputFactorByCorporation.get(corporation.id) ?? 1;
     const labourOutputFactor = Number.isFinite(requestedFactor) ? Math.max(0, Math.min(1, requestedFactor)) : 1;
     const productionCapacity = capital.capitalStock;
-    const plannedUnits = productionCapacity * labourOutputFactor;
+    const plannedUnits = productionCapacity * labourOutputFactor * availableRateTotal;
     const strategyPrices = world.commodityPrices;
     const priorSoldUnits = throttleSoldUnits(asset, rates, (commodity) => {
       const row = strategyPrices[commodity];
@@ -92,7 +123,7 @@ export function runCorporatePlantProductionTurn(
     });
     const demandFactor = demandThrottleFactor(plannedUnits, priorSoldUnits, asset.producedUnits);
     const outputFactor = labourOutputFactor * demandFactor;
-    const producedUnits = productionCapacity * outputFactor;
+    const producedUnits = productionCapacity * outputFactor * availableRateTotal;
     const seller: PlantSeller = {
       asset,
       productionCapacity,
@@ -105,7 +136,8 @@ export function runCorporatePlantProductionTurn(
 
     for (const [rawCommodity, weight] of Object.entries(mixWeights)) {
       const commodity = rawCommodity as CommodityType;
-      const units = producedUnits * (weight ?? 0);
+      if (regionalResources && (regionalResources[commodity as keyof typeof regionalResources] ?? 0) <= 0) continue;
+      const units = productionCapacity * outputFactor * (weight ?? 0);
       if (!(units > 0) || !Number.isFinite(units)) continue;
       const balance = world.commodityPrices[commodity];
       const sourceSupply = Number.isFinite(balance?.globalSupply) ? Math.max(0, balance!.globalSupply) : 0;
@@ -127,7 +159,6 @@ export function runCorporatePlantProductionTurn(
     asset.realizedRevenue = 0;
   }
 
-  const soldByAssetCommodity = new Map<string, Map<CommodityType, number>>();
   for (const [commodity, offers] of offersByCommodity) {
     const row = world.commodityPrices[commodity];
     const totalOffered = offers.reduce((sum, offer) => sum + offer.units, 0);
@@ -196,6 +227,7 @@ export function runCorporatePlantProductionTurn(
     asset.soldUnits = soldUnits;
     asset.soldFraction = soldFraction;
     asset.realizedRevenue = realizedRevenue;
+    asset.revenue = realizedRevenue;
     asset.soldByCommodity = soldByCommodity;
     asset.workers = calculateSectorWorkers(realizedRevenue, null);
     revenueAnchorPerDayByCorp.set(
@@ -230,6 +262,29 @@ export function runCorporatePlantProductionTurn(
     const productionSupply = currentSupplyByCommodity.get(key) ?? 0;
     row.globalSupply = externalSupply + productionSupply;
   }
+}
+
+/** Source Game buildDelivery.ts: immutable linear orders land exact slices. */
+function deliveredBuildFraction(order: SectorBuildOrder, turn: number): number {
+  if (order.smooth !== true || order.onlineTurn <= order.startTurn) return turn >= order.onlineTurn ? 1 : 0;
+  return Math.max(0, Math.min(1, (turn - order.startTurn) / (order.onlineTurn - order.startTurn)));
+}
+
+function deliverBuildOrders(queue: SectorBuildOrder[], turn: number): { units: number; cost: number; remaining: SectorBuildOrder[] } {
+  let units = 0;
+  let cost = 0;
+  const remaining: SectorBuildOrder[] = [];
+  for (const order of queue) {
+    const fraction = Math.max(0, deliveredBuildFraction(order, turn) - deliveredBuildFraction(order, turn - 1));
+    units += order.unitsOrdered * fraction;
+    cost += order.costPaidAnchor * fraction;
+    if (order.onlineTurn > turn) remaining.push(order);
+  }
+  return { units, cost, remaining };
+}
+
+function undeliveredBuildCost(order: SectorBuildOrder, turn: number): number {
+  return order.costPaidAnchor * (1 - deliveredBuildFraction(order, turn));
 }
 
 export const corporatePlantProductionPhase: TurnPhase = {

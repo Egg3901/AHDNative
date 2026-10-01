@@ -1,5 +1,5 @@
 /**
- * Corporation plant-capacity substrate from AHDGame 954f1c2178.
+ * Corporation plant-capacity substrate from AHDGame cb66acdf0129616b8a09902727e9b58715c8bacb.
  *
  * `capitalStock` is the source CorporateSector output-unit stock and
  * `capacityBookAnchor` is its paid USD-era book value. Native corporate revenue
@@ -17,7 +17,7 @@ export const PLANT_CAPITAL_SEED_HEADROOM = 1.1;
 export const PLANT_CAPITAL_DEPRECIATION_PER_TURN = 0.0005;
 const GROWTH_COST_MULTIPLIER = 3;
 
-/** Game's ungated standard-strategy output mix (`SECTOR_STRATEGIES`, standard). */
+/** Game's ungated standard-strategy output mix (`SECTOR_STRATEGIES`, standard), source cb66acdf. */
 export const DEFAULT_SECTOR_OUTPUT_MIX: Partial<Record<CorporationType, Partial<Record<CommodityType, number>>>> = {
   manufacturing: { steel: 0.4, building_materials: 0.2 },
   technology: { electronics: 0.35, software: 0.35 },
@@ -35,7 +35,10 @@ export const DEFAULT_SECTOR_OUTPUT_MIX: Partial<Record<CorporationType, Partial<
   entertainment: { advertising: 0.2, entertainment_services: 0.4 },
   retail: { retail: 0.5 },
   logistics: { freight: 0.45, consulting_services: 0.25 },
-  extraction: { iron: 0.4, coal: 0.3, oil: 0.14, rare_earth: 0.27, natural_gas: 0.24, timber: 0.2 },
+  // AHDGame SECTOR_STRATEGIES.extraction.standard (Diversified), pinned
+  // source revision 96831835. Keep the plants list price and standard
+  // operation output mix on the same source basis.
+  extraction: { iron: 0.25, coal: 0.22, oil: 0.14, rare_earth: 0.14, natural_gas: 0.14, timber: 0.12 },
 };
 
 export interface PlantCapitalSeed {

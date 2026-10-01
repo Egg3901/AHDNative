@@ -852,7 +852,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
             </div>
           ))}
           {route === "worldDirectory" && <DetailQuery load={loadWorldOverview} revision={world} label="World directory">{overview => <WorldDirectoryPanel overview={overview} onNavigate={navigate} />}</DetailQuery>}
-          {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} loadMarkets={loadMarkets} revision={world} contextKey={contextKey} busy={busy} onNavigate={navigate} onDrill={drillViewer} onSectorSale={onSectorSale} />}
+          {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} loadMarkets={loadMarkets} revision={world} contextKey={contextKey} busy={busy} onNavigate={navigate} onDrill={drillViewer} onSectorSale={onSectorSale} onAction={onAction} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "government" && (world.cabinet === null ? (
             // #510 honest no-seat state: the drawer hides this destination
