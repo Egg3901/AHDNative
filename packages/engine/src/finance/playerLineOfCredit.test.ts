@@ -248,6 +248,33 @@ describe("playerLineOfCreditPhase", () => {
     expect(reloaded.player.lineOfCredit!.drawFrozen).toBe(false);
   });
 
+  it("selects the largest source-ranked personal currency balance first", () => {
+    const world = createWorld(OPTS);
+    world.player.cash = 0;
+    world.player.savings = 0;
+    world.player.currencyBalances = { personal: { GBP: 20, SUR: 20 } };
+    world.exchangeRates.US!.rate = 1;
+    world.exchangeRates.UK!.rate = 2;
+    world.exchangeRates.RU!.rate = 4;
+    world.centralBanks.US!.primeRate = 5;
+    world.player.lineOfCredit = {
+      balance: 1000,
+      denomination: "USD",
+      arrears: 0,
+      drawFrozen: false,
+    };
+
+    playerLineOfCreditPhase.run(world, RNG);
+
+    // Game sorts by available balance × current rate descending. With GBP
+    // 20×2 and SUR 20×4, the source quote consumes SUR 1.02 first for the
+    // USD 4.07 installment; GBP remains untouched.
+    expect(world.player.currencyBalances!.personal.SUR).toBe(18.98);
+    expect(world.player.currencyBalances!.personal.GBP).toBe(20);
+    expect(world.player.lineOfCredit!.balance).toBe(998.01);
+    expect(world.player.lineOfCredit!.arrears).toBe(0);
+  });
+
   it("services foreign personal cash across public turns with reload-equivalent continuation", () => {
     const start = createWorld(OPTS);
     start.player.cash = 0;
