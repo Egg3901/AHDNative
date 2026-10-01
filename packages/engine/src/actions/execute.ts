@@ -61,11 +61,9 @@ import { castPmAppointmentVote, proposePmAppointment } from "../government/pmApp
 import { isPlannedEconomy } from "../commandEconomy/constants.js";
 import { canPlayerOperateGosbank } from "../commandEconomy/authority.js";
 import { reconcileCeoAppointment } from "../corporation/ceoGovernance.js";
-import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
 import { nationalizeDistressedCorporation } from "../corporation/nationalization.js";
 import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
 import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecruit.js";
-import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
 
 export type ExecuteActionParams = {
   regionId?: string;

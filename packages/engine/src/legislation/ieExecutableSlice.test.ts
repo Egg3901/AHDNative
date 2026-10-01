@@ -7,8 +7,9 @@ import { rngFromSeed } from "../rng.js";
 import { nppBillSponsorshipPhase } from "../npp/nppBillSponsorship.js";
 
 function seatIrishGovernment(world: ReturnType<typeof createWorld>): void {
-  // Controlled post-formation fixture for bill lifecycle tests. The real 1991
-  // seed is pending; Native does not yet expose the source PM-nomination vote.
+  // Controlled formed-government fixture for isolated bill lifecycle tests.
+  // The integrated browser smoke separately covers a resolver-awarded seat,
+  // source PM nomination, weighted Dáil vote, and persisted appointment.
   const gov = world.governments.IE!;
   const chamber = world.legislatures.IE!.chambers.find((entry) => entry.key === "dail")!;
   const [partyId, seats] = Object.entries(chamber.composition.seatsByParty)
@@ -33,7 +34,7 @@ function seatIrishGovernment(world: ReturnType<typeof createWorld>): void {
 
 /**
  * Public player-command boundary for Ireland's authored VAT Act (#284).
- * AHDGame 01797b2708: src/lib/countries/ie/data/ieLegislationTypes.ts
+ * AHDGame cb66acdf0129616b8a09902727e9b58715c8bacb: src/lib/countries/ie/data/ieLegislationTypes.ts
  * authors the 21% 1991 posture and the 23% option (ie_vat_rate_opt_6).
  * Native's 1991 IE pack is playable and seeds salesTax=21.
  */

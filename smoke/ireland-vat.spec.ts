@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { advanceTurn, createWorld, executeAction, serializeSave } from "@ahdclient/engine";
+import { advanceTurn, createWorld, deserializeSave, executeAction, serializeSave } from "@ahdclient/engine";
 import {
   advanceGame,
   gameReady,
@@ -8,7 +8,10 @@ import {
   saveGame,
 } from "./game-navigation";
 
+let eligibleSeatSave: Buffer | undefined;
+
 function playableIrishSeatSave(): Buffer {
+  if (eligibleSeatSave) return Buffer.from(eligibleSeatSave);
   const world = createWorld({
     seed: "ie-seat-region-scan",
     playerName: "Irish VAT Player",
@@ -54,59 +57,87 @@ function playableIrishSeatSave(): Buffer {
   if (world.parties.IE_FF?.chairId !== "player") {
     throw new Error("Expected normal Irish party-election phases to award the player the party chair");
   }
+  eligibleSeatSave = Buffer.from(serializeSave(world, "2026-10-01T00:00:00.000Z"));
+  return Buffer.from(eligibleSeatSave);
+}
+
+function sourceTaoiseachWorld() {
+  const world = deserializeSave(playableIrishSeatSave().toString("utf8"));
+  const nomination = executeAction(world, "player", "proposePmAppointment");
+  if (!nomination.ok) throw new Error(`Source PM nomination failed: ${nomination.error}`);
+  const vote = world.pmAppointmentVotes.at(-1);
+  if (!vote) throw new Error("The source PM nomination did not create an appointment vote");
+  const cast = executeAction(world, "player", "votePmAppointment", {
+    pmAppointmentVoteId: vote.id,
+    pmVote: "aye",
+  });
+  if (!cast.ok) throw new Error(`Source PM appointment vote failed: ${cast.error}`);
+  for (let turn = 0; turn < 30 && vote.status === "active"; turn++) advanceTurn(world);
+  if (vote.status !== "passed" || world.governments.IE?.pmPoliticianId !== "player") {
+    throw new Error(`Source PM appointment did not pass: ${vote.status} at turn ${world.meta.turn}`);
+  }
+  return world;
+}
+
+function playableIrishTaoiseachSave(): Buffer {
+  return Buffer.from(serializeSave(sourceTaoiseachWorld(), "2026-10-01T00:00:00.000Z"));
+}
+
+function signedIrishVatSave(): Buffer {
+  const world = sourceTaoiseachWorld();
+  const proposed = executeAction(world, "player", "sponsorBill", {
+    catalogId: "ie_vat_rate",
+    taxRate: 23,
+  });
+  if (!proposed.ok) throw new Error(`Source VAT proposal failed: ${proposed.error}`);
+  const bill = world.bills.at(-1);
+  if (!bill) throw new Error("The source VAT proposal did not create a bill");
+  for (let turn = 0; turn < 24 && bill.status !== "signed" && bill.status !== "failed"; turn++) {
+    advanceTurn(world);
+    if (bill.status === "active" && !bill.votes.player) {
+      const vote = executeAction(world, "player", "voteOnBill", { billId: bill.id, vote: "for" });
+      if (!vote.ok) throw new Error(`Source VAT vote failed: ${vote.error}`);
+    }
+  }
+  if (bill.status !== "signed" || world.budgets.IE?.taxRates.salesTax !== 23) {
+    throw new Error(`Source VAT bill did not enact at 23%: ${bill.status}, rate ${world.budgets.IE?.taxRates.salesTax}`);
+  }
   return Buffer.from(serializeSave(world, "2026-10-01T00:00:00.000Z"));
 }
 
-test("Irish VAT bill proposal, vote, enactment, replacement, save and resumed fiscal phase at phone widths", async ({
-  page,
-}, testInfo) => {
+async function advanceUntilVote(page: import("@playwright/test").Page, title: string) {
+  const vote = page.getByRole("button", { name: `For on ${title}`, exact: true });
+  for (let turn = 0; turn < 12 && !(await vote.isVisible()); turn++) {
+    await advanceGame(page, { turnTimeoutMs: 180_000 });
+  }
+  await expect(vote).toBeVisible();
+  await vote.click();
+  await gameReady(page);
+}
+
+async function advanceUntilLatestBillSigned(page: import("@playwright/test").Page, title: string) {
+  const latestBill = page.getByRole("article", { name: title, exact: true }).last();
+  for (
+    let turn = 0;
+    turn < 12 && !(await latestBill.getByText("signed", { exact: true }).isVisible().catch(() => false));
+    turn++
+  ) {
+    await advanceGame(page, { turnTimeoutMs: 180_000 });
+  }
+  await expect(latestBill).toContainText("signed");
+}
+
+async function openLegislation(page: import("@playwright/test").Page) {
+  await navigateGame(page, "Bills and proposals");
+  await expect(page.getByLabel("Available legislation", { exact: true })).toBeEnabled();
+}
+
+test("Irish party chair nominates a Taoiseach through the Dáil and resumes the passed appointment", async ({ page }, testInfo) => {
   test.setTimeout(1_800_000);
-  const save = playableIrishSeatSave();
   await page.setViewportSize({ width: 320, height: 844 });
   await page.goto("/");
-  await loadFixture(page, save);
+  await loadFixture(page, playableIrishSeatSave());
   await gameReady(page);
-  const openLegislation = async () => {
-    await navigateGame(page, "Bills and proposals");
-    await expect(
-      page.getByLabel("Available legislation", { exact: true }),
-    ).toBeEnabled();
-  };
-  const advanceUntilVote = async (title: string) => {
-    const vote = page.getByRole("button", {
-      name: `For on ${title}`,
-      exact: true,
-    });
-    for (let turn = 0; turn < 12 && !(await vote.isVisible()); turn++)
-      await advanceGame(page, { turnTimeoutMs: 180_000 });
-    await expect(vote).toBeVisible();
-    await vote.click();
-    await gameReady(page);
-  };
-  const advanceUntilSigned = async (title: string) => {
-    const bill = page
-      .getByRole("article", { name: title, exact: true })
-      .first();
-    for (
-      let turn = 0;
-      turn < 12 &&
-      !(await bill
-        .getByText("signed", { exact: true })
-        .isVisible()
-        .catch(() => false));
-      turn++
-    ) {
-      await advanceGame(page, { turnTimeoutMs: 180_000 });
-    }
-    await expect(bill).toContainText("signed");
-  };
-  const currentSalesTaxRate = async () => {
-    const term = page.locator("dt").filter({ hasText: "Sales Tax" });
-    await expect(term).toHaveCount(1);
-    const rate = await term.locator("xpath=.. >> dd").innerText();
-    return Number.parseFloat(rate.replace("%", ""));
-  };
-
   await navigateGame(page, "Legislature");
   await expect(page.getByRole("region", { name: "Dáil government formation" })).toContainText("Your party chair may nominate a Taoiseach candidate.");
   await page.getByRole("button", { name: "Nominate yourself as Taoiseach", exact: true }).click();
@@ -118,148 +149,90 @@ test("Irish VAT bill proposal, vote, enactment, replacement, save and resumed fi
   for (let turn = 0; turn < 30 && !(await taoiseach.isVisible().catch(() => false)); turn++) {
     await advanceGame(page, { turnTimeoutMs: 180_000 });
   }
+  const appointment = page.getByRole("article", { name: "Taoiseach appointment vote for Irish VAT Player", exact: true });
   await expect(taoiseach).toBeVisible();
+  await expect(appointment).toContainText("passed");
+  await expect(appointment).toContainText("153 ayes");
   await saveGame(page);
   await page.reload();
   await page.getByRole("button", { name: "Continue Irish VAT Player", exact: true }).click();
   await gameReady(page);
   await navigateGame(page, "Legislature");
   await expect(page.getByText("Taoiseach: Irish VAT Player", { exact: true })).toBeVisible();
-  await navigateGame(page, "Profile");
-  const influenceTerm = page.locator("dt").filter({ hasText: "National influence" });
-  await expect(influenceTerm).toHaveCount(1);
-  const currentInfluence = await influenceTerm.locator("xpath=.. >> dd").innerText();
-  expect(Number.parseFloat(currentInfluence)).toBeGreaterThanOrEqual(5);
+  await page.screenshot({ path: testInfo.outputPath("ireland-taoiseach-320.png"), fullPage: true });
+});
 
-  await openLegislation();
-  await page
-    .getByLabel("Available legislation", { exact: true })
-    .selectOption("ie_vat_rate");
+test("Irish PM proposes, passes and resumes the authored 23% VAT bill", async ({ page }, testInfo) => {
+  test.setTimeout(1_800_000);
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto("/");
+  await loadFixture(page, playableIrishTaoiseachSave());
+  await gameReady(page);
+  await navigateGame(page, "Legislature");
+  await expect(page.getByText("Taoiseach: Irish VAT Player", { exact: true })).toBeVisible();
+  await openLegislation(page);
+  await page.getByLabel("Available legislation", { exact: true }).selectOption("ie_vat_rate");
   await page.getByLabel("Tax rate", { exact: true }).selectOption("23");
-  const sponsorBill = page.getByRole("button", {
-    name: "Sponsor bill",
-    exact: true,
-  });
-  await expect(sponsorBill).toBeEnabled();
-  // Turn updates remount the details form, which resets the selector to the
-  // enacted baseline. Choose the source witness again after office accrual.
-  await page.getByLabel("Tax rate", { exact: true }).selectOption("23");
-  await expect(
-    page.getByText("Cost 10 actions + 5 national influence", { exact: true }),
-  ).toBeVisible();
-  await sponsorBill.click();
+  await expect(page.getByText("Cost 10 actions + 5 national influence", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Sponsor bill", exact: true }).click();
   const vatTitle = "Statutory Value-Added Tax Act";
-  await advanceUntilVote(vatTitle);
-  await advanceUntilSigned(vatTitle);
-  const signedVat = page
-    .getByRole("article", { name: vatTitle, exact: true })
-    .first();
-  await signedVat
-    .getByRole("button", {
-      name: `Show details for ${vatTitle}`,
-      exact: true,
-    })
-    .click();
-  await expect(
-    page.getByText("Selected rate: 23%", { exact: true }),
-  ).toBeVisible();
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
-  await page.screenshot({
-    path: testInfo.outputPath("ireland-vat-320-bill.png"),
-    fullPage: true,
-  });
+  await advanceUntilVote(page, vatTitle);
+  await advanceUntilLatestBillSigned(page, vatTitle);
+  const signedBill = page.getByRole("article", { name: vatTitle, exact: true }).last();
+  await signedBill.getByRole("button", { name: `Show details for ${vatTitle}`, exact: true }).click();
+  await expect(page.getByText("Selected rate: 23%", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("ireland-vat-320-bill.png"), fullPage: true });
   await saveGame(page);
   await page.reload();
-  await page
-    .getByRole("button", { name: "Continue Irish VAT Player", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Continue Irish VAT Player", exact: true }).click();
   await gameReady(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  await openLegislation();
-  const resumedVat = page
-    .getByRole("article", { name: vatTitle, exact: true })
-    .first();
-  await resumedVat
-    .getByRole("button", {
-      name: `Show details for ${vatTitle}`,
-      exact: true,
-    })
-    .click();
-  await expect(
-    page.getByText("Selected rate: 23%", { exact: true }),
-  ).toBeVisible();
+  await openLegislation(page);
+  const resumedBill = page.getByRole("article", { name: vatTitle, exact: true }).last();
+  await resumedBill.getByRole("button", { name: `Show details for ${vatTitle}`, exact: true }).click();
+  await expect(page.getByText("Selected rate: 23%", { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("ireland-vat-390-resumed.png"), fullPage: true });
+});
 
+test("Irish PM replaces VAT through a source bill and resumes its saved fiscal phase", async ({ page }, testInfo) => {
+  test.setTimeout(1_800_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await loadFixture(page, signedIrishVatSave());
+  await gameReady(page);
+  await openLegislation(page);
+  const vatTitle = "Statutory Value-Added Tax Act";
+  const priorBillCount = await page.getByRole("article", { name: vatTitle, exact: true }).count();
   const rateSelector = page.getByLabel("Tax rate", { exact: true });
   await rateSelector.selectOption("25");
-  const replacementAction = page.getByRole("button", {
-    name: "Sponsor bill",
-    exact: true,
-  });
-  for (let turn = 0; turn < 8 && !(await replacementAction.isEnabled()); turn++)
-    await advanceGame(page, { turnTimeoutMs: 180_000 });
-  await expect(replacementAction).toBeEnabled();
-  await expect(
-    page.getByText("Cost 10 actions + 5 national influence", { exact: true }),
-  ).toBeVisible();
-  await replacementAction.click();
-  await advanceUntilVote(vatTitle);
-  await advanceUntilSigned(vatTitle);
+  await expect(page.getByRole("button", { name: "Sponsor bill", exact: true })).toBeEnabled();
+  await expect(page.getByText("Cost 10 actions + 5 national influence", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Sponsor bill", exact: true }).click();
+  await expect(page.getByRole("article", { name: vatTitle, exact: true })).toHaveCount(priorBillCount + 1);
+  await advanceUntilVote(page, vatTitle);
+  await advanceUntilLatestBillSigned(page, vatTitle);
+  const replacement = page.getByRole("article", { name: vatTitle, exact: true }).last();
+  await replacement.getByRole("button", { name: `Show details for ${vatTitle}`, exact: true }).click();
+  await expect(page.getByText("Selected rate: 25%", { exact: true })).toBeVisible();
   await saveGame(page);
   await page.reload();
-  await page
-    .getByRole("button", { name: "Continue Irish VAT Player", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Continue Irish VAT Player", exact: true }).click();
   await gameReady(page);
-  await openLegislation();
-  const resumedReplacement = page
-    .getByRole("article", { name: vatTitle, exact: true })
-    .first();
-  await resumedReplacement
-    .getByRole("button", {
-      name: `Show details for ${vatTitle}`,
-      exact: true,
-    })
-    .click();
-  await expect(
-    page.getByText("Selected rate: 25%", { exact: true }),
-  ).toBeVisible();
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
-  await page.screenshot({
-    path: testInfo.outputPath("ireland-vat-390-replacement.png"),
-    fullPage: true,
-  });
+  await openLegislation(page);
+  const resumedReplacement = page.getByRole("article", { name: vatTitle, exact: true }).last();
+  await resumedReplacement.getByRole("button", { name: `Show details for ${vatTitle}`, exact: true }).click();
+  await expect(page.getByText("Selected rate: 25%", { exact: true })).toBeVisible();
   await navigateGame(page, "Policy");
-  const beforeContinuedTurn = await currentSalesTaxRate();
-  expect(beforeContinuedTurn).toBeGreaterThanOrEqual(23);
-  expect(beforeContinuedTurn).toBeLessThanOrEqual(25);
+  const currentTax = page.locator("dt").filter({ hasText: "Sales Tax" });
+  await expect(currentTax).toHaveCount(1);
+  const beforeTurn = Number.parseFloat((await currentTax.locator("xpath=.. >> dd").innerText()).replace("%", ""));
+  expect(beforeTurn).toBe(24);
   await advanceGame(page, { turnTimeoutMs: 180_000 });
   await navigateGame(page, "Policy");
-  await expect(
-    page.getByRole("heading", { name: "Current tax settings", exact: true }),
-  ).toBeVisible();
-  // AHDGame taxRatePhaseIn steps the active rate by at most one percentage
-  // point per turn toward the persisted selected 25% target.
-  expect(await currentSalesTaxRate()).toBe(Math.min(25, beforeContinuedTurn + 1));
-  await page.screenshot({
-    path: testInfo.outputPath("ireland-vat-390-policy.png"),
-    fullPage: true,
-  });
+  await expect(page.getByRole("heading", { name: "Current tax settings", exact: true })).toBeVisible();
+  await expect(currentTax.locator("xpath=.. >> dd")).toHaveText("25%");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.setViewportSize({ width: 320, height: 844 });
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
-  await page.screenshot({
-    path: testInfo.outputPath("ireland-vat-320-policy.png"),
-    fullPage: true,
-  });
+  await page.screenshot({ path: testInfo.outputPath("ireland-vat-320-policy.png"), fullPage: true });
 });
