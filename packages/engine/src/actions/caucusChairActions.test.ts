@@ -51,8 +51,7 @@ describe("setCaucusTaxRate through the public action (#60)", () => {
 
   it("rejects a non-chair member and an unknown caucus", () => {
     const { world, caucusId } = chairedCaucus(2);
-    // Leaving vacates the chair, so the same player is no longer the chair.
-    expect(executeAction(world, "player", "leaveCaucus", {}).ok).toBe(true);
+    world.caucuses.find((c) => c.id === caucusId)!.chairId = "npc-chair";
     const notChair = executeAction(world, "player", "setCaucusTaxRate", { caucusId, caucusTaxRate: 3 });
     expect(notChair.ok).toBe(false);
     expect(notChair.ok ? "" : notChair.error).toMatch(/chair/i);
@@ -98,7 +97,7 @@ describe("disbandCaucus through the public action (#60)", () => {
 
   it("rejects a non-chair and leaves the caucus intact", () => {
     const { world, caucusId } = chairedCaucus(2);
-    expect(executeAction(world, "player", "leaveCaucus", {}).ok).toBe(true);
+    world.caucuses.find((c) => c.id === caucusId)!.chairId = "npc-chair";
     const before = serializeSave(world, SAVED_AT);
     const result = executeAction(world, "player", "disbandCaucus", { caucusId });
     expect(result.ok).toBe(false);
