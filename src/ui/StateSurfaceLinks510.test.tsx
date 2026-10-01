@@ -133,7 +133,7 @@ function homeRegion(overrides = {}) {
 function overviewLoader(region: unknown) {
   return async () => ({
     era: "1953", turn: 1, date: "1953-01-01", playerCountryId: "US", playerHomeRegionId: "CA",
-    nations: [{ id: "US", name: "United States", playable: true, currency: "USD",
+    nations: [{ id: "US", name: "United States", playable: true, currency: "USD", races: [], leader: null,
       economy: { gdpMillions: 387000, growthRate: 0.046, inflationRate: 0.0075, unemploymentRate: 0.029, outputGap: -1.25 }, government: emptyGov }],
     homeRegion: region,
   });
@@ -143,7 +143,7 @@ const loadRegions = async () => ({
   era: "1953", turn: 1, date: "1953-01-01", playerCountryId: "US", playerCountryName: "United States", selectedCountryId: "US", selectedCountryName: "United States",
   playerHomeRegionId: "CA", currency: "USD", directoryQuery: "", directoryPage: 0, directoryPageSize: 20,
   directoryTotal: 1, directoryPageCount: 1,
-  directory: [{ id: "CA", name: "California", isHome: true, population: 120, gdpMillions: 50 }],
+  directory: [{ id: "CA", name: "California", isHome: true, population: 120, gdpMillions: 50, races: [], officeHolder: null }],
   selected: null,
 });
 const loadCaucusManagement = async (): Promise<CaucusManagementView> => ({

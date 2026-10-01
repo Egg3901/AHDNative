@@ -17,7 +17,8 @@ Shard key (AHDGame module -> file -> Native countries/eras):
 - src/lib/maps/usaGeometry.ts -> usa-regions.json
   50 states + DC (built by scripts/geo/build-usa-geo.mjs from us-atlas
   us-states-10m.json TopoJSON, FIPS -> state code; territories dropped).
-  Native records no DC: DC's feature is present but never selectable.
+  Native records DC as a corporation headquarters only. It has no political
+  region directory entry, so its feature is present but never selectable.
   1953 rosters carry 48 states (no AK/HI until statehood); later eras 50.
   Rendered with an AlbersUsa composite (CONUS + inset AK/HI), as source.
 - src/lib/maps/britishIslesGeometry.ts -> british-isles-regions.json
