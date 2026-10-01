@@ -84,9 +84,9 @@ function deriveTaxRates(cfg: Cfg): { rates: Record<TaxType, number>; notes: stri
   const extraLaws: string[] = [];
   for (const [taxType, lawId] of Object.entries(cfg.taxPolicyIds) as Array<[TaxType, string | undefined]>) {
     if (!lawId) continue;
-    // Mainline's taxPolicyIds carry country-specific dials beyond AHDClient's six
-    // revenue lines (DE solidaritySurcharge, CN LVAT / urban maintenance / stamp
-    // duty, IE property / USC / CGT / excise): PORT-STUB budget/extraTaxLines.
+    // Mainline's taxPolicyIds carry country-specific dials beyond the common
+    // six revenue lines. DE solidaritySurcharge is modeled below; CN and IE
+    // extra lines remain PORT-STUB budget/extraTaxLines.
     if (!(TAX_TYPES as readonly string[]).includes(taxType) && taxType !== "solidaritySurcharge") { extraLaws.push(`${taxType}:${lawId}`); continue; }
     const lt = typesById.get(lawId);
     if (!lt) { notes.push(`${taxType}: law ${lawId} not in mainline seeds -> 0`); continue; }
