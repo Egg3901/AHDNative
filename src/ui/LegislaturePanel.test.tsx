@@ -60,6 +60,17 @@ describe("LegislaturePanel", () => {
     expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "cat-b" });
   });
 
+  it("authors an economy-wide trade tariff through the public legislature form", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const LegislaturePanel = await renderPanel();
+    render(<LegislaturePanel legislature={makeLegislature()} clock={CLOCK} busy={false} onAction={onAction} />);
+    await user.clear(screen.getByRole("spinbutton", { name: "Customs tariff rate" }));
+    await user.type(screen.getByRole("spinbutton", { name: "Customs tariff rate" }), "17.5");
+    await user.click(screen.getByRole("button", { name: "Sponsor customs tariff" }));
+    expect(onAction).toHaveBeenCalledWith("sponsorBill", { catalogId: "trade.customs_tariff", tariffRate: 17.5 });
+  });
+
   it("disables Sponsor bill when busy, sponsor unavailable, or nothing valid to sponsor", async () => {
     const LegislaturePanel = await renderPanel();
     const { rerender } = render(

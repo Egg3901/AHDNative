@@ -1,5 +1,27 @@
 # AHDNative roadmap
 
+## Current tariff and commodity flow checkpoint, 2026-10-01 (#77 partial)
+
+[PR #720](https://github.com/Egg3901/AHDNative/pull/720) merged at `ce6f4a9`
+after exact head `5345f96` passed the [full hosted gate](https://github.com/Egg3901/AHDNative/actions/runs/36932586276).
+The Legislature authors source trade-category economy-wide tariffs with actual
+country/chamber or explicit sovereign authority, source proposal cost/refund and
+nonterminal duplicate-scope refusal. Saved signed tariff rows apply importer
+flow affinity and FTA exemptions. Markets shows feasible represented commodity
+receipts, quantities, values, partners and tariff context after ordinary turns
+and save/reload. [Source comparisons and remaining acceptance](COMMODITY-COUNTRY-TRADE-77-EVIDENCE.md)
+record the global-price valuation boundary. Source country pricing, complete
+supply, cash/tariff settlement, other scopes/restrictions, FX market depth and
+corporate issuance/default controls remain open. All four original #77
+acceptance groups remain unchecked; no issue closes through this batch.
+
+Current verified count: 56 open from 63, with 40 partial, 10 not started,
+3 deferred, 2 blocked and 1 tracking. Seven confirmed night closures:
+#308, #297, #51, #110, #111, #299 and #115. Parent #211 is 6/7 pending #298.
+Canonical SP authority and DE/CN decree PR #717 passes application/engine/content
+checks; final browser/Rust checks remain in progress at exact `addc691`.
+Political board PR #722 and source NPC work remain separate unfinished gates.
+
 ## Regional ministerial target checkpoint, 2026-10-01 (#263 / #105 partial)
 
 Fresh UK/DE regional unemployment rows now come from the actual immutable
@@ -23,12 +45,13 @@ ledger tests and actual 320px/390px issuance, purchase and normal reload journey
 support the [finance evidence](CORPORATE-FINANCE-BOND-PARITY.md) and
 [regional trading evidence](REGIONAL-SECTOR-TRADING.md).
 
-There are 57 open issues, down from 63: 41 partial, 10 not started, 3 deferred,
+There are 56 open issues, down from 63: 40 partial, 10 not started, 3 deferred,
 2 blocked and 1 tracking. Parent #211 has 6 of 7 original children complete.
-#298 remains partial because Native still rejects directly seated SP heads of
-government whom current Game recognizes through canonical office/government
-records. Its full source authority criterion remains unchecked pending that
-correction; career ownership/conservation and secession fan-out are delivered.
+#298 remains partial while the canonical source SP authority correction in
+PR #717 awaits its final exact-head gate. Public US/UK authority, normal turn
+and save continuation checks pass; its full source authority criterion remains
+unchecked until integration is qualified. Career ownership/conservation and
+secession fan-out are delivered.
 #107 retains wider corporate management and strategy/technology price inputs.
 Current sampled Game is `cb66acdf`; Client is `799a9920`.
 
