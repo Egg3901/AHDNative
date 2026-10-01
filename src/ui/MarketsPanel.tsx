@@ -691,11 +691,11 @@ export function SectorSaleControls({
               </button>
             </div>
           </div>
-          {!showBuy && playerOwned ? (
+          {playerOwned ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_BUY_ALREADY_OWNED}
             </span>
-          ) : !showBuy && !isOwner ? (
+          ) : !isOwner ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_LIST_OWNER_ONLY}
             </span>
@@ -714,11 +714,11 @@ export function SectorSaleControls({
           >
             List for sale
           </button>
-          {!showBuy && playerOwned ? (
+          {playerOwned ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_BUY_ALREADY_OWNED}
             </span>
-          ) : !showBuy && !isOwner ? (
+          ) : !isOwner ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_LIST_OWNER_ONLY}
             </span>
