@@ -66,6 +66,7 @@ describe("session finance view", () => {
         player: { cash: number; savings: number; savingsHolder: string; lineOfCredit?: unknown };
         centralBanks: Record<string, { primeRate?: number }>;
         countries: Record<string, { economy: { inflationRate: number } }>;
+        budgets: Record<string, { economicFactors: { inflationRate: number } }>;
         centralBankPricingPhaseIn?: { startedTurn: number };
       };
     };
@@ -80,6 +81,7 @@ describe("session finance view", () => {
     raw.world.player.savings = 48_000;
     raw.world.player.savingsHolder = "centralBank";
     raw.world.centralBanks.US!.primeRate = 5;
+    raw.world.budgets.US!.economicFactors.inflationRate = 2;
     raw.world.countries.US!.economy.inflationRate = 0.02;
     const continued = new GameSession();
     continued.load(JSON.stringify(raw));
