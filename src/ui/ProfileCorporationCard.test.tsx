@@ -222,7 +222,7 @@ describe("#51 profile corporation card", () => {
     const markets = session.markets();
     const user = userEvent.setup();
     render(
-      <MarketsPanel markets={markets} busy={false} onAction={vi.fn(async () => {})} initialId="US-media" />,
+      <MarketsPanel markets={markets} busy={false} onAction={vi.fn(async () => false)} initialId="US-media" />,
     );
     // The deep link lands on the company detail, not the list.
     expect(screen.getByRole("button", { name: "Back to market list" })).not.toBeNull();
@@ -235,7 +235,7 @@ describe("#51 profile corporation card", () => {
     const session = new GameSession();
     session.create(OPTIONS);
     render(
-      <MarketsPanel markets={session.markets()} busy={false} onAction={vi.fn(async () => {})} initialId="US-gone" />,
+      <MarketsPanel markets={session.markets()} busy={false} onAction={vi.fn(async () => false)} initialId="US-gone" />,
     );
     expect(screen.queryByRole("button", { name: "Back to market list" })).toBeNull();
     expect(screen.getByLabelText("Search corporations")).not.toBeNull();
