@@ -65,8 +65,8 @@ export function clearCommodity(input: CommodityClearingInput): CommodityClearing
     return { flow, perCountry: buildPerCountry(countries, flow, surplus, deficit), clearedVolume: 0 };
   }
 
-  const exporters = countries.filter((country) => surplus[country] > 0);
-  const importers = countries.filter((country) => deficit[country] > 0);
+  const exporters = countries.filter((country) => (surplus[country] ?? 0) > 0);
+  const importers = countries.filter((country) => (deficit[country] ?? 0) > 0);
   const surplusBinds = totalSurplus <= totalDeficit;
   const rowLimit = surplus;
   const colLimit = deficit;
@@ -83,7 +83,9 @@ export function clearCommodity(input: CommodityClearingInput): CommodityClearing
     for (const exporter of exporters) {
       for (const importer of importers) {
         const cap = capUnits(exporter, importer);
-        if (cap !== undefined && matrix[exporter][importer]! > cap) matrix[exporter][importer] = cap;
+        const row = matrix[exporter];
+        const amount = row?.[importer] ?? 0;
+        if (cap !== undefined && row && amount > cap) row[importer] = cap;
       }
     }
   };
@@ -91,22 +93,28 @@ export function clearCommodity(input: CommodityClearingInput): CommodityClearing
   for (let iteration = 0; iteration < TRADE_IPF_ITERATIONS; iteration += 1) {
     for (const exporter of exporters) {
       let rowSum = 0;
-      for (const importer of importers) rowSum += matrix[exporter][importer]!;
+      for (const importer of importers) rowSum += matrix[exporter]?.[importer] ?? 0;
       if (rowSum > 0) {
         const factor = surplusBinds ? rowLimit[exporter]! / rowSum : Math.min(1, rowLimit[exporter]! / rowSum);
-        for (const importer of importers) matrix[exporter][importer] *= factor;
+        const row = matrix[exporter];
+        if (row) {
+          for (const importer of importers) row[importer] = (row[importer] ?? 0) * factor;
+        }
       }
     }
     clampCaps();
 
     for (const importer of importers) {
       let columnSum = 0;
-      for (const exporter of exporters) columnSum += matrix[exporter][importer]!;
+      for (const exporter of exporters) columnSum += matrix[exporter]?.[importer] ?? 0;
       if (columnSum > 0) {
         const factor = surplusBinds
           ? Math.min(1, colLimit[importer]! / columnSum)
           : colLimit[importer]! / columnSum;
-        for (const exporter of exporters) matrix[exporter][importer] *= factor;
+        for (const exporter of exporters) {
+          const row = matrix[exporter];
+          if (row) row[importer] = (row[importer] ?? 0) * factor;
+        }
       }
     }
     clampCaps();
@@ -117,17 +125,22 @@ export function clearCommodity(input: CommodityClearingInput): CommodityClearing
   // uncleared, matching the source fix for over-exported scarcity.
   for (const exporter of exporters) {
     let rowSum = 0;
-    for (const importer of importers) rowSum += matrix[exporter][importer]!;
-    if (rowSum > rowLimit[exporter]!) {
-      const factor = rowLimit[exporter]! / rowSum;
-      for (const importer of importers) matrix[exporter][importer] *= factor;
+    for (const importer of importers) rowSum += matrix[exporter]?.[importer] ?? 0;
+    const limit = rowLimit[exporter] ?? 0;
+    if (rowSum > limit) {
+      const factor = limit / rowSum;
+      const row = matrix[exporter];
+      if (row) {
+        for (const importer of importers) row[importer] = (row[importer] ?? 0) * factor;
+      }
     }
   }
   for (const importer of importers) {
     let columnSum = 0;
-    for (const exporter of exporters) columnSum += matrix[exporter][importer]!;
-    if (columnSum > colLimit[importer]!) {
-      const factor = colLimit[importer]! / columnSum;
+    for (const exporter of exporters) columnSum += matrix[exporter]?.[importer] ?? 0;
+    const limit = colLimit[importer] ?? 0;
+    if (columnSum > limit) {
+      const factor = limit / columnSum;
       for (const exporter of exporters) {
         const row = matrix[exporter];
         if (row) row[importer] = (row[importer] ?? 0) * factor;
