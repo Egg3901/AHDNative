@@ -17,13 +17,19 @@ describe("program law policy levels", () => {
     const world = createWorld(HOS_OPTIONS);
     // Scoped law-selection fixture funds the source 10 AP / 5 NPI proposal.
     world.player.nationalInfluence = 5;
+    const actionsBefore = world.player.actions;
+    const influenceBefore = world.player.nationalInfluence;
 
     const result = executeAction(world, "player", "sponsorBill", {
       catalogId: "us.economy.workerSecurity.primary",
       policyOptionId: "l3",
     });
 
-    expect(result).toEqual({ ok: true, message: expect.stringContaining("Sponsored bill"), changes: { actions: -10, nationalInfluence: -5 } });
+    expect(result).toMatchObject({ ok: true, message: expect.stringContaining("Sponsored bill"), changes: {} });
+    // Source HoS decrees enact immediately and refund the proposal accounting
+    // on passage, so the net public-session receipt carries no resource delta.
+    expect(world.player.actions).toBe(actionsBefore);
+    expect(world.player.nationalInfluence).toBe(influenceBefore);
     expect(world.bills[0]?.provisions[0]).toMatchObject({
       policyOptionId: "l3",
       effectDirection: 1,
