@@ -122,10 +122,17 @@ describe("export-save-v42 CLI", () => {
 
   it("projects isolated source issuer identity without unsupported regional metric records", () => {
     const identityOnly = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
-    // This controlled identity-only document excludes fresh SOE production.
-    // The engine suite independently proves that normal SOE saves refuse v42.
-    for (const corporation of Object.values(identityOnly.corporations)) delete corporation.soe;
-    const world = deserializeSave(serializeSave(identityOnly, SAVED_AT));
+    // Isolate issuer identity on the genuine pre-control fixture. Fresh
+    // TFP, Gosbank and SOE state have separate refusal coverage.
+    const world = deserializeSave(gunzipSync(readFileSync(join(dirname(FIXTURE_GZ), "native-fresh-pre-ceo-source.save.json.gz"))).toString("utf8"));
+    world.regions.DC = identityOnly.regions.DC!;
+    for (const [id, corporation] of Object.entries(world.corporations)) {
+      const source = identityOnly.corporations[id]!;
+      corporation.name = source.name;
+      corporation.brandColor = source.brandColor;
+      corporation.headquartersRegionId = source.headquartersRegionId;
+      delete corporation.legacyProjectionDefaults;
+    }
     expect(world.player.homeRegionId).toBe("AL");
     // Isolate the supported issuer-identity extension. The separate fresh
     // world case above proves normal TFP worlds fail closed.
