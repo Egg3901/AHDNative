@@ -274,7 +274,7 @@ export function App() {
       onBack={() => { setScreen('new'); setPendingSetup(null); setCreationChoices(null); }}
     />;
   }
-  if (screen === 'game' && world) return <GameScreen newsStorageKey={slot.current!} loadProfile={loadProfile} loadProfileDestination={loadProfileDestination} loadImperialProfile={loadImperialProfile} onUpdateProfile={update => run(async () => {
+  if (screen === 'game' && world) return <GameScreen newsStorageKey={slot.current!} contextKey={slot.current!} loadProfile={loadProfile} loadProfileDestination={loadProfileDestination} loadImperialProfile={loadImperialProfile} onUpdateProfile={update => run(async () => {
     setWorld(await client.current!.updateProfile(update));
     await save();
     setMessage("Profile saved.");
@@ -309,7 +309,7 @@ export function App() {
       return accepted;
     }}
     onSectorSale={(op, params) => void run(async () => {
-      const response = await client.current!.sectorSale(op, params.assetId, params.priceAnchor);
+      const response = await client.current!.sectorSale(op, params.assetId, params.priceAnchor, params.buyerCorporationId);
       setWorld(response.view);
       if (response.result.ok) {
         await save();

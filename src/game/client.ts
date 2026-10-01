@@ -77,11 +77,11 @@ export class GameClient {
   act(actionId: string, params?: GameActionParams) {
     return this.send<{ result: { ok: true; message: string; outcome: ActionOutcome } | { ok: false; error: string }; view: GameView }>({ type: "action", actionId, params });
   }
-  sectorSale(op: "list" | "update" | "unlist" | "buy", assetId: string, priceAnchor?: number) {
+  sectorSale(op: "list" | "update" | "unlist" | "buy", assetId: string, priceAnchor?: number, buyerCorporationId?: string) {
     return this.send<{ result: SectorSaleResult | SectorAcquireResult; view: GameView }>(
-      priceAnchor === undefined
-        ? { type: "sectorSale", op, assetId }
-        : { type: "sectorSale", op, assetId, priceAnchor },
+      { type: "sectorSale", op, assetId,
+        ...(priceAnchor !== undefined ? { priceAnchor } : {}),
+        ...(buyerCorporationId !== undefined ? { buyerCorporationId } : {}) },
     );
   }
   unionCommand(command: Extract<GameCommand, { type: "unionCommand" }>) {

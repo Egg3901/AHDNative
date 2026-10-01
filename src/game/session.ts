@@ -27,7 +27,7 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
-  getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction,
+  getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, nationalizationTargets, nationalizationUnavailableReason,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import {
@@ -68,6 +68,7 @@ const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: Acti
   { id: "poll", category: "intelligence" },
   { id: "pollLarge", category: "intelligence" },
   { id: "debatePrep", category: "intelligence" },
+  { id: "nationalizeCorporation", requires: "corporation", category: "executive", prerequisite: "Requires a sitting elected head of government and a distressed domestic issuer." },
 ];
 const HOS_ACTIONS: typeof ACTIONS = [
   { id: "adjustBudgetSpending", requires: "budgetSpending", category: "executive", prerequisite: "Enacts at the next turn boundary." },
@@ -676,18 +677,10 @@ export class GameSession {
     return result;
   }
 
-  /**
-   * #295: player acquisition of a listed sector. The engine call runs on a
-   * clone as the player and only an ok result commits, so every refusal
-   * (unknown listing, not listed, bad anchor, foreign currency, short cash,
-   * already owned) leaves the live world untouched. A success debits
-   * personal cash, credits the seller corporation, clears the listing, and
-   * records player ownership; it persists through the normal
-   * serialize/load path as recorded CorporateSectorAsset state.
-   */
-  buySectorForSale(assetId: string): SectorAcquireResult {
+  /** #295: an active player CEO buys a listed asset using corporate capital. */
+  buySectorForSale(assetId: string, buyerCorporationId = ""): SectorAcquireResult {
     const candidate = structuredClone(this.requireWorld());
-    const result = buyCorporateSectorForSale(candidate, assetId, "player");
+    const result = buyCorporateSectorForSale(candidate, assetId, buyerCorporationId);
     if (!result.ok) return result;
     this.commit(candidate);
     return result;
@@ -990,8 +983,10 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
       // advertises an action executeAction unconditionally refuses (the
       // statless quick-create path); the engine error stays authoritative.
       const characterReason = characterActionDisabledReason(world, id);
+      const choices = id === "nationalizeCorporation" ? nationalizationTargets(world) : undefined;
       const reason = entry.status === "unavailable" ? `Not yet available: requires the ${entry.blockingSystem ?? "unported system"} system.`
         : characterReason ? characterReason
+        : id === "nationalizeCorporation" ? nationalizationUnavailableReason(world)
         : cooldownTurns > 0 ? `Available in ${cooldownTurns} ${cooldownTurns === 1 ? "turn" : "turns"}.`
         : player.actions < cost ? "Not enough action points."
         : fundCost > 0 && player.funds < fundCost ? `Not enough funds. Requires ${fundCost}.`
@@ -1005,7 +1000,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
       return { id, name: entry.name, description: entry.description, cost, available: !reason,
         category, fundCost, cooldownTurns,
         ...(id === "fundraise" && isFundraiseEligible(player.donorBaseLevel) ? { fundsGain: campaignAnchorToLocal(fundraiseQuote(player.donorBaseLevel, player.politicalInfluence, effectivePlayerStats(world)), player.countryId) } : {}),
-        ...(requires ? { requires } : {}), ...(prerequisite ? { prerequisite } : {}),
+        ...(requires ? { requires } : {}), ...(choices ? { choices } : {}), ...(prerequisite ? { prerequisite } : {}),
         ...(reason ? { disabledReason: reason } : {}) };
     }),
     regions: Object.values(world.regions).filter((region) => region.countryId === country.id).map(({ id, name }) => ({ id, name })),

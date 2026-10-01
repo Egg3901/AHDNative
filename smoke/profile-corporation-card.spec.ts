@@ -3,11 +3,12 @@
  *
  * Game954f1c21781e6e767455a15eed40f73993d89a8b renders the exact recorded
  * CEO relationship when ceoVacant is not true. Native preserves that gate
- * and separately labels a persisted sector owner without inferring CEO status.
+ * through the source public CEO appointment and resignation commands.
  * Profile and company detail share the issuer, brand and actual payout view.
  *
- * The historical owner fixture uses public share/list/purchase commands plus
- * serialized cash setup and owner reversion. Those cases prove only ownership.
+ * The rendering fixture uses public share/vote/accept/resign commands.
+ * It isolates conditional rendering; the separate browser flow clicks those
+ * controls in the integrated application.
  * The CEO fixture is an unmodified fresh GameSession world at the source HQ;
  * its rendered share purchase, vote, acceptance, compensation, turn, resignation
  * and two normal save resumes establish the supported public CEO lifecycle.
@@ -19,39 +20,24 @@ import { readFileSync } from 'node:fs';
 import { advanceGame, gameReady, loadFixture, navigateGame } from './game-navigation';
 import { GameSession } from '../src/game/session';
 
-const OPTIONS = { era: '1953', countryId: 'US', seed: 'native-profile-card-51-smoke', playerName: 'Owner Player' };
+const OPTIONS = { era: '1953', countryId: 'US', seed: 'native-profile-card-51-smoke', playerName: 'Owner Player', homeRegionId: 'DC' };
 const CEO_OPTIONS = { ...OPTIONS, homeRegionId: 'DC', playerName: 'CEO Player' };
 const SAVED_AT = '2026-09-18T00:00:00.000Z';
 
-/**
- * Owner fixture: buy a recorded share (sale authority), list the sector,
- * fund the asking price by editing the serialized save, reload, then acquire
- * through the public command. Returns the owner save plus a test-only
- * variant whose recorded owner was reverted in the save.
- */
+/** Appointed and resigned saves use current public CEO authority. */
 function ownerFixtures(): { owner: string; reverted: string; ticker: string } {
   const session = new GameSession();
   session.create(OPTIONS);
   expect(session.act('buyShares', { corpId: 'US-media', shares: 1 }).ok).toBe(true);
+  expect(session.act('voteCeo', { corpId: 'US-media', candidateId: 'player' }).ok).toBe(true);
+  expect(session.act('acceptCeoAppointment', { corpId: 'US-media' }).ok).toBe(true);
   const listing = session.markets().listings.find((entry) => entry.id === 'US-media');
   if (!listing) throw new Error('US-media listing missing from the markets projection');
-  const listed = session.listSectorForSale(listing.sectorAsset.id);
-  expect(listed.ok).toBe(true);
-  const raw = JSON.parse(session.serialize(SAVED_AT));
-  raw.world.player.cash = listed.ok ? listed.priceAnchor : 0;
-  const funded = new GameSession();
-  funded.load(JSON.stringify(raw));
-  expect(funded.buySectorForSale(listing.sectorAsset.id).ok).toBe(true);
-  expect(funded.profile().corporations).toHaveLength(1);
-  const owner = funded.serialize(SAVED_AT);
-
-  const revertedRaw = JSON.parse(owner);
-  expect(revertedRaw.world.corporateSectors[listing.sectorAsset.id].owner).toBe('player');
-  revertedRaw.world.corporateSectors[listing.sectorAsset.id].owner = 'corporation';
-  const check = new GameSession();
-  check.load(JSON.stringify(revertedRaw));
-  expect(check.profile().corporations).toEqual([]);
-  return { owner, reverted: JSON.stringify(revertedRaw), ticker: listing.ticker };
+  expect(session.profile().corporations).toHaveLength(1);
+  const owner = session.serialize(SAVED_AT);
+  expect(session.act('resignCeo', { corpId: 'US-media' }).ok).toBe(true);
+  expect(session.profile().corporations).toEqual([]);
+  return { owner, reverted: session.serialize(SAVED_AT), ticker: listing.ticker };
 }
 
 const fixtures = ownerFixtures();
@@ -83,7 +69,7 @@ async function expectNoHorizontalOverflow(page: Page) {
 }
 
 for (const width of [320, 390]) {
-  test(`${width}px: owner card renders on Profile, links the company detail, and survives resume`, async ({ page }) => {
+  test(`${width}px: appointed CEO card renders on Profile, links the company detail, and survives resume`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/');
     await loadFixture(page, Buffer.from(fixtures.owner));
@@ -94,7 +80,7 @@ for (const width of [320, 390]) {
     await expect(section).toBeVisible();
     await expect(section.getByRole('heading', { name: 'Corporation' })).toBeVisible();
     await expect(section).toContainText(fixtures.ticker);
-    await expect(section).toContainText('Sector owner');
+    await expect(section).toContainText('CEO');
     await expect(section).toContainText('Corporate cash');
     await expect(section).toContainText('Your shares');
     if (width === 320) {
@@ -116,7 +102,7 @@ for (const width of [320, 390]) {
         { label: 'Share price', lines: 1 },
       ]);
     }
-    // This owner has no CEO salary or settled shareholder dividend.
+    // No compensation has been configured and no turn has settled a dividend.
     for (const label of ['CEO salary', 'Dividends']) {
       const row = section.locator('.ahd-profile-row').filter({ has: page.getByText(label, { exact: true }) });
       await expect(row).toContainText('$0.00');
@@ -139,7 +125,7 @@ for (const width of [320, 390]) {
     await page.getByRole('button', { name: 'Back to profile' }).click();
     await expect(card(page)).toBeVisible();
 
-    // Persisted role: reload resumes the stored owner save and keeps the card.
+    // Reload resumes the stored CEO appointment and keeps the conditional card.
     await page.reload();
     await page.getByRole('button', { name: 'Continue Owner Player', exact: true }).click();
     await gameReady(page);
@@ -149,7 +135,7 @@ for (const width of [320, 390]) {
   });
 }
 
-test('a save whose recorded owner reverted renders no corporation card', async ({ page }) => {
+test('a save after public CEO resignation renders no corporation card', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await loadFixture(page, Buffer.from(fixtures.reverted));

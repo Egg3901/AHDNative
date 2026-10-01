@@ -270,7 +270,7 @@ describe("wireTransfer", () => {
       amount: 1000,
       currency: "DDM",
     });
-    expect(res).toEqual({ ok: true, message: `Wired 1000 DDM to ${dd.name}` });
+    expect(res).toEqual({ ok: true, message: `Wired 1000 DDM to ${dd.name}`, changes: { actions: -1 } });
     expect(dd.cash).toBe(1000);
 
     const actionsBefore = w.player.actions;

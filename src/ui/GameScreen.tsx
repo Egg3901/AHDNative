@@ -147,7 +147,7 @@ const RESOURCES: { id: ResourceId; short: string; label: string }[] = [
   { id: "favorability", short: "Favorability", label: "Favorability" },
 ];
 
-export function GameScreen({ loadProfile, loadProfileDestination, loadImperialProfile, onUpdateProfile, onStatAllocation, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadUnionManagement, loadLegislation, loadPolitics, loadWorldOverview, loadHallOfFame, world, busy, message, error, newsStorageKey, onAdvanceTurn, onSave, onExit, onAction, onSectorSale, onUnionCommand, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
+export function GameScreen({ loadProfile, loadProfileDestination, loadImperialProfile, onUpdateProfile, onStatAllocation, onSelectConstituency, preferences, onPreferencesChange, preferencesError, search, loadRegions, loadCaucusManagement, loadCabinetOffice, onIssueCabinetOrder, loadBondMarket, loadPartyManagement, loadMarkets, loadUnionManagement, loadLegislation, loadPolitics, loadWorldOverview, loadHallOfFame, world, busy, message, error, newsStorageKey, contextKey, onAdvanceTurn, onSave, onExit, onAction, onSectorSale, onUnionCommand, onMarkNotificationRead, onDeleteNotification, onMarkAllNotificationsRead, onUpdateWorldFeatureFlags }: GameScreenProps) {
   const [route, setRoute] = useState<RouteId>("profile");
   const [detailId, setDetailId] = useState<string>();
   // #510 bounded return stack: detail routes remember the chain of browse
@@ -852,7 +852,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
             </div>
           ))}
           {route === "worldDirectory" && <DetailQuery load={loadWorldOverview} revision={world} label="World directory">{overview => <WorldDirectoryPanel overview={overview} onNavigate={navigate} />}</DetailQuery>}
-          {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} loadMarkets={loadMarkets} revision={world} busy={busy} onNavigate={navigate} onDrill={drillViewer} onSectorSale={onSectorSale} />}
+          {route === "regions" && <RegionsRoute initialId={detailId} load={loadRegions} loadMarkets={loadMarkets} revision={world} contextKey={contextKey} busy={busy} onNavigate={navigate} onDrill={drillViewer} onSectorSale={onSectorSale} />}
           {route === "caucuses" && <DetailQuery load={loadCaucusManagement} revision={world} label="Caucuses">{management => <CaucusPanel management={management} busy={busy} onAction={onAction} />}</DetailQuery>}
           {route === "government" && (world.cabinet === null ? (
             // #510 honest no-seat state: the drawer hides this destination

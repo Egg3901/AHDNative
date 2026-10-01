@@ -67,7 +67,9 @@ describe("requestReferendum action (issue #42)", () => {
 
     advanceTurn(revived);
     expect(revived.referendums[0]!.status).toBe("completed");
-    expect(revived.regions.SCO!.countryId).toBe("SCO");
+    expect(revived.regions.SCO).toBeUndefined();
+    expect(Object.values(revived.regions).filter((region) => region.countryId === "SCO").map((region) => region.id).sort())
+      .toEqual(["CSC", "GLA", "GRA", "HIG", "LOT", "STH", "TAY"]);
   });
 
   it("keeps createWorld free of invented referendum records", () => {

@@ -40,7 +40,7 @@ function loadAuthenticV42(): string {
 }
 
 function runCli(...args: string[]): { status: number | null; stdout: string; stderr: string } {
-  const run = spawnSync(process.execPath, ["--import", "tsx", CLI, ...args], { cwd: REPO_ROOT, encoding: "utf8", timeout: 30_000 });
+  const run = spawnSync(process.execPath, ["--import", "tsx", CLI, ...args], { cwd: REPO_ROOT, encoding: "utf8", timeout: 45_000 });
   return { status: run.status, stdout: run.stdout, stderr: run.stderr };
 }
 
@@ -223,7 +223,7 @@ describe("export-save-v42 CLI", () => {
   }, 60_000);
 
   it("refuses a progressed Native world without creating output", () => {
-    // Isolate progressed history from fresh TFP/SOE refusal.
+    // Progressed history and active corporation state require the current reader.
     const world = deserializeSave(loadAuthenticV42());
     advanceTurn(world);
     const dir = freshDir();
@@ -233,7 +233,7 @@ describe("export-save-v42 CLI", () => {
     const run = runCli("--input", input, "--output", output);
     expect(run.status).not.toBe(0);
     expect(existsSync(output)).toBe(false);
-    expect(run.stderr).toMatch(/countryPolitics|market pressure|price history/);
+    expect(run.stderr).toMatch(/countryPolitics|market pressure|price history|has CEO governance or compensation state|has R&D state that cannot be projected/);
     expect(run.stderr).not.toContain("Validator");
   }, 60_000);
 

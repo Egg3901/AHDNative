@@ -50,7 +50,12 @@ server's cross-player history is not present on the offline device.
 
 Map section/view preferences are persisted; country selection is a browsing
 context reset to the player's country when the map route is opened again.
-The final focused integration and full hosted gate are required before merge.
+PR #712 merged as `6e5ad55` after exact `98b239d` passed the full hosted gate:
+https://github.com/Egg3901/AHDNative/actions/runs/36882208965. The initial attempt
+failed desktop stat reset/resume; that exact case passed locally and the same-head
+full rerun passed. The initial cause remains unproven. Current Game `cb66acdf`
+preserves the relevant map and Hall paths. The supported preference/mobile-width
+criterion in #73 is checked; the broader criteria below remain open.
 No paid build, physical-device gesture proof or full MP parity is claimed.
 
 ## Remaining #73 acceptance

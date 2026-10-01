@@ -1,8 +1,8 @@
-import { ACTION_CATALOG, getActionCost, type WorldState } from '@ahdclient/engine';
+import { ACTION_CATALOG, getActionCost, quoteCorporateBondBuyback, type WorldState } from '@ahdclient/engine';
 
 export interface BondTradeHint { cost: number; disabledReason?: string; }
 export interface BondListing {
-  id: string; countryId: string; issuerName: string; currency: string;
+  id: string; issuerType: 'sovereign' | 'corporation'; corporationId?: string; countryId: string; issuerName: string; currency: string;
   faceValue: number; marketPrice: number; couponRate: number;
   maturityTurn: number; publicFloat: number; playerUnits: number;
   matured: boolean; defaulted: boolean; domestic: boolean;
@@ -10,6 +10,11 @@ export interface BondListing {
   settlesInHomeCash: boolean;
   /** Spendable balance in this issue's denomination: home cash or the personal foreign balance. */
   availableBalance: number;
+  /** The seated player can retire this issuer's public float as its active CEO. */
+  canBuyback: boolean;
+  /** Current corporation cash debit per unit at the pool ask. */
+  buybackUnitCost?: number;
+  buybackCurrencyCode?: string;
 }
 export interface BondMarketView {
   turn: number; date: string; playerCountryId: string; playerCash: number;
@@ -57,18 +62,25 @@ export function projectBondMarket(world: WorldState): BondMarketView {
     currency: world.budgets[player.countryId]?.currencyCode ?? world.exchangeRates[player.countryId]?.currencyCode ?? 'XXX',
     balances: { ...personal },
     buy: hint('buyBond'), sell: hint('sellBond'),
-    bonds: Object.values(world.bonds).flatMap(bond => {
+    bonds: Object.values(world.bonds).flatMap<BondListing>(bond => {
       const playerUnits = bond.holders.find(holder => holder.holderId === 'player')?.units ?? 0;
       if (bond.matured && playerUnits === 0) return [];
       const currency = resolveBondDenomination(world, bond);
       const settlesInHomeCash = currency === homeCurrency;
       const availableBalance = settlesInHomeCash ? (player.cash ?? 0) : (personal[currency] ?? 0);
-      return [{ id: bond.id, countryId: bond.countryId,
-        issuerName: world.countries[bond.countryId]?.name ?? bond.issuerName,
+      const issuerType = bond.issuerType === 'corporation' ? 'corporation' : 'sovereign';
+      const corporation = issuerType === 'corporation' && bond.corporationId
+        ? world.corporations[bond.corporationId]
+        : undefined;
+      const buybackQuote = issuerType === 'corporation' ? quoteCorporateBondBuyback(world, bond) : undefined;
+      return [{ id: bond.id, issuerType, ...(bond.corporationId ? { corporationId: bond.corporationId } : {}), countryId: bond.countryId,
+        issuerName: corporation?.name ?? (issuerType === 'sovereign' ? world.countries[bond.countryId]?.name : undefined) ?? bond.issuerName,
         currency, faceValue: bond.faceValue, marketPrice: bond.marketPrice,
         couponRate: bond.couponRate, maturityTurn: bond.maturityTurn, publicFloat: bond.publicFloat,
         playerUnits, matured: bond.matured, defaulted: bond.defaulted, domestic: bond.countryId === player.countryId,
-        settlesInHomeCash, availableBalance }];
+        settlesInHomeCash, availableBalance,
+        canBuyback: !!corporation && corporation.ceoType === 'player' && corporation.ceoId === 'player' && corporation.ceoVacant !== true,
+        ...(buybackQuote?.available ? { buybackUnitCost: buybackQuote.issuerCostPerUnit, buybackCurrencyCode: buybackQuote.issuerCurrencyCode } : {}) }];
     }).sort((a, b) => Number(b.domestic) - Number(a.domestic) || a.maturityTurn - b.maturityTurn || a.id.localeCompare(b.id)),
   };
 }

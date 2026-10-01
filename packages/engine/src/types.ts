@@ -30,12 +30,32 @@ import type { WorldFeatureFlags } from "./featureFlags.js";
 
 export interface WorldState {
   meta: WorldMeta;
+  /**
+   * Optional source gameConfig rollout anchor. It is written lazily on the
+   * first financial phase so untouched and historical saves retain their
+   * original bytes. An absent anchor is equivalent to the source migration
+   * anchoring immediately before the current turn.
+   */
+  centralBankPricingPhaseIn?: { startedTurn: number };
+  /** Source banking policy for which currency savings accounts are book of record. */
+  savingsAccountsPolicy?: {
+    mode: "off" | "shadow" | "authoritative";
+    readCurrencies: string[];
+  };
   /** Player-owned switches for deterministic singleplayer simulation families. */
   featureFlags: WorldFeatureFlags;
   /** Optional country rate-corridor laws; absent uses the reference preset defaults. */
   bankingLaws?: Record<string, import("./banking/rates.js").BankingLaw>;
   /** Reference bankPropTradingEnabled: absent enables interbank, margin and prop books. */
   bankPropTradingEnabled?: boolean;
+  /** Lazy source-shaped bond-pool books. Created when a bond flow first touches its currency. */
+  bondMarketPools?: Record<string, {
+    cashLocal: number;
+    targetCashLocal: number;
+    m2Local: number;
+    liquidityTargetLocal: number;
+    lifetime: Record<string, number>;
+  }>;
   /**
    * Singleplayer difficulty chosen at world creation (issue #334). Says how
    * competently autonomous politicians perform via `singleplayerNppTuning`;
@@ -122,6 +142,13 @@ export interface WorldState {
    * Per-state and per-country price maps are PORT-STUB until state scope lands.
    */
   commodityPrices: Record<string, CommodityState>;
+  /** Seeded external buyers and owned-sector inputs for the plants market book. */
+  plantMarketDemand?: {
+    external: Partial<Record<string, number>>;
+    corporateInputs: Partial<Record<string, number>>;
+    externalSupply?: Partial<Record<string, number>>;
+    corporateOutputSupply?: Partial<Record<string, number>>;
+  };
   /** Extraction contracts. Ports src/lib/db/types/extractionContract.ts. */
   extractionContracts: ExtractionContract[];
   /** Regions per playable country. W38: US 48 real states (AK/HI absent); UK/RU/DD retain 3 opaque each until W39. */
@@ -1546,6 +1573,8 @@ export interface Region {
   id: string;
   countryId: string;
   name: string;
+  /** Original aggregate country whose successful referendum produced this recorded sub-region. */
+  sourceCountryId?: string;
   /** Residence geography only; intentionally omitted from state voter/economic systems. */
   corporationHeadquartersOnly?: boolean;
   /** Migration provenance: this HQ-only row was absent from the legacy save. */

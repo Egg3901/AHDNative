@@ -4,6 +4,7 @@ import { GameSession } from "./session";
 const options = {
   era: "1953",
   countryId: "US",
+  homeRegionId: "DC",
   seed: "native-sectors-89-v1",
   playerName: "Alex",
 };
@@ -18,13 +19,20 @@ function mediaAssetId(session: GameSession): string {
   return listing!.sectorAsset.id;
 }
 
-/** Buy one recorded share so the player passes sale authority (#294 gates on the shareholder roster). */
+/** Holding a share records investment without conferring CEO sale authority. */
 function sessionWithShare(): GameSession {
   const session = new GameSession();
   session.create(options);
   expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(
     true,
   );
+  return session;
+}
+
+function sessionWithSellerCeo(): GameSession {
+  const session = sessionWithShare();
+  expect(session.act("voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);
+  expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
   return session;
 }
 
@@ -62,7 +70,7 @@ describe("#89 sector directory tab signals", () => {
   });
 
   it("keeps a sale listing through save, reload, and turn advancement", () => {
-    const session = sessionWithShare();
+    const session = sessionWithSellerCeo();
     const assetId = mediaAssetId(session);
     expect(session.listSectorForSale(assetId).ok).toBe(true);
     const anchor = session
@@ -82,28 +90,30 @@ describe("#89 sector directory tab signals", () => {
     expect(kept.sectorAsset.owner).toBe("corporation");
   });
 
-  it("keeps a bought sector player-owned through save, reload, and turn advancement", () => {
-    const session = sessionWithShare();
+  it("keeps an acquired sector in the buyer corporation through reload and turn advancement", () => {
+    const session = sessionWithSellerCeo();
     const assetId = mediaAssetId(session);
     expect(session.listSectorForSale(assetId).ok).toBe(true);
-    expect(session.updateSectorListing(assetId, 100)).toMatchObject({
-      ok: true,
-    });
-    const cashBefore = session.markets().playerCash;
-    expect(cashBefore).toBeGreaterThanOrEqual(100);
-    expect(session.buySectorForSale(assetId)).toMatchObject({
-      ok: true,
-      priceAnchor: 100,
-    });
+    expect(session.updateSectorListing(assetId, 100)).toMatchObject({ ok: true });
+    expect(session.act("resignCeo", { corpId: "US-media" }).ok).toBe(true);
+    expect(session.act("buyShares", { corpId: "US-financial", shares: 1 }).ok).toBe(true);
+    expect(session.act("voteCeo", { corpId: "US-financial", candidateId: "player" }).ok).toBe(true);
+    expect(session.act("acceptCeoAppointment", { corpId: "US-financial" }).ok).toBe(true);
+    const buyerBefore = session.markets().listings.find((entry) => entry.id === "US-financial")!;
+    const personalCashBefore = session.markets().playerCash;
+    expect(session.buySectorForSale(assetId, "US-financial")).toMatchObject({ ok: true, priceAnchor: 100 });
+    const buyerAfter = session.markets().listings.find((entry) => entry.id === "US-financial")!;
+    expect(buyerAfter.liquidCapital).toBe(buyerBefore.liquidCapital - 100);
+    expect(session.markets().playerCash).toBe(personalCashBefore);
+    expect(buyerAfter.sectorAssets?.find((asset) => asset.id === assetId))
+      .toMatchObject({ owner: "corporation", forSale: null });
 
     const advanced = reload(session);
     advanced.advance();
-    const kept = advanced
-      .markets()
-      .listings.find((entry) => entry.id === "US-media")!;
-    expect(kept.sectorAsset.owner).toBe("player");
-    expect(kept.sectorAsset.forSale).toBeNull();
-    expect(advanced.markets().playerCash).toBe(cashBefore - 100);
+    const kept = advanced.markets().listings.find((entry) => entry.id === "US-financial")!;
+    expect(kept.sectorAssets?.find((asset) => asset.id === assetId))
+      .toMatchObject({ owner: "corporation", forSale: null });
+    expect(advanced.markets().sectors.find((sector) => sector.sectorType === "media")!.forSaleCount).toBe(0);
   });
 });
 

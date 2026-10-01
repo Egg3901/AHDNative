@@ -59,12 +59,16 @@ function makeListing(overrides: Partial<MarketListing> = {}): MarketListing {
     effectiveProfitMargin: 8,
     insolvent: false,
     foundedAtTurn: 0,
-    isBank: false, isStateOwned: false,
+    isBank: false,
     playerShares: 0,
     playerAvgCostPerShare: null,
     npcShares: 5_100_000,
     shareholders: [{ holder: "npc", shares: 5_100_000, avgCostPerShare: null }],
     controllingHolder: "npc",
+    ceoId: "player",
+    ceoVacant: false,
+    isStateOwned: false,
+    sectorBuyerOptions: [{ id: "US-financial", name: "US-financial", countryId: "US", currency: "USD", liquidCapital: 50_000, rate: 1 }],
     earningsHistory: [],
     priceHistory: [],
     buy: { id: "buyShares", name: "Buy Shares", cost: 0, available: true },
@@ -189,6 +193,7 @@ describe("RegionSectorAssetsCard", () => {
       expect(within(list).getAllByRole("listitem")).toHaveLength(2);
       // Recorded facts ride on the rows: ownership, workers, union, sale state.
       expect(within(list).getByText("Owned by US-media")).toBeInTheDocument();
+      expect(within(list).getByText("Owned by US-energy")).toBeInTheDocument();
       expect(within(list).getByText(/you hold 2 shares/i)).toBeInTheDocument();
       expect(within(list).getByText("Union: Media Workers")).toBeInTheDocument();
       expect(within(list).getByText("No union recorded")).toBeInTheDocument();
@@ -256,7 +261,7 @@ describe("RegionSectorAssetsCard", () => {
     await user.click(
       screen.getByRole("button", { name: "Buy media sector (US.MEDI)" }),
     );
-    expect(onSectorSale).toHaveBeenCalledWith("buy", { assetId });
+    expect(onSectorSale).toHaveBeenCalledWith("buy", { assetId, buyerCorporationId: "US-financial" });
   });
 
   it("offers shareholder list, reprice, and unlist controls for a regional asset", async () => {
@@ -319,7 +324,7 @@ describe("RegionSectorAssetsCard", () => {
       <RegionSectorAssetsCard
         regionId="CA"
         regionName="California"
-        listings={[regionalAsset(listed)]}
+        listings={[{ ...regionalAsset(listed), sectorBuyerOptions: [{ id: "US-financial", name: "US-financial", countryId: "US", currency: "USD", liquidCapital: 0, rate: 1 }] }]}
         playerCash={50}
         busy={false}
         onSectorSale={vi.fn()}
@@ -329,7 +334,7 @@ describe("RegionSectorAssetsCard", () => {
     expect(
       screen.getByRole("button", { name: "Buy media sector (US.MEDI)" }),
     ).toBeDisabled();
-    expect(screen.getByText(/not enough cash/i)).toBeInTheDocument();
+    expect(screen.getByText(/insufficient corporate funds/i)).toBeInTheDocument();
   });
 
   it("shows a recorded share block as owned without a buyable listing", () => {
@@ -372,6 +377,7 @@ function regionalView(
     playerName: "Alex",
     seed: "native-region-sector-assets-v1",
   });
+  Object.assign(world.corporations["US-financial"]!, { ceoId: "player", ceoType: "player", ceoVacant: false, liquidCapital: 50_000 });
   const assets = seedCorporateSectorAssets(world);
   mutate(assets);
   world.corporateSectors = assets;
@@ -419,6 +425,7 @@ describe("RegionSectorAssetsCard on the recorded regional split", () => {
     await user.click(buy);
     expect(onSectorSale).toHaveBeenCalledWith("buy", {
       assetId: projected.sectorAsset.id,
+      buyerCorporationId: "US-financial",
     });
   });
 
@@ -473,25 +480,30 @@ describe("RegionSectorAssetsCard on the recorded regional split", () => {
     setViewport(width);
     const user = userEvent.setup();
     const session = new GameSession();
-    session.create({ era: "1953", countryId: "US", seed: `regional-ui-${width}`, playerName: "Alex" });
+    session.create({ era: "1953", countryId: "US", homeRegionId: "DC", seed: `regional-ui-${width}`, playerName: "Alex" });
     expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
-    expect(session.act("buyShares", { corpId: "US-energy", shares: 1 }).ok).toBe(true);
+    expect(session.act("buyShares", { corpId: "US-financial", shares: 1 }).ok).toBe(true);
+    expect(session.act("voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);
+    expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
 
     const saveWorld = deserializeSave(session.serialize("2026-09-15T00:00:00.000Z"));
+    saveWorld.corporations["US-financial"]!.liquidCapital = 1_000_000;
     const initialMarkets = session.markets();
     const mediaId = initialMarkets.listings.find((row) => row.id === "US-media")!.sectorAsset.id;
-    const energyId = initialMarkets.listings.find((row) => row.id === "US-energy")!.sectorAsset.id;
+    const financialListing = initialMarkets.listings.find((row) => row.id === "US-financial")!;
+    const financialId = financialListing.sectorAsset.id;
+    const financialSectorLabel = financialListing.sectorLabel;
     const assets = seedCorporateSectorAssets(saveWorld);
     assets[mediaId]!.stateId = "CA";
-    assets[energyId]!.stateId = "CA";
+    assets[financialId]!.stateId = "CA";
     saveWorld.corporateSectors = assets;
     session.load(serializeSave(saveWorld, "2026-09-15T00:00:00.000Z"));
 
-    const dispatch = (op: "list" | "update" | "unlist" | "buy", params: { assetId: string; priceAnchor?: number }) => {
+    const dispatch = (op: "list" | "update" | "unlist" | "buy", params: { assetId: string; priceAnchor?: number; buyerCorporationId?: string }) => {
       if (op === "list") session.listSectorForSale(params.assetId);
       else if (op === "update") session.updateSectorListing(params.assetId, params.priceAnchor);
       else if (op === "unlist") session.unlistSectorForSale(params.assetId);
-      else session.buySectorForSale(params.assetId);
+      else session.buySectorForSale(params.assetId, params.buyerCorporationId);
     };
     const card = () => (
       <RegionSectorAssetsCard
@@ -506,10 +518,10 @@ describe("RegionSectorAssetsCard on the recorded regional split", () => {
     const rendered = render(card());
 
     await user.click(screen.getByRole("button", { name: "List media sector for sale" }));
-    await user.click(screen.getByRole("button", { name: "List energy sector for sale" }));
+    expect(screen.getByRole("button", { name: `List ${financialSectorLabel} sector for sale` })).toBeDisabled();
     rendered.rerender(card());
     expect(session.markets().listings.find((row) => row.id === "US-media")!.sectorAsset.forSale).not.toBeNull();
-    expect(session.markets().listings.find((row) => row.id === "US-energy")!.sectorAsset.forSale).not.toBeNull();
+    expect(session.markets().listings.find((row) => row.id === "US-financial")!.sectorAsset.forSale).toBeNull();
 
     session.load(session.serialize("2026-09-15T00:00:00.000Z"));
     rendered.rerender(card());
@@ -522,14 +534,21 @@ describe("RegionSectorAssetsCard on the recorded regional split", () => {
 
     session.load(session.serialize("2026-09-15T00:00:00.000Z"));
     rendered.rerender(card());
+    expect(session.act("resignCeo", { corpId: "US-media" }).ok).toBe(true);
+    expect(session.act("voteCeo", { corpId: "US-financial", candidateId: "player" }).ok).toBe(true);
+    expect(session.act("acceptCeoAppointment", { corpId: "US-financial" }).ok).toBe(true);
+    rendered.rerender(card());
     await user.click(screen.getByRole("button", { name: "Buy media sector (US.MEDI)" }));
-    expect(session.markets().listings.find((row) => row.id === "US-media")!.sectorAsset.owner).toBe("player");
-    await user.click(screen.getByRole("button", { name: "Unlist energy sector" }));
+    const buyerPortfolio = session.markets().listings.find((row) => row.id === "US-financial")!;
+    expect([buyerPortfolio.sectorAsset, ...(buyerPortfolio.sectorAssets ?? [])].some((asset) => asset.id === mediaId)).toBe(true);
+    await user.click(screen.getByRole("button", { name: `List ${financialSectorLabel} sector for sale` }));
+    rendered.rerender(card());
+    await user.click(screen.getByRole("button", { name: `Unlist ${financialSectorLabel} sector` }));
 
     session.load(session.serialize("2026-09-15T00:00:00.000Z"));
     rendered.rerender(card());
-    expect(screen.getByText(/owned by you/i)).toBeInTheDocument();
+    expect(screen.getAllByText(`Owned by ${session.markets().listings.find((row) => row.id === "US-financial")!.name}`)).toHaveLength(2);
     expect(session.markets().listings.find((row) => row.id === "US-media")!.sectorAsset.forSale).toBeNull();
-    expect(session.markets().listings.find((row) => row.id === "US-energy")!.sectorAsset.forSale).toBeNull();
+    expect(session.markets().listings.find((row) => row.id === "US-financial")!.sectorAsset.forSale).toBeNull();
   });
 });

@@ -46,7 +46,14 @@ describe("phase order depth", () => {
     expect(observed.macroSnapshot).toBeDefined();
     expect(observed.macroSnapshot!.current).toBe(observed.corporationSnapshot!.current);
     expect(observed.macroSnapshot!.previous).toBe(before.current);
-    expect(observed.macroSnapshot!.current).toBeGreaterThan(observed.macroSnapshot!.previous);
+    // Source realized sales can fall below seeded nominal revenue. Ordering
+    // requires this turn's actual receipts, not an assumed positive growth.
+    const realized = Object.values(world.corporateSectors ?? {})
+      .filter((asset) => world.corporations[asset.corporationId]?.countryId === "US")
+      .reduce((sum, asset) => sum + (asset.realizedRevenue ?? 0), 0);
+    expect(observed.macroSnapshot!.current).toBeCloseTo(realized, 6);
+    expect(observed.macroSnapshot!.current).toBeGreaterThan(0);
+    expect(observed.macroSnapshot!.turn).toBe(world.meta.turn);
   });
 
   it("keeps the corrected ordering deterministic across save and resume", () => {

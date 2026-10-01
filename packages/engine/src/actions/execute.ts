@@ -48,12 +48,17 @@ import type { ExtractableResource } from "../commodity/constants.js";
 import { depositToSavings, withdrawFromSavings, moveSavingsHolder } from "../finance/savingsActions.js";
 import { wireTransfer as wireTransferFn } from "../finance/wireTransfer.js";
 import { rollDebatePrep } from "../stats/debatePrep.js";
-import { isCorpStateOwned, validateBondIssuerIdentity } from "../bonds/corporateBonds.js";
+import { isCorpStateOwned, issueCorporateBond, validateBondIssuerIdentity } from "../bonds/corporateBonds.js";
+import { quoteCorporateBondIssuance } from "../bonds/corporateBondQuote.js";
+import { buybackCorporateBondUnits } from "../bonds/corporateBondServicing.js";
+import { BOND_UNIT_FACE_VALUE } from "../bonds/constants.js";
 import { rngFromState } from "../rng.js";
 import { isOrderFlowPriceEligible } from "../market/orderFlow.js";
 import { isPlannedEconomy } from "../commandEconomy/constants.js";
 import { canPlayerOperateGosbank } from "../commandEconomy/authority.js";
 import { reconcileCeoAppointment } from "../corporation/ceoGovernance.js";
+import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
+import { nationalizeDistressedCorporation } from "../corporation/nationalization.js";
 import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
 import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecruit.js";
 import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
@@ -88,6 +93,7 @@ export type ExecuteActionParams = {
   candidateId?: string;
   salaryPerTurn?: number;
   dividendRate?: number;
+  rdBudgetPerTurn?: number;
   committeeCandidateIds?: string[];
   coalitionId?: string;
   coalitionName?: string;
@@ -104,10 +110,15 @@ export type ExecuteActionParams = {
   whipMode?: "hard" | "soft";
   // W10 markets
   corpId?: string;
+  corporationId?: string;
+  tier?: "seizure";
   shares?: number;
   // W13 bonds
   bondId?: string;
   units?: number;
+  /** Face value requested in the USD accounting anchor (source API contract). */
+  faceValue?: number;
+  maturityTurns?: number;
   // M1 economic-direction levers (Lane 12 Head of State mode)
   budgetCountryId?: string;
   budgetCategory?: string;
@@ -1574,15 +1585,24 @@ function executeActionInner(
       if (corp.ceoId !== "player" || corp.ceoVacant === true) return { ok: false, error: "Only the active CEO may set corporation compensation" };
       const salary = params.salaryPerTurn;
       const dividendRate = params.dividendRate;
+      const rdBudgetPerTurn = params.rdBudgetPerTurn === undefined ? (corp.rdBudgetPerTurn ?? 0) : params.rdBudgetPerTurn;
       if (!Number.isFinite(salary) || salary! < 0 || salary! > Math.max(0, corp.revenue) * 1.25) {
         return { ok: false, error: "salaryPerTurn must be finite, non-negative, and no more than 1.25 times current corporation revenue" };
       }
       if (!Number.isFinite(dividendRate) || dividendRate! < 0 || dividendRate! > 25) {
         return { ok: false, error: "dividendRate must be finite and between 0 and 25 percent" };
       }
+      if (!Number.isFinite(rdBudgetPerTurn) || rdBudgetPerTurn! < 0) {
+        return { ok: false, error: "rdBudgetPerTurn must be finite and non-negative" };
+      }
+      const totalOverhead = salary! + rdBudgetPerTurn!;
+      if (totalOverhead > Math.max(0, corp.revenue) * 1.5) {
+        return { ok: false, error: "CEO salary and R&D budget cannot exceed 1.5 times current corporation revenue" };
+      }
       corp.ceoSalaryPerTurn = salary!;
       corp.dividendRate = dividendRate!;
-      return { ok: true, message: `Set ${corp.tickerSymbol} CEO salary to ${salary} per turn and dividend rate to ${dividendRate}%` };
+      corp.rdBudgetPerTurn = rdBudgetPerTurn!;
+      return { ok: true, message: `Set ${corp.tickerSymbol} CEO salary, dividend rate, and R&D budget` };
     }
 
     if (corp.ceoId !== "player" || corp.ceoVacant === true) return { ok: false, error: "You are not the active CEO of this corporation" };
@@ -1590,6 +1610,72 @@ function executeActionInner(
     delete corp.pendingCeoId;
     corp.ceoVotes = [];
     return { ok: true, message: `You resigned as CEO of ${corp.tickerSymbol}; the position is vacant` };
+  }
+
+  if (actionId === "issueCorporateBond") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player may issue corporation bonds" };
+    const corpId = params.corpId;
+    const faceValueAnchor = params.faceValue;
+    const maturityTurns = params.maturityTurns;
+    if (!corpId || faceValueAnchor === undefined || maturityTurns === undefined) {
+      return { ok: false, error: "issueCorporateBond requires corpId, faceValue, and maturityTurns" };
+    }
+    const corp = world.corporations[corpId];
+    if (!corp) return { ok: false, error: `Unknown corporation: ${corpId}` };
+    if (corp.ceoType !== "player" || corp.ceoId !== "player" || corp.ceoVacant === true) {
+      return { ok: false, error: "Only the active CEO may issue corporation bonds" };
+    }
+    if (!Number.isFinite(faceValueAnchor) || faceValueAnchor < 100_000) {
+      return { ok: false, error: "Corporate bond face value must be at least 100000 in the accounting anchor" };
+    }
+    if (maturityTurns !== 96 && maturityTurns !== 240 && maturityTurns !== 336) {
+      return { ok: false, error: "Corporate bond maturity must be 96, 240, or 336 turns" };
+    }
+
+    const quote = quoteCorporateBondIssuance(world, corpId);
+    if (!quote.available) return { ok: false, error: quote.reason ?? "Corporate bond issuance is unavailable" };
+    if (faceValueAnchor > quote.maximumFaceValue) {
+      return { ok: false, error: `Corporate bond face value exceeds the quoted maximum of ${Math.floor(quote.maximumFaceValue)} USD accounting-anchor units` };
+    }
+    const totalUnits = Math.floor((faceValueAnchor * quote.exchangeRate) / BOND_UNIT_FACE_VALUE);
+    const totalFaceLocal = totalUnits * BOND_UNIT_FACE_VALUE;
+    if (!Number.isSafeInteger(totalUnits) || totalUnits <= 0 || !Number.isSafeInteger(totalFaceLocal)
+      || !Number.isFinite(corp.liquidCapital + totalFaceLocal)) {
+      return { ok: false, error: "Corporate bond face value is outside the supported whole-unit range" };
+    }
+
+    // Native has no bond-pool ledger. Game's no-pool fallback places the full
+    // float and credits its proceeds to the issuer, which is the supported
+    // underwriting path here.
+    const issuance = issueCorporateBond(world, corpId, {
+      totalUnits,
+      maturityTurns,
+      couponRate: quote.couponRates[maturityTurns],
+    });
+    if (!issuance.ok) return { ok: false, error: issuance.error };
+    corp.liquidCapital += totalFaceLocal;
+    return {
+      ok: true,
+      message: `Issued ${totalUnits} ${quote.currencyCode} bond units for ${corp.name ?? corp.tickerSymbol}`,
+    };
+  }
+
+  if (actionId === "buybackCorporateBond") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player may buy back corporation bonds" };
+    const bondId = params.bondId;
+    const units = params.units;
+    if (!bondId || units === undefined) return { ok: false, error: "buybackCorporateBond requires bondId and a positive integer units amount" };
+    const bond = world.bonds[bondId];
+    if (!bond) return { ok: false, error: `Unknown bond: ${bondId}` };
+    if (bond.issuerType !== "corporation" || !bond.corporationId) return { ok: false, error: `Bond ${bondId} is not a corporate issue` };
+    const issuer = world.corporations[bond.corporationId];
+    if (!issuer || issuer.ceoType !== "player" || issuer.ceoId !== "player" || issuer.ceoVacant === true) {
+      return { ok: false, error: "Only the active issuer CEO may buy back corporation bonds" };
+    }
+    const result = buybackCorporateBondUnits(world, bondId, units);
+    return result.ok
+      ? { ok: true, message: `Bought back ${result.units} units of ${issuer.name ?? issuer.tickerSymbol} bonds for ${result.cost} ${result.currencyCode}` }
+      : result;
   }
 
   if (actionId === "buyShares" || actionId === "sellShares") {
@@ -2151,6 +2237,22 @@ function executeActionInner(
     }
     return { ok: true, message: `Wired ${amount} ${res.currency} to ${res.recipientName}` };
   }
+  if (actionId === "nationalizeCorporation") {
+    if (found.kind !== "player") {
+      actor.actions += cost;
+      return { ok: false, error: "Only the sitting head of government may order an executive nationalization." };
+    }
+    if (params.tier !== "seizure") {
+      actor.actions += cost;
+      return { ok: false, error: "Executive nationalization currently supports only the source seizure tier." };
+    }
+    const result = nationalizeDistressedCorporation(world, params.corporationId ?? "", actorId);
+    if (!result.ok) {
+      actor.actions += cost;
+      return result;
+    }
+    return { ok: true, message: result.message };
+  }
 
   return { ok: false, error: `No effect for ${actionId}` };
 }
@@ -2257,20 +2359,34 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.corpId && params.shares !== undefined && Number.isInteger(params.shares) && params.shares > 0
         ? null
         : `${actionId} requires corpId and a positive integer shares amount`;
+    case "nationalizeCorporation":
+      return params.corporationId && params.tier === "seizure"
+        ? null
+        : "nationalizeCorporation requires corporationId and tier 'seizure'";
     case "voteCeo":
       return params.corpId && params.candidateId ? null : "voteCeo requires corpId and candidateId";
     case "acceptCeoAppointment":
     case "resignCeo":
       return params.corpId ? null : `${actionId} requires corpId`;
     case "setCorporationCompensation":
-      return params.corpId && Number.isFinite(params.salaryPerTurn) && Number.isFinite(params.dividendRate)
+      return params.corpId && Number.isFinite(params.salaryPerTurn) && Number.isFinite(params.dividendRate) &&
+        (params.rdBudgetPerTurn === undefined || Number.isFinite(params.rdBudgetPerTurn))
         ? null
-        : "setCorporationCompensation requires corpId, salaryPerTurn, and dividendRate";
+        : "setCorporationCompensation requires corpId, salaryPerTurn, dividendRate, and optional rdBudgetPerTurn";
     case "buyBond":
     case "sellBond":
       return params.bondId && params.units !== undefined && Number.isInteger(params.units) && params.units > 0
         ? null
         : `${actionId} requires bondId and a positive integer units amount`;
+    case "issueCorporateBond":
+      return params.corpId && params.faceValue !== undefined && Number.isFinite(params.faceValue) && params.faceValue >= 100_000
+        && params.maturityTurns !== undefined && [96, 240, 336].includes(params.maturityTurns)
+        ? null
+        : "issueCorporateBond requires corpId, faceValue of at least 100000, and maturityTurns of 96, 240, or 336";
+    case "buybackCorporateBond":
+      return params.bondId && params.units !== undefined && Number.isInteger(params.units) && params.units > 0
+        ? null
+        : "buybackCorporateBond requires bondId and a positive integer units amount";
     case "adjustBudgetSpending":
       return params.budgetCategory && params.budgetAmount !== undefined && Number.isFinite(params.budgetAmount) && params.budgetAmount >= 0
         ? null

@@ -37,6 +37,8 @@ import {
 export type ActionId =
   | "buyBond"
   | "sellBond"
+  | "issueCorporateBond"
+  | "buybackCorporateBond"
   | "fundraise"
   | "campaign"
   | "advertise"
@@ -82,6 +84,7 @@ export type ActionId =
   | "acceptCeoAppointment"
   | "resignCeo"
   | "setCorporationCompensation"
+  | "nationalizeCorporation"
   | "crisisBailout"
   | "crisisStimulus"
   | "crisisRespond"
@@ -181,12 +184,28 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     systems: ["bonds"],
     status: "available",
   },
-  // PORT-STUB: forex-denominated bond issuance (cross-currency sovereign float) requires FX system.
-  // No issuance catalog entry or player command is exposed for this path.
-  // Source: sovereign.ts currencyCode via resolveCountryCurrencyCode (needs FX for cross-currency settlement).
-  // Blocked: forex
-  // Corporate-bond issuance is also stubbed: needs corporation credit + bondHolderOps corporate path.
-  // Blocked: corporateBondIssuance
+  issueCorporateBond: {
+    id: "issueCorporateBond",
+    name: "Issue Corporate Bond",
+    description: "Issue a currency-denominated corporate bond as the seated CEO. Face value is requested in the accounting anchor and converted to whole units in the issuer's home currency.",
+    // AHDGame's corporation bond route is an executive company operation, not
+    // a political action-point purchase.
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "bonds", "forex"],
+    status: "available",
+  },
+  buybackCorporateBond: {
+    id: "buybackCorporateBond",
+    name: "Buy Back Corporate Bond",
+    description: "Retire public-float units of a corporation's bond as its seated CEO.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "bonds"],
+    status: "available",
+  },
   fundraise: {
     id: "fundraise",
     name: "Fundraise",
@@ -663,6 +682,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["corporation/governance", "corporation/dividends"],
+    status: "available",
+  },
+  nationalizeCorporation: {
+    id: "nationalizeCorporation",
+    name: "Nationalize Distressed Corporation",
+    description: "As the elected head of government, seize a distressed domestic corporation into state ownership. The emergency seizure tier pays no shareholder compensation and applies the source transition haircut.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["nationalization/state-ownership"],
     status: "available",
   },
   // ── W31 crisis action hooks ─────────────────────────────────────
