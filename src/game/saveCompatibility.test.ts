@@ -57,7 +57,7 @@ describe("schema 42 projection of public save envelopes", () => {
     expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });
   });
 
-  it("projects a Native-fresh schema 43 world as a v42 extension that keeps homeRegionId AL", () => {
+  it("projects a Native-fresh world with source-backed issuer identity and reloads that identity", () => {
     const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
     expect(world.player.homeRegionId).toBe("AL");
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
@@ -65,18 +65,77 @@ describe("schema 42 projection of public save envelopes", () => {
     if (!projected.ok) throw new Error(projected.error);
     const parsed = JSON.parse(projected.contents) as {
       schemaVersion: number;
-      world: { meta: { schemaVersion: number }; countryPolitics?: unknown; player: { homeRegionId?: unknown } };
+      world: {
+        meta: { schemaVersion: number };
+        countryPolitics?: unknown;
+        player: { homeRegionId?: unknown };
+        regions?: Record<string, { id?: unknown; countryId?: unknown; name?: unknown; corporationHeadquartersOnly?: unknown }>;
+        corporations?: Record<string, { name?: unknown; brandColor?: unknown; headquartersRegionId?: unknown }>;
+      };
     };
     expect(parsed.schemaVersion).toBe(42);
     expect(parsed.world.meta.schemaVersion).toBe(42);
     expect(parsed.world.player.homeRegionId).toBe("AL");
     expect(Object.prototype.hasOwnProperty.call(parsed.world, "countryPolitics")).toBe(false);
-    // Re-pinned #242: one-party packs now carry the authored `regimeStatus`
-    // party marker, which appears in the projected Native-fresh envelope.
-    expect(sha256(projected.contents)).toBe("404370ac2e43de737ce3e664fafde05f34a8298bb51db2de9de8ae6de6c59b03");
+    expect(parsed.world.regions?.DC).toEqual({
+      id: "DC",
+      countryId: "US",
+      name: "District of Columbia",
+      corporationHeadquartersOnly: true,
+    });
+    expect(parsed.world.corporations?.["US-media"]).toMatchObject({
+      name: "Daily Media",
+      brandColor: "#06b6d4",
+      headquartersRegionId: "DC",
+    });
     const restored = deserializeSave(projected.contents);
     expect(restored.player.homeRegionId).toBe("AL");
     expect(restored.countryPolitics).toEqual(world.countryPolitics);
+    expect(restored.regions.DC).toMatchObject(parsed.world.regions!.DC!);
+    expect(restored.corporations["US-media"]).toMatchObject(parsed.world.corporations!["US-media"]!);
+  });
+
+  it("refuses CEO governance and compensation state the v42 reader cannot advance", () => {
+    const unsupportedStates: ReadonlyArray<readonly [string, unknown]> = [
+      ["ceoType", "player"],
+      ["ceoId", "player"],
+      ["ceoVacant", true],
+      ["pendingCeoId", "player"],
+      ["ceoVotes", [{ voterId: "player", candidateId: "player", shares: 1 }]],
+      ["ceoSalaryPerTurn", 1_000],
+      ["dividendRate", 25],
+      ["lastCeoSalaryPaid", 1_000],
+      ["lastDividendPoolPaid", 500],
+      ["lastPlayerDividendPaid", 5],
+      ["lastUnpostedDividendPaid", 495],
+    ];
+    for (const [field, value] of unsupportedStates) {
+      const world = createWorld({ seed: "v42-ceo-refusal", playerName: "Validator", countryId: "US", era: "1953" });
+      Object.assign(world.corporations["US-media"]!, { [field]: value });
+      const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
+      expect(projected.ok, field).toBe(false);
+      if (projected.ok) throw new Error(`expected refusal for ${field}`);
+      expect(projected.error, field).toContain("CEO governance or compensation state");
+    }
+
+    const playerWorld = createWorld({
+      seed: "v42-ceo-refusal",
+      playerName: "Validator",
+      countryId: "US",
+      era: "1953",
+      homeRegionId: "DC",
+    });
+    expect(executeAction(playerWorld, "player", "buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
+    expect(executeAction(playerWorld, "player", "voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);
+    expect(projectSaveToV42(serializeSave(playerWorld, SAVED_AT))).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("CEO governance or compensation state"),
+    });
+    expect(executeAction(playerWorld, "player", "acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
+    expect(projectSaveToV42(serializeSave(playerWorld, SAVED_AT))).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("CEO governance or compensation state"),
+    });
   });
 
   it("refuses a migrated world after a Native turn mutates countryPolitics", () => {

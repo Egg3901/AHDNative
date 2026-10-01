@@ -148,7 +148,13 @@ describe("corporation CEO governance", () => {
     expect(migrated.corporations["UK-media"]?.headquartersRegionId).toBe("LON");
     expect(migrated.corporations["US-media"]?.headquartersRegionId).toBe("DC");
     expect(migrated.corporations["US-media"]).toMatchObject({ name: "Daily Media", brandColor: "#06b6d4" });
+    expect(migrated.corporations["US-media"]?.legacyProjectionDefaults).toEqual({
+      headquartersRegionId: true,
+      name: true,
+      brandColor: true,
+    });
     expect(migrated.regions.DC).toMatchObject({ name: "District of Columbia", corporationHeadquartersOnly: true });
+    expect(migrated.regions.DC?.legacyProjectionDefault).toBe(true);
   });
 
   it("completes the source HQ and display identity migration for early v49 saves", () => {
@@ -170,6 +176,43 @@ describe("corporation CEO governance", () => {
       name: "Daily Media",
       brandColor: "#06b6d4",
     });
+    expect(migrated.corporations["US-media"]?.legacyProjectionDefaults).toEqual({
+      headquartersRegionId: true,
+      name: true,
+      brandColor: true,
+    });
     expect(migrated.regions.DC).toMatchObject({ name: "District of Columbia", corporationHeadquartersOnly: true });
+    expect(migrated.regions.DC?.legacyProjectionDefault).toBe(true);
+  });
+
+  it("does not label an authored corporation identity as a legacy default", () => {
+    const world = createWorld({ era: "1953", countryId: "US", homeRegionId: "AL", seed: "ceo-authored-identity", playerName: "Alex" });
+    const raw = JSON.parse(serializeSave(world, "2026-10-01T00:00:00.000Z"));
+    raw.schemaVersion = 48;
+    raw.world.meta.schemaVersion = 48;
+    delete raw.world.regions.DC;
+    for (const [id, corp] of Object.entries(raw.world.corporations) as Array<[
+      string,
+      { headquartersRegionId?: string; name?: string; brandColor?: string },
+    ]>) {
+      delete corp.headquartersRegionId;
+      if (id !== "US-media") {
+        delete corp.name;
+        delete corp.brandColor;
+      }
+    }
+    const media = raw.world.corporations["US-media"];
+    media.headquartersRegionId = "NY";
+    media.name = "Alex Media";
+    media.brandColor = "#123456";
+
+    const migrated = deserializeSave(JSON.stringify(raw));
+    expect(migrated.corporations["US-media"]).toMatchObject({
+      headquartersRegionId: "NY",
+      name: "Alex Media",
+      brandColor: "#123456",
+    });
+    expect(migrated.corporations["US-media"]?.legacyProjectionDefaults).toBeUndefined();
+    expect(migrated.regions.DC?.legacyProjectionDefault).toBe(true);
   });
 });

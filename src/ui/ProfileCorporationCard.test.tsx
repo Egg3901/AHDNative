@@ -84,7 +84,7 @@ describe("#51 profile corporation card", () => {
     const entry = profile.corporations![0]!;
     expect(text).toMatch(new RegExp(entry.ticker));
     expect(text).toContain(entry.name);
-    expect(card!.querySelector("[data-corporation-brand]")?.getAttribute("style")).toContain(entry.brandColor);
+    expect(getComputedStyle(card!.querySelector("[data-corporation-brand]")!).color).toBe("rgb(6, 182, 212)");
     expect(text).toMatch(/Sector owner/);
     expect(text).toMatch(/Corporate cash/);
     expect(text).toMatch(/Your shares/);

@@ -37,7 +37,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { gunzipSync } from 'node:zlib';
 import { readFileSync } from 'node:fs';
-import { gameReady, loadFixture, navigateGame } from './game-navigation';
+import { advanceGame, gameReady, loadFixture, navigateGame } from './game-navigation';
 import { GameSession } from '../src/game/session';
 
 const OPTIONS = { era: '1953', countryId: 'US', seed: 'native-profile-card-51-smoke', playerName: 'Owner Player' };
@@ -191,7 +191,11 @@ test('a fresh game with no recorded ownership renders no corporation card', asyn
 });
 
 for (const width of [320, 390]) {
-  test(`${width}px: public CEO lifecycle shows settled income, links detail and survives reload`, async ({ page }) => {
+  test(`${width}px: public CEO lifecycle shows settled income, links detail and survives reload`, async ({ page }, testInfo) => {
+    // This public flow spans worker startup, a simulated turn, and two native
+    // save resumes; its measured end-to-end path needs a larger budget than a
+    // single navigation while each reload retains its own bounded wait.
+    testInfo.setTimeout(300_000);
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/');
     await loadFixture(page, Buffer.from(ceo.save));
@@ -204,7 +208,7 @@ for (const width of [320, 390]) {
     // end-turn settlement commands against the integrated saved world.
     await navigateGame(page, 'Stock market');
     await page.getByRole('button', { name: /Daily Media/ }).click();
-    await page.getByLabel('Shares').fill('1');
+    await page.getByRole('textbox', { name: 'Shares' }).fill('1');
     await page.getByRole('button', { name: /Buy shares:/ }).click();
     await page.getByRole('button', { name: 'Vote yourself as CEO' }).click();
     await page.getByRole('button', { name: 'Accept CEO appointment' }).click();
@@ -233,7 +237,7 @@ for (const width of [320, 390]) {
     await page.getByRole('button', { name: 'Back to profile' }).click();
     await expect(card(page)).toBeVisible();
 
-    await page.reload();
+    await page.reload({ timeout: 120_000 });
     await page.getByRole('button', { name: 'Continue CEO Player', exact: true }).click();
     await gameReady(page);
     await openProfile(page);
@@ -247,8 +251,13 @@ for (const width of [320, 390]) {
     await page.getByRole('button', { name: 'Resign as CEO' }).click();
     await navigateGame(page, 'Profile');
     await expect(card(page)).toHaveCount(0);
-    await page.reload();
-    await page.getByRole('button', { name: 'Continue CEO Player', exact: true }).click();
+
+    // Keep the second reload in the end-to-end regression: resignation must
+    // remain absent after a fresh public resume, not only in the live session.
+    await page.reload({ timeout: 120_000 });
+    const continueButton = page.getByRole('button', { name: 'Continue CEO Player', exact: true });
+    await expect(continueButton).toBeVisible({ timeout: 120_000 });
+    await continueButton.click();
     await gameReady(page);
     await openProfile(page);
     await expect(card(page)).toHaveCount(0);

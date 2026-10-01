@@ -73,6 +73,9 @@ describe("#51 profile corporation projection", () => {
     expect(reloaded.profile().corporations).toEqual(card);
     expect(session.act("resignCeo", { corpId: "US-media" }).ok).toBe(true);
     expect(session.profile().corporations).toEqual([]);
+    const resigned = new GameSession();
+    resigned.load(session.serialize(SAVED_AT));
+    expect(resigned.profile().corporations).toEqual([]);
   });
 
   it("does not offer or seat a non-shareholder and preserves the world on rejection", () => {

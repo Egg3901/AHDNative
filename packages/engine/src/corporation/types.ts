@@ -91,6 +91,12 @@ export interface Corporation {
   countryId: string;
   /** Authored seed HQ region; absent when the source capital region is not in the loaded era. */
   headquartersRegionId?: string;
+  /** Which v50 source identity values were filled only to migrate a legacy save. */
+  legacyProjectionDefaults?: {
+    name?: true;
+    brandColor?: true;
+    headquartersRegionId?: true;
+  };
   /** Mainline issuer lifecycle. Legacy Native corporations are NPP-run when absent. */
   ceoType?: "npp" | "player";
   /** Stable local character key for the solo player; absent on NPC-led corps. */
