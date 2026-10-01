@@ -25,6 +25,7 @@ test('a real singleplayer world survives save and relaunch on a phone sized scre
   await expect(page.getByRole('status').filter({ hasText: 'Game saved' })).toBeVisible();
   await page.reload();
   await page.getByRole('button', { name: /Continue Smoke Player/ }).click();
+  await gameReady(page);
   await expect(page.getByRole('region', { name: 'Profile', exact: true })).toContainText('Smoke Player');
   await expect(page.getByRole('button', { name: 'Profile', exact: true })).toHaveAttribute('aria-current', 'page');
   await expect(page.getByRole('contentinfo')).toContainText('Turn 1 ·');

@@ -93,11 +93,14 @@ describe("tfpBasket public advanceTurn / save-replay boundary", () => {
 
     // Gap carry: next turn's gdpGrowth = potential + (gap - prevGap)*48.
     // The tail rebuilds TFP from the same regional seed on both worlds, so
-    // turn 2 uses the same basket; the remaining growth gap is the upstream
-    // output-gap response to turn-1 potential, not a second TFP hit.
+    // turn 2 uses the same basket. The physical-sales recovery reaches the
+    // source 15% headline ceiling in both worlds, while the stored gap still
+    // carries the distinct response to turn-1 potential.
     advanceTurn(high);
     advanceTurn(low);
-    expect(high.countries["US"]!.economy.growthRate).toBeGreaterThan(low.countries["US"]!.economy.growthRate);
+    expect(high.countries["US"]!.economy.growthRate).toBeCloseTo(0.15, 12);
+    expect(low.countries["US"]!.economy.growthRate).toBeCloseTo(0.15, 12);
+    expect(high.countries["US"]!.economy.outputGap).toBeLessThan(low.countries["US"]!.economy.outputGap);
   });
 
   it("save/load of injected prior-turn metrics yields the same first-turn US economy", () => {

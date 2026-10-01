@@ -22,6 +22,8 @@ function makeOverview(): WorldOverviewView {
         id: "US",
         name: "United States",
         playable: true,
+        races: [],
+        leader: null,
         currency: "USD",
         economy: {
           gdpMillions: 387_000,
@@ -49,6 +51,8 @@ function makeOverview(): WorldOverviewView {
         id: "LN",
         name: LONG_NAME,
         playable: false,
+        races: [],
+        leader: null,
         currency: "LNX",
         economy: {
           gdpMillions: 1_000,

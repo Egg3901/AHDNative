@@ -3,13 +3,15 @@ import { createWorld } from "../world.js";
 import { advanceTurn } from "../engine.js";
 import { executeAction } from "../actions/execute.js";
 import { deserializeSave, serializeSave } from "../save.js";
-import { BOND_UNIT_FACE_VALUE, perTurnCouponPayment } from "./constants.js";
+import { BOND_UNIT_FACE_VALUE, calculateBondMarketPrice, perTurnCouponPayment } from "./constants.js";
 import { issueCorporateBond } from "./corporateBonds.js";
 import {
   buybackCorporateBondUnits,
   corporateCouponPerUnit,
   processCorporateBondTurn,
+  quoteCorporateBondBuyback,
 } from "./corporateBondServicing.js";
+import { nativeBondPoolForCurrency } from "./bondMarketPool.js";
 
 const OPTS = {
   seed: "corp-bond-service",
@@ -78,7 +80,7 @@ describe("corporate coupon servicing", () => {
     expect(bond.lastCouponTurn).toBe(world.meta.turn);
     expect(bond.matured).toBe(false);
     expect(bond.defaulted).toBe(false);
-    expect(bond.marketPrice).toBe(1.0);
+    expect(bond.marketPrice).toBeGreaterThan(0.05);
     expect(bond.currencyCode).toBe(world.budgets[bond.countryId]!.currencyCode);
   });
 
@@ -133,6 +135,27 @@ describe("corporate coupon servicing", () => {
   });
 });
 
+describe("corporate bond market pricing", () => {
+  it("matches the independently executed Game 01797b2708 corporate-credit source vector", () => {
+    const world = createWorld(OPTS);
+    const corpId = usCorpId(world);
+    const corp = world.corporations[corpId]!;
+    corp.liquidCapital = 2_000_000;
+    corp.totalShares = 1_000_000;
+    corp.sharePrice = 30;
+    const bond = issue(world, corpId, 1_000);
+    bond.couponRate = 5;
+
+    const price = processCorporateBondTurn(world);
+    expect(price.defaulted).toBe(0);
+    // Immutable Game src/lib/constants/bonds.ts independently executed with
+    // calculateCreditScore(2M, 1M, 0, 50K, 5M) -> A (58),
+    // getBondCouponRate(3, "A") -> 5.5%, and calculateBondMarketPrice(5,5.5,240,false) -> .9786.
+    expect(bond.marketPrice).toBe(0.9786);
+    expect(calculateBondMarketPrice(5, 5.5, 240, false)).toBe(0.9786);
+  });
+});
+
 // ── Insufficient cash → default (source: bondTurn.ts Phase 3/4) ──────────
 describe("corporate default", () => {
   it("marks the bond defaulted with zero flows and frozen holdings when the issuer cannot cover", () => {
@@ -159,6 +182,16 @@ describe("corporate default", () => {
     // Creditor consequence: the position freezes on defaulted paper.
     expect(bond.holders.find((h) => h.holderId === "player")?.units).toBe(10);
     expect(bond.matured).toBe(false);
+
+    const resumed = deserializeSave(serializeSave(world, "2026-10-01T00:00:00.000Z"));
+    const resumedBond = resumed.bonds[bond.id]!;
+    expect(resumedBond).toMatchObject({ defaulted: true, defaultedAtTurn: world.meta.turn, marketPrice: 0.1 });
+    expect(resumedBond.holders.find((h) => h.holderId === "player")?.units).toBe(10);
+    const resumedIssuerCash = resumed.corporations[corpId]!.liquidCapital;
+    const resumedPlayerCash = resumed.player.cash;
+    expect(processCorporateBondTurn(resumed)).toEqual({ couponsPaid: 0, matured: 0, defaulted: 0 });
+    expect(resumed.corporations[corpId]!.liquidCapital).toBe(resumedIssuerCash);
+    expect(resumed.player.cash).toBe(resumedPlayerCash);
   });
 
   it("a defaulted bond accrues nothing further and reprocessing is a no-op", () => {
@@ -181,6 +214,29 @@ describe("corporate default", () => {
 
 // ── Buyback (source: buyback/route.ts) ───────────────────────────────────
 describe("corporate buyback", () => {
+  it("uses the source pool ask and converts the bond denomination through the accounting anchor", () => {
+    const world = createWorld(OPTS);
+    const corpId = usCorpId(world);
+    const bond = issue(world, corpId, 10);
+    bond.marketPrice = 0.9786;
+    bond.currencyCode = "GBP"; // source preserves issue denomination across a later issuer-country move
+    const gbpPool = nativeBondPoolForCurrency(world, "GBP");
+    expect(gbpPool.cashLocal).toBe(gbpPool.targetCashLocal);
+    const gbpRate = Object.values(world.exchangeRates).find((row) => row.currencyCode === "GBP")!.rate;
+    const usdRate = 1;
+    const quote = quoteCorporateBondBuyback(world, bond);
+    // Game 01797b2708 marketPoolQuotes.ts: corporate half spread 2%; no cash
+    // skew at the source opening pool; round(mid * 1.02, 4) -> .9982.
+    // Game buyback route converts GBP local -> USD anchor -> issuer USD local.
+    expect(quote).toMatchObject({ available: true, currencyCode: "GBP", issuerCurrencyCode: "USD", askPerUnit: 998.2 });
+    expect(quote.issuerCostPerUnit).toBe(Math.round((998.2 / gbpRate * usdRate) * 100) / 100);
+    world.corporations[corpId]!.liquidCapital = quote.issuerCostPerUnit * 10;
+    const result = buybackCorporateBondUnits(world, bond.id, 10);
+    expect(result).toMatchObject({ ok: true, cost: quote.issuerCostPerUnit * 10, currencyCode: "USD" });
+    expect(world.bondMarketPools?.GBP?.cashLocal).toBe(gbpPool.cashLocal + 9_982);
+    expect(world.bondMarketPools?.GBP?.lifetime.retiredIn).toBe(9_982);
+  });
+
   it("retires float units at market price, shrinking float and outstanding face", () => {
     const world = createWorld(OPTS);
     const corpId = usCorpId(world);
@@ -192,13 +248,15 @@ describe("corporate buyback", () => {
     expect(res).toEqual({
       ok: true,
       units: 20,
-      cost: 20 * BOND_UNIT_FACE_VALUE * 1.0,
+      cost: 20 * BOND_UNIT_FACE_VALUE * 1.02,
+      currencyCode: "USD",
     });
     expect(bond.publicFloat).toBe(80);
     expect(bond.totalIssued).toBe(80 * BOND_UNIT_FACE_VALUE);
     expect(world.corporations[corpId]!.liquidCapital).toBe(
-      corpBefore - 20 * BOND_UNIT_FACE_VALUE,
+      corpBefore - 20 * BOND_UNIT_FACE_VALUE * 1.02,
     );
+    expect(world.bondMarketPools?.USD?.lifetime.retiredIn).toBe(20 * BOND_UNIT_FACE_VALUE * 1.02);
     expect(bond.matured).toBe(false);
   });
 
@@ -221,6 +279,34 @@ describe("corporate buyback", () => {
     expect(bond.matured).toBe(false);
   });
 
+  it("buys defaulted float at face rather than the recovery mark", () => {
+    const world = createWorld(OPTS);
+    const corpId = usCorpId(world);
+    const bond = issue(world, corpId, 10);
+    world.corporations[corpId]!.liquidCapital = 0;
+    expect(processCorporateBondTurn(world).defaulted).toBe(1);
+    expect(bond.marketPrice).toBe(0.1);
+    world.corporations[corpId]!.liquidCapital = 50_000;
+    const result = buybackCorporateBondUnits(world, bond.id, 2);
+    expect(result).toEqual({ ok: true, units: 2, cost: 2 * bond.faceValue, currencyCode: "USD" });
+    expect(bond.publicFloat).toBe(8);
+    expect(bond.totalIssued).toBe(8 * bond.faceValue);
+    expect(bond.defaulted).toBe(true);
+  });
+
+  it("rejects malformed cash or price state atomically", () => {
+    const world = createWorld(OPTS);
+    const corpId = usCorpId(world);
+    const bond = issue(world, corpId, 10);
+    fund(world, corpId);
+    const cash = world.corporations[corpId]!.liquidCapital;
+    bond.marketPrice = Number.NaN;
+    expect(buybackCorporateBondUnits(world, bond.id, 1).ok).toBe(false);
+    expect(world.corporations[corpId]!.liquidCapital).toBe(cash);
+    expect(bond.publicFloat).toBe(10);
+    expect(bond.totalIssued).toBe(10 * bond.faceValue);
+  });
+
   it("fully retiring an unheld series closes it at par", () => {
     const world = createWorld(OPTS);
     const corpId = usCorpId(world);
@@ -228,6 +314,8 @@ describe("corporate buyback", () => {
     fund(world, corpId);
     const res = buybackCorporateBondUnits(world, bond.id, 10);
     expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.cost).toBe(10 * BOND_UNIT_FACE_VALUE * 1.02);
     expect(bond.publicFloat).toBe(0);
     expect(bond.totalIssued).toBe(0);
     expect(bond.matured).toBe(true);

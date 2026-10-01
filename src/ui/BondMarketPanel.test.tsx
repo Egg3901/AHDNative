@@ -6,15 +6,15 @@ import type { BondMarketView } from '../game/bondMarket';
 
 const market: BondMarketView = {
   turn: 98, date: '1954-11-23', playerCountryId: 'US', playerCash: 10000, currency: 'USD', balances: {}, buy: { cost: 1 }, sell: { cost: 1 },
-  bonds: [{ id: 'bond-60-US', countryId: 'US', issuerName: 'United States', currency: 'USD', faceValue: 1000,
+  bonds: [{ id: 'bond-60-US', issuerType: 'sovereign', countryId: 'US', issuerName: 'United States', currency: 'USD', faceValue: 1000,
     marketPrice: 1, couponRate: 3.75, maturityTurn: 108, publicFloat: 20, playerUnits: 1,
-    matured: false, defaulted: false, domestic: true, settlesInHomeCash: true, availableBalance: 10000 }],
+    matured: false, defaulted: false, domestic: true, settlesInHomeCash: true, availableBalance: 10000, canBuyback: false }],
 };
 const foreignMarket: BondMarketView = {
   ...market, balances: { GBP: 5000 },
-  bonds: [{ id: 'bond-61-UK', countryId: 'UK', issuerName: 'United Kingdom', currency: 'GBP', faceValue: 1000,
+  bonds: [{ id: 'bond-61-UK', issuerType: 'sovereign', countryId: 'UK', issuerName: 'United Kingdom', currency: 'GBP', faceValue: 1000,
     marketPrice: 1, couponRate: 4, maturityTurn: 146, publicFloat: 20, playerUnits: 1,
-    matured: false, defaulted: false, domestic: false, settlesInHomeCash: false, availableBalance: 5000 }],
+    matured: false, defaulted: false, domestic: false, settlesInHomeCash: false, availableBalance: 5000, canBuyback: false }],
 };
 function setViewportWidth(width: number) {
   Object.defineProperty(window, 'innerWidth', { value: width, configurable: true });
@@ -31,6 +31,29 @@ it('quotes whole units and dispatches the selected issue, while rejecting overse
   await user.clear(screen.getByLabelText('Bond units'));
   await user.type(screen.getByLabelText('Bond units'), '1.5');
   expect(screen.getByRole('button', { name: 'Buy bond units' })).toBeDisabled();
+});
+it('labels a recorded company issue as corporate and names the issuer', () => {
+  const corporate: BondMarketView = {
+    ...market,
+    bonds: [{ ...market.bonds[0]!, id: 'cbond-98-US-media', issuerType: 'corporation', corporationId: 'US-media', issuerName: 'Daily Media' }],
+  };
+  render(<BondMarketPanel market={corporate} busy={false} onAction={vi.fn()} onSelect={vi.fn()} />);
+  expect(screen.getByRole('heading', { name: 'Bond market' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Daily Media bond' })).toBeInTheDocument();
+  expect(screen.getByText('Corporation')).toBeInTheDocument();
+  expect(screen.queryByText('Sovereign')).not.toBeInTheDocument();
+});
+it('shows issuer buyback only to the active player CEO and dispatches selected units', async () => {
+  const user = userEvent.setup(); const onAction = vi.fn();
+  const corporate: BondMarketView = { ...market, bonds: [{ ...market.bonds[0]!, id: 'cbond-98-US-media', issuerType: 'corporation', corporationId: 'US-media', issuerName: 'Daily Media', canBuyback: true }] };
+  const view = render(<BondMarketPanel market={corporate} busy={false} onAction={onAction} onSelect={vi.fn()} />);
+  await user.clear(screen.getByLabelText('Bond units'));
+  await user.type(screen.getByLabelText('Bond units'), '2');
+  await user.click(screen.getByRole('button', { name: 'Buy back corporate bond units' }));
+  expect(onAction).toHaveBeenCalledWith('buybackCorporateBond', { bondId: 'cbond-98-US-media', units: 2 });
+  const notCeo: BondMarketView = { ...corporate, bonds: [{ ...corporate.bonds[0]!, canBuyback: false }] };
+  view.rerender(<BondMarketPanel market={notCeo} busy={false} onAction={vi.fn()} onSelect={vi.fn()} />);
+  expect(screen.queryByRole('button', { name: 'Buy back corporate bond units' })).not.toBeInTheDocument();
 });
 it('enables foreign tickets when the denomination balance covers the order and dispatches', async () => {
   const user = userEvent.setup(); const onAction = vi.fn();
@@ -82,9 +105,9 @@ it('shows the source-grounded yield, coupon and ownership for the selected issue
 it('compares outstanding issues with scaled yield bars and selects on tap', async () => {
   const user = userEvent.setup(); const onSelect = vi.fn();
   const multi: BondMarketView = { ...market, bonds: [...market.bonds,
-    { id: 'bond-61-US', countryId: 'US', issuerName: 'United States Second', currency: 'USD', faceValue: 1000,
+    { id: 'bond-61-US', issuerType: 'sovereign', countryId: 'US', issuerName: 'United States Second', currency: 'USD', faceValue: 1000,
       marketPrice: 0.9, couponRate: 5, maturityTurn: 146, publicFloat: 40, playerUnits: 0,
-      matured: false, defaulted: false, domestic: true, settlesInHomeCash: true, availableBalance: 10000 }] };
+      matured: false, defaulted: false, domestic: true, settlesInHomeCash: true, availableBalance: 10000, canBuyback: false }] };
   render(<BondMarketPanel market={multi} busy={false} onAction={vi.fn()} onSelect={onSelect} />);
   expect(screen.getByText('Compare issues')).toBeInTheDocument();
   const discountBar = screen.getByTestId('bond-ytm-bar-bond-61-US');
@@ -110,9 +133,9 @@ it('omits the comparison when a single issue is outstanding', () => {
 });
 describe('BondMarketPanel dual-pane list/detail (#438)', () => {
   const multi: BondMarketView = { ...market, bonds: [...market.bonds,
-    { id: 'bond-61-US', countryId: 'US', issuerName: 'United States Second', currency: 'USD', faceValue: 1000,
+    { id: 'bond-61-US', issuerType: 'sovereign', countryId: 'US', issuerName: 'United States Second', currency: 'USD', faceValue: 1000,
       marketPrice: 0.9, couponRate: 5, maturityTurn: 146, publicFloat: 40, playerUnits: 0,
-      matured: false, defaulted: false, domestic: true, settlesInHomeCash: true, availableBalance: 10000 }] };
+      matured: false, defaulted: false, domestic: true, settlesInHomeCash: true, availableBalance: 10000, canBuyback: false }] };
   it('pairs the compare list with the selected detail sharing one selection', async () => {
     const user = userEvent.setup(); const onSelect = vi.fn();
     render(<BondMarketPanel market={multi} busy={false} onAction={vi.fn()} onSelect={onSelect} />);

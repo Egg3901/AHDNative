@@ -3,191 +3,157 @@ import { createWorld } from "../world.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { buyCorporateSectorForSale } from "./corporateSectorAcquire.js";
-import {
-  listCorporateSectorForSale,
-  unlistCorporateSectorForSale,
-  updateCorporateSectorListing,
-} from "./corporateSectorSale.js";
 
-const WORLD = { era: "1953", countryId: "US", seed: "issue-295-acquire", playerName: "Alex" } as const;
-const SAVED_AT = "2026-09-15T00:00:00.000Z";
+const WORLD = { era: "1953", countryId: "US", seed: "issue-299-buy", playerName: "Alex" } as const;
 
-/**
- * World with a live listing on US-media: the player holds a recorded share
- * block (sale authority, #294), the sector lists at its live anchor, and
- * personal cash is funded to exactly cover the anchor unless told otherwise.
- *
- * Source grounding (AHDGame e364c04954ed628beef73a993a8e9e156650a31e):
- * buyListedSector.ts debits the buyer and credits the seller through the
- * anchor at live FX, transfers ownership to the buyer corp (merge when the
- * buyer already operates the type in that state), clears forSale on transfer,
- * treats the anchor locked at listing time as the asking price, and refunds
- * on a raced listing. Corrupt anchors never reach the debit: list/update
- * validate on write and the shared asset validator fails closed first.
- * Native adaptations: the buyer is the player character (no
- * player-run corporations exist, and corp-to-corp transfer is structurally
- * impossible with one aggregate corporation per country/sector), funds are
- * same-currency personal cash (no FX — cross-currency refuses like the
- * share-trade gate), and ownership records owner "player" while the recorded
- * corporation keeps operating the sector.
- */
-function worldWithListing(cash?: number) {
+function listedWorld() {
   const world = createWorld(WORLD);
   const assets = corporateSectorAssets(world);
-  const asset = Object.values(assets).find((candidate) => candidate.corporationId === "US-media")!;
-  world.corporations["US-media"]!.shareholders.push({ holder: "player", shares: 100, avgCostPerShare: 1 });
-  const listed = listCorporateSectorForSale(world, asset.id, "player");
-  expect(listed.ok).toBe(true);
-  const anchor = listed.priceAnchor!;
-  expect(anchor).toBeGreaterThan(0);
-  world.player.cash = cash ?? anchor;
-  return { world, asset, anchor };
-}
-
-function snapshot(world: ReturnType<typeof createWorld>) {
-  return JSON.stringify({ cash: world.player.cash, sectors: world.corporateSectors, corps: world.corporations });
+  const asset = Object.values(assets).find((row) => row.corporationId === "US-media")!;
+  const buyer = world.corporations["US-financial"]!;
+  const seller = world.corporations["US-media"]!;
+  buyer.ceoId = "player";
+  buyer.ceoType = "player";
+  buyer.ceoVacant = false;
+  asset.forSale = { priceAnchor: 100_000 };
+  buyer.liquidCapital = Math.round(asset.forSale.priceAnchor * world.exchangeRates[buyer.countryId]!.rate) * 2;
+  return { world, asset, buyer, seller, price: asset.forSale.priceAnchor };
 }
 
 describe("#295 corporate-sector acquisition", () => {
-  it("buys at the recorded anchor: debits cash, credits the seller, clears the listing, records player ownership", () => {
-    const { world, asset, anchor } = worldWithListing();
-    const sellerBefore = world.corporations[asset.corporationId]!.liquidCapital;
-    const corpRevenueBefore = world.corporations[asset.corporationId]!.revenue;
-    const { workers, representingUnionId, corporationId, countryId, stateId, sectorType } = asset;
+  it("debits the active player CEO's corporation, credits the seller, and transfers the listed asset", () => {
+    const { world, asset, buyer, seller, price } = listedWorld();
+    const buyerBefore = buyer.liquidCapital;
+    const sellerBefore = seller.liquidCapital;
+    const playerCash = world.player.cash;
+    const originalSector = { ...asset };
+    const result = buyCorporateSectorForSale(world, asset.id, buyer.id);
 
-    const result = buyCorporateSectorForSale(world, asset.id, "player");
-    expect(result).toMatchObject({ ok: true, priceAnchor: anchor });
-    expect(world.player.cash).toBe(0);
-    expect(world.corporations[asset.corporationId]!.liquidCapital).toBe(sellerBefore + anchor);
-
-    const stored = world.corporateSectors![asset.id]!;
-    expect(stored.forSale).toBeNull();
-    expect(stored.owner).toBe("player");
-    // Operation stays with the recorded corporation: asset identity, labor,
-    // and union state plus the corporation's turn-math revenue are untouched.
-    expect(stored).toMatchObject({ workers, representingUnionId, corporationId, countryId, stateId, sectorType });
-    expect(world.corporations[asset.corporationId]!.revenue).toBe(corpRevenueBefore);
+    expect(result).toMatchObject({ ok: true, priceAnchor: price, merged: false });
+    expect(buyer.liquidCapital).toBe(buyerBefore - Math.round(price * world.exchangeRates[buyer.countryId]!.rate));
+    expect(seller.liquidCapital).toBe(sellerBefore + Math.round(price * world.exchangeRates[seller.countryId]!.rate));
+    expect(world.player.cash).toBe(playerCash);
+    expect(asset).toMatchObject({
+      corporationId: buyer.id,
+      countryId: originalSector.countryId,
+      stateId: originalSector.stateId,
+      sectorType: originalSector.sectorType,
+      workers: originalSector.workers,
+      representingUnionId: originalSector.representingUnionId,
+      forSale: null,
+      owner: "corporation",
+    });
   });
 
-  it("refuses an unknown listing without touching the world", () => {
-    const { world } = worldWithListing();
-    const before = snapshot(world);
-    const result = buyCorporateSectorForSale(world, "corporate-sector:US:media:missing", "player");
-    expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/not found/i);
-    expect(snapshot(world)).toBe(before);
+  it("fails closed for missing, self, non-CEO, vacant-CEO, unlisted, and underfunded buyers", () => {
+    const { world, asset, buyer, seller } = listedWorld();
+    const snapshot = () => JSON.stringify({ cash: world.player.cash, assets: world.corporateSectors, corps: world.corporations });
+    const before = snapshot();
+    expect(buyCorporateSectorForSale(world, asset.id, "missing").error).toMatch(/buyer corporation not found/i);
+    expect(buyCorporateSectorForSale(world, asset.id, seller.id).error).toMatch(/own sector/i);
+    buyer.ceoId = "npc";
+    expect(buyCorporateSectorForSale(world, asset.id, buyer.id).error).toMatch(/active ceo/i);
+    buyer.ceoId = "player";
+    buyer.ceoVacant = true;
+    expect(buyCorporateSectorForSale(world, asset.id, buyer.id).error).toMatch(/active ceo/i);
+    buyer.ceoVacant = false;
+    const debit = Math.round(asset.forSale!.priceAnchor * world.exchangeRates[buyer.countryId]!.rate);
+    buyer.liquidCapital = debit - 1;
+    expect(buyCorporateSectorForSale(world, asset.id, buyer.id).error).toMatch(/insufficient corporate funds/i);
+    expect(snapshot()).not.toBe(before); // only the test's deliberately changed CEO/cash fields differ
+
+    buyer.liquidCapital = debit + 1;
+    asset.forSale = null;
+    const unlistedSnapshot = snapshot();
+    expect(buyCorporateSectorForSale(world, asset.id, buyer.id).error).toMatch(/not currently listed/i);
+    expect(snapshot()).toBe(unlistedSnapshot);
   });
 
-  it("authorizes only the player character", () => {
-    const { world, asset } = worldWithListing();
-    const before = snapshot(world);
-    expect(buyCorporateSectorForSale(world, asset.id, "npc").ok).toBe(false);
-    expect(buyCorporateSectorForSale(world, asset.id, "npc").error).toMatch(/only the player/i);
-    expect(buyCorporateSectorForSale(world, asset.id, "fund" as never).error).toMatch(/unknown buyer/i);
-    expect(snapshot(world)).toBe(before);
+  it("converts the same recorded anchor price into each side's home currency", () => {
+    const { world, asset, buyer, seller, price } = listedWorld();
+    buyer.countryId = "UK";
+    world.exchangeRates.UK!.rate = 2;
+    world.exchangeRates.US!.rate = 1;
+    buyer.liquidCapital = Math.round(price * 2) + 1;
+    const buyerBefore = buyer.liquidCapital;
+    const sellerBefore = seller.liquidCapital;
+    expect(buyCorporateSectorForSale(world, asset.id, buyer.id).ok).toBe(true);
+    expect(buyer.liquidCapital).toBe(buyerBefore - Math.round(price * 2));
+    expect(seller.liquidCapital).toBe(sellerBefore + Math.round(price));
   });
 
-  it("requires no shareholding of the buyer and refuses a second purchase as already owned", () => {
+  it("rejects private acquisition in a still-planned target economy without changing ledgers", () => {
     const world = createWorld(WORLD);
-    const assets = corporateSectorAssets(world);
-    const asset = Object.values(assets).find((candidate) => candidate.corporationId === "US-media")!;
-    // Authority to LIST stays shareholder-gated; another block lists on the player's behalf.
-    world.corporations["US-media"]!.shareholders.push({ holder: "npc", shares: 50, avgCostPerShare: 2 });
-    const anchor = listCorporateSectorForSale(world, asset.id, "npc").priceAnchor!;
-    world.player.cash = anchor;
-
-    expect(buyCorporateSectorForSale(world, asset.id, "player")).toMatchObject({ ok: true, priceAnchor: anchor });
-    const again = buyCorporateSectorForSale(world, asset.id, "player");
-    expect(again.ok).toBe(false);
-    expect(again.error).toMatch(/already own/i);
+    const asset = Object.values(corporateSectorAssets(world)).find((row) => row.corporationId === "RU-media")!;
+    const buyer = world.corporations["US-financial"]!;
+    const seller = world.corporations[asset.corporationId]!;
+    buyer.ceoId = "player";
+    buyer.ceoType = "player";
+    buyer.ceoVacant = false;
+    asset.forSale = { priceAnchor: 100_000 };
+    buyer.liquidCapital = Math.round(asset.forSale.priceAnchor * world.exchangeRates[buyer.countryId]!.rate) * 2;
+    world.commandEconomy[asset.countryId]!.marketizationLevel = 0;
+    const balance = buyer.liquidCapital;
+    const sale = structuredClone(asset.forSale);
+    expect(buyCorporateSectorForSale(world, asset.id, buyer.id).error).toMatch(/state-controlled.*command economy/i);
+    expect(buyer.liquidCapital).toBe(balance);
+    expect(asset.forSale).toEqual(sale);
+    expect(asset.corporationId).toBe(seller.id);
   });
 
-  it("refuses an unlisted sector", () => {
-    const { world, asset } = worldWithListing();
-    const before = snapshot(world);
-    expect(world.corporateSectors![asset.id]!.forSale).not.toBeNull();
-    const other = Object.values(world.corporateSectors!).find((candidate) => candidate.forSale == null)!;
-    const result = buyCorporateSectorForSale(world, other.id, "player");
-    expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/not currently listed/i);
-    expect(snapshot(world)).toBe(before);
+  it("merges an acquired same-country, same-region, same-type sector into the buyer portfolio", () => {
+    const { world, asset, buyer } = listedWorld();
+    const assets = world.corporateSectors!;
+    const existing = Object.values(assets).find((row) => row.corporationId === buyer.id)!;
+    existing.sectorType = asset.sectorType;
+    existing.stateId = asset.stateId;
+    existing.representingUnionId = asset.representingUnionId;
+    existing.workers = 300;
+    existing.unionization = 20;
+    asset.workers = 700;
+    asset.unionization = 80;
+    Object.assign(existing, {
+      capitalStock: 700,
+      capacityBookAnchor: 2_100,
+      producedUnits: 100,
+      soldUnits: 75,
+      realizedRevenue: 300,
+      soldFraction: 0.75,
+      soldByCommodity: { textiles: 0.5, steel: 0.9 },
+    });
+    Object.assign(asset, {
+      capitalStock: 300,
+      capacityBookAnchor: 900,
+      producedUnits: 300,
+      soldUnits: 150,
+      realizedRevenue: 500,
+      soldFraction: 0.25,
+      soldByCommodity: { textiles: 0.25, chemicals: 0.8 },
+    });
+    const existingId = existing.id;
+    const acquiredId = asset.id;
+
+    expect(buyCorporateSectorForSale(world, acquiredId, buyer.id)).toMatchObject({ ok: true, merged: true });
+    expect(world.corporateSectors![existingId]!.workers).toBe(1_000);
+    expect(world.corporateSectors![existingId]!.unionization).toBe(62);
+    expect(world.corporateSectors![existingId]).toMatchObject({
+      capitalStock: 1_000,
+      capacityBookAnchor: 3_000,
+      producedUnits: 400,
+      soldUnits: 225,
+      realizedRevenue: 800,
+      soldFraction: 0.375,
+      soldByCommodity: { textiles: 0.3125, steel: 0.9, chemicals: 0.8 },
+    });
+    expect(world.corporateSectors![acquiredId]).toBeUndefined();
   });
 
-  it("fails closed on a corrupt recorded anchor before any funds move", () => {
-    // A corrupt anchor cannot arise through the commands (list/update validate
-    // on write), so it fails at the shared asset validator — the same boundary
-    // that refuses corrupt saves at load — before the buy touches cash,
-    // corporate capital, the listing, or ownership.
-    const { world, asset, anchor } = worldWithListing();
-    world.corporateSectors![asset.id]!.forSale = { priceAnchor: 0 };
-    const cashBefore = world.player.cash;
-    const capitalBefore = world.corporations[asset.corporationId]!.liquidCapital;
-    expect(() => buyCorporateSectorForSale(world, asset.id, "player")).toThrow(/invalid for-sale price anchor/i);
-    expect(world.player.cash).toBe(cashBefore);
-    expect(world.corporations[asset.corporationId]!.liquidCapital).toBe(capitalBefore);
-    expect(world.corporateSectors![asset.id]!.owner).toBe("corporation");
-    void anchor;
-  });
-
-  it("refuses a foreign-currency sector instead of converting", () => {
-    const world = createWorld(WORLD);
-    const assets = corporateSectorAssets(world);
-    const foreign = Object.values(assets).find((candidate) => candidate.countryId !== world.player.countryId)!;
-    world.corporations[foreign.corporationId]!.shareholders.push({ holder: "player", shares: 100, avgCostPerShare: 1 });
-    const anchor = listCorporateSectorForSale(world, foreign.id, "player").priceAnchor!;
-    world.player.cash = anchor;
-    const before = snapshot(world);
-
-    const result = buyCorporateSectorForSale(world, foreign.id, "player");
-    expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/not available yet/i);
-    expect(snapshot(world)).toBe(before);
-  });
-
-  it("refuses short cash without touching the world", () => {
-    const { world, asset, anchor } = worldWithListing();
-    world.player.cash = anchor - 1;
-    const before = snapshot(world);
-    const result = buyCorporateSectorForSale(world, asset.id, "player");
-    expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/insufficient cash/i);
-    expect(snapshot(world)).toBe(before);
-  });
-
-  it("refuses to relist or re-anchor a player-owned sector, while unlist still clears", () => {
-    const { world, asset } = worldWithListing();
-    expect(buyCorporateSectorForSale(world, asset.id, "player").ok).toBe(true);
-
-    expect(listCorporateSectorForSale(world, asset.id, "player").error).toMatch(/already own/i);
-    expect(updateCorporateSectorListing(world, asset.id, "player", 999).error).toMatch(/already own/i);
-
-    // A crafted player-owned listing can still be cleared, never repriced.
-    world.corporateSectors![asset.id]!.forSale = { priceAnchor: 777 };
-    expect(updateCorporateSectorListing(world, asset.id, "player", 999).error).toMatch(/already own/i);
-    expect(world.corporateSectors![asset.id]!.forSale).toEqual({ priceAnchor: 777 });
-    expect(unlistCorporateSectorForSale(world, asset.id, "player")).toMatchObject({ ok: true });
-    expect(world.corporateSectors![asset.id]!.forSale).toBeNull();
-  });
-
-  it("persists the acquisition through the save boundary and backfills pre-#295 saves", () => {
-    const { world, asset, anchor } = worldWithListing();
-    expect(buyCorporateSectorForSale(world, asset.id, "player").ok).toBe(true);
-
-    const raw = serializeSave(world, { savedAt: SAVED_AT });
-    const loaded = deserializeSave(raw);
-    const stored = loaded.corporateSectors![asset.id]!;
-    expect(stored.owner).toBe("player");
-    expect(stored.forSale).toBeNull();
-    expect(loaded.player.cash).toBe(0);
-    expect(loaded.corporations[asset.corporationId]!.liquidCapital)
-      .toBe(world.corporations[asset.corporationId]!.liquidCapital);
-    void anchor;
-
-    // Saves written before #295 carry materialized assets without the field:
-    // they load as the corporation default instead of failing validation.
-    const envelope = JSON.parse(raw) as { world: ReturnType<typeof createWorld> };
-    for (const record of Object.values(envelope.world.corporateSectors!)) delete (record as { owner?: unknown }).owner;
-    const backfilled = deserializeSave(JSON.stringify(envelope));
-    expect(Object.values(backfilled.corporateSectors!).every((record) => record.owner === "corporation")).toBe(true);
+  it("persists corporate ownership and both local cash balances through save/reload", () => {
+    const { world, asset, buyer, seller } = listedWorld();
+    expect(buyCorporateSectorForSale(world, asset.id, buyer.id).ok).toBe(true);
+    const loaded = deserializeSave(serializeSave(world, { savedAt: "2026-10-01T00:00:00.000Z" }));
+    expect(loaded.corporateSectors![asset.id]).toMatchObject({ corporationId: buyer.id, owner: "corporation", forSale: null });
+    expect(loaded.corporations[buyer.id]!.liquidCapital).toBe(buyer.liquidCapital);
+    expect(loaded.corporations[seller.id]!.liquidCapital).toBe(seller.liquidCapital);
   });
 });

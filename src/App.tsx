@@ -1,3 +1,4 @@
+import type { HallOfFameQuery } from "./game/hallOfFame";
 import type { RegionsQuery } from "./game/regions";
 import type { SearchFilter } from "./game/search";
 import type { LegislationSelection } from "./game/legislationDetails";
@@ -100,6 +101,10 @@ export function App() {
   const loadWorldOverview = useCallback(() => {
     if (!client.current) return Promise.reject(new Error("Start or load a game first."));
     return client.current.worldOverview();
+  }, []);
+  const loadHallOfFame = useCallback((query?: HallOfFameQuery) => {
+    if (!client.current) return Promise.reject(new Error("Start or load a game first."));
+    return client.current.hallOfFame(query);
   }, []);
   const loadPolitics = useCallback(() => {
     if (!client.current) return Promise.reject(new Error('Start or load a game first.'));
@@ -269,7 +274,7 @@ export function App() {
       onBack={() => { setScreen('new'); setPendingSetup(null); setCreationChoices(null); }}
     />;
   }
-  if (screen === 'game' && world) return <GameScreen newsStorageKey={slot.current!} loadProfile={loadProfile} loadProfileDestination={loadProfileDestination} loadImperialProfile={loadImperialProfile} onUpdateProfile={update => run(async () => {
+  if (screen === 'game' && world) return <GameScreen newsStorageKey={slot.current!} contextKey={slot.current!} loadProfile={loadProfile} loadProfileDestination={loadProfileDestination} loadImperialProfile={loadImperialProfile} onUpdateProfile={update => run(async () => {
     setWorld(await client.current!.updateProfile(update));
     await save();
     setMessage("Profile saved.");
@@ -288,17 +293,23 @@ export function App() {
   })} preferences={presentation.value} onPreferencesChange={changePreferences} preferencesError={presentation.error} loadPolitics={loadPolitics} search={search} loadBondMarket={loadBondMarket} loadRegions={loadRegions} loadCaucusManagement={loadCaucusManagement} loadCabinetOffice={loadCabinetOffice} onIssueCabinetOrder={(input) => void run(async () => {
       const response = await client.current!.issueCabinetOrder(input); setWorld(response.view);
       if (response.result.ok) { await save(); setMessage(response.result.message); } else setError(response.result.error);
-    })} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadUnionManagement={loadUnionManagement} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} world={world} busy={busy} error={error} message={message}
+    })} loadPartyManagement={loadPartyManagement} loadMarkets={loadMarkets} loadUnionManagement={loadUnionManagement} loadLegislation={loadLegislation} loadWorldOverview={loadWorldOverview} loadHallOfFame={loadHallOfFame} world={world} busy={busy} error={error} message={message}
     onMarkNotificationRead={(id) => void run(async () => { setWorld(await client.current!.markNotificationRead(id)); await save(false); })}
     onDeleteNotification={(id) => void run(async () => { setWorld(await client.current!.deleteNotification(id)); await save(false); })}
     onMarkAllNotificationsRead={() => void run(async () => { setWorld(await client.current!.markAllNotificationsRead()); await save(false); })}
     onAdvanceTurn={() => void run(async () => { setWorld(await client.current!.advance()); await save(); })}
-    onAction={(id, params) => void run(async () => {
-      const response = await client.current!.act(id, params); setWorld(response.view);
-      if (response.result.ok) { await save(); setMessage(response.result.message); } else setError(response.result.error);
-    })}
+    onAction={async (id, params) => {
+      let accepted = false;
+      await run(async () => {
+        const response = await client.current!.act(id, params); setWorld(response.view);
+        if (response.result.ok) {
+          await save(); setMessage(response.result.message); accepted = true;
+        } else setError(response.result.error);
+      });
+      return accepted;
+    }}
     onSectorSale={(op, params) => void run(async () => {
-      const response = await client.current!.sectorSale(op, params.assetId, params.priceAnchor);
+      const response = await client.current!.sectorSale(op, params.assetId, params.priceAnchor, params.buyerCorporationId);
       setWorld(response.view);
       if (response.result.ok) {
         await save();

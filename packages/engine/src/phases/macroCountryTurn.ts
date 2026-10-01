@@ -54,13 +54,24 @@ export function advanceOutputGap(
   potential: number,
   turnsPerYear: number,
 ): { gap: number; gdpGrowth: number; impulse: number } {
-  const g0 = Number.isFinite(prevGap) ? prevGap : 0;
+  const g0Raw = Number.isFinite(prevGap) ? prevGap : 0;
+  const g0 = Math.max(OUTPUT_GAP_BOUND[0], Math.min(OUTPUT_GAP_BOUND[1], g0Raw));
   const sector = Number.isFinite(sectorSignal) ? sectorSignal : 0;
-  const pot = Number.isFinite(potential) ? potential : 0;
+  const potRaw = Number.isFinite(potential) ? potential : 0;
+  const growthMin = GROWTH_RATE_MIN * 100;
+  const growthMax = GROWTH_RATE_MAX * 100;
+  const pot = Math.max(growthMin, Math.min(growthMax, potRaw));
   const impulse = sector - pot;
-  const rawGap = g0 + (impulse - GAP_CLOSURE * g0) / turnsPerYear;
-  const gap = Math.max(OUTPUT_GAP_BOUND[0], Math.min(OUTPUT_GAP_BOUND[1], rawGap));
-  const gdpGrowth = pot + (gap - g0) * turnsPerYear;
+  const tpy = Number.isFinite(turnsPerYear) && turnsPerYear > 0 ? turnsPerYear : 1;
+  const rawGap = g0 + (impulse - GAP_CLOSURE * g0) / tpy;
+  // Game bounds the persisted stock and reported rate together. Clipping
+  // growth after persisting an unbounded step loses their accounting identity.
+  const feasibleGap: [number, number] = [
+    Math.max(OUTPUT_GAP_BOUND[0], g0 + (growthMin - pot) / tpy),
+    Math.min(OUTPUT_GAP_BOUND[1], g0 + (growthMax - pot) / tpy),
+  ];
+  const gap = Math.max(feasibleGap[0], Math.min(feasibleGap[1], rawGap));
+  const gdpGrowth = pot + (gap - g0) * tpy;
   return { gap, gdpGrowth, impulse };
 }
 

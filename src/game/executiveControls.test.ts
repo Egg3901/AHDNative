@@ -10,7 +10,7 @@ const HOS = { era: "1953", countryId: "US", seed: "executive-controls-test", pla
 const CAREER = { era: "1953", countryId: "US", seed: "executive-controls-test", playerName: "Alex" } as const;
 
 describe("executive controls session slice (#65/#93)", () => {
-  it("projects the executive actions only in Head of State mode", () => {
+  it("projects HoS fiscal directives separately from elected HOG nationalization", () => {
     const hos = new GameSession();
     const view = hos.create({ ...HOS });
     const executive = view.actions.filter((action) => action.category === "executive");
@@ -24,7 +24,11 @@ describe("executive controls session slice (#65/#93)", () => {
     expect(tax.prerequisite).toMatch(/phase/i);
 
     const career = new GameSession();
-    expect(career.create({ ...CAREER }).actions.some((action) => action.category === "executive")).toBe(false);
+    const careerActions = career.create({ ...CAREER }).actions;
+    expect(careerActions.some((action) => ["adjustBudgetSpending", "adjustTaxRate"].includes(action.id))).toBe(false);
+    expect(careerActions.find((action) => action.id === "nationalizeCorporation")).toMatchObject({
+      category: "executive", available: false,
+    });
   });
 
   it("queues a costed tax direction without touching the live rate", () => {

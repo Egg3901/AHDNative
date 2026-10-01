@@ -30,12 +30,32 @@ import type { WorldFeatureFlags } from "./featureFlags.js";
 
 export interface WorldState {
   meta: WorldMeta;
+  /**
+   * Optional source gameConfig rollout anchor. It is written lazily on the
+   * first financial phase so untouched and historical saves retain their
+   * original bytes. An absent anchor is equivalent to the source migration
+   * anchoring immediately before the current turn.
+   */
+  centralBankPricingPhaseIn?: { startedTurn: number };
+  /** Source banking policy for which currency savings accounts are book of record. */
+  savingsAccountsPolicy?: {
+    mode: "off" | "shadow" | "authoritative";
+    readCurrencies: string[];
+  };
   /** Player-owned switches for deterministic singleplayer simulation families. */
   featureFlags: WorldFeatureFlags;
   /** Optional country rate-corridor laws; absent uses the reference preset defaults. */
   bankingLaws?: Record<string, import("./banking/rates.js").BankingLaw>;
   /** Reference bankPropTradingEnabled: absent enables interbank, margin and prop books. */
   bankPropTradingEnabled?: boolean;
+  /** Lazy source-shaped bond-pool books. Created when a bond flow first touches its currency. */
+  bondMarketPools?: Record<string, {
+    cashLocal: number;
+    targetCashLocal: number;
+    m2Local: number;
+    liquidityTargetLocal: number;
+    lifetime: Record<string, number>;
+  }>;
   /**
    * Singleplayer difficulty chosen at world creation (issue #334). Says how
    * competently autonomous politicians perform via `singleplayerNppTuning`;
@@ -122,6 +142,13 @@ export interface WorldState {
    * Per-state and per-country price maps are PORT-STUB until state scope lands.
    */
   commodityPrices: Record<string, CommodityState>;
+  /** Seeded external buyers and owned-sector inputs for the plants market book. */
+  plantMarketDemand?: {
+    external: Partial<Record<string, number>>;
+    corporateInputs: Partial<Record<string, number>>;
+    externalSupply?: Partial<Record<string, number>>;
+    corporateOutputSupply?: Partial<Record<string, number>>;
+  };
   /** Extraction contracts. Ports src/lib/db/types/extractionContract.ts. */
   extractionContracts: ExtractionContract[];
   /** Regions per playable country. W38: US 48 real states (AK/HI absent); UK/RU/DD retain 3 opaque each until W39. */
@@ -179,6 +206,24 @@ export interface WorldState {
    * NPP_SPONSOR_TYPE_REPEAT_COOLDOWN_TURNS throttling.
    */
   nppSponsorLastTurn: Record<string, number>;
+  /**
+   * Dedicated NPP relationship-influence RNG (`${seed}:npp-influence`).
+   * Materialized on first draw so fresh-world serialize hashes stay stable.
+   */
+  nppInfluenceRng?: import("./rng.js").RngState;
+  /**
+   * Player NPP influence attempts this save. Optional; omitted until first use.
+   * Source: NPPInfluenceAttempt in src/lib/influence/executor.ts.
+   */
+  nppInfluenceAttempts?: Array<{
+    targetId: string;
+    turn: number;
+    influenceType: "boost_loyalty" | "boost_favorability" | "boost_influence" | "reduce_stubbornness";
+    outcome: "success" | "failure" | "backfire";
+    roll: number;
+    relationshipChange: number;
+    message: string;
+  }>;
   /**
    * Central banks, one per playable country (US/UK/RU/DD). Ports src/lib/db/types/centralBank.ts
    * CentralBank (subset — see centralBank/types.ts file doc for what's cut and why). Schema v17.
@@ -737,6 +782,11 @@ export interface Politician {
    * the field entirely. Never auto-converted.
    */
   currencyBalances?: { personal: Record<string, number> };
+  /**
+   * Optional retirement marker. Absent or null means the NPP is active.
+   * Source NPP.retiredAt; Native politicians historically omitted this field.
+   */
+  retiredAt?: string | null;
 }
 
 export interface PoliticianIdeology {
@@ -1381,6 +1431,12 @@ export interface Caucus {
   /** Absent in legacy saves; do not infer a leader from member ordering. */
   chairId?: string | null;
   viceChairId?: string | null;
+  /**
+   * Turn of the last successful NPP recruit into this caucus. Absent means
+   * never recruited. Source caucus-global 12-turn cooldown
+   * (CAUCUS_NPP_RECRUIT_COOLDOWN_TURNS).
+   */
+  lastNppRecruitTurn?: number;
 }
 
 /**
@@ -1517,6 +1573,8 @@ export interface Region {
   id: string;
   countryId: string;
   name: string;
+  /** Original aggregate country whose successful referendum produced this recorded sub-region. */
+  sourceCountryId?: string;
   /** Residence geography only; intentionally omitted from state voter/economic systems. */
   corporationHeadquartersOnly?: boolean;
   /** Migration provenance: this HQ-only row was absent from the legacy save. */
@@ -1681,6 +1739,10 @@ export interface NppRelationship {
   /** Score in [-100, 100]; decays toward 0 */
   score: number;
   updatedAtTurn: number;
+  /** Last personal influence attempt turn (source NPPRelationship.lastAttemptTurn). */
+  lastAttemptTurn?: number;
+  totalAttempts?: number;
+  successfulAttempts?: number;
 }
 
 export interface WorldModifier {

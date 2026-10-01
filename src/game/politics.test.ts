@@ -452,6 +452,11 @@ describe("projectPolitics", () => {
     expect(typeof sample.favorability).toBe("number");
     expect(typeof sample.infamy).toBe("number");
     expect(Array.isArray(sample.activeRaceIds)).toBe(true);
+    expect(typeof sample.relationshipScore).toBe("number");
+    expect(sample.influenceOptions.map((option) => option.type)).toEqual([
+      "boost_loyalty", "boost_favorability", "boost_influence", "reduce_stubbornness",
+    ]);
+    expect(sample.influenceOptions.every((option) => typeof option.finalChance === "number")).toBe(true);
   });
 
   it("keeps a primary-loser campaign as archived read-only detail", () => {

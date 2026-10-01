@@ -111,7 +111,7 @@ function baseProps(world: GameView, searchResults?: SearchResults) {
     loadProfile: async () => profileFor(world), search: searchFn,
     loadBondMarket: async () => ({ turn: 1, date: "1953-01-01", playerCountryId: "US", playerCash: 10000, currency: "USD", buy: { cost: 1 }, sell: { cost: 1 }, bonds: [] }),
     loadRegions: async () => ({
-      era: "1953", turn: 1, date: "1953-01-01", playerCountryId: "US", playerCountryName: "United States",
+      era: "1953", turn: 1, date: "1953-01-01", playerCountryId: "US", playerCountryName: "United States", selectedCountryId: "US", selectedCountryName: "United States",
       playerHomeRegionId: null, currency: "USD", directoryQuery: "", directoryPage: 0, directoryPageSize: 20,
       directoryTotal: 0, directoryPageCount: 1, directory: [], selected: null,
     }),
