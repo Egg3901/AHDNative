@@ -18,7 +18,8 @@ export const PARTY_FOUND_ACTION_COST = 8;
 /** Found Party single campaign-funds charge. */
 export const PARTY_FOUND_FUND_COST = 100_000;
 /** Join Party action-point price. */
-export const PARTY_JOIN_ACTION_COST = 2;
+// Game join/route.ts applies membership without a personal resource debit.
+export const PARTY_JOIN_ACTION_COST = 0;
 /** Leave Party action-point price. */
 export const PARTY_LEAVE_ACTION_COST = 1;
 
