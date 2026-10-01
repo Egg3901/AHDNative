@@ -117,6 +117,16 @@ describe("playerSavingsInterestPhase", () => {
     );
   });
 
+  it("refuses a non-finite player savings balance before phase-in mutation", () => {
+    const world = createWorld(OPTS);
+    world.player.savings = Number.NaN;
+    const before = JSON.stringify(world);
+    expect(() => playerSavingsInterestPhase.run(world, RNG)).toThrow(
+      "Invalid player savings balance",
+    );
+    expect(JSON.stringify(world)).toBe(before);
+  });
+
   it("flushes existing pending interest when the boundary accrual rounds to zero", () => {
     const world = createWorld(OPTS);
     world.player.savings = 1;
