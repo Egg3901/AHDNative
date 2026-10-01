@@ -88,7 +88,11 @@ describe("#323 phase graph matches the pinned source order", () => {
     };
     expect(at("unionsTurn")).toBe(at("corporationTurn") + 1);
     expect(at("nppUnionBehavior")).toBe(at("unionsTurn") + 1);
-    expect(at("pensionTurn")).toBe(at("nppUnionBehavior") + 1);
+    // Source savings and private-bank interest settle between NPP union
+    // decisions and pension funding; they do not duplicate labor output.
+    expect(at("playerSavingsInterest")).toBeGreaterThan(at("nppUnionBehavior"));
+    expect(at("bankingTurn")).toBeGreaterThan(at("playerSavingsInterest"));
+    expect(at("pensionTurn")).toBeGreaterThan(at("bankingTurn"));
     expect(at("macroCountryTurn")).toBeGreaterThan(at("pensionTurn"));
     // Union financial writes fund campaigns before campaigns spend.
     expect(at("campaignTurn")).toBeGreaterThan(at("pensionTurn"));
