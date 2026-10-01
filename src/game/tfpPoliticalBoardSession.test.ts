@@ -14,6 +14,10 @@ const SAVED_AT = "2026-10-02T00:00:00.000Z";
 type SavedWorld = {
   meta: { date: string };
   nationalMetrics: Record<string, Record<string, { value: number }>>;
+  corporateSectors?: Record<string, {
+    stateId: string | null;
+    revenue?: number;
+  }>;
 };
 
 function savedWorld(session: GameSession): SavedWorld {
@@ -45,6 +49,53 @@ function sourceWeightedValue(session: GameSession, countryId: string, path: stri
 }
 
 describe("#40 TFP political inputs through the public saved session", () => {
+  it("carries an enacted public education-spending change into the workforce TFP input", () => {
+    const options = {
+      era: "2019",
+      countryId: "US",
+      seed: "tfp-session-education-spending",
+      playerName: "Tester",
+      mode: "hos" as const,
+    };
+    const control = new GameSession();
+    control.create(options);
+    const treated = new GameSession();
+    treated.create(options);
+    const initial = JSON.parse(treated.serialize(SAVED_AT)) as {
+      world: {
+        budgets: Record<string, { spending: { byCategory: Record<string, number> } }>;
+      };
+    };
+    const before = initial.world.budgets.US!.spending.byCategory.education ?? 0;
+    expect(treated.act("adjustBudgetSpending", {
+      budgetCategory: "education",
+      budgetAmount: before + 500_000_000_000,
+    }).ok).toBe(true);
+
+    control.advance();
+    treated.advance();
+    // Source political dynamics uses the first observation to establish the
+    // structural residual. The enacted spending enters its causal drift on the
+    // following ordinary turn.
+    control.advance();
+    treated.advance();
+    const controlSkill = sourceWeightedValue(control, "US", POLITICAL_PATHS[0]);
+    const treatedSkill = sourceWeightedValue(treated, "US", POLITICAL_PATHS[0]);
+    expect(treatedSkill).toBeGreaterThan(controlSkill);
+    const treatedTfp = savedWorld(treated).nationalMetrics.US?.[POLITICAL_PATHS[0]]?.value;
+    expect(treatedTfp).toBe(treatedSkill);
+    expect(treatedTfp).not.toBe(savedWorld(control).nationalMetrics.US?.[POLITICAL_PATHS[0]]?.value);
+
+    const resumed = new GameSession();
+    resumed.load(treated.serialize(SAVED_AT));
+    treated.advance();
+    resumed.advance();
+    const continuedSkill = sourceWeightedValue(treated, "US", POLITICAL_PATHS[0]);
+    expect(savedWorld(resumed).nationalMetrics.US?.[POLITICAL_PATHS[0]]?.value)
+      .toBe(savedWorld(treated).nationalMetrics.US?.[POLITICAL_PATHS[0]]?.value);
+    expect(sourceWeightedValue(resumed, "US", POLITICAL_PATHS[0])).toBe(continuedSkill);
+  }, 180_000);
+
   it("carries all six current Game basket leaves across normal turns and reload", () => {
     const session = new GameSession();
     session.create({ era: "2019", countryId: "UK", seed: "tfp-session-board-flow", playerName: "Tester" });
@@ -60,6 +111,9 @@ describe("#40 TFP political inputs through the public saved session", () => {
 
     const liveWorld = savedWorld(session);
     const resumedWorld = savedWorld(resumed);
+    const recordedRegionalRevenue = Object.values(liveWorld.corporateSectors ?? {})
+      .filter((asset) => (asset.stateId === "SCO" || asset.stateId === "WAL") && (asset.revenue ?? 0) > 0);
+    expect(recordedRegionalRevenue.length).toBeGreaterThan(0);
     const tfp = liveWorld.nationalMetrics.UK;
     for (const path of [
       "economic.rdIntensity",
