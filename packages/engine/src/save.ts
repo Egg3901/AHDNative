@@ -37,6 +37,7 @@ import {
 } from "./corporation/corporateSectorAssets.js";
 import { validateUnionOrganizers } from "./unions/organizers.js";
 import { validateUnionContributionLedger } from "./unions/contributions.js";
+import { validateCorporateBondSettlementLedger } from "./bonds/corporateBondDefaultSettlement.js";
 import { validatePlayerLineOfCredit } from "./finance/playerLineOfCredit.js";
 import type { BankCharter } from "./banking/types.js";
 import { validateBankingState } from "./banking/validate.js";
@@ -2824,6 +2825,12 @@ export function deserializeSave(raw: string): WorldState {
   // leaves untouched worlds byte-identical.
   if (save.world.unionContributionLedger !== undefined) {
     validateUnionContributionLedger(save.world, save.world.unionContributionLedger);
+  }
+  // #308: resolved bond-default claimants remain auditable after the live
+  // instruments and dissolved issuer have been retired. Legacy saves keep
+  // this field absent; malformed retained records fail closed.
+  if (save.world.corporateBondSettlementLedger !== undefined) {
+    validateCorporateBondSettlementLedger(save.world.corporateBondSettlementLedger);
   }
   // #314: player line-of-credit servicing state. Saves written before the
   // slice carry no field; missing degrades to no line and the phase no-ops,
