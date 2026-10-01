@@ -136,6 +136,7 @@ import { recordWorldHistoryPhase } from "../history/phases.js";
 import { nuclearProductionPhase, coldWarTensionPhase } from "../coldWar/phases.js";
 import { internationalOrganizationsPhase } from "../internationalOrgs/phases.js";
 import { warsTurnPhase } from "../wars/phases.js";
+import { politicalCabinetResidualPhase } from "../politicalMetrics/phases.js";
 import { ministerialOrdersPhase } from "../ministerialOrders/phases.js";
 import { policyEffectsPhase } from "../policyEffects/phases.js";
 import { resolveProspectsPhase } from "../extraction/prospecting.js";
@@ -624,6 +625,9 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // ministerialOrders -> policyEffects, stateEffectsPhase.ts:107-126) so
   // policyEffects' target recompute reads the order-shocked nationalMetrics
   // value the same turn, same as mainline.
+  // Source political dynamics reads the previous snapshot before orders
+  // replace it. Same-turn effects must not double-drive the political board.
+  politicalCabinetResidualPhase,
   ministerialOrdersPhase,
   policyEffectsPhase,
   // W11 (extraction/prospecting) + W35 (player wealth/wires/achievements)

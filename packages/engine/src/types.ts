@@ -487,13 +487,9 @@ export interface WorldState {
   /** Per-region policy metrics, keyed by region id. Schema v45. */
   regionalMetrics: Record<string, import("./metrics/nationalMetrics.js").NationalMetrics>;
   /** Source political family boards. Absent on older saves with no board state. */
-  regionalPoliticalMetrics?: Record<string, {
-    countryId: string;
-    values: Record<string, number>;
-    residuals?: Record<string, number>;
-    cabinetResiduals?: Record<string, number>;
-    cabinetResidualsBySource?: Record<string, Record<string, number>>;
-  }>;
+  regionalPoliticalMetrics?: Record<string, import("./politicalMetrics/types.js").PoliticalBoard>;
+  /** Source cabinet standing effects from the previous ordinary turn. */
+  politicalCabinetContributions?: Record<string, import("./politicalMetrics/types.js").PoliticalCabinetContribution>;
   /** Per-country economic model identity. Schema v33. */
   economicModels: Record<string, import("./metrics/economicModel.js").EconomicModelState>;
   /** Per-commodity price history for annualized commodity pressure (inflationRecalc). Schema v33. */

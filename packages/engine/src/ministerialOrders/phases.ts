@@ -20,6 +20,7 @@ import { isMinisterialOrderActive, normalizeMinisterialOrderLifecycle } from "./
 import { unavailableDefenseOrderEffects } from "./catalog.js";
 import { TFP_METRIC_PATHS } from "../demographics/laborForce.js";
 import { computeNationalMetricsForCountry } from "../metrics/nationalMetrics.js";
+import { mapCabinetDeltasToPolitical, mapRegionalCabinetDeltasToPolitical } from "../politicalMetrics/cabinetResidual.js";
 import { NEUTRAL_STAT, statMultiplier } from "../stats/characterStats.js";
 
 const tfpPaths = new Set(Object.values(TFP_METRIC_PATHS));
@@ -45,6 +46,11 @@ export interface MinisterialOrdersResult {
 }
 
 export function runMinisterialOrders(world: WorldState): MinisterialOrdersResult {
+  const political = new Map<string, { national: Record<string, number>; regional: Record<string, Record<string, number>> }>();
+  // Persist empties after expiry, so a previous standing effect stops driving.
+  for (const countryId of Object.keys(world.politicalCabinetContributions ?? {})) {
+    political.set(countryId, { national: {}, regional: {} });
+  }
   const combined = new Map<string, { countryId: string; metric: string; total: number }>();
   const regional = new Map<string, { regionId: string; metric: string; total: number }>();
   const rejectedRegionalEffects: RejectedRegionalOrderEffect[] = [];
@@ -76,6 +82,10 @@ export function runMinisterialOrders(world: WorldState): MinisterialOrdersResult
         continue;
       }
     }
+    if (["US", "UK", "RU", "DD"].includes(order.countryId)
+      && Object.values(world.regionalPoliticalMetrics ?? {}).some(board => board.countryId === order.countryId)) {
+      if (!political.has(order.countryId)) political.set(order.countryId, { national: {}, regional: {} });
+    }
     // Game968 scales by the issuing Character's Statecraft before combining
     // and capping effects. Native NPP records have no stat block, so they
     // retain the source's neutral fallback for an absent issuer stat.
@@ -99,6 +109,11 @@ export function runMinisterialOrders(world: WorldState): MinisterialOrdersResult
           continue;
         }
         applied = true;
+        const bucket = political.get(order.countryId);
+        if (bucket) {
+          const into = bucket.regional[effect.regionId] ??= {};
+          into[effect.metric] = (into[effect.metric] ?? 0) + effect.modifier * issuerStrength;
+        }
         const key = `${effect.regionId}:${effect.metric}`;
         const entry = regional.get(key) ?? { regionId: effect.regionId, metric: effect.metric, total: 0 };
         entry.total += effect.modifier * issuerStrength;
@@ -106,6 +121,8 @@ export function runMinisterialOrders(world: WorldState): MinisterialOrdersResult
         continue;
       }
       applied = true;
+      const bucket = political.get(order.countryId);
+      if (bucket) bucket.national[effect.metric] = (bucket.national[effect.metric] ?? 0) + effect.modifier * issuerStrength;
       const key = `${order.countryId}:${effect.metric}`;
       let entry = combined.get(key);
       if (!entry) {
@@ -115,6 +132,18 @@ export function runMinisterialOrders(world: WorldState): MinisterialOrdersResult
       entry.total += effect.modifier * issuerStrength;
     }
     if (applied) order.lastAppliedTurn = world.meta.turn;
+  }
+
+  for (const [countryId, bucket] of political) {
+    const contribution = mapCabinetDeltasToPolitical(bucket.national);
+    const regional = mapRegionalCabinetDeltasToPolitical(bucket.regional);
+    (world.politicalCabinetContributions ??= {})[countryId] = {
+      turn: world.meta.turn,
+      contribution,
+      regional,
+      sources: Object.keys(contribution).length || Object.keys(regional).length
+        ? { orders: { contribution, regional } } : {},
+    };
   }
 
   let metricsUpdated = 0;
