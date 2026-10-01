@@ -232,6 +232,8 @@ for (const width of [320, 390]) {
     await navigateGame(page, 'Stock market');
     await page.getByRole('button', { name: /Daily Media/ }).click();
     await page.getByRole('button', { name: 'Resign as CEO' }).click();
+    await expect(page.getByText(/You resigned as CEO of .*; the position is vacant/)).toBeVisible();
+    await gameReady(page);
     await navigateGame(page, 'Profile');
     await expect(card(page)).toHaveCount(0);
 
