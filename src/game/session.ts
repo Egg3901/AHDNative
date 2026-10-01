@@ -1,4 +1,5 @@
 import { projectProfile } from "./profile";
+import { campaignAnchorToLocal, characterActionDisabledReason } from "@ahdclient/engine";
 import { profileDestination as profileDestinationFor, projectImperialProfile } from "./imperialProfile";
 import { validateProfileUpdate } from "./profileValidation";
 import type { ProfileUpdate } from "./profileTypes";
@@ -45,7 +46,7 @@ import {
  * debatePrep (#37) sits under Intelligence per its mainline research category.
  */
 const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: ActionCategory; prerequisite?: string }[] = [
-  { id: "campaign", requires: "region", category: "influence", prerequisite: "Choose a region." },
+  { id: "campaign", category: "influence" },
   { id: "advertise", category: "influence" },
   { id: "canvass", requires: "region", category: "influence", prerequisite: "Choose a region." },
   { id: "joinParty", requires: "party", category: "influence", prerequisite: "Choose a party." },
@@ -67,8 +68,10 @@ const HOS_ACTIONS: typeof ACTIONS = [
  * (`actionFundCost`) that executeAction itself charges, so the displayed quote
  * and the debit cannot drift. executeAction stays authoritative.
  */
-function quoteFundCost(id: ActionId, flat: number, donorBaseLevel: number, apCost: number, countryId: string, stats?: WorldState["player"]["stats"]): number {
-  return actionFundCost({ actionId: id, actionCost: apCost, donorBaseLevel, catalogFundCost: flat, countryId, ...(stats ? { stats } : {}) });
+function quoteFundCost(id: ActionId, flat: number, donorBaseLevel: number, apCost: number, countryId: string, stats: WorldState["player"]["stats"] | undefined, world: WorldState): number {
+  const region = world.regions[world.player.homeRegionId ?? ""];
+  return actionFundCost({ actionId: id, actionCost: apCost, donorBaseLevel, catalogFundCost: flat, countryId,
+    gdpMillions: region?.gdp, population: region?.population, era: world.meta.era, ...(stats ? { stats } : {}) });
 }
 
 /**
@@ -852,13 +855,15 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     actions: (isWorldsimMode(player.mode) ? [] : player.mode === "hos" ? HOS_ACTIONS : ACTIONS).map(({ id, requires, category, prerequisite }) => {
       const entry = ACTION_CATALOG[id];
       const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
-      const fundCost = quoteFundCost(id, entry.fundCost, player.donorBaseLevel, cost, player.countryId, effectivePlayerStats(world));
+      const fundCost = quoteFundCost(id, entry.fundCost, player.donorBaseLevel, cost, player.countryId, effectivePlayerStats(world), world);
       const cooldownTurns = Math.max(0, (player.actionCooldowns[id] ?? 0) - world.meta.turn);
       // Gate order mirrors executeAction validation; executeAction stays authoritative.
       // The debatePrep Debate-stat preflight is mirrored here so the hub never
       // advertises an action executeAction unconditionally refuses (the
       // statless quick-create path); the engine error stays authoritative.
+      const characterReason = characterActionDisabledReason(world, id);
       const reason = entry.status === "unavailable" ? `Not yet available: requires the ${entry.blockingSystem ?? "unported system"} system.`
+        : characterReason ? characterReason
         : cooldownTurns > 0 ? `Available in ${cooldownTurns} ${cooldownTurns === 1 ? "turn" : "turns"}.`
         : player.actions < cost ? "Not enough action points."
         : fundCost > 0 && player.funds < fundCost ? `Not enough funds. Requires ${fundCost}.`
@@ -871,7 +876,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
         : id === "joinParty" ? joinPartyDisabledReason(world) : undefined;
       return { id, name: entry.name, description: entry.description, cost, available: !reason,
         category, fundCost, cooldownTurns,
-        ...(id === "fundraise" && isFundraiseEligible(player.donorBaseLevel) ? { fundsGain: fundraiseQuote(player.donorBaseLevel, player.politicalInfluence, effectivePlayerStats(world)) } : {}),
+        ...(id === "fundraise" && isFundraiseEligible(player.donorBaseLevel) ? { fundsGain: campaignAnchorToLocal(fundraiseQuote(player.donorBaseLevel, player.politicalInfluence, effectivePlayerStats(world)), player.countryId) } : {}),
         ...(requires ? { requires } : {}), ...(prerequisite ? { prerequisite } : {}),
         ...(reason ? { disabledReason: reason } : {}) };
     }),

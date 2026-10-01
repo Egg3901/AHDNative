@@ -37,6 +37,7 @@ import {
 } from "./corporation/corporateSectorAssets.js";
 import { validateUnionOrganizers } from "./unions/organizers.js";
 import { validateUnionContributionLedger } from "./unions/contributions.js";
+import { validateCorporateBondSettlementLedger } from "./bonds/corporateBondDefaultSettlement.js";
 import { validatePlayerLineOfCredit } from "./finance/playerLineOfCredit.js";
 import type { BankCharter } from "./banking/types.js";
 import { validateBankingState } from "./banking/validate.js";
@@ -568,6 +569,10 @@ function assertCurrentWorldState(world: WorldState): void {
     throw new Error("Not a valid save file: invalid player stat XP");
   }
   const decayAnchor = player["debateDecayAnchor"];
+  const decayAnchorTurn = player["debateDecayAnchorTurn"];
+  if (decayAnchorTurn !== undefined && (typeof decayAnchorTurn !== "number" || !Number.isSafeInteger(decayAnchorTurn) || decayAnchorTurn < 0)) {
+    throw new Error("Not a valid save file: invalid player debate decay turn");
+  }
   if (decayAnchor !== undefined && (typeof decayAnchor !== "string" || !/^\d{4}-\d{2}-\d{2}(T.*)?$/.test(decayAnchor) || !Number.isFinite(Date.parse(decayAnchor)))) {
     throw new Error("Not a valid save file: invalid player debate decay anchor");
   }
@@ -2824,6 +2829,12 @@ export function deserializeSave(raw: string): WorldState {
   // leaves untouched worlds byte-identical.
   if (save.world.unionContributionLedger !== undefined) {
     validateUnionContributionLedger(save.world, save.world.unionContributionLedger);
+  }
+  // #308: resolved bond-default claimants remain auditable after the live
+  // instruments and dissolved issuer have been retired. Legacy saves keep
+  // this field absent; malformed retained records fail closed.
+  if (save.world.corporateBondSettlementLedger !== undefined) {
+    validateCorporateBondSettlementLedger(save.world.corporateBondSettlementLedger);
   }
   // #314: player line-of-credit servicing state. Saves written before the
   // slice carry no field; missing degrades to no line and the phase no-ops,

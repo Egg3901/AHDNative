@@ -146,6 +146,8 @@ export function driftMarketizationLevel(level: number, drift: number): number {
 // (see governmentReformismFromEconomicPosition below).
 export const NPP_DEFAULT_CREDIT_AGGRESSIVENESS = 0.55;
 export const NPP_DEFAULT_BUDGET_SOFTNESS = 0.85;
+/** Source: AHDGame constants/commandEconomy.ts BUDGET_SOFTNESS_FOLD_THRESHOLD. */
+export const BUDGET_SOFTNESS_FOLD_THRESHOLD = 0.5;
 export const NPP_DEFAULT_REFORMISM = 0;
 export const NPP_DEFAULT_INTERNAL_REPRESSION = 0.5;
 /** Source: commandEconomyTurn.ts globalTolerance fallback (GameConfig has no solo equivalent). */
