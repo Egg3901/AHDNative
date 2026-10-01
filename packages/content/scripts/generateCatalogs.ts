@@ -54,6 +54,22 @@ const sourceRootArg = process.argv.indexOf("--source-root");
 const sourceRoot = path.resolve(sourceRootArg >= 0 ? process.argv[sourceRootArg + 1] ?? "" : process.cwd());
 assertPinnedSourceCheckout(sourceRoot, SOURCE_REVISION);
 
+// Dynamic imports are deliberate: they resolve all Game `@/` imports from
+// the explicitly pinned source checkout. Keep the catalog consumer typed at
+// this boundary instead of letting those dynamic modules erase the law shape.
+type SourceCatalogLaw = {
+  id: string;
+  allowedScope: string;
+  window?: { from: number; to: number | null };
+  targets: Array<{ metricId: string }>;
+  taxPolicy?: {
+    scope: string;
+    taxType: string;
+    waypoints: Array<{ label: string; rate: number }>;
+  };
+};
+type SourceCatalog = readonly [countryId: string, laws: SourceCatalogLaw[], file: string];
+
 // Resolve source modules from the explicitly pinned checkout. Running this
 // generator from an adjacent Native worktree otherwise makes `@/` resolve
 // against the wrong tsconfig (or Node treat it as a package scope). The
@@ -225,12 +241,12 @@ emit("IE", ieLegislationTypes as unknown as LT[]);
 emit("CN", cnLegislationTypes as unknown as LT[]);
 emit("BR", brLegislationTypes as unknown as LT[]);
 
-const sourceCatalogs = [
-  ["US", US_LAWS, "usLaws.ts"], ["UK", UK_LAWS, "ukLaws.ts"],
-  ["RU", RU_LAWS, "ruLaws.ts"], ["DD", DD_LAWS, "ddLaws.ts"],
-] as const;
+const sourceCatalogs: SourceCatalog[] = [
+  ["US", US_LAWS as SourceCatalogLaw[], "usLaws.ts"], ["UK", UK_LAWS as SourceCatalogLaw[], "ukLaws.ts"],
+  ["RU", RU_LAWS as SourceCatalogLaw[], "ruLaws.ts"], ["DD", DD_LAWS as SourceCatalogLaw[], "ddLaws.ts"],
+];
 for (const native of STUBBED_CATALOG.filter((entry) => !["JP", "DE", "IE", "CN", "BR"].includes(entry.countryId))) {
-  const sourceMatches = sourceCatalogs.flatMap(([countryId, laws, file]) =>
+  const sourceMatches: Array<{ law: SourceCatalogLaw; file: string }> = sourceCatalogs.flatMap(([countryId, laws, file]) =>
     countryId === native.countryId ? laws.filter((law) => law.id === native.id).map((law) => ({ law, file })) : []);
   if (sourceMatches.length > 1) throw new Error(`Ambiguous AHDGame source rows for ${native.countryId}/${native.id}`);
   const sourceMatch = sourceMatches[0];
