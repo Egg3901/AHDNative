@@ -20,8 +20,8 @@ player then uses `sponsorBill`, `voteOnBill`, and ordinary `advanceTurn` calls.
 | #287: proposal, vote, enactment and effect for released rows | The career test earns a real Bundestag seat, publicly sponsors all seven selected rows, records the player's vote, advances to signing and verifies the changed rate or its active phase-in. It verifies AP/NPI debits. | Hosted full gate remains the merge requirement. |
 | #287: supported replacement/repeal and save/reload | Existing DE VAT lifecycle test replaces and repeals the active law, observes each phase-in step, and compares continued state after save/reload. The career test round-trips the final seat, bills and enacted laws. | No broader DE law coverage is claimed. |
 | #286: exact bounded CN tax identities, options and source defaults | `cnExecutableSlice.test.ts` checks VAT, enterprise income, individual income, social insurance and tariff rows against their source ladders and political directions. | The other 57 CN catalog rows remain explicitly blocked by their named missing subsystem/effect. Planned-economy reform remains outside this slice. |
-| #286: proposal, vote, enactment and effect for all five released rows | The career test earns a real NPC-delegate seat through the generated election and resolver, then submits, votes and advances each tax row through signing and budget rate/phase-in effect. | The issue's required CN/2019 Legislature-to-budget browser journey at 320px and 390px remains outstanding on the corrected SP decree path. |
-| #286: source AP/NPI cost, tariff exemption, refusal/refund and replacement | Existing CN executable-slice coverage checks cost quotes/debits, unaffordable atomic refusal, once-only capped refunds, tariff influence exemption, replacement, and save/reload of the ramp. | The superseded CN HoS browser flow is not acceptance evidence for the source-correct direct decree journey. |
+| #286: proposal, vote, enactment and effect for all five released rows | The career test earns a real NPC-delegate seat through the generated election and resolver, then submits, votes and advances each tax row through signing and budget rate/phase-in effect. | None in the selected engine rows. |
+| #286: source AP/NPI cost, tariff exemption, refusal/refund and replacement | Existing CN executable-slice coverage checks cost quotes/debits, unaffordable atomic refusal, once-only capped refunds, tariff influence exemption, replacement, and save/reload of the ramp. The corrected `smoke/china-national-tax-laws.spec.ts` direct-decree journey passed on PR #717 source-authority head `14a375b8`. It uses Legislature, observes the budget receipt/rate, replaces the law, saves/reloads at 320px and 390px, and asserts zero recorded votes for source HoS decrees. This follow-on changes only CN test coverage, not that production path. | Root is rerunning the full smoke on the latest PR #717 head; hosted gate and merge remain pending. |
 
 ## Germany solidarity-surcharge budget line
 
@@ -48,9 +48,12 @@ Focused commands and results on the follow-on worktree:
 - `npm test --workspace @ahdclient/engine -- --run src/legislation/cnExecutableSlice.test.ts -t "earns an NPC delegate seat through the public career election path"`: 1 passed, 9 skipped.
 - `git diff --check`: passed.
 
-Package typechecks were attempted. Content reports existing implicit-any
-errors in `scripts/generateCatalogs.ts:234,241-242`; engine reports unrelated
-test typing errors including old one-argument `characterParity.test.ts`
-calls, `fundCost.test.ts` optional-property/duplicate-field diagnostics, and
-stale `WorldRng` / partial-world test fixtures. These package-wide errors were
-not baseline-compared and are not represented as passing typechecks.
+The root `npm run build` passed through `tsc --noEmit` and the Vite production
+build (scheduled job `20261001T210716Z-3e21b9f2`). The first package-level
+content typecheck exposed implicit-any source-catalog diagnostics; the
+generator now has an explicit source law shape and that package typecheck is
+queued. The engine package typecheck still reports test-only diagnostics,
+including one-argument `characterParity.test.ts` calls, `fundCost.test.ts`
+optional-property/duplicate-field diagnostics, and stale `WorldRng` /
+partial-world fixtures. Those package-wide diagnostics were not
+baseline-compared and are not represented as passing typechecks.
