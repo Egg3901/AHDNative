@@ -51,8 +51,9 @@ import { rollDebatePrep } from "../stats/debatePrep.js";
 import { isCorpStateOwned, validateBondIssuerIdentity } from "../bonds/corporateBonds.js";
 import { rngFromState } from "../rng.js";
 import { isOrderFlowPriceEligible } from "../market/orderFlow.js";
+import { isPlannedEconomy } from "../commandEconomy/constants.js";
+import { canPlayerOperateGosbank } from "../commandEconomy/authority.js";
 import { reconcileCeoAppointment } from "../corporation/ceoGovernance.js";
-import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
 
 export type ExecuteActionParams = {
   regionId?: string;
@@ -115,7 +116,12 @@ export type ExecuteActionParams = {
   subsidyScope?: string;
   subsidyScopeType?: "economy_wide" | "sector";
   sectorType?: string;
+  targetStrategyId?: string;
   domesticOnly?: boolean;
+  directiveOp?: "setGosbankPosture";
+  creditAggressiveness?: number;
+  budgetSoftness?: number;
+  sectorCredit?: Record<string, number>;
   // W11 extraction/prospecting
   resource?: string;
   share?: number;
@@ -1816,7 +1822,12 @@ function executeActionInner(
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "Economic direction levers require Head of State mode" };
     }
-    const countryId = params.budgetCountryId ?? world.player.countryId;
+    const countryId = world.player.countryId;
+    if (params.budgetCountryId !== undefined && params.budgetCountryId !== countryId) {
+      actor.actions += cost;
+      if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+      return { ok: false, error: "A budget directive can only target the player's country" };
+    }
     const budget = world.budgets[countryId];
     if (!budget) {
       actor.actions += cost;
@@ -1851,14 +1862,10 @@ function executeActionInner(
     ];
     return { ok: true, message: `Directed ${field} to ${rate}% for ${countryId}; enacts next turn.` };
   }
-  // ── setSubsidyRate (#94): HoS-only national subsidy enact/end ─────────
-  // Player lever over the live subsidyBudgetPhase cost line. The reference
-  // (subsidyEffects.ts applySubsidyProvision/applyEndSubsidyProvision)
-  // enacts through legislation with a FIXED margin bonus — there is no rate
-  // dial, so this action writes fixed-bonus records and takes no rate param.
-  // The record lands immediately; the budget cost follows deterministically
-  // at the next turn boundary through the existing phase. State scope is
-  // rejected: solo has no state-budget subsidy writer.
+  // ── setSubsidyRate (#94): source subsidy legislation proposal ─────────
+  // AHDGame's subsidy route creates subsidy/end_subsidy provisions and lets
+  // the normal legislature lifecycle vote and enact them. This action keeps
+  // the source proposal charge (10 AP); it never mutates subsidy state itself.
   if (actionId === "setSubsidyRate") {
     const fail = (error: string): ExecuteActionResult => {
       actor.actions += cost;
@@ -1866,10 +1873,14 @@ function executeActionInner(
       return { ok: false, error };
     };
     if (found.kind !== "player") return fail("Only the player directs subsidies");
-    if ((world.player as unknown as { mode: string }).mode !== "hos") {
-      return fail("Economic direction levers require Head of State mode");
+    const countryId = world.player.countryId;
+    const seat = world.player.legislativeSeat;
+    if (world.player.mode !== "hos" && seat?.countryId !== countryId) {
+      return fail("A national subsidy bill requires Head of State authority or a legislative seat in the player's country");
     }
-    const countryId = params.budgetCountryId ?? world.player.countryId;
+    if (params.budgetCountryId !== undefined && params.budgetCountryId !== countryId) {
+      return fail("A subsidy directive can only target the player's country");
+    }
     if (!world.budgets[countryId]) return fail(`No budget for country: ${countryId}`);
     const op = params.subsidyOp;
     if (op !== "enact" && op !== "end") {
@@ -1878,29 +1889,111 @@ function executeActionInner(
     if (params.subsidyScope !== undefined && params.subsidyScope !== "national") {
       return fail("setSubsidyRate supports national scope only: solo has no state-budget subsidy writer");
     }
-    const spec = {
+    if (params.targetStrategyId !== undefined && typeof params.targetStrategyId !== "string") {
+      return fail("targetStrategyId must be a string when supplied");
+    }
+    if (params.domesticOnly !== undefined && typeof params.domesticOnly !== "boolean") {
+      return fail("domesticOnly must be a boolean when supplied");
+    }
+    const scopeType = params.subsidyScopeType ?? "economy_wide";
+    const sectorType = params.sectorType ?? null;
+    const targetStrategyId = typeof params.targetStrategyId === "string" ? params.targetStrategyId.trim() || null : null;
+    if (scopeType !== "economy_wide" && scopeType !== "sector") return fail("Subsidy scope must be economy_wide or sector");
+    if (scopeType === "sector" && (!sectorType || !Object.values(world.corporations).some((corp) => corp.countryId === countryId && corp.sectorType === sectorType))) {
+      return fail("Sector subsidies require a sector present in the player's country");
+    }
+    const endTarget = op === "end" ? (world.subsidies ?? []).find((subsidy) => subsidy.active
+      && subsidy.countryId === countryId && subsidy.scope === "national" && subsidy.scopeType === scopeType
+      && (subsidy.targetSectorType ?? null) === (scopeType === "sector" ? sectorType : null)
+      && (subsidy.targetStrategyId ?? null) === targetStrategyId) : undefined;
+    if (op === "end" && !endTarget) return fail("No active national subsidy matches this proposal");
+    const proposalId = `bill-${world.meta.turn}-${world.bills.length + 1}-subsidy-${countryId}`;
+    const isEnd = op === "end";
+    const provision = {
+      type: isEnd ? "end_subsidy" as const : "subsidy" as const,
+      legislationTypeId: "national_subsidy",
+      effectDirection: 1,
+      subsidyScopeType: scopeType,
+      targetSectorType: scopeType === "sector" ? sectorType : null,
+      targetStrategyId,
+      ...(!isEnd ? { domesticOnly: params.domesticOnly ?? false } : {}),
+    };
+    const legConfig = world.legislatures[countryId];
+    const originChamber = (world.player.mode === "hos" ? undefined : seat?.chamberKey)
+      ?? legConfig?.chambers.find((chamber) => chamber.elected)?.key ?? legConfig?.chambers[0]?.key ?? "house";
+    world.bills.push({
+      id: proposalId,
+      title: isEnd ? `End ${scopeType === "sector" ? `${sectorType} ` : "economy-wide "}subsidy` : `National ${scopeType === "sector" ? `${sectorType} ` : "economy-wide "}subsidy`,
+      summary: isEnd ? "End the active national subsidy through legislation." : "Provide the fixed source subsidy margin benefit to qualifying national production.",
       countryId,
-      scopeType: params.subsidyScopeType ?? "economy_wide",
-      targetSectorType: params.sectorType ?? null,
-      domesticOnly: params.domesticOnly ?? false,
-    } as const;
-    const current = Array.isArray(world.subsidies) ? world.subsidies : [];
-    if (op === "end") {
-      const ended = endNationalSubsidy(current, { ...spec });
-      if (!ended.ok) return fail(ended.error);
-      world.subsidies = ended.subsidies;
-      return { ok: true, message: `Ended national ${spec.scopeType} subsidy for ${countryId}; the budget line clears next turn.` };
+      category: "industry",
+      legislationTypeId: "national_subsidy",
+      provisions: [provision],
+      originChamber,
+      currentChamber: originChamber,
+      status: "proposed",
+      sponsorId: "player",
+      sponsorName: world.player.name,
+      sponsorPartyId: world.player.partyId,
+      votes: {},
+      votesFor: 0,
+      votesAgainst: 0,
+      votesAbstain: 0,
+      proposedAtTurn: world.meta.turn,
+      filibusterInvocations: [],
+      updatedAtTurn: world.meta.turn,
+      committeeId: null,
+    });
+    return { ok: true, message: `Proposed ${isEnd ? "ending" : "national"} subsidy bill ${proposalId}` };
+  }
+  if (actionId === "commandEconomyDirective") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can direct Gosbank policy" };
+    if (!canPlayerOperateGosbank(world)) return { ok: false, error: "Only the Gosbank chair or head of government can set state credit policy" };
+    const countryId = world.player.countryId;
+    const commandState = world.commandEconomy[countryId];
+    if (!commandState || !isPlannedEconomy(commandState.marketizationLevel)) {
+      return { ok: false, error: `No planned-economy Gosbank system is active for ${countryId}` };
     }
-    const enacted = enactNationalSubsidy(current, { ...spec });
-    if (!enacted.ok) return fail(enacted.error);
-    world.subsidies = enacted.subsidies;
-    if (enacted.status === "already-active") {
-      return { ok: true, message: `National ${spec.scopeType} subsidy for ${countryId} is already active; no duplicate written.` };
+    if (params.countryId !== undefined && params.countryId !== countryId) {
+      return { ok: false, error: "A Gosbank directive can only target the player's country" };
     }
-    if (enacted.status === "reactivated") {
-      return { ok: true, message: `Reactivated national ${spec.scopeType} subsidy for ${countryId}; the budget line resumes next turn.` };
+    if (params.directiveOp !== "setGosbankPosture") {
+      return { ok: false, error: "commandEconomyDirective requires directiveOp 'setGosbankPosture'" };
     }
-    return { ok: true, message: `Enacted national ${spec.scopeType} subsidy for ${countryId}; the budget line charges next turn.` };
+    const hasCredit = params.creditAggressiveness !== undefined;
+    const hasSoftness = params.budgetSoftness !== undefined;
+    const hasSectorCredit = params.sectorCredit !== undefined;
+    if (!hasCredit && !hasSoftness && !hasSectorCredit) {
+      return { ok: false, error: "A Gosbank directive must set a posture dial or sector-credit weights" };
+    }
+    for (const [name, value] of [["creditAggressiveness", params.creditAggressiveness], ["budgetSoftness", params.budgetSoftness]] as const) {
+      if (value !== undefined && (!Number.isFinite(value) || value < 0 || value > 1)) {
+        return { ok: false, error: `${name} must be a finite value in [0,1]` };
+      }
+    }
+    const validSoeSectors = new Set<string>(Object.values(world.corporations)
+      .filter((corporation) => corporation.countryId === countryId && corporation.soe)
+      .map((corporation) => corporation.soe!.sector));
+    const sectorCredit: Record<string, number> = {};
+    for (const [sector, weight] of Object.entries(params.sectorCredit ?? {})) {
+      if (!Number.isFinite(weight) || weight < 0 || weight > 1_000_000) {
+        return { ok: false, error: `sectorCredit.${sector} must be a finite value in [0,1000000]` };
+      }
+      // Source route silently drops sectors outside commandEconomySoeSectors(country).
+      if (validSoeSectors.has(sector)) sectorCredit[sector] = weight;
+    }
+    const pendingDirectives = commandState.pendingDirectives ?? [];
+    const directive = {
+      id: `gosbank-${countryId}-${world.meta.turn}-${pendingDirectives.length + 1}`,
+      countryId,
+      proposedTurn: world.meta.turn,
+      effectiveTurn: world.meta.turn + 1,
+      ...(hasCredit ? { creditAggressiveness: params.creditAggressiveness! } : {}),
+      ...(hasSoftness ? { budgetSoftness: params.budgetSoftness! } : {}),
+      ...(hasSectorCredit ? { sectorCredit: Object.keys(sectorCredit).length ? sectorCredit : null } : {}),
+    };
+    commandState.pendingDirectives = [...pendingDirectives, directive];
+    return { ok: true, message: `Gosbank posture for ${countryId} is queued for turn ${directive.effectiveTurn}.` };
   }
   // ── W11 extraction/prospecting: government actions, HoS mode only ──────
   if (actionId === "launchProspect" || actionId === "issueExtractionContract") {
