@@ -136,6 +136,8 @@ export interface Corporation {
   ownershipState?: "private" | "stateOwned";
   /** Present on source command-country state enterprises. */
   soe?: SoeState;
+  /** Original legacy ownership before Native reconstructs a neutral SOE seed. */
+  legacySoeProjection?: { countryOwnerId?: string; ownershipState?: "private" | "stateOwned" };
   foundedAtTurn: number;
   /** Turn persistent insolvency began; null when solvent. */
   insolventSinceTurn: number | null;

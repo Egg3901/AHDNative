@@ -16,7 +16,7 @@ import { seedCorporations, tickerForSector } from "./corporation/founding.js";
 import { rngFromSeed } from "./rng.js";
 import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } from "./playerImages.js";
 import type { WorldState } from "./types.js";
-import { type CorporationType, type ShareholderEntry } from "./corporation/types.js";
+import { CORPORATION_TYPES, type CorporationType, type ShareholderEntry } from "./corporation/types.js";
 import { CEO_INITIAL_SHARES, NPC_FOUNDER_SHARE_FRACTION, DEFAULT_SHARE_PRICE } from "./market/constants.js";
 import { seedUnions } from "./unions/founding.js";
 import {
@@ -391,6 +391,29 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     }
   }
 
+  const commandStates = world["commandEconomy"];
+  if (isRecord(commandStates)) {
+    for (const state of Object.values(commandStates)) {
+      if (isRecord(state) && ["pendingDirectives", "sectorCredit", "directedCreditBySector"].some(key => hasOwn(state, key))) {
+        return { ok: false, error: "Gosbank directive and allocation state cannot be continued by schema 42. Keep this Native save." };
+      }
+    }
+  }
+  // Only a reconstructable legacy seed can be removed. Fresh or progressed
+  // SOE production has no consumer in the historical reader, even if it
+  // preserves unfamiliar JSON fields.
+  for (const [corpId, value] of Object.entries(corporations)) {
+    if (!isRecord(value) || !hasOwn(value, "soe")) continue;
+    const provenance = value["legacySoeProjection"];
+    const sector = CORPORATION_TYPES.find(candidate => candidate === value["sectorType"]);
+    if (!isRecord(provenance) || sector === undefined || typeof value["revenue"] !== "number" ||
+        Object.keys(provenance).some(key => key !== "countryOwnerId" && key !== "ownershipState") ||
+        !structurallyEqual(value["soe"], makeSeedSoeState(sector, value["revenue"])) ||
+        value["countryOwnerId"] !== value["countryId"] || value["ownershipState"] !== "stateOwned") {
+      return { ok: false, error: `Corporation ${corpId} has SOE production state that schema 42 cannot continue. Keep this Native save.` };
+    }
+  }
+
   const candidateSave = structuredClone(save);
   const candidateWorld = candidateSave["world"] as Record<string, unknown>;
   const candidateMeta = candidateWorld["meta"] as Record<string, unknown>;
@@ -410,6 +433,15 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (isRecord(candidateFlags)) delete candidateFlags["rpgStats"];
   const candidateCorporations = candidateWorld["corporations"] as Record<string, Record<string, unknown>>;
   for (const corp of Object.values(candidateCorporations)) {
+    const soeProvenance = corp["legacySoeProjection"];
+    if (isRecord(soeProvenance)) {
+      delete corp["soe"];
+      delete corp["legacySoeProjection"];
+      for (const key of ["countryOwnerId", "ownershipState"] as const) {
+        if (hasOwn(soeProvenance, key)) corp[key] = soeProvenance[key];
+        else delete corp[key];
+      }
+    }
     delete corp["sentimentMultiplier"];
     delete corp["orderFlowMultiplier"];
     delete corp["orderFlowWindowBuyValue"];
@@ -897,6 +929,10 @@ function backfillSourceSeededSoeState(world: WorldState): void {
   for (const corporation of Object.values(world.corporations)) {
     const commandState = world.commandEconomy[corporation.countryId];
     if (corporation.soe || !commandState || commandState.marketizationLevel >= 70) continue;
+    corporation.legacySoeProjection = {
+      ...(corporation.countryOwnerId === undefined ? {} : { countryOwnerId: corporation.countryOwnerId }),
+      ...(corporation.ownershipState === undefined ? {} : { ownershipState: corporation.ownershipState }),
+    };
     corporation.countryOwnerId = corporation.countryId;
     corporation.ownershipState = "stateOwned";
     corporation.soe = makeSeedSoeState(corporation.sectorType, corporation.revenue);
@@ -906,6 +942,13 @@ function backfillSourceSeededSoeState(world: WorldState): void {
 function validateSoeSave(world: WorldState): void {
   for (const corporation of Object.values(world.corporations)) {
     const soe = corporation.soe;
+    const provenance = corporation.legacySoeProjection;
+    if (provenance !== undefined && (!soe || !isRecord(provenance) ||
+        Object.keys(provenance).some(key => key !== "countryOwnerId" && key !== "ownershipState") ||
+        (provenance.countryOwnerId !== undefined && typeof provenance.countryOwnerId !== "string") ||
+        (provenance.ownershipState !== undefined && provenance.ownershipState !== "private" && provenance.ownershipState !== "stateOwned"))) {
+      throw new Error(`Not a valid save file: ${corporation.id} has invalid legacy SOE provenance`);
+    }
     if (!soe) continue;
     if (soe.sector !== corporation.sectorType || corporation.ownershipState !== "stateOwned" || corporation.countryOwnerId !== corporation.countryId) {
       throw new Error(`Not a valid save file: ${corporation.id} SOE identity/ownership does not match its corporation`);

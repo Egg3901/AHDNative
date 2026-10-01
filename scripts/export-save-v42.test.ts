@@ -16,7 +16,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
-import { advanceTurn, createWorld, serializeSave } from "@ahdclient/engine";
+import { advanceTurn, createWorld, deserializeSave, serializeSave } from "@ahdclient/engine";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, "..");
@@ -88,8 +88,8 @@ describe("export-save-v42 CLI", () => {
     expect(run.stderr).toContain("unparseable JSON");
   }, 60_000);
 
-  it("exports a Native-fresh pre-turn v43 world as the keep-home v42 extension", () => {
-    const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+  it("exports the historical pre-control pre-turn world as the keep-home v42 extension", () => {
+    const world = deserializeSave(gunzipSync(readFileSync(join(REPO_ROOT, "fixtures", "native-fresh-pre-ceo-source.save.json.gz"))).toString("utf8"));
     expect(world.player.homeRegionId).toBe("AL");
     const dir = freshDir();
     const input = join(dir, "in.save.json");

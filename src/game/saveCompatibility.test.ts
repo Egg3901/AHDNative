@@ -57,8 +57,8 @@ describe("schema 42 projection of public save envelopes", () => {
     expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });
   });
 
-  it("projects a Native-fresh schema 43 world as a v42 extension that keeps homeRegionId AL", () => {
-    const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+  it("projects the historical pre-control world as a v42 extension that keeps homeRegionId AL", () => {
+    const world = deserializeSave(gunzipSync(readFileSync(join(dirname(FIXTURE_GZ), "native-fresh-pre-ceo-source.save.json.gz"))).toString("utf8"));
     expect(world.player.homeRegionId).toBe("AL");
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projected.ok).toBe(true);

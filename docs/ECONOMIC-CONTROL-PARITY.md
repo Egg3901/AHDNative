@@ -42,3 +42,16 @@ advance, inspect applied sector credit, and save/reload again. They passed.
 The 300-second case budget accommodates the long full journey and worker
 startup on the shared test host; this is not physical-device performance
 evidence.
+
+## Historical save boundary
+
+Importing a legacy save reconstructs neutral SOE seeds from its recorded revenue.
+Their provenance retains the original ownership fields. An unchanged seed may
+be removed only when a Native reload reconstructs the exact original state;
+the authentic v42 fixture and cash-conversion hashes remain unchanged.
+Changed SOE production and Gosbank directives/allocations are refused by the
+v42 exporter. The old reader preserving unknown JSON does not establish that
+it executes their turn consumers. Fresh worlds carrying these systems stay in
+Native saves. The pre-control source fixture preserves the earlier 404370ac
+projection oracle separately from current creation. Current Game/Client SP
+interchange remains #122/#301/#302/#303/#304.
