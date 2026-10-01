@@ -42,6 +42,8 @@ describe("UnionManagementPanel", () => {
     await user.click(within(union).getByRole("button", { name: "Vote to lead" }));
     refresh();
     await user.click(within(union).getByRole("button", { name: "Accept presidency" }));
+    rerender(<UnionManagementPanel state={session.unionManagement()} busy={true} onCommand={dispatch} />);
+    expect(within(union).getByRole("spinbutton", { name: "Annual dues per member for United Steelworkers" })).toBeDisabled();
     refresh();
     await user.clear(within(union).getByRole("spinbutton", { name: "Annual dues per member for United Steelworkers" }));
     await user.type(within(union).getByRole("spinbutton", { name: "Annual dues per member for United Steelworkers" }), "100000");
