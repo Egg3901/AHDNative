@@ -11,7 +11,13 @@
  * LOWER_CHAMBER_PER_REGION / SUBNATIONAL_CHAMBER_PER_REGION, plus US house
  * and UK commons constituency counts stored on region.houseSeats.
  */
-import type { WorldState } from "@ahdclient/engine";
+import {
+  getResourceContractAuthority,
+  isNationalExtractionIssuer,
+  isStateExtractionIssuer,
+  resolveExtractionContractIssuer,
+  type WorldState,
+} from "@ahdclient/engine";
 import {
   projectRegionBudget,
   projectRegionMacro,
@@ -143,6 +149,24 @@ export interface RegionEconomyView {
   sectors: RegionSectorView[];
 }
 
+export interface RegionExtractionView {
+  authority: "national" | "both" | "state";
+  issuerLevel: "national" | "state" | null;
+  canProspectNational: boolean;
+  canProspectState: boolean;
+  hasExtractionOperator: boolean;
+  playerIsExtractionCeo: boolean;
+  canExpandExtractionOperations: boolean;
+  resourceRoyalties: number;
+  resources: Array<{ id: string; capacity: number }>;
+  surveys: Array<{ id: string; resource: string; status: string; completesTurn: number; capacityGained: number | null }>;
+  contracts: Array<{
+    id: string; resource: string; share: number; royaltyRatePerTurn: number; status: string;
+    offerExpiresTurn: number | null; expiresTurn: number | null; signingFeeAnchor: number;
+    canAccept: boolean; canDecline: boolean; canRevoke: boolean;
+  }>;
+}
+
 export interface RegionDemographicGroup {
   id: string;
   name: string;
@@ -176,6 +200,7 @@ export interface RegionDetailView {
   /** Detached values from the authoritative regional metric store. */
   metrics: Record<string, number>;
   economy: RegionEconomyView;
+  extraction?: RegionExtractionView;
   demographics: RegionDemographicsView;
   partySupport: RegionPartySupport[];
   electoratePool: { independent: number; unregistered: number } | null;
@@ -537,6 +562,43 @@ function projectDetail(
       budget: projectRegionBudget(world, region.id),
       macro: projectRegionMacro(world, region),
       sectors: projectRegionSectors(world, region),
+    },
+    extraction: {
+      authority: getResourceContractAuthority(world, countryId),
+      issuerLevel: resolveExtractionContractIssuer(world, countryId, region.id),
+      canProspectNational: isNationalExtractionIssuer(world, countryId),
+      canProspectState: isStateExtractionIssuer(world, countryId, region.id),
+      hasExtractionOperator: Object.values(world.corporateSectors ?? {}).some(
+        (asset) => asset.countryId === countryId && asset.sectorType === "extraction" && asset.stateId === region.id,
+      ),
+      playerIsExtractionCeo: world.corporations[`${countryId}-extraction`]?.ceoId === "player" && world.corporations[`${countryId}-extraction`]?.ceoVacant !== true,
+      canExpandExtractionOperations: world.corporations[`${countryId}-extraction`]?.ceoId === "player" && world.corporations[`${countryId}-extraction`]?.ceoVacant !== true && Object.values(world.stateResourceCapacities[region.id]?.resources ?? {}).some((capacity) => Number.isFinite(capacity) && capacity > 0) && !Object.values(world.corporateSectors ?? {}).some((asset) => asset.corporationId === `${countryId}-extraction` && asset.sectorType === "extraction" && asset.stateId === region.id),
+      resourceRoyalties: world.regionalBudgets[region.id]?.revenue.resourceRoyalties ?? 0,
+      resources: Object.entries(world.stateResourceCapacities[region.id]?.resources ?? {})
+        .filter((entry): entry is [string, number] => typeof entry[1] === "number" && Number.isFinite(entry[1]) && entry[1] > 0)
+        .map(([id, capacity]) => ({ id, capacity }))
+        .sort((left, right) => left.id.localeCompare(right.id)),
+      surveys: world.prospectingSurveys.filter((survey) => survey.regionId === region.id)
+        .map((survey) => ({ id: survey.id, resource: survey.resource, status: survey.status, completesTurn: survey.completesTurn, capacityGained: finiteOrNull(survey.capacityGained) }))
+        .sort((left, right) => left.id.localeCompare(right.id)),
+      contracts: world.extractionContracts.filter((contract) => contract.stateId === region.id)
+        .map((contract) => {
+          const canIssue = contract.grantedByLevel === "national"
+            ? isNationalExtractionIssuer(world, countryId)
+            : isStateExtractionIssuer(world, countryId, region.id);
+          const corp = contract.corporationId ? world.corporations[contract.corporationId] : undefined;
+          const canRespond = !!corp && corp.countryId === countryId && corp.ceoId === "player" && corp.ceoVacant !== true;
+          const open = contract.status === "offered" && contract.revokedTurn == null;
+          return {
+            id: contract.id, resource: contract.resource, share: contract.share,
+            royaltyRatePerTurn: contract.royaltyRatePerTurn, status: contract.revokedTurn != null ? "revoked" : contract.status,
+            offerExpiresTurn: finiteOrNull(contract.offerExpiresTurn), expiresTurn: finiteOrNull(contract.expiresTurn),
+            signingFeeAnchor: contract.signingFeeAnchor ?? 0,
+            canAccept: open && canRespond, canDecline: open && canRespond,
+            canRevoke: contract.revokedTurn == null && (contract.status === "offered" || contract.status === "active") && canIssue,
+          };
+        })
+        .sort((left, right) => left.id.localeCompare(right.id)),
     },
     demographics: projectDemographics(world, region),
     partySupport: projectPartySupport(world, countryId, region.id),

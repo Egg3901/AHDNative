@@ -43,7 +43,14 @@ import {
 } from "../intraparty/leadershipTenure.js";
 import { getLaw, resolveCatalogPolicyOption } from "../legislation/catalog.js";
 import { launchProspectingSurvey } from "../extraction/prospecting.js";
-import { issueContractOffer } from "../extraction/contracts.js";
+import { expandRegionalExtraction } from "../extraction/operations.js";
+import { isNationalExtractionIssuer, isStateExtractionIssuer, resolveExtractionContractIssuer, getResourceContractAuthority } from "../extraction/authority.js";
+import {
+  acceptExtractionContractOffer,
+  declineExtractionContractOffer,
+  issueContractOffer,
+  revokeExtractionContract,
+} from "../extraction/contracts.js";
 import type { ExtractableResource } from "../commodity/constants.js";
 import { depositToSavings, withdrawFromSavings, moveSavingsHolder } from "../finance/savingsActions.js";
 import { wireTransfer as wireTransferFn } from "../finance/wireTransfer.js";
@@ -58,6 +65,8 @@ import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/propos
 
 export type ExecuteActionParams = {
   regionId?: string;
+  contractId?: string;
+  issuerLevel?: "national" | "state";
   /** Source canvassing batch size, 1 through 50. */
   count?: number;
   amount?: number; // for convertCash
@@ -492,6 +501,18 @@ function executeActionInner(
   // Dispatch effects
   const actorPartyId = actor.partyId as string | undefined;
   const actorCountry = actor.countryId;
+
+  if (actionId === "acceptExtractionContract" || actionId === "declineExtractionContract" || actionId === "revokeExtractionContract") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can respond to an extraction contract." };
+    const contractId = params.contractId;
+    if (!contractId) return { ok: false, error: `${actionId} requires contractId` };
+    const result = actionId === "acceptExtractionContract"
+      ? acceptExtractionContractOffer(world, contractId)
+      : actionId === "declineExtractionContract"
+        ? declineExtractionContractOffer(world, contractId)
+        : revokeExtractionContract(world, contractId);
+    return result.ok ? { ok: true, message: `${actionId} completed for ${contractId}.` } : result;
+  }
 
   if (actionId === "fundraise") {
     const yieldAmt = campaignAnchorToLocal(fundraiseYield(actor.donorBaseLevel ?? 0, actor.politicalInfluence ?? 0, found.kind === "player" ? effectivePlayerStats(world) : undefined), actor.countryId);
@@ -2013,17 +2034,21 @@ function executeActionInner(
     commandState.pendingDirectives = [...pendingDirectives, directive];
     return { ok: true, message: `Gosbank posture for ${countryId} is queued for turn ${directive.effectiveTurn}.` };
   }
-  // ── W11 extraction/prospecting: government actions, HoS mode only ──────
+  // ── W11 extraction/prospecting: source-authorized national / state issuers ──
+  if (actionId === "expandRegionalExtraction") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can direct a corporation in this session" };
+    const regionId = params.regionId;
+    if (!regionId) return { ok: false, error: "expandRegionalExtraction requires regionId" };
+    const result = expandRegionalExtraction(world, regionId);
+    return result.ok
+      ? { ok: true, message: `Extraction operations opened in ${regionId}; expansion fee ${result.expansionCostAnchor} anchor` }
+      : { ok: false, error: result.error };
+  }
   if (actionId === "launchProspect" || actionId === "issueExtractionContract") {
     if (found.kind !== "player") {
       actor.actions += cost;
       if (actor.actionCounts) actor.actionCounts[actionId] = Math.max(0, (actor.actionCounts[actionId] ?? 1) - 1);
       return { ok: false, error: "Only the player can act for the national government" };
-    }
-    if (world.player.mode !== "hos") {
-      actor.actions += cost;
-      if (actor.actionCounts) actor.actionCounts[actionId] = Math.max(0, (actor.actionCounts[actionId] ?? 1) - 1);
-      return { ok: false, error: `${actionId} requires Head of State mode` };
     }
     const resource = params.resource as ExtractableResource | undefined;
     const regionId = params.regionId;
@@ -2033,7 +2058,18 @@ function executeActionInner(
       return { ok: false, error: `${actionId} requires regionId and resource` };
     }
     if (actionId === "launchProspect") {
-      const res = launchProspectingSurvey(world, { countryId: world.player.countryId, regionId, resource });
+      const requestedLevel = params.issuerLevel;
+      const level = requestedLevel ?? (isNationalExtractionIssuer(world, world.player.countryId)
+        ? "national"
+        : isStateExtractionIssuer(world, world.player.countryId, regionId) ? "state" : undefined);
+      const authorized = level === "national"
+        ? isNationalExtractionIssuer(world, world.player.countryId)
+        : level === "state" && isStateExtractionIssuer(world, world.player.countryId, regionId);
+      if (!authorized || !level) {
+        actor.actions += cost;
+        return { ok: false, error: "Only the head of government or finance minister, or the state's governor, can commission a survey." };
+      }
+      const res = launchProspectingSurvey(world, { countryId: world.player.countryId, regionId, resource, level });
       if (!res.ok) {
         actor.actions += cost;
         if (actor.actionCounts) actor.actionCounts[actionId] = Math.max(0, (actor.actionCounts[actionId] ?? 1) - 1);
@@ -2049,6 +2085,16 @@ function executeActionInner(
       actor.actions += cost;
       if (actor.actionCounts) actor.actionCounts[actionId] = Math.max(0, (actor.actionCounts[actionId] ?? 1) - 1);
       return { ok: false, error: "issueExtractionContract requires share, royaltyRatePerTurn, termTurns, signingFeeAnchor" };
+    }
+    const issuerLevel = resolveExtractionContractIssuer(world, world.player.countryId, regionId);
+    if (!issuerLevel) {
+      actor.actions += cost;
+      if (actor.actionCounts) actor.actionCounts[actionId] = Math.max(0, (actor.actionCounts[actionId] ?? 1) - 1);
+      const authority = getResourceContractAuthority(world, world.player.countryId);
+      return { ok: false, error: authority === "national"
+        ? "Only national officials may issue extraction contracts here."
+        : authority === "state" ? "Only the state governor may issue extraction contracts here."
+          : "You are not authorized to issue extraction contracts for this region." };
     }
     const res = issueContractOffer(world, {
       countryId: world.player.countryId,
@@ -2252,6 +2298,8 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
         : "setSubsidyRate requires subsidyOp 'enact' or 'end'";
     case "launchProspect":
       return params.regionId && params.resource ? null : "launchProspect requires regionId and resource";
+    case "expandRegionalExtraction":
+      return params.regionId ? null : "expandRegionalExtraction requires regionId";
     case "issueExtractionContract":
       if (!params.regionId || !params.resource) return "issueExtractionContract requires regionId and resource";
       return params.share !== undefined &&
@@ -2260,6 +2308,10 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
         params.signingFeeAnchor !== undefined
         ? null
         : "issueExtractionContract requires share, royaltyRatePerTurn, termTurns, signingFeeAnchor";
+    case "acceptExtractionContract":
+    case "declineExtractionContract":
+    case "revokeExtractionContract":
+      return params.contractId ? null : `${actionId} requires contractId`;
     case "depositSavings":
     case "withdrawSavings":
       return params.amount === undefined ? `${actionId} requires amount` : null;

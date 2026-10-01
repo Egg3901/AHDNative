@@ -93,7 +93,11 @@ export type ActionId =
   | "commandEconomyDirective"
   // W11 extraction/prospecting
   | "launchProspect"
+  | "expandRegionalExtraction"
   | "issueExtractionContract"
+  | "acceptExtractionContract"
+  | "declineExtractionContract"
+  | "revokeExtractionContract"
   // W35 player wealth: savings + wires
   | "depositSavings"
   | "withdrawSavings"
@@ -766,21 +770,52 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     id: "launchProspect",
     name: "Commission Geological Survey",
     description: "Launch a national government geological survey for a resource in a region. Cost escalates with prior successes there. Requires Head of State mode. Ports src/lib/extraction/commands/launchGovernmentProspect.ts (national level only).",
-    baseCost: 3,
+    baseCost: 0,
     cooldown: 0,
     fundCost: 0,
     systems: ["extraction/prospecting"],
+    status: "available",
+  },
+  expandRegionalExtraction: {
+    id: "expandRegionalExtraction",
+    name: "Expand Extraction Operations",
+    description: "Open a source-backed extraction operation in a resource region as the active CEO of its national extraction corporation. The corporation pays the era-scaled source expansion fee.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "extraction"],
     status: "available",
   },
   issueExtractionContract: {
     id: "issueExtractionContract",
     name: "Issue Extraction Contract",
     description: "Offer an extraction contract to your country's extraction corporation for a resource/region: share, royalty rate, term, and signing fee. Requires Head of State mode. Ports src/lib/extraction/commands/issueContractOffer.ts (national level only).",
-    baseCost: 3,
+    baseCost: 0,
     cooldown: 0,
     fundCost: 0,
     systems: ["extraction/contracts"],
     status: "available",
+  },
+  acceptExtractionContract: {
+    id: "acceptExtractionContract",
+    name: "Accept Extraction Contract",
+    description: "Accept an open extraction offer as its corporation's active CEO. The signing fee is charged to the corporation and credited to the issuing government.",
+    baseCost: 0, cooldown: 0, fundCost: 0,
+    systems: ["extraction/contracts"], status: "available",
+  },
+  declineExtractionContract: {
+    id: "declineExtractionContract",
+    name: "Decline Extraction Contract",
+    description: "Decline an open extraction offer as its corporation's active CEO.",
+    baseCost: 0, cooldown: 0, fundCost: 0,
+    systems: ["extraction/contracts"], status: "available",
+  },
+  revokeExtractionContract: {
+    id: "revokeExtractionContract",
+    name: "Revoke Extraction Contract",
+    description: "Revoke a contract as the same national or regional authority that issued it.",
+    baseCost: 0, cooldown: 0, fundCost: 0,
+    systems: ["extraction/contracts"], status: "available",
   },
   // ── W35 player wealth: savings + wires ──────────────────────────
   depositSavings: {

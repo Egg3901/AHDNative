@@ -129,11 +129,15 @@ export interface RegionalBudget {
      * bill enacts; folded into `total`.
      */
     stateTax?: number;
+    /** State-authorized extraction-contract royalties, kept as a separate source revenue line. */
+    resourceRoyalties?: number;
     total: number;
   };
   spending: {
     byCategory: Record<string, number>;
     total: number;
+    /** Persistent regional survey spend, analogous to the source StateBudget line. */
+    resourceProspecting?: number;
   };
   balance: number; // revenue.total - spending.total
   consecutiveDeficits: number;

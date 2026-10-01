@@ -410,4 +410,13 @@ export type { WireTransferResult } from "./finance/wireTransfer.js";
 export { allocatePlayerStats, effectivePlayerStats, hasAllocatedStats, reallocatePlayerStats } from "./stats/allocation.js";
 export { suggestStatBuild } from "./stats/suggestedBuild.js";
 
+export {
+  getResourceContractAuthority,
+  isNationalExtractionIssuer,
+  isStateExtractionIssuer,
+  resolveExtractionContractIssuer,
+} from "./extraction/authority.js";
+export type { ContractAuthority } from "./extraction/authority.js";
+export { expandRegionalExtraction, SECTOR_EXPANSION_BASE_COST_ANCHOR } from "./extraction/operations.js";
+
 export { addCanvassBoost, canvassEligibility, quoteCanvass } from "./actions/canvass.js";

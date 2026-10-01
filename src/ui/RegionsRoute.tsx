@@ -5,7 +5,7 @@ import { DetailQuery } from "./DetailQuery";
 import { RegionsPanel } from "./RegionsPanel";
 import type { DrawerRouteId } from "./MobileNavigation";
 
-export function RegionsRoute({ load, loadMarkets, revision, busy, initialId, onNavigate, onDrill, onSectorSale }: {
+export function RegionsRoute({ load, loadMarkets, revision, busy, initialId, onNavigate, onDrill, onSectorSale, onAction }: {
   load: (query?: RegionsQuery) => Promise<RegionsView>; revision: object; busy: boolean;
   /**
    * Recorded markets projection for the regional corporate-sector inventory
@@ -24,6 +24,7 @@ export function RegionsRoute({ load, loadMarkets, revision, busy, initialId, onN
    */
   onDrill?: (origin: { route: DrawerRouteId; detailId?: string }, next: DrawerRouteId, id?: string) => void;
   onSectorSale?: GameScreenProps["onSectorSale"];
+  onAction?: GameScreenProps["onAction"];
 }) {
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [query, setQuery] = useState<RegionsQuery>(initialId ? { regionId: initialId } : {});
@@ -56,10 +57,10 @@ export function RegionsRoute({ load, loadMarkets, revision, busy, initialId, onN
   return <DetailQuery load={request} revision={revision} label="Regions">
     {view => loadMarkets ? (
       <DetailQuery load={loadMarkets} revision={revision} label="Markets">
-        {markets => <RegionsPanel query={view} onQueryChange={setQuery} busy={busy} directoryOpen={directoryOpen} onDirectoryOpenChange={setDirectoryOpen} onNavigate={handleViewerNavigate} onOpenParty={handleOpenParty} onOpenElection={handleOpenElection} sectorAssets={{ listings: markets.listings, playerCash: markets.playerCash, onSectorSale, onOpenCompany: handleOpenCompany }} />}
+        {markets => <RegionsPanel query={view} onQueryChange={setQuery} busy={busy} directoryOpen={directoryOpen} onDirectoryOpenChange={setDirectoryOpen} onNavigate={handleViewerNavigate} onOpenParty={handleOpenParty} onOpenElection={handleOpenElection} onAction={onAction} sectorAssets={{ listings: markets.listings, playerCash: markets.playerCash, onSectorSale, onOpenCompany: handleOpenCompany }} />}
       </DetailQuery>
     ) : (
-      <RegionsPanel query={view} onQueryChange={setQuery} busy={busy} directoryOpen={directoryOpen} onDirectoryOpenChange={setDirectoryOpen} onNavigate={handleViewerNavigate} onOpenParty={handleOpenParty} onOpenElection={handleOpenElection} />
+      <RegionsPanel query={view} onQueryChange={setQuery} busy={busy} directoryOpen={directoryOpen} onDirectoryOpenChange={setDirectoryOpen} onNavigate={handleViewerNavigate} onOpenParty={handleOpenParty} onOpenElection={handleOpenElection} onAction={onAction} />
     )}
   </DetailQuery>;
 }
