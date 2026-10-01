@@ -98,6 +98,8 @@ export type ExecuteActionParams = {
   billTitle?: string;
   billCategory?: string;
   originChamber?: string;
+  /** Rate for the source-authored economy-wide trade tariff provision. */
+  tariffRate?: number;
   // Intra-party ballots
   intrapartyElectionId?: string;
   candidateId?: string;
@@ -946,11 +948,92 @@ function executeActionInner(
     const catalogId = params.catalogId;
     if (!catalogId) return { ok: false, error: "sponsorBill requires catalogId" };
     // Seed gating: must hold a legislative seat per mainline seat check; HoS mode grants bypass later
-    const player = world.player as unknown as { legislativeSeat: { chamberKey: string; countryId: string } | null; mode: string; partyId: string | null };
+    const player = world.player as unknown as { legislativeSeat: { chamberKey: string; countryId: string } | null; mode: string; partyId: string | null; permanentHeadOfState?: boolean };
     if (player.mode !== "hos" && !player.legislativeSeat) {
       actor.actions += cost;
       if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
       return { ok: false, error: "Must hold a legislative seat to sponsor bills (career mode); HoS mode grants government sponsorship" };
+    }
+    // Source category="trade" bills carry tariff provisions, independently
+    // of national tax-law bills such as CN's customs tariff rate. Game's
+    // proposeNationalBill validates the provision, charges ten AP and zero
+    // NPI, starts chamber bills active, and immediately enacts sovereign
+    // single-player HoS bills (proposeNationalBill.ts:127, 231-312).
+    if (catalogId === "trade.customs_tariff") {
+      const reject = (error: string): ExecuteActionResult => {
+        actor.actions += cost;
+        if (catalog.cooldown > 0) delete actor.actionCooldowns[actionId];
+        return { ok: false, error };
+      };
+      if (params.sponsorCountryId && params.sponsorCountryId !== world.player.countryId) {
+        return reject("Cannot sponsor a bill outside the player's country");
+      }
+      if (typeof params.tariffRate !== "number" || !Number.isFinite(params.tariffRate)) {
+        return reject("Tariff rate must be a finite number");
+      }
+      const rate = Math.max(0, Math.min(100, params.tariffRate));
+      const countryId = world.player.countryId;
+      const legislature = world.legislatures[countryId];
+      const seat = player.legislativeSeat;
+      const sovereignDecree = player.mode === "hos" && player.permanentHeadOfState === true;
+      if (!sovereignDecree) {
+        if (!seat || seat.countryId !== countryId) return reject("Must hold a legislative seat in the player's country to sponsor bills");
+        const chamber = legislature?.chambers.find((row) => row.key === seat.chamberKey && row.elected);
+        if (!chamber) return reject("The player's legislative seat is not in an elected chamber");
+        if (params.originChamber && params.originChamber !== seat.chamberKey) {
+          return reject("A bill must originate in the player's seated chamber");
+        }
+      }
+      if (world.bills.some((bill) => bill.countryId === countryId &&
+        !["failed", "withdrawn", "signed", "override_failed"].includes(bill.status) &&
+        bill.provisions.some((provision) => provision.type === "tariff" && provision.tariffScopeType === "economy_wide"))) {
+        return reject("Another active bill already proposes a tariff at this scope. Wait for it to resolve before proposing the same change.");
+      }
+      const originChamber = sovereignDecree
+        ? legislature?.chambers.find((row) => row.elected)?.key ?? legislature?.chambers[0]?.key ?? "house"
+        : seat!.chamberKey;
+      const id = `bill-${world.meta.turn}-${world.bills.length + 1}-trade.customs_tariff`;
+      const bill: import("../legislation/types.js").Bill = {
+        id,
+        title: "Customs Tariff",
+        summary: `Set the economy-wide customs tariff to ${rate}%.`,
+        countryId,
+        category: "trade",
+        legislationTypeId: "trade.customs_tariff",
+        effectDirection: rate >= (world.budgets[countryId]?.taxRates.tariffs ?? 0) ? 1 : -1,
+        provisions: [{
+          type: "tariff",
+          legislationTypeId: "trade.customs_tariff",
+          effectDirection: rate >= (world.budgets[countryId]?.taxRates.tariffs ?? 0) ? 1 : -1,
+          tariffScopeType: "economy_wide",
+          tariffRate: rate,
+        }],
+        originChamber,
+        currentChamber: originChamber,
+        status: "active",
+        sponsorId: "player",
+        sponsorName: world.player.name,
+        sponsorPartyId: world.player.partyId,
+        votes: {},
+        votesFor: 0,
+        votesAgainst: 0,
+        votesAbstain: 0,
+        proposedAtTurn: world.meta.turn,
+        votingEndsOnTurn: world.meta.turn + 2,
+        proposalActionCost: BILL_PROPOSE_ACTION_COST,
+        filibusterInvocations: [],
+        updatedAtTurn: world.meta.turn,
+        committeeId: null,
+      };
+      world.bills.push(bill);
+      if (sovereignDecree) {
+        bill.status = "signed";
+        bill.enactedAtTurn = world.meta.turn;
+        bill.updatedAtTurn = world.meta.turn;
+        applyBillEffects(world, bill);
+        return { ok: true, message: `Enacted customs tariff bill ${id} by head-of-state authority` };
+      }
+      return { ok: true, message: `Sponsored trade bill ${id}` };
     }
     // Validate catalog availability
     try {
@@ -1042,9 +1125,9 @@ function executeActionInner(
       const title = params.billTitle ?? leg.title;
       const category = params.billCategory ?? leg.category;
       const id = `bill-${world.meta.turn}-${world.bills.length + 1}-${catalogId}`;
-      const provisions = [
+      const provisions: import("../legislation/types.js").BillProvision[] = [
         {
-          type: "policy" as const,
+          type: "policy",
           legislationTypeId: catalogId,
           ...(selectedPolicyOption ? { policyOptionId: selectedPolicyOption.id } : selectedTaxOption ? { policyOptionId: selectedTaxOption.id } : {}),
           effectDirection: selectedPolicyOption?.effectDirection ?? taxEffectDirection ?? 1,

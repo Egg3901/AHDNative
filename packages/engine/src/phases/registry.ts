@@ -73,6 +73,7 @@ import {
   fomcNominationsPhase,
 } from "../centralBank/phases.js";
 import { corporationTurnPhase } from "../corporation/corporationTurn.js";
+import { corporateTradeSnapshotPhase } from "../trade/corporateTrade.js";
 import { recomputeSharePricesPhase } from "../market/recomputeSharePrices.js";
 import {
   campaignSpendResetPhase,
@@ -220,6 +221,11 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   nppBehaviorPhase,
   billLifecyclePhase,
   commodityPricesPhase,
+  // Saved route receipts use the current turn's applied commodity-price
+  // anchor, matching Game's valueTradeSnapshot after pricing. This projection
+  // is RNG-free and consumes the measured supply already captured by
+  // corporationTurn, so its placement does not shift the RNG stream.
+  corporateTradeSnapshotPhase,
   contractSettlementPhase,
   // Elections run at the end of the ported subset for now: inserting them at
   // mainline's absolute position would shift the shared rng stream under every

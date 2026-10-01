@@ -508,7 +508,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const hasPlantCapacity = isRecord(sectorAssets) && Object.values(sectorAssets).some(asset =>
     isRecord(asset) && ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity"].some(field => hasOwn(asset, field)),
   );
-  if (hasOwn(world, "plantMarketDemand") || hasPlantCapacity) {
+  if (hasOwn(world, "plantMarketDemand") || hasOwn(world, "corporateTradeSnapshot") || hasPlantCapacity) {
     return { ok: false, error: `Plant production and market state cannot be continued by schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
 
@@ -771,6 +771,19 @@ function assertCurrentWorldState(world: WorldState): void {
     }
     if (rawBill["proposalCostsRefunded"] !== undefined && typeof rawBill["proposalCostsRefunded"] !== "boolean") {
       throw new Error("Not a valid save file: invalid bill proposalCostsRefunded");
+    }
+  }
+  const tradeTariffs = value["tradeTariffs"];
+  if (tradeTariffs !== undefined) {
+    if (!Array.isArray(tradeTariffs)) throw new Error("Not a valid save file: invalid trade tariffs");
+    for (const row of tradeTariffs) {
+      if (!isRecord(row) || typeof row["id"] !== "string" || typeof row["countryId"] !== "string" ||
+          row["scopeType"] !== "economy_wide" || typeof row["sourceBillId"] !== "string" ||
+          typeof row["rate"] !== "number" || !Number.isFinite(row["rate"]) || row["rate"] < 0 || row["rate"] > 100 ||
+          !Number.isSafeInteger(row["createdTurn"]) || (row["createdTurn"] as number) < 0 ||
+          !Number.isSafeInteger(row["updatedTurn"]) || (row["updatedTurn"] as number) < 0) {
+        throw new Error("Not a valid save file: invalid trade tariff row");
+      }
     }
   }
   const partyInfluence = player["partyInfluence"];
@@ -3280,6 +3293,49 @@ export function deserializeSave(raw: string): WorldState {
   // the reference absent-means-zero rule explicitly.
   if (save.world.plantMarketDemand !== undefined) {
     validatePlantMarketDemand(save.world);
+  }
+  if (save.world.corporateTradeSnapshot !== undefined) {
+    const snapshot = save.world.corporateTradeSnapshot;
+    if (!isRecord(snapshot) || !Number.isSafeInteger(snapshot.turn) || !isRecord(snapshot.byCountry) ||
+        !isRecord(snapshot.flow) || !isRecord(snapshot.byCommodity)) {
+      throw new Error("World has an invalid corporate trade snapshot");
+    }
+    for (const [countryId, row] of Object.entries(snapshot.byCountry)) {
+      if (!isRecord(row) || ![row.exports, row.imports, row.net].every(value => typeof value === "number" && Number.isFinite(value)) ||
+          !(row.topPartner === null || typeof row.topPartner === "string")) {
+        throw new Error(`World corporate trade snapshot has an invalid country row ${countryId}`);
+      }
+    }
+    for (const [exporter, destinations] of Object.entries(snapshot.flow)) {
+      if (!isRecord(destinations)) throw new Error(`World corporate trade snapshot has an invalid flow row ${exporter}`);
+      for (const [importer, value] of Object.entries(destinations)) {
+        if (exporter === importer || typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+          throw new Error(`World corporate trade snapshot has an invalid flow ${exporter}:${importer}`);
+        }
+      }
+    }
+    for (const [commodity, byExporter] of Object.entries(snapshot.byCommodity)) {
+      if (!isRecord(byExporter)) throw new Error(`World corporate trade snapshot has an invalid commodity ${commodity}`);
+      for (const [exporter, destinations] of Object.entries(byExporter)) {
+        if (!isRecord(destinations)) throw new Error(`World corporate trade snapshot has an invalid commodity route ${commodity}:${exporter}`);
+        for (const [importer, row] of Object.entries(destinations)) {
+          if (exporter === importer || !isRecord(row) ||
+              ![row.units, row.value].every(value => typeof value === "number" && Number.isFinite(value) && value >= 0)) {
+            throw new Error(`World corporate trade snapshot has an invalid commodity flow ${commodity}:${exporter}:${importer}`);
+          }
+        }
+      }
+    }
+    if (snapshot.valuationPriceByCommodity !== undefined) {
+      if (!isRecord(snapshot.valuationPriceByCommodity)) {
+        throw new Error("World corporate trade snapshot has invalid commodity valuation prices");
+      }
+      for (const [commodity, price] of Object.entries(snapshot.valuationPriceByCommodity)) {
+        if (typeof price !== "number" || !Number.isFinite(price) || price < 0) {
+          throw new Error(`World corporate trade snapshot has invalid valuation price ${commodity}`);
+        }
+      }
+    }
   }
   if (save.world.unionOrganizers !== undefined) {
     validateUnionOrganizers(save.world, save.world.unionOrganizers);

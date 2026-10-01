@@ -37,6 +37,7 @@ export interface LegislaturePanelProps {
 
 export function LegislaturePanel({ legislature, busy, onAction, clock }: LegislaturePanelProps) {
   const [selectedId, setSelectedId] = useState(legislature.proposals[0]?.id ?? "");
+  const [tariffRate, setTariffRate] = useState("10");
   const [billPage, setBillPage] = useState(0);
   const [chamberKey, setChamberKey] = useState<string>(() => {
     const chambers = legislature.chambers ?? [];
@@ -200,6 +201,41 @@ export function LegislaturePanel({ legislature, busy, onAction, clock }: Legisla
             Sponsor bill
           </button>
           <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>{sponsorHint}</span>
+        </div>
+      </div>
+
+      <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+        <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Customs tariff</h3>
+        <p className="ahd-muted" style={{ fontSize: "0.76rem", margin: 0, lineHeight: 1.45 }}>
+          Propose an economy-wide trade tariff. This trade bill is separate from national customs-tax laws.
+        </p>
+        <label className="ahd-field" style={{ maxWidth: "12rem" }}>
+          <span className="ahd-label">Tariff rate (%)</span>
+          <input
+            className="ahd-input"
+            type="number"
+            min="0"
+            max="100"
+            step="0.1"
+            aria-label="Customs tariff rate"
+            value={tariffRate}
+            onChange={(event) => setTariffRate(event.target.value)}
+            disabled={busy}
+          />
+        </label>
+        <div style={{ display: "flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="ahd-btn ahd-btn-primary ahd-btn-sm"
+            aria-label="Sponsor customs tariff"
+            disabled={busy || !legislature.sponsor.available || tariffRate.trim() === "" || !Number.isFinite(Number(tariffRate))}
+            onClick={() => onAction("sponsorBill", { catalogId: "trade.customs_tariff", tariffRate: Number(tariffRate) })}
+          >
+            Sponsor customs tariff
+          </button>
+          <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+            {legislature.sponsor.available ? `Cost ${legislature.sponsor.cost} actions` : legislature.sponsor.disabledReason ?? "Unavailable"}
+          </span>
         </div>
       </div>
 

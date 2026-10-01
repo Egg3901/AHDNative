@@ -455,6 +455,7 @@ function ForSaleDirectory({
  * an explicit gap, never a zero or a substituted rate.
  */
 function TradeRoutesCard({ routes, countryName }: { routes: TradeRouteSummary[]; countryName: string | null }) {
+  const anchorValue = (value: number) => `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value)} anchor`;
   return (
     <div className="ahd-card ahd-card-pad" style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
       <h3 style={{ fontSize: "0.82rem", fontWeight: 750, margin: 0 }}>Trade routes</h3>
@@ -463,7 +464,7 @@ function TradeRoutesCard({ routes, countryName }: { routes: TradeRouteSummary[];
           ? (countryName
             ? `No trade routes recorded in ${countryName}.`
             : "No trade routes recorded.")
-          : `Recorded per-country trade context (${routes.length} ${routes.length === 1 ? "route" : "routes"}). Read-only: no bid/ask books, spreads, quotes, or settlement are recorded.`}
+          : `Recorded per-country trade context (${routes.length} ${routes.length === 1 ? "route" : "routes"}). Recorded corporate output clears against available corporate, household, and government demand; flow values use the saved Native global commodity price. Household demand uses only regions with source population and GDP rows.`}
       </p>
       {routes.length === 0 ? null : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
@@ -492,6 +493,21 @@ function TradeRoutesCard({ routes, countryName }: { routes: TradeRouteSummary[];
                   ? `FX: ${route.fx.rate} ${route.currency} per anchor${route.fx.baseRate != null ? ` · base ${route.fx.baseRate}` : ""}${route.fx.regime ? ` · ${route.fx.regime}` : ""}`
                   : "No FX record"}
               </span>
+              <span className="ahd-muted" style={{ fontSize: "0.74rem" }}>
+                {route.customsTariff
+                  ? `Customs tariff: ${route.customsTariff.ratePercent}% · ${route.customsTariff.sourceBillId}`
+                  : "No customs tariff record"}
+              </span>
+              <span className="ahd-muted" style={{ fontSize: "0.74rem" }}>
+                {route.corporateTrade
+                  ? `Corporate trade (turn ${route.corporateTrade.turn}): exports ${anchorValue(route.corporateTrade.exports)} · imports ${anchorValue(route.corporateTrade.imports)} · net ${anchorValue(route.corporateTrade.net)}${route.corporateTrade.topPartner ? ` · partner ${route.corporateTrade.topPartner}` : ""}`
+                  : "No corporate trade receipt recorded"}
+              </span>
+              {route.corporateTrade?.commodityFlows.slice(0, 3).map((flow, index) => (
+                <span key={`${flow.commodity}:${flow.partner}:${flow.direction}:${index}`} className="ahd-muted" style={{ fontSize: "0.74rem" }}>
+                  {flow.commodity.replaceAll("_", " ")} {flow.direction} {flow.partner}: {new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(flow.units)} units · {anchorValue(flow.value)}{flow.pricePerUnit == null ? "" : ` at ${anchorValue(flow.pricePerUnit)}/unit`}
+                </span>
+              ))}
             </li>
           ))}
         </ul>
