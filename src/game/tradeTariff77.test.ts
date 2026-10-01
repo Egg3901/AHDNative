@@ -125,6 +125,6 @@ describe("signed customs tariff trade effect (#77)", () => {
     expect(bill?.provisions.some((provision) => provision.type === "tariff")).toBe(false);
     expect(save.world.budgets.CN!.taxRates.tariffs).toBe(1);
     expect(save.world.budgets.CN!.taxRatePhaseIn?.tariffs).toBe(10);
-    expect(save.world.tradeTariffs?.some((row) => row.countryId === "CN")).toBe(false);
+    expect((save.world.tradeTariffs ?? []).some((row) => row.countryId === "CN")).toBe(false);
   });
 });
