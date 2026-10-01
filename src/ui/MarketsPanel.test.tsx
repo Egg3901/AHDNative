@@ -118,6 +118,10 @@ function makeMarkets(overrides: Partial<MarketsView> = {}): MarketsView {
         listingCount: 1,
         tradeGrowth: 2.5,
         fx: { available: true, rate: 1, baseRate: 1, regime: "pegged", updatedTurn: 0 },
+        corporateTrade: {
+          turn: 1, exports: 1250, imports: 400, net: 850, topPartner: "UK",
+          commodityFlows: [{ commodity: "electronics", partner: "UK", direction: "exports", units: 50, value: 1250, pricePerUnit: 25 }],
+        },
       },
       {
         countryId: "UK",
@@ -1036,6 +1040,10 @@ describe("MarketsPanel trade routes (#77)", () => {
     expect(screen.getByLabelText("United States trade route")).toBeInTheDocument();
     expect(screen.getByLabelText("United Kingdom trade route")).toBeInTheDocument();
     expect(screen.getByText(/FX: 0\.357 GBP per anchor/)).toBeInTheDocument();
+    expect(screen.getByText(/Corporate trade \(turn 1\): exports .*1,250.* imports .*400.* net .*850.* partner UK/)).toBeInTheDocument();
+    expect(screen.getByText(/electronics exports UK: 50 units · 1,250 anchor/)).toBeInTheDocument();
+    expect(screen.getByText(/electronics exports UK: 50 units · 1,250 anchor at 25 anchor\/unit/)).toBeInTheDocument();
+    expect(screen.getByText(/flow values use the saved Native global commodity price/)).toBeInTheDocument();
   });
 
   it("shows explicit unavailable copy for missing growth and FX rows", async () => {
@@ -1051,6 +1059,7 @@ describe("MarketsPanel trade routes (#77)", () => {
               listingCount: 1,
               tradeGrowth: null,
               fx: { available: false, rate: null, baseRate: null, regime: null, updatedTurn: null },
+              customsTariff: { ratePercent: 10, sourceBillId: "bill-cn-customs" },
             },
           ],
         })}
@@ -1060,6 +1069,7 @@ describe("MarketsPanel trade routes (#77)", () => {
     );
     expect(screen.getByText(/No trade growth recorded/)).toBeInTheDocument();
     expect(screen.getByText(/No FX record/)).toBeInTheDocument();
+    expect(screen.getByText("Customs tariff: 10% · bill-cn-customs")).toBeInTheDocument();
   });
 
   it("shows an explicit empty state when the filtered country has no routes", async () => {

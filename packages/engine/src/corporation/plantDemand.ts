@@ -1,8 +1,9 @@
 /** Plants-mode intermediate demand from the source SECTOR_DEMAND table. */
 import type { CommodityType } from "../commodity/constants.js";
-import { getEraNominalScale } from "../commodity/constants.js";
+import { COMMODITY_BASE_PRICES, getEraNominalScale } from "../commodity/constants.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { DEFAULT_SECTOR_OUTPUT_MIX } from "./plantCapacity.js";
+import { isPlannedEconomy } from "../commandEconomy/constants.js";
 import type { WorldState } from "../types.js";
 
 export const CORPORATE_PLANT_MARKET_STABILIZER: Readonly<Record<CommodityType, number>> = {
@@ -54,6 +55,144 @@ export const CORPORATE_INPUT_DEMAND_RATES: Readonly<Record<string, Readonly<Part
   extraction: { energy: 0.2, vehicles: 0.15, freight: 0.1, chemicals: 0.08, construction_services: 0.03, ordnance: 0.06 },
 };
 
+const HOUSEHOLD_BASKET: Partial<Record<CommodityType, number>> = {
+  food: 0.2, energy: 0.08, retail: 0.1, vehicles: 0.06, electronics: 0.05,
+  pharmaceuticals: 0.03, healthcare_services: 0.09, real_estate_services: 0.1,
+  financial_services: 0.05, network_services: 0.05, entertainment_services: 0.05,
+  software: 0.03, freight: 0.03, advertising: 0.02, consulting_services: 0.02,
+  building_materials: 0.02, plastics: 0.01, chemicals: 0.01,
+};
+const HOUSEHOLD_TIER_SLOPE: Partial<Record<CommodityType, number>> = {
+  food: -0.35, energy: -0.2, retail: -0.1, vehicles: 0.2, electronics: 0.25,
+  entertainment_services: 0.3, financial_services: 0.3, real_estate_services: 0.2,
+  healthcare_services: 0.15, software: 0.25,
+};
+const HOUSEHOLD_ELASTICITY: Partial<Record<CommodityType, number>> = {
+  food: 0.1, energy: 0.15, healthcare_services: 0.1, pharmaceuticals: 0.1,
+  retail: 0.3, vehicles: 0.6, electronics: 0.6, entertainment_services: 0.6,
+  financial_services: 0.4, real_estate_services: 0.4, software: 0.5,
+};
+
+/** Source householdConsumption.computeHouseholdConsumption with source neutral signal fallbacks. */
+function rebuildHouseholdDemand(world: WorldState): void {
+  const byState = new Map<string, Map<CommodityType, number>>();
+  const byCountry = new Map<string, Map<CommodityType, number>>();
+  const totals = new Map<CommodityType, number>();
+  const nominalScale = getEraNominalScale(world.meta.era);
+  for (const region of Object.values(world.regions)) {
+    const population = region.population ?? 0;
+    const gdp = region.gdp ?? 0;
+    if (region.corporationHeadquartersOnly === true || !(population > 0)) continue;
+    const perCapitaGdp = gdp > 0 ? gdp / population : 0;
+    const wealth = Math.max(0.5, Math.min(2, perCapitaGdp > 0 ? Math.sqrt(perCapitaGdp / 0.03) : 0.5));
+    const weights = Object.entries(HOUSEHOLD_BASKET) as [CommodityType, number][];
+    const adjusted = weights.map(([commodity, weight]) => [
+      commodity,
+      Math.max(0, weight * (1 + (HOUSEHOLD_TIER_SLOPE[commodity] ?? 0) * (wealth - 1))),
+    ] as const);
+    const weightTotal = adjusted.reduce((sum, [, weight]) => sum + weight, 0);
+    if (!(weightTotal > 0)) continue;
+    const regional = new Map<CommodityType, number>();
+    for (const [commodity, weight] of adjusted) {
+      const modernBase = COMMODITY_BASE_PRICES[commodity];
+      const row = world.commodityPrices[commodity];
+      if (!(modernBase > 0) || !row || !(row.basePrice > 0)) continue;
+      const budget = population * 0.002 * 3000 * nominalScale;
+      const priceRatio = row.globalPrice / row.basePrice;
+      const elasticity = HOUSEHOLD_ELASTICITY[commodity] ?? 0.35;
+      const priceMod = Math.max(0.6, Math.min(1.3, Math.pow(priceRatio, -elasticity)));
+      const units = (budget * (weight / weightTotal) / row.basePrice) * priceMod;
+      if (!(units > 0) || !Number.isFinite(units)) continue;
+      regional.set(commodity, units);
+      totals.set(commodity, (totals.get(commodity) ?? 0) + units);
+    }
+    if (regional.size > 0) byState.set(region.id, regional);
+  }
+
+  // Source PLANTS_HOUSEHOLD_SUPPLY_CAP bounds the global basket after the
+  // state loop and preserves each state contribution's relative share.
+  for (const [commodity, total] of totals) {
+    const supply = world.commodityPrices[commodity]?.globalSupply ?? 0;
+    if (!(supply > 0) || total <= supply * 1.5) continue;
+    const factor = (supply * 1.5) / total;
+    for (const stateDemand of byState.values()) {
+      const units = stateDemand.get(commodity);
+      if (units !== undefined) stateDemand.set(commodity, units * factor);
+    }
+  }
+  for (const [stateId, stateDemand] of byState) {
+    const countryId = world.regions[stateId]?.countryId;
+    if (!countryId) continue;
+    for (const [commodity, units] of stateDemand) {
+      const countryDemand = byCountry.get(countryId) ?? new Map<CommodityType, number>();
+      countryDemand.set(commodity, (countryDemand.get(commodity) ?? 0) + units);
+      byCountry.set(countryId, countryDemand);
+    }
+  }
+  world.plantMarketDemand!.householdDemandByCountry = Object.fromEntries(
+    [...byCountry].map(([countryId, demand]) => [countryId, Object.fromEntries(demand)]),
+  );
+  world.plantMarketDemand!.householdDemandByState = Object.fromEntries(
+    [...byState].map(([stateId, demand]) => [stateId, Object.fromEntries(demand)]),
+  );
+}
+
+function firstBudgetCategory(categories: Record<string, number> | undefined, aliases: readonly string[]): number {
+  if (!categories) return 0;
+  for (const alias of aliases) {
+    const value = categories[alias];
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) return value;
+  }
+  return 0;
+}
+
+/** Source demandLegs.applyGovernmentDemand with only recorded budget/region inputs. */
+function rebuildGovernmentDemand(world: WorldState): void {
+  const byCountry = new Map<string, Map<CommodityType, number>>();
+  const byState = new Map<string, Map<CommodityType, number>>();
+  const year = Number(world.meta.date.slice(0, 4));
+  const add = (target: Map<string, Map<CommodityType, number>>, id: string, commodity: CommodityType, units: number) => {
+    const leg = target.get(id) ?? new Map<CommodityType, number>();
+    leg.set(commodity, (leg.get(commodity) ?? 0) + units);
+    target.set(id, leg);
+  };
+
+  for (const [countryId, budget] of Object.entries(world.budgets)) {
+    const fxRate = world.exchangeRates[countryId]?.rate;
+    if (!(typeof fxRate === "number" && Number.isFinite(fxRate) && fxRate > 0)) continue;
+    const regionalShares = Object.values(world.regions)
+      .filter(region => region.countryId === countryId && region.corporationHeadquartersOnly !== true &&
+        typeof region.gdp === "number" && Number.isFinite(region.gdp) && region.gdp > 0)
+      .map(region => ({ id: region.id, gdp: region.gdp! }));
+    const gdpTotal = regionalShares.reduce((sum, region) => sum + region.gdp, 0);
+    const apply = (commodity: CommodityType, categoryAliases: readonly string[], rate: number, regional: boolean) => {
+      const annualSpendLocal = firstBudgetCategory(budget.spending?.byCategory, categoryAliases);
+      const basePrice = world.commodityPrices[commodity]?.basePrice;
+      if (!(annualSpendLocal > 0) || !(typeof basePrice === "number" && basePrice > 0)) return;
+      const units = (annualSpendLocal / fxRate / 48 / basePrice) * rate;
+      if (!(units > 0) || !Number.isFinite(units)) return;
+      add(byCountry, countryId, commodity, units);
+      if (regional && gdpTotal > 0) {
+        for (const region of regionalShares) add(byState, region.id, commodity, units * (region.gdp / gdpTotal));
+      }
+    };
+
+    apply("healthcare_services", ["healthcare", "health"], 0.015, true);
+    apply("ordnance", ["defense"], 0.005, true);
+    const marketization = world.commandEconomy[countryId]?.marketizationLevel ?? 100;
+    if (Number.isFinite(year) && isPlannedEconomy(marketization)) {
+      apply("entertainment_services", ["education"], 0.09, false);
+    }
+  }
+
+  world.plantMarketDemand!.governmentDemandByCountry = Object.fromEntries(
+    [...byCountry].map(([countryId, demand]) => [countryId, Object.fromEntries(demand)]),
+  );
+  world.plantMarketDemand!.governmentDemandByState = Object.fromEntries(
+    [...byState].map(([stateId, demand]) => [stateId, Object.fromEntries(demand)]),
+  );
+}
+
 /**
  * Rebuild the lagged plants buyer book from prior produced/nameplate units.
  * Source basis is per day: Native stores revenue/stock on the seven-day turn,
@@ -63,6 +202,8 @@ export const CORPORATE_INPUT_DEMAND_RATES: Readonly<Record<string, Readonly<Part
  */
 export function rebuildCorporatePlantInputDemand(world: WorldState): void {
   const demand = new Map<CommodityType, number>();
+  const demandByCountry = new Map<string, Map<CommodityType, number>>();
+  const demandByState = new Map<string, Map<CommodityType, number>>();
   const basePrices = Object.fromEntries(
     Object.entries(world.commodityPrices).map(([commodity, row]) => [commodity, row.basePrice]),
   ) as Partial<Record<CommodityType, number>>;
@@ -88,7 +229,17 @@ export function rebuildCorporatePlantInputDemand(world: WorldState): void {
       const price = basePrices[commodity];
       if (!(rate! > 0) || !Number.isFinite(price) || !(price! > 0)) continue;
       const units = dailyValue * rate! / price!;
-      if (Number.isFinite(units) && units > 0) demand.set(commodity, (demand.get(commodity) ?? 0) + units);
+      if (Number.isFinite(units) && units > 0) {
+        demand.set(commodity, (demand.get(commodity) ?? 0) + units);
+        const countryDemand = demandByCountry.get(asset.countryId) ?? new Map<CommodityType, number>();
+        countryDemand.set(commodity, (countryDemand.get(commodity) ?? 0) + units);
+        demandByCountry.set(asset.countryId, countryDemand);
+        if (asset.stateId && world.regions[asset.stateId] && !world.regions[asset.stateId]!.corporationHeadquartersOnly) {
+          const stateDemand = demandByState.get(asset.stateId) ?? new Map<CommodityType, number>();
+          stateDemand.set(commodity, (stateDemand.get(commodity) ?? 0) + units);
+          demandByState.set(asset.stateId, stateDemand);
+        }
+      }
     }
   }
 
@@ -123,6 +274,17 @@ export function rebuildCorporatePlantInputDemand(world: WorldState): void {
     };
   }
   world.plantMarketDemand.corporateInputs = Object.fromEntries(demand);
+  // Rebuilt from current real assets each time; never add a previous map to
+  // itself. The legacy retail proxy above remains global because Native has
+  // no source-backed country/household allocation for that leg.
+  world.plantMarketDemand.corporateInputsByCountry = Object.fromEntries(
+    [...demandByCountry.entries()].map(([countryId, countryDemand]) => [countryId, Object.fromEntries(countryDemand)]),
+  );
+  world.plantMarketDemand.corporateInputsByState = Object.fromEntries(
+    [...demandByState].map(([stateId, stateDemand]) => [stateId, Object.fromEntries(stateDemand)]),
+  );
+  rebuildGovernmentDemand(world);
+  rebuildHouseholdDemand(world);
   const eraNominalScale = getEraNominalScale(world.meta.era);
   const eraUnitScale = eraNominalScale > 0 ? 1 / eraNominalScale : 1;
   const calibrationByCommodity = world.meta.era === "1953" ? DEMAND_CALIBRATION_1953 : {};
@@ -181,6 +343,26 @@ export function validatePlantMarketDemand(world: WorldState): void {
     for (const [commodity, units] of Object.entries(leg as Record<string, unknown>)) {
       if (typeof units !== "number" || !Number.isFinite(units) || units < 0) {
         throw new Error(`World plant market book has invalid ${field} for ${commodity}`);
+      }
+    }
+  }
+  for (const field of [
+    "corporateInputsByCountry", "corporateInputsByState", "corporateOutputSupplyByCountry", "corporateOutputSupplyByState",
+    "governmentDemandByCountry", "governmentDemandByState", "householdDemandByCountry", "householdDemandByState",
+  ] as const) {
+    const countries = (book as unknown as Record<string, unknown>)[field];
+    if (countries === undefined) continue;
+    if (typeof countries !== "object" || countries === null || Array.isArray(countries)) {
+      throw new Error(`World plant market book has an invalid ${field}`);
+    }
+    for (const [countryId, leg] of Object.entries(countries as Record<string, unknown>)) {
+      if (typeof leg !== "object" || leg === null || Array.isArray(leg)) {
+        throw new Error(`World plant market book has an invalid ${field} country ${countryId}`);
+      }
+      for (const [commodity, units] of Object.entries(leg as Record<string, unknown>)) {
+        if (typeof units !== "number" || !Number.isFinite(units) || units < 0) {
+          throw new Error(`World plant market book has invalid ${field} for ${countryId}:${commodity}`);
+        }
       }
     }
   }

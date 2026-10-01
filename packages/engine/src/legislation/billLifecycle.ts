@@ -28,6 +28,7 @@ import { regionalGdpAbsolute, applyStateTaxToRegionalRevenue } from "../budget/r
 import { rebuildPolicyBudgets } from "../policyEffects/budget.js";
 import { energyActionLimits } from "../actions/officeBonus.js";
 import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
+import { enactTradeTariff } from "../trade/tariffs.js";
 
 const VOTING_TURNS = 2;
 const EXEC_WINDOW_TURNS = 2;
@@ -328,6 +329,24 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
   // Source: AHDGame src/lib/subsidies/subsidyEffects.ts; state-scope subsidy
   // budgets remain unavailable in this solo model.
   for (const provision of bill.provisions) {
+    if (provision.type === "tariff") {
+      if (provision.tariffScopeType !== "economy_wide" || !Number.isFinite(provision.tariffRate) || provision.tariffRate! < 0 || provision.tariffRate! > 100) continue;
+      enactTradeTariff(world, {
+        countryId: bill.countryId,
+        scopeType: "economy_wide",
+        rate: provision.tariffRate!,
+        sourceBillId: bill.id,
+      });
+      // Game applyTariffProvision synchronizes an economy-wide trade tariff
+      // with the budget headline immediately. Ordinary tax-law provisions
+      // above still use the source one-point phase-in.
+      if (budget && budget.taxRates.tariffs !== provision.tariffRate) {
+        budget.taxRates = { ...budget.taxRates, tariffs: provision.tariffRate! };
+        budget.revenue = calculateBudgetRevenue(budget.taxRates, budget.taxBases, budget.revenue.other);
+        budget.surplus = budget.revenue.total - budget.spending.total;
+      }
+      continue;
+    }
     if (provision.type !== "subsidy" && provision.type !== "end_subsidy") continue;
     const scopeType = provision.subsidyScopeType;
     if (scopeType !== "economy_wide" && scopeType !== "sector") continue;
