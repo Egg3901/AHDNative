@@ -93,11 +93,15 @@ layout adaptation, not a new regional macro dashboard.
 The board has a dedicated `GameSession.politicalMetrics` worker query. A
 two-turn saved UK cabinet world reproduced slow loading when this destination
 also projected every politician's influence actions. The first full political
-worker response took9.8 seconds; development mode queued another request.
+worker response took 9.8 seconds; development mode queued another request.
 Separately timed election and board projections were small, while politician
 projections dominated. The dedicated query returns the same recorded board
 without that unrelated work and does not mutate the save. The public saved
 order regression and actual minimized save/relaunch browser flow now pass.
+The dedicated saved-world board responses took 12-14ms locally. The original
+320px/390px order, turn, category/metric, regional score/contribution, save,
+reload and back-navigation flows pass without horizontal overflow. The
+application typecheck also passes.
 This is local browser evidence, not a physical-device performance claim.
 
 Full history, driver decomposition, comparison and governance cards remain
