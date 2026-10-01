@@ -188,6 +188,8 @@ describe("M1: action-layer gating — career player lacks HoS surfaces, HoS play
     expect(careerRes.ok).toBe(false);
 
     const hos = createWorld(HOS_OPTS);
+    // Office authority does not waive the source-required national influence.
+    hos.player.nationalInfluence = 5;
     const hosRes = executeAction(hos, "player", "sponsorBill", { catalogId: "us.economy.workerSecurity.primary" });
     expect(hosRes.ok).toBe(true);
     expect(hos.bills[0]!.sponsorPartyId).toBe("US_REP");

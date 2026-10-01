@@ -36,6 +36,8 @@ describe("Brazil executable legislation slice", () => {
     const world = createWorld({ seed: "br-law", playerName: "P", countryId: "BR", era: "1991" });
     world.player.mode = "hos";
     world.player.actions = 100;
+    // Scoped lifecycle fixture funds proposals at source 10 AP / 5 NPI each.
+    world.player.nationalInfluence = 15;
     const startingRate = world.budgets.BR!.taxRates.incomeTax;
 
     const invalid = executeAction(world, "player", "sponsorBill", { catalogId: LAW_ID, taxRate: 11 });

@@ -15,6 +15,8 @@ describe("Ireland executable VAT law (#284)", () => {
     const world = createWorld({ seed: "ie-vat-foreign", playerName: "P", countryId: "US", era: "1991" });
     world.player.mode = "hos";
     world.player.actions = 100;
+    // Scoped lifecycle fixture funds proposals at source 10 AP / 5 NPI each.
+    world.player.nationalInfluence = 15;
     const before = world.player.actions;
     const result = executeAction(world, "player", "sponsorBill", {
       catalogId: "ie_vat_rate", sponsorCountryId: "IE", taxRate: 23,
@@ -28,6 +30,8 @@ describe("Ireland executable VAT law (#284)", () => {
     const world = createWorld({ seed: "ie-vat-284", playerName: "P", countryId: "IE", era: "1991" });
     world.player.mode = "hos";
     world.player.actions = 100;
+    // Scoped lifecycle fixture funds proposals at source 10 AP / 5 NPI each.
+    world.player.nationalInfluence = 15;
     expect(world.budgets.IE?.taxRates.salesTax).toBe(21);
     const actionsBeforeInvalidOption = world.player.actions;
 
@@ -59,6 +63,8 @@ describe("Ireland executable VAT law (#284)", () => {
     world.nppAutonomyLevel = "off";
     world.player.mode = "hos";
     world.player.actions = 100;
+    // Scoped lifecycle fixture funds proposals at source 10 AP / 5 NPI each.
+    world.player.nationalInfluence = 15;
     expect(executeAction(world, "player", "sponsorBill", { catalogId: "ie_vat_rate", taxRate: 23 }).ok).toBe(true);
     const bill = world.bills.at(-1)!;
     for (let i = 0; i < 12 && bill.status !== "signed" && bill.status !== "failed"; i++) advanceTurn(world);
@@ -91,6 +97,8 @@ describe("Ireland executable VAT law (#284)", () => {
     const world = createWorld({ seed: "ie-vat-continuation", playerName: "P", countryId: "IE", era: "1991" });
     world.player.mode = "hos";
     world.player.actions = 100;
+    // Scoped lifecycle fixture funds proposals at source 10 AP / 5 NPI each.
+    world.player.nationalInfluence = 15;
     expect(executeAction(world, "player", "sponsorBill", { catalogId: "ie_vat_rate", taxRate: 23 }).ok).toBe(true);
     for (let i = 0; i < 4 && !world.bills.some((bill) => bill.nppSponsored && bill.legislationTypeId === "ie_vat_rate"); i++) advanceTurn(world);
     const nppBill = world.bills.find((bill) => bill.nppSponsored && bill.legislationTypeId === "ie_vat_rate");
