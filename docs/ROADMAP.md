@@ -1,5 +1,39 @@
 # AHDNative roadmap
 
+## CEO Profile card checkpoint, 2026-10-01 (#51)
+
+Recorded CEO/vacancy and public shareholder vote, acceptance, compensation and
+resignation now drive the shared Profile/company projection. Source issuer
+identity, factory/brand treatment and state-enterprise note are preserved.
+Both 320px/390px real-player journeys complete two normal save/reloads, including
+card absence after resignation. [Behavior and acceptance evidence](BEHAVIORAL-PARITY.md)
+record the bounded completion; whole corporate mechanics #107, current SP
+interchange and physical-device gates remain open. Full hosted review is pending
+before issue closure.
+## Corporate-sector union player checkpoint, 2026-10-01 (#297)
+
+Public organization, weighted leadership/acceptance, wage-based dues, sector
+organization and employer bargaining now use represented corporate-sector
+workers and locals. Source escalation/withdrawal and weighted ratification
+produce saved strikes or agreements. The actual 390px browser journey passes
+through normal save/reload. [Acceptance evidence](UNION-LEADERSHIP-PARITY.md)
+records the original criteria. Full hosted verification passed at `1379573`; PR707 merged as `f9dd7e1` and #297 is checked and confirmed closed.
+Worker political feedback and wider union mechanics remain #322/#114.
+
+## Regional sector trading checkpoint, 2026-10-01 (#299)
+
+Regional details share the corporation sale controls for list, reprice, unlist and
+purchase, with recorded ownership, workforce, union and company links. Public
+session and UI tests cover eligibility and persistence; the integrated Chromium
+journey at 320px and 390px saves and resumes twice. The fixture records two
+regional assets, since fresh worlds still seed national assets. The comparison
+uses Game's pinned regional and sector page hierarchy, with no pixel equivalence
+or physical-device claim. See [regional trading evidence](REGIONAL-SECTOR-TRADING.md).
+
+#322/#114 retain wider worker political feedback and labor acceptance. The bounded #297 leadership, dues, organizing and bargaining criteria are complete. The
+unsafe public NPC-response and arbitrary-ballot wrappers are excluded. The unused neutral-50 labor
+metric overlay is excluded from this batch.
+
 ## Demographic canvassing checkpoint, 2026-10-01 (#57 / #91 partial)
 
 The source standalone Voter Canvassing flow replaces the old region-only proxy:
@@ -8,7 +42,7 @@ confirmation, saved target history and actual electoral consequences. Independen
 Game vectors, atomic refusal and deterministic reload tests pass; real Chromium
 320px/390px player journeys pass. [Exact scope and remaining gaps](DEMOGRAPHIC-CANVASSING.md)
 keep #57 and #91 open for richer targeting, presidential writer journeys, other
-selectors and party action parity. Full hosted gate remains required before merge.
+selectors and party action parity. Full hosted verification passed for merged PR703.
 
 
 ## Corporate bond settlement checkpoint, 2026-10-01 (#308)
@@ -39,7 +73,10 @@ Documentation tasks #33/#35 have a complete source audit and corrected current
 rows/comments. Their checklists and prior closure labels are reconciled with
 merged verification, without claiming the linked mechanics are complete.
 
-#40 remains partial for real default-world TFP inputs/progression, #41 for
+#40 remains partial for complete regional TFP evolution. Fresh source-backed
+leaves and cabinet progression are implemented in the current input slice;
+state/federal spending, sector-revenue and registry dependencies remain open.
+#41 remains partial for
 unit combat and player war/peace/intelligence/naval-air flows, and #94 for the
 rendered subsidy flow and command-economy plan/credit controls. Their earlier
 bounded documentation/subsidy closures do not satisfy those full completion
@@ -158,7 +195,7 @@ Use the agreed engine contract (`createWorld`, actions, `advanceTurn`, `serializ
 | M04 | Mechanics | In progress | M01 | Close phase order and TFP differences | Reference-driven tests; impacts traced |
 | M05 | Mechanics | In progress | M01 | Close electoral and content omissions | National/subnational lifecycle and all supported content |
 | M06 | Mechanics | Queued | M02,M03,M04,M05,M07,M08 | Sign off reference mechanics coverage | No unacknowledged mechanics gaps in 1.0 candidate |
-| M07 | Mechanics | In progress | M01 | Consume authoritative Game-owned rules one action/system at a time | Fundraise shared cost/yield/eligibility first; [per-action character audit](CHARACTER-ACTION-PARITY.md) covers the 11 ActionsHub entries at `cd99794` (#91, partial, no runtime claim); gdpScalar still 1.0 and campaign/advertise/fundraise-yield conversion still unwired (buildDonorBase frozen conversion wired 2026-09-18 with quote/charge/save tests); preserve complete stat/currency context before parity signoff; [Game #1724](https://github.com/Egg3901/AHDGame/issues/1724) |
+| M07 | Mechanics | In progress | M01 | Consume authoritative Game-owned rules one action/system at a time | Fundraise shared cost/yield/eligibility first; [per-action character audit](CHARACTER-ACTION-PARITY.md) records source GDP scaling, allocated stats, currency charges and gains, structured changes and action XP delivered by PR701 (#91, partial). Party/caucus source costs and the remaining audience, travel and campaign selectors still need complete player-flow parity; [Game #1724](https://github.com/Egg3901/AHDGame/issues/1724) |
 | M08 | Mechanics | In progress | M01,M07 | Detect upstream drift and gate consumer updates | Immutable source checks first; complete source coverage, update PRs and ruleset/save policy in [#120](https://github.com/Egg3901/AHDNative/issues/120) |
 | Q01 | Validation | Done | E03,S02,U07 | Integrated gameplay smoke through actual UI | Create,country,action,turn,save,close,reload,continue |
 | Q02 | Validation | Done | Q01 | Exercise error and concurrency smoke | Corrupt-save recovery,double-click turn,save failure/recovery and worker startup failure pass integrated smoke at fc87a991 |
@@ -971,6 +1008,26 @@ and disband controls. Whip, health, recruitment, elections, color,
 description, motto and rename remain unrecorded with no public engine action;
 recruitment and leadership changes through validated commands remain the next
 #60 work.
+
+## Party/caucus quote and source costs checkpoint (#61 partial)
+
+#61 partial: create, join, leave, tax-edit and disband now quote and charge
+0 AP and 0 campaign funds, matching AHDGame
+`954f1c21781e6e767455a15eed40f73993d89a8b` POST/PATCH/DELETE caucus routes
+and party leave. `quotePartyCaucusAction` is the one projection the
+dispatcher, session DTO and UI confirmation read. Chair tax/disband
+authority is the recorded `chairId`, never `memberIds[0]`. The recorded
+chair cannot self-leave and must disband or hand over. A declined action
+leaves the full serialized world unchanged. Caucus leave confirms with
+`Leave ${name}?`. Native `foundParty` stays the 8 AP + 100k immediate/NPP
+cofounder proxy; source `draftCharter` / `ratifyCharter` (3 eligible human
+cofounders, 14-turn expiry, adjacency/Overton) is not a public action
+(#95). Evidence: `src/game/partyCaucusSourceParity.test.ts`,
+`src/game/caucusManagement.test.ts`,
+`packages/engine/src/actions/partyCaucus.test.ts`,
+`src/ui/CaucusPanel.test.tsx`. [Caucus evidence](CAUCUS-MANAGEMENT.md)
+records the source routes and the exact unchecked remainder. This does not
+close #61 or #95.
 
 ## World and new-game setup checkpoint, 2026-09-14 (#241)
 

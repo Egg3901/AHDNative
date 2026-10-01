@@ -63,13 +63,22 @@ describe("caucus roster/role projection (#60 read-only slice)", () => {
 
   it("marks a non-member caucus role and keeps its recorded seats", () => {
     const world = readyWorld();
-    foundBlueDog(world);
-    expect(executeAction(world, "player", "leaveCaucus", {}).ok).toBe(true);
+    world.caucuses.push({
+      id: "caucus-recorded",
+      countryId: world.player.countryId,
+      partyId: world.player.partyId!,
+      name: "Recorded Caucus",
+      treasury: 0,
+      taxRate: 1,
+      disbandedAt: null,
+      memberIds: ["npc-chair"],
+      chairId: "npc-chair",
+      viceChairId: null,
+    });
     const entry = projectCaucusRoster(world)[0]!;
     expect(entry.playerRole).toBe("non-member");
     expect(entry.isPlayerChair).toBe(false);
-    // Leaving vacates the player's chair seat, so the chair reads vacant, not unknown.
-    expect(entry.chairState).toBe("vacant");
+    expect(entry.chairState).toBe("unknown");
     expect(entry.chairName).toBeNull();
     expect(entry.setTax.available).toBe(false);
   });

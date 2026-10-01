@@ -10,7 +10,7 @@ import { MarketsPanel } from "./MarketsPanel";
 import type { DrawerRouteId } from "./MobileNavigation";
 
 const OPTIONS = { era: "1953", countryId: "US", seed: "native-profile-ceo-card", playerName: "Alex" };
-const CEO_OPTIONS = { era: "1953", countryId: "US", homeRegionId: "DC", seed: "native-profile-ceo-card", playerName: "Alex" };
+const CEO_OPTIONS = { ...OPTIONS, homeRegionId: "DC" };
 const SAVED_AT = "2026-09-18T00:00:00.000Z";
 
 afterEach(() => {
@@ -24,20 +24,23 @@ function plainProfile(): ProfileView {
   return session.profile();
 }
 
-/** A live owner profile through the public sector-acquisition flow. */
+/** A live corporation profile through the public CEO appointment flow. */
 function owningProfile(): ProfileView {
   const session = new GameSession();
-  session.create(OPTIONS);
+  session.create(CEO_OPTIONS);
   expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
-  const assetId = session.markets().listings.find((entry) => entry.id === "US-media")!.sectorAsset.id;
-  const listed = session.listSectorForSale(assetId);
-  expect(listed.ok).toBe(true);
-  const raw = JSON.parse(session.serialize(SAVED_AT));
-  raw.world.player.cash = listed.ok ? listed.priceAnchor : 0;
-  const funded = new GameSession();
-  funded.load(JSON.stringify(raw));
-  expect(funded.buySectorForSale(assetId).ok).toBe(true);
-  return funded.profile();
+  const vote = session.act("voteCeo", { corpId: "US-media", candidateId: "player" });
+  expect(vote.ok, vote.error).toBe(true);
+  expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
+  expect(session.act("setCorporationCompensation", {
+    corpId: "US-media",
+    salaryPerTurn: 1_000,
+    dividendRate: 25,
+  }).ok).toBe(true);
+  session.advance();
+  const reloaded = new GameSession();
+  reloaded.load(session.serialize(SAVED_AT));
+  return reloaded.profile();
 }
 
 function renderPanel(profile: ProfileView, onNavigate: (route: DrawerRouteId, id?: string) => void) {
@@ -65,9 +68,9 @@ describe("#51 profile corporation card", () => {
     expect(corporationSection()).toBeNull();
   });
 
-  it("omits the card for a recorded shareholder with no sector ownership", () => {
+  it("omits the card for a recorded shareholder with no CEO appointment", () => {
     const session = new GameSession();
-    session.create(OPTIONS);
+    session.create({ era: "1953", countryId: "US", seed: "native-profile-ceo-card", playerName: "Alex" });
     expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
     renderPanel(session.profile(), vi.fn());
     expect(corporationSection()).toBeNull();
@@ -85,7 +88,7 @@ describe("#51 profile corporation card", () => {
     expect(text).toMatch(new RegExp(entry.ticker));
     expect(text).toContain(entry.name);
     expect(getComputedStyle(card!.querySelector("[data-corporation-brand]")!).color).toBe("rgb(6, 182, 212)");
-    expect(text).toMatch(/Sector owner/);
+    expect(text).toMatch(/CEO/);
     expect(text).toMatch(/Corporate cash/);
     expect(text).toMatch(/Your shares/);
     expect(text).toMatch(/Controlling holder/);
@@ -109,6 +112,22 @@ describe("#51 profile corporation card", () => {
     expect(card.textContent).toMatch(/CEO/);
     screen.getByRole("button", { name: "View company: Daily Media" }).click();
     expect(onNavigate).toHaveBeenCalledWith("markets", "US-media");
+  });
+
+  it("shows the source national-enterprise note for a recorded state-enterprise CEO", () => {
+    const session = new GameSession();
+    session.create(CEO_OPTIONS);
+    expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
+    expect(session.act("voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);
+    expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
+    // Nationalization is outside this card slice. Load a valid recorded
+    // state-enterprise fixture through the public save boundary.
+    const saved = JSON.parse(session.serialize(SAVED_AT));
+    saved.world.corporations["US-media"].ownershipState = "stateOwned";
+    saved.world.corporations["US-media"].countryOwnerId = "US";
+    session.load(JSON.stringify(saved));
+    renderPanel(session.profile(), vi.fn());
+    expect(corporationSection()!.textContent).toContain("National enterprise");
   });
 
   it("supports the complete shareholder CEO and compensation path on the company detail", async () => {

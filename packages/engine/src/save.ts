@@ -17,7 +17,7 @@ import { seedCorporations, tickerForSector, SOURCE_NPP_HEADQUARTERS_REGION, corp
 import { rngFromSeed } from "./rng.js";
 import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } from "./playerImages.js";
 import type { WorldState } from "./types.js";
-import type { CorporationType, ShareholderEntry } from "./corporation/types.js";
+import { CORPORATION_TYPES, type CorporationType, type ShareholderEntry } from "./corporation/types.js";
 import { CEO_INITIAL_SHARES, NPC_FOUNDER_SHARE_FRACTION, DEFAULT_SHARE_PRICE } from "./market/constants.js";
 import { seedUnions } from "./unions/founding.js";
 import {
@@ -448,9 +448,12 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
       if (!isRecord(projectionDefaults)) {
         return { ok: false, error: `Corporation ${corpId} has invalid legacy identity provenance` };
       }
+      const sector = CORPORATION_TYPES.find(candidate => candidate === corp["sectorType"]);
+      if (sector === undefined) return { ok: false, error: `Corporation ${corpId} has invalid sector identity` };
+      const identity = corporationIdentity(String(corp["countryId"]), sector);
       const expected: Record<string, string | undefined> = {
-        name: corporationIdentity(String(corp["countryId"]), String(corp["sectorType"])).name,
-        brandColor: corporationIdentity(String(corp["countryId"]), String(corp["sectorType"])).brandColor,
+        name: identity.name,
+        brandColor: identity.brandColor,
         headquartersRegionId: SOURCE_NPP_HEADQUARTERS_REGION[String(corp["countryId"])],
       };
       for (const [field, isDefault] of Object.entries(projectionDefaults)) {

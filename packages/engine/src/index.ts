@@ -127,7 +127,8 @@ export type {
   UnionMoveArgs,
   UnionMoveResult,
 } from "./unions/actions.js";
-export type { BargainingTerms, BargainingCampaign, CollectiveAgreement } from "./unions/campaigns.js";
+export type { BargainingCampaign, CollectiveAgreement } from "./unions/campaigns.js";
+export type { BargainingTerms } from "./unions/bargaining.js";
 export { organizeSectorAction, organizeSectorTreasuryCost, organizeUnionAction } from "./unions/organizingActions.js";
 export { setUnionDuesAction } from "./unions/duesActions.js";
 export type { SetUnionDuesResult } from "./unions/duesActions.js";

@@ -767,11 +767,13 @@ function CompanyDetail({
   const [salaryPerTurn, setSalaryPerTurn] = useState(String(listing.ceoSalaryPerTurn ?? 0));
   const [dividendRate, setDividendRate] = useState(String(listing.dividendRate ?? 0));
   const [error, setError] = useState<string | null>(null);
+  const [compensationError, setCompensationError] = useState<string | null>(null);
 
   useEffect(() => {
     setSalaryPerTurn(String(listing.ceoSalaryPerTurn ?? 0));
     setDividendRate(String(listing.dividendRate ?? 0));
     setError(null);
+    setCompensationError(null);
   }, [listing.id]);
 
   const parsed = parseShareCount(shares);
@@ -814,10 +816,10 @@ function CompanyDetail({
     const salary = Number(salaryPerTurn);
     const dividend = Number(dividendRate);
     if (!Number.isFinite(salary) || salary < 0 || !Number.isFinite(dividend) || dividend < 0 || dividend > 25) {
-      setError("Enter a non-negative salary and a dividend rate from 0 to 25%.");
+      setCompensationError("Enter a non-negative salary and a dividend rate from 0 to 25%.");
       return;
     }
-    setError(null);
+    setCompensationError(null);
     onAction("setCorporationCompensation", { corpId: listing.id, salaryPerTurn: salary, dividendRate: dividend });
   };
 
@@ -974,7 +976,7 @@ function CompanyDetail({
             </button>
           </div>
         ) : null}
-        {error ? <p role="alert" className="ahd-error">{error}</p> : null}
+        {compensationError ? <p role="alert" className="ahd-error">{compensationError}</p> : null}
         <p className="ahd-muted" style={{ fontSize: "0.72rem", margin: "0.4rem 0 0" }}>
           CEO candidacy follows the corporation's recorded headquarters region. Salary settles before tax; dividends are limited to 25% of positive after-tax income.
         </p>

@@ -3,7 +3,7 @@ import { createWorld } from "../world.js";
 import { executeAction } from "./execute.js";
 import { serializeSave } from "../save.js";
 
-function ready(funds = 25_000) {
+function ready(funds = 0) {
   const world = createWorld({ era: "1953", countryId: "US", seed: "caucus-accounting", playerName: "Ada" });
   // Exact accounting boundary, not a simulated career.
   world.player.partyId = "US_DEM";
@@ -13,16 +13,17 @@ function ready(funds = 25_000) {
 }
 
 describe("caucus founding through the public action", () => {
-  it.each([25_000, 40_000, 50_000])("charges the single advertised 25k with %i available", (funds) => {
+  it.each([0, 25_000, 40_000])("creates for free with %i funds on hand", (funds) => {
     const world = ready(funds);
     expect(executeAction(world, "player", "createCaucus", { caucusName: "Blue Dog", caucusTaxRate: 2.5 }).ok).toBe(true);
-    expect(world.player.funds).toBe(funds - 25_000);
-    expect(world.player.actions).toBe(5);
+    expect(world.player.funds).toBe(funds);
+    expect(world.player.actions).toBe(9);
     expect(world.player.actionCounts.createCaucus).toBe(1);
-    expect(world.caucuses).toEqual([expect.objectContaining({ name: "Blue Dog", taxRate: 2.5, memberIds: ["player"] })]);
+    expect(world.caucuses).toEqual([expect.objectContaining({ name: "Blue Dog", taxRate: 2.5, memberIds: ["player"], chairId: "player" })]);
   });
-  it("rejects insufficient funds without changing the save", () => {
-    const world = ready(24_999);
+  it("rejects a missing party without changing the save", () => {
+    const world = ready(0);
+    world.player.partyId = null;
     const before = serializeSave(world, "2026-09-10T00:00:00.000Z");
     expect(executeAction(world, "player", "createCaucus", { caucusName: "Blue Dog" }).ok).toBe(false);
     expect(serializeSave(world, "2026-09-10T00:00:00.000Z")).toBe(before);

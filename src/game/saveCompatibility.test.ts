@@ -28,6 +28,13 @@ function loadAuthenticV42(): string {
 }
 
 describe("schema 42 projection of public save envelopes", () => {
+  it("refuses fresh TFP state that the historical engine does not consume", () => {
+    const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false, error: expect.stringContaining("Regional metric records"),
+    });
+  });
+
   it("reproduces the authentic v42 fixture from a Native-migrated current-schema reload", () => {
     expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(44);
     const authentic = loadAuthenticV42();
@@ -60,6 +67,8 @@ describe("schema 42 projection of public save envelopes", () => {
   it("projects a Native-fresh world with source-backed issuer identity and reloads that identity", () => {
     const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
     expect(world.player.homeRegionId).toBe("AL");
+    // Isolate the supported identity extension from the fresh TFP guard.
+    world.regionalMetrics = {};
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projected.ok).toBe(true);
     if (!projected.ok) throw new Error(projected.error);
@@ -111,6 +120,7 @@ describe("schema 42 projection of public save envelopes", () => {
     ];
     for (const [field, value] of unsupportedStates) {
       const world = createWorld({ seed: "v42-ceo-refusal", playerName: "Validator", countryId: "US", era: "1953" });
+      world.regionalMetrics = {};
       Object.assign(world.corporations["US-media"]!, { [field]: value });
       const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
       expect(projected.ok, field).toBe(false);
@@ -125,6 +135,7 @@ describe("schema 42 projection of public save envelopes", () => {
       era: "1953",
       homeRegionId: "DC",
     });
+    playerWorld.regionalMetrics = {};
     expect(executeAction(playerWorld, "player", "buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
     expect(executeAction(playerWorld, "player", "voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);
     expect(projectSaveToV42(serializeSave(playerWorld, SAVED_AT))).toMatchObject({

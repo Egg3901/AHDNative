@@ -26,10 +26,9 @@
  *    from the recorded per-region policy rows in WorldState.regionalMetrics
  *    (schema v45), population-weighted, gated by isMetricActive. That mirrors
  *    mainline nationalMetrics.ts, whose every metric is a weighted aggregate of
- *    regional values. There is still NO seed-time per-region source for them
- *    (E01 above; Region carries population/GDP/labor only — types.ts Region),
- *    so a default world has no rows and the leaves stay absent. We never
- *    invent a national stand-in for the missing regional input.
+ *    regional values. createWorld seeds playable country/era rows from the
+ *    Game pin (metrics/tfpSeed.ts). Countries without a ported seed stay absent.
+ *    We never invent a national stand-in for a missing regional input.
  *  - Enacted-law/flagship-law lists for law-weighted signals: E02_LEGISLATION_LAW_TAGS
  *  - FTA/tariff pressure for cost-of-living: E03_TARIFF_FTA_COVERAGE (see inflationRecalc)
  *
@@ -114,13 +113,14 @@ export function computeNationalMetricsForCountry(
 
   // ── TFP basket leaves (the six exact AHDGame tfpBasket paths) ────────────
   // Mainline's nationalMetrics.ts aggregates every metric from
-  // population-weighted per-region values. Solo has no seed-time per-region
-  // metric store (E01_PER_STATE_METRICS), but regional-scope policy effects DO
-  // persist real per-region rows in WorldState.regionalMetrics (schema v45), so
-  // this aggregates whatever is actually recorded — population-weighted, and
-  // era-gated exactly like the economic family above. No synthetic seeds and no
-  // national stand-in: when no region records a leaf it stays absent and
-  // macroCountryTurn falls back to TFP_REFERENCE_INPUTS (TFP_BASELINE 1.2).
+  // population-weighted per-region values. createWorld seeds playable
+  // country/era rows from the Game pin (metrics/tfpSeed.ts); regional-scope
+  // policy/ministerial writes persist in WorldState.regionalMetrics (schema
+  // v45). This aggregates whatever
+  // is actually recorded — population-weighted, and era-gated exactly like the
+  // economic family above. No synthetic seeds and no national stand-in: when no
+  // region records a leaf it stays absent and macroCountryTurn falls back to
+  // TFP_REFERENCE_INPUTS (TFP_BASELINE 1.2).
   const countryRegionIds = Object.values(world.regions)
     .filter((region) => region.countryId === countryId)
     .map((region) => region.id);

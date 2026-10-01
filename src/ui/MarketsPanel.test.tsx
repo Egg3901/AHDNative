@@ -553,7 +553,7 @@ describe("MarketsPanel ownership discovery", () => {
     expect(screen.getByText(/5,100,000 shares/)).toBeInTheDocument();
     expect(screen.getByText(/25 shares · avg/)).toBeInTheDocument();
     // The engine records holder kinds only — no personal owner identity is invented.
-    expect(screen.queryByText(/owned by|john smith/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/owned by|You are the recorded CEO|chief executive|john smith/i)).not.toBeInTheDocument();
   });
 
   it("states plainly when a corporation has no recorded shareholders", async () => {
