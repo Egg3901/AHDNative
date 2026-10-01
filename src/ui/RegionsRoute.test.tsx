@@ -173,6 +173,7 @@ describe("RegionsRoute sector inventory", () => {
       countryId: "US",
       playerName: "Alex",
       seed: "region-sector-sale-flow",
+      homeRegionId: "DC",
     });
     const assetId = session
       .markets()
@@ -180,6 +181,8 @@ describe("RegionsRoute sector inventory", () => {
     expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(
       true,
     );
+    expect(session.act("voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);
+    expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
     expect(session.listSectorForSale(assetId).ok).toBe(true);
     expect(session.unlistSectorForSale(assetId).ok).toBe(true);
 

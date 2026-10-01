@@ -440,7 +440,7 @@ describe("SectorsPanel directory", () => {
     expect(onOpenRegion).toHaveBeenCalledWith("us-ca");
   });
 
-  it("buys an affordable listing, refuses short cash, and fails closed without a handler", async () => {
+  it("buys an affordable listing and refuses insufficient corporate capital", async () => {
     const user = userEvent.setup();
     const onSectorSale = vi.fn();
     const assetId = "corporate-sector:US:retail:US-retail";
@@ -458,6 +458,7 @@ describe("SectorsPanel directory", () => {
           sectorType: "retail",
           forSale: { priceAnchor: 500 },
         },
+        sectorBuyerOptions: [{ id: "US-financial", name: "US-financial", countryId: "US", currency: "USD", liquidCapital: 50_000, rate: 1 }],
       });
     const markets = makeMarkets({
       countries: [
@@ -477,11 +478,11 @@ describe("SectorsPanel directory", () => {
 
     renderPanel(
       makeMarkets({
-        playerCash: 10,
+        playerCash: 50_000,
         countries: [
           { id: "US", name: "United States", currency: "USD", listingCount: 1 },
         ],
-        listings: [listed()],
+        listings: [{ ...listed(), sectorBuyerOptions: [{ id: "US-financial", name: "US-financial", countryId: "US", currency: "USD", liquidCapital: 10, rate: 1 }] }],
       }),
       { onSectorSale },
     );
@@ -517,6 +518,7 @@ describe("SectorsPanel directory", () => {
               sectorType: "retail",
               forSale: { priceAnchor: 500 },
             },
+            sectorBuyerOptions: [{ id: "US-financial", name: "US-financial", countryId: "US", currency: "USD", liquidCapital: 50_000, rate: 1 }],
           }),
         ],
       }),
