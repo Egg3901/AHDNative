@@ -3217,6 +3217,11 @@ export function deserializeSave(raw: string): WorldState {
     }
     save.world.meta.schemaVersion = 50;
   }
+  // v50 -> v51: source political dynamics. Existing saves retain the recorded
+  // absence of boards and cabinet snapshots. Seeding a progressed game here
+  // would invent scores and history. The new version keeps older readers
+  // from accepting and freezing the new turn-dependent records.
+  if (save.schemaVersion < 51) save.world.meta.schemaVersion = 51;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

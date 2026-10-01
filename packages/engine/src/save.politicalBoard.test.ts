@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { createWorld, deserializeSave, projectSaveToV42, serializeSave } from "./index.js";
+import { advanceTurn, createWorld, deserializeSave, projectSaveToV42, serializeSave } from "./index.js";
 
 const recorded = () => deserializeSave(gunzipSync(readFileSync(new URL("../../../fixtures/native-fresh-pre-ceo-source.save.json.gz", import.meta.url))).toString("utf8"));
 
@@ -20,6 +20,20 @@ describe("source political boards at the public save boundary", () => {
     const saved = JSON.parse(serializeSave(world, "2026-10-01T00:00:00.000Z"));
     saved.world.regionalPoliticalMetrics.LON.countryId = "US";
     expect(() => deserializeSave(JSON.stringify(saved))).toThrow(/Political board.*LON.*country/);
+  });
+  it("migrates an older progressed save without inventing political-board history", () => {
+    const saved = JSON.parse(serializeSave(recorded(), "2026-10-01T00:00:00.000Z"));
+    saved.schemaVersion = 50;
+    saved.world.meta.schemaVersion = 50;
+    delete saved.world.regionalPoliticalMetrics;
+    delete saved.world.politicalCabinetContributions;
+    const loaded = deserializeSave(JSON.stringify(saved));
+    advanceTurn(loaded);
+    expect(loaded.regionalPoliticalMetrics).toBeUndefined();
+    expect(loaded.politicalCabinetContributions).toBeUndefined();
+    // Schema51 marks the first reader that can continue the new recorded
+    // dynamics. Older readers reject it instead of freezing unknown state.
+    expect(JSON.parse(serializeSave(loaded, "2026-10-01T00:00:00.000Z")).schemaVersion).toBe(51);
   });
 
 });
