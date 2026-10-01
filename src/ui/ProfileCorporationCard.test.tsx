@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { GameSession } from "../game/session";
 import type { ProfileView } from "../game/profileTypes";
 import type { ProfileCorporationEntry } from "../game/profileCorporation";
+import type { GameActionParams } from "../game/types";
 import { ProfilePanel } from "./ProfilePanel";
 import { MarketsPanel } from "./MarketsPanel";
 import type { DrawerRouteId } from "./MobileNavigation";
@@ -132,7 +133,7 @@ describe("#51 profile corporation card", () => {
     session.create(CEO_OPTIONS);
     expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
     const user = userEvent.setup();
-    const onAction = vi.fn((id: string, params?: Record<string, string | number>) => { session.act(id, params); });
+    const onAction = vi.fn((id: string, params?: GameActionParams) => { session.act(id, params); });
     const page = render(<MarketsPanel markets={session.markets()} initialId="US-media" busy={false} onAction={onAction} />);
 
     await user.click(screen.getByRole("button", { name: "Vote yourself as CEO" }));
