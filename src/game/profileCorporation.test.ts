@@ -4,7 +4,7 @@ import { GameSession } from "./session";
 import { projectProfileCorporations } from "./profileCorporation";
 
 const OPTIONS = { era: "1953", countryId: "US", seed: "native-profile-ceo-51", playerName: "Alex" };
-const CEO_OPTIONS = { era: "1953", countryId: "US", homeRegionId: "DC", seed: "native-profile-ceo-51", playerName: "Alex" };
+const CEO_OPTIONS = { ...OPTIONS, homeRegionId: "DC" };
 const SAVED_AT = "2026-09-18T00:00:00.000Z";
 
 /** Recorded sector-asset id for US-media through the public markets projection. */
@@ -14,23 +14,16 @@ function mediaAssetId(session: GameSession): string {
   return listing!.sectorAsset.id;
 }
 
-/**
- * Full public owner flow: buy a recorded share (sale authority), list the
- * sector, fund the asking price through a save round-trip, then acquire.
- */
-function sessionOwningMedia(): { session: GameSession; assetId: string } {
+/** The source Profile card follows recorded active-CEO identity, not shares. */
+function sessionLeadingMedia(): { session: GameSession; assetId: string } {
   const session = new GameSession();
-  session.create(OPTIONS);
+  session.create(CEO_OPTIONS);
   expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
+  const vote = session.act("voteCeo", { corpId: "US-media", candidateId: "player" });
+  expect(vote.ok, vote.error).toBe(true);
+  expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
   const assetId = mediaAssetId(session);
-  const listed = session.listSectorForSale(assetId);
-  expect(listed.ok).toBe(true);
-  const raw = JSON.parse(session.serialize(SAVED_AT));
-  raw.world.player.cash = listed.ok ? listed.priceAnchor : 0;
-  const funded = new GameSession();
-  funded.load(JSON.stringify(raw));
-  expect(funded.buySectorForSale(assetId).ok).toBe(true);
-  return { session: funded, assetId };
+  return { session, assetId };
 }
 
 describe("#51 profile corporation projection", () => {
@@ -110,8 +103,8 @@ describe("#51 profile corporation projection", () => {
     });
   });
 
-  it("copies the owned listing verbatim from the same projection the company detail renders", () => {
-    const { session } = sessionOwningMedia();
+  it("copies the recorded CEO listing from the same projection the company detail renders", () => {
+    const { session } = sessionLeadingMedia();
     const world = deserializeSave(session.serialize(SAVED_AT));
     const entries = projectProfileCorporations(world);
     expect(entries).toHaveLength(1);
@@ -134,7 +127,7 @@ describe("#51 profile corporation projection", () => {
       controllingHolder: listing.controllingHolder,
       brandColor: listing.brandColor,
       isStateOwned: false,
-      role: "sector owner",
+      role: "ceo",
       ceoSalaryPerTurn: 0,
       dividendIncomePerTurn: 0,
       scope: listing.sectorAsset.scope,
@@ -144,7 +137,7 @@ describe("#51 profile corporation projection", () => {
   });
 
   it("follows persisted ownership across save and reload", () => {
-    const { session } = sessionOwningMedia();
+    const { session } = sessionLeadingMedia();
     const before = session.profile().corporations;
     expect(before).toHaveLength(1);
     const reloaded = new GameSession();
@@ -152,13 +145,11 @@ describe("#51 profile corporation projection", () => {
     expect(reloaded.profile().corporations).toEqual(before);
   });
 
-  it("loses the entry when the persisted owner reverts (role lost)", () => {
-    const { session, assetId } = sessionOwningMedia();
-    const raw = JSON.parse(session.serialize(SAVED_AT));
-    expect(raw.world.corporateSectors?.[assetId]?.owner).toBe("player");
-    raw.world.corporateSectors[assetId].owner = "corporation";
+  it("loses the entry when recorded CEO authority is resigned", () => {
+    const { session } = sessionLeadingMedia();
+    expect(session.act("resignCeo", { corpId: "US-media" }).ok).toBe(true);
     const reloaded = new GameSession();
-    reloaded.load(JSON.stringify(raw));
+    reloaded.load(session.serialize(SAVED_AT));
     expect(reloaded.profile().corporations).toEqual([]);
   });
 
@@ -166,7 +157,10 @@ describe("#51 profile corporation projection", () => {
     // Save validation rejects a sector asset whose corporation is gone, so a
     // removed corporation fails loudly at load instead of projecting a card
     // for a company that no longer exists.
-    const { session } = sessionOwningMedia();
+    const { session, assetId } = sessionLeadingMedia();
+    // Listing through the authorized CEO route materializes the persisted
+    // asset record that save validation checks against the corporation map.
+    expect(session.listSectorForSale(assetId).ok).toBe(true);
     const raw = JSON.parse(session.serialize(SAVED_AT));
     delete raw.world.corporations["US-media"];
     const reloaded = new GameSession();

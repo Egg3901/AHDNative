@@ -173,16 +173,19 @@ describe("runReferendumLifecycle (W25)", () => {
 
     runReferendumLifecycle(w);
     expect(ref.status).toBe("completed");
-    expect(w.regions.SCO!.countryId).toBe("SCO");
+    expect(w.regions.SCO).toBeUndefined();
+    expect(Object.values(w.regions).filter((region) => region.countryId === "SCO").map((region) => region.id).sort())
+      .toEqual(["CSC", "GLA", "GRA", "HIG", "LOT", "STH", "TAY"]);
     expect(w.countries.SCO).toMatchObject({
       id: "SCO",
       name: "Scotland",
       playable: true,
     });
 
+    const regionsAfter = structuredClone(w.regions);
     runReferendumLifecycle(w);
     expect(ref.status).toBe("completed");
-    expect(w.regions.SCO!.countryId).toBe("SCO");
+    expect(w.regions).toEqual(regionsAfter);
   });
 
   it("requires both Westminster and Dáil consent before reunification", () => {

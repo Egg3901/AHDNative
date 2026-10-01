@@ -1,0 +1,32 @@
+Natural Earth 1:110m admin-0 countries (public domain)
+=====================================================
+
+Asset: src/game/geo/countries-110m.json (TopoJSON Topology, 177 country
+features, quantized arcs + transform).
+
+Source: AHDGame public/geo/countries-110m.json at immutable rev
+08820d108bf986d519aed28c2963690dd772c652, itself derived from Natural
+Earth 1:110m admin-0 boundaries (world-atlas TopoJSON family). Copied
+verbatim; no geometry edited, added, or repositioned.
+
+Rights: Natural Earth data is public domain
+(https://www.naturalearthdata.com/about/terms-of-use/). No attribution
+is legally required; this file records provenance anyway. No boreholes,
+no third-party licensed shapes, no invented territories: dissolved
+historical states with no single modern feature (Yugoslavia,
+Czechoslovakia, East Germany) have no polygon in this asset and render
+as an honest geometry gap, exactly as the AHDGame world globe treats
+them (region-shard overlays, not base features).
+
+Reference behavior preserved (AHDGame src/app/world/components/
+WorldMapSVG.tsx + MapSVGContent.tsx at the pinned rev):
+- /map redirects to the country-scoped /country/[code]/map.
+- Only registered/mapped countries are clickable; unregistered land is
+  drawn but inert.
+- The offline port uses a flat equirectangular projection instead of
+  the server globe's orthographic rotation (phone-first adaptation;
+  layout may differ, selection behavior is preserved).
+
+ISO numeric -> game CountryId mapping is ported from AHDGame
+src/lib/worldCountryRegistry.ts (WORLD_COUNTRY_ISO_TO_ID) at the same
+pinned rev; see src/game/worldGeo.ts.

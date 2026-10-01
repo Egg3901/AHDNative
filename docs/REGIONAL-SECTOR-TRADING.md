@@ -5,7 +5,7 @@ Corporations views. Each asset reports its sector, corporation link, ownership,
 workers, union and sale status. List, update price, unlist and buy use the same
 session commands and permissions as company detail.
 
-Game reference: `08820d108bf986d519aed28c2963690dd772c652`.
+Game reference: `01797b27082b098fdf3929bb498215c94c8dda24`.
 The reference region page establishes the regional context; the corporate-sector
 HeroCard links its region/corporation and reports For Sale pricing. The Native
 mobile card preserves that hierarchy and adds the requested workforce information.
@@ -21,9 +21,20 @@ persist; no stale Buy control or horizontal overflow remains. Fresh worlds seed
 national assets, so the regional fixture does not claim regional initialization
 or asset splitting is implemented. No physical-device result is claimed.
 
-Disposition: #299 remains partial. Its current purchase command uses personal
-cash and records character ownership. Game instead requires CEO authority, buyer
-corporation capital, seller proceeds and corporate asset transfer or merge. That
-source purchase journey remains required before closure. #297 and #322
-remain partial for leadership, employer authority and political consequences;
-#211 and #114 are reference only and stay open for their broader acceptance.
+Disposition: closes #299 after the full hosted gate and merge. Active CEO
+identity authorizes seller listing and buyer-corporation selection. The buyer
+corporation pays the anchor price converted to its currency; the seller receives
+its own currency amount. The asset transfers to the corporation, preserving its
+region, workforce and union, or merges into its existing same-region sector.
+The player pays no personal cash. Shareholding alone, vacant CEO authority,
+state-owned selling, self-purchase, invalid listing and insufficient corporate
+funds refuse before mutation.
+
+The public browser fixture records regional assets and earns both CEO seats
+through the actual share purchase, vote and appointment controls. Both widths
+perform listing, repricing, CEO handoff, corporate purchase, unlisting and two
+normal save/resume cycles. Source comparison follows the CEO seller and buyer
+content groups in `ForSalePanel.tsx`. The integrated engine sale/acquire suite
+passes 20 cases, the session/save/profile group 36, the shared sale UI 62 and the
+profile card 12. #297 is already closed; #322/#114 retain broader worker feedback
+and labor acceptance. #211 remains open for nationalization/secession #298.

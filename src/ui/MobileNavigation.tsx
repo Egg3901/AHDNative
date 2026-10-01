@@ -5,7 +5,7 @@ export type DrawerRouteId =
   | "actions" | "parties" | "legislature" | "elections" | "news"
   | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "campaignDetails"
   | "politicians" | "presidentialDetails" | "politicalMetrics"
-  | "economy" | "budget" | "policy" | "metrics" | "commandEconomy" | "nations" | "worldDirectory" | "worldMap" | "state" | "government"
+  | "economy" | "budget" | "policy" | "metrics" | "commandEconomy" | "nations" | "worldDirectory" | "worldMap" | "hallOfFame" | "state" | "government"
   | "help" | "settings" | "legislationDetails" | "markets" | "sectors" | "search"
   | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications" | "referendums"
   | "worldSettings" | "ask";
@@ -51,13 +51,16 @@ export interface DrawerNavGroup {
  * Intentional Native deviations, recorded here per the standing rule:
  *  - The reference World's Map and Nation's "Other" (Map) entries are covered
  *    by one offline Native destination: "World map" under World > Diplomacy
- *    (#73). It is a directory over the actual projected nations and regions,
- *    not a plotted geographic surface: the save records no coordinates.
- *    "World directory" (same group, #73) is the nations-only read-only slice
- *    of that data: every row comes from `projectWorldOverview` and opens the
- *    existing Nations detail route. World's "Leaderboards" (Hall of Fame) and
- *    the remaining Diplomacy extras have no reachable destination, so those
- *    rows are omitted rather than shown as placeholders.
+ *    (#73). It pairs a code-native schematic tile grid with a directory over
+ *    the actual projected nations and regions, not a plotted geographic
+ *    surface: the save records no coordinates. "World directory" (same
+ *    group, #73) is the nations-only read-only slice of that data: every
+ *    row comes from `projectWorldOverview` and opens the existing Nations
+ *    detail route. World's "Leaderboards" (Hall of Fame, #73) ranks the
+ *    recorded player plus the player-country politician roster offline; the
+ *    cross-player Mongo board stays on the authoritative server. The
+ *    remaining Diplomacy extras have no reachable destination, so those rows
+ *    are omitted rather than shown as placeholders.
  *  - Search is a routed destination in Native, so it sits under Help (the
  *    reference renders an inline search field above the profile card).
  *  - The reference profile-card link labelled Wallet maps to Native's
@@ -164,6 +167,12 @@ export const MENU_GROUPS: DrawerNavGroup[] = [
         items: [
           { id: "news", label: "News" },
           { id: "worldSettings", label: "World settings" },
+        ],
+      },
+      {
+        label: "Leaderboards",
+        items: [
+          { id: "hallOfFame", label: "Hall of Fame" },
         ],
       },
     ],

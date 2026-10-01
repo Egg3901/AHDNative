@@ -192,6 +192,13 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // wage base), and a dedicated re-golden will restore mainline order.
   unionsTurnPhase,
   nppUnionBehaviorPhase,
+  // #111 savings and household-bank settlement at the source edge: Game runs
+  // savingsInterestTurn (11) and bankingTurn (13) after NPP unions (7), before
+  // pensionTurn (15) and macroCountryTurn (17). This uses the bank's prior
+  // settled prime/inflation state; later macro, inflation, and central-bank
+  // phases write the next turn's pricing inputs. These phases are RNG-free.
+  playerSavingsInterestPhase,
+  bankingTurnPhase,
   pensionTurnPhase,
   macroCountryTurnPhase,
   turnoutDecayPhase,
@@ -276,22 +283,6 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   subsidyBudgetPhase,
   fiscalYearPhase,
   regionalBudgetProcessingPhase,
-  // W3 central bank cluster at end of ported subset, before newsMaintenance -
-  // same rng-stream-stability rule as the elections/demographics/budget blocks
-  // above (mainline runs this cluster mid-pipeline, at turnPhaseNames.ts
-  // indices 116-121; inserting it there would shift every downstream rng draw
-  // for existing goldens). centralBankChairTurn before centralBankChairSelection
-  // mirrors mainline's relative order.
-  centralBankChairTurnPhase,
-  // Issue #119: fomcMeetings → fomcNominations between centralBankChairTurn and
-  // centralBankChairSelection, the reference's relative order (turnPhaseNames.ts
-  // 116 centralBankChairTurn → fomcMeetings → fomcNominations → 121
-  // centralBankChairSelection). Both are strict no-ops for banks without an
-  // fomcBoard (legacy single-chair banks), so appending this pair does not shift
-  // any other phase's rng draws and every existing golden is unaffected.
-  fomcMeetingsPhase,
-  fomcNominationsPhase,
-  centralBankChairSelectionPhase,
   // W20 intra-party democracy cluster at END before newsMaintenance.
   // Ordering deviation: mainline runs statePartyElections/nationalPartyElections/
   // nationalCommitteeElections and coalitionDisbandCheck interleaved with partyOrg
@@ -367,25 +358,15 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   worldEventsSchedulerPhase,
   playerRandomEventsPhase,
   crisisTurnPhase,
-  // W12 private banking, at END before newsMaintenance - same rng-stream-
-  // stability rule as every other tail cluster above (mainline runs
-  // bankingTurn/bankSolvencyTurn mid-pipeline, immediately after
-  // savingsInterestTurn / recomputeSharePrices respectively; inserting them
-  // there would shift every downstream rng draw for existing goldens - and
-  // in solo's case the banking phases are RNG-free regardless, so the real
-  // reason is the same append-only-tail rule recomputeSharePricesPhase's own
-  // comment states, not an rng argument). playerSavingsInterestPhase handles
-  // only central-bank-held savings and runs before bankingTurnPhase, which
-  // exclusively handles private-bank-held savings. bankingTurnPhase before
-  // bankSolvencyTurnPhase mirrors mainline's real relative order (a bank's
+  // W12 private banking's solvency consumer remains at END before
+  // newsMaintenance. Its deposit/interest writer is at the source early edge
+  // above; bankSolvencyTurnPhase still mirrors mainline's relative order (a bank's
   // deposit/loan/interest flows settle before that same turn's solvency
   // pass evaluates the resulting cash position); bankSolvencyTurnPhase
   // itself runs after recomputeSharePricesPhase below, matching mainline's
   // stated order that bankSolvencyTurn runs "immediately after
   // recomputeSharePrices" (turnPhaseRegistry.ts) so the #328 prop-book
   // mark lands on fresh prices.
-  playerSavingsInterestPhase,
-  bankingTurnPhase,
   // #327 discount-window interest servicing, immediately after bankingTurn
   // and before bankSolvencyTurn — the reference's own relative order
   // (bankingTurn.ts runs serviceInterbankAndCbMargin at the end of its pass,
@@ -578,6 +559,14 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   nationalMetricsPhase,
   economicModelPhase,
   inflationRecalcPhase,
+  // Source ordering: inflationRecalc (118) < centralBankChairTurn (124).
+  // Rate changes are inputs to the next turn's savings and LOC pricing, not
+  // the balances being accrued/serviced in this turn. Keep the FOMC lifecycle
+  // adjacent to the rate decision, matching the source's 124..128 cluster.
+  centralBankChairTurnPhase,
+  fomcMeetingsPhase,
+  fomcNominationsPhase,
+  centralBankChairSelectionPhase,
   economicVitalSignsPhase,
   // W41 WorldHistory recording at the absolute END before newsMaintenance —
   // NOT an ordering deviation from mainline (unlike almost every other tail

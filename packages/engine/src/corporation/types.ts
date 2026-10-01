@@ -122,6 +122,14 @@ export interface Corporation {
   ceoSalaryPerTurn?: number;
   /** Dividend payout percentage of positive after-tax operating income. */
   dividendRate?: number;
+  /** Local currency allocated to R&D per Native seven-day turn. */
+  rdBudgetPerTurn?: number;
+  /** Source R&D productivity score, decayed and advanced from paid spend. */
+  rdScore?: number;
+  /** R&D cash actually charged last turn, in local currency per Native turn. */
+  lastRdSpendPerTurn?: number;
+  /** Plant stock added by the latest R&D breakthrough, in source output units/day. */
+  lastRdCapacityGain?: number;
   /** Realized cash outputs, retained for Profile and save/reload. */
   lastCeoSalaryPaid?: number;
   lastDividendPoolPaid?: number;
@@ -152,11 +160,15 @@ export interface Corporation {
   /**
    * Country owner for state-owned / nationalized corporations.
    * Source: corporation.ts `countryOwnerId`. Absent on private corps.
-   * Ported for the #307 corporate-bond issuer/owner slice and source-seeded
-   * RU/DD command-economy enterprises; player nationalization actions remain
-   * outside this slice.
+   * Ported from AHDGame's state-owned National Corporation lifecycle and
+   * #307 corporate-bond issuer/owner slice, including source-seeded RU/DD
+   * command-economy enterprises.
    */
   countryOwnerId?: string;
+  /** Set on the Native sector-specific National Corporation (source split-off mapping). */
+  isNationalCorporation?: true;
+  /** Source assignedSectorTypes mapping; Native uses one sector per issuer. */
+  assignedSectorTypes?: CorporationType[];
   /**
    * Ownership lifecycle state. Absence means "private" for back-compat —
    * use `isCorpStateOwned` (corporateBonds.ts), never branch on this field

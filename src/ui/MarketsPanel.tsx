@@ -15,7 +15,7 @@ import {
   evaluateShareTrade,
   parseShareCount,
 } from "../game/shareTrade";
-import { SECTOR_BUY_ALREADY_OWNED, SECTOR_LIST_OWNER_ONLY, evaluateSectorBuy, parseSalePrice } from "../game/markets";
+import { SECTOR_BUY_ALREADY_OWNED, SECTOR_LIST_OWNER_ONLY, SECTOR_LIST_STATE_OWNED, evaluateSectorBuy, parseSalePrice } from "../game/markets";
 import { COMMODITY_HERO_ALT, MARKETS_LIST_HERO_IMAGE, RouteHero, companyHero, companyHeroAlt } from "./RouteHero";
 import type { MarketListing, MarketsView, SectorSummary, ShareholderKind, TradeRouteSummary } from "../game/markets";
 import type { GameScreenProps } from "../game/types";
@@ -420,8 +420,6 @@ function ForSaleDirectory({
       {forSale.length === 0 ? null : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.5rem" }}>
           {forSale.map((listing) => {
-            const buyEval = evaluateSectorBuy(listing, { playerCash });
-            const buyDisabled = busy || !buyEval.available || onSectorSale == null;
             const playerOwned = listing.sectorAsset.owner === "player";
             return (
               <li
@@ -439,28 +437,7 @@ function ForSaleDirectory({
                 <span className="ahd-muted" style={{ fontSize: "0.74rem" }}>
                   {playerOwned ? "Owned by you" : `Owned by ${listing.name}`}
                 </span>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-                  <button
-                    type="button"
-                    className="ahd-btn ahd-btn-sm"
-                    onClick={() => onSectorSale?.("buy", { assetId: listing.sectorAsset.id })}
-                    disabled={buyDisabled}
-                    aria-disabled={buyDisabled}
-                    aria-label={`Buy ${listing.sectorLabel} sector (${listing.ticker})`}
-                    style={{ minHeight: 44, alignSelf: "flex-start" }}
-                  >
-                    Buy sector
-                  </button>
-                  {buyEval.available ? (
-                    <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
-                      Asking {formatFinanceMoney(buyEval.priceAnchor ?? 0, listing.currency)} · No action-point cost
-                    </span>
-                  ) : (
-                    <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
-                      {buyEval.disabledReason}
-                    </span>
-                  )}
-                </div>
+                <SectorSaleControls listing={listing} playerCash={playerCash} busy={busy} onSectorSale={onSectorSale} showBuy labelSuffix={` (${listing.ticker})`} />
               </li>
             );
           })}
@@ -593,9 +570,8 @@ function TradeContextCard({ listing }: { listing: MarketListing }) {
 
 /**
  * Owner-only sale listing controls (#294) plus the live Buy control (#295).
- * The engine authorizes listing changes only for a recorded shareholder of
- * the corporation, so the player must hold at least one share before
- * list/update/unlist enable; everyone else sees the gate reason instead. A
+ * Game authorizes listing changes only for the active CEO, so shareholding
+ * alone does not enable list/update/unlist; everyone else sees the gate reason. A
  * player-owned sector cannot be relisted (the engine refuses with the
  * already-owned reason), so List/Update stay held with that reason while
  * Unlist keeps clearing. Buy runs evaluateSectorBuy over the same projection
@@ -618,13 +594,19 @@ export function SectorSaleControls({
   labelSuffix?: string;
 }) {
   const [price, setPrice] = useState("");
+  const [buyerCorporationId, setBuyerCorporationId] = useState(listing.sectorBuyerOptions?.[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
   const listed = listing.sectorAsset.forSale;
-  const isOwner = listing.playerShares > 0;
+  const isOwner = listing.ceoId === "player" && listing.ceoVacant !== true;
+  const stateOwned = listing.isStateOwned;
   const playerOwned = listing.sectorAsset.owner === "player";
   const disabled = busy || !isOwner || onSectorSale == null;
-  const listDisabled = disabled || playerOwned;
-  const buyEval = evaluateSectorBuy(listing, { playerCash });
+  const listDisabled = disabled || playerOwned || stateOwned;
+  const buyerOptions = listing.sectorBuyerOptions ?? [];
+  const selectedBuyerCorporationId = buyerOptions.some((option) => option.id === buyerCorporationId)
+    ? buyerCorporationId
+    : buyerOptions[0]?.id ?? "";
+  const buyEval = evaluateSectorBuy(listing, { buyerCorporationId: selectedBuyerCorporationId });
   const buyDisabled = busy || !buyEval.available || onSectorSale == null;
 
   const update = () => {
@@ -695,6 +677,8 @@ export function SectorSaleControls({
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_BUY_ALREADY_OWNED}
             </span>
+          ) : stateOwned ? (
+            <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>{SECTOR_LIST_STATE_OWNED}</span>
           ) : !isOwner ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_LIST_OWNER_ONLY}
@@ -718,6 +702,8 @@ export function SectorSaleControls({
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_BUY_ALREADY_OWNED}
             </span>
+          ) : stateOwned ? (
+            <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>{SECTOR_LIST_STATE_OWNED}</span>
           ) : !isOwner ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_LIST_OWNER_ONLY}
@@ -726,10 +712,16 @@ export function SectorSaleControls({
         </div>
       )}
       <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+        {showBuy && listing.sectorBuyerOptions?.length ? <label className="ahd-field" style={{ maxWidth: "16rem" }}>
+          <span className="ahd-label">Buy with corporation</span>
+          <select className="ahd-input" value={selectedBuyerCorporationId} onChange={(event) => setBuyerCorporationId(event.target.value)} disabled={busy} aria-label="Buy with corporation">
+            {listing.sectorBuyerOptions.map((buyer) => <option key={buyer.id} value={buyer.id}>{buyer.name} · {buyer.currency} {buyer.liquidCapital.toLocaleString()}</option>)}
+          </select>
+        </label> : null}
         {showBuy ? <button
           type="button"
           className="ahd-btn ahd-btn-sm"
-          onClick={() => onSectorSale?.("buy", { assetId: listing.sectorAsset.id })}
+          onClick={() => onSectorSale?.("buy", { assetId: listing.sectorAsset.id, buyerCorporationId: selectedBuyerCorporationId })}
           disabled={buyDisabled}
           aria-disabled={buyDisabled}
           aria-label={`Buy ${listing.sectorLabel} sector${labelSuffix}`}
@@ -739,7 +731,7 @@ export function SectorSaleControls({
         </button> : null}
         {showBuy && buyEval.available ? (
           <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
-            Asking {formatFinanceMoney(buyEval.priceAnchor ?? 0, listing.currency)} · No action-point cost
+            Asking {formatFinanceMoney(buyEval.priceAnchor ?? 0, listing.currency)} · Buyer pays {formatFinanceMoney(buyEval.priceLocal ?? 0, buyerOptions.find((buyer) => buyer.id === selectedBuyerCorporationId)?.currency ?? listing.currency)}
           </span>
         ) : showBuy ? (
           <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
@@ -774,12 +766,16 @@ function CompanyDetail({
   const [shares, setShares] = useState("");
   const [salaryPerTurn, setSalaryPerTurn] = useState(String(listing.ceoSalaryPerTurn ?? 0));
   const [dividendRate, setDividendRate] = useState(String(listing.dividendRate ?? 0));
+  const [bondFaceValue, setBondFaceValue] = useState("100000");
+  const [bondMaturityTurns, setBondMaturityTurns] = useState("96");
+  const [rdBudgetPerTurn, setRdBudgetPerTurn] = useState(String(listing.rdBudgetPerTurn ?? 0));
   const [error, setError] = useState<string | null>(null);
   const [compensationError, setCompensationError] = useState<string | null>(null);
 
   useEffect(() => {
     setSalaryPerTurn(String(listing.ceoSalaryPerTurn ?? 0));
     setDividendRate(String(listing.dividendRate ?? 0));
+    setRdBudgetPerTurn(String(listing.rdBudgetPerTurn ?? 0));
     setError(null);
     setCompensationError(null);
   }, [listing.id]);
@@ -823,12 +819,27 @@ function CompanyDetail({
   const setCompensation = () => {
     const salary = Number(salaryPerTurn);
     const dividend = Number(dividendRate);
-    if (!Number.isFinite(salary) || salary < 0 || !Number.isFinite(dividend) || dividend < 0 || dividend > 25) {
-      setCompensationError("Enter a non-negative salary and a dividend rate from 0 to 25%.");
+    const rdBudget = Number(rdBudgetPerTurn);
+    if (!Number.isFinite(salary) || salary < 0 || !Number.isFinite(dividend) || dividend < 0 || dividend > 25 || !Number.isFinite(rdBudget) || rdBudget < 0) {
+      setCompensationError("Enter a non-negative salary and R&D budget, and a dividend rate from 0 to 25%.");
       return;
     }
     setCompensationError(null);
-    onAction("setCorporationCompensation", { corpId: listing.id, salaryPerTurn: salary, dividendRate: dividend });
+    onAction("setCorporationCompensation", { corpId: listing.id, salaryPerTurn: salary, dividendRate: dividend, rdBudgetPerTurn: rdBudget });
+  };
+  const issueBond = () => {
+    const faceValue = Number(bondFaceValue);
+    const maturityTurns = Number(bondMaturityTurns);
+    if (!Number.isFinite(faceValue) || faceValue < 100_000) {
+      setCompensationError("Corporate bonds require at least 100000 in anchor currency.");
+      return;
+    }
+    if (![96, 240, 336].includes(maturityTurns)) {
+      setCompensationError("Choose a 2, 5, or 7 year corporate bond term.");
+      return;
+    }
+    setCompensationError(null);
+    onAction("issueCorporateBond", { corpId: listing.id, faceValue, maturityTurns });
   };
 
   return (
@@ -904,6 +915,20 @@ function CompanyDetail({
             <dt style={{ fontSize: "0.82rem" }}>Margin</dt>
             <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem" }}>{listing.effectiveProfitMargin}%</dd>
           </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+            <dt style={{ fontSize: "0.82rem" }}>R&amp;D score</dt>
+            <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem" }}>{(listing.rdScore ?? 0).toFixed(2)}</dd>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+            <dt style={{ fontSize: "0.82rem" }}>Last R&amp;D spend</dt>
+            <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem" }}>{formatFinanceMoney(listing.lastRdSpendPerTurn ?? 0, listing.currency)}</dd>
+          </div>
+          {(listing.lastRdCapacityGain ?? 0) > 0 ? (
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem" }}>
+              <dt style={{ fontSize: "0.82rem" }}>Breakthrough capacity</dt>
+              <dd className="ahd-mono" style={{ margin: 0, fontSize: "0.82rem" }}>{listing.lastRdCapacityGain!.toLocaleString()} units/day</dd>
+            </div>
+          ) : null}
         </dl>
         <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: "0.55rem 0 0" }}>
           Quote {listing.currency}. Your cash: {formatFinanceMoney(markets.playerCash, markets.playerCurrency)} ({markets.playerCurrency}).
@@ -974,6 +999,11 @@ function CompanyDetail({
               <input aria-label="Dividend rate" type="number" min="0" max="25" step="0.1"
                 value={dividendRate} onChange={(event) => setDividendRate(event.target.value)} />
             </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "0.2rem", fontSize: "0.78rem" }}>
+              R&amp;D budget per turn ({listing.currency})
+              <input aria-label="R&D budget per turn" type="number" min="0" max={Math.max(0, listing.revenue) * 1.5}
+                step="0.01" value={rdBudgetPerTurn} onChange={(event) => setRdBudgetPerTurn(event.target.value)} />
+            </label>
             <button type="button" className="ahd-btn ahd-btn-sm" style={{ minHeight: 44, alignSelf: "flex-start" }}
               onClick={setCompensation} disabled={busy}>
               Save compensation
@@ -982,11 +1012,38 @@ function CompanyDetail({
               onClick={() => onAction("resignCeo", { corpId: listing.id })} disabled={busy}>
               Resign as CEO
             </button>
+            <h4 style={{ fontSize: "0.78rem", fontWeight: 750, margin: "0.45rem 0 0" }}>Issue corporate bond</h4>
+            {listing.corporateBondQuote ? (
+              <p style={{ margin: 0, fontSize: "0.76rem" }}>
+                {listing.corporateBondQuote.available
+                  ? `Rating ${listing.corporateBondQuote.creditRating} · 2y ${listing.corporateBondQuote.couponRates[96].toFixed(2)}% · 5y ${listing.corporateBondQuote.couponRates[240].toFixed(2)}% · 7y ${listing.corporateBondQuote.couponRates[336].toFixed(2)}% · max $${Math.floor(listing.corporateBondQuote.maximumFaceValue).toLocaleString()}`
+                  : listing.corporateBondQuote.reason}
+              </p>
+            ) : null}
+            <label style={{ display: "flex", flexDirection: "column", gap: "0.2rem", fontSize: "0.78rem" }}>
+              Face value (USD accounting anchor)
+              <input aria-label="Corporate bond face value" type="number" min="100000" step="1000"
+                value={bondFaceValue} onChange={(event) => setBondFaceValue(event.target.value)} disabled={busy} />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "0.2rem", fontSize: "0.78rem" }}>
+              Bond term
+              <select aria-label="Corporate bond term" value={bondMaturityTurns}
+                onChange={(event) => setBondMaturityTurns(event.target.value)} disabled={busy}>
+                <option value="96">2 years</option>
+                <option value="240">5 years</option>
+                <option value="336">7 years</option>
+              </select>
+            </label>
+            <button type="button" className="ahd-btn ahd-btn-sm" style={{ minHeight: 44, alignSelf: "flex-start" }}
+              onClick={issueBond} disabled={busy || listing.corporateBondQuote?.available === false
+                || (listing.corporateBondQuote !== undefined && Number(bondFaceValue) > listing.corporateBondQuote.maximumFaceValue)}>
+              Issue corporate bond
+            </button>
           </div>
         ) : null}
         {compensationError ? <p role="alert" className="ahd-error">{compensationError}</p> : null}
         <p className="ahd-muted" style={{ fontSize: "0.72rem", margin: "0.4rem 0 0" }}>
-          CEO candidacy follows the corporation's recorded headquarters region. Salary settles before tax; dividends are limited to 25% of positive after-tax income.
+          CEO candidacy follows the corporation's recorded headquarters region. Salary and R&amp;D spend settle before tax; R&amp;D score grows from paid budget. Dividends are limited to 25% of positive after-tax income.
         </p>
       </div>
 
@@ -1054,7 +1111,9 @@ function CompanyDetail({
         <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: 0 }}>
           Recorded sector state only. Worker and union mechanics arrive with their own slices (#296-#298).
         </p>
-        <SectorSaleControls listing={listing} playerCash={markets.playerCash} busy={busy} onSectorSale={onSectorSale} />
+        {listing.sectorAsset.recorded === false ? (
+          <p className="ahd-muted" style={{ fontSize: "0.74rem", margin: 0 }}>This issuer no longer owns its original sector asset.</p>
+        ) : <SectorSaleControls listing={listing} playerCash={markets.playerCash} busy={busy} onSectorSale={onSectorSale} />}
       </div>
 
       <div className="ahd-card ahd-card-pad">

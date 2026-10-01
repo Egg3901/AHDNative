@@ -40,6 +40,15 @@ export const fiscalBaseGrowthPhase: TurnPhase = {
         after[k] = Math.round(after[k]);
       }
       budget.taxBases = after;
+      // Mainline refreshes federal revenue in corporationTurn before its
+      // treasuryTurn advances an enacted tax-rate ramp. Keep this ordering:
+      // the enacted step is reflected in this turn's receipts, while the
+      // treasury step becomes the next turn's rate. Recomputing after the ramp
+      // would book one extra percentage point of tax in the same turn.
+      const rev = calculateBudgetRevenue(budget.taxRates, budget.taxBases, budget.revenue.other);
+      budget.revenue = rev;
+      // Keep surplus consistent
+      budget.surplus = rev.total - budget.spending.total;
       // Ticket #1102: walk any enacted tax-rate change one step toward its
       // target (mainline treasuryTurn.ts). Enactment/directive phases already
       // make the source's first step earlier in this turn, so do not advance
@@ -61,11 +70,6 @@ export const fiscalBaseGrowthPhase: TurnPhase = {
         }
         budget.taxRatePhaseIn = { ...ramp.pending, ...skipped } as typeof budget.taxRatePhaseIn;
       }
-      // Recompute revenue off grown bases so per-turn treasury accrual tracks live bases
-      const rev = calculateBudgetRevenue(budget.taxRates, budget.taxBases, budget.revenue.other);
-      budget.revenue = rev;
-      // Keep surplus consistent
-      budget.surplus = rev.total - budget.spending.total;
     }
     delete world.taxRatePhaseInStartedThisTurn;
   },

@@ -77,6 +77,7 @@ function makeMarkets(): MarketsView {
           { holder: "npc", shares: 5_100_000, avgCostPerShare: null },
         ],
         controllingHolder: "npc",
+        sectorBuyerOptions: [{ id: "US-financial", name: "US-financial", countryId: "US", currency: "USD", liquidCapital: 50_000, rate: 1 }],
         earningsHistory: [],
         priceHistory: [],
         buy: { id: "buyShares", name: "Buy Shares", cost: 0, available: true },
@@ -147,6 +148,7 @@ describe("RegionsRoute sector inventory", () => {
     );
     expect(onSectorSale).toHaveBeenCalledWith("buy", {
       assetId: "corporate-sector:US:media:US-media",
+      buyerCorporationId: "US-financial",
     });
 
     await user.click(
@@ -171,6 +173,7 @@ describe("RegionsRoute sector inventory", () => {
       countryId: "US",
       playerName: "Alex",
       seed: "region-sector-sale-flow",
+      homeRegionId: "DC",
     });
     const assetId = session
       .markets()
@@ -178,6 +181,8 @@ describe("RegionsRoute sector inventory", () => {
     expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(
       true,
     );
+    expect(session.act("voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);
+    expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
     expect(session.listSectorForSale(assetId).ok).toBe(true);
     expect(session.unlistSectorForSale(assetId).ok).toBe(true);
 

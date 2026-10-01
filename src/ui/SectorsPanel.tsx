@@ -164,10 +164,11 @@ function SectorRow({
   onOpenCompany: (listingId: string) => void;
   onOpenRegion: (regionId: string) => void;
 }) {
+  const [buyerCorporationId, setBuyerCorporationId] = useState(listing.sectorBuyerOptions?.[0]?.id ?? "");
   const owned = isSectorDirectoryOwned(listing);
   const asset = listing.sectorAsset;
   const forSale = asset.forSale;
-  const buyEval = evaluateSectorBuy(listing, { playerCash });
+  const buyEval = evaluateSectorBuy(listing, { buyerCorporationId });
   // Fail closed: an enabled-looking Buy must always reach the session command.
   const buyDisabled = busy || !buyEval.available || onSectorSale == null;
   const regionId = asset.regionId;
@@ -231,13 +232,12 @@ function SectorRow({
             {asset.workers.toLocaleString("en-US")}
           </span>
         </span>
-        <span>
-          {asset.owner === "player"
-            ? "Owned by you"
-            : listing.playerShares > 0
-              ? `You hold ${listing.playerShares.toLocaleString("en-US")} ${listing.playerShares === 1 ? "share" : "shares"}`
-              : "Unowned"}
-        </span>
+        <span>{asset.owner === "player" ? "Owned by you" : `Owned by ${listing.name}`}</span>
+        {listing.playerShares > 0 ? (
+          <span>
+            You hold {listing.playerShares.toLocaleString("en-US")} {listing.playerShares === 1 ? "share" : "shares"}
+          </span>
+        ) : null}
         <span>
           {forSale ? (
             <>
@@ -284,11 +284,17 @@ function SectorRow({
         <span
           style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}
         >
+          {listing.sectorBuyerOptions?.length ? <label className="ahd-field" style={{ maxWidth: "16rem" }}>
+            <span className="ahd-label">Buy with corporation</span>
+            <select className="ahd-input" value={buyerCorporationId} onChange={(event) => setBuyerCorporationId(event.target.value)} disabled={busy} aria-label={`Buy ${listing.sectorLabel} with corporation`}>
+              {listing.sectorBuyerOptions.map((buyer) => <option key={buyer.id} value={buyer.id}>{buyer.name} · {buyer.currency} {buyer.liquidCapital.toLocaleString()}</option>)}
+            </select>
+          </label> : null}
           <button
             type="button"
             className="ahd-btn ahd-btn-sm"
             style={{ minHeight: 44, alignSelf: "flex-start" }}
-            onClick={() => onSectorSale?.("buy", { assetId: asset.id })}
+            onClick={() => onSectorSale?.("buy", { assetId: asset.id, buyerCorporationId })}
             disabled={buyDisabled}
             aria-disabled={buyDisabled}
             aria-label={`Buy ${listing.sectorLabel} sector (${listing.ticker})`}
@@ -298,8 +304,7 @@ function SectorRow({
           {buyEval.available && onSectorSale ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               Asking{" "}
-              {formatFinanceMoney(buyEval.priceAnchor ?? 0, listing.currency)} ·
-              No action-point cost
+              {formatFinanceMoney(buyEval.priceAnchor ?? 0, listing.currency)} · Buyer pays {formatFinanceMoney(buyEval.priceLocal ?? 0, listing.sectorBuyerOptions?.find((buyer) => buyer.id === buyerCorporationId)?.currency ?? listing.currency)}
             </span>
           ) : (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
@@ -388,9 +393,10 @@ export function SectorsPanel({
 
   const sectorTypes = useMemo(() => {
     const byType = new Map<string, string>();
-    for (const listing of markets.listings) {
-      if (!byType.has(listing.sectorType))
-        byType.set(listing.sectorType, listing.sectorLabel);
+    const portfolioRows = markets.listings.flatMap((listing) => [listing.sectorAsset, ...(listing.sectorAssets ?? [])]).filter((asset) => asset.recorded !== false);
+    for (const asset of portfolioRows) {
+      const label = asset.sectorType;
+      if (!byType.has(asset.sectorType)) byType.set(asset.sectorType, label);
     }
     return [...byType.entries()]
       .map(([value, label]) => ({ value, label }))
@@ -404,12 +410,17 @@ export function SectorsPanel({
   // sector-type filter narrowing this directory) but never the tab itself.
   const scoped = useMemo(
     () =>
-      markets.listings.filter(
-        (listing) =>
-          (countryId === "all" || listing.countryId === countryId) &&
-          (!sectorType || listing.sectorType === sectorType),
+      markets.listings.flatMap((listing) => [listing.sectorAsset, ...(listing.sectorAssets ?? [])].filter((asset) => asset.recorded !== false).map((asset) => ({
+        ...listing,
+        sectorType: asset.sectorType,
+        sectorLabel: asset.sectorType,
+        countryId: asset.countryId,
+        countryName: markets.countries.find((country) => country.id === asset.countryId)?.name ?? asset.countryId,
+        sectorAsset: asset,
+      }))).filter((listing) =>
+        (countryId === "all" || listing.countryId === countryId) && (!sectorType || listing.sectorType === sectorType),
       ),
-    [markets.listings, countryId, sectorType],
+    [markets.listings, markets.countries, countryId, sectorType],
   );
 
   const counts = useMemo(
@@ -623,7 +634,7 @@ export function SectorsPanel({
             >
               {pageItems.map((listing) => (
                 <SectorRow
-                  key={listing.id}
+                  key={listing.sectorAsset.id}
                   listing={listing}
                   playerCash={markets.playerCash}
                   busy={busy}

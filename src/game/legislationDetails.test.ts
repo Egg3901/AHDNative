@@ -21,6 +21,8 @@ const savedAt = "2026-09-10T00:00:00.000Z";
 
 function hosWorld(): WorldState {
   const world = createWorld({ ...options, mode: "hos" });
+  // These query/lifecycle fixtures have one proposal's recorded resource budget.
+  // HoS mode itself grants no national influence.
   world.player.nationalInfluence = 5;
   return deserializeSave(serializeSave(world, savedAt));
 }

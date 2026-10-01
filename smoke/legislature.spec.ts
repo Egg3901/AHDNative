@@ -18,6 +18,7 @@ test('an unelected player can inspect legislation without sponsoring a bill', as
 });
 
 test('the historical primary transition and sponsorship survive relaunch', async ({ page }) => {
+  test.setTimeout(180_000);
   const { readFileSync } = await import('node:fs');
   const { gunzipSync } = await import('node:zlib');
   const fixture = gunzipSync(readFileSync(new URL('../fixtures/career-t95-1953-US.save.json.gz', import.meta.url)));
@@ -31,6 +32,10 @@ test('the historical primary transition and sponsorship survive relaunch', async
   await gameReady(page);
   await navigateGame(page, 'Legislature');
   await expect(page.getByText('House of Representatives · United States', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sponsor bill', exact: true })).toBeDisabled();
+  // The newly seated member earns influence through the public turn flow.
+  for (let i = 0; i < 6; i += 1) await advanceGame(page);
+  await navigateGame(page, 'Legislature');
   await expect(page.getByRole('button', { name: 'Sponsor bill', exact: true })).toBeEnabled();
   await page.reload();
   await page.getByRole('button', { name: 'Continue Muse', exact: true }).click();

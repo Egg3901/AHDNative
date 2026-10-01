@@ -127,7 +127,8 @@ export interface FomcMeeting {
   resolvedAtTurn?: number;
 }
 
-export type FomcNominationStatus = "active" | "confirmed" | "rejected" | "withdrawn";
+export type FomcNominationStatus =
+  "active" | "confirmed" | "rejected" | "withdrawn";
 
 /**
  * A President's nomination of a nominee (player or NPP politician) to a
@@ -171,6 +172,8 @@ export interface FomcNomination {
 /** Source: db/types/centralBank.ts CentralBank (ported subset — see file doc). */
 export interface CentralBank {
   countryId: string;
+  /** Prior-turn aggregate savings pool in this bank's currency jurisdiction; absent means source fallback 0. */
+  nationalSavingsBalance?: number;
   /** Facility-interest cash receipts; absent on older saves means zero. */
   reserveBalance?: number;
   /** Facility advances minted less repayments/resolution cash burned; may be negative on legacy debt. */

@@ -19,6 +19,7 @@ const options = {
   countryId: "US",
   seed: "native-sectors-89-route-v1",
   playerName: "Alex",
+  homeRegionId: "DC",
 };
 const SAVED_AT = "2026-09-15T00:00:00.000Z";
 
@@ -29,6 +30,8 @@ it("renders recorded sale state through save, reload, and turn advancement", asy
   expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(
     true,
   );
+  expect(session.act("voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);
+  expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
   const assetId = session
     .markets()
     .listings.find((entry) => entry.id === "US-media")!.sectorAsset.id;
@@ -38,6 +41,11 @@ it("renders recorded sale state through save, reload, and turn advancement", asy
   expect(session.updateSectorListing(assetId, 100)).toMatchObject({
     ok: true,
   });
+
+  expect(session.act("resignCeo", { corpId: "US-media" }).ok).toBe(true);
+  expect(session.act("buyShares", { corpId: "US-financial", shares: 1 }).ok).toBe(true);
+  expect(session.act("voteCeo", { corpId: "US-financial", candidateId: "player" }).ok).toBe(true);
+  expect(session.act("acceptCeoAppointment", { corpId: "US-financial" }).ok).toBe(true);
 
   const reloaded = new GameSession();
   reloaded.load(session.serialize(SAVED_AT));
@@ -71,7 +79,7 @@ it("renders recorded sale state through save, reload, and turn advancement", asy
   const buy = screen.getByRole("button", { name: /buy .* sector/i });
   expect(buy).toBeEnabled();
   await user.click(buy);
-  expect(onSectorSale).toHaveBeenCalledWith("buy", { assetId });
+  expect(onSectorSale).toHaveBeenCalledWith("buy", { assetId, buyerCorporationId: "US-financial" });
 
   // The company link drills to the existing markets destination.
   await user.click(
@@ -90,6 +98,8 @@ it("executes a directory Buy through the real session command and keeps ownershi
   expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(
     true,
   );
+  expect(session.act("voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);
+  expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
   const assetId = session
     .markets()
     .listings.find((entry) => entry.id === "US-media")!.sectorAsset.id;
@@ -98,14 +108,19 @@ it("executes a directory Buy through the real session command and keeps ownershi
     ok: true,
   });
 
+  expect(session.act("resignCeo", { corpId: "US-media" }).ok).toBe(true);
+  expect(session.act("buyShares", { corpId: "US-financial", shares: 1 }).ok).toBe(true);
+  expect(session.act("voteCeo", { corpId: "US-financial", candidateId: "player" }).ok).toBe(true);
+  expect(session.act("acceptCeoAppointment", { corpId: "US-financial" }).ok).toBe(true);
+
   // Same op contract the app shell uses (App.tsx onSectorSale): the
   // directory dispatch runs the engine command instead of a mock, so this
   // proves the Buy control reaches a real ownership state change.
   const dispatch = (
     op: "list" | "update" | "unlist" | "buy",
-    params: { assetId: string; priceAnchor?: number },
+    params: { assetId: string; priceAnchor?: number; buyerCorporationId?: string },
   ) => {
-    if (op === "buy") session.buySectorForSale(params.assetId);
+    if (op === "buy") session.buySectorForSale(params.assetId, params.buyerCorporationId);
     else if (op === "list") session.listSectorForSale(params.assetId);
     else if (op === "unlist") session.unlistSectorForSale(params.assetId);
     else session.updateSectorListing(params.assetId, params.priceAnchor ?? 0);
@@ -130,17 +145,16 @@ it("executes a directory Buy through the real session command and keeps ownershi
   );
   await user.click(screen.getByRole("button", { name: /buy .* sector/i }));
 
-  // The engine flips ownership and clears the listing on the live session.
+  // The engine transfers the asset and clears its listing in the live session.
   const bought = session
     .markets()
-    .listings.find((entry) => entry.id === "US-media")!;
-  expect(bought.sectorAsset.owner).toBe("player");
-  expect(bought.sectorAsset.forSale).toBeNull();
+    .listings.find((entry) => entry.id === "US-financial")!;
+  expect(bought.sectorAssets?.some((asset) => asset.id === assetId && asset.owner === "corporation" && asset.forSale === null)).toBe(true);
 
-  // A fresh projection load reads the bought sector as Owned, not For Sale.
+  // The buyer retains its financial sector and owns the acquired media sector.
   rendered.rerender(route({ step: 2 }, async () => session.markets()));
   expect(
-    await screen.findByRole("button", { name: "Owned sectors, 1" }),
+    await screen.findByRole("button", { name: "Owned sectors, 2" }),
   ).toBeInTheDocument();
   expect(
     screen.getByRole("button", { name: "For Sale sectors, 0" }),
@@ -154,7 +168,6 @@ it("executes a directory Buy through the real session command and keeps ownershi
   expect(reloaded.markets().turn).toBeGreaterThan(turnBefore);
   const kept = reloaded
     .markets()
-    .listings.find((entry) => entry.id === "US-media")!;
-  expect(kept.sectorAsset.owner).toBe("player");
-  expect(kept.sectorAsset.forSale).toBeNull();
+    .listings.find((entry) => entry.id === "US-financial")!;
+  expect(kept.sectorAssets?.some((asset) => asset.id === assetId && asset.owner === "corporation" && asset.forSale === null)).toBe(true);
 });

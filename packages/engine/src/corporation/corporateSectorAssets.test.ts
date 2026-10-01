@@ -1,11 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { deserializeSave, serializeSave } from "../save.js";
 import { createWorld } from "../world.js";
-import { backfillSectorOwner, corporateSectorAssets, projectCorporateSector, validateSectorForSale, validateSectorOwner } from "./corporateSectorAssets.js";
+import { applyCorporateSectorPlantCredit, backfillSectorOwner, corporateSectorAssets, corporateSectorPlantReplacementFloor, projectCorporateSector, validateSectorForSale, validateSectorOwner } from "./corporateSectorAssets.js";
 
 const PINNED_1953_ASSET_VECTOR = "DD:agriculture,DD:automobiles,DD:chemical_industries,DD:construction,DD:defense,DD:energy,DD:entertainment,DD:extraction,DD:financial,DD:healthcare,DD:logistics,DD:manufacturing,DD:media,DD:real_estate,DD:retail,DD:technology,DD:telecommunications,RU:agriculture,RU:chemical_industries,RU:construction,RU:defense,RU:energy,RU:extraction,RU:financial,RU:healthcare,RU:logistics,RU:manufacturing,RU:media,RU:real_estate,RU:retail,RU:telecommunications,UK:agriculture,UK:automobiles,UK:chemical_industries,UK:construction,UK:defense,UK:energy,UK:entertainment,UK:extraction,UK:financial,UK:healthcare,UK:logistics,UK:manufacturing,UK:media,UK:real_estate,UK:retail,UK:telecommunications,US:agriculture,US:automobiles,US:chemical_industries,US:construction,US:defense,US:energy,US:entertainment,US:extraction,US:financial,US:healthcare,US:logistics,US:manufacturing,US:media,US:real_estate,US:retail,US:telecommunications";
 
 describe("#293 corporate-sector asset core", () => {
+  it("seeds real plant units and paid book from the source 1953 manufacturing output mix", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "plant-capacity-source-vector", playerName: "Alex" });
+    const assets = corporateSectorAssets(world);
+    const manufacturing = assets["corporate-sector:US:manufacturing:US-manufacturing"]!;
+
+    // Independent source vector from AHDGame 954f1c2178, market/capital.ts
+    // seedCapitalStock and constants/capacityEconomy.ts capacityPricePerUnit.
+    // The authored standard manufacturing mix is steel 0.4 + building materials
+    // 0.2. Native weekly revenue converts to Game's per-day capacity basis at
+    // seven days per turn. The source expressions resolve to 22,982,142.85714286
+    // units and a 988,232,142.8571429 anchor book.
+    expect(manufacturing.capitalStock).toBeCloseTo(22_982_142.85714286, 6);
+    expect(manufacturing.capacityBookAnchor).toBeCloseTo(988_232_142.8571429, 6);
+  });
+
   it("seeds one stable region-bound asset per aggregate Native corporation", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "issue-293", playerName: "Alex" });
     expect(world.corporateSectors).toBeUndefined();
@@ -30,6 +45,8 @@ describe("#293 corporate-sector asset core", () => {
         representingUnionId: `${corporation.countryId}-${corporation.sectorType}`,
         forSale: null,
       });
+      expect(asset.capitalStock).toBeGreaterThan(0);
+      expect(asset.capacityBookAnchor).toBeGreaterThan(0);
       expect(asset.stateId).toBeNull();
       expect(asset.id).toBe(`corporate-sector:${asset.countryId}:${asset.sectorType}:${asset.corporationId}`);
       expect(world.unownedSectors[`${asset.countryId}:${asset.sectorType}`]).not.toBe(asset as never);
@@ -43,6 +60,49 @@ describe("#293 corporate-sector asset core", () => {
     expect(corporateSectorAssets(createWorld(options))).toEqual(assets);
     const restored = deserializeSave(serializeSave(world, "2026-09-15T00:00:00.000Z"));
     expect(corporateSectorAssets(restored)).toEqual(assets);
+  });
+
+  it("backfills source plant stock and paid book for an older materialized asset on load", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "plant-capacity-migration", playerName: "Alex" });
+    const assets = corporateSectorAssets(world);
+    const id = "corporate-sector:US:manufacturing:US-manufacturing";
+    const expected = assets[id]!;
+    const raw = JSON.parse(serializeSave(world, "2026-09-15T00:00:00.000Z")) as any;
+    delete raw.world.corporateSectors[id].capitalStock;
+    delete raw.world.corporateSectors[id].capacityBookAnchor;
+
+    const restored = deserializeSave(JSON.stringify(raw));
+    expect(restored.corporateSectors?.[id]?.capitalStock).toBeCloseTo(expected.capitalStock!, 6);
+    expect(restored.corporateSectors?.[id]?.capacityBookAnchor).toBeCloseTo(expected.capacityBookAnchor!, 6);
+  });
+
+  it("posts paid Gosbank capacity credit to both source stock and paid book", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "plant-capacity-credit", playerName: "Alex" });
+    const id = "corporate-sector:US:manufacturing:US-manufacturing";
+    const asset = corporateSectorAssets(world)[id]!;
+    const stockBefore = asset.capitalStock!;
+    const bookBefore = asset.capacityBookAnchor!;
+
+    expect(applyCorporateSectorPlantCredit(world, id, 43_000)).toEqual({
+      unitsAdded: 1_000,
+      creditPaidAnchor: 43_000,
+    });
+    expect(asset.capitalStock).toBeCloseTo(stockBefore + 1_000, 8);
+    expect(asset.capacityBookAnchor).toBeCloseTo(bookBefore + 43_000, 6);
+    expect(applyCorporateSectorPlantCredit(world, id, Number.NaN)).toEqual({
+      unitsAdded: 0,
+      creditPaidAnchor: 0,
+    });
+
+    const restored = deserializeSave(serializeSave(world, "2026-09-15T00:00:00.000Z"));
+    expect(restored.corporateSectors?.[id]?.capitalStock).toBeCloseTo(stockBefore + 1_000, 8);
+    expect(restored.corporateSectors?.[id]?.capacityBookAnchor).toBeCloseTo(bookBefore + 43_000, 6);
+  });
+
+  it("prices exactly one turn of physical plant wear from the live asset and era price", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "plant-capacity-floor", playerName: "Alex" });
+    const id = "corporate-sector:US:manufacturing:US-manufacturing";
+    expect(corporateSectorPlantReplacementFloor(world, id)).toBeCloseTo(494_116.0714285714, 7);
   });
 
   it("accepts null or a positive finite asking price and rejects every other stored listing (#294)", () => {
@@ -81,6 +141,8 @@ describe("#293 corporate-sector asset core", () => {
       (save: any) => { save.world.corporateSectors[key].forSale = { priceAnchor: "5000" }; },
       (save: any) => { save.world.corporateSectors[key].forSale = { priceAnchor: null }; },
       (save: any) => { delete save.world.corporateSectors[key].forSale; },
+      (save: any) => { save.world.corporateSectors[key].capitalStock = Number.NaN; },
+      (save: any) => { save.world.corporateSectors[key].capacityBookAnchor = -1; },
     ];
     for (const corrupt of corruptions) {
       const candidate = structuredClone(raw);

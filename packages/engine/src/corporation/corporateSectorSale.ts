@@ -1,6 +1,5 @@
 import { TURNS_PER_YEAR } from "../economy/macroConstants.js";
 import type { WorldState } from "../types.js";
-import type { ShareholderKind } from "./types.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 
 /**
@@ -19,10 +18,9 @@ import { corporateSectorAssets } from "./corporateSectorAssets.js";
  *   explicitly (commands/sectorOperations/listSectorForSale.ts). Unlist is
  *   CEO-only and clears forSale
  *   (commands/sectorOperations/unlistSectorForSale.ts).
- * - Authority: Native listing retains the existing source-backed positive
- *   shareholder-block rule. CEO identity now exists independently, but this
- *   earlier market command remains a shareholding capability; owning shares
- *   or a sector asset never manufactures CEO status.
+ * - Authority: the source list and unlist routes require the active CEO.
+ *   Native uses the persisted Corporation.ceoId/ceoVacant identity. Listing
+ *   also refuses state-owned issuers, which divest through privatization.
  * - Annualizer: the reference annualizes DAILY revenue by
  *   GAME_DAYS_PER_YEAR = TURNS_PER_YEAR / TURNS_PER_DAY (48/24 = 2, see
  *   sectorValuation.ts and turnTime.ts "48 turns = 1 year, 1 turn = 1 week").
@@ -63,7 +61,9 @@ export function computeSectorSaleValuation(input: SectorSaleValuationInput): Sec
   return { perTurnProfitAnchor, yearlyProfitAnchor, npvAnchor, priceAnchor };
 }
 
-export type SectorSaleActor = ShareholderKind;
+/** Only a public player command is supported. NPC/system turn logic must not
+ * impersonate a player through this authority boundary. */
+export type SectorSaleActor = "player";
 
 export interface SectorSaleResult {
   ok: boolean;
@@ -73,7 +73,7 @@ export interface SectorSaleResult {
 }
 
 function isSaleActor(actor: unknown): actor is SectorSaleActor {
-  return actor === "player" || actor === "npc";
+  return actor === "player";
 }
 
 /** Resolve and authorize before any mutation; returns the asset id or the refusal. */
@@ -87,8 +87,9 @@ function resolveSaleAsset(
   if (!asset) return { ok: false, error: `Sector listing not found: ${assetId}` };
   if (!isSaleActor(actor)) return { ok: false, error: `Unknown seller: ${String(actor)}` };
   const corporation = world.corporations[asset.corporationId];
-  const holds = corporation?.shareholders.some((entry) => entry.holder === actor && entry.shares > 0) ?? false;
-  if (!holds) return { ok: false, error: `Only a recorded shareholder of ${asset.corporationId} can manage its sale listing` };
+  if (corporation?.ceoId !== actor || corporation.ceoVacant === true) {
+    return { ok: false, error: `Only the active CEO of ${asset.corporationId} can manage its sale listing` };
+  }
   return { ok: true, assetId };
 }
 
@@ -103,7 +104,7 @@ function liveValuation(world: WorldState, corporationId: string): SectorSaleValu
 
 /**
  * List a sector at its live computed anchor. Refuses (atomically: no state
- * touched) when the asset is unknown, the actor holds no recorded shares,
+ * touched) when the asset is unknown, the actor is not its active CEO,
  * the player already owns the sector (#295: the operating corporation no
  * longer owns what the player bought, so it cannot be relisted — otherwise
  * the listing could never be bought), the sector is already listed, or the
@@ -118,6 +119,10 @@ export function listCorporateSectorForSale(
   if (!resolved.ok) return resolved;
   const assets = corporateSectorAssets(world);
   const asset = assets[resolved.assetId]!;
+  const corporation = world.corporations[asset.corporationId]!;
+  if (corporation.ownershipState === "stateOwned" || corporation.countryOwnerId !== undefined) {
+    return { ok: false, error: "State enterprises cannot list production for private sale." };
+  }
   if (asset.owner === "player") return { ok: false, error: `You already own this sector: ${asset.id}` };
   if (asset.forSale) return { ok: false, error: `Sector listing is already for sale: ${asset.id}` };
   const valuation = liveValuation(world, asset.corporationId);

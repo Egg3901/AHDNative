@@ -89,12 +89,54 @@ export type {
   PartyCaucusEffect,
   PartyCaucusQuote,
 } from "./actions/partyCaucus.js";
+export {
+  NPP_INFLUENCE_STREAM_LABEL,
+  NPP_INFLUENCE_MISSING_STUBBORNNESS,
+  RELATIONSHIP_INFLUENCE_TYPES,
+  INFLUENCE_ACTIONS,
+  INFLUENCE_LIMITS,
+  INFLUENCE_MODIFIERS,
+  isRelationshipInfluenceType,
+  recordedNppStubbornness,
+  playerNppRelationshipKey,
+  nppInfluenceStreamSeed,
+  forkNppInfluenceRng,
+  calculateNppInfluenceChance,
+  determineNppInfluenceOutcome,
+  nppInfluenceRelationshipChange,
+  nppInfluenceOutcomeMessage,
+  quoteNppInfluence,
+  resolveNppInfluence,
+} from "./npp/nppInfluence.js";
+export type {
+  RelationshipInfluenceType,
+  InfluenceActionConfig,
+  NppInfluenceCalculation,
+  NppInfluenceOutcome,
+  NppInfluenceAttemptRecord,
+  NppInfluenceQuote,
+  NppInfluenceQuoteOk,
+} from "./npp/nppInfluence.js";
+export {
+  CAUCUS_NPP_RECRUIT_MIN_RELATIONSHIP,
+  CAUCUS_NPP_RECRUIT_COOLDOWN_TURNS,
+  listCaucusNppRecruitOptions,
+  quoteRecruitCaucusNpp,
+  applyRecruitCaucusNpp,
+  caucusNppRecruitCooldownRemaining,
+} from "./npp/caucusRecruit.js";
+export type {
+  CaucusNppRecruitStatus,
+  CaucusNppRecruitOption,
+  CaucusNppRecruitQuote,
+} from "./npp/caucusRecruit.js";
 export * from "./endorsement.js";
 export type * from "./types.js";
 export * as electionEngine from "./electionEngine/index.js";
 export { declareCandidacy, withdrawCandidacy } from "./elections/candidacy.js";
 export { electionSeriesForWorld, recomputeComposition, seatHolders } from "./elections/orchestration.js";
 export { resolvePrimaries, requiresPrimaryResolution } from "./elections/primaryResolution.js";
+export { applyPresidentialResolution } from "./elections/presidentialResolution.js";
 export { isFoundingActive, detectFoundingComplete, runFoundingSweep, stampFoundingMarker, MAX_FOUNDING_RACES } from "./elections/founding.js";
 export type { ElectionRecord, ElectionCandidate, ElectionStatus, PrimaryResults, PrimaryResultEntry } from "./elections/types.js";
 // W24b real Electoral College (#69): the read-only display adapter shares the
@@ -113,6 +155,13 @@ export * from "./commandEconomy/authority.js";
 export * from "./cabinet/nominationLifecycle.js";
 export * from "./cabinet/transition.js";
 export * from "./corporation/corporateSectorAssets.js";
+export * from "./corporation/nationalization.js";
+export * from "./bonds/corporateBondQuote.js";
+export * from "./bonds/corporateBondServicing.js";
+export * from "./bonds/bondMarketPool.js";
+export * from "./corporation/plantCapacity.js";
+export * from "./corporation/plantProduction.js";
+export * from "./corporation/plantDemand.js";
 export * from "./corporation/corporateSectorSale.js";
 export * from "./corporation/corporateSectorAcquire.js";
 // Public single-player seam for source-backed union bargaining commands.

@@ -3,16 +3,11 @@ import { isNppAutonomyLevel, nppAutonomyLevelAtLeast as rankAtLeast } from "../n
 // Solo engine keeps plain input interfaces; where mainline reads a system solo
 // lacks, the stub is marked PORT-STUB with the blocker.
 //
-// The multi-currency batch processors below remain pure input/output helpers;
-// Native's live single-currency PlayerCharacter projection consumes their
-// shared formulas through playerSavingsInterestPhase. Below,
-// `holder != null && holder !== "centralBank"`
-// (bank-held savings) is intentionally skipped with the comment "paid by
-// bankingTurn" — W12 (packages/engine/src/banking/bankingTurn.ts) is that
-// resolution, but for REAL WorldState (single-currency player.savings/
-// savingsHolder, not this module's hypothetical multi-currency map). This
-// multi-currency and per-politician processing remains unwired pending the
-// corresponding WorldState retrofit.
+// The multi-currency batch processors below remain pure input/output helpers.
+// Native's live single-currency PlayerCharacter projection uses
+// playerSavingsInterestPhase for central-bank base accrual and bankingTurn
+// for the private-bank premium. The multi-currency and per-politician batch
+// adapter remains unwired pending its corresponding WorldState retrofit.
 
 // ── Input interfaces (PORT-STUB: mainline reads Db collections) ──────────────
 // CentralBank doc: mainline src/lib/db/types/centralBank.ts
@@ -107,12 +102,16 @@ export function turnsUntilSavingsCredit(currentTurn: number): number {
 }
 
 // source: src/lib/currency/savingsInterest.ts savingsApyPercent
-export function savingsApyPercent(primeRatePercent: number, inflationPercent: number): number {
+export function savingsApyPercent(
+  primeRatePercent: number,
+  inflationPercent: number,
+  depositBonusPercent = 0,
+): number {
   const realRatePercent = Math.max(
     SAVINGS_REAL_RATE_FLOOR_PERCENT,
     primeRatePercent - inflationPercent,
   );
-  return realRatePercent / 2;
+  return realRatePercent / 2 + Math.max(0, depositBonusPercent);
 }
 
 // source: src/lib/currency/savingsInterest.ts computeSavingsInterestForTurn
@@ -121,9 +120,10 @@ export function computeSavingsInterestForTurn(
   primeRatePercent: number,
   currencyCode: string,
   inflationPercent = 0,
+  depositBonusPercent = 0,
 ): number {
   if (balance <= 0 || primeRatePercent <= 0) return 0;
-  const apyPercent = savingsApyPercent(primeRatePercent, inflationPercent);
+  const apyPercent = savingsApyPercent(primeRatePercent, inflationPercent, depositBonusPercent);
   const raw = (balance * (apyPercent / 100)) / TURNS_PER_YEAR_SAVINGS;
   return roundSavingsAmount(raw, currencyCode);
 }

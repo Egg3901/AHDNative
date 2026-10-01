@@ -98,22 +98,22 @@ function makePolitics(): PoliticsView {
     parties: [partyDetail], elections: [],
     referendums: [],
     referendumRequest: { applicable: false, note: "Referendums are only available in the UK in this local slice.", regions: [], action: action("requestReferendum", false, 0, "Referendums are UK-only.") },
-    politicians: [{ id: "pol1", name: "Ada", partyId: "p1", partyName: "Labor", office: null, age: 40, economic: 0, social: 0, influence: 10, favorability: 50, infamy: 0, activeRaceIds: ["e1"] }],
+    politicians: [{ id: "pol1", name: "Ada", partyId: "p1", partyName: "Labor", office: null, age: 40, economic: 0, social: 0, influence: 10, favorability: 50, infamy: 0, relationshipScore: 0, influenceOptions: [], lastInfluence: null, activeRaceIds: ["e1"] }],
   };
 }
 
 const emptyGov = { governmentType: null, regime: null, approval: null, legitimacy: null, unrest: null, status: null, formationType: null, confidence: null, governingParty: null, headOfGovernment: null, executive: null, legislature: null };
 const loadWorldOverview = async () => ({
   era: "1953", turn: 1, date: "1953-01-01", playerCountryId: "US", playerHomeRegionId: null,
-  nations: [{ id: "US", name: "United States", playable: true, currency: "USD",
+  nations: [{ id: "US", name: "United States", playable: true, currency: "USD", races: [], leader: null,
     economy: { gdpMillions: 387000, growthRate: 0.046, inflationRate: 0.0075, unemploymentRate: 0.029, outputGap: -1.25 }, government: emptyGov }],
   homeRegion: null,
 });
 const loadRegions = async () => ({
-  era: "1953", turn: 1, date: "1953-01-01", playerCountryId: "US", playerCountryName: "United States",
+  era: "1953", turn: 1, date: "1953-01-01", playerCountryId: "US", playerCountryName: "United States", selectedCountryId: "US", selectedCountryName: "United States",
   playerHomeRegionId: null, currency: "USD", directoryQuery: "", directoryPage: 0, directoryPageSize: 20,
   directoryTotal: 1, directoryPageCount: 1,
-  directory: [{ id: "CA", name: "California", isHome: false, population: null, gdpMillions: null }],
+  directory: [{ id: "CA", name: "California", isHome: false, population: null, gdpMillions: null, races: [], officeHolder: null }],
   selected: null,
 });
 const loadCaucusManagement = async (): Promise<CaucusManagementView> => ({
