@@ -16,14 +16,13 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
-import { advanceTurn, createWorld, serializeSave } from "@ahdclient/engine";
+import { advanceTurn, createWorld, deserializeSave, serializeSave } from "@ahdclient/engine";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, "..");
 const CLI = join(REPO_ROOT, "scripts", "export-save-v42.ts");
 const FIXTURE_GZ = join(REPO_ROOT, "fixtures", "v42-1953-US.save.json.gz");
 const FIXTURE_SHA = "471352be87c8887dcc6ae02f465b898272f62843b5e0861a45138c2de7f58cdc";
-const NATIVE_FRESH_KEEP_HOME_SHA = "404370ac2e43de737ce3e664fafde05f34a8298bb51db2de9de8ae6de6c59b03";
 const SAVED_AT = "2026-09-10T00:00:00.000Z";
 
 function sha256(text: string): string {
@@ -88,29 +87,20 @@ describe("export-save-v42 CLI", () => {
     expect(run.stderr).toContain("unparseable JSON");
   }, 60_000);
 
-  it("exports a Native-fresh pre-turn v43 world as the keep-home v42 extension", () => {
+  it("refuses fresh TFP state without creating a historical export", () => {
     const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
-    expect(world.player.homeRegionId).toBe("AL");
     const dir = freshDir();
     const input = join(dir, "in.save.json");
     const output = join(dir, "out.save.json");
     writeFileSync(input, serializeSave(world, SAVED_AT));
     const run = runCli("--input", input, "--output", output);
-    expect(run.status).toBe(0);
-    const contents = readFileSync(output, "utf8");
-    expect(sha256(contents)).toBe(NATIVE_FRESH_KEEP_HOME_SHA);
-    const parsed = JSON.parse(contents) as {
-      schemaVersion: number;
-      world: { meta: { schemaVersion: number }; countryPolitics?: unknown; player: { homeRegionId?: unknown } };
-    };
-    expect(parsed.schemaVersion).toBe(42);
-    expect(parsed.world.meta.schemaVersion).toBe(42);
-    expect(parsed.world.player.homeRegionId).toBe("AL");
-    expect(Object.prototype.hasOwnProperty.call(parsed.world, "countryPolitics")).toBe(false);
+    expect(run.status).not.toBe(0);
+    expect(existsSync(output)).toBe(false);
+    expect(run.stderr).toContain("Regional metric records");
   }, 60_000);
 
   it("refuses a progressed Native world without creating output", () => {
-    const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    const world = deserializeSave(loadAuthenticV42());
     advanceTurn(world);
     const dir = freshDir();
     const input = join(dir, "in.save.json");
