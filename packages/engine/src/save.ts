@@ -11,7 +11,7 @@ import { validateAlignmentRecords } from "./alignment/recordValidation.js";
 import { seedInternationalOrgs } from "./internationalOrgs/seed.js";
 import { assignUsSeatGeography } from "./elections/seatGeography.js";
 import { CENTRAL_BANK_COUNTRY_ANCHORS, CHAIR_TERM_TURNS } from "./centralBank/constants.js";
-import { seedCorporations, tickerForSector } from "./corporation/founding.js";
+import { seedCorporations, tickerForSector, SOURCE_NPP_HEADQUARTERS_REGION } from "./corporation/founding.js";
 import { rngFromSeed } from "./rng.js";
 import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } from "./playerImages.js";
 import type { WorldState } from "./types.js";
@@ -1688,12 +1688,22 @@ export function deserializeSave(raw: string): WorldState {
     const w = save.world as unknown as Record<string, unknown>;
     if (typeof w["corporations"] !== "object" || w["corporations"] === null || Array.isArray(w["corporations"])) {
       const countries = w["countries"] as Record<string, { id: string; playable: boolean; economy: { gdp: number; growthRate: number } }> | undefined;
+      const regions = w["regions"] as Record<string, { countryId: string }> | undefined;
       const turn = typeof (w["meta"] as Record<string, unknown> | undefined)?.["turn"] === "number" ? ((w["meta"] as Record<string, unknown>)["turn"] as number) : 0;
       const seed = typeof (w["meta"] as Record<string, unknown> | undefined)?.["seed"] === "string" ? ((w["meta"] as Record<string, unknown>)["seed"] as string) : "migration";
       const migrationRng = rngFromSeed(`${seed}:corp-migration-v19`);
       const corporations = countries
         ? seedCorporations(
-            Object.values(countries).map((c) => ({ id: c.id, playable: c.playable, gdp: c.economy.gdp, growthRate: c.economy.growthRate })),
+            Object.values(countries).map((c) => {
+              const sourceHq = SOURCE_NPP_HEADQUARTERS_REGION[c.id];
+              return {
+                id: c.id,
+                playable: c.playable,
+                gdp: c.economy.gdp,
+                growthRate: c.economy.growthRate,
+                ...(sourceHq && regions?.[sourceHq]?.countryId === c.id ? { headquartersRegionId: sourceHq } : {}),
+              };
+            }),
             migrationRng,
             turn,
           )
@@ -2750,6 +2760,19 @@ export function deserializeSave(raw: string): WorldState {
     const w = save.world as unknown as Record<string, unknown>;
     if (!Array.isArray(w["interbankLoans"])) w["interbankLoans"] = [];
     save.world.meta.schemaVersion = 48;
+  }
+  // v48 -> v49: preserve the exact capital region used by Game's NPP seed
+  // route. Missing regions remain unsupported for this era; migration never
+  // substitutes the player's first or alphabetically first region.
+  if (save.schemaVersion < 49) {
+    const regions = save.world.regions;
+    for (const corp of Object.values(save.world.corporations)) {
+      const sourceHq = SOURCE_NPP_HEADQUARTERS_REGION[corp.countryId];
+      if (sourceHq && regions[sourceHq]?.countryId === corp.countryId) {
+        corp.headquartersRegionId = sourceHq;
+      }
+    }
+    save.world.meta.schemaVersion = 49;
   }
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written

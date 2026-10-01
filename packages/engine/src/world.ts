@@ -33,7 +33,7 @@ import {
 } from "./commodity/constants.js";
 import { CENTRAL_BANK_COUNTRY_ANCHORS, CHAIR_TERM_TURNS } from "./centralBank/constants.js";
 import type { CentralBank } from "./centralBank/types.js";
-import { seedCorporations } from "./corporation/founding.js";
+import { seedCorporations, SOURCE_NPP_HEADQUARTERS_REGION } from "./corporation/founding.js";
 import { seedNpcBanks } from "./banking/npcBanks.js";
 import { seedUnions } from "./unions/founding.js";
 import { seedExchangeRates } from "./forex/founding.js";
@@ -149,11 +149,12 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v47: grounded corporate-sector workforce (workers, representingUnionId);
 // see save.ts.
 // v48: interbank loan book (world.interbankLoans); see save.ts.
+// v49: source-authored corporation HQ region identity; see save.ts.
 // Issues #334/#345 difficulty and autonomy carry no schema version of
 // their own: both are optional axes with absent-means-default (see
 // WorldState.difficulty/nppAutonomyLevel), so default worlds keep the
 // schema 46 bytes.
-export const SCHEMA_VERSION = 48;
+export const SCHEMA_VERSION = 49;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -848,7 +849,16 @@ export function createWorld(options: NewWorldOptions): WorldState {
   // Uses the same world rng, after every other rng-consuming seed step, so
   // capturing rng.state() below for meta.rng includes corp personality draws.
   const corporations = seedCorporations(
-    Object.values(countries).map((c) => ({ id: c.id, playable: c.playable, gdp: c.economy.gdp, growthRate: c.economy.growthRate })),
+    Object.values(countries).map((c) => {
+      const sourceHq = SOURCE_NPP_HEADQUARTERS_REGION[c.id];
+      return {
+        id: c.id,
+        playable: c.playable,
+        gdp: c.economy.gdp,
+        growthRate: c.economy.growthRate,
+        ...(sourceHq && regions[sourceHq]?.countryId === c.id ? { headquartersRegionId: sourceHq } : {}),
+      };
+    }),
     rng,
     0,
   );

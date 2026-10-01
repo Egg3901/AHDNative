@@ -1025,7 +1025,7 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
                 <div className="ahd-profile-row">
                   <dt>Role</dt>
                   <dd className="ahd-mono">
-                    Sector owner
+                    {entry.role === "ceo" ? "CEO" : entry.role === "ceo and sector owner" ? "CEO and sector owner" : "Sector owner"}
                     <span className="ahd-profile-sub">
                       {entry.scope === "national" ? "National asset" : (entry.regionName ?? "Region not recorded")}
                     </span>
@@ -1067,11 +1067,11 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
                 </div>
                 <div className="ahd-profile-row">
                   <dt>CEO salary</dt>
-                  <dd className="ahd-mono ahd-profile-unavailable-note">Not recorded by the engine</dd>
+                  <dd className="ahd-mono">{money(entry.ceoSalaryPerTurn, entry.currency)}<span className="ahd-profile-sub">Paid last turn</span></dd>
                 </div>
                 <div className="ahd-profile-row">
                   <dt>Dividends</dt>
-                  <dd className="ahd-mono ahd-profile-unavailable-note">The engine has no dividend system</dd>
+                  <dd className="ahd-mono">{money(entry.dividendIncomePerTurn, entry.currency)}<span className="ahd-profile-sub">Received last turn</span></dd>
                 </div>
               </dl>
               <div className="ahd-profile-actions">
@@ -1086,10 +1086,7 @@ export function ProfilePanel({ profile, era, busy, onNavigate, onUpdateProfile, 
                   View company
                 </button>
               </div>
-              <p className="ahd-help">
-                Quote {entry.currency}. Values match the company detail exactly; salary and
-                dividends are unavailable because the local engine records neither.
-              </p>
+              <p className="ahd-help">Quote {entry.currency}. Salary and dividends show the actual amounts settled in the latest turn.</p>
             </article>
           ))}
         </section>

@@ -57,7 +57,21 @@ export interface FoundingCountryInput {
   gdp: number;
   /** Annualized growth rate as a fraction, e.g. 0.03 = 3%. */
   growthRate: number;
+  /** Exact source-authored capital region when that region exists in this era. */
+  headquartersRegionId?: string;
 }
+
+/**
+ * Mainline AHDGame `NPP_CAPITAL_STATES` at 08820d108bf986d519aed28c2963690dd772c652.
+ * Empty/unseeded capital regions are intentionally omitted; callers must never
+ * substitute a different region for a corporation's authored headquarters.
+ */
+export const SOURCE_NPP_HEADQUARTERS_REGION: Readonly<Record<string, string>> = {
+  US: "DC", UK: "LON", JP: "KAN", DE: "BE", CN: "HB", IE: "DUB",
+  NG: "NORTH_CENTRAL", BR: "CENTRO_OESTE", UKR: "UKR_KYI", BLR: "BLR_MIN",
+  BAL: "BAL_LVA", FR: "FR_IDF", IT: "IT_LAZ", ES: "ES_MAD", SE: "SE_STH",
+  TR: "TR_ANK", GR: "GR_ATT", AT: "AT_VIE", FI: "FI_UUS",
+};
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -112,6 +126,7 @@ export function seedCorporations(
       const corp: Corporation = {
         id,
         countryId: country.id,
+        ...(country.headquartersRegionId ? { headquartersRegionId: country.headquartersRegionId } : {}),
         sectorType,
         personality: { ambition, stubbornness },
         archetype,

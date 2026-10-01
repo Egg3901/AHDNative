@@ -10,6 +10,7 @@ import { MarketsPanel } from "./MarketsPanel";
 import type { DrawerRouteId } from "./MobileNavigation";
 
 const OPTIONS = { era: "1953", countryId: "US", seed: "native-profile-ceo-card", playerName: "Alex" };
+const CEO_OPTIONS = { era: "1953", countryId: "UK", homeRegionId: "LON", seed: "native-profile-ceo-card", playerName: "Alex" };
 const SAVED_AT = "2026-09-18T00:00:00.000Z";
 
 afterEach(() => {
@@ -72,7 +73,7 @@ describe("#51 profile corporation card", () => {
     expect(corporationSection()).toBeNull();
   });
 
-  it("shows the owned corporation with company-detail values and honest salary/dividend notes", () => {
+  it("shows the owned corporation with company-detail values and settled salary/dividends", () => {
     const profile = owningProfile();
     expect(profile.corporations).toHaveLength(1);
     renderPanel(profile, vi.fn());
@@ -86,10 +87,54 @@ describe("#51 profile corporation card", () => {
     expect(text).toMatch(/Corporate cash/);
     expect(text).toMatch(/Your shares/);
     expect(text).toMatch(/Controlling holder/);
-    // Salary and dividends are absent from Native: honest notes, never zeros.
-    expect(text).toMatch(/Not recorded by the engine/);
-    expect(text).toMatch(/no dividend system/);
-    expect(text).not.toMatch(/\$0\.00/);
+    expect(text).toMatch(/CEO salary/);
+    expect(text).toMatch(/Dividends/);
+    expect(text).toMatch(/Paid last turn/);
+    expect(text).toMatch(/Received last turn/);
+  });
+
+  it("shows a real CEO identity without sector ownership and opens the company detail", () => {
+    const session = new GameSession();
+    session.create(CEO_OPTIONS);
+    expect(session.act("buyShares", { corpId: "UK-media", shares: 1 }).ok).toBe(true);
+    expect(session.act("voteCeo", { corpId: "UK-media", candidateId: "player" }).ok).toBe(true);
+    expect(session.act("acceptCeoAppointment", { corpId: "UK-media" }).ok).toBe(true);
+    const profile = session.profile();
+    expect(profile.corporations?.[0]).toMatchObject({ role: "ceo", id: "UK-media" });
+    const onNavigate = vi.fn();
+    renderPanel(profile, onNavigate);
+    const card = corporationSection()!;
+    expect(card.textContent).toMatch(/CEO/);
+    screen.getByRole("button", { name: "View company: UK-media" }).click();
+    expect(onNavigate).toHaveBeenCalledWith("markets", "UK-media");
+  });
+
+  it("supports the complete shareholder CEO and compensation path on the company detail", async () => {
+    const session = new GameSession();
+    session.create(CEO_OPTIONS);
+    expect(session.act("buyShares", { corpId: "UK-media", shares: 1 }).ok).toBe(true);
+    const user = userEvent.setup();
+    const onAction = vi.fn((id: string, params?: Record<string, string | number>) => { session.act(id, params); });
+    const page = render(<MarketsPanel markets={session.markets()} initialId="UK-media" busy={false} onAction={onAction} />);
+
+    await user.click(screen.getByRole("button", { name: "Vote yourself as CEO" }));
+    expect(session.markets().listings.find((entry) => entry.id === "UK-media")!.pendingCeoId).toBe("player");
+    page.rerender(<MarketsPanel markets={session.markets()} initialId="UK-media" busy={false} onAction={onAction} />);
+    await user.click(screen.getByRole("button", { name: "Accept CEO appointment" }));
+    expect(session.markets().listings.find((entry) => entry.id === "UK-media")!.ceoId).toBe("player");
+
+    page.rerender(<MarketsPanel markets={session.markets()} initialId="UK-media" busy={false} onAction={onAction} />);
+    await user.clear(screen.getByRole("spinbutton", { name: "CEO salary per turn" }));
+    await user.type(screen.getByRole("spinbutton", { name: "CEO salary per turn" }), "1000");
+    await user.clear(screen.getByRole("spinbutton", { name: "Dividend rate" }));
+    await user.type(screen.getByRole("spinbutton", { name: "Dividend rate" }), "25");
+    await user.click(screen.getByRole("button", { name: "Save compensation" }));
+    expect(session.markets().listings.find((entry) => entry.id === "UK-media")).toMatchObject({ ceoSalaryPerTurn: 1_000, dividendRate: 25 });
+    expect(onAction.mock.calls.map(([id]) => id)).toEqual([
+      "voteCeo",
+      "acceptCeoAppointment",
+      "setCorporationCompensation",
+    ]);
   });
 
   it("renders empty values honestly instead of fabricating them", () => {

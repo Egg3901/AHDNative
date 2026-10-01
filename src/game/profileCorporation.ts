@@ -1,5 +1,5 @@
 /**
- * Player-owned corporation entries for the Native Profile (#51).
+ * Player CEO/sector-owner entries for Native Profile (#51).
  *
  * Reference (AHDGame e364c049 src/app/profile/page.tsx + components/
  * CeoCorporationCard.tsx): the profile shows a corporation card gated on a
@@ -8,31 +8,21 @@
  * holdings play no part in that gate: the reference never infers CEO status
  * from shares, so neither does this projection.
  *
- * Native's engine records no CEO relationship at all (Corporation carries no
- * ceoId/ceoVacant fields; corps are single-sector and NPC-run — see
- * packages/engine/src/corporation/types.ts). The only real ownership state
- * the corporate stack records is the #295 sector-asset owner
- * (`CorporateSectorAsset.owner === "player"`). This projection therefore
- * lists exactly the markets-projection listings whose recorded sector asset
- * is player-owned — the same `MarketListing` objects the Markets company
- * detail renders — narrowed to the card fields. A player who merely holds
- * shares is not an owner and gets no entry, matching the reference's refusal
- * to infer authority from share counts.
- *
- * Salary and dividends are deliberately absent: the engine has no dividend
- * system and no CEO-salary flow (corporationTurn.ts runs growth/margin/costs
- * only; routing operating income to the player owner is explicitly out of
- * scope in corporateSectorAssets.ts), so neither the company detail nor this
- * card can show them. The card renders honest unavailable notes instead and
- * invents no zeros.
+ * Native records the solo player's CEO identity as `ceoId: "player"`, with
+ * explicit vacancy, shareholder vote, acceptance and resignation transitions.
+ * Corporation turns also settle recorded CEO salary and shareholder dividends.
+ * The same MarketListing projection used by company detail supplies issuer,
+ * quote, holder and last-turn cash outputs. Share ownership alone never
+ * implies CEO status.
  */
 import type { WorldState } from "@ahdclient/engine";
 import { projectMarkets, type MarketListing } from "./markets";
 
 /**
- * One player-owned corporation for the Profile card. A narrowed view of the
- * Markets company-detail projection (`MarketListing`); every field is copied
- * verbatim, nothing is derived.
+ * One player CEO/sector-owner entry for the Profile card. A narrowed view of
+ * the Markets company-detail projection (`MarketListing`), with explicit role
+ * mapping and recorded per-turn payout values. CEO status is never inferred
+ * from share control.
  */
 export type ProfileCorporationEntry = Pick<
   MarketListing,
@@ -52,6 +42,9 @@ export type ProfileCorporationEntry = Pick<
   | "playerAvgCostPerShare"
   | "controllingHolder"
 > & {
+  role: "ceo" | "sector owner" | "ceo and sector owner";
+  ceoSalaryPerTurn: number;
+  dividendIncomePerTurn: number;
   /** Recorded asset scope verbatim. */
   scope: MarketListing["sectorAsset"]["scope"];
   /** Recorded region name for a regional asset; null for national assets. */
@@ -59,6 +52,8 @@ export type ProfileCorporationEntry = Pick<
 };
 
 function toEntry(listing: MarketListing): ProfileCorporationEntry {
+  const ceo = listing.ceoId === "player" && listing.ceoVacant !== true;
+  const owner = listing.sectorAsset.owner === "player";
   return {
     id: listing.id,
     ticker: listing.ticker,
@@ -75,6 +70,9 @@ function toEntry(listing: MarketListing): ProfileCorporationEntry {
     playerShares: listing.playerShares,
     playerAvgCostPerShare: listing.playerAvgCostPerShare,
     controllingHolder: listing.controllingHolder,
+    role: ceo && owner ? "ceo and sector owner" : ceo ? "ceo" : "sector owner",
+    ceoSalaryPerTurn: ceo ? (listing.lastCeoSalaryPaid ?? 0) : 0,
+    dividendIncomePerTurn: listing.lastPlayerDividendPaid ?? 0,
     scope: listing.sectorAsset.scope,
     regionName: listing.sectorAsset.regionName,
   };
@@ -89,6 +87,8 @@ function toEntry(listing: MarketListing): ProfileCorporationEntry {
  */
 export function projectProfileCorporations(world: WorldState): ProfileCorporationEntry[] {
   return projectMarkets(world)
-    .listings.filter((listing) => listing.sectorAsset.owner === "player")
+    .listings.filter((listing) =>
+      listing.sectorAsset.owner === "player" || (listing.ceoId === "player" && listing.ceoVacant !== true),
+    )
     .map(toEntry);
 }
