@@ -464,7 +464,7 @@ function TradeRoutesCard({ routes, countryName }: { routes: TradeRouteSummary[];
           ? (countryName
             ? `No trade routes recorded in ${countryName}.`
             : "No trade routes recorded.")
-          : `Recorded per-country trade context (${routes.length} ${routes.length === 1 ? "route" : "routes"}). Recorded corporate output clears against available corporate, household, and government demand; flows use represented national commodity prices. Household demand uses only regions with source population and GDP rows.`}
+          : `Recorded per-country trade context (${routes.length} ${routes.length === 1 ? "route" : "routes"}). Recorded corporate output clears against available corporate, household, and government demand; flow values use the saved Native global commodity price. Household demand uses only regions with source population and GDP rows.`}
       </p>
       {routes.length === 0 ? null : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "0.5rem" }}>

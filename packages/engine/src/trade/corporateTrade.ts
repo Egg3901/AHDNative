@@ -1,12 +1,4 @@
 import type { CommodityType } from "../commodity/constants.js";
-import {
-  COMMODITY_PRICE_LOG_SCALE,
-  COMMODITY_PRESSURE_TAIL_SLOPE,
-  COMMODITY_PRESSURE_SOFT_KNEE,
-  NATIONAL_COMMODITY_STABILIZER,
-  getPriceSoftKnee,
-} from "../commodity/constants.js";
-import { isPlannedEconomy, plannedShare } from "../commandEconomy/constants.js";
 import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import { clearCommodity } from "./clearing.js";
@@ -67,47 +59,6 @@ function blocked(world: WorldState, commodity: CommodityType, exporter: string, 
   );
 }
 
-/** Source `computeMarketPrice` pressure transform from Game's commodity constants. */
-function sourceEffectivePressureRatio(supplyUnits: number, demandUnits: number, softKnee: number): number {
-  const supply = Math.max(supplyUnits, 0.01);
-  const demand = Math.max(demandUnits, 0.01);
-  const rawRatio = demand / supply;
-  const logPressure = Math.log(rawRatio);
-  const absoluteLogPressure = Math.abs(logPressure);
-  const kneeLogPressure = Math.log(softKnee);
-  if (absoluteLogPressure <= kneeLogPressure) return rawRatio;
-  const compressed = kneeLogPressure + (absoluteLogPressure - kneeLogPressure) * COMMODITY_PRESSURE_TAIL_SLOPE;
-  return Math.exp(Math.sign(logPressure) * compressed);
-}
-
-/**
- * Source national price from a represented country's commodity balance.
- * The current global price is Native's available effective-base anchor; Native
- * does not yet persist Game's per-country scarcity multiplier/cost pass-through.
- */
-function sourceNationalPrice(
-  baseAnchor: number,
-  supply: number,
-  demand: number,
-  commodity: CommodityType,
-  marketizationLevel: number,
-): number {
-  const ratio = sourceEffectivePressureRatio(
-    Math.max(0, supply) + NATIONAL_COMMODITY_STABILIZER,
-    Math.max(0, demand) + NATIONAL_COMMODITY_STABILIZER,
-    getPriceSoftKnee(commodity),
-  );
-  const logPressure = Math.log(ratio);
-  const multiplier = logPressure >= 0
-    ? 1 + COMMODITY_PRICE_LOG_SCALE * logPressure
-    : 1 / (1 + COMMODITY_PRICE_LOG_SCALE * -logPressure);
-  const marketPrice = Math.round(baseAnchor * multiplier * 100) / 100;
-  if (!isPlannedEconomy(marketizationLevel)) return marketPrice;
-  const administeredPrice = baseAnchor * 1.12; // source DEFAULT_TURNOVER_MARKUP
-  const share = plannedShare(marketizationLevel);
-  return administeredPrice * share + marketPrice * (1 - share);
-}
-
 function affinity(world: WorldState, commodity: CommodityType, exporter: string, importer: string): number {
   if (blocked(world, commodity, exporter, importer)) return 0;
   if (curtained(world, exporter) !== curtained(world, importer)) return 0;
@@ -140,7 +91,7 @@ export function recordCorporateTradeSnapshot(world: WorldState): void {
   const valueByCountry = new Map<string, { exports: number; imports: number; partners: Map<string, number> }>();
   const flow: Record<string, Record<string, number>> = Object.fromEntries(countries.map((country) => [country, {}]));
   const byCommodity: Record<string, Record<string, Record<string, { units: number; value: number }>>> = {};
-  const priceByCommodity: Record<string, Record<string, number>> = {};
+  const valuationPriceByCommodity: Record<string, number> = {};
   for (const country of countries) valueByCountry.set(country, { exports: 0, imports: 0, partners: new Map() });
 
   for (const commodity of [...commodities].sort()) {
@@ -154,24 +105,19 @@ export function recordCorporateTradeSnapshot(world: WorldState): void {
     }
     const result = clearCommodity({ countries, supply, demand, affinity: (a, b) => affinity(world, commodity, a, b) });
     byCommodity[commodity] = Object.fromEntries(countries.map(country => [country, {}]));
-    const priceRow = world.commodityPrices[commodity];
-    const globalPrice = priceRow?.globalPrice;
-    const basePrice = priceRow?.basePrice;
-    const baseAnchor = typeof globalPrice === "number" && Number.isFinite(globalPrice) && globalPrice > 0
-      ? globalPrice
-      : typeof basePrice === "number" && Number.isFinite(basePrice) && basePrice > 0 ? basePrice : 0;
-    const countryPrices = Object.fromEntries(countries.map((country) => {
-      const level = world.commandEconomy[country]?.marketizationLevel;
-      return [country, baseAnchor > 0
-        ? sourceNationalPrice(baseAnchor, supply[country] ?? 0, demand[country] ?? 0, commodity,
-          typeof level === "number" && Number.isFinite(level) ? level : 100)
-        : 0];
-    }));
-    priceByCommodity[commodity] = countryPrices;
+    // Persist Native's current global price as the actual valuation input.
+    // The source national effective-base inputs (country scarcity and lagged
+    // cost pass-through) are not represented in Native state, so do not
+    // approximate a country price from the already-pressured global price.
+    const recordedGlobalPrice = world.commodityPrices[commodity]?.globalPrice;
+    const unitPrice = typeof recordedGlobalPrice === "number" && Number.isFinite(recordedGlobalPrice) && recordedGlobalPrice > 0
+      ? recordedGlobalPrice
+      : 0;
+    valuationPriceByCommodity[commodity] = unitPrice;
     for (const exporter of countries) {
       for (const [importer, units] of Object.entries(result.flow[exporter] ?? {})) {
         if (!(units > 0)) continue;
-        const value = units * (countryPrices[exporter] ?? 0);
+        const value = units * unitPrice;
         flow[exporter]![importer] = (flow[exporter]![importer] ?? 0) + value;
         byCommodity[commodity]![exporter]![importer] = { units, value };
         const from = valueByCountry.get(exporter)!;
@@ -192,7 +138,7 @@ export function recordCorporateTradeSnapshot(world: WorldState): void {
     })),
     flow,
     byCommodity,
-    priceByCommodity,
+    valuationPriceByCommodity,
   };
 }
 

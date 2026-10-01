@@ -3313,18 +3313,13 @@ export function deserializeSave(raw: string): WorldState {
         }
       }
     }
-    if (snapshot.priceByCommodity !== undefined) {
-      if (!isRecord(snapshot.priceByCommodity)) {
-        throw new Error("World corporate trade snapshot has invalid commodity prices");
+    if (snapshot.valuationPriceByCommodity !== undefined) {
+      if (!isRecord(snapshot.valuationPriceByCommodity)) {
+        throw new Error("World corporate trade snapshot has invalid commodity valuation prices");
       }
-      for (const [commodity, byCountry] of Object.entries(snapshot.priceByCommodity)) {
-        if (!isRecord(byCountry)) {
-          throw new Error(`World corporate trade snapshot has invalid price row ${commodity}`);
-        }
-        for (const [countryId, price] of Object.entries(byCountry)) {
-          if (typeof price !== "number" || !Number.isFinite(price) || price < 0) {
-            throw new Error(`World corporate trade snapshot has invalid price ${commodity}:${countryId}`);
-          }
+      for (const [commodity, price] of Object.entries(snapshot.valuationPriceByCommodity)) {
+        if (typeof price !== "number" || !Number.isFinite(price) || price < 0) {
+          throw new Error(`World corporate trade snapshot has invalid valuation price ${commodity}`);
         }
       }
     }

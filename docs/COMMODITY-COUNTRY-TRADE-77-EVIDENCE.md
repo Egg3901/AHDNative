@@ -40,20 +40,16 @@ The reference is AHDGame `cb66acdf0129616b8a09902727e9b58715c8bacb`:
   geographic weights, active Native organization FTAs, shared recorded
   organization memberships, organization embargo blocks, and scheduled
   planned-economy curtains (including Yugoslavia's exemption) are honored.
-- National route values use the source `computeMarketPrice` pressure curve and
-  the source 500-unit national stabilizer on each represented country's
-  recorded output and demand. Planned and dual-track countries use the source
-  administered 12% turnover markup and `plannedShare`; the resulting per-turn
-  country prices are saved beside the trade receipt. Flow values use the
-  exporter's national price, matching Game `valueTradeSnapshot`.
-- This is a source-shaped national-price calculation, not full price parity:
-  Game's `effBaseFor(country)` uses nominal base price, a country reachable-book
-  scarcity multiplier, and lagged cost pass-through. Native does not retain
-  those country-scoped inputs, so this slice anchors the source pressure curve
-  at Native's current global price, which already contains its own global
-  pressure and drift. That anchor is an explicit approximation, not Game's
-  effective base. The per-country result is a saved trade valuation and does
-  not replace Native's current global-price phase or create price history.
+- Receipt values use the actual Native global commodity price written by the
+  current price phase, saved per commodity beside the units. This preserves
+  the existing Native valuation without presenting a synthetic country price
+  as Game parity.
+- Game national prices use `effBaseFor(country)` (nominal base × country
+  reachable-scarcity × lagged cost pass-through) before applying the country
+  supply/demand curve and planned-economy pricing. Native has no country
+  scarcity or cost pass-through state, and its global price already contains
+  global pressure and drift. Therefore source-national pricing cannot be
+  computed from current Native state; this slice does not claim to port it.
 - Native has no Game tariff rows, embargo cap rows, or naval blockade closure.
   It leaves those mechanics unavailable and does not substitute the budget's
   economy-wide tariff rate for Game's importer/sector/origin tariff.
@@ -65,8 +61,8 @@ The reference is AHDGame `cb66acdf0129616b8a09902727e9b58715c8bacb`:
 ## Verification
 
 - `packages/engine/src/trade/corporateTrade.test.ts`: independent two-country
-  source-clearing/value-conservation vector; embargo and planned-economy curtain
-  behavior; national-price/turnover-markup vector; federal healthcare, planned
+  clearing/value-conservation vector using the recorded Native global price;
+  embargo and planned-economy curtain behavior; federal healthcare, planned
   media, and household source vectors.
 - `packages/engine/src/corporation/plantProduction.test.ts`: physical regional
   supply/input legs conserve into their country rows.
@@ -85,11 +81,13 @@ The reference is AHDGame `cb66acdf0129616b8a09902727e9b58715c8bacb`:
 1. **FX wallets, quotes, settlement, spreads, order books, and transaction
    history:** not implemented by this slice.
 2. **Trade routes with bilateral/market settlement, restrictions, and commodity
-   context:** corporate output is cleared bilaterally with supported source
-   restrictions and persisted commodity context. Household demand is available
-   only for represented regions; non-corporate/state supply and absent-country
-  household rows are not apportioned. Trade cash settlement, ongoing national-
-  price history, tariff rows, embargo caps, and blockade closure remain absent.
+  context:** corporate output is cleared bilaterally with supported source
+  restrictions and persisted commodity context. Receipt valuation uses Native
+  global prices; country-scoped Game pricing is unavailable. Household demand
+  is available only for represented regions; non-corporate/state supply and
+  absent-country household rows are not apportioned. Trade cash settlement,
+  national-price history, tariff rows, embargo caps, and blockade closure
+  remain absent.
 3. **Corporate issuance, dealer pools, and default/restructuring lifecycle UI:**
    not implemented by this slice.
 4. **Atomicity and save/reload/turn verification:** verified for this corporate

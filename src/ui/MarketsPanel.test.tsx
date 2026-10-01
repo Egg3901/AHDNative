@@ -1043,7 +1043,7 @@ describe("MarketsPanel trade routes (#77)", () => {
     expect(screen.getByText(/Corporate trade \(turn 1\): exports .*1,250.* imports .*400.* net .*850.* partner UK/)).toBeInTheDocument();
     expect(screen.getByText(/electronics exports UK: 50 units · 1,250 anchor/)).toBeInTheDocument();
     expect(screen.getByText(/electronics exports UK: 50 units · 1,250 anchor at 25 anchor\/unit/)).toBeInTheDocument();
-    expect(screen.getByText(/flows use represented national commodity prices/)).toBeInTheDocument();
+    expect(screen.getByText(/flow values use the saved Native global commodity price/)).toBeInTheDocument();
   });
 
   it("shows explicit unavailable copy for missing growth and FX rows", async () => {

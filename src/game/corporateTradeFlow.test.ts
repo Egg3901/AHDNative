@@ -58,7 +58,7 @@ describe("corporate commodity trade through the saved player session", () => {
     expect(exporter!.corporateTrade!.exports).toBeGreaterThan(0);
     const savedWorld = deserializeSave(session.serialize("2026-10-01T00:01:00.000Z"));
     const flow = savedWorld.corporateTradeSnapshot!.flow;
-    const sourcePrices = savedWorld.corporateTradeSnapshot!.priceByCommodity!;
+    const valuationPrices = savedWorld.corporateTradeSnapshot!.valuationPriceByCommodity!;
     const exportedLeg = exporter!.corporateTrade!.commodityFlows[0]!;
     const importingRoute = routes.find(route => route.countryId === exportedLeg.partner)!;
     const importedLeg = importingRoute.corporateTrade!.commodityFlows.find(
@@ -68,7 +68,7 @@ describe("corporate commodity trade through the saved player session", () => {
       commodity: exportedLeg.commodity,
       units: exportedLeg.units,
       value: exportedLeg.value,
-      pricePerUnit: sourcePrices[exportedLeg.commodity]!.US,
+      pricePerUnit: valuationPrices[exportedLeg.commodity],
     });
     const countryExports = Object.fromEntries(Object.entries(flow).map(([country, destinations]) => [
       country, Object.values(destinations).reduce((sum, value) => sum + value, 0),
@@ -82,9 +82,9 @@ describe("corporate commodity trade through the saved player session", () => {
       Object.values(countryImports).reduce((sum, value) => sum + value, 0), 6,
     );
     for (const [commodity, byExporter] of Object.entries(savedWorld.corporateTradeSnapshot!.byCommodity)) {
-      for (const [country, byImporter] of Object.entries(byExporter)) {
+      for (const byImporter of Object.values(byExporter)) {
         for (const row of Object.values(byImporter)) {
-          expect(row.value).toBeCloseTo(row.units * sourcePrices[commodity]![country]!, 8);
+          expect(row.value).toBeCloseTo(row.units * valuationPrices[commodity]!, 8);
         }
       }
     }
