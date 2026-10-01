@@ -75,7 +75,7 @@ it("renders recorded sale state through save, reload, and turn advancement", asy
 
   // The company link drills to the existing markets destination.
   await user.click(
-    screen.getByRole("button", { name: "View US-media company" }),
+    screen.getByRole("button", { name: "View Daily Media company" }),
   );
   expect(onOpenCompany).toHaveBeenCalledWith("US-media");
   await waitFor(() =>
