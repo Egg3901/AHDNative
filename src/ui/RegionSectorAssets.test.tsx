@@ -14,9 +14,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createWorld, seedCorporateSectorAssets } from "@ahdclient/engine";
+import { createWorld, deserializeSave, seedCorporateSectorAssets, serializeSave } from "@ahdclient/engine";
 import { projectMarkets } from "../game/markets";
 import type { MarketListing, MarketsView } from "../game/markets";
+import { GameSession } from "../game/session";
 import {
   RegionSectorAssetsCard,
   selectRegionSectorAssets,
@@ -58,7 +59,7 @@ function makeListing(overrides: Partial<MarketListing> = {}): MarketListing {
     effectiveProfitMargin: 8,
     insolvent: false,
     foundedAtTurn: 0,
-    isBank: false,
+    isBank: false, isStateOwned: false,
     playerShares: 0,
     playerAvgCostPerShare: null,
     npcShares: 5_100_000,
@@ -187,7 +188,7 @@ describe("RegionSectorAssetsCard", () => {
       });
       expect(within(list).getAllByRole("listitem")).toHaveLength(2);
       // Recorded facts ride on the rows: ownership, workers, union, sale state.
-      expect(within(list).getByText("Unowned")).toBeInTheDocument();
+      expect(within(list).getByText("Owned by US-media")).toBeInTheDocument();
       expect(within(list).getByText(/you hold 2 shares/i)).toBeInTheDocument();
       expect(within(list).getByText("Union: Media Workers")).toBeInTheDocument();
       expect(within(list).getByText("No union recorded")).toBeInTheDocument();
@@ -258,6 +259,43 @@ describe("RegionSectorAssetsCard", () => {
     expect(onSectorSale).toHaveBeenCalledWith("buy", { assetId });
   });
 
+  it("offers shareholder list, reprice, and unlist controls for a regional asset", async () => {
+    const user = userEvent.setup();
+    const onSectorSale = vi.fn();
+    const assetId = "corporate-sector:US:media:US-media";
+    const shareholder = { ...regionalAsset(), playerShares: 1, playerAvgCostPerShare: 100 };
+    const { rerender } = render(
+      <RegionSectorAssetsCard
+        regionId="CA"
+        regionName="California"
+        listings={[shareholder]}
+        playerCash={10_000}
+        busy={false}
+        onSectorSale={onSectorSale}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "List media sector for sale" }));
+    expect(onSectorSale).toHaveBeenCalledWith("list", { assetId });
+
+    onSectorSale.mockClear();
+    rerender(
+      <RegionSectorAssetsCard
+        regionId="CA"
+        regionName="California"
+        listings={[{ ...regionalAsset({ forSale: { priceAnchor: 100 } }), playerShares: 1, playerAvgCostPerShare: 100 }]}
+        playerCash={10_000}
+        busy={false}
+        onSectorSale={onSectorSale}
+      />,
+    );
+    await user.type(screen.getByRole("textbox", { name: "Asking price" }), "250");
+    await user.click(screen.getByRole("button", { name: "Update media sector price" }));
+    await user.click(screen.getByRole("button", { name: "Unlist media sector" }));
+    expect(onSectorSale).toHaveBeenNthCalledWith(1, "update", { assetId, priceAnchor: 250 });
+    expect(onSectorSale).toHaveBeenNthCalledWith(2, "unlist", { assetId });
+  });
+
   it("holds Buy with the recorded reason when already owned or short on cash", () => {
     const listed = { forSale: { priceAnchor: 100 } };
     const { rerender } = render(
@@ -274,7 +312,7 @@ describe("RegionSectorAssetsCard", () => {
     expect(
       screen.getByRole("button", { name: "Buy media sector (US.MEDI)" }),
     ).toBeDisabled();
-    expect(screen.getByText(/you already own this sector/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/you already own this sector/i)).toHaveLength(2);
     expect(screen.getByText("Owned by you")).toBeInTheDocument();
 
     rerender(
@@ -429,5 +467,69 @@ describe("RegionSectorAssetsCard on the recorded regional split", () => {
     expect(
       screen.queryByRole("button", { name: /buy .* sector/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it.each([320, 390])("runs regional trading through the UI and save reload at %dpx", async (width) => {
+    setViewport(width);
+    const user = userEvent.setup();
+    const session = new GameSession();
+    session.create({ era: "1953", countryId: "US", seed: `regional-ui-${width}`, playerName: "Alex" });
+    expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
+    expect(session.act("buyShares", { corpId: "US-energy", shares: 1 }).ok).toBe(true);
+
+    const saveWorld = deserializeSave(session.serialize("2026-09-15T00:00:00.000Z"));
+    const initialMarkets = session.markets();
+    const mediaId = initialMarkets.listings.find((row) => row.id === "US-media")!.sectorAsset.id;
+    const energyId = initialMarkets.listings.find((row) => row.id === "US-energy")!.sectorAsset.id;
+    const assets = seedCorporateSectorAssets(saveWorld);
+    assets[mediaId]!.stateId = "CA";
+    assets[energyId]!.stateId = "CA";
+    saveWorld.corporateSectors = assets;
+    session.load(serializeSave(saveWorld, "2026-09-15T00:00:00.000Z"));
+
+    const dispatch = (op: "list" | "update" | "unlist" | "buy", params: { assetId: string; priceAnchor?: number }) => {
+      if (op === "list") session.listSectorForSale(params.assetId);
+      else if (op === "update") session.updateSectorListing(params.assetId, params.priceAnchor);
+      else if (op === "unlist") session.unlistSectorForSale(params.assetId);
+      else session.buySectorForSale(params.assetId);
+    };
+    const card = () => (
+      <RegionSectorAssetsCard
+        regionId="CA"
+        regionName="California"
+        listings={session.markets().listings}
+        playerCash={session.markets().playerCash}
+        busy={false}
+        onSectorSale={dispatch}
+      />
+    );
+    const rendered = render(card());
+
+    await user.click(screen.getByRole("button", { name: "List media sector for sale" }));
+    await user.click(screen.getByRole("button", { name: "List energy sector for sale" }));
+    rendered.rerender(card());
+    expect(session.markets().listings.find((row) => row.id === "US-media")!.sectorAsset.forSale).not.toBeNull();
+    expect(session.markets().listings.find((row) => row.id === "US-energy")!.sectorAsset.forSale).not.toBeNull();
+
+    session.load(session.serialize("2026-09-15T00:00:00.000Z"));
+    rendered.rerender(card());
+    const mediaRow = screen.getByRole("button", { name: "Update media sector price" }).closest("li")!;
+    const price = within(mediaRow).getByRole("textbox", { name: "Asking price" });
+    await user.type(price, "100");
+    await user.click(screen.getByRole("button", { name: "Update media sector price" }));
+    expect(session.markets().listings.find((row) => row.id === "US-media")!.sectorAsset.forSale)
+      .toEqual({ priceAnchor: 100 });
+
+    session.load(session.serialize("2026-09-15T00:00:00.000Z"));
+    rendered.rerender(card());
+    await user.click(screen.getByRole("button", { name: "Buy media sector (US.MEDI)" }));
+    expect(session.markets().listings.find((row) => row.id === "US-media")!.sectorAsset.owner).toBe("player");
+    await user.click(screen.getByRole("button", { name: "Unlist energy sector" }));
+
+    session.load(session.serialize("2026-09-15T00:00:00.000Z"));
+    rendered.rerender(card());
+    expect(screen.getByText(/owned by you/i)).toBeInTheDocument();
+    expect(session.markets().listings.find((row) => row.id === "US-media")!.sectorAsset.forSale).toBeNull();
+    expect(session.markets().listings.find((row) => row.id === "US-energy")!.sectorAsset.forSale).toBeNull();
   });
 });

@@ -1,3 +1,4 @@
+import { validateCanvassState } from "./actions/canvass.js";
 import { EXTERNAL_BROAD_MONEY_GDP_SHARE, SCHEMA_VERSION } from "./world.js";
 import { getPackByEra } from "@ahdclient/content";
 import { STAT_KEYS } from "./stats/characterStats.js";
@@ -16,7 +17,7 @@ import { seedCorporations, tickerForSector, SOURCE_NPP_HEADQUARTERS_REGION, corp
 import { rngFromSeed } from "./rng.js";
 import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } from "./playerImages.js";
 import type { WorldState } from "./types.js";
-import type { CorporationType, ShareholderEntry } from "./corporation/types.js";
+import { CORPORATION_TYPES, type CorporationType, type ShareholderEntry } from "./corporation/types.js";
 import { CEO_INITIAL_SHARES, NPC_FOUNDER_SHARE_FRACTION, DEFAULT_SHARE_PRICE } from "./market/constants.js";
 import { seedUnions } from "./unions/founding.js";
 import {
@@ -172,6 +173,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const world = parsed["world"];
   const meta = world["meta"] as Record<string, unknown>;
   const player = world["player"] as Record<string, unknown>;
+  const turnoutRows = world["regionTurnouts"];
+  if (isRecord(turnoutRows)) for (const [regionId, row] of Object.entries(turnoutRows)) {
+    if (isRecord(row) && hasOwn(row, "campaignModifiers")) return { ok: false, error: `regionTurnouts.${regionId}.campaignModifiers cannot be projected to schema 42. Keep this Native save.` };
+  }
   const envelopeSchema = save["schemaVersion"];
   const metaSchema = meta["schemaVersion"];
 
@@ -444,9 +449,12 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
       if (!isRecord(projectionDefaults)) {
         return { ok: false, error: `Corporation ${corpId} has invalid legacy identity provenance` };
       }
+      const sector = CORPORATION_TYPES.find(candidate => candidate === corp["sectorType"]);
+      if (sector === undefined) return { ok: false, error: `Corporation ${corpId} has invalid sector identity` };
+      const identity = corporationIdentity(String(corp["countryId"]), sector);
       const expected: Record<string, string | undefined> = {
-        name: corporationIdentity(String(corp["countryId"]), String(corp["sectorType"])).name,
-        brandColor: corporationIdentity(String(corp["countryId"]), String(corp["sectorType"])).brandColor,
+        name: identity.name,
+        brandColor: identity.brandColor,
         headquartersRegionId: SOURCE_NPP_HEADQUARTERS_REGION[String(corp["countryId"])],
       };
       for (const [field, isDefault] of Object.entries(projectionDefaults)) {
@@ -641,6 +649,10 @@ function assertCurrentWorldState(world: WorldState): void {
     throw new Error("Not a valid save file: invalid player stat XP");
   }
   const decayAnchor = player["debateDecayAnchor"];
+  const decayAnchorTurn = player["debateDecayAnchorTurn"];
+  if (decayAnchorTurn !== undefined && (typeof decayAnchorTurn !== "number" || !Number.isSafeInteger(decayAnchorTurn) || decayAnchorTurn < 0)) {
+    throw new Error("Not a valid save file: invalid player debate decay turn");
+  }
   if (decayAnchor !== undefined && (typeof decayAnchor !== "string" || !/^\d{4}-\d{2}-\d{2}(T.*)?$/.test(decayAnchor) || !Number.isFinite(Date.parse(decayAnchor)))) {
     throw new Error("Not a valid save file: invalid player debate decay anchor");
   }
@@ -2120,7 +2132,7 @@ export function deserializeSave(raw: string): WorldState {
         if (!Array.isArray(u["activeServices"])) u["activeServices"] = [];
         if (typeof u["politicalContributionPct"] !== "number") u["politicalContributionPct"] = 0;
         if (typeof u["unionization"] !== "number") u["unionization"] = 25;
-        if (!("ownerType" in u) || (u["ownerType"] !== "npp" && u["ownerType"] !== null)) {
+        if (!("ownerType" in u) || (u["ownerType"] !== "npp" && u["ownerType"] !== "player" && u["ownerType"] !== null)) {
           if (u["ownerType"] === undefined) u["ownerType"] = null;
         }
         if (!("ownerId" in u) || (typeof u["ownerId"] !== "string" && u["ownerId"] !== null)) {
@@ -2951,6 +2963,7 @@ export function deserializeSave(raw: string): WorldState {
   if (save.world.featureFlags.rpgStats === undefined) save.world.featureFlags.rpgStats = true;
   assertCurrentWorldState(save.world);
   validateBankingState(save.world);
+  validateCanvassState(save.world);
   // #295: persisted sector-owner default. Saves written before the
   // acquisition slice carry materialized assets without the field; missing
   // degrades to the #293 default ("corporation") and keeps every loaded row

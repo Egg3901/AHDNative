@@ -57,6 +57,18 @@ function freshDir(): string {
 }
 
 describe("export-save-v42 CLI", () => {
+  it("refuses fresh TFP state without creating a historical export", () => {
+    const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    const dir = freshDir();
+    const input = join(dir, "in.save.json");
+    const output = join(dir, "out.save.json");
+    writeFileSync(input, serializeSave(world, SAVED_AT));
+    const run = runCli("--input", input, "--output", output);
+    expect(run.status).not.toBe(0);
+    expect(existsSync(output)).toBe(false);
+    expect(run.stderr).toContain("Regional metric records");
+  }, 60_000);
+
   it("exports the genuine v42 fixture byte-identical", () => {
     const authentic = loadAuthenticV42();
     expect(sha256(authentic)).toBe(FIXTURE_SHA);
@@ -108,9 +120,12 @@ describe("export-save-v42 CLI", () => {
     expect(run.stderr).toContain("unparseable JSON");
   }, 60_000);
 
-  it("projects and reloads a current Native-fresh world with source-backed CEO identity", () => {
+  it("projects isolated source issuer identity without unsupported regional metric records", () => {
     const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
     expect(world.player.homeRegionId).toBe("AL");
+    // Isolate the supported issuer-identity extension. The separate fresh
+    // world case above proves normal TFP worlds fail closed.
+    world.regionalMetrics = {};
     const projection = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projection.ok).toBe(true);
     if (!projection.ok) throw new Error(projection.error);
@@ -176,7 +191,8 @@ describe("export-save-v42 CLI", () => {
   }, 60_000);
 
   it("refuses a progressed Native world without creating output", () => {
-    const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    // Isolate progressed history from fresh TFP/SOE refusal.
+    const world = deserializeSave(loadAuthenticV42());
     advanceTurn(world);
     const dir = freshDir();
     const input = join(dir, "in.save.json");

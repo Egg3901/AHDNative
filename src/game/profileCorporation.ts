@@ -42,6 +42,7 @@ export type ProfileCorporationEntry = Pick<
   | "playerAvgCostPerShare"
   | "controllingHolder"
   | "brandColor"
+  | "isStateOwned"
 > & {
   role: "ceo" | "sector owner" | "ceo and sector owner";
   ceoSalaryPerTurn: number;
@@ -72,6 +73,7 @@ function toEntry(listing: MarketListing): ProfileCorporationEntry {
     playerAvgCostPerShare: listing.playerAvgCostPerShare,
     controllingHolder: listing.controllingHolder,
     brandColor: listing.brandColor,
+    isStateOwned: listing.isStateOwned,
     role: ceo && owner ? "ceo and sector owner" : ceo ? "ceo" : "sector owner",
     ceoSalaryPerTurn: ceo ? (listing.lastCeoSalaryPaid ?? 0) : 0,
     dividendIncomePerTurn: listing.lastPlayerDividendPaid ?? 0,

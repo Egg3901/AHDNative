@@ -1,4 +1,6 @@
+import { projectCanvassing } from "./canvassing";
 import { projectProfile } from "./profile";
+import { campaignAnchorToLocal, characterActionDisabledReason } from "@ahdclient/engine";
 import { profileDestination as profileDestinationFor, projectImperialProfile } from "./imperialProfile";
 import { validateProfileUpdate } from "./profileValidation";
 import type { ProfileUpdate } from "./profileTypes";
@@ -11,6 +13,7 @@ import { projectBondMarket } from "./bondMarket";
 import { projectPartyManagement } from "./partyManagement";
 import { searchWorld, type SearchFilter } from "./search";
 import { projectMarkets } from "./markets";
+import { projectUnionManagement } from "./unionManagement";
 import { buildLegislationDetails, type LegislationSelection } from "./legislationDetails";
 import { buildChamberNavigation, buildCommitteeNavigation, buildFloorSchedule } from "./legislature";
 import { projectCabinetSponsor, projectNominationDetail, projectNominationList, projectScotusSponsor } from "./nominations";
@@ -23,8 +26,16 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
-  getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing,
+  getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
+} from "@ahdclient/engine";
+import {
+  castRatificationBallot,
+  moveBargainingCampaignAsUnion,
+  openBargainingCampaignAction,
+  organizeSectorAction,
+  organizeUnionAction,
+  type BargainingTerms,
 } from "@ahdclient/engine";
 import type { ActionCategory, ActionView, BankOption, CharacterCreation, CreationChoices, CreationParty, ElectionView, EraChoice, FinanceView, GameView, LegislatureView, NewGameOptions, PollingView, StoredPollView } from "./types";
 import { isWorldsimMode } from "@ahdclient/engine";
@@ -45,9 +56,9 @@ import {
  * debatePrep (#37) sits under Intelligence per its mainline research category.
  */
 const ACTIONS: { id: ActionId; requires?: ActionView["requires"]; category: ActionCategory; prerequisite?: string }[] = [
-  { id: "campaign", requires: "region", category: "influence", prerequisite: "Choose a region." },
+  { id: "campaign", category: "influence" },
   { id: "advertise", category: "influence" },
-  { id: "canvass", requires: "region", category: "influence", prerequisite: "Choose a region." },
+  { id: "canvass", category: "influence", prerequisite: "Choose a demographic in your eligible state." },
   { id: "joinParty", requires: "party", category: "influence", prerequisite: "Choose a party." },
   { id: "leaveParty", category: "influence", prerequisite: "Requires party membership." },
   { id: "fundraise", category: "fundraising", prerequisite: "Requires a donor network." },
@@ -67,8 +78,10 @@ const HOS_ACTIONS: typeof ACTIONS = [
  * (`actionFundCost`) that executeAction itself charges, so the displayed quote
  * and the debit cannot drift. executeAction stays authoritative.
  */
-function quoteFundCost(id: ActionId, flat: number, donorBaseLevel: number, apCost: number, countryId: string, stats?: WorldState["player"]["stats"]): number {
-  return actionFundCost({ actionId: id, actionCost: apCost, donorBaseLevel, catalogFundCost: flat, countryId, ...(stats ? { stats } : {}) });
+function quoteFundCost(id: ActionId, flat: number, donorBaseLevel: number, apCost: number, countryId: string, stats: WorldState["player"]["stats"] | undefined, world: WorldState): number {
+  const region = world.regions[world.player.homeRegionId ?? ""];
+  return actionFundCost({ actionId: id, actionCost: apCost, donorBaseLevel, catalogFundCost: flat, countryId,
+    gdpMillions: region?.gdp, population: region?.population, era: world.meta.era, ...(stats ? { stats } : {}) });
 }
 
 /**
@@ -523,6 +536,111 @@ export class GameSession {
   partyManagement() { return projectPartyManagement(this.requireWorld()); }
 
   markets() { return projectMarkets(this.requireWorld()); }
+  unionManagement() { return projectUnionManagement(this.requireWorld()); }
+
+  organizeUnion(unionId: string) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = organizeUnionAction(candidate, unionId);
+    this.commit(candidate);
+    return result;
+  }
+
+  castUnionLeadershipVote(unionId: string) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = castUnionLeadershipVote(candidate, unionId);
+    if (result.ok) this.commit(candidate);
+    return result;
+  }
+
+  acceptUnionLeadership(unionId: string) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = acceptUnionLeadership(candidate, unionId);
+    if (result.ok) this.commit(candidate);
+    return result;
+  }
+
+  organizeUnionSector(unionId: string, assetId: string) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = organizeSectorAction(candidate, unionId, assetId);
+    this.commit(candidate);
+    return result;
+  }
+
+  setUnionDues(unionId: string, duesPerWorkerAnnual: number) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = setUnionDuesAction(candidate, unionId, duesPerWorkerAnnual);
+    if (result.ok) this.commit(candidate);
+    return result;
+  }
+
+  /** Bargaining rows persisted by the union commands and normal save format. */
+  unionBargaining() {
+    const world = this.requireWorld();
+    return {
+      campaigns: structuredClone(Object.values(world.bargainingCampaigns ?? {})),
+      agreements: structuredClone(Object.values(world.collectiveAgreements ?? {})),
+    };
+  }
+
+  /** Call an employer to bargain over its recorded CorporateSector locals. */
+  callUnionBargaining(unionId: string, employerCorporationId: string, terms: BargainingTerms) {
+    const candidate = structuredClone(this.requireWorld());
+    const union = candidate.unions[unionId];
+    if (!union || union.ownerType !== "player" || union.ownerId !== "player") {
+      throw new Error("Only the player-led union president can call bargaining.");
+    }
+    const hasRepresentedLocal = Object.values(corporateSectorAssets(candidate)).some(
+      (asset) => asset.representingUnionId === unionId && asset.corporationId === employerCorporationId,
+    );
+    if (!hasRepresentedLocal) {
+      throw new Error("Bargaining is limited to employers with a recorded local represented by this union.");
+    }
+    const campaign = openBargainingCampaignAction(candidate, {
+      unionId, employerCorporationId, terms, turn: candidate.meta.turn,
+    });
+    this.commit(candidate);
+    return structuredClone(campaign);
+  }
+
+  /** Union-side accept/counter/withdraw/escalate at the current save turn. */
+  moveUnionBargaining(
+    campaignId: string,
+    action: "accept" | "counter" | "withdraw" | "escalate",
+    terms?: BargainingTerms,
+  ) {
+    const candidate = structuredClone(this.requireWorld());
+    const campaign = candidate.bargainingCampaigns?.[campaignId];
+    const union = campaign ? candidate.unions[campaign.unionId] : undefined;
+    if (!union || union.ownerType !== "player" || union.ownerId !== "player") {
+      throw new Error("Only the player-led union president can move this bargaining campaign.");
+    }
+    const result = moveBargainingCampaignAsUnion(candidate, {
+      campaignId, action, ...(terms ? { terms } : {}), turn: candidate.meta.turn,
+    });
+    this.commit(candidate);
+    return structuredClone(result);
+  }
+
+  /** Cast or replace a weighted union-organizer ratification ballot. */
+  castUnionRatificationBallot(
+    campaignId: string,
+    vote: "ratify" | "reject",
+  ) {
+    const candidate = structuredClone(this.requireWorld());
+    const campaign = candidate.bargainingCampaigns?.[campaignId];
+    const union = campaign ? candidate.unions[campaign.unionId] : undefined;
+    if (!union || union.ownerType !== "player" || union.ownerId !== "player") {
+      throw new Error("Only the player-led union can cast the player's ratification ballot.");
+    }
+    if ((candidate.unionOrganizers?.[`${union.id}:player`]?.strength ?? 0) <= 0) {
+      throw new Error("The player needs organizing strength to cast a ratification ballot.");
+    }
+    const result = castRatificationBallot(candidate, {
+      campaignId, voterCharacterId: "player", vote, turn: candidate.meta.turn,
+    });
+    this.commit(candidate);
+    return structuredClone(result);
+  }
 
   /**
    * #294: direct corporate-sector sale commands. These run outside the
@@ -705,6 +823,10 @@ function snapshotActionFields(world: WorldState): Record<string, number | string
 }
 
 function actionTarget(params: ExecuteActionParams, world: WorldState): ActionTarget | undefined {
+  if (params.regionId && params.demographicCategory && params.demographicGroup) {
+    const group = world.demographicCategories[world.player.countryId]?.find(category => category._id === params.demographicCategory)?.groups.find(group => group.id === params.demographicGroup);
+    return { kind: "demographic", id: `${params.regionId}:${params.demographicCategory}:${params.demographicGroup}`, label: `${group?.name ?? params.demographicGroup} in ${world.regions[params.regionId]?.name ?? params.regionId}` };
+  }
   const candidates: [keyof ExecuteActionParams, string, (id: string) => string | undefined][] = [
     ["regionId", "region", id => world.regions[id]?.name],
     ["partyId", "party", id => world.parties[id]?.name],
@@ -803,6 +925,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
   const player = world.player;
   const capabilityNav = projectCapabilityNav(world);
   const myCorporation = projectMyCorporation(world);
+  const canvassing = projectCanvassing(world);
   return {
     turn: world.meta.turn, date: world.meta.date, era: world.meta.era,
     foundingActive: isFoundingActive(world.elections),
@@ -845,6 +968,7 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     })),
     elections: projectElections(world),
     polls: projectPolling(world),
+    canvassing,
     news: world.news.map((item, sourceIndex) => ({ item, sourceIndex })).slice(-50).reverse()
       .map(({ item, sourceIndex }) => projectNewsItem(world, item, sourceIndex)),
     // Issue #346: the spectator surface offers no character actions. Career
@@ -852,13 +976,15 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
     actions: (isWorldsimMode(player.mode) ? [] : player.mode === "hos" ? HOS_ACTIONS : ACTIONS).map(({ id, requires, category, prerequisite }) => {
       const entry = ACTION_CATALOG[id];
       const cost = getActionCost(entry, player.donorBaseLevel, player.politicalInfluence, player.favorability);
-      const fundCost = quoteFundCost(id, entry.fundCost, player.donorBaseLevel, cost, player.countryId, effectivePlayerStats(world));
+      const fundCost = quoteFundCost(id, entry.fundCost, player.donorBaseLevel, cost, player.countryId, effectivePlayerStats(world), world);
       const cooldownTurns = Math.max(0, (player.actionCooldowns[id] ?? 0) - world.meta.turn);
       // Gate order mirrors executeAction validation; executeAction stays authoritative.
       // The debatePrep Debate-stat preflight is mirrored here so the hub never
       // advertises an action executeAction unconditionally refuses (the
       // statless quick-create path); the engine error stays authoritative.
+      const characterReason = characterActionDisabledReason(world, id);
       const reason = entry.status === "unavailable" ? `Not yet available: requires the ${entry.blockingSystem ?? "unported system"} system.`
+        : characterReason ? characterReason
         : cooldownTurns > 0 ? `Available in ${cooldownTurns} ${cooldownTurns === 1 ? "turn" : "turns"}.`
         : player.actions < cost ? "Not enough action points."
         : fundCost > 0 && player.funds < fundCost ? `Not enough funds. Requires ${fundCost}.`
@@ -866,12 +992,12 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
         : id === "convertCash" && player.cash <= 0 ? "No cash to convert."
         : id === "debatePrep" && !world.featureFlags.rpgStats ? "The stat system is not currently enabled."
         : id === "debatePrep" && player.stats?.debate === undefined ? "Allocate your stats before training Debate."
-        : id === "canvass" && !Object.values(world.regions).some((region) => region.countryId === country.id) ? "No regions recorded for your country."
+        : id === "canvass" && canvassing.error ? canvassing.error
         : id === "leaveParty" && !player.partyId ? "You are independent."
         : id === "joinParty" ? joinPartyDisabledReason(world) : undefined;
       return { id, name: entry.name, description: entry.description, cost, available: !reason,
         category, fundCost, cooldownTurns,
-        ...(id === "fundraise" && isFundraiseEligible(player.donorBaseLevel) ? { fundsGain: fundraiseQuote(player.donorBaseLevel, player.politicalInfluence, effectivePlayerStats(world)) } : {}),
+        ...(id === "fundraise" && isFundraiseEligible(player.donorBaseLevel) ? { fundsGain: campaignAnchorToLocal(fundraiseQuote(player.donorBaseLevel, player.politicalInfluence, effectivePlayerStats(world)), player.countryId) } : {}),
         ...(requires ? { requires } : {}), ...(prerequisite ? { prerequisite } : {}),
         ...(reason ? { disabledReason: reason } : {}) };
     }),

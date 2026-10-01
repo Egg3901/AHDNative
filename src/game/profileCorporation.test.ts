@@ -133,6 +133,7 @@ describe("#51 profile corporation projection", () => {
       playerAvgCostPerShare: listing.playerAvgCostPerShare,
       controllingHolder: listing.controllingHolder,
       brandColor: listing.brandColor,
+      isStateOwned: false,
       role: "sector owner",
       ceoSalaryPerTurn: 0,
       dividendIncomePerTurn: 0,

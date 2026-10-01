@@ -26,6 +26,7 @@ export function allocatePlayerStats(world: WorldState, input: unknown): void {
   world.player.statsAllocated = true;
   world.player.statXp = {};
   world.player.debateDecayAnchor = world.meta.date;
+  world.player.debateDecayAnchorTurn = world.meta.turn;
 }
 
 export function reallocatePlayerStats(world: WorldState, input: unknown): void {
@@ -41,4 +42,5 @@ export function reallocatePlayerStats(world: WorldState, input: unknown): void {
   player.statsReallocationUsed = true;
   player.statXp = {};
   player.debateDecayAnchor = world.meta.date;
+  player.debateDecayAnchorTurn = world.meta.turn;
 }

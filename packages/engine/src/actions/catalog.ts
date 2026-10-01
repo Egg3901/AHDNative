@@ -279,10 +279,10 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   canvass: {
     id: "canvass",
     name: "Canvass",
-    description: "GOTV canvass: boost turnout modifiers in a target region.",
-    baseCost: 3,
+    description: "Canvass a chosen demographic in your eligible home or campaign state. Each canvass costs 1 action and 100 anchor campaign funds, converted to home currency. Up to 50 per batch.",
+    baseCost: 1,
     cooldown: 0,
-    fundCost: 15000,
+    fundCost: 100,
     systems: ["GOTV/turnout"],
     status: "available",
   },

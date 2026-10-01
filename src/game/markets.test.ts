@@ -139,7 +139,7 @@ describe("buyShares / sellShares through executeAction", () => {
     const liquidBefore = corp.liquidCapital;
 
     const result = executeAction(world, "player", "buyShares", { corpId: "US-media", shares });
-    expect(result).toEqual({ ok: true, message: `Bought ${shares} shares of ${corp.tickerSymbol} for ${notional}` });
+    expect(result).toEqual({ ok: true, message: `Bought ${shares} shares of ${corp.tickerSymbol} for ${notional}`, changes: { cash: -notional } });
     expect(world.player.cash).toBe(cashBefore - notional);
     expect(corp.publicFloat).toBe(floatBefore - shares);
     expect(corp.liquidCapital).toBe(liquidBefore + notional);
