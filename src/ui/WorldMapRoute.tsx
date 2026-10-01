@@ -2,13 +2,16 @@
  * WorldMapRoute: loads the offline world map/directory from the live save.
  *
  * Nations come from the world overview query. The region directory is loaded
- * with a full-page query (up to 100 rows) so the map lists the actual regions
- * of the player's country without inventing coordinates. The Hall of Fame
+ * per selected country (default: the player's) with a full-page query (up to
+ * 100 rows) so the map lists the actual recorded regions of that country
+ * without inventing coordinates. Changing the country picker re-queries
+ * through the existing client loadRegions({countryId, ...}); an unknown
+ * country falls back to the player's inside projectRegions. The Hall of Fame
  * summary comes from the same offline standings projection behind the
  * Leaderboards route, with default filters. Any query failure shows the
  * shared retry state, matching the other on-demand detail routes.
  */
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { RegionsQuery, RegionsView } from "../game/regions";
 import type { WorldOverviewView } from "../game/worldOverview";
 import type { HallOfFameView } from "../game/hallOfFame";
@@ -17,12 +20,15 @@ import { DetailQuery } from "./DetailQuery";
 import { WorldMapPanel } from "./WorldMapPanel";
 import type { DrawerRouteId } from "./MobileNavigation";
 
-const FULL_DIRECTORY: RegionsQuery = { directoryPage: 0, directoryPageSize: 100 };
+const FULL_DIRECTORY_PAGE_SIZE = 100;
+
+type FetchImpl = (url: string) => Promise<{ json(): Promise<unknown> }>;
 
 export function WorldMapRoute({
   loadOverview,
   loadRegions,
   loadHallOfFame,
+  fetchImpl,
   revision,
   section,
   onSectionChange,
@@ -40,6 +46,8 @@ export function WorldMapRoute({
    * summary instead of projecting one from unrelated queries.
    */
   loadHallOfFame?: () => Promise<HallOfFameView>;
+  /** Test seam for the subdivision shard fetch. */
+  fetchImpl?: FetchImpl;
   revision: object;
   section: WorldMapSection;
   onSectionChange: (section: WorldMapSection) => void;
@@ -49,7 +57,6 @@ export function WorldMapRoute({
   onOpenElection?: (id: string) => void;
   onOpenHallOfFame?: () => void;
 }) {
-  const loadDirectory = useCallback(() => loadRegions(FULL_DIRECTORY), [loadRegions]);
   const loadSummary = useCallback(async (): Promise<HallOfFameView | null> => {
     if (!loadHallOfFame) return null;
     return loadHallOfFame();
@@ -57,26 +64,89 @@ export function WorldMapRoute({
   return (
     <DetailQuery load={loadOverview} revision={revision} label="World map">
       {(overview) => (
-        <DetailQuery load={loadDirectory} revision={revision} label="World map regions">
-          {(regions) => (
-            <DetailQuery load={loadSummary} revision={revision} label="World map standings">
-              {(hallOfFame) => (
-                <WorldMapPanel
-                  overview={overview}
-                  regions={regions.directory}
-                  regionsTotal={regions.directoryTotal}
-                  regionsCountryName={regions.playerCountryName}
-                  section={section}
-                  onSectionChange={onSectionChange}
-                  view={view}
-                  onViewChange={onViewChange}
-                  hallOfFame={hallOfFame}
-                  onOpenHallOfFame={onOpenHallOfFame}
-                  onNavigate={onNavigate}
-                  onOpenElection={onOpenElection}
-                />
-              )}
-            </DetailQuery>
+        <CountryDirectory
+          overview={overview}
+          loadRegions={loadRegions}
+          loadSummary={loadSummary}
+          fetchImpl={fetchImpl}
+          revision={revision}
+          section={section}
+          onSectionChange={onSectionChange}
+          view={view}
+          onViewChange={onViewChange}
+          onNavigate={onNavigate}
+          onOpenElection={onOpenElection}
+          onOpenHallOfFame={onOpenHallOfFame}
+        />
+      )}
+    </DetailQuery>
+  );
+}
+
+function CountryDirectory({
+  overview,
+  loadRegions,
+  loadSummary,
+  fetchImpl,
+  revision,
+  section,
+  onSectionChange,
+  view,
+  onViewChange,
+  onNavigate,
+  onOpenElection,
+  onOpenHallOfFame,
+}: {
+  overview: WorldOverviewView;
+  loadRegions: (query?: RegionsQuery) => Promise<RegionsView>;
+  loadSummary: () => Promise<HallOfFameView | null>;
+  fetchImpl?: FetchImpl;
+  revision: object;
+  section: WorldMapSection;
+  onSectionChange: (section: WorldMapSection) => void;
+  view: WorldMapView;
+  onViewChange: (view: WorldMapView) => void;
+  onNavigate?: (route: DrawerRouteId, id?: string) => void;
+  onOpenElection?: (id: string) => void;
+  onOpenHallOfFame?: () => void;
+}) {
+  // Selected-country context: defaults to the player's nation and follows a
+  // new save's player country. Membership is checked live so a stale id can
+  // never scope the directory to a nation outside this world.
+  const [countryId, setCountryId] = useState(overview.playerCountryId);
+  useEffect(() => {
+    setCountryId(overview.playerCountryId);
+  }, [overview.playerCountryId]);
+  const effectiveCountryId = overview.nations.some((nation) => nation.id === countryId)
+    ? countryId
+    : overview.playerCountryId;
+  const loadDirectory = useCallback(
+    () => loadRegions({ countryId: effectiveCountryId, directoryPage: 0, directoryPageSize: FULL_DIRECTORY_PAGE_SIZE }),
+    [loadRegions, effectiveCountryId],
+  );
+  return (
+    <DetailQuery load={loadDirectory} revision={revision} label="World map regions">
+      {(regions) => (
+        <DetailQuery load={loadSummary} revision={revision} label="World map standings">
+          {(hallOfFame) => (
+            <WorldMapPanel
+              overview={overview}
+              regions={regions.directory}
+              regionsTotal={regions.directoryTotal}
+              regionsCountryName={regions.selectedCountryName}
+              selectedCountryId={regions.selectedCountryId}
+              onCountryChange={setCountryId}
+              isoDate={overview.date}
+              fetchImpl={fetchImpl}
+              section={section}
+              onSectionChange={onSectionChange}
+              view={view}
+              onViewChange={onViewChange}
+              hallOfFame={hallOfFame}
+              onOpenHallOfFame={onOpenHallOfFame}
+              onNavigate={onNavigate}
+              onOpenElection={onOpenElection}
+            />
           )}
         </DetailQuery>
       )}

@@ -1,11 +1,24 @@
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { createWorld } from "@ahdclient/engine";
 import { projectWorldOverview, type WorldOverviewView } from "../game/worldOverview";
 import { projectRegions, type RegionDirectoryRow } from "../game/regions";
 import { projectHallOfFame, type HallOfFameView } from "../game/hallOfFame";
+import { clearRegionShardCache } from "../game/regionGeo";
 import type { WorldMapSection, WorldMapView } from "../preferences";
 import { WorldMapPanel } from "./WorldMapPanel";
+
+const USA_SHARD = JSON.parse(
+  readFileSync(join(process.cwd(), "public/geo/usa-regions.json"), "utf8"),
+);
+
+const fetchImpl = async () => ({ json: async () => structuredClone(USA_SHARD) });
+
+beforeEach(() => {
+  clearRegionShardCache();
+});
 
 // One shared world: world creation costs several seconds, so every test
 // renders the same save.
@@ -31,12 +44,17 @@ function makeMap(section: WorldMapSection = "nations", view: WorldMapView = "wor
   const onNavigate = vi.fn();
   const onOpenElection = vi.fn();
   const onOpenHallOfFame = vi.fn();
+  const onCountryChange = vi.fn();
   render(
     <WorldMapPanel
       overview={fixture.overview}
       regions={fixture.regions}
       regionsTotal={fixture.regionsTotal}
       regionsCountryName={fixture.regionsCountryName}
+      selectedCountryId={fixture.overview.playerCountryId}
+      onCountryChange={onCountryChange}
+      isoDate={fixture.overview.date}
+      fetchImpl={fetchImpl}
       section={section}
       onSectionChange={onSectionChange}
       view={view}
@@ -47,7 +65,7 @@ function makeMap(section: WorldMapSection = "nations", view: WorldMapView = "wor
       onOpenElection={onOpenElection}
     />,
   );
-  return { overview: fixture.overview, regions: fixture.regions, onSectionChange, onViewChange, onNavigate, onOpenElection, onOpenHallOfFame };
+  return { overview: fixture.overview, regions: fixture.regions, onSectionChange, onViewChange, onNavigate, onOpenElection, onOpenHallOfFame, onCountryChange };
 }
 
 describe("WorldMapPanel", () => {
@@ -122,16 +140,23 @@ describe("WorldMapPanel", () => {
     expect(onViewChange).toHaveBeenCalledWith("country");
   });
 
-  it("spotlights the player country and keeps region selection in the directory", () => {
-    const { regions, onNavigate } = makeMap("nations", "country");
+  it("renders the player country's real subdivision shapes with picker and navigation", async () => {
+    const { regions, onNavigate, onCountryChange } = makeMap("nations", "country");
 
     expect(screen.getByRole("heading", { name: `${fixture.regionsCountryName} spotlight` })).toBeInTheDocument();
-    // No sub-region polygons are invented: the gap is stated honestly.
-    expect(screen.getByText(/sub-region shapes are not bundled offline/i)).toBeInTheDocument();
-    const map = screen.getByRole("group", { name: /on the world map, flat projection/i });
-    expect(within(map).getAllByRole("button").length).toBe(1);
-    fireEvent.click(within(map).getByRole("button", { name: `Open ${fixture.regionsCountryName} on the map` }));
-    expect(onNavigate).toHaveBeenCalledWith("nations", fixture.overview.playerCountryId);
+    // Actual country picker over the overview nations.
+    const picker = screen.getByRole("combobox", { name: "Choose country for the region map and directory" });
+    expect(within(picker).getByRole("option", { name: "France" })).toBeInTheDocument();
+    fireEvent.change(picker, { target: { value: "FR" } });
+    expect(onCountryChange).toHaveBeenCalledWith("FR");
+
+    // Real recorded shapes: the full 1953 US roster, no invented polygons.
+    const map = await screen.findByRole("group", { name: /united states regions geographic map/i });
+    expect(map.querySelectorAll("path[data-region-id]").length).toBe(fixture.regions.length);
+    expect(screen.queryByText(/sub-region shapes are not bundled offline/i)).not.toBeInTheDocument();
+    // Player-country shape click navigates to the Regions route.
+    fireEvent.click(within(map).getByRole("button", { name: "Select California region" }));
+    expect(onNavigate).toHaveBeenCalledWith("regions", "CA");
     // Region rows still open the existing Regions route with country+region ids.
     fireEvent.click(screen.getByRole("button", { name: `Open ${regions[0]!.name} region details` }));
     expect(onNavigate).toHaveBeenCalledWith("regions", regions[0]!.id);

@@ -7,10 +7,12 @@
  * projected save data: nations from projectWorldOverview, region rows
  * from projectRegions. Geometry provenance and the ISO mapping (ported
  * from the reference WorldMapSVG/MapSVGContent) live in
- * ../game/worldGeo.ts. Sub-region shapes are not bundled offline, so
- * the country context spotlights the player country on the world
- * shapes and keeps region selection in the directory: no invented
- * polygons, ever.
+ * ../game/worldGeo.ts. Subdivision shapes for the selected country come
+ * from the source region shards (see ../game/regionGeo.ts) and render
+ * only recorded region codes; countries with no bundled shard state the
+ * gap honestly: no invented polygons, ever. Foreign region selection is
+ * local to this route and never navigates to the player-scoped Regions
+ * route.
  *
  * Reference hierarchy (pinned rev 08820d1): `/map` redirects to the
  * country-scoped `/country/[code]/map`, and the world nav files the map
@@ -25,7 +27,7 @@
  * same way. No coordinate, election, or profile row is invented: links
  * render only for recorded ids.
  */
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { WorldNationView, WorldOverviewView } from "../game/worldOverview";
 import type { RegionDirectoryRow } from "../game/regions";
 import type { HallOfFameView } from "../game/hallOfFame";
@@ -33,13 +35,23 @@ import type { WorldMapSection, WorldMapView } from "../preferences";
 import type { DrawerRouteId } from "./MobileNavigation";
 import { nationOverviewHero, RouteHero } from "./RouteHero";
 import { WorldGeoMap } from "./WorldGeoMap";
+import { RegionGeoMap } from "./RegionGeoMap";
+
+type FetchImpl = (url: string) => Promise<{ json(): Promise<unknown> }>;
 
 export interface WorldMapPanelProps {
   overview: WorldOverviewView;
-  /** Region directory of the player's country (projectRegions rows). */
+  /** Region directory of the selected country (projectRegions rows, full page). */
   regions: RegionDirectoryRow[];
   regionsTotal: number;
   regionsCountryName: string;
+  /** Selected-country context from the route (defaults to the player's). */
+  selectedCountryId?: string;
+  onCountryChange?: (countryId: string) => void;
+  /** Game date selecting the era-aware subdivision shard (CN handover). */
+  isoDate?: string;
+  /** Test seam for the subdivision shard fetch. */
+  fetchImpl?: FetchImpl;
   /** The persisted view state on this route: section order + schematic context. */
   section: WorldMapSection;
   onSectionChange: (section: WorldMapSection) => void;
@@ -231,10 +243,21 @@ function NationRow({
 
 function RegionRow({
   row,
+  foreign,
+  selected,
+  onSelect,
   onNavigate,
   onOpenElection,
 }: {
   row: RegionDirectoryRow;
+  /**
+   * Foreign rows select locally and never navigate: the Regions route is
+   * player-country scoped, so opening a foreign region there would resolve
+   * the wrong country's detail. Player rows keep the existing navigation.
+   */
+  foreign: boolean;
+  selected: boolean;
+  onSelect?: (regionId: string) => void;
   onNavigate?: (route: DrawerRouteId, id?: string) => void;
   onOpenElection?: (id: string) => void;
 }) {
@@ -246,9 +269,11 @@ function RegionRow({
       <button
         type="button"
         className="ahd-btn"
-        onClick={() => onNavigate?.("regions", row.id)}
-        disabled={!onNavigate}
-        aria-label={`Open ${row.name} region details`}
+        onClick={() => (foreign ? onSelect?.(row.id) : onNavigate?.("regions", row.id))}
+        disabled={foreign ? !onSelect : !onNavigate}
+        aria-pressed={foreign ? selected : undefined}
+        aria-current={foreign && selected ? "true" : undefined}
+        aria-label={foreign ? `Select ${row.name} region` : `Open ${row.name} region details`}
         style={{
           width: "100%",
           minHeight: "3.1rem",
@@ -288,6 +313,10 @@ export function WorldMapPanel({
   regions,
   regionsTotal,
   regionsCountryName,
+  selectedCountryId,
+  onCountryChange,
+  isoDate,
+  fetchImpl,
   section,
   onSectionChange,
   view,
@@ -299,6 +328,24 @@ export function WorldMapPanel({
 }: WorldMapPanelProps) {
   const [nationQuery, setNationQuery] = useState("");
   const [regionQuery, setRegionQuery] = useState("");
+  const effectiveCountryId = selectedCountryId ?? overview.playerCountryId;
+  const isPlayerCountry = effectiveCountryId === overview.playerCountryId;
+  // Foreign region selection is local: browsing never navigates to the
+  // player-scoped Regions route. It resets whenever the country changes.
+  const [localSelectedId, setLocalSelectedId] = useState<string | null>(null);
+  useEffect(() => {
+    setLocalSelectedId(null);
+  }, [effectiveCountryId]);
+  const localSelected = isPlayerCountry
+    ? null
+    : regions.find((row) => row.id === localSelectedId) ?? null;
+  // Recorded code -> recorded name for the subdivision map. The route loads
+  // the full directory page (100 rows covers every national roster; the US
+  // maxes at 51 shard features), so the map and directory share one roster.
+  const recorded = useMemo(
+    () => new Map(regions.map((row) => [row.id, row.name] as const)),
+    [regions],
+  );
   const nationNeedle = nationQuery.trim().toLocaleLowerCase();
   const regionNeedle = regionQuery.trim().toLocaleLowerCase();
   const nations = overview.nations.filter((nation) => {
@@ -338,6 +385,23 @@ export function WorldMapPanel({
 
       <section className="ahd-card ahd-card-pad" aria-label={view === "world" ? "World geography" : "Country spotlight"}>
         <h2 className="ahd-h2">{view === "world" ? "World geography" : `${regionsCountryName} spotlight`}</h2>
+        {view === "country" && onCountryChange ? (
+          <label className="ahd-field" style={{ marginTop: "0.65rem" }}>
+            <span className="ahd-label">Country</span>
+            <select
+              className="ahd-input"
+              value={effectiveCountryId}
+              onChange={(event) => onCountryChange(event.target.value)}
+              aria-label="Choose country for the region map and directory"
+            >
+              {overview.nations.map((nation) => (
+                <option key={nation.id} value={nation.id}>
+                  {nation.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <div style={{ marginTop: "0.55rem" }}>
           {view === "world" ? (
             <WorldGeoMap
@@ -346,10 +410,16 @@ export function WorldMapPanel({
               onSelect={onNavigate ? (id) => onNavigate("nations", id) : undefined}
             />
           ) : (
-            <WorldGeoMap
-              overview={overview}
-              spotlightCountryId={overview.playerCountryId}
-              onSelect={onNavigate ? (id) => onNavigate("nations", id) : undefined}
+            <RegionGeoMap
+              countryId={effectiveCountryId}
+              countryName={regionsCountryName}
+              isoDate={isoDate ?? overview.date}
+              recorded={recorded}
+              selectedId={isPlayerCountry ? null : localSelected?.id ?? null}
+              onSelect={isPlayerCountry
+                ? (onNavigate ? (id) => onNavigate("regions", id) : undefined)
+                : (id) => setLocalSelectedId(id)}
+              fetchImpl={fetchImpl}
             />
           )}
         </div>
@@ -386,8 +456,31 @@ export function WorldMapPanel({
         <section key="regions" className="ahd-card ahd-card-pad" aria-label="Regions on the world map">
           <h2 className="ahd-h2">Regions</h2>
           <p className="ahd-muted" style={{ margin: "0.35rem 0 0", fontSize: "0.76rem" }}>
-            Regions in {regionsCountryName}. Choosing a row opens its details and does not change your home region.
+            {isPlayerCountry
+              ? `Regions in ${regionsCountryName}. Choosing a row opens its details and does not change your home region.`
+              : `Regions in ${regionsCountryName}. Browsing here is detached: choosing a shape or row selects it on this map only and never changes your home region or country.`}
           </p>
+          {localSelected ? (
+            <div className="ahd-card ahd-card-pad" aria-live="polite" style={{ marginTop: "0.55rem" }}>
+              <strong style={{ fontSize: "0.86rem" }}>{localSelected.name}</strong>
+              <span className="ahd-muted" style={{ fontSize: "0.72rem", marginLeft: "0.4rem" }}>
+                {localSelected.id}
+                {localSelected.population !== null ? ` · pop. ${localSelected.population.toLocaleString("en-US")}` : ""}
+              </span>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center", marginTop: "0.4rem" }}>
+                <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>Office holder:</span>
+                {localSelected.officeHolder ? (
+                  <LeaderLink name={localSelected.officeHolder.name} isPlayer={localSelected.officeHolder.isPlayer} leaderId={localSelected.officeHolder.id} onNavigate={onNavigate} />
+                ) : (
+                  <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>No recorded holder</span>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center", marginTop: "0.4rem" }}>
+                <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>Races:</span>
+                <RaceLinks races={localSelected.races} onOpenElection={onOpenElection} noun="regional" />
+              </div>
+            </div>
+          ) : null}
           <label className="ahd-field" style={{ marginTop: "0.65rem" }}>
             <span className="ahd-label">Search regions</span>
             <input
@@ -407,7 +500,15 @@ export function WorldMapPanel({
           ) : (
             <div role="group" aria-label="World region directory" style={{ display: "flex", flexDirection: "column", gap: "0.35rem", marginTop: "0.55rem" }}>
               {filteredRegions.map((row) => (
-                <RegionRow key={row.id} row={row} onNavigate={onNavigate} onOpenElection={onOpenElection} />
+                <RegionRow
+                  key={row.id}
+                  row={row}
+                  foreign={!isPlayerCountry}
+                  selected={localSelected?.id === row.id}
+                  onSelect={(id) => setLocalSelectedId(id)}
+                  onNavigate={onNavigate}
+                  onOpenElection={onOpenElection}
+                />
               ))}
             </div>
           )}
