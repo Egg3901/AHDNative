@@ -81,6 +81,7 @@ describe("bankingTurnPhase — deposit interest paid by the bank (W5 PORT-STUB r
       corp.bankCharter!.cashReserves = 1_000_000;
       corp.bankCharter!.depositOffset = 0;
       world.centralBanks.US!.primeRate = 5;
+      world.budgets.US!.economicFactors.inflationRate = 2;
       world.countries.US!.economy.inflationRate = 0.02;
       world.centralBankPricingPhaseIn = { startedTurn: 1 };
       world.meta.turn = 1;

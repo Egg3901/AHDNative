@@ -25,12 +25,12 @@
  * | recomputeSharePricesPhase (RNG-free)     | share prices from post-bond issuer capital      | bankSolvencyTurnPhase prop-book mark                  |
  * | bankSolvencyTurnPhase (RNG-free)         | bank cash/confidence/failure state              | recordWorldHistoryPhase                               |
  *
- * Required edges asserted below (registry index order):
- * corporationTurn < unionsTurn < nppUnionBehavior < pensionTurn <
- * macroCountryTurn < playerSavingsInterest < bankingTurn <
+ * Required source edges asserted below (registry index order):
+ * corporationTurn < unionsTurn < nppUnionBehavior < playerSavingsInterest <
+ * bankingTurn < pensionTurn < macroCountryTurn <
  * discountWindowTurn < sovereignIssuance < bondCouponMaturity <
- * npcBondHolder < playerLineOfCredit < recomputeSharePrices <
- * bankSolvencyTurn.
+ * npcBondHolder < playerLineOfCredit < recomputeSharePrices < bankSolvencyTurn <
+ * inflationRecalc < centralBankChairTurn.
  *
  * The bond < line edge is the #317 restoration: the reference runs bondTurn
  * coupons/maturities (player-wallet credits) BEFORE lineOfCreditTurn sizes
@@ -102,6 +102,9 @@ function financeWorld(withCreditAndPension: boolean): {
   world.player.cash = 100_000;
   expect(depositToSavings(world, 48_000)).toEqual({ ok: true });
   world.centralBanks.US!.primeRate = 5;
+  // Game savingsInterestTurn reads the settled bank inflationHistory point,
+  // written from this budget field by the prior turn's interestRateSnapshot.
+  world.budgets.US!.economicFactors.inflationRate = 2;
   world.countries.US!.economy.inflationRate = 0.02;
 
   const unionId = firstUsUnion(world);
@@ -135,10 +138,10 @@ describe("finance phase reconcile #317", () => {
       "corporationTurn",
       "unionsTurn",
       "nppUnionBehavior",
-      "pensionTurn",
-      "macroCountryTurn",
       "playerSavingsInterest",
       "bankingTurn",
+      "pensionTurn",
+      "macroCountryTurn",
       "discountWindowTurn",
       "sovereignIssuance",
       "bondCouponMaturity",
@@ -146,6 +149,8 @@ describe("finance phase reconcile #317", () => {
       "playerLineOfCredit",
       "recomputeSharePrices",
       "bankSolvencyTurn",
+      "inflationRecalc",
+      "centralBankChairTurn",
     ];
     const indices = order.map(phaseIndex);
     expect(indices).toEqual([...indices].sort((a, b) => a - b));
@@ -168,6 +173,9 @@ describe("finance phase reconcile #317", () => {
     expect(a.world.player.savings).toBe(48_000);
     expect(a.world.player.pendingSavingsInterest).toBe(15.31);
     expect(a.world.player.savingsInterestEarnedLifetime ?? 0).toBe(0);
+    // The ordinary later macro/inflation phase is still live: this same turn
+    // settles a new rate after savings used the prior settled rate.
+    expect(a.world.budgets.US!.economicFactors.inflationRate).not.toBe(2);
     // The savings leg is blind to the credit/pension setup: twins agree.
     expect(b.world.player.savings).toBe(a.world.player.savings);
     expect(b.world.player.pendingSavingsInterest).toBe(a.world.player.pendingSavingsInterest);

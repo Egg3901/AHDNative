@@ -12,6 +12,7 @@ describe("playerSavingsInterestPhase", () => {
     world.player.savings = 48_000;
     world.player.savingsHolder = "centralBank";
     world.centralBanks.US!.primeRate = 5;
+    world.budgets.US!.economicFactors.inflationRate = 2;
     world.countries.US!.economy.inflationRate = 0.02;
 
     world.meta.turn = 11;
@@ -62,6 +63,7 @@ describe("playerSavingsInterestPhase", () => {
     world.player.savings = 48_000;
     world.player.savingsHolder = "centralBank";
     world.centralBanks.US!.primeRate = 5;
+    world.budgets.US!.economicFactors.inflationRate = 2;
     world.countries.US!.economy.inflationRate = 0.02;
     world.meta.turn = 5;
     playerSavingsInterestPhase.run(world, RNG);

@@ -24,7 +24,11 @@ export const playerSavingsInterestPhase: TurnPhase = {
     const currency = world.budgets[countryId]?.currencyCode ?? "USD";
     const bankId = getBankId(getCountryIdForCurrency(currency));
     const primeRate = world.centralBanks[bankId]?.primeRate ?? 2.5;
-    const inflationPercent = (world.countries[countryId]?.economy.inflationRate ?? 0) * 100;
+    // Game's savingsInterestTurn reads the latest settled CB inflationHistory
+    // point. Native's equivalent authoritative value is the budget rate left
+    // by the previous turn's inflationRecalc; the new current-turn rate is not
+    // written until much later in the pipeline.
+    const inflationPercent = world.budgets[countryId]?.economicFactors.inflationRate ?? 0;
     // A private-bank account in an authoritative savings currency is paid in
     // full by the bank. Other holders receive the central-bank base here;
     // private banks pay only their premium over that base in bankingTurn.
