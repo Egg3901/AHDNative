@@ -51,6 +51,26 @@ export function corpQualifiesForSubsidy(
   return true;
 }
 
+/** Fixed percentage-point margin benefit from every qualifying active subsidy. */
+export function subsidyMarginModifierForCorporation(
+  subsidies: Subsidy[],
+  corporation: { countryId: string; sectorType: CorporationType },
+): number {
+  return subsidies.reduce((total, subsidy) => {
+    if (!subsidy.active) return total;
+    const qualifies = corpQualifiesForSubsidy(
+      subsidy,
+      "",
+      corporation.sectorType,
+      "",
+      undefined,
+      corporation.countryId,
+      corporation.countryId,
+    );
+    return total + (qualifies ? SUBSIDY_MARGIN_BONUS : 0);
+  }, 0);
+}
+
 export interface SubsidyCostCorp {
   countryId: string;
   sectorType: CorporationType;
@@ -66,6 +86,7 @@ export interface NationalSubsidySpec {
   countryId: string;
   scopeType: "economy_wide" | "sector";
   targetSectorType?: string | null;
+  targetStrategyId?: string | null;
   domesticOnly: boolean;
 }
 
@@ -83,7 +104,7 @@ function subsidyKeyMatches(subsidy: Subsidy, spec: NationalSubsidySpec): boolean
     subsidy.scope === "national" &&
     subsidy.scopeType === spec.scopeType &&
     (subsidy.targetSectorType ?? null) === (spec.scopeType === "sector" ? (spec.targetSectorType as string) : null) &&
-    (subsidy.targetStrategyId ?? null) === null
+    (subsidy.targetStrategyId ?? null) === (spec.targetStrategyId ?? null)
   );
 }
 
@@ -117,14 +138,15 @@ export function enactNationalSubsidy(subsidies: Subsidy[], spec: NationalSubsidy
     const status = match.active ? "already-active" : "reactivated";
     return { ok: true, subsidies: subsidies.map((s, i) => (i === matchIndex ? next : s)), status };
   }
-  const id = `sub-${spec.countryId}-national-${spec.scopeType}-${target ?? "all"}${spec.domesticOnly ? "-dom" : ""}`;
+  const strategy = spec.targetStrategyId ?? null;
+  const id = `sub-${spec.countryId}-national-${spec.scopeType}-${target ?? "all"}${strategy ? `-${strategy}` : ""}${spec.domesticOnly ? "-dom" : ""}`;
   const record: Subsidy = {
     id,
     countryId: spec.countryId,
     scope: "national",
     scopeType: spec.scopeType,
     targetSectorType: target,
-    targetStrategyId: null,
+    targetStrategyId: strategy,
     stateId: null,
     domesticOnly: spec.domesticOnly,
     active: true,

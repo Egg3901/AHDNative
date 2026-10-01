@@ -1,3 +1,4 @@
+import type { GameActionParams } from "./actionInput";
 import type { ProfileUpdate } from "./profileTypes";
 import type { RegionsQuery } from "./regions";
 import type { LegislationSelection } from "./legislationDetails";
@@ -31,7 +32,7 @@ export type GameCommand =
   | { type: "worldOverview" }
   | { type: "legislation"; selection?: LegislationSelection }
   | { type: "advance" }
-  | { type: "action"; actionId: string; params?: Record<string, string | number> }
+  | { type: "action"; actionId: string; params?: GameActionParams }
   | { type: "sectorSale"; op: "list" | "update" | "unlist" | "buy"; assetId: string; priceAnchor?: number; buyerCorporationId?: string }
   | { type: "unionCommand"; op: "organize" | "vote" | "accept"; unionId: string }
   | { type: "unionCommand"; op: "organizeSector"; unionId: string; assetId: string }

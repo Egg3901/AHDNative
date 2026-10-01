@@ -64,10 +64,22 @@ describe("schema 42 projection of public save envelopes", () => {
     expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });
   });
 
-  it("projects a Native-fresh world with source-backed issuer identity and reloads that identity", () => {
-    const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+  it("projects isolated source issuer identity without unsupported regional metric records", () => {
+    const identityOnly = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    // Isolate issuer identity on the genuine pre-control fixture. Fresh
+    // TFP, Gosbank and SOE state have separate refusal coverage.
+    const world = deserializeSave(gunzipSync(readFileSync(join(dirname(FIXTURE_GZ), "native-fresh-pre-ceo-source.save.json.gz"))).toString("utf8"));
+    world.regions.DC = identityOnly.regions.DC!;
+    for (const [id, corporation] of Object.entries(world.corporations)) {
+      const source = identityOnly.corporations[id]!;
+      corporation.name = source.name;
+      corporation.brandColor = source.brandColor;
+      corporation.headquartersRegionId = source.headquartersRegionId;
+      delete corporation.legacyProjectionDefaults;
+    }
     expect(world.player.homeRegionId).toBe("AL");
-    // Keep identity proof separate from fresh TFP and plant lifecycle state.
+    // Isolate the supported identity extension from the fresh TFP guard.
+    world.regionalMetrics = {};
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projected.ok).toBe(true);
     if (!projected.ok) throw new Error(projected.error);
@@ -148,29 +160,31 @@ describe("schema 42 projection of public save envelopes", () => {
     });
   });
 
+  it("projects the historical pre-control world as a v42 extension that keeps homeRegionId AL", () => {
+    const world = deserializeSave(gunzipSync(readFileSync(join(dirname(FIXTURE_GZ), "native-fresh-pre-ceo-source.save.json.gz"))).toString("utf8"));
+    expect(world.player.homeRegionId).toBe("AL");
+    const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) throw new Error(projected.error);
+    const parsed = JSON.parse(projected.contents) as {
+      schemaVersion: number;
+      world: { meta: { schemaVersion: number }; countryPolitics?: unknown; player: { homeRegionId?: unknown } };
+    };
+    expect(parsed.schemaVersion).toBe(42);
+    expect(parsed.world.meta.schemaVersion).toBe(42);
+    expect(parsed.world.player.homeRegionId).toBe("AL");
+    expect(Object.prototype.hasOwnProperty.call(parsed.world, "countryPolitics")).toBe(false);
+    // Re-pinned #242: one-party packs now carry the authored `regimeStatus`
+    // party marker, which appears in the projected Native-fresh envelope.
+    expect(sha256(projected.contents)).toBe("404370ac2e43de737ce3e664fafde05f34a8298bb51db2de9de8ae6de6c59b03");
+    const restored = deserializeSave(projected.contents);
+    expect(restored.player.homeRegionId).toBe("AL");
+    expect(restored.countryPolitics).toEqual(world.countryPolitics);
+  });
+
   it("refuses a migrated world after a Native turn mutates countryPolitics", () => {
     const world = deserializeSave(loadAuthenticV42());
     advanceTurn(world);
-    // Keep this refusal focused on the existing countryPolitics mutation;
-    // the current schema's new R&D lifecycle state is independently rejected
-    // by the corporation projection guard above.
-    for (const corp of Object.values(world.corporations)) {
-      corp.rdBudgetPerTurn = 0;
-      corp.rdScore = 0;
-      corp.lastRdSpendPerTurn = 0;
-      corp.lastRdCapacityGain = 0;
-      corp.ceoId = undefined;
-      corp.ceoType = "npp";
-      corp.ceoVacant = false;
-      corp.pendingCeoId = undefined;
-      corp.ceoVotes = [];
-      corp.ceoSalaryPerTurn = 0;
-      corp.dividendRate = 0;
-      corp.lastCeoSalaryPaid = 0;
-      corp.lastDividendPoolPaid = 0;
-      corp.lastPlayerDividendPaid = 0;
-      corp.lastUnpostedDividendPaid = 0;
-    }
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projected.ok).toBe(false);
     if (projected.ok) throw new Error("expected countryPolitics refusal");

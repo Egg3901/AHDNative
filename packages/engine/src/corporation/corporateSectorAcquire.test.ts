@@ -112,12 +112,39 @@ describe("#295 corporate-sector acquisition", () => {
     existing.unionization = 20;
     asset.workers = 700;
     asset.unionization = 80;
+    Object.assign(existing, {
+      capitalStock: 700,
+      capacityBookAnchor: 2_100,
+      producedUnits: 100,
+      soldUnits: 75,
+      realizedRevenue: 300,
+      soldFraction: 0.75,
+      soldByCommodity: { textiles: 0.5, steel: 0.9 },
+    });
+    Object.assign(asset, {
+      capitalStock: 300,
+      capacityBookAnchor: 900,
+      producedUnits: 300,
+      soldUnits: 150,
+      realizedRevenue: 500,
+      soldFraction: 0.25,
+      soldByCommodity: { textiles: 0.25, chemicals: 0.8 },
+    });
     const existingId = existing.id;
     const acquiredId = asset.id;
 
     expect(buyCorporateSectorForSale(world, acquiredId, buyer.id)).toMatchObject({ ok: true, merged: true });
     expect(world.corporateSectors![existingId]!.workers).toBe(1_000);
     expect(world.corporateSectors![existingId]!.unionization).toBe(62);
+    expect(world.corporateSectors![existingId]).toMatchObject({
+      capitalStock: 1_000,
+      capacityBookAnchor: 3_000,
+      producedUnits: 400,
+      soldUnits: 225,
+      realizedRevenue: 800,
+      soldFraction: 0.375,
+      soldByCommodity: { textiles: 0.3125, steel: 0.9, chemicals: 0.8 },
+    });
     expect(world.corporateSectors![acquiredId]).toBeUndefined();
   });
 

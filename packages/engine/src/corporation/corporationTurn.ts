@@ -55,6 +55,7 @@ import { getEraNominalScale } from "../commodity/constants.js";
 import { isCommandEconomy } from "../commandEconomy/constants.js";
 import { DAYS_PER_TURN } from "../calendar.js";
 import { pushEarningsHistory } from "../market/earnings.js";
+import { subsidyMarginModifierForCorporation } from "../budget/subsidyBudget.js";
 import {
   labourFactorsForCorporation,
   loadCorporationLabourState,
@@ -332,9 +333,16 @@ export const corporationTurnPhase: TurnPhase = {
     runCorporatePlantProductionTurn(world, new Map(
       [...labourByCorp].map(([corpId, factors]) => [corpId, factors.outputFactor]),
     ));
+    const subsidies = Array.isArray(world.subsidies) ? world.subsidies : [];
     for (const corp of Object.values(world.corporations)) {
       const taxRatePct = world.budgets?.[corp.countryId]?.taxRates.domesticCorporateTax ?? DEFAULT_CORPORATE_TAX_RATE_PCT;
       const currencyCode = world.budgets?.[corp.countryId]?.currencyCode ?? world.exchangeRates?.[corp.countryId]?.currencyCode ?? "XXX";
+      const labourFactors = labourByCorp.get(corp.id)!;
+      const subsidyMargin = subsidyMarginModifierForCorporation(subsidies, corp);
+      const labourAndSubsidy = {
+        ...labourFactors,
+        marginModifierPP: labourFactors.marginModifierPP + subsidyMargin,
+      };
       const asset = Object.values(world.corporateSectors ?? {}).find((candidate) => candidate.corporationId === corp.id);
       const fx = world.exchangeRates?.[corp.countryId]?.rate ?? 1;
       const marketizationLevel = world.commandEconomy[corp.countryId]?.marketizationLevel ?? 100;
@@ -347,7 +355,7 @@ export const corporationTurnPhase: TurnPhase = {
         marketizationLevel,
         currentTargetRate: corp.targetGrowthRate,
       });
-      runCorporationTurn(corp, taxRatePct, labourByCorp.get(corp.id), { player: world.player, currencyCode }, true, {
+      runCorporationTurn(corp, taxRatePct, labourAndSubsidy, { player: world.player, currencyCode }, true, {
         localPerAnchor: fx,
         avgWageLevel: asset?.wageLevel ?? 1,
       }, {

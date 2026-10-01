@@ -56,6 +56,17 @@ export const CORPORATION_TYPES = [
 
 export type CorporationType = (typeof CORPORATION_TYPES)[number];
 
+/** Source corporation.soe command-economy overlay, in the corporation's own currency. */
+export interface SoeState {
+  sector: CorporationType;
+  capacity: number;
+  output: number;
+  planTarget: number;
+  efficiency: number;
+  cumulativeLosses: number;
+  directorId: string | null;
+}
+
 export interface CorporationPricePoint {
   turn: number;
   price: number;
@@ -149,8 +160,10 @@ export interface Corporation {
   /**
    * Country owner for state-owned / nationalized corporations.
    * Source: corporation.ts `countryOwnerId`. Absent on private corps.
-   * Ported from AHDGame's state-owned National Corporation lifecycle.
-  */
+   * Ported from AHDGame's state-owned National Corporation lifecycle and
+   * #307 corporate-bond issuer/owner slice, including source-seeded RU/DD
+   * command-economy enterprises.
+   */
   countryOwnerId?: string;
   /** Set on the Native sector-specific National Corporation (source split-off mapping). */
   isNationalCorporation?: true;
@@ -162,6 +175,10 @@ export interface Corporation {
    * directly. Source: corporation.ts `ownershipState` + `isStateOwned()`.
    */
   ownershipState?: "private" | "stateOwned";
+  /** Present on source command-country state enterprises. */
+  soe?: SoeState;
+  /** Original legacy ownership before Native reconstructs a neutral SOE seed. */
+  legacySoeProjection?: { countryOwnerId?: string; ownershipState?: "private" | "stateOwned" };
   foundedAtTurn: number;
   /** Turn persistent insolvency began; null when solvent. */
   insolventSinceTurn: number | null;

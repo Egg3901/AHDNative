@@ -1,55 +1,7 @@
 import type { WorldState } from "../types.js";
 import { isCorpStateOwned } from "../bonds/corporateBonds.js";
 import { corporateSectorAssets, type CorporateSectorAsset } from "./corporateSectorAssets.js";
-import type { CommodityType } from "../commodity/constants.js";
-
-const ADDITIVE_PLANT_FIELDS = ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "realizedRevenue"] as const;
-
-function addOptional(left: number | undefined, right: number | undefined): number | undefined {
-  if (left === undefined && right === undefined) return undefined;
-  return (Number.isFinite(left) ? left! : 0) + (Number.isFinite(right) ? right! : 0);
-}
-
-/** Preserve Native's additive physical ledger when a same-place sector merges. */
-function mergePlantLedger(target: CorporateSectorAsset, source: CorporateSectorAsset): void {
-  const targetOutput = Number.isFinite(target.producedUnits) ? Math.max(0, target.producedUnits ?? 0) : 0;
-  const sourceOutput = Number.isFinite(source.producedUnits) ? Math.max(0, source.producedUnits ?? 0) : 0;
-  const totalOutput = targetOutput + sourceOutput;
-  const targetStock = Number.isFinite(target.capitalStock) ? Math.max(0, target.capitalStock ?? 0) : 0;
-  const sourceStock = Number.isFinite(source.capitalStock) ? Math.max(0, source.capitalStock ?? 0) : 0;
-  const totalStock = targetStock + sourceStock;
-  for (const field of ADDITIVE_PLANT_FIELDS) {
-    const total = addOptional(target[field], source[field]);
-    if (total !== undefined) target[field] = total;
-  }
-
-  const ratioWeight = totalOutput > 0 ? totalOutput : totalStock;
-  const targetWeight = totalOutput > 0 ? targetOutput : targetStock;
-  const sourceWeight = totalOutput > 0 ? sourceOutput : sourceStock;
-  if (ratioWeight > 0 && (target.soldFraction !== undefined || source.soldFraction !== undefined)) {
-    target.soldFraction = (targetWeight * (target.soldFraction ?? 0) + sourceWeight * (source.soldFraction ?? 0)) / ratioWeight;
-  }
-
-  if (target.soldByCommodity || source.soldByCommodity) {
-    const commodities = new Set<CommodityType>([
-      ...Object.keys(target.soldByCommodity ?? {}) as CommodityType[],
-      ...Object.keys(source.soldByCommodity ?? {}) as CommodityType[],
-    ]);
-    const soldByCommodity: Partial<Record<CommodityType, number>> = {};
-    for (const commodity of commodities) {
-      const targetFill = target.soldByCommodity?.[commodity];
-      const sourceFill = source.soldByCommodity?.[commodity];
-      if (ratioWeight > 0) {
-        // A missing commodity fill uses the production routine's default of 1.
-        soldByCommodity[commodity] =
-          (targetWeight * (targetFill ?? 1) + sourceWeight * (sourceFill ?? 1)) / ratioWeight;
-      } else if (targetFill !== undefined || sourceFill !== undefined) {
-        soldByCommodity[commodity] = ((targetFill ?? 0) + (sourceFill ?? 0)) / 2;
-      }
-    }
-    target.soldByCommodity = soldByCommodity;
-  }
-}
+import { mergeCorporateSectorPhysicalLedger } from "./physicalAssetMerge.js";
 
 /** Source `NATIONALIZATION_REVENUE_HAIRCUT` for an executive taking. */
 export const NATIONALIZATION_REVENUE_KEEP = 0.85;
@@ -197,7 +149,7 @@ export function nationalizeDistressedCorporation(
     if (collision) {
       collision.workers += asset.workers;
       collision.revenue = (collision.revenue ?? existingNational?.revenue ?? 0) + absorbedRevenue;
-      mergePlantLedger(collision, asset);
+      mergeCorporateSectorPhysicalLedger(collision, asset);
       collision.forSale = null;
       if (!collision.representingUnionId && asset.representingUnionId) {
         collision.representingUnionId = asset.representingUnionId;
