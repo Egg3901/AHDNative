@@ -23,13 +23,10 @@ describe("#276 defense ministerial order consequences", () => {
       order.availability === "blocked" && order.blocker.startsWith("defenseUnavailable:"),
     );
     expect(defenseOrders.filter(order => order.availability === "supported").map(order => `${order.positionId}:${order.id}`).sort()).toEqual([
-      "minister_for_defence:ie_defence_forces_review",
-      "minister_of_defense:civil_defense_drill",
-      "minister_of_defense:defense_white_paper",
       "secretary_of_defense:defense_modernization",
       "secretary_of_defense:national_guard_deployment",
     ]);
-    expect(unavailable).toHaveLength(5);
+    expect(unavailable).toHaveLength(8);
     for (const order of unavailable) {
       expect(order.blocker).toBe(`defenseUnavailable:${order.id}`);
       expect(order.unavailableEffects).toEqual(
@@ -43,6 +40,17 @@ describe("#276 defense ministerial order consequences", () => {
         })),
       );
     }
+  });
+
+  it("adds source mapped Irish and Chinese defense consumers only in a preset that records their boards", () => {
+    const world = createWorld({ ...OPTIONS, era: "2019" });
+    const supported = ["US", "UK", "DE", "IE", "JP", "CN"].flatMap(countryId =>
+      ministerialOrderInventory(world, countryId).filter(order => /defen[cs]e/.test(order.positionId) && order.availability === "supported")
+        .map(order => `${countryId}:${order.id}`));
+    expect(supported.sort()).toEqual([
+      "CN:civil_defense_drill", "CN:defense_white_paper", "IE:ie_defence_forces_review",
+      "US:defense_modernization", "US:national_guard_deployment",
+    ]);
   });
 
   it("applies the authored UK veterans order to its real regional consumer through turn and save reload", () => {
