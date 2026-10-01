@@ -33,11 +33,12 @@ import {
 } from "./commodity/constants.js";
 import { CENTRAL_BANK_COUNTRY_ANCHORS, CHAIR_TERM_TURNS } from "./centralBank/constants.js";
 import type { CentralBank } from "./centralBank/types.js";
-import { seedCorporations } from "./corporation/founding.js";
+import { seedCorporations, SOURCE_NPP_HEADQUARTERS_REGION } from "./corporation/founding.js";
+import { makeSeedSoeState } from "./commandEconomy/soe.js";
 import { seedNpcBanks } from "./banking/npcBanks.js";
 import { seedUnions } from "./unions/founding.js";
 import { seedExchangeRates } from "./forex/founding.js";
-import { MARKETIZATION_SCHEDULE, scheduledMarketizationLevel, NPP_DEFAULT_BUDGET_SOFTNESS, NPP_DEFAULT_INTERNAL_REPRESSION, NPP_DEFAULT_REFORMISM } from "./commandEconomy/constants.js";
+import { MARKETIZATION_SCHEDULE, scheduledMarketizationLevel, NPP_DEFAULT_BUDGET_SOFTNESS, NPP_DEFAULT_CREDIT_AGGRESSIVENESS, NPP_DEFAULT_INTERNAL_REPRESSION, NPP_DEFAULT_REFORMISM } from "./commandEconomy/constants.js";
 import type { CommandEconomyState } from "./commandEconomy/types.js";
 import { seedCapitalStock } from "./economy/capitalStock.js";
 import type { UnownedSectorState } from "./economy/types.js";
@@ -151,11 +152,13 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v47: grounded corporate-sector workforce (workers, representingUnionId);
 // see save.ts.
 // v48: interbank loan book (world.interbankLoans); see save.ts.
+// v49: source-authored corporation HQ region identity; see save.ts.
+// v50: deterministic local corporation name and brand identity; see save.ts.
 // Issues #334/#345 difficulty and autonomy carry no schema version of
 // their own: both are optional axes with absent-means-default (see
 // WorldState.difficulty/nppAutonomyLevel), so default worlds keep the
 // schema 46 bytes.
-export const SCHEMA_VERSION = 48;
+export const SCHEMA_VERSION = 50;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -774,8 +777,17 @@ export function createWorld(options: NewWorldOptions): WorldState {
 
   const { regions, electoratePools, regionTurnouts, partyRegions, partyPressures, candidateSupports } =
     seedSupport(pack, parties, politicians);
+  for (const location of pack.corporationHeadquartersRegions ?? []) {
+    if (regions[location.id]) continue;
+    regions[location.id] = {
+      id: location.id,
+      countryId: location.countryId,
+      name: location.name,
+      corporationHeadquartersOnly: true,
+    };
+  }
   const homeRegions = Object.values(regions)
-    .filter((region) => region.countryId === options.countryId)
+    .filter((region) => region.countryId === options.countryId && region.corporationHeadquartersOnly !== true)
     .sort((left, right) => left.name.localeCompare(right.name));
   const homeRegionId = options.homeRegionId ?? homeRegions[0]?.id ?? null;
   if (homeRegionId !== null && regions[homeRegionId]?.countryId !== options.countryId) {
@@ -850,10 +862,28 @@ export function createWorld(options: NewWorldOptions): WorldState {
   // Uses the same world rng, after every other rng-consuming seed step, so
   // capturing rng.state() below for meta.rng includes corp personality draws.
   const corporations = seedCorporations(
-    Object.values(countries).map((c) => ({ id: c.id, playable: c.playable, gdp: c.economy.gdp, growthRate: c.economy.growthRate })),
+    Object.values(countries).map((c) => {
+      const sourceHq = SOURCE_NPP_HEADQUARTERS_REGION[c.id];
+      return {
+        id: c.id,
+        playable: c.playable,
+        gdp: c.economy.gdp,
+        growthRate: c.economy.growthRate,
+        ...(sourceHq && regions[sourceHq]?.countryId === c.id ? { headquartersRegionId: sourceHq } : {}),
+      };
+    }),
     rng,
     0,
   );
+  // Mainline seeds the RU/DD multi-sector state-enterprise layer from authored
+  // corporation revenue. Use the same source SOE seed kernel so Native starts
+  // with recorded plan/output and 10% capacity headroom, never invented units.
+  for (const corporation of Object.values(corporations)) {
+    if (!MARKETIZATION_SCHEDULE[corporation.countryId]) continue;
+    corporation.countryOwnerId = corporation.countryId;
+    corporation.ownershipState = "stateOwned";
+    corporation.soe = makeSeedSoeState(corporation.sectorType, corporation.foundingRevenue);
+  }
   const corpRevenueSnapshots: WorldState["corpRevenueSnapshots"] = {};
   for (const corp of Object.values(corporations)) {
     const existing = corpRevenueSnapshots[corp.countryId];
@@ -891,6 +921,8 @@ export function createWorld(options: NewWorldOptions): WorldState {
       governmentReformism: NPP_DEFAULT_REFORMISM,
       internalRepression: NPP_DEFAULT_INTERNAL_REPRESSION,
       budgetSoftness: NPP_DEFAULT_BUDGET_SOFTNESS,
+      creditAggressiveness: NPP_DEFAULT_CREDIT_AGGRESSIVENESS,
+      pendingDirectives: [],
     };
     commandEconomy[countryId] = state;
   }
@@ -1483,6 +1515,7 @@ function seedDemographics(
 
   const nowIso = `${_startDate}T00:00:00.000Z`;
   for (const [rid, region] of Object.entries(regions)) {
+    if (region.corporationHeadquartersOnly) continue;
     const cid = region.countryId;
     const catsFor = (CATEGORIES_BY_COUNTRY_1953[cid] ?? []) as import("./demographics/categories.js").DemographicCategory[];
     let demo: import("./demographics/stateDemographics.js").StateDemographics | null = null;

@@ -20,6 +20,7 @@ import type { PoliticsView, PoliticsPartyDetail } from "../game/politics";
 import type { CaucusManagementView } from "../game/caucusManagement";
 import type { PartyManagementView } from "../game/partyManagement";
 import { DEFAULT_WORLD_FEATURE_FLAGS } from "@ahdclient/engine";
+import { GameSession } from "../game/session";
 
 function setViewport(width: number) {
   Object.defineProperty(window, "innerWidth", { value: width, configurable: true });
@@ -214,6 +215,10 @@ const DRAWER_LABELS = MENU_GROUPS.flatMap((group) => [
   ...(group.sections ?? []).flatMap((section) => section.items.map((item) => item.label)),
 ]);
 
+// Planned-economy controls depend on country and role, so ordinary US careers
+// exercise the unconditional directory while the genuine HoS case covers them.
+const CAREER_DRAWER_LABELS = DRAWER_LABELS.filter((label) => label !== "Command Economy");
+
 describe.each([320, 390, 1280])("SP route matrix at %spx (#510)", (width) => {
   it("exposes every drawer route id as a labelled drawer destination", async () => {
     setViewport(width);
@@ -226,10 +231,11 @@ describe.each([320, 390, 1280])("SP route matrix at %spx (#510)", (width) => {
     for (const group of ["Nation", "World"]) {
       await user.click(menu.getByRole("button", { name: group }));
     }
-    const labels = DRAWER_LABELS.filter((label) => label !== "Profile" && label !== "Actions" && label !== "Ask");
+    const labels = CAREER_DRAWER_LABELS.filter((label) => label !== "Profile" && label !== "Actions" && label !== "Ask");
     for (const label of labels) {
       expect(menu.queryByRole("button", { name: label }), `drawer label: ${label}`).not.toBeNull();
     }
+    expect(menu.queryByRole("button", { name: "Command Economy" })).toBeNull();
     expect(drawerRouteIds().length).toBeGreaterThan(20);
   });
 
@@ -239,7 +245,7 @@ describe.each([320, 390, 1280])("SP route matrix at %spx (#510)", (width) => {
     const user = userEvent.setup();
     const world = makeWorld();
     render(<GameScreen {...baseProps(world)} />);
-    for (const label of DRAWER_LABELS) {
+    for (const label of CAREER_DRAWER_LABELS) {
       await gotoDrawer(user, label);
       // Ask renders the Native Ask panel (#358): its labelled composer is the
       // screen, not a document heading.
@@ -250,6 +256,19 @@ describe.each([320, 390, 1280])("SP route matrix at %spx (#510)", (width) => {
       await expectRealScreenEventually(label);
     }
   }, 120000);
+
+  it("opens the command-economy destination for a genuine Soviet Head of State", async () => {
+    setViewport(width);
+    const session = new GameSession();
+    session.create({ era: "1953", countryId: "RU", mode: "hos", seed: "command-route-matrix", playerName: "Ada" });
+    const world = session.view();
+    expect(world.nation.commandEconomy?.available).toBe(true);
+    const user = userEvent.setup();
+    render(<GameScreen {...baseProps(world)} />);
+    await gotoDrawer(user, "Command Economy");
+    expectRealScreen("Command Economy");
+    expect(within(mainRegion()).getByRole("heading", { name: "Gosbank directives" })).toBeInTheDocument();
+  });
 
   // Broad loop: drills list surfaces into details across async loaders.
   it("opens party and race details from their list surfaces with a return path", async () => {

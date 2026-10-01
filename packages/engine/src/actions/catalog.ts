@@ -78,6 +78,10 @@ export type ActionId =
   | "voteCoalitionDisband"
   | "buyShares"
   | "sellShares"
+  | "voteCeo"
+  | "acceptCeoAppointment"
+  | "resignCeo"
+  | "setCorporationCompensation"
   | "crisisBailout"
   | "crisisStimulus"
   | "crisisRespond"
@@ -618,6 +622,49 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     systems: ["market"],
     status: "available",
   },
+  // Source: AHDGame corporations/[id]/ceo/{vote,accept,resign}. Native has one
+  // persistent player identity and stores the weighted shareholder ballot in
+  // the corporation save record.
+  voteCeo: {
+    id: "voteCeo",
+    name: "Vote for CEO",
+    description: "Cast your shareholder vote for a corporation CEO candidate.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporation/governance"],
+    status: "available",
+  },
+  acceptCeoAppointment: {
+    id: "acceptCeoAppointment",
+    name: "Accept CEO Appointment",
+    description: "Accept the CEO appointment offered by the corporation's shareholders.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporation/governance"],
+    status: "available",
+  },
+  resignCeo: {
+    id: "resignCeo",
+    name: "Resign as CEO",
+    description: "Resign from your corporation CEO position and leave the seat vacant.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporation/governance"],
+    status: "available",
+  },
+  setCorporationCompensation: {
+    id: "setCorporationCompensation",
+    name: "Set CEO Salary and Dividend Rate",
+    description: "Set the corporation's per-turn CEO salary and dividend rate as its CEO.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporation/governance", "corporation/dividends"],
+    status: "available",
+  },
   // ── W31 crisis action hooks ─────────────────────────────────────
   // Crisis responses where mainline gives players crisis interaction decision
   // trees (src/lib/crises/interactionEngine.ts + templates.ts decisionTree).
@@ -696,35 +743,36 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     status: "available",
   },
   // Player-authored national subsidy enact/end (#94). The reference
-  // (AHDGame subsidyEffects.ts at e364c049) carries no rate dial: subsidies
+  // (AHDGame subsidyEffects.ts at 08820d1) carries no rate dial: subsidies
   // deliver a fixed SUBSIDY_MARGIN_BONUS margin at a fixed deadweight cost,
-  // so this action writes fixed-bonus records rather than setting a rate.
-  // The live subsidyBudgetPhase charges the budget line from corporation
-  // revenue starting the next turn. Head of State mode only, national scope
-  // only (solo has no state-budget subsidy writer).
+  // so this action proposes fixed-bonus provisions rather than setting a rate.
+  // The ordinary billLifecycle vote/sign path writes the subsidy record; the
+  // live subsidyBudgetPhase charges its cost from corporation revenue. National
+  // scope only (solo has no state-budget subsidy writer).
   setSubsidyRate: {
     id: "setSubsidyRate",
     name: "Set Subsidy Rate",
-    description: "Enact or end a national sector subsidy (subsidyOp enact/end, economy-wide or one sectorType, optional domesticOnly). Fixed reference bonus/cost; the budget line follows next turn. Head of State mode only.",
-    baseCost: 3,
+    description: "Propose a national subsidy or its end through legislation. Proposals cost 10 AP; fixed reference bonus/cost. Requires Head of State authority or a legislative seat in the player's country.",
+    baseCost: 10,
     cooldown: 0,
     fundCost: 0,
     systems: ["budget/subsidies"],
     status: "available",
   },
-  // PORT-STUB: the command-economy turn model is live, but it currently
-  // derives policy stance from the ruling party and has no player-authored
-  // directive record or action-layer mutation to call.
+  // HoS queues the modeled Gosbank levers. The Native kernel applies them at
+  // the next turn boundary and feeds them into source-backed marketization
+  // policy stance. Per-SOE quotas and directed enterprise credit remain outside
+  // the Native state model.
   commandEconomyDirective: {
     id: "commandEconomyDirective",
     name: "Command Economy Directive",
-    description: "State-directed production/allocation dial. Blocked: the live command-economy simulation has no player directive record or action-layer mutation yet.",
-    baseCost: 3,
+    description: "Queue Gosbank credit aggressiveness and budget softness for next turn in an active planned economy. Head of State mode only; no AP cost.",
+    // The source Gosbank endpoint updates the saved directive without an AP debit.
+    baseCost: 0,
     cooldown: 0,
     fundCost: 0,
     systems: ["commandEconomy"],
-    status: "unavailable",
-    blockingSystem: "player command-economy directives",
+    status: "available",
   },
   // ── W11 extraction/prospecting ──────────────────────────────────
   // Government (HoS-mode) actions only — see extraction/prospecting.ts and

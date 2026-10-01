@@ -1,3 +1,4 @@
+import type { GameActionParams } from "../game/actionInput";
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -236,7 +237,7 @@ describe("NominationsPanel live session flow (#272/#273)", () => {
   it("renders the sponsored detail, casts a ballot through the session, and keeps it across save/reload and a turn at 320/390/desktop widths", async () => {
     const user = userEvent.setup();
     const { session, nominationId, nomineeName } = liveSession();
-    const onAction = vi.fn((id: string, params?: Record<string, string | number>) => {
+    const onAction = vi.fn((id: string, params?: GameActionParams) => {
       session.act(id, params as never);
     });
 

@@ -69,7 +69,7 @@ function makeMarkets(): MarketsView {
         effectiveProfitMargin: 8,
         insolvent: false,
         foundedAtTurn: 0,
-        isBank: false,
+        isBank: false, isStateOwned: false,
         playerShares: 0,
         playerAvgCostPerShare: null,
         npcShares: 5_100_000,
@@ -242,7 +242,7 @@ describe("RegionsRoute sector inventory", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Not for sale")).toBeInTheDocument();
     await user.click(
-      screen.getByRole("button", { name: "View US-media company" }),
+      screen.getByRole("button", { name: "View Daily Media company" }),
     );
 
     const list = await screen.findByRole("button", {

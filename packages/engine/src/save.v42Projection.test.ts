@@ -22,11 +22,13 @@ import {
 
 const SAVED_AT = "2026-09-10T00:00:00.000Z";
 const FIXTURE_SHA = "471352be87c8887dcc6ae02f465b898272f62843b5e0861a45138c2de7f58cdc";
+const NATIVE_FRESH_KEEP_HOME_SHA = "404370ac2e43de737ce3e664fafde05f34a8298bb51db2de9de8ae6de6c59b03";
+const NATIVE_FRESH_CONVERT_KEEP_HOME_SHA = "389c8c242abe894a494b43d226387651aa62c46663d7ae98e374781a53f62065";
 const FIXTURE_GZ = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures/v42-1953-US.save.json.gz");
 const WORLD_OPTS = { seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" } as const;
 
 it("keeps the historical v42 flag shape and refuses its unsupported RPG-off ruleset", () => {
-  const world = deserializeSave(loadAuthenticV42());
+  const world = loadHistoricalFresh();
   const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
   expect(projected.ok).toBe(true);
   if (!projected.ok) throw new Error(projected.error);
@@ -42,6 +44,11 @@ function sha256(text: string): string {
 
 function loadAuthenticV42(): string {
   return gunzipSync(readFileSync(FIXTURE_GZ)).toString("utf8");
+}
+
+/** Actual af2f59b pre-control createWorld bytes, preserving the old-reader goldens. */
+function loadHistoricalFresh() {
+  return deserializeSave(gunzipSync(readFileSync(join(dirname(FIXTURE_GZ), "native-fresh-pre-ceo-source.save.json.gz"))).toString("utf8"));
 }
 
 function parseProjected(contents: string): {
@@ -64,14 +71,16 @@ function parseProjected(contents: string): {
   };
 }
 
-describe("projectSaveToV42 public envelope", () => {
-  it("returns the authentic v42 fixture unchanged", () => {
-    expect(SCHEMA_VERSION).toBe(48);
-    const authentic = loadAuthenticV42();
-    expect(sha256(authentic)).toBe(FIXTURE_SHA);
-    expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });
-  });
+it("refuses SOE production independently of the regional metric guard", () => {
+  const world = createWorld(WORLD_OPTS);
+  // The separate default-world test verifies the earlier TFP refusal.
+  world.regionalMetrics = {};
+  expect(world.corporations["RU-manufacturing"]!.soe).toBeDefined();
+  const result = projectSaveToV42(serializeSave(world, SAVED_AT));
+  expect(result).toMatchObject({ ok: false, error: expect.stringMatching(/SOE|Gosbank|command-economy/) });
+});
 
+describe("projectSaveToV42 public envelope", () => {
   it("refuses fresh Game-seeded regional TFP inputs rather than exporting a frozen v42 extension", () => {
     const world = createWorld(WORLD_OPTS);
     expect(world.player.homeRegionId).toBe("AL");
@@ -85,6 +94,62 @@ describe("projectSaveToV42 public envelope", () => {
     });
   });
 
+  it("refuses an authentic-schema label carrying unsupported SOE production", () => {
+    const document = JSON.parse(loadAuthenticV42());
+    document.world.corporations["RU-manufacturing"].soe = {
+      sector: "manufacturing", capacity: 100, output: 80, planTarget: 80,
+      efficiency: 1, cumulativeLosses: 0, directorId: null,
+    };
+    document.world.corporations["RU-manufacturing"].countryOwnerId = "RU";
+    document.world.corporations["RU-manufacturing"].ownershipState = "stateOwned";
+    expect(projectSaveToV42(JSON.stringify(document))).toMatchObject({
+      ok: false, error: expect.stringMatching(/SOE|authentic/),
+    });
+  });
+
+  it("returns the authentic v42 fixture unchanged", () => {
+    expect(SCHEMA_VERSION).toBe(50);
+    const authentic = loadAuthenticV42();
+    expect(sha256(authentic)).toBe(FIXTURE_SHA);
+    expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });
+  });
+
+  it("projects the historical pre-control 1953 US world with homeRegionId AL as a v42 extension the old reader preserved", () => {
+    const world = loadHistoricalFresh();
+    expect(world.player.homeRegionId).toBe("AL");
+    const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) throw new Error(projected.error);
+    const parsed = parseProjected(projected.contents);
+    expect(parsed.schemaVersion).toBe(42);
+    expect(parsed.metaSchema).toBe(42);
+    expect(parsed.hasCountryPolitics).toBe(false);
+    expect(parsed.hasHomeRegionId).toBe(true);
+    expect(parsed.homeRegionId).toBe("AL");
+    expect(sha256(projected.contents)).toBe(NATIVE_FRESH_KEEP_HOME_SHA);
+    const restored = deserializeSave(projected.contents);
+    expect(restored.meta.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(restored.player.homeRegionId).toBe("AL");
+    expect(restored.countryPolitics).toEqual(world.countryPolitics);
+  });
+
+  it("projects convertCash on that historical pre-control world to the recorded v42-reader hash", () => {
+    const world = loadHistoricalFresh();
+    const result = executeAction(world, "player", "convertCash", { amount: 2000 });
+    expect(result).toEqual({ ok: true, message: "Converted 2000 cash to 1000 funds.", changes: { actions: -2, cash: -2000, funds: 1000 } });
+    const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
+    expect(projected.ok).toBe(true);
+    if (!projected.ok) throw new Error(projected.error);
+    expect(sha256(projected.contents)).toBe(NATIVE_FRESH_CONVERT_KEEP_HOME_SHA);
+    expect(parseProjected(projected.contents).homeRegionId).toBe("AL");
+    expect(parseProjected(projected.contents).hasCountryPolitics).toBe(false);
+    const restored = deserializeSave(projected.contents);
+    expect(restored.player.homeRegionId).toBe("AL");
+    expect(restored.player.cash).toBe(world.player.cash);
+    expect(restored.player.funds).toBe(world.player.funds);
+    expect(restored.countryPolitics).toEqual(world.countryPolitics);
+  });
+
   it("projects a Native-migrated authentic v42 world back to the fixture bytes", () => {
     const authentic = loadAuthenticV42();
     const migrated = serializeSave(deserializeSave(authentic), SAVED_AT);
@@ -93,7 +158,7 @@ describe("projectSaveToV42 public envelope", () => {
   });
 
   it("refuses a Native world after a turn mutates countryPolitics history", () => {
-    const world = deserializeSave(loadAuthenticV42());
+    const world = loadHistoricalFresh();
     advanceTurn(world);
     expect(world.countryPolitics["US"]!.approvalHistory.length).toBeGreaterThan(1);
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
@@ -140,7 +205,7 @@ describe("projectSaveToV42 public envelope", () => {
   });
 
   it("refuses a Native world with live market pressure state", () => {
-    const world = deserializeSave(loadAuthenticV42());
+    const world = loadHistoricalFresh();
     world.corporations["US-manufacturing"]!.orderFlowWindowBuyValue = 1;
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projected.ok).toBe(false);
@@ -149,7 +214,7 @@ describe("projectSaveToV42 public envelope", () => {
   });
 
   it("refuses a Native world with live prop-book state that schema 42 cannot carry (#328)", () => {
-    const world = createWorld(WORLD_OPTS);
+    const world = loadHistoricalFresh();
     const doc = JSON.parse(serializeSave(world, SAVED_AT)) as {
       world: { corporations: Record<string, { bankCharter?: Record<string, unknown> }> };
     };
@@ -163,8 +228,8 @@ describe("projectSaveToV42 public envelope", () => {
     expect(projected.error).toMatch(/charter|proprietary|schema 42/);
   });
 
-  it("projects a migrated authentic envelope whose record keys are reversed", () => {
-    const world = deserializeSave(loadAuthenticV42());
+  it("projects a historical pre-control envelope whose record keys are reversed", () => {
+    const world = loadHistoricalFresh();
     const original = JSON.parse(serializeSave(world, SAVED_AT)) as Record<string, unknown>;
     const originalWorld = original["world"] as Record<string, unknown>;
     const reversedWorld: Record<string, unknown> = {};
@@ -186,14 +251,14 @@ describe("projectSaveToV42 public envelope", () => {
     expect(parsed.schemaVersion).toBe(42);
     expect(parsed.metaSchema).toBe(42);
     expect(parsed.hasCountryPolitics).toBe(false);
-    expect(parsed.homeRegionId).toBeUndefined();
+    expect(parsed.homeRegionId).toBe("AL");
     const restored = deserializeSave(projected.contents);
-    expect(restored.player.homeRegionId).toBeNull();
+    expect(restored.player.homeRegionId).toBe("AL");
     expect(restored.countryPolitics).toEqual(world.countryPolitics);
   });
 
   it("refuses extra own keys including __proto__ that Native restore would drop", () => {
-    const world = deserializeSave(loadAuthenticV42());
+    const world = loadHistoricalFresh();
     const original = JSON.parse(serializeSave(world, SAVED_AT)) as {
       world: { countryPolitics: Record<string, Record<string, unknown>> };
     };
@@ -217,7 +282,7 @@ describe("projectSaveToV42 public envelope", () => {
   });
 
   it("refuses a schema 43 envelope that was only relabeled 42 while keeping countryPolitics", () => {
-    const world = createWorld(WORLD_OPTS);
+    const world = loadHistoricalFresh();
     const relabeled = JSON.parse(serializeSave(world, SAVED_AT)) as {
       schemaVersion: number;
       world: { meta: { schemaVersion: number }; countryPolitics?: unknown; player: { homeRegionId?: unknown } };

@@ -15,10 +15,19 @@ export interface SeedPack {
   countries: CountrySeed[];
   /** Optional extension tables: states, parties, sectors, budgets. */
   states?: StateSeed[];
+  /** Authored corporation HQ locations that do not participate in political state systems (e.g. DC in 1953). */
+  corporationHeadquartersRegions?: CorporationHeadquartersRegionSeed[];
   parties?: PartySeed[];
   legislatures?: LegislatureSeed[];
   sectors?: SectorSeed[];
   budgets?: BudgetSeed[];
+}
+
+/** Minimal authored residence geography for CEO HQ rules, outside state elections. */
+export interface CorporationHeadquartersRegionSeed {
+  id: string;
+  countryId: string;
+  name: string;
 }
 
 export interface EraSeed {

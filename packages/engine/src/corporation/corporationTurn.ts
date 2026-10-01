@@ -19,9 +19,10 @@
  * country's authored rate (no consolidated-loss-offset apportionment — W9
  * corps are single-sector), and a simplified insolvency/reincorporation cycle
  * (nppInsolvencyDissolution.ts triggers 1+2 only; trigger 3 is bond-related,
- * W12/W13). Dividends, overhead budgets (marketing/logistics/R&D), CEO
- * salary, and the full nppCorporationBehavior.ts decision engine are PORT-STUB
- * / deferred — see constants.ts CEO_ARCHETYPE_MODIFIERS doc.
+ * W12/W13). CEO salary and shareholder dividends now settle from the recorded
+ * CEO/shareholder fields. Overhead budgets (marketing/logistics/R&D) and the
+ * full nppCorporationBehavior.ts decision engine remain PORT-STUB/deferred —
+ * see constants.ts CEO_ARCHETYPE_MODIFIERS doc.
  *
  * W10 wire: runCorporationTurn also pushes this turn's annualized net income
  * into corp.earningsHistory (see the end of the function), which
@@ -33,6 +34,7 @@
 
 import type { TurnPhase } from "../phases/types.js";
 import type { Corporation } from "./types.js";
+import type { PlayerCharacter } from "../types.js";
 import {
   GROWTH_COST_MARGIN_SHARE,
   GROWTH_BRAKE_STEP,
@@ -46,6 +48,7 @@ import {
   DEFAULT_CORPORATE_TAX_RATE_PCT,
 } from "./constants.js";
 import { pushEarningsHistory } from "../market/earnings.js";
+import { subsidyMarginModifierForCorporation } from "../budget/subsidyBudget.js";
 import {
   labourFactorsForCorporation,
   loadCorporationLabourState,
@@ -70,6 +73,7 @@ export function runCorporationTurn(
   corp: Corporation,
   taxRatePct: number,
   labourFactors: CorporationLabourFactors = { outputFactor: 1, marginModifierPP: 0, strikeActive: false },
+  settlement?: { player: PlayerCharacter; currencyCode: string },
 ): void {
   const priorRevenue = corp.revenue;
   const priorMargin = corp.effectiveProfitMargin || corp.profitMargin;
@@ -100,18 +104,60 @@ export function runCorporationTurn(
   // (reference strikeMarginModifier). Transient: it leaves with the strike.
   const marginModifierPP = Number.isFinite(labourFactors.marginModifierPP) ? labourFactors.marginModifierPP : 0;
   const effectiveMargin = softCapEffectiveMargin(corp.profitMargin) + marginModifierPP;
-  const netIncomePreTax = priorRevenue * (effectiveMargin / 100) - growthCost;
+  const operatingIncomePreTax = priorRevenue * (effectiveMargin / 100) - growthCost;
+
+  // AHDGame sectorCalculations.ts subtracts the CEO's per-turn salary before
+  // tax, caps it by projected cash and 1.25x gross revenue, then distributes
+  // the configured dividend percentage from positive after-tax income. Native
+  // stores the weekly/per-turn salary directly (its 48-turn year differs from
+  // AHDGame's 24 hourly turns per day); the payout and affordability rules are
+  // the same. Source MAX_DIVIDEND_RATE is 25%.
+  const requestedSalary = corp.ceoVacant === true || !Number.isFinite(corp.ceoSalaryPerTurn)
+    ? 0
+    : Math.max(0, corp.ceoSalaryPerTurn ?? 0);
+  const projectedCashBeforeSalary = Math.max(0, corp.liquidCapital + operatingIncomePreTax);
+  const ceoSalaryPaid = Math.min(requestedSalary, projectedCashBeforeSalary, Math.max(0, priorRevenue) * 1.25);
+  const netIncomePreTax = operatingIncomePreTax - ceoSalaryPaid;
 
   const taxableIncome = Math.max(0, netIncomePreTax);
   const corporateTax = taxableIncome * (taxRatePct / 100);
-  const netIncome = netIncomePreTax - corporateTax;
+  const netIncomeBeforeDividends = netIncomePreTax - corporateTax;
+  const dividendRate = Number.isFinite(corp.dividendRate)
+    ? Math.max(0, Math.min(25, corp.dividendRate ?? 0))
+    : 0;
+  const dividendPoolPaid = netIncomeBeforeDividends > 0
+    ? Math.min(netIncomeBeforeDividends * (dividendRate / 100), netIncomeBeforeDividends)
+    : 0;
+  const playerHolding = corp.shareholders.find((shareholder) => shareholder.holder === "player");
+  const playerDividendPaid = playerHolding && corp.totalShares > 0
+    ? dividendPoolPaid * Math.max(0, Math.min(1, playerHolding.shares / corp.totalShares))
+    : 0;
 
   corp.targetGrowthRate = clamp(brakedTargetRate, MIN_GROWTH_RATE, MAX_GROWTH_RATE);
   corp.currentGrowthRate = newCurrentGrowthRate;
   corp.currentGrowthCost = growthCost;
   corp.revenue = newRevenue;
   corp.effectiveProfitMargin = effectiveMargin;
-  corp.liquidCapital += netIncome;
+  corp.lastCeoSalaryPaid = ceoSalaryPaid;
+  corp.lastDividendPoolPaid = dividendPoolPaid;
+  corp.lastPlayerDividendPaid = playerDividendPaid;
+  corp.lastUnpostedDividendPaid = Math.max(0, dividendPoolPaid - playerDividendPaid);
+  corp.liquidCapital += netIncomeBeforeDividends - dividendPoolPaid;
+
+  if (settlement) {
+    const payout = (amount: number) => {
+      if (amount <= 0 || !Number.isFinite(amount)) return;
+      if (settlement.player.countryId === corp.countryId) {
+        settlement.player.cash += amount;
+      } else {
+        settlement.player.currencyBalances ??= { personal: {} };
+        const personal = settlement.player.currencyBalances.personal;
+        personal[settlement.currencyCode] = (personal[settlement.currencyCode] ?? 0) + amount;
+      }
+    };
+    if (corp.ceoId === "player" && corp.ceoVacant !== true) payout(ceoSalaryPaid);
+    payout(playerDividendPaid);
+  }
 
   // W10 wire: push this turn's annualized after-tax income into the rolling
   // earnings window market/recomputeSharePrices.ts reads as
@@ -120,7 +166,7 @@ export function runCorporationTurn(
   // (annualIncomeBase = netIncomeBeforeDividends * TURNS_PER_YEAR). W9 has no
   // dividend system, so netIncome here already IS the pre-dividend figure
   // mainline annualizes.
-  corp.earningsHistory = pushEarningsHistory(corp.earningsHistory, netIncome * GROWTH_RATE_TURNS_PER_YEAR);
+  corp.earningsHistory = pushEarningsHistory(corp.earningsHistory, netIncomeBeforeDividends * GROWTH_RATE_TURNS_PER_YEAR);
 }
 
 /**
@@ -170,9 +216,16 @@ export const corporationTurnPhase: TurnPhase = {
     // strike resolution steps after the corp math (reference sector-pass
     // order: production effects from turn-start state, then the step).
     const labour = loadCorporationLabourState(world, world.meta.turn);
+    const subsidies = Array.isArray(world.subsidies) ? world.subsidies : [];
     for (const corp of Object.values(world.corporations)) {
       const taxRatePct = world.budgets?.[corp.countryId]?.taxRates.domesticCorporateTax ?? DEFAULT_CORPORATE_TAX_RATE_PCT;
-      runCorporationTurn(corp, taxRatePct, labourFactorsForCorporation(world, corp.id, labour));
+      const currencyCode = world.budgets?.[corp.countryId]?.currencyCode ?? world.exchangeRates?.[corp.countryId]?.currencyCode ?? "XXX";
+      const labourFactors = labourFactorsForCorporation(world, corp.id, labour);
+      const subsidyMargin = subsidyMarginModifierForCorporation(subsidies, corp);
+      runCorporationTurn(corp, taxRatePct, {
+        ...labourFactors,
+        marginModifierPP: labourFactors.marginModifierPP + subsidyMargin,
+      }, { player: world.player, currencyCode });
       checkInsolvency(corp, world.meta.turn);
     }
     stepCorporateSectorStrikes(world, world.meta.turn, labour);

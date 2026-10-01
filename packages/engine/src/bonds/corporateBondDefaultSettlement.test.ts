@@ -277,6 +277,12 @@ describe("corporate default at the public seam", () => {
   it("spares a private NPP issuer under a soft command-economy budget and dissolves under a hard one", () => {
     const world = createWorld({ ...OPTS, seed: "corporate-default-soft-budget-ru" });
     const corporation = Object.values(world.corporations).find((row) => row.countryId === "RU")!;
+    // Fresh RU issuers now record their source SOE ownership. This case
+    // deliberately represents a private NPP firm in that same economy;
+    // state-owned issuers remain excluded from automatic dissolution.
+    corporation.ownershipState = "private";
+    delete corporation.countryOwnerId;
+    delete corporation.soe;
     corporation.liquidCapital = 0;
     world.commandEconomy.RU!.budgetSoftness = 0.85;
     const bond = craftCorporate(world, { units: 1, couponRate: 4800, held: 0 }, corporation.id);

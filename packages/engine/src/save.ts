@@ -1,5 +1,6 @@
 import { validateCanvassState } from "./actions/canvass.js";
 import { EXTERNAL_BROAD_MONEY_GDP_SHARE, SCHEMA_VERSION } from "./world.js";
+import { getPackByEra } from "@ahdclient/content";
 import { STAT_KEYS } from "./stats/characterStats.js";
 import { isWorldFeatureFlag, resolveWorldFeatureFlags, WORLD_FEATURE_FLAG_DEFINITIONS } from "./featureFlags.js";
 import { DEFAULT_SINGLEPLAYER_DIFFICULTY, isSingleplayerDifficulty } from "./singleplayerDifficulty.js";
@@ -12,11 +13,11 @@ import { validateAlignmentRecords } from "./alignment/recordValidation.js";
 import { seedInternationalOrgs } from "./internationalOrgs/seed.js";
 import { assignUsSeatGeography } from "./elections/seatGeography.js";
 import { CENTRAL_BANK_COUNTRY_ANCHORS, CHAIR_TERM_TURNS } from "./centralBank/constants.js";
-import { seedCorporations, tickerForSector } from "./corporation/founding.js";
+import { seedCorporations, tickerForSector, SOURCE_NPP_HEADQUARTERS_REGION, corporationIdentity } from "./corporation/founding.js";
 import { rngFromSeed } from "./rng.js";
 import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } from "./playerImages.js";
 import type { WorldState } from "./types.js";
-import type { CorporationType, ShareholderEntry } from "./corporation/types.js";
+import { CORPORATION_TYPES, type CorporationType, type ShareholderEntry } from "./corporation/types.js";
 import { CEO_INITIAL_SHARES, NPC_FOUNDER_SHARE_FRACTION, DEFAULT_SHARE_PRICE } from "./market/constants.js";
 import { seedUnions } from "./unions/founding.js";
 import {
@@ -38,6 +39,7 @@ import {
 } from "./corporation/corporateSectorAssets.js";
 import { validateUnionOrganizers } from "./unions/organizers.js";
 import { validateUnionContributionLedger } from "./unions/contributions.js";
+import { makeSeedSoeState } from "./commandEconomy/soe.js";
 import { validateCorporateBondSettlementLedger } from "./bonds/corporateBondDefaultSettlement.js";
 import { validatePlayerLineOfCredit } from "./finance/playerLineOfCredit.js";
 import type { BankCharter } from "./banking/types.js";
@@ -185,6 +187,16 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
         error:
           "This schema 42 document still carries countryPolitics; it is not an authentic schema 42 save",
       };
+    }
+    const authenticCorporations = world["corporations"];
+    if (isRecord(authenticCorporations) && Object.values(authenticCorporations).some(corp =>
+      isRecord(corp) && (hasOwn(corp, "soe") || hasOwn(corp, "legacySoeProjection")))) {
+      return { ok: false, error: "This schema 42 document carries SOE production; it is not an authentic schema 42 save" };
+    }
+    const authenticCommandStates = world["commandEconomy"];
+    if (isRecord(authenticCommandStates) && Object.values(authenticCommandStates).some(state =>
+      isRecord(state) && ["pendingDirectives", "sectorCredit", "directedCreditBySector"].some(key => hasOwn(state, key)))) {
+      return { ok: false, error: "This schema 42 document carries Gosbank directive state; it is not an authentic schema 42 save" };
     }
     const authenticSubsidies = world["subsidies"];
     if (Array.isArray(authenticSubsidies) && authenticSubsidies.length > 0) {
@@ -334,6 +346,35 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     if (!isRecord(value)) {
       return { ok: false, error: `Corporation ${corpId} cannot be projected to schema 42` };
     }
+    // Schema 42 readers preserve unknown save keys, but their corporation
+    // turn has no CEO ballot, appointment, compensation, or dividend phase.
+    // Only neutral default values are reversible; an active lifecycle must
+    // remain on the current Native schema rather than silently stop advancing.
+    const ceoVotes = value["ceoVotes"];
+    const ceoAmounts = [
+      "ceoSalaryPerTurn",
+      "dividendRate",
+      "lastCeoSalaryPaid",
+      "lastDividendPoolPaid",
+      "lastPlayerDividendPaid",
+      "lastUnpostedDividendPaid",
+    ].map((field) => value[field]);
+    const hasNonzeroCeoAmount = ceoAmounts.some((amount) =>
+      amount !== undefined && (typeof amount !== "number" || !Number.isFinite(amount) || amount !== 0),
+    );
+    if (
+      (value["ceoType"] !== undefined && value["ceoType"] !== "npp") ||
+      value["ceoId"] !== undefined ||
+      (value["ceoVacant"] !== undefined && value["ceoVacant"] !== false) ||
+      value["pendingCeoId"] !== undefined ||
+      (ceoVotes !== undefined && (!Array.isArray(ceoVotes) || ceoVotes.length > 0)) ||
+      hasNonzeroCeoAmount
+    ) {
+      return {
+        ok: false,
+        error: `Corporation ${corpId} has CEO governance or compensation state that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}`,
+      };
+    }
     for (const [field, neutral] of [
       ["sentimentMultiplier", 1],
       ["orderFlowMultiplier", 1],
@@ -390,6 +431,29 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     }
   }
 
+  const commandStates = world["commandEconomy"];
+  if (isRecord(commandStates)) {
+    for (const state of Object.values(commandStates)) {
+      if (isRecord(state) && ["pendingDirectives", "sectorCredit", "directedCreditBySector"].some(key => hasOwn(state, key))) {
+        return { ok: false, error: "Gosbank directive and allocation state cannot be continued by schema 42. Keep this Native save." };
+      }
+    }
+  }
+  // Only a reconstructable legacy seed can be removed. Fresh or progressed
+  // SOE production has no consumer in the historical reader, even if it
+  // preserves unfamiliar JSON fields.
+  for (const [corpId, value] of Object.entries(corporations)) {
+    if (!isRecord(value) || !hasOwn(value, "soe")) continue;
+    const provenance = value["legacySoeProjection"];
+    const sector = CORPORATION_TYPES.find(candidate => candidate === value["sectorType"]);
+    if (!isRecord(provenance) || sector === undefined || typeof value["revenue"] !== "number" ||
+        Object.keys(provenance).some(key => key !== "countryOwnerId" && key !== "ownershipState") ||
+        !structurallyEqual(value["soe"], makeSeedSoeState(sector, value["revenue"])) ||
+        value["countryOwnerId"] !== value["countryId"] || value["ownershipState"] !== "stateOwned") {
+      return { ok: false, error: `Corporation ${corpId} has SOE production state that schema 42 cannot continue. Keep this Native save.` };
+    }
+  }
+
   const candidateSave = structuredClone(save);
   const candidateWorld = candidateSave["world"] as Record<string, unknown>;
   const candidateMeta = candidateWorld["meta"] as Record<string, unknown>;
@@ -408,7 +472,47 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const candidateFlags = candidateWorld["featureFlags"];
   if (isRecord(candidateFlags)) delete candidateFlags["rpgStats"];
   const candidateCorporations = candidateWorld["corporations"] as Record<string, Record<string, unknown>>;
-  for (const corp of Object.values(candidateCorporations)) {
+  for (const [corpId, corp] of Object.entries(candidateCorporations)) {
+    const soeProvenance = corp["legacySoeProjection"];
+    if (isRecord(soeProvenance)) {
+      delete corp["soe"];
+      delete corp["legacySoeProjection"];
+      for (const key of ["countryOwnerId", "ownershipState"] as const) {
+        if (hasOwn(soeProvenance, key)) corp[key] = soeProvenance[key];
+        else delete corp[key];
+      }
+    }
+    // v49/v50 migrations may supply only canonical source identity to a
+    // legacy save. Remove that provenance-marked default on downgrade so an
+    // unchanged schema-42 save stays byte-identical. Current/fresh issuer
+    // identity has no such marker and is carried through the old reader.
+    const projectionDefaults = corp["legacyProjectionDefaults"];
+    if (projectionDefaults !== undefined) {
+      if (!isRecord(projectionDefaults)) {
+        return { ok: false, error: `Corporation ${corpId} has invalid legacy identity provenance` };
+      }
+      const sector = CORPORATION_TYPES.find(candidate => candidate === corp["sectorType"]);
+      if (sector === undefined) return { ok: false, error: `Corporation ${corpId} has invalid sector identity` };
+      const identity = corporationIdentity(String(corp["countryId"]), sector);
+      const expected: Record<string, string | undefined> = {
+        name: identity.name,
+        brandColor: identity.brandColor,
+        headquartersRegionId: SOURCE_NPP_HEADQUARTERS_REGION[String(corp["countryId"])],
+      };
+      for (const [field, isDefault] of Object.entries(projectionDefaults)) {
+        if (!(field in expected) || isDefault !== true || expected[field] === undefined) {
+          return { ok: false, error: `Corporation ${corpId} has invalid legacy identity provenance` };
+        }
+        if (corp[field] !== expected[field]) {
+          return {
+            ok: false,
+            error: `Corporation ${corpId} has changed ${field} identity that cannot be projected from a legacy default. Keep this save as schema ${SCHEMA_VERSION}`,
+          };
+        }
+        delete corp[field];
+      }
+      delete corp["legacyProjectionDefaults"];
+    }
     delete corp["sentimentMultiplier"];
     delete corp["orderFlowMultiplier"];
     delete corp["orderFlowWindowBuyValue"];
@@ -422,6 +526,19 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
       delete candidateCharter["charterType"];
       delete candidateCharter["propBook"];
       delete candidateCharter["propBookMarkValue"];
+    }
+  }
+  const candidateRegions = candidateWorld["regions"];
+  if (isRecord(candidateRegions)) {
+    for (const [regionId, value] of Object.entries(candidateRegions)) {
+      if (!isRecord(value) || value["legacyProjectionDefault"] !== true) continue;
+      if (Object.values(candidateCorporations).some((corp) => corp["headquartersRegionId"] === regionId)) {
+        return {
+          ok: false,
+          error: `Headquarters region ${regionId} is referenced by a corporation and cannot be projected from a legacy default. Keep this save as schema ${SCHEMA_VERSION}`,
+        };
+      }
+      delete candidateRegions[regionId];
     }
   }
   if (typeof candidatePlayer["homeRegionId"] !== "string") {
@@ -843,6 +960,127 @@ function compactResolvedNpcBallots(world: WorldState): void {
     record["votes"] = Array.isArray(playerVote) && playerVote.every((candidate) => typeof candidate === "string")
       ? { player: playerVote }
       : {};
+  }
+}
+
+function validateCommandEconomySave(world: WorldState): void {
+  const raw = (world as unknown as Record<string, unknown>)["commandEconomy"];
+  if (raw === undefined) return;
+  if (!isRecord(raw)) throw new Error("Not a valid save file: commandEconomy must be a country map");
+
+  const currentTurn = world.meta.turn;
+  for (const [countryId, value] of Object.entries(raw)) {
+    if (!world.countries[countryId] || !isRecord(value) || value["countryId"] !== countryId) {
+      throw new Error(`Not a valid save file: command-economy country identity does not match ${countryId}`);
+    }
+    const validSoeSectors = new Set<string>(Object.values(world.corporations)
+      .filter((corporation) => corporation.countryId === countryId && corporation.soe)
+      .map((corporation) => corporation.soe!.sector));
+    for (const key of ["creditAggressiveness", "budgetSoftness"] as const) {
+      const posture = value[key];
+      if (posture !== undefined && (typeof posture !== "number" || !Number.isFinite(posture) || posture < 0 || posture > 1)) {
+        throw new Error(`Not a valid save file: command-economy ${key} for ${countryId} must be finite in [0,1]`);
+      }
+    }
+    const validateSectorMap = (sectorMap: unknown, key: string, allowNull: boolean) => {
+      if (sectorMap === null && allowNull) return;
+      if (!isRecord(sectorMap)) throw new Error(`Not a valid save file: ${countryId} ${key} must be a sector map`);
+      for (const [sector, weight] of Object.entries(sectorMap)) {
+        if (!validSoeSectors.has(sector) || typeof weight !== "number" || !Number.isFinite(weight) || weight < 0 || weight > 1_000_000) {
+          throw new Error(`Not a valid save file: ${countryId} ${key}.${sector} must be a known sector with a finite weight in [0,1000000]`);
+        }
+      }
+    };
+    if (value["sectorCredit"] !== undefined) validateSectorMap(value["sectorCredit"], "sectorCredit", false);
+    if (value["directedCreditBySector"] !== undefined) {
+      const readout = value["directedCreditBySector"];
+      if (!isRecord(readout)) throw new Error(`Not a valid save file: ${countryId} directedCreditBySector must be a sector map`);
+      for (const [sector, amount] of Object.entries(readout)) {
+        if (!validSoeSectors.has(sector) || typeof amount !== "number" || !Number.isFinite(amount) || amount < 0) {
+          throw new Error(`Not a valid save file: ${countryId} directedCreditBySector.${sector} must be a known sector with finite non-negative credit`);
+        }
+      }
+    }
+
+    const pending = value["pendingDirectives"];
+    if (pending === undefined) continue; // Older saves predate player directives.
+    if (!Array.isArray(pending)) throw new Error(`Not a valid save file: ${countryId} pendingDirectives must be an array`);
+    const ids = new Set<string>();
+    for (const directive of pending) {
+      if (!isRecord(directive)) throw new Error(`Not a valid save file: ${countryId} contains an invalid Gosbank directive`);
+      const id = directive["id"];
+      if (typeof id !== "string" || id.trim().length === 0 || ids.has(id)) {
+        throw new Error(`Not a valid save file: ${countryId} Gosbank directive IDs must be non-empty and unique`);
+      }
+      ids.add(id);
+      if (directive["countryId"] !== countryId) {
+        throw new Error(`Not a valid save file: directive countryId must match ${countryId}`);
+      }
+      const proposedTurn = directive["proposedTurn"];
+      const effectiveTurn = directive["effectiveTurn"];
+      if (
+        !Number.isInteger(proposedTurn) || proposedTurn !== currentTurn ||
+        !Number.isInteger(effectiveTurn) || effectiveTurn !== (proposedTurn as number) + 1
+      ) {
+        throw new Error(`Not a valid save file: directive effectiveTurn must be the next turn after the current turn for ${countryId}`);
+      }
+      if (!id.startsWith(`gosbank-${countryId}-${String(proposedTurn)}-`)) {
+        throw new Error(`Not a valid save file: Gosbank directive ID must match its country and proposal turn for ${countryId}`);
+      }
+      const hasCredit = directive["creditAggressiveness"] !== undefined;
+      const hasSoftness = directive["budgetSoftness"] !== undefined;
+      const hasSectorCredit = directive["sectorCredit"] !== undefined;
+      if (!hasCredit && !hasSoftness && !hasSectorCredit) {
+        throw new Error(`Not a valid save file: Gosbank directive for ${countryId} must set a posture or sector-credit weights`);
+      }
+      if (hasSectorCredit) validateSectorMap(directive["sectorCredit"], "pending sectorCredit", true);
+      for (const key of ["creditAggressiveness", "budgetSoftness"] as const) {
+        const posture = directive[key];
+        if (posture !== undefined && (typeof posture !== "number" || !Number.isFinite(posture) || posture < 0 || posture > 1)) {
+          throw new Error(`Not a valid save file: directive ${key} for ${countryId} must be finite in [0,1]`);
+        }
+      }
+    }
+  }
+}
+
+/** Upgrade old planned-economy saves from their recorded corporation revenue, never invented capacity. */
+function backfillSourceSeededSoeState(world: WorldState): void {
+  for (const corporation of Object.values(world.corporations)) {
+    const commandState = world.commandEconomy[corporation.countryId];
+    if (corporation.soe || !commandState || commandState.marketizationLevel >= 70) continue;
+    corporation.legacySoeProjection = {
+      ...(corporation.countryOwnerId === undefined ? {} : { countryOwnerId: corporation.countryOwnerId }),
+      ...(corporation.ownershipState === undefined ? {} : { ownershipState: corporation.ownershipState }),
+    };
+    corporation.countryOwnerId = corporation.countryId;
+    corporation.ownershipState = "stateOwned";
+    corporation.soe = makeSeedSoeState(corporation.sectorType, corporation.revenue);
+  }
+}
+
+function validateSoeSave(world: WorldState): void {
+  for (const corporation of Object.values(world.corporations)) {
+    const soe = corporation.soe;
+    const provenance = corporation.legacySoeProjection;
+    if (provenance !== undefined && (!soe || !isRecord(provenance) ||
+        Object.keys(provenance).some(key => key !== "countryOwnerId" && key !== "ownershipState") ||
+        (provenance.countryOwnerId !== undefined && typeof provenance.countryOwnerId !== "string") ||
+        (provenance.ownershipState !== undefined && provenance.ownershipState !== "private" && provenance.ownershipState !== "stateOwned"))) {
+      throw new Error(`Not a valid save file: ${corporation.id} has invalid legacy SOE provenance`);
+    }
+    if (!soe) continue;
+    if (soe.sector !== corporation.sectorType || corporation.ownershipState !== "stateOwned" || corporation.countryOwnerId !== corporation.countryId) {
+      throw new Error(`Not a valid save file: ${corporation.id} SOE identity/ownership does not match its corporation`);
+    }
+    for (const key of ["capacity", "output", "planTarget", "efficiency", "cumulativeLosses"] as const) {
+      if (!Number.isFinite(soe[key]) || soe[key] < 0) {
+        throw new Error(`Not a valid save file: ${corporation.id} SOE ${key} must be finite and non-negative`);
+      }
+    }
+    if (soe.directorId !== null && typeof soe.directorId !== "string") {
+      throw new Error(`Not a valid save file: ${corporation.id} SOE directorId must be a character ID or null`);
+    }
   }
 }
 
@@ -1733,16 +1971,33 @@ export function deserializeSave(raw: string): WorldState {
     const w = save.world as unknown as Record<string, unknown>;
     if (typeof w["corporations"] !== "object" || w["corporations"] === null || Array.isArray(w["corporations"])) {
       const countries = w["countries"] as Record<string, { id: string; playable: boolean; economy: { gdp: number; growthRate: number } }> | undefined;
+      const regions = w["regions"] as Record<string, { countryId: string }> | undefined;
       const turn = typeof (w["meta"] as Record<string, unknown> | undefined)?.["turn"] === "number" ? ((w["meta"] as Record<string, unknown>)["turn"] as number) : 0;
       const seed = typeof (w["meta"] as Record<string, unknown> | undefined)?.["seed"] === "string" ? ((w["meta"] as Record<string, unknown>)["seed"] as string) : "migration";
       const migrationRng = rngFromSeed(`${seed}:corp-migration-v19`);
       const corporations = countries
         ? seedCorporations(
-            Object.values(countries).map((c) => ({ id: c.id, playable: c.playable, gdp: c.economy.gdp, growthRate: c.economy.growthRate })),
+            Object.values(countries).map((c) => {
+              const sourceHq = SOURCE_NPP_HEADQUARTERS_REGION[c.id];
+              return {
+                id: c.id,
+                playable: c.playable,
+                gdp: c.economy.gdp,
+                growthRate: c.economy.growthRate,
+                ...(sourceHq && regions?.[sourceHq]?.countryId === c.id ? { headquartersRegionId: sourceHq } : {}),
+              };
+            }),
             migrationRng,
             turn,
-          )
+        )
         : {};
+      for (const corp of Object.values(corporations)) {
+        corp.legacyProjectionDefaults = {
+          name: true,
+          brandColor: true,
+          ...(corp.headquartersRegionId ? { headquartersRegionId: true as const } : {}),
+        };
+      }
       w["corporations"] = corporations;
       const corpRevenueSnapshots: Record<string, { current: number; previous: number; turn: number }> = {};
       for (const corp of Object.values(corporations)) {
@@ -2796,6 +3051,77 @@ export function deserializeSave(raw: string): WorldState {
     if (!Array.isArray(w["interbankLoans"])) w["interbankLoans"] = [];
     save.world.meta.schemaVersion = 48;
   }
+  // v48 -> v49: preserve the exact capital region used by Game's NPP seed
+  // route. Add residence-only geography from the same era pack where needed;
+  // migration never substitutes the player's first or alphabetically first region.
+  if (save.schemaVersion < 49) {
+    const regions = save.world.regions;
+    const authoredRegions = getPackByEra(save.world.meta.era)?.corporationHeadquartersRegions ?? [];
+    for (const location of authoredRegions) {
+      if (!regions[location.id]) {
+        regions[location.id] = {
+          id: location.id,
+          countryId: location.countryId,
+          name: location.name,
+          corporationHeadquartersOnly: true,
+          legacyProjectionDefault: true,
+        };
+      }
+    }
+    for (const corp of Object.values(save.world.corporations)) {
+      const sourceHq = SOURCE_NPP_HEADQUARTERS_REGION[corp.countryId];
+      if (!corp.headquartersRegionId && sourceHq && regions[sourceHq]?.countryId === corp.countryId) {
+        corp.headquartersRegionId = sourceHq;
+        corp.legacyProjectionDefaults = { ...corp.legacyProjectionDefaults, headquartersRegionId: true };
+      }
+    }
+    save.world.meta.schemaVersion = 49;
+  }
+  // v49 -> v50: complete source headquarters geography and stable local
+  // corporation display identity. Game generates thematic names and brand
+  // colors at spawn; the offline engine resolves these deterministically.
+  if (save.schemaVersion < 50) {
+    // Early v49 files could not include US/DC because the authored region was
+    // added after the CEO model. Complete the same explicit HQ geography here
+    // as well, without choosing a substitute region.
+    for (const location of getPackByEra(save.world.meta.era)?.corporationHeadquartersRegions ?? []) {
+      if (!save.world.regions[location.id]) {
+        save.world.regions[location.id] = {
+          id: location.id,
+          countryId: location.countryId,
+          name: location.name,
+          corporationHeadquartersOnly: true,
+          legacyProjectionDefault: true,
+        };
+      }
+    }
+    for (const corp of Object.values(save.world.corporations)) {
+      if (!corp.headquartersRegionId) {
+        const sourceHq = SOURCE_NPP_HEADQUARTERS_REGION[corp.countryId];
+        if (sourceHq && save.world.regions[sourceHq]?.countryId === corp.countryId) {
+          corp.headquartersRegionId = sourceHq;
+          corp.legacyProjectionDefaults = { ...corp.legacyProjectionDefaults, headquartersRegionId: true };
+        }
+      }
+      const identity = corporationIdentity(corp.countryId, corp.sectorType);
+      if (!corp.name) {
+        corp.name = identity.name;
+        corp.legacyProjectionDefaults = { ...corp.legacyProjectionDefaults, name: true };
+      }
+      if (!corp.brandColor) {
+        corp.brandColor = identity.brandColor;
+        corp.legacyProjectionDefaults = { ...corp.legacyProjectionDefaults, brandColor: true };
+      }
+    }
+    for (const [regionId, region] of Object.entries(save.world.regions)) {
+      if (region.legacyProjectionDefault !== true) continue;
+      const hasRecordedHqReference = Object.values(save.world.corporations).some(
+        (corp) => corp.headquartersRegionId === regionId && corp.legacyProjectionDefaults?.headquartersRegionId !== true,
+      );
+      if (hasRecordedHqReference) delete region.legacyProjectionDefault;
+    }
+    save.world.meta.schemaVersion = 50;
+  }
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
@@ -2840,7 +3166,10 @@ export function deserializeSave(raw: string): WorldState {
     (save.world as unknown as Record<string, unknown>)["pmAppointmentVotes"] = [];
   }
   validatePmAppointmentVotes(save.world);
+  backfillSourceSeededSoeState(save.world);
   assertCurrentWorldState(save.world);
+  validateCommandEconomySave(save.world);
+  validateSoeSave(save.world);
   validateBankingState(save.world);
   validateCanvassState(save.world);
   // #295: persisted sector-owner default. Saves written before the

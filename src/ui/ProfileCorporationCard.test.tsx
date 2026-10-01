@@ -5,11 +5,13 @@ import { readFileSync } from "node:fs";
 import { GameSession } from "../game/session";
 import type { ProfileView } from "../game/profileTypes";
 import type { ProfileCorporationEntry } from "../game/profileCorporation";
+import type { GameActionParams } from "../game/actionInput";
 import { ProfilePanel } from "./ProfilePanel";
 import { MarketsPanel } from "./MarketsPanel";
 import type { DrawerRouteId } from "./MobileNavigation";
 
 const OPTIONS = { era: "1953", countryId: "US", seed: "native-profile-ceo-card", playerName: "Alex" };
+const CEO_OPTIONS = { era: "1953", countryId: "US", homeRegionId: "DC", seed: "native-profile-ceo-card", playerName: "Alex" };
 const SAVED_AT = "2026-09-18T00:00:00.000Z";
 
 afterEach(() => {
@@ -72,7 +74,7 @@ describe("#51 profile corporation card", () => {
     expect(corporationSection()).toBeNull();
   });
 
-  it("shows the owned corporation with company-detail values and honest salary/dividend notes", () => {
+  it("shows the owned corporation with company-detail values and settled salary/dividends", () => {
     const profile = owningProfile();
     expect(profile.corporations).toHaveLength(1);
     renderPanel(profile, vi.fn());
@@ -82,14 +84,76 @@ describe("#51 profile corporation card", () => {
     const text = card!.textContent ?? "";
     const entry = profile.corporations![0]!;
     expect(text).toMatch(new RegExp(entry.ticker));
+    expect(text).toContain(entry.name);
+    expect(getComputedStyle(card!.querySelector("[data-corporation-brand]")!).color).toBe("rgb(6, 182, 212)");
     expect(text).toMatch(/Sector owner/);
     expect(text).toMatch(/Corporate cash/);
     expect(text).toMatch(/Your shares/);
     expect(text).toMatch(/Controlling holder/);
-    // Salary and dividends are absent from Native: honest notes, never zeros.
-    expect(text).toMatch(/Not recorded by the engine/);
-    expect(text).toMatch(/no dividend system/);
-    expect(text).not.toMatch(/\$0\.00/);
+    expect(text).toMatch(/CEO salary/);
+    expect(text).toMatch(/Dividends/);
+    expect(text).toMatch(/Paid last turn/);
+    expect(text).toMatch(/Received last turn/);
+  });
+
+  it("shows a real CEO identity without sector ownership and opens the company detail", () => {
+    const session = new GameSession();
+    session.create(CEO_OPTIONS);
+    expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
+    expect(session.act("voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);
+    expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
+    const profile = session.profile();
+    expect(profile.corporations?.[0]).toMatchObject({ role: "ceo", id: "US-media" });
+    const onNavigate = vi.fn();
+    renderPanel(profile, onNavigate);
+    const card = corporationSection()!;
+    expect(card.textContent).toMatch(/CEO/);
+    screen.getByRole("button", { name: "View company: Daily Media" }).click();
+    expect(onNavigate).toHaveBeenCalledWith("markets", "US-media");
+  });
+
+  it("shows the source national-enterprise note for a recorded state-enterprise CEO", () => {
+    const session = new GameSession();
+    session.create(CEO_OPTIONS);
+    expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
+    expect(session.act("voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);
+    expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
+    // Nationalization is outside this card slice. Load a valid recorded
+    // state-enterprise fixture through the public save boundary.
+    const saved = JSON.parse(session.serialize(SAVED_AT));
+    saved.world.corporations["US-media"].ownershipState = "stateOwned";
+    saved.world.corporations["US-media"].countryOwnerId = "US";
+    session.load(JSON.stringify(saved));
+    renderPanel(session.profile(), vi.fn());
+    expect(corporationSection()!.textContent).toContain("National enterprise");
+  });
+
+  it("supports the complete shareholder CEO and compensation path on the company detail", async () => {
+    const session = new GameSession();
+    session.create(CEO_OPTIONS);
+    expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
+    const user = userEvent.setup();
+    const onAction = vi.fn((id: string, params?: GameActionParams) => { session.act(id, params); });
+    const page = render(<MarketsPanel markets={session.markets()} initialId="US-media" busy={false} onAction={onAction} />);
+
+    await user.click(screen.getByRole("button", { name: "Vote yourself as CEO" }));
+    expect(session.markets().listings.find((entry) => entry.id === "US-media")!.pendingCeoId).toBe("player");
+    page.rerender(<MarketsPanel markets={session.markets()} initialId="US-media" busy={false} onAction={onAction} />);
+    await user.click(screen.getByRole("button", { name: "Accept CEO appointment" }));
+    expect(session.markets().listings.find((entry) => entry.id === "US-media")!.ceoId).toBe("player");
+
+    page.rerender(<MarketsPanel markets={session.markets()} initialId="US-media" busy={false} onAction={onAction} />);
+    await user.clear(screen.getByRole("spinbutton", { name: "CEO salary per turn" }));
+    await user.type(screen.getByRole("spinbutton", { name: "CEO salary per turn" }), "1000");
+    await user.clear(screen.getByRole("spinbutton", { name: "Dividend rate" }));
+    await user.type(screen.getByRole("spinbutton", { name: "Dividend rate" }), "25");
+    await user.click(screen.getByRole("button", { name: "Save compensation" }));
+    expect(session.markets().listings.find((entry) => entry.id === "US-media")).toMatchObject({ ceoSalaryPerTurn: 1_000, dividendRate: 25 });
+    expect(onAction.mock.calls.map(([id]) => id)).toEqual([
+      "voteCeo",
+      "acceptCeoAppointment",
+      "setCorporationCompensation",
+    ]);
   });
 
   it("renders empty values honestly instead of fabricating them", () => {
@@ -149,7 +213,7 @@ describe("#51 profile corporation card", () => {
     const onNavigate: (route: DrawerRouteId, id?: string) => void = vi.fn();
     const user = userEvent.setup();
     renderPanel(owningProfile(), onNavigate);
-    await user.click(screen.getByRole("button", { name: "View company: US-media" }));
+    await user.click(screen.getByRole("button", { name: "View company: Daily Media" }));
     expect(onNavigate).toHaveBeenCalledWith("markets", "US-media");
   });
 

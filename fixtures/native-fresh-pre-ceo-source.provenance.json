@@ -1,0 +1,15 @@
+{
+  "repository": "Egg3901/AHDNative",
+  "sourceCommit": "af2f59b718ccb26beafa41e0c44b9bdcc1b47e7e",
+  "creation": {
+    "seed": "v42-interchange-v1",
+    "playerName": "Validator",
+    "countryId": "US",
+    "era": "1953",
+    "savedAt": "2026-09-10T00:00:00.000Z"
+  },
+  "generator": "createWorld and serializeSave executed on the immutable pre-CEO/pre-economic-control Native source; fixture retained as historical evidence, not current createWorld output",
+  "nativeSaveSha256": "1118a93f7f77c11d7ff2a9915a5df0da9111f349d45ce4516de4f68b2a9b071c",
+  "historicalV42ProjectionSha256": "404370ac2e43de737ce3e664fafde05f34a8298bb51db2de9de8ae6de6c59b03",
+  "readerCommit": "c5017542c860f5f94b7d4b4d5cfea2939b28995d"
+}
