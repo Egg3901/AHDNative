@@ -45,7 +45,7 @@ describe("campaignRetarget", () => {
       oppositionTargetId: target!.id,
     });
 
-    expect(result).toEqual({ ok: true, message: `Opposition research now targets ${target!.name}.` });
+    expect(result).toEqual({ ok: true, message: `Opposition research now targets ${target!.name}.`, changes: {} });
     expect(campaign.actions).toBe(campaignActions);
     expect(campaign).toMatchObject({
       oppositionTargetId: target!.id,

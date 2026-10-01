@@ -4,6 +4,12 @@ import { GROWTH_RATE_TURNS_PER_YEAR } from "../corporation/constants.js";
 import { isCorpStateOwned, validateBondIssuerIdentity } from "./corporateBonds.js";
 import { resolveBondCurrency } from "./denomination.js";
 import type { Bond } from "./types.js";
+import {
+  BUDGET_SOFTNESS_FOLD_THRESHOLD,
+  COMMAND_CEILING,
+  NPP_DEFAULT_BUDGET_SOFTNESS,
+  scheduledMarketizationLevel,
+} from "../commandEconomy/constants.js";
 
 /** Source: AHDGame 08820d1 nppInsolvencyDissolution.ts. */
 export const LINGERING_CORPORATE_DEFAULT_GRACE_TURNS = 30;
@@ -11,6 +17,8 @@ export const LINGERING_CORPORATE_DEFAULT_GRACE_TURNS = 30;
 export const CORPORATE_DISSOLUTION_SECTOR_SALVAGE_FRACTION = 0.2;
 /** Source: AHDGame 08820d1 constants/corporations.ts. */
 export const CORPORATE_DISSOLUTION_NPV_DISCOUNT_RATE = 0.15;
+/** Source: AHDGame nppInsolvencyDissolution.ts MAX_DISSOLUTIONS_PER_TURN. */
+export const MAX_NPP_CORPORATE_DISSOLUTIONS_PER_TURN = 25;
 
 export interface CorporateDefaultSettlement {
   corporationId: string;
@@ -165,6 +173,18 @@ function activeBondsFor(world: WorldState, corporationId: string): Bond[] {
 
 function homeCurrencyFor(world: WorldState, corporation: WorldState["corporations"][string]): string {
   return world.budgets[corporation.countryId]?.currencyCode?.trim() || "USD";
+}
+
+function isNppIssuerSparedBySoftBudget(world: WorldState, corporation: WorldState["corporations"][string]): boolean {
+  const year = Number.parseInt(world.meta.date.slice(0, 4), 10);
+  if (!Number.isFinite(year) || scheduledMarketizationLevel(corporation.countryId, year) >= COMMAND_CEILING) {
+    return false;
+  }
+  const softness = world.commandEconomy[corporation.countryId]?.budgetSoftness;
+  const effectiveSoftness = typeof softness === "number" && Number.isFinite(softness)
+    ? softness
+    : NPP_DEFAULT_BUDGET_SOFTNESS;
+  return effectiveSoftness >= BUDGET_SOFTNESS_FOLD_THRESHOLD;
 }
 
 function sectorNpvFor(world: WorldState, corporationId: string): number {
@@ -480,7 +500,11 @@ export function settleLingeringCorporateBondDefaults(world: WorldState): Corpora
   }
 
   const settlements: CorporateDefaultSettlement[] = [];
-  for (const corporationId of [...candidates].sort()) {
+  const rankedCandidates = [...candidates].sort((a, b) =>
+    (world.corporations[a]?.liquidCapital ?? 0) - (world.corporations[b]?.liquidCapital ?? 0) ||
+    a.localeCompare(b),
+  );
+  for (const corporationId of rankedCandidates) {
     const corporation = world.corporations[corporationId];
     // Legacy Native corporations are all seeded NPP issuers, so an absent
     // ceoType preserves that meaning. Explicit player CEOs and suspended
@@ -489,10 +513,12 @@ export function settleLingeringCorporateBondDefaults(world: WorldState): Corpora
       !corporation ||
       isCorpStateOwned(corporation) ||
       corporation.suspended === true ||
-      (corporation.ceoType !== undefined && corporation.ceoType !== "npp")
+      (corporation.ceoType !== undefined && corporation.ceoType !== "npp") ||
+      isNppIssuerSparedBySoftBudget(world, corporation)
     ) continue;
     const result = settleCorporateBondDefault(world, corporationId);
     if (result.ok) settlements.push(result.settlement);
+    if (settlements.length >= MAX_NPP_CORPORATE_DISSOLUTIONS_PER_TURN) break;
   }
   return settlements;
 }

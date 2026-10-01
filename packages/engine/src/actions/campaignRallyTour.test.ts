@@ -59,7 +59,7 @@ describe("campaignRallyTour", () => {
       electionId: raceId,
       rallyTour: "start",
     });
-    expect(started).toEqual({ ok: true, message: "Campaign rally tour started." });
+    expect(started).toEqual({ ok: true, message: "Campaign rally tour started.", changes: {} });
     expect(world.candidateSupports.player).toMatchObject({ rallyTourActive: true, support: 50, supportAccrual: [] });
     expect(campaign.actions).toBe(tickCost);
 
@@ -75,7 +75,7 @@ describe("campaignRallyTour", () => {
       electionId: raceId,
       rallyTour: "stop",
     });
-    expect(stopped).toEqual({ ok: true, message: "Campaign rally tour stopped." });
+    expect(stopped).toEqual({ ok: true, message: "Campaign rally tour stopped.", changes: {} });
     expect(saved.candidateSupports.player!.rallyTourActive).toBe(false);
 
     advanceTurn(saved);

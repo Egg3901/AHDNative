@@ -142,7 +142,12 @@ function deriveTurnout(world: WorldState, stateId: string, electionId?: string):
   const region = world.regions[stateId];
   if (!demo || !region) return null;
   const vep = region.votingEligiblePopulation ?? region.population ?? 0;
-  return deriveTurnoutFrom(demo, vep, campaignTurnoutModifiers(world, electionId));
+  const modifiers = campaignTurnoutModifiers(world, electionId);
+  const regional = world.regionTurnouts[stateId]?.campaignModifiers;
+  for (const groups of Object.values(regional ?? {})) {
+    for (const [group, value] of Object.entries(groups)) modifiers[group] = (modifiers[group] ?? 0) + value;
+  }
+  return deriveTurnoutFrom(demo, vep, modifiers);
 }
 
 /** Resolved regional turnout pool shared by general and primary ballot paths. */

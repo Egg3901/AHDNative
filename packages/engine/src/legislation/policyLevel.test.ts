@@ -21,7 +21,7 @@ describe("program law policy levels", () => {
       policyOptionId: "l3",
     });
 
-    expect(result).toEqual({ ok: true, message: expect.stringContaining("Sponsored bill") });
+    expect(result).toEqual({ ok: true, message: expect.stringContaining("Sponsored bill"), changes: { actions: -4 } });
     expect(world.bills[0]?.provisions[0]).toMatchObject({
       policyOptionId: "l3",
       effectDirection: 1,

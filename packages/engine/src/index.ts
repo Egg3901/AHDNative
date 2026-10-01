@@ -266,6 +266,7 @@ export {
 } from "./campaigns/upgradeCosts.js";
 export type { OpsBranchKey, UpgradeCategory } from "./campaigns/upgradeCosts.js";
 export { campaignAnchorToLocal, campaignLocalRate } from "./campaigns/campaignCurrency.js";
+export { characterActionDisabledReason } from "./actions/characterEligibility.js";
 export { calculateCampaignIncome } from "./campaigns/income.js";
 export { calculateMaintenanceCosts } from "./campaigns/maintenance.js";
 export { campaignKey, ensureCampaign } from "./campaigns/lifecycle.js";
@@ -382,3 +383,5 @@ export { DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS } from "./finance/wireTr
 export type { WireTransferResult } from "./finance/wireTransfer.js";
 export { allocatePlayerStats, effectivePlayerStats, hasAllocatedStats, reallocatePlayerStats } from "./stats/allocation.js";
 export { suggestStatBuild } from "./stats/suggestedBuild.js";
+
+export { addCanvassBoost, canvassEligibility, quoteCanvass } from "./actions/canvass.js";

@@ -1,9 +1,54 @@
 # Character action parity - ActionsHub catalogue vs AHDGame
 
-Static source audit for [#91](https://github.com/Egg3901/AHDNative/issues/91).
-Read-only. No runtime, schema, save, formula or test change accompanies this
-document. It records what is ported, what is only a helper, and what is wrong
-or blocked before any formula is changed.
+Historical source audit for [#91](https://github.com/Egg3901/AHDNative/issues/91),
+followed by implementation checkpoints. The original tables preserve their
+audit baseline; the current checkpoint below supersedes their old absence
+claims. Remaining source and player-flow gaps still keep the issue open.
+
+## Current character-action checkpoint, 2026-10-01
+
+Authority is AHDGame `08820d108bf986d519aed28c2963690dd772c652`; a refresh through
+`4d26e356` found no changes in these mechanics. The executable source collector
+`scripts/character-action-reference-vectors.mjs <AHDGame git repository>` loads
+immutable Game modules directly. Its committed fixture contains home-state GDP
+quotes for six countries at three economic levels, conversions, generic stat
+XP consumption and Debate clock results. It does not import Native formulas.
+
+| Action | Current Native inputs, currency and state changes |
+| --- | --- |
+| Campaign | Source PI/AP tier, home-state GDP and era baseline, Intellect discount, Charisma gain; frozen local campaign-fund debit; refuses PI 100 and missing allocated inputs. |
+| Advertise | Source favorability/AP tier, home-state GDP and era baseline, Charisma gain; frozen local campaign-fund debit. Intellect does not discount it. |
+| Build Donor Network | Source donor/AP curve, home-state GDP and era baseline, Fundraising discount, frozen local debit and donor-level increment. |
+| Fundraise | Existing generated source yield, Fundraising multiplier and donor eligibility; frozen local campaign-fund credit. |
+| Quick/full poll | Existing Intellect discount and frozen local debit; missing allocated Intellect refuses before accounting. Saved poll results retain the electorate and race. |
+| Convert Cash | Two AP, finite positive local cash input, half the amount to local campaign funds and source infamy curve; invalid/insufficient input changes nothing. |
+| Rest | Existing source action, with Energy XP on successful execution. |
+| Debate Prep | Existing one AP, 15% seeded roll, allocated Debate and RPG gates; excluded from generic action XP. |
+
+Successful character actions accrue 0.03 XP to the source action's trained stat
+and Energy, except Debate Prep. Action refresh consumes XP once, clamps generic
+stats and clears the ledger. Current Game code disables generic idle decay.
+Debate remains separate: the deterministic SP clock maps each reference hour to
+one completed turn, following the existing membership cooldown convention, and
+consumes each complete 72-turn window. Allocation/reset establishes the saved
+turn anchor. Legacy saves without it adopt the current turn without retroactive
+debt. The game-calendar week is separate from this clock; time outside the app
+never changes a saved replay. Disabling RPG preserves saved stats and prevents
+XP/decay effects. The source price-level flag defaults off, so quotes use 1.
+
+The public executor returns exact numeric resource changes and restores AP,
+funds, cooldowns and action counts on returned or thrown failure. Session quotes
+share home GDP, stat and frozen-currency readers with execution. The campaign
+card no longer requests a region that the source character action never targets.
+
+The hub now opens [demographic canvassing](DEMOGRAPHIC-CANVASSING.md), with
+source-backed batch quotes, chosen audience and saved electoral effects. Remaining
+#57 scope includes joint audiences, presidential travel/surrogate writer journeys
+and the other targeted action selectors. Party join/leave AP pricing and the wider party/
+caucus preview, recruitment, tax and disband contract remain under #61. The
+original eleven-entry audit includes these unresolved differences; this
+checkpoint therefore does not close #91. Full hosted checks and integrated
+mobile action evidence remain required before merge.
 
 ## Scope boundary (explicit)
 
