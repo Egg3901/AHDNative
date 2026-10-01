@@ -36,8 +36,9 @@ test('Germany singleplayer Chancellor decrees, replaces and resumes a VAT law at
   }
 
   async function enactVat(rate: string) {
-    const bill = page.getByRole('article', { name: 'Statutory VAT Act' })
+    const bills = page.getByRole('article', { name: 'Statutory VAT Act' })
       .filter({ hasText: 'Germany Law Player' });
+    const bill = bills.last();
     let enacted = false;
     for (let turn = 0; turn < 12; turn++) {
       if (await bill.count()) {
@@ -82,7 +83,12 @@ test('Germany singleplayer Chancellor decrees, replaces and resumes a VAT law at
   await page.getByRole('button', { name: 'Continue Germany Law Player', exact: true }).click();
   await gameReady(page);
   await navigateGame(page, 'Bills and proposals');
-  await expect(page.getByRole('article', { name: 'Statutory VAT Act' }).filter({ hasText: 'Germany Law Player' }).filter({ hasText: /signed/i })).toHaveCount(1);
+  const savedBills = page.getByRole('article', { name: 'Statutory VAT Act' }).filter({ hasText: 'Germany Law Player' });
+  await expect(savedBills).toHaveCount(2);
+  for (let index = 0; index < 2; index++) {
+    await expect(savedBills.nth(index)).toContainText(/signed/i);
+    await expect(savedBills.nth(index)).toContainText('0 for · 0 against');
+  }
   await navigateGame(page, 'National Budget');
   await expect(page.getByRole('listitem').filter({ hasText: 'VAT' })).toContainText('22.0% rate');
 
