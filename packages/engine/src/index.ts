@@ -110,6 +110,7 @@ export * from "./cabinet/constants.js";
 export * from "./cabinet/nominationLifecycle.js";
 export * from "./cabinet/transition.js";
 export * from "./corporation/corporateSectorAssets.js";
+export * from "./corporation/plantCapacity.js";
 export * from "./corporation/corporateSectorSale.js";
 export * from "./corporation/corporateSectorAcquire.js";
 // Issue #326: atomic interbank lending and servicing. Types travel through

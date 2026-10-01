@@ -32,6 +32,7 @@ import { seedCountryPolitics } from "./countryPolitics/overview.js";
 import {
   backfillSectorOwner,
   backfillSectorWorkforce,
+  backfillSectorPlantCapital,
   calculateSectorWorkers,
   initialRepresentingUnionId,
   validateCorporateSectorAssets,
@@ -2965,6 +2966,7 @@ export function deserializeSave(raw: string): WorldState {
     // left for the validator below to fail closed on. Applies to
     // current-schema saves too, so no version renumber is needed.
     backfillSectorWorkforce(save.world, save.world.corporateSectors);
+    backfillSectorPlantCapital(save.world, save.world.corporateSectors);
     validateCorporateSectorAssets(save.world, save.world.corporateSectors);
   }
   // #320: union organizer rows. Saves written before the organizer slice
