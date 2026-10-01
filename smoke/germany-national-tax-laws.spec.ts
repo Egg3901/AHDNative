@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { advanceGame, completeCharacterCreation, gameReady, navigateGame, saveGame } from './game-navigation';
 
-test('Germany Chancellor authors, replaces and resumes a Bundestag VAT law at phone widths', async ({ page }) => {
+test('Germany singleplayer Chancellor decrees, replaces and resumes a VAT law at phone widths', async ({ page }) => {
   test.setTimeout(600_000);
   page.setDefaultTimeout(30_000);
   const errors: string[] = [];
@@ -17,14 +17,21 @@ test('Germany Chancellor authors, replaces and resumes a Bundestag VAT law at ph
   await page.getByRole('button', { name: 'Start', exact: true }).click();
   await completeCharacterCreation(page);
   await gameReady(page);
-  await expect(page.getByRole('region', { name: 'Profile', exact: true })).toContainText(/Chancellor/i);
+  await navigateGame(page, 'Actions');
+  await expect(page.getByText(/Permanent Head of State · Chancellor/i)).toBeVisible();
+  // Source office position grants 2.5 NPI per turn; the ordinary action
+  // refresh accrues the 5 NPI needed for a non-tariff provision over two turns.
+  await advanceGame(page);
+  await advanceGame(page);
 
   async function proposeVat(rate: string) {
     await navigateGame(page, 'Legislature');
     await page.getByRole('button', { name: 'Browse bills and proposals', exact: true }).click();
     await page.getByRole('combobox', { name: 'Available legislation' }).selectOption('de_vat_rate');
     await page.getByRole('combobox', { name: 'Tax rate' }).selectOption(rate);
-    await page.getByRole('button', { name: 'Sponsor bill', exact: true }).click();
+    const sponsor = page.getByRole('button', { name: 'Sponsor bill', exact: true });
+    await expect(sponsor).toBeEnabled();
+    await sponsor.click();
     await gameReady(page);
   }
 
@@ -43,13 +50,13 @@ test('Germany Chancellor authors, replaces and resumes a Bundestag VAT law at ph
       await advanceGame(page);
     }
     await expect(bill).toHaveCount(1);
-    expect(enacted, `German Bundestag should sign the ${rate}% VAT bill`).toBe(true);
+    expect(enacted, `German Chancellor decree should sign the ${rate}% VAT bill immediately`).toBe(true);
     await expect(bill).toContainText(/signed/i);
     await expect(bill).toContainText(`${rate}%`);
-    await expect(bill).toContainText(/\d+ for · \d+ against/);
+    await expect(bill).toContainText('0 for · 0 against');
   }
 
-  // Source-backed selector and authorized local Chancellor flow at 390px.
+  // Source-backed selector and local singleplayer decree flow at 390px.
   await proposeVat('20');
   await enactVat('20');
   await navigateGame(page, 'National Budget');

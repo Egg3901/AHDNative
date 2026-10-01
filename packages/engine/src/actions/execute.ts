@@ -55,6 +55,7 @@ import { isPlannedEconomy } from "../commandEconomy/constants.js";
 import { canPlayerOperateGosbank } from "../commandEconomy/authority.js";
 import { reconcileCeoAppointment } from "../corporation/ceoGovernance.js";
 import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
+import { applyBillEffects } from "../legislation/billLifecycle.js";
 
 export type ExecuteActionParams = {
   regionId?: string;
@@ -1031,6 +1032,21 @@ function executeActionInner(
         committeeId: null,
       };
       world.bills.push(bill);
+      // AHDGame@968's local same-country singleplayer HoS route calls
+      // enactSingleplayerDecree immediately after the national bill insert.
+      // This is the source sovereign override, not a legislative ballot.
+      // Career-mode elected-seat players continue through billLifecycle.
+      if (player.mode === "hos") {
+        bill.status = "signed";
+        bill.enactedAtTurn = world.meta.turn;
+        bill.updatedAtTurn = world.meta.turn;
+        applyBillEffects(world, bill);
+        // The source national-bill command has no separate sponsor action
+        // cooldown; the source action-point charge and active-bill guard are
+        // its pacing rules. HoS decrees finish immediately, so release the
+        // Native one-turn cooldown that only models delayed chamber bills.
+        delete actor.actionCooldowns[actionId];
+      }
       return { ok: true, message: `Sponsored bill ${id}` };
     } catch (e) {
       actor.actions += cost;
@@ -1139,6 +1155,15 @@ function executeActionInner(
       committeeId: null,
     };
     world.bills.push(bill);
+    // The same local singleplayer decree authority applies to supported
+    // repeal proposals; source replacement/repeal uses the national-bill command.
+    if (world.player.mode === "hos") {
+      bill.status = "signed";
+      bill.enactedAtTurn = world.meta.turn;
+      bill.updatedAtTurn = world.meta.turn;
+      applyBillEffects(world, bill);
+      delete actor.actionCooldowns[actionId];
+    }
     return { ok: true, message: `Repeal bill ${id} sponsored` };
   }
   if (actionId === "invokeFilibuster") {

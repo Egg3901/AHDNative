@@ -3,6 +3,7 @@ import { executeAction } from "../actions/execute.js";
 import { advanceTurn } from "../engine.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { createWorld } from "../world.js";
+import { playerNationalInfluenceGain } from "../actions/playerInfluence.js";
 import { getLaw } from "./catalog.js";
 import type { Bill } from "./types.js";
 
@@ -32,6 +33,16 @@ function expectSourceSalesTax(world: ReturnType<typeof createWorld>, rate: numbe
 }
 
 describe("Germany national tax laws (#287)", () => {
+  it("projects source HoS office NPI and accrues it on normal turns", () => {
+    const world = createWorld({ seed: "de-hos-npi-287", playerName: "P", countryId: "DE", era: "2019", mode: "hos" });
+    expect(world.player.currentOffice).toMatchObject({ countryId: "DE", type: "chancellor" });
+    expect(playerNationalInfluenceGain(world)).toBe(2.5);
+    advanceTurn(world);
+    expect(world.player.nationalInfluence).toBe(2.5);
+    advanceTurn(world);
+    expect(world.player.nationalInfluence).toBe(5);
+  });
+
   it("exposes only the seven source-authored national tax rows with their full option ladders", () => {
     const expectedRates: Record<(typeof DE_TAX_LAWS)[number], number[]> = {
       de_income_tax_rate: [0, 10, 20, 28, 35, 42, 45, 50, 55, 60, 65],
@@ -44,6 +55,8 @@ describe("Germany national tax laws (#287)", () => {
     };
     const incomeDirection = [1, 1, 1, 1, 1, 0, -1, -1, -1, -1, -1];
     const incomeEffect = [5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5];
+    const vatDirection = [-1, -1, -1, -1, -1, 0, 1, 1, 1, 1, 1];
+    const vatEffect = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5];
     const tariffDirection = [-1, -1, -1, -1, -1, 0, 1, 1, 1, 1, 1];
     const tariffEffect = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5];
     const taxTypes: Record<(typeof DE_TAX_LAWS)[number], string> = {
@@ -62,10 +75,10 @@ describe("Germany national tax laws (#287)", () => {
       const options = law?.taxPolicy?.options ?? [];
       expect(options.map((option) => option.rate), id).toEqual(expectedRates[id]);
       expect(options.map((option) => option.effectDirection), id).toEqual(
-        id === "de_customs_tariff_rate" ? tariffDirection : incomeDirection,
+        id === "de_customs_tariff_rate" ? tariffDirection : id === "de_vat_rate" ? vatDirection : incomeDirection,
       );
       expect(options.map((option) => option.economic), id).toEqual(
-        id === "de_customs_tariff_rate" ? tariffEffect : incomeEffect,
+        id === "de_customs_tariff_rate" ? tariffEffect : id === "de_vat_rate" ? vatEffect : incomeEffect,
       );
       expect(options.every((option) => option.social === 0), id).toBe(true);
     }
@@ -95,7 +108,7 @@ describe("Germany national tax laws (#287)", () => {
     expect(world.bills).toHaveLength(0);
   });
 
-  it("lets the Germany 2019 singleplayer Chancellor propose, pass, enact, replace, repeal, and continue a Bundestag tax law", () => {
+  it("lets the Germany 2019 singleplayer Chancellor issue a direct tax decree, replace, repeal, and continue it", () => {
     const world = createWorld({ seed: "de-tax-287", playerName: "P", countryId: "DE", era: "2019", mode: "hos" });
     world.nppAutonomyLevel = "off";
     world.player.actions = 100;
@@ -118,27 +131,28 @@ describe("Germany national tax laws (#287)", () => {
     expect(first).toMatchObject({
       countryId: "DE",
       selectedRate: 20,
-      status: "proposed",
+      status: "signed",
       proposalActionCost: 10,
       proposalNpiCost: 5,
+      votesFor: 0,
+      votesAgainst: 0,
+      enactedAtTurn: world.meta.turn,
     });
-    expect(world.player.actions).toBe(90);
-    expect(world.player.nationalInfluence).toBe(25);
+    expect(world.player.actions).toBe(100);
+    expect(world.player.nationalInfluence).toBe(30);
+    expect(first.proposalCostsRefunded).toBe(true);
+    expect(world.player.actionCooldowns.sponsorBill).toBeUndefined();
     expect(first.provisions[0]?.policyOptionId).toBe("de_vat_rate_opt_6");
-    // Game@968 has a single Bundestag vote and explicitly no government-
-    // pending freeze for DE. A pending cabinet cannot stall that chamber path.
-    expect(world.governments.DE).toBeDefined();
-    world.governments.DE!.status = "pending";
-    passBill(world, first);
+    // Game@968's local singleplayer HoS proposal is enacted immediately by
+    // enactSingleplayerDecree; it does not enter a Bundestag vote.
     expect(world.budgets.DE?.taxRates.salesTax).toBe(20);
     // Game 96831835 src/lib/budget/revenue.ts:353 computes taxableSales ×
     // rate/100. Revenue settles before the tax-rate ramp in the source turn
     // order, so the next stepped rate affects receipts on the following turn.
     expectSourceSalesTax(world, 20);
-    expect(first.votesFor).toBeGreaterThan(first.votesAgainst);
+    expect(first.votesFor).toBe(0);
     expect(world.enactedLaws.filter((law) => law.id === "de_vat_rate" && law.repealedAtTurn === undefined)).toHaveLength(1);
 
-    delete world.player.actionCooldowns.sponsorBill;
     world.player.legislativeSeat = null;
     expect(executeAction(world, "player", "sponsorBill", { catalogId: "de_vat_rate", taxRate: 22 }).ok).toBe(true);
     const replacement = world.bills.at(-1)!;
@@ -151,7 +165,6 @@ describe("Germany national tax laws (#287)", () => {
     expectSourceSalesTax(world, 21);
     expect(world.enactedLaws.filter((law) => law.id === "de_vat_rate" && law.repealedAtTurn === undefined)).toHaveLength(1);
 
-    delete world.player.actionCooldowns.repealLaw;
     expect(executeAction(world, "player", "repealLaw", { catalogId: "de_vat_rate" }).ok).toBe(true);
     const repeal = world.bills.at(-1)!;
     passBill(world, repeal);
@@ -168,7 +181,7 @@ describe("Germany national tax laws (#287)", () => {
     expectSourceSalesTax(world, 19);
     expect(world.enactedLaws.some((law) => law.id === "de_vat_rate" && law.repealedAtTurn === undefined)).toBe(false);
 
-    const restored = deserializeSave(serializeSave(world));
+    const restored = deserializeSave(serializeSave(world, "2019-01-01T00:00:00.000Z"));
     expect(restored.bills.at(-1)?.status).toBe("signed");
     advanceTurn(world);
     advanceTurn(restored);
@@ -176,7 +189,7 @@ describe("Germany national tax laws (#287)", () => {
     expect(restored.enactedLaws).toEqual(world.enactedLaws);
   });
 
-  it("keeps the source tariff provision NPI exemption on a German proposal", () => {
+  it("keeps the tariff NPI exemption through the source singleplayer decree", () => {
     const world = createWorld({ seed: "de-tariff-cost-287", playerName: "P", countryId: "DE", era: "2019", mode: "hos" });
     world.player.actions = 100;
     world.player.nationalInfluence = 30;
@@ -186,7 +199,7 @@ describe("Germany national tax laws (#287)", () => {
     }).ok).toBe(true);
     expect(world.bills.at(-1)).toMatchObject({ proposalActionCost: 10 });
     expect(world.bills.at(-1)?.proposalNpiCost).toBeUndefined();
-    expect(world.player.actions).toBe(90);
+    expect(world.player.actions).toBe(100);
     expect(world.player.nationalInfluence).toBe(30);
   });
 });
