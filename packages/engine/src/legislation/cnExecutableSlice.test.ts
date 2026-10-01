@@ -284,7 +284,7 @@ describe("China's executable national budget-tax slice (#286)", () => {
       expect(afterTreasuryRate).toBe(
         law.baseline2019 +
           Math.sign(law.selected2019 - law.baseline2019) *
-            Math.min(2, Math.abs(law.selected2019 - law.baseline2019)),
+            Math.min(1, Math.abs(law.selected2019 - law.baseline2019)),
       );
       const sourceRevenueRate =
         law.baseline2019 +
@@ -367,7 +367,7 @@ describe("China's executable national budget-tax slice (#286)", () => {
       const replacementTurnRate =
         law.selected2019 +
         Math.sign(replacementRate - law.selected2019) *
-          Math.min(2, Math.abs(replacementRate - law.selected2019));
+          Math.min(1, Math.abs(replacementRate - law.selected2019));
       expect(
         world.budgets.CN?.taxRates[law.taxType as keyof typeof budget.taxRates],
       ).toBe(replacementTurnRate);

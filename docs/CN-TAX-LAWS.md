@@ -2,7 +2,7 @@
 
 The bounded executable slice contains VAT, enterprise income tax, individual
 income tax, social-insurance contributions and customs tariff. Their exact
-option identifiers, rate ladders, economic/social directions and legal defaults
+option identifiers, rate ladders, economic/social axes, political effect directions and legal defaults
 come from Game `954f1c21781e6e767455a15eed40f73993d89a8b`; the source paths were
 refreshed through `01797b27082b098fdf3929bb498215c94c8dda24`. Budget defaults and
 legal defaults are separate source contracts, including their differences.
@@ -15,7 +15,11 @@ Passed proposals refund their recorded cost once, subject to the source Energy
 action cap. The rendered proposal discloses both amounts and eligibility.
 
 The enactment applies one percentage point, corporation revenue records fiscal
-receipts at that rate, and the treasury then applies its independent phase step.
+receipts at that rate, and the pending rate advances one point on each subsequent turn. Newly enacted
+rates never take a second step in the signing turn.
+Game runs `treasuryTurn` before `billLifecycle`. Its `billEnactment.ts` then
+steps the rate once and immediately recalculates revenue. Native preserves that
+first-step result without consuming the new ramp again in the fiscal tail.
 Expected enactment revenue comes from independently executing Game's actual
 `calculateFederalRevenue` with source-seeded 2019 bases:
 
@@ -26,6 +30,9 @@ Expected enactment revenue comes from independently executing Game's actual
 | Individual income | 3,780,000,000,000 | 44 | 1,663,200,000,000 |
 | Social insurance | 13,860,000,000,000 | 29 | 4,019,400,000,000 |
 | Customs tariff | 22,680,000,000,000 | 1 | 226,800,000,000 |
+
+The 83-option independent source fixture also checks every authored CN, IE, JP
+and BR political direction, separately from fiscal rate movement.
 
 `cnExecutableSlice.test.ts` verifies both playable CN presets, all five
 lifecycles/replacements, source revenue and persisted convergence. The actual

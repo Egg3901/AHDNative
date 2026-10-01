@@ -50,7 +50,7 @@ describe("Ireland executable VAT law (#284)", () => {
       countryId: "IE",
       legislationTypeId: "ie_vat_rate",
       selectedRate: 23,
-      effectDirection: 1,
+      effectDirection: 0,
       status: "proposed",
       provisions: [expect.objectContaining({ policyOptionId: "ie_vat_rate_opt_6", economic: 0, social: 0 })],
     });
@@ -70,10 +70,9 @@ describe("Ireland executable VAT law (#284)", () => {
     for (let i = 0; i < 12 && bill.status !== "signed" && bill.status !== "failed"; i++) advanceTurn(world);
     expect(bill.status).toBe("signed");
     expect(bill.voteSnapshot?.for).toBeGreaterThan(bill.voteSnapshot?.against ?? 0);
-    // The signed bill sets target 23 and the later fiscal phase advances the
-    // last percentage point in this same turn, clearing the pending target.
-    expect(world.budgets.IE?.taxRates.salesTax).toBe(23);
-    expect(world.budgets.IE?.taxRatePhaseIn?.salesTax).toBeUndefined();
+    // Signing makes the first one-point step; the target advances next turn.
+    expect(world.budgets.IE?.taxRates.salesTax).toBe(22);
+    expect(world.budgets.IE?.taxRatePhaseIn?.salesTax).toBe(23);
     for (let i = 0; i < 3; i++) advanceTurn(world);
     expect(world.budgets.IE?.taxRates.salesTax).toBe(23);
 
@@ -89,6 +88,9 @@ describe("Ireland executable VAT law (#284)", () => {
     const repealBill = restored.bills.at(-1)!;
     for (let i = 0; i < 12 && repealBill.status !== "signed" && repealBill.status !== "failed"; i++) advanceTurn(restored);
     expect(repealBill.status).toBe("signed");
+    expect(restored.budgets.IE?.taxRates.salesTax).toBe(22);
+    expect(restored.budgets.IE?.taxRatePhaseIn?.salesTax).toBe(21);
+    advanceTurn(restored);
     expect(restored.budgets.IE?.taxRates.salesTax).toBe(21);
     expect(restored.enactedLaws.some((law) => law.id === "ie_vat_rate" && law.repealedAtTurn === undefined)).toBe(false);
   });

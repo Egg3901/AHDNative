@@ -1,0 +1,753 @@
+{
+  "sourceRevision": "01797b27082b098fdf3929bb498215c94c8dda24",
+  "helperPath": "src/lib/seeds/reference/policyOptionHelpers.ts",
+  "rows": [
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_enterprise_income_tax_opt_0",
+      "rate": 0,
+      "economic": 5,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_enterprise_income_tax_opt_1",
+      "rate": 5,
+      "economic": 4,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_enterprise_income_tax_opt_2",
+      "rate": 10,
+      "economic": 3,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_enterprise_income_tax_opt_3",
+      "rate": 15,
+      "economic": 2,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_enterprise_income_tax_opt_4",
+      "rate": 20,
+      "economic": 1,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_enterprise_income_tax_opt_5",
+      "rate": 25,
+      "economic": 0,
+      "social": 0,
+      "effectDirection": 0
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_enterprise_income_tax_opt_6",
+      "rate": 28,
+      "economic": -1,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_enterprise_income_tax_opt_7",
+      "rate": 32,
+      "economic": -2,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_enterprise_income_tax_opt_8",
+      "rate": 35,
+      "economic": -3,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_enterprise_income_tax_opt_9",
+      "rate": 38,
+      "economic": -4,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_enterprise_income_tax_opt_10",
+      "rate": 40,
+      "economic": -5,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_individual_income_tax_opt_0",
+      "rate": 0,
+      "economic": 5,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_individual_income_tax_opt_1",
+      "rate": 10,
+      "economic": 4,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_individual_income_tax_opt_2",
+      "rate": 15,
+      "economic": 3,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_individual_income_tax_opt_3",
+      "rate": 25,
+      "economic": 2,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_individual_income_tax_opt_4",
+      "rate": 30,
+      "economic": 1,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_individual_income_tax_opt_5",
+      "rate": 35,
+      "economic": 0,
+      "social": 0,
+      "effectDirection": 0
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_individual_income_tax_opt_6",
+      "rate": 40,
+      "economic": -1,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_individual_income_tax_opt_7",
+      "rate": 45,
+      "economic": -2,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_individual_income_tax_opt_8",
+      "rate": 47,
+      "economic": -3,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_individual_income_tax_opt_9",
+      "rate": 48,
+      "economic": -4,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_individual_income_tax_opt_10",
+      "rate": 50,
+      "economic": -5,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_value_added_tax_opt_0",
+      "rate": 0,
+      "economic": -5,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_value_added_tax_opt_1",
+      "rate": 3,
+      "economic": -4,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_value_added_tax_opt_2",
+      "rate": 6,
+      "economic": -3,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_value_added_tax_opt_3",
+      "rate": 9,
+      "economic": -2,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_value_added_tax_opt_4",
+      "rate": 11,
+      "economic": -1,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_value_added_tax_opt_5",
+      "rate": 13,
+      "economic": 0,
+      "social": 0,
+      "effectDirection": 0
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_value_added_tax_opt_6",
+      "rate": 15,
+      "economic": 1,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_value_added_tax_opt_7",
+      "rate": 17,
+      "economic": 2,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_value_added_tax_opt_8",
+      "rate": 19,
+      "economic": 3,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_value_added_tax_opt_9",
+      "rate": 22,
+      "economic": 4,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_value_added_tax_opt_10",
+      "rate": 25,
+      "economic": 5,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_social_insurance_contribution_opt_0",
+      "rate": 0,
+      "economic": 5,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_social_insurance_contribution_opt_1",
+      "rate": 5,
+      "economic": 4,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_social_insurance_contribution_opt_2",
+      "rate": 10,
+      "economic": 3,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_social_insurance_contribution_opt_3",
+      "rate": 15,
+      "economic": 2,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_social_insurance_contribution_opt_4",
+      "rate": 22,
+      "economic": 1,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_social_insurance_contribution_opt_5",
+      "rate": 28,
+      "economic": 0,
+      "social": 0,
+      "effectDirection": 0
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_social_insurance_contribution_opt_6",
+      "rate": 32,
+      "economic": -1,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_social_insurance_contribution_opt_7",
+      "rate": 36,
+      "economic": -2,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_social_insurance_contribution_opt_8",
+      "rate": 40,
+      "economic": -3,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_social_insurance_contribution_opt_9",
+      "rate": 43,
+      "economic": -4,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_social_insurance_contribution_opt_10",
+      "rate": 45,
+      "economic": -5,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_customs_tariff_opt_0",
+      "rate": 0,
+      "economic": -5,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_customs_tariff_opt_1",
+      "rate": 1,
+      "economic": -4,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_customs_tariff_opt_2",
+      "rate": 2,
+      "economic": -3,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_customs_tariff_opt_3",
+      "rate": 3,
+      "economic": -2,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_customs_tariff_opt_4",
+      "rate": 5,
+      "economic": -1,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_customs_tariff_opt_5",
+      "rate": 7,
+      "economic": 0,
+      "social": 0,
+      "effectDirection": 0
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_customs_tariff_opt_6",
+      "rate": 10,
+      "economic": 1,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_customs_tariff_opt_7",
+      "rate": 13,
+      "economic": 2,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_customs_tariff_opt_8",
+      "rate": 17,
+      "economic": 3,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_customs_tariff_opt_9",
+      "rate": 21,
+      "economic": 4,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "CN",
+      "sourcePath": "src/lib/countries/cn/data/cnLegislationTypes.ts",
+      "id": "cn_customs_tariff_opt_10",
+      "rate": 25,
+      "economic": 5,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "IE",
+      "sourcePath": "src/lib/countries/ie/data/ieLegislationTypes.ts",
+      "id": "ie_vat_rate_opt_0",
+      "rate": 0,
+      "economic": -5,
+      "social": -2,
+      "effectDirection": -1
+    },
+    {
+      "country": "IE",
+      "sourcePath": "src/lib/countries/ie/data/ieLegislationTypes.ts",
+      "id": "ie_vat_rate_opt_1",
+      "rate": 5,
+      "economic": -4,
+      "social": -1,
+      "effectDirection": -1
+    },
+    {
+      "country": "IE",
+      "sourcePath": "src/lib/countries/ie/data/ieLegislationTypes.ts",
+      "id": "ie_vat_rate_opt_2",
+      "rate": 9,
+      "economic": -3,
+      "social": -1,
+      "effectDirection": -1
+    },
+    {
+      "country": "IE",
+      "sourcePath": "src/lib/countries/ie/data/ieLegislationTypes.ts",
+      "id": "ie_vat_rate_opt_3",
+      "rate": 13.5,
+      "economic": -2,
+      "social": -1,
+      "effectDirection": -1
+    },
+    {
+      "country": "IE",
+      "sourcePath": "src/lib/countries/ie/data/ieLegislationTypes.ts",
+      "id": "ie_vat_rate_opt_4",
+      "rate": 17,
+      "economic": -1,
+      "social": -1,
+      "effectDirection": -1
+    },
+    {
+      "country": "IE",
+      "sourcePath": "src/lib/countries/ie/data/ieLegislationTypes.ts",
+      "id": "ie_vat_rate_opt_5",
+      "rate": 21,
+      "economic": 0,
+      "social": 0,
+      "effectDirection": 0
+    },
+    {
+      "country": "IE",
+      "sourcePath": "src/lib/countries/ie/data/ieLegislationTypes.ts",
+      "id": "ie_vat_rate_opt_6",
+      "rate": 23,
+      "economic": 0,
+      "social": 0,
+      "effectDirection": 0
+    },
+    {
+      "country": "IE",
+      "sourcePath": "src/lib/countries/ie/data/ieLegislationTypes.ts",
+      "id": "ie_vat_rate_opt_7",
+      "rate": 25,
+      "economic": 1,
+      "social": 1,
+      "effectDirection": 1
+    },
+    {
+      "country": "IE",
+      "sourcePath": "src/lib/countries/ie/data/ieLegislationTypes.ts",
+      "id": "ie_vat_rate_opt_8",
+      "rate": 27,
+      "economic": 2,
+      "social": 1,
+      "effectDirection": 1
+    },
+    {
+      "country": "IE",
+      "sourcePath": "src/lib/countries/ie/data/ieLegislationTypes.ts",
+      "id": "ie_vat_rate_opt_9",
+      "rate": 30,
+      "economic": 4,
+      "social": 1,
+      "effectDirection": 1
+    },
+    {
+      "country": "IE",
+      "sourcePath": "src/lib/countries/ie/data/ieLegislationTypes.ts",
+      "id": "ie_vat_rate_opt_10",
+      "rate": 35,
+      "economic": 5,
+      "social": 2,
+      "effectDirection": 1
+    },
+    {
+      "country": "JP",
+      "sourcePath": "src/lib/countries/jp/data/jpLegislationTypes.ts",
+      "id": "jp_consumption_tax_opt_0",
+      "rate": 0,
+      "economic": -5,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "JP",
+      "sourcePath": "src/lib/countries/jp/data/jpLegislationTypes.ts",
+      "id": "jp_consumption_tax_opt_1",
+      "rate": 3,
+      "economic": -4,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "JP",
+      "sourcePath": "src/lib/countries/jp/data/jpLegislationTypes.ts",
+      "id": "jp_consumption_tax_opt_2",
+      "rate": 5,
+      "economic": -3,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "JP",
+      "sourcePath": "src/lib/countries/jp/data/jpLegislationTypes.ts",
+      "id": "jp_consumption_tax_opt_3",
+      "rate": 8,
+      "economic": -2,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "JP",
+      "sourcePath": "src/lib/countries/jp/data/jpLegislationTypes.ts",
+      "id": "jp_consumption_tax_opt_4",
+      "rate": 9,
+      "economic": -1,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "JP",
+      "sourcePath": "src/lib/countries/jp/data/jpLegislationTypes.ts",
+      "id": "jp_consumption_tax_opt_5",
+      "rate": 10,
+      "economic": 0,
+      "social": 0,
+      "effectDirection": 0
+    },
+    {
+      "country": "JP",
+      "sourcePath": "src/lib/countries/jp/data/jpLegislationTypes.ts",
+      "id": "jp_consumption_tax_opt_6",
+      "rate": 13,
+      "economic": 1,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "JP",
+      "sourcePath": "src/lib/countries/jp/data/jpLegislationTypes.ts",
+      "id": "jp_consumption_tax_opt_7",
+      "rate": 15,
+      "economic": 2,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "JP",
+      "sourcePath": "src/lib/countries/jp/data/jpLegislationTypes.ts",
+      "id": "jp_consumption_tax_opt_8",
+      "rate": 18,
+      "economic": 3,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "JP",
+      "sourcePath": "src/lib/countries/jp/data/jpLegislationTypes.ts",
+      "id": "jp_consumption_tax_opt_9",
+      "rate": 22,
+      "economic": 4,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "JP",
+      "sourcePath": "src/lib/countries/jp/data/jpLegislationTypes.ts",
+      "id": "jp_consumption_tax_opt_10",
+      "rate": 25,
+      "economic": 5,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "BR",
+      "sourcePath": "src/lib/countries/br/data/brLegislationTypes.ts",
+      "id": "br_income_tax_rate_opt_0",
+      "rate": 0,
+      "economic": 5,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "BR",
+      "sourcePath": "src/lib/countries/br/data/brLegislationTypes.ts",
+      "id": "br_income_tax_rate_opt_1",
+      "rate": 8,
+      "economic": 3,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "BR",
+      "sourcePath": "src/lib/countries/br/data/brLegislationTypes.ts",
+      "id": "br_income_tax_rate_opt_2",
+      "rate": 13,
+      "economic": 1,
+      "social": 0,
+      "effectDirection": 1
+    },
+    {
+      "country": "BR",
+      "sourcePath": "src/lib/countries/br/data/brLegislationTypes.ts",
+      "id": "br_income_tax_rate_opt_3",
+      "rate": 18,
+      "economic": 0,
+      "social": 0,
+      "effectDirection": 0
+    },
+    {
+      "country": "BR",
+      "sourcePath": "src/lib/countries/br/data/brLegislationTypes.ts",
+      "id": "br_income_tax_rate_opt_4",
+      "rate": 24,
+      "economic": -2,
+      "social": 0,
+      "effectDirection": -1
+    },
+    {
+      "country": "BR",
+      "sourcePath": "src/lib/countries/br/data/brLegislationTypes.ts",
+      "id": "br_income_tax_rate_opt_5",
+      "rate": 30,
+      "economic": -4,
+      "social": 0,
+      "effectDirection": -1
+    }
+  ]
+}
