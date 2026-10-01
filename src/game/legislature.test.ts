@@ -60,9 +60,9 @@ describe("legislature through the session contract", () => {
     loaded.advance();
     expect(loaded.view().legislature.bills.find((entry) => entry.id === bill.id))
       .toMatchObject({ status: "signed", voting: { available: false } });
-    expect(JSON.parse(loaded.serialize(savedAt)).world.player.nationalInfluence).toBe(2.5);
+    expect(JSON.parse(loaded.serialize(savedAt)).world.player.nationalInfluence).toBe(7.5);
     loaded.advance();
-    expect(JSON.parse(loaded.serialize(savedAt)).world.player.nationalInfluence).toBe(5);
+    expect(JSON.parse(loaded.serialize(savedAt)).world.player.nationalInfluence).toBe(10);
     const before = loaded.serialize(savedAt);
     expect(loaded.act("voteOnBill", { billId: bill.id, vote: "for" }).ok).toBe(false);
     expect(loaded.serialize(savedAt)).toBe(before);
