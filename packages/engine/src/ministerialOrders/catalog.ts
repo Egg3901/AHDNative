@@ -47,9 +47,12 @@ export function isDefensePosition(positionId: string): boolean {
 }
 
 function missingDefenseConsumer(sourceMetric: string): string {
+  // Current Game routes safety and trust through its political cabinet
+  // snapshot, consumed by regional per-source residuals. Approval is an
+  // outcome that the source mapping deliberately leaves without a driver.
   return sourceMetric === "governmentApproval"
-    ? "governmentApprovals"
-    : `nationalMetrics.${sourceMetric}`;
+    ? "unmappedSourceOutcome:governmentApproval"
+    : "politicalCabinetContribution";
 }
 
 export function unavailableDefenseOrderEffects(
