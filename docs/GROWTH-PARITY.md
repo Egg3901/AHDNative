@@ -30,7 +30,9 @@ must keep their current Native save.
 #40 remains partial for the full source regional evolution chain, including
 state/federal spending, regional sector revenue, registry dependencies and
 their downstream consumers. #106 remains partial for the wider macro map.
-The earlier checkpoints below describe their original bounded revisions.
+The earlier checkpoints below are historical evidence for their original
+bounded revisions. Their missing-default-input statements were superseded by
+the 2026-10-01 checkpoint above.
 
 Date: 2026-09-10. Worktree `fix/growth-parity` based on `main` `b4892fee8a05e155cf9c511264bfdba0c33f996a`. No commit.
 
