@@ -117,12 +117,12 @@ export async function navigateGame(page: Page, name: string) {
   await expect(page.locator('button[aria-controls="ahd-drawer"]')).toHaveAttribute('aria-expanded', 'false');
 }
 
-export async function advanceGame(page: Page) {
+export async function advanceGame(page: Page, options: { turnTimeoutMs?: number } = {}) {
   await openGameMenu(page);
   const endTurn = page.getByRole('button', { name: 'End turn', exact: true });
   await expect(endTurn).toBeEnabled();
   await endTurn.click();
-  await expect(endTurn).toBeEnabled();
+  await expect(endTurn).toBeEnabled({ timeout: options.turnTimeoutMs });
   await gameReady(page);
 }
 

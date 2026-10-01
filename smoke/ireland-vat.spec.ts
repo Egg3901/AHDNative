@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { createWorld, recomputeComposition, serializeSave } from "@ahdclient/engine";
+import { createWorld, executeAction, recomputeComposition, rngFromSeed, serializeSave } from "@ahdclient/engine";
+import { nationalPartyElectionsPhase } from "../packages/engine/src/intraparty/phases.js";
 import {
   advanceGame,
   gameReady,
@@ -21,40 +22,34 @@ function playableIrishSeatSave(): Buffer {
   world.player.nationalInfluence = 0;
   world.player.mode = "career";
   world.player.politicalInfluence = 100;
-  world.player.partyId = Object.entries(
-    world.legislatures.IE!.chambers[0]!.composition.seatsByParty,
-  ).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]![0];
+  if (!executeAction(world, "player", "joinParty", { partyId: "IE_FF" }).ok) {
+    throw new Error("Expected player to join the source-seeded Irish party through the public action");
+  }
   recomputeComposition(world, "IE", "dail");
-  // This controlled projection starts after the source formation vote so the
-  // browser path can focus on the public bill lifecycle. The unmodified source
-  // seed's pending formation freeze is asserted in engine + DTO/UI tests.
-  const gov = world.governments.IE!;
-  const chamber = world.legislatures.IE!.chambers.find((entry) => entry.key === "dail")!;
-  const [partyId, seats] = Object.entries(chamber.composition.seatsByParty)
-    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))[0]!;
-  const pm = world.politicians.find((person) => person.countryId === "IE" && person.chamberKey === "dail" && person.partyId === partyId)!;
-  Object.assign(gov, {
-    status: "formed",
-    formationType: "minority",
-    governingPartyId: partyId,
-    coalitionPartyIds: null,
-    pmPoliticianId: pm.id,
-    totalSeatsSupporting: seats,
-    totalSeats: chamber.seats,
-    majorityThreshold: Math.floor(chamber.seats / 2) + 1,
-    seatsByParty: { ...chamber.composition.seatsByParty },
-    lostMajority: false,
-    formedTurn: world.meta.turn,
-    pmVacancyDeadlineTurn: null,
-    confidence: 75,
-  });
+  // The integration fixture represents a legal elected-member starting point,
+  // but party-chair authority is earned by the real Native national chair
+  // election actions and resolver. This keeps the public PM nomination open.
+  world.meta.turn = 24;
+  const rng = rngFromSeed("ireland-vat-party-chair-election");
+  nationalPartyElectionsPhase.run(world, rng);
+  const chairElection = world.nationalPartyElections.find((election) => election.partyId === "IE_FF" && election.position === "chair" && election.status === "voting");
+  if (!chairElection) throw new Error("Expected the Irish party chair ballot to be active");
+  if (!executeAction(world, "player", "contestPartyLeadership", { intrapartyElectionId: chairElection.id }).ok) {
+    throw new Error("Expected player to contest the chair ballot after the source tenure threshold");
+  }
+  if (!executeAction(world, "player", "votePartyLeadership", { intrapartyElectionId: chairElection.id, candidateId: "player" }).ok) {
+    throw new Error("Expected player to vote in the chair ballot");
+  }
+  world.meta.turn = chairElection.endTurn;
+  nationalPartyElectionsPhase.run(world, rng);
+  if (world.parties.IE_FF?.chairId !== "player") throw new Error("Expected the real chair-election resolver to grant nomination authority");
   return Buffer.from(serializeSave(world, "2026-10-01T00:00:00.000Z"));
 }
 
 test("Irish VAT bill proposal, vote, enactment, replacement, save and resumed fiscal phase at phone widths", async ({
   page,
 }, testInfo) => {
-  test.setTimeout(900_000);
+  test.setTimeout(1_800_000);
   const save = playableIrishSeatSave();
   await page.setViewportSize({ width: 320, height: 844 });
   await page.goto("/");
@@ -72,7 +67,7 @@ test("Irish VAT bill proposal, vote, enactment, replacement, save and resumed fi
       exact: true,
     });
     for (let turn = 0; turn < 12 && !(await vote.isVisible()); turn++)
-      await advanceGame(page);
+      await advanceGame(page, { turnTimeoutMs: 180_000 });
     await expect(vote).toBeVisible();
     await vote.click();
     await gameReady(page);
@@ -90,7 +85,7 @@ test("Irish VAT bill proposal, vote, enactment, replacement, save and resumed fi
         .catch(() => false));
       turn++
     ) {
-      await advanceGame(page);
+      await advanceGame(page, { turnTimeoutMs: 180_000 });
     }
     await expect(bill).toContainText("signed");
   };
@@ -101,6 +96,30 @@ test("Irish VAT bill proposal, vote, enactment, replacement, save and resumed fi
     return Number.parseFloat(rate.replace("%", ""));
   };
 
+  await navigateGame(page, "Legislature");
+  await expect(page.getByRole("region", { name: "Dáil government formation" })).toContainText("Your party chair may nominate a Taoiseach candidate.");
+  await page.getByRole("button", { name: "Nominate yourself as Taoiseach", exact: true }).click();
+  await gameReady(page);
+  await expect(page.getByRole("article", { name: "Taoiseach appointment vote for Irish VAT Player" })).toContainText("active");
+  await page.getByRole("button", { name: "Aye on Taoiseach appointment for Irish VAT Player", exact: true }).click();
+  await gameReady(page);
+  const taoiseach = page.getByText("Taoiseach: Irish VAT Player", { exact: true });
+  for (let turn = 0; turn < 30 && !(await taoiseach.isVisible().catch(() => false)); turn++) {
+    await advanceGame(page, { turnTimeoutMs: 180_000 });
+  }
+  await expect(taoiseach).toBeVisible();
+  await saveGame(page);
+  await page.reload();
+  await page.getByRole("button", { name: "Continue Irish VAT Player", exact: true }).click();
+  await gameReady(page);
+  await navigateGame(page, "Legislature");
+  await expect(page.getByText("Taoiseach: Irish VAT Player", { exact: true })).toBeVisible();
+  await navigateGame(page, "Profile");
+  const influenceTerm = page.locator("dt").filter({ hasText: "National influence" });
+  await expect(influenceTerm).toHaveCount(1);
+  const currentInfluence = await influenceTerm.locator("xpath=.. >> dd").innerText();
+  expect(Number.parseFloat(currentInfluence)).toBeGreaterThanOrEqual(5);
+
   await openLegislation();
   await page
     .getByLabel("Available legislation", { exact: true })
@@ -110,11 +129,6 @@ test("Irish VAT bill proposal, vote, enactment, replacement, save and resumed fi
     name: "Sponsor bill",
     exact: true,
   });
-  await expect(
-    page.getByText("Not enough national influence (need 5).", { exact: true }),
-  ).toBeVisible();
-  for (let turn = 0; turn < 8 && !(await sponsorBill.isEnabled()); turn++)
-    await advanceGame(page);
   await expect(sponsorBill).toBeEnabled();
   // Turn updates remount the details form, which resets the selector to the
   // enacted baseline. Choose the source witness again after office accrual.
@@ -175,7 +189,7 @@ test("Irish VAT bill proposal, vote, enactment, replacement, save and resumed fi
     exact: true,
   });
   for (let turn = 0; turn < 8 && !(await replacementAction.isEnabled()); turn++)
-    await advanceGame(page);
+    await advanceGame(page, { turnTimeoutMs: 180_000 });
   await expect(replacementAction).toBeEnabled();
   await expect(
     page.getByText("Cost 10 actions + 5 national influence", { exact: true }),
@@ -215,7 +229,7 @@ test("Irish VAT bill proposal, vote, enactment, replacement, save and resumed fi
   const beforeContinuedTurn = await currentSalesTaxRate();
   expect(beforeContinuedTurn).toBeGreaterThanOrEqual(23);
   expect(beforeContinuedTurn).toBeLessThanOrEqual(25);
-  await advanceGame(page);
+  await advanceGame(page, { turnTimeoutMs: 180_000 });
   await navigateGame(page, "Policy");
   await expect(
     page.getByRole("heading", { name: "Current tax settings", exact: true }),
