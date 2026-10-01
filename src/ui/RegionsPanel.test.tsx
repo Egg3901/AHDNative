@@ -12,6 +12,40 @@ function electedWorld(): WorldState {
 }
 
 describe("RegionsPanel", () => {
+  it("offers a source-backed survey in a recorded resource region and explains missing corporate operations", () => {
+    const world = createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "regions-extraction-panel" });
+    world.executives.US = { countryId: "US", presidentId: "player", presidentParty: null, termStartTurn: 0, vicePresidentId: null, vicePresidentParty: null };
+    const onAction = vi.fn();
+    render(<RegionsPanel query={projectRegions(world, { regionId: "TX" })} onQueryChange={vi.fn()} directoryOpen={false} onDirectoryOpenChange={vi.fn()} onAction={onAction} />);
+
+    expect(screen.getByRole("region", { name: "Texas extraction contracts" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Commission national survey" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Offer extraction contract" })).not.toBeInTheDocument();
+    expect(screen.getByText("No extraction corporation is recorded as operating in this region. Contracts require a regional corporate sector.")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Extraction resource for Texas" }), { target: { value: "oil" } });
+    fireEvent.click(screen.getByRole("button", { name: "Commission national survey" }));
+    expect(onAction).toHaveBeenCalledWith("launchProspect", { regionId: "TX", resource: "oil", issuerLevel: "national" });
+  });
+
+  it("exposes regional operator expansion only to the recorded active extraction CEO", () => {
+    const world = createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "regions-extraction-expansion" });
+    const corporation = world.corporations["US-extraction"]!;
+    corporation.ceoId = "player";
+    corporation.ceoType = "player";
+    corporation.ceoVacant = false;
+    const onAction = vi.fn();
+    const view = render(<RegionsPanel query={projectRegions(world, { regionId: "TX" })} onQueryChange={vi.fn()} directoryOpen={false} onDirectoryOpenChange={vi.fn()} onAction={onAction} />);
+
+    const expand = screen.getByRole("button", { name: "Expand extraction operations" });
+    fireEvent.click(expand);
+    expect(onAction).toHaveBeenCalledWith("expandRegionalExtraction", { regionId: "TX" });
+
+    const foreign = projectRegions(world, { regionId: "DC" });
+    view.rerender(<RegionsPanel query={foreign} onQueryChange={vi.fn()} directoryOpen={false} onDirectoryOpenChange={vi.fn()} onAction={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Expand extraction operations" })).not.toBeInTheDocument();
+  });
+
   it("searches the country directory and reports browsing without changing home", () => {
     const world = createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "regions-panel-search" });
     const onQueryChange = vi.fn();

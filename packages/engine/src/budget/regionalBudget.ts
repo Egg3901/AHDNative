@@ -93,7 +93,9 @@ export function regionalGdpAbsolute(
 export function applyStateTaxToRegionalRevenue(budget: RegionalBudget, regionGdp: number): number {
   const stateTax = Math.round(calculateStateTaxRevenue(regionGdp, budget.taxRates));
   budget.revenue.stateTax = stateTax;
-  budget.revenue.total = budget.revenue.councilTax + budget.revenue.businessRates + budget.revenue.grant + stateTax;
+  // Source StateBudget.resourceRoyalties is a persistent line that survives
+  // regional revenue recomputation and is folded into the total.
+  budget.revenue.total = budget.revenue.councilTax + budget.revenue.businessRates + budget.revenue.grant + stateTax + (budget.revenue.resourceRoyalties ?? 0);
   budget.balance = budget.revenue.total - budget.spending.total;
   return stateTax;
 }

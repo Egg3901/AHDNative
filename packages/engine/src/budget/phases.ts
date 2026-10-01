@@ -184,7 +184,7 @@ export const regionalBudgetProcessingPhase: TurnPhase = {
       for (const [k, v] of Object.entries(countryBudget.spending.byCategory)) {
         byCat[k] = nationalPop > 0 ? Math.round((v * pop) / nationalPop) : 0;
       }
-      const spendTotal = Object.values(byCat).reduce((s, v) => s + v, 0) + Math.round(rb.revenue.grant * 0.5);
+      const spendTotal = Object.values(byCat).reduce((s, v) => s + v, 0) + Math.round(rb.revenue.grant * 0.5) + (rb.spending.resourceProspecting ?? 0);
       rb.spending.byCategory = byCat;
       rb.spending.total = spendTotal;
       const balance = rb.revenue.total - spendTotal;

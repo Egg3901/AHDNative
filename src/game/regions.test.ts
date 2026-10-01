@@ -22,6 +22,20 @@ function electedWorld(): WorldState {
 }
 
 describe("projectRegions", () => {
+  it("projects regional resource capacity and refuses to invent an extraction operator", () => {
+    const world = createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "regional-extraction-projection" });
+    world.executives.US = { countryId: "US", presidentId: "player", presidentParty: null, termStartTurn: 0, vicePresidentId: null, vicePresidentParty: null };
+
+    const view = projectRegions(world, { regionId: "TX" });
+    expect(view.selected?.extraction).toMatchObject({
+      authority: "national",
+      issuerLevel: "national",
+      canProspectNational: true,
+      hasExtractionOperator: false,
+      resources: expect.arrayContaining([expect.objectContaining({ id: "oil", capacity: 1_350_000 })]),
+    });
+  });
+
   it("projects recorded regional metrics without attaching mutable engine state", () => {
     const world = createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "regional-order-projection" });
     (world.regionalMetrics ??= {}).AL = { "economic.unemploymentRate": { value: 9.92 } };

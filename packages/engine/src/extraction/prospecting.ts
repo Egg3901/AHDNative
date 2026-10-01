@@ -3,6 +3,8 @@ import type { WorldState } from "../types.js";
 import type { WorldRng } from "../rng.js";
 import type { ExtractableResource } from "../commodity/constants.js";
 import type { ProspectingSurvey } from "./types.js";
+import { anchorToLocal, rateForLocalBalance } from "../forex/conversion.js";
+import { isNationalExtractionIssuer, isStateExtractionIssuer } from "./authority.js";
 import {
   PROSPECT_GOVT_SUCCESS_CHANCE,
   PROSPECT_YIELD_MIN,
@@ -107,7 +109,7 @@ function yearFromDate(date: string): number | null {
 export type LaunchProspectResult = { ok: true; surveyId: string; costAnchor: number } | { ok: false; error: string };
 
 /**
- * Launch a national-government geological survey for the player's country.
+ * Launch a government geological survey for the player's country.
  * Ports src/lib/extraction/commands/launchGovernmentProspect.ts at solo's
  * simplified authorization model: PORT-STUB state-level surveys (no governor
  * office / state budget system exists — see actions/catalog.ts launchProspect
@@ -123,8 +125,15 @@ export type LaunchProspectResult = { ok: true; surveyId: string; costAnchor: num
  */
 export function launchProspectingSurvey(
   world: WorldState,
-  params: { countryId: string; regionId: string; resource: ExtractableResource },
+  params: { countryId: string; regionId: string; resource: ExtractableResource; level?: "national" | "state" },
 ): LaunchProspectResult {
+  const level = params.level ?? "national";
+  if (level === "national" && !isNationalExtractionIssuer(world, params.countryId)) {
+    return { ok: false, error: "Only the sitting head of government or finance minister may commission a national survey." };
+  }
+  if (level === "state" && !isStateExtractionIssuer(world, params.countryId, params.regionId)) {
+    return { ok: false, error: "Only the sitting governor may commission a regional survey." };
+  }
   const region = world.regions[params.regionId];
   if (!region || region.countryId !== params.countryId) {
     return { ok: false, error: `Unknown region ${params.regionId} for ${params.countryId}` };
@@ -135,8 +144,10 @@ export function launchProspectingSurvey(
   }
 
   const initiatorId = "player";
-  const active = world.prospectingSurveys.filter(
-    (s) => s.status === "active" && s.initiatorType === "national_government" && s.countryId === params.countryId,
+  const initiatorType = level === "national" ? "national_government" : "state_government";
+  const active = world.prospectingSurveys.filter((s) =>
+    s.status === "active" && s.initiatorType === initiatorType && s.countryId === params.countryId &&
+    (level === "national" || s.regionId === params.regionId),
   ).length;
   if (active >= PROSPECT_MAX_ACTIVE_PER_INITIATOR) {
     return { ok: false, error: `A government can run at most ${PROSPECT_MAX_ACTIVE_PER_INITIATOR} surveys at a time` };
@@ -144,7 +155,7 @@ export function launchProspectingSurvey(
   const dup = world.prospectingSurveys.some(
     (s) =>
       s.status === "active" &&
-      s.initiatorType === "national_government" &&
+      s.initiatorType === initiatorType &&
       s.countryId === params.countryId &&
       s.regionId === params.regionId &&
       s.resource === params.resource,
@@ -159,12 +170,26 @@ export function launchProspectingSurvey(
   const year = yearFromDate(world.meta.date);
 
   const budget = world.budgets[params.countryId];
-  if (budget) budget.treasuryBalance -= costAnchor;
+  if (level === "national") {
+    if (budget) budget.treasuryBalance -= anchorToLocal(costAnchor, rateForLocalBalance(world, params.countryId));
+  } else {
+    const office = world.governors[params.regionId];
+    const regionalBudget = world.regionalBudgets[params.regionId];
+    if (!office || office.countryId !== params.countryId || office.gubernatorialActions < 1) {
+      return { ok: false, error: "Insufficient office action points." };
+    }
+    if (!regionalBudget) return { ok: false, error: "The regional budget is unavailable." };
+    office.gubernatorialActions -= 1;
+    const costLocal = anchorToLocal(costAnchor, rateForLocalBalance(world, params.countryId));
+    regionalBudget.spending.resourceProspecting = (regionalBudget.spending.resourceProspecting ?? 0) + costLocal;
+    regionalBudget.spending.total += costLocal;
+    regionalBudget.balance = regionalBudget.revenue.total - regionalBudget.spending.total;
+  }
 
   const id = `prospect-${turn}-${world.prospectingSurveys.length + 1}-${params.regionId}-${params.resource}`;
   const survey: ProspectingSurvey = {
     id,
-    initiatorType: "national_government",
+    initiatorType,
     initiatorId,
     corporationId: null,
     countryId: params.countryId,
