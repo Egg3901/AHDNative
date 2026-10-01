@@ -326,6 +326,7 @@ export type { OpsTreeState, OpsChannelTotals } from "./campaigns/opsCurrentEffec
 // Authoritative player action refresh projection (#31), shared by the
 // actionRefresh phase and the Profile/footer resource breakdowns.
 export { projectPlayerActionRefresh, resolvePlayerSeat } from "./actions/officeBonus.js";
+export { BILL_PROPOSE_ACTION_COST, FIRST_PROVISION_NPI_COST, proposalNpiCost } from "./legislation/proposalCosts.js";
 export type { PlayerActionProjection, PlayerSeat } from "./actions/officeBonus.js";
 
 // #49: the national-influence per-turn gain is projected from the exact function

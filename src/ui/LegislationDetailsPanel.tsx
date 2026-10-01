@@ -518,12 +518,15 @@ export function LegislationDetailsPanel({ query, busy, onAction, onSelectBill, i
                 Sponsor bill
               </button>
               <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
-                {!proposal.sponsorAvailable
-                  ? (proposal.sponsorDisabledReason ?? "Unavailable")
-                  : proposal.sponsorCost > 0
-                    ? `Cost ${proposal.sponsorCost} actions`
-                    : "Free"}
+                {proposal.sponsorCost > 0
+                  ? `Cost ${proposal.sponsorCost} actions + ${proposal.sponsorNpiCost} national influence`
+                  : "Free"}
               </span>
+              {!proposal.sponsorAvailable ? (
+                <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
+                  {proposal.sponsorDisabledReason ?? "Unavailable"}
+                </span>
+              ) : null}
             </div>
           </>
         ) : null}

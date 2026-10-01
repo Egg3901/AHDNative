@@ -8,6 +8,13 @@
  */
 export const TAX_RATE_PHASE_IN_MAX_STEP_PP = 1;
 
+export function markTaxRatePhaseInStartedThisTurn(world: import("../types.js").WorldState, countryId: string, taxType: string): void {
+  const key = `${countryId}:${taxType}`;
+  if (!world.taxRatePhaseInStartedThisTurn?.includes(key)) {
+    world.taxRatePhaseInStartedThisTurn = [...(world.taxRatePhaseInStartedThisTurn ?? []), key];
+  }
+}
+
 function finite(v: number | null | undefined): number {
   return typeof v === "number" && Number.isFinite(v) ? v : 0;
 }

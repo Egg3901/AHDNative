@@ -178,7 +178,7 @@ export const nppBillSponsorshipPhase: TurnPhase = {
         category: chosen.category,
         legislationTypeId: chosen.id,
         effectDirection: selectedTaxOption
-          ? (selectedTaxOption.rate > (currentTaxRate ?? taxPolicy!.baselineRate) ? 1 : -1)
+          ? (selectedTaxOption.effectDirection ?? (selectedTaxOption.rate > (currentTaxRate ?? taxPolicy!.baselineRate) ? 1 : -1))
           : 1,
         ...(selectedTaxOption ? { selectedRate: selectedTaxOption.rate } : {}),
         provisions: [
@@ -187,7 +187,7 @@ export const nppBillSponsorshipPhase: TurnPhase = {
             legislationTypeId: chosen.id,
             ...(selectedTaxOption ? { policyOptionId: selectedTaxOption.id } : {}),
             effectDirection: selectedTaxOption
-              ? (selectedTaxOption.rate > (currentTaxRate ?? taxPolicy!.baselineRate) ? 1 : -1)
+              ? (selectedTaxOption.effectDirection ?? (selectedTaxOption.rate > (currentTaxRate ?? taxPolicy!.baselineRate) ? 1 : -1))
               : 1,
             economic: selectedTaxOption?.economic ?? 0,
             social: selectedTaxOption?.social ?? 0,

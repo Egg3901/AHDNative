@@ -35,11 +35,9 @@ describe("HoS tax directives phase in like enacted tax law (#93)", () => {
     expect(world.pendingFiscalDirectives).toHaveLength(1);
     advanceTurn(world);
     const budget = world.budgets["US"]!;
-    // fiscalDirectivesPhase steps once and fiscalBaseGrowthPhase walks the
-    // queued ramp once more in the same tail: the same double step an enacted
-    // bill takes when billLifecyclePhase runs ahead of the fiscal tail in one
-    // turn. The remainder stays queued.
-    expect(budget.taxRates.incomeTax).toBe(before - 2);
+    // The fiscal directive phase steps once and the base-growth phase does not
+    // advance the same newly-started ramp a second time in this turn.
+    expect(budget.taxRates.incomeTax).toBe(before - 1);
     expect(budget.taxRatePhaseIn?.incomeTax).toBe(target);
     expect(budget.surplus).toBe(budget.revenue.total - budget.spending.total);
     expect(world.pendingFiscalDirectives).toEqual([]);
