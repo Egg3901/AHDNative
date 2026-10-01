@@ -1,5 +1,17 @@
 import { expect, test } from '@playwright/test';
-import { advanceGame, completeCharacterCreation, gameReady, navigateGame, saveGame } from './game-navigation';
+import { completeCharacterCreation, gameReady, navigateGame, openGameMenu, saveGame } from './game-navigation';
+
+async function advanceChinaTurn(page: import('@playwright/test').Page) {
+  await openGameMenu(page);
+  const endTurn = page.getByRole('button', { name: 'End turn', exact: true });
+  await expect(endTurn).toBeEnabled();
+  await endTurn.click();
+  // This public full turn can exceed the generic helper's 20s default on the
+  // production-sized seed; wait up to 120s while requiring the real UI command
+  // to settle before continuing.
+  await expect(endTurn).toBeEnabled({ timeout: 120_000 });
+  await gameReady(page);
+}
 
 test('China 2019 Head of State directly decrees, replaces and resumes a tariff at phone widths', async ({ page }) => {
   test.setTimeout(600_000);
@@ -58,7 +70,7 @@ test('China 2019 Head of State directly decrees, replaces and resumes a tariff a
   await expect(tariff).toContainText('1.0% rate');
 
   // One source-ordered normal turn moves the rate from 1% to 2%.
-  await advanceGame(page);
+  await advanceChinaTurn(page);
   await expect(tariff).toContainText('2.0% rate');
 
   // Replacing with the authored zero-rate option is another direct decree.
@@ -79,7 +91,7 @@ test('China 2019 Head of State directly decrees, replaces and resumes a tariff a
 
   // The replacement's zero target finishes on the next normal turn; save at
   // 390px and prove both the replacement history and settled budget survive.
-  await advanceGame(page);
+  await advanceChinaTurn(page);
   await expect(tariff).toContainText('0.0% rate');
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
