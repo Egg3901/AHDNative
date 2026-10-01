@@ -13,7 +13,7 @@ export function PoliticalMetricsBoard({ registry, countryName }: { registry: Pol
   const [metricId, setMetricId] = useState<string | null>(null);
   const category = registry.categories.find(row => row.id === categoryId);
   const metric = category?.metrics.find(row => row.id === metricId);
-  return <div className="ahd-stack">
+  return <div className="ahd-stack ahd-political-board">
     <div className="ahd-card ahd-card-pad ahd-hero">
       <h2 className="ahd-h2">Political metrics</h2>
       <p className="ahd-muted">{countryName}</p>
