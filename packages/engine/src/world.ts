@@ -156,11 +156,12 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v48: interbank loan book (world.interbankLoans); see save.ts.
 // v49: source-authored corporation HQ region identity; see save.ts.
 // v50: deterministic local corporation name and brand identity; see save.ts.
+// v51: persisted source NPP government agenda/fiscal posture; see save.ts.
 // Issues #334/#345 difficulty and autonomy carry no schema version of
 // their own: both are optional axes with absent-means-default (see
 // WorldState.difficulty/nppAutonomyLevel), so default worlds keep the
 // schema 46 bytes.
-export const SCHEMA_VERSION = 50;
+export const SCHEMA_VERSION = 51;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {

@@ -89,6 +89,7 @@ import {
   leadershipElectionsPhase,
 } from "../intraparty/phases.js";
 import { governmentFormationPhase, governmentVacancyWatcherPhase } from "../government/phases.js";
+import { nppGovernmentDirectivesPhase } from "../government/directives.js";
 import { pmAppointmentPhase } from "../government/pmAppointment.js";
 import { impeachmentLifecyclePhase } from "../impeachment/phases.js";
 import { presidentialSuccessionPhase } from "../executive/phases.js";
@@ -308,6 +309,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // its PM vacancy deadline cleared before governmentVacancyWatcherPhase
   // checks it, exactly as mainline's pmVacancyDeadline.ts requires.
   governmentFormationPhase,
+  nppGovernmentDirectivesPhase,
   pmAppointmentPhase,
   governmentVacancyWatcherPhase,
   // W24 presidential succession/impeachment cluster at END before

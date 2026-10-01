@@ -27,7 +27,8 @@ export type GovernmentFormationStatus = "pending" | "formed";
  * through the ordinary majority/coalition/minority path at first formation,
  * so no country ever needs an "admin" caretaker at t0.
  */
-export type GovernmentFormationType = "majority" | "coalition" | "minority" | null;
+export type GovernmentFormationType =
+  "majority" | "coalition" | "minority" | null;
 
 /**
  * Confidence bands, ported verbatim from mainline's OPS ruling-party
@@ -41,7 +42,8 @@ export type GovernmentFormationType = "majority" | "coalition" | "minority" | nu
  * is documented as persistence-only with no gameplay effect until an unshipped
  * flag, so folding it into the one shared numeric model loses nothing real.
  */
-export type ConfidenceBand = "secure" | "stable" | "watchful" | "strained" | "crisis" | "critical";
+export type ConfidenceBand =
+  "secure" | "stable" | "watchful" | "strained" | "crisis" | "critical";
 
 export interface GovernmentState {
   countryId: string;
@@ -100,4 +102,10 @@ export interface GovernmentState {
    * future consequence system to read.
    */
   confidence: number;
+  /** Source `GovernmentFormation.governingAgenda`; authored only for an eligible NPC head. */
+  governingAgenda?: import("./directives.js").PersistedGoverningAgenda;
+  /** Source `GovernmentFormation.fiscalStance`; authored only for an eligible NPC head. */
+  fiscalStance?: import("./directives.js").PersistedFiscalStance;
+  /** Native identity corresponding to source `pmNppId`; prevents stale PM directives being reused. */
+  directivesForPmId?: string;
 }

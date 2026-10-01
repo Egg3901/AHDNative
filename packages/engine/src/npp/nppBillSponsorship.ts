@@ -117,7 +117,7 @@ export const nppBillSponsorshipPhase: TurnPhase = {
       if (!majorityParty) continue;
 
       // Recent per-type cooldown: filter out types sponsored within COOLDOWN_TURNS
-      const availableLegTypes = AVAILABLE_CATALOG.filter((e) => e.countryId === countryId);
+      const availableLegTypes = AVAILABLE_CATALOG.filter((e) => e.countryId === countryId && (countryId !== "IE" || e.status === "available"));
       const eligible = availableLegTypes.filter((e) => {
         const last = lastSponsoredTurnOfType(world, countryId, e.id);
         if (last === null) return true;
@@ -158,17 +158,25 @@ export const nppBillSponsorshipPhase: TurnPhase = {
           bill.provisions.some((provision) => provision.policyOptionId === option.id),
         ),
       );
-      // Source selectNppBill urgency for fiscal/tax domains is positive when
-      // inflation is above 4%. At a formed government, a persisted fiscal
-      // stance takes precedence; Ireland's authored starting government is
-      // pending (ieGovernmentFormation.ts), so its reference sponsorship pass
-      // has no agenda or fiscal directive and uses this conditions path. Native
-      // stores inflation as a fraction while the reference selector receives
+      // Source bills are frozen while Ireland's authored starting government
+      // is pending. For a formed NPC-headed government, consume the actual
+      // saved fiscal posture when one exists; a formed government without
+      // stored directives falls back to the source conditions signal. Native
+      // stores inflation as a fraction while the source selector receives
       // percent, so convert at this boundary.
       const inflationRatePercent = (world.countries[countryId]?.economy.inflationRate ?? 0) * 100;
+      const government = world.governments[countryId];
+      const governmentPm = government?.pmPoliticianId && government.pmPoliticianId !== "player"
+        ? government.pmPoliticianId
+        : undefined;
+      const fiscalStance = government?.status === "formed" && governmentPm && government.directivesForPmId === governmentPm
+        ? government.fiscalStance
+        : undefined;
+      const sourceFiscalDirection = fiscalStance && fiscalStance.direction !== 0 ? fiscalStance.direction : undefined;
       const inflationUrgency = inflationRatePercent > 4;
-      const urgencyDirectedOptions = inflationUrgency
-        ? validTaxOptions?.filter((option) => option.effectDirection === 1)
+      const urgencyDirection = sourceFiscalDirection ?? (inflationUrgency ? 1 : undefined);
+      const urgencyDirectedOptions = urgencyDirection !== undefined
+        ? validTaxOptions?.filter((option) => option.effectDirection === urgencyDirection)
         : undefined;
       const optionSlate = urgencyDirectedOptions?.length ? urgencyDirectedOptions : validTaxOptions;
       // selectNppBill scores the current NPP organization policy, not a

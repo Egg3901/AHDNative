@@ -719,6 +719,51 @@ function validatePmAppointmentVotes(world: WorldState): void {
   }
 }
 
+function validateGovernmentDirectives(world: WorldState): void {
+  for (const [countryId, raw] of Object.entries(world.governments)) {
+    if (!isRecord(raw)) throw new Error("Not a valid save file: invalid government state");
+    const hasAgenda = Object.prototype.hasOwnProperty.call(raw, "governingAgenda");
+    const hasStance = Object.prototype.hasOwnProperty.call(raw, "fiscalStance");
+    const hasPm = Object.prototype.hasOwnProperty.call(raw, "directivesForPmId");
+    if (!hasAgenda && !hasStance && !hasPm) continue;
+    if (
+      countryId !== "IE" || raw["countryId"] !== "IE" || raw["status"] !== "formed" ||
+      raw["pmPoliticianId"] === "player" || typeof raw["pmPoliticianId"] !== "string" ||
+      raw["directivesForPmId"] !== raw["pmPoliticianId"] || !hasAgenda || !hasStance || !hasPm
+    ) throw new Error("Not a valid save file: invalid NPC government directive authority");
+    const pm = world.politicians.find((politician) => politician.id === raw["pmPoliticianId"]);
+    if (!pm || pm.countryId !== "IE" || pm.partyId !== raw["governingPartyId"]) {
+      throw new Error("Not a valid save file: invalid NPC government directive PM");
+    }
+    const agenda = raw["governingAgenda"];
+    if (
+      !isRecord(agenda) || !Array.isArray(agenda["items"]) || agenda["items"].length > 6 ||
+      !["reformer", "ideologue", "technocrat", "steward"].includes(String(agenda["archetype"])) ||
+      !Number.isSafeInteger(agenda["computedTurn"]) || (agenda["computedTurn"] as number) < 0 ||
+      (agenda["computedTurn"] as number) > world.meta.turn
+    ) throw new Error("Not a valid save file: invalid governing agenda");
+    for (const item of agenda["items"]) {
+      if (
+        !isRecord(item) || typeof item["domain"] !== "string" || item["domain"].length === 0 ||
+        !Number.isFinite(item["target"]) || (item["target"] as number) < 0 || (item["target"] as number) > 100 ||
+        !["raise", "lower", "hold"].includes(String(item["direction"])) ||
+        !Number.isFinite(item["priority"]) || (item["priority"] as number) < 0 || (item["priority"] as number) > 1 ||
+        (item["crisis"] !== undefined && typeof item["crisis"] !== "boolean")
+      ) throw new Error("Not a valid save file: invalid governing agenda item");
+    }
+    const stance = raw["fiscalStance"];
+    if (
+      !isRecord(stance) || !["expansionary", "neutral", "austere"].includes(String(stance["stance"])) ||
+      ![-1, 0, 1].includes(stance["direction"] as number) || !Number.isFinite(stance["intensity"]) ||
+      (stance["intensity"] as number) < 0 || (stance["intensity"] as number) > 1 ||
+      !Number.isSafeInteger(stance["computedTurn"]) || stance["computedTurn"] !== agenda["computedTurn"] ||
+      (stance["stance"] === "expansionary" && stance["direction"] !== -1) ||
+      (stance["stance"] === "austere" && stance["direction"] !== 1) ||
+      (stance["stance"] === "neutral" && stance["direction"] !== 0)
+    ) throw new Error("Not a valid save file: invalid fiscal stance");
+  }
+}
+
 const REQUIRED_WORLD_ARRAYS = [
   "politicians", "elections", "referendums", "impeachments", "charters", "caucuses",
   "endorsements", "extractionContracts", "prospectingSurveys", "achievementsEarned",
@@ -3246,6 +3291,12 @@ export function deserializeSave(raw: string): WorldState {
     }
     save.world.meta.schemaVersion = 50;
   }
+  // v50 -> v51: persisted source NPP government directives are additive.
+  // Existing saves remain without an agenda until an eligible NPC-headed
+  // government reaches the source recompute phase.
+  if (save.schemaVersion < 51) {
+    save.world.meta.schemaVersion = 51;
+  }
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
@@ -3290,6 +3341,7 @@ export function deserializeSave(raw: string): WorldState {
     (save.world as unknown as Record<string, unknown>)["pmAppointmentVotes"] = [];
   }
   validatePmAppointmentVotes(save.world);
+  validateGovernmentDirectives(save.world);
   backfillSourceSeededSoeState(save.world);
   assertCurrentWorldState(save.world);
   validateCommandEconomySave(save.world);
