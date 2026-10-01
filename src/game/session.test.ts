@@ -174,9 +174,9 @@ describe("actions hub projection", () => {
     expect(session.act("fundraise").ok).toBe(true);
   });
   it("offers real intelligence polls whose results project into the view and survive reload", () => {
-    const session = new GameSession(); session.create(options);
-    expect(session.view().actions.find((a) => a.id === "poll")).toMatchObject({ category: "intelligence", cost: 2, fundCost: 25_000 });
-    expect(session.view().actions.find((a) => a.id === "pollLarge")).toMatchObject({ category: "intelligence", cost: 6, fundCost: 75_000 });
+    const session = new GameSession(); session.create({ ...options, stats: { charisma: 3, debate: 3, energy: 3, fundraising: 3, businessAcumen: 3, statecraft: 3, intellect: 10 } });
+    expect(session.view().actions.find((a) => a.id === "poll")).toMatchObject({ category: "intelligence", cost: 2, fundCost: 21_186 });
+    expect(session.view().actions.find((a) => a.id === "pollLarge")).toMatchObject({ category: "intelligence", cost: 6, fundCost: 63_559 });
     expect(session.view().polls).toEqual({ quick: null, full: null });
     // Reference creation endowment (gameConfig.startingFunds 250_000): the
     // quick poll is affordable on arrival, and Fundraise stays executable.

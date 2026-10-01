@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { GameSession } from "./session";
 
-const options = { era: "1953", countryId: "US", seed: "action-outcomes", playerName: "Alex" };
+const options = { era: "1953", countryId: "US", seed: "action-outcomes", playerName: "Alex",
+  stats: { charisma: 3, debate: 3, energy: 3, fundraising: 10, businessAcumen: 3, statecraft: 3, intellect: 3 } };
 const savedAt = "2026-09-11T00:00:00.000Z";
 
 describe("action outcomes through the session boundary", () => {

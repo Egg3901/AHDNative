@@ -964,10 +964,12 @@ export interface PlayerCharacter {
   statAllocationDismissed?: boolean;
   /** The single free reset has been spent. Absent means unused. */
   statsReallocationUsed?: boolean;
-  /** Recorded earned growth. Reallocation clears it; XP producers remain #91. */
+  /** Earned use-growth, consumed once by action refresh and cleared by reset. */
   statXp?: Partial<Record<import("./stats/characterStats.js").StatKey, number>>;
   /** Offline allocation/reset anchor uses the saved game date. */
   debateDecayAnchor?: string;
+  /** Saved SP clock for the source's 72-hour Debate decay interval. */
+  debateDecayAnchorTurn?: number;
   /**
    * Getting-started prompt state (#48). Ports Character.onboardingDismissed
    * (src/lib/db/types/character.ts), read by the reference profile as

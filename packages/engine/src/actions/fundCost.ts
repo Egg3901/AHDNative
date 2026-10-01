@@ -1,21 +1,20 @@
 /**
  * Action fund-cost source of truth (#242).
  *
- * The reference splits fund cost across three dynamic curves, each with its own
- * stat hook (`src/lib/actions.ts` at e364c04954ed628beef73a993a8e9e156650a31e):
+ * AHDGame actions/rules.ts at 08820d1 splits fund cost across three dynamic
+ * curves with home-state GDP, country/era baselines and action-specific stats:
  * campaign and advertise scale on action tier, buildDonorBase on donor level,
  * then Intellect divides the campaign curve and Fundraising divides the donor
  * curve. Advertise has no stat hook in the reference.
  *
  * `executeAction` charges this function and the session quote renders it, so a
- * displayed cost cannot drift from the debit. The base tier curve mirrors the
- * reference at neutral GDP (getCampaignFundCost / getAdvertiseFundCost /
- * getBuildDonorBaseFundCost with gdpScalar 1.0), matching the existing engine
- * projection.
+ * displayed cost cannot drift from the debit. The default source price-level
+ * feature flag is off, so these quotes retain priceLevel 1.
  */
 
 import { NEUTRAL_STAT, statMultiplier } from "../stats/characterStats.js";
 import { campaignAnchorToLocal } from "../campaigns/campaignCurrency.js";
+import { ACTION_GDP_BASELINES } from "./gdpBaselines.generated.js";
 
 export interface FundCostInput {
   actionId: string;
@@ -28,25 +27,29 @@ export interface FundCostInput {
   stats?: { intellect?: number; fundraising?: number };
   /** Actor country, used for frozen campaign-currency conversion. */
   countryId?: string;
+  /** Region GDP and population in the authored country's denomination. */
+  gdpMillions?: number | undefined;
+  population?: number | undefined;
+  era?: string;
 }
 
 /** The reference-dynamic base curve for one action, before any stat hook. */
-function baseFundCost(actionId: string, actionCost: number, donorBaseLevel: number, catalogFundCost: number): number {
+function baseFundCost(actionId: string, actionCost: number, donorBaseLevel: number, catalogFundCost: number, gdpScalar: number): number {
   if (actionId === "campaign") {
-    // getCampaignFundCost: 20_000 x tier x (1 + (tier-1) * 0.2) at neutral GDP.
+    // getCampaignFundCost: 20_000 x tier x (1 + (tier-1) * 0.2) x GDP scalar.
     const tier = actionCost;
     const mult = 1 + (tier - 1) * 0.2;
-    return Math.round((20_000 * tier * mult) / 1_000) * 1_000;
+    return Math.round((20_000 * tier * mult * gdpScalar) / 1_000) * 1_000;
   }
   if (actionId === "advertise") {
-    // getAdvertiseFundCost: 100_000 x (1 + tierIndex * 0.2) at neutral GDP.
+    // getAdvertiseFundCost: 100_000 x (1 + tierIndex * 0.2) x GDP scalar.
     const tierIdx = actionCost - 5;
     const mult = 1 + tierIdx * 0.2;
-    return Math.round((100_000 * mult) / 1_000) * 1_000;
+    return Math.round((100_000 * mult * gdpScalar) / 1_000) * 1_000;
   }
   if (actionId === "buildDonorBase") {
-    // getBuildDonorBaseFundCost: 3_000 + 1_500/level at neutral GDP.
-    return Math.round((3_000 + donorBaseLevel * 1_500) / 1_000) * 1_000;
+    // getBuildDonorBaseFundCost: (3_000 + 1_500/level) x GDP scalar.
+    return Math.round(((3_000 + donorBaseLevel * 1_500) * gdpScalar) / 1_000) * 1_000;
   }
   return catalogFundCost;
 }
@@ -58,7 +61,11 @@ function baseFundCost(actionId: string, actionCost: number, donorBaseLevel: numb
  * stat multiplier.
  */
 export function actionFundCost(input: FundCostInput): number {
-  let cost = baseFundCost(input.actionId, input.actionCost, input.donorBaseLevel, input.catalogFundCost);
+  const baseline = ACTION_GDP_BASELINES[input.countryId ?? "US"]?.[input.era ?? "2019"];
+  const gdpScalar = input.gdpMillions !== undefined && input.population !== undefined && input.population > 0 && baseline
+    ? Math.max(0.85, Math.min(2, input.gdpMillions * 1_000_000 / input.population / baseline))
+    : 1;
+  let cost = baseFundCost(input.actionId, input.actionCost, input.donorBaseLevel, input.catalogFundCost, gdpScalar);
   if (input.actionId === "campaign" || input.actionId === "poll" || input.actionId === "pollLarge") {
     const intellect = input.stats?.intellect ?? NEUTRAL_STAT;
     cost = Math.round(cost / statMultiplier(intellect));
@@ -67,11 +74,9 @@ export function actionFundCost(input: FundCostInput): number {
     cost = Math.round(cost / statMultiplier(fundraising));
   }
   // Reference boundary (AHDGame src/lib/actions/commands/executeAction.ts):
-  // every campaign-fund effect is anchor and converts to local at the frozen
-  // base rate. buildDonorBase joins the already-converted poll/pollLarge here;
-  // campaign/advertise and the fundraise-yield credit still debit/credit anchor
-  // as local (see docs/CHARACTER-ACTION-PARITY.md) and stay untouched.
-  if (input.actionId === "poll" || input.actionId === "pollLarge" || input.actionId === "buildDonorBase") {
+  // All character campaign-fund costs convert from anchor at the frozen base
+  // rate after the stat discount. The executor converts fundraiser yield too.
+  if (["campaign", "advertise", "poll", "pollLarge", "buildDonorBase"].includes(input.actionId)) {
     cost = campaignAnchorToLocal(cost, input.countryId ?? "US");
   }
   return cost;

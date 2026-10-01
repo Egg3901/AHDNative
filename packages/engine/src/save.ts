@@ -568,6 +568,10 @@ function assertCurrentWorldState(world: WorldState): void {
     throw new Error("Not a valid save file: invalid player stat XP");
   }
   const decayAnchor = player["debateDecayAnchor"];
+  const decayAnchorTurn = player["debateDecayAnchorTurn"];
+  if (decayAnchorTurn !== undefined && (typeof decayAnchorTurn !== "number" || !Number.isSafeInteger(decayAnchorTurn) || decayAnchorTurn < 0)) {
+    throw new Error("Not a valid save file: invalid player debate decay turn");
+  }
   if (decayAnchor !== undefined && (typeof decayAnchor !== "string" || !/^\d{4}-\d{2}-\d{2}(T.*)?$/.test(decayAnchor) || !Number.isFinite(Date.parse(decayAnchor)))) {
     throw new Error("Not a valid save file: invalid player debate decay anchor");
   }
