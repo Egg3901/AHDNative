@@ -5,6 +5,7 @@ import { applyReferendumActuation } from "./actuation.js";
 import { serializeSave, deserializeSave } from "../save.js";
 import { runReferendumLifecycle } from "./lifecycle.js";
 import { corporationTurnPhase } from "../corporation/corporationTurn.js";
+import { materializeSourceParentSectorRows } from "../corporation/sourceRegionalSectorSeed.js";
 
 describe("referendum secession sector fan-out", () => {
   it("materializes the source parent-sector rows before the independence event", () => {
@@ -31,6 +32,45 @@ describe("referendum secession sector fan-out", () => {
     expect(walManufacturing.revenue! / updatedManufacturer.revenue).toBeCloseTo(walReceiptShare, 9);
     const restored = deserializeSave(serializeSave(world, "2026-10-01T00:00:00Z"));
     expect(Object.values(corporateSectorAssets(restored)).filter((asset) => asset.countryId === "UK" && asset.stateId === "WAL")).toHaveLength(regionalAssets.filter((asset) => asset.stateId === "WAL").length);
+  });
+
+  it("divides existing physical plant and commodity sales totals by source parent receipts", () => {
+    const world = createWorld({ era: "1953", countryId: "UK", homeRegionId: "LON", playerName: "Tester", seed: "plant-parent-split" });
+    const original = Object.values(world.corporateSectors!).find((asset) => asset.corporationId === "UK-manufacturing" && asset.stateId === null)!;
+    const national = structuredClone(original);
+    national.revenue = undefined;
+    national.stateId = null;
+    national.capitalStock = 1_000;
+    national.capacityBookAnchor = 40_000;
+    national.producedUnits = 800;
+    national.soldUnits = 520;
+    national.soldFraction = 0.65;
+    national.realizedRevenue = 12_000;
+    national.soldByCommodity = { textiles: 0.5, steel: 0.8 };
+    const nationalPlantTotals = {
+      capitalStock: national.capitalStock,
+      capacityBookAnchor: national.capacityBookAnchor,
+      producedUnits: national.producedUnits,
+      soldUnits: national.soldUnits,
+      realizedRevenue: national.realizedRevenue,
+      soldByCommodity: structuredClone(national.soldByCommodity),
+    };
+    world.corporateSectors = { [national.id]: national };
+
+    materializeSourceParentSectorRows(world);
+
+    const slices = Object.values(world.corporateSectors!).filter((asset) => asset.corporationId === national.corporationId);
+    for (const field of ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "realizedRevenue"] as const) {
+      expect(slices.reduce((sum, asset) => sum + (asset[field] ?? 0), 0)).toBeCloseTo(nationalPlantTotals[field]!, 9);
+    }
+    const wal = slices.find((asset) => asset.stateId === "WAL")!;
+    expect(wal.capitalStock).toBeCloseTo(1_000 * 274_510 / 8_512_171, 9);
+    expect(wal.soldFraction).toBe(0.65);
+    expect(wal.soldByCommodity).toEqual({ textiles: 0.5, steel: 0.8 });
+    for (const commodity of ["textiles", "steel"] as const) {
+      expect(slices.reduce((sum, asset) => sum + (asset.producedUnits ?? 0) * (asset.soldByCommodity?.[commodity] ?? 0), 0))
+        .toBeCloseTo(nationalPlantTotals.producedUnits! * nationalPlantTotals.soldByCommodity![commodity]!, 9);
+    }
   });
 
   it("expands Scotland from the source seed and independently conserves corporate assets and unowned pools across save/reload", () => {

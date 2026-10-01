@@ -87,13 +87,37 @@ function allocateWorkers(total: number, shares: Array<[string, number]>): Map<st
   return new Map(rows.map((row) => [row.id, row.workers]));
 }
 
+const ADDITIVE_PLANT_FIELDS = [
+  "capitalStock",
+  "capacityBookAnchor",
+  "producedUnits",
+  "soldUnits",
+  "realizedRevenue",
+] as const;
+
+function scaledPlantFields(
+  asset: ReturnType<typeof corporateSectorAssets>[string],
+  share: number,
+): Partial<Pick<typeof asset, (typeof ADDITIVE_PLANT_FIELDS)[number]>> {
+  const values: Partial<Pick<typeof asset, (typeof ADDITIVE_PLANT_FIELDS)[number]>> = {};
+  for (const field of ADDITIVE_PLANT_FIELDS) {
+    const value = asset[field];
+    if (typeof value === "number" && Number.isFinite(value)) values[field] = value * share;
+  }
+  return values;
+}
+
 /**
  * Native stores one country-wide issuer and unowned pool per sector, while
  * AHDGame's secession fan-out consumes rows already scoped to the live parent
  * region. Materialize only the UK SCO/WAL parent rows at world creation from
- * the actual parent seed GDP and Native country GDP. The remainder remains at
- * national scope. This is a Native aggregate-to-parent seed adapter; secession
- * itself only moves these pre-existing rows and never slices national rows.
+ * the actual source receipt shares. Additive physical plant and sales totals
+ * follow the same shares, preserving their country-wide sum. Sold fractions
+ * remain ratios, so preserving them on each slice preserves per-commodity
+ * sold units when multiplied by the correspondingly divided production.
+ * The remainder remains at national scope. This is a Native aggregate-to-
+ * parent seed adapter; secession itself only moves these pre-existing rows
+ * and never slices national rows.
  *
  * The 1953 source table reflects per-region overrides and source market floors;
  * later source presets have no UK:SCO/UK:WAL weight overrides, so their shared
@@ -110,6 +134,7 @@ export function materializeSourceParentSectorRows(world: WorldState): void {
 
   const assets = corporateSectorAssets(world);
   for (const asset of Object.values(assets).filter((row) => row.countryId === countryId && row.stateId === null && row.revenue === undefined)) {
+    const nationalAsset = structuredClone(asset);
     const totalRevenue = world.corporations[asset.corporationId]?.revenue ?? 0;
     const totalWorkers = asset.workers;
     const shares = parentIds.map((regionId) => [regionId, sourceMarketShare(world, regionId as "SCO" | "WAL", asset.sectorType)] as const);
@@ -118,6 +143,7 @@ export function materializeSourceParentSectorRows(world: WorldState): void {
     const remainderShare = 1 - regionalShare;
     const workersByRegion = allocateWorkers(totalWorkers, [["$remaining", remainderShare], ...shares.map(([regionId, share]) => [regionId, share] as [string, number])]);
     asset.revenue = totalRevenue * remainderShare;
+    Object.assign(asset, scaledPlantFields(nationalAsset, remainderShare));
     asset.workers = workersByRegion.get("$remaining") ?? 0;
     for (const [regionId, share] of shares) {
       const id = `${asset.id}:source-region:${regionId}`;
@@ -127,6 +153,7 @@ export function materializeSourceParentSectorRows(world: WorldState): void {
         id,
         stateId: regionId,
         revenue: totalRevenue * share,
+        ...scaledPlantFields(nationalAsset, share),
         workers: workersByRegion.get(regionId) ?? 0,
         forSale: null,
       };

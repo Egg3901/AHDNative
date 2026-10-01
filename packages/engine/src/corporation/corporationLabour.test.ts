@@ -125,8 +125,13 @@ describe("#322 exactly-once economic damage", () => {
     corporationTurnPhase.run(idle);
     const hit = struck.corporations[EMPLOYER]!.revenue;
     const base = idle.corporations[EMPLOYER]!.revenue;
-    // Once: 0.75. Twice would read 0.5625.
-    expect(hit).toBeCloseTo(base * 0.75, 6);
+    const struckAsset = Object.values(corporateSectorAssets(struck)).find((candidate) => candidate.corporationId === EMPLOYER)!;
+    // The strike factor applies once to physical production. Receipts also
+    // reflect the actual sell-through ratio against the same source demand.
+    expect(struckAsset.producedUnits).toBeCloseTo(idleAsset.producedUnits! * 0.75, 6);
+    expect(struckAsset.soldFraction).toBeGreaterThan(0);
+    expect(idleAsset.soldFraction).toBeGreaterThan(0);
+    expect(hit).toBeCloseTo(base * (0.75 * struckAsset.soldFraction! / idleAsset.soldFraction!), 6);
     expect(hit / base).toBeGreaterThan(0.6);
     expect(struck.corporations[EMPLOYER]!.effectiveProfitMargin).toBeCloseTo(
       idle.corporations[EMPLOYER]!.effectiveProfitMargin - 8,
@@ -142,15 +147,22 @@ describe("#322 exactly-once economic damage", () => {
     const labour = loadCorporationLabourState(world, 3);
     runCorporationTurn(clone, taxRate, labourFactorsForCorporation(world, corpId, labour));
     corporationTurnPhase.run(world);
-    // The phase uses the country's configured rate; revenue must still carry
-    // exactly one 0.75 application relative to an unstruck twin.
+    // Compare physical production separately from realized receipts: the
+    // source plant formula sells produced units at each output leg's clearing.
     const twin = strikeWorld().world;
     const twinAssets = corporateSectorAssets(twin);
     const twinAsset = Object.values(twinAssets).find((candidate) => candidate.corporationId === EMPLOYER)!;
     twinAsset.strikeStartedAtTurn = null;
     twinAsset.workerExpectationIndex = null;
     corporationTurnPhase.run(twin);
-    expect(world.corporations[corpId]!.revenue).toBeCloseTo(twin.corporations[corpId]!.revenue * 0.75, 6);
+    const liveAsset = Object.values(corporateSectorAssets(world)).find((candidate) => candidate.corporationId === corpId)!;
+    const directAsset = Object.values(corporateSectorAssets(twin)).find((candidate) => candidate.corporationId === corpId)!;
+    expect(liveAsset.producedUnits).toBeCloseTo(directAsset.producedUnits! * 0.75, 6);
+    expect(directAsset.soldFraction).toBeGreaterThan(0);
+    expect(world.corporations[corpId]!.revenue).toBeCloseTo(
+      twin.corporations[corpId]!.revenue * (0.75 * liveAsset.soldFraction! / directAsset.soldFraction!),
+      6,
+    );
     expect(clone.revenue).toBeGreaterThan(0);
 
     const revenueBefore = world.corporations[corpId]!.revenue;

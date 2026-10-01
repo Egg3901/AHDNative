@@ -33,10 +33,12 @@ import { seedCountryPolitics } from "./countryPolitics/overview.js";
 import {
   backfillSectorOwner,
   backfillSectorWorkforce,
+  backfillSectorPlantCapital,
   calculateSectorWorkers,
   initialRepresentingUnionId,
   validateCorporateSectorAssets,
 } from "./corporation/corporateSectorAssets.js";
+import { validatePlantMarketDemand } from "./corporation/plantDemand.js";
 import { validateUnionOrganizers } from "./unions/organizers.js";
 import { validateUnionContributionLedger } from "./unions/contributions.js";
 import { validateCorporateBondSettlementLedger } from "./bonds/corporateBondDefaultSettlement.js";
@@ -420,6 +422,27 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     }
   }
 
+  // Preserve the earlier market/governance refusal before checking R&D.
+  for (const [corpId, value] of Object.entries(corporations)) {
+    if (!isRecord(value)) continue;
+    const rdAmounts = ["rdBudgetPerTurn", "rdScore", "lastRdSpendPerTurn", "lastRdCapacityGain"].map((field) => value[field]);
+    const hasNonzeroRdState = rdAmounts.some((amount) =>
+      amount !== undefined && (typeof amount !== "number" || !Number.isFinite(amount) || amount !== 0),
+    );
+    if (hasNonzeroRdState) {
+      return { ok: false, error: `Corporation ${corpId} has R&D state that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+    }
+  }
+
+  // The actual v42 engine has no corporate plant-production/market phase.
+  // Keeping unfamiliar JSON keys cannot continue the recorded production.
+  const sectorAssets = world["corporateSectors"];
+  const hasPlantCapacity = isRecord(sectorAssets) && Object.values(sectorAssets).some(asset =>
+    isRecord(asset) && ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity"].some(field => hasOwn(asset, field)),
+  );
+  if (hasOwn(world, "plantMarketDemand") || hasPlantCapacity) {
+    return { ok: false, error: `Plant production and market state cannot be continued by schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
   const candidateSave = structuredClone(save);
   const candidateWorld = candidateSave["world"] as Record<string, unknown>;
   const candidateMeta = candidateWorld["meta"] as Record<string, unknown>;
@@ -475,6 +498,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
     delete corp["orderFlowWindowBuyValue"];
     delete corp["orderFlowWindowSellValue"];
     delete corp["priceHistory"];
+    delete corp["rdBudgetPerTurn"];
+    delete corp["rdScore"];
+    delete corp["lastRdSpendPerTurn"];
+    delete corp["lastRdCapacityGain"];
     // #328: default prop-book state is dropped so the projected bytes stay
     // identical to an authentic schema 42 document; the reload backfill
     // re-seeds the same retail charter, empty book, and zero mark.
@@ -2978,6 +3005,7 @@ export function deserializeSave(raw: string): WorldState {
     // left for the validator below to fail closed on. Applies to
     // current-schema saves too, so no version renumber is needed.
     backfillSectorWorkforce(save.world, save.world.corporateSectors);
+    backfillSectorPlantCapital(save.world, save.world.corporateSectors);
     validateCorporateSectorAssets(save.world, save.world.corporateSectors);
   }
   // #320: union organizer rows. Saves written before the organizer slice
@@ -2986,6 +3014,9 @@ export function deserializeSave(raw: string): WorldState {
   // backfill above, so no version renumber is needed. Present-but-invalid
   // rows fail closed through validateUnionOrganizers. Union strength keeps
   // the reference absent-means-zero rule explicitly.
+  if (save.world.plantMarketDemand !== undefined) {
+    validatePlantMarketDemand(save.world);
+  }
   if (save.world.unionOrganizers !== undefined) {
     validateUnionOrganizers(save.world, save.world.unionOrganizers);
   }

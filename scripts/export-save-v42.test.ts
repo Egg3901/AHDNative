@@ -120,9 +120,11 @@ describe("export-save-v42 CLI", () => {
     expect(run.stderr).toContain("unparseable JSON");
   }, 60_000);
 
-  it("projects and reloads a current Native-fresh world with source-backed CEO identity", () => {
+  it("projects isolated source issuer identity without unsupported regional metric records", () => {
     const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
     expect(world.player.homeRegionId).toBe("AL");
+    // Isolate the supported issuer-identity extension. The separate fresh
+    // world case above proves normal TFP worlds fail closed.
     world.regionalMetrics = {};
     const projection = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projection.ok).toBe(true);

@@ -149,14 +149,40 @@ describe("#51 profile corporation card", () => {
     await user.type(screen.getByRole("spinbutton", { name: "CEO salary per turn" }), "1000");
     await user.clear(screen.getByRole("spinbutton", { name: "Dividend rate" }));
     await user.type(screen.getByRole("spinbutton", { name: "Dividend rate" }), "25");
+    await user.clear(screen.getByRole("spinbutton", { name: "R&D budget per turn" }));
+    await user.type(screen.getByRole("spinbutton", { name: "R&D budget per turn" }), "100");
     await user.click(screen.getByRole("button", { name: "Save compensation" }));
-    expect(session.markets().listings.find((entry) => entry.id === "US-media")).toMatchObject({ ceoSalaryPerTurn: 1_000, dividendRate: 25 });
+    expect(session.markets().listings.find((entry) => entry.id === "US-media")).toMatchObject({ ceoSalaryPerTurn: 1_000, dividendRate: 25, rdBudgetPerTurn: 100 });
+    const saved = session.serialize(SAVED_AT);
+    const reloaded = new GameSession();
+    reloaded.load(saved);
+    session.advance();
+    reloaded.advance();
+    const liveRAndD = session.markets().listings.find((entry) => entry.id === "US-media")!;
+    const replayRAndD = reloaded.markets().listings.find((entry) => entry.id === "US-media")!;
+    expect(liveRAndD.lastRdSpendPerTurn).toBeGreaterThan(0);
+    expect(liveRAndD.rdScore).toBeGreaterThan(0);
+    expect(replayRAndD).toMatchObject({
+      lastRdSpendPerTurn: liveRAndD.lastRdSpendPerTurn,
+      rdScore: liveRAndD.rdScore,
+      rdBudgetPerTurn: 100,
+    });
+    const firstScore = liveRAndD.rdScore!;
+    const secondSaved = session.serialize(SAVED_AT);
+    const secondReplay = new GameSession();
+    secondReplay.load(secondSaved);
+    session.advance();
+    secondReplay.advance();
+    const afterTwoTurns = session.markets().listings.find((entry) => entry.id === "US-media")!;
+    const afterTwoTurnsReplay = secondReplay.markets().listings.find((entry) => entry.id === "US-media")!;
+    expect(afterTwoTurns.rdScore).toBeGreaterThan(firstScore);
+    expect(afterTwoTurnsReplay).toMatchObject({ lastRdSpendPerTurn: afterTwoTurns.lastRdSpendPerTurn, rdScore: afterTwoTurns.rdScore });
     expect(onAction.mock.calls.map(([id]) => id)).toEqual([
       "voteCeo",
       "acceptCeoAppointment",
       "setCorporationCompensation",
     ]);
-  });
+  }, 60_000);
 
   it("renders empty values honestly instead of fabricating them", () => {
     const base = owningProfile().corporations![0]!;
