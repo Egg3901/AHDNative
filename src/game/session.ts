@@ -11,6 +11,7 @@ import { projectBondMarket } from "./bondMarket";
 import { projectPartyManagement } from "./partyManagement";
 import { searchWorld, type SearchFilter } from "./search";
 import { projectMarkets } from "./markets";
+import { projectUnionManagement } from "./unionManagement";
 import { buildLegislationDetails, type LegislationSelection } from "./legislationDetails";
 import { buildChamberNavigation, buildCommitteeNavigation, buildFloorSchedule } from "./legislature";
 import { projectCabinetSponsor, projectNominationDetail, projectNominationList, projectScotusSponsor } from "./nominations";
@@ -23,11 +24,10 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
-  getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing,
+  getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import {
-  answerBargainingCampaignAsEmployer,
   castRatificationBallot,
   moveBargainingCampaignAsUnion,
   openBargainingCampaignAction,
@@ -532,6 +532,7 @@ export class GameSession {
   partyManagement() { return projectPartyManagement(this.requireWorld()); }
 
   markets() { return projectMarkets(this.requireWorld()); }
+  unionManagement() { return projectUnionManagement(this.requireWorld()); }
 
   organizeUnion(unionId: string) {
     const candidate = structuredClone(this.requireWorld());
@@ -540,10 +541,31 @@ export class GameSession {
     return result;
   }
 
+  castUnionLeadershipVote(unionId: string) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = castUnionLeadershipVote(candidate, unionId);
+    if (result.ok) this.commit(candidate);
+    return result;
+  }
+
+  acceptUnionLeadership(unionId: string) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = acceptUnionLeadership(candidate, unionId);
+    if (result.ok) this.commit(candidate);
+    return result;
+  }
+
   organizeUnionSector(unionId: string, assetId: string) {
     const candidate = structuredClone(this.requireWorld());
     const result = organizeSectorAction(candidate, unionId, assetId);
     this.commit(candidate);
+    return result;
+  }
+
+  setUnionDues(unionId: string, duesPerWorkerAnnual: number) {
+    const candidate = structuredClone(this.requireWorld());
+    const result = setUnionDuesAction(candidate, unionId, duesPerWorkerAnnual);
+    if (result.ok) this.commit(candidate);
     return result;
   }
 
@@ -559,22 +581,18 @@ export class GameSession {
   /** Call an employer to bargain over its recorded CorporateSector locals. */
   callUnionBargaining(unionId: string, employerCorporationId: string, terms: BargainingTerms) {
     const candidate = structuredClone(this.requireWorld());
+    const union = candidate.unions[unionId];
+    if (!union || union.ownerType !== "player" || union.ownerId !== "player") {
+      throw new Error("Only the player-led union president can call bargaining.");
+    }
+    const hasRepresentedLocal = Object.values(corporateSectorAssets(candidate)).some(
+      (asset) => asset.representingUnionId === unionId && asset.corporationId === employerCorporationId,
+    );
+    if (!hasRepresentedLocal) {
+      throw new Error("Bargaining is limited to employers with a recorded local represented by this union.");
+    }
     const campaign = openBargainingCampaignAction(candidate, {
       unionId, employerCorporationId, terms, turn: candidate.meta.turn,
-    });
-    this.commit(candidate);
-    return structuredClone(campaign);
-  }
-
-  /** Apply the employer's NPC answer through the same command used by turn autoplay. */
-  answerUnionBargaining(
-    campaignId: string,
-    action: "accept" | "counter" | "reject",
-    terms?: BargainingTerms,
-  ) {
-    const candidate = structuredClone(this.requireWorld());
-    const campaign = answerBargainingCampaignAsEmployer(candidate, {
-      campaignId, action, ...(terms ? { terms } : {}), turn: candidate.meta.turn,
     });
     this.commit(candidate);
     return structuredClone(campaign);
@@ -587,6 +605,11 @@ export class GameSession {
     terms?: BargainingTerms,
   ) {
     const candidate = structuredClone(this.requireWorld());
+    const campaign = candidate.bargainingCampaigns?.[campaignId];
+    const union = campaign ? candidate.unions[campaign.unionId] : undefined;
+    if (!union || union.ownerType !== "player" || union.ownerId !== "player") {
+      throw new Error("Only the player-led union president can move this bargaining campaign.");
+    }
     const result = moveBargainingCampaignAsUnion(candidate, {
       campaignId, action, ...(terms ? { terms } : {}), turn: candidate.meta.turn,
     });
@@ -597,12 +620,19 @@ export class GameSession {
   /** Cast or replace a weighted union-organizer ratification ballot. */
   castUnionRatificationBallot(
     campaignId: string,
-    voterCharacterId: string,
     vote: "ratify" | "reject",
   ) {
     const candidate = structuredClone(this.requireWorld());
+    const campaign = candidate.bargainingCampaigns?.[campaignId];
+    const union = campaign ? candidate.unions[campaign.unionId] : undefined;
+    if (!union || union.ownerType !== "player" || union.ownerId !== "player") {
+      throw new Error("Only the player-led union can cast the player's ratification ballot.");
+    }
+    if ((candidate.unionOrganizers?.[`${union.id}:player`]?.strength ?? 0) <= 0) {
+      throw new Error("The player needs organizing strength to cast a ratification ballot.");
+    }
     const result = castRatificationBallot(candidate, {
-      campaignId, voterCharacterId, vote, turn: candidate.meta.turn,
+      campaignId, voterCharacterId: "player", vote, turn: candidate.meta.turn,
     });
     this.commit(candidate);
     return structuredClone(result);

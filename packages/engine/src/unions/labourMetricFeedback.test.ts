@@ -2,11 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
 import { nationalMetricsPhase } from "../metrics/nationalMetrics.js";
 import { corporateSectorAssets } from "../corporation/corporateSectorAssets.js";
-import {
-  openBargainingCampaignAction,
-  answerBargainingCampaignAsEmployer,
-  settleBargainingCampaignDirect,
-} from "./actions.js";
+import { openBargainingCampaignAction, answerBargainingCampaignAsEmployer } from "./actions.js";
+import { labourNudgesForTurn } from "./labourRelationsTurn.js";
 
 const OPTIONS = { seed: "union-political-feedback", playerName: "Tester", countryId: "US", era: "1953" } as const;
 const TERMS = { wageLevel: 1.1, agreementDurationTurns: 48, noStrikeTurns: 24 };
@@ -25,32 +22,22 @@ function disputeWorld() {
   });
   answerBargainingCampaignAsEmployer(world, { campaignId: opened.id, action: "reject", turn: 1 });
   world.meta.turn = 2;
-  return { world, campaignId: opened.id };
+  return { world };
 }
 
-describe("#322 labor political feedback consumer", () => {
-  it("applies dispute and settlement nudges to national metrics without charging economic damage twice", () => {
-    const { world, campaignId } = disputeWorld();
+describe("#322 labor political feedback source boundary", () => {
+  it("computes the dispute residual without inventing a national political baseline", () => {
+    const { world } = disputeWorld();
     const revenueBefore = world.corporations["US-manufacturing"]!.revenue;
 
+    expect(labourNudgesForTurn(world, world.meta.turn).get("US")?.get("economy.workerSecurity"))
+      .toBeCloseTo(-0.75 * 0.9, 6);
     nationalMetricsPhase.run(world);
 
-    expect(world.nationalMetrics.US?.["economy.workerSecurity"]?.value).toBe(50 - 0.75 * 0.9);
-    expect(world.nationalMetrics.US?.["society.civicLife"]?.value).toBe(50 - 0.4 * 0.9);
+    expect(world.nationalMetrics.US?.["economy.workerSecurity"]).toBeUndefined();
+    expect(world.nationalMetrics.US?.["society.civicLife"]).toBeUndefined();
     expect(world.corporations["US-manufacturing"]!.revenue).toBe(revenueBefore);
 
-    answerBargainingCampaignAsEmployer(world, {
-      campaignId,
-      action: "counter",
-      terms: { ...TERMS, wageLevel: 1.05 },
-      turn: 2,
-    });
-    settleBargainingCampaignDirect(world, campaignId, "union", 3);
-    world.meta.turn = 3;
-    nationalMetricsPhase.run(world);
-
-    expect(world.nationalMetrics.US?.["economy.workerSecurity"]?.value).toBeGreaterThan(50);
-    expect(world.nationalMetrics.US?.["society.civicLife"]?.value).toBeGreaterThan(50);
     expect(world.corporations["US-manufacturing"]!.revenue).toBe(revenueBefore);
   });
 });

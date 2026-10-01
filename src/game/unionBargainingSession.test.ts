@@ -7,30 +7,37 @@ const OPTIONS = { era: "1953", countryId: "US", seed: "union-bargaining-session"
 const TERMS = { wageLevel: 1.1, agreementDurationTurns: 48, noStrikeTurns: 24 };
 
 describe("#322 bargaining through the public GameSession seam", () => {
-  it("calls, receives the employer's dispute response, applies labor feedback once, and reloads", () => {
+  it("calls against represented locals, receives the turn employer response, and reloads", () => {
     const world = createWorld(OPTIONS);
     const union = world.unions["US-manufacturing"]!;
+    union.ownerType = "player";
+    union.ownerId = "player";
     union.unionization = 70;
     for (const asset of Object.values(corporateSectorAssets(world))) {
       if (asset.representingUnionId === union.id) asset.unionization = 70;
     }
+    const startingSave = serializeSave(world, SAVED_AT);
+    const control = new GameSession();
+    control.load(startingSave);
     const session = new GameSession();
-    session.load(serializeSave(world, SAVED_AT));
+    session.load(startingSave);
 
+    expect(() => session.callUnionBargaining("US-media", "US-media", TERMS)).toThrow(/player-led union president/i);
+    expect(() => session.callUnionBargaining(union.id, "US-media", TERMS)).toThrow(/recorded local/i);
     const campaign = session.callUnionBargaining(union.id, "US-manufacturing", TERMS);
     expect(campaign.status).toBe("negotiating");
     session.advance();
-    const revenueBeforeAnswer = session.markets().listings.find((listing) => listing.id === "US-manufacturing")!.revenue;
-    expect(session.answerUnionBargaining(campaign.id, "reject").status).toBe("dispute");
-    expect(session.markets().listings.find((listing) => listing.id === "US-manufacturing")!.revenue)
-      .toBe(revenueBeforeAnswer);
+    session.advance();
+    expect(session.unionBargaining().campaigns[0]?.currentOffer.proposedBy).toBe("employer");
+    session.advance();
+    session.moveUnionBargaining(campaign.id, "accept");
     session.advance();
 
     const beforeReload = session.unionBargaining();
-    expect(beforeReload.campaigns[0]?.status).toBe("dispute");
+    expect(beforeReload.campaigns[0]?.status).toBe("settled");
     const security = deserializeSave(session.serialize(SAVED_AT)).nationalMetrics.US?.["economy.workerSecurity"]?.value;
-    expect(security).toBeDefined();
-    expect(security!).toBeLessThan(50);
+    for (let turn = 0; turn < 4; turn++) control.advance();
+    expect(security).toBe(deserializeSave(control.serialize(SAVED_AT)).nationalMetrics.US?.["economy.workerSecurity"]?.value);
 
     const reloaded = new GameSession();
     reloaded.load(session.serialize(SAVED_AT));

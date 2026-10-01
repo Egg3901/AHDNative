@@ -129,6 +129,12 @@ export type {
 } from "./unions/actions.js";
 export type { BargainingTerms, BargainingCampaign, CollectiveAgreement } from "./unions/campaigns.js";
 export { organizeSectorAction, organizeSectorTreasuryCost, organizeUnionAction } from "./unions/organizingActions.js";
+export { setUnionDuesAction } from "./unions/duesActions.js";
+export type { SetUnionDuesResult } from "./unions/duesActions.js";
+export { averageAnnualWage, duesIncomePerTurn, maxDuesForWage, unionMembers } from "./unions/dues.js";
+export { representedSectorsForUnion } from "./unions/sectorAggregation.js";
+export { acceptUnionLeadership, castUnionLeadershipVote } from "./unions/leadership.js";
+export { BARGAINING_ESCALATION_SUPPORT, nextBargainingEscalationLevel } from "./unions/bargaining.js";
 // Issue #326: atomic interbank lending and servicing. Types travel through
 // `export type * from "./types.js"` (WorldState.interbankLoans); these are
 // the commands, quote, and turn servicing the banking phases share with the
