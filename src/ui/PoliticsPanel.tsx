@@ -1,6 +1,7 @@
 import { formatFinanceMoney } from "./FinancePanel";
 import { PartyMark } from "./PartyMark";
 import { PartyPlatformComparison } from "./PartyPlatformComparison";
+import { PoliticalMetricsBoard } from "./PoliticalMetricsBoard";
 /**
  * PoliticsPanel: per party detail, per election detail with its candidate
  * roster, and the country politician roster.
@@ -1655,10 +1656,8 @@ function PresidentialRaceSection({ politics, busy, onAction, initialId, onOpenCa
 }
 
 /**
- * Political-metrics view (#69). It renders the EXACT registry Native already
- * projects (`projectNation().metrics`) by reusing NationPanel's `MetricsSection`
- * — no second projection and no re-derived metric. Categories, recorded history
- * and recorded modifier rows all come from the shared `NationMetricsView` DTO.
+ * Fresh source boards follow Game's political destination. Older saves with
+ * no recorded board retain their existing national metric registry.
  */
 function PoliticalMetricsSection({ politics, nation, era, onNavigate }: {
   politics: PoliticsView;
@@ -1666,6 +1665,7 @@ function PoliticalMetricsSection({ politics, nation, era, onNavigate }: {
   era?: string | null;
   onNavigate?: PoliticsPanelProps["onNavigate"];
 }) {
+  if (politics.politicalMetrics) return <PoliticalMetricsBoard registry={politics.politicalMetrics} countryName={politics.countryName} />;
   if (!nation) {
     return (
       <div className="ahd-stack">

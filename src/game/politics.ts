@@ -1,5 +1,6 @@
 import {
   ACTION_CATALOG, addDaysIso, calculateCampaignIncome, calculateMaintenanceCosts,
+  politicalMetricsForCountry, type PoliticalRegistryView,
   campaignAnchorToLocal, campaignKey, canJoinParty, canLeaveParty, describeOpsCurrentEffect,
   getActionCost, quotePartyCaucusAction,
   INFLUENCE_ACTIONS, INFLUENCE_LIMITS, RELATIONSHIP_INFLUENCE_TYPES,
@@ -457,6 +458,7 @@ export interface PoliticsView {
   referendums: PoliticsReferendumView[];
   referendumRequest: PoliticsReferendumRequestView;
   politicians: PoliticsPoliticianView[];
+  politicalMetrics?: PoliticalRegistryView;
 }
 
 function actionCost(world: WorldState, id: "joinParty" | "leaveParty" | "declareCandidacy" | "withdrawCandidacy"): number {
@@ -1572,5 +1574,5 @@ export function projectPolitics(world: WorldState): PoliticsView {
       || b.requestedTurn - a.requestedTurn)
     .map((record) => projectReferendum(world, record));
 
-  return { countryId: country.id, countryName: country.name, currency: world.budgets[country.id]?.currencyCode ?? world.exchangeRates[country.id]?.currencyCode ?? "XXX", playerPartyId: player.partyId, parties, elections, referendums, referendumRequest: projectReferendumRequest(world), politicians };
+  return { countryId: country.id, countryName: country.name, currency: world.budgets[country.id]?.currencyCode ?? world.exchangeRates[country.id]?.currencyCode ?? "XXX", playerPartyId: player.partyId, parties, elections, referendums, referendumRequest: projectReferendumRequest(world), politicians, politicalMetrics: politicalMetricsForCountry(world, country.id) };
 }

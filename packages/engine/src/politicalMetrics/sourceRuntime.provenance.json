@@ -452,6 +452,10 @@
       "sha256": "5f557b469bb849185513c625bbaaf93599b224646ff5f73d03d9365f21a816ac"
     },
     {
+      "path": "src/lib/politicalMetrics/names.ts",
+      "sha256": "2e9448af09af7750972fa4111a37aaff876ddf1fb65ba3c01216812395587b55"
+    },
+    {
       "path": "src/lib/politicalMetrics/types.ts",
       "sha256": "ad8678b30e8622633edb9bca88a74ce3a25878cb69b0488904de7b1d33ff31c6"
     },
@@ -480,5 +484,5 @@
       "sha256": "6bf9679f7f4f3692a00880a9c6b380db89384e22f45236b86a8d4a50ac5a6237"
     }
   ],
-  "outputSha256": "b1ca0ae17f58ddf9a04c69138ecdad0a9e631d0e77d9e8f56c0a4768e77ff307"
+  "outputSha256": "43f6109843cb36c0cba2a579edafbecc1ab6dc05a4cec0b6ac0eb7773a9b6782"
 }

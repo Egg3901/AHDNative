@@ -12,3 +12,10 @@ export function politicalNodeTargets(input: { countryId: string; stateId: string
 export function getNeutralFederalSalesTaxRate(countryId?: string): number;
 export function getNeutralStateSalesTaxRate(countryId?: string): number;
 export const NATIONAL_SCOPE_IDS: ReadonlySet<string>;
+export const POLITICAL_METRIC_CATEGORIES: readonly { id: string; displayName: string }[];
+export const POLITICAL_METRIC_FAMILIES: readonly { id: string; categoryId: string; lean: number; description: string }[];
+export function aggregateNationalPoliticalMetrics(docs: { _id: string; values: Record<string, number> }[], populations: ReadonlyMap<string, number>): Record<string, number>;
+export function categoryScore(values: Record<string, number>, categoryId: string): number;
+export function overallScore(values: Record<string, number>): number;
+export function getCategoryDisplayName(countryId: string, categoryId: string): string;
+export function getMetricDisplayName(countryId: string, metricId: string): string;

@@ -1,4 +1,6 @@
 export { advanceTurn } from "./engine.js";
+export { politicalMetricsForCountry } from "./politicalMetrics/registry.js";
+export type { PoliticalRegistryView, PoliticalCategoryView, PoliticalMetricView, PoliticalMetricRegionView } from "./politicalMetrics/registry.js";
 export type { AdvanceTurnOptions } from "./engine.js";
 export { createWorld, listEras, listPlayableCountries, listParties, listRegions, listCreationParties, listCountries, rulingPartyIdForCountry, rulingPartyForCountry, headOfStateOfficeForCountry, SCHEMA_VERSION } from "./world.js";
 export { electorateLeanForGroups, listCreationHomeRegions } from "./demographics/homeRegionContext.js";
