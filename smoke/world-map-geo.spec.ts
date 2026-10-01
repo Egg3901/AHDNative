@@ -21,10 +21,13 @@ async function openWorldMap(page: import('@playwright/test').Page) {
     await dialog.getByRole('button', { name: 'World', exact: true }).click();
   }
   await map.click();
-  await expect(page.getByRole('group', { name: /world nations geographic map|on the world map, flat projection/i })).toBeVisible();
+  await expect(page.getByRole('group', { name: /world nations geographic map|regions geographic map/i })).toBeVisible();
 }
 
 test('390px: geographic map selection, Hall of Fame flow, saved view survives reload', async ({ page }) => {
+  test.setTimeout(180_000);
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
   await startWorld(page, 'MapPlayer', 'geo-night-390', 390);
   await openWorldMap(page);
 
@@ -40,18 +43,37 @@ test('390px: geographic map selection, Hall of Fame flow, saved view survives re
   await expect(map).toBeHidden();
   await expect(page.getByRole('heading', { name: 'France' }).first()).toBeVisible();
 
-  // Back to the map, switch to the country spotlight with its stated gap.
+  // Back to the map: real source subdivisions and country-scoped browsing.
   await openWorldMap(page);
   await page.getByRole('button', { name: 'Show country spotlight geography' }).click();
   await expect(page.getByRole('heading', { name: 'United States spotlight' })).toBeVisible();
-  await expect(page.getByText(/sub-region shapes are not bundled offline/i)).toBeVisible();
+  const subdivisions = page.getByRole('group', { name: 'United States regions geographic map', exact: true });
+  await expect(subdivisions).toBeVisible();
+  await expect(subdivisions.locator('path[data-region-id="CA"]')).toHaveCount(1);
+  const countryPicker = page.getByRole('combobox', { name: 'Choose country for the region map and directory', exact: true });
+  await countryPicker.selectOption('UK');
+  const british = page.getByRole('group', { name: 'United Kingdom regions geographic map', exact: true });
+  await expect(british).toBeVisible();
+  const eastMidlands = british.getByRole('button', { name: 'Select East Midlands (England) region', exact: true });
+  await eastMidlands.focus();
+  await eastMidlands.press('Enter');
+  await expect(eastMidlands).toHaveAttribute('aria-current', 'true');
+  await expect(page.getByRole('heading', { name: 'United Kingdom spotlight', exact: true })).toBeVisible();
+  const foreignDirectory = page.getByRole('region', { name: 'Regions on the world map', exact: true });
+  await foreignDirectory.getByRole('button', { name: 'Select London region', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'United Kingdom spotlight', exact: true })).toBeVisible();
+  await countryPicker.selectOption('US');
+  await expect(subdivisions).toBeVisible();
 
   // Hall of Fame: filters, profile link, race links when recorded.
   await page.getByRole('button', { name: 'Open the Hall of Fame standings' }).click();
   await expect(page.getByRole('heading', { name: 'Hall of Fame', exact: true }).first()).toBeVisible();
-  await page.getByRole('button', { name: 'Show only my party' }).click();
-  await page.getByRole('button', { name: 'Rank by influence' }).click();
-  await page.getByRole('button', { name: 'Show every era' }).click();
+  await page.getByRole('button', { name: 'Show only the current era' }).click();
+  await expect(page.getByRole('button', { name: 'Show only the current era' })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Rank by net worth' }).click();
+  await expect(page.getByRole('button', { name: 'Rank by net worth' })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Show every recorded life' }).click();
+  await page.getByRole('button', { name: 'Rank by Legacy Score' }).click();
   await page.getByRole('button', { name: /your character, open profile/ }).first().click();
   await expect(page.getByText('MapPlayer').first()).toBeVisible();
 
@@ -65,7 +87,9 @@ test('390px: geographic map selection, Hall of Fame flow, saved view survives re
   await openWorldMap(page);
   await expect(page.getByRole('heading', { name: 'United States spotlight' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: 'artifacts/smoke/world-map-geo-390.png', fullPage: true });
+  expect(errors).toEqual([]);
+  await page.getByRole('heading', { name: 'United States spotlight' }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: 'artifacts/smoke/world-map-geo-390.png' });
 });
 
 test('320px: keyboard map selection without horizontal overflow', async ({ page }) => {
