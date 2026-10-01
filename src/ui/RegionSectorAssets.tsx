@@ -6,10 +6,9 @@
  * whose `sectorAsset.regionId` equals the selected region id — the engine's
  * CorporateSectorAsset.stateId joined against the region table on read
  * (markets.ts projectSectorAsset). Ownership, workers, union, and for-sale
- * state render verbatim from that projection; the Buy control reuses
- * evaluateSectorBuy and the existing onSectorSale("buy") dispatch, so an
- * enabled Buy means the #295 session command can proceed. List/update/unlist
- * stay on the linked company detail, which owns the shareholder gate.
+ * state render verbatim from that projection. The sale controls shared with
+ * company detail dispatch list/update/unlist/buy to the same session commands,
+ * so the regional flow preserves shareholder, cash, and ownership gates.
  *
  * National assets (stateId null) belong to the country scope and stay in the
  * Sectors directory and Markets detail — this card never claims them. Fresh
@@ -21,10 +20,10 @@
  * 390px with Dynamic Island clearance, and desktop widths; jsdom performs no
  * layout, so the viewport tests pin identical content and containment styles.
  */
-import { evaluateSectorBuy } from "../game/markets";
 import type { MarketListing } from "../game/markets";
 import type { GameScreenProps } from "../game/types";
 import { formatFinanceMoney } from "./FinancePanel";
+import { SectorSaleControls } from "./MarketsPanel";
 
 /**
  * Regional assets recorded for one region, sorted by sector label. Pure view
@@ -93,9 +92,6 @@ export function RegionSectorAssetsCard({
         >
           {assets.map((listing) => {
             const asset = listing.sectorAsset;
-            const buyEval = evaluateSectorBuy(listing, { playerCash });
-            // Fail closed: an enabled-looking Buy must always reach the session command.
-            const buyDisabled = busy || !buyEval.available || onSectorSale == null;
             const ownedByPlayer = asset.owner === "player";
             return (
               <li
@@ -177,33 +173,15 @@ export function RegionSectorAssetsCard({
                       View company
                     </button>
                   ) : null}
-                  {asset.forSale ? (
-                    <button
-                      type="button"
-                      className="ahd-btn ahd-btn-sm"
-                      style={{ minHeight: 44 }}
-                      onClick={() => onSectorSale?.("buy", { assetId: asset.id })}
-                      disabled={buyDisabled}
-                      aria-disabled={buyDisabled}
-                      aria-label={`Buy ${listing.sectorLabel} sector (${listing.ticker})`}
-                    >
-                      Buy sector
-                    </button>
-                  ) : null}
                 </span>
-                {asset.forSale ? (
-                  <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
-                    {buyEval.available && onSectorSale
-                      ? `Asking ${formatFinanceMoney(buyEval.priceAnchor ?? 0, listing.currency)} · No action-point cost`
-                      : onSectorSale == null && buyEval.available
-                        ? "Sector purchase is unavailable in this view."
-                        : buyEval.disabledReason}
-                  </span>
-                ) : (
-                  <span className="ahd-muted" style={{ fontSize: "0.72rem" }}>
-                    Sale listings run from the company detail through the engine&apos;s ownership commands.
-                  </span>
-                )}
+                <SectorSaleControls
+                  listing={listing}
+                  playerCash={playerCash}
+                  busy={busy}
+                  onSectorSale={onSectorSale}
+                  showBuy={asset.forSale != null}
+                  labelSuffix={` (${listing.ticker})`}
+                />
               </li>
             );
           })}

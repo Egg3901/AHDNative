@@ -597,16 +597,20 @@ function TradeContextCard({ listing }: { listing: MarketListing }) {
  * the engine validates, so an enabled Buy means the session command proceeds;
  * every refusal shows its exact gate reason.
  */
-function SectorSaleControls({
+export function SectorSaleControls({
   listing,
   playerCash,
   busy,
   onSectorSale,
+  showBuy = true,
+  labelSuffix = "",
 }: {
   listing: MarketListing;
   playerCash: number;
   busy: boolean;
   onSectorSale?: GameScreenProps["onSectorSale"];
+  showBuy?: boolean;
+  labelSuffix?: string;
 }) {
   const [price, setPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -682,11 +686,11 @@ function SectorSaleControls({
               </button>
             </div>
           </div>
-          {playerOwned ? (
+          {!showBuy && playerOwned ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_BUY_ALREADY_OWNED}
             </span>
-          ) : !isOwner ? (
+          ) : !showBuy && !isOwner ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_LIST_OWNER_ONLY}
             </span>
@@ -705,11 +709,11 @@ function SectorSaleControls({
           >
             List for sale
           </button>
-          {playerOwned ? (
+          {!showBuy && playerOwned ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_BUY_ALREADY_OWNED}
             </span>
-          ) : !isOwner ? (
+          ) : !showBuy && !isOwner ? (
             <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
               {SECTOR_LIST_OWNER_ONLY}
             </span>
@@ -717,26 +721,26 @@ function SectorSaleControls({
         </div>
       )}
       <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-        <button
+        {showBuy ? <button
           type="button"
           className="ahd-btn ahd-btn-sm"
           onClick={() => onSectorSale?.("buy", { assetId: listing.sectorAsset.id })}
           disabled={buyDisabled}
           aria-disabled={buyDisabled}
-          aria-label={`Buy ${listing.sectorLabel} sector`}
+          aria-label={`Buy ${listing.sectorLabel} sector${labelSuffix}`}
           style={{ minHeight: 44, alignSelf: "flex-start" }}
         >
           Buy sector
-        </button>
-        {buyEval.available ? (
+        </button> : null}
+        {showBuy && buyEval.available ? (
           <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
             Asking {formatFinanceMoney(buyEval.priceAnchor ?? 0, listing.currency)} · No action-point cost
           </span>
-        ) : (
+        ) : showBuy ? (
           <span className="ahd-muted" style={{ fontSize: "0.76rem" }}>
             {buyEval.disabledReason}
           </span>
-        )}
+        ) : null}
       </div>
     </div>
   );

@@ -44,6 +44,7 @@ import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
 import { TFP_METRIC_PATHS } from "../demographics/laborForce.js";
 import { isMetricActive } from "./metricActivation.js";
+import { labourNudgesForTurn } from "../unions/labourRelationsTurn.js";
 
 export type MetricValue = { value: number };
 
@@ -152,6 +153,23 @@ export function computeNationalMetricsForCountry(
 export function computeNationalMetrics(world: WorldState): void {
   for (const countryId of Object.keys(world.countries).sort()) {
     world.nationalMetrics[countryId] = computeNationalMetricsForCountry(countryId, world);
+  }
+
+  // The reference political board applies labor relations as a temporary
+  // residual over its country metrics. Native has no separate political-board
+  // collection, so carry the same residual into its existing national metric
+  // map after the economic aggregation has rebuilt that map. A neutral 50 is
+  // used only when Native has no recorded political metric value for a key.
+  // The residual is recomputed from live campaign/service state every turn,
+  // which prevents repeated accumulation and keeps corporate strike damage
+  // exclusively in the corporation phase.
+  const nudges = labourNudgesForTurn(world, world.meta.turn);
+  for (const [countryId, byMetric] of nudges) {
+    const metrics = (world.nationalMetrics[countryId] ??= {});
+    for (const [metricId, delta] of byMetric) {
+      const current = metrics[metricId]?.value ?? 50;
+      metrics[metricId] = { value: Math.round(Math.max(0, Math.min(100, current + delta)) * 10_000) / 10_000 };
+    }
   }
 }
 
