@@ -208,14 +208,14 @@ describe("#261 validated ministerial order issue command", () => {
     })).toThrow("Invalid target region");
     expect(world.ministerialOrders).toEqual([]);
 
-    world.regionalMetrics[ukRegion.id] = { gdpGrowth: { value: 50 } };
+    world.regionalMetrics[ukRegion.id] = { "economic.gdpGrowth": { value: 50 } };
     const result = issueMinisterialOrder(world, {
       countryId: "UK",
       positionId: "levelling_secretary",
       orderId: "regional_investment_programme",
       targetRegionId: ukRegion.id,
     });
-    expect(result.order.effects).toEqual([{ metric: "gdpGrowth", modifier: 0.05, scope: "regional", regionId: ukRegion.id }]);
+    expect(result.order.effects).toEqual([{ metric: "economic.gdpGrowth", modifier: 0.05, scope: "regional", regionId: ukRegion.id }]);
   });
 
   it("rejects a regional target whose metric store cannot consume the effect", () => {

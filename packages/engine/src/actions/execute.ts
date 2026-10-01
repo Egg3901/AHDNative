@@ -43,7 +43,14 @@ import {
 } from "../intraparty/leadershipTenure.js";
 import { getLaw, resolveCatalogPolicyOption } from "../legislation/catalog.js";
 import { launchProspectingSurvey } from "../extraction/prospecting.js";
-import { issueContractOffer } from "../extraction/contracts.js";
+import { expandRegionalExtraction } from "../extraction/operations.js";
+import { isNationalExtractionIssuer, isStateExtractionIssuer, resolveExtractionContractIssuer, getResourceContractAuthority } from "../extraction/authority.js";
+import {
+  acceptExtractionContractOffer,
+  declineExtractionContractOffer,
+  issueContractOffer,
+  revokeExtractionContract,
+} from "../extraction/contracts.js";
 import type { ExtractableResource } from "../commodity/constants.js";
 import { depositToSavings, withdrawFromSavings, moveSavingsHolder } from "../finance/savingsActions.js";
 import { wireTransfer as wireTransferFn } from "../finance/wireTransfer.js";
@@ -54,19 +61,19 @@ import { buybackCorporateBondUnits } from "../bonds/corporateBondServicing.js";
 import { BOND_UNIT_FACE_VALUE } from "../bonds/constants.js";
 import { rngFromState } from "../rng.js";
 import { isOrderFlowPriceEligible } from "../market/orderFlow.js";
-import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
-import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
-import { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "../legislation/freeze.js";
-import { castPmAppointmentVote, proposePmAppointment } from "../government/pmAppointment.js";
 import { isPlannedEconomy } from "../commandEconomy/constants.js";
 import { canPlayerOperateGosbank } from "../commandEconomy/authority.js";
 import { reconcileCeoAppointment } from "../corporation/ceoGovernance.js";
+import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
 import { nationalizeDistressedCorporation } from "../corporation/nationalization.js";
 import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
 import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecruit.js";
+import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
 
 export type ExecuteActionParams = {
   regionId?: string;
+  contractId?: string;
+  issuerLevel?: "national" | "state";
   /** Source canvassing batch size, 1 through 50. */
   count?: number;
   amount?: number; // for convertCash
@@ -86,8 +93,6 @@ export type ExecuteActionParams = {
   policyOptionId?: string;
   billId?: string;
   vote?: "for" | "against" | "abstain";
-  pmAppointmentVoteId?: string;
-  pmVote?: "aye" | "nay";
   sponsorCountryId?: string;
   billTitle?: string;
   billCategory?: string;
@@ -375,7 +380,6 @@ function executeActionInner(
     funds: number;
     donorBaseLevel: number;
     politicalInfluence: number;
-    nationalInfluence?: number;
     favorability: number;
     infamy: number;
     partyId?: string;
@@ -388,12 +392,6 @@ function executeActionInner(
   };
 
   const turn = world.meta.turn;
-
-  // AHDGame freezes player and autonomous national bills while an extant
-  // parliamentary government formation is pending.
-  if (actionId === "sponsorBill" && found.kind === "player" && isLegislationFrozen(world, world.player.countryId)) {
-    return { ok: false, error: LEGISLATION_FREEZE_MESSAGE };
-  }
 
   // Cooldown check
   const readyAt = actor.actionCooldowns[actionId] ?? 0;
@@ -411,12 +409,11 @@ function executeActionInner(
   const nppRecruit = actionId === "recruitCaucusNpp" ? quoteRecruitCaucusNpp(world, params, actorId) : null;
   if (nppRecruit && !nppRecruit.ok) return nppRecruit;
   const partyCaucus = isPartyCaucusActionId(actionId) ? partyCaucusCharge(actor, actionId) : null;
-  const cost = canvass?.ok ? canvass.actions
-    : nppInfluence?.ok ? nppInfluence.actionCost
-      : nppRecruit?.ok ? nppRecruit.actionCost
-        : partyCaucus ? partyCaucus.actionCost
-          : actionId === "sponsorBill" ? BILL_PROPOSE_ACTION_COST
-            : getActionCost(catalog, actor.donorBaseLevel ?? 0, actor.politicalInfluence ?? 0, actor.favorability ?? 50);
+  const cost = canvass?.ok ? canvass.actions : nppInfluence?.ok ? nppInfluence.actionCost : nppRecruit?.ok ? nppRecruit.actionCost : partyCaucus
+    ? partyCaucus.actionCost
+    : actionId === "sponsorBill"
+      ? BILL_PROPOSE_ACTION_COST
+      : getActionCost(catalog, actor.donorBaseLevel ?? 0, actor.politicalInfluence ?? 0, actor.favorability ?? 50);
   if ((actor.actions ?? 0) < cost) return { ok: false, error: `Not enough action points. Required: ${cost}, Available: ${actor.actions}` };
 
   // Fund cost check: one stat-scaled source shared with the session quote
@@ -527,6 +524,18 @@ function executeActionInner(
   // Dispatch effects
   const actorPartyId = actor.partyId as string | undefined;
   const actorCountry = actor.countryId;
+
+  if (actionId === "acceptExtractionContract" || actionId === "declineExtractionContract" || actionId === "revokeExtractionContract") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can respond to an extraction contract." };
+    const contractId = params.contractId;
+    if (!contractId) return { ok: false, error: `${actionId} requires contractId` };
+    const result = actionId === "acceptExtractionContract"
+      ? acceptExtractionContractOffer(world, contractId)
+      : actionId === "declineExtractionContract"
+        ? declineExtractionContractOffer(world, contractId)
+        : revokeExtractionContract(world, contractId);
+    return result.ok ? { ok: true, message: `${actionId} completed for ${contractId}.` } : result;
+  }
 
   if (actionId === "fundraise") {
     const yieldAmt = campaignAnchorToLocal(fundraiseYield(actor.donorBaseLevel ?? 0, actor.politicalInfluence ?? 0, found.kind === "player" ? effectivePlayerStats(world) : undefined), actor.countryId);
@@ -931,19 +940,6 @@ function executeActionInner(
     if (!res.ok) return { ok: false, error: res.error };
     return { ok: true, message: res.message };
   }
-  if (actionId === "proposePmAppointment") {
-    if (found.kind !== "player") return { ok: false, error: "Only the player can nominate a Taoiseach" };
-    const result = proposePmAppointment(world);
-    return result.ok ? { ok: true, message: `Nominated ${result.vote.nomineeName} for Taoiseach; Dáil vote closes on turn ${result.vote.closesTurn}` } : result;
-  }
-  if (actionId === "votePmAppointment") {
-    if (found.kind !== "player") return { ok: false, error: "Only the player can vote on a Taoiseach appointment" };
-    if (!params.pmAppointmentVoteId || !params.pmVote) {
-      return { ok: false, error: "votePmAppointment requires pmAppointmentVoteId and pmVote" };
-    }
-    const result = castPmAppointmentVote(world, params.pmAppointmentVoteId, params.pmVote);
-    return result.ok ? { ok: true, message: `Cast ${params.pmVote} on the Taoiseach appointment` } : result;
-  }
   if (actionId === "sponsorBill") {
     if (found.kind !== "player") return { ok: false, error: "Only player can sponsor bills" };
     const catalogId = params.catalogId;
@@ -1033,12 +1029,12 @@ function executeActionInner(
         // selectedRate/phase-in separate from this political bill effect.
         taxEffectDirection = selectedTaxOption?.effectDirection ?? (selectedTaxRate > effectiveCurrentRate ? 1 : -1);
       }
-      const nationalInfluenceCost = proposalNpiCost(leg);
-      const nationalInfluence = world.player.nationalInfluence ?? 0;
-      if (nationalInfluence < nationalInfluenceCost) {
-        return { ok: false, error: `Not enough national influence. Required: ${nationalInfluenceCost}, Available: ${nationalInfluence}` };
+      const npiCost = proposalNpiCost(leg);
+      const availableNpi = world.player.nationalInfluence ?? 0;
+      if (availableNpi < npiCost) {
+        return { ok: false, error: `Not enough national influence. Required: ${npiCost}, Available: ${availableNpi}` };
       }
-      if (nationalInfluenceCost > 0) world.player.nationalInfluence = nationalInfluence - nationalInfluenceCost;
+      if (npiCost > 0) world.player.nationalInfluence = availableNpi - npiCost;
       // Origin chamber: player's seat chamber or first elected chamber of country
       const legConfig = world.legislatures[countryId];
       const originChamber = params.originChamber ?? player.legislativeSeat?.chamberKey ?? legConfig?.chambers.find((c) => c.elected)?.key ?? "house";
@@ -1086,7 +1082,7 @@ function executeActionInner(
         votesAbstain: 0,
         proposedAtTurn: world.meta.turn,
         proposalActionCost: BILL_PROPOSE_ACTION_COST,
-        ...(nationalInfluenceCost > 0 ? { proposalNpiCost: nationalInfluenceCost } : {}),
+        ...(npiCost > 0 ? { proposalNpiCost: npiCost } : {}),
         filibusterInvocations: [],
         updatedAtTurn: world.meta.turn,
         committeeId: null,
@@ -2149,17 +2145,21 @@ function executeActionInner(
     commandState.pendingDirectives = [...pendingDirectives, directive];
     return { ok: true, message: `Gosbank posture for ${countryId} is queued for turn ${directive.effectiveTurn}.` };
   }
-  // ── W11 extraction/prospecting: government actions, HoS mode only ──────
+  // ── W11 extraction/prospecting: source-authorized national / state issuers ──
+  if (actionId === "expandRegionalExtraction") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can direct a corporation in this session" };
+    const regionId = params.regionId;
+    if (!regionId) return { ok: false, error: "expandRegionalExtraction requires regionId" };
+    const result = expandRegionalExtraction(world, regionId);
+    return result.ok
+      ? { ok: true, message: `Extraction operations opened in ${regionId}; expansion fee ${result.expansionCostAnchor} anchor` }
+      : { ok: false, error: result.error };
+  }
   if (actionId === "launchProspect" || actionId === "issueExtractionContract") {
     if (found.kind !== "player") {
       actor.actions += cost;
       if (actor.actionCounts) actor.actionCounts[actionId] = Math.max(0, (actor.actionCounts[actionId] ?? 1) - 1);
       return { ok: false, error: "Only the player can act for the national government" };
-    }
-    if (world.player.mode !== "hos") {
-      actor.actions += cost;
-      if (actor.actionCounts) actor.actionCounts[actionId] = Math.max(0, (actor.actionCounts[actionId] ?? 1) - 1);
-      return { ok: false, error: `${actionId} requires Head of State mode` };
     }
     const resource = params.resource as ExtractableResource | undefined;
     const regionId = params.regionId;
@@ -2169,7 +2169,18 @@ function executeActionInner(
       return { ok: false, error: `${actionId} requires regionId and resource` };
     }
     if (actionId === "launchProspect") {
-      const res = launchProspectingSurvey(world, { countryId: world.player.countryId, regionId, resource });
+      const requestedLevel = params.issuerLevel;
+      const level = requestedLevel ?? (isNationalExtractionIssuer(world, world.player.countryId)
+        ? "national"
+        : isStateExtractionIssuer(world, world.player.countryId, regionId) ? "state" : undefined);
+      const authorized = level === "national"
+        ? isNationalExtractionIssuer(world, world.player.countryId)
+        : level === "state" && isStateExtractionIssuer(world, world.player.countryId, regionId);
+      if (!authorized || !level) {
+        actor.actions += cost;
+        return { ok: false, error: "Only the head of government or finance minister, or the state's governor, can commission a survey." };
+      }
+      const res = launchProspectingSurvey(world, { countryId: world.player.countryId, regionId, resource, level });
       if (!res.ok) {
         actor.actions += cost;
         if (actor.actionCounts) actor.actionCounts[actionId] = Math.max(0, (actor.actionCounts[actionId] ?? 1) - 1);
@@ -2185,6 +2196,16 @@ function executeActionInner(
       actor.actions += cost;
       if (actor.actionCounts) actor.actionCounts[actionId] = Math.max(0, (actor.actionCounts[actionId] ?? 1) - 1);
       return { ok: false, error: "issueExtractionContract requires share, royaltyRatePerTurn, termTurns, signingFeeAnchor" };
+    }
+    const issuerLevel = resolveExtractionContractIssuer(world, world.player.countryId, regionId);
+    if (!issuerLevel) {
+      actor.actions += cost;
+      if (actor.actionCounts) actor.actionCounts[actionId] = Math.max(0, (actor.actionCounts[actionId] ?? 1) - 1);
+      const authority = getResourceContractAuthority(world, world.player.countryId);
+      return { ok: false, error: authority === "national"
+        ? "Only national officials may issue extraction contracts here."
+        : authority === "state" ? "Only the state governor may issue extraction contracts here."
+          : "You are not authorized to issue extraction contracts for this region." };
     }
     const res = issueContractOffer(world, {
       countryId: world.player.countryId,
@@ -2352,10 +2373,6 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.catalogId ? null : `${actionId} requires catalogId`;
     case "voteOnBill":
       return params.billId && params.vote ? null : "voteOnBill requires billId and vote";
-    case "votePmAppointment":
-      return params.pmAppointmentVoteId && (params.pmVote === "aye" || params.pmVote === "nay")
-        ? null
-        : "votePmAppointment requires pmAppointmentVoteId and pmVote";
     case "invokeFilibuster":
       return params.billId ? null : "invokeFilibuster requires billId";
     case "contestPartyLeadership":
@@ -2430,6 +2447,8 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
         : "setSubsidyRate requires subsidyOp 'enact' or 'end'";
     case "launchProspect":
       return params.regionId && params.resource ? null : "launchProspect requires regionId and resource";
+    case "expandRegionalExtraction":
+      return params.regionId ? null : "expandRegionalExtraction requires regionId";
     case "issueExtractionContract":
       if (!params.regionId || !params.resource) return "issueExtractionContract requires regionId and resource";
       return params.share !== undefined &&
@@ -2438,6 +2457,10 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
         params.signingFeeAnchor !== undefined
         ? null
         : "issueExtractionContract requires share, royaltyRatePerTurn, termTurns, signingFeeAnchor";
+    case "acceptExtractionContract":
+    case "declineExtractionContract":
+    case "revokeExtractionContract":
+      return params.contractId ? null : `${actionId} requires contractId`;
     case "depositSavings":
     case "withdrawSavings":
       return params.amount === undefined ? `${actionId} requires amount` : null;

@@ -33,7 +33,7 @@ export interface CatalogEntry {
   category: string;
   allowedScope: "national" | "regional" | "both";
   baselineLevel?: 0 | 1 | 2 | 3 | 4;
-  levels?: [CatalogLawLevel, CatalogLawLevel, CatalogLawLevel, CatalogLawLevel, CatalogLawLevel];
+  levels?: CatalogLawLevel[];
   taxPolicy?: {
     scope: "federal" | "state";
     taxType: string;
@@ -163,6 +163,26 @@ export function policyOptionIntensity(
 // economy/party/support. Rest are stubbed as unavailable.
 
 const AVAILABLE: CatalogEntry[] = [
+  // Source: AHDGame 96831835 src/lib/seeds/reference/legislationTypes.ts
+  // resource_extraction_authority. Source has three options, so this law uses
+  // a three-entry level list rather than the five-step economic posture ladder.
+  {
+    id: "resource_extraction_authority",
+    countryId: "US",
+    kind: "primary",
+    title: "Resource Extraction Authority Act",
+    description: "Sets whether extraction contracts are issued nationally, by states, or concurrently.",
+    category: "economy",
+    allowedScope: "national",
+    baselineLevel: 0,
+    targets: [],
+    status: "available",
+    levels: [
+      { name: "Federal Licensing Act", description: "Only national officials may issue extraction contracts." },
+      { name: "Concurrent Licensing Act", description: "National officials and state governors may issue extraction contracts." },
+      { name: "State Licensing Act", description: "Only state governors may issue extraction contracts." },
+    ],
+  },
   // Economy: mapped to CountryEconomy fields
   {
     id: "us.economy.workerSecurity.primary",

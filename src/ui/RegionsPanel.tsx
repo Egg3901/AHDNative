@@ -19,8 +19,9 @@ import type {
 } from "../game/regions";
 import type { MarketListing } from "../game/markets";
 import type { GameScreenProps } from "../game/types";
+import { RegionExtractionControls } from "./RegionExtractionControls";
 import { RegionViewerCard } from "./RegionViewerCard";
-import { RegionMacroCard, RegionSectorsCard } from "./RegionEconomyCards";
+import { RegionEconomicIndicators, RegionMacroCard, RegionSectorsCard } from "./RegionEconomyCards";
 import { RegionSectorAssetsCard } from "./RegionSectorAssets";
 import { CountryFlag, resolveCountryFlagCode } from "./CountryFlag";
 import type { DrawerRouteId } from "./MobileNavigation";
@@ -55,6 +56,7 @@ export interface RegionsPanelProps {
    * renders exactly as before.
    */
   sectorAssets?: RegionSectorAssetsSource;
+  onAction?: GameScreenProps["onAction"];
 }
 
 function number(value: number | null, maximumFractionDigits = 0): string {
@@ -471,6 +473,7 @@ function SelectedRegion({
   onOpenParty,
   onOpenElection,
   sectorAssets,
+  onAction,
 }: {
   view: RegionsView;
   selected: RegionDetailView;
@@ -480,6 +483,7 @@ function SelectedRegion({
   onOpenParty?: (partyId: string) => void;
   onOpenElection?: (electionId: string) => void;
   sectorAssets?: RegionSectorAssetsSource;
+  onAction?: GameScreenProps["onAction"];
 }) {
   const [electionDraft, setElectionDraft] = useState(selected.electionQuery);
   const [memberPages, setMemberPages] = useState<Record<string, number>>({});
@@ -715,9 +719,12 @@ function SelectedRegion({
       </div>
 
       <div className="ahd-grid ahd-grid-2">
+        <RegionEconomicIndicators metrics={selected.metrics} />
         <RegionMacroCard macro={selected.economy.macro} currency={currency} />
         <RegionSectorsCard sectors={selected.economy.sectors} currency={currency} />
       </div>
+
+      {onAction ? <RegionExtractionControls region={selected} busy={busy} onAction={onAction} /> : null}
 
       {sectorAssets ? (
         <RegionSectorAssetsCard
@@ -778,7 +785,7 @@ function SelectedRegion({
   );
 }
 
-export function RegionsPanel({ query, onQueryChange, busy = false, directoryOpen, onDirectoryOpenChange, onNavigate, onOpenParty, onOpenElection, sectorAssets }: RegionsPanelProps) {
+export function RegionsPanel({ query, onQueryChange, busy = false, directoryOpen, onDirectoryOpenChange, onNavigate, onOpenParty, onOpenElection, sectorAssets, onAction }: RegionsPanelProps) {
   return (
     <div className="ahd-stack" aria-label={`${query.playerCountryName} regions`}>
       <div className="ahd-card ahd-card-pad ahd-hero">
@@ -805,7 +812,7 @@ export function RegionsPanel({ query, onQueryChange, busy = false, directoryOpen
           onQueryChange={onQueryChange}
         />
         {query.selected ? (
-          <SelectedRegion key={query.selected.id} view={query} selected={query.selected} busy={busy} onQueryChange={onQueryChange} onNavigate={onNavigate} onOpenParty={onOpenParty} onOpenElection={onOpenElection} sectorAssets={sectorAssets} />
+          <SelectedRegion key={query.selected.id} view={query} selected={query.selected} busy={busy} onQueryChange={onQueryChange} onNavigate={onNavigate} onOpenParty={onOpenParty} onOpenElection={onOpenElection} sectorAssets={sectorAssets} onAction={onAction} />
         ) : (
           <div className="ahd-empty" data-pane="detail">No region selected.</div>
         )}

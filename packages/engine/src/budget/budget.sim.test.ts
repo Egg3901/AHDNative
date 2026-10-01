@@ -9,11 +9,23 @@ import { computeFiscalTerm, computeInflation } from "../phases/macroCountryTurn.
 import { FISCAL_YEAR_START_TURN_IN_YEAR, getTurnInYear, isFiscalYearEnd } from "./fiscalYear.js";
 import { applyPerTurnGrowthToFederalBases } from "./fiscalBaseGrowth.js";
 import { calculateGenericRegionalRevenue } from "./regionalBudget.js";
+import { regionalBudgetProcessingPhase } from "./phases.js";
 
 const OPTS = { seed: "budget-test", playerName: "Tester", countryId: "US", era: "1953" } as const;
 
 // ── Revenue = spending identity ──────────────────────────────────────
 describe("budget identity invariants", () => {
+  it("keeps contract royalties and prospecting costs in regional balances after revenue refresh", () => {
+    const world = createWorld(OPTS);
+    const rb = world.regionalBudgets.TX!;
+    rb.revenue.resourceRoyalties = 250;
+    rb.spending.resourceProspecting = 75;
+    regionalBudgetProcessingPhase.run(world, null as never);
+    expect(rb.revenue.total).toBe(rb.revenue.councilTax + rb.revenue.businessRates + rb.revenue.grant + 250);
+    expect(rb.spending.total).toBe(Object.values(rb.spending.byCategory).reduce((sum, amount) => sum + amount, 0) + Math.round(rb.revenue.grant * 0.5) + 75);
+    expect(rb.balance).toBe(rb.revenue.total - rb.spending.total);
+  });
+
   it("revenue - spending = surplus for US/UK/RU/DD 1953", () => {
     const world = createWorld(OPTS);
     for (const cid of ["US", "UK", "RU", "DD"]) {
