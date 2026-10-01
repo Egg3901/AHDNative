@@ -90,6 +90,16 @@ details expose actual cabinet sources and regional values. Historical series
 remain explicitly absent when no recorded history exists. This is a mobile
 layout adaptation, not a new regional macro dashboard.
 
+The board has a dedicated `GameSession.politicalMetrics` worker query. A
+two-turn saved UK cabinet world reproduced slow loading when this destination
+also projected every politician's influence actions. The first full political
+worker response took9.8 seconds; development mode queued another request.
+Separately timed election and board projections were small, while politician
+projections dominated. The dedicated query returns the same recorded board
+without that unrelated work and does not mutate the save. The public saved
+order regression and actual minimized save/relaunch browser flow now pass.
+This is local browser evidence, not a physical-device performance claim.
+
 Full history, driver decomposition, comparison and governance cards remain
 navigation gaps. Complete approval/labor/conflict consumers and source macro
 providers remain separate parity work. Authored orders without an actual

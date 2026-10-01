@@ -451,6 +451,18 @@ export interface PoliticsReferendumRequestView {
   action: ActionView;
 }
 
+export interface PoliticalMetricsView {
+  countryId: string; countryName: string;
+  politicalMetrics?: PoliticalRegistryView;
+}
+
+/** The board route does not need election or politician action projections. */
+export function projectPoliticalMetrics(world: WorldState): PoliticalMetricsView {
+  const country = world.countries[world.player.countryId];
+  if (!country || !country.playable) throw new Error("The save does not contain the player's playable country.");
+  return { countryId: country.id, countryName: country.name, politicalMetrics: politicalMetricsForCountry(world, country.id) };
+}
+
 export interface PoliticsView {
   countryId: string; countryName: string; currency: string; playerPartyId: string | null;
   parties: PoliticsPartyDetail[];

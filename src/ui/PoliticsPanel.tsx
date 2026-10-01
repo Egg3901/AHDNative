@@ -21,7 +21,7 @@ import type { GameScreenProps } from "../game/types";
 import type {
   PoliticsElectionDetail, PoliticsPartyDetail, PoliticsPlayerCampaignView,
   PoliticsPoliticianView, PoliticsPresidentialView, PoliticsPrimaryView, PoliticsProjectionView,
-  PoliticsRaceStageView, PoliticsReferendumView, PoliticsView,
+  PoliticsRaceStageView, PoliticsReferendumView, PoliticsView, PoliticalMetricsView,
 } from "../game/politics";
 import type { NationDestination, NationView } from "../game/nation";
 import type { RacePhase } from "../game/types";
@@ -1659,8 +1659,8 @@ function PresidentialRaceSection({ politics, busy, onAction, initialId, onOpenCa
  * Fresh source boards follow Game's political destination. Older saves with
  * no recorded board retain their existing national metric registry.
  */
-function PoliticalMetricsSection({ politics, nation, era, onNavigate }: {
-  politics: PoliticsView;
+export function PoliticalMetricsSection({ politics, nation, era, onNavigate }: {
+  politics: PoliticalMetricsView;
   nation?: NationView;
   era?: string | null;
   onNavigate?: PoliticsPanelProps["onNavigate"];

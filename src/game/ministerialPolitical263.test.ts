@@ -61,6 +61,15 @@ describe("source political cabinet board through GameSession (#263)", () => {
     const secondReload = new GameSession();
     secondReload.load(resumed.serialize("2026-10-01T00:00:00.000Z"));
     expect(secondReload.regions({ regionId: "LON" }).selected?.politicalMetrics?.["economy.workerSecurity"]?.cabinetResidual).toBe(0.9422);
+    // The board destination has its own query so a saved order does not make
+    // it wait for unrelated politician influence and election projections.
+    const beforeQuery = secondReload.serialize("2026-10-01T00:00:00.000Z");
+    const board = secondReload.politicalMetrics();
+    expect(board.countryName).toBe("United Kingdom");
+    const workerSecurity = board.politicalMetrics?.categories.flatMap(category => category.metrics)
+      .find(metric => metric.id === "economy.workerSecurity");
+    expect(workerSecurity?.regions.find(region => region.regionId === "LON")?.value).toBe(53.9);
+    expect(secondReload.serialize("2026-10-01T00:00:00.000Z")).toBe(beforeQuery);
   });
 
 });

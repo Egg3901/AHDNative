@@ -24,6 +24,7 @@ self.addEventListener("message", (event: MessageEvent<GameRequest>) => {
       case "markets": value = session.markets(); break;
       case "unionManagement": value = session.unionManagement(); break;
       case "politics": value = session.politics(); break;
+      case "politicalMetrics": value = session.politicalMetrics(); break;
       case "profile": value = session.profile(); break;
       case "profileDestination": value = session.profileDestination(); break;
       case "imperialProfile": value = session.imperialProfile(); break;
