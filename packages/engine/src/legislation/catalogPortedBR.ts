@@ -17,7 +17,7 @@ export const CATALOG_BR: CatalogEntry[] = [
     description: "Sets the top marginal personal income tax rate",
     category: "tax",
     allowedScope: "national",
-    taxPolicy: { scope: "federal", taxType: "incomeTax", minRate: 0, maxRate: 30, step: 5, baselineRate: 18, options: [{"id":"br_income_tax_rate_opt_0","rate":0,"economic":5,"social":0,"effectDirection":1},{"id":"br_income_tax_rate_opt_1","rate":8,"economic":3,"social":0,"effectDirection":1},{"id":"br_income_tax_rate_opt_2","rate":13,"economic":1,"social":0,"effectDirection":1},{"id":"br_income_tax_rate_opt_3","rate":18,"economic":0,"social":0,"effectDirection":0},{"id":"br_income_tax_rate_opt_4","rate":24,"economic":-2,"social":0,"effectDirection":-1},{"id":"br_income_tax_rate_opt_5","rate":30,"economic":-4,"social":0,"effectDirection":-1}] },
+    taxPolicy: { scope: "federal", taxType: "incomeTax", minRate: 0, maxRate: 30, step: 5, baselineRate: 18, options: [{"id":"br_income_tax_rate_opt_0","rate":0,"effectDirection":1,"economic":5,"social":0},{"id":"br_income_tax_rate_opt_1","rate":8,"effectDirection":1,"economic":3,"social":0},{"id":"br_income_tax_rate_opt_2","rate":13,"effectDirection":1,"economic":1,"social":0},{"id":"br_income_tax_rate_opt_3","rate":18,"effectDirection":0,"economic":0,"social":0},{"id":"br_income_tax_rate_opt_4","rate":24,"effectDirection":-1,"economic":-2,"social":0},{"id":"br_income_tax_rate_opt_5","rate":30,"effectDirection":-1,"economic":-4,"social":0}] },
     targets: [{"metricId":"economic.medianIncome","weight":1},{"metricId":"society.socialMobility","weight":-0.4},{"metricId":"governance.budgetBalance","weight":-0.4}],
     status: "available",
   },

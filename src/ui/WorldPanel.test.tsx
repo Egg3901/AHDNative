@@ -196,6 +196,14 @@ describe("WorldPanel", () => {
     expect(screen.getByText("No government record.")).toBeInTheDocument();
   });
 
+  it("renders the source administrative government formation value", () => {
+    const overview = makeOverview();
+    overview.nations[0]!.government.formationType = "admin";
+    render(<WorldPanel overview={overview} section="nations" />);
+
+    expect(screen.getByText("Admin")).toBeInTheDocument();
+  });
+
   it("keeps the nation directory closed until opened with selected details visible", () => {
     render(<WorldPanel overview={makeOverview()} section="nations" />);
 

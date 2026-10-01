@@ -6,14 +6,13 @@ import { createWorld } from "../world.js";
 
 /**
  * Public player-command boundary for Ireland's authored VAT Act (#284).
- * AHDGame e364c0495: src/lib/countries/ie/data/ieLegislationTypes.ts
+ * AHDGame 96831835: src/lib/countries/ie/data/ieLegislationTypes.ts
  * authors the 21% 1991 posture and the 23% option (ie_vat_rate_opt_6).
  * Native's 1991 IE pack is playable and seeds salesTax=21.
  */
 describe("Ireland executable VAT law (#284)", () => {
   it("refuses a foreign Head of State attempting to sponsor an Irish bill", () => {
-    const world = createWorld({ seed: "ie-vat-foreign", playerName: "P", countryId: "US", era: "1991" });
-    world.player.mode = "hos";
+    const world = createWorld({ seed: "ie-vat-foreign", playerName: "P", countryId: "US", era: "1991", mode: "hos" });
     world.player.actions = 100;
     // Scoped lifecycle fixture funds proposals at source 10 AP / 5 NPI each.
     world.player.nationalInfluence = 15;
@@ -26,13 +25,14 @@ describe("Ireland executable VAT law (#284)", () => {
     expect(world.bills).toHaveLength(0);
   });
 
-  it("lets the 1991 Irish Head of State sponsor the authored 23% option", () => {
-    const world = createWorld({ seed: "ie-vat-284", playerName: "P", countryId: "IE", era: "1991" });
-    world.player.mode = "hos";
+  it("enacts the authored 23% option as an immediate source HoS decree", () => {
+    const world = createWorld({ seed: "ie-vat-284", playerName: "P", countryId: "IE", era: "1991", mode: "hos" });
     world.player.actions = 100;
     // Scoped lifecycle fixture funds proposals at source 10 AP / 5 NPI each.
     world.player.nationalInfluence = 15;
     expect(world.budgets.IE?.taxRates.salesTax).toBe(21);
+    const beforeActions = world.player.actions;
+    const beforeInfluence = world.player.nationalInfluence;
     const actionsBeforeInvalidOption = world.player.actions;
 
     const unsupported = executeAction(world, "player", "sponsorBill", {
@@ -51,17 +51,31 @@ describe("Ireland executable VAT law (#284)", () => {
       legislationTypeId: "ie_vat_rate",
       selectedRate: 23,
       effectDirection: 0,
-      status: "proposed",
+      status: "signed",
+      enactedAtTurn: world.meta.turn,
       provisions: [expect.objectContaining({ policyOptionId: "ie_vat_rate_opt_6", economic: 0, social: 0 })],
     });
+    expect(world.bills.at(-1)?.votes).toEqual({});
+    expect(world.bills.at(-1)?.voteSnapshot).toBeUndefined();
+    expect(world.budgets.IE?.taxRates.salesTax).toBe(22);
+    expect(world.budgets.IE?.taxRatePhaseIn?.salesTax).toBe(23);
+    expect(world.player.actions).toBe(beforeActions);
+    expect(world.player.nationalInfluence).toBe(beforeInfluence);
   });
 
-  it("carries the Irish VAT bill through votes, enactment, phase-in, save and continued turns", () => {
+  it("keeps a career member's Irish VAT bill on the ordinary chamber vote and save path", () => {
     const world = createWorld({ seed: "ie-vat-continuation", playerName: "P", countryId: "IE", era: "1991" });
+    // A same-country Dáil seat is the ordinary career sponsorship
+    // prerequisite; unlike the HoS path above, this bill must pass chamber votes.
+    const dail = world.legislatures.IE!.chambers.find((chamber) => chamber.key === "dail")!;
+    const sponsorPartyId = Object.entries(dail.composition.seatsByParty)
+      .filter(([, seats]) => seats > 0)
+      .sort(([leftId, leftSeats], [rightId, rightSeats]) => rightSeats - leftSeats || leftId.localeCompare(rightId))[0]![0];
+    world.player.partyId = sponsorPartyId;
+    world.player.legislativeSeat = { countryId: "IE", chamberKey: "dail" };
     // Isolate the player bill from autonomous NPP proposals. Their option
     // selection is a separate reference-parity gap in #284.
     world.nppAutonomyLevel = "off";
-    world.player.mode = "hos";
     world.player.actions = 100;
     // Scoped lifecycle fixture funds proposals at source 10 AP / 5 NPI each.
     world.player.nationalInfluence = 15;
@@ -96,8 +110,7 @@ describe("Ireland executable VAT law (#284)", () => {
   });
 
   it("gives an autonomous Irish VAT proposal an authored rate option", () => {
-    const world = createWorld({ seed: "ie-vat-continuation", playerName: "P", countryId: "IE", era: "1991" });
-    world.player.mode = "hos";
+    const world = createWorld({ seed: "ie-vat-continuation", playerName: "P", countryId: "IE", era: "1991", mode: "hos" });
     world.player.actions = 100;
     // Scoped lifecycle fixture funds proposals at source 10 AP / 5 NPI each.
     world.player.nationalInfluence = 15;

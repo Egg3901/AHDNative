@@ -32,16 +32,24 @@ correction; career ownership/conservation and secession fan-out are delivered.
 #107 retains wider corporate management and strategy/technology price inputs.
 Current sampled Game is `cb66acdf`; Client is `799a9920`.
 
-## Regional extraction lifecycle checkpoint, 2026-10-01 (#115)
+## Regional extraction verified and closed, 2026-10-01 (#115)
 
-Regional prospecting, source-resource-backed starter capacity, CEO-approved
-expansion, extraction contracts, royalties and regional budget settlement now
-run through public player/session actions. The saved Texas journey reaches
-production, settles royalties and resumes with the recorded regional balances;
-actual Chromium flows passed at 390px and 320px. [Original acceptance mapping
-and source-pricing limits](REGIONAL-EXTRACTION-115-EVIDENCE.md) record the
-independent vectors and remaining generic strategy/technology pricing gap.
-The full hosted integration gate remains pending.
+[PR #719](https://github.com/Egg3901/AHDNative/pull/719) merged `7661304`
+after exact `985b2dd` passed the [full hosted gate](https://github.com/Egg3901/AHDNative/actions/runs/36905468118).
+All four original criteria are checked and #115 is closed: recorded regional
+resource/capacity and government/CEO eligibility, contract offer/accept/decline/
+revoke, source production/royalty settlement, and normal save/reload with regional
+budget receipts. Final integrated checks passed 33 engine tests, including the
+48-turn production and royalty lifecycle, and 31 UI tests. The actual saved Texas
+journey passed 48 visible turns and resume at 390px and 320px. Its governor is a
+recorded holder; its CEO is earned through public shares/vote/accept actions.
+[Per-row source and player evidence](REGIONAL-EXTRACTION-115-EVIDENCE.md) records
+current Game `cb66acdf` and the wider generic strategy/technology pricing gap
+that remains open under #107.
+
+GitHub has 56 open issues: 40 partial, 10 not started, 3 deferred, 2 blocked and
+1 tracking. Seven original issues are closed this night: #308, #297, #51, #110,
+#111, #299 and #115. #298 remains open for the canonical SP authority correction.
 
 ## Source geographic maps and local Hall checkpoint, 2026-10-01 (#73 partial)
 
