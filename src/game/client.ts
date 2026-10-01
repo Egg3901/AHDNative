@@ -9,6 +9,7 @@ import type { SearchFilter, SearchResults } from "./search";
 import type { MarketsView } from "./markets";
 import type { UnionManagementView } from "./unionManagement";
 import type { LegislationDetailsQuery, LegislationSelection } from "./legislationDetails";
+import type { HallOfFameQuery, HallOfFameView } from "./hallOfFame";
 import type { WorldOverviewView } from "./worldOverview";
 import type { PoliticsView } from "./politics";
 import type { GameCommand, GameResponse } from "./protocol";
@@ -49,6 +50,7 @@ export class GameClient {
   create(options: NewGameOptions) { return this.send<GameView>({ type: "create", options }); }
   legislation(selection: LegislationSelection = {}) { return this.send<LegislationDetailsQuery>({ type: "legislation", selection }); }
   worldOverview() { return this.send<WorldOverviewView>({ type: "worldOverview" }); }
+  hallOfFame(query: HallOfFameQuery = {}) { return this.send<HallOfFameView>({ type: "hallOfFame", query }); }
   search(query: string, filter?: SearchFilter) { return this.send<SearchResults>({ type: "search", query, filter }); }
   bondMarket() { return this.send<BondMarketView>({ type: "bondMarket" }); }
   regions(query: RegionsQuery = {}) { return this.send<RegionsView>({ type: "regions", query }); }
@@ -75,11 +77,11 @@ export class GameClient {
   act(actionId: string, params?: GameActionParams) {
     return this.send<{ result: { ok: true; message: string; outcome: ActionOutcome } | { ok: false; error: string }; view: GameView }>({ type: "action", actionId, params });
   }
-  sectorSale(op: "list" | "update" | "unlist" | "buy", assetId: string, priceAnchor?: number) {
+  sectorSale(op: "list" | "update" | "unlist" | "buy", assetId: string, priceAnchor?: number, buyerCorporationId?: string) {
     return this.send<{ result: SectorSaleResult | SectorAcquireResult; view: GameView }>(
-      priceAnchor === undefined
-        ? { type: "sectorSale", op, assetId }
-        : { type: "sectorSale", op, assetId, priceAnchor },
+      { type: "sectorSale", op, assetId,
+        ...(priceAnchor !== undefined ? { priceAnchor } : {}),
+        ...(buyerCorporationId !== undefined ? { buyerCorporationId } : {}) },
     );
   }
   unionCommand(command: Extract<GameCommand, { type: "unionCommand" }>) {

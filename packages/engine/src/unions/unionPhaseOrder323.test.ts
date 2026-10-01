@@ -88,7 +88,11 @@ describe("#323 phase graph matches the pinned source order", () => {
     };
     expect(at("unionsTurn")).toBe(at("corporationTurn") + 1);
     expect(at("nppUnionBehavior")).toBe(at("unionsTurn") + 1);
-    expect(at("pensionTurn")).toBe(at("nppUnionBehavior") + 1);
+    // Source savings and private-bank interest settle between NPP union
+    // decisions and pension funding; they do not duplicate labor output.
+    expect(at("playerSavingsInterest")).toBeGreaterThan(at("nppUnionBehavior"));
+    expect(at("bankingTurn")).toBeGreaterThan(at("playerSavingsInterest"));
+    expect(at("pensionTurn")).toBeGreaterThan(at("bankingTurn"));
     expect(at("macroCountryTurn")).toBeGreaterThan(at("pensionTurn"));
     // Union financial writes fund campaigns before campaigns spend.
     expect(at("campaignTurn")).toBeGreaterThan(at("pensionTurn"));
@@ -150,9 +154,15 @@ describe("#323 single application: no same-turn duplicate damage", () => {
     const idle = shopWorld().world;
     const struckRevenue = revenueAt(struck, "corporationTurn")!;
     const idleRevenue = revenueAt(idle, "corporationTurn")!;
-    // Same seed, same growth path: the only delta is the 0.25 strike
-    // throttle (STRIKE_REVENUE_THROTTLE), applied once.
-    expect(struckRevenue).toBeCloseTo(idleRevenue * 0.75, 8);
+    // Source plants throttle production once. Clearing demand can then give
+    // reduced supply a higher sell-through, so realized receipts need not
+    // decrease by the same proportion as physical output.
+    const asset = (world: World) => Object.values(corporateSectorAssets(world))
+      .find((candidate) => candidate.corporationId === EMPLOYER)!;
+    expect(asset(struck).producedUnits! / asset(idle).producedUnits!).toBeCloseTo(0.75, 12);
+    expect(struckRevenue).toBe(asset(struck).realizedRevenue);
+    expect(idleRevenue).toBe(asset(idle).realizedRevenue);
+    expect(struckRevenue).toBeLessThan(idleRevenue);
   });
 });
 

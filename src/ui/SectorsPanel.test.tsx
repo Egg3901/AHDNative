@@ -61,6 +61,7 @@ function makeListing(overrides: Partial<MarketListing> = {}): MarketListing {
     npcShares: 5_100_000,
     shareholders: [{ holder: "npc", shares: 5_100_000, avgCostPerShare: null }],
     controllingHolder: "npc",
+    sectorBuyerOptions: [{ id: "US-financial", name: "US-financial", countryId: "US", currency: "USD", liquidCapital: 0, rate: 1 }],
     earningsHistory: [],
     priceHistory: [],
     buy: { id: "buyShares", name: "Buy Shares", cost: 0, available: true },
@@ -176,7 +177,7 @@ describe("SectorsPanel directory", () => {
         screen.queryByRole("button", { name: /view .* region/i }),
       ).not.toBeInTheDocument();
       // Recorded sector facts ride on the row: margin, growth, workers, ownership, sale state.
-      expect(within(list).getByText("Unowned")).toBeInTheDocument();
+      expect(within(list).getByText("Owned by US-media")).toBeInTheDocument();
       expect(within(list).getByText("Not for sale")).toBeInTheDocument();
       // Rows wrap instead of clipping at 320px: the row is a min-width-0 column.
       const row = within(list).getAllByRole("listitem")[0]!;
@@ -439,7 +440,7 @@ describe("SectorsPanel directory", () => {
     expect(onOpenRegion).toHaveBeenCalledWith("us-ca");
   });
 
-  it("buys an affordable listing, refuses short cash, and fails closed without a handler", async () => {
+  it("buys an affordable listing and refuses insufficient corporate capital", async () => {
     const user = userEvent.setup();
     const onSectorSale = vi.fn();
     const assetId = "corporate-sector:US:retail:US-retail";
@@ -457,6 +458,7 @@ describe("SectorsPanel directory", () => {
           sectorType: "retail",
           forSale: { priceAnchor: 500 },
         },
+        sectorBuyerOptions: [{ id: "US-financial", name: "US-financial", countryId: "US", currency: "USD", liquidCapital: 50_000, rate: 1 }],
       });
     const markets = makeMarkets({
       countries: [
@@ -471,16 +473,16 @@ describe("SectorsPanel directory", () => {
     await user.click(
       screen.getByRole("button", { name: "Buy retail sector (US.RETA)" }),
     );
-    expect(onSectorSale).toHaveBeenCalledWith("buy", { assetId });
+    expect(onSectorSale).toHaveBeenCalledWith("buy", { assetId, buyerCorporationId: "US-financial" });
     unmount();
 
     renderPanel(
       makeMarkets({
-        playerCash: 10,
+        playerCash: 50_000,
         countries: [
           { id: "US", name: "United States", currency: "USD", listingCount: 1 },
         ],
-        listings: [listed()],
+        listings: [{ ...listed(), sectorBuyerOptions: [{ id: "US-financial", name: "US-financial", countryId: "US", currency: "USD", liquidCapital: 10, rate: 1 }] }],
       }),
       { onSectorSale },
     );
@@ -491,7 +493,7 @@ describe("SectorsPanel directory", () => {
       name: "Buy retail sector (US.RETA)",
     });
     expect(refused).toBeDisabled();
-    expect(screen.getByText(/not enough cash/i)).toBeInTheDocument();
+    expect(screen.getByText(/insufficient corporate funds/i)).toBeInTheDocument();
   });
 
   it("holds the Buy control disabled with a reason when sector actions are unwired", async () => {
@@ -516,6 +518,7 @@ describe("SectorsPanel directory", () => {
               sectorType: "retail",
               forSale: { priceAnchor: 500 },
             },
+            sectorBuyerOptions: [{ id: "US-financial", name: "US-financial", countryId: "US", currency: "USD", liquidCapital: 50_000, rate: 1 }],
           }),
         ],
       }),

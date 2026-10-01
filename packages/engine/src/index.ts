@@ -134,6 +134,7 @@ export * as electionEngine from "./electionEngine/index.js";
 export { declareCandidacy, withdrawCandidacy } from "./elections/candidacy.js";
 export { electionSeriesForWorld, recomputeComposition, seatHolders } from "./elections/orchestration.js";
 export { resolvePrimaries, requiresPrimaryResolution } from "./elections/primaryResolution.js";
+export { applyPresidentialResolution } from "./elections/presidentialResolution.js";
 export { isFoundingActive, detectFoundingComplete, runFoundingSweep, stampFoundingMarker, MAX_FOUNDING_RACES } from "./elections/founding.js";
 export type { ElectionRecord, ElectionCandidate, ElectionStatus, PrimaryResults, PrimaryResultEntry } from "./elections/types.js";
 // W24b real Electoral College (#69): the read-only display adapter shares the
@@ -152,6 +153,13 @@ export * from "./commandEconomy/authority.js";
 export * from "./cabinet/nominationLifecycle.js";
 export * from "./cabinet/transition.js";
 export * from "./corporation/corporateSectorAssets.js";
+export * from "./corporation/nationalization.js";
+export * from "./bonds/corporateBondQuote.js";
+export * from "./bonds/corporateBondServicing.js";
+export * from "./bonds/bondMarketPool.js";
+export * from "./corporation/plantCapacity.js";
+export * from "./corporation/plantProduction.js";
+export * from "./corporation/plantDemand.js";
 export * from "./corporation/corporateSectorSale.js";
 export * from "./corporation/corporateSectorAcquire.js";
 // Public single-player seam for source-backed union bargaining commands.

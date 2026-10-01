@@ -46,6 +46,14 @@ jobs:
       - run: npm run test:smoke
         env:
           SMOKE_PRODUCTION: "1"
+      - name: Retain failed synthetic browser evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-${{ github.sha }}
+          path: artifacts/smoke
+          retention-days: 3
+          if-no-files-found: ignore
       - run: rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings

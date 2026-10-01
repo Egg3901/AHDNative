@@ -80,6 +80,20 @@ export interface WorldGovernmentView {
   legislature: WorldLegislatureView | null;
 }
 
+/** Recorded national race, for directory link-outs to the existing race route. */
+export interface WorldNationRace {
+  id: string;
+  label: string;
+  status: string;
+}
+
+/** Recorded head of government or state, for profile link-outs. */
+export interface WorldNationLeader {
+  id: string;
+  name: string;
+  isPlayer: boolean;
+}
+
 export interface WorldNationView {
   id: string;
   name: string;
@@ -88,6 +102,10 @@ export interface WorldNationView {
   currency: string | null;
   economy: WorldEconomyView;
   government: WorldGovernmentView;
+  /** Recorded races in this nation (unresolved first), capped for directory use. */
+  races: WorldNationRace[];
+  /** Recorded national leader; null when the save records none. */
+  leader: WorldNationLeader | null;
 }
 
 export interface WorldRegionPartySupport {
@@ -351,7 +369,33 @@ function projectHomeRegion(world: WorldState, countryId: string): WorldRegionVie
   };
 }
 
+/** Directory link cap: rows stay phone-sized; the full list lives on the elections route. */
+export const WORLD_NATION_RACE_LIMIT = 3;
+
+function nationRaces(world: WorldState, countryId: string): WorldNationRace[] {
+  return world.elections
+    .filter((election) => election.countryId === countryId)
+    .sort((left, right) =>
+      Number(left.status === "resolved") - Number(right.status === "resolved") ||
+      left.startTurn - right.startTurn ||
+      left.id.localeCompare(right.id)
+    )
+    .slice(0, WORLD_NATION_RACE_LIMIT)
+    .map((election) => ({
+      id: election.id,
+      label: election.electionType,
+      status: election.status,
+    }));
+}
+
+function nationLeader(government: WorldGovernmentView): WorldNationLeader | null {
+  const holder = government.headOfGovernment ?? government.executive?.president ?? null;
+  if (!holder || !holder.id) return null;
+  return { id: holder.id, name: holder.name, isPlayer: holder.id === "player" };
+}
+
 function projectCountry(world: WorldState, country: WorldState["countries"][string]): WorldNationView {
+  const government = projectGovernment(world, country.id);
   return {
     id: country.id,
     name: country.name,
@@ -364,7 +408,9 @@ function projectCountry(world: WorldState, country: WorldState["countries"][stri
       unemploymentRate: country.economy.unemploymentRate,
       outputGap: country.economy.outputGap,
     },
-    government: projectGovernment(world, country.id),
+    government,
+    races: nationRaces(world, country.id),
+    leader: nationLeader(government),
   };
 }
 

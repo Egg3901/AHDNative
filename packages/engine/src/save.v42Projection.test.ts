@@ -114,6 +114,20 @@ describe("projectSaveToV42 public envelope", () => {
     expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });
   });
 
+  it("refuses active pricing anchors and authoritative savings policy that the v42 reader cannot advance", () => {
+    const world = loadHistoricalFresh();
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({ ok: true });
+    world.centralBankPricingPhaseIn = { startedTurn: 0 };
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false, error: expect.stringContaining("Central-bank pricing phase-in state"),
+    });
+    delete world.centralBankPricingPhaseIn;
+    world.savingsAccountsPolicy = { mode: "authoritative", readCurrencies: ["USD"] };
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false, error: expect.stringContaining("Authoritative savings-holder policy"),
+    });
+  });
+
   it("projects the historical pre-control 1953 US world with homeRegionId AL as a v42 extension the old reader preserved", () => {
     const world = loadHistoricalFresh();
     expect(world.player.homeRegionId).toBe("AL");
@@ -157,10 +171,48 @@ describe("projectSaveToV42 public envelope", () => {
     expect(projected).toEqual({ ok: true, contents: authentic });
   });
 
+  it("refuses corporate bond lifecycle state because the historical v42 turn reader cannot service it", () => {
+    const doc = JSON.parse(serializeSave(loadHistoricalFresh(), SAVED_AT)) as {
+      world: { bonds: Record<string, unknown> };
+    };
+    doc.world.bonds = {
+      "corp-bond-US-media-0": {
+        id: "corp-bond-US-media-0",
+        issuerType: "corporation",
+        corporationId: "US-media",
+        marketPrice: 1,
+        matured: false,
+        defaulted: false,
+      },
+    };
+    expect(projectSaveToV42(JSON.stringify(doc))).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("Corporate bond lifecycle state"),
+    });
+  });
+
+  it("refuses a saved bond pool because the v42 reader cannot reproduce cash-skew quotes", () => {
+    const doc = JSON.parse(serializeSave(loadHistoricalFresh(), SAVED_AT)) as {
+      world: Record<string, unknown>;
+    };
+    doc.world.bondMarketPools = {
+      USD: { cashLocal: 5_000, targetCashLocal: 10_000, m2Local: 200_000, liquidityTargetLocal: 10_000, lifetime: { retiredIn: 5_000 } },
+    };
+    expect(projectSaveToV42(JSON.stringify(doc))).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("Bond market pool cash"),
+    });
+  });
+
   it("refuses a Native world after a turn mutates countryPolitics history", () => {
     const world = loadHistoricalFresh();
     advanceTurn(world);
     expect(world.countryPolitics["US"]!.approvalHistory.length).toBeGreaterThan(1);
+    // Isolate the original country-history guard from newly paid NPC R&D
+    // and compensation. Their active lifecycle refusals have separate tests.
+    for (const corp of Object.values(world.corporations)) {
+      for (const field of ["rdBudgetPerTurn", "rdScore", "lastRdSpendPerTurn", "lastRdCapacityGain", "ceoSalaryPerTurn", "dividendRate", "lastCeoSalaryPaid", "lastDividendPoolPaid", "lastPlayerDividendPaid", "lastUnpostedDividendPaid"] as const) corp[field] = 0;
+    }
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
     expect(projected.ok).toBe(false);
     if (projected.ok) throw new Error("expected countryPolitics refusal");

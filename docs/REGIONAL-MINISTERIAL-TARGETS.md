@@ -24,6 +24,13 @@ Game's `resolveMetricPath` resolves the veterans order's bare
 existing supported regional path at issuance, after checking the region belongs
 to the issuing country. Unknown, missing and foreign targets remain refusals.
 
+A two-case offline database-boundary oracle executed Game's actual
+`processMinisterialOrders` at the immutable revision. It recorded London
+macro delta -0.059, resulting value4.441 and a regional source `orders`
+contribution of +0.944 to `economy.workerSecurity`. Scotland received no macro
+write. Its second case recorded the source safety/trust political families and
+no legacy macro write. No live database was used.
+
 The actual issuer's Statecraft scales the authored effect before accumulation,
 the source 1.25 strength and the per-metric cap. A Statecraft10 issuer has the
 source 1.18 multiplier. The UK order's -0.04 produces a -0.059 London change,

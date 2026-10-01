@@ -133,16 +133,14 @@ describe("cabinet ministerial-order acceptance (#262)", () => {
 
   it("applies the issued order on the next turn", () => {
     const session = seated();
+    const control = new GameSession();
+    control.load(session.serialize("2026-09-10T00:00:00.000Z"));
     expect(
       session.issueCabinetOrder({ positionId: POSITION, orderId: ORDER }).result
         .ok,
     ).toBe(true);
-    // The engine seeds an empty nationalMetrics map; the order phase reads a
-    // missing row as 50, so mirror that default here.
-    const metricBefore =
-      readSave(session).world.nationalMetrics.US?.[METRIC]?.value ?? 50;
-
     session.advance();
+    control.advance();
 
     const office = session.cabinetOffice();
     expect(office.turn).toBe(1);
@@ -159,7 +157,11 @@ describe("cabinet ministerial-order acceptance (#262)", () => {
     );
     expect(issued?.lastAppliedTurn).toBe(1);
     const metricAfter = saved.world.nationalMetrics.US?.[METRIC]?.value;
-    expect(metricAfter).toBeLessThan(metricBefore);
+    // The production/labor economy also moves unemployment this turn. Compare
+    // the same saved world without the order to isolate its beneficial effect.
+    const withoutOrder = readSave(control).world.nationalMetrics.US?.[METRIC]?.value;
+    expect(withoutOrder).toBeTypeOf("number");
+    expect(metricAfter).toBeLessThan(withoutOrder!);
     expect(
       office.positions.find((entry) => entry.id === POSITION)?.actionsRemaining,
     ).toBe(3);

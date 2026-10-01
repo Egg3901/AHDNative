@@ -12,6 +12,30 @@ region detail shows4.4% at source precision, with Scotland unchanged3.8%.
 record the controlled held-office fixture and missing political cabinet channel.
 #263 remains open; broader regional metric hierarchy and military stores remain.
 
+## Corporate finance integration, 2026-10-01 (#110 / #107 / #111)
+
+Corporate issuance, pool-priced public-float retirement and physical realized-sale
+valuation now integrate with source savings phase timing and current macro gap
+bounds. [Acceptance evidence](CORPORATE-FINANCE-BOND-PARITY.md) records the
+independent vectors, actual two-width issuance/buyback/resume and source consumers.
+The combined full gate remains pending. #107 stays partial for wider corporate
+management/modifiers. Source national savings eligibility and foreign-wallet
+credit servicing are now implemented with original #111 acceptance awaiting
+combined verification. Corporate-funded #299 purchase also integrates physical
+ledger conservation; its complete original flow and fresh gate remain required.
+
+## Source geographic maps and local Hall checkpoint, 2026-10-01 (#73 partial)
+
+Offline country/subdivision shapes, country-scoped browsing, real entity links
+and local recorded-life standings now pass actual 320px/390px save/resume
+journeys. [PR #712](https://github.com/Egg3901/AHDNative/pull/712) merged at
+`6e5ad55` after exact `98b239d` passed the [full gate](https://github.com/Egg3901/AHDNative/actions/runs/36882208965).
+The supported preference/mobile-width criterion is checked; #73 stays partial.
+Map vectors use Game `01797b27`, checked against current `cb66acdf`.
+Complete map modes/country coverage, foreign regional detail and server-wide
+history remain open under #73; [source comparison](WORLD-MAP-PARITY.md)
+records the boundary. Integration preserves the merged command economy route.
+
 ## NPP relationship and recruitment checkpoint, 2026-10-01 (#57 / #61 partial)
 
 Politicians now expose four source relationship approaches with reviewed target,
@@ -20,21 +44,26 @@ chance/cost, cancellation, accepted outcome and normal save/resume. Actual
 60-point relationship, same-party/country and 12-turn cooldown contract. Its
 controlled eligibility tests do not claim a player-earned recruitment journey.
 [Source behavior and remaining scope](NPP-RELATIONSHIP-PARITY.md) preserve the
-three-human charter and wider targeted-action gaps. Full hosted review is pending.
+three-human charter and wider targeted-action gaps. [PR #715](https://github.com/Egg3901/AHDNative/pull/715)
+merged at `741083a` after the [full hosted gate](https://github.com/Egg3901/AHDNative/actions/runs/36873625730)
+passed at exact head `313dd59`. Both issues remain open and partial.
 
-## Verified China law checkpoint, 2026-10-01 (#286 closed)
+## China law checkpoint, 2026-10-01 (#286 reopened)
 
 The bounded five-tax China slice is merged in [PR #710](https://github.com/Egg3901/AHDNative/pull/710)
 at `748f74f24f6277596b0a3f4e1c0154849e4c4090`, after
 [full verification](https://github.com/Egg3901/AHDNative/actions/runs/36865271074)
 passed at exact head `50d29f5083f788237a56a58008249efea4349e38`.
-Original #286 acceptance is checked and closed: source options/directions, public
-proposal/vote/signing, immediate fiscal effect, replacement, saved ramp/reload and
-actual CN player tariff flow at 320px/390px. See [source and evidence](CN-TAX-LAWS.md).
+The source options and bounded engine tax effects are delivered. Current-source
+audit found that local same-country SP head-of-state proposals enact immediately
+by decree, while the prior Native CN HoS browser flow queued votes and signing.
+#286 is reopened until that authority path, costs, effects, replacement and actual
+save/resume flow are corrected and verified. See [source and evidence](CN-TAX-LAWS.md).
 #101 stays open: Japan, Germany, Ireland and RU/DD cross-system slices remain,
-as do broader catalog/source coverage. Current Game `88fb2de` preserves the
-active mechanics vectors. GitHub has 59 open issues, down from 63; this count
-includes partial and blocked work and does not mean all 59 are untouched.
+as do broader catalog/source coverage. Current sampled Game `cb66acdf` preserves
+the decree contract from `96831835`; its newer stock, strategy advisory and trade
+changes remain tracked separately. GitHub has 60 open issues, down from 63; this
+count includes partial and blocked work.
 
 ## Subsidy and Gosbank controls checkpoint, 2026-10-01 (#94 partial)
 
@@ -43,7 +72,8 @@ now have real player controls, source authority, saved lifecycle and budget/over
 consumers. Public engine tests and actual 320px/390px two-reload journeys pass.
 [Source comparison](ECONOMIC-CONTROL-PARITY.md) records the remaining default
 Game plants-mode capital/replacement chain, director request weighting and state
-subsidy scope. #94 stays open; the corporate prerequisites remain in #107.
+subsidy scope. PR705 passed full verification at `fba4905`, merged as `a17c5de`,
+and the original #94 checklist remains partial; corporate prerequisites remain #107.
 
 ## Verified CEO card closure, 2026-10-01 (#51)
 
@@ -78,19 +108,18 @@ Worker political feedback and wider union mechanics remain #322/#114.
 
 ## Regional sector trading checkpoint, 2026-10-01 (#299)
 
-Regional details share the corporation sale controls for list, reprice, unlist and
-purchase, with recorded ownership, workforce, union and company links. Public
-session and UI tests cover eligibility and persistence; the integrated Chromium
-journey at 320px and 390px saves and resumes twice. The fixture records two
-regional assets, since fresh worlds still seed national assets. The comparison
-uses Game's pinned regional and sector page hierarchy, with no pixel equivalence
-or physical-device claim. See [regional trading evidence](REGIONAL-SECTOR-TRADING.md).
-
-#297 is closed after PR707 verified leadership, employer authority and the
-organization/dues/strike/bargaining/save lifecycle. #322 remains partial for
-downstream worker political feedback. The
-unsafe public NPC-response and arbitrary-ballot wrappers are excluded. The unused neutral-50 labor
-metric overlay is excluded from this batch.
+Regional ownership, workers, unions and company/region links now share source
+CEO seller and corporate buyer controls. Listing, repricing and unlisting require
+an active private-company CEO; purchases debit the buyer corporation and credit
+the seller through source currency conversion, then transfer or merge the asset.
+The actual 320px/390px journey earns both CEO appointments through public controls
+and saves/resumes twice. The valid fixture records regional assets because fresh
+worlds still seed national assets. Full hosted verification and merge remain the
+closure gate. See [regional trading evidence](REGIONAL-SECTOR-TRADING.md).
+#211 remains open for #298 nationalization/secession; #322/#114 retain wider labor
+and worker political feedback. #297 is already checked and closed.
+The public NPC-response and arbitrary-ballot wrappers stay excluded; wider labor
+metric and worker political feedback acceptance remain open.
 
 ## Demographic canvassing checkpoint, 2026-10-01 (#57 / #91 partial)
 
@@ -113,6 +142,24 @@ regressions cover the new settlement and fail-before-mutation paths.
 financial units, expected results and unsupported pool/escrow/restructuring state.
 Full verification and merged closure evidence remain recorded in GitHub #308;
 #110/#111/#107/#211 retain their broader acceptance scope.
+
+## Corporate bond issuance and physical finance checkpoint, 2026-10-01 (#110 / #107 partial)
+
+Player-CEO corporate issuance, truthful issuer listings, source-pool ask and
+FX-settled public-float buyback now connect to the recorded corporate bond
+servicing lifecycle. Plants-mode issuance values sold receipts on the source
+daily/hourly/annual basis; an independently executed Game vector pins the
+Native weekly-to-Game daily conversion. Focused engine/session/UI tests and
+real 320px/390px save/reload player journeys pass on the candidate head.
+Root review and the hosted full gate remain pending. See
+[corporate finance and bond evidence](CORPORATE-FINANCE-BOND-PARITY.md).
+
+The same integration includes physical plant production and R&D spend,
+innovation score and capacity breakthroughs, plus CEO compensation and
+shareholder dividends. This advances #107 only: full corporate modifier and
+P&L behavior, CEO/NPP decisions, complete command-economy plan gravity, and
+the source extraction R&D prerequisite flow remain open. The innovation
+capacity effect is not national TFP.
 
 The owner delegates uncertain feature decisions to the implementation team. The lodestar is native iOS and Android UI for SP first, then MP, with performance central to every decision. The target is a unified mobile/desktop app with local offline SP and server-authoritative MP. iOS SP comes first. This roadmap records real completion evidence; card counts are not a progress percentage.
 

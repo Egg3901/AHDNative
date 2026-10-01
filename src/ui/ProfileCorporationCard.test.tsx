@@ -11,7 +11,7 @@ import { MarketsPanel } from "./MarketsPanel";
 import type { DrawerRouteId } from "./MobileNavigation";
 
 const OPTIONS = { era: "1953", countryId: "US", seed: "native-profile-ceo-card", playerName: "Alex" };
-const CEO_OPTIONS = { era: "1953", countryId: "US", homeRegionId: "DC", seed: "native-profile-ceo-card", playerName: "Alex" };
+const CEO_OPTIONS = { ...OPTIONS, homeRegionId: "DC" };
 const SAVED_AT = "2026-09-18T00:00:00.000Z";
 
 afterEach(() => {
@@ -25,20 +25,23 @@ function plainProfile(): ProfileView {
   return session.profile();
 }
 
-/** A live owner profile through the public sector-acquisition flow. */
+/** A live corporation profile through the public CEO appointment flow. */
 function owningProfile(): ProfileView {
   const session = new GameSession();
-  session.create(OPTIONS);
+  session.create(CEO_OPTIONS);
   expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
-  const assetId = session.markets().listings.find((entry) => entry.id === "US-media")!.sectorAsset.id;
-  const listed = session.listSectorForSale(assetId);
-  expect(listed.ok).toBe(true);
-  const raw = JSON.parse(session.serialize(SAVED_AT));
-  raw.world.player.cash = listed.ok ? listed.priceAnchor : 0;
-  const funded = new GameSession();
-  funded.load(JSON.stringify(raw));
-  expect(funded.buySectorForSale(assetId).ok).toBe(true);
-  return funded.profile();
+  const vote = session.act("voteCeo", { corpId: "US-media", candidateId: "player" });
+  expect(vote.ok, vote.error).toBe(true);
+  expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
+  expect(session.act("setCorporationCompensation", {
+    corpId: "US-media",
+    salaryPerTurn: 1_000,
+    dividendRate: 25,
+  }).ok).toBe(true);
+  session.advance();
+  const reloaded = new GameSession();
+  reloaded.load(session.serialize(SAVED_AT));
+  return reloaded.profile();
 }
 
 function renderPanel(profile: ProfileView, onNavigate: (route: DrawerRouteId, id?: string) => void) {
@@ -66,9 +69,9 @@ describe("#51 profile corporation card", () => {
     expect(corporationSection()).toBeNull();
   });
 
-  it("omits the card for a recorded shareholder with no sector ownership", () => {
+  it("omits the card for a recorded shareholder with no CEO appointment", () => {
     const session = new GameSession();
-    session.create(OPTIONS);
+    session.create({ era: "1953", countryId: "US", seed: "native-profile-ceo-card", playerName: "Alex" });
     expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
     renderPanel(session.profile(), vi.fn());
     expect(corporationSection()).toBeNull();
@@ -86,7 +89,7 @@ describe("#51 profile corporation card", () => {
     expect(text).toMatch(new RegExp(entry.ticker));
     expect(text).toContain(entry.name);
     expect(getComputedStyle(card!.querySelector("[data-corporation-brand]")!).color).toBe("rgb(6, 182, 212)");
-    expect(text).toMatch(/Sector owner/);
+    expect(text).toMatch(/CEO/);
     expect(text).toMatch(/Corporate cash/);
     expect(text).toMatch(/Your shares/);
     expect(text).toMatch(/Controlling holder/);
@@ -147,14 +150,40 @@ describe("#51 profile corporation card", () => {
     await user.type(screen.getByRole("spinbutton", { name: "CEO salary per turn" }), "1000");
     await user.clear(screen.getByRole("spinbutton", { name: "Dividend rate" }));
     await user.type(screen.getByRole("spinbutton", { name: "Dividend rate" }), "25");
+    await user.clear(screen.getByRole("spinbutton", { name: "R&D budget per turn" }));
+    await user.type(screen.getByRole("spinbutton", { name: "R&D budget per turn" }), "100");
     await user.click(screen.getByRole("button", { name: "Save compensation" }));
-    expect(session.markets().listings.find((entry) => entry.id === "US-media")).toMatchObject({ ceoSalaryPerTurn: 1_000, dividendRate: 25 });
+    expect(session.markets().listings.find((entry) => entry.id === "US-media")).toMatchObject({ ceoSalaryPerTurn: 1_000, dividendRate: 25, rdBudgetPerTurn: 100 });
+    const saved = session.serialize(SAVED_AT);
+    const reloaded = new GameSession();
+    reloaded.load(saved);
+    session.advance();
+    reloaded.advance();
+    const liveRAndD = session.markets().listings.find((entry) => entry.id === "US-media")!;
+    const replayRAndD = reloaded.markets().listings.find((entry) => entry.id === "US-media")!;
+    expect(liveRAndD.lastRdSpendPerTurn).toBeGreaterThan(0);
+    expect(liveRAndD.rdScore).toBeGreaterThan(0);
+    expect(replayRAndD).toMatchObject({
+      lastRdSpendPerTurn: liveRAndD.lastRdSpendPerTurn,
+      rdScore: liveRAndD.rdScore,
+      rdBudgetPerTurn: 100,
+    });
+    const firstScore = liveRAndD.rdScore!;
+    const secondSaved = session.serialize(SAVED_AT);
+    const secondReplay = new GameSession();
+    secondReplay.load(secondSaved);
+    session.advance();
+    secondReplay.advance();
+    const afterTwoTurns = session.markets().listings.find((entry) => entry.id === "US-media")!;
+    const afterTwoTurnsReplay = secondReplay.markets().listings.find((entry) => entry.id === "US-media")!;
+    expect(afterTwoTurns.rdScore).toBeGreaterThan(firstScore);
+    expect(afterTwoTurnsReplay).toMatchObject({ lastRdSpendPerTurn: afterTwoTurns.lastRdSpendPerTurn, rdScore: afterTwoTurns.rdScore });
     expect(onAction.mock.calls.map(([id]) => id)).toEqual([
       "voteCeo",
       "acceptCeoAppointment",
       "setCorporationCompensation",
     ]);
-  });
+  }, 60_000);
 
   it("renders empty values honestly instead of fabricating them", () => {
     const base = owningProfile().corporations![0]!;

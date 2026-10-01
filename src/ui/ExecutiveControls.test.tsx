@@ -1,7 +1,7 @@
 /**
  * Executive-tab reachability (#65): the live HoS session projection feeds
- * ActionsHub with two available executive actions; a career projection feeds
- * none. Layout stays phone-first (single-column grid at 390px) with the
+ * ActionsHub with two available executive actions; a career projection keeps
+ * the unavailable nationalization action visible. Layout stays phone-first (single-column grid at 390px) with the
  * executive banner styled like every other category, and the cards keep the
  * shared Liquid Glass surface (no per-tab chrome).
  */
@@ -87,10 +87,15 @@ describe("executive tab reachability (#65)", () => {
     expect(values).not.toContain("corporateTax");
   });
 
-  it("shows an honest empty executive tab for career players (no invented controls)", () => {
+  it("keeps nationalization visible but unavailable for career players", async () => {
+    const user = userEvent.setup();
     render(<StatefulHub actions={liveActions("career")} />);
     const tabs = screen.getByRole("tablist", { name: /filter actions by category/i });
-    expect(within(tabs).getByRole("tab", { name: /executive, 0 of 0 available/i })).toBeInTheDocument();
+    const executive = within(tabs).getByRole("tab", { name: /executive, 0 of 1 available/i });
+    await user.click(executive);
+    const nationalization = screen.getByRole("article", { name: /nationalize/i });
+    expect(within(nationalization).getByRole("button", { name: /unavailable/i })).toBeDisabled();
+    expect(nationalization).toHaveTextContent("Only the sitting head of government");
   });
 
   it("keeps the executive cards phone-first: single column at 390px with a styled banner", () => {

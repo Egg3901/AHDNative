@@ -10,6 +10,8 @@ import type { CorporationType } from "../corporation/types.js";
 export interface UnownedSectorState {
   countryId: string;
   sectorType: CorporationType;
+  /** Source stateId when a referendum has fanned this recorded pool into a sub-region. */
+  regionId?: string;
   /** Per-turn revenue (local currency, absolute units) — same unit as Corporation.revenue. */
   revenue: number;
 }

@@ -142,7 +142,7 @@ function makePolitics(): PoliticsView {
 
 const loadWorldOverview = async () => ({
   era: "1953", turn: 1, date: "1953-01-01", playerCountryId: "US", playerHomeRegionId: null,
-  nations: [{ id: "US", name: "United States", playable: true, currency: "USD",
+  nations: [{ id: "US", name: "United States", playable: true, currency: "USD", races: [], leader: null,
     economy: { gdpMillions: 387000, growthRate: 0.046, inflationRate: 0.0075, unemploymentRate: 0.029, outputGap: -1.25 },
     government: { governmentType: null, regime: null, approval: null, legitimacy: null, unrest: null, status: null, formationType: null, confidence: null, governingParty: null, headOfGovernment: null, executive: null, legislature: null } }],
   homeRegion: null,

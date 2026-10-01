@@ -1,5 +1,14 @@
 import type { WorldState } from "../types.js";
+import type { CommodityType } from "../commodity/constants.js";
 import type { CorporationType } from "./types.js";
+import { getRateForCountry } from "../forex/conversion.js";
+import {
+  buyPlantCapacity,
+  capacityPricePerUnitAnchor,
+  corporateSectorBasePrices,
+  plantReplacementCostAnchor,
+  seedPlantCapital,
+} from "./plantCapacity.js";
 
 /**
  * Native's persisted asset identity port of AHDGame CorporateSector at
@@ -9,14 +18,12 @@ import type { CorporationType } from "./types.js";
  * unallocated scope instead of inventing state ownership.
  */
 /**
- * Sector owner. "corporation" is the #293 default: the recorded
- * `corporationId` operates and owns the sector. "player" records a #295
- * player acquisition: the buyer paid the listed asking price from personal
- * cash, the seller corporation was credited, the listing cleared, and the
- * recorded corporation keeps operating the sector (it remains the turn-math
- * SSOT — Native has one aggregate corporation per country/sector, so no
- * buyer corporation can receive the asset). Routing operating income to the
- * player owner (dividends/claims) is explicitly out of scope.
+ * Sector owner. "corporation" is the #293 default and also records a #299
+ * corporate acquisition: `corporationId` is the owning/operating corporation.
+ * "player" records a direct player-owned asset. Acquired assets transfer to
+ * the buyer corporation and no longer use the seller's legacy primary-sector
+ * fallback. Native still aggregates issuer-wide operating results, so this
+ * owner identity does not create a separate sector income stream.
  */
 export type CorporateSectorOwner = "corporation" | "player";
 
@@ -26,6 +33,22 @@ export interface CorporateSectorAsset {
   countryId: string;
   stateId: string | null;
   sectorType: CorporationType;
+  /** Recorded local turnover for a region-level slice of Native's aggregate issuer. */
+  revenue?: number;
+  /** Source CorporateSector output-unit stock under the default plants tier. */
+  capitalStock?: number;
+  /** Paid plant basis in anchor (USD-era) currency, matching Game field semantics. */
+  capacityBookAnchor?: number;
+  /** Physical units produced this turn, in source output-units/day. */
+  producedUnits?: number;
+  /** Physical units sold this turn, in source output-units/day. */
+  soldUnits?: number;
+  /** Mix-weighted realized sell-through, 0–1. */
+  soldFraction?: number;
+  /** Realized sales in Native local-currency-per-week units. */
+  realizedRevenue?: number;
+  /** Actual fill fraction by produced commodity. */
+  soldByCommodity?: Partial<Record<CommodityType, number>>;
   /** Staffed headcount, derived from recorded revenue (#296). */
   workers: number;
   /** Seeded-union owner for the (countryId, sectorType) pair, or null when unrepresented (#296). */
@@ -152,16 +175,16 @@ export interface CorporateSectorProjection extends CorporateSectorAsset {
   currentGrowthRate: number;
 }
 
-/** Live economic projection; Corporation remains the turn-math owner in this slice. */
+/** Live issuer projection; sector identity may differ after a corporate transfer. */
 export function projectCorporateSector(world: WorldState, asset: CorporateSectorAsset): CorporateSectorProjection {
   validateCorporateSectorAssets(world, { [asset.id]: asset });
   const corporation = world.corporations[asset.corporationId];
-  if (!corporation || corporation.countryId !== asset.countryId || corporation.sectorType !== asset.sectorType) {
+  if (!corporation) {
     throw new Error(`Corporate sector ${asset.id} has an invalid corporation reference`);
   }
   return {
     ...asset,
-    revenue: corporation.revenue,
+    revenue: asset.revenue ?? corporation.revenue,
     profitMargin: corporation.profitMargin,
     targetGrowthRate: corporation.targetGrowthRate,
     currentGrowthRate: corporation.currentGrowthRate,
@@ -175,12 +198,19 @@ export function seedCorporateSectorAssets(world: WorldState): Record<string, Cor
     const representingUnionId = initialRepresentingUnionId(world, corporation.countryId, corporation.sectorType);
     const union = representingUnionId ? world.unions[representingUnionId] : undefined;
     const density = union && Number.isFinite(union.unionization) ? union.unionization : 0;
+    const plantCapital = seedPlantCapital({
+      revenueLocal: corporation.revenue,
+      localPerAnchor: getRateForCountry(world, corporation.countryId),
+      sectorType: corporation.sectorType,
+      basePrices: corporateSectorBasePrices(world),
+    });
     assets[id] = {
       id,
       corporationId: corporation.id,
       countryId: corporation.countryId,
       stateId: null,
       sectorType: corporation.sectorType,
+      ...plantCapital,
       workers: calculateSectorWorkers(corporation.revenue, null),
       representingUnionId,
       unionization: Math.max(0, Math.min(100, density)),
@@ -204,7 +234,7 @@ export function validateCorporateSectorAssets(
   for (const [key, asset] of Object.entries(assets)) {
     if (key !== asset.id) throw new Error(`Corporate sector key does not match id: ${key}`);
     const corporation = world.corporations[asset.corporationId];
-    if (!corporation || corporation.countryId !== asset.countryId || corporation.sectorType !== asset.sectorType) {
+    if (!corporation || !world.countries[asset.countryId]) {
       throw new Error(`Corporate sector ${asset.id} has an invalid corporation reference`);
     }
     if (asset.stateId !== null && world.regions[asset.stateId]?.countryId !== asset.countryId) {
@@ -219,9 +249,35 @@ export function validateCorporateSectorAssets(
     validateSectorWorkers(asset);
     validateSectorUnionReference(world, asset);
     validateSectorLaborRelations(asset);
+    validateSectorPlantCapital(asset);
     const tuple = `${asset.corporationId}\u0000${asset.countryId}\u0000${asset.stateId ?? "national"}\u0000${asset.sectorType}`;
     if (tuples.has(tuple)) throw new Error(`Duplicate corporate sector identity: ${asset.id}`);
     tuples.add(tuple);
+  }
+}
+
+/** Persisted plant quantities must be finite, nonnegative source balances. */
+export function validateSectorPlantCapital(asset: CorporateSectorAsset): void {
+  for (const field of ["capitalStock", "capacityBookAnchor"] as const) {
+    const value = asset[field];
+    if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value) || value < 0)) {
+      throw new Error(`Corporate sector ${asset.id} has invalid ${field}`);
+    }
+  }
+  for (const field of ["producedUnits", "soldUnits", "realizedRevenue"] as const) {
+    const value = asset[field];
+    if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value) || value < 0)) {
+      throw new Error(`Corporate sector ${asset.id} has invalid ${field}`);
+    }
+  }
+  if (asset.soldFraction !== undefined &&
+      (typeof asset.soldFraction !== "number" || !Number.isFinite(asset.soldFraction) || asset.soldFraction < 0 || asset.soldFraction > 1)) {
+    throw new Error(`Corporate sector ${asset.id} has invalid soldFraction`);
+  }
+  if (asset.soldByCommodity !== undefined && Object.values(asset.soldByCommodity).some((value) =>
+    typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1,
+  )) {
+    throw new Error(`Corporate sector ${asset.id} has invalid soldByCommodity`);
   }
 }
 
@@ -375,10 +431,71 @@ export function backfillSectorWorkforce(world: WorldState, assets: Record<string
   }
 }
 
+/** Add the source plants-tier opening stock to older lazily-materialized sector rows. */
+export function backfillSectorPlantCapital(world: WorldState, assets: Record<string, CorporateSectorAsset>): void {
+  const basePrices = corporateSectorBasePrices(world);
+  for (const asset of Object.values(assets)) {
+    const corporation = world.corporations[asset.corporationId];
+    if (!corporation) continue;
+    const seed = seedPlantCapital({
+      revenueLocal: corporation.revenue,
+      localPerAnchor: getRateForCountry(world, corporation.countryId),
+      sectorType: corporation.sectorType,
+      basePrices,
+    });
+    if (asset.capitalStock === undefined) asset.capitalStock = seed.capitalStock;
+    if (asset.capacityBookAnchor === undefined) asset.capacityBookAnchor = seed.capacityBookAnchor;
+  }
+}
+
+/**
+ * Post paid capacity credit to the owning sector at the source list price.
+ * Gosbank/director allocations use this instead of changing the SOE capacity
+ * overlay alone: the physical stock and its paid book must move together.
+ * The input amount is anchor currency, matching Game plants build settlement.
+ */
+export function applyCorporateSectorPlantCredit(
+  world: WorldState,
+  sectorId: string,
+  creditAnchor: number,
+): { unitsAdded: number; creditPaidAnchor: number } {
+  const asset = corporateSectorAssets(world)[sectorId];
+  if (!asset) throw new Error(`Unknown corporate sector ${sectorId}`);
+  if (!Number.isFinite(creditAnchor) || creditAnchor <= 0) {
+    return { unitsAdded: 0, creditPaidAnchor: 0 };
+  }
+
+  const price = capacityPricePerUnitAnchor(asset.sectorType, corporateSectorBasePrices(world));
+  if (!Number.isFinite(price) || price <= 0) return { unitsAdded: 0, creditPaidAnchor: 0 };
+  const purchased = buyPlantCapacity({
+    capitalStock: asset.capitalStock ?? 0,
+    capacityBookAnchor: asset.capacityBookAnchor,
+    creditAnchor,
+    capacityPricePerUnitAnchor: price,
+  });
+  const unitsAdded = purchased.capitalStock - (asset.capitalStock ?? 0);
+  if (!(unitsAdded > 0) || !Number.isFinite(unitsAdded)) return { unitsAdded: 0, creditPaidAnchor: 0 };
+  asset.capitalStock = purchased.capitalStock;
+  asset.capacityBookAnchor = purchased.capacityBookAnchor;
+  return { unitsAdded, creditPaidAnchor: creditAnchor };
+}
+
+/** Exact one-turn wear bill at the source capacity list price, in anchor money. */
+export function corporateSectorPlantReplacementFloor(world: WorldState, sectorId: string): number {
+  const asset = corporateSectorAssets(world)[sectorId];
+  if (!asset) throw new Error(`Unknown corporate sector ${sectorId}`);
+  const price = capacityPricePerUnitAnchor(asset.sectorType, corporateSectorBasePrices(world));
+  return plantReplacementCostAnchor({
+    capitalStock: asset.capitalStock ?? 0,
+    capacityPricePerUnitAnchor: price,
+  });
+}
+
 /** Lazy materialization preserves the serialized shape and hashes of untouched schema-44 worlds. */
 export function corporateSectorAssets(world: WorldState): Record<string, CorporateSectorAsset> {
   const assets = world.corporateSectors ?? seedCorporateSectorAssets(world);
   backfillSectorWorkforce(world, assets);
+  backfillSectorPlantCapital(world, assets);
   validateCorporateSectorAssets(world, assets);
   world.corporateSectors = assets;
   return assets;
