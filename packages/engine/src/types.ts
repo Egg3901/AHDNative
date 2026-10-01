@@ -484,7 +484,7 @@ export interface WorldState {
   // ── W28: enactment depth ──────────────────────────────────────────────
   /** DECAY-path policy ledger, keyed by bill id. See policyEffects/types.js file doc. Schema v37. */
   policyLedger: Record<string, PolicyLedgerEntry>;
-  /** Cabinet-minister standing directives. Issuance is PORT-STUB (B07); apply path is live. Schema v37. */
+  /** Cabinet-minister directives: issueCabinetOrder writes them; ministerialOrdersPhase applies them. Schema v37. */
   ministerialOrders: MinisterialOrder[];
   /** Enactment-time gates (currently: debt-ceiling crisis per country). See budget/debtCeiling.js. Schema v37. */
   enactmentGates: { debtCeilingCrisis: Record<string, DebtCeilingCrisisState> };

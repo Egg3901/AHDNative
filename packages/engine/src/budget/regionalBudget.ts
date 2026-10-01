@@ -8,8 +8,9 @@
  *  - src/lib/turn/deRegionalBudget.ts (Germany, unported, issue #103)
  *  - src/lib/turn/cnRegionalBudget.ts / ruRegionalBudget.ts etc.
  *
- * JP and DE are playable in the 1991 and 2019 packs and use the generic
- * processor below until their variants land.
+ * JP and DE are economy entries, not player countries, in the 1991 and 2019
+ * packs. The generic processor consumes any recorded regional budget rows;
+ * it does not make a country playable.
  *
  * Solo's generic processor handles any playable country's regions as a
  * population-share slice of the national grant pool plus a small own-revenue

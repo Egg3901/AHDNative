@@ -66,7 +66,7 @@ export type CreditRating = "AAA" | "AA" | "A" | "BBB" | "BB" | "B" | "CCC";
 
 /**
  * Country-level budget — solo analogue of FederalBudget.
- * One row per playable country (US/UK/RU/DD) plus economy-preview entries.
+ * One row per recorded budget country, including player and economy-preview entries.
  * Cited: src/lib/db/types/budget.ts FederalBudget, src/lib/seeds/reference/budgets.ts NATIONAL_BUDGET_SEED_CONFIGS_1953
  */
 export interface CountryBudget {
@@ -111,7 +111,8 @@ export interface CountryBudget {
  * Regional (state) budget — generic version.
  * Source: src/lib/turn/regionalBudget.ts BudgetCalculationInput/Result + StateBudget shape.
  * JP/DE country-specific variants are unported (issue #103); see regionalBudget.ts.
- * JP and DE are playable in the 1991 and 2019 packs and use the generic processor.
+ * JP and DE are economy entries, not player countries, in the 1991 and 2019 packs.
+ * A recorded regional budget uses the generic processor independently of player eligibility.
  */
 export interface RegionalBudget {
   regionId: string;

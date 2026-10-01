@@ -28,7 +28,7 @@ Direct corp-write consumer in the moved-over window:
 
 - `macroCountryTurn` reads `corpRevenueSnapshots`. Intended same-turn signal. Source-backed.
 
-No other moved-over phase reads `corp.revenue`, `liquidCapital`, `earningsHistory`, or `corpRevenueSnapshots`. `subsidyBudget` remains a PORT-STUB cost of 0. `contractSettlement` still uses corporationId test hooks and does not debit `liquidCapital`. `tradeGrowth` reads tariff and foreign-corporate tax rates, not corp books. `fiscalBaseGrowth` grows seeded `budget.economicFactors`, not `country.economy.growthRate`.
+At the original M04 move, no other moved-over phase read `corp.revenue`, `liquidCapital`, `earningsHistory`, or `corpRevenueSnapshots`. The later `subsidyBudgetPhase` now calls `calculateSubsidyCostForCountry` over corporation revenue and active national subsidy records; its former zero-cost stub is corrected (#39). `contractSettlement` still uses corporationId test hooks and does not debit `liquidCapital`. `tradeGrowth` reads tariff and foreign-corporate tax rates, not corp books. `fiscalBaseGrowth` grows seeded `budget.economicFactors`, not `country.economy.growthRate`.
 
 Source-aligned cascade, not a separate consumer of corp fields:
 
