@@ -113,10 +113,24 @@ export function validatePack(pack: SeedPack): void {
   }
 
   // optional extension tables: if present, must be arrays
-  for (const key of ["states", "parties", "sectors", "legislatures", "budgets"] as const) {
+  for (const key of ["states", "parties", "sectors", "legislatures", "budgets", "corporationHeadquartersRegions"] as const) {
     const v = (pack as unknown as Record<string, unknown>)[key];
     if (v !== undefined && !Array.isArray(v)) {
       throw new Error(`validatePack: ${key} must be an array if present`);
+    }
+  }
+
+  if (pack.corporationHeadquartersRegions !== undefined) {
+    const seenHeadquarters = new Set<string>();
+    for (let i = 0; i < pack.corporationHeadquartersRegions.length; i++) {
+      const location = pack.corporationHeadquartersRegions[i]!;
+      if (!location || typeof location !== "object") throw new Error(`validatePack: corporationHeadquartersRegions[${i}] must be an object`);
+      if (typeof location.id !== "string" || location.id.trim() === "") throw new Error(`validatePack: corporationHeadquartersRegions[${i}].id must be non-empty`);
+      if (seenHeadquarters.has(location.id)) throw new Error(`validatePack: duplicate corporation headquarters region id "${location.id}"`);
+      seenHeadquarters.add(location.id);
+      if (typeof location.name !== "string" || location.name.trim() === "") throw new Error(`validatePack: corporationHeadquartersRegions[${i}].name must be non-empty`);
+      if (!seen.has(location.countryId)) throw new Error(`validatePack: corporationHeadquartersRegions[${i}].countryId "${location.countryId}" does not match any country`);
+      if ((pack.states ?? []).some((state) => state.id === location.id)) throw new Error(`validatePack: corporation headquarters region "${location.id}" must not duplicate a political state`);
     }
   }
 

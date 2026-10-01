@@ -67,7 +67,8 @@ describe("projectRegions", () => {
   it("paginates and filters the player-country directory", () => {
     const world = createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "region-dir" });
     const all = projectRegions(world);
-    expect(all.directoryTotal).toBe(48);
+    // The 48 political states and the recorded corporation HQ in DC are browsable.
+    expect(all.directoryTotal).toBe(49);
     expect(all.directoryPageSize).toBe(REGION_DIRECTORY_PAGE_SIZE);
     expect(all.directory).toHaveLength(REGION_DIRECTORY_PAGE_SIZE);
     expect(all.directoryPageCount).toBe(3);
@@ -80,7 +81,10 @@ describe("projectRegions", () => {
     expect(page2.selected?.id).toBe("AL");
 
     const page3 = projectRegions(world, { directoryPage: 2 });
-    expect(page3.directory).toHaveLength(8);
+    expect(page3.directory).toHaveLength(9);
+
+    const headquarters = projectRegions(world, { directoryQuery: "District of Columbia" });
+    expect(headquarters.directory.map((row) => row.id)).toEqual(["DC"]);
 
     const filtered = projectRegions(world, { directoryQuery: "calif" });
     expect(filtered.directory.map((row) => row.id)).toEqual(["CA"]);

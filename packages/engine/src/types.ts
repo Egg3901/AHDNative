@@ -1515,6 +1515,10 @@ export interface Region {
   id: string;
   countryId: string;
   name: string;
+  /** Residence geography only; intentionally omitted from state voter/economic systems. */
+  corporationHeadquartersOnly?: boolean;
+  /** Migration provenance: this HQ-only row was absent from the legacy save. */
+  legacyProjectionDefault?: true;
   /** Optional enriched state metadata for US states (W38+). Mirrors StateSeed fields. */
   population?: number;
   houseSeats?: number;

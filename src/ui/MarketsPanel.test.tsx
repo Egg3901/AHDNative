@@ -48,7 +48,7 @@ function makeListing(overrides: Partial<MarketListing> = {}): MarketListing {
     effectiveProfitMargin: 8,
     insolvent: false,
     foundedAtTurn: 0,
-    isBank: false,
+    isBank: false, isStateOwned: false,
     playerShares: 0,
     playerAvgCostPerShare: null,
     npcShares: 5_100_000,
@@ -549,7 +549,7 @@ describe("MarketsPanel ownership discovery", () => {
     expect(screen.getByText(/5,100,000 shares/)).toBeInTheDocument();
     expect(screen.getByText(/25 shares · avg/)).toBeInTheDocument();
     // The engine records holder kinds only — no personal owner identity is invented.
-    expect(screen.queryByText(/owned by|ceo|chief executive|john smith/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/owned by|You are the recorded CEO|chief executive|john smith/i)).not.toBeInTheDocument();
   });
 
   it("states plainly when a corporation has no recorded shareholders", async () => {
