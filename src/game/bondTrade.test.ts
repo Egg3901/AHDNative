@@ -8,6 +8,7 @@ function listing(overrides: Partial<BondListing> = {}): BondListing {
     faceValue: 1000, marketPrice: 1, couponRate: 4, maturityTurn: 146,
     publicFloat: 20, playerUnits: 1, matured: false, defaulted: false,
     domestic: false, settlesInHomeCash: false, availableBalance: 5000,
+    canBuyback: false,
     ...overrides,
   };
 }

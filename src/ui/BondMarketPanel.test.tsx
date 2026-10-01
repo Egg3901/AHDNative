@@ -107,7 +107,7 @@ it('compares outstanding issues with scaled yield bars and selects on tap', asyn
   const multi: BondMarketView = { ...market, bonds: [...market.bonds,
     { id: 'bond-61-US', issuerType: 'sovereign', countryId: 'US', issuerName: 'United States Second', currency: 'USD', faceValue: 1000,
       marketPrice: 0.9, couponRate: 5, maturityTurn: 146, publicFloat: 40, playerUnits: 0,
-      matured: false, defaulted: false, domestic: true, settlesInHomeCash: true, availableBalance: 10000 }] };
+      matured: false, defaulted: false, domestic: true, settlesInHomeCash: true, availableBalance: 10000, canBuyback: false }] };
   render(<BondMarketPanel market={multi} busy={false} onAction={vi.fn()} onSelect={onSelect} />);
   expect(screen.getByText('Compare issues')).toBeInTheDocument();
   const discountBar = screen.getByTestId('bond-ytm-bar-bond-61-US');
@@ -135,7 +135,7 @@ describe('BondMarketPanel dual-pane list/detail (#438)', () => {
   const multi: BondMarketView = { ...market, bonds: [...market.bonds,
     { id: 'bond-61-US', issuerType: 'sovereign', countryId: 'US', issuerName: 'United States Second', currency: 'USD', faceValue: 1000,
       marketPrice: 0.9, couponRate: 5, maturityTurn: 146, publicFloat: 40, playerUnits: 0,
-      matured: false, defaulted: false, domestic: true, settlesInHomeCash: true, availableBalance: 10000 }] };
+      matured: false, defaulted: false, domestic: true, settlesInHomeCash: true, availableBalance: 10000, canBuyback: false }] };
   it('pairs the compare list with the selected detail sharing one selection', async () => {
     const user = userEvent.setup(); const onSelect = vi.fn();
     render(<BondMarketPanel market={multi} busy={false} onAction={vi.fn()} onSelect={onSelect} />);

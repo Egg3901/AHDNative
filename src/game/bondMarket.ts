@@ -62,7 +62,7 @@ export function projectBondMarket(world: WorldState): BondMarketView {
     currency: world.budgets[player.countryId]?.currencyCode ?? world.exchangeRates[player.countryId]?.currencyCode ?? 'XXX',
     balances: { ...personal },
     buy: hint('buyBond'), sell: hint('sellBond'),
-    bonds: Object.values(world.bonds).flatMap(bond => {
+    bonds: Object.values(world.bonds).flatMap<BondListing>(bond => {
       const playerUnits = bond.holders.find(holder => holder.holderId === 'player')?.units ?? 0;
       if (bond.matured && playerUnits === 0) return [];
       const currency = resolveBondDenomination(world, bond);
