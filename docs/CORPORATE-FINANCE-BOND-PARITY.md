@@ -3,7 +3,9 @@
 This checkpoint records the supported Native implementation for original
 issue [#110](https://github.com/Egg3901/AHDNative/issues/110), plus the plant
 and R&D portion of [#107](https://github.com/Egg3901/AHDNative/issues/107).
-The immutable AHDGame reference is `01797b27082b098fdf3929bb498215c94c8dda24`.
+The immutable mechanics reference is `01797b27082b098fdf3929bb498215c94c8dda24`.
+Current Game main refreshed to `88fb2de96503a98eb25bc4b77f54f3308dfb45d2`;
+the active corporate/finance mechanics paths are unchanged.
 Root review and the hosted full gate remain pending; no issue status change or
 full-parity claim is made here.
 
@@ -54,7 +56,7 @@ full-parity claim is made here.
 - `src/game/corporateBondIssuance.test.ts` — issue, source-rate coupon,
   save/reload and next-turn issuer balance; CEO public-float retirement and
   save/reload.
-- `src/ui/MarketsPanel.test.tsx` and `src/ui/BondMarketView.test.ts` — quote,
+- `src/ui/MarketsPanel.test.tsx` and `src/game/bondMarketView.test.ts` — quote,
   issuer identity and CEO-gated controls.
 - `smoke/corporate-bond-flow.spec.ts` — actual player CEO appointment, bond
   issuance, buyback, save/reload and responsive no-overflow checks at 320px and
@@ -81,3 +83,33 @@ modifier/P&L and management stack, wider CEO/NPP decision behavior, and full
 command-economy plan/reform gravity remain unported. The R&D innovation stream
 adds sector capacity only; no national TFP effect is claimed. Extraction R&D
 still lacks the full source action, facility and regional prerequisite flow.
+
+## Finance and macro integration
+
+Source savings/bank deposit accrual now runs after corporation/union writes and
+before pension/macro; central-bank decisions run after settled inflation and
+price the next turn. Accrual reads the prior settled budget inflation, the same
+value Game snapshots into its central-bank inflation history. The saved eight-turn
+pricing rollout reaches +0.25 percentage points on central-bank savings and +2
+points on credit spread. An actual normal turn uses the pre-turn prime/inflation
+inputs while later macro and inflation still advance.
+
+This is partial #111. The current source additionally caps interest eligibility
+at 25% of prior national savings and uses current FX to service credit from other
+personal currency balances. Those live consumers still need their state and
+settlement implementation; this batch does not close #111. Its closed child
+issues do not replace the original parent acceptance.
+
+Physical sales also exposed Native's stale output-gap clamp. Independently
+executed current Game vectors now constrain both persisted gap and headline
+growth together: with previous gap 0, potential 2%, sector signal +100%/-100%
+and 48 turns/year, the saved gaps are 13/48 and -17/48 and the reported growth
+is +15%/-15%. Three regressions fail before this correction and pass after.
+Source growth ceilings can hide a strict difference in the next headline rate
+while preserving different saved gaps; strike throttles physical output once,
+and market clearing need not reduce realized receipts by the same fraction.
+These bounded corrections are reference only #106 and #40.
+
+After main's subsidy controls are integrated, the six finance/banking/subsidy/
+Gosbank suites pass 33 tests. The source macro/physical regressions pass 22 tests
+across focused reruns. Fresh combined hosted verification remains required.
