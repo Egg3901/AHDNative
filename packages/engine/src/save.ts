@@ -50,6 +50,7 @@ import {
   validateBargainingCampaigns,
   validateCollectiveAgreements,
 } from "./unions/campaigns.js";
+import { PRIMARY_SNAPSHOT_HISTORY_LIMIT } from "./elections/constants.js";
 
 /**
  * Save file = versioned JSON envelope around the full WorldState. Older
@@ -64,11 +65,27 @@ export interface SaveFile {
 }
 
 export function serializeSave(world: WorldState, savedAt: string): string {
+  // Game persists primary snapshots in a separate collection and its full
+  // election consumers fetch only the latest 72 rows. Native embeds those
+  // chart points in ElectionRecord, so project the same visible window into
+  // each local save without mutating the live world or dropping finalized
+  // election history from the running session.
+  const saveWorld = {
+    ...world,
+    elections: world.elections.map((election) =>
+      (election.primarySnapshots?.length ?? 0) > PRIMARY_SNAPSHOT_HISTORY_LIMIT
+        ? {
+            ...election,
+            primarySnapshots: election.primarySnapshots!.slice(-PRIMARY_SNAPSHOT_HISTORY_LIMIT),
+          }
+        : election,
+    ),
+  };
   const save: SaveFile = {
     format: "ahdsolo-save",
     schemaVersion: world.meta.schemaVersion,
     savedAt,
-    world,
+    world: saveWorld,
   };
   return JSON.stringify(save);
 }

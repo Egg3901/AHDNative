@@ -84,4 +84,39 @@ describe("primary ballot scheduler", () => {
     expect(race.primaryResults?.byParty.US_DEM?.[0]?.candidateId).toBe(opponentId);
     expect(race.candidates.map((candidate) => candidate.id)).toEqual([opponentId]);
   });
+
+  it("persists the source-visible 72-snapshot window across normal turns and save reload", () => {
+    const { world, race } = setupRace();
+    world.nppAutonomyLevel = "off";
+    race.primaryEndTurn = 100;
+    race.endTurn = 110;
+
+    for (let turn = 0; turn < 80; turn += 1) advanceTurn(world);
+
+    expect(race.primarySnapshots).toHaveLength(80);
+    world.elections.push({ ...race, id: `${race.id}:finalized`, status: "resolved" });
+    const saveContents = serializeSave(world, "2026-09-11T00:00:00Z");
+    const projectedWorld = JSON.parse(saveContents).world as typeof world;
+    expect(projectedWorld.elections[0]?.primarySnapshots).toHaveLength(72);
+    expect(projectedWorld.elections[0]?.primarySnapshots?.map((snapshot) => snapshot.turn)).toEqual(
+      Array.from({ length: 72 }, (_, index) => index + 9),
+    );
+    const finalizedProjection = projectedWorld.elections.find((entry) => entry.id === `${race.id}:finalized`);
+    expect(finalizedProjection?.status).toBe("resolved");
+    expect(finalizedProjection?.primarySnapshots).toEqual(projectedWorld.elections[0]?.primarySnapshots);
+    // Save projection is non-mutating; the running Native session keeps the
+    // full phase history just as the source stores all rows separately.
+    expect(race.primarySnapshots).toHaveLength(80);
+
+    const reloaded = deserializeSave(saveContents);
+    const restoredRace = reloaded.elections[0]!;
+    expect(restoredRace.primarySnapshots).toEqual(projectedWorld.elections[0]?.primarySnapshots);
+
+    advanceTurn(reloaded);
+    expect(restoredRace.primarySnapshots).toHaveLength(73);
+    const resumed = deserializeSave(serializeSave(reloaded, "2026-09-11T00:00:00Z"));
+    expect(resumed.elections[0]?.primarySnapshots).toHaveLength(72);
+    expect(resumed.elections[0]?.primarySnapshots?.[0]?.turn).toBe(10);
+    expect(resumed.elections[0]?.primarySnapshots?.at(-1)?.turn).toBe(81);
+  });
 });
