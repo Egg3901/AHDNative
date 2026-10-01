@@ -11,10 +11,19 @@ it('sponsors a selected tax rate from a genuine elected save and retains its bil
   expect(session.legislation().proposals[0].sponsorAvailable).toBe(false);
   session.advance();
   expect(session.legislation().playerChamberKey).toBe("house");
+  // Earn the source-required 5 NPI through the real elected-office turn writer.
+  for (let turns = 0; turns < 6 && JSON.parse(session.serialize(savedAt)).world.player.nationalInfluence < 5; turns++) {
+    session.advance();
+  }
+  const before = JSON.parse(session.serialize(savedAt)).world.player;
+  expect(before.nationalInfluence).toBeGreaterThanOrEqual(5);
   const proposal = session.legislation().proposals.find(p => p.id === 'us.tax.incomeTax')!;
   expect(proposal.sponsorAvailable).toBe(true);
   const response = session.act('sponsorBill', { catalogId: proposal.id, taxRate: 38 });
   expect(response.ok).toBe(true);
+  const after = JSON.parse(session.serialize(savedAt)).world.player;
+  expect(after.actions).toBe(before.actions - 10);
+  expect(after.nationalInfluence).toBe(before.nationalInfluence - 5);
   const bill = session.legislation().chambers.flatMap(c => c.active).find(b => b.sponsorName === 'Muse' && b.title.includes('Income'))!;
   expect(bill).toBeDefined();
   expect(session.legislation({ billId: bill.id }).selectedBill).toMatchObject({ selectedRate: 38 });

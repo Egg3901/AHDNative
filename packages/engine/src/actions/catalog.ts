@@ -434,8 +434,8 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
   sponsorBill: {
     id: "sponsorBill" as ActionId,
     name: "Sponsor Bill",
-    description: "Sponsor a bill from the legislation catalog. Requires holding a legislative seat (career) or government sponsorship (HoS). Cost 4 AP. Ports src/lib/congress/billProposal.ts seat gate and catalog validation.",
-    baseCost: 4,
+    description: "Propose a bill from the legislation catalog. Requires holding a legislative seat (career) or government sponsorship (HoS). Costs 10 AP plus the provision's national influence cost.",
+    baseCost: 10,
     cooldown: 1,
     fundCost: 0,
     systems: ["legislation/bills"],

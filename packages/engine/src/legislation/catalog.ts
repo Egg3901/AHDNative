@@ -44,6 +44,8 @@ export interface CatalogEntry {
     options?: Array<{
       id: string;
       rate: number;
+      /** Source policy option direction (tax stance: left -1, center 0, right +1). */
+      effectDirection?: -1 | 0 | 1;
       economic: number;
       social: number;
     }>;

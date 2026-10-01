@@ -51,6 +51,10 @@ export interface Bill {
   sponsorPartyId: string | null;
   adminProposed?: boolean;
   nppSponsored?: boolean;
+  /** Source proposal accounting; refunded exactly once when this bill passes. */
+  proposalActionCost?: number;
+  proposalNpiCost?: number;
+  proposalCostsRefunded?: boolean;
   // Vote maps per chamber phase
   votes: Record<string, "for" | "against" | "abstain">;
   votesFor: number;
