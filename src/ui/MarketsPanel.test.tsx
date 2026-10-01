@@ -725,7 +725,7 @@ describe("MarketsPanel For Sale and sector asset (#299)", () => {
     expect(onSectorSale).toHaveBeenCalledWith("buy", { assetId: "corporate-sector:US:media:US-media", buyerCorporationId: "US-financial" });
 
     await user.click(screen.getByRole("button", { name: /US\.MEDI US-media/i }));
-    expect(screen.getByText(/anchor/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Anchor /i)).toBeInTheDocument();
     // Recorded under an NPC CEO: update and unlist stay held with the CEO gate,
     // but buying needs no seller authority, so Buy remains live.
     expect(screen.getByRole("button", { name: /update media sector price/i })).toBeDisabled();
@@ -774,7 +774,7 @@ describe("MarketsPanel sector sale listing controls (#294)", () => {
       sectorAsset: { ...makeListing().sectorAsset, forSale: { priceAnchor: 5000 } },
     });
     const onSectorSale = await openDetail(listed);
-    expect(screen.getByText(/anchor/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Anchor /i)).toBeInTheDocument();
     await userEvent.setup().type(screen.getByLabelText("Asking price"), "12345");
     await userEvent.setup().click(screen.getByRole("button", { name: /update media sector price/i }));
     expect(onSectorSale).toHaveBeenCalledWith("update", { assetId: ASSET_ID, priceAnchor: 12345 });
