@@ -7,7 +7,8 @@ organization and employer bargaining now use represented corporate-sector
 workers and locals. Source escalation/withdrawal and weighted ratification
 produce saved strikes or agreements. The actual 390px browser journey passes
 through normal save/reload. [Acceptance evidence](UNION-LEADERSHIP-PARITY.md)
-records the original criteria; final hosted review is pending before closure.
+records the original criteria. Full hosted verification passed at `1379573`
+and PR707 merged as `f9dd7e1`; #297 is checked and confirmed closed.
 Worker political feedback and wider union mechanics remain #322/#114.
 
 ## Regional sector trading checkpoint, 2026-10-01 (#299)
@@ -20,8 +21,9 @@ regional assets, since fresh worlds still seed national assets. The comparison
 uses Game's pinned regional and sector page hierarchy, with no pixel equivalence
 or physical-device claim. See [regional trading evidence](REGIONAL-SECTOR-TRADING.md).
 
-#297 and #322 remain partial. Source-backed leadership, complete employer
-authority and downstream political feedback still require implementation. The
+#322 and #114 remain partial for wider employer/industrial-action scope and
+downstream worker political feedback. Source-backed leadership, dues, organizing
+and bargaining now satisfy the bounded #297 acceptance. The
 unsafe public NPC-response and arbitrary-ballot wrappers are excluded. The unused neutral-50 labor
 metric overlay is excluded from this batch.
 
