@@ -1,38 +1,17 @@
 /**
- * #51 rendered player flow for the conditional Profile corporation card.
+ * #51 integrated Profile card evidence at320px and390px.
  *
- * Reference (AHDGame e364c049 src/app/profile/page.tsx +
- * components/CeoCorporationCard.tsx): the card renders only when a
- * corporation records `ceoId === character._id` with `ceoVacant` not true,
- * and links `/corporation/[id]`. Native records no CEO relationship, so the
- * gate is the only truthful ownership the engine persists: a player-owned
- * sector asset (`CorporateSectorAsset.owner === "player"`). The card labels
- * that role "Sector owner", never CEO, and shows no salary or dividends
- * because the engine records neither.
+ * Game954f1c21781e6e767455a15eed40f73993d89a8b renders the exact recorded
+ * CEO relationship when ceoVacant is not true. Native preserves that gate
+ * and separately labels a persisted sector owner without inferring CEO status.
+ * Profile and company detail share the issuer, brand and actual payout view.
  *
- * The jsdom suites cover projection, panel and shell wiring:
- *   src/game/profileCorporation.test.ts
- *   src/ui/ProfileCorporationCard.test.tsx
- *   src/ui/CorporationDetailReturn80.test.tsx
- * This spec is the rendered evidence through the integrated app at 320px
- * and 390px: the fixture enters through the same worker/store path as a
- * native resume, the card appears on Profile, "View company" opens the
- * working company detail with Back to Profile, a page reload resumes the
- * saved owner and the card is still there, and a save whose owner reverted
- * renders no card.
- *
- * Fixture provenance: public actions (buyShares, listSectorForSale,
- * buySectorForSale) plus test-only save setup. The serialized save is edited
- * twice outside the action flow: `world.player.cash` is raised to the listed
- * asking price so the purchase can be funded, and the "reverted" variant sets
- * `corporateSectors[assetId].owner` back to "corporation" because no player
- * action releases a sector. Both edited saves are re-loaded through
- * GameSession.load (save validation) before use.
- *
- * Reproduce: PLAYWRIGHT_CHROMIUM_EXECUTABLE=$(which google-chrome) \
- *   npx playwright test smoke/profile-corporation-card.spec.ts
- * Screenshots land in artifacts/smoke/profile-corporation-*.png (ignored by
- * git; regenerate rather than commit).
+ * The historical owner fixture uses public share/list/purchase commands plus
+ * serialized cash setup and owner reversion. Those cases prove only ownership.
+ * The CEO fixture is an unmodified fresh GameSession world at the source HQ;
+ * its rendered share purchase, vote, acceptance, compensation, turn, resignation
+ * and two normal save resumes establish the supported public CEO lifecycle.
+ * These are Chromium results, with physical-device acceptance tracked separately.
  */
 import { test, expect, type Page } from '@playwright/test';
 import { gunzipSync } from 'node:zlib';
@@ -137,9 +116,11 @@ for (const width of [320, 390]) {
         { label: 'Share price', lines: 1 },
       ]);
     }
-    // Salary and dividends stay honest gaps: notes, never fabricated values.
-    await expect(section).toContainText('Not recorded by the engine');
-    await expect(section).toContainText('no dividend system');
+    // This owner has no CEO salary or settled shareholder dividend.
+    for (const label of ['CEO salary', 'Dividends']) {
+      const row = section.locator('.ahd-profile-row').filter({ has: page.getByText(label, { exact: true }) });
+      await expect(row).toContainText('$0.00');
+    }
     await expectNoHorizontalOverflow(page);
     await section.scrollIntoViewIfNeeded();
     await page.screenshot({ path: `artifacts/smoke/profile-corporation-card-${width}.png` });
@@ -196,6 +177,8 @@ for (const width of [320, 390]) {
     // save resumes; its measured end-to-end path needs a larger budget than a
     // single navigation while each reload retains its own bounded wait.
     testInfo.setTimeout(300_000);
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/');
     await loadFixture(page, Buffer.from(ceo.save));
@@ -261,5 +244,7 @@ for (const width of [320, 390]) {
     await gameReady(page);
     await openProfile(page);
     await expect(card(page)).toHaveCount(0);
+    expect(errors).toEqual([]);
+    await expectNoHorizontalOverflow(page);
   });
 }
