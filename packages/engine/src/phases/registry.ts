@@ -372,9 +372,10 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // there would shift every downstream rng draw for existing goldens - and
   // in solo's case the banking phases are RNG-free regardless, so the real
   // reason is the same append-only-tail rule recomputeSharePricesPhase's own
-  // comment states, not an rng argument). playerSavingsInterestPhase handles
-  // only central-bank-held savings and runs before bankingTurnPhase, which
-  // exclusively handles private-bank-held savings. bankingTurnPhase before
+  // comment states, not an rng argument). playerSavingsInterestPhase accrues
+  // central-bank base on central-bank and non-authoritative private holders.
+  // bankingTurnPhase pays private-bank premiums or the full authoritative
+  // rate before
   // bankSolvencyTurnPhase mirrors mainline's real relative order (a bank's
   // deposit/loan/interest flows settle before that same turn's solvency
   // pass evaluates the resulting cash position); bankSolvencyTurnPhase

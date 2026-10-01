@@ -92,6 +92,20 @@ describe("projectSaveToV42 public envelope", () => {
     expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });
   });
 
+  it("refuses active pricing anchors and authoritative savings policy that the v42 reader cannot advance", () => {
+    const world = loadHistoricalFresh();
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({ ok: true });
+    world.centralBankPricingPhaseIn = { startedTurn: 0 };
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false, error: expect.stringContaining("Central-bank pricing phase-in state"),
+    });
+    delete world.centralBankPricingPhaseIn;
+    world.savingsAccountsPolicy = { mode: "authoritative", readCurrencies: ["USD"] };
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false, error: expect.stringContaining("Authoritative savings-holder policy"),
+    });
+  });
+
   it("projects a historical pre-CEO 1953 US world with homeRegionId AL as a v42 extension the old reader preserved", () => {
     const world = loadHistoricalFresh();
     expect(world.player.homeRegionId).toBe("AL");

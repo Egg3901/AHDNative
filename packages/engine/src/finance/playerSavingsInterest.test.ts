@@ -17,17 +17,17 @@ describe("playerSavingsInterestPhase", () => {
     world.meta.turn = 11;
     playerSavingsInterestPhase.run(world, RNG);
     expect(world.player.savings).toBe(48_000);
-    expect(world.player.pendingSavingsInterest).toBe(15);
+    expect(world.player.pendingSavingsInterest).toBe(15.31);
 
     world.meta.turn = 12;
     playerSavingsInterestPhase.run(world, RNG);
-    expect(world.player.savings).toBe(48_030);
+    expect(world.player.savings).toBe(48_030.94);
     expect(world.player.pendingSavingsInterest).toBe(0);
-    expect(world.player.savingsInterestEarnedLifetime).toBe(30);
+    expect(world.player.savingsInterestEarnedLifetime).toBe(30.94);
 
     const loaded = deserializeSave(serializeSave(world));
     expect(loaded.player.pendingSavingsInterest).toBe(0);
-    expect(loaded.player.savingsInterestEarnedLifetime).toBe(30);
+    expect(loaded.player.savingsInterestEarnedLifetime).toBe(30.94);
   });
 
   it("flushes existing pending interest when the boundary accrual rounds to zero", () => {
@@ -44,11 +44,12 @@ describe("playerSavingsInterestPhase", () => {
     expect(world.player.savingsInterestEarnedLifetime).toBe(7);
   });
 
-  it("does not double-credit savings held by a private bank", () => {
+  it("does not accrue central-bank base on an authoritative private-bank account", () => {
     const world = createWorld(OPTS);
     world.player.savings = 48_000;
     world.player.savingsHolder = "US-bank";
     world.meta.turn = 12;
+    world.savingsAccountsPolicy = { mode: "authoritative", readCurrencies: ["USD"] };
 
     playerSavingsInterestPhase.run(world, RNG);
 
@@ -67,7 +68,7 @@ describe("playerSavingsInterestPhase", () => {
 
     const loaded = deserializeSave(serializeSave(world));
 
-    expect(loaded.player.pendingSavingsInterest).toBe(15);
+    expect(loaded.player.pendingSavingsInterest).toBe(15.31);
     expect(loaded.player.savings).toBe(48_000);
   });
 });

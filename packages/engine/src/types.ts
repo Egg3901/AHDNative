@@ -30,6 +30,18 @@ import type { WorldFeatureFlags } from "./featureFlags.js";
 
 export interface WorldState {
   meta: WorldMeta;
+  /**
+   * Optional source gameConfig rollout anchor. It is written lazily on the
+   * first financial phase so untouched and historical saves retain their
+   * original bytes. An absent anchor is equivalent to the source migration
+   * anchoring immediately before the current turn.
+   */
+  centralBankPricingPhaseIn?: { startedTurn: number };
+  /** Source banking policy for which currency savings accounts are book of record. */
+  savingsAccountsPolicy?: {
+    mode: "off" | "shadow" | "authoritative";
+    readCurrencies: string[];
+  };
   /** Player-owned switches for deterministic singleplayer simulation families. */
   featureFlags: WorldFeatureFlags;
   /** Optional country rate-corridor laws; absent uses the reference preset defaults. */
