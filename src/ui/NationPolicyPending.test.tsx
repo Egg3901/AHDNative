@@ -3,12 +3,14 @@
  * queued HoS fiscal directives with their directed targets and an honest
  * empty state, using the live session projection (no invented fixtures).
  */
-import { describe, expect, it } from "vitest";
-import { render, screen, within } from "@testing-library/react";
-import type { WorldState } from "@ahdclient/engine";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { createWorld, type WorldState } from "@ahdclient/engine";
 import { projectNation } from "../game/nation";
 import { GameSession } from "../game/session";
 import { NationPanel } from "./NationPanel";
+import { SubsidyLegislationControls } from "./NationPanel";
 
 const CLOCK = { turn: 1, date: "1953-01-13" };
 
@@ -60,5 +62,57 @@ describe("NationPanel pending directives (#65)", () => {
     render(<NationPanel nation={projectNation(worldOf(session))} section="policy" clock={CLOCK} />);
     expect(screen.getByText("No pending directives recorded.")).toBeInTheDocument();
     expect(screen.queryByText("Pending")).not.toBeInTheDocument();
+  });
+});
+
+describe("player economic controls (#94/#75)", () => {
+  it("renders source-backed subsidy and Gosbank actions for a planned-economy HoS", async () => {
+    const user = userEvent.setup();
+    const session = new GameSession();
+    session.create({ era: "1953", countryId: "RU", seed: "command-controls-ui", playerName: "Alex", mode: "hos" });
+    const world = worldOf(session);
+    const onAction = vi.fn();
+
+    const { rerender } = render(<SubsidyLegislationControls nation={projectNation(world)} onAction={onAction} />);
+
+    expect(screen.getByRole("heading", { level: 2, name: "National subsidies" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Command economy" })).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Subsidy scope"), "sector");
+    const sector = screen.getByLabelText("Sector") as HTMLSelectElement;
+    await user.selectOptions(sector, "energy");
+    await user.type(screen.getByLabelText("Strategy filter (optional)"), "premium");
+    await user.click(screen.getByRole("button", { name: "Propose subsidy bill" }));
+    expect(onAction).toHaveBeenCalledWith("setSubsidyRate", {
+      subsidyOp: "enact",
+      subsidyScopeType: "sector",
+      sectorType: "energy",
+      targetStrategyId: "premium",
+      domesticOnly: false,
+    });
+
+    rerender(<NationPanel nation={projectNation(world)} section="commandEconomy" clock={CLOCK} onAction={onAction} />);
+    expect(screen.getByRole("heading", { name: "Command economy" })).toBeInTheDocument();
+    expect(screen.getByText(/Marketization 10/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Credit aggressiveness"), { target: { value: "0.1" } });
+    fireEvent.change(screen.getByLabelText("Budget softness"), { target: { value: "0.1" } });
+    await user.click(screen.getByRole("button", { name: "Queue Gosbank directive" }));
+    expect(onAction).toHaveBeenCalledWith("commandEconomyDirective", {
+      directiveOp: "setGosbankPosture",
+      creditAggressiveness: 0.1,
+      budgetSoftness: 0.1,
+    });
+  });
+
+  it("keeps Gosbank controls out of market-country economies and hides all controls from career mode", () => {
+    const us = createWorld({ era: "1953", countryId: "US", seed: "market-controls-ui", playerName: "Alex", mode: "hos" });
+    const { rerender } = render(<SubsidyLegislationControls nation={projectNation(us)} onAction={vi.fn()} />);
+    expect(screen.getByRole("heading", { level: 2, name: "National subsidies" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Command economy" })).not.toBeInTheDocument();
+
+    const career = createWorld({ era: "1953", countryId: "RU", seed: "career-controls-ui", playerName: "Alex", mode: "career" });
+    rerender(<SubsidyLegislationControls nation={projectNation(career)} onAction={vi.fn()} />);
+    expect(screen.queryByRole("region", { name: "National subsidies" })).not.toBeInTheDocument();
   });
 });

@@ -37,7 +37,7 @@ import { seedCorporations } from "./corporation/founding.js";
 import { seedNpcBanks } from "./banking/npcBanks.js";
 import { seedUnions } from "./unions/founding.js";
 import { seedExchangeRates } from "./forex/founding.js";
-import { MARKETIZATION_SCHEDULE, scheduledMarketizationLevel, NPP_DEFAULT_BUDGET_SOFTNESS, NPP_DEFAULT_INTERNAL_REPRESSION, NPP_DEFAULT_REFORMISM } from "./commandEconomy/constants.js";
+import { MARKETIZATION_SCHEDULE, scheduledMarketizationLevel, NPP_DEFAULT_BUDGET_SOFTNESS, NPP_DEFAULT_CREDIT_AGGRESSIVENESS, NPP_DEFAULT_INTERNAL_REPRESSION, NPP_DEFAULT_REFORMISM } from "./commandEconomy/constants.js";
 import type { CommandEconomyState } from "./commandEconomy/types.js";
 import { seedCapitalStock } from "./economy/capitalStock.js";
 import type { UnownedSectorState } from "./economy/types.js";
@@ -889,6 +889,8 @@ export function createWorld(options: NewWorldOptions): WorldState {
       governmentReformism: NPP_DEFAULT_REFORMISM,
       internalRepression: NPP_DEFAULT_INTERNAL_REPRESSION,
       budgetSoftness: NPP_DEFAULT_BUDGET_SOFTNESS,
+      creditAggressiveness: NPP_DEFAULT_CREDIT_AGGRESSIVENESS,
+      pendingDirectives: [],
     };
     commandEconomy[countryId] = state;
   }

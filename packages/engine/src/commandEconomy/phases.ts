@@ -14,10 +14,10 @@
  * governing-party reformism read is wired to W23's real
  * `world.governments[countryId].governingPartyId` (RU="RU_CPSU",
  * DD="DD_SED" per government/government.test.ts), exactly mirroring
- * mainline's P3 "who actually governs" fix. Gosbank posture (credit
- * aggressiveness, budget softness) and SOE performance stay at mainline's own
- * NPP-brain defaults (NPP_DEFAULT_*, SOE_PERF_BASELINE) since there is no
- * player Gosbank directive panel or per-SOE plan-fulfillment score to read.
+ * mainline's P3 "who actually governs" fix. Gosbank posture starts from the
+ * mainline NPP-brain defaults (NPP_DEFAULT_*), then player-authored posture
+ * directives resolve at their saved effective turn. SOE performance remains
+ * at SOE_PERF_BASELINE because Native has no per-SOE plan-fulfillment score.
  *
  * Ships ON (no `commandEconomyEnabled` flag) — see constants.ts file doc.
  */
@@ -55,6 +55,20 @@ export const commandEconomyPhase: TurnPhase = {
     for (const ce of Object.values(world.commandEconomy)) {
       const budget = world.budgets[ce.countryId];
       if (!budget) continue;
+      // Execute player-costed Gosbank directives at their effective turn boundary.
+      // A queued posture expires if the country leaves the planned-economy
+      // regime before resolution; it cannot silently rewrite obsolete policy.
+      const plannedRegimeAtResolution = isPlannedEconomy(ce.marketizationLevel);
+      const ready = (ce.pendingDirectives ?? []).filter((d) => d.effectiveTurn <= world.meta.turn);
+      const future = (ce.pendingDirectives ?? []).filter((d) => d.effectiveTurn > world.meta.turn);
+      for (const directive of ready) {
+        if (directive.countryId !== ce.countryId) continue;
+        if (!plannedRegimeAtResolution) continue;
+        if (directive.creditAggressiveness !== undefined) ce.creditAggressiveness = directive.creditAggressiveness;
+        if (directive.budgetSoftness !== undefined) ce.budgetSoftness = directive.budgetSoftness;
+      }
+      ce.pendingDirectives = future;
+
       // Dual-track ceiling reached: plan machinery stops entirely (mirrors
       // mainline's isPlannedEconomy gate in commandEconomyTurn.ts).
       if (!isPlannedEconomy(ce.marketizationLevel)) continue;
@@ -67,8 +81,8 @@ export const commandEconomyPhase: TurnPhase = {
       const partyReformism = governmentReformismFromEconomicPosition(governingParty?.economicPosition);
       const reformism = partyReformism ?? NPP_DEFAULT_REFORMISM;
       const internalRepression = internalRepressionFromReformism(reformism);
-      const budgetSoftness = NPP_DEFAULT_BUDGET_SOFTNESS; // PORT-STUB: no player Gosbank directive
-      const creditAggressiveness = NPP_DEFAULT_CREDIT_AGGRESSIVENESS; // PORT-STUB
+      const budgetSoftness = ce.budgetSoftness ?? NPP_DEFAULT_BUDGET_SOFTNESS;
+      const creditAggressiveness = ce.creditAggressiveness ?? NPP_DEFAULT_CREDIT_AGGRESSIVENESS;
 
       // ── Two-circuit wage fund: constrain nominal wage growth ──────────────
       const wageGrowth = wageFundConstrainedGrowth(

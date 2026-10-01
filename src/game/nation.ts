@@ -206,6 +206,32 @@ export interface NationPolicyView {
   pending?: NationPendingDirective[];
 }
 
+export interface NationSubsidyView {
+  id: string;
+  scopeType: "economy_wide" | "sector";
+  targetSectorType: string | null;
+  targetStrategyId?: string | null;
+  domesticOnly: boolean;
+  active: boolean;
+}
+
+export interface NationCommandEconomyView {
+  available: boolean;
+  marketizationLevel: number;
+  monetaryOverhang: number;
+  shortageIndex: number;
+  blackMarketPremium: number;
+  creditAggressiveness: number;
+  budgetSoftness: number;
+  pendingDirectives: Array<{
+    id: string;
+    proposedTurn: number;
+    effectiveTurn: number;
+    creditAggressiveness?: number;
+    budgetSoftness?: number;
+  }>;
+}
+
 /**
  * A costed Head of State fiscal directive queued through the executive
  * actions (adjustTaxRate/adjustBudgetSpending) and awaiting enactment at the
@@ -247,6 +273,13 @@ export interface NationView {
   budget: NationBudgetView;
   metrics: NationMetricsView;
   policy: NationPolicyView;
+  playerMode?: "career" | "hos";
+  playerCanProposeNationalBills?: boolean;
+  subsidies?: NationSubsidyView[];
+  subsidyAnnualCost?: number;
+  subsidySectorOptions?: string[];
+  commandEconomy?: NationCommandEconomyView | null;
+  stateOwnershipConcentration?: number;
 }
 
 const REVENUE_LABELS: Record<string, string> = {
@@ -1024,5 +1057,36 @@ export function projectNation(world: WorldState): NationView {
       enacted: projectPolicies(world, countryId),
       pending: projectPendingDirectives(world, countryId, labels),
     },
+    playerMode: world.player.mode,
+    playerCanProposeNationalBills: world.player.mode === "hos" || world.player.legislativeSeat?.countryId === countryId,
+    subsidies: (world.subsidies ?? []).filter((subsidy) => subsidy.countryId === countryId).map((subsidy) => ({
+      id: subsidy.id,
+      scopeType: subsidy.scopeType,
+      targetSectorType: subsidy.targetSectorType ?? null,
+      targetStrategyId: subsidy.targetStrategyId ?? null,
+      domesticOnly: subsidy.domesticOnly,
+      active: subsidy.active,
+    })),
+    subsidyAnnualCost: budget.spending.byCategory.sectorSubsidies ?? 0,
+    subsidySectorOptions: [...new Set(Object.values(world.corporations)
+      .filter((corporation) => corporation.countryId === countryId)
+      .map((corporation) => corporation.sectorType))].sort(),
+    commandEconomy: world.commandEconomy[countryId] ? {
+      available: world.commandEconomy[countryId]!.marketizationLevel < 70,
+      marketizationLevel: world.commandEconomy[countryId]!.marketizationLevel,
+      monetaryOverhang: world.commandEconomy[countryId]!.monetaryOverhang,
+      shortageIndex: world.commandEconomy[countryId]!.shortageIndex,
+      blackMarketPremium: world.commandEconomy[countryId]!.blackMarketPremium,
+      creditAggressiveness: world.commandEconomy[countryId]!.creditAggressiveness ?? 0.55,
+      budgetSoftness: world.commandEconomy[countryId]!.budgetSoftness ?? 0.85,
+      pendingDirectives: (world.commandEconomy[countryId]!.pendingDirectives ?? []).map((directive) => ({
+        id: directive.id,
+        proposedTurn: directive.proposedTurn,
+        effectiveTurn: directive.effectiveTurn,
+        ...(directive.creditAggressiveness !== undefined ? { creditAggressiveness: directive.creditAggressiveness } : {}),
+        ...(directive.budgetSoftness !== undefined ? { budgetSoftness: directive.budgetSoftness } : {}),
+      })),
+    } : null,
+    stateOwnershipConcentration: budget.stateOwnershipConcentration,
   };
 }

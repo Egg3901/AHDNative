@@ -30,7 +30,7 @@ export type GameCommand =
   | { type: "worldOverview" }
   | { type: "legislation"; selection?: LegislationSelection }
   | { type: "advance" }
-  | { type: "action"; actionId: string; params?: Record<string, string | number> }
+  | { type: "action"; actionId: string; params?: Record<string, string | number | boolean> }
   | { type: "sectorSale"; op: "list" | "update" | "unlist" | "buy"; assetId: string; priceAnchor?: number }
   | { type: "serialize"; savedAt: string; includeSaveNotice?: boolean }
   | { type: "load"; contents: string }

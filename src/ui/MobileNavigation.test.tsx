@@ -43,7 +43,7 @@ describe("MobileNavigation", () => {
       "Presidential election", "Political metrics", "Referendums",
     ]);
     expect(nation.sections?.[1]!.items.map((i) => i.label)).toEqual(["Legislature", "Bills and proposals", "Policy", "Cabinet office"]);
-    expect(nation.sections?.[2]!.items.map((i) => i.label)).toEqual(["Economy", "National Budget", "National Metrics"]);
+    expect(nation.sections?.[2]!.items.map((i) => i.label)).toEqual(["Economy", "National Budget", "National Metrics", "Command Economy"]);
 
     // World sections and their in-section order match worldNavItems groupings;
     // Stock market and Bonds sit under World, not a "Character" group.
@@ -96,6 +96,37 @@ describe("MobileNavigation", () => {
     expect(screen.getByRole("button", { name: "Save game" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "End turn" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Exit game" })).toBeInTheDocument();
+  });
+
+  it("shows Command Economy only when the player's country and office have a live system", async () => {
+    const user = userEvent.setup();
+    const ref = createRef<HTMLButtonElement | null>();
+    const props = {
+      open: true as const,
+      route: "profile" as const,
+      busy: false,
+      playerName: "Ada",
+      playerParty: "Labor",
+      countryName: "Soviet Union",
+      turn: 1,
+      date: "1953-01-08",
+      menuButtonRef: ref,
+      onNavigate: vi.fn(),
+      onAdvanceTurn: vi.fn(),
+      onSave: vi.fn(),
+      onExit: vi.fn(),
+      onClose: vi.fn(),
+      commandEconomyAvailable: false,
+    };
+    const { rerender } = render(<GameDrawer {...props} />);
+    const menu = screen.getByRole("dialog", { name: "Game menu" });
+    const nation = within(menu).getByRole("button", { name: "Nation" });
+    await user.click(nation);
+    await user.click(within(menu).getAllByRole("button", { name: "Economy", exact: true })[0]!);
+    expect(within(menu).queryByRole("button", { name: "Command Economy" })).toBeNull();
+
+    rerender(<GameDrawer {...props} commandEconomyAvailable />);
+    expect(within(menu).getByRole("button", { name: "Command Economy" })).toBeInTheDocument();
   });
 
   it("drawer renders the reference group and sub-section headings and keeps turn actions open", async () => {
@@ -312,7 +343,7 @@ describe("MobileNavigation", () => {
     // app navigates by ("Nation"/"World") are unchanged.
     const nation = screen.getByRole("button", { name: "Nation" });
     const world = screen.getByRole("button", { name: "World" });
-    expect(within(nation).getByText("15")).toBeInTheDocument();
+    expect(within(nation).getByText("16")).toBeInTheDocument();
     expect(within(world).getByText("9")).toBeInTheDocument();
     expect(nation).toHaveAttribute("aria-controls", "ahd-drawer-section-nation");
     expect(world).toHaveAttribute("aria-controls", "ahd-drawer-section-world");
@@ -326,7 +357,7 @@ describe("MobileNavigation", () => {
     // Sectors entry (#89) and the World directory entry (#73).
     const ids = drawerRouteIds();
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(34);
+    expect(ids).toHaveLength(35);
     expect(css).toMatch(/\.ahd-drawer-group\s*\+\s*\.ahd-drawer-group\s*\{[^}]*border-top:/);
   });
 
@@ -603,7 +634,7 @@ describe("MobileNavigation", () => {
     // Every drawer row carries its label in a truncating span with a hover
     // title, so long/localized strings cannot push neighbouring content out.
     const rows = document.querySelectorAll("#ahd-drawer .ahd-drawer-item");
-    expect(rows.length).toBe(34);
+    expect(rows.length).toBe(35);
     for (const row of Array.from(rows)) {
       const label = row.querySelector(":scope > .ahd-drawer-item-label");
       expect(label).not.toBeNull();
@@ -622,7 +653,7 @@ describe("MobileNavigation", () => {
     expect(css).toMatch(/\.ahd-drawer-item-label\s*\{[^}]*flex:\s*1 1 auto[^}]*min-width:\s*0[^}]*text-overflow:\s*ellipsis[^}]*white-space:\s*nowrap/);
     expect(css).toMatch(/\.ahd-drawer-item\s+\.ahd-badge\s*\{[^}]*flex:\s*0 0 auto/);
     expect(css).toMatch(/\.ahd-drawer-item[^{]*\{[^}]*min-height:\s*44px/);
-    expect(drawerRouteIds()).toHaveLength(34);
+    expect(drawerRouteIds()).toHaveLength(35);
   });
 
   it("truncates long/localized bottom-nav labels in place at 320px without losing routes", () => {

@@ -139,11 +139,11 @@ export function driftMarketizationLevel(level: number, drift: number): number {
 }
 
 // ── NPP-brain Gosbank defaults ───────────────────────────────────────────────
-// Source: constants/commandEconomy.ts NPP_DEFAULT_*. Solo has no player Gosbank
-// directive panel and no per-country commandStance (governmentFormations in
-// mainline) beyond the governingPartyId AHDClient already tracks (W23) — every
-// planned country runs on these constants except reformism, which is REAL
-// (see governmentReformismFromEconomicPosition below).
+// Source: constants/commandEconomy.ts NPP_DEFAULT_*. Fresh/undirected Native
+// states use these values; a HoS player can persist posture directives. Native
+// has no per-country commandStance (governmentFormations in mainline) beyond
+// the governingPartyId AHDClient already tracks (W23), so reformism remains a
+// live governing-party input (see governmentReformismFromEconomicPosition).
 export const NPP_DEFAULT_CREDIT_AGGRESSIVENESS = 0.55;
 export const NPP_DEFAULT_BUDGET_SOFTNESS = 0.85;
 export const NPP_DEFAULT_REFORMISM = 0;
@@ -179,8 +179,9 @@ export function governmentReformismFromEconomicPosition(
 /**
  * The policy stance in [-1, 1] feeding the marketization drift's w_pol term:
  * GOVERNMENT reformism (real, weight 0.6) blended with GOSBANK posture
- * (restrained credit + hard budgets = reformist; both PORT-STUB NPP defaults
- * in solo, weight 0.4). Source: constants/commandEconomy.ts computePolicyStance.
+ * (restrained credit + hard budgets = reformist; initial NPP defaults or a
+ * saved player posture, weight 0.4). Source: constants/commandEconomy.ts
+ * computePolicyStance.
  */
 export const POLICY_GOV_WEIGHT = 0.6;
 export const POLICY_GOSBANK_WEIGHT = 0.4;

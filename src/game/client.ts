@@ -69,7 +69,7 @@ export class GameClient {
   updateWorldFeatureFlags(flags: Partial<WorldFeatureFlags>) { return this.send<GameView>({ type: "worldFeatureFlags", flags }); }
   view() { return this.send<GameView>({ type: "view" }); }
   advance() { return this.send<GameView>({ type: "advance" }); }
-  act(actionId: string, params?: Record<string, string | number>) {
+  act(actionId: string, params?: Record<string, string | number | boolean>) {
     return this.send<{ result: { ok: true; message: string; outcome: ActionOutcome } | { ok: false; error: string }; view: GameView }>({ type: "action", actionId, params });
   }
   sectorSale(op: "list" | "update" | "unlist" | "buy", assetId: string, priceAnchor?: number) {

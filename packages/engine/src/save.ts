@@ -800,6 +800,63 @@ function compactResolvedNpcBallots(world: WorldState): void {
   }
 }
 
+function validateCommandEconomySave(world: WorldState): void {
+  const raw = (world as unknown as Record<string, unknown>)["commandEconomy"];
+  if (raw === undefined) return;
+  if (!isRecord(raw)) throw new Error("Not a valid save file: commandEconomy must be a country map");
+
+  const currentTurn = world.meta.turn;
+  for (const [countryId, value] of Object.entries(raw)) {
+    if (!world.countries[countryId] || !isRecord(value) || value["countryId"] !== countryId) {
+      throw new Error(`Not a valid save file: command-economy country identity does not match ${countryId}`);
+    }
+    for (const key of ["creditAggressiveness", "budgetSoftness"] as const) {
+      const posture = value[key];
+      if (posture !== undefined && (typeof posture !== "number" || !Number.isFinite(posture) || posture < 0 || posture > 1)) {
+        throw new Error(`Not a valid save file: command-economy ${key} for ${countryId} must be finite in [0,1]`);
+      }
+    }
+
+    const pending = value["pendingDirectives"];
+    if (pending === undefined) continue; // Older saves predate player directives.
+    if (!Array.isArray(pending)) throw new Error(`Not a valid save file: ${countryId} pendingDirectives must be an array`);
+    const ids = new Set<string>();
+    for (const directive of pending) {
+      if (!isRecord(directive)) throw new Error(`Not a valid save file: ${countryId} contains an invalid Gosbank directive`);
+      const id = directive["id"];
+      if (typeof id !== "string" || id.trim().length === 0 || ids.has(id)) {
+        throw new Error(`Not a valid save file: ${countryId} Gosbank directive IDs must be non-empty and unique`);
+      }
+      ids.add(id);
+      if (directive["countryId"] !== countryId) {
+        throw new Error(`Not a valid save file: directive countryId must match ${countryId}`);
+      }
+      const proposedTurn = directive["proposedTurn"];
+      const effectiveTurn = directive["effectiveTurn"];
+      if (
+        !Number.isInteger(proposedTurn) || proposedTurn !== currentTurn ||
+        !Number.isInteger(effectiveTurn) || effectiveTurn !== (proposedTurn as number) + 1
+      ) {
+        throw new Error(`Not a valid save file: directive effectiveTurn must be the next turn after the current turn for ${countryId}`);
+      }
+      if (!id.startsWith(`gosbank-${countryId}-${String(proposedTurn)}-`)) {
+        throw new Error(`Not a valid save file: Gosbank directive ID must match its country and proposal turn for ${countryId}`);
+      }
+      const hasCredit = directive["creditAggressiveness"] !== undefined;
+      const hasSoftness = directive["budgetSoftness"] !== undefined;
+      if (!hasCredit && !hasSoftness) {
+        throw new Error(`Not a valid save file: Gosbank directive for ${countryId} must set at least one posture`);
+      }
+      for (const key of ["creditAggressiveness", "budgetSoftness"] as const) {
+        const posture = directive[key];
+        if (posture !== undefined && (typeof posture !== "number" || !Number.isFinite(posture) || posture < 0 || posture > 1)) {
+          throw new Error(`Not a valid save file: directive ${key} for ${countryId} must be finite in [0,1]`);
+        }
+      }
+    }
+  }
+}
+
 export function deserializeSave(raw: string): WorldState {
   let parsed: unknown;
   try {
@@ -2789,6 +2846,7 @@ export function deserializeSave(raw: string): WorldState {
   // when the new key is absent; present malformed values still fail closed.
   if (save.world.featureFlags.rpgStats === undefined) save.world.featureFlags.rpgStats = true;
   assertCurrentWorldState(save.world);
+  validateCommandEconomySave(save.world);
   validateBankingState(save.world);
   // #295: persisted sector-owner default. Saves written before the
   // acquisition slice carry materialized assets without the field; missing
