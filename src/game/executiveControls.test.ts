@@ -19,11 +19,11 @@ describe("executive controls session slice (#65/#93)", () => {
       expect(action.available).toBe(true);
       expect(action.cost).toBeGreaterThan(0);
     }
-    // The action is projected for a Head of State, but this fresh seed has no
-    // canonical sitting-head-of-government record for the authority check.
+    // The canonical US presidential office is seated at creation; this fresh
+    // world is disabled only because it has no distressed issuer to target.
     expect(executive.find((action) => action.id === "nationalizeCorporation")).toMatchObject({
       available: false,
-      disabledReason: expect.stringMatching(/sitting head of government/i),
+      disabledReason: expect.stringMatching(/no distressed domestic corporation/i),
     });
     const tax = executive.find((action) => action.id === "adjustTaxRate")!;
     expect(tax.requires).toBe("taxRate");
