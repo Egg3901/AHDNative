@@ -41,6 +41,7 @@ import { gameReady, loadFixture, navigateGame } from './game-navigation';
 import { GameSession } from '../src/game/session';
 
 const OPTIONS = { era: '1953', countryId: 'US', seed: 'native-profile-card-51-smoke', playerName: 'Owner Player' };
+const CEO_OPTIONS = { ...OPTIONS, homeRegionId: 'DC', playerName: 'CEO Player' };
 const SAVED_AT = '2026-09-18T00:00:00.000Z';
 
 /**
@@ -75,6 +76,18 @@ function ownerFixtures(): { owner: string; reverted: string; ticker: string } {
 }
 
 const fixtures = ownerFixtures();
+
+/** New source-authored US corporation world for the integrated CEO flow. */
+function ceoWorldFixture(): { save: string; ticker: string } {
+  const session = new GameSession();
+  session.create(CEO_OPTIONS);
+  expect(session.profile().corporations).toEqual([]);
+  const listing = session.markets().listings.find((entry) => entry.id === 'US-media');
+  if (!listing) throw new Error('US-media listing missing from the markets projection');
+  return { save: session.serialize(SAVED_AT), ticker: listing.ticker };
+}
+
+const ceo = ceoWorldFixture();
 
 function card(page: Page) {
   return page.locator('section[aria-label="Corporation"]');
@@ -176,3 +189,68 @@ test('a fresh game with no recorded ownership renders no corporation card', asyn
   await expect(page.getByRole('heading', { name: 'Career history' })).toBeVisible();
   await expect(card(page)).toHaveCount(0);
 });
+
+for (const width of [320, 390]) {
+  test(`${width}px: public CEO lifecycle shows settled income, links detail and survives reload`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/');
+    await loadFixture(page, Buffer.from(ceo.save));
+    await gameReady(page);
+    await navigateGame(page, 'Profile');
+    await expect(card(page)).toHaveCount(0);
+
+    // Seat the player through the rendered Markets controls. This executes
+    // public share purchase, weighted ballot, appointment, compensation, and
+    // end-turn settlement commands against the integrated saved world.
+    await navigateGame(page, 'Stock market');
+    await page.getByRole('button', { name: /Daily Media/ }).click();
+    await page.getByLabel('Shares').fill('1');
+    await page.getByRole('button', { name: /Buy shares:/ }).click();
+    await page.getByRole('button', { name: 'Vote yourself as CEO' }).click();
+    await page.getByRole('button', { name: 'Accept CEO appointment' }).click();
+    await page.getByLabel('CEO salary per turn').fill('1000');
+    await page.getByLabel('Dividend rate').fill('25');
+    await page.getByRole('button', { name: 'Save compensation' }).click();
+    await advanceGame(page);
+    await openProfile(page);
+
+    const section = card(page);
+    await expect(section).toBeVisible();
+    await expect(section).toContainText(ceo.ticker);
+    await expect(section).toContainText('CEO');
+    await expect(section).toContainText('CEO salary');
+    await expect(section).toContainText('Dividends');
+    await expect(section).toContainText('Paid last turn');
+    await expect(section).toContainText('Received last turn');
+    await expect(section.locator('[data-corporation-brand]')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await section.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `artifacts/smoke/profile-ceo-card-${width}.png` });
+
+    await section.getByRole('button', { name: 'View company: Daily Media' }).click();
+    await expect(page.getByRole('button', { name: 'Back to market list' })).toBeVisible();
+    await expect(page.getByText(ceo.ticker).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Back to profile' }).click();
+    await expect(card(page)).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('button', { name: 'Continue CEO Player', exact: true }).click();
+    await gameReady(page);
+    await openProfile(page);
+    await expect(card(page)).toBeVisible();
+    await expect(card(page)).toContainText('CEO');
+
+    // Resignation is also a public company-detail action. Its persisted role
+    // change removes the conditional card after the normal reload path.
+    await navigateGame(page, 'Stock market');
+    await page.getByRole('button', { name: /Daily Media/ }).click();
+    await page.getByRole('button', { name: 'Resign as CEO' }).click();
+    await navigateGame(page, 'Profile');
+    await expect(card(page)).toHaveCount(0);
+    await page.reload();
+    await page.getByRole('button', { name: 'Continue CEO Player', exact: true }).click();
+    await gameReady(page);
+    await openProfile(page);
+    await expect(card(page)).toHaveCount(0);
+  });
+}

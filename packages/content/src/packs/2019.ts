@@ -3,6 +3,7 @@ import { BUDGETS_2019 } from "./budgets2019.js";
 import { ROSTER_2019_PARTIES, ROSTER_2019_LEGISLATURES, ROSTER_2019_STATES } from "./roster2019.js";
 import { usStates2019 } from "./usStates2019.js";
 import { ukRegions2019 } from "./ukRegions2019.js";
+import { US_CORPORATION_HEADQUARTERS_REGIONS } from "./corporationHeadquarters.js";
 
 /**
  * Ported from mainline AHDGame ("2019-default" preset) — real authored
@@ -109,6 +110,7 @@ export const pack2019: SeedPack = {
   // State layer (regions, apportionment, registration) generated from mainline's
   // per-era bundles by scripts/generateStateLayer.ts; see each file's header.
   states: [...ROSTER_2019_STATES, ...usStates2019, ...ukRegions2019],
+  corporationHeadquartersRegions: [...US_CORPORATION_HEADQUARTERS_REGIONS],
   // Authored national budgets for every playable country (generateBudgets.ts).
   budgets: BUDGETS_2019,
   parties: [

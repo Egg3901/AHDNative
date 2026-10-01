@@ -1,4 +1,5 @@
 import { EXTERNAL_BROAD_MONEY_GDP_SHARE, SCHEMA_VERSION } from "./world.js";
+import { getPackByEra } from "@ahdclient/content";
 import { STAT_KEYS } from "./stats/characterStats.js";
 import { isWorldFeatureFlag, resolveWorldFeatureFlags, WORLD_FEATURE_FLAG_DEFINITIONS } from "./featureFlags.js";
 import { DEFAULT_SINGLEPLAYER_DIFFICULTY, isSingleplayerDifficulty } from "./singleplayerDifficulty.js";
@@ -11,7 +12,7 @@ import { validateAlignmentRecords } from "./alignment/recordValidation.js";
 import { seedInternationalOrgs } from "./internationalOrgs/seed.js";
 import { assignUsSeatGeography } from "./elections/seatGeography.js";
 import { CENTRAL_BANK_COUNTRY_ANCHORS, CHAIR_TERM_TURNS } from "./centralBank/constants.js";
-import { seedCorporations, tickerForSector, SOURCE_NPP_HEADQUARTERS_REGION } from "./corporation/founding.js";
+import { seedCorporations, tickerForSector, SOURCE_NPP_HEADQUARTERS_REGION, corporationIdentity } from "./corporation/founding.js";
 import { rngFromSeed } from "./rng.js";
 import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } from "./playerImages.js";
 import type { WorldState } from "./types.js";
@@ -2762,10 +2763,21 @@ export function deserializeSave(raw: string): WorldState {
     save.world.meta.schemaVersion = 48;
   }
   // v48 -> v49: preserve the exact capital region used by Game's NPP seed
-  // route. Missing regions remain unsupported for this era; migration never
-  // substitutes the player's first or alphabetically first region.
+  // route. Add residence-only geography from the same era pack where needed;
+  // migration never substitutes the player's first or alphabetically first region.
   if (save.schemaVersion < 49) {
     const regions = save.world.regions;
+    const authoredRegions = getPackByEra(save.world.meta.era)?.corporationHeadquartersRegions ?? [];
+    for (const location of authoredRegions) {
+      if (!regions[location.id]) {
+        regions[location.id] = {
+          id: location.id,
+          countryId: location.countryId,
+          name: location.name,
+          corporationHeadquartersOnly: true,
+        };
+      }
+    }
     for (const corp of Object.values(save.world.corporations)) {
       const sourceHq = SOURCE_NPP_HEADQUARTERS_REGION[corp.countryId];
       if (sourceHq && regions[sourceHq]?.countryId === corp.countryId) {
@@ -2773,6 +2785,34 @@ export function deserializeSave(raw: string): WorldState {
       }
     }
     save.world.meta.schemaVersion = 49;
+  }
+  // v49 -> v50: complete source headquarters geography and stable local
+  // corporation display identity. Game generates thematic names and brand
+  // colors at spawn; the offline engine resolves these deterministically.
+  if (save.schemaVersion < 50) {
+    // Early v49 files could not include US/DC because the authored region was
+    // added after the CEO model. Complete the same explicit HQ geography here
+    // as well, without choosing a substitute region.
+    for (const location of getPackByEra(save.world.meta.era)?.corporationHeadquartersRegions ?? []) {
+      if (!save.world.regions[location.id]) {
+        save.world.regions[location.id] = {
+          id: location.id,
+          countryId: location.countryId,
+          name: location.name,
+          corporationHeadquartersOnly: true,
+        };
+      }
+    }
+    for (const corp of Object.values(save.world.corporations)) {
+      if (!corp.headquartersRegionId) {
+        const sourceHq = SOURCE_NPP_HEADQUARTERS_REGION[corp.countryId];
+        if (sourceHq && save.world.regions[sourceHq]?.countryId === corp.countryId) corp.headquartersRegionId = sourceHq;
+      }
+      const identity = corporationIdentity(corp.countryId, corp.sectorType);
+      if (!corp.name) corp.name = identity.name;
+      if (!corp.brandColor) corp.brandColor = identity.brandColor;
+    }
+    save.world.meta.schemaVersion = 50;
   }
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written

@@ -4,7 +4,7 @@ import { GameSession } from "./session";
 import { projectProfileCorporations } from "./profileCorporation";
 
 const OPTIONS = { era: "1953", countryId: "US", seed: "native-profile-ceo-51", playerName: "Alex" };
-const CEO_OPTIONS = { era: "1953", countryId: "UK", homeRegionId: "LON", seed: "native-profile-ceo-51", playerName: "Alex" };
+const CEO_OPTIONS = { era: "1953", countryId: "US", homeRegionId: "DC", seed: "native-profile-ceo-51", playerName: "Alex" };
 const SAVED_AT = "2026-09-18T00:00:00.000Z";
 
 /** Recorded sector-asset id for US-media through the public markets projection. */
@@ -52,12 +52,12 @@ describe("#51 profile corporation projection", () => {
   it("seats a shareholder through the public CEO vote and accept flow, then persists the identity", () => {
     const session = new GameSession();
     session.create(CEO_OPTIONS);
-    expect(session.act("buyShares", { corpId: "UK-media", shares: 1 }).ok).toBe(true);
-    const vote = session.act("voteCeo", { corpId: "UK-media", candidateId: "player" });
+    expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
+    const vote = session.act("voteCeo", { corpId: "US-media", candidateId: "player" });
     expect(vote.ok, vote.error).toBe(true);
-    expect(session.act("acceptCeoAppointment", { corpId: "UK-media" }).ok).toBe(true);
+    expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
     expect(session.act("setCorporationCompensation", {
-      corpId: "UK-media",
+      corpId: "US-media",
       salaryPerTurn: 1_000,
       dividendRate: 25,
     }).ok).toBe(true);
@@ -65,13 +65,13 @@ describe("#51 profile corporation projection", () => {
 
     const card = session.profile().corporations;
     expect(card).toHaveLength(1);
-    expect(card![0]).toMatchObject({ id: "UK-media", role: "ceo", ceoSalaryPerTurn: 1_000 });
+    expect(card![0]).toMatchObject({ id: "US-media", role: "ceo", ceoSalaryPerTurn: 1_000 });
     expect(card![0]!.dividendIncomePerTurn).toBeGreaterThan(0);
 
     const reloaded = new GameSession();
     reloaded.load(session.serialize(SAVED_AT));
     expect(reloaded.profile().corporations).toEqual(card);
-    expect(session.act("resignCeo", { corpId: "UK-media" }).ok).toBe(true);
+    expect(session.act("resignCeo", { corpId: "US-media" }).ok).toBe(true);
     expect(session.profile().corporations).toEqual([]);
   });
 
@@ -94,23 +94,16 @@ describe("#51 profile corporation projection", () => {
     });
   });
 
-  it("uses the authored HQ region for candidacy and leaves US/DC unsupported while DC is absent", () => {
+  it("requires residence in the authored HQ region rather than any region in the same country", () => {
     const session = new GameSession();
     session.create(CEO_OPTIONS);
-    expect(session.act("buyShares", { corpId: "UK-media", shares: 1 }).ok).toBe(true);
+    expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
     const away = new GameSession();
-    away.create({ ...CEO_OPTIONS, homeRegionId: "SEE" });
-    expect(away.act("buyShares", { corpId: "UK-media", shares: 1 }).ok).toBe(true);
-    expect(away.act("voteCeo", { corpId: "UK-media", candidateId: "player" })).toMatchObject({
+    away.create({ ...CEO_OPTIONS, homeRegionId: "NY" });
+    expect(away.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
+    expect(away.act("voteCeo", { corpId: "US-media", candidateId: "player" })).toMatchObject({
       ok: false,
       error: "You must reside in the corporation's HQ region to be a CEO candidate",
-    });
-    const us = new GameSession();
-    us.create(OPTIONS);
-    expect(us.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
-    expect(us.act("voteCeo", { corpId: "US-media", candidateId: "player" })).toMatchObject({
-      ok: false,
-      error: "This corporation's source-authored HQ region is not present in this era",
     });
   });
 
@@ -136,6 +129,7 @@ describe("#51 profile corporation projection", () => {
       playerShares: listing.playerShares,
       playerAvgCostPerShare: listing.playerAvgCostPerShare,
       controllingHolder: listing.controllingHolder,
+      brandColor: listing.brandColor,
       role: "sector owner",
       ceoSalaryPerTurn: 0,
       dividendIncomePerTurn: 0,

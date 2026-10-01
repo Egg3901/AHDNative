@@ -44,7 +44,7 @@ import type { ExtractableResource } from "../commodity/constants.js";
 import { depositToSavings, withdrawFromSavings, moveSavingsHolder } from "../finance/savingsActions.js";
 import { wireTransfer as wireTransferFn } from "../finance/wireTransfer.js";
 import { rollDebatePrep } from "../stats/debatePrep.js";
-import { validateBondIssuerIdentity } from "../bonds/corporateBonds.js";
+import { isCorpStateOwned, validateBondIssuerIdentity } from "../bonds/corporateBonds.js";
 import { rngFromState } from "../rng.js";
 import { isOrderFlowPriceEligible } from "../market/orderFlow.js";
 import { reconcileCeoAppointment } from "../corporation/ceoGovernance.js";
@@ -1456,8 +1456,10 @@ function executeActionInner(
     if (actionId === "voteCeo") {
       if (params.candidateId !== "player") return { ok: false, error: "The only available candidate is the player" };
       if (world.player.countryId !== corp.countryId) return { ok: false, error: "You must reside in the corporation's country to vote for its CEO" };
-      if (!corp.headquartersRegionId || !world.regions[corp.headquartersRegionId]) return { ok: false, error: "This corporation's source-authored HQ region is not present in this era" };
-      if (world.player.homeRegionId !== corp.headquartersRegionId) return { ok: false, error: "You must reside in the corporation's HQ region to be a CEO candidate" };
+      if (!isCorpStateOwned(corp)) {
+        if (!corp.headquartersRegionId || !world.regions[corp.headquartersRegionId]) return { ok: false, error: "This corporation's source-authored HQ region is not present in this era" };
+        if (world.player.homeRegionId !== corp.headquartersRegionId) return { ok: false, error: "You must reside in the corporation's HQ region to be a CEO candidate" };
+      }
       const holding = corp.shareholders.find((shareholder) => shareholder.holder === "player");
       if (!holding || holding.shares <= 0 || !Number.isFinite(holding.shares)) {
         return { ok: false, error: "You must hold shares to vote for the corporation CEO" };
@@ -1473,13 +1475,19 @@ function executeActionInner(
     }
 
     if (actionId === "acceptCeoAppointment") {
+      // Reconcile the persisted offer against the current cap table immediately
+      // before acceptance. Offers in a save can outlive a trade or a newer ballot.
+      const leader = reconcileCeoAppointment(corp);
+      const bondConflict = Object.values(world.bonds).some((bond) => bond.issuerType === "corporation" && bond.corporationId === corp.id && bond.holders.some((holder) => holder.holderId === "player" && holder.units > 0));
+      if (leader === "player" && bondConflict) delete corp.pendingCeoId;
       if (corp.pendingCeoId !== "player") return { ok: false, error: "No CEO appointment is pending for you" };
       if (world.player.countryId !== corp.countryId) return { ok: false, error: "You must reside in the corporation's country to accept its CEO position" };
-      if (!corp.headquartersRegionId || !world.regions[corp.headquartersRegionId]) return { ok: false, error: "This corporation's source-authored HQ region is not present in this era" };
-      if (world.player.homeRegionId !== corp.headquartersRegionId) return { ok: false, error: "You must reside in the corporation's HQ region to accept its CEO position" };
+      if (!isCorpStateOwned(corp)) {
+        if (!corp.headquartersRegionId || !world.regions[corp.headquartersRegionId]) return { ok: false, error: "This corporation's source-authored HQ region is not present in this era" };
+        if (world.player.homeRegionId !== corp.headquartersRegionId) return { ok: false, error: "You must reside in the corporation's HQ region to accept its CEO position" };
+      }
       const other = Object.values(world.corporations).find((candidate) => candidate.id !== corp.id && candidate.ceoId === "player" && candidate.ceoVacant !== true);
       if (other) return { ok: false, error: `You are already CEO of ${other.tickerSymbol}; resign before accepting another position` };
-      const bondConflict = Object.values(world.bonds).some((bond) => bond.issuerType === "corporation" && bond.corporationId === corp.id && bond.holders.some((holder) => holder.holderId === "player" && holder.units > 0));
       if (bondConflict) return { ok: false, error: "Sell this corporation's bonds before accepting its CEO position" };
       corp.ceoId = "player";
       corp.ceoType = "player";

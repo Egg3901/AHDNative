@@ -85,6 +85,9 @@ export interface CorpCeoPersonality {
  */
 export interface Corporation {
   id: string;
+  /** Local company identity; no remote logo URL is generated for offline issuers. */
+  name?: string;
+  brandColor?: string;
   countryId: string;
   /** Authored seed HQ region; absent when the source capital region is not in the loaded era. */
   headquartersRegionId?: string;

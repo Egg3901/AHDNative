@@ -73,6 +73,46 @@ export const SOURCE_NPP_HEADQUARTERS_REGION: Readonly<Record<string, string>> = 
   TR: "TR_ANK", GR: "GR_ATT", AT: "AT_VIE", FI: "FI_UUS",
 };
 
+const SOURCE_BRAND_PALETTE = [
+  "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4",
+  "#84cc16", "#f97316", "#ec4899", "#6366f1", "#14b8a6", "#d946ef",
+] as const;
+
+const SOURCE_SECTOR_NAMES: Readonly<Record<CorporationType, string>> = {
+  financial: "First Bank",
+  media: "Daily Media",
+  manufacturing: "Atlas Industries",
+  chemical_industries: "Nova Chemicals",
+  healthcare: "Med Healthcare",
+  retail: "Super Mart",
+  automobiles: "Auto Motors",
+  technology: "Tech Systems",
+  energy: "Power Energy",
+  agriculture: "Agri Farms",
+  real_estate: "Metro Properties",
+  construction: "Build Construction",
+  defense: "Defense Systems",
+  telecommunications: "Tele Communications",
+  entertainment: "Star Entertainment",
+  logistics: "Logi Logistics",
+  extraction: "Mine Mining",
+};
+
+/**
+ * Stable offline identity adapted from Game's generateNppCorpName/brandColor
+ * sources: use their authored sector naming vocabulary and palette while
+ * deriving identity from the deterministic corporation id (Game chooses both
+ * randomly at spawn). No remote logo URL is synthesized or persisted.
+ */
+export function corporationIdentity(countryId: string, sectorType: CorporationType): { name: string; brandColor: string } {
+  let hash = 0;
+  for (const char of `${countryId}-${sectorType}`) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return {
+    name: SOURCE_SECTOR_NAMES[sectorType],
+    brandColor: SOURCE_BRAND_PALETTE[hash % SOURCE_BRAND_PALETTE.length]!,
+  };
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -123,8 +163,10 @@ export function seedCorporations(
       );
 
       const id = `${country.id}-${sectorType}`;
+      const identity = corporationIdentity(country.id, sectorType);
       const corp: Corporation = {
         id,
+        ...identity,
         countryId: country.id,
         ...(country.headquartersRegionId ? { headquartersRegionId: country.headquartersRegionId } : {}),
         sectorType,

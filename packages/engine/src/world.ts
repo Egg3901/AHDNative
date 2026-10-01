@@ -150,11 +150,12 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // see save.ts.
 // v48: interbank loan book (world.interbankLoans); see save.ts.
 // v49: source-authored corporation HQ region identity; see save.ts.
+// v50: deterministic local corporation name and brand identity; see save.ts.
 // Issues #334/#345 difficulty and autonomy carry no schema version of
 // their own: both are optional axes with absent-means-default (see
 // WorldState.difficulty/nppAutonomyLevel), so default worlds keep the
 // schema 46 bytes.
-export const SCHEMA_VERSION = 49;
+export const SCHEMA_VERSION = 50;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -773,8 +774,17 @@ export function createWorld(options: NewWorldOptions): WorldState {
 
   const { regions, electoratePools, regionTurnouts, partyRegions, partyPressures, candidateSupports } =
     seedSupport(pack, parties, politicians);
+  for (const location of pack.corporationHeadquartersRegions ?? []) {
+    if (regions[location.id]) continue;
+    regions[location.id] = {
+      id: location.id,
+      countryId: location.countryId,
+      name: location.name,
+      corporationHeadquartersOnly: true,
+    };
+  }
   const homeRegions = Object.values(regions)
-    .filter((region) => region.countryId === options.countryId)
+    .filter((region) => region.countryId === options.countryId && region.corporationHeadquartersOnly !== true)
     .sort((left, right) => left.name.localeCompare(right.name));
   const homeRegionId = options.homeRegionId ?? homeRegions[0]?.id ?? null;
   if (homeRegionId !== null && regions[homeRegionId]?.countryId !== options.countryId) {
@@ -1462,6 +1472,7 @@ function seedDemographics(
 
   const nowIso = `${_startDate}T00:00:00.000Z`;
   for (const [rid, region] of Object.entries(regions)) {
+    if (region.corporationHeadquartersOnly) continue;
     const cid = region.countryId;
     const catsFor = (CATEGORIES_BY_COUNTRY_1953[cid] ?? []) as import("./demographics/categories.js").DemographicCategory[];
     let demo: import("./demographics/stateDemographics.js").StateDemographics | null = null;

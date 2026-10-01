@@ -56,7 +56,8 @@ describe("projectMarkets", () => {
     expect(media).toMatchObject({
       id: "US-media",
       ticker: world.corporations["US-media"]!.tickerSymbol,
-      name: "US-media",
+      name: world.corporations["US-media"]!.name,
+      brandColor: world.corporations["US-media"]!.brandColor,
       countryId: "US",
       currency: "USD",
       cashCurrencyMatches: true,
@@ -324,7 +325,7 @@ describe("DTO size", () => {
     const dtoBytes = Buffer.byteLength(JSON.stringify(view), "utf8");
     const worldBytes = Buffer.byteLength(JSON.stringify(world), "utf8");
     expect(dtoBytes).toBeLessThan(worldBytes);
-    expect(dtoBytes).toBeLessThan(100_000);
+    expect(dtoBytes).toBeLessThan(110_000);
     expect(view.listings.length).toBeGreaterThan(10);
     console.info(
       `projectMarkets DTO ${dtoBytes} bytes, world JSON ${worldBytes} bytes, ${view.listings.length} listings, ${view.countries.length} countries`,

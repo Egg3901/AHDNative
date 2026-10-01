@@ -805,8 +805,10 @@ function CompanyDetail({
   };
 
   const activePlayerCeo = listing.ceoId === "player" && listing.ceoVacant !== true;
+  const eligibleCeoResidence = listing.isStateOwned ||
+    (!!listing.headquartersRegionId && markets.playerHomeRegionId === listing.headquartersRegionId);
   const canVoteForCeo = listing.playerShares > 0 && markets.playerCountryId === listing.countryId &&
-    !!listing.headquartersRegionId && markets.playerHomeRegionId === listing.headquartersRegionId && !activePlayerCeo;
+    eligibleCeoResidence && !activePlayerCeo;
   const setCompensation = () => {
     const salary = Number(salaryPerTurn);
     const dividend = Number(dividendRate);

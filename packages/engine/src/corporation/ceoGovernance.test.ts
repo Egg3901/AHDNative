@@ -5,6 +5,26 @@ import { reconcileCeoAppointment } from "./ceoGovernance.js";
 import { deserializeSave, serializeSave } from "../save.js";
 
 describe("corporation CEO governance", () => {
+  it("seeds DC as residence-only geography and binds the US issuer to that source HQ", () => {
+    const world = createWorld({ era: "1953", countryId: "US", homeRegionId: "DC", seed: "ceo-hq-dc", playerName: "Alex" });
+    expect(world.regions.DC).toMatchObject({
+      id: "DC",
+      countryId: "US",
+      name: "District of Columbia",
+      corporationHeadquartersOnly: true,
+    });
+    expect(world.electoratePools.DC).toBeUndefined();
+    expect(world.regionTurnouts.DC).toBeUndefined();
+    expect(world.stateDemographics.DC).toBeUndefined();
+    expect(world.corporations["US-media"]).toMatchObject({
+      headquartersRegionId: "DC",
+      name: "Daily Media",
+      brandColor: "#06b6d4",
+    });
+    const defaultHome = createWorld({ era: "1953", countryId: "US", seed: "ceo-hq-default", playerName: "Alex" });
+    expect(defaultHome.player.homeRegionId).not.toBe("DC");
+  });
+
   it("records the live shareholder weight, rejects unrelated actors, and blocks bondholders from accepting", () => {
     const world = createWorld({ era: "1953", countryId: "UK", homeRegionId: "LON", seed: "ceo-governance-51", playerName: "Alex" });
     const corp = world.corporations["UK-media"]!;
@@ -89,17 +109,67 @@ describe("corporation CEO governance", () => {
     expect(corp.pendingCeoId).toBeUndefined();
   });
 
+  it("re-tallies persisted offers at acceptance and allows a source state-owned candidate country-wide", () => {
+    const world = createWorld({ era: "1953", countryId: "UK", homeRegionId: "SEE", seed: "ceo-governance-accept-retally", playerName: "Alex" });
+    const corp = world.corporations["UK-media"]!;
+    corp.shareholders = [{ holder: "player", shares: 1 }];
+    corp.ceoVotes = [{ voterId: "player", candidateId: "player", shares: 1 }];
+    corp.pendingCeoId = "player";
+    corp.shareholders = [];
+    expect(executeAction(world, "player", "acceptCeoAppointment", { corpId: corp.id })).toMatchObject({
+      ok: false,
+      error: "No CEO appointment is pending for you",
+    });
+    expect(corp.ceoId).toBeUndefined();
+
+    corp.ownershipState = "stateOwned";
+    corp.countryOwnerId = "UK";
+    corp.shareholders = [{ holder: "player", shares: 1 }];
+    corp.ceoVotes = [{ voterId: "player", candidateId: "player", shares: 1 }];
+    corp.pendingCeoId = "player";
+    delete corp.headquartersRegionId;
+    expect(executeAction(world, "player", "acceptCeoAppointment", { corpId: corp.id }).ok).toBe(true);
+    expect(corp.ceoId).toBe("player");
+  });
+
   it("migrates an old save only to its authored headquarters region", () => {
     const world = createWorld({ era: "1953", countryId: "UK", homeRegionId: "LON", seed: "ceo-hq-migration", playerName: "Alex" });
     const raw = JSON.parse(serializeSave(world, "2026-10-01T00:00:00.000Z"));
     raw.schemaVersion = 48;
     raw.world.meta.schemaVersion = 48;
-    for (const corp of Object.values(raw.world.corporations) as Array<{ headquartersRegionId?: string }>) {
+    delete raw.world.regions.DC;
+    for (const corp of Object.values(raw.world.corporations) as Array<{ headquartersRegionId?: string; name?: string; brandColor?: string }>) {
       delete corp.headquartersRegionId;
+      delete corp.name;
+      delete corp.brandColor;
     }
     const migrated = deserializeSave(JSON.stringify(raw));
-    expect(migrated.meta.schemaVersion).toBe(49);
+    expect(migrated.meta.schemaVersion).toBe(50);
     expect(migrated.corporations["UK-media"]?.headquartersRegionId).toBe("LON");
-    expect(migrated.corporations["US-media"]?.headquartersRegionId).toBeUndefined();
+    expect(migrated.corporations["US-media"]?.headquartersRegionId).toBe("DC");
+    expect(migrated.corporations["US-media"]).toMatchObject({ name: "Daily Media", brandColor: "#06b6d4" });
+    expect(migrated.regions.DC).toMatchObject({ name: "District of Columbia", corporationHeadquartersOnly: true });
+  });
+
+  it("completes the source HQ and display identity migration for early v49 saves", () => {
+    const world = createWorld({ era: "1953", countryId: "UK", homeRegionId: "LON", seed: "ceo-hq-v49-migration", playerName: "Alex" });
+    const raw = JSON.parse(serializeSave(world, "2026-10-01T00:00:00.000Z"));
+    raw.schemaVersion = 49;
+    raw.world.meta.schemaVersion = 49;
+    delete raw.world.regions.DC;
+    for (const corp of Object.values(raw.world.corporations) as Array<{ headquartersRegionId?: string; name?: string; brandColor?: string }>) {
+      delete corp.headquartersRegionId;
+      delete corp.name;
+      delete corp.brandColor;
+    }
+
+    const migrated = deserializeSave(JSON.stringify(raw));
+    expect(migrated.meta.schemaVersion).toBe(50);
+    expect(migrated.corporations["US-media"]).toMatchObject({
+      headquartersRegionId: "DC",
+      name: "Daily Media",
+      brandColor: "#06b6d4",
+    });
+    expect(migrated.regions.DC).toMatchObject({ name: "District of Columbia", corporationHeadquartersOnly: true });
   });
 });

@@ -10,7 +10,7 @@ import { MarketsPanel } from "./MarketsPanel";
 import type { DrawerRouteId } from "./MobileNavigation";
 
 const OPTIONS = { era: "1953", countryId: "US", seed: "native-profile-ceo-card", playerName: "Alex" };
-const CEO_OPTIONS = { era: "1953", countryId: "UK", homeRegionId: "LON", seed: "native-profile-ceo-card", playerName: "Alex" };
+const CEO_OPTIONS = { era: "1953", countryId: "US", homeRegionId: "DC", seed: "native-profile-ceo-card", playerName: "Alex" };
 const SAVED_AT = "2026-09-18T00:00:00.000Z";
 
 afterEach(() => {
@@ -83,6 +83,8 @@ describe("#51 profile corporation card", () => {
     const text = card!.textContent ?? "";
     const entry = profile.corporations![0]!;
     expect(text).toMatch(new RegExp(entry.ticker));
+    expect(text).toContain(entry.name);
+    expect(card!.querySelector("[data-corporation-brand]")?.getAttribute("style")).toContain(entry.brandColor);
     expect(text).toMatch(/Sector owner/);
     expect(text).toMatch(/Corporate cash/);
     expect(text).toMatch(/Your shares/);
@@ -96,40 +98,40 @@ describe("#51 profile corporation card", () => {
   it("shows a real CEO identity without sector ownership and opens the company detail", () => {
     const session = new GameSession();
     session.create(CEO_OPTIONS);
-    expect(session.act("buyShares", { corpId: "UK-media", shares: 1 }).ok).toBe(true);
-    expect(session.act("voteCeo", { corpId: "UK-media", candidateId: "player" }).ok).toBe(true);
-    expect(session.act("acceptCeoAppointment", { corpId: "UK-media" }).ok).toBe(true);
+    expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
+    expect(session.act("voteCeo", { corpId: "US-media", candidateId: "player" }).ok).toBe(true);
+    expect(session.act("acceptCeoAppointment", { corpId: "US-media" }).ok).toBe(true);
     const profile = session.profile();
-    expect(profile.corporations?.[0]).toMatchObject({ role: "ceo", id: "UK-media" });
+    expect(profile.corporations?.[0]).toMatchObject({ role: "ceo", id: "US-media" });
     const onNavigate = vi.fn();
     renderPanel(profile, onNavigate);
     const card = corporationSection()!;
     expect(card.textContent).toMatch(/CEO/);
-    screen.getByRole("button", { name: "View company: UK-media" }).click();
-    expect(onNavigate).toHaveBeenCalledWith("markets", "UK-media");
+    screen.getByRole("button", { name: "View company: Daily Media" }).click();
+    expect(onNavigate).toHaveBeenCalledWith("markets", "US-media");
   });
 
   it("supports the complete shareholder CEO and compensation path on the company detail", async () => {
     const session = new GameSession();
     session.create(CEO_OPTIONS);
-    expect(session.act("buyShares", { corpId: "UK-media", shares: 1 }).ok).toBe(true);
+    expect(session.act("buyShares", { corpId: "US-media", shares: 1 }).ok).toBe(true);
     const user = userEvent.setup();
     const onAction = vi.fn((id: string, params?: Record<string, string | number>) => { session.act(id, params); });
-    const page = render(<MarketsPanel markets={session.markets()} initialId="UK-media" busy={false} onAction={onAction} />);
+    const page = render(<MarketsPanel markets={session.markets()} initialId="US-media" busy={false} onAction={onAction} />);
 
     await user.click(screen.getByRole("button", { name: "Vote yourself as CEO" }));
-    expect(session.markets().listings.find((entry) => entry.id === "UK-media")!.pendingCeoId).toBe("player");
-    page.rerender(<MarketsPanel markets={session.markets()} initialId="UK-media" busy={false} onAction={onAction} />);
+    expect(session.markets().listings.find((entry) => entry.id === "US-media")!.pendingCeoId).toBe("player");
+    page.rerender(<MarketsPanel markets={session.markets()} initialId="US-media" busy={false} onAction={onAction} />);
     await user.click(screen.getByRole("button", { name: "Accept CEO appointment" }));
-    expect(session.markets().listings.find((entry) => entry.id === "UK-media")!.ceoId).toBe("player");
+    expect(session.markets().listings.find((entry) => entry.id === "US-media")!.ceoId).toBe("player");
 
-    page.rerender(<MarketsPanel markets={session.markets()} initialId="UK-media" busy={false} onAction={onAction} />);
+    page.rerender(<MarketsPanel markets={session.markets()} initialId="US-media" busy={false} onAction={onAction} />);
     await user.clear(screen.getByRole("spinbutton", { name: "CEO salary per turn" }));
     await user.type(screen.getByRole("spinbutton", { name: "CEO salary per turn" }), "1000");
     await user.clear(screen.getByRole("spinbutton", { name: "Dividend rate" }));
     await user.type(screen.getByRole("spinbutton", { name: "Dividend rate" }), "25");
     await user.click(screen.getByRole("button", { name: "Save compensation" }));
-    expect(session.markets().listings.find((entry) => entry.id === "UK-media")).toMatchObject({ ceoSalaryPerTurn: 1_000, dividendRate: 25 });
+    expect(session.markets().listings.find((entry) => entry.id === "US-media")).toMatchObject({ ceoSalaryPerTurn: 1_000, dividendRate: 25 });
     expect(onAction.mock.calls.map(([id]) => id)).toEqual([
       "voteCeo",
       "acceptCeoAppointment",
@@ -194,7 +196,7 @@ describe("#51 profile corporation card", () => {
     const onNavigate: (route: DrawerRouteId, id?: string) => void = vi.fn();
     const user = userEvent.setup();
     renderPanel(owningProfile(), onNavigate);
-    await user.click(screen.getByRole("button", { name: "View company: US-media" }));
+    await user.click(screen.getByRole("button", { name: "View company: Daily Media" }));
     expect(onNavigate).toHaveBeenCalledWith("markets", "US-media");
   });
 

@@ -164,6 +164,8 @@ export interface MarketListing {
   ceoVacant?: boolean;
   pendingCeoId?: string;
   headquartersRegionId?: string;
+  brandColor?: string;
+  isStateOwned: boolean;
   ceoSalaryPerTurn?: number;
   dividendRate?: number;
   lastCeoSalaryPaid?: number;
@@ -467,7 +469,7 @@ export function projectMarkets(world: WorldState): MarketsView {
     return {
       id: corp.id,
       ticker,
-      name: corp.id,
+      name: corp.name ?? corp.id,
       countryId: corp.countryId,
       countryName: country?.name ?? corp.countryId,
       sectorType: corp.sectorType,
@@ -504,6 +506,8 @@ export function projectMarkets(world: WorldState): MarketsView {
       ...(corp.ceoVacant !== undefined ? { ceoVacant: corp.ceoVacant } : {}),
       ...(corp.pendingCeoId !== undefined ? { pendingCeoId: corp.pendingCeoId } : {}),
       ...(corp.headquartersRegionId !== undefined ? { headquartersRegionId: corp.headquartersRegionId } : {}),
+      ...(corp.brandColor !== undefined ? { brandColor: corp.brandColor } : {}),
+      isStateOwned: corp.ownershipState === "stateOwned" || corp.countryOwnerId !== undefined,
       ...(corp.ceoSalaryPerTurn !== undefined ? { ceoSalaryPerTurn: corp.ceoSalaryPerTurn } : {}),
       ...(corp.dividendRate !== undefined ? { dividendRate: corp.dividendRate } : {}),
       ...(corp.lastCeoSalaryPaid !== undefined ? { lastCeoSalaryPaid: corp.lastCeoSalaryPaid } : {}),

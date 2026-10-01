@@ -157,7 +157,7 @@ export function listCreationHomeRegions(era: string, countryId: string): HomeReg
   const seeds = seedRowsFor(normalized, pack.era.id);
   const seedById = new Map<string, StateDemographicsSeed>();
   if (seeds) for (const seed of seeds) seedById.set(seed.stateId, seed);
-  return states.map((state) => {
+  const homeRegions = states.map((state) => {
     const seed = seedById.get(state.id) ?? null;
     const weights: Record<string, number> = {};
     if (seed) {
@@ -174,4 +174,17 @@ export function listCreationHomeRegions(era: string, countryId: string): HomeReg
       seeded: seed !== null,
     };
   });
+  for (const location of pack.corporationHeadquartersRegions ?? []) {
+    if (location.countryId !== normalized || homeRegions.some((region) => region.id === location.id)) continue;
+    homeRegions.push({
+      id: location.id,
+      name: location.name,
+      population: null,
+      electorateLean: null,
+      seeded: false,
+    });
+  }
+  // Append residence-only HQ geography after ordinary political regions so
+  // creation screens keep their existing default state selection.
+  return homeRegions;
 }

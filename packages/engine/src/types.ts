@@ -1513,6 +1513,8 @@ export interface Region {
   id: string;
   countryId: string;
   name: string;
+  /** Residence geography only; intentionally omitted from state voter/economic systems. */
+  corporationHeadquartersOnly?: boolean;
   /** Optional enriched state metadata for US states (W38+). Mirrors StateSeed fields. */
   population?: number;
   houseSeats?: number;
