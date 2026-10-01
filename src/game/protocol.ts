@@ -32,7 +32,7 @@ export type GameCommand =
   | { type: "legislation"; selection?: LegislationSelection }
   | { type: "advance" }
   | { type: "action"; actionId: string; params?: Record<string, string | number> }
-  | { type: "sectorSale"; op: "list" | "update" | "unlist" | "buy"; assetId: string; priceAnchor?: number }
+  | { type: "sectorSale"; op: "list" | "update" | "unlist" | "buy"; assetId: string; priceAnchor?: number; buyerCorporationId?: string }
   | { type: "unionCommand"; op: "organize" | "vote" | "accept"; unionId: string }
   | { type: "unionCommand"; op: "organizeSector"; unionId: string; assetId: string }
   | { type: "unionCommand"; op: "dues"; unionId: string; duesPerWorkerAnnual: number }

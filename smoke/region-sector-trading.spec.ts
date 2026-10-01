@@ -7,18 +7,34 @@ const SAVED_AT = '2026-10-01T00:00:00.000Z';
 
 function regionalTradingSave() {
   const session = new GameSession();
-  session.create({ era: '1953', countryId: 'US', seed: 'region-sector-chromium', playerName: 'Regional Trader' });
+  session.create({ era: '1953', countryId: 'US', homeRegionId: 'DC', seed: 'region-sector-chromium', playerName: 'Regional Trader' });
   expect(session.act('buyShares', { corpId: 'US-media', shares: 1 }).ok).toBe(true);
-  expect(session.act('buyShares', { corpId: 'US-energy', shares: 1 }).ok).toBe(true);
+  expect(session.act('buyShares', { corpId: 'US-financial', shares: 1 }).ok).toBe(true);
+  const sellerVote = session.act('voteCeo', { corpId: 'US-media', candidateId: 'player' });
+  expect(sellerVote.ok, sellerVote.error).toBe(true);
+  const sellerAppointment = session.act('acceptCeoAppointment', { corpId: 'US-media' });
+  expect(sellerAppointment.ok, sellerAppointment.error).toBe(true);
   const world = deserializeSave(session.serialize(SAVED_AT));
   const assets = corporateSectorAssets(world);
-  for (const corporationId of ['US-media', 'US-energy']) {
+  world.corporations['US-financial']!.liquidCapital = 1_000_000;
+  for (const corporationId of ['US-media', 'US-financial']) {
     const asset = Object.values(assets).find((row) => row.corporationId === corporationId);
     if (!asset) throw new Error(`Missing asset for ${corporationId}`);
     asset.stateId = 'CA';
   }
   world.corporateSectors = assets;
-  return serializeSave(world, SAVED_AT);
+  const listings = session.markets().listings;
+  const seller = listings.find((row) => row.id === 'US-media')!;
+  const buyer = listings.find((row) => row.id === 'US-financial')!;
+  return {
+    save: serializeSave(world, SAVED_AT),
+    sellerTicker: seller.ticker,
+    sellerName: seller.name,
+    sellerSectorLabel: seller.sectorLabel,
+    buyerTicker: buyer.ticker,
+    buyerName: buyer.name,
+    buyerSectorLabel: buyer.sectorLabel,
+  };
 }
 
 async function openCalifornia(page: Page) {
@@ -40,41 +56,59 @@ for (const width of [320, 390]) {
     test.setTimeout(180_000);
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');
-    await loadFixture(page, Buffer.from(regionalTradingSave()));
+    const fixture = regionalTradingSave();
+    await loadFixture(page, Buffer.from(fixture.save));
     await gameReady(page);
 
     let card = await openCalifornia(page);
     await expect(card).toContainText('2 regional sectors');
     await page.getByRole('button', { name: 'List media sector for sale' }).click();
-    await page.getByRole('button', { name: 'List energy sector for sale' }).click();
-    await expect(card).toContainText('2 for sale');
-    const media = card.getByRole('listitem').filter({ hasText: 'US-media' });
+    await expect(page.getByRole('button', { name: `List ${fixture.buyerSectorLabel} sector for sale` })).toBeDisabled();
+    await expect(card).toContainText('1 for sale');
+    const media = card.getByRole('listitem').filter({ has: page.getByRole('button', { name: 'Update media sector price' }) });
     await media.getByRole('textbox', { name: 'Asking price' }).fill('100');
     await media.getByRole('button', { name: 'Update media sector price' }).click();
     await expect(media).toContainText('$100.00');
-    await card.screenshot({ path: `artifacts/smoke/regional-sectors-${width}-listed.png` });
+    await page.getByRole('heading', { name: 'Corporate sectors', exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `artifacts/smoke/regional-sectors-${width}-listed.png` });
 
     await saveGame(page);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: 'Continue Regional Trader', exact: true }).click();
     await gameReady(page);
     card = await openCalifornia(page);
-    await expect(card).toContainText('2 for sale');
-    await expect(card.getByRole('listitem').filter({ hasText: 'US-media' })).toContainText('$100.00');
+    await expect(card).toContainText('1 for sale');
+    await expect(card.getByRole('listitem').filter({ has: page.getByRole('button', { name: 'Update media sector price' }) })).toContainText('$100.00');
 
-    await page.getByRole('button', { name: 'Buy media sector (US.MEDI)' }).click();
-    await expect(card.getByRole('listitem').filter({ hasText: 'US-media' })).toContainText('Owned by you');
-    await page.getByRole('button', { name: 'Unlist energy sector' }).click();
+    await navigateGame(page, 'Stock market');
+    await page.getByRole('button', { name: `${fixture.sellerTicker} ${fixture.sellerName}`, exact: true }).click();
+    await page.getByRole('button', { name: 'Resign as CEO', exact: true }).click();
+    await expect(page.getByText('The CEO seat is vacant.')).toBeVisible();
+    await page.getByRole('button', { name: 'Back to market list', exact: true }).click();
+    await page.getByRole('button', { name: `${fixture.buyerTicker} ${fixture.buyerName}`, exact: true }).click();
+    await page.getByRole('button', { name: 'Vote yourself as CEO', exact: true }).click();
+    await page.getByRole('button', { name: 'Accept CEO appointment', exact: true }).click();
+    await expect(page.getByText('You are the recorded CEO.')).toBeVisible();
+
+    await navigateGame(page, 'Regions');
+    card = await openCalifornia(page);
+    const mediaForBuy = card.getByRole('listitem').filter({ has: page.getByRole('button', { name: `Buy ${fixture.sellerSectorLabel} sector (${fixture.sellerTicker})` }) });
+    await mediaForBuy.getByLabel('Buy with corporation').selectOption('US-financial');
+    await mediaForBuy.getByRole('button', { name: `Buy ${fixture.sellerSectorLabel} sector (${fixture.sellerTicker})` }).click();
+    await expect(card).toContainText('Owned by First Bank');
+    await page.getByRole('button', { name: `List ${fixture.buyerSectorLabel} sector for sale` }).click();
+    await page.getByRole('button', { name: `Unlist ${fixture.buyerSectorLabel} sector` }).click();
     await expect(card).toContainText('0 for sale');
     await saveGame(page);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: 'Continue Regional Trader', exact: true }).click();
     await gameReady(page);
     card = await openCalifornia(page);
-    await expect(card).toContainText('Owned by you');
+    await expect(card).toContainText('Owned by First Bank');
     await expect(card).toContainText('0 for sale');
-    await expect(page.getByRole('button', { name: 'Buy media sector (US.MEDI)' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: `Buy ${fixture.sellerSectorLabel} sector (${fixture.sellerTicker})` })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await card.screenshot({ path: `artifacts/smoke/regional-sectors-${width}-owned.png` });
+    await page.getByRole('heading', { name: 'Corporate sectors', exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `artifacts/smoke/regional-sectors-${width}-owned.png` });
   });
 }

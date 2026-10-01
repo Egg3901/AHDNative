@@ -34,6 +34,12 @@ export function selectRegionSectorAssets(
   regionId: string,
 ): MarketListing[] {
   return listings
+    .flatMap((listing) => [listing.sectorAsset, ...(listing.sectorAssets ?? [])].filter((asset) => asset.recorded !== false).map((asset) => ({
+      ...listing,
+      sectorType: asset.sectorType,
+      sectorLabel: asset.sectorType,
+      sectorAsset: asset,
+    })))
     .filter((listing) => listing.sectorAsset.regionId === regionId)
     .sort(
       (a, b) =>
@@ -105,21 +111,14 @@ export function RegionSectorAssetsCard({
                   paddingTop: "0.55rem",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: "0.5rem",
-                    minWidth: 0,
-                  }}
-                >
-                  <span style={{ minWidth: 0, flex: "1 1 auto", overflowWrap: "anywhere" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.15rem", minWidth: 0 }}>
+                  <span style={{ minWidth: 0, overflowWrap: "normal", wordBreak: "normal" }}>
                     <strong>{listing.sectorLabel}</strong>{" "}
                     <span className="ahd-muted">{listing.name}</span>
                   </span>
                   <span
                     className="ahd-mono"
-                    style={{ fontSize: "0.78rem", whiteSpace: "nowrap", flexShrink: 0 }}
+                    style={{ fontSize: "0.78rem", whiteSpace: "normal", overflowWrap: "anywhere" }}
                   >
                     {formatFinanceMoney(listing.revenue, listing.currency)}/day
                   </span>
@@ -132,13 +131,12 @@ export function RegionSectorAssetsCard({
                     fontSize: "0.74rem",
                   }}
                 >
-                  <span>
-                    {ownedByPlayer
-                      ? "Owned by you"
-                      : listing.playerShares > 0
-                        ? `You hold ${listing.playerShares.toLocaleString("en-US")} ${listing.playerShares === 1 ? "share" : "shares"}`
-                        : "Unowned"}
-                  </span>
+                  <span>{ownedByPlayer ? "Owned by you" : `Owned by ${listing.name}`}</span>
+                  {listing.playerShares > 0 ? (
+                    <span>
+                      You hold {listing.playerShares.toLocaleString("en-US")} {listing.playerShares === 1 ? "share" : "shares"}
+                    </span>
+                  ) : null}
                   <span>
                     Workers:{" "}
                     <span className="ahd-mono">

@@ -9,14 +9,12 @@ import type { CorporationType } from "./types.js";
  * unallocated scope instead of inventing state ownership.
  */
 /**
- * Sector owner. "corporation" is the #293 default: the recorded
- * `corporationId` operates and owns the sector. "player" records a #295
- * player acquisition: the buyer paid the listed asking price from personal
- * cash, the seller corporation was credited, the listing cleared, and the
- * recorded corporation keeps operating the sector (it remains the turn-math
- * SSOT — Native has one aggregate corporation per country/sector, so no
- * buyer corporation can receive the asset). Routing operating income to the
- * player owner (dividends/claims) is explicitly out of scope.
+ * Sector owner. "corporation" is the #293 default and also records a #299
+ * corporate acquisition: `corporationId` is the owning/operating corporation.
+ * "player" records a direct player-owned asset. Acquired assets transfer to
+ * the buyer corporation and no longer use the seller's legacy primary-sector
+ * fallback. Native still aggregates issuer-wide operating results, so this
+ * owner identity does not create a separate sector income stream.
  */
 export type CorporateSectorOwner = "corporation" | "player";
 
@@ -152,11 +150,11 @@ export interface CorporateSectorProjection extends CorporateSectorAsset {
   currentGrowthRate: number;
 }
 
-/** Live economic projection; Corporation remains the turn-math owner in this slice. */
+/** Live issuer projection; sector identity may differ after a corporate transfer. */
 export function projectCorporateSector(world: WorldState, asset: CorporateSectorAsset): CorporateSectorProjection {
   validateCorporateSectorAssets(world, { [asset.id]: asset });
   const corporation = world.corporations[asset.corporationId];
-  if (!corporation || corporation.countryId !== asset.countryId || corporation.sectorType !== asset.sectorType) {
+  if (!corporation) {
     throw new Error(`Corporate sector ${asset.id} has an invalid corporation reference`);
   }
   return {
@@ -204,7 +202,7 @@ export function validateCorporateSectorAssets(
   for (const [key, asset] of Object.entries(assets)) {
     if (key !== asset.id) throw new Error(`Corporate sector key does not match id: ${key}`);
     const corporation = world.corporations[asset.corporationId];
-    if (!corporation || corporation.countryId !== asset.countryId || corporation.sectorType !== asset.sectorType) {
+    if (!corporation || !world.countries[asset.countryId]) {
       throw new Error(`Corporate sector ${asset.id} has an invalid corporation reference`);
     }
     if (asset.stateId !== null && world.regions[asset.stateId]?.countryId !== asset.countryId) {
