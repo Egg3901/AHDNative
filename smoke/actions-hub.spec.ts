@@ -3,6 +3,7 @@ import {
   gameReady,
   navigateGame,
   completeCharacterCreation,
+  advanceGame,
 } from "./game-navigation";
 
 test("footer Actions links select the relevant category and preserve it on return", async ({
@@ -43,6 +44,7 @@ test("footer Actions links select the relevant category and preserve it on retur
 test("structured action results survive a turn and save reload", async ({
   page,
 }) => {
+  test.setTimeout(180_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await page.getByRole("button", { name: "New game", exact: true }).click();
@@ -58,11 +60,16 @@ test("structured action results survive a turn and save reload", async ({
   await expect(history).toContainText("Fundraising complete");
   await expect(history).toContainText("Campaign funds: 250000 to 292640 (+42640)");
 
+  await advanceGame(page);
+  await expect(page.getByRole("contentinfo")).toContainText("Turn 1");
+  await expect(history).toContainText("Fundraising complete");
+
   await page.reload();
   await page
     .getByRole("button", { name: "Continue Outcome Reader", exact: true })
     .click();
   await gameReady(page);
   await navigateGame(page, "Actions");
+  await expect(page.getByRole("contentinfo")).toContainText("Turn 1");
   await expect(history).toContainText("Fundraising complete");
 });

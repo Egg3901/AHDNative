@@ -289,6 +289,7 @@ export interface GameView {
   metrics: MetricView[]; parties: PartyView[]; elections: ElectionView[]; news: NewsView[];
   actions: ActionView[]; regions: { id: string; name: string }[];
   polls: PollingView;
+  canvassing?: import("./canvassing").CanvassingView;
   notifications: import("./notifications").NotificationInbox;
   actionHistory?: import("./notifications").ActionHistoryEntry[];
 }

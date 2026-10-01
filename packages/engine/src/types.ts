@@ -1577,6 +1577,8 @@ export interface ElectoratePool {
  * Record<category, Record<group, number>> clamped to [-20, +20].
  */
 export interface RegionTurnout {
+  /** Modern canvassing ledger; absence reads the legacy modifiers once. */
+  campaignModifiers?: Record<string, Record<string, number>>;
   regionId: string;
   countryId: string;
   modifiers: Record<string, Record<string, number>>;
