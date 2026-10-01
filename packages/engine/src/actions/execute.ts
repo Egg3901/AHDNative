@@ -1,4 +1,7 @@
+import { applyCanvass, quoteCanvass } from "./canvass.js";
 import { effectivePlayerStats } from "../stats/allocation.js";
+import { accrueCharacterActionXp } from "../stats/progression.js";
+import { characterActionDisabledReason } from "./characterEligibility.js";
 /**
  * Typed action execution API.
  * Ports src/lib/actions/commands/executeAction.ts validation (cost/cooldown/eligibility)
@@ -11,6 +14,7 @@ import { isPartyCaucusActionId, partyCaucusCharge } from "./partyCaucus.js";
 import { fundraiseYield, isFundraiseEligible } from "./fundGeneration.js";
 import { NEUTRAL_STAT, statMultiplier } from "../stats/characterStats.js";
 import { actionFundCost } from "./fundCost.js";
+import { campaignAnchorToLocal } from "../campaigns/campaignCurrency.js";
 import { DOLLARS_PER_TURNOUT_POINT } from "../support/constants.js";
 import { applyBoost, calculateAlignmentMultiplier, getVoterGroups, DEFAULT_GOTV_CATEGORY } from "../support/turnout.js";
 import { decayPressure } from "../support/pressure.js";
@@ -51,6 +55,8 @@ import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudge
 
 export type ExecuteActionParams = {
   regionId?: string;
+  /** Source canvassing batch size, 1 through 50. */
+  count?: number;
   amount?: number; // for convertCash
   partyId?: string;
   caucusId?: string;
@@ -144,7 +150,7 @@ export type ExecuteActionParams = {
 };
 
 export type ExecuteActionResult =
-  | { ok: true; message: string }
+  | { ok: true; message: string; changes?: Partial<Record<"actions" | "funds" | "cash" | "infamy" | "politicalInfluence" | "favorability" | "donorBaseLevel", number>> }
   | { ok: false; error: string };
 
 function findActor(world: WorldState, actorId: string): { kind: "player" | "politician"; entity: any } | null {
@@ -209,6 +215,11 @@ export function executeAction(
   const actor = findActor(world, actorId)?.entity as {
     actions: number;
     funds: number;
+    cash?: number;
+    infamy?: number;
+    politicalInfluence?: number;
+    favorability?: number;
+    donorBaseLevel?: number;
     actionCooldowns: Record<string, number>;
     actionCounts?: Record<string, number>;
   } | undefined;
@@ -216,6 +227,11 @@ export function executeAction(
     ? {
         actions: actor.actions,
         funds: actor.funds,
+        cash: actor.cash,
+        infamy: actor.infamy,
+        politicalInfluence: actor.politicalInfluence,
+        favorability: actor.favorability,
+        donorBaseLevel: actor.donorBaseLevel,
         actionCooldowns: { ...actor.actionCooldowns },
         actionCounts: actor.actionCounts ? { ...actor.actionCounts } : undefined,
       }
@@ -223,6 +239,16 @@ export function executeAction(
   try {
     const result = executeActionWithModeBypass(world, actorId, actionId, params);
     if (!result.ok && actor && accounting) restoreActionAccounting(actor, accounting);
+    if (result.ok && actorId === "player") accrueCharacterActionXp(world, actionId);
+    if (result.ok && actor && accounting) {
+      const changes: Extract<ExecuteActionResult, { ok: true }>["changes"] = {};
+      for (const key of ["actions", "funds", "cash", "infamy", "politicalInfluence", "favorability", "donorBaseLevel"] as const) {
+        const previous = accounting[key];
+        const current = actor[key];
+        if (typeof previous === "number" && typeof current === "number" && current !== previous) changes[key] = current - previous;
+      }
+      return { ...result, changes };
+    }
     return result;
   } catch (error) {
     if (actor && accounting) restoreActionAccounting(actor, accounting);
@@ -231,16 +257,26 @@ export function executeAction(
 }
 
 function restoreActionAccounting(
-  actor: { actions: number; funds: number; actionCooldowns: Record<string, number>; actionCounts?: Record<string, number> },
+  actor: { actions: number; funds: number; cash?: number; infamy?: number; politicalInfluence?: number; favorability?: number; donorBaseLevel?: number; actionCooldowns: Record<string, number>; actionCounts?: Record<string, number> },
   snapshot: {
     actions: number;
     funds: number;
+    cash: number | undefined;
+    infamy: number | undefined;
+    politicalInfluence: number | undefined;
+    favorability: number | undefined;
+    donorBaseLevel: number | undefined;
     actionCooldowns: Record<string, number>;
     actionCounts: Record<string, number> | undefined;
   },
 ): void {
   actor.actions = snapshot.actions;
   actor.funds = snapshot.funds;
+  for (const key of ["cash", "infamy", "politicalInfluence", "favorability", "donorBaseLevel"] as const) {
+    const previous = snapshot[key];
+    if (previous === undefined) delete actor[key];
+    else actor[key] = previous;
+  }
   replaceRecord(actor.actionCooldowns, snapshot.actionCooldowns);
   if (actor.actionCounts && snapshot.actionCounts) {
     replaceRecord(actor.actionCounts, snapshot.actionCounts);
@@ -294,6 +330,8 @@ function executeActionInner(
 
   const found = findActor(world, actorId);
   if (!found) return { ok: false, error: `Unknown actor: ${actorId}` };
+  const eligibilityError = found.kind === "player" ? characterActionDisabledReason(world, actionId) : undefined;
+  if (eligibilityError) return { ok: false, error: eligibilityError };
   const paramError = validateRequiredActionParams(actionId, params);
   if (paramError) return { ok: false, error: paramError };
   const actor = found.entity as {
@@ -309,6 +347,7 @@ function executeActionInner(
     actionCooldowns: Record<string, number>;
     actionCounts?: Record<string, number>;
     stats?: { charisma?: number; intellect?: number; fundraising?: number };
+    homeRegionId?: string | null;
   };
 
   const turn = world.meta.turn;
@@ -321,8 +360,11 @@ function executeActionInner(
   // partyCaucusCharge projection (#61) so the displayed quote and this charge
   // read one source (actions/partyCaucus.ts); every other action uses its
   // catalog entry directly.
+  const canvass = actionId === "canvass" && found.kind === "player" ? quoteCanvass(world, params) : null;
+  if (canvass && !canvass.ok) return canvass;
+  if (canvass?.ok && canvass.error) return { ok: false, error: canvass.error };
   const partyCaucus = isPartyCaucusActionId(actionId) ? partyCaucusCharge(actor, actionId) : null;
-  const cost = partyCaucus
+  const cost = canvass?.ok ? canvass.actions : partyCaucus
     ? partyCaucus.actionCost
     : getActionCost(catalog, actor.donorBaseLevel ?? 0, actor.politicalInfluence ?? 0, actor.favorability ?? 50);
   if ((actor.actions ?? 0) < cost) return { ok: false, error: `Not enough action points. Required: ${cost}, Available: ${actor.actions}` };
@@ -331,13 +373,19 @@ function executeActionInner(
   // (actions/fundCost.ts). Intellect softens campaign (never advertise), and
   // Fundraising softens buildDonorBase, exactly as the reference effects do.
   // NPP politicians carry no stat block, so their quote is the neutral curve.
-  const fundCost = partyCaucus ? partyCaucus.fundCost : actionFundCost({
+  // Game character quotes price the actor's home state, not a UI target.
+  const actionRegion = world.regions[actor.homeRegionId ?? ""];
+  const playerStats = found.kind === "player" ? effectivePlayerStats(world) : undefined;
+  const fundCost = canvass?.ok ? canvass.funds : partyCaucus ? partyCaucus.fundCost : actionFundCost({
     actionId,
     actionCost: cost,
     donorBaseLevel: actor.donorBaseLevel ?? 0,
     catalogFundCost: catalog.fundCost,
     countryId: actor.countryId,
-    ...(found.kind === "player" && effectivePlayerStats(world) ? { stats: effectivePlayerStats(world) } : {}),
+    gdpMillions: actionRegion?.gdp,
+    population: actionRegion?.population,
+    era: world.meta.era,
+    ...(playerStats ? { stats: playerStats } : {}),
   });
   if (fundCost > 0) {
     // Prefer campaign funds; allow actor.funds only (player funds field)
@@ -351,7 +399,8 @@ function executeActionInner(
   }
   if (actionId === "convertCash") {
     const amount = params.amount ?? actor.cash ?? 0;
-    if (amount <= 0) return { ok: false, error: "No amount to convert" };
+    if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: "Conversion amount must be a finite positive number" };
+    if (!Number.isFinite(actor.cash ?? 0)) return { ok: false, error: "Cash balance must be finite" };
     if ((actor.cash ?? 0) < amount) return { ok: false, error: `Not enough cash. Available: ${actor.cash}` };
   }
   if ((actionId === "canvass" || actionId === "organize" || actionId === "pressureBoost") && !params.regionId) {
@@ -430,7 +479,7 @@ function executeActionInner(
   const actorCountry = actor.countryId;
 
   if (actionId === "fundraise") {
-    const yieldAmt = fundraiseYield(actor.donorBaseLevel ?? 0, actor.politicalInfluence ?? 0, found.kind === "player" ? effectivePlayerStats(world) : undefined);
+    const yieldAmt = campaignAnchorToLocal(fundraiseYield(actor.donorBaseLevel ?? 0, actor.politicalInfluence ?? 0, found.kind === "player" ? effectivePlayerStats(world) : undefined), actor.countryId);
     actor.funds = (actor.funds ?? 0) + yieldAmt;
     return { ok: true, message: `Raised ${yieldAmt} from donors.` };
   }
@@ -492,7 +541,7 @@ function executeActionInner(
     return { ok: true, message: `Commissioned a ${kind} for ${costLabel}. ${topline}${race}` };
   }
   if (actionId === "convertCash") {
-    const amount = params.amount ?? 0;
+    const amount = params.amount ?? actor.cash ?? 0;
     const converted = Math.floor(amount * 0.5);
     const infamy = Math.min(100, Math.round(15 * Math.pow(amount / 1_000_000, 0.564)));
     actor.cash = (actor.cash ?? 0) - amount;
@@ -527,32 +576,8 @@ function executeActionInner(
     return { ok: true, message: "You studied hard, but no breakthrough this time." };
   }
   if (actionId === "canvass") {
-    const regionId = params.regionId!;
-    // Region choices come from recorded world data only: the region record
-    // and its turnout row must both exist, and the region must belong to the
-    // actor's country. Runs after the shared AP/fund charge, but the outer
-    // wrapper restores accounting on every failure, so rejection is atomic.
-    const record = world.regions[regionId];
-    const rt = world.regionTurnouts[regionId];
-    if (!record || !rt) return { ok: false, error: `Unknown region ${regionId}` };
-    if (record.countryId !== actorCountry) {
-      return { ok: false, error: `Canvass is only available in your country (${record.name} is in ${record.countryId}).` };
-    }
-    // Apply a boost similar to partyGOTV but directly
-    const party = actorPartyId ? world.parties[actorPartyId] : null;
-    const groups = getVoterGroups(actorCountry);
-    const eligible = groups.filter((g) => {
-      if (!party) return true;
-      return Math.abs(party.economicPosition - g.economicLean) <= 2 && Math.abs(party.socialPosition - g.socialLean) <= 2;
-    });
-    if (eligible.length === 0) return { ok: true, message: "No eligible voter groups." };
-    const group = eligible[0]!;
-    const align = party ? calculateAlignmentMultiplier(party.economicPosition, party.socialPosition, group.economicLean, group.socialLean) : 1;
-    const boost = (15_000 / DOLLARS_PER_TURNOUT_POINT) * align; // fixed spend metaphor
-    if (!rt.modifiers[DEFAULT_GOTV_CATEGORY]) rt.modifiers[DEFAULT_GOTV_CATEGORY] = {};
-    if (!(group.id in (rt.modifiers[DEFAULT_GOTV_CATEGORY] ?? {}))) rt.modifiers[DEFAULT_GOTV_CATEGORY]![group.id] = 0;
-    applyBoost(rt.modifiers, DEFAULT_GOTV_CATEGORY, group.id, boost);
-    return { ok: true, message: `Canvassed ${record.name} (+${boost.toFixed(2)} turnout).` };
+    if (!canvass?.ok) return { ok: false, error: "Canvass requires a player character." };
+    return { ok: true, message: applyCanvass(world, canvass) };
   }
   if (actionId === "organize") {
     const regionId = params.regionId!;

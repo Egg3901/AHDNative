@@ -242,6 +242,7 @@ export function ActionsHub({
   onCategoryChange,
   onAction,
   outcomes = [],
+  onCanvass,
 }: {
   actions: ActionView[];
   busy: boolean;
@@ -252,6 +253,7 @@ export function ActionsHub({
   onCategoryChange: (next: ActionsCategoryFilter) => void;
   onAction: GameScreenProps["onAction"];
   outcomes?: ActionHistoryEntry[];
+  onCanvass?: () => void;
 }) {
   const visible = category === "all" ? actions : actions.filter((a) => a.category === category);
   const countFor = (id: ActionsCategoryFilter) => {
@@ -290,7 +292,15 @@ export function ActionsHub({
         <div className="ahd-empty">No actions available.</div>
       ) : (
         <div className="ahd-grid ahd-grid-3">
-          {visible.map((a) => (
+          {visible.map((a) => a.id === "canvass" ? (
+            <article key={a.id} aria-label={a.name} className="ahd-card ahd-card-pad ahd-stack">
+              <strong>{a.name}</strong><p className="ahd-help">{a.description}</p>
+              <p>Each canvass: {a.cost} AP and {formatFunds(a.fundCost ?? 0, currency)} campaign funds.</p>
+              <button type="button" className="ahd-btn ahd-btn-primary" disabled={busy || !a.available || !onCanvass} onClick={onCanvass}>Voter Canvassing</button>
+              {a.disabledReason ? <p className="ahd-help" role="note">{a.disabledReason}</p> : null}
+              {!onCanvass && !a.disabledReason ? <p className="ahd-help" role="note">Voter canvassing is unavailable in this mode.</p> : null}
+            </article>
+          ) : (
             <ActionCard key={a.id} action={a} busy={busy} currency={currency} regions={regions} parties={parties} onAction={onAction} />
           ))}
         </div>

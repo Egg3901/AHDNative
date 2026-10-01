@@ -18,6 +18,9 @@ export interface ElectionCandidate {
    * presidential candidacies always carry an undefined running mate.
    */
   runningMateId?: string | undefined;
+  primaryCampaignState?: string | undefined;
+  travelState?: string | undefined;
+  campaignSuspended?: boolean | undefined;
 }
 
 export type ElectionStatus = "upcoming" | "active" | "resolved";

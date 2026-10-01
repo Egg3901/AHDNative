@@ -402,6 +402,8 @@ export interface WorldState {
    * holds v29 which will insert earlier in the chain; latest ->31 with resolver note).
    */
   bonds: Record<string, import("./bonds/types.js").Bond>;
+  /** Append-only evidence for resolved corporate bond defaults. Absent in legacy saves. */
+  corporateBondSettlementLedger?: import("./bonds/corporateBondDefaultSettlement.js").CorporateBondSettlementRecord[];
   /**
    * Forex exchange rates, one per forex-active country (see forex/constants.ts
    * INITIAL_RATES_1953). Ports src/lib/db/types/exchangeRate.ts (subset) +
@@ -964,10 +966,12 @@ export interface PlayerCharacter {
   statAllocationDismissed?: boolean;
   /** The single free reset has been spent. Absent means unused. */
   statsReallocationUsed?: boolean;
-  /** Recorded earned growth. Reallocation clears it; XP producers remain #91. */
+  /** Earned use-growth, consumed once by action refresh and cleared by reset. */
   statXp?: Partial<Record<import("./stats/characterStats.js").StatKey, number>>;
   /** Offline allocation/reset anchor uses the saved game date. */
   debateDecayAnchor?: string;
+  /** Saved SP clock for the source's 72-hour Debate decay interval. */
+  debateDecayAnchorTurn?: number;
   /**
    * Getting-started prompt state (#48). Ports Character.onboardingDismissed
    * (src/lib/db/types/character.ts), read by the reference profile as
@@ -1573,6 +1577,8 @@ export interface ElectoratePool {
  * Record<category, Record<group, number>> clamped to [-20, +20].
  */
 export interface RegionTurnout {
+  /** Modern canvassing ledger; absence reads the legacy modifiers once. */
+  campaignModifiers?: Record<string, Record<string, number>>;
   regionId: string;
   countryId: string;
   modifiers: Record<string, Record<string, number>>;

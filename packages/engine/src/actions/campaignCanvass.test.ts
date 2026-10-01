@@ -54,7 +54,7 @@ describe("campaignCanvass", () => {
       regionId,
       demographicCategory: category!._id,
       demographicGroup: group!.id,
-    })).toEqual({ ok: true, message: `Canvassed ${group!.name} voters in ${regionId}.` });
+    })).toEqual({ ok: true, message: `Canvassed ${group!.name} voters in ${regionId}.`, changes: { actions: -1, funds: -100 } });
     expect(world.player.actions).toBe(beforeActions - 1);
     expect(world.player.funds).toBe(beforeFunds - 100);
     expect(campaign.canvassModifiers?.[`${category!._id}:${group!.id}`]).toBeGreaterThan(0);

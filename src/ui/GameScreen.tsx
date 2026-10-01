@@ -1,3 +1,4 @@
+import { CanvassingPanel } from "./CanvassingPanel";
 import { AskPanel } from "../ask/AskPanel";
 import { WorldDirectoryPanel } from "./WorldDirectoryPanel";
 import { WorldMapRoute } from "./WorldMapRoute";
@@ -163,6 +164,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   const [returnStack, setReturnStack] = useState<ReturnContext[]>([]);
   // Selected hub category survives route changes so Profile/footer deep-links
   // and returns never lose the player's filter selection.
+  const [canvassingOpen, setCanvassingOpen] = useState(false);
   const [actionsCategory, setActionsCategory] = useState<ActionsCategoryFilter>("all");
   // The cabinet query unmounts its panel on each world revision. Keep the
   // player's selected office here so an issued order does not jump to a
@@ -252,6 +254,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
   const tabPanelId = useMemo(() => `ahd-panel-${route}`, [route]);
 
   const go = (next: RouteId) => {
+    setCanvassingOpen(false);
     focusPage.current = true;
     setReturnStack([]);
     setDetailId(undefined);
@@ -612,7 +615,7 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
         >
           {route === "actions" ? (
             <div className="ahd-stack">
-              <RouteHero image={world.player.mode === "hos" ? executiveHero(world.countryId) : "/static/heroes/actions.webp"} alt={world.player.mode === "hos" ? `${world.countryName} executive office` : "Political campaign operations"} eyebrow={world.era} title={world.player.mode === "hos" ? "Executive office" : "Campaign operations"}>
+              <RouteHero image={world.player.mode === "hos" ? executiveHero(world.countryId) : "/static/heroes/actions.webp"} alt={world.player.mode === "hos" ? `${world.countryName} executive office` : "Political campaign operations"} eyebrow={world.era} title={canvassingOpen ? "Voter Canvassing" : world.player.mode === "hos" ? "Executive office" : "Campaign operations"}>
                 {world.player.mode === "hos" ? (
                   <div className="ahd-notice" role="note">
                     <span style={{ display: "inline-flex", gap: "0.45rem", alignItems: "center", flexWrap: "wrap", minWidth: 0 }}>
@@ -632,7 +635,8 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
                 </div>
               </RouteHero>
 
-              <ActionsHub
+              {canvassingOpen && world.canvassing ? <CanvassingPanel view={world.canvassing} busy={busy} onAction={onAction} onBack={() => setCanvassingOpen(false)} /> : <ActionsHub
+                onCanvass={world.canvassing ? () => setCanvassingOpen(true) : undefined}
                 actions={world.actions}
                 outcomes={world.actionHistory ?? []}
                 busy={busy}
@@ -642,8 +646,8 @@ export function GameScreen({ loadProfile, loadProfileDestination, loadImperialPr
                 category={actionsCategory}
                 onCategoryChange={setActionsCategory}
                 onAction={onAction}
-              />
-              <PollingPanel polls={world.polls} />
+              />}
+              {!canvassingOpen ? <PollingPanel polls={world.polls} /> : null}
             </div>
           ) : null}
 
