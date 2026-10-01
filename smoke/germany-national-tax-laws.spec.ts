@@ -75,10 +75,10 @@ test('Germany singleplayer Chancellor decrees, replaces and resumes a VAT law at
   await proposeVat('22');
   await enactVat('22');
   await navigateGame(page, 'National Budget');
-  const vatRow = page.getByRole('listitem').filter({ hasText: 'VAT' });
-  await expect(vatRow).toContainText('21.0% rate');
+  const replacementVatRow = page.getByRole('listitem').filter({ hasText: 'VAT' });
+  await expect(replacementVatRow).toContainText('21.0% rate');
   await advanceGame(page);
-  await expect(vatRow).toContainText('22.0% rate');
+  await expect(replacementVatRow).toContainText('22.0% rate');
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await saveGame(page);
