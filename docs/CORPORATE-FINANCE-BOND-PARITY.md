@@ -4,8 +4,10 @@ This checkpoint records the supported Native implementation for original
 issue [#110](https://github.com/Egg3901/AHDNative/issues/110), plus the plant
 and R&D portion of [#107](https://github.com/Egg3901/AHDNative/issues/107).
 The immutable mechanics reference is `01797b27082b098fdf3929bb498215c94c8dda24`.
-Current Game main refreshed to `88fb2de96503a98eb25bc4b77f54f3308dfb45d2`;
-the active corporate/finance mechanics paths are unchanged.
+Current Game main refreshed to `96831835fb6b28983aa14fe66cb6eae9ecfde84c`;
+active savings, LOC, law and corporate-turn mechanics are unchanged from the
+immutable vectors. New upstream fund settlement batching remains separate from
+Native's disabled-by-default index-fund consumer.
 Root review and the hosted full gate remain pending; no issue status change or
 full-parity claim is made here.
 
@@ -94,11 +96,22 @@ pricing rollout reaches +0.25 percentage points on central-bank savings and +2
 points on credit spread. An actual normal turn uses the pre-turn prime/inflation
 inputs while later macro and inflation still advance.
 
-This is partial #111. The current source additionally caps interest eligibility
-at 25% of prior national savings and uses current FX to service credit from other
-personal currency balances. Those live consumers still need their state and
-settlement implementation; this batch does not close #111. Its closed child
-issues do not replace the original parent acceptance.
+The source 25% interest eligibility cap now reads the persisted prior national
+savings pool. A missing/zero prior pool follows Game's full-balance fallback;
+the next snapshot records the pre-interest, pre-quarterly-credit account total.
+Only source active issuing banks receive snapshots. Saved active pool state
+cannot be exported to the historical v42 engine that never simulates it.
+Source current-FX LOC servicing uses the obligation currency first, then other
+personal wallets ranked by balance times current rate, with source cent rounding.
+Independent Game vectors at USD1/GBP2 give payment USD4.07, GBP debit2.04,
+interest2.08 and remaining principal998.01; the next payment is USD4.06,
+GBP debit2.03 and principal996.03. A USD1/GBP2/SUR4 vector consumes SUR1.02
+before GBP. Invalid account/FX state refuses before pricing or wallet mutation.
+Public normal-turn/save/reload/twin cases are added; combined final verification
+is pending. Original #111 stays open until all four acceptance rows pass.
+Wires transfer the selected currency unchanged, with no fee; source FX is used
+only for the sender's anchor-denominated quota. Adding a transfer conversion or
+fee would diverge from Game's actual route.
 
 Physical sales also exposed Native's stale output-gap clamp. Independently
 executed current Game vectors now constrain both persisted gap and headline
@@ -113,3 +126,26 @@ These bounded corrections are reference only #106 and #40.
 After main's subsidy controls are integrated, the six finance/banking/subsidy/
 Gosbank suites pass 33 tests. The source macro/physical regressions pass 22 tests
 across focused reruns. Fresh combined hosted verification remains required.
+
+## Sector acquisition integration (#299)
+
+The active buyer CEO authorizes payment from corporate cash, seller receives its
+local-currency credit at recorded anchor FX, and host-region ownership transfers.
+When the buyer already owns the same-region/type asset, merging now conserves
+capital stock, capital book, produced/sold units and realized receipts before
+removing the incoming asset. Sales and commodity fill ratios use output weights;
+unknown optional values remain absent. The independent regression uses
+stock700+300=1000, book2100+900=3000, output100+300=400, sold75+150=225,
+receipts300+500=800 and weighted sold fraction .375. Six public acquisition
+cases and two source/RNG phase-order checks pass on the combined branch.
+The earlier actual 320px/390px corporate buyer/list/reprice/transfer/unlist/two
+resume journeys are retained; the combined hosted gate must verify this head.
+PR #713's implementation is included here, so its separate failed gate is not
+presented as merge evidence.
+
+The first SP relaunch smoke now awaits the same real worker readiness as other
+resume journeys. Its unchanged diagnostic player flow passed in 3.9 minutes on
+a busy host; the resume Profile assertion took 19.09 seconds against a 20-second
+expectation. The profile picture test allows the documented 60-second worker
+boundary for creation and two resumes. Failed synthetic CI browser traces are
+retained for diagnosis. These test changes do not establish device performance.

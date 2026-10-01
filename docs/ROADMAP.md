@@ -7,8 +7,10 @@ valuation now integrate with source savings phase timing and current macro gap
 bounds. [Acceptance evidence](CORPORATE-FINANCE-BOND-PARITY.md) records the
 independent vectors, actual two-width issuance/buyback/resume and source consumers.
 The combined full gate remains pending. #107 stays partial for wider corporate
-management/modifiers and #111 for national savings eligibility and foreign-wallet
-credit servicing. Neither parent closes from a passing bounded component alone.
+management/modifiers. Source national savings eligibility and foreign-wallet
+credit servicing are now implemented with original #111 acceptance awaiting
+combined verification. Corporate-funded #299 purchase also integrates physical
+ledger conservation; its complete original flow and fresh gate remain required.
 
 ## Subsidy and Gosbank controls checkpoint, 2026-10-01 (#94 partial)
 
