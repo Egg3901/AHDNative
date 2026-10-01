@@ -26,6 +26,7 @@ import { stepTaxRate, needsPhaseIn } from "../budget/taxRatePhaseIn.js";
 import { calculateBudgetRevenue } from "../budget/revenue.js";
 import { regionalGdpAbsolute, applyStateTaxToRegionalRevenue } from "../budget/regionalBudget.js";
 import { rebuildPolicyBudgets } from "../policyEffects/budget.js";
+import { energyActionLimits } from "../actions/officeBonus.js";
 
 const VOTING_TURNS = 2;
 const EXEC_WINDOW_TURNS = 2;
@@ -446,6 +447,26 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
     expiresAtTurn: bill.expiresAtTurn ?? null,
   };
   world.enactedLaws.push(enacted);
+
+  // AHDGame billEnactment.ts refunds the proposal charge on passage. Keep the
+  // refund attached to the bill and idempotent so a save/reload or repeated
+  // enactment projection cannot credit the player twice.
+  if (
+    bill.sponsorId === "player" &&
+    !bill.proposalCostsRefunded &&
+    (bill.proposalActionCost ?? 0) > 0
+  ) {
+    const refundNpi = bill.proposalNpiCost ?? 0;
+    const energy = world.featureFlags.rpgStats ? world.player.stats?.energy ?? 1 : 1;
+    world.player.actions = Math.min(
+      energyActionLimits(energy).cap,
+      world.player.actions + (bill.proposalActionCost ?? 0),
+    );
+    if (refundNpi > 0) {
+      world.player.nationalInfluence = (world.player.nationalInfluence ?? 0) + refundNpi;
+    }
+    bill.proposalCostsRefunded = true;
+  }
 
   // Emit news
   world.news.push({ turn: world.meta.turn, date: world.meta.date, headline: `Bill signed: ${bill.title}` });

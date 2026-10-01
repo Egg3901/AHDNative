@@ -527,6 +527,20 @@ function assertCurrentWorldState(world: WorldState): void {
   ) {
     throw new Error("Not a valid save file: invalid player national influence");
   }
+  const bills = value["bills"];
+  if (!Array.isArray(bills)) throw new Error("Not a valid save file: invalid bills");
+  for (const rawBill of bills) {
+    if (!isRecord(rawBill)) throw new Error("Not a valid save file: invalid bill");
+    for (const key of ["proposalActionCost", "proposalNpiCost"] as const) {
+      const amount = rawBill[key];
+      if (amount !== undefined && (typeof amount !== "number" || !Number.isFinite(amount) || amount < 0)) {
+        throw new Error(`Not a valid save file: invalid bill ${key}`);
+      }
+    }
+    if (rawBill["proposalCostsRefunded"] !== undefined && typeof rawBill["proposalCostsRefunded"] !== "boolean") {
+      throw new Error("Not a valid save file: invalid bill proposalCostsRefunded");
+    }
+  }
   const partyInfluence = player["partyInfluence"];
   if (partyInfluence !== undefined && (typeof partyInfluence !== "number" || !Number.isFinite(partyInfluence) || partyInfluence < 0)) {
     throw new Error("Not a valid save file: invalid player party influence");
