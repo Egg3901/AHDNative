@@ -70,8 +70,8 @@ describe("world map directory row containment", () => {
   it("keeps a long nation name with two badges inside the row and selectable", () => {
     const { onNavigate } = makeLongMap();
 
-    // The schematic tile shares the accessible name; the directory row is
-    // the real <button> element.
+    // The directory row is the only match for this name (the geographic
+    // shape uses "Open ... on the map"); it is the real <button> element.
     const row = screen
       .getAllByRole("button", { name: `Open ${LONG_NATION} nation details` })
       .find((element) => element.tagName === "BUTTON")!;

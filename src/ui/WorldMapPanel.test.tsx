@@ -57,7 +57,7 @@ function makeMap(section: WorldMapSection = "nations", view: WorldMapView = "wor
 }
 
 describe("WorldMapPanel", () => {
-  it("lists the actual projected nations and regions with no plotted coordinates", () => {
+  it("lists the actual projected nations and regions over real geography", () => {
     const { overview, regions } = makeMap();
 
     expect(screen.getByRole("heading", { name: "World map" })).toBeInTheDocument();
@@ -67,17 +67,20 @@ describe("WorldMapPanel", () => {
     expect(screen.getByRole("button", { name: "Open France nation details" })).toBeInTheDocument();
     // Every projected region row is selectable into the existing Regions route.
     expect(screen.getByRole("button", { name: `Open ${regions[0]!.name} region details` })).toBeInTheDocument();
-    // Nothing is plotted: no coordinate text or coordinate hooks anywhere.
+    // Real geography: the bundled country shapes render, with no invented grid.
+    expect(screen.getByRole("group", { name: /world nations geographic map/i })).toBeInTheDocument();
+    expect(screen.queryByText(/schematic/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/latitude|longitude/i)).not.toBeInTheDocument();
     expect(document.querySelector("[data-lat],[data-lon],[data-coordinates]")).toBeNull();
-    expect(screen.getByText(/the save records no coordinates/)).toBeInTheDocument();
   });
 
   it("opens nation and region details through the existing routes", () => {
     const { onNavigate } = makeMap();
 
-    // The schematic tile carries its own label; the directory row opens Nations.
-    expect(screen.getByRole("button", { name: "Open France on the schematic" })).toBeInTheDocument();
+    // The geographic shape carries its own label; the directory row opens Nations.
+    expect(screen.getByRole("button", { name: "Open France on the map" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open France on the map" }));
+    expect(onNavigate).toHaveBeenCalledWith("nations", "FR");
     fireEvent.click(screen.getByRole("button", { name: "Open France nation details" }));
     expect(onNavigate).toHaveBeenCalledWith("nations", "FR");
     fireEvent.click(screen.getByRole("button", { name: "Open California region details" }));
@@ -109,32 +112,34 @@ describe("WorldMapPanel", () => {
     expect(sections.indexOf("Regions")).toBeLessThan(sections.indexOf("Nations"));
   });
 
-  it("switches the schematic between world nations and country regions", () => {
-    const { overview, onViewChange, onNavigate } = makeMap("nations", "world");
+  it("switches the geography between world nations and the country spotlight", () => {
+    const { onViewChange, onNavigate } = makeMap("nations", "world");
 
-    // World context: one tile per projected nation, selectable into Nations.
-    expect(screen.getByRole("heading", { name: "World schematic" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "World nations schematic, not to geographic scale" })).toBeInTheDocument();
-    const worldTiles = within(screen.getByRole("group", { name: "World nations schematic, not to geographic scale" }))
-      .getAllByRole("button");
-    expect(worldTiles.length).toBe(overview.nations.length);
-    fireEvent.click(within(screen.getByRole("group", { name: "World nations schematic, not to geographic scale" }))
-      .getByRole("button", { name: "Open France on the schematic" }));
+    // World context: real shapes for registered nations, selectable into Nations.
+    expect(screen.getByRole("heading", { name: "World geography" })).toBeInTheDocument();
+    const map = screen.getByRole("group", { name: /world nations geographic map/i });
+    expect(within(map).getByRole("button", { name: "Open France on the map" })).toBeInTheDocument();
+    fireEvent.click(within(map).getByRole("button", { name: "Open France on the map" }));
     expect(onNavigate).toHaveBeenCalledWith("nations", "FR");
 
-    const toggle = screen.getByRole("group", { name: "World map schematic context" });
-    expect(within(toggle).getByRole("button", { name: "Show world nations schematic" })).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(within(toggle).getByRole("button", { name: "Show country regions schematic" }));
+    const toggle = screen.getByRole("group", { name: "World map geographic context" });
+    expect(within(toggle).getByRole("button", { name: "Show world nations geography" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(within(toggle).getByRole("button", { name: "Show country spotlight geography" }));
     expect(onViewChange).toHaveBeenCalledWith("country");
   });
 
-  it("renders the country schematic over the player-country regions", () => {
+  it("spotlights the player country and keeps region selection in the directory", () => {
     const { regions, onNavigate } = makeMap("nations", "country");
 
-    expect(screen.getByRole("heading", { name: `${fixture.regionsCountryName} schematic` })).toBeInTheDocument();
-    const grid = screen.getByRole("group", { name: `${fixture.regionsCountryName} regions schematic, not to geographic scale` });
-    expect(within(grid).getAllByRole("button").length).toBe(regions.length);
-    fireEvent.click(within(grid).getByRole("button", { name: `Open ${regions[0]!.name} on the schematic` }));
+    expect(screen.getByRole("heading", { name: `${fixture.regionsCountryName} spotlight` })).toBeInTheDocument();
+    // No sub-region polygons are invented: the gap is stated honestly.
+    expect(screen.getByText(/sub-region shapes are not bundled offline/i)).toBeInTheDocument();
+    const map = screen.getByRole("group", { name: /on the world map, flat projection/i });
+    expect(within(map).getAllByRole("button").length).toBe(1);
+    fireEvent.click(within(map).getByRole("button", { name: `Open ${fixture.regionsCountryName} on the map` }));
+    expect(onNavigate).toHaveBeenCalledWith("nations", fixture.overview.playerCountryId);
+    // Region rows still open the existing Regions route with country+region ids.
+    fireEvent.click(screen.getByRole("button", { name: `Open ${regions[0]!.name} region details` }));
     expect(onNavigate).toHaveBeenCalledWith("regions", regions[0]!.id);
   });
 
@@ -213,7 +218,7 @@ describe("WorldMapPanel", () => {
   it("uses phone-sized touch targets on directory rows", () => {
     makeMap();
 
-    // France renders twice (tile + row); every match keeps the touch target.
+    // France renders as a geographic shape plus a directory row; the row keeps the touch target.
     for (const button of screen.getAllByRole("button", { name: "Open France nation details" })) {
       expect(button).toHaveStyle({ minHeight: "3.1rem" });
     }

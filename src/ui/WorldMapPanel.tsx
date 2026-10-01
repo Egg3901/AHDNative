@@ -1,18 +1,23 @@
 /**
  * WorldMapPanel: phone-first offline world map/directory route (#73).
  *
- * The save records no per-nation or per-region coordinates, so nothing is
- * plotted on geographic axes. This route pairs a code-native schematic tile
- * grid (every tile is a real selectable nation or region) with the
- * directory over the actual projected save data: nations from
- * projectWorldOverview, region rows from projectRegions.
+ * This route pairs the real Natural Earth country shapes (every
+ * selectable shape is a registered nation in this save; unregistered
+ * land is drawn but inert) with the directory over the actual
+ * projected save data: nations from projectWorldOverview, region rows
+ * from projectRegions. Geometry provenance and the ISO mapping (ported
+ * from the reference WorldMapSVG/MapSVGContent) live in
+ * ../game/worldGeo.ts. Sub-region shapes are not bundled offline, so
+ * the country context spotlights the player country on the world
+ * shapes and keeps region selection in the directory: no invented
+ * polygons, ever.
  *
  * Reference hierarchy (pinned rev 08820d1): `/map` redirects to the
  * country-scoped `/country/[code]/map`, and the world nav files the map
  * under World > Diplomacy with Leaderboards as its own group. Native keeps
- * that shape with two schematic contexts (world nations, country regions),
- * both persisted as the `worldMapView` preference, and a Hall of Fame
- * summary card that opens the real offline standings route.
+ * that shape with two geographic contexts (world nations, country
+ * spotlight), both persisted as the `worldMapView` preference, and a Hall
+ * of Fame summary card that opens the real offline standings route.
  *
  * Nation rows link their recorded leader to Profile (player) or
  * Politicians, and their recorded races to the existing election route.
@@ -27,7 +32,7 @@ import type { HallOfFameView } from "../game/hallOfFame";
 import type { WorldMapSection, WorldMapView } from "../preferences";
 import type { DrawerRouteId } from "./MobileNavigation";
 import { nationOverviewHero, RouteHero } from "./RouteHero";
-import { SchematicMap, type SchematicTile } from "./WorldSchematic";
+import { WorldGeoMap } from "./WorldGeoMap";
 
 export interface WorldMapPanelProps {
   overview: WorldOverviewView;
@@ -86,7 +91,7 @@ function ViewToggle({
   onViewChange: (view: WorldMapView) => void;
 }) {
   return (
-    <div role="group" aria-label="World map schematic context" style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap" }}>
+    <div role="group" aria-label="World map geographic context" style={{ display: "flex", gap: "0.45rem", flexWrap: "wrap" }}>
       {(["world", "country"] as const).map((candidate) => {
         const selected = view === candidate;
         return (
@@ -97,7 +102,7 @@ function ViewToggle({
             className="ahd-btn ahd-btn-sm"
             onClick={() => onViewChange(candidate)}
             style={{ minHeight: "2.75rem" }}
-            aria-label={`Show ${candidate === "world" ? "world nations" : "country regions"} schematic`}
+            aria-label={`Show ${candidate === "world" ? "world nations" : "country spotlight"} geography`}
           >
             {candidate === "world" ? "World" : "Country"}
           </button>
@@ -308,22 +313,6 @@ export function WorldMapPanel({
     ? (["nations", "regions"] as const)
     : (["regions", "nations"] as const);
 
-  const nationTiles: SchematicTile[] = nations.map((nation) => ({
-    id: nation.id,
-    code: nation.id,
-    label: nation.name,
-    sub: nation.currency ?? undefined,
-    marked: nation.id === overview.playerCountryId,
-    markLabel: "Your country",
-  }));
-  const regionTiles: SchematicTile[] = filteredRegions.map((row) => ({
-    id: row.id,
-    code: row.id,
-    label: row.name,
-    sub: row.population !== null ? `pop. ${row.population.toLocaleString("en-US")}` : undefined,
-    marked: row.isHome,
-    markLabel: "Home region",
-  }));
   const topStandings = hallOfFame?.entries.slice(0, 3) ?? [];
 
   return (
@@ -338,33 +327,29 @@ export function WorldMapPanel({
           {overview.nations.length} nations · {regionsTotal} regions in {regionsCountryName}
         </p>
         <p className="ahd-help" role="note" style={{ marginTop: "0.3rem" }}>
-          Positions are not plotted: the save records no coordinates, so this route pairs a
-          schematic tile grid with a directory of the actual nations and regions in this
-          world. Choosing a tile or a row opens its existing details.
+          Real Natural Earth country shapes (public domain, flat projection) paired
+          with a directory of the actual nations and regions in this world.
+          Choosing a highlighted shape or a row opens its existing details.
         </p>
       </RouteHero>
 
       <SectionToggle section={section} onSectionChange={onSectionChange} />
       <ViewToggle view={view} onViewChange={onViewChange} />
 
-      <section className="ahd-card ahd-card-pad" aria-label={view === "world" ? "World schematic" : "Country schematic"}>
-        <h2 className="ahd-h2">{view === "world" ? "World schematic" : `${regionsCountryName} schematic`}</h2>
+      <section className="ahd-card ahd-card-pad" aria-label={view === "world" ? "World geography" : "Country spotlight"}>
+        <h2 className="ahd-h2">{view === "world" ? "World geography" : `${regionsCountryName} spotlight`}</h2>
         <div style={{ marginTop: "0.55rem" }}>
           {view === "world" ? (
-            <SchematicMap
-              name="World nations"
-              tiles={nationTiles}
-              emptyNote="No nations recorded in this save."
-              selectLabel={(tile) => `Open ${tile.label} on the schematic`}
+            <WorldGeoMap
+              overview={overview}
+              spotlightCountryId={null}
               onSelect={onNavigate ? (id) => onNavigate("nations", id) : undefined}
             />
           ) : (
-            <SchematicMap
-              name={`${regionsCountryName} regions`}
-              tiles={regionTiles}
-              emptyNote={`No regions recorded in ${regionsCountryName}.`}
-              selectLabel={(tile) => `Open ${tile.label} on the schematic`}
-              onSelect={onNavigate ? (id) => onNavigate("regions", id) : undefined}
+            <WorldGeoMap
+              overview={overview}
+              spotlightCountryId={overview.playerCountryId}
+              onSelect={onNavigate ? (id) => onNavigate("nations", id) : undefined}
             />
           )}
         </div>
