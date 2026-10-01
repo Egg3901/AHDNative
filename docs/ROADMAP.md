@@ -1,5 +1,16 @@
 # AHDNative roadmap
 
+## Corporate bond settlement checkpoint, 2026-10-01 (#308)
+
+The supported issuer buyback, coupon, maturity and default lifecycle now includes
+source-backed 30-turn NPP dissolution, senior creditor recovery, equity recovery,
+sector production restoration and saved claimant evidence. Ten normal CI
+regressions cover the new settlement and fail-before-mutation paths.
+[Corporate bond settlement](CORPORATE-BOND-SETTLEMENT.md) records source revisions,
+financial units, expected results and unsupported pool/escrow/restructuring state.
+Full verification and merged closure evidence remain recorded in GitHub #308;
+#110/#111/#107/#211 retain their broader acceptance scope.
+
 The owner delegates uncertain feature decisions to the implementation team. The lodestar is native iOS and Android UI for SP first, then MP, with performance central to every decision. The target is a unified mobile/desktop app with local offline SP and server-authoritative MP. iOS SP comes first. This roadmap records real completion evidence; card counts are not a progress percentage.
 
 ## Required throughout: existing game behavior and hierarchy
