@@ -31,14 +31,14 @@ describe("Voter Canvassing player flow", () => {
     expect(screen.getByRole("status")).toHaveTextContent("$200.00");
     await user.click(screen.getByRole("button", { name: "Review canvassing" }));
     expect(onAction).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Cancel", exact: true }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
     expect(session.view().player).toEqual(before);
     await user.click(screen.getByRole("button", { name: "Review canvassing" }));
     await user.click(screen.getByRole("button", { name: "Confirm canvassing" }));
     expect(onAction).toHaveBeenCalledWith("canvass", { regionId: view.regionId, demographicCategory: category.id, demographicGroup: category.groups[0]!.id, count: 2 });
     expect(session.view().player.actions).toBe(before.actions - 2);
     expect(session.view().player.funds).toBe(before.funds - 200);
-    const loaded = new GameSession(); loaded.load(session.serialize());
+    const loaded = new GameSession(); loaded.load(session.serialize("1953-01-20T00:00:00.000Z"));
     expect(loaded.view().canvassing?.categories[0]?.groups[0]?.before).toBeGreaterThan(0);
   });
 
