@@ -49,4 +49,8 @@ Game's newer generic `economic_system_reform` provision is outside this bounded
 catalog slice and still needs its target, marketization and regime consumers.
 #101 and wider country-mechanics issues remain open. Repeal, whole CN law
 coverage, current Client interchange and physical-device proof are not claimed.
-Full hosted verification remains required before #286 closure.
+Full hosted verification passed at exact PR #710 head `50d29f5083f788237a56a58008249efea4349e38`
+([run](https://github.com/Egg3901/AHDNative/actions/runs/36865271074)).
+Merged as `748f74f24f6277596b0a3f4e1c0154849e4c4090`; original #286 acceptance
+is checked and closed. Current Game main `88fb2de96503a98eb25bc4b77f54f3308dfb45d2`
+leaves the active law mechanics unchanged. #101 remains open for its full scope.

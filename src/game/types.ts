@@ -325,7 +325,7 @@ export interface GameScreenProps {
   /** Stable save identity for keeping same-world regional details mounted during refresh. */
   contextKey?: string;
   onAdvanceTurn: () => void; onSave: () => void; onExit: () => void;
-  onAction: (id: string, params?: GameActionParams) => void;
+  onAction: (id: string, params?: GameActionParams) => void | Promise<boolean>;
   /**
    * Direct corporate-sector sale commands (#294) plus corporation acquisition
    * (#299): list, update, unlist, or buy a recorded sector-asset listing with
