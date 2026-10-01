@@ -4,6 +4,24 @@ import { GameSession } from "./session";
 // Game968 actual seedPoliticalMetrics, London2019 workerSecurity53.6.
 // The generator calls the source seeder at an offline database boundary.
 describe("source political cabinet board through GameSession (#263)", () => {
+  it("lets an earned US defence minister drive the real safety board through turns and reload", () => {
+    const session = new GameSession();
+    session.create({ era: "1953", countryId: "US", seed: "native-cabinet-player-flow-262", playerName: "Alex", mode: "hos" });
+    expect(session.act("sponsorCabinetNomination", { countryId: "US", positionId: "secretary_of_defense", nomineeId: "player" }).ok).toBe(true);
+    for (let turn = 0; turn < 25 && !session.cabinetOffice().positions.find(row => row.id === "secretary_of_defense")?.isPlayerHolder; turn++) session.advance();
+    expect(session.cabinetOffice().positions.find(row => row.id === "secretary_of_defense")?.isPlayerHolder).toBe(true);
+    expect(session.issueCabinetOrder({ positionId: "secretary_of_defense", orderId: "national_guard_deployment" }).result.ok).toBe(true);
+    session.advance();
+    const resumed = new GameSession();
+    resumed.load(session.serialize("2026-10-01T00:00:00.000Z"));
+    resumed.advance();
+    // No allocated stat block: actual Game uses its neutral issuer fallback.
+    // Source map/fold contribution .8 -> .799, without a legacy safety row.
+    expect(resumed.regions({ regionId: "AL" }).selected?.politicalMetrics?.["order.safety"]?.cabinetResidual).toBe(0.799);
+    const world = JSON.parse(resumed.serialize("2026-10-01T00:00:00.000Z")).world;
+    expect(world.nationalMetrics.US["publicSafety.crimeRate"]).toBeUndefined();
+    expect(world.regionalMetrics.AL["publicSafety.crimeRate"]).toBeUndefined();
+  }, 180_000);
   it("shows the authored London political board and preserves it on normal reload", () => {
     const session = new GameSession();
     session.create({ era: "2019", countryId: "UK", seed: "cabinet-political-263", playerName: "Alex" });

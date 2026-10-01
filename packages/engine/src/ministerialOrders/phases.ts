@@ -1,8 +1,8 @@
 /**
  * MinisterialOrders turn phase — W28. Ports the metric-modifier accumulation
- * + cap + apply half of src/lib/turn/ministerialOrderProcessing.ts (the
- * defense sub-pipeline it also runs is PORT-STUB — see constants.ts file
- * doc). Combines every active order's effects targeting the same metric
+ * + cap + apply half of src/lib/turn/ministerialOrderProcessing.ts. Supported
+ * defense orders drive actual political boards; broader military operations
+ * remain separate missing consumers. Combines active effects at each metric
  * path, boosts by CABINET_EFFECT_STRENGTH, caps at
  * ±MAX_PER_METRIC_MODIFIER_PER_TURN, then scales by modifierSpanScale before
  * writing an additive change onto existing national or regional metric rows.
@@ -71,7 +71,7 @@ export function runMinisterialOrders(world: WorldState): MinisterialOrdersResult
       continue;
     }
     if (order.positionId && order.orderId) {
-      const unavailable = unavailableDefenseOrderEffects(order.countryId, order.positionId, order.orderId);
+      const unavailable = unavailableDefenseOrderEffects(order.countryId, order.positionId, order.orderId, world);
       if (unavailable) {
         rejectedDefenseOrders.push({
           orderId: order.id,
@@ -122,6 +122,10 @@ export function runMinisterialOrders(world: WorldState): MinisterialOrdersResult
       applied = true;
       const bucket = political.get(order.countryId);
       if (bucket) bucket.national[effect.metric] = (bucket.national[effect.metric] ?? 0) + effect.modifier * issuerStrength;
+      // Current Game writes political effects only to this snapshot. A safety
+      // order must never materialize a legacy national score from a fallback.
+      if (bucket && !effect.metric.startsWith("economic.") && !effect.metric.startsWith("population.")
+        && !tfpPaths.has(effect.metric) && effect.metric !== "governance.budgetBalance") continue;
       const key = `${order.countryId}:${effect.metric}`;
       let entry = combined.get(key);
       if (!entry) {

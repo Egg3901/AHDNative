@@ -22,7 +22,14 @@ describe("#276 defense ministerial order consequences", () => {
     const unavailable = defenseOrders.filter((order) =>
       order.availability === "blocked" && order.blocker.startsWith("defenseUnavailable:"),
     );
-    expect(unavailable).toHaveLength(10);
+    expect(defenseOrders.filter(order => order.availability === "supported").map(order => `${order.positionId}:${order.id}`).sort()).toEqual([
+      "minister_for_defence:ie_defence_forces_review",
+      "minister_of_defense:civil_defense_drill",
+      "minister_of_defense:defense_white_paper",
+      "secretary_of_defense:defense_modernization",
+      "secretary_of_defense:national_guard_deployment",
+    ]);
+    expect(unavailable).toHaveLength(5);
     for (const order of unavailable) {
       expect(order.blocker).toBe(`defenseUnavailable:${order.id}`);
       expect(order.unavailableEffects).toEqual(
