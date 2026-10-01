@@ -1,5 +1,7 @@
 export { advanceTurn } from "./engine.js";
 export type { AdvanceTurnOptions } from "./engine.js";
+export { clearCommodity, TRADE_IPF_ITERATIONS } from "./trade/clearing.js";
+export type { CommodityClearingInput, CommodityClearingResult, CountryCommodityClearing } from "./trade/clearing.js";
 export { createWorld, listEras, listPlayableCountries, listParties, listRegions, listCreationParties, listCountries, rulingPartyIdForCountry, rulingPartyForCountry, headOfStateOfficeForCountry, SCHEMA_VERSION } from "./world.js";
 export { electorateLeanForGroups, listCreationHomeRegions } from "./demographics/homeRegionContext.js";
 export type { HomeRegionContext, HomeRegionElectorateLean } from "./demographics/homeRegionContext.js";
