@@ -54,6 +54,7 @@ import {
   stepCorporateSectorStrikes,
   type CorporationLabourFactors,
 } from "./corporationLabour.js";
+import { syncSourceRegionalSectorReceipts } from "./sourceRegionalSectorSeed.js";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -221,6 +222,7 @@ export const corporationTurnPhase: TurnPhase = {
       runCorporationTurn(corp, taxRatePct, labourFactorsForCorporation(world, corp.id, labour), { player: world.player, currencyCode });
       checkInsolvency(corp, world.meta.turn);
     }
+    syncSourceRegionalSectorReceipts(world);
     stepCorporateSectorStrikes(world, world.meta.turn, labour);
 
     // Per-country revenue rollup for the macro growth-signal wire (see file doc).

@@ -1,5 +1,6 @@
 import type { Country, WorldState } from "../types.js";
 import type { ReferendumRecord } from "./types.js";
+import { expandSecededSectorRegions } from "./secessionSectors.js";
 
 export type ReferendumActuationResult =
   { ok: true; targetCountryId: string } | { ok: false; reason: string };
@@ -155,5 +156,8 @@ export function applyReferendumActuation(
   if (ref.kind === "reunification") region.name = "Ulster";
   rescopeRegionRecords(world, ref.regionId, targetCountryId);
   movePlayerIfResident(world, ref.regionId, targetCountryId);
+  if (ref.kind === "independence" && (targetCountryId === "SCO" || targetCountryId === "WAL")) {
+    expandSecededSectorRegions(world, targetCountryId, ref.countryId);
+  }
   return { ok: true, targetCountryId };
 }

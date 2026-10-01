@@ -34,6 +34,7 @@ import {
 import { CENTRAL_BANK_COUNTRY_ANCHORS, CHAIR_TERM_TURNS } from "./centralBank/constants.js";
 import type { CentralBank } from "./centralBank/types.js";
 import { seedCorporations, SOURCE_NPP_HEADQUARTERS_REGION } from "./corporation/founding.js";
+import { materializeSourceParentSectorRows } from "./corporation/sourceRegionalSectorSeed.js";
 import { seedNpcBanks } from "./banking/npcBanks.js";
 import { seedUnions } from "./unions/founding.js";
 import { seedExchangeRates } from "./forex/founding.js";
@@ -1186,6 +1187,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
   // not seat an executive or otherwise wake gameplay phases merely to fill
   // presentation data.
   world.countryPolitics = seedCountryPolitics(world);
+  materializeSourceParentSectorRows(world);
   if (options.foundingElections === true && stampFoundingMarker(world)) {
     runFoundingSweep(world, rng);
     world.meta.rng = rng.state();

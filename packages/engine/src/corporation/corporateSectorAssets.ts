@@ -24,6 +24,8 @@ export interface CorporateSectorAsset {
   countryId: string;
   stateId: string | null;
   sectorType: CorporationType;
+  /** Recorded local turnover for a region-level slice of Native's aggregate issuer. */
+  revenue?: number;
   /** Staffed headcount, derived from recorded revenue (#296). */
   workers: number;
   /** Seeded-union owner for the (countryId, sectorType) pair, or null when unrepresented (#296). */
@@ -159,7 +161,7 @@ export function projectCorporateSector(world: WorldState, asset: CorporateSector
   }
   return {
     ...asset,
-    revenue: corporation.revenue,
+    revenue: asset.revenue ?? corporation.revenue,
     profitMargin: corporation.profitMargin,
     targetGrowthRate: corporation.targetGrowthRate,
     currentGrowthRate: corporation.currentGrowthRate,

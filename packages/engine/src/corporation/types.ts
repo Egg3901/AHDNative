@@ -141,10 +141,13 @@ export interface Corporation {
   /**
    * Country owner for state-owned / nationalized corporations.
    * Source: corporation.ts `countryOwnerId`. Absent on private corps.
-   * Ported for the #307 corporate-bond issuer/owner slice; nationalization
-   * flows that write it remain out of scope.
-   */
+   * Ported from AHDGame's state-owned National Corporation lifecycle.
+  */
   countryOwnerId?: string;
+  /** Set on the Native sector-specific National Corporation (source split-off mapping). */
+  isNationalCorporation?: true;
+  /** Source assignedSectorTypes mapping; Native uses one sector per issuer. */
+  assignedSectorTypes?: CorporationType[];
   /**
    * Ownership lifecycle state. Absence means "private" for back-compat —
    * use `isCorpStateOwned` (corporateBonds.ts), never branch on this field

@@ -80,6 +80,7 @@ export type ActionId =
   | "acceptCeoAppointment"
   | "resignCeo"
   | "setCorporationCompensation"
+  | "nationalizeCorporation"
   | "crisisBailout"
   | "crisisStimulus"
   | "crisisRespond"
@@ -641,6 +642,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["corporation/governance", "corporation/dividends"],
+    status: "available",
+  },
+  nationalizeCorporation: {
+    id: "nationalizeCorporation",
+    name: "Nationalize Distressed Corporation",
+    description: "As the elected head of government, seize a distressed domestic corporation into state ownership. The emergency seizure tier pays no shareholder compensation and applies the source transition haircut.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["nationalization/state-ownership"],
     status: "available",
   },
   // ── W31 crisis action hooks ─────────────────────────────────────
