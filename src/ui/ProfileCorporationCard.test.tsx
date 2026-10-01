@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { GameSession } from "../game/session";
 import type { ProfileView } from "../game/profileTypes";
 import type { ProfileCorporationEntry } from "../game/profileCorporation";
-import type { GameActionParams } from "../game/types";
+import type { GameActionParams } from "../game/actionInput";
 import { ProfilePanel } from "./ProfilePanel";
 import { MarketsPanel } from "./MarketsPanel";
 import type { DrawerRouteId } from "./MobileNavigation";
