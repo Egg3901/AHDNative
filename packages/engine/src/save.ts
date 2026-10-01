@@ -345,6 +345,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   if (Array.isArray(subsidies) && subsidies.length > 0) {
     return { ok: false, error: `Industry subsidy records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
+  const pmAppointmentVotes = world["pmAppointmentVotes"];
+  if (pmAppointmentVotes !== undefined && (!Array.isArray(pmAppointmentVotes) || pmAppointmentVotes.length > 0)) {
+    return { ok: false, error: `PM appointment vote history cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
+  }
   const regionalMetrics = world["regionalMetrics"];
   if (isRecord(regionalMetrics) && Object.keys(regionalMetrics).length > 0) {
     return { ok: false, error: `Regional metric records cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
@@ -543,6 +547,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   delete candidateWorld["countryPolitics"];
   delete candidateWorld["interbankLoans"];
   delete candidateWorld["subsidies"];
+  // PM appointment ballots were introduced after the authentic schema-42
+  // reader. An empty backfill is reconstructable; a live ballot is refused
+  // above because the old reader cannot advance its deadline or tally.
+  delete candidateWorld["pmAppointmentVotes"];
   delete candidateWorld["regionalMetrics"];
   delete candidateWorld["fomcNominations"];
   delete candidateWorld["nppInfluenceAttempts"];
