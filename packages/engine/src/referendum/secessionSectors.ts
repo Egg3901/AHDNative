@@ -97,7 +97,7 @@ export function expandSecededSectorRegions(world: WorldState, countryId: "SCO" |
   for (const [regionId, rows] of byPools) {
     for (const [oldKey, pool] of rows) {
       delete world.unownedSectors[oldKey];
-      const newKey = `${regionId}:${pool.sectorType}`;
+      const newKey = `${countryId}:${regionId}:${pool.sectorType}`;
       const existing = world.unownedSectors[newKey];
       world.unownedSectors[newKey] = {
         countryId,

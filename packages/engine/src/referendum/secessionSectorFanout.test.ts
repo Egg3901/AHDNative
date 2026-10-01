@@ -17,6 +17,11 @@ describe("referendum secession sector fan-out", () => {
     expect(unowned.length).toBeGreaterThan(0);
     expect(regionalAssets.every((asset) => world.regions[asset.stateId!]?.countryId === "UK")).toBe(true);
     expect(unowned.every((pool) => world.regions[pool.regionId!]?.countryId === "UK")).toBe(true);
+    const assetsBeforeRepeat = structuredClone(world.corporateSectors);
+    const unownedBeforeRepeat = structuredClone(world.unownedSectors);
+    materializeSourceParentSectorRows(world);
+    expect(world.corporateSectors).toEqual(assetsBeforeRepeat);
+    expect(world.unownedSectors).toEqual(unownedBeforeRepeat);
     for (const corporation of Object.values(world.corporations).filter((corp) => corp.countryId === "UK")) {
       const issuerAssets = assets.filter((asset) => asset.corporationId === corporation.id);
       expect(issuerAssets.reduce((sum, asset) => sum + asset.revenue!, 0)).toBeCloseTo(corporation.revenue, 6);
@@ -84,6 +89,13 @@ describe("referendum secession sector fan-out", () => {
       owner: asset.owner,
       workers: asset.workers,
       revenue: world.corporations[asset.corporationId]!.revenue,
+      capitalStock: asset.capitalStock,
+      capacityBookAnchor: asset.capacityBookAnchor,
+      producedUnits: asset.producedUnits,
+      soldUnits: asset.soldUnits,
+      realizedRevenue: asset.realizedRevenue,
+      soldFraction: asset.soldFraction,
+      soldByCommodity: asset.soldByCommodity,
     }));
     expect(departing.length).toBeGreaterThan(0);
 
@@ -117,10 +129,31 @@ describe("referendum secession sector fan-out", () => {
       .toBe(163_000);
 
     const moved = Object.values(corporateSectorAssets(world)).filter((asset) => ["GLA", "LOT", "HIG", "GRA", "TAY", "STH", "CSC"].includes(asset.stateId ?? ""));
+    expect(Object.fromEntries(["GLA", "LOT", "HIG", "GRA", "TAY", "STH", "CSC"].map((regionId) => [
+      regionId,
+      moved.filter((asset) => asset.stateId === regionId).map((asset) => asset.sectorType).sort(),
+    ]))).toEqual({
+      GLA: ["energy", "extraction", "media", "real_estate"],
+      LOT: ["manufacturing"],
+      HIG: ["financial", "logistics"],
+      GRA: ["agriculture", "automobiles", "retail"],
+      TAY: ["construction", "telecommunications"],
+      STH: ["defense", "entertainment"],
+      CSC: ["chemical_industries", "healthcare"],
+    });
     const movedExplicit = moved.filter((asset) => departing.some((old) => old.id === asset.id));
     expect(movedExplicit).toHaveLength(departing.length);
     expect(movedExplicit.map((asset) => [asset.id, asset.countryId, asset.owner, asset.workers]).sort())
       .toEqual(corporateBefore.map((item) => [item.id, "SCO", item.owner, item.workers]).sort());
+    for (const field of ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "realizedRevenue"] as const) {
+      expect(movedExplicit.reduce((sum, asset) => sum + (asset[field] ?? 0), 0))
+        .toBeCloseTo(corporateBefore.reduce((sum, item) => sum + (item[field] ?? 0), 0), 9);
+    }
+    for (const item of corporateBefore) {
+      const movedAsset = movedExplicit.find((asset) => asset.id === item.id);
+      expect(movedAsset?.soldFraction).toBe(item.soldFraction);
+      expect(movedAsset?.soldByCommodity).toEqual(item.soldByCommodity);
+    }
     const ukRevenueBefore = preexistingUkAssets.reduce((sum, asset) => sum + (asset.revenue ?? world.corporations[asset.corporationId]!.revenue), 0);
     const ukAndScoRevenueAfter = Object.values(world.corporateSectors!).filter((asset) => preexistingUkAssets.some((old) => old.corporationId === asset.corporationId)).reduce((sum, asset) => sum + (asset.revenue ?? world.corporations[asset.corporationId]!.revenue), 0);
     expect(ukAndScoRevenueAfter).toBeCloseTo(ukRevenueBefore, 3);
@@ -130,6 +163,7 @@ describe("referendum secession sector fan-out", () => {
     expect(regionalPools.every((pool) => pool.countryId === "SCO" && ["GLA", "LOT", "HIG", "GRA", "TAY", "STH", "CSC"].includes(pool.regionId!))).toBe(true);
     expect(regionalPools.find((pool) => pool.sectorType === "energy" && pool.revenue === 90_000)?.regionId).toBe("LOT");
     expect(regionalPools.find((pool) => pool.sectorType === "technology" && pool.revenue === 60_000)?.regionId).toBe("GLA");
+    expect(world.unownedSectors["SCO:GLA:technology"]?.revenue).toBe(60_000);
     expect(Object.values(world.unownedSectors).reduce((sum, pool) => sum + pool.revenue, 0)).toBe(unownedTotalBefore);
     expect(world.unownedSectors["UK:media"]?.revenue).toBeGreaterThan(0);
 
@@ -181,8 +215,30 @@ describe("referendum secession sector fan-out", () => {
     // targets; it never cuts a share from the national aggregate at actuation.
     // The 74,000 child sum is intentionally checked separately from parent GDP.
     const actualWelshCorporateReceipts = regionalAssets.reduce((sum, asset) => sum + (asset.revenue ?? world.corporations[asset.corporationId]!.revenue), 0);
+    expect(Object.fromEntries(welsh.map((region) => [
+      region.id,
+      regionalAssets.filter((asset) => asset.stateId === region.id).map((asset) => asset.sectorType).sort(),
+    ]))).toEqual({
+      CDF: ["agriculture", "entertainment", "manufacturing"],
+      SWA: ["defense", "energy", "financial", "healthcare"],
+      VAL: ["extraction", "media", "telecommunications"],
+      MWA: ["logistics", "retail"],
+      NWW: ["automobiles", "construction"],
+      NEW: ["chemical_industries", "real_estate"],
+    });
     expect(actualWelshCorporateReceipts).toBeCloseTo(sourceParentCorporateReceipts, 3);
     const actualWelshUnownedReceipts = Object.values(world.unownedSectors).filter((pool) => pool.countryId === "WAL").reduce((sum, pool) => sum + pool.revenue, 0);
+    expect(Object.fromEntries(welsh.map((region) => [
+      region.id,
+      Object.values(world.unownedSectors).filter((pool) => pool.countryId === "WAL" && pool.regionId === region.id).map((pool) => pool.sectorType).sort(),
+    ]))).toEqual({
+      CDF: ["agriculture", "healthcare", "manufacturing"],
+      SWA: ["defense", "energy", "financial", "telecommunications"],
+      VAL: ["entertainment", "extraction", "media"],
+      MWA: ["logistics", "retail"],
+      NWW: ["automobiles", "construction"],
+      NEW: ["chemical_industries", "real_estate"],
+    });
     expect(actualWelshUnownedReceipts).toBeCloseTo(sourceParentUnowned, 3);
     expect(regionalAssets.map((asset) => asset.id).sort()).toEqual(sourceParentAssetIds);
     expect(actualWelshCorporateReceipts).toBeGreaterThan(0);
@@ -205,6 +261,12 @@ describe("referendum secession sector fan-out", () => {
     expect(ukPlusWalesCorporateRevenue).toBeCloseTo(sourceCorporateRevenue, 6);
     const ukPlusWalesUnownedRevenue = Object.values(world.unownedSectors).filter((pool) => pool.countryId === "UK" || pool.countryId === "WAL").reduce((sum, pool) => sum + pool.revenue, 0);
     expect(ukPlusWalesUnownedRevenue).toBeCloseTo(sourceUnownedRevenue, 3);
+    const restored = deserializeSave(serializeSave(world, "2026-10-01T00:00:00Z"));
+    const restoredWalesAssets = Object.values(restored.corporateSectors!).filter((asset) => asset.countryId === "WAL" && asset.stateId !== null);
+    expect(restoredWalesAssets.map((asset) => asset.id).sort()).toEqual(regionalAssets.map((asset) => asset.id).sort());
+    expect(restoredWalesAssets.reduce((sum, asset) => sum + (asset.revenue ?? 0), 0)).toBeCloseTo(actualWelshCorporateReceipts, 3);
+    expect(Object.values(restored.unownedSectors).filter((pool) => pool.countryId === "WAL").reduce((sum, pool) => sum + pool.revenue, 0))
+      .toBeCloseTo(actualWelshUnownedReceipts, 3);
   });
 
   it("runs the passed referendum and signed-consent player journey through persisted regional ownership", () => {

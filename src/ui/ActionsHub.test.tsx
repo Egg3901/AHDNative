@@ -6,6 +6,7 @@ import userEvent from "@testing-library/user-event";
 import { ActionsHub, type ActionsCategoryFilter } from "./ActionsHub";
 import { GameSession } from "../game/session";
 import type { ActionView } from "../game/types";
+import { applyPresidentialResolution, corporateSectorAssets, createWorld, serializeSave, type ElectionRecord } from "@ahdclient/engine";
 
 function StatefulHub({ actions }: { actions: ActionView[] }) {
   const [category, setCategory] = useState<ActionsCategoryFilter>("all");
@@ -235,6 +236,89 @@ describe("ActionsHub", () => {
     const card = screen.getByRole("article", { name: /^join party$/i });
     await user.click(within(card).getByRole("button", { name: /take action: join party/i }));
     expect(onAction).toHaveBeenCalledWith("joinParty", { partyId: live.parties[0]!.id });
+  });
+
+  it("shows the corporate seizure target and sends it through the action command", async () => {
+    const onAction = vi.fn();
+    const user = userEvent.setup();
+    const nationalize: ActionView = {
+      id: "nationalizeCorporation",
+      name: "Nationalize Distressed Corporation",
+      description: "Seize a distressed domestic issuer.",
+      cost: 0,
+      available: true,
+      requires: "corporation",
+      choices: [
+        { id: "US-media", label: "Daily Media" },
+        { id: "US-manufacturing", label: "National Manufacturing" },
+      ],
+      category: "executive",
+    };
+    render(<ActionsHub actions={[nationalize]} {...props} onAction={onAction} category="all" onCategoryChange={() => {}} />);
+    const card = screen.getByRole("article", { name: /nationalize distressed corporation/i });
+    await user.selectOptions(within(card).getByRole("combobox", { name: /corporation for/i }), "US-manufacturing");
+    await user.click(within(card).getByRole("button", { name: /take action: nationalize distressed corporation/i }));
+    expect(onAction).toHaveBeenCalledWith("nationalizeCorporation", { corporationId: "US-manufacturing", tier: "seizure" });
+  });
+
+  it("surfaces nationalization with its recorded-office gate in a live session", () => {
+    const session = new GameSession();
+    session.create({ era: "1953", countryId: "US", seed: "nationalization-actions-hub", playerName: "Alex" });
+    expect(session.view().actions.find((action) => action.id === "nationalizeCorporation")).toMatchObject({
+      available: false,
+      requires: "corporation",
+      category: "executive",
+      disabledReason: expect.stringMatching(/sitting head of government/i),
+    });
+  });
+
+  it("executes nationalization from the elected player's live action projection and preserves unowned assets", async () => {
+    const world = createWorld({ era: "1953", countryId: "US", playerName: "Alex", seed: "nationalization-live-action" });
+    const corporation = world.corporations["US-media"]!;
+    corporation.insolventSinceTurn = world.meta.turn;
+    const election: ElectionRecord = {
+      id: "US-president-elected-player",
+      electionType: "president",
+      countryId: "US",
+      cycle: 1,
+      status: "active",
+      startTurn: world.meta.turn,
+      primaryEndTurn: world.meta.turn,
+      endTurn: world.meta.turn,
+      totalSeats: 1,
+      chamberKey: "president",
+      candidates: [{ id: "player", name: world.player.name, partyId: "US_DEM", isNPP: false, incumbent: false }],
+      tally: { player: 1000 },
+    };
+    world.elections.push(election);
+    applyPresidentialResolution(world, election);
+    const asset = Object.values(corporateSectorAssets(world)).find((row) => row.corporationId === corporation.id)!;
+    const unownedBefore = structuredClone(world.unownedSectors[`${corporation.countryId}:${corporation.sectorType}`]);
+    const session = new GameSession();
+    session.load(serializeSave(world, "2026-10-01T00:00:00Z"));
+    const action = session.view().actions.find((candidate) => candidate.id === "nationalizeCorporation")!;
+    expect(action).toMatchObject({ available: true, requires: "corporation", category: "executive" });
+    expect(action.choices).toContainEqual({ id: corporation.id, label: corporation.name ?? corporation.tickerSymbol });
+
+    const onAction = (id: string, params?: Record<string, string | number>) => session.act(id, {
+      corporationId: String(params?.corporationId ?? ""),
+      tier: "seizure",
+    });
+    const user = userEvent.setup();
+    render(<ActionsHub actions={session.view().actions} regions={session.view().regions} parties={session.view().parties} busy={false} currency="USD" onAction={onAction} category="all" onCategoryChange={() => {}} />);
+    const card = screen.getByRole("article", { name: /nationalize distressed corporation/i });
+    await user.click(within(card).getByRole("button", { name: /take action: nationalize distressed corporation/i }));
+    const saved = JSON.parse(session.serialize("2026-10-01T00:00:00Z")) as {
+      world: {
+        corporations: Record<string, { ownershipState?: string; countryOwnerId?: string }>;
+        corporateSectors: Record<string, { corporationId: string; owner: string }>;
+        unownedSectors: Record<string, unknown>;
+      };
+    };
+    const nationalId = `NAT-${corporation.countryId}-${corporation.sectorType}`;
+    expect(saved.world.corporations[nationalId]).toMatchObject({ ownershipState: "stateOwned", countryOwnerId: "US" });
+    expect(saved.world.corporateSectors[asset.id]).toMatchObject({ corporationId: nationalId, owner: "corporation" });
+    expect(saved.world.unownedSectors[`${corporation.countryId}:${corporation.sectorType}`]).toEqual(unownedBefore);
   });
 
   it("renders a Debate Prep result with the stat change in recent outcomes (#37)", () => {

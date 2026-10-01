@@ -92,6 +92,11 @@ describe("executive nationalization ownership transfer", () => {
     recordElectedPresident(world);
     const poolKey = `${corporation.countryId}:${corporation.sectorType}`;
     const unownedBefore = structuredClone(world.unownedSectors[poolKey]);
+    asset.producedUnits = 400;
+    asset.soldUnits = 250;
+    asset.soldFraction = 0.625;
+    asset.realizedRevenue = 100;
+    asset.soldByCommodity = { textiles: 0.5, steel: 0.75 };
     const nationalId = `NAT-${corporation.countryId}-${corporation.sectorType}`;
     const existing = {
       ...corporation,
@@ -132,6 +137,13 @@ describe("executive nationalization ownership transfer", () => {
       corporationId: nationalId,
       revenue: expectedMergedRevenue,
       workers: beforeWorkers,
+      capitalStock: asset.capitalStock! * 2,
+      capacityBookAnchor: asset.capacityBookAnchor! * 2,
+      producedUnits: 800,
+      soldUnits: 500,
+      realizedRevenue: 200,
+      soldFraction: 0.625,
+      soldByCommodity: { textiles: 0.5, steel: 0.75 },
     });
     expect(world.corporateSectors![asset.id]).toBeUndefined();
     expect(world.unownedSectors[poolKey]).toEqual(unownedBefore);

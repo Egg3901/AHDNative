@@ -160,23 +160,29 @@ export function materializeSourceParentSectorRows(world: WorldState): void {
     }
   }
 
-  for (const [key, pool] of Object.entries(world.unownedSectors).filter(([, row]) => row.countryId === countryId && row.regionId === undefined)) {
-    const totalRevenue = pool.revenue;
-    const shares = parentIds.map((regionId) => [regionId, sourceMarketShare(world, regionId as "SCO" | "WAL", pool.sectorType)] as const);
-    const regionalShare = shares.reduce((sum, [, share]) => sum + share, 0);
-    if (!(regionalShare > 0 && regionalShare < 1)) continue;
-    pool.revenue = totalRevenue * (1 - regionalShare);
-    for (const [regionId, share] of shares) {
-      const regionalKey = `${countryId}:${regionId}:${pool.sectorType}`;
-      if (world.unownedSectors[regionalKey]) continue;
-      world.unownedSectors[regionalKey] = {
-        countryId,
-        regionId,
-        sectorType: pool.sectorType,
-        revenue: totalRevenue * share,
-      };
+  const hasRegionalUnownedRows = Object.values(world.unownedSectors).some((pool) => pool.countryId === countryId && pool.regionId !== undefined);
+  // A partial regional set cannot be safely topped up from a national
+  // remainder: that would allocate the source share twice on repeat/mixed
+  // saves. Existing scoped rows stay authoritative and the adapter fails
+  // closed for this collection.
+  if (!hasRegionalUnownedRows) {
+    for (const [key, pool] of Object.entries(world.unownedSectors).filter(([, row]) => row.countryId === countryId && row.regionId === undefined)) {
+      const totalRevenue = pool.revenue;
+      const shares = parentIds.map((regionId) => [regionId, sourceMarketShare(world, regionId as "SCO" | "WAL", pool.sectorType)] as const);
+      const regionalShare = shares.reduce((sum, [, share]) => sum + share, 0);
+      if (!(regionalShare > 0 && regionalShare < 1)) continue;
+      pool.revenue = totalRevenue * (1 - regionalShare);
+      for (const [regionId, share] of shares) {
+        const regionalKey = `${countryId}:${regionId}:${pool.sectorType}`;
+        world.unownedSectors[regionalKey] = {
+          countryId,
+          regionId,
+          sectorType: pool.sectorType,
+          revenue: totalRevenue * share,
+        };
+      }
+      if (pool.revenue === 0) delete world.unownedSectors[key];
     }
-    if (pool.revenue === 0) delete world.unownedSectors[key];
   }
 
   validateCorporateSectorAssets(world, assets);
