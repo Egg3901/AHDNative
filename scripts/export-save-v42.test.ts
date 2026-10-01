@@ -122,7 +122,8 @@ describe("export-save-v42 CLI", () => {
   }, 60_000);
 
   it("refuses a progressed Native world without creating output", () => {
-    const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    // Isolate progressed history from fresh TFP/SOE refusal.
+    const world = deserializeSave(loadAuthenticV42());
     advanceTurn(world);
     const dir = freshDir();
     const input = join(dir, "in.save.json");
