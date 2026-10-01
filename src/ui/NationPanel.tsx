@@ -1,3 +1,5 @@
+import type { GameActionParams } from "../game/actionInput";
+import { useEffect, useState } from "react";
 import type {
   NationDestination,
   NationLinkView,
@@ -14,7 +16,7 @@ import { CountryFlag, resolveCountryFlagCode } from "./CountryFlag";
 
 export interface NationPanelProps {
   nation: NationView;
-  section: "economy" | "budget" | "policy" | "metrics";
+  section: "economy" | "budget" | "policy" | "metrics" | "commandEconomy";
   /** World clock used to render enacted-policy dates on the reference calendar (#226). */
   clock: GameClock;
   /**
@@ -25,6 +27,8 @@ export interface NationPanelProps {
   era?: string | null;
   /** Opens a linked consequence destination. Omitted in read-only renders. */
   onNavigate?: (route: NationDestination, detailId?: string) => void;
+  onAction?: (id: string, params?: GameActionParams) => void;
+  busy?: boolean;
 }
 
 function number(value: number, maximumFractionDigits = 0): string {
@@ -265,7 +269,184 @@ function MetricCard({ metric, onNavigate }: { metric: NationMetricView; onNaviga
   );
 }
 
-function EconomySection({ nation, era }: { nation: NationView; era?: string | null }) {
+function EconomicControls({ nation, onAction, busy, mode }: { nation: NationView; onAction?: NationPanelProps["onAction"]; busy: boolean; mode: "subsidy" | "command" }) {
+  const [scopeType, setScopeType] = useState<"economy_wide" | "sector">("economy_wide");
+  const [sectorType, setSectorType] = useState(nation.subsidySectorOptions?.[0] ?? "");
+  const [targetStrategyId, setTargetStrategyId] = useState("");
+  const [domesticOnly, setDomesticOnly] = useState(false);
+  const [creditAggressiveness, setCreditAggressiveness] = useState(nation.commandEconomy?.creditAggressiveness ?? 0.55);
+  const [budgetSoftness, setBudgetSoftness] = useState(nation.commandEconomy?.budgetSoftness ?? 0.85);
+  const [useSectorCredit, setUseSectorCredit] = useState(Object.keys(nation.commandEconomy?.sectorCredit ?? {}).length > 0);
+  const [sectorCreditWeights, setSectorCreditWeights] = useState<Record<string, number>>(() => Object.fromEntries(
+    (nation.commandEconomy?.creditSectors ?? []).map((sector) => [sector, nation.commandEconomy?.sectorCredit?.[sector] ?? 50]),
+  ));
+  useEffect(() => {
+    setCreditAggressiveness(nation.commandEconomy?.creditAggressiveness ?? 0.55);
+    setBudgetSoftness(nation.commandEconomy?.budgetSoftness ?? 0.85);
+    setSectorCreditWeights(Object.fromEntries((nation.commandEconomy?.creditSectors ?? []).map((sector) => [sector, nation.commandEconomy?.sectorCredit?.[sector] ?? 50])));
+    setUseSectorCredit(Object.keys(nation.commandEconomy?.sectorCredit ?? {}).length > 0);
+  }, [nation.commandEconomy?.creditAggressiveness, nation.commandEconomy?.budgetSoftness, nation.commandEconomy?.sectorCredit, nation.commandEconomy?.creditSectors]);
+  const sectors = nation.subsidySectorOptions ?? [];
+  const activeSubsidies = (nation.subsidies ?? []).filter((subsidy) => subsidy.active);
+  const canAct = (mode === "subsidy" ? nation.playerCanProposeNationalBills : nation.playerCanOperateGosbank) === true && !!onAction && !busy;
+  const subsidyTarget = (scope: "economy_wide" | "sector", sector: string, strategy?: string | null) => ({
+    subsidyScopeType: scope,
+    ...(scope === "sector" ? { sectorType: sector } : {}),
+    ...((strategy ?? targetStrategyId.trim()) ? { targetStrategyId: strategy ?? targetStrategyId.trim() } : {}),
+  });
+  const subsidyLabel = (subsidy: NonNullable<NationView["subsidies"]>[number]) =>
+    `${subsidy.scopeType === "economy_wide" ? "Economy-wide" : `${subsidy.targetSectorType ?? "Sector"} sector`}${subsidy.targetStrategyId ? ` · ${subsidy.targetStrategyId} strategy` : ""}`;
+
+  if (mode === "command" && !nation.playerCanOperateGosbank) return null;
+  if (mode === "subsidy" && !nation.playerCanProposeNationalBills) return null;
+  return (
+    <div className="ahd-card ahd-card-pad" aria-label={mode === "subsidy" ? "National economic controls" : "Command economy controls"}>
+      <h2 className="ahd-h2">{mode === "subsidy" ? "National subsidies" : "Gosbank directives"}</h2>
+      {mode === "subsidy" ? <p className="ahd-muted" style={{ fontSize: "0.72rem", margin: "0.4rem 0 0" }}>
+        Subsidy enactment uses the source bill-proposal cost of 10 action points. Subsidies use the fixed reference margin bonus; the annual budget cost is calculated from recorded sector revenue each turn.
+      </p> : null}
+
+      {mode === "subsidy" ? <section aria-label="National subsidies" style={{ marginTop: "0.75rem" }}>
+        <h3 style={{ margin: 0, fontSize: "0.82rem", fontWeight: 750 }}>National subsidies</h3>
+        <p className="ahd-muted" style={{ fontSize: "0.7rem", margin: "0.25rem 0 0" }}>
+          Current annual subsidy spending: {money(nation.subsidyAnnualCost ?? 0, nation.currency)}
+        </p>
+        {activeSubsidies.length === 0 ? <div className="ahd-muted" style={{ fontSize: "0.72rem", marginTop: "0.4rem" }}>No active national subsidies.</div> : (
+          <ul style={{ listStyle: "none", margin: "0.4rem 0 0", padding: 0, display: "grid", gap: "0.35rem" }}>
+            {activeSubsidies.map((subsidy) => (
+              <li key={subsidy.id} className="ahd-kv">
+                <span>{subsidyLabel(subsidy)}{subsidy.domesticOnly ? <span className="ahd-muted"> · domestic firms</span> : null}</span>
+                <button
+                  type="button"
+                  className="ahd-btn ahd-btn-sm"
+                  disabled={!canAct}
+                  onClick={() => onAction?.("setSubsidyRate", { subsidyOp: "end", ...subsidyTarget(subsidy.scopeType, subsidy.targetSectorType ?? "", subsidy.targetStrategyId) })}
+                  aria-label={`End ${subsidyLabel(subsidy)} subsidy`}
+                >
+                  Propose end
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="ahd-grid ahd-grid-2" style={{ marginTop: "0.55rem" }}>
+          <label className="ahd-field">
+            <span className="ahd-label">Subsidy scope</span>
+            <select className="ahd-select" value={scopeType} onChange={(event) => setScopeType(event.target.value as "economy_wide" | "sector")} disabled={!canAct}>
+              <option value="economy_wide">All national sectors</option>
+              <option value="sector">One sector</option>
+            </select>
+          </label>
+          {scopeType === "sector" ? (
+            <label className="ahd-field">
+              <span className="ahd-label">Sector</span>
+              <select className="ahd-select" value={sectorType} onChange={(event) => setSectorType(event.target.value)} disabled={!canAct || sectors.length === 0}>
+                {sectors.map((sector) => <option key={sector} value={sector}>{humanize(sector)}</option>)}
+              </select>
+            </label>
+          ) : null}
+        </div>
+        <label className="ahd-field" style={{ marginTop: "0.45rem" }}>
+          <span className="ahd-label">Strategy filter (optional)</span>
+          <input className="ahd-input" value={targetStrategyId} onChange={(event) => setTargetStrategyId(event.target.value)} disabled={!canAct} placeholder="Any strategy" />
+        </label>
+        <label className="ahd-check" style={{ display: "flex", marginTop: "0.45rem" }}>
+          <input type="checkbox" checked={domesticOnly} onChange={(event) => setDomesticOnly(event.target.checked)} disabled={!canAct} />
+          Domestic firms only
+        </label>
+        <button
+          type="button"
+          className="ahd-btn ahd-btn-primary ahd-btn-sm"
+          style={{ display: "block", width: "100%", marginTop: "0.5rem" }}
+          disabled={!canAct || (scopeType === "sector" && (!sectorType || !sectors.includes(sectorType)))}
+          onClick={() => onAction?.("setSubsidyRate", { subsidyOp: "enact", domesticOnly, ...subsidyTarget(scopeType, sectorType) })}
+        >
+          Propose subsidy bill
+        </button>
+      </section> : null}
+
+      {mode === "command" && nation.commandEconomy ? (
+        <section aria-label="Command economy directives" style={{ borderTop: "1px solid var(--ahd-border)", marginTop: "0.8rem", paddingTop: "0.75rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "0.5rem", alignItems: "baseline" }}>
+            <h3 style={{ margin: 0, fontSize: "0.82rem", fontWeight: 750 }}>Command economy</h3>
+            <span className="ahd-badge">Marketization {nation.commandEconomy.marketizationLevel.toFixed(1)} / 100</span>
+          </div>
+          <dl className="ahd-kv-grid" style={{ marginTop: "0.45rem" }}>
+            <KeyValue label="Shortage index" value={number(nation.commandEconomy.shortageIndex, 1)} />
+            <KeyValue label="Monetary overhang" value={number(nation.commandEconomy.monetaryOverhang, 1)} />
+            <KeyValue label="Black-market premium" value={fractionPercent(nation.commandEconomy.blackMarketPremium, 1)} />
+            <KeyValue label="State ownership" value={`${number(nation.stateOwnershipConcentration ?? 0, 1)} / 100`} />
+          </dl>
+          {nation.commandEconomy.directedCreditBySector && Object.keys(nation.commandEconomy.directedCreditBySector).length > 0 ? (
+            <div className="ahd-muted" style={{ fontSize: "0.7rem", marginTop: "0.4rem" }} aria-label="Last turn Gosbank credit">
+              Last-turn credit: {Object.entries(nation.commandEconomy.directedCreditBySector).map(([sector, amount]) => `${sector} ${number(amount)}`).join(" · ")}
+            </div>
+          ) : null}
+          {nation.commandEconomy.available ? (
+            <form
+              className="ahd-stack"
+              style={{ marginTop: "0.65rem", gap: "0.55rem" }}
+              onSubmit={(event) => {
+                event.preventDefault();
+                onAction?.("commandEconomyDirective", {
+                  directiveOp: "setGosbankPosture",
+                  creditAggressiveness,
+                  budgetSoftness,
+                  sectorCredit: useSectorCredit ? sectorCreditWeights : {},
+                });
+              }}
+            >
+              <label className="ahd-field">
+                <span className="ahd-label">Credit aggressiveness · {creditAggressiveness.toFixed(2)}</span>
+                <input className="ahd-input" type="range" min="0" max="1" step="0.01" value={creditAggressiveness} onChange={(event) => setCreditAggressiveness(Number(event.target.value))} disabled={!canAct} aria-label="Credit aggressiveness" />
+              </label>
+              <label className="ahd-field" style={{ display: "flex", alignItems: "center", gap: "0.45rem" }}>
+                <input type="checkbox" checked={useSectorCredit} onChange={(event) => setUseSectorCredit(event.target.checked)} aria-label="Pick winners by sector" />
+                <span className="ahd-label">Pick winners by sector</span>
+              </label>
+              {useSectorCredit ? nation.commandEconomy.creditSectors.map((sector) => (
+                <label className="ahd-field" key={sector}>
+                  <span className="ahd-label">{sector.replaceAll("_", " ")} credit weight · {sectorCreditWeights[sector] ?? 50}</span>
+                  <input className="ahd-input" type="range" min="0" max="100" step="1" value={sectorCreditWeights[sector] ?? 50} onChange={(event) => setSectorCreditWeights((weights) => ({ ...weights, [sector]: Number(event.target.value) }))} disabled={!canAct} aria-label={`${sector} credit weight`} />
+                </label>
+              )) : null}
+              <label className="ahd-field">
+                <span className="ahd-label">Budget softness · {budgetSoftness.toFixed(2)}</span>
+                <input className="ahd-input" type="range" min="0" max="1" step="0.01" value={budgetSoftness} onChange={(event) => setBudgetSoftness(Number(event.target.value))} disabled={!canAct} aria-label="Budget softness" />
+              </label>
+              <button type="submit" className="ahd-btn ahd-btn-primary ahd-btn-sm" disabled={!canAct}>
+                Queue Gosbank directive
+              </button>
+            </form>
+          ) : <div className="ahd-muted" style={{ fontSize: "0.72rem", marginTop: "0.5rem" }}>The planned-economy control is inactive after this country entered the dual-track marketization range.</div>}
+          <div style={{ marginTop: "0.55rem" }}>
+            <span className="ahd-muted" style={{ fontSize: "0.7rem" }}>Pending Gosbank directives</span>
+            {nation.commandEconomy.pendingDirectives.length === 0 ? <div className="ahd-muted" style={{ fontSize: "0.72rem", marginTop: "0.2rem" }}>No pending directives.</div> : (
+              <ul style={{ listStyle: "none", margin: "0.25rem 0 0", padding: 0, display: "grid", gap: "0.25rem" }}>
+                {nation.commandEconomy.pendingDirectives.map((directive) => (
+                  <li key={directive.id} className="ahd-kv">
+                    <span>Effective turn {directive.effectiveTurn}</span>
+                    <span className="ahd-mono">{directive.creditAggressiveness !== undefined ? `Credit ${directive.creditAggressiveness.toFixed(2)}` : ""}{directive.creditAggressiveness !== undefined && directive.budgetSoftness !== undefined ? " · " : ""}{directive.budgetSoftness !== undefined ? `Budget ${directive.budgetSoftness.toFixed(2)}` : ""}{directive.sectorCredit ? ` · Sector weights ${Object.keys(directive.sectorCredit).length}` : ""}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+      ) : mode === "command" ? <div className="ahd-empty" style={{ marginTop: "0.65rem" }}>This country has no active planned-economy control system.</div> : null}
+    </div>
+  );
+}
+
+export function SubsidyLegislationControls({ nation, onAction, busy = false }: { nation: NationView; onAction?: NationPanelProps["onAction"]; busy?: boolean }) {
+  return <EconomicControls nation={nation} onAction={onAction} busy={busy} mode="subsidy" />;
+}
+
+function humanize(value: string): string {
+  return value.replace(/[_-]+/g, " ").replace(/^\w/, (char) => char.toUpperCase());
+}
+
+function EconomySection({ nation, era, onAction, busy = false }: { nation: NationView; era?: string | null; onAction?: NationPanelProps["onAction"]; busy?: boolean }) {
   const { economy } = nation;
   const macroHistory = economy.macroHistory.slice(-8);
   const primeRateHistory = economy.primeRateHistory.slice(-8);
@@ -620,8 +801,13 @@ function PolicySection({ nation, clock, era }: { nation: NationView; clock: Game
   );
 }
 
-export function NationPanel({ nation, section, clock, era, onNavigate }: NationPanelProps) {
-  if (section === "economy") return <EconomySection nation={nation} era={era} />;
+export function NationPanel({ nation, section, clock, era, onNavigate, onAction, busy }: NationPanelProps) {
+  if (section === "economy") return <EconomySection nation={nation} era={era} onAction={onAction} busy={busy} />;
+  if (section === "commandEconomy") return (
+    <Layout nation={nation} title="Command Economy" era={era}>
+      <EconomicControls nation={nation} onAction={onAction} busy={busy ?? false} mode="command" />
+    </Layout>
+  );
   if (section === "budget") return <BudgetSection nation={nation} era={era} onNavigate={onNavigate} />;
   if (section === "metrics") return <MetricsSection nation={nation} era={era} onNavigate={onNavigate} />;
   return <PolicySection nation={nation} clock={clock} era={era} />;

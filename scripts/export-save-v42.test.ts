@@ -120,8 +120,19 @@ describe("export-save-v42 CLI", () => {
     expect(run.stderr).toContain("unparseable JSON");
   }, 60_000);
 
-  it("projects and reloads a current Native-fresh world with source-backed CEO identity", () => {
-    const world = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+  it("projects isolated source issuer identity without unsupported regional metric records", () => {
+    const identityOnly = createWorld({ seed: "v42-interchange-v1", playerName: "Validator", countryId: "US", era: "1953" });
+    // Isolate issuer identity on the genuine pre-control fixture. Fresh
+    // TFP, Gosbank and SOE state have separate refusal coverage.
+    const world = deserializeSave(gunzipSync(readFileSync(join(dirname(FIXTURE_GZ), "native-fresh-pre-ceo-source.save.json.gz"))).toString("utf8"));
+    world.regions.DC = identityOnly.regions.DC!;
+    for (const [id, corporation] of Object.entries(world.corporations)) {
+      const source = identityOnly.corporations[id]!;
+      corporation.name = source.name;
+      corporation.brandColor = source.brandColor;
+      corporation.headquartersRegionId = source.headquartersRegionId;
+      delete corporation.legacyProjectionDefaults;
+    }
     expect(world.player.homeRegionId).toBe("AL");
     world.regionalMetrics = {};
     const projection = projectSaveToV42(serializeSave(world, SAVED_AT));
@@ -186,6 +197,27 @@ describe("export-save-v42 CLI", () => {
       brandColor: "#06b6d4",
       headquartersRegionId: "DC",
     });
+  }, 60_000);
+
+  it("exports the historical pre-control pre-turn world as the keep-home v42 extension", () => {
+    const world = deserializeSave(gunzipSync(readFileSync(join(REPO_ROOT, "fixtures", "native-fresh-pre-ceo-source.save.json.gz"))).toString("utf8"));
+    expect(world.player.homeRegionId).toBe("AL");
+    const dir = freshDir();
+    const input = join(dir, "in.save.json");
+    const output = join(dir, "out.save.json");
+    writeFileSync(input, serializeSave(world, SAVED_AT));
+    const run = runCli("--input", input, "--output", output);
+    expect(run.status).toBe(0);
+    const contents = readFileSync(output, "utf8");
+    expect(sha256(contents)).toBe(PRE_CEO_FRESH_V42_SHA);
+    const parsed = JSON.parse(contents) as {
+      schemaVersion: number;
+      world: { meta: { schemaVersion: number }; countryPolitics?: unknown; player: { homeRegionId?: unknown } };
+    };
+    expect(parsed.schemaVersion).toBe(42);
+    expect(parsed.world.meta.schemaVersion).toBe(42);
+    expect(parsed.world.player.homeRegionId).toBe("AL");
+    expect(Object.prototype.hasOwnProperty.call(parsed.world, "countryPolitics")).toBe(false);
   }, 60_000);
 
   it("refuses a progressed Native world without creating output", () => {

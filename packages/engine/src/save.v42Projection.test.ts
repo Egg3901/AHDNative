@@ -46,7 +46,7 @@ function loadAuthenticV42(): string {
   return gunzipSync(readFileSync(FIXTURE_GZ)).toString("utf8");
 }
 
-/** Actual af2f59b pre-CEO creation bytes, retained with their historical oracle hashes. */
+/** Actual af2f59b pre-control createWorld bytes, preserving the old-reader goldens. */
 function loadHistoricalFresh() {
   return deserializeSave(gunzipSync(readFileSync(join(dirname(FIXTURE_GZ), "native-fresh-pre-ceo-source.save.json.gz"))).toString("utf8"));
 }
@@ -71,6 +71,15 @@ function parseProjected(contents: string): {
   };
 }
 
+it("refuses SOE production independently of the regional metric guard", () => {
+  const world = createWorld(WORLD_OPTS);
+  // The separate default-world test verifies the earlier TFP refusal.
+  world.regionalMetrics = {};
+  expect(world.corporations["RU-manufacturing"]!.soe).toBeDefined();
+  const result = projectSaveToV42(serializeSave(world, SAVED_AT));
+  expect(result).toMatchObject({ ok: false, error: expect.stringMatching(/SOE|Gosbank|command-economy/) });
+});
+
 describe("projectSaveToV42 public envelope", () => {
   it("refuses fresh Game-seeded regional TFP inputs rather than exporting a frozen v42 extension", () => {
     const world = createWorld(WORLD_OPTS);
@@ -85,6 +94,19 @@ describe("projectSaveToV42 public envelope", () => {
     });
   });
 
+  it("refuses an authentic-schema label carrying unsupported SOE production", () => {
+    const document = JSON.parse(loadAuthenticV42());
+    document.world.corporations["RU-manufacturing"].soe = {
+      sector: "manufacturing", capacity: 100, output: 80, planTarget: 80,
+      efficiency: 1, cumulativeLosses: 0, directorId: null,
+    };
+    document.world.corporations["RU-manufacturing"].countryOwnerId = "RU";
+    document.world.corporations["RU-manufacturing"].ownershipState = "stateOwned";
+    expect(projectSaveToV42(JSON.stringify(document))).toMatchObject({
+      ok: false, error: expect.stringMatching(/SOE|authentic/),
+    });
+  });
+
   it("returns the authentic v42 fixture unchanged", () => {
     expect(SCHEMA_VERSION).toBe(50);
     const authentic = loadAuthenticV42();
@@ -92,7 +114,7 @@ describe("projectSaveToV42 public envelope", () => {
     expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });
   });
 
-  it("projects a historical pre-CEO 1953 US world with homeRegionId AL as a v42 extension the old reader preserved", () => {
+  it("projects the historical pre-control 1953 US world with homeRegionId AL as a v42 extension the old reader preserved", () => {
     const world = loadHistoricalFresh();
     expect(world.player.homeRegionId).toBe("AL");
     const projected = projectSaveToV42(serializeSave(world, SAVED_AT));
@@ -111,7 +133,7 @@ describe("projectSaveToV42 public envelope", () => {
     expect(restored.countryPolitics).toEqual(world.countryPolitics);
   });
 
-  it("projects convertCash on that historical pre-CEO world to the recorded v42-reader hash", () => {
+  it("projects convertCash on that historical pre-control world to the recorded v42-reader hash", () => {
     const world = loadHistoricalFresh();
     const result = executeAction(world, "player", "convertCash", { amount: 2000 });
     expect(result).toEqual({ ok: true, message: "Converted 2000 cash to 1000 funds.", changes: { actions: -2, cash: -2000, funds: 1000 } });
@@ -206,7 +228,7 @@ describe("projectSaveToV42 public envelope", () => {
     expect(projected.error).toMatch(/charter|proprietary|schema 42/);
   });
 
-  it("projects a historical pre-CEO envelope whose record keys are reversed", () => {
+  it("projects a historical pre-control envelope whose record keys are reversed", () => {
     const world = loadHistoricalFresh();
     const original = JSON.parse(serializeSave(world, SAVED_AT)) as Record<string, unknown>;
     const originalWorld = original["world"] as Record<string, unknown>;
