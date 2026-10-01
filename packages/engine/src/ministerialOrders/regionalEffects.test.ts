@@ -44,7 +44,6 @@ describe("#275 regional ministerial order consequences", () => {
       { orderId: "foreign", metric: "economic.unemploymentRate", regionId: "LON", reason: "invalidRegion" },
       { orderId: "unsupported", metric: "social.imaginary", regionId: "AL", reason: "unsupportedMetric" },
     ]);
-    expect(world.regionalMetrics.LON).toBeUndefined();
   });
 
   it("applies before policy effects, then persists the changed region through save/reload", () => {

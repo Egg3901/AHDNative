@@ -9,25 +9,16 @@ import { TFP_METRIC_PATHS, tfpBasket } from "../demographics/laborForce.js";
  * Issue #40 — TFP basket input gate.
  *
  * The six exact AHDGame tfpBasket leaves (laborForce.ts TFP_METRIC_PATHS) are
- * read by macroCountryTurnPhase from the PREV-turn nationalMetrics row. This
- * suite proves, through the public createWorld / advanceTurn / save boundary:
+ * read by macroCountryTurnPhase from the PREV-turn nationalMetrics row. Default
+ * US worlds now seed those leaves from the Game pin (see tfpDefaultInputs.test.ts
+ * and metrics/tfpSeed.ts). This suite still proves the aggregation contract:
  *
- *  1. A default world records NO per-region source for the six leaves, so they
- *     stay absent and the basket keeps the TFP_BASELINE fallback. No synthetic
- *     seed and no national stand-in is injected (the rejected approach).
- *  2. When a region DOES record one of the six leaves in the real regional
- *     policy store (WorldState.regionalMetrics, schema v45), nationalMetrics
- *     aggregates it population-weighted and it reaches tfpBasket.
- *  3. The aggregation is era-gated exactly like the rest of nationalMetrics:
- *     broadbandAccess (active 1998+) is omitted from a pre-1998 world even when
- *     a region records it.
- *  4. The aggregation is a strict no-op (no new keys, byte-identical worlds)
- *     when no region records a leaf, so existing world hashes are unchanged.
- *
- * The per-region store is written by the real regional-scope policy path
- * (policyEffects/phases.ts `world.regionalMetrics[regionId] ??= {}`); this
- * suite records the same rows directly, which is the recorded state the engine
- * actually persists.
+ *  1. createWorld records per-region US source for the six leaves.
+ *  2. When a region records a leaf, nationalMetrics aggregates it
+ *     population-weighted and it reaches tfpBasket.
+ *  3. The aggregation is era-gated: broadbandAccess (active 1998+) is omitted
+ *     from a pre-1998 national row even when a region records it.
+ *  4. Two default worlds with the same seed stay byte-identical.
  */
 
 const OPTS_1953 = { seed: "tfp-inputs-1953", playerName: "Tester", countryId: "US", era: "1953" } as const;
@@ -55,15 +46,26 @@ function nationalRow(world: WorldState, countryId: string): Record<string, { val
 }
 
 describe("#40 TFP basket input gate (public turn boundary)", () => {
-  it("default worlds record no per-region source, so the six leaves stay absent", () => {
+  it("default US worlds seed the six Game TFP paths on every US region", () => {
     for (const opts of [OPTS_1953, OPTS_1979, OPTS_1991, OPTS_2019]) {
       const world = createWorld(opts);
-      // The regional policy store starts empty (no enacted regional law).
-      expect(Object.keys(world.regionalMetrics)).toEqual([]);
+      const us = regionsOf(world, "US");
+      expect(us.length).toBeGreaterThan(0);
+      expect(Object.keys(world.regionalMetrics).length).toBeGreaterThan(0);
+      for (const region of us) {
+        for (const path of ALL_PATHS) {
+          expect(world.regionalMetrics[region.id]?.[path]?.value, `${opts.era} ${region.id} ${path}`).toEqual(
+            expect.any(Number),
+          );
+        }
+      }
       advanceTurn(world);
       const row = nationalRow(world, "US");
-      for (const path of ALL_PATHS) {
-        expect(row[path], `${opts.era} ${path}`).toBeUndefined();
+      for (const path of opts.era === "2019" ? ALL_PATHS : PATHS_1953) {
+        expect(row[path]?.value, `${opts.era} ${path}`).toEqual(expect.any(Number));
+      }
+      if (opts.era !== "2019") {
+        expect(row[TFP_METRIC_PATHS.broadbandAccess], `${opts.era} broadband`).toBeUndefined();
       }
     }
   });
@@ -104,12 +106,18 @@ describe("#40 TFP basket input gate (public turn boundary)", () => {
     advanceTurn(world);
 
     const value = nationalRow(world, "US")[TFP_METRIC_PATHS.urbanizationRate]!.value;
-    const expected =
-      (90 * (big.population ?? 0) + 20 * (small.population ?? 0)) /
-      ((big.population ?? 0) + (small.population ?? 0));
-    expect(value).toBeCloseTo(expected, 3);
-    // Population-weighted, so it sits far above a flat (90+20)/2 = 55 midpoint.
-    expect(value).toBeGreaterThan(55);
+    let weightedSum = 0;
+    let weightTotal = 0;
+    for (const region of regionsOf(world, "US")) {
+      const recorded = world.regionalMetrics[region.id]?.[TFP_METRIC_PATHS.urbanizationRate]?.value;
+      if (typeof recorded !== "number" || !Number.isFinite(recorded)) continue;
+      const weight = region.population ?? 0;
+      if (!(weight > 0)) continue;
+      weightedSum += recorded * weight;
+      weightTotal += weight;
+    }
+    expect(value).toBeCloseTo(weightedSum / weightTotal, 3);
+    expect(value).not.toBe(55);
   });
 
   it("era-gates broadbandAccess: a 2019 world aggregates all six, a 1953 world never does", () => {
@@ -157,7 +165,7 @@ describe("#40 TFP basket input gate (public turn boundary)", () => {
     );
   });
 
-  it("is a strict no-op when no region records a leaf: identical worlds, no new keys", () => {
+  it("keeps two same-seed default worlds byte-identical after turns", () => {
     const a = createWorld(OPTS_1953);
     const b = createWorld(OPTS_1953);
     for (let i = 0; i < 3; i++) {
@@ -165,9 +173,8 @@ describe("#40 TFP basket input gate (public turn boundary)", () => {
       advanceTurn(b);
     }
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
-    // The aggregation added no TFP keys to the default rebuild.
     const row = nationalRow(a, "US");
-    for (const path of ALL_PATHS) expect(row[path], path).toBeUndefined();
+    for (const path of PATHS_1953) expect(row[path]?.value, path).toEqual(expect.any(Number));
   });
 
   it("persists recorded regional rows through save/load and still aggregates", () => {
