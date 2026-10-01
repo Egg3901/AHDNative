@@ -1,0 +1,54 @@
+import { expect, test } from '@playwright/test';
+import { advanceGame, completeCharacterCreation, gameReady, navigateGame, saveGame } from './game-navigation';
+
+for (const width of [320, 390]) {
+  test(`source voter canvassing selects, confirms and persists at ${width}px`, async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'New game', exact: true }).click();
+    await page.getByLabel('Your name').fill('Canvassing Player');
+    await page.getByLabel('Country', { exact: true }).selectOption('US');
+    await page.getByLabel('Seed', { exact: false }).fill(`canvass-browser-${width}`);
+    await page.getByRole('button', { name: 'Start', exact: true }).click();
+    await completeCharacterCreation(page);
+    await gameReady(page);
+    await navigateGame(page, 'Actions');
+    const card = page.getByRole('article', { name: 'Canvass', exact: true });
+    await card.getByRole('button', { name: 'Voter Canvassing' }).click();
+    await expect(page.getByRole('heading', { name: 'Voter Canvassing', level: 1 })).toBeVisible();
+    const panel = page.getByRole('region', { name: 'Voter Canvassing' });
+    const category = panel.getByRole('combobox', { name: 'Canvass demographic category' });
+    const categoryId = await category.locator('option').nth(1).getAttribute('value');
+    await category.selectOption(categoryId!);
+    const group = panel.getByRole('combobox', { name: 'Canvass demographic group' });
+    const groupId = await group.locator('option').nth(1).getAttribute('value');
+    const groupName = await group.locator('option').nth(1).textContent();
+    await group.selectOption(groupId!);
+    await panel.getByRole('spinbutton', { name: 'Number of canvasses' }).fill('2');
+    await expect(panel.getByRole('status')).toContainText('2 AP');
+    await expect(panel.getByRole('status')).toContainText('$200.00');
+    await panel.getByRole('button', { name: 'Review canvassing' }).click();
+    await panel.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await panel.getByRole('button', { name: 'Review canvassing' }).click();
+    await panel.getByRole('button', { name: 'Confirm canvassing' }).click();
+    await expect(page.getByText(new RegExp(`Canvassed ${groupName} voters`)).first()).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: `artifacts/smoke/voter-canvassing-${width}.png`, fullPage: true });
+    await saveGame(page);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: 'Continue Canvassing Player', exact: true }).click();
+    await gameReady(page);
+    await navigateGame(page, 'Actions');
+    await expect(page.getByText(new RegExp(`Canvassed ${groupName} voters`)).first()).toBeVisible();
+    await advanceGame(page);
+    await navigateGame(page, 'Actions');
+    await page.getByRole('article', { name: 'Canvass', exact: true }).getByRole('button', { name: 'Voter Canvassing' }).click();
+    await category.selectOption(categoryId!);
+    await group.selectOption(groupId!);
+    await expect(panel.getByRole('status')).toContainText(groupName!);
+    await panel.getByRole('button', { name: 'Review canvassing' }).click();
+    await panel.getByRole('button', { name: 'Confirm canvassing' }).click();
+    await expect(page.getByText(new RegExp(`Canvassed ${groupName} voters`)).first()).toBeVisible();
+  });
+}

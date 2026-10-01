@@ -1,5 +1,16 @@
 # AHDNative roadmap
 
+## Demographic canvassing checkpoint, 2026-10-01 (#57 / #91 partial)
+
+The source standalone Voter Canvassing flow replaces the old region-only proxy:
+recorded audience selection, one-AP/100-anchor per-canvass quote, bounded batch,
+confirmation, saved target history and actual electoral consequences. Independent
+Game vectors, atomic refusal and deterministic reload tests pass; real Chromium
+320px/390px player journeys pass. [Exact scope and remaining gaps](DEMOGRAPHIC-CANVASSING.md)
+keep #57 and #91 open for richer targeting, presidential writer journeys, other
+selectors and party action parity. Full hosted gate remains required before merge.
+
+
 ## Corporate bond settlement checkpoint, 2026-10-01 (#308)
 
 The supported issuer buyback, coupon, maturity and default lifecycle now includes
