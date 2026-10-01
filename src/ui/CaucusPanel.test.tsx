@@ -265,9 +265,19 @@ describe("CaucusPanel", () => {
     expect(screen.queryByText("Recruit NPP to Caucus")).toBeNull();
   });
 
+  it("does not report recruitment when the authoritative action refuses", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn().mockResolvedValue(false);
+    render(<CaucusPanel management={makeChairManagement()} busy={false} onAction={onAction} />);
+    await user.selectOptions(screen.getByLabelText("Recruit NPP to Blue Dog Caucus"), "US-3");
+    await user.click(screen.getByRole("button", { name: "Recruit Sam Winner to Blue Dog Caucus" }));
+    expect(screen.queryByLabelText("Recruit result for Blue Dog Caucus")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Recruit Sam Winner to Blue Dog Caucus" })).toBeInTheDocument();
+  });
+
   it("lets the chair review and recruit an eligible NPP", async () => {
     const user = userEvent.setup();
-    const onAction = vi.fn();
+    const onAction = vi.fn().mockResolvedValue(true);
     render(<CaucusPanel management={makeChairManagement()} busy={false} onAction={onAction} />);
     expect(screen.getByText("Recruit NPP to Caucus")).toBeTruthy();
     expect(screen.getByText(/Caucus recruitment is gated by the Chair's relationship with that NPP/)).toBeTruthy();

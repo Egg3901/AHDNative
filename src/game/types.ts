@@ -322,7 +322,7 @@ export interface GameScreenProps {
   /** Save-slot identity for per-save news selection and read state. */
   newsStorageKey?: string;
   onAdvanceTurn: () => void; onSave: () => void; onExit: () => void;
-  onAction: (id: string, params?: Record<string, string | number>) => void;
+  onAction: (id: string, params?: Record<string, string | number>) => void | Promise<boolean>;
   /**
    * Direct corporate-sector sale commands (#294) plus player acquisition
    * (#295): list, update, unlist, or buy a recorded sector-asset listing as

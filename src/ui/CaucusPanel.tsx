@@ -262,10 +262,10 @@ export function CaucusPanel({ management, busy, onAction }: CaucusPanelProps) {
                                     style={{ marginTop: "0.35rem" }}
                                     aria-label={`Recruit ${chosen.name} to ${caucus.name}`}
                                     disabled={!canRecruit} aria-disabled={!canRecruit}
-                                    onClick={() => {
+                                    onClick={async () => {
                                       if (!canRecruit) return;
-                                      onAction("recruitCaucusNpp", { caucusId: caucus.id, targetId: chosen.id });
-                                      setRecruitStep((prev) => ({ ...prev, [caucus.id]: "result" }));
+                                      const accepted = await onAction("recruitCaucusNpp", { caucusId: caucus.id, targetId: chosen.id });
+                                      if (accepted === true) setRecruitStep((prev) => ({ ...prev, [caucus.id]: "result" }));
                                     }}>
                                     Recruit NPP
                                   </button>

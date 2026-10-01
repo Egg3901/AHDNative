@@ -587,9 +587,20 @@ describe("PoliticsPanel elections", () => {
 });
 
 describe("PoliticsPanel politicians", () => {
+  it("keeps the influence review when the authoritative action refuses", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn().mockResolvedValue(false);
+    const PoliticsPanel = await renderPanel();
+    render(<PoliticsPanel politics={makePolitics()} section="politicians" clock={CLOCK} busy={false} onAction={onAction} />);
+    await user.selectOptions(screen.getByLabelText("Influence approach"), "boost_loyalty");
+    await user.click(screen.getByRole("button", { name: "Confirm Strengthen Party Loyalty" }));
+    expect(screen.queryByLabelText("Influence result")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm Strengthen Party Loyalty" })).toBeInTheDocument();
+  });
+
   it("runs influence select, review, confirm and result", async () => {
     const user = userEvent.setup();
-    const onAction = vi.fn();
+    const onAction = vi.fn().mockResolvedValue(true);
     const PoliticsPanel = await renderPanel();
     const politics = makePolitics();
     const { rerender } = render(<PoliticsPanel politics={politics} section="politicians" clock={CLOCK} busy={false} onAction={onAction} />);

@@ -1209,7 +1209,7 @@ function PoliticiansSection({ politics, busy, onAction, onOpenElection, initialI
             <div style={{ marginTop: "0.75rem", borderTop: "1px dashed var(--ahd-border)", paddingTop: "0.55rem" }}>
               <h3 className="ahd-h2" style={{ fontSize: "0.82rem" }}>Influence NPP</h3>
               <p className="ahd-muted" style={{ fontSize: "0.72rem", marginTop: "0.2rem" }}>
-                Personal relationship influence. A resolved attempt writes relationship only; it does not change this NPP's statistics.
+                Your approach affects your relationship with this politician.
               </p>
               {influenceStep === "pick" || influenceStep === "review" ? (
                 <label className="ahd-field" style={{ maxWidth: "22rem", marginTop: "0.45rem" }}>
@@ -1239,10 +1239,10 @@ function PoliticiansSection({ politics, busy, onAction, onOpenElection, initialI
                       aria-label={`Confirm ${option.name}`}
                       disabled={busy || !option.available}
                       aria-disabled={busy || !option.available}
-                      onClick={() => {
+                      onClick={async () => {
                         if (!option.available) return;
-                        onAction("influenceNpp", { targetId: selected.id, influenceType: option.type });
-                        setInfluenceStep("result");
+                        const accepted = await onAction("influenceNpp", { targetId: selected.id, influenceType: option.type });
+                        if (accepted === true) setInfluenceStep("result");
                       }}>
                       Confirm {option.name}
                     </button>
