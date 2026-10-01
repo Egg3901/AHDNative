@@ -11,6 +11,21 @@ record the bounded completion; whole corporate mechanics #107, current SP
 interchange and physical-device gates remain open. Full hosted review is pending
 before issue closure.
 
+## Regional sector trading checkpoint, 2026-10-01 (#299)
+
+Regional details share the corporation sale controls for list, reprice, unlist and
+purchase, with recorded ownership, workforce, union and company links. Public
+session and UI tests cover eligibility and persistence; the integrated Chromium
+journey at 320px and 390px saves and resumes twice. The fixture records two
+regional assets, since fresh worlds still seed national assets. The comparison
+uses Game's pinned regional and sector page hierarchy, with no pixel equivalence
+or physical-device claim. See [regional trading evidence](REGIONAL-SECTOR-TRADING.md).
+
+#297 and #322 remain partial. Source-backed leadership, complete employer
+authority and downstream political feedback still require implementation. The
+unsafe public NPC-response and arbitrary-ballot wrappers are excluded. The unused neutral-50 labor
+metric overlay is excluded from this batch.
+
 ## Demographic canvassing checkpoint, 2026-10-01 (#57 / #91 partial)
 
 The source standalone Voter Canvassing flow replaces the old region-only proxy:
@@ -19,7 +34,7 @@ confirmation, saved target history and actual electoral consequences. Independen
 Game vectors, atomic refusal and deterministic reload tests pass; real Chromium
 320px/390px player journeys pass. [Exact scope and remaining gaps](DEMOGRAPHIC-CANVASSING.md)
 keep #57 and #91 open for richer targeting, presidential writer journeys, other
-selectors and party action parity. Full hosted gate remains required before merge.
+selectors and party action parity. Full hosted verification passed for merged PR703.
 
 
 ## Corporate bond settlement checkpoint, 2026-10-01 (#308)
