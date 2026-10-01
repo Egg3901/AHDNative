@@ -128,7 +128,10 @@ export function clearCommodity(input: CommodityClearingInput): CommodityClearing
     for (const exporter of exporters) columnSum += matrix[exporter][importer]!;
     if (columnSum > colLimit[importer]!) {
       const factor = colLimit[importer]! / columnSum;
-      for (const exporter of exporters) matrix[exporter][importer] *= factor;
+      for (const exporter of exporters) {
+        const row = matrix[exporter];
+        if (row) row[importer] = (row[importer] ?? 0) * factor;
+      }
     }
   }
 
