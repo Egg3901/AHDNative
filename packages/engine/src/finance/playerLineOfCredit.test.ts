@@ -122,13 +122,14 @@ describe("playerLineOfCreditPhase", () => {
 
     playerLineOfCreditPhase.run(world, RNG);
 
-    // GBP interest is 2.5; the 1-unit pocket covers interest only. The USD
-    // wallet is untouched and the shortfall freezes the line.
+    // GBP interest is 2.5. The GBP pocket pays first; source servicing then
+    // converts the USD cash wallet at current rates, so no shortfall freezes
+    // the line and the unused USD wallet remains available.
     expect(world.player.currencyBalances!.personal.GBP).toBe(0);
-    expect(world.player.cash).toBe(10_000);
-    expect(world.player.lineOfCredit!.balance).toBe(1000);
-    expect(world.player.lineOfCredit!.arrears).toBe(1.5);
-    expect(world.player.lineOfCredit!.drawFrozen).toBe(true);
+    expect(world.player.cash).toBeLessThan(10_000);
+    expect(world.player.lineOfCredit!.balance).toBeLessThan(1000);
+    expect(world.player.lineOfCredit!.arrears).toBe(0);
+    expect(world.player.lineOfCredit!.drawFrozen).toBe(false);
   });
 
   it("grows arrears and freezes the line when the wallet cannot cover the payment", () => {
@@ -213,6 +214,40 @@ describe("playerLineOfCreditPhase", () => {
     );
   });
 
+  it("converts other personal currency at the current FX rate and reloads the settlement", () => {
+    const world = createWorld(OPTS);
+    world.player.cash = 0;
+    world.player.savings = 0;
+    world.player.currencyBalances = { personal: { GBP: 20 } };
+    world.exchangeRates.US!.rate = 1;
+    world.exchangeRates.UK!.rate = 2;
+    world.centralBanks.US!.primeRate = 5;
+    world.player.lineOfCredit = {
+      balance: 1000,
+      denomination: "USD",
+      arrears: 0,
+      drawFrozen: false,
+    };
+
+    playerLineOfCreditPhase.run(world, RNG);
+
+    // Immutable Game quoteLocService vector: scheduled USD 4.07, funded by
+    // GBP 2.04 at USD=1 / GBP=2; USD arrears settle first, principal falls
+    // by 1.99, and no payment shortfall freezes the line.
+    expect(world.player.currencyBalances!.personal.GBP).toBe(17.96);
+    expect(world.player.lineOfCredit!.balance).toBe(998.01);
+    expect(world.player.lineOfCredit!.arrears).toBe(0);
+    expect(world.player.lineOfCredit!.drawFrozen).toBe(false);
+
+    const reloaded = deserializeSave(serializeSave(world));
+    expect(reloaded.player.currencyBalances!.personal.GBP).toBe(17.96);
+    expect(reloaded.player.lineOfCredit).toEqual(world.player.lineOfCredit);
+    playerLineOfCreditPhase.run(reloaded, RNG);
+    expect(reloaded.player.currencyBalances!.personal.GBP).toBe(15.93);
+    expect(reloaded.player.lineOfCredit!.balance).toBe(996.03);
+    expect(reloaded.player.lineOfCredit!.drawFrozen).toBe(false);
+  });
+
   it("is deterministic: the same input always produces the same output", () => {
     const first = fundedWorld();
     const second = structuredClone(first);
@@ -282,11 +317,25 @@ describe("playerLineOfCreditPhase", () => {
       },
     ]) {
       const world = fundedWorld();
+      world.player.currencyBalances = { personal: { GBP: 20, EUR: 10 } };
       world.player.lineOfCredit = lineOfCredit as never;
       const before = serializeSave(world);
       expect(() => playerLineOfCreditPhase.run(world, RNG)).toThrow();
       expect(serializeSave(world)).toBe(before);
     }
+  });
+
+  it("refuses a non-finite conversion wallet before mutating any wallet or debt", () => {
+    const world = fundedWorld();
+    world.player.currencyBalances = { personal: { GBP: Number.NaN, EUR: 10 } };
+    const before = JSON.stringify(world);
+    expect(() => playerLineOfCreditPhase.run(world, RNG)).toThrow(
+      "Invalid GBP personal wallet balance",
+    );
+    expect(JSON.stringify(world)).toBe(before);
+    expect(() => deserializeSave(serializeSave(world))).toThrow(
+      "Invalid GBP personal wallet balance",
+    );
   });
 
   it("rejects present-but-invalid line state at the save boundary", () => {
