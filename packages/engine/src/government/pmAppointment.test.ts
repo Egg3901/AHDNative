@@ -5,6 +5,8 @@ import { advanceTurn } from "../engine.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { nationalPartyElectionsPhase } from "../intraparty/phases.js";
 import { rngFromSeed } from "../rng.js";
+import { EXECUTIVE_OFFICE_BY_COUNTRY } from "../actions/officeRegistry.js";
+import { GOVERNMENT_CHAMBER_BY_COUNTRY } from "./constants.js";
 import { createWorld } from "../world.js";
 import { pmAppointmentPhase, PM_APPOINTMENT_VOTE_DURATION_TURNS } from "./pmAppointment.js";
 
@@ -91,5 +93,60 @@ describe("Irish PM appointment (#284 source formation prerequisite)", () => {
       pmAppointmentVoteId: vote.id, pmVote: "aye",
     })).toMatchObject({ ok: false, error: expect.stringContaining("elected Dáil member") });
     expect(JSON.stringify(vote)).toBe(before);
+  });
+});
+
+
+describe("country-scoped parliamentary appointments", () => {
+  it.each(["DE", "CN"])("continues an actual %s party-chair vote across save and installs its executive office", countryId => {
+    const world = createWorld({ seed: `pm-${countryId}`, playerName: "Alex", countryId, era: "2019" });
+    const chamberKey = GOVERNMENT_CHAMBER_BY_COUNTRY[countryId]!;
+    const party = Object.values(world.parties).find(p => p.countryId === countryId && (countryId !== "CN" || p.regimeStatus === "ruling"))!;
+    world.player.partyId = party.id;
+    world.player.partyJoinedTurn = 0;
+    world.player.legislativeSeat = { countryId, chamberKey };
+    recomputeComposition(world, countryId, chamberKey);
+    advanceTurn(world);
+    expect(world.governments[countryId]?.status).toBe("pending");
+    world.meta.turn = 24;
+    world.player.actions = 50;
+    const rng = rngFromSeed(`pm-chair-${countryId}`);
+    nationalPartyElectionsPhase.run(world, rng);
+    const chair = world.nationalPartyElections.find(e => e.partyId === party.id && e.position === "chair" && e.status === "voting")!;
+    expect(executeAction(world, "player", "contestPartyLeadership", { intrapartyElectionId: chair.id }).ok).toBe(true);
+    expect(executeAction(world, "player", "votePartyLeadership", { intrapartyElectionId: chair.id, candidateId: "player" }).ok).toBe(true);
+    world.meta.turn = chair.endTurn;
+    nationalPartyElectionsPhase.run(world, rng);
+    expect(party.chairId).toBe("player");
+    expect(executeAction(world, "player", "proposePmAppointment").ok).toBe(true);
+    const vote = world.pmAppointmentVotes.at(-1)!;
+    expect(vote).toMatchObject({ countryId, chamberKey, closesTurn: world.meta.turn + 24 });
+    expect(executeAction(world, "player", "votePmAppointment", { pmAppointmentVoteId: vote.id, pmVote: "aye" }).ok).toBe(true);
+    const saved = deserializeSave(serializeSave(world));
+    expect(saved.pmAppointmentVotes).toEqual(world.pmAppointmentVotes);
+    saved.meta.turn = vote.closesTurn;
+    pmAppointmentPhase.run(saved, rng);
+    expect(saved.pmAppointmentVotes.at(-1)).toMatchObject({ status: "passed", votesAgainst: 0 });
+    expect(saved.governments[countryId]).toMatchObject({ status: "formed", pmPoliticianId: "player" });
+    expect(saved.player.currentOffice).toMatchObject({ countryId, type: EXECUTIVE_OFFICE_BY_COUNTRY[countryId] });
+    const resumed = deserializeSave(serializeSave(saved));
+    advanceTurn(resumed);
+    expect(resumed.governments[countryId]).toMatchObject({ status: "formed", pmPoliticianId: "player" });
+    const malformed = JSON.parse(serializeSave(resumed));
+    malformed.world.pmAppointmentVotes[0].chamberKey = "dail";
+    expect(() => deserializeSave(JSON.stringify(malformed))).toThrow(/invalid PM appointment vote/);
+  });
+
+  it("refuses an approved CN party chair and foreign chamber ballots without mutating the save", () => {
+    const world = createWorld({ seed: "pm-cn-approved", playerName: "Alex", countryId: "CN", era: "1991" });
+    const approved = Object.values(world.parties).find(p => p.countryId === "CN" && p.regimeStatus === "approved")!;
+    world.player.partyId = approved.id;
+    world.player.legislativeSeat = { countryId: "CN", chamberKey: "npc" };
+    approved.chairId = "player";
+    advanceTurn(world);
+    const before = serializeSave(world, "2026-10-02T00:00:00.000Z");
+    expect(executeAction(world, "player", "proposePmAppointment")).toMatchObject({ ok: false, error: expect.stringContaining("ruling party") });
+    expect(executeAction(world, "player", "votePmAppointment", { pmAppointmentVoteId: "foreign", pmVote: "aye" }).ok).toBe(false);
+    expect(serializeSave(world, "2026-10-02T00:00:00.000Z")).toBe(before);
   });
 });

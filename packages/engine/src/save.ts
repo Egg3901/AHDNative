@@ -1,3 +1,5 @@
+import { pmAppointmentExecutiveTitle } from "./government/pmAppointment.js";
+import { GOVERNMENT_CHAMBER_BY_COUNTRY } from "./government/constants.js";
 import { validateCanvassState } from "./actions/canvass.js";
 import { EXTERNAL_BROAD_MONEY_GDP_SHARE, SCHEMA_VERSION } from "./world.js";
 import { getPackByEra } from "@ahdclient/content";
@@ -747,10 +749,11 @@ function validatePmAppointmentVotes(world: WorldState): void {
     const turnFields = [vote["openedTurn"], vote["closesTurn"]];
     if (
       typeof vote["id"] !== "string" || vote["id"].length === 0 || ids.has(vote["id"]) ||
-      vote["countryId"] !== "IE" || vote["chamberKey"] !== "dail" ||
-      typeof vote["partyId"] !== "string" || !world.parties[vote["partyId"]] ||
-      (vote["coalitionId"] !== null && (typeof vote["coalitionId"] !== "string" || !world.coalitions.some((coalition) => coalition.id === vote["coalitionId"]))) ||
-      (vote["coalitionPartyIds"] !== null && (!Array.isArray(vote["coalitionPartyIds"]) || vote["coalitionPartyIds"].length < 2 || new Set(vote["coalitionPartyIds"]).size !== vote["coalitionPartyIds"].length || !vote["coalitionPartyIds"].every((partyId) => typeof partyId === "string" && world.parties[partyId]?.countryId === "IE"))) ||
+      typeof vote["countryId"] !== "string" || !pmAppointmentExecutiveTitle(vote["countryId"]) ||
+      vote["chamberKey"] !== GOVERNMENT_CHAMBER_BY_COUNTRY[vote["countryId"]] ||
+      typeof vote["partyId"] !== "string" || world.parties[vote["partyId"]]?.countryId !== vote["countryId"] ||
+      (vote["coalitionId"] !== null && (typeof vote["coalitionId"] !== "string" || !world.coalitions.some((coalition) => coalition.id === vote["coalitionId"] && coalition.countryId === vote["countryId"]))) ||
+      (vote["coalitionPartyIds"] !== null && (!Array.isArray(vote["coalitionPartyIds"]) || vote["coalitionPartyIds"].length < 2 || new Set(vote["coalitionPartyIds"]).size !== vote["coalitionPartyIds"].length || !vote["coalitionPartyIds"].every((partyId) => typeof partyId === "string" && world.parties[partyId]?.countryId === vote["countryId"]))) ||
       vote["nomineeId"] !== "player" || typeof vote["nomineeName"] !== "string" || vote["nomineeName"].length === 0 ||
       (vote["formationType"] !== "majority" && vote["formationType"] !== "minority" && vote["formationType"] !== "coalition") ||
       !turnFields.every((turn) => typeof turn === "number" && Number.isSafeInteger(turn) && turn >= 0) ||
@@ -3619,6 +3622,9 @@ export function deserializeSave(raw: string): WorldState {
   // compatibility), and the election-scoped governor endorsement ledger is
   // optional/empty on legacy races. Do not stamp existing elections v3.
   if (save.schemaVersion < 58) save.world.meta.schemaVersion = 58;
+  // Earlier readers only understood Irish PM votes. No appointment history
+  // can be reconstructed; existing Irish records continue unchanged.
+  if (save.schemaVersion < 61) save.world.meta.schemaVersion = 61;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { earnCareerGovernment } from "../government/earnCareerGovernment.testSupport.js";
 import { executeAction } from "../actions/execute.js";
 import { advanceTurn } from "../engine.js";
 import { deserializeSave, serializeSave } from "../save.js";
@@ -228,6 +229,7 @@ describe("Germany national tax laws (#287)", () => {
       chamberKey: "bundestag",
       regionId: world.player.homeRegionId,
     });
+    world = earnCareerGovernment(world, "de_income_tax_rate");
     // A well-resourced legal player: authority still comes from the resolved
     // race, while public commands debit their normal AP and NPI prices below.
     world.player.actions = 200;
