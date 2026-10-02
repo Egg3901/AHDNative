@@ -539,7 +539,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   // Keeping unfamiliar JSON keys cannot continue the recorded production.
   const sectorAssets = world["corporateSectors"];
   const hasPlantCapacity = isRecord(sectorAssets) && Object.values(sectorAssets).some(asset =>
-    isRecord(asset) && ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity"].some(field => hasOwn(asset, field)),
+    isRecord(asset) && (
+      ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity", "transitionFromStrategyId", "transitionStartTurn", "transitionCooldownUntilTurn", "retoolRescaleApplied"].some(field => hasOwn(asset, field)) ||
+      (hasOwn(asset, "strategyId") && asset["strategyId"] !== undefined && asset["strategyId"] !== "standard")
+    ),
   );
   if (hasOwn(world, "plantMarketDemand") || hasOwn(world, "corporateTradeSnapshot") || hasPlantCapacity) {
     return { ok: false, error: `Plant production and market state cannot be continued by schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
@@ -3274,9 +3277,14 @@ export function deserializeSave(raw: string): WorldState {
   if (save.schemaVersion < 52) save.world.meta.schemaVersion = 52;
   // No creator or grace history is invented for earlier Native issuers.
   if (save.schemaVersion < 53) save.world.meta.schemaVersion = 53;
-  // Paid taking tiers cannot be read by schema53's seizure-only validator.
-  // Historical missing history stays absent; no acquisition is reconstructed.
+  // Reserved union and primary stores keep their recorded absence.
   if (save.schemaVersion < 54) save.world.meta.schemaVersion = 54;
+  if (save.schemaVersion < 55) save.world.meta.schemaVersion = 55;
+  // Source strategy transitions are absent until an actual retool is ordered.
+  if (save.schemaVersion < 56) save.world.meta.schemaVersion = 56;
+  // Paid tiers and their political/ownership continuation require the new
+  // reader. No historical acquisitions or confidence records are invented.
+  if (save.schemaVersion < 57) save.world.meta.schemaVersion = 57;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

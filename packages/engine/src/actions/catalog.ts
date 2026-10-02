@@ -84,6 +84,7 @@ export type ActionId =
   | "acceptCeoAppointment"
   | "resignCeo"
   | "setCorporationCompensation"
+  | "setCorporateSectorStrategy"
   | "nationalizeCorporation"
   | "crisisBailout"
   | "crisisStimulus"
@@ -686,6 +687,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["corporation/governance", "corporation/dividends"],
+    status: "available",
+  },
+  setCorporateSectorStrategy: {
+    id: "setCorporateSectorStrategy",
+    name: "Retool Corporate Sector",
+    description: "As the seated CEO, change a source-supported sector's operating strategy. Era and tech availability, retooling fees, capacity conversion, transition and cooldown apply.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations", "corporation/plants", "commodity-markets"],
     status: "available",
   },
   nationalizeCorporation: {

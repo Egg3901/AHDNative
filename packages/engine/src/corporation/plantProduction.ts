@@ -7,8 +7,9 @@ import {
   advancePlantCapitalTurn,
   capacityPricePerUnitAnchor,
   corporateSectorBasePrices,
-  DEFAULT_SECTOR_OUTPUT_MIX,
+  SOURCE_DEFAULT_OPERATING_SUPPLY,
 } from "./plantCapacity.js";
+import { effectiveSectorCapacity, effectiveSectorStrategyRates } from "./strategyRetooling.js";
 import type { CommodityType } from "../commodity/constants.js";
 import type { WorldState } from "../types.js";
 import type { CorporateSectorAsset } from "./corporateSectorAssets.js";
@@ -60,7 +61,12 @@ export function runCorporatePlantProductionTurn(
     const corporation = world.corporations[asset.corporationId];
     if (!corporation || corporation.suspended === true) continue;
 
-    const listPrice = capacityPricePerUnitAnchor(asset.sectorType, basePrices);
+    const listPrice = capacityPricePerUnitAnchor(
+      asset.sectorType,
+      basePrices,
+      asset.strategyId,
+      Number(world.meta.date.slice(0, 4)),
+    );
     const capacityBefore = asset.capitalStock ?? 0;
     const delivered = deliverBuildOrders(asset.buildQueue ?? [], world.meta.turn);
     if (delivered.units > 0 || delivered.cost > 0 || (asset.buildQueue?.length ?? 0) > delivered.remaining.length) {
@@ -74,11 +80,17 @@ export function runCorporatePlantProductionTurn(
     }
     const capital = advancePlantCapitalTurn({
       capitalStock: asset.capitalStock ?? capacityBefore,
-      capacityBookAnchor: asset.capacityBookAnchor,
+      ...(asset.capacityBookAnchor !== undefined ? { capacityBookAnchor: asset.capacityBookAnchor } : {}),
       landedCreditAnchor: 0,
       capacityPricePerUnitAnchor: listPrice,
     });
-    const defaultRates = DEFAULT_SECTOR_OUTPUT_MIX[asset.sectorType] ?? {};
+    // Game computeRawSupplyDemand uses legacy SECTOR_SUPPLY for the standard
+    // method; only an explicitly selected method or live transition overrides
+    // those flows with SECTOR_STRATEGIES.
+    const hasSelectedStrategy = asset.strategyId !== undefined && asset.strategyId !== "standard";
+    const effectiveStrategy = hasSelectedStrategy || asset.transitionFromStrategyId
+      ? effectiveSectorStrategyRates(asset, world.meta.turn)
+      : { supply: SOURCE_DEFAULT_OPERATING_SUPPLY[asset.sectorType], isTransitioning: false, progress: 1 };
     // Regional miners keep the full source standard-strategy basis, while a
     // missing regional resource has zero production/sell-through. This mirrors
     // Game's per-resource capacity haircut without re-normalizing available
@@ -86,7 +98,7 @@ export function runCorporatePlantProductionTurn(
     const regionalResources = asset.sectorType === "extraction" && asset.stateId
       ? world.stateResourceCapacities[asset.stateId]?.resources
       : undefined;
-    const rates = defaultRates;
+    const rates = effectiveStrategy.supply;
     const availableRateTotal = regionalResources
       ? Object.entries(rates).reduce((sum, [resource, rate]) =>
           sum + ((regionalResources[resource as keyof typeof regionalResources] ?? 0) <= 0 ? 0 : (rate ?? 0)), 0)
@@ -116,7 +128,7 @@ export function runCorporatePlantProductionTurn(
     }
     const requestedFactor = outputFactorByCorporation.get(corporation.id) ?? 1;
     const labourOutputFactor = Number.isFinite(requestedFactor) ? Math.max(0, Math.min(1, requestedFactor)) : 1;
-    const productionCapacity = capital.capitalStock;
+    const productionCapacity = effectiveSectorCapacity({ ...asset, capitalStock: capital.capitalStock }, basePrices, world.meta.turn);
     const plannedUnits = productionCapacity * labourOutputFactor * availableRateTotal;
     const strategyPrices = world.commodityPrices;
     const priorSoldUnits = throttleSoldUnits(asset, rates, (commodity) => {
@@ -167,6 +179,10 @@ export function runCorporatePlantProductionTurn(
     asset.soldUnits = 0;
     asset.soldFraction = 0;
     asset.realizedRevenue = 0;
+    if (!effectiveStrategy.isTransitioning && asset.transitionFromStrategyId) {
+      delete asset.transitionFromStrategyId;
+      delete asset.transitionStartTurn;
+    }
   }
 
   for (const [commodity, offers] of offersByCommodity) {

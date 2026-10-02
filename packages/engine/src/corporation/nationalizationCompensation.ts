@@ -15,7 +15,7 @@ export function nationalizationCompensation(world: WorldState, donor: Corporatio
   const book = assets.reduce((sum, asset) => {
     const basis = asset.capacityBookAnchor;
     const capacityBook = typeof basis === "number" && Number.isFinite(basis) && basis >= 0
-      ? basis : Math.max(0, asset.capitalStock ?? 0) * capacityPricePerUnitAnchor(asset.sectorType, prices);
+      ? basis : Math.max(0, asset.capitalStock ?? 0) * capacityPricePerUnitAnchor(asset.sectorType, prices, asset.strategyId, Number(world.meta.date.slice(0, 4)));
     return sum + capacityBook + Math.max(0, asset.constructionInProgressAnchor ?? 0);
   }, 0);
   const cash = Math.max(0, localToAnchor(donor.liquidCapital, getRateForCountry(world, donor.countryId)));

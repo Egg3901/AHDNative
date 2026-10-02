@@ -2,7 +2,8 @@
 import type { CommodityType } from "../commodity/constants.js";
 import { COMMODITY_BASE_PRICES, getEraNominalScale } from "../commodity/constants.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
-import { DEFAULT_SECTOR_OUTPUT_MIX } from "./plantCapacity.js";
+import { sectorDemandMix, SOURCE_DEFAULT_OPERATING_SUPPLY } from "./plantCapacity.js";
+import { effectiveSectorStrategyRates } from "./strategyRetooling.js";
 import { isPlannedEconomy } from "../commandEconomy/constants.js";
 import type { WorldState } from "../types.js";
 
@@ -52,6 +53,8 @@ export const CORPORATE_INPUT_DEMAND_RATES: Readonly<Record<string, Readonly<Part
   entertainment: { software: 0.15, electronics: 0.1, energy: 0.06, real_estate_services: 0.03, network_services: 0.08 },
   logistics: { vehicles: 0.2, energy: 0.15, software: 0.1, real_estate_services: 0.03, food: 0.06 },
   retail: { food: 0.15, electronics: 0.1, energy: 0.08, vehicles: 0.08, freight: 0.07, advertising: 0.06, software: 0.06, chemicals: 0.03, pharmaceuticals: 0.03, financial_services: 0.05, consulting_services: 0.03, building_materials: 0.04, steel: 0.03, oil: 0.03, healthcare_services: 0.04, real_estate_services: 0.05, natural_gas: 0.02, timber: 0.01, plastics: 0.05, network_services: 0.05, entertainment_services: 0.03 },
+  // The legacy source row applies when extraction uses the default operating
+  // mode; selected strategy recipes replace it only during selection/transition.
   extraction: { energy: 0.2, vehicles: 0.15, freight: 0.1, chemicals: 0.08, construction_services: 0.03, ordnance: 0.06 },
 };
 
@@ -211,8 +214,13 @@ export function rebuildCorporatePlantInputDemand(world: WorldState): void {
   for (const asset of Object.values(corporateSectorAssets(world))) {
     const corporation = world.corporations[asset.corporationId];
     if (!corporation || corporation.suspended === true) continue;
-    const supplyMix = DEFAULT_SECTOR_OUTPUT_MIX[asset.sectorType] ?? {};
-    const inputRates = CORPORATE_INPUT_DEMAND_RATES[asset.sectorType] ?? {};
+    const hasSelectedStrategy = asset.strategyId !== undefined && asset.strategyId !== "standard";
+    const hasStrategyOverride = hasSelectedStrategy || asset.transitionFromStrategyId !== undefined;
+    const effective = hasStrategyOverride ? effectiveSectorStrategyRates(asset, world.meta.turn) : undefined;
+    const supplyMix = effective?.supply ?? SOURCE_DEFAULT_OPERATING_SUPPLY[asset.sectorType];
+    const inputRates = effective?.demand ?? (hasSelectedStrategy
+      ? sectorDemandMix(asset.sectorType, asset.strategyId)
+      : CORPORATE_INPUT_DEMAND_RATES[asset.sectorType]) ?? {};
     let unitYield = 0;
     for (const [rawOutput, rawRate] of Object.entries(supplyMix)) {
       const price = basePrices[rawOutput as CommodityType];

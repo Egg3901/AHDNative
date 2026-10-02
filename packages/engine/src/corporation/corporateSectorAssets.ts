@@ -6,6 +6,7 @@ import {
   buyPlantCapacity,
   capacityPricePerUnitAnchor,
   corporateSectorBasePrices,
+  hasSectorStrategy,
   plantReplacementCostAnchor,
   seedPlantCapital,
 } from "./plantCapacity.js";
@@ -42,6 +43,20 @@ export interface CorporateSectorAsset {
   countryId: string;
   stateId: string | null;
   sectorType: CorporationType;
+  /**
+   * Current source extraction operating method. Omission means standard for
+   * legacy/fresh Native issuers. Only the 1953 ungated extraction methods are
+   * Supported extraction methods from Game's 1953 strategy roster.
+   */
+  strategyId?: string;
+  /** Existing operating recipe while a CEO strategy transition is underway. */
+  transitionFromStrategyId?: string;
+  /** Source world turn the 12-turn strategy blend began. */
+  transitionStartTurn?: number;
+  /** Source anti-flip-flop deadline, retained after transition completion. */
+  transitionCooldownUntilTurn?: number;
+  /** Whether physical plant stock was converted to the destination unit basis. */
+  retoolRescaleApplied?: boolean;
   /** Recorded local turnover for a region-level slice of Native's aggregate issuer. */
   revenue?: number;
   /** Source CorporateSector output-unit stock under the default plants tier. */
@@ -217,6 +232,7 @@ export function seedCorporateSectorAssets(world: WorldState): Record<string, Cor
       revenueLocal: corporation.revenue,
       localPerAnchor: getRateForCountry(world, corporation.countryId),
       sectorType: corporation.sectorType,
+      year: Number(world.meta.date.slice(0, 4)),
       basePrices: corporateSectorBasePrices(world),
     });
     assets[id] = {
@@ -265,9 +281,37 @@ export function validateCorporateSectorAssets(
     validateSectorUnionReference(world, asset);
     validateSectorLaborRelations(asset);
     validateSectorPlantCapital(asset);
+    validateSectorStrategy(asset);
     const tuple = `${asset.corporationId}\u0000${asset.countryId}\u0000${asset.stateId ?? "national"}\u0000${asset.sectorType}`;
     if (tuples.has(tuple)) throw new Error(`Duplicate corporate sector identity: ${asset.id}`);
     tuples.add(tuple);
+  }
+}
+
+/** Strategy rows are source content, so malformed or unavailable methods refuse at save/turn boundaries. */
+export function validateSectorStrategy(asset: CorporateSectorAsset): void {
+  for (const [field, value] of [
+    ["strategyId", asset.strategyId],
+    ["transitionFromStrategyId", asset.transitionFromStrategyId],
+  ] as const) {
+    if (value !== undefined && !hasSectorStrategy(asset.sectorType, value)) {
+      throw new Error(`Corporate sector ${asset.id} has an unsupported ${field}`);
+    }
+  }
+  if ((asset.transitionFromStrategyId === undefined) !== (asset.transitionStartTurn === undefined)) {
+    throw new Error(`Corporate sector ${asset.id} has incomplete strategy transition state`);
+  }
+  if (asset.transitionStartTurn !== undefined && !Number.isSafeInteger(asset.transitionStartTurn)) {
+    throw new Error(`Corporate sector ${asset.id} has invalid transitionStartTurn`);
+  }
+  for (const field of ["transitionCooldownUntilTurn"] as const) {
+    const value = asset[field];
+    if (value !== undefined && (!Number.isSafeInteger(value) || value < 0)) {
+      throw new Error(`Corporate sector ${asset.id} has invalid ${field}`);
+    }
+  }
+  if (asset.retoolRescaleApplied !== undefined && typeof asset.retoolRescaleApplied !== "boolean") {
+    throw new Error(`Corporate sector ${asset.id} has invalid retoolRescaleApplied`);
   }
 }
 
@@ -472,6 +516,8 @@ export function backfillSectorPlantCapital(world: WorldState, assets: Record<str
       revenueLocal: corporation.revenue,
       localPerAnchor: getRateForCountry(world, corporation.countryId),
       sectorType: corporation.sectorType,
+      ...(asset.strategyId !== undefined ? { strategyId: asset.strategyId } : {}),
+      year: Number(world.meta.date.slice(0, 4)),
       basePrices,
     });
     if (asset.capitalStock === undefined) asset.capitalStock = seed.capitalStock;
@@ -496,11 +542,12 @@ export function applyCorporateSectorPlantCredit(
     return { unitsAdded: 0, creditPaidAnchor: 0 };
   }
 
-  const price = capacityPricePerUnitAnchor(asset.sectorType, corporateSectorBasePrices(world));
+  const year = Number(world.meta.date.slice(0, 4));
+  const price = capacityPricePerUnitAnchor(asset.sectorType, corporateSectorBasePrices(world), asset.strategyId, year);
   if (!Number.isFinite(price) || price <= 0) return { unitsAdded: 0, creditPaidAnchor: 0 };
   const purchased = buyPlantCapacity({
     capitalStock: asset.capitalStock ?? 0,
-    capacityBookAnchor: asset.capacityBookAnchor,
+    ...(asset.capacityBookAnchor !== undefined ? { capacityBookAnchor: asset.capacityBookAnchor } : {}),
     creditAnchor,
     capacityPricePerUnitAnchor: price,
   });
@@ -515,7 +562,8 @@ export function applyCorporateSectorPlantCredit(
 export function corporateSectorPlantReplacementFloor(world: WorldState, sectorId: string): number {
   const asset = corporateSectorAssets(world)[sectorId];
   if (!asset) throw new Error(`Unknown corporate sector ${sectorId}`);
-  const price = capacityPricePerUnitAnchor(asset.sectorType, corporateSectorBasePrices(world));
+  const year = Number(world.meta.date.slice(0, 4));
+  const price = capacityPricePerUnitAnchor(asset.sectorType, corporateSectorBasePrices(world), asset.strategyId, year);
   return plantReplacementCostAnchor({
     capitalStock: asset.capitalStock ?? 0,
     capacityPricePerUnitAnchor: price,
