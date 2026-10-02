@@ -165,7 +165,10 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // WorldState.difficulty/nppAutonomyLevel), so default worlds keep the
 // schema 46 bytes.
 // v52: durable state-ownership action history; older readers cannot record continuation.
-export const SCHEMA_VERSION = 53;
+// v53: nationalization origin and grace history.
+// v54-v55: reserved for accepted union/political state writers on the shared branch.
+// v56: corporate strategy-transition state; older readers cannot continue an active retool.
+export const SCHEMA_VERSION = 56;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
