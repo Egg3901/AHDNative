@@ -28,7 +28,7 @@ import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
   ACTION_CATALOG, DAILY_WIRE_CAP_ANCHOR, WIRE_QUOTA_WINDOW_TURNS, actionFundCost, addDaysIso, advanceTurn, buyCorporateSectorForSale, canJoinParty, castCabinetNominationVote, castScotusNominationVote, createWorld, deserializeSave, executeAction, issueMinisterialOrder, bankCurrency, charterMay, openPropPosition, closePropPosition, drawDiscountWindow, repayDiscountWindow, drawCbMargin, repayCbMargin, setBankRates, lendInterbank, quoteInterbankMax, repayInterbank, allocatePlayerStats, effectivePlayerStats, reallocatePlayerStats,
-  getActionCost, getCabinetPositionName, getCatalog, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, nationalizationTargets, nationalizationUnavailableReason,
+  getActionCost, getCabinetPositionName, getCatalog, getPmAppointmentEligibility, isFundraiseEligible, fundraiseQuote, headOfStateOfficeForCountry, isFoundingActive, isImperialEligibleCountry, isOnePartyCountry, acceptUnionLeadership, castUnionLeadershipVote, corporateSectorAssets, listCorporateSectorForSale, listCreationHomeRegions, listCreationParties, listEras, listPlayableCountries, listRegions, resolveNppAutonomyLevel, resolveSingleplayerDifficulty, resolveSingleplayerMode, resolveWorldFeatureFlags, rulingPartyForCountry, serializeSave, sponsorCabinetNomination, sponsorScotusNomination, unlistCorporateSectorForSale, updateCorporateSectorListing, setUnionDuesAction, setUnionPoliticalContributionsAction, nationalizationTargets, nationalizationUnavailableReason,
   type ActionId, type ExecuteActionParams, type SectorAcquireResult, type SectorSaleResult, type StoredPollSnapshot, type WorldFeatureFlags, type WorldState,
 } from "@ahdclient/engine";
 import {
@@ -1265,11 +1265,63 @@ function projectLegislature(world: WorldState): LegislatureView {
       : player.actions < cost ? "Not enough action points." : undefined;
     return { id, name: entry.name, description: "", cost, available: !reason, ...(reason ? { disabledReason: reason } : {}) };
   };
+  const government = world.governments[player.countryId];
+  const pmVotes = world.pmAppointmentVotes.filter((vote) => vote.countryId === player.countryId);
+  const appointmentEligibility = getPmAppointmentEligibility(world);
+  const activePartyVote = pmVotes.some((vote) => vote.status === "active" && vote.partyId === player.partyId);
+  const nominationReason = activePartyVote ? "Your party already has an active PM appointment vote" : appointmentEligibility.reason;
   return {
     office: seat ? `${chamberName(seat.countryId, seat.chamberKey)} · ${world.countries[seat.countryId]?.name ?? seat.countryId}`
       : player.mode === "hos" ? "Head of state" : null,
     countryId: player.countryId,
     unionLawBanned: world.budgets[player.countryId]?.unionsBanned === true,
+    ...(player.countryId === "IE" && government ? {
+      governmentFormation: {
+        status: government.status,
+        executiveTitle: "Taoiseach",
+        officeholderName: government.pmPoliticianId === "player"
+          ? player.name
+          : world.politicians.find((politician) => politician.id === government.pmPoliticianId)?.name ?? null,
+        nomineeAvailable: government.status === "pending" && !nominationReason,
+        ...(nominationReason ? { nomineeDisabledReason: nominationReason } : {}),
+        nomination: {
+          id: "proposePmAppointment",
+          name: "Nominate Taoiseach",
+          description: "Party-chair nomination followed by a Dáil appointment vote.",
+          cost: 0,
+          available: government.status === "pending" && !nominationReason,
+          ...(nominationReason ? { disabledReason: nominationReason } : {}),
+        },
+        votes: pmVotes.map((vote) => {
+          const seat = player.legislativeSeat;
+          const voteReason = !seat || seat.countryId !== vote.countryId || seat.chamberKey !== vote.chamberKey
+            ? "You must be an elected Dáil member to vote on a Taoiseach appointment"
+            : vote.status !== "active"
+              ? "This vote has already closed"
+              : world.meta.turn >= vote.closesTurn
+                ? "The voting window has closed"
+                : undefined;
+          return {
+            id: vote.id,
+            nomineeName: vote.nomineeName,
+            partyName: world.parties[vote.partyId]?.name ?? vote.partyId,
+            status: vote.status,
+            votesFor: vote.votesFor,
+            votesAgainst: vote.votesAgainst,
+            closesTurn: vote.closesTurn,
+            playerVote: vote.votes.player ?? null,
+            voting: {
+              id: "votePmAppointment",
+              name: "Vote on Taoiseach Appointment",
+              description: "Dáil members vote aye or nay.",
+              cost: 0,
+              available: !voteReason,
+              ...(voteReason ? { disabledReason: voteReason } : {}),
+            },
+          };
+        }),
+      },
+    } : {}),
     chambers: buildChamberNavigation(world, player.countryId),
     committees: buildCommitteeNavigation(world, player.countryId),
     schedule: buildFloorSchedule(world, player.countryId),

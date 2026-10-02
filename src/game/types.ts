@@ -174,6 +174,25 @@ export interface LegislatureView {
   countryId?: string;
   /** Source-backed national ban state from the player's country budget. */
   unionLawBanned?: boolean;
+  governmentFormation?: {
+    status: "pending" | "formed";
+    executiveTitle: string;
+    officeholderName: string | null;
+    nomineeAvailable: boolean;
+    nomineeDisabledReason?: string;
+    nomination: ActionView;
+    votes: Array<{
+      id: string;
+      nomineeName: string;
+      partyName: string;
+      status: string;
+      votesFor: number;
+      votesAgainst: number;
+      closesTurn: number;
+      playerVote: "aye" | "nay" | null;
+      voting: ActionView;
+    }>;
+  };
   proposals: { id: string; title: string; description: string }[];
   sponsor: ActionView;
   bills: { id: string; title: string; status: string; chamber: string; chamberKey?: string; sponsorName: string;

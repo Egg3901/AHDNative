@@ -107,8 +107,42 @@ describe("projectSaveToV42 public envelope", () => {
     });
   });
 
+  it("refuses PM appointment history but drops its empty additive field", () => {
+    const world = loadHistoricalFresh();
+    const empty = projectSaveToV42(serializeSave(world, SAVED_AT));
+    expect(empty.ok).toBe(true);
+    if (!empty.ok) throw new Error(empty.error);
+    expect(JSON.parse(empty.contents).world).not.toHaveProperty("pmAppointmentVotes");
+
+    const partyId = Object.values(world.parties)[0]!.id;
+    world.pmAppointmentVotes = [{
+      id: "pm-appointment-0-1",
+      countryId: "IE",
+      chamberKey: "dail",
+      partyId,
+      coalitionId: null,
+      coalitionPartyIds: null,
+      nomineeId: "player",
+      nomineeName: "Taoiseach Candidate",
+      formationType: "majority",
+      openedTurn: 0,
+      closesTurn: 24,
+      status: "active",
+      votes: {},
+      votesFor: 0,
+      votesAgainst: 0,
+      closedTurn: null,
+    }];
+    expect(projectSaveToV42(serializeSave(world, SAVED_AT))).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("PM appointment vote history"),
+    });
+  });
+
   it("returns the authentic v42 fixture unchanged", () => {
+    expect(SCHEMA_VERSION).toBeGreaterThan(42);
     const authentic = loadAuthenticV42();
+    expect(JSON.parse(authentic).schemaVersion).toBe(42);
     expect(sha256(authentic)).toBe(FIXTURE_SHA);
     expect(projectSaveToV42(authentic)).toEqual({ ok: true, contents: authentic });
   });

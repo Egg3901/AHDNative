@@ -1,6 +1,6 @@
 # Executive taking eligibility
 
-Partial #75; correction pending final acceptance for reopened #298/#211. Reference only #91 and #122. This continuation retains
+Partial #75; original #298/#211 qualified and closed by PR #728. Reference only #91 and #122. This continuation retains
 the existing seizure transfer and source treasury settlement, adds the current
 source creator/distress/cooldown gates, and continues the larger ownership scope.
 
@@ -67,6 +67,11 @@ Two public GameSession taking cases first failed at 1000 vs 850 and 3000 vs 2850
 They then passed with the corrected haircut, full construction/queue transfer,
 ordinary production/depreciation, save and reload. Existing acquisition tests
 now capture the source post-haircut expectation before mutable asset transfer.
-The earlier ownership claim caused #298 and parent #211 to reopen; their closure
-requires the integrated final gate and accepted merge. This correction does not
+The earlier ownership claim caused #298 and parent #211 to reopen. Their original
+criteria are now checked and confirmed closed after exact `2dc0fb6` passed
+[the complete app/engine/content/browser/Rust gate](https://github.com/Egg3901/AHDNative/actions/runs/36959645371)
+and [PR #728](https://github.com/Egg3901/AHDNative/pull/728) merged `2e844c9`.
+The accepted physical/eligibility code and public tests are identical to the
+separate eligibility candidate; source secession conservation and government
+authority remain qualified on that same accepted head. This correction does not
 claim compensation, notice, political consequences, auction, or court delivery.

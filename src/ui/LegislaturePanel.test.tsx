@@ -35,6 +35,31 @@ function makeLegislature(overrides: Partial<LegislatureView> = {}): LegislatureV
 const renderPanel = () => LegislaturePanel;
 
 describe("LegislaturePanel", () => {
+  it("renders the pending Taoiseach nomination and appointment ballot in the Dáil hierarchy", async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const LegislaturePanel = await renderPanel();
+    const legislature = makeLegislature({
+      governmentFormation: {
+        status: "pending",
+        executiveTitle: "Taoiseach",
+        officeholderName: null,
+        nomineeAvailable: true,
+        nomination: { id: "proposePmAppointment", name: "Nominate Taoiseach", description: "", cost: 0, available: true },
+        votes: [{
+          id: "pm-1", nomineeName: "Alex", partyName: "Fianna Fáil", status: "active",
+          votesFor: 4, votesAgainst: 1, closesTurn: 24, playerVote: null,
+          voting: { id: "votePmAppointment", name: "Vote on Taoiseach Appointment", description: "", cost: 0, available: true },
+        }],
+      },
+    });
+    render(<LegislaturePanel legislature={legislature} busy={false} onAction={onAction} clock={CLOCK} />);
+    await user.click(screen.getByRole("button", { name: "Nominate yourself as Taoiseach" }));
+    expect(onAction).toHaveBeenCalledWith("proposePmAppointment");
+    await user.click(screen.getByRole("button", { name: "Aye on Taoiseach appointment for Alex" }));
+    expect(onAction).toHaveBeenCalledWith("votePmAppointment", { pmAppointmentVoteId: "pm-1", pmVote: "aye" });
+    expect(screen.getByText(/4 ayes · 1 nays · closes turn 24/)).toBeInTheDocument();
+  });
   it("shows the player office, or No legislative seat without one", async () => {
     const LegislaturePanel = await renderPanel();
     const { rerender } = render(
