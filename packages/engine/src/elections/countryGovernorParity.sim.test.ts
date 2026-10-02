@@ -8,6 +8,7 @@ import { getUkCommonsSeats } from "../electionEngine/resolution/constants.js";
 import { executeAction } from "../actions/execute.js";
 import { rngFromSeed } from "../rng.js";
 import { runVoteAccumulation } from "./orchestration.js";
+import { applyUKDevolutionPolicy, initialUKDevolutionState } from "../devolution/ukInstitutions.js";
 
 describe("source country governor election families", () => {
   it("spawns source-sized UK Commons races per region and preserves them through save/reload", () => {
@@ -147,6 +148,20 @@ describe("source country governor election families", () => {
     const saved = deserializeSave(serializeSave(world, "uk-devolution-policy"));
     expect(saved.ukDevolution).toEqual(JSON.parse(JSON.stringify(world.ukDevolution)));
     expect(saved.elections.find((election) => election.id === restoredRace!.id)).toEqual(JSON.parse(JSON.stringify(restoredRace)));
+  });
+
+  it("keeps the source Northern Ireland peace gate distinct from general devolution policy", () => {
+    const base = initialUKDevolutionState(1991);
+    base.northernIrelandPeace = { posture: "unsettled", changedTurn: 12 };
+    const blocked = applyUKDevolutionPolicy(base, { billId: "uk-policy-1", optionIndex: 1, enactedTurn: 20 }, {}, 72);
+    expect(blocked.regions.SCO.active).toBe(true);
+    expect(blocked.regions.NIR.active).toBe(false);
+    expect(blocked.northernIrelandPeace).toEqual(base.northernIrelandPeace);
+
+    const sharing = { ...base, northernIrelandPeace: { posture: "power_sharing" as const, changedTurn: 30 } };
+    const restored = applyUKDevolutionPolicy(sharing, { billId: "uk-policy-2", optionIndex: 1, enactedTurn: 31 }, {}, 72);
+    expect(restored.regions.NIR).toEqual({ active: true, firstCycle: 1, firstElectionEndTurn: 103 });
+    expect(restored.northernIrelandPeace).toEqual(sharing.northernIrelandPeace);
   });
 
   it("runs and persists RU and DD First Secretary elections through the normal turn loop", () => {

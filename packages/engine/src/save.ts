@@ -893,11 +893,22 @@ function assertCurrentWorldState(world: WorldState): void {
       ukDevolution["_id"] !== "UK" ||
       !isRecord(ukDevolution["regions"]) ||
       Object.keys(ukDevolution["regions"]).sort().join(",") !== expectedRegions.join(",") ||
-      Object.keys(ukDevolution).some((key) => !["_id", "regions", "lastPolicyBillId"].includes(key)) ||
+      Object.keys(ukDevolution).some((key) => !["_id", "regions", "lastPolicyBillId", "northernIrelandPeace"].includes(key)) ||
       (ukDevolution["lastPolicyBillId"] !== undefined &&
         (typeof ukDevolution["lastPolicyBillId"] !== "string" || ukDevolution["lastPolicyBillId"].length === 0))
     ) {
       throw new Error("Not a valid save file: invalid UK devolution institution state");
+    }
+    const niPeace = ukDevolution["northernIrelandPeace"];
+    if (niPeace !== undefined && (
+      !isRecord(niPeace) ||
+      Object.keys(niPeace).some((key) => !["posture", "changedTurn", "assemblyFirstCycle", "assemblyFirstElectionEndTurn"].includes(key)) ||
+      !["unsettled", "power_sharing", "suspended"].includes(String(niPeace["posture"])) ||
+      !Number.isInteger(niPeace["changedTurn"]) || (niPeace["changedTurn"] as number) < 0 ||
+      (niPeace["assemblyFirstCycle"] !== undefined && (!Number.isInteger(niPeace["assemblyFirstCycle"]) || (niPeace["assemblyFirstCycle"] as number) < 1)) ||
+      (niPeace["assemblyFirstElectionEndTurn"] !== undefined && (!Number.isInteger(niPeace["assemblyFirstElectionEndTurn"]) || (niPeace["assemblyFirstElectionEndTurn"] as number) < 0))
+    )) {
+      throw new Error("Not a valid save file: invalid Northern Ireland peace posture");
     }
     for (const regionId of expectedRegions) {
       const institution = ukDevolution["regions"][regionId];

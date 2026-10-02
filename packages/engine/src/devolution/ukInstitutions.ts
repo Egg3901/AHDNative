@@ -18,6 +18,13 @@ export interface UKDevolutionState {
   _id: "UK";
   regions: Record<UKExecutiveRegion, RegionalExecutiveInstitution>;
   lastPolicyBillId?: string;
+  /** Optional source-owned peace-process posture; absence keeps legacy saves intact. */
+  northernIrelandPeace?: {
+    posture: "unsettled" | "power_sharing" | "suspended";
+    changedTurn: number;
+    assemblyFirstCycle?: number;
+    assemblyFirstElectionEndTurn?: number;
+  };
 }
 
 export interface EnactedDevolutionPolicy {
@@ -49,6 +56,8 @@ export function applyUKDevolutionPolicy(
 
   const next: UKDevolutionState = {
     _id: "UK",
+    ...(state.lastPolicyBillId ? { lastPolicyBillId: state.lastPolicyBillId } : {}),
+    ...(state.northernIrelandPeace ? { northernIrelandPeace: { ...state.northernIrelandPeace } } : {}),
     regions: {
       SCO: { ...state.regions.SCO },
       WAL: { ...state.regions.WAL },
@@ -59,6 +68,14 @@ export function applyUKDevolutionPolicy(
   };
   for (const region of UK_EXECUTIVE_REGIONS) {
     const current = state.regions[region];
+    // A general UK devolution act cannot found the NIR executive while the
+    // separate Northern Ireland peace process has not reached power sharing.
+    if (
+      region === "NIR" &&
+      state.northernIrelandPeace?.posture !== undefined &&
+      state.northernIrelandPeace.posture !== "power_sharing" &&
+      policy.optionIndex <= 3
+    ) continue;
     if (policy.optionIndex === 6) {
       next.regions[region] = { ...current, active: false };
     } else if (policy.optionIndex <= 3 && !current.active) {
