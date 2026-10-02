@@ -1052,7 +1052,7 @@ function assertCurrentWorldState(world: WorldState): void {
         (petition["status"] !== "retained" && petition["status"] !== "vacated" && petition["outcome"] !== undefined) ||
         (petition["status"] === "vacated" && (petition["checkStartTurn"] === undefined || petition["supportSamples"].length === 0)) ||
         ((petition["status"] === "retained" || petition["status"] === "vacated") && (petition["checkEndTurn"] === undefined || (petition["resolvedTurn"] as number) < (petition["checkEndTurn"] as number))) ||
-        (petition["status"] !== "watch" && petition["status"] !== "open" && !Number.isSafeInteger(petition["resolvedTurn"])) ||
+        (["retained", "vacated", "expired"].includes(String(petition["status"])) && !Number.isSafeInteger(petition["resolvedTurn"])) ||
         (currentTurn >= 0 && Number.isSafeInteger(petition["lastEvaluatedTurn"]) && (petition["lastEvaluatedTurn"] as number) > currentTurn)) throw new Error("Not a valid save file: inconsistent UK Commons recall petition phase");
     }
   }
