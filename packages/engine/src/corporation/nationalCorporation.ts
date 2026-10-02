@@ -34,7 +34,15 @@ export function ensurePrimaryNationalCorporation(world: WorldState, countryId: s
   if (existing) return existing;
   const id = `NAT-${countryId}`;
   if (world.corporations[id]) throw new Error("The National Corporation identity is occupied by a private issuer.");
-  const corporation: Corporation = {
+  const corporation = buildNationalCorporation(world, countryId, id);
+  world.corporations[id] = corporation;
+  return corporation;
+}
+
+/** Source fresh holding-company identity, also used by producing split-offs. */
+export function buildNationalCorporation(world: WorldState, countryId: string, id: string): Corporation {
+  if (!world.countries[countryId]) throw new Error(`Unknown country: ${countryId}`);
+  return {
     id, name: NATIONAL_NAMES[countryId] ?? `${world.countries[countryId]!.name} National Corporation`,
     countryId, countryOwnerId: countryId, ownershipState: "stateOwned",
     isNationalCorporation: true, isPrimaryNationalCorporation: true, assignedSectorTypes: [],
@@ -48,8 +56,6 @@ export function ensurePrimaryNationalCorporation(world: WorldState, countryId: s
     fundamentalSharePrice: 1, shareholders: [], publicFloat: 0,
     earningsHistory: [], priceHistory: [], ceoSalaryPerTurn: 0, dividendRate: 0,
   };
-  world.corporations[id] = corporation;
-  return corporation;
 }
 
 /** Source split-off assignment takes precedence over the primary remainder. */

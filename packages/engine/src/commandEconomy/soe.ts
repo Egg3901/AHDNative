@@ -27,6 +27,20 @@ export function makeSeedSoeState(sector: CorporationType, revenue: number): SoeS
   };
 }
 
+/** Source makeAdoptedSoeState: attach a new plan to actual operating sectors. */
+export function makeAdoptedSoeState(sector: CorporationType, sectors: ReadonlyArray<{ revenue?: number | null; realizedRevenue?: number | null; capitalStock?: number | null }>): SoeState {
+  let capacityValue = 0;
+  let realized = 0;
+  for (const asset of sectors) {
+    const nominal = typeof asset.revenue === "number" && Number.isFinite(asset.revenue) ? asset.revenue : 0;
+    const stock = typeof asset.capitalStock === "number" && Number.isFinite(asset.capitalStock) ? asset.capitalStock : 0;
+    if (stock > 0) capacityValue += stock * (nominal / stock);
+    realized += typeof asset.realizedRevenue === "number" && Number.isFinite(asset.realizedRevenue) ? asset.realizedRevenue : nominal;
+  }
+  const output = Math.round(realized > 0 ? realized : 0);
+  return { sector, capacity: capacityValue > 0 ? Math.round(capacityValue) : Math.round(output * SOE_CAPACITY_HEADROOM), output, planTarget: output, efficiency: 1, cumulativeLosses: 0, directorId: null };
+}
+
 /** Source `planFulfillment`: bounded output/target score; no target means neutral. */
 export function planFulfillment(soe: Pick<SoeState, "output" | "planTarget">): number {
   if (!Number.isFinite(soe.planTarget) || soe.planTarget <= 0) return SOE_PERF_BASELINE;
