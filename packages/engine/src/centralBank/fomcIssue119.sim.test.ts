@@ -134,7 +134,7 @@ describe("#119 FOMC meeting lifecycle (turn boundary)", () => {
     expect(seedFomcBoard(world, "UK")).toBe(false);
   });
 
-  it("opens a meeting on cadence, auto-ballots the NPP seats and executes the carried hike", () => {
+  it("opens a meeting on cadence, auto-ballots the NPP seats and executes the carried cut", () => {
     const world = createWorld(OPTS);
     expect(seedFomcBoard(world, "US", 0)).toBe(true);
     expect(world.centralBanks["US"]!.fomcBoard).toHaveLength(7);
@@ -145,16 +145,16 @@ describe("#119 FOMC meeting lifecycle (turn boundary)", () => {
     advanceTurn(world); // turn 1: meeting opens; NPP seats auto-ballot
     const bank = world.centralBanks["US"]!;
     expect(bank.activeFomcMeeting?.status).toBe("voting");
-    expect(bank.activeFomcMeeting?.motion).toBe("hike");
+    expect(bank.activeFomcMeeting?.motion).toBe("cut");
     expect(bank.activeFomcMeeting?.ballots.every((b) => b.auto)).toBe(true);
 
     advanceTurn(world); // turn 2: the decided motion resolves and executes
     const resolved = bank.fomcMeetingHistory![0]!;
     expect(resolved.result).toBe("passed");
     expect(resolved.executionOutcome).toBe("applied");
-    expect(resolved.motion).toBe("hike");
-    // Rate moved by the snapped proposed delta, and the per-term budget ticked.
-    expect(bank.primeRate).toBe(3.75);
+    expect(resolved.motion).toBe("cut");
+    // The post-turn macro vector proposes a -1.305 pp cut, snapped to 1.75.
+    expect(bank.primeRate).toBe(1.75);
     expect(bank.rateChangesThisTerm).toBe(1);
     expect(bank.activeFomcMeeting ?? null).toBeNull();
   });
@@ -187,7 +187,7 @@ describe("#119 FOMC meeting lifecycle (turn boundary)", () => {
     expect(cast.ok).toBe(true);
     if (cast.ok) {
       expect(cast.resolved).toBe(false);
-      expect(cast.motion).toBe("hike");
+      expect(cast.motion).toBe("cut");
     }
 
     // Invalid: the seat already voted this meeting.
