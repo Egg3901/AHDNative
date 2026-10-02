@@ -41,6 +41,8 @@ import {
 } from "../demographics/laborForce.js";
 import { CENTRAL_BANK_COUNTRY_ANCHORS, computeMonetaryTerm } from "../centralBank/constants.js";
 import { computeRealizedRevenueGrowthRate } from "../corporation/constants.js";
+import { legacyPoliticalHalfFromBoard } from "../politicalMetrics/sourceRuntime.mjs";
+import type { WorldState } from "../types.js";
 
 // ── Pure helpers (exported for golden-value tests) ─────────────────────
 
@@ -191,9 +193,65 @@ function tfpInputsFromNationalMetrics(
   return out;
 }
 
+/**
+ * Game advances politicalMetricsDynamics before its metric engine, then reads
+ * these four TFP leaves from each region's current board. Native's macro is
+ * country-level, so reduce the exact source board conversion with the same
+ * population weighting used for its national metrics. R&D and urbanization
+ * remain lagged macro roots from nationalMetrics.
+ */
+function currentPoliticalTfpInputs(world: WorldState, countryId: string): Partial<TfpBasketInputs> {
+  const year = Number(world.meta.date.slice(0, 4));
+  const fields = [
+    ["workforceSkill", TFP_METRIC_PATHS.workforceSkill],
+    ["transportEfficiency", TFP_METRIC_PATHS.transportEfficiency],
+    ["broadbandAccess", TFP_METRIC_PATHS.broadbandAccess],
+    ["powerGridReliability", TFP_METRIC_PATHS.powerGridReliability],
+  ] as const;
+  const out: Partial<TfpBasketInputs> = {};
+  for (const [field, path] of fields) {
+    const [category, metricId] = path.split(".");
+    if (!category || !metricId) continue;
+    let weighted = 0;
+    let total = 0;
+    for (const region of Object.values(world.regions)) {
+      const population = region.population ?? 0;
+      if (region.countryId !== countryId || !(population > 0)) continue;
+      const board = world.regionalPoliticalMetrics?.[region.id];
+      const projection = board?.countryId === countryId
+        ? legacyPoliticalHalfFromBoard(board.values, { countryId, year })?.[category]?.[metricId]?.value
+        : undefined;
+      const regionalValue = typeof projection === "number" && Number.isFinite(projection)
+        ? projection
+        : world.regionalMetrics?.[region.id]?.[path]?.value;
+      if (typeof regionalValue !== "number" || !Number.isFinite(regionalValue)) continue;
+      weighted += regionalValue * population;
+      total += population;
+    }
+    if (total > 0) out[field] = weighted / total;
+  }
+  return out;
+}
+
+interface MacroGrowthContext {
+  prevGap: number;
+  prevUnempPct: number;
+  sectorSignal: number;
+  gL: number;
+  gK: number;
+  hasLabor: boolean;
+  earlyGap: number;
+  earlyGrowth: number;
+  earlyUnemployment: number;
+}
+
+// Turn-local scratch only; it is never attached to or serialized with the world.
+const pendingTfpGrowth = new WeakMap<WorldState, Map<string, MacroGrowthContext>>();
+
 export const macroCountryTurnPhase: TurnPhase = {
   name: "macroCountryTurn",
   run(world, rng) {
+    const pending = new Map<string, MacroGrowthContext>();
     const ids = Object.keys(world.countries).sort();
     for (const id of ids) {
       const country = world.countries[id]!;
@@ -230,18 +288,10 @@ export const macroCountryTurnPhase: TurnPhase = {
       // Source: src/lib/metricEngine/potentialGrowth.ts computeLaborForce +
       // potentialGrowth (Solow LEVEL form). Labor participation is 62.5% default;
       // workingAge and militaryService come from demographics flows (per-region).
-      // W14: capital stock growth (gK) is now real too. TFP uses tfpBasket
-      // (AHDGame potentialGrowth.ts at e364c0495) with prev-turn nationalMetrics
-      // at the exact phase.ts paths. nationalMetricsPhase runs later in the
-      // registry, so this read is last turn's row (C3 lag). Missing keys fall
-      // back to TFP_REFERENCE_INPUTS (TFP_BASELINE 1.2).
-      //
-      // #40 input gate: createWorld seeds the six Game TFP paths onto playable
-      // regions (metrics/tfpSeed.ts) and nationalMetricsPhase aggregates them
-      // population-weighted, era-gated. This read is the previous turn's row,
-      // including t0 nationalMetrics written at createWorld. Missing keys still
-      // fall back to TFP_REFERENCE_INPUTS. Do not invent a national stand-in
-      // for a country/era Game does not supply.
+      // This early macro pass preserves Native's established inflation and
+      // fiscal timing. The source political-board TFP correction runs after
+      // this turn's board dynamics and replaces only the growth-dependent
+      // outputs later in the registry.
       const regionIds = Object.values(world.regions)
         .filter((r) => r.countryId === id)
         .map((r) => r.id);
@@ -322,7 +372,8 @@ export const macroCountryTurnPhase: TurnPhase = {
       // Small RNG shock for deterministic variation (kept bounded by the
       // per-turn clamp already applied; shock is added after so it stays
       // within overall INFLATION_MIN/MAX).
-      const inflShock = (rng.next() - 0.5) * INFLATION_SHOCK_PCT;
+      const inflationDraw = rng.next();
+      const inflShock = (inflationDraw - 0.5) * INFLATION_SHOCK_PCT;
       newInflPct = clamp(
         Math.round((newInflPct + inflShock) * 100) / 100,
         INFLATION_MIN,
@@ -344,7 +395,73 @@ export const macroCountryTurnPhase: TurnPhase = {
       econ.unemploymentRate = Math.round((newUnempPct / 100) * 10000) / 10000;
       econ.inflationRate = Math.round((newInflPct / 100) * 10000) / 10000;
       econ.gdp = Number.isFinite(newGdp) && newGdp > 0 ? Math.round(newGdp * 100) / 100 : econ.gdp;
+      pending.set(id, {
+        prevGap,
+        prevUnempPct,
+        sectorSignal,
+        gL,
+        gK,
+        hasLabor,
+        earlyGap: econ.outputGap,
+        earlyGrowth: econ.growthRate,
+        earlyUnemployment: econ.unemploymentRate,
+      });
     }
+    pendingTfpGrowth.set(world, pending);
+  },
+};
+
+/** Apply Game's same-turn political-board TFP after its dynamics phase. */
+export const sourceTfpGrowthPhase: TurnPhase = {
+  name: "sourceTfpGrowth",
+  run(world) {
+    const pending = pendingTfpGrowth.get(world);
+    if (!pending) return;
+    for (const countryId of Object.keys(world.countries).sort()) {
+      const context = pending.get(countryId);
+      const country = world.countries[countryId];
+      if (!context || !country) continue;
+      const inputs = {
+        ...tfpInputsFromNationalMetrics(world.nationalMetrics?.[countryId]),
+        ...currentPoliticalTfpInputs(world, countryId),
+      };
+      const tfp = tfpBasket(inputs);
+      const potential = context.hasLabor
+        ? potentialGrowth(context.gL, context.gK, tfp)
+        : NEUTRAL_GDP_GROWTH;
+      const step = advanceOutputGap(context.prevGap, context.sectorSignal, potential, TURNS_PER_YEAR);
+      const newGrowth = clamp(step.gdpGrowth / 100, GROWTH_RATE_MIN, GROWTH_RATE_MAX);
+      const targetUnemp = okunTarget(context.prevUnempPct, step.gdpGrowth, potential);
+      const newUnempPct = clamp(
+        UNEMPLOYMENT_INERTIA * context.prevUnempPct + (1 - UNEMPLOYMENT_INERTIA) * targetUnemp,
+        UNEMPLOYMENT_MIN,
+        UNEMPLOYMENT_MAX,
+      );
+      // Preserve later-turn phase effects (for example a crisis GDP shock)
+      // by applying only the source TFP delta from the early macro result.
+      const growthDelta = newGrowth - context.earlyGrowth;
+      const unemploymentDelta = newUnempPct / 100 - context.earlyUnemployment;
+      const gapDelta = step.gap - context.earlyGap;
+      const correctedGrowth = clamp(
+        country.economy.growthRate + growthDelta,
+        GROWTH_RATE_MIN,
+        GROWTH_RATE_MAX,
+      );
+      const correctedUnemployment = clamp(
+        country.economy.unemploymentRate + unemploymentDelta,
+        UNEMPLOYMENT_MIN / 100,
+        UNEMPLOYMENT_MAX / 100,
+      );
+      const gdpFactor = (1 + newGrowth / WEEKS_PER_YEAR) / (1 + context.earlyGrowth / WEEKS_PER_YEAR);
+      const correctedGdp = country.economy.gdp * gdpFactor;
+      country.economy.outputGap = Math.round((country.economy.outputGap + gapDelta) * 1000) / 1000;
+      country.economy.growthRate = Math.round(correctedGrowth * 10000) / 10000;
+      country.economy.unemploymentRate = Math.round(correctedUnemployment * 10000) / 10000;
+      country.economy.gdp = Number.isFinite(correctedGdp) && correctedGdp > 0
+        ? Math.round(correctedGdp * 100) / 100
+        : country.economy.gdp;
+    }
+    pendingTfpGrowth.delete(world);
   },
 };
 
