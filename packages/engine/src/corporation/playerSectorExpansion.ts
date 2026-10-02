@@ -10,6 +10,7 @@ import { capacityEraPriceIndex, capacityPricePerUnitAnchor, corporateSectorBaseP
 import { getSectorTechEffects } from "./techTree/selectors.js";
 import { makeNppFoundingCashRecord, validateCorporateCashLedger } from "./corporateCashLedger.js";
 import { NEUTRAL_STAT } from "../stats/characterStats.js";
+import { DEFAULT_PROFIT_MARGIN } from "./constants.js";
 
 const STARTER_UNITS: Record<CorporationType, number> = {
   financial: 6, media: 80, manufacturing: 25, chemical_industries: 60,
@@ -90,6 +91,7 @@ export function expandPlayerCorporationSector(
   const asset: CorporateSectorAsset = {
     id: assetId, corporationId: corporation.id, countryId: region.countryId,
     stateId: region.id, sectorType: input.sectorType,
+    profitMargin: DEFAULT_PROFIT_MARGIN,
     revenue: Math.round(anchorToLocal(units * localPerUnitRevenueAnchor, fxRate)),
     workers: 500, capitalStock: 0, capacityBookAnchor: 0,
     buildQueue: [{ unitsOrdered: units, costPaidAnchor: starterBuildAnchor, startTurn: world.meta.turn, onlineTurn, smooth: true }],

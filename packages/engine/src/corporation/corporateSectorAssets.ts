@@ -43,6 +43,8 @@ export interface CorporateSectorAsset {
   countryId: string;
   stateId: string | null;
   sectorType: CorporationType;
+  /** Source CorporateSector.profitMargin base, distinct from the issuer and effective result. */
+  profitMargin?: number;
   /**
    * Current source extraction operating method. Omission means standard for
    * legacy/fresh Native issuers. Only the 1953 ungated extraction methods are
@@ -239,7 +241,7 @@ export function projectCorporateSector(world: WorldState, asset: CorporateSector
   return {
     ...asset,
     revenue: asset.revenue ?? corporation.revenue,
-    profitMargin: corporation.profitMargin,
+    profitMargin: asset.profitMargin ?? corporation.profitMargin,
     targetGrowthRate: corporation.targetGrowthRate,
     currentGrowthRate: corporation.currentGrowthRate,
   };
@@ -265,6 +267,7 @@ export function seedCorporateSectorAssets(world: WorldState): Record<string, Cor
       countryId: corporation.countryId,
       stateId: null,
       sectorType: corporation.sectorType,
+      profitMargin: corporation.profitMargin,
       ...plantCapital,
       workers: calculateSectorWorkers(corporation.revenue, null),
       representingUnionId,
@@ -333,6 +336,7 @@ export function validateSectorPlantPnl(asset: CorporateSectorAsset): void {
     }
   }
   for (const [field, value] of [
+    ["profitMargin", asset.profitMargin],
     ["otherOpexPerUnitAnchor", asset.otherOpexPerUnitAnchor],
     ["plantsUpkeepMarginBasisAnchor", asset.plantsUpkeepMarginBasisAnchor],
     ["effectiveProfitMargin", asset.effectiveProfitMargin],

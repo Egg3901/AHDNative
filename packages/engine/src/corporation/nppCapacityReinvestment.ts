@@ -11,7 +11,7 @@ import { calculateSectorWorkers, corporateSectorAssets, initialRepresentingUnion
 import { SOURCE_STATE_ADJACENCY } from "./sourceStateAdjacency.js";
 import { getEraNominalScale } from "../commodity/constants.js";
 import { NEUTRAL_STAT } from "../stats/characterStats.js";
-import { CEO_ARCHETYPE_MODIFIERS } from "./constants.js";
+import { CEO_ARCHETYPE_MODIFIERS, DEFAULT_PROFIT_MARGIN } from "./constants.js";
 import { COMMODITY_BASE_PRICES, EXTRACTABLE_RESOURCES } from "../commodity/constants.js";
 import { getSectorStrategy } from "./plantCapacity.js";
 
@@ -115,6 +115,7 @@ export function applyNppSourceFounding(world: WorldState): void {
     const asset: CorporateSectorAsset = {
       id, corporationId: corp.id, countryId: corp.countryId, stateId: regionId,
       sectorType: candidate.pool.sectorType,
+      profitMargin: DEFAULT_PROFIT_MARGIN,
       revenue: sectorType === "extraction" ? 0 : Math.round(candidate.pool.revenue * (units / candidate.headroomUnits)),
       capitalStock: 0, capacityBookAnchor: 0, workers: calculateSectorWorkers(anchorToLocal(1_000_000, rate)),
       buildQueue: [{ unitsOrdered: units, costPaidAnchor: buildAnchor, startTurn: world.meta.turn, onlineTurn, smooth: true }],

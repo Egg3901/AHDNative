@@ -98,6 +98,25 @@ describe("plants-tier corporate production", () => {
     );
   });
 
+  it("uses the source sector base margin independently of the issuer margin", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "asset-base-margin", playerName: "Alex" });
+    const id = "corporate-sector:US:manufacturing:US-manufacturing";
+    world.corporations = { ["US-manufacturing"]: world.corporations["US-manufacturing"]! };
+    world.corporations["US-manufacturing"]!.profitMargin = 35;
+    world.corporateSectors = { [id]: {
+      id, corporationId: "US-manufacturing", countryId: "US", stateId: null,
+      sectorType: "manufacturing", profitMargin: 20, capitalStock: 22_982_142.85714286,
+      capacityBookAnchor: 988_232_142.8571429, workers: 1_048_125,
+      representingUnionId: null, forSale: null, owner: "corporation",
+    } };
+    corporatePlantProductionPhase.run(world, rngFromState(world.meta.rng));
+    const asset = world.corporateSectors[id]!;
+    expect(asset.plantsPnl!.revenue).toBeGreaterThan(0);
+    expect(asset.plantsPnl!.operatingCost / asset.plantsPnl!.revenue).toBeCloseTo(0.8, 8);
+    expect(asset.profitMargin).toBe(20);
+    expect(asset.effectiveProfitMargin).toBeCloseTo(20, 8);
+  });
+
   it("consumes the decaying source crisis financial cost through public turn and saved continuation", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "plant-crisis-public-turn", playerName: "Alex" });
     world.crises = [{

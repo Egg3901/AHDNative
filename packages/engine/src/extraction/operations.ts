@@ -5,6 +5,7 @@ import { calculateSectorWorkers, corporateSectorAssets, initialRepresentingUnion
 import type { CorporateSectorAsset } from "../corporation/corporateSectorAssets.js";
 import { capacityEraPriceIndex, capacityPricePerUnitAnchor, corporateSectorBasePrices } from "../corporation/plantCapacity.js";
 import { makeNppFoundingCashRecord, validateCorporateCashLedger } from "../corporation/corporateCashLedger.js";
+import { DEFAULT_PROFIT_MARGIN } from "../corporation/constants.js";
 
 /** Mainline AHDGame corporations.ts SECTOR_EXPANSION_BASE_COST. */
 export const SECTOR_EXPANSION_BASE_COST_ANCHOR = 100_000;
@@ -77,6 +78,7 @@ export function expandRegionalExtraction(
     countryId: region.countryId,
     stateId: regionId,
     sectorType: "extraction",
+    profitMargin: DEFAULT_PROFIT_MARGIN,
     workers: calculateSectorWorkers(1_000_000), // Source newborn facility workforce before realized first-turn receipts.
     revenue: 0,
     capitalStock: 0,

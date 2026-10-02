@@ -365,7 +365,7 @@ export function runCorporatePlantProductionTurn(
     // The held residual is policy-neutral, like Game's otherOpexAnchor.
     // Current-turn labor/subsidy/retool margin modifiers are applied once by
     // corporationTurn after this physical settlement.
-    const priorMargin = softCapEffectiveMargin(corporation.profitMargin);
+    const priorMargin = softCapEffectiveMargin(asset.profitMargin ?? corporation.profitMargin);
     const produced = asset.producedUnits ?? 0;
     const year = Number(world.meta.date.slice(0, 4));
     const techEffects = getSectorTechEffects({ type: corporation.sectorType, ...corporation }, asset.sectorType);
