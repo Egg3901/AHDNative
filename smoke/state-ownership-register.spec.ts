@@ -39,7 +39,7 @@ test('actual executive taking opens its National Corporation register and surviv
   };
 
   await openRegister();
-  await page.getByRole('button', { name: /United States National Corporation.*media/ }).click();
+  await page.getByRole('button', { name: /United States National Corporation/ }).click();
   await expect(page.getByRole('heading', { name: 'Company', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Back to state ownership', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'State ownership register', exact: true })).toBeVisible();

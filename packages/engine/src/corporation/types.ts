@@ -174,9 +174,11 @@ export interface Corporation {
    * command-economy enterprises.
    */
   countryOwnerId?: string;
-  /** Set on the Native sector-specific National Corporation (source split-off mapping). */
+  /** Set on the state-owned National Corporation. */
   isNationalCorporation?: true;
-  /** Source assignedSectorTypes mapping; Native uses one sector per issuer. */
+  /** Source primary holding company; absent legacy flags are never fabricated. */
+  isPrimaryNationalCorporation?: boolean;
+  /** Source split-off type assignment; an empty primary list means the remainder. */
   assignedSectorTypes?: CorporationType[];
   /**
    * Ownership lifecycle state. Absence means "private" for back-compat —
