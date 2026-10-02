@@ -7,7 +7,7 @@ import { rngFromSeed } from "../rng.js";
 import { runElectionResolution, runVoteAccumulation } from "./orchestration.js";
 import { scheduleUkCommonsByElections } from "./ukCommonsVacancies.js";
 import { seatHolders } from "./orchestration.js";
-import { governmentFormationPhase, triggerSnapElection } from "../government/phases.js";
+import { governmentFormationPhase, governmentVacancyWatcherPhase, triggerSnapElection } from "../government/phases.js";
 
 describe("UK Commons vacancy plumbing", () => {
   it("does not invent a held regional Commons office for an unelected player", () => {
@@ -52,7 +52,17 @@ describe("UK Commons vacancy plumbing", () => {
     expect(world.ukCommonsVacancies).toMatchObject([expect.objectContaining({ status: "open" })]);
   });
 
-  it("carries a public LON candidate through its real tally, resignation, source snap gate, and save", () => {
+  it("does not arm a first-run UK government's source-absent PM vacancy deadline", () => {
+    const world = createWorld({ seed: "commons-initial-pm-deadline", playerName: "UK MP", countryId: "UK", era: "2019" });
+    governmentFormationPhase.run(world, undefined as never);
+    expect(world.governments.UK?.pmVacancyDeadlineTurn).toBeNull();
+
+    world.meta.turn = 100;
+    governmentVacancyWatcherPhase.run(world, undefined as never);
+    expect(world.elections.some((election) => election.countryId === "UK" && election.electionType === "snap_commons")).toBe(false);
+  });
+
+  it("carries a public LON candidate through real tally, resignation, special resolution, and save", () => {
     const world = createWorld({
       seed: "commons-public-player-office-probe",
       playerName: "UK MP",
@@ -87,13 +97,20 @@ describe("UK Commons vacancy plumbing", () => {
 
     advanceTurn(world);
     const special = world.elections.find((election) => election.countryId === "UK" && election.electionType === "special_commons" && election.state === "LON");
-    const snap = world.elections.find((election) => election.countryId === "UK" && election.electionType === "snap_commons");
-    expect(special).toBeUndefined();
-    expect(snap).toBeDefined();
-    expect(world.ukCommonsVacancies).toMatchObject([expect.objectContaining({ regionId: "LON", formerHolderId: "player", status: "open" })]);
+    expect(special).toMatchObject({ totalSeats: 1, byElectionCarve: expect.any(Number), vacancyIds: [world.ukCommonsVacancies![0]!.id] });
+    expect(executeAction(world, "player", "declareCandidacy", { electionId: special!.id }).ok).toBe(true);
+    special!.primaryEndTurn = world.meta.turn;
+    world.meta.turn = special!.primaryEndTurn + 1;
+    runVoteAccumulation(world, rngFromSeed("commons-public-special-ballot"));
+    special!.endTurn = world.meta.turn + 1;
+    world.meta.turn = special!.endTurn;
+    runElectionResolution(world);
+    expect(special!.status).toBe("resolved");
+    expect(world.ukCommonsVacancies).toMatchObject([expect.objectContaining({ status: "filled", filledById: "player" })]);
+    expect(world.player.legislativeSeat).toMatchObject({ countryId: "UK", chamberKey: "commons", regionId: "LON" });
     const restored = deserializeSave(serializeSave(world, "commons-public-player-office-probe"));
     expect(restored.ukCommonsVacancies).toEqual(world.ukCommonsVacancies);
-    expect(restored.player.legislativeSeat).toBeNull();
-    expect(restored.elections.find((election) => election.id === snap!.id)).toEqual(JSON.parse(JSON.stringify(snap)));
+    expect(restored.player.legislativeSeat).toEqual(world.player.legislativeSeat);
+    expect(restored.elections.find((election) => election.id === special!.id)).toEqual(JSON.parse(JSON.stringify(special)));
   });
 });

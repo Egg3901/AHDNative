@@ -96,7 +96,7 @@ function resetToPending(gov: GovernmentState, chamber: Chamber, turn: number): v
   gov.pmVacancyDeadlineTurn = turn + PM_VACANCY_DEADLINE_TURNS;
 }
 
-function createGovernment(countryId: string, chamberKey: string, chamber: Chamber, turn: number): GovernmentState {
+function createGovernment(countryId: string, chamberKey: string, chamber: Chamber, _turn: number): GovernmentState {
   const gov: GovernmentState = {
     countryId,
     chamberKey,
@@ -113,7 +113,10 @@ function createGovernment(countryId: string, chamberKey: string, chamber: Chambe
     formedTurn: null,
     snapElectionsUsed: 0,
     lastSnapElectionTurn: null,
-    pmVacancyDeadlineTurn: turn + PM_VACANCY_DEADLINE_TURNS,
+    // Source ensureParliamentaryGovernmentFormation creates first-run pending
+    // records without an orphaned-PM deadline. The 96-turn clock is armed only
+    // after a formed government loses its PM/seat or a snap resets parliament.
+    pmVacancyDeadlineTurn: null,
     confidence: 0,
   };
   return gov;
