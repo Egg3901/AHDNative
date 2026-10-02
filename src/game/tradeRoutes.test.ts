@@ -81,6 +81,45 @@ describe("projectTradeRoutes populated", () => {
   });
 });
 
+describe("projectTradeRoutes trade-only countries", () => {
+  it("keeps an actual imported destination visible even when it has no listed issuer", () => {
+    const world = createWorld(US);
+    world.corporations = {};
+    world.corporateTradeSnapshot = {
+      turn: 4,
+      byCountry: {
+        US: { exports: 12, imports: 0, net: 12, topPartner: "UK" },
+        UK: { exports: 0, imports: 12, net: -12, topPartner: "US" },
+      },
+      flow: { US: { UK: 12 }, UK: {} },
+      byCommodity: { electronics: { US: { UK: { units: 3, value: 12 } }, UK: {} } },
+    };
+
+    const routes = projectTradeRoutes(world);
+    expect(routes.map(route => [route.countryId, route.listingCount, route.corporateTrade?.imports])).toContainEqual(["UK", 0, 12]);
+  });
+
+  it("projects an enacted importer customs tariff alongside the saved trade receipt", () => {
+    const world = createWorld(US);
+    world.tradeTariffs = [{
+      id: "tariff-CN-economy_wide", countryId: "CN", scopeType: "economy_wide", rate: 10,
+      sourceBillId: "bill-customs", createdTurn: 4, updatedTurn: 4,
+    }];
+    world.corporateTradeSnapshot = {
+      turn: 4,
+      byCountry: { CN: { exports: 0, imports: 20, net: -20, topPartner: "US" } },
+      flow: { CN: {}, US: { CN: 20 } },
+      byCommodity: { electronics: { CN: {}, US: { CN: { units: 2, value: 20 } } } },
+      valuationPriceByCommodity: { electronics: 10 },
+    };
+
+    expect(projectTradeRoutes(world).find((route) => route.countryId === "CN")).toMatchObject({
+      customsTariff: { ratePercent: 10, sourceBillId: "bill-customs" },
+      corporateTrade: { turn: 4, imports: 20 },
+    });
+  });
+});
+
 describe("orderFlow projection", () => {
   it("reads the seeded zero windows on a fresh world and the executed notional after a buy", () => {
     const world = createWorld(US);

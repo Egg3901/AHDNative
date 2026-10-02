@@ -1,6 +1,7 @@
 import { formatFinanceMoney } from "./FinancePanel";
 import { PartyMark } from "./PartyMark";
 import { PartyPlatformComparison } from "./PartyPlatformComparison";
+import { PoliticalMetricsBoard } from "./PoliticalMetricsBoard";
 /**
  * PoliticsPanel: per party detail, per election detail with its candidate
  * roster, and the country politician roster.
@@ -20,7 +21,7 @@ import type { GameScreenProps } from "../game/types";
 import type {
   PoliticsElectionDetail, PoliticsPartyDetail, PoliticsPlayerCampaignView,
   PoliticsPoliticianView, PoliticsPresidentialView, PoliticsPrimaryView, PoliticsProjectionView,
-  PoliticsRaceStageView, PoliticsReferendumView, PoliticsView,
+  PoliticsRaceStageView, PoliticsReferendumView, PoliticsView, PoliticalMetricsView,
 } from "../game/politics";
 import type { NationDestination, NationView } from "../game/nation";
 import type { RacePhase } from "../game/types";
@@ -1655,17 +1656,16 @@ function PresidentialRaceSection({ politics, busy, onAction, initialId, onOpenCa
 }
 
 /**
- * Political-metrics view (#69). It renders the EXACT registry Native already
- * projects (`projectNation().metrics`) by reusing NationPanel's `MetricsSection`
- * — no second projection and no re-derived metric. Categories, recorded history
- * and recorded modifier rows all come from the shared `NationMetricsView` DTO.
+ * Fresh source boards follow Game's political destination. Older saves with
+ * no recorded board retain their existing national metric registry.
  */
-function PoliticalMetricsSection({ politics, nation, era, onNavigate }: {
-  politics: PoliticsView;
+export function PoliticalMetricsSection({ politics, nation, era, onNavigate }: {
+  politics: PoliticalMetricsView;
   nation?: NationView;
   era?: string | null;
   onNavigate?: PoliticsPanelProps["onNavigate"];
 }) {
+  if (politics.politicalMetrics) return <PoliticalMetricsBoard registry={politics.politicalMetrics} countryName={politics.countryName} />;
   if (!nation) {
     return (
       <div className="ahd-stack">

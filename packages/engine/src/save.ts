@@ -47,6 +47,7 @@ import { validatePlayerLineOfCredit, validatePlayerLineOfCreditWallet } from "./
 import { validateNationalSavingsPools } from "./finance/playerSavingsInterest.js";
 import type { BankCharter } from "./banking/types.js";
 import { validateBankingState } from "./banking/validate.js";
+import { validatePoliticalState } from "./politicalMetrics/validate.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
 import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
 import {
@@ -197,6 +198,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const metaSchema = meta["schemaVersion"];
 
   if (envelopeSchema === V42_SCHEMA && metaSchema === V42_SCHEMA) {
+    if (["regionalPoliticalMetrics", "politicalCabinetContributions"].some(key =>
+      isRecord(world[key]) && Object.keys(world[key]).length > 0)) {
+      return { ok: false, error: "Political board and cabinet driver state cannot be continued by schema 42. Keep this Native save." };
+    }
     if (hasOwn(world, "countryPolitics")) {
       return {
         ok: false,
@@ -512,7 +517,7 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   const hasPlantCapacity = isRecord(sectorAssets) && Object.values(sectorAssets).some(asset =>
     isRecord(asset) && ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity"].some(field => hasOwn(asset, field)),
   );
-  if (hasOwn(world, "plantMarketDemand") || hasPlantCapacity) {
+  if (hasOwn(world, "plantMarketDemand") || hasOwn(world, "corporateTradeSnapshot") || hasPlantCapacity) {
     return { ok: false, error: `Plant production and market state cannot be continued by schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
   }
 
@@ -537,6 +542,12 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
         value["countryOwnerId"] !== value["countryId"] || value["ownershipState"] !== "stateOwned") {
       return { ok: false, error: `Corporation ${corpId} has SOE production state that schema 42 cannot continue. Keep this Native save.` };
     }
+  }
+  // A v42 reader retains unfamiliar JSON but cannot advance these boards.
+  // Refuse their state rather than export a frozen extension.
+  if (["regionalPoliticalMetrics", "politicalCabinetContributions"].some(key =>
+    isRecord(world[key]) && Object.keys(world[key]).length > 0)) {
+    return { ok: false, error: "Political board and cabinet driver state cannot be continued by schema 42. Keep this Native save." };
   }
   const candidateSave = structuredClone(save);
   const candidateWorld = candidateSave["world"] as Record<string, unknown>;
@@ -884,6 +895,19 @@ function assertCurrentWorldState(world: WorldState): void {
     }
     if (rawBill["proposalCostsRefunded"] !== undefined && typeof rawBill["proposalCostsRefunded"] !== "boolean") {
       throw new Error("Not a valid save file: invalid bill proposalCostsRefunded");
+    }
+  }
+  const tradeTariffs = value["tradeTariffs"];
+  if (tradeTariffs !== undefined) {
+    if (!Array.isArray(tradeTariffs)) throw new Error("Not a valid save file: invalid trade tariffs");
+    for (const row of tradeTariffs) {
+      if (!isRecord(row) || typeof row["id"] !== "string" || typeof row["countryId"] !== "string" ||
+          row["scopeType"] !== "economy_wide" || typeof row["sourceBillId"] !== "string" ||
+          typeof row["rate"] !== "number" || !Number.isFinite(row["rate"]) || row["rate"] < 0 || row["rate"] > 100 ||
+          !Number.isSafeInteger(row["createdTurn"]) || (row["createdTurn"] as number) < 0 ||
+          !Number.isSafeInteger(row["updatedTurn"]) || (row["updatedTurn"] as number) < 0) {
+        throw new Error("Not a valid save file: invalid trade tariff row");
+      }
     }
   }
   const partyInfluence = player["partyInfluence"];
@@ -3323,12 +3347,10 @@ export function deserializeSave(raw: string): WorldState {
     }
     save.world.meta.schemaVersion = 50;
   }
-  // v50 -> v51: persisted source NPP government directives are additive.
-  // Existing saves remain without an agenda until an eligible NPC-headed
-  // government reaches the source recompute phase.
-  if (save.schemaVersion < 51) {
-    save.world.meta.schemaVersion = 51;
-  }
+  // v50 -> v51: persist source political dynamics, including NPP directives
+  // and political boards. Keep recorded absence on legacy saves; seeding a
+  // progressed game here would invent government posture, scores or history.
+  if (save.schemaVersion < 51) save.world.meta.schemaVersion = 51;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
@@ -3379,6 +3401,7 @@ export function deserializeSave(raw: string): WorldState {
   validateCommandEconomySave(save.world);
   validateSoeSave(save.world);
   validateBankingState(save.world);
+  validatePoliticalState(save.world);
   validateCanvassState(save.world);
   // #295: persisted sector-owner default. Saves written before the
   // acquisition slice carry materialized assets without the field; missing
@@ -3406,6 +3429,49 @@ export function deserializeSave(raw: string): WorldState {
   // the reference absent-means-zero rule explicitly.
   if (save.world.plantMarketDemand !== undefined) {
     validatePlantMarketDemand(save.world);
+  }
+  if (save.world.corporateTradeSnapshot !== undefined) {
+    const snapshot = save.world.corporateTradeSnapshot;
+    if (!isRecord(snapshot) || !Number.isSafeInteger(snapshot.turn) || !isRecord(snapshot.byCountry) ||
+        !isRecord(snapshot.flow) || !isRecord(snapshot.byCommodity)) {
+      throw new Error("World has an invalid corporate trade snapshot");
+    }
+    for (const [countryId, row] of Object.entries(snapshot.byCountry)) {
+      if (!isRecord(row) || ![row.exports, row.imports, row.net].every(value => typeof value === "number" && Number.isFinite(value)) ||
+          !(row.topPartner === null || typeof row.topPartner === "string")) {
+        throw new Error(`World corporate trade snapshot has an invalid country row ${countryId}`);
+      }
+    }
+    for (const [exporter, destinations] of Object.entries(snapshot.flow)) {
+      if (!isRecord(destinations)) throw new Error(`World corporate trade snapshot has an invalid flow row ${exporter}`);
+      for (const [importer, value] of Object.entries(destinations)) {
+        if (exporter === importer || typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+          throw new Error(`World corporate trade snapshot has an invalid flow ${exporter}:${importer}`);
+        }
+      }
+    }
+    for (const [commodity, byExporter] of Object.entries(snapshot.byCommodity)) {
+      if (!isRecord(byExporter)) throw new Error(`World corporate trade snapshot has an invalid commodity ${commodity}`);
+      for (const [exporter, destinations] of Object.entries(byExporter)) {
+        if (!isRecord(destinations)) throw new Error(`World corporate trade snapshot has an invalid commodity route ${commodity}:${exporter}`);
+        for (const [importer, row] of Object.entries(destinations)) {
+          if (exporter === importer || !isRecord(row) ||
+              ![row.units, row.value].every(value => typeof value === "number" && Number.isFinite(value) && value >= 0)) {
+            throw new Error(`World corporate trade snapshot has an invalid commodity flow ${commodity}:${exporter}:${importer}`);
+          }
+        }
+      }
+    }
+    if (snapshot.valuationPriceByCommodity !== undefined) {
+      if (!isRecord(snapshot.valuationPriceByCommodity)) {
+        throw new Error("World corporate trade snapshot has invalid commodity valuation prices");
+      }
+      for (const [commodity, price] of Object.entries(snapshot.valuationPriceByCommodity)) {
+        if (typeof price !== "number" || !Number.isFinite(price) || price < 0) {
+          throw new Error(`World corporate trade snapshot has invalid valuation price ${commodity}`);
+        }
+      }
+    }
   }
   if (save.world.unionOrganizers !== undefined) {
     validateUnionOrganizers(save.world, save.world.unionOrganizers);

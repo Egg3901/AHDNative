@@ -78,3 +78,14 @@ nationalization actor identity and its existing ownership-preserving action.
 
 For #105, this does not implement regional or defense consequences (#263), and
 does not complete the broader issue's integrated legislation lifecycle.
+
+## Saved-game startup readiness
+
+The combined government gate passed108 browser cases and found a lost Continue
+tap during the second German VAT save/reload. The retained trace shows saved
+metadata arriving before the engine era choices. The era chips appeared between
+pointer press and release, shifting Continue while the click was in progress;
+no world load began and no save or worker error appeared. Continue now waits for
+the same local engine readiness as New game. The public LandingScreen regression
+failed before the fix, then all17 landing checks passed. The original German
+phone enactment/replacement/two-reload journey and final gate remain required.

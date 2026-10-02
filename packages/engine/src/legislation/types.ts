@@ -117,6 +117,9 @@ export interface BillProvision {
   economic?: number;
   social?: number;
   proposedRate?: number;
+  /** Economy-wide customs tariff rate, in percent. */
+  tariffScopeType?: "economy_wide";
+  tariffRate?: number;
   /** AHDGame subsidyEffects.ts provision payload. */
   subsidyScopeType?: "economy_wide" | "sector";
   targetSectorType?: string | null;

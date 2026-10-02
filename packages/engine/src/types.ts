@@ -148,7 +148,33 @@ export interface WorldState {
     corporateInputs: Partial<Record<string, number>>;
     externalSupply?: Partial<Record<string, number>>;
     corporateOutputSupply?: Partial<Record<string, number>>;
+    /** Source-rate corporate intermediate demand grouped by the asset's home country. */
+    corporateInputsByCountry?: Record<string, Partial<Record<string, number>>>;
+    /** The same intermediate demand where the producing asset has a real region. */
+    corporateInputsByState?: Record<string, Partial<Record<string, number>>>;
+    /** Measured current production offers grouped by the asset's home country. */
+    corporateOutputSupplyByCountry?: Record<string, Partial<Record<string, number>>>;
+    /** Measured production offer legs for assets with an actual recorded region. */
+    corporateOutputSupplyByState?: Record<string, Partial<Record<string, number>>>;
+    /** Source federal healthcare, defense and planned-media demand by country. */
+    governmentDemandByCountry?: Record<string, Partial<Record<string, number>>>;
+    /** Source GDP-weighted regional healthcare and defense demand. */
+    governmentDemandByState?: Record<string, Partial<Record<string, number>>>;
+    /** Source household basket demand for states with recorded population/GDP. */
+    householdDemandByCountry?: Record<string, Partial<Record<string, number>>>;
+    householdDemandByState?: Record<string, Partial<Record<string, number>>>;
   };
+  /** Persisted bilateral clearing receipts from measured corporate output (#77 vertical slice). */
+  corporateTradeSnapshot?: {
+    turn: number;
+    byCountry: Record<string, { exports: number; imports: number; net: number; topPartner: string | null }>;
+    flow: Record<string, Record<string, number>>;
+    byCommodity: Record<string, Record<string, Record<string, { units: number; value: number }>>>;
+    /** Native recorded global unit price applied to this receipt's commodity flows. */
+    valuationPriceByCommodity?: Record<string, number>;
+  };
+  /** Reconciled importer tariff records from signed customs tariff bills. */
+  tradeTariffs?: import("./trade/tariffs.js").TradeTariffRecord[];
   /** Extraction contracts. Ports src/lib/db/types/extractionContract.ts. */
   extractionContracts: ExtractionContract[];
   /** Regions per playable country. W38: US 48 real states (AK/HI absent); UK/RU/DD retain 3 opaque each until W39. */
@@ -488,6 +514,10 @@ export interface WorldState {
   nationalMetrics: Record<string, import("./metrics/nationalMetrics.js").NationalMetrics>;
   /** Per-region policy metrics, keyed by region id. Schema v45. */
   regionalMetrics: Record<string, import("./metrics/nationalMetrics.js").NationalMetrics>;
+  /** Source political family boards. Absent on older saves with no board state. */
+  regionalPoliticalMetrics?: Record<string, import("./politicalMetrics/types.js").PoliticalBoard>;
+  /** Source cabinet standing effects from the previous ordinary turn. */
+  politicalCabinetContributions?: Record<string, import("./politicalMetrics/types.js").PoliticalCabinetContribution>;
   /** Per-country economic model identity. Schema v33. */
   economicModels: Record<string, import("./metrics/economicModel.js").EconomicModelState>;
   /** Per-commodity price history for annualized commodity pressure (inflationRecalc). Schema v33. */

@@ -338,6 +338,8 @@ export interface GameScreenProps {
   loadLegislation: (selection?: LegislationSelection) => Promise<LegislationDetailsQuery>;
   loadWorldOverview: () => Promise<WorldOverviewView>;
   loadPolitics: () => Promise<PoliticsView>;
+  /** SP board query avoids unrelated election and politician action work. */
+  loadPoliticalMetrics?: () => Promise<import("./politics").PoliticalMetricsView>;
   /**
    * Hall of Fame DTO query (#73). Optional: the authoritative MP adapter
    * has no leaderboard endpoint yet, so MP surfaces omit it and the route

@@ -65,6 +65,14 @@ function rescopeRegionRecords(
   const regionalBudget = world.regionalBudgets[regionId];
   if (regionalBudget) regionalBudget.countryId = targetCountryId;
 
+  // Game regionScopedCollections changes the board's jurisdiction and drops
+  // only structural residuals, which belonged to the former country's laws.
+  const politicalBoard = world.regionalPoliticalMetrics?.[regionId];
+  if (politicalBoard) {
+    politicalBoard.countryId = targetCountryId;
+    delete politicalBoard.residuals;
+  }
+
   const demographics = world.stateDemographics[regionId];
   if (demographics) demographics.countryId = targetCountryId;
   const baseline = world.baselineDemographics[regionId];

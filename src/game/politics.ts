@@ -1,5 +1,6 @@
 import {
   ACTION_CATALOG, addDaysIso, calculateCampaignIncome, calculateMaintenanceCosts,
+  politicalMetricsForCountry, type PoliticalRegistryView,
   campaignAnchorToLocal, campaignKey, canJoinParty, canLeaveParty, describeOpsCurrentEffect,
   getActionCost, quotePartyCaucusAction,
   INFLUENCE_ACTIONS, INFLUENCE_LIMITS, RELATIONSHIP_INFLUENCE_TYPES,
@@ -450,6 +451,18 @@ export interface PoliticsReferendumRequestView {
   action: ActionView;
 }
 
+export interface PoliticalMetricsView {
+  countryId: string; countryName: string;
+  politicalMetrics?: PoliticalRegistryView;
+}
+
+/** The board route does not need election or politician action projections. */
+export function projectPoliticalMetrics(world: WorldState): PoliticalMetricsView {
+  const country = world.countries[world.player.countryId];
+  if (!country || !country.playable) throw new Error("The save does not contain the player's playable country.");
+  return { countryId: country.id, countryName: country.name, politicalMetrics: politicalMetricsForCountry(world, country.id) };
+}
+
 export interface PoliticsView {
   countryId: string; countryName: string; currency: string; playerPartyId: string | null;
   parties: PoliticsPartyDetail[];
@@ -457,6 +470,7 @@ export interface PoliticsView {
   referendums: PoliticsReferendumView[];
   referendumRequest: PoliticsReferendumRequestView;
   politicians: PoliticsPoliticianView[];
+  politicalMetrics?: PoliticalRegistryView;
 }
 
 function actionCost(world: WorldState, id: "joinParty" | "leaveParty" | "declareCandidacy" | "withdrawCandidacy"): number {
@@ -1572,5 +1586,5 @@ export function projectPolitics(world: WorldState): PoliticsView {
       || b.requestedTurn - a.requestedTurn)
     .map((record) => projectReferendum(world, record));
 
-  return { countryId: country.id, countryName: country.name, currency: world.budgets[country.id]?.currencyCode ?? world.exchangeRates[country.id]?.currencyCode ?? "XXX", playerPartyId: player.partyId, parties, elections, referendums, referendumRequest: projectReferendumRequest(world), politicians };
+  return { countryId: country.id, countryName: country.name, currency: world.budgets[country.id]?.currencyCode ?? world.exchangeRates[country.id]?.currencyCode ?? "XXX", playerPartyId: player.partyId, parties, elections, referendums, referendumRequest: projectReferendumRequest(world), politicians, politicalMetrics: politicalMetricsForCountry(world, country.id) };
 }

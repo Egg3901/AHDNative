@@ -22,7 +22,7 @@ import { projectWorldOverview } from "./worldOverview";
 import { projectNation } from "./nation";
 import { projectCapabilityNav } from "./capabilityNav";
 import { projectMyCorporation } from "./identityOrg";
-import { projectPolitics, projectPartyMembership } from "./politics";
+import { projectPolitics, projectPoliticalMetrics, projectPartyMembership } from "./politics";
 import { projectResources } from "./resources";
 import { racePhase } from "./racePhase";
 import {
@@ -688,6 +688,7 @@ export class GameSession {
   }
 
   politics() { return projectPolitics(this.requireWorld()); }
+  politicalMetrics() { return projectPoliticalMetrics(this.requireWorld()); }
 
   /**
    * Hall of Fame board (#73). The projector reads the live WorldState
