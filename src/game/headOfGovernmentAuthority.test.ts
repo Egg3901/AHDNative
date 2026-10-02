@@ -55,26 +55,26 @@ describe("source-backed singleplayer head-of-government authority", () => {
     expect(session.act("nationalizeCorporation", { corporationId: "US-media", tier: "seizure" }).ok).toBe(true);
     const settled = savedWorld(session).world;
     expect(settled.corporations["US-media"]).toBeUndefined();
-    expect(settled.corporations["NAT-US-media"]?.ownershipState).toBe("stateOwned");
-    expect(Object.values(settled.corporateSectors).some((asset) => asset.corporationId === "NAT-US-media" && asset.owner === "corporation")).toBe(true);
+    expect(settled.corporations["NAT-US"]?.ownershipState).toBe("stateOwned");
+    expect(Object.values(settled.corporateSectors).some((asset) => asset.corporationId === "NAT-US" && asset.owner === "corporation")).toBe(true);
     expect(settled.unownedSectors[unownedKey]).toEqual(poolBefore);
 
     const resumed = new GameSession();
     resumed.load(session.serialize(SAVE_AT));
     const afterReload = savedWorld(resumed).world;
-    expect(afterReload.corporations["NAT-US-media"]?.ownershipState).toBe("stateOwned");
-    expect(Object.values(afterReload.corporateSectors).some((asset) => asset.corporationId === "NAT-US-media" && asset.owner === "corporation")).toBe(true);
+    expect(afterReload.corporations["NAT-US"]?.ownershipState).toBe("stateOwned");
+    expect(Object.values(afterReload.corporateSectors).some((asset) => asset.corporationId === "NAT-US" && asset.owner === "corporation")).toBe(true);
     expect(afterReload.unownedSectors[unownedKey]).toEqual(poolBefore);
 
     session.advance();
     resumed.advance();
     const afterTakingTurn = savedWorld(session).world;
     expect(afterTakingTurn.executives.US?.presidentId).toBe("player");
-    expect(afterTakingTurn.corporations["NAT-US-media"]?.ownershipState).toBe("stateOwned");
+    expect(afterTakingTurn.corporations["NAT-US"]?.ownershipState).toBe("stateOwned");
     const afterReloadedTurn = savedWorld(resumed).world;
     expect(afterReloadedTurn.executives.US).toMatchObject({ presidentId: "player" });
-    expect(afterReloadedTurn.corporations["NAT-US-media"]?.ownershipState).toBe("stateOwned");
-    expect(Object.values(afterReloadedTurn.corporateSectors).some((asset) => asset.corporationId === "NAT-US-media" && asset.owner === "corporation")).toBe(true);
+    expect(afterReloadedTurn.corporations["NAT-US"]?.ownershipState).toBe("stateOwned");
+    expect(Object.values(afterReloadedTurn.corporateSectors).some((asset) => asset.corporationId === "NAT-US" && asset.owner === "corporation")).toBe(true);
     expect(afterReloadedTurn.unownedSectors[unownedKey]).toEqual(afterTakingTurn.unownedSectors[unownedKey]);
   });
 
@@ -94,7 +94,7 @@ describe("source-backed singleplayer head-of-government authority", () => {
     expect(session.view().actions.find((action) => action.id === "nationalizeCorporation")).toMatchObject({ available: true });
     expect(session.act("nationalizeCorporation", { corporationId: "UK-media", tier: "seizure" }).ok).toBe(true);
     expect(savedWorld(session).world.corporations["UK-media"]).toBeUndefined();
-    expect(savedWorld(session).world.corporations["NAT-UK-media"]?.ownershipState).toBe("stateOwned");
+    expect(savedWorld(session).world.corporations["NAT-UK"]?.ownershipState).toBe("stateOwned");
 
     session.advance();
     const afterTurn = savedWorld(session).world;
