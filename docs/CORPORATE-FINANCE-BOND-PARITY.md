@@ -101,7 +101,7 @@ The active #107 worktree adds a schema-60 asset P&L record and the pinned
 Game sector tech tree, including NPP one-node-per-turn selection after
 settlement, RD/cash debits, lane and unlock persistence, and consumption of
 production-rate, input-rate, price, margin, growth and strategy-unlock effects.
-The current dirty cost slice ports the pinned `laborCost.ts`, `idleUpkeep.ts`,
+The committed cost slice ports the pinned `laborCost.ts`, `idleUpkeep.ts`,
 and `physicalPnl.ts` component formulas: era/sector labor shares with wage,
 agreement, union and tech multipliers; owner-idle upkeep with involuntary
 throttle correction and 240-turn ramp; and policy-credit/negative-residual
@@ -113,14 +113,20 @@ mode/minimum-wage inputs, market-dominance compliance inputs, disaster financial
 legs, full policy modifier stack, landed-price premiums and production-policy
 input multiplier wiring. The current Game source's issuer-currency daily gross
 revenue/capacity floor for NPP tech pricing and its cash reserve are now wired
-into the Native tech chooser with direct source-shaped tests. Game
-`origin/main` is `7ab3cc75`; its newer founding/reinvestment/tech cash-writeback
-ledger witnesses are not represented in Native state. The plan-gravity trend
+into the Native tech chooser with direct source-shaped tests. Successful NPP
+tech cash debits append a deterministic `corp_tech_unlock` finance-history row
+with Game's corporation/node/turn ledger key, in the same Native turn mutation;
+save validation checks the row and public save/reload/next-turn continuation
+preserves it. This is the in-memory committed-write equivalent, not Game's
+Mongo post-write witness protocol. Game `origin/main` is `7ab3cc75`; its newer
+founding/reinvestment cash-writeback witnesses and the corresponding Native
+NPP founding/reinvestment producers are still missing. The plan-gravity trend
 reader now follows the current RU 1953/1971/1979/1991 source-era values and DD
 1953/1971 range; the source turn consumer and focused era-transition vectors
 pass. Full #107 remains open for cross-era public-turn/save journeys, those
 ledger witnesses, caretaker/CEO lifecycle, snapshot, insolvency, and integrated
-acceptance.
+acceptance. The Native cost model still uses a calibrated residual and does not
+yet have a source-equivalent NPP capacity cash-writeback producer.
 
 ## Finance and macro integration
 

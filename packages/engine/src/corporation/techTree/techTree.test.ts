@@ -6,6 +6,7 @@ import { corporatePlantProductionPhase, sourceCorpDailyGrossRevenueLocal, techno
 import { corporateSectorBasePrices, SOURCE_DEFAULT_OPERATING_SUPPLY } from "../plantCapacity.js";
 import { getSectorTechEffects, getTreeForType } from "./selectors.js";
 import { foundingTechState, unlockNppCorporationTech } from "./nppUnlock.js";
+import { validateCorporateCashLedger } from "../corporateCashLedger.js";
 
 describe("source corporate technology state", () => {
   it("uses the source decade tree, cost, prerequisites and deterministic NPP lane pick", () => {
@@ -15,12 +16,16 @@ describe("source corporate technology state", () => {
     corp.liquidCapital = 100_000;
     corp.rdScore = 100;
     corp.unlockedTechNodeIds = foundingTechState("energy", 1953).unlockedTechNodeIds;
+    const cashBefore = corp.liquidCapital;
+    const rdBefore = corp.rdScore;
     const eligible = getTreeForType("energy").find((node) => node.id === "energy-1950-1")!;
     expect(eligible.effects).toContainEqual({ kind: "unlockStrategy", strategyId: "nuclear" });
 
     const unlocked = unlockNppCorporationTech(world, corp, 1953);
     expect(unlocked).toBe("energy-1950-1");
     expect(corp.unlockedTechNodeIds).toContain(unlocked);
+    expect(world.corporateCashLedger?.[0]?.amount).toBe(corp.liquidCapital - cashBefore);
+    expect(world.corporateCashLedger?.[0]?.meta.rdCost).toBe(rdBefore! - corp.rdScore!);
     expect(corp.techDecadeLane).toEqual({ "1950": "sector" });
     expect(corp.techDecadeChosenTurn).toEqual({ "1950": world.meta.turn });
     expect(corp.rdScore).toBe(92);
@@ -139,6 +144,7 @@ describe("source corporate technology state", () => {
     expect(restored.meta.schemaVersion).toBe(60);
     expect(restored.corporations["US-energy"]!.unlockedTechNodeIds).toBeUndefined();
     expect(restored.corporations["US-energy"]!.techDecadeLane).toBeUndefined();
+    expect(restored.corporateCashLedger).toBeUndefined();
   });
 
   it("buys one NPP node after settlement and resumes the next public turn identically", () => {
@@ -161,7 +167,26 @@ describe("source corporate technology state", () => {
     const acquired = (corp.unlockedTechNodeIds ?? []).filter((id) => !priorIds.includes(id));
     expect(acquired).toHaveLength(1);
     expect(acquired[0]).toBe("energy-1950-1");
+    const cashRows = world.corporateCashLedger ?? [];
+    expect(cashRows).toHaveLength(1);
+    expect(cashRows[0]).toMatchObject({
+      id: `tech-unlock:${corp.id}:energy-1950-1:t${world.meta.turn}`,
+      type: "corp_tech_unlock",
+      turn: world.meta.turn,
+      corporationId: corp.id,
+      amount: expect.any(Number),
+      currencyCode: "USD",
+      meta: { ledgerKey: cashRows[0]!.id, nodeId: "energy-1950-1", rdCost: expect.any(Number) },
+    });
+    expect(cashRows[0]!.amount).toBeLessThan(0);
+    validateCorporateCashLedger(cashRows);
     const resumed = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
+    expect(resumed.corporateCashLedger).toEqual(cashRows);
+    const corrupted = JSON.parse(serializeSave(world, "2026-10-02T00:00:00.000Z")) as {
+      world: { corporateCashLedger: Array<{ amount: number }> };
+    };
+    corrupted.world.corporateCashLedger[0]!.amount *= -1;
+    expect(() => deserializeSave(JSON.stringify(corrupted))).toThrow(/Invalid corporate cash ledger amount/);
     advanceTurn(world);
     advanceTurn(resumed);
     expect(resumed.corporateSectors?.[assetId]?.plantsPnl).toEqual(world.corporateSectors?.[assetId]?.plantsPnl);
@@ -169,5 +194,6 @@ describe("source corporate technology state", () => {
     expect(resumed.corporations[corp.id]?.unlockedTechNodeIds).toEqual(corp.unlockedTechNodeIds);
     expect(resumed.corporations[corp.id]?.liquidCapital).toBe(corp.liquidCapital);
     expect(resumed.corporations[corp.id]?.rdScore).toBe(corp.rdScore);
+    expect(resumed.corporateCashLedger).toEqual(world.corporateCashLedger);
   });
 });

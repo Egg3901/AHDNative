@@ -3,6 +3,7 @@ import type { Corporation } from "../types.js";
 import { autoGrantedNodeIds, canUnlock, getTreeForType } from "./selectors.js";
 import { sumStrengthGrants } from "./effects.js";
 import { techNodeCashCost } from "./costs.js";
+import { makeNppTechCashRecord } from "../corporateCashLedger.js";
 
 /**
  * Run Game's deterministic NPP tech pick after this turn's production and
@@ -43,6 +44,14 @@ export function unlockNppCorporationTech(
   corp.unlockedTechNodeIds = [...unlocked].sort();
   corp.rdScore = Math.round((rdScore - node.cost) * 100) / 100;
   corp.liquidCapital -= cashCost;
+  const cashRecord = makeNppTechCashRecord({ corp, world, node, cashCost });
+  if (cashRecord) {
+    const ledger = world.corporateCashLedger ??= [];
+    // The source writer's once-only node guard and finance row share the same
+    // successful cash mutation. Preserve that invariant in Native's in-memory
+    // turn transaction and stable save continuation.
+    if (!ledger.some((row) => row.id === cashRecord.id)) ledger.push(cashRecord);
+  }
   corp.marketingStrength = (corp.marketingStrength ?? 0) + grants.marketingStrength;
   corp.logisticsStrength = (corp.logisticsStrength ?? 0) + grants.logisticsStrength;
   const lanes = { ...(corp.techDecadeLane ?? {}) };

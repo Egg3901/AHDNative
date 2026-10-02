@@ -276,6 +276,13 @@ export interface WorldState {
   /** Distinct CorporateSector assets with stateId null until regional ownership is sourced. Optional on pre-#293 schema-44 saves. */
   corporateSectors?: Record<string, import("./corporation/corporateSectorAssets.js").CorporateSectorAsset>;
   /**
+   * Successful NPP cash writes for source-sector technology unlocks. Native
+   * mutates the offline corporation record directly, so the deterministic row
+   * is appended in the same turn operation as the cash/R&D debit and unlock.
+   * Optional on older saves; validated at the save boundary.
+   */
+  corporateCashLedger?: Array<import("./corporation/corporateCashLedger.js").CorporateCashLedgerRecord>;
+  /**
    * Per-country aggregate corporate revenue, one turn apart, feeding the
    * macroCountryTurn growth signal. Maintained by corporationTurn.ts. Schema v19.
    */

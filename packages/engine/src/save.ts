@@ -50,6 +50,7 @@ import { validateBankingState } from "./banking/validate.js";
 import { validatePoliticalState } from "./politicalMetrics/validate.js";
 import { validateNationalizationEligibilityState } from "./corporation/nationalizationEligibility.js";
 import { validateStateOwnershipLedger } from "./corporation/stateOwnershipLedger.js";
+import { validateCorporateCashLedger } from "./corporation/corporateCashLedger.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
 import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
 import {
@@ -3336,6 +3337,7 @@ export function deserializeSave(raw: string): WorldState {
   validateBankingState(save.world);
   validatePoliticalState(save.world);
   validateStateOwnershipLedger(save.world);
+  if (save.world.corporateCashLedger !== undefined) validateCorporateCashLedger(save.world.corporateCashLedger);
   validateNationalizationEligibilityState(save.world);
   validateCanvassState(save.world);
   // #295: persisted sector-owner default. Saves written before the
