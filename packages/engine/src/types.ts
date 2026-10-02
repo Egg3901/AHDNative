@@ -30,6 +30,8 @@ import type { WorldFeatureFlags } from "./featureFlags.js";
 
 export interface WorldState {
   meta: WorldMeta;
+  /** Source acquisition history. Older worlds preserve the absence of history. */
+  stateOwnershipLedger?: import("./corporation/stateOwnershipLedger.js").StateOwnershipEntry[];
   /**
    * Optional source gameConfig rollout anchor. It is written lazily on the
    * first financial phase so untouched and historical saves retain their

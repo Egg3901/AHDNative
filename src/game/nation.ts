@@ -69,6 +69,7 @@ export interface NationDebtView {
 export type NationDestination =
   | "economy"
   | "budget"
+  | "stateOwnership"
   | "policy"
   | "metrics"
   | "legislature"
@@ -1036,7 +1037,9 @@ export function projectNation(world: WorldState): NationView {
       population: budget.population,
       currency: budget.currencyCode,
       labels,
-      links: BUDGET_LINKS,
+      links: Object.values(world.corporations).some(corporation => corporation.countryOwnerId === countryId)
+        ? [...BUDGET_LINKS, { label: "State ownership register", route: "stateOwnership" }]
+        : BUDGET_LINKS,
       taxRates,
       revenue: { components: projectRevenue(budget, labels), total: budget.revenue.total },
       spending: {

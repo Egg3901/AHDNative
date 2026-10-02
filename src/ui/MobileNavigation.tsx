@@ -5,6 +5,7 @@ export type DrawerRouteId =
   | "actions" | "parties" | "legislature" | "elections" | "news"
   | "profile" | "portfolio" | "banking" | "partyDetails" | "electionDetails" | "campaignDetails"
   | "politicians" | "presidentialDetails" | "politicalMetrics"
+  | "stateOwnership"
   | "economy" | "budget" | "policy" | "metrics" | "commandEconomy" | "nations" | "worldDirectory" | "worldMap" | "hallOfFame" | "state" | "government"
   | "help" | "settings" | "legislationDetails" | "markets" | "sectors" | "search"
   | "partyManagement" | "bonds" | "caucuses" | "regions" | "notifications" | "referendums"
