@@ -1,5 +1,6 @@
 import type { WorldState } from "../types.js";
 import { localToAnchor } from "../forex/conversion.js";
+import type { NationalizationTrigger } from "./pendingNationalizations.js";
 
 /** Source nationalizationLedger acquisition record; amounts use anchor units. */
 export interface StateOwnershipEntry {
@@ -7,8 +8,9 @@ export interface StateOwnershipEntry {
   countryId: string;
   nationalCorporationId: string;
   kind: "nationalize_whole";
-  method: "executive" | "legislative";
-  triggers: ["distress"] | ["npc"];
+  method: "executive" | "legislative" | "supermajority";
+  triggers: NationalizationTrigger[];
+  governingPartyId?: string | null;
   tier: "fair" | "discounted" | "seizure";
   formerCorpName: string;
   sectorTypes: string[];
@@ -43,8 +45,9 @@ export function validateStateOwnershipLedger(world: WorldState): void {
     if (typeof row.id !== "string" || !row.id || ids.has(row.id)
       || typeof row.countryId !== "string" || !world.countries[row.countryId]
       || typeof row.nationalCorporationId !== "string" || !row.nationalCorporationId
-      || row.kind !== "nationalize_whole" || (row.method !== "executive" && row.method !== "legislative") || (row.tier !== "seizure" && row.tier !== "discounted" && row.tier !== "fair")
-      || !Array.isArray(row.triggers) || row.triggers.length !== 1 || (row.triggers[0] !== "distress" && row.triggers[0] !== "npc")
+      || row.kind !== "nationalize_whole" || (row.method !== "executive" && row.method !== "legislative" && row.method !== "supermajority") || (row.tier !== "seizure" && row.tier !== "discounted" && row.tier !== "fair")
+      || !Array.isArray(row.triggers) || row.triggers.length === 0 || !row.triggers.every(value => typeof value === "string" && ["npc", "unowned", "distress", "strategic", "monopoly", "supermajority"].includes(value)) || new Set(row.triggers).size !== row.triggers.length
+      || (Object.hasOwn(row, "governingPartyId") && row.governingPartyId !== null && (typeof row.governingPartyId !== "string" || !row.governingPartyId))
       || typeof row.formerCorpName !== "string" || !row.formerCorpName
       || !Array.isArray(row.sectorTypes) || row.sectorTypes.length === 0 || !row.sectorTypes.every(value => typeof value === "string" && value.length > 0)
       || typeof row.compensationAnchor !== "number" || !Number.isFinite(row.compensationAnchor) || row.compensationAnchor < 0

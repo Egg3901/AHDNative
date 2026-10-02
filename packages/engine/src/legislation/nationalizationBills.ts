@@ -15,7 +15,6 @@ export function proposeNationalizationBill(world: WorldState, params: {
   if (params.sponsorCountryId && params.sponsorCountryId !== countryId) return { ok: false as const, error: "Cannot sponsor a bill outside the player's country." };
   const donor = params.corporationId ? world.corporations[params.corporationId] : undefined;
   if (!donor || donor.countryId !== countryId || isCorpStateOwned(donor)) return { ok: false as const, error: "Choose a private corporation headquartered in the bill's country." };
-  if (donor.nationalizationOwnerKind === "player") return { ok: false as const, error: "Player-corporation notice windows are not yet supported." };
   const legislature = world.legislatures[countryId];
   const sovereign = world.player.mode === "hos" && world.player.permanentHeadOfState === true;
   const seat = world.player.legislativeSeat;

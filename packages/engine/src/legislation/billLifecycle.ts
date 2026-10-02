@@ -342,8 +342,8 @@ export function applyBillEffects(world: WorldState, bill: Bill): void {
     if (provision.type === "union_law") {
       applyUnionLawProvision(world, bill.countryId, {
         type: "union_law",
-        bias: provision.bias,
-        banAction: provision.banAction,
+        ...(provision.bias !== undefined ? { bias: provision.bias } : {}),
+        ...(provision.banAction !== undefined ? { banAction: provision.banAction } : {}),
       });
       continue;
     }

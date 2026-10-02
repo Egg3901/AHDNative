@@ -54,6 +54,7 @@ import { validatePoliticalState } from "./politicalMetrics/validate.js";
 import { validateNationalizationEligibilityState } from "./corporation/nationalizationEligibility.js";
 import { validateNationalCorporations } from "./corporation/nationalCorporation.js";
 import { validateStateOwnershipLedger } from "./corporation/stateOwnershipLedger.js";
+import { validatePendingNationalizations } from "./corporation/pendingNationalizations.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
 import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
 import {
@@ -181,6 +182,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   }
   const save = parsed;
   const world = parsed["world"];
+  if (hasOwn(world, "pendingNationalizations")) {
+    return { ok: false, error: "Pending nationalization notices cannot be continued by the schema 42 turn reader; keep this Native save." };
+  }
   const weightedPlayer = world["player"];
   const weightedSeat = isRecord(weightedPlayer) ? weightedPlayer["legislativeSeat"] : undefined;
   const weightedOfficials = world["politicians"];
@@ -3752,6 +3756,7 @@ export function deserializeSave(raw: string): WorldState {
   validateBankingState(save.world);
   validatePoliticalState(save.world);
   validateStateOwnershipLedger(save.world);
+  validatePendingNationalizations(save.world);
   validateNationalizationEligibilityState(save.world);
   validateNationalCorporations(save.world);
   validateCanvassState(save.world);

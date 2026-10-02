@@ -9,6 +9,7 @@ import { executiveTakingEligibility } from "./nationalizationEligibility.js";
 import { nationalizationCompensation, settleNationalizationCompensation, indicativeNationalizationCompensation, type CompensationTier } from "./nationalizationCompensation.js";
 import { applyExecutiveTakingConsequences } from "./nationalizationConsequences.js";
 import { ensurePrimaryNationalCorporation, primaryNationalCorporation, resolveNationalCorporationForSector } from "./nationalCorporation.js";
+import type { PendingNationalization, NationalizationTrigger } from "./pendingNationalizations.js";
 
 /** Source `NATIONALIZATION_REVENUE_HAIRCUT` for an executive taking. */
 export const NATIONALIZATION_REVENUE_KEEP = 0.85;
@@ -113,20 +114,38 @@ export function nationalizeDistressedCorporation(
 }
 
 /** A passed state-ownership bill supplies authority independently of distress. */
-export function applyLegislativeWholeTaking(world: WorldState, countryId: string, corporationId: string): NationalizationResult {
+export function applyLegislativeWholeTaking(world: WorldState, countryId: string, corporationId: string) {
   const donor = world.corporations[corporationId];
   if (!donor) return { ok: false, error: "The legislative target no longer exists." };
   if (donor.countryId !== countryId || isCorpStateOwned(donor)) return { ok: false, error: "The legislative target is outside the bill's jurisdiction or already state-owned." };
-  if (donor.privatizedAtTurn !== undefined && world.meta.turn - donor.privatizedAtTurn < 168) return { ok: false, error: "The corporation is protected by the renationalization cooldown." };
+  if (donor.privatizedAtTurn != null && world.meta.turn - donor.privatizedAtTurn < 168) return { ok: false, error: "The corporation is protected by the renationalization cooldown." };
+  if (donor.nationalizationOwnerKind === "player") {
+    const pending = world.pendingNationalizations ??= [];
+    const id = `taking-notice-${countryId}-${world.meta.turn}-${pending.length}-${donor.id}`;
+    const government = world.governments[countryId];
+    const governingPartyId = government?.status === "formed" ? government.governingPartyId : world.executives[countryId]?.presidentParty ?? null;
+    pending.push({ id, countryId, targetCorporationId: donor.id, tier: "fair", method: "legislative", triggers: ["supermajority"], governingPartyId,
+      postedAtTurn: world.meta.turn, noticeDeadlineTurn: world.meta.turn + 48, status: "pending" });
+    return { ok: true, pendingNationalizationId: id, message: "Posted a 48-turn legislative nationalization notice." };
+  }
   return takeWholeCorporation(world, donor, "fair", "legislative", ["npc"]);
+}
+
+/** Complete the authority and framing recorded by a passed legislative bill. */
+export function completePendingWholeTaking(world: WorldState, pending: PendingNationalization): NationalizationResult {
+  const donor = world.corporations[pending.targetCorporationId];
+  if (!donor || isCorpStateOwned(donor)) return { ok: false, error: "The pending target no longer exists or is already state-owned." };
+  if (donor.countryId !== pending.countryId) return { ok: false, error: "The pending target is outside its recorded jurisdiction." };
+  return takeWholeCorporation(world, donor, pending.tier, pending.method, pending.triggers, pending.governingPartyId);
 }
 
 function takeWholeCorporation(
   world: WorldState,
   donor: import("./types.js").Corporation,
   tier: CompensationTier,
-  method: "executive" | "legislative",
-  triggers: ["distress"] | ["npc"],
+  method: "executive" | "legislative" | "supermajority",
+  triggers: NationalizationTrigger[],
+  governingPartyId?: string | null,
 ): NationalizationResult {
   if (!world.budgets[donor.countryId]) return { ok: false, error: "No national treasury is recorded for this country." };
 
@@ -193,7 +212,7 @@ function takeWholeCorporation(
   }
 
   delete world.corporations[donor.id];
-  const consequences = applyExecutiveTakingConsequences(world, donor.countryId, triggers, tier, compensation.valuationAnchor, compensation.payoutAnchor);
+  const consequences = applyExecutiveTakingConsequences(world, donor.countryId, triggers, tier, compensation.valuationAnchor, compensation.payoutAnchor, governingPartyId);
   const ledger = world.stateOwnershipLedger ??= [];
   ledger.push({
     id: `taking-${donor.countryId}-${world.meta.turn}-${ledger.length}-${donor.id}`,
@@ -202,6 +221,7 @@ function takeWholeCorporation(
     kind: "nationalize_whole",
     method,
     triggers,
+    ...(governingPartyId !== undefined ? { governingPartyId } : {}),
     tier,
     formerCorpName: donor.name ?? donor.tickerSymbol ?? donor.id,
     sectorTypes,

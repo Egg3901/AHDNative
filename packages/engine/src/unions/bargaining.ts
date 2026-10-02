@@ -386,10 +386,11 @@ export function counterBargainingOffer(args: {
     offers: [...args.campaign.offers, offer],
     // A member ballot authorizes exactly one revision: replacing the package
     // voids the open ballot in the same transition.
-    ratification:
-      args.campaign.ratification?.status === "open"
-        ? { ...args.campaign.ratification, status: "void", closedAtTurn: args.currentTurn }
+    ...(args.campaign.ratification !== undefined ? {
+      ratification: args.campaign.ratification?.status === "open"
+        ? { ...args.campaign.ratification, status: "void" as const, closedAtTurn: args.currentTurn }
         : args.campaign.ratification,
+    } : {}),
     lastActionTurn: args.currentTurn,
     updatedAtTurn: args.currentTurn,
   };
