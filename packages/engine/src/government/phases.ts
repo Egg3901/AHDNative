@@ -4,6 +4,7 @@ import type { GovernmentState } from "./types.js";
 import { isRecordedSingleplayerHeadOfGovernment, seatSingleplayerHeadOfGovernment } from "./singleplayerHeadOfGovernment.js";
 import type { Chamber, WorldState } from "../types.js";
 import { computeFormation, selectPm } from "./formation.js";
+import { liveChamberSeatsByParty } from "./seatWeights.js";
 import {
   GOVERNMENT_CHAMBER_BY_COUNTRY,
   INITIAL_CONFIDENCE,
@@ -122,6 +123,11 @@ function processCountry(world: WorldState, countryId: string, chamberKey: string
   const leg = world.legislatures[countryId];
   const chamber = leg?.chambers.find((c) => c.key === chamberKey);
   if (!chamber) return;
+  const seatsByParty = liveChamberSeatsByParty(world, countryId, chamberKey);
+  chamber.composition = {
+    seatsByParty,
+    vacancies: Math.max(0, chamber.seats - Object.values(seatsByParty).reduce((sum, seats) => sum + seats, 0)),
+  };
   if (isRecordedSingleplayerHeadOfGovernment(world, countryId)) {
     seatSingleplayerHeadOfGovernment(world);
     return;
@@ -133,6 +139,9 @@ function processCountry(world: WorldState, countryId: string, chamberKey: string
     gov = createGovernment(countryId, chamberKey, chamber, turn);
     world.governments[countryId] = gov;
   }
+  gov.seatsByParty = { ...seatsByParty };
+  gov.totalSeats = chamber.seats;
+  gov.majorityThreshold = majorityThreshold(chamber.seats);
   const priorPmId = gov.pmPoliticianId;
 
   const electionResolvedThisTurn = world.elections.some(
