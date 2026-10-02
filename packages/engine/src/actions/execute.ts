@@ -69,6 +69,8 @@ import { canPlayerOperateGosbank } from "../commandEconomy/authority.js";
 import { reconcileCeoAppointment } from "../corporation/ceoGovernance.js";
 import { enactNationalSubsidy, endNationalSubsidy } from "../budget/subsidyBudget.js";
 import { splitNationalCorporation, mergeNationalCorporation } from "../corporation/nationalReorganization.js";
+import { foundPlayerCorporation } from "../corporation/playerFounding.js";
+import type { CorporationType } from "../corporation/types.js";
 import { nationalizeDistressedCorporation } from "../corporation/nationalization.js";
 import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
 import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecruit.js";
@@ -85,6 +87,10 @@ export type ExecuteActionParams = {
   /** Source canvassing batch size, 1 through 50. */
   count?: number;
   amount?: number; // for convertCash
+  corporationName?: string;
+  tickerSymbol?: string;
+  sectorType?: CorporationType;
+  startingCapital?: number;
   partyId?: string;
   caucusId?: string;
   caucusName?: string;
@@ -473,6 +479,18 @@ function executeActionInner(
 
   if (actionId === "splitNationalCorporation") return splitNationalCorporation(world, actorId, params.countryId ?? world.player.countryId, params.sectorType!, params.newCorpName!);
   if (actionId === "mergeNationalCorporation") return mergeNationalCorporation(world, actorId, params.countryId ?? world.player.countryId, params.sectorType!, params.intoCorpId);
+  if (actionId === "foundCorporation") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can found a corporation" };
+    const result = foundPlayerCorporation(world, {
+      name: params.corporationName ?? "",
+      tickerSymbol: params.tickerSymbol ?? "",
+      sectorType: params.sectorType!,
+      startingCapital: params.startingCapital,
+    });
+    return result.ok
+      ? { ok: true, message: `Founded ${world.corporations[result.corporationId]!.name} (${world.corporations[result.corporationId]!.tickerSymbol}) with ${result.startingCapital} in starting capital.` }
+      : { ok: false, error: result.error };
+  }
 
   // Cost check (dynamic). Party/caucus actions charge from the shared
   // partyCaucusCharge projection (#61) so the displayed quote and this charge
@@ -2583,6 +2601,9 @@ function executeActionInner(
 
 function validateRequiredActionParams(actionId: string, params: ExecuteActionParams): string | null {
   switch (actionId) {
+    case "foundCorporation":
+      return params.corporationName && params.tickerSymbol && params.sectorType
+        ? null : "foundCorporation requires corporationName, tickerSymbol, and sectorType";
     case "canvass":
     case "organize":
     case "pressureBoost":

@@ -1032,6 +1032,8 @@ export interface PlayerCharacter {
   /** One normalized UK office constituency selection, valid only in its saved region. */
   constituency?: { id: string; name: string; regionId: string };
   cash: number;
+  /** Source per-user 168-turn corporation-founding cooldown; absent means never founded. */
+  lastCorporationFoundedTurn?: number;
   /**
    * Optional foreign-currency personal balances. Bond cash flows use the
    * bond's denomination, matching AHDGame Character.currencyBalances.personal.

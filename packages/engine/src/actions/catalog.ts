@@ -106,6 +106,7 @@ export type ActionId =
   // W11 extraction/prospecting
   | "launchProspect"
   | "expandRegionalExtraction"
+  | "foundCorporation"
   | "issueExtractionContract"
   | "acceptExtractionContract"
   | "declineExtractionContract"
@@ -905,6 +906,16 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     cooldown: 0,
     fundCost: 0,
     systems: ["corporations", "extraction"],
+    status: "available",
+  },
+  foundCorporation: {
+    id: "foundCorporation",
+    name: "Found Corporation",
+    description: "Found a private corporation from personal cash, with source-scaled startup capital, founder shares, CEO control, and home-region headquarters.",
+    baseCost: 0,
+    cooldown: 0,
+    fundCost: 0,
+    systems: ["corporations"],
     status: "available",
   },
   issueExtractionContract: {
