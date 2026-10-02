@@ -98,6 +98,7 @@ import {
 import { computeFormation } from "./government/formation.js";
 import { seatSingleplayerHeadOfGovernment } from "./government/singleplayerHeadOfGovernment.js";
 import { GOVERNMENT_CHAMBER_BY_COUNTRY, GOVERNOR_COUNTRIES, UK_DEVOLVED_GOVERNOR_REGIONS } from "./government/constants.js";
+import { initialUKDevolutionState } from "./devolution/ukInstitutions.js";
 import { EXECUTIVE_OFFICE_BY_COUNTRY } from "./actions/officeRegistry.js";
 
 // Pre-allocated v39 for M1 (Lane 12 Head of State mode). This branch point
@@ -170,7 +171,8 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // retain absent creation/grace history rather than receiving invented clocks.
 // v54: persisted labour political snapshots affect future regional dynamics;
 // older readers retain unknown JSON but cannot consume the consequence.
-export const SCHEMA_VERSION = 54;
+// v63: source UK devolved-executive institutions and first-election anchors.
+export const SCHEMA_VERSION = 63;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {
@@ -1123,6 +1125,7 @@ export function createWorld(options: NewWorldOptions): WorldState {
     // in packages/content). Seeded here with office AP capped so powers are
     // immediately usable once a holder seats.
     governors: seedGovernors(regions),
+    ...(countries.UK ? { ukDevolution: initialUKDevolutionState(Number(pack.era.startDate.slice(0, 4))) } : {}),
     governorAddresses: [],
     governorOrders: [],
     player: {

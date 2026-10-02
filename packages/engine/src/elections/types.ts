@@ -23,7 +23,7 @@ export interface ElectionCandidate {
   campaignSuspended?: boolean | undefined;
 }
 
-export type ElectionStatus = "upcoming" | "active" | "resolved";
+export type ElectionStatus = "upcoming" | "active" | "resolved" | "cancelled";
 
 export interface PrimaryResultEntry {
   candidateId: string;

@@ -5,6 +5,9 @@ import { createWorld } from "../world.js";
 import { cycleContextForWorld, electionSeriesForWorld } from "./orchestration.js";
 import { getCycleAnchors } from "../electionEngine/resolution/cycleAnchorContext.js";
 import { getUkCommonsSeats } from "../electionEngine/resolution/constants.js";
+import { executeAction } from "../actions/execute.js";
+import { rngFromSeed } from "../rng.js";
+import { runVoteAccumulation } from "./orchestration.js";
 
 describe("source country governor election families", () => {
   it("spawns source-sized UK Commons races per region and preserves them through save/reload", () => {
@@ -20,6 +23,12 @@ describe("source country governor election families", () => {
       expect(races.every((race) => race.state && race.totalSeats === seats[race.state])).toBe(true);
       expect(races.some((race) => race.state === undefined)).toBe(false);
       if (era === "1953") {
+        // Verify the real UK regional demographic tally path, then use a
+        // deterministic fixture tally to make the downstream winner and seat
+        // assertions stable across unrelated vote-model changes.
+        world.meta.turn = races[0]!.primaryEndTurn + 1;
+        runVoteAccumulation(world, rngFromSeed("uk-commons-real-tally"));
+        expect(races.every((race) => Object.values(race.tally).some((votes) => votes > 0))).toBe(true);
         for (const race of races) {
           race.tally = Object.fromEntries(race.candidates.map((candidate, index) => [candidate.id, index === 0 ? 100 : 10]));
         }
@@ -94,6 +103,50 @@ describe("source country governor election families", () => {
       expect(restored.elections.find((saved) => saved.id === race.id)).toEqual(JSON.parse(JSON.stringify(race)));
       expect(restored.governors[race.state!]!.governorId).toBe(world.governors[race.state!]!.governorId);
     }
+  });
+
+  it("applies UK devolution settlement through the public bill action and ordinary turn", () => {
+    const world = createWorld({ seed: "uk-devolution-policy", playerName: "Prime Minister", countryId: "UK", era: "2019", mode: "hos" });
+    world.player.nationalInfluence = 50;
+    advanceTurn(world);
+    const initialRace = world.elections.find((election) => election.countryId === "UK" && election.electionType === "governor" && election.state === "SCO");
+    expect(initialRace?.status).toBe("active");
+    world.governors.SCO!.governorId = initialRace!.candidates[0]!.id;
+
+    const abolition = executeAction(world, "player", "sponsorBill", {
+      catalogId: "uk_devolution_local_powers",
+      policyOptionId: "l6",
+    });
+    expect(abolition.ok).toBe(true);
+    expect(world.bills.at(-1)).toMatchObject({ status: "signed", enactedLevel: 6 });
+    advanceTurn(world);
+    expect(world.ukDevolution?.regions.SCO?.active).toBe(false);
+    expect(world.governors.SCO?.governorId).toBeNull();
+    expect(world.elections.find((election) => election.id === initialRace!.id)?.status).toBe("cancelled");
+
+    const restoration = executeAction(world, "player", "sponsorBill", {
+      catalogId: "uk_devolution_local_powers",
+      policyOptionId: "l1",
+    });
+    expect(restoration.ok).toBe(true);
+    const enactmentTurn = world.meta.turn;
+    advanceTurn(world);
+    expect(world.ukDevolution?.regions.SCO).toEqual({ active: true, firstCycle: 1, firstElectionEndTurn: enactmentTurn + 72 });
+    expect(electionSeriesForWorld(world).find((spec) => spec.countryId === "UK" && spec.electionType === "governor" && spec.state === "SCO")).toMatchObject({
+      firstCycle: 1,
+      customCycle1EndTurn: enactmentTurn + 72,
+    });
+    const restoredRace = world.elections.find(
+      (election) => election.countryId === "UK" && election.electionType === "governor" && election.state === "SCO" && election.status === "active",
+    );
+    expect(restoredRace, JSON.stringify({ turn: world.meta.turn, preIteration: world.meta.preIteration, rows: world.elections.filter((election) => election.countryId === "UK" && election.state === "SCO" && election.electionType === "governor").map(({ id, cycle, status, startTurn, endTurn }) => ({ id, cycle, status, startTurn, endTurn })), spec: electionSeriesForWorld(world).find((spec) => spec.countryId === "UK" && spec.electionType === "governor" && spec.state === "SCO") })).toBeDefined();
+    expect(restoredRace!.id).not.toBe(initialRace!.id);
+    expect(restoredRace!.cycle).toBe(1);
+    expect(restoredRace!.endTurn).toBe(enactmentTurn + 72);
+
+    const saved = deserializeSave(serializeSave(world, "uk-devolution-policy"));
+    expect(saved.ukDevolution).toEqual(JSON.parse(JSON.stringify(world.ukDevolution)));
+    expect(saved.elections.find((election) => election.id === restoredRace!.id)).toEqual(JSON.parse(JSON.stringify(restoredRace)));
   });
 
   it("runs and persists RU and DD First Secretary elections through the normal turn loop", () => {

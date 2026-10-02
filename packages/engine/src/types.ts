@@ -400,6 +400,13 @@ export interface WorldState {
    * unchanged on top.
    */
   governors: Record<string, import("./governor/types.js").GovernorState>;
+  /**
+   * UK devolved-executive institutions and their first election anchors.
+   * New worlds seed the authored settlement; legacy saves may omit this state
+   * and retain that absence until a national policy actually changes it.
+   * Schema v63.
+   */
+  ukDevolution?: import("./devolution/ukInstitutions.js").UKDevolutionState;
   governorAddresses: import("./governor/types.js").GovernorAddress[];
   governorOrders: import("./governor/types.js").GovernorOrder[];
   /**

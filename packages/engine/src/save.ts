@@ -885,6 +885,36 @@ function assertCurrentWorldState(world: WorldState): void {
     throw new Error("Not a valid save file: invalid world state");
   }
 
+  const ukDevolution = value["ukDevolution"];
+  if (ukDevolution !== undefined) {
+    const expectedRegions = ["LON", "NIR", "SCO", "WAL"];
+    if (
+      !isRecord(ukDevolution) ||
+      ukDevolution["_id"] !== "UK" ||
+      !isRecord(ukDevolution["regions"]) ||
+      Object.keys(ukDevolution["regions"]).sort().join(",") !== expectedRegions.join(",") ||
+      Object.keys(ukDevolution).some((key) => !["_id", "regions", "lastPolicyBillId"].includes(key)) ||
+      (ukDevolution["lastPolicyBillId"] !== undefined &&
+        (typeof ukDevolution["lastPolicyBillId"] !== "string" || ukDevolution["lastPolicyBillId"].length === 0))
+    ) {
+      throw new Error("Not a valid save file: invalid UK devolution institution state");
+    }
+    for (const regionId of expectedRegions) {
+      const institution = ukDevolution["regions"][regionId];
+      if (
+        !isRecord(institution) ||
+        Object.keys(institution).some((key) => !["active", "firstCycle", "firstElectionEndTurn"].includes(key)) ||
+        typeof institution["active"] !== "boolean" ||
+        !Number.isInteger(institution["firstCycle"]) ||
+        (institution["firstCycle"] as number) < 1 ||
+        (institution["firstElectionEndTurn"] !== undefined &&
+          (!Number.isInteger(institution["firstElectionEndTurn"]) || (institution["firstElectionEndTurn"] as number) < 0))
+      ) {
+        throw new Error(`Not a valid save file: invalid UK devolution institution state for ${regionId}`);
+      }
+    }
+  }
+
   const pricingState = value["centralBankPricingPhaseIn"];
   if (
     pricingState !== undefined &&
@@ -3390,6 +3420,10 @@ export function deserializeSave(raw: string): WorldState {
   // absent history absent; the version bump makes older readers refuse new
   // saves rather than silently retaining a snapshot they cannot consume.
   if (save.schemaVersion < 54) save.world.meta.schemaVersion = 54;
+  // Schema 63 adds source UK devolution institution state. Legacy absence is
+  // preserved: initial institutions remain derivable from the authored era,
+  // and no policy history or regional office activation is invented at load.
+  if (save.schemaVersion < 63) save.world.meta.schemaVersion = 63;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

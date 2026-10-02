@@ -7,7 +7,7 @@ import {
   type ElectionPlan,
 } from "../electionEngine/resolution/electionSpawning.js";
 import type { CycleAnchorContext } from "../electionEngine/resolution/cycleAnchorContext.js";
-import { eraToPreset, getStartingYearForPreset, getUkCommonsSeats } from "../electionEngine/resolution/constants.js";
+import { eraToPreset, getStartingYearForPreset, getUkCommonsSeats, DEFAULT_DURATIONS } from "../electionEngine/resolution/constants.js";
 import {
   resolveGeneralElectionPure,
   type CandidateInput,
@@ -23,6 +23,15 @@ import { GOVERNOR_COUNTRIES, LOWER_CHAMBER_PER_REGION, SUBNATIONAL_CHAMBER_PER_R
 import { getCycleAnchors } from "../electionEngine/resolution/cycleAnchorContext.js";
 import { nppAutonomyLevelAtLeast, resolveNppAutonomyLevel } from "../nppAutonomyLevel.js";
 import { UK_REGIONAL_COUNCIL_COHORT_BY_REGION } from "../electionEngine/midtermOppositionBoost.js";
+import {
+  applyUKDevolutionPolicy,
+  executiveCycleAnchor,
+  initialUKDevolutionState,
+  UK_EXECUTIVE_REGIONS,
+  type EnactedDevolutionPolicy,
+  type UKDevolutionState,
+  type UKExecutiveRegion,
+} from "../devolution/ukInstitutions.js";
 
 /**
  * W21c orchestration: turns the pure election library into live world behavior.
@@ -78,10 +87,71 @@ export interface SeriesSpec {
   chamberKey: string;
   state?: string;
   customCycle1EndTurn?: number;
+  firstCycle?: number;
   senateClass?: 1 | 2 | 3;
   /** JP Sangiin class (1|2); rides the record's senateClass slot for ids and seat matching. */
   chamberClass?: 1 | 2;
   totalSeats: number;
+}
+
+function initialUKInstitutionsForWorld(world: WorldState): UKDevolutionState {
+  const initial = initialUKDevolutionState(cycleContextForWorld(world).startingYear);
+  // AHDGame's lazy initial-state read preserves an already seated regional
+  // executive even when the authored start-year threshold predates it.
+  for (const region of UK_EXECUTIVE_REGIONS) {
+    if (world.governors[region]?.governorId) initial.regions[region].active = true;
+  }
+  return initial;
+}
+
+function currentUKDevolutionPolicy(world: WorldState): EnactedDevolutionPolicy | null {
+  const current = Object.values(world.policyLedger)
+    .filter((entry) =>
+      entry.countryId === "UK" &&
+      entry.scope === "national" &&
+      entry.legislationTypeId === "uk_devolution_local_powers" &&
+      entry.repealedAtTurn === undefined &&
+      !entry.isRepeal,
+    )
+    .sort((a, b) => b.enactedTurn - a.enactedTurn)[0];
+  if (!current || !/^(0|[1-6])$/.test(current.policyOptionId)) return null;
+  return { billId: current.id, optionIndex: Number(current.policyOptionId), enactedTurn: current.enactedTurn };
+}
+
+/** Apply an enacted source settlement before the election family reconciles. */
+function reconcileUKDevolutionForTurn(world: WorldState): void {
+  const state = world.ukDevolution ?? initialUKInstitutionsForWorld(world);
+  const completedCycles: Partial<Record<UKExecutiveRegion, number>> = {};
+  for (const election of world.elections) {
+    if (election.countryId !== "UK" || election.electionType !== "governor" || election.status !== "resolved" || !election.state) continue;
+    const region = election.state as UKExecutiveRegion;
+    if (!UK_EXECUTIVE_REGIONS.includes(region)) continue;
+    completedCycles[region] = Math.max(completedCycles[region] ?? 0, election.cycle);
+  }
+  const next = applyUKDevolutionPolicy(
+    state,
+    currentUKDevolutionPolicy(world),
+    completedCycles,
+    24 + DEFAULT_DURATIONS.governor.generalDurationHours,
+  );
+  if (next !== state) world.ukDevolution = next;
+  const effective = world.ukDevolution ?? state;
+  const inactive = new Set(UK_EXECUTIVE_REGIONS.filter((region) => !effective.regions[region].active));
+  if (inactive.size === 0) return;
+  for (const election of world.elections) {
+    if (election.countryId === "UK" && election.electionType === "governor" && election.state && inactive.has(election.state as UKExecutiveRegion) && election.status !== "resolved") {
+      election.status = "cancelled";
+    }
+  }
+  for (const region of inactive) {
+    const office = world.governors[region];
+    if (!office) continue;
+    office.governorId = null;
+    office.governorParty = null;
+    office.governorName = null;
+    office.termStartTurn = null;
+    office.gubernatorialActions = 0;
+  }
 }
 
 export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
@@ -99,6 +169,7 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
   const regions = world.regions ?? {};
   const cycleContext = cycleContextForWorld(world);
   const cycleAnchors = getCycleAnchors(cycleContext);
+  const ukInstitutionState = world.ukDevolution ?? initialUKInstitutionsForWorld(world);
   // US: house per state (apportioned seats), senate per state per class.
   // Governor per state - Source: src/lib/elections/canonicalCycle.ts governor case
   // uses anchors.governorStateSenate (shared with stateSenate). Duration 192
@@ -123,13 +194,21 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
     if (!GOVERNOR_COUNTRIES.has(r.countryId)) continue;
     if ((r.countryId === "RU" || r.countryId === "DD") && !sourceNppCountryLive(r.countryId)) continue;
     if (r.countryId === "UK") {
-      // AHDGame's initialUKDevolutionState activates Scotland, Wales and NI
-      // from 1999, and London from 2000. Native has no policy-backed office
-      // reconciliation state yet, so only the source-initialized institutions
-      // are scheduled here.
       if (!UK_DEVOLVED_GOVERNOR_REGIONS.has(r.id)) continue;
-      const firstYear = r.id === "LON" ? 2000 : 1999;
-      if (cycleContext.startingYear < firstYear) continue;
+      const institution = ukInstitutionState.regions[r.id as UKExecutiveRegion];
+      if (!institution?.active) continue;
+      specs.push({
+        electionType: "governor",
+        countryId: "UK",
+        chamberKey: "governor",
+        state: r.id,
+        totalSeats: 1,
+        firstCycle: institution.firstCycle,
+        ...(institution.firstElectionEndTurn !== undefined
+          ? { customCycle1EndTurn: executiveCycleAnchor(institution, DEFAULT_DURATIONS.governor.durationHours) }
+          : {}),
+      });
+      continue;
     }
     specs.push({ electionType: "governor", countryId: r.countryId, chamberKey: "governor", state: r.id, totalSeats: 1 });
   }
@@ -806,6 +885,7 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
 
 /** Spawn missing series records and flip statuses by turn. */
 export function runElectionTimers(world: WorldState, rng: WorldRng): void {
+  reconcileUKDevolutionForTurn(world);
   const ctx = cycleContextForWorld(world);
   const now = worldNow(world);
   const turn = world.meta.turn;
@@ -813,7 +893,8 @@ export function runElectionTimers(world: WorldState, rng: WorldRng): void {
   let lastCycleBySeries = new Map<string, number>();
   for (const rec of world.elections) {
     const key = recordSeriesKey(rec);
-    if (rec.status !== "resolved") unresolvedBySeries.set(key, rec);
+    if (rec.status === "active" || rec.status === "upcoming") unresolvedBySeries.set(key, rec);
+    if (rec.status === "cancelled") continue;
     const prev = lastCycleBySeries.get(key) ?? 0;
     if (rec.cycle > prev) lastCycleBySeries.set(key, rec.cycle);
   }
@@ -821,7 +902,7 @@ export function runElectionTimers(world: WorldState, rng: WorldRng): void {
   for (const spec of electionSeriesForWorld(world)) {
     const key = seriesKey(spec);
     if (unresolvedBySeries.has(key)) continue;
-    const prevCycle = lastCycleBySeries.get(key) ?? 0;
+    const prevCycle = Math.max(lastCycleBySeries.get(key) ?? 0, (spec.firstCycle ?? 1) - 1);
     const base = { _id: key, electionType: spec.electionType, countryId: spec.countryId, ...(spec.state !== undefined ? { state: spec.state } : {}), cycle: prevCycle };
     const plan =
       spec.electionType === "house"
@@ -830,7 +911,10 @@ export function runElectionTimers(world: WorldState, rng: WorldRng): void {
             electionType: spec.electionType,
             prevCycle,
             currentTurn: turn,
-            ctx,
+            // The source suppresses founding elections while its world is in
+            // pre-iteration, except when a restored UK institution carries an
+            // explicit first-election deadline from enacted policy.
+            ctx: spec.customCycle1EndTurn !== undefined ? { ...ctx, preIterationActive: false } : ctx,
             now,
             countryId: spec.countryId,
             state: spec.state,
@@ -839,8 +923,14 @@ export function runElectionTimers(world: WorldState, rng: WorldRng): void {
             chamberClass: spec.chamberClass,
           } as unknown as Parameters<typeof planNextElectionForType>[0]);
     if (!plan) continue;
+    const electionIdBase = electionRecordId(plan, spec.senateClass ?? spec.chamberClass);
+    let electionId = electionIdBase;
+    let reuseOrdinal = 2;
+    while (world.elections.some((existing) => existing.id === electionId)) {
+      electionId = `${electionIdBase}:r${reuseOrdinal++}`;
+    }
     const rec: ElectionRecord = {
-      id: electionRecordId(plan, spec.senateClass ?? spec.chamberClass),
+      id: electionId,
       electionType: plan.electionType,
       countryId: plan.countryId,
       state: spec.state,
