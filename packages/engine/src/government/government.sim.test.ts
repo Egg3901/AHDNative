@@ -34,6 +34,30 @@ function makePolitician(id: string, countryId: string, partyId: string, chamberK
   };
 }
 
+/** Recorded office fixture: the cached composition alone does not confer
+ * votes or a government majority. Populate those authored totals on the
+ * current office holders, as Game's electedOfficials.seatsHeld requires.
+ */
+function recordCommonsOfficeWeights(world: ReturnType<typeof createWorld>): void {
+  const target = world.legislatures.UK!.chambers.find(c => c.key === "commons")!.composition.seatsByParty;
+  const holders = world.politicians.filter(p => p.countryId === "UK" && p.chamberKey === "commons");
+  const byParty = new Map<string, Politician[]>();
+  for (const holder of holders) {
+    const party = byParty.get(holder.partyId) ?? [];
+    party.push(holder);
+    byParty.set(holder.partyId, party);
+  }
+  for (const [partyId, members] of byParty) {
+    const seats = target[partyId] ?? 0;
+    const base = Math.floor(seats / members.length);
+    members.forEach((holder, index) => {
+      const weight = base + (index < seats % members.length ? 1 : 0);
+      if (weight > 0) holder.seatsHeld = weight;
+      else { holder.chamberKey = ""; delete holder.seatsHeld; }
+    });
+  }
+}
+
 function setPartyChairForGovernment(world: ReturnType<typeof createWorld>, countryId: string, partyId: string): string {
   const chamberKey = GOVERNMENT_CHAMBER_BY_COUNTRY[countryId]!;
   const politician = world.politicians.find(
@@ -136,7 +160,7 @@ describe("governmentFormationPhase (integration)", () => {
     expect(dd.pmPoliticianId).not.toBeNull();
   });
 
-  it("forms a majority UK government from a fabricated commons composition", () => {
+  it("forms a majority UK government from recorded weighted Commons offices", () => {
     const w = createWorld(OPTS);
     const commons = w.legislatures["UK"]!.chambers.find((c) => c.key === "commons")!;
     commons.composition = { seatsByParty: { UK_LAB: 400, UK_CON: 225 }, vacancies: 0 };
@@ -144,6 +168,7 @@ describe("governmentFormationPhase (integration)", () => {
     w.politicians.push(makePolitician("UK-con-1", "UK", "UK_CON", "commons", 20));
     w.parties["UK_LAB"]!.chairId = "UK-lab-1";
 
+    recordCommonsOfficeWeights(w);
     governmentFormationPhase.run(w, undefined as never);
 
     const gov = w.governments["UK"]!;
@@ -166,6 +191,7 @@ describe("governmentFormationPhase (integration)", () => {
     w.politicians.push(makePolitician("UK-lib-1", "UK", "UK_LIB", "commons", 20));
     w.parties["UK_LAB"]!.chairId = "UK-lab-1";
 
+    recordCommonsOfficeWeights(w);
     governmentFormationPhase.run(w, undefined as never);
 
     const gov = w.governments["UK"]!;
@@ -177,19 +203,20 @@ describe("governmentFormationPhase (integration)", () => {
     expect(gov.totalSeatsSupporting).toBe(550);
   });
 
-  it("stays pending (hung, no eligible bid) and arms the PM vacancy deadline", () => {
+  it("keeps a first hung formation pending without a PM vacancy deadline", () => {
     const w = createWorld(OPTS);
     const commons = w.legislatures["UK"]!.chambers.find((c) => c.key === "commons")!;
     commons.composition = { seatsByParty: { UK_LAB: 60, UK_CON: 50 }, vacancies: 515 };
     w.politicians.push(makePolitician("UK-lab-1", "UK", "UK_LAB", "commons", 20));
     w.politicians.push(makePolitician("UK-con-1", "UK", "UK_CON", "commons", 20));
 
+    recordCommonsOfficeWeights(w);
     governmentFormationPhase.run(w, undefined as never);
 
     const gov = w.governments["UK"]!;
     expect(gov.status).toBe("pending");
     expect(gov.pmPoliticianId).toBeNull();
-    expect(gov.pmVacancyDeadlineTurn).toBe(w.meta.turn + PM_VACANCY_DEADLINE_TURNS);
+    expect(gov.pmVacancyDeadlineTurn).toBeNull();
   });
 
   it("re-forming with the same PM applies the renewal bump; a new PM resets confidence to the initial value", () => {
@@ -199,6 +226,7 @@ describe("governmentFormationPhase (integration)", () => {
     w.politicians.push(makePolitician("UK-lab-1", "UK", "UK_LAB", "commons", 20));
     w.politicians.push(makePolitician("UK-con-1", "UK", "UK_CON", "commons", 20));
     w.parties["UK_LAB"]!.chairId = "UK-lab-1";
+    recordCommonsOfficeWeights(w);
     governmentFormationPhase.run(w, undefined as never);
     expect(w.governments["UK"]!.confidence).toBe(75);
 
@@ -220,6 +248,7 @@ describe("governmentFormationPhase (integration)", () => {
       tally: {},
       resolvedTurn: w.meta.turn,
     });
+    recordCommonsOfficeWeights(w);
     governmentFormationPhase.run(w, undefined as never);
     expect(w.governments["UK"]!.pmPoliticianId).toBe("UK-lab-1");
     expect(w.governments["UK"]!.confidence).toBe(80);
@@ -233,9 +262,18 @@ describe("governmentVacancyWatcherPhase / triggerSnapElection", () => {
     commons.composition = { seatsByParty: { UK_LAB: 60, UK_CON: 50 }, vacancies: 515 };
     w.politicians.push(makePolitician("UK-lab-1", "UK", "UK_LAB", "commons", 20));
     w.politicians.push(makePolitician("UK-con-1", "UK", "UK_CON", "commons", 20));
+    recordCommonsOfficeWeights(w);
     governmentFormationPhase.run(w, undefined as never);
     const gov = w.governments["UK"]!;
     expect(gov.status).toBe("pending");
+    // A recorded completed election, unlike the first formation, rearms
+    // the actual source post-election vacancy clock.
+    w.elections.push({
+      id: "commons:UK:recorded-vacancy", countryId: "UK", electionType: "commons", cycle: 0,
+      status: "resolved", startTurn: 0, primaryEndTurn: 0, endTurn: 0, totalSeats: 625,
+      chamberKey: "commons", candidates: [], tally: {}, resolvedTurn: w.meta.turn,
+    });
+    governmentFormationPhase.run(w, undefined as never);
     const deadline = gov.pmVacancyDeadlineTurn!;
 
     w.meta.turn = deadline;

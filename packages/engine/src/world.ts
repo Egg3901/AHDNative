@@ -182,9 +182,11 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v62: union-law, underground organizing, detection, and ban-strike continuation
 // must not be accepted by the schema-61 reader, which cannot consume that state.
 // v63: source primary National Corporation identity and cross-sector routing.
-// v64: annual source statehood-admission continuation and admittedYear region
-// stamps, plus weighted office continuation across ballots and governments.
-export const SCHEMA_VERSION = 64;
+// v64: allocated seatsHeld weights must survive winner, ballot and government
+// continuation; older readers count one vote per office and must refuse them.
+// v65: annual source statehood-admission continuation and admittedYear region
+// stamps. Older readers must refuse rather than invent preset or guard state.
+export const SCHEMA_VERSION = 65;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */
 const TREASURY_BY_PARTY: Record<string, number> = {

@@ -3681,12 +3681,15 @@ export function deserializeSave(raw: string): WorldState {
   // v63: primary/split-off ownership routing needs the new consumer.
   // Preserve historical absence of primary flags and sector assignments.
   if (save.schemaVersion < 63) save.world.meta.schemaVersion = 63;
-  // v64: statehood admission's starting preset/annual guard and weighted-seat
-  // office continuation now have explicit consumers. Historical winner
-  // weights cannot be reconstructed from redistributed rosters, so absent
-  // legacy weights keep their one-vote default.
-  if (save.schemaVersion < 64) {
-    save.world.meta.schemaVersion = 64;
+  // v64: preserve absent legacy seat weights as one. Historical winner
+  // weights cannot be reconstructed from previously redistributed rosters.
+  // Earlier readers must refuse weighted offices they cannot continue.
+  if (save.schemaVersion < 64) save.world.meta.schemaVersion = 64;
+  // v65: source statehood admission requires the original starting preset
+  // and annual evaluation guard. Preserve a previously recorded preset; for
+  // older saves infer only from existing geography and current era.
+  if (save.schemaVersion < 65) {
+    save.world.meta.schemaVersion = 65;
     const regions = save.world.regions;
     const currentEra = typeof save.world.meta.era === "string" ? save.world.meta.era : "1953";
     const inferredPreset = regions?.AK?.countryId === "US" && regions.AK.houseSeats === 0

@@ -47,7 +47,7 @@ describe("ordinary-turn statehood admission", () => {
     expect(world.elections.some((race) => race.countryId === "US" && race.state === "AK" && race.electionType === "senate")).toBe(true);
 
     const save = serializeSave(world, "2026-10-02T00:00:00Z");
-    expect(JSON.parse(save).schemaVersion).toBe(64);
+    expect(JSON.parse(save).schemaVersion).toBe(65);
     const resumed = deserializeSave(save);
     const previousNewsCount = resumed.news.filter((item) => item.headline.includes("admitted to the Union")).length;
     advanceTurn(resumed);
