@@ -32,7 +32,8 @@ test('Official National Corporation paid taking survives a normal turn and two p
   await expect(page.getByRole('combobox', { name: 'Tier', exact: true })).toHaveValue('discounted');
   await expect(page.getByText(/Final amount computed and debited at execution/)).toBeVisible();
   await page.getByRole('button', { name: 'Nationalize', exact: true }).click();
-  await expect(page.getByRole('status').filter({ hasText: `${targetName} nationalized.` })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: `${targetName} was absorbed into` })).toBeVisible();
+  await gameReady(page);
 
   const openPaidRegister = async () => {
     await navigateGame(page, 'National Budget');
@@ -42,6 +43,7 @@ test('Official National Corporation paid taking survives a normal turn and two p
     const compensation = paid.locator('dl > div').filter({ has: page.getByText('Compensation', { exact: true }) }).locator('dd');
     await expect(compensation).not.toHaveText('None');
     await expect(compensation).toContainText('$');
+    expect(Number((await compensation.innerText()).replace(/[^\d.-]/g, ''))).toBeGreaterThan(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   };
   await openPaidRegister();
