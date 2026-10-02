@@ -197,6 +197,20 @@ export interface Corporation {
   legacySoeProjection?: { countryOwnerId?: string; ownershipState?: "private" | "stateOwned" };
   /** Source creator ownership, independent of CEO; absent legacy Native means NPC-founded. */
   nationalizationOwnerKind?: "npc" | "player";
+  /** Source private-company flag. Absent legacy corporations are public companies. */
+  isPrivate?: boolean;
+  /** One persisted source-style shareholder relocation vote. */
+  relocationVote?: {
+    id: string;
+    status: "open" | "passed" | "failed" | "cancelled";
+    proposedTurn: number;
+    deadlineTurn: number;
+    destinationRegionId: string;
+    destinationCountryId: string;
+    passThreshold: number;
+    eligibleSharesAtOpen: number;
+    votes: Array<{ voterId: "player" | "npc"; choice: "yes" | "no" }>;
+  };
   /** Source insolvency/default grace clock; no reconstruction from older Native insolvency. */
   financialDistressSinceTurn?: number | null;
   /** Source continuous CEO vacancy clock, set on resignation and cleared on acceptance. */

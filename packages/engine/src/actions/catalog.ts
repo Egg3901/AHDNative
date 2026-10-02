@@ -109,6 +109,8 @@ export type ActionId =
   | "foundCorporation"
   | "expandCorporationSector"
   | "buyCorporateSector"
+  | "openCorporateRelocationVote"
+  | "voteCorporateRelocation"
   | "issueExtractionContract"
   | "acceptExtractionContract"
   | "declineExtractionContract"
@@ -939,6 +941,20 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     fundCost: 0,
     systems: ["corporations", "regional-markets"],
     status: "available",
+  },
+  openCorporateRelocationVote: {
+    id: "openCorporateRelocationVote",
+    name: "Propose Corporate Relocation",
+    description: "Open a 24-turn shareholder vote to relocate a public corporation's headquarters to a recorded region.",
+    baseCost: 0, cooldown: 0, fundCost: 0,
+    systems: ["corporations", "corporation/governance"], status: "available",
+  },
+  voteCorporateRelocation: {
+    id: "voteCorporateRelocation",
+    name: "Vote on Corporate Relocation",
+    description: "Cast or update your source-weighted shareholder ballot on a pending headquarters relocation.",
+    baseCost: 0, cooldown: 0, fundCost: 0,
+    systems: ["corporations", "corporation/governance"], status: "available",
   },
   issueExtractionContract: {
     id: "issueExtractionContract",

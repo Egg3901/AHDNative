@@ -68,7 +68,7 @@ export function foundPlayerCorporation(world: WorldState, input: FoundPlayerCorp
   Object.assign(corporation, {
     id, name, tickerSymbol, brandColor: "#2864dc", countryId: world.player.countryId,
     headquartersRegionId: hqRegionId, ceoId: "player", ceoType: "player", ceoVacant: false,
-    ceoSalaryPerTurn: 0, nationalizationOwnerKind: "player", ownershipState: "private",
+    ceoSalaryPerTurn: 0, nationalizationOwnerKind: "player", ownershipState: "private", isPrivate: true,
     sectorType: input.sectorType, revenue: 0, targetGrowthRate: template.targetGrowthRate,
     ...(input.secondarySectorType ? { secondarySectorType: input.secondarySectorType } : {}),
     currentGrowthRate: 0, currentGrowthCost: 0, profitMargin: 35, effectiveProfitMargin: 35,

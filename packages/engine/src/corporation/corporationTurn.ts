@@ -74,6 +74,7 @@ import { strategyLevers } from "./nppCorpStrategy.js";
 import { unlockNppCorporationTech } from "./techTree/nppUnlock.js";
 import { getSectorTechEffects } from "./techTree/selectors.js";
 import { assembleSourcePlantPnl, sourcePlantPolicyCredit } from "./physicalPlantCosts.js";
+import { resolveDueCorporateRelocationVotes } from "./relocationVotes.js";
 import {
   RD_EXTRACTION_BOOST_MAX,
   RD_EXTRACTION_BOOST_MIN,
@@ -462,6 +463,7 @@ export const corporationTurnPhase: TurnPhase = {
     runCorporateRdInnovations(world);
     syncSourceRegionalSectorReceipts(world);
     stepCorporateSectorStrikes(world, world.meta.turn, labour);
+    resolveDueCorporateRelocationVotes(world);
 
     // Per-country revenue rollup for the macro growth-signal wire (see file doc).
     const byCountry: Record<string, number> = {};

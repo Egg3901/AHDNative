@@ -72,6 +72,7 @@ import { splitNationalCorporation, mergeNationalCorporation } from "../corporati
 import { foundPlayerCorporation } from "../corporation/playerFounding.js";
 import { expandPlayerCorporationSector } from "../corporation/playerSectorExpansion.js";
 import { buyCorporateSectorForSale } from "../corporation/corporateSectorAcquire.js";
+import { castCorporationRelocationVote, openCorporationRelocationVote } from "../corporation/relocationVotes.js";
 import type { CorporationType } from "../corporation/types.js";
 import { nationalizeDistressedCorporation } from "../corporation/nationalization.js";
 import { quoteNppInfluence, resolveNppInfluence } from "../npp/nppInfluence.js";
@@ -146,6 +147,7 @@ export type ExecuteActionParams = {
   corpId?: string;
   corporationId?: string;
   sectorId?: string;
+  relocationChoice?: "yes" | "no";
   strategyId?: string;
   tier?: "fair" | "discounted" | "seizure";
   newCorpName?: string;
@@ -513,6 +515,16 @@ function executeActionInner(
     return result.ok
       ? { ok: true, message: `Bought the listed sector for ${result.priceAnchor} anchor units.` }
       : { ok: false, error: result.error ?? "Corporate sector purchase failed." };
+  }
+  if (actionId === "openCorporateRelocationVote") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can propose a corporate relocation" };
+    const result = openCorporationRelocationVote(world, params.corporationId ?? "", params.regionId ?? "");
+    return result.ok ? { ok: true, message: `Opened relocation vote ${result.voteId}.` } : result;
+  }
+  if (actionId === "voteCorporateRelocation") {
+    if (found.kind !== "player") return { ok: false, error: "Only the player can vote on corporate relocation" };
+    const result = castCorporationRelocationVote(world, params.corporationId ?? "", params.relocationChoice ?? "no");
+    return result.ok ? { ok: true, message: `Recorded ${params.relocationChoice} on the corporate relocation vote (${result.status}).` } : result;
   }
 
   // Cost check (dynamic). Party/caucus actions charge from the shared
@@ -2633,6 +2645,12 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
     case "buyCorporateSector":
       return params.corporationId && params.sectorId
         ? null : "buyCorporateSector requires corporationId and sectorId";
+    case "openCorporateRelocationVote":
+      return params.corporationId && params.regionId
+        ? null : "openCorporateRelocationVote requires corporationId and regionId";
+    case "voteCorporateRelocation":
+      return params.corporationId && params.relocationChoice
+        ? null : "voteCorporateRelocation requires corporationId and relocationChoice";
     case "canvass":
     case "organize":
     case "pressureBoost":

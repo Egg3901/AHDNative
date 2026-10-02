@@ -56,6 +56,7 @@ import { validateNationalCorporations } from "./corporation/nationalCorporation.
 import { validateStateOwnershipLedger } from "./corporation/stateOwnershipLedger.js";
 import { validateCorporateCashLedger } from "./corporation/corporateCashLedger.js";
 import { validateNppStrategyState } from "./corporation/nppCorpStrategy.js";
+import { validateCorporateRelocationVote } from "./corporation/relocationVotes.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
 import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
 import {
@@ -457,6 +458,9 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   for (const [corpId, value] of Object.entries(corporations)) {
     if (!isRecord(value)) {
       return { ok: false, error: `Corporation ${corpId} cannot be projected to schema 42` };
+    }
+    if (value["isPrivate"] === true || value["relocationVote"] !== undefined) {
+      return { ok: false, error: `Corporation ${corpId} has private-company or relocation-vote state that cannot be projected to schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
     }
     // Schema 42 readers preserve unknown save keys, but their corporation
     // turn has no CEO ballot, appointment, compensation, or dividend phase.
@@ -3763,6 +3767,10 @@ export function deserializeSave(raw: string): WorldState {
   validateNationalCorporations(save.world);
   validateCanvassState(save.world);
   for (const corporation of Object.values(save.world.corporations)) validateNppStrategyState(corporation.nppStrategy);
+  for (const [corporationId, corporation] of Object.entries(save.world.corporations)) {
+    if (corporation.isPrivate !== undefined && typeof corporation.isPrivate !== "boolean") throw new Error(`Corporation ${corporationId} has invalid private-company state`);
+    validateCorporateRelocationVote(corporation.relocationVote, corporationId);
+  }
   // #295: persisted sector-owner default. Saves written before the
   // acquisition slice carry materialized assets without the field; missing
   // degrades to the #293 default ("corporation") and keeps every loaded row
