@@ -35,6 +35,10 @@ describe("source underground union rules", () => {
     world.budgets.UK!.unionsBanned = true;
     union.heat = 100;
     union.recentUndergroundDriveCount = 5;
+    // Current authority vector: AHDGame cb66acdf src/lib/turn/unions/undergroundTurn.ts
+    // calls seededRoll(scopeId, turn, "underground-detection", "illicit-unions-v1");
+    // src/lib/events/substrate/rng.ts hashes `${scopeId}:${turn}:${kind}:${salt}`
+    // with SHA-256 and reads the first big-endian uint32 before `% 100 + 1`.
     const digest = createHash("sha256").update("UK-manufacturing:7:underground-detection:illicit-unions-v1").digest().readUInt32BE(0);
     const expectedRoll = (digest % 100) + 1;
     expect(expectedRoll).toBe(15);

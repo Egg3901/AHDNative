@@ -45,15 +45,34 @@ describe("union labor journey through the public session", () => {
     expect(organizedTarget.unionization).toBeGreaterThanOrEqual(99);
     expect(organizedTarget.representingUnionId).toBe(UNION_ID);
 
+    // Keep an otherwise identical saved control at 0% beside the public 50%
+    // contribution treatment. Reload both before the ordinary dues turn so
+    // this measures the persisted player control and its actual payout.
+    const contributionControl = new GameSession();
+    contributionControl.load(session.serialize(STAMP));
+    expect(contributionControl.setUnionPoliticalContributions(UNION_ID, 0).ok).toBe(true);
+    const contributionControlSave = contributionControl.serialize(STAMP);
+    contributionControl.load(contributionControlSave);
+    const treatmentSave = session.serialize(STAMP);
+    session.load(treatmentSave);
+    expect(savedWorld(session).unions[UNION_ID]!.politicalContributionPct).toBe(0.5);
+    expect(savedWorld(contributionControl).unions[UNION_ID]!.politicalContributionPct).toBe(0);
+
     const fundsBeforeDuesTurn = savedWorld(session).player.funds;
+    const controlFundsBeforeDuesTurn = savedWorld(contributionControl).player.funds;
     session.advance();
+    contributionControl.advance();
     const duesSave = session.serialize(STAMP);
     const duesWorld = savedWorld(session);
+    const controlDuesWorld = savedWorld(contributionControl);
     const firstPayout = duesWorld.unionContributionLedger!.filter((row) => row.unionId === UNION_ID && row.turn === 1);
     expect(firstPayout).toHaveLength(1);
     expect(firstPayout[0]).toMatchObject({ recipientId: "player", source: "union_pac", amount: expect.any(Number) });
     expect(firstPayout[0]!.amount).toBeGreaterThan(0);
-    expect(duesWorld.player.funds).toBeGreaterThan(fundsBeforeDuesTurn);
+    expect(
+      duesWorld.player.funds - fundsBeforeDuesTurn - (controlDuesWorld.player.funds - controlFundsBeforeDuesTurn),
+    ).toBe(firstPayout[0]!.amount);
+    expect(controlDuesWorld.unionContributionLedger?.filter((row) => row.unionId === UNION_ID && row.turn === 1) ?? []).toHaveLength(0);
 
     const resumedDues = new GameSession();
     resumedDues.load(duesSave);
