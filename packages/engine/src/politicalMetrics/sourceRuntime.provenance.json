@@ -1,0 +1,488 @@
+{
+  "repository": "https://github.com/Egg3901/AHDGame",
+  "revision": "96831835fb6b28983aa14fe66cb6eae9ecfde84c",
+  "generator": "scripts/political-runtime-reference.mjs",
+  "inputs": [
+    {
+      "path": "src/lib/constants/capacityEconomy.ts",
+      "sha256": "1a10572417da7f9171881a1f857d9e0117c13cbef93ffe0c3c971f21677fe7d5"
+    },
+    {
+      "path": "src/lib/constants/commodities.ts",
+      "sha256": "d1c8fcee89aa4515a5a6af785a366f82f6fa0c5f758ef333e4a99e2c1961c467"
+    },
+    {
+      "path": "src/lib/constants/corporations.ts",
+      "sha256": "9d2b63ab7767f52513150d9f4e11bb664ae4aeaddf9ed4da06334ac77811bb2b"
+    },
+    {
+      "path": "src/lib/constants/economicModels.ts",
+      "sha256": "e70ea7d0f51a132931fcd227ff0f9b58ba55b5bd1da5bc42c08994bf2e35eb9a"
+    },
+    {
+      "path": "src/lib/constants/metricDefinitions.ts",
+      "sha256": "7f4077b6506d8082437fc5f4a1e38bd693407fd1947b9ee68900c3a919c5a793"
+    },
+    {
+      "path": "src/lib/constants/monetaryEra.ts",
+      "sha256": "a8827a5e5682522f9036295c961c5b0be894bd800dfad1b77a5e6523fb89a61d"
+    },
+    {
+      "path": "src/lib/constants/nationalScope.ts",
+      "sha256": "7f77fac803d1c3b8833505933b9014a0e1528f908e8a4250f62227f353182e9a"
+    },
+    {
+      "path": "src/lib/constants/sectorStrategies.ts",
+      "sha256": "89511669113d5f1a6455a9b47e214788f5a03aca3c109ec9912b0bf4ee61750e"
+    },
+    {
+      "path": "src/lib/constants/turnTime.ts",
+      "sha256": "02b1d71197deaf787ea1118dacc6de0243981b9a235788004fbbd7021820f8f4"
+    },
+    {
+      "path": "src/lib/corporations/corporateOwnership.ts",
+      "sha256": "00fed316be6f4d67c8e0f9aec4bef7506a84cfc61a5f1426766187c578674aac"
+    },
+    {
+      "path": "src/lib/corporations/investment/rules.ts",
+      "sha256": "0980ad61c4d3f2d669760a7bb33a33ae34dc59c09e39ba4df476575bfa0a10cb"
+    },
+    {
+      "path": "src/lib/corporations/sectorMetricMarginProfiles.ts",
+      "sha256": "57b3b55a307440ca83d641f26ea049a6ca27fea6806e0ce6dcd9f069f4848083"
+    },
+    {
+      "path": "src/lib/corporations/sectorMetricMarginSignals.ts",
+      "sha256": "73df740f1016eed3ee6300bd2050438222417a1384af791db30f96a3d8721583"
+    },
+    {
+      "path": "src/lib/corporations/specialization/rules.ts",
+      "sha256": "a805bcfee19ae85bffb0ffa0d014b8b5bfb478024b3ae5656df0c397cc5eb669"
+    },
+    {
+      "path": "src/lib/corporations/superShares.ts",
+      "sha256": "4b643f0b648ca1cb0c3ff8edeb8bf97028d11ddb3d79674b89a691185bc4b41c"
+    },
+    {
+      "path": "src/lib/countries/at/economy.ts",
+      "sha256": "06c390ceccd713c4e027609cc45c77f51a362a7b54179fb2560c84e82b154f3a"
+    },
+    {
+      "path": "src/lib/countries/at/geographyFacts.ts",
+      "sha256": "6846ce65b9d79795a3c6aec2f3c540d856cdd9c88078b3a9af06475a16c2816e"
+    },
+    {
+      "path": "src/lib/countries/bal/economy.ts",
+      "sha256": "6fbd35e3faa39c67bf34315e7660abcdffbdc7f71de93a6a5034c456b534e3c3"
+    },
+    {
+      "path": "src/lib/countries/bg/economy.ts",
+      "sha256": "52ee4a51e61451312fc7a3b07de9d1b55b6c76e3fbdd29cedb69ab90bfb23417"
+    },
+    {
+      "path": "src/lib/countries/blr/economy.ts",
+      "sha256": "6a9569ac3d8155f0e6f412c841a545933350b616e1f07f2438e6a03e895377e4"
+    },
+    {
+      "path": "src/lib/countries/br/economy.ts",
+      "sha256": "fed8250eee14ef386665db8b48eeddf97776714b491f6fe7a0b2baff0abb14fb"
+    },
+    {
+      "path": "src/lib/countries/br/geographyFacts.ts",
+      "sha256": "54f14b6cb22ca99605293584e3f2de54ef7d079fbcb3d380c393c113a91b1e5d"
+    },
+    {
+      "path": "src/lib/countries/cn/economy.ts",
+      "sha256": "a5a24076dae202c1511cab90b149841e5d26343bf65b770b94a747e7a4f27a39"
+    },
+    {
+      "path": "src/lib/countries/cn/geographyFacts.ts",
+      "sha256": "ac2f0eaaacd191c110c5223ccdc2a513ba7a61ca2d2bd61a6138975893225f12"
+    },
+    {
+      "path": "src/lib/countries/cs/economy.ts",
+      "sha256": "568674afb0e1e9b519eac89f04ac7ab3ecdce3459feba2d2eee2192bb6663c17"
+    },
+    {
+      "path": "src/lib/countries/dd/data/ddLandLaws.ts",
+      "sha256": "30ab2ac1df260044e3414c6f0966ac8f761fff97c992e9a6afa7589cdcfb003c"
+    },
+    {
+      "path": "src/lib/countries/dd/data/ddLaws.ts",
+      "sha256": "03100d12e4883fab59086352e91aeea9e1bbcead9fe92537a2a81a089bdaf531"
+    },
+    {
+      "path": "src/lib/countries/dd/economy.ts",
+      "sha256": "1f802930cc57a70400664a59d075c1e993757dda5f3dde793019a19d1fff914f"
+    },
+    {
+      "path": "src/lib/countries/dd/geographyFacts.ts",
+      "sha256": "faba5ffc2b1294a32e0c6822ba1cf7edb1ecabee782264019b66ee755c4c5c58"
+    },
+    {
+      "path": "src/lib/countries/de/economy.ts",
+      "sha256": "5ede0019318a2546c692e99cf22c689c1b31cbb03c0cc532757e95a38a9f09ea"
+    },
+    {
+      "path": "src/lib/countries/de/geographyFacts.ts",
+      "sha256": "e8b1659e3eaefe47291430ce32dff89c84316dcff4e596d64c1b4829efb5e1a3"
+    },
+    {
+      "path": "src/lib/countries/es/economy.ts",
+      "sha256": "8625a2845955f8ec8aac6bf63d68b5431490349c60e186559a1dc4ea0cc5d2d5"
+    },
+    {
+      "path": "src/lib/countries/es/geographyFacts.ts",
+      "sha256": "0a00858623bd2c3954521981644e90a9edf75b8087a64b98e33feba695ab4620"
+    },
+    {
+      "path": "src/lib/countries/fi/economy.ts",
+      "sha256": "c49ac6066976d4e530a186f1a46257e1a8ffac3312bd83e808886a018183eac5"
+    },
+    {
+      "path": "src/lib/countries/fi/geographyFacts.ts",
+      "sha256": "affae96812c36ad5e7f36e40857b54961b3fc89566a625e29e065a1749cc5403"
+    },
+    {
+      "path": "src/lib/countries/fr/economy.ts",
+      "sha256": "95426994c86bb968a50d35b3209acde4245a9d8a8e3ce8195d37d6129c3d5bd0"
+    },
+    {
+      "path": "src/lib/countries/fr/geographyFacts.ts",
+      "sha256": "4a2907107421f64503c50f93de5378a5851ce5c26956c9347c6dae82003a8988"
+    },
+    {
+      "path": "src/lib/countries/gr/economy.ts",
+      "sha256": "5fec130b13024a325142a8e10a02ca7f5d1a09b124a7e2d675395547b28a183c"
+    },
+    {
+      "path": "src/lib/countries/gr/geographyFacts.ts",
+      "sha256": "89e826311ae29e4bbdc61a63c97457beda083a470dd3fc0eb4e896cf6072745f"
+    },
+    {
+      "path": "src/lib/countries/hu/economy.ts",
+      "sha256": "683037fbdf0aca1f5b72155a0cda39856619904e59b6a15b0334e5708bc26609"
+    },
+    {
+      "path": "src/lib/countries/ie/economy.ts",
+      "sha256": "c88de1652cc0fe02290c1fe6d35f0b43f06b010a2ea857ac0314a8363a860224"
+    },
+    {
+      "path": "src/lib/countries/ie/geographyFacts.ts",
+      "sha256": "8b9f7fc9d2a19f3609317df6d887c0785dfc37ed299bea6736b119dd3316a514"
+    },
+    {
+      "path": "src/lib/countries/it/economy.ts",
+      "sha256": "9a69acc697af309632f1b6f81b1bc988e634516f98c46e9546557402c1a12a7b"
+    },
+    {
+      "path": "src/lib/countries/it/geographyFacts.ts",
+      "sha256": "6e3761fadc97d4b7509cbe779cdd5647c8fb827c9eccc5315675e874371c1c38"
+    },
+    {
+      "path": "src/lib/countries/jp/data/jpMetricOverrides.ts",
+      "sha256": "1597f5a6393ad3026502c71a37fa79832ce96ec9c41b7ecf8e94b73faacc855f"
+    },
+    {
+      "path": "src/lib/countries/jp/economy.ts",
+      "sha256": "956d0d18f5c29a99722ee2fc613d30f6b99617384c669772b4ad08b3a93e289f"
+    },
+    {
+      "path": "src/lib/countries/jp/geographyFacts.ts",
+      "sha256": "25eabcdc2c9db4ee1d27637a9d7ba10cedc7c77e569fa95dd1ea2018dce1ef70"
+    },
+    {
+      "path": "src/lib/countries/ng/economy.ts",
+      "sha256": "52b1544d82bad24cae9942b2aa98ead3574dfdf7c27218ac38cadd46beea7710"
+    },
+    {
+      "path": "src/lib/countries/ng/geographyFacts.ts",
+      "sha256": "c45c2b2988f26cde11079c95c2cd3c144667d666c05cc99c88665b97385e8095"
+    },
+    {
+      "path": "src/lib/countries/pl/economy.ts",
+      "sha256": "474779be9bdab46e5318e43068f5573f631f6780c6a9d9fd6db3cc5dca5627ff"
+    },
+    {
+      "path": "src/lib/countries/ro/economy.ts",
+      "sha256": "4b6888f8521508c26b046a1850cdc4ed6359fad83e16cbe16c3068001f453e52"
+    },
+    {
+      "path": "src/lib/countries/ru/data/ruLaws.ts",
+      "sha256": "590985262edabcd7d2ddc36558d29ab3bb619b3f189ca04a65776dd5e34a0a71"
+    },
+    {
+      "path": "src/lib/countries/ru/economy.ts",
+      "sha256": "133d0473aa579f7b5cbebb8375821c8f318402bc14ec9958fd01039ca3fd571b"
+    },
+    {
+      "path": "src/lib/countries/ru/geographyFacts.ts",
+      "sha256": "bbd1401c178013a1c4a4b1f4a323e1618b73acd28037d9ba6af72ba1512dafa0"
+    },
+    {
+      "path": "src/lib/countries/se/economy.ts",
+      "sha256": "b6bb73f53679696872eeb69188153f85d737b4fd3cd4d40869ead5a897d7e84e"
+    },
+    {
+      "path": "src/lib/countries/se/geographyFacts.ts",
+      "sha256": "172840550dabf9a7311d63359fe593ed7bf9d52413d410691f9aa09f70b47885"
+    },
+    {
+      "path": "src/lib/countries/tr/economy.ts",
+      "sha256": "2bb3daacfe2b499b4b5159fc5a9177149f27ad3d0582903df9f31a4453a0acda"
+    },
+    {
+      "path": "src/lib/countries/tr/geographyFacts.ts",
+      "sha256": "74e69e3a64aa8060f46c45a7a5759723585398001194493d8e042e2da0233a3c"
+    },
+    {
+      "path": "src/lib/countries/uk/data/ukLaws.ts",
+      "sha256": "457aa07055c189240a9351befad8f4c32f8f97508aa6e08908c1c51a1b1e74a0"
+    },
+    {
+      "path": "src/lib/countries/uk/economy.ts",
+      "sha256": "6c2f78a0800db8013db805e53f8674ee001869d6c6158d8114f40c1bf0b17dd9"
+    },
+    {
+      "path": "src/lib/countries/uk/geographyFacts.ts",
+      "sha256": "b55ac03e93ccc33e72e22c78f8676810cb57d48db9fb427f2783f7997a0ac468"
+    },
+    {
+      "path": "src/lib/countries/ukr/economy.ts",
+      "sha256": "530c50b321e0de939e0b2e205b805efd87ef43f4b79a15ccd379d1276b3f6d71"
+    },
+    {
+      "path": "src/lib/countries/us/data/usLaws.ts",
+      "sha256": "f9137496031c893100585d13eefc533dcb0ce2f220759d3369aa9b68670a82ea"
+    },
+    {
+      "path": "src/lib/countries/us/data/usStateTaxLaws.ts",
+      "sha256": "eebf87ee2fa8dce9ac6842fb63751778c526cc1da1cade20907693551ccbbfec"
+    },
+    {
+      "path": "src/lib/countries/us/economy.ts",
+      "sha256": "82809e6e0faf0713a155cbb8fff4f14946fd34922759e61ff7e605fce6f8afc7"
+    },
+    {
+      "path": "src/lib/countries/us/geographyFacts.ts",
+      "sha256": "419e389a0984cbddcce6e2fbdd050333090167371a478b0a2361f252e8597fe0"
+    },
+    {
+      "path": "src/lib/countries/yu/economy.ts",
+      "sha256": "ecd6a79123cdba741f4982f2afacbb83e2a9fd35995499481674bdc70de112d7"
+    },
+    {
+      "path": "src/lib/demographics/flows/mortality.ts",
+      "sha256": "b67282d4cb1f0617b1e4c4b1b18147991a5ba27669cf29088d823433e39cf27c"
+    },
+    {
+      "path": "src/lib/economicModels/effects.ts",
+      "sha256": "c709ae2b08aeba79d8eb2d37f9355756eb0301df2fa4b94825fff52406a7810f"
+    },
+    {
+      "path": "src/lib/era/metricCatalog.ts",
+      "sha256": "a746786397a140e074eff59bd9398b0260de6976d9706c19043b36557d48d2c2"
+    },
+    {
+      "path": "src/lib/labour/laborCost.ts",
+      "sha256": "d2f6a9e27adfc7ceabd646056cacca57da1e0d010571e84308fa5ad2bf969178"
+    },
+    {
+      "path": "src/lib/labour/labourMarket.ts",
+      "sha256": "dc6cdeb5d3a724e2394fc39768bd9f03beb7515eae45b6aec6162de596e8d8f2"
+    },
+    {
+      "path": "src/lib/macroMetrics/paths.ts",
+      "sha256": "23cfcf189c1be1463e14a97154a001fe0a072026ebb97bf4cdb50b8224761752"
+    },
+    {
+      "path": "src/lib/metricEngine/bounds.ts",
+      "sha256": "cc058e1a26e18770ea63ae77ef7922d0d0523e5acb97b22eaf9d741d6d10d084"
+    },
+    {
+      "path": "src/lib/metricEngine/outputGap.ts",
+      "sha256": "bb12279a382ccdab6aff95352062e5d23ca0a915d64d606de1ef06718d87ecfc"
+    },
+    {
+      "path": "src/lib/metricEngine/potentialGrowth.ts",
+      "sha256": "0387c6def3be86da8aa6285393401582f10db4abfdadff0a6fa04257cc95c1ba"
+    },
+    {
+      "path": "src/lib/metricEngine/registry/economic.ts",
+      "sha256": "f5602e20cdf10dcc9917e0c16389d07695fdd7c43dbc36613a2955b2e2b9a000"
+    },
+    {
+      "path": "src/lib/metricEngine/registry/education.ts",
+      "sha256": "2b01ff744ab85a38eed08d7edbf18d53233e0571683b9f1c79ce8886264c221e"
+    },
+    {
+      "path": "src/lib/metricEngine/registry/environment.ts",
+      "sha256": "10a28ef7419ec155f49f1db708d3f13d1ddae14940d7461f7b77f5b006c7a3f9"
+    },
+    {
+      "path": "src/lib/metricEngine/registry/governance.ts",
+      "sha256": "f8c619d37a165063109de1450e42356516f972294f7737d31cd0a7bed5cc3e25"
+    },
+    {
+      "path": "src/lib/metricEngine/registry/healthcare.ts",
+      "sha256": "c6ca881a2f0426cd3d9b2db86d8274d8350c1f9b023d0b68e3e26899c5a37e9e"
+    },
+    {
+      "path": "src/lib/metricEngine/registry/index.ts",
+      "sha256": "3df7a694af89c5f9428c1a41d4010e0fb1bf508add22be968575347a0912a70b"
+    },
+    {
+      "path": "src/lib/metricEngine/registry/infrastructure.ts",
+      "sha256": "d72ac59c2ba412297018b1d5b73b7685714ec9a8adfcd10dd7890307059feafa"
+    },
+    {
+      "path": "src/lib/metricEngine/registry/mediaInformation.ts",
+      "sha256": "414f2682566779d3e759aaacd74017ad69571f4680303fb9c32dcdcc176743d0"
+    },
+    {
+      "path": "src/lib/metricEngine/registry/publicSafety.ts",
+      "sha256": "e20abe833704cc2c71c016fa07ed602de26404b272e71c3abde72920632f6690"
+    },
+    {
+      "path": "src/lib/metricEngine/registry/social.ts",
+      "sha256": "03ab3e8411f122984248c195fb81e1023856b750c0b9f7e78bb6fdcf56dc09f3"
+    },
+    {
+      "path": "src/lib/metricEngine/rules/outputVolume.ts",
+      "sha256": "70e19ed1392e8c6cc04a949bce00bbe2e6a1e6f490b9b3a4e92027c61c9a677e"
+    },
+    {
+      "path": "src/lib/metricEngine/spendingChannel.ts",
+      "sha256": "f8cc06ba05ca8c3e0ae0f718ff06971dfac938091922df02a7a5361f08a40a18"
+    },
+    {
+      "path": "src/lib/metricEngine/topoSort.ts",
+      "sha256": "e12c9d9111eca120a6dd7db01b527ea3c633be85dea61ac44b767f1a696cda7f"
+    },
+    {
+      "path": "src/lib/metricEngine/types.ts",
+      "sha256": "0fdaf8dce0f96b630bfe65b0ec6107144e7a02fb3f7dd7ebedbd2aa48e8bfd8f"
+    },
+    {
+      "path": "src/lib/military/bloc.ts",
+      "sha256": "dc316f9859e3fb02ce88d7f686215e5bbdd306691d6747e3de22b1c5bd93757f"
+    },
+    {
+      "path": "src/lib/military/config.ts",
+      "sha256": "c835f707c14aaabdb3683b9b637d64d10ccafa2f48891e4d642483eb369103de"
+    },
+    {
+      "path": "src/lib/military/occupation.ts",
+      "sha256": "a245cc1a0b9b584c567bf5294a2074a23261cee436377d7b8f8b27d891479d47"
+    },
+    {
+      "path": "src/lib/military/warDamage.ts",
+      "sha256": "3981d1a1b7f67bd54e336a6b5d75246be4c4e7cabb47e72f6e6e6938831a1146"
+    },
+    {
+      "path": "src/lib/nationalization/constants.ts",
+      "sha256": "49a1788094a0a2f22207a0825c48b6d57dadd1c9db25d986f337081811123576"
+    },
+    {
+      "path": "src/lib/politicalLegislation/catalog.ts",
+      "sha256": "623f660c351309fd87a22a8f656060a516894c9c6a4e07193b336a611f66879e"
+    },
+    {
+      "path": "src/lib/politicalLegislation/dynamics.ts",
+      "sha256": "2900d56db25275644c6e933bad637ecc20d16b4bf4c012f6a89c2ea6e97db9ef"
+    },
+    {
+      "path": "src/lib/politicalLegislation/laws/ddLandLaws.ts",
+      "sha256": "4e74f8fe0f8114c2c17d0bb4a1dd2c3527e7f4d71b5ca3e453e265a1182e5f91"
+    },
+    {
+      "path": "src/lib/politicalLegislation/laws/ddLaws.ts",
+      "sha256": "89ac7fb99bc0d0491ec15feb4a32ff7d07ab77ca9e7d644d83e4ddc9f4900d47"
+    },
+    {
+      "path": "src/lib/politicalLegislation/laws/ruLaws.ts",
+      "sha256": "251556ff6fda2988d98d24c865a7618bcd54cdee78b399e341e1a04ed21b000c"
+    },
+    {
+      "path": "src/lib/politicalLegislation/laws/ukLaws.ts",
+      "sha256": "87997f307cc8766b6e8719e379c26f9cd38d443fc94421e86f4deeae3a0dbb27"
+    },
+    {
+      "path": "src/lib/politicalLegislation/laws/usLaws.ts",
+      "sha256": "55a51cb5b097535718d39095064f4226f83430f5f3065f618611ba9fd721a720"
+    },
+    {
+      "path": "src/lib/politicalLegislation/laws/usStateTaxLaws.ts",
+      "sha256": "e60bda02727ec2b0f8afc01edd067afc4a24f1f9e264b2e3bbd72d80356e26cf"
+    },
+    {
+      "path": "src/lib/politicalLegislation/legacyProjection.ts",
+      "sha256": "0a1f20df25dd59f79ac3a37fa20dc7ec410639fa96ca0730df66c2aff19d40fd"
+    },
+    {
+      "path": "src/lib/politicalLegislation/macroResidual.ts",
+      "sha256": "af24f6ccd1341eb3877acd7a72d08dc52a9a5469d58798f99977751c2749e7b5"
+    },
+    {
+      "path": "src/lib/politicalLegislation/marginAdapter.ts",
+      "sha256": "9ed68d7a0e51b16f2e72cae6924055e5d1eeb75a3d1b4adf3b8cdf85e794dd25"
+    },
+    {
+      "path": "src/lib/politicalMetrics/aggregate.ts",
+      "sha256": "219daa689375b13c0e247f6125571919ae861fc2171a3340ec40327b90d89f4d"
+    },
+    {
+      "path": "src/lib/politicalMetrics/derive/legacyInversion.ts",
+      "sha256": "7e50850e0153c100dd956543513c62acab5690c83dff8f5bc2d9e336df2a55fa"
+    },
+    {
+      "path": "src/lib/politicalMetrics/engineNodes.ts",
+      "sha256": "ba90eb2f88b3976a8d4c712cd051c6080c51bf17e19e510fbf8c39329bbd135e"
+    },
+    {
+      "path": "src/lib/politicalMetrics/engineTerm.ts",
+      "sha256": "5433ee086e8a70f7243d42a28fa5aaa361c5bf755073794bfd8759c1f894b834"
+    },
+    {
+      "path": "src/lib/politicalMetrics/families.ts",
+      "sha256": "687ac3d12786f63be7b6cf0e338ef95d72573c499320d40362d0afdee657dd42"
+    },
+    {
+      "path": "src/lib/politicalMetrics/macroFamilySources.ts",
+      "sha256": "5f557b469bb849185513c625bbaaf93599b224646ff5f73d03d9365f21a816ac"
+    },
+    {
+      "path": "src/lib/politicalMetrics/names.ts",
+      "sha256": "2e9448af09af7750972fa4111a37aaff876ddf1fb65ba3c01216812395587b55"
+    },
+    {
+      "path": "src/lib/politicalMetrics/types.ts",
+      "sha256": "ad8678b30e8622633edb9bca88a74ce3a25878cb69b0488904de7b1d33ff31c6"
+    },
+    {
+      "path": "src/lib/stats/statsConstants.ts",
+      "sha256": "365e991f73b10461446e1dac8fd066e3a7e72d384c168d431356eadc809bd5b6"
+    },
+    {
+      "path": "src/lib/trade/constants.ts",
+      "sha256": "8cfec824f8f5ba5e799e6b835961d64e2063e59b276c4788ea0123b90e4d7b0e"
+    },
+    {
+      "path": "src/lib/turn/gdpGrowth.ts",
+      "sha256": "e919f36838e92fd51c65f6aa8d80f8f2f38a9d1123462adf84b15a62b4f4e4e8"
+    },
+    {
+      "path": "src/lib/utils/fxNormalize.ts",
+      "sha256": "1a7df02c5be3eb5ec142b7685191c7863deb4d56846996b839b5fda013077087"
+    },
+    {
+      "path": "src/lib/utils/metricScoring.ts",
+      "sha256": "b56ee3472f1e08e2d1ec7420a4ba151f5833b6074554f2807914ebf8db672f7d"
+    },
+    {
+      "path": "src/lib/utils/productionPolicy.ts",
+      "sha256": "6bf9679f7f4f3692a00880a9c6b380db89384e22f45236b86a8d4a50ac5a6237"
+    }
+  ],
+  "outputSha256": "43f6109843cb36c0cba2a579edafbecc1ab6dc05a4cec0b6ac0eb7773a9b6782"
+}

@@ -11,7 +11,7 @@ test('Head of State seats, directs tax policy, advances, saves and resumes', asy
   await gameReady(page);
 
   await navigateGame(page, 'Actions');
-  await expect(page.getByRole('note')).toContainText('Permanent Head of State');
+  await expect(page.getByRole('note').filter({ hasText: 'Permanent Head of State' })).toBeVisible();
   await expect(page.getByRole('article', { name: 'Campaign' })).toHaveCount(0);
   await page.getByRole('tab', { name: /Executive,/ }).click();
   await page.getByLabel('Amount for Set Tax Rate').fill('25');
@@ -31,6 +31,6 @@ test('Head of State seats, directs tax policy, advances, saves and resumes', asy
   await page.getByRole('button', { name: 'Continue Executive Player', exact: true }).click();
   await gameReady(page);
   await navigateGame(page, 'Actions');
-  await expect(page.getByRole('note')).toContainText('Permanent Head of State');
+  await expect(page.getByRole('note').filter({ hasText: 'Permanent Head of State' })).toBeVisible();
   await expect(page.getByRole('contentinfo')).toContainText('Turn 1');
 });

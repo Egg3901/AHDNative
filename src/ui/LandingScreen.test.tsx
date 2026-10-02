@@ -39,6 +39,22 @@ function props(overrides: Partial<LandingScreenProps> = {}): LandingScreenProps 
 }
 
 describe("LandingScreen", () => {
+  it("waits for local engine readiness before accepting a saved-game Continue tap", async () => {
+    const user = userEvent.setup();
+    const onLoad = vi.fn();
+    const initial = props({ eras: [], saves: SAVES, onLoad });
+    const { rerender } = render(<LandingScreen {...initial} />);
+    const resume = screen.getByRole("button", { name: "Continue Ada" });
+    expect(resume).toBeDisabled();
+    await user.click(resume);
+    expect(onLoad).not.toHaveBeenCalled();
+
+    rerender(<LandingScreen {...initial} eras={ERAS} />);
+    expect(resume).toBeEnabled();
+    await user.click(resume);
+    expect(onLoad).toHaveBeenCalledExactlyOnceWith(SAVES[0]);
+  });
+
   it("renders the globe, title and era context", () => {
     render(<LandingScreen {...props()} />);
     expect(screen.getByRole("img", { name: /world map/i })).toBeInTheDocument();

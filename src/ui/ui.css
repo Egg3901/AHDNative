@@ -1690,3 +1690,14 @@ details[open] > .ahd-trend-table-disclosure::after {
 .ahd-geo-inert { fill: var(--ahd-card); stroke: var(--ahd-border); stroke-width: 0.75; }
 .ahd-geo-dimmed { fill: var(--ahd-card); stroke: var(--ahd-border); stroke-width: 0.5; opacity: 0.55; }
 g[role="button"]:focus-visible path { outline: 3px solid var(--ahd-focus); outline-offset: 1px; }
+
+/* Source political category/metric labels fit narrow phone cards. */
+.ahd-political-board .ahd-btn {
+  max-width: 100%; white-space: normal; overflow-wrap: anywhere;
+  line-height: 1.3; text-align: left;
+}
+.ahd-political-board table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.ahd-political-board th, .ahd-political-board td {
+  padding: 0.55rem 0.3rem; border-bottom: 1px solid var(--ahd-border); text-align: left;
+}
+.ahd-political-board td { text-align: right; }
