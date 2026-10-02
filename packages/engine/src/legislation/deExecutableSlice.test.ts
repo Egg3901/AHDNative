@@ -204,7 +204,7 @@ describe("Germany national tax laws (#287)", () => {
     expect(world.player.nationalInfluence).toBe(30);
   });
 
-  it("earns a Bundestag seat through the public career election path and votes each available tax row into effect", () => {
+  it("resolves a shortened Bundestag race and votes each available tax row into effect", () => {
     let world = createWorld({ seed: "career-check", playerName: "P", countryId: "DE", era: "2019", mode: "career" });
     expect(executeAction(world, "player", "joinParty", { partyId: "DE_SPD" }).ok).toBe(true);
     advanceTurn(world);
@@ -223,10 +223,13 @@ describe("Germany national tax laws (#287)", () => {
     for (let i = 0; i < 5 && election!.status !== "resolved"; i++) advanceTurn(world);
     expect(election!.status).toBe("resolved");
     expect(election!.candidates.some((candidate) => candidate.id === "player")).toBe(true);
+    // Actual AHDGame@0a68fee4 allocation of this resolved race's recorded
+    // candidate slate and ballots gives the player 6 of the region's 38 seats.
     expect(world.player.legislativeSeat).toEqual({
       countryId: "DE",
       chamberKey: "bundestag",
       regionId: world.player.homeRegionId,
+      seatsHeld: 6,
     });
     // A well-resourced legal player: authority still comes from the resolved
     // race, while public commands debit their normal AP and NPI prices below.
