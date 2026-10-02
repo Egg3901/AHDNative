@@ -9,6 +9,7 @@
  */
 import type { WorldState } from "../types.js";
 import { STRIKE_UNIONIZATION_THRESHOLD } from "./bargaining.js";
+import { repealUndergroundConversion, undergroundStrength } from "./underground.js";
 
 export const UNION_LAW_BIAS_MIN = -50;
 export const UNION_LAW_BIAS_MAX = 50;
@@ -38,10 +39,42 @@ export function applyUnionLawProvision(
   if (provision.banAction === "ban" || provision.banAction === "repeal_ban") {
     const banned = provision.banAction === "ban";
     budget.unionsBanned = banned;
+    // Source applyUnionLawProvision clears every old underground cell when a
+    // new ban starts. Repeal restores half of the shadow pool to legal
+    // organizing strength, then clears the shadow state and organizer banks.
     for (const union of Object.values(world.unions)) {
       if (union.countryId === countryId) {
         union.suspended = banned;
+        if (banned) {
+          delete union.undergroundStrength;
+          delete union.heat;
+          delete union.exposedUntilTurn;
+          delete union.lastUndergroundDriveTurn;
+          delete union.recentUndergroundDriveCount;
+          delete union.undergroundProcessedTurn;
+          delete union.lastUndergroundRaidTurn;
+        } else {
+          const shadowStrength = repealUndergroundConversion(undergroundStrength(union));
+          if (union.suspended || shadowStrength > 0) {
+            union.strength = Math.max(0, union.strength ?? 0) + shadowStrength;
+          }
+          delete union.undergroundStrength;
+          delete union.heat;
+          delete union.exposedUntilTurn;
+          delete union.lastUndergroundDriveTurn;
+          delete union.recentUndergroundDriveCount;
+          delete union.undergroundProcessedTurn;
+          delete union.lastUndergroundRaidTurn;
+        }
         union.updatedAtTurn = world.meta.turn;
+      }
+    }
+    const countryUnionIds = new Set(Object.values(world.unions).filter((union) => union.countryId === countryId).map((union) => union.id));
+    for (const organizer of Object.values(world.unionOrganizers ?? {})) {
+      if (countryUnionIds.has(organizer.unionId)) {
+        delete organizer.undergroundStrength;
+        delete organizer.lastUndergroundDriveTurn;
+        organizer.updatedAtTurn = world.meta.turn;
       }
     }
     return;

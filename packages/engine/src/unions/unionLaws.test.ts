@@ -38,6 +38,30 @@ describe("enacted union law state", () => {
     expect(union.treasury).toBe(123_456);
   });
 
+  it("clears cells on a fresh ban and converts half of underground strength on repeal", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "union-law-underground-repeal", playerName: "Alex" });
+    const union = world.unions["US-manufacturing"]!;
+    union.strength = 200;
+    union.undergroundStrength = 100;
+    union.heat = 72;
+    union.exposedUntilTurn = 12;
+    world.unionOrganizers = {
+      "US-manufacturing:player": {
+        id: "US-manufacturing:player", unionId: union.id, characterId: "player", strength: 30,
+        organizeCount: 3, createdAtTurn: 1, updatedAtTurn: 1, undergroundStrength: 12,
+        lastUndergroundDriveTurn: 2,
+      },
+    };
+
+    applyUnionLawProvision(world, "US", { type: "union_law", banAction: "repeal_ban" });
+
+    expect(union.strength).toBe(250);
+    expect(union.suspended).toBe(false);
+    expect(union.undergroundStrength).toBeUndefined();
+    expect(union.heat).toBeUndefined();
+    expect(world.unionOrganizers?.["US-manufacturing:player"]).not.toHaveProperty("undergroundStrength");
+  });
+
   it("clamps bias laws and leaves a currently enacted ban untouched", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "union-law-bias-state", playerName: "Alex" });
     const budget = world.budgets.US!;
