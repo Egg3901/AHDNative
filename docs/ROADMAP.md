@@ -1,3 +1,48 @@
+## Current parity count and ownership correction, 2026-10-02
+
+Current GitHub state: **53 open from 63: 40 partial, 8 not started, 3 deferred, 2 blocked**.
+Ten verified closures: #308, #297, #51, #110, #111, #299, #115, #286, #287 and #40.
+Source plants audit reopened #298/#211; parent #211 is 6/7. #75 is partial,
+with all four broad original criteria unchecked.
+
+Register [PR #723](https://github.com/Egg3901/AHDNative/pull/723) merged
+`f6b92ef` after exact `c77a300` passed the complete app/engine/content/browser/Rust
+[gate 36948341621](https://github.com/Egg3901/AHDNative/actions/runs/36948341621).
+Budget opens the actual National Corporation register and current holdings,
+with company return navigation, source debt/None compensation and treasury cash.
+
+The active continuation adds current source NPC/player creator classification,
+72-turn financial/CEO-vacancy grace, 168-turn cooldown and schema53 refusal for
+older readers. Actual CEO action/turn/save paths, strict save boundaries and
+fresh NPC two-phone worker resumes pass. Source plants now receive the 85%
+capacity/paid-basis transition; paid construction/ordered queues and earlier ramp
+survive. Two public reparent/merge RED cases became GREEN through ordinary
+production and reload. [Evidence](NATIONALIZATION-ELIGIBILITY-75.md).
+These changes await the integrated final gate and merge before restoring
+#298/#211 closure. Full #75 eligibility, compensation, notices, political effects,
+auctions, national planning and special-court/country flows remain the goal.
+Dated earlier checkpoints below are historical; this count supersedes them.
+
+Selected CN/DE tax laws are complete: [PR #721](https://github.com/Egg3901/AHDNative/pull/721)
+merged `a96a02d` after exact `a3b1c0e` passed the
+[full app/engine/content/browser/Rust gate](https://github.com/Egg3901/AHDNative/actions/runs/36953474054).
+All five CN and seven DE rows pass real career proposal/vote/enactment/effect,
+supported replacement/repeal and save/reload; source home-state ballots and
+actual 320px/390px SP decree/replacement/budget/resume journeys pass. #286 and
+#287 are closed, with original criteria checked and incomplete labels removed.
+[Evidence](DE-CN-TAX-LAW-CAREER-EVIDENCE-286-287.md). Parent #101 is 4/7;
+its broader catalog, unavailable inventory and NPC agenda scope remain open.
+
+The complete source TFP input gate is verified: [PR #726](https://github.com/Egg3901/AHDNative/pull/726)
+merged `8d4b43d` after exact `dbde733` passed the
+[full gate](https://github.com/Egg3901/AHDNative/actions/runs/36955828005).
+All 17 supported country/era seeds feed all six inputs. Four political-board
+leaves evolve through the real source dynamics; R&D intensity and urbanization
+retain their source seed-only behavior. Current GDP growth reaches fiscal bases
+and receipts after aggregation. Public saved treatment/control and actual
+320px/390px education-spending/registry/resume flows pass. #40 is closed;
+[GROWTH-PARITY.md](GROWTH-PARITY.md) records the evidence. Wider #106 remains open.
+
 # AHDNative roadmap
 
 ## State ownership register and seized cash, 2026-10-02 (#75 partial)

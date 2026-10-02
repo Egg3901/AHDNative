@@ -1,5 +1,39 @@
 # Growth / TFP parity slice (M04 bounded)
 
+## Verified source input completion, 2026-10-02
+
+#40 is closed after [PR #726](https://github.com/Egg3901/AHDNative/pull/726)
+merged `8d4b43d9755d6b804fb817faae54e1f7c227e725`. Exact head
+`dbde73380e943816a9211198b64b1b5326e4861d` passed the
+[full app, engine, content, browser and Rust gate](https://github.com/Egg3901/AHDNative/actions/runs/36955828005).
+All original input, source progression and save acceptance is checked.
+
+Source-executed seeds cover all 17 supported country/era combinations.
+`tfpInputs.sim.test.ts` verifies six-leaf aggregation, population weighting,
+broadband era gating, the reference 1.2 basket and the independent R&D
+4.5/0.5 vectors. Actual current Game `cb66acdf` political dynamics evolve
+workforce skill, transport efficiency, broadband access and power reliability.
+R&D intensity and urbanization have no source turn writer and retain their
+seeded values. The board-country policy-effects exclusions are preserved;
+no legacy education/infrastructure spending stand-in is introduced.
+
+`tfpPoliticalBoard.test.ts` checks the source UK/LON projection, current-turn
+political-to-TFP order and preservation of intervening macro effects.
+`tfpPoliticalBoardSession.test.ts` exercises ordinary source progression and
+public education spending against its exact saved control, then reloads and
+continues. Current GDP growth reaches fiscal bases and receipts once after
+national aggregation; `budget.sim.test.ts` covers the GDP-weighted regional
+fallback and final source 2.5 fallback. `smoke/tfp-phone-flow.spec.ts` verifies
+the actual 320px/390px action/registry/save/resume flow with overflow and
+page-error checks.
+
+This completes the missing TFP input gate. Wider inflation, corporation and
+whole-economy equivalence remain #106, and current Client interchange remains
+#122. Earlier dated prerequisites below describe the older legacy-registry
+proposal; their assertions that #40 must remain open are superseded by this
+current-source verification.
+
+
 ## Default-world input checkpoint, 2026-10-01
 
 Fresh playable worlds now seed the six recorded regional leaves from AHDGame
