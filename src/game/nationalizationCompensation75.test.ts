@@ -10,7 +10,11 @@ function sourceCompensationSession(seed: string, cash = 100000, book = 200000, d
   const donor = saved.world.corporations["US-media"];
   Object.assign(donor, { liquidCapital: cash, totalShares: 10, publicFloat: 4,
     shareholders: [{ holder: "npc", shares: 3 }, { holder: "player", shares: 3 }],
-    sharePrice: 1e9, ceoType: "player", ceoId: "player", ceoVacant: false });
+    sharePrice: 1e9, ceoType: "player", ceoId: "player", ceoVacant: false,
+    nationalizationOwnerKind: "npc" });
+  // Recorded proposal resources and NPC creator origin are independent of
+  // the player CEO. This valuation fixture does not claim an earned career.
+  saved.world.player.nationalInfluence = 5;
   const assets = Object.values(saved.world.corporateSectors).filter((asset: any) => asset.corporationId === donor.id) as any[];
   for (const asset of assets) Object.assign(asset, { capitalStock: 0, capacityBookAnchor: 0, constructionInProgressAnchor: 0 });
   Object.assign(assets[0], { capitalStock: 1000, capacityBookAnchor: book, constructionInProgressAnchor: book > 0 ? 40000 : 0 });
@@ -30,14 +34,17 @@ function sourceCompensationSession(seed: string, cash = 100000, book = 200000, d
 // Independently executed Game wholeCorpCompensationAnchor and
 // allocateShareholderPool: book+CIP+cash-debt=330000, no market-cap floor.
 // Source nppId holders receive no allocation; public float credits treasury.
-describe("source compensated executive taking (#75)", () => {
+describe("source compensation through legislative and executive authority (#75)", () => {
   it.each([
     { tier: "fair" as const, payout: 330000, player: 99000, float: 132000, treasury: -97000 },
     { tier: "discounted" as const, payout: 165000, player: 49500, float: 66000, treasury: 2000 },
     { tier: "seizure" as const, payout: 0, player: 0, float: 0, treasury: 101000 },
   ])("settles $tier at the source paid basis before haircuts, without a cash affordability gate", ({ tier, payout, player, treasury }) => {
     const { session, playerCash, actions } = sourceCompensationSession(`source-compensation-${tier}`);
-    expect(session.act("nationalizeCorporation", { corporationId: "US-media", tier }).ok).toBe(true);
+    const taking = tier === "fair"
+      ? session.act("sponsorBill", { catalogId: "state_ownership.nationalize", corporationId: "US-media" })
+      : session.act("nationalizeCorporation", { corporationId: "US-media", tier });
+    expect(taking.ok).toBe(true);
     const taken = JSON.parse(session.serialize(SAVED_AT));
     expect(taken.world.player.cash).toBe(playerCash + player);
     expect(taken.world.player.actions).toBe(actions);
@@ -46,7 +53,8 @@ describe("source compensated executive taking (#75)", () => {
     expect(taken.world.corporations["NAT-US"].liquidCapital).toBe(0);
     expect(taken.world.bonds["source-active"].corporationId).toBe("NAT-US");
     expect(taken.world.bonds["source-matured"].corporationId).toBe("US-media");
-    expect(session.stateOwnership().rows[0]).toMatchObject({ tier, compensationAnchor: payout, debtAnchor: 10000 });
+    expect(session.stateOwnership().rows[0]).toMatchObject({ tier, compensationAnchor: payout, debtAnchor: 10000,
+      method: tier === "fair" ? "legislative" : "executive" });
     const recorded = session.stateOwnership().rows[0];
     session.advance();
     const resumed = new GameSession();
