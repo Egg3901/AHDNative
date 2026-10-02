@@ -1,4 +1,5 @@
 import type { WorldState } from '../types.js';
+import { OFFICE_ACTION_BONUS } from './constants.js';
 
 /**
  * Player reputation at the action-refresh boundary. Authority: AHDGame
@@ -15,6 +16,15 @@ export function playerNationalInfluenceGain(world: WorldState): number {
   const holdsKnownSeat = seat != null && world.legislatures[seat.countryId]?.chambers
     .some(chamber => chamber.key === seat.chamberKey);
   let position = holdsKnownSeat ? 1 : 0;
+
+  // Game@968 actionRefresh resolves the same-country permanent SP HoS from
+  // currentOffice through positionNiBonus. Native stores that source-authored
+  // office on the player instead of a public executive-holder record, so read
+  // it here only for Head-of-State mode. OFFICE_ACTION_BONUS is the Native
+  // registry for the source office tiers (e.g. DE Chancellor/CN Premier 2.5).
+  if (player.mode === 'hos' && player.currentOffice?.countryId === player.countryId) {
+    position = Math.max(position, OFFICE_ACTION_BONUS[player.currentOffice.type] ?? 0);
+  }
 
   for (const executive of Object.values(world.executives)) {
     if (executive.presidentId === 'player') position = Math.max(position, 2.5);

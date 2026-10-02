@@ -101,18 +101,13 @@ function makeChinaWorld(era: "1991" | "2019") {
 
 function resolveBill(world: ReturnType<typeof makeChinaWorld>, billId: string) {
   const bill = world.bills.find((candidate) => candidate.id === billId)!;
-  for (
-    let turn = 0;
-    turn < 12 && bill.status !== "signed" && bill.status !== "failed";
-    turn++
-  )
-    advanceTurn(world);
-  expect(bill.status, `${billId} should pass its vote and be enacted`).toBe(
-    "signed",
-  );
-  expect(bill.voteSnapshot?.for).toBeGreaterThan(
-    bill.voteSnapshot?.against ?? 0,
-  );
+  // The local Chinese singleplayer HoS is a source mayRuleByDecree actor;
+  // proposeNationalBill immediately signs the decree instead of opening a
+  // legislative vote. Chamber timing belongs to non-HoS elected-seat play.
+  expect(bill.status, `${billId} should be decreed immediately`).toBe("signed");
+  expect(bill.voteSnapshot).toBeUndefined();
+  expect(bill.votesFor).toBe(0);
+  expect(bill.votesAgainst).toBe(0);
   return bill;
 }
 
@@ -188,7 +183,7 @@ describe("China's executable national budget-tax slice (#286)", () => {
       catalogId: tariff.id,
       taxRate: tariff.selected2019,
     })).toMatchObject({ ok: true });
-    expect(world.player.actions).toBe(90);
+    expect(world.player.actions).toBe(100);
     expect(world.player.nationalInfluence).toBe(4);
     expect(world.bills.at(-1)).toMatchObject({ proposalActionCost: 10 });
     expect(world.bills.at(-1)?.proposalNpiCost).toBeUndefined();
@@ -254,7 +249,7 @@ describe("China's executable national budget-tax slice (#286)", () => {
         countryId: "CN",
         legislationTypeId: law.id,
         selectedRate: law.selected2019,
-        status: "proposed",
+        status: "signed",
         proposalActionCost: 10,
         provisions: [
           expect.objectContaining({
@@ -266,7 +261,7 @@ describe("China's executable national budget-tax slice (#286)", () => {
       });
       if (law.proposalNpiCost > 0) expect(firstProposal.proposalNpiCost).toBe(5);
       else expect(firstProposal.proposalNpiCost).toBeUndefined();
-      expect(world.player.actions).toBeLessThan(startingActions);
+      expect(world.player.actions).toBe(startingActions);
       const firstBill = resolveBill(world, firstProposal.id);
       expect(firstBill.proposalCostsRefunded).toBe(true);
       expect(world.player.nationalInfluence).toBe(law.proposalNpiCost);

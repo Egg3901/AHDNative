@@ -1,6 +1,6 @@
 /**
  * Executive-tab reachability (#65): the live HoS session projection feeds
- * ActionsHub with two available executive actions; a career projection keeps
+ * ActionsHub with the source-authorized HoS actions; a career projection keeps
  * the unavailable nationalization action visible. Layout stays phone-first (single-column grid at 390px) with the
  * executive banner styled like every other category, and the cards keep the
  * shared Liquid Glass surface (no per-tab chrome).
@@ -37,16 +37,19 @@ function StatefulHub({ actions }: { actions: ActionView[] }) {
 }
 
 describe("executive tab reachability (#65)", () => {
-  it("offers the executive tab with both HoS actions available from the live projection", async () => {
+  it("offers the executive tab with source-authorized HoS actions from the live projection", async () => {
     const user = userEvent.setup();
     render(<StatefulHub actions={liveActions("hos")} />);
     const tabs = screen.getByRole("tablist", { name: /filter actions by category/i });
-    expect(within(tabs).getByRole("tab", { name: /executive, 2 of 2 available/i })).toBeInTheDocument();
+    expect(within(tabs).getByRole("tab", { name: /executive, 2 of 3 available/i })).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: /executive/i }));
     for (const name of [/direct spending/i, /set tax rate/i]) {
       const card = screen.getByRole("article", { name });
       expect(within(card).getByRole("button", { name: /take action/i })).toBeEnabled();
     }
+    const nationalization = screen.getByRole("article", { name: /nationalize/i });
+    expect(within(nationalization).getByRole("button", { name: /unavailable/i })).toBeDisabled();
+    expect(nationalization).toHaveTextContent(/no distressed domestic corporation/i);
     expect(screen.getByRole("article", { name: /set tax rate/i })).toHaveTextContent(/phase/i);
   });
 

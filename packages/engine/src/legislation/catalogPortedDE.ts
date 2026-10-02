@@ -2,7 +2,7 @@ import type { CatalogEntry } from "./catalog.js";
 /**
  * DE legislation catalog. Generated from mainline AHDGame — DO NOT HAND-EDIT.
  * Generator: packages/content/scripts/generateCatalogs.ts
- * Source: src/lib/seeds/de/deLegislationTypes.ts (60 types),
+ * Source: src/lib/countries/de/data/deLegislationTypes.ts (60 types),
  * src/lib/politicalLegislation/marginAdapter.ts ADAPTER_TIER1 (target mapping),
  * src/lib/seeds/reference/budgets.ts policyDefaults (tax baselines). See the
  * generator header for the mapping rules and the PORT-STUB convention.
@@ -17,10 +17,9 @@ export const CATALOG_DE: CatalogEntry[] = [
     description: "Germany's top federal income tax rate on personal earnings",
     category: "tax",
     allowedScope: "national",
-    taxPolicy: { scope: "federal", taxType: "incomeTax", minRate: 0, maxRate: 65, step: 3, baselineRate: 42 },
+    taxPolicy: { scope: "federal", taxType: "incomeTax", minRate: 0, maxRate: 65, step: 3, baselineRate: 42, options: [{"id":"de_income_tax_rate_opt_0","rate":0,"effectDirection":1,"economic":5,"social":0},{"id":"de_income_tax_rate_opt_1","rate":10,"effectDirection":1,"economic":4,"social":0},{"id":"de_income_tax_rate_opt_2","rate":20,"effectDirection":1,"economic":3,"social":0},{"id":"de_income_tax_rate_opt_3","rate":28,"effectDirection":1,"economic":2,"social":0},{"id":"de_income_tax_rate_opt_4","rate":35,"effectDirection":1,"economic":1,"social":0},{"id":"de_income_tax_rate_opt_5","rate":42,"effectDirection":0,"economic":0,"social":0},{"id":"de_income_tax_rate_opt_6","rate":45,"effectDirection":-1,"economic":-1,"social":0},{"id":"de_income_tax_rate_opt_7","rate":50,"effectDirection":-1,"economic":-2,"social":0},{"id":"de_income_tax_rate_opt_8","rate":55,"effectDirection":-1,"economic":-3,"social":0},{"id":"de_income_tax_rate_opt_9","rate":60,"effectDirection":-1,"economic":-4,"social":0},{"id":"de_income_tax_rate_opt_10","rate":65,"effectDirection":-1,"economic":-5,"social":0}] },
     targets: [{"metricId":"economic.medianIncome","weight":1},{"metricId":"economic.povertyRate","weight":0.5},{"metricId":"economic.gdpGrowth","weight":0.4},{"metricId":"society.socialMobility","weight":-0.6}],
-    status: "unavailable",
-    blockingSystem: "budget/taxRateLadder",
+    status: "available",
   },
   {
     // source: seed; baselineRate from budget policyDefaults option de_solidarity_surcharge_opt_5
@@ -31,10 +30,9 @@ export const CATALOG_DE: CatalogEntry[] = [
     description: "Germany's Solidaritätszuschlag — a percentage surcharge on income tax owed",
     category: "tax",
     allowedScope: "national",
-    taxPolicy: { scope: "federal", taxType: "solidaritySurcharge", minRate: 0, maxRate: 10, step: 0.5, baselineRate: 5.5 },
+    taxPolicy: { scope: "federal", taxType: "solidaritySurcharge", minRate: 0, maxRate: 10, step: 0.5, baselineRate: 5.5, options: [{"id":"de_solidarity_surcharge_opt_0","rate":0,"effectDirection":1,"economic":5,"social":0},{"id":"de_solidarity_surcharge_opt_1","rate":0.5,"effectDirection":1,"economic":4,"social":0},{"id":"de_solidarity_surcharge_opt_2","rate":1,"effectDirection":1,"economic":3,"social":0},{"id":"de_solidarity_surcharge_opt_3","rate":2,"effectDirection":1,"economic":2,"social":0},{"id":"de_solidarity_surcharge_opt_4","rate":4,"effectDirection":1,"economic":1,"social":0},{"id":"de_solidarity_surcharge_opt_5","rate":5.5,"effectDirection":0,"economic":0,"social":0},{"id":"de_solidarity_surcharge_opt_6","rate":6.5,"effectDirection":-1,"economic":-1,"social":0},{"id":"de_solidarity_surcharge_opt_7","rate":7.5,"effectDirection":-1,"economic":-2,"social":0},{"id":"de_solidarity_surcharge_opt_8","rate":8.5,"effectDirection":-1,"economic":-3,"social":0},{"id":"de_solidarity_surcharge_opt_9","rate":9.5,"effectDirection":-1,"economic":-4,"social":0},{"id":"de_solidarity_surcharge_opt_10","rate":10,"effectDirection":-1,"economic":-5,"social":0}] },
     targets: [{"metricId":"economic.eastWestConvergence","weight":-1},{"metricId":"governance.budgetBalance","weight":-0.4},{"metricId":"economic.medianIncome","weight":0.3},{"metricId":"society.socialMobility","weight":-0.3}],
-    status: "unavailable",
-    blockingSystem: "budget/taxRateLadder",
+    status: "available",
   },
   {
     // source: seed; baselineRate from budget policyDefaults option de_vat_rate_opt_5
@@ -45,10 +43,9 @@ export const CATALOG_DE: CatalogEntry[] = [
     description: "Germany's standard Mehrwertsteuer (VAT) rate on most goods and services",
     category: "tax",
     allowedScope: "national",
-    taxPolicy: { scope: "federal", taxType: "salesTax", minRate: 0, maxRate: 28, step: 1, baselineRate: 19 },
+    taxPolicy: { scope: "federal", taxType: "salesTax", minRate: 0, maxRate: 28, step: 1, baselineRate: 19, options: [{"id":"de_vat_rate_opt_0","rate":0,"effectDirection":-1,"economic":-5,"social":0},{"id":"de_vat_rate_opt_1","rate":5,"effectDirection":-1,"economic":-4,"social":0},{"id":"de_vat_rate_opt_2","rate":7,"effectDirection":-1,"economic":-3,"social":0},{"id":"de_vat_rate_opt_3","rate":10,"effectDirection":-1,"economic":-2,"social":0},{"id":"de_vat_rate_opt_4","rate":16,"effectDirection":-1,"economic":-1,"social":0},{"id":"de_vat_rate_opt_5","rate":19,"effectDirection":0,"economic":0,"social":0},{"id":"de_vat_rate_opt_6","rate":20,"effectDirection":1,"economic":1,"social":0},{"id":"de_vat_rate_opt_7","rate":22,"effectDirection":1,"economic":2,"social":0},{"id":"de_vat_rate_opt_8","rate":24,"effectDirection":1,"economic":3,"social":0},{"id":"de_vat_rate_opt_9","rate":25,"effectDirection":1,"economic":4,"social":0},{"id":"de_vat_rate_opt_10","rate":28,"effectDirection":1,"economic":5,"social":0}] },
     targets: [{"metricId":"economic.costOfLiving","weight":-1},{"metricId":"economic.gdpGrowth","weight":-0.25},{"metricId":"economic.povertyRate","weight":-0.6},{"metricId":"economic.smallBusinessFormation","weight":-0.3}],
-    status: "unavailable",
-    blockingSystem: "budget/taxRateLadder",
+    status: "available",
   },
   {
     // source: seed; baselineRate from budget policyDefaults option de_domestic_corporate_tax_rate_opt_5
@@ -59,10 +56,9 @@ export const CATALOG_DE: CatalogEntry[] = [
     description: "Federal Körperschaftsteuer on German-headquartered corporations",
     category: "tax",
     allowedScope: "national",
-    taxPolicy: { scope: "federal", taxType: "domesticCorporateTax", minRate: 0, maxRate: 30, step: 2, baselineRate: 15 },
+    taxPolicy: { scope: "federal", taxType: "domesticCorporateTax", minRate: 0, maxRate: 30, step: 2, baselineRate: 15, options: [{"id":"de_domestic_corporate_tax_rate_opt_0","rate":0,"effectDirection":1,"economic":5,"social":0},{"id":"de_domestic_corporate_tax_rate_opt_1","rate":3,"effectDirection":1,"economic":4,"social":0},{"id":"de_domestic_corporate_tax_rate_opt_2","rate":5,"effectDirection":1,"economic":3,"social":0},{"id":"de_domestic_corporate_tax_rate_opt_3","rate":8,"effectDirection":1,"economic":2,"social":0},{"id":"de_domestic_corporate_tax_rate_opt_4","rate":12,"effectDirection":1,"economic":1,"social":0},{"id":"de_domestic_corporate_tax_rate_opt_5","rate":15,"effectDirection":0,"economic":0,"social":0},{"id":"de_domestic_corporate_tax_rate_opt_6","rate":18,"effectDirection":-1,"economic":-1,"social":0},{"id":"de_domestic_corporate_tax_rate_opt_7","rate":20,"effectDirection":-1,"economic":-2,"social":0},{"id":"de_domestic_corporate_tax_rate_opt_8","rate":22,"effectDirection":-1,"economic":-3,"social":0},{"id":"de_domestic_corporate_tax_rate_opt_9","rate":25,"effectDirection":-1,"economic":-4,"social":0},{"id":"de_domestic_corporate_tax_rate_opt_10","rate":30,"effectDirection":-1,"economic":-5,"social":0}] },
     targets: [{"metricId":"economic.gdpGrowth","weight":1},{"metricId":"economic.smallBusinessFormation","weight":0.5},{"metricId":"economic.mittelstandHealth","weight":0.4},{"metricId":"governance.budgetBalance","weight":-0.4}],
-    status: "unavailable",
-    blockingSystem: "budget/taxRateLadder",
+    status: "available",
   },
   {
     // source: seed; baselineRate from budget policyDefaults option de_foreign_corporate_tax_rate_opt_5
@@ -73,10 +69,9 @@ export const CATALOG_DE: CatalogEntry[] = [
     description: "Federal Körperschaftsteuer on foreign-headquartered corporations",
     category: "tax",
     allowedScope: "national",
-    taxPolicy: { scope: "federal", taxType: "foreignCorporateTax", minRate: 0, maxRate: 30, step: 2, baselineRate: 15 },
+    taxPolicy: { scope: "federal", taxType: "foreignCorporateTax", minRate: 0, maxRate: 30, step: 2, baselineRate: 15, options: [{"id":"de_foreign_corporate_tax_rate_opt_0","rate":0,"effectDirection":1,"economic":5,"social":0},{"id":"de_foreign_corporate_tax_rate_opt_1","rate":3,"effectDirection":1,"economic":4,"social":0},{"id":"de_foreign_corporate_tax_rate_opt_2","rate":5,"effectDirection":1,"economic":3,"social":0},{"id":"de_foreign_corporate_tax_rate_opt_3","rate":8,"effectDirection":1,"economic":2,"social":0},{"id":"de_foreign_corporate_tax_rate_opt_4","rate":12,"effectDirection":1,"economic":1,"social":0},{"id":"de_foreign_corporate_tax_rate_opt_5","rate":15,"effectDirection":0,"economic":0,"social":0},{"id":"de_foreign_corporate_tax_rate_opt_6","rate":18,"effectDirection":-1,"economic":-1,"social":0},{"id":"de_foreign_corporate_tax_rate_opt_7","rate":20,"effectDirection":-1,"economic":-2,"social":0},{"id":"de_foreign_corporate_tax_rate_opt_8","rate":22,"effectDirection":-1,"economic":-3,"social":0},{"id":"de_foreign_corporate_tax_rate_opt_9","rate":25,"effectDirection":-1,"economic":-4,"social":0},{"id":"de_foreign_corporate_tax_rate_opt_10","rate":30,"effectDirection":-1,"economic":-5,"social":0}] },
     targets: [{"metricId":"economic.manufacturingCompetitiveness","weight":-1},{"metricId":"economic.tradeBalance","weight":-0.4},{"metricId":"economic.gdpGrowth","weight":0.5},{"metricId":"governance.budgetBalance","weight":-0.3}],
-    status: "unavailable",
-    blockingSystem: "budget/taxRateLadder",
+    status: "available",
   },
   {
     // source: seed; baselineRate from budget policyDefaults option de_payroll_social_insurance_opt_5
@@ -87,10 +82,9 @@ export const CATALOG_DE: CatalogEntry[] = [
     description: "Combined employee+employer Sozialversicherungsbeiträge",
     category: "tax",
     allowedScope: "national",
-    taxPolicy: { scope: "federal", taxType: "payrollTax", minRate: 0, maxRate: 30, step: 2, baselineRate: 20 },
+    taxPolicy: { scope: "federal", taxType: "payrollTax", minRate: 0, maxRate: 30, step: 2, baselineRate: 20, options: [{"id":"de_payroll_social_insurance_opt_0","rate":0,"effectDirection":1,"economic":5,"social":0},{"id":"de_payroll_social_insurance_opt_1","rate":5,"effectDirection":1,"economic":4,"social":0},{"id":"de_payroll_social_insurance_opt_2","rate":10,"effectDirection":1,"economic":3,"social":0},{"id":"de_payroll_social_insurance_opt_3","rate":13,"effectDirection":1,"economic":2,"social":0},{"id":"de_payroll_social_insurance_opt_4","rate":16,"effectDirection":1,"economic":1,"social":0},{"id":"de_payroll_social_insurance_opt_5","rate":20,"effectDirection":0,"economic":0,"social":0},{"id":"de_payroll_social_insurance_opt_6","rate":22,"effectDirection":-1,"economic":-1,"social":0},{"id":"de_payroll_social_insurance_opt_7","rate":24,"effectDirection":-1,"economic":-2,"social":0},{"id":"de_payroll_social_insurance_opt_8","rate":26,"effectDirection":-1,"economic":-3,"social":0},{"id":"de_payroll_social_insurance_opt_9","rate":28,"effectDirection":-1,"economic":-4,"social":0},{"id":"de_payroll_social_insurance_opt_10","rate":30,"effectDirection":-1,"economic":-5,"social":0}] },
     targets: [{"metricId":"governance.rentenStabilitaet","weight":-1},{"metricId":"economic.unemploymentRate","weight":0.4},{"metricId":"economic.medianIncome","weight":0.5},{"metricId":"economic.povertyRate","weight":-0.3}],
-    status: "unavailable",
-    blockingSystem: "budget/taxRateLadder",
+    status: "available",
   },
   {
     // source: seed; baselineRate from budget policyDefaults option de_customs_tariff_rate_opt_5
@@ -101,10 +95,9 @@ export const CATALOG_DE: CatalogEntry[] = [
     description: "Germany's position on EU Common External Tariff levels",
     category: "tax",
     allowedScope: "national",
-    taxPolicy: { scope: "federal", taxType: "tariffs", minRate: 0, maxRate: 20, step: 1, baselineRate: 5 },
+    taxPolicy: { scope: "federal", taxType: "tariffs", minRate: 0, maxRate: 20, step: 1, baselineRate: 5, options: [{"id":"de_customs_tariff_rate_opt_0","rate":0,"effectDirection":-1,"economic":-5,"social":0},{"id":"de_customs_tariff_rate_opt_1","rate":1,"effectDirection":-1,"economic":-4,"social":0},{"id":"de_customs_tariff_rate_opt_2","rate":2,"effectDirection":-1,"economic":-3,"social":0},{"id":"de_customs_tariff_rate_opt_3","rate":3,"effectDirection":-1,"economic":-2,"social":0},{"id":"de_customs_tariff_rate_opt_4","rate":4,"effectDirection":-1,"economic":-1,"social":0},{"id":"de_customs_tariff_rate_opt_5","rate":5,"effectDirection":0,"economic":0,"social":0},{"id":"de_customs_tariff_rate_opt_6","rate":6,"effectDirection":1,"economic":1,"social":0},{"id":"de_customs_tariff_rate_opt_7","rate":8,"effectDirection":1,"economic":2,"social":0},{"id":"de_customs_tariff_rate_opt_8","rate":10,"effectDirection":1,"economic":3,"social":0},{"id":"de_customs_tariff_rate_opt_9","rate":14,"effectDirection":1,"economic":4,"social":0},{"id":"de_customs_tariff_rate_opt_10","rate":20,"effectDirection":1,"economic":5,"social":0}] },
     targets: [{"metricId":"economic.manufacturingCompetitiveness","weight":-1},{"metricId":"economic.tradeBalance","weight":-0.5},{"metricId":"economic.costOfLiving","weight":-0.4},{"metricId":"governance.euCohesionScore","weight":0.3}],
-    status: "unavailable",
-    blockingSystem: "budget/taxRateLadder",
+    status: "available",
   },
   {
     // source: seed; baselineRate from budget policyDefaults option de_trade_tax_opt_5
@@ -360,7 +353,7 @@ export const CATALOG_DE: CatalogEntry[] = [
     countryId: "DE",
     kind: "primary",
     title: "European Integration Policy Act",
-    description: "Germany's posture on EU integration depth — Eurobonds, fiscal union, EU defense cooperation, NextGenerationEU joint borrowing, social-policy harmonization.",
+    description: "Germany's European integration stance and associated domestic spending. Treaty ratification, membership and shared sovereign powers require separate decisions.",
     category: "foreign_policy",
     allowedScope: "national",
     targets: [{"metricId":"governance.euCohesionScore","weight":1},{"metricId":"economic.manufacturingCompetitiveness","weight":0.2},{"metricId":"society.integration","weight":0.2},{"metricId":"governance.budgetBalance","weight":-0.3}],

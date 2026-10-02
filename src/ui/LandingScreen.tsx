@@ -119,7 +119,7 @@ export function LandingScreen({
         return <article className="ahd-card ahd-card-pad ahd-save-card" key={saved.slotId} style={{ marginTop: '.75rem' }}>
           <h3 className="ahd-save-name" style={{ margin: 0, fontSize: '0.95rem' }}>{saved.playerName}</h3><p className="ahd-muted ahd-save-meta" style={{ margin: '0.2rem 0 0', fontSize: '0.78rem' }}>{saved.countryId} · Turn {saved.turn} · {new Date(saved.savedAt).toLocaleString()}</p>
           <div className="ahd-save-actions">
-            <button className="ahd-btn ahd-btn-sm" disabled={busy} onClick={() => onLoad(saved)} aria-label={`Continue ${saved.playerName}`}>Continue</button>
+            <button className="ahd-btn ahd-btn-sm" disabled={busy || !eras.length} onClick={() => onLoad(saved)} aria-label={`Continue ${saved.playerName}`}>Continue</button>
             <button className="ahd-btn ahd-btn-sm ahd-btn-ghost" disabled={busy} id={`delete-request-${saved.slotId}`} onClick={() => onRequestDelete(saved)} aria-label={`Delete ${saved.playerName}`}>Delete</button>
           </div>
           {isPending && (

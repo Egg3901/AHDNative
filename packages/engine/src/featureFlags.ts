@@ -241,6 +241,7 @@ const PHASE_FEATURE_FLAGS: Readonly<Record<string, WorldFeatureFlag>> = {
   fomcMeetings: "centralBanks",
   fomcNominations: "centralBanks",
   corporationTurn: "corporations",
+  corporateTradeSnapshot: "corporations",
   commodityPrices: "commodities",
   contractSettlement: "commodities",
   recomputeSharePrices: "markets",
