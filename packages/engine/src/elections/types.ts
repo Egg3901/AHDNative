@@ -139,6 +139,13 @@ export interface ElectionRecord {
   primaryConventionResults?: Record<string, PrimaryConventionResult>;
   /** Per-turn primary standings used to render the live primary phase. */
   primarySnapshots?: PrimarySnapshot[];
+  /** Frozen per-unit and overall EC result retained with the resolved race. */
+  electoralCollegeResult?: {
+    stateWinners: Record<string, string>;
+    evByCandidate: Record<string, number>;
+    totalEv: number;
+    resolutionMode: "majority" | "contingent" | "contingent_deadlock";
+  };
   winners?: string[];
   resolvedTurn?: number;
 }

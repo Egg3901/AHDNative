@@ -57,6 +57,7 @@ import { nppActionProcessingPhase } from "../npp/nppActionProcessing.js";
 import { nppStanceDriftPhase } from "../npp/stanceDrift.js";
 import { nppBehaviorPhase } from "../npp/nppBehavior.js";
 import { primaryResolutionPhase, voteAccumulationPhase, electionTimersPhase, electionResolutionPhase, foundingCompletionPhase } from "../elections/phases.js";
+import { statehoodAdmissionPhase } from "../elections/statehoodPhase.js";
 import { demographicEffectsPhase } from "../demographics/demographicEffects.js";
 import { demographicFlowsPhase } from "../demographics/demographicFlows.js";
 import { censusPhase } from "../demographics/census.js";
@@ -262,6 +263,9 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   campaignNpcInvestmentPhase,
   primaryResolutionPhase,
   voteAccumulationPhase,
+  // Statehood writes admittedYear and the initial House seat before the
+  // perpetual-election scheduler runs, matching AHDGame's statehood phase.
+  statehoodAdmissionPhase,
   campaignSpendResetPhase,
   electionTimersPhase,
   electionResolutionPhase,

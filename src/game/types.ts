@@ -304,7 +304,7 @@ export interface GameView {
    * the Profile card lists every owned corporation.
    */
   myCorporation?: MyCorporationLink;
-  player: { name: string; cash: number; funds: number; actions: number; influence: number; favorability: number; partyName: string; mode: SingleplayerMode; hosPartyId: string | null; homeRegionId: string | null; permanentHeadOfState?: boolean; currentOffice?: string | null; };
+  player: { name: string; cash: number; funds: number; actions: number; influence: number; favorability: number; partyName: string; mode: SingleplayerMode; hosPartyId: string | null; homeRegionId: string | null; permanentHeadOfState?: boolean; currentOffice?: string | null; autoRunForReelection?: boolean; };
   legislature: LegislatureView;
   finance: FinanceView;
   resources: ResourceDetailsView;

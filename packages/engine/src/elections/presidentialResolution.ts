@@ -232,6 +232,15 @@ export function applyPresidentialResolution(world: WorldState, rec: ElectionReco
     resolutionMode = contingentResult.resolutionMode;
   }
 
+  if (ec) {
+    rec.electoralCollegeResult = {
+      stateWinners: { ...ec.stateWinners },
+      evByCandidate: { ...ec.evByCandidate },
+      totalEv: ec.totalEv,
+      resolutionMode,
+    };
+  }
+
   const winnerCand = rec.candidates.find((c) => c.id === winnerId);
   const winnerParty = winnerCand?.partyId ?? targetOffice(world, winnerId)?.partyId ?? "independent";
   const vpParty = vpPartyFor(world, vpWinnerId);

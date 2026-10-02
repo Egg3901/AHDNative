@@ -3662,6 +3662,23 @@ export function deserializeSave(raw: string): WorldState {
   // v63: primary/split-off ownership routing needs the new consumer.
   // Preserve historical absence of primary flags and sector assignments.
   if (save.schemaVersion < 63) save.world.meta.schemaVersion = 63;
+  // v64: source-shaped annual territory-admission evaluation is persisted so
+  // a save/reload cannot evaluate the same in-game year a second time. The
+  // starting preset stays fixed across later era labels, as Game's gameState
+  // preset does. Legacy 1953 saves are identified by territorial zero seats.
+  if (save.schemaVersion < 64) {
+    save.world.meta.schemaVersion = 64;
+    const regions = save.world.regions;
+    const currentEra = typeof save.world.meta.era === "string" ? save.world.meta.era : "1953";
+    const inferredPreset = regions?.AK?.countryId === "US" && regions.AK.houseSeats === 0
+      ? "1953-default"
+      : `${currentEra}-default`;
+    const statehood = save.world.statehood && typeof save.world.statehood === "object"
+      ? save.world.statehood as Record<string, unknown>
+      : {};
+    if (typeof statehood.startingPreset !== "string") statehood.startingPreset = inferredPreset;
+    save.world.statehood = statehood as typeof save.world.statehood;
+  }
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same

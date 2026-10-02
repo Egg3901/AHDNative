@@ -78,6 +78,8 @@ import { castPmAppointmentVote, proposePmAppointment, pmAppointmentExecutiveTitl
 import { endorsePresidentialCandidate, withdrawPresidentialGovernorEndorsement } from "../governor/powers.js";
 
 export type ExecuteActionParams = {
+  /** Player preference for automatic re-entry in the most recent state race. */
+  enabled?: boolean;
   regionId?: string;
   contractId?: string;
   issuerLevel?: "national" | "state";

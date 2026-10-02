@@ -214,6 +214,8 @@ export interface WorldState {
   demographicCategories: Record<string, import("./demographics/categories.js").DemographicCategory[]>;
   /** Census reapportionment state. Ports src/lib/turn/census.ts GameState.lastCensusYear/lastCensus. Schema v14. */
   census: { lastCensusYear?: number; lastCensus?: { year: number; deltas: import("./demographics/census.js").SeatDelta[] } };
+  /** Annual statehood-admission evaluation guard, mirroring GameState.lastStatehoodYear. */
+  statehood?: { lastEvaluatedYear?: number; startingPreset?: string };
   /** Per-region labor force headcount (civilian). Computed from workingAge + conscription + participation. Schema v14. */
   laborForces: Record<string, number>;
   /** National budgets per country (fiscal system). Ports FederalBudget shape. Schema v15. */
@@ -1631,6 +1633,8 @@ export interface Region {
   /** Migration provenance: this HQ-only row was absent from the legacy save. */
   legacyProjectionDefault?: true;
   /** Optional enriched state metadata for US states (W38+). Mirrors StateSeed fields. */
+  /** In-game admission year for a territory admitted after its starting pack. */
+  admittedYear?: number;
   population?: number;
   houseSeats?: number;
   senateSeats?: number;

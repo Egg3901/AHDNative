@@ -212,6 +212,19 @@ export class GameSession {
     if (isWorldsimMode(this.requireWorld().player.mode)) {
       return { ok: false as const, error: "This spectator world has no player character. Advance the turn to run the simulation." };
     }
+    if (actionId === "setAutoRunForReelection") {
+      if (typeof params.enabled !== "boolean") return { ok: false as const, error: "Choose whether to automatically re-enter your most recent state race." };
+      const source = this.requireWorld();
+      const actionBefore = snapshotActionFields(source);
+      const candidate = structuredClone(source);
+      candidate.player.autoRunForReelection = params.enabled;
+      this.commit(candidate, this.notifications);
+      return {
+        ok: true as const,
+        message: params.enabled ? "Automatic state-race re-entry enabled." : "Automatic state-race re-entry disabled.",
+        outcome: buildActionOutcome(actionId, params, actionBefore, candidate),
+      };
+    }
     // #273: nomination commands call the engine functions directly on a
     // cloned world. actions/catalog.ts and actions/execute.ts are untouched
     // (serialized after #261); the engine stays authoritative and failures
@@ -968,7 +981,8 @@ function projectWorld(world: WorldState, notifications: NotificationItem[]): Gam
       partyName: player.partyId ? world.parties[player.partyId]?.name ?? "Independent" : "Independent",
       mode: player.mode, hosPartyId: player.hosPartyId, homeRegionId: player.homeRegionId ?? null,
       permanentHeadOfState: player.permanentHeadOfState === true,
-      currentOffice: player.currentOffice?.type ?? null },
+      currentOffice: player.currentOffice?.type ?? null,
+      autoRunForReelection: player.autoRunForReelection === true },
     legislature: projectLegislature(world),
     finance: projectFinance(world),
     resources: projectResources(world),

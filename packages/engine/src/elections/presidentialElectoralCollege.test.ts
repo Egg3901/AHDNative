@@ -65,6 +65,18 @@ describe("electoralVotesByState — EV apportionment (1953)", () => {
   });
 });
 
+describe("electoralVotesByState — 1979 supported pack", () => {
+  it("uses the source 1970-census 50-state map, DC, and then-current district law", () => {
+    const world = createWorld({ ...OPTS, era: "1979" });
+    const ev = electoralVotesByState(world, "US");
+    expect(Object.keys(ev)).toHaveLength(51);
+    expect(Object.values(ev).reduce((sum, value) => sum + value, 0)).toBe(538);
+    expect(ev).toMatchObject({ AK: 3, HI: 4, CA: 45, NY: 41, ME: 4, NE: 5, DC: 3 });
+    expect(electoralVoteUnitsForWorld(world, "US").some((unit) => unit.unitId === "ME_CD1")).toBe(true);
+    expect(electoralVoteUnitsForWorld(world, "US").some((unit) => unit.unitId === "NE_CD1")).toBe(false);
+  });
+});
+
 describe("electoralMajorityFor", () => {
   it("computes the era's real majority (266 for a 531-EV college), not a hardcoded 270", () => {
     expect(electoralMajorityFor(531)).toBe(266);
@@ -218,7 +230,7 @@ function liveSeats(world: WorldState, countryId = "US"): Record<string, number> 
   const seats: Record<string, number> = {};
   for (const region of Object.values(world.regions)) {
     if (region.countryId !== countryId || region.corporationHeadquartersOnly === true) continue;
-    seats[region.id] = region.houseSeats ?? 0;
+    if (typeof region.houseSeats === "number" && region.houseSeats > 0) seats[region.id] = region.houseSeats;
   }
   return seats;
 }
