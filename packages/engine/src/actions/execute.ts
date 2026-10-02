@@ -2566,7 +2566,7 @@ function executeActionInner(
       actor.actions += cost;
       return { ok: false, error: "Only the sitting head of government may order an executive nationalization." };
     }
-    if (params.tier !== "seizure" && params.tier !== "discounted" && params.tier !== "fair") {
+    if (params.tier !== "seizure" && params.tier !== "discounted") {
       actor.actions += cost;
       return { ok: false, error: "Choose a valid nationalization compensation tier." };
     }
@@ -2704,7 +2704,8 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
     case "mergeNationalCorporation":
       return typeof params.sectorType === "string" && (params.intoCorpId === undefined || typeof params.intoCorpId === "string") && (params.countryId === undefined || typeof params.countryId === "string") ? null : "mergeNationalCorporation requires sectorType and an optional target issuer";
     case "nationalizeCorporation":
-      return params.corporationId && (params.tier === "seizure" || params.tier === "discounted" || params.tier === "fair")
+      if (params.tier === "fair") return "Fair-value nationalization requires a passed state-ownership bill.";
+      return params.corporationId && (params.tier === "seizure" || params.tier === "discounted")
         ? null
         : "nationalizeCorporation requires corporationId and a valid compensation tier";
     case "voteCeo":

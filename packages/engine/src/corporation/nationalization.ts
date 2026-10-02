@@ -96,6 +96,7 @@ export function nationalizeDistressedCorporation(
   actorId: string,
   tier: CompensationTier = "seizure",
 ): NationalizationResult {
+  if (tier === "fair") return { ok: false, error: "Fair-value nationalization requires a passed state-ownership bill." };
   if (actorId !== "player" || !isRecordedSittingHeadOfGovernment(world, world.player.countryId)) {
     return { ok: false, error: "Only the sitting head of government may order an executive nationalization." };
   }
