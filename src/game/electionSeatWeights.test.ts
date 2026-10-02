@@ -144,4 +144,10 @@ describe("source multi-seat winner continuation", () => {
     expect(projection).toMatchObject({ ok: false, error: expect.stringMatching(/weighted.*seat/i) });
   });
 
+  it("keeps the first UK formation pending without manufacturing a PM-vacancy snap deadline", () => {
+    const world = createWorld({ seed: "source-uk-first-formation", playerName: "Alex", countryId: "UK", era: "2019" });
+    advanceTurn(world);
+    expect(world.governments.UK).toMatchObject({ status: "pending", pmVacancyDeadlineTurn: null });
+  });
+
 });
