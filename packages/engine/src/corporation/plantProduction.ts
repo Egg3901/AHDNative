@@ -17,7 +17,7 @@ import type { CorporateSectorAsset } from "./corporateSectorAssets.js";
 import type { SectorBuildOrder } from "./corporateSectorAssets.js";
 import { getSectorTechEffects } from "./techTree/selectors.js";
 import { CORPORATE_PLANT_MARKET_STABILIZER, corporatePlantInputRates, rebuildCorporatePlantInputDemand } from "./plantDemand.js";
-import { assembleSourcePlantPnl, sourceDominanceComplianceRate, sourcePlantsUpkeep, sourceSectorLaborCost } from "./physicalPlantCosts.js";
+import { assembleSourcePlantPnl, sourceCrisisMarginPenalty, sourceDominanceComplianceRate, sourcePlantFinancialLeg, sourcePlantsUpkeep, sourceSectorLaborCost } from "./physicalPlantCosts.js";
 
 const PRICE_REALIZATION_EXPONENT = 0.5;
 const PRICE_REALIZATION_MIN = 0.7;
@@ -366,7 +366,6 @@ export function runCorporatePlantProductionTurn(
     // Current-turn labor/subsidy/retool margin modifiers are applied once by
     // corporationTurn after this physical settlement.
     const priorMargin = softCapEffectiveMargin(corporation.profitMargin);
-    const operatingCostBasis = realizedRevenue * (1 - priorMargin / 100);
     const produced = asset.producedUnits ?? 0;
     const year = Number(world.meta.date.slice(0, 4));
     const techEffects = getSectorTechEffects({ type: corporation.sectorType, ...corporation }, asset.sectorType);
@@ -379,13 +378,15 @@ export function runCorporatePlantProductionTurn(
     );
     const negotiatedWageFloor = agreements.reduce((floor, agreement) => Math.max(floor, agreement.wageLevel), 0.8);
     const currentMarginModifier = marginModifierPpByCorporation.get(corporation.id) ?? 0;
+    const disasterMarginModifier = sourceCrisisMarginPenalty(world, asset.countryId, world.meta.turn);
     const policyMarginPp = softCapEffectiveMargin(priorMargin + currentMarginModifier) - priorMargin;
+    const totalEffectiveMargin = softCapEffectiveMargin(priorMargin + currentMarginModifier + disasterMarginModifier);
     // The source has a separate labourSystemMode config. Native's unions
     // phase is the nearest saved control: when disabled, source wage costs,
     // like the source wages tier, are absent.
     const labour = world.featureFlags.unions ? sourceSectorLaborCost({
       revenue: realizedRevenue,
-      marginPct: softCapEffectiveMargin(priorMargin + currentMarginModifier),
+      marginPct: totalEffectiveMargin,
       type: corporation.sectorType,
       year,
       wageLevel: asset.wageLevel ?? 1,
@@ -400,7 +401,7 @@ export function runCorporatePlantProductionTurn(
       capacity: productionCapacity,
       producedUnits: produced,
       involuntaryThrottle: outputFactor,
-      effectiveMarginPct: priorMargin + (marginModifierPpByCorporation.get(corporation.id) ?? 0),
+      effectiveMarginPct: totalEffectiveMargin,
       marginBasisAnchor: asset.plantsUpkeepMarginBasisAnchor,
       plantsStartTurn,
       turn: world.meta.turn,
@@ -409,7 +410,7 @@ export function runCorporatePlantProductionTurn(
     if (asset.plantsUpkeepMarginBasisAnchor === undefined) {
       asset.plantsUpkeepMarginBasisAnchor = upkeep.marginBasis;
     }
-    const financialLegs = 0;
+    const financialLegs = sourcePlantFinancialLeg(realizedRevenue, disasterMarginModifier);
     const shares = dominanceShares.get(asset.id) ?? { localSharePct: 0, nationalSharePct: 0 };
     const stateOwned = corporation.ownershipState === "stateOwned" || Boolean(corporation.countryOwnerId);
     const compliance = realizedRevenue * sourceDominanceComplianceRate({
@@ -421,11 +422,11 @@ export function runCorporatePlantProductionTurn(
     });
     if (asset.otherOpexPerUnitAnchor === undefined && produced > 0) {
       const requestedCredit = realizedRevenue * (policyMarginPp / 100);
-      asset.otherOpexPerUnitAnchor = (operatingCostBasis + requestedCredit - inputCost - labour - financialLegs) / produced;
+      asset.otherOpexPerUnitAnchor = (realizedRevenue * (1 - totalEffectiveMargin / 100) + requestedCredit - inputCost - labour - financialLegs) / produced;
     }
     const rawOtherOpex = Number.isFinite(asset.otherOpexPerUnitAnchor)
       ? asset.otherOpexPerUnitAnchor! * produced
-      : operatingCostBasis - inputCost - labour - financialLegs;
+      : realizedRevenue * (1 - totalEffectiveMargin / 100) - inputCost - labour - financialLegs;
     const requestedPolicyCredit = realizedRevenue * (policyMarginPp / 100);
     const pnl = assembleSourcePlantPnl({
       revenue: realizedRevenue, inputs: inputCost, labour, upkeep: upkeep.cost,

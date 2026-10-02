@@ -8,7 +8,7 @@ import { rngFromState } from "../rng.js";
 import { advanceTurn } from "../engine.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { rebuildCorporatePlantInputDemand } from "./plantDemand.js";
-import { sourceSectorLaborCost } from "./physicalPlantCosts.js";
+import { sourceCrisisMarginPenalty, sourcePlantFinancialLeg, sourceSectorLaborCost } from "./physicalPlantCosts.js";
 
 describe("plants-tier corporate production", () => {
   it("builds source local and national dominance shares from actual host-currency receipts", () => {
@@ -95,6 +95,32 @@ describe("plants-tier corporate production", () => {
     expect(world.commodityPrices.steel!.globalSupply).toBeCloseTo(
       expectedStock * expectedMixWeight + asset.producedUnits! * expectedMixWeight,
       6,
+    );
+  });
+
+  it("consumes the decaying source crisis financial cost through public turn and saved continuation", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "plant-crisis-public-turn", playerName: "Alex" });
+    world.crises = [{
+      id: "source-recession", kind: "crisis.recession", name: "Recession", description: "source vector",
+      scope: "country", countryIds: ["US"], startTurn: 0, durationTurns: 8,
+      effects: [{ type: "profitMargin", value: -7, effectType: "decay" }],
+      status: "active", wireMessageOnStart: "", wireMessageOnEnd: "",
+    }];
+    advanceTurn(world);
+    const asset = Object.values(world.corporateSectors ?? {}).find(row => row.countryId === "US" && (row.realizedRevenue ?? 0) > 0)!;
+    const pnl = asset.plantsPnl!;
+    const penalty = sourceCrisisMarginPenalty(world, "US", world.meta.turn);
+    expect(penalty).toBeCloseTo(-6.125, 12);
+    expect(pnl.financialLegs).toBeCloseTo(sourcePlantFinancialLeg(pnl.revenue, penalty), 6);
+    expect(asset.effectiveProfitMargin).toBeDefined();
+    const replay = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
+    const direct = structuredClone(replay);
+    advanceTurn(replay);
+    advanceTurn(direct);
+    expect(replay.corporateSectors).toEqual(direct.corporateSectors);
+    const resumedAsset = replay.corporateSectors![asset.id]!;
+    expect(resumedAsset.plantsPnl?.financialLegs).toBeCloseTo(
+      sourcePlantFinancialLeg(resumedAsset.plantsPnl!.revenue, sourceCrisisMarginPenalty(replay, resumedAsset.countryId, replay.meta.turn)), 6,
     );
   });
 

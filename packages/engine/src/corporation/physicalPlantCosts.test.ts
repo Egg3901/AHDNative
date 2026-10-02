@@ -1,7 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { assembleSourcePlantPnl, sourceDominanceComplianceRate, sourcePlantsUpkeep, sourceSectorLaborCost, sourceSectorLaborShare } from "./physicalPlantCosts.js";
+import { assembleSourcePlantPnl, sourceCrisisMarginPenalty, sourceDominanceComplianceRate, sourcePlantFinancialLeg, sourcePlantsUpkeep, sourceSectorLaborCost, sourceSectorLaborShare } from "./physicalPlantCosts.js";
+import { createWorld } from "../world.js";
 
 describe("pinned source physical plant costs", () => {
+  it("converts active source crisis decay into the financial plant bill", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "plant-crisis-cost", playerName: "Alex" });
+    world.crises = [{
+      id: "source-recession", kind: "crisis.recession", name: "Recession", description: "source vector",
+      scope: "country", countryIds: ["US"], startTurn: 0, durationTurns: 8,
+      effects: [{ type: "profitMargin", value: -7, effectType: "decay" }],
+      status: "active", wireMessageOnStart: "", wireMessageOnEnd: "",
+    }];
+    // Immutable Game `computeDisasterPenaltySplit` at turn 0 and 4 yields
+    // -7pp and -3.5pp for this untagged legacy financial effect. The source
+    // `computeFinancialLegs` vector is 7% of the realized hourly receipts.
+    expect(sourceCrisisMarginPenalty(world, "US", 0)).toBe(-7);
+    expect(sourceCrisisMarginPenalty(world, "UK", 0)).toBe(0);
+    expect(sourceCrisisMarginPenalty(world, "US", 4)).toBe(-3.5);
+    expect(sourceCrisisMarginPenalty(world, "US", 8)).toBe(0);
+    expect(sourcePlantFinancialLeg(1_000, -7)).toBe(70);
+    expect(sourcePlantFinancialLeg(1_000, 4)).toBe(0);
+  });
+
   it("uses the source era/industry labor share and wage, union, agreement, and tech multipliers", () => {
     expect(sourceSectorLaborShare("energy", 1953)).toBe(0.15);
     // Source computeSectorLaborCost: min(800 gross maintenance, 150 labor slice)

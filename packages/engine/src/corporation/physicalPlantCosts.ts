@@ -4,6 +4,7 @@
  * Inputs/outputs here are Native local currency per seven-day turn.
  */
 import type { CorporationType } from "./types.js";
+import type { WorldState } from "../types.js";
 
 const LABOR_INTENSITY: Readonly<Record<CorporationType, number>> = {
   technology: 0.3, healthcare: 0.3, media: 0.28, entertainment: 0.28,
@@ -42,6 +43,28 @@ export function sourceSectorLaborCost(input: {
     : 1;
   const multiplier = Math.max(wage, agreementFloor) * laborTech * (1 + (density / 100) * 0.15);
   return baseline * multiplier;
+}
+
+/** Active source crisis decay penalties, expanded by Native's authored scope. */
+export function sourceCrisisMarginPenalty(world: Pick<WorldState, "crises">, countryId: string, turn: number): number {
+  let penalty = 0;
+  for (const crisis of world.crises ?? []) {
+    if (crisis.status !== "active" || crisis.durationTurns == null || crisis.durationTurns <= 0) continue;
+    if (crisis.scope !== "global" && !crisis.countryIds.includes(countryId)) continue;
+    const remaining = crisis.startTurn + crisis.durationTurns - turn;
+    if (remaining <= 0) continue;
+    for (const effect of crisis.effects) {
+      if (effect.type !== "profitMargin" || effect.effectType !== "decay") continue;
+      penalty += effect.value * (Math.min(remaining, crisis.durationTurns) / crisis.durationTurns);
+    }
+  }
+  return Number.isFinite(penalty) ? penalty : 0;
+}
+
+/** Source computeFinancialLegs: only negative disaster margin points become cash cost. */
+export function sourcePlantFinancialLeg(revenue: number, disasterMarginPenaltyPp: number): number {
+  if (!Number.isFinite(revenue) || revenue <= 0 || !Number.isFinite(disasterMarginPenaltyPp) || disasterMarginPenaltyPp >= 0) return 0;
+  return revenue * (-disasterMarginPenaltyPp / 100);
 }
 
 /** Game sectorCosts dominance compliance line, based on source revenue shares. */
