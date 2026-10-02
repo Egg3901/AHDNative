@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { writeFileSync } from "node:fs";
 import { advanceTurn } from "../engine.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { createWorld } from "../world.js";
@@ -213,8 +214,21 @@ describe("source country governor election families", () => {
       expect(race, `${countryId} first executive race should spawn on the ordinary first turn`).toBeDefined();
       return race!.endTurn;
     });
+    const tallyInputTrace: unknown[] = [];
+    const advanceObservedTurn = () =>
+      advanceTurn(world, {
+        observeElectionTallyInput: (snapshot) => {
+          const diagnostic = snapshot as {
+            election?: { countryId?: string; electionType?: string };
+          };
+          if (
+            (diagnostic.election?.countryId === "RU" || diagnostic.election?.countryId === "DD") &&
+            diagnostic.election.electionType === "governor"
+          ) tallyInputTrace.push(snapshot);
+        },
+      });
     const targetTurn = Math.max(...firstExecutiveEndTurns);
-    for (let turns = 0; world.meta.turn < targetTurn && turns < targetTurn; turns += 1) advanceTurn(world);
+    for (let turns = 0; world.meta.turn < targetTurn && turns < targetTurn; turns += 1) advanceObservedTurn();
     expect(world.meta.turn).toBe(targetTurn);
 
     for (const countryId of ["RU", "DD"] as const) {
@@ -239,6 +253,21 @@ describe("source country governor election families", () => {
       )!;
       expect(restored.elections.find((saved) => saved.id === race.id)).toEqual(JSON.parse(JSON.stringify(race)));
       expect(restored.governors[race.state!]!.governorId).toBe(world.governors[race.state!]!.governorId);
+    }
+    const diagnosticPath = process.env.AHD_COUNTRY_TALLY_TRACE_PATH;
+    if (diagnosticPath) {
+      writeFileSync(diagnosticPath, JSON.stringify({
+        provenance: {
+          sourceCommit: "0a68fee4c03f2c48692661501d539ac05f338571",
+          nativeRuntimeCommit: "7f992659c27ed4f70d2cc90efb2473920f5af1c1",
+          seed: "country-governors",
+          era: "1953",
+          targetTurn,
+          finalTurn: world.meta.turn,
+        },
+        tallyInputTrace,
+        finalRaces: world.elections.filter((election) => (election.countryId === "RU" || election.countryId === "DD") && election.electionType === "governor" && election.status === "resolved"),
+      }));
     }
   });
 });
