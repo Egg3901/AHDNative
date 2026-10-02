@@ -5,7 +5,7 @@ import { makeNppCapacityCashRecord, makeNppFoundingCashRecord } from "./corporat
 import { isCorpStateOwned } from "../bonds/corporateBonds.js";
 import { localToAnchor } from "../forex/conversion.js";
 import type { UnownedSectorState } from "../economy/types.js";
-import type { Corporation } from "./types.js";
+import type { Corporation, CorporationType } from "./types.js";
 import type { CorporateSectorAsset } from "./corporateSectorAssets.js";
 import { calculateSectorWorkers, corporateSectorAssets, initialRepresentingUnionId } from "./corporateSectorAssets.js";
 import { SOURCE_STATE_ADJACENCY } from "./sourceStateAdjacency.js";
@@ -14,6 +14,8 @@ import { NEUTRAL_STAT } from "../stats/characterStats.js";
 import { CEO_ARCHETYPE_MODIFIERS, DEFAULT_PROFIT_MARGIN } from "./constants.js";
 import { COMMODITY_BASE_PRICES, EXTRACTABLE_RESOURCES } from "../commodity/constants.js";
 import { getSectorStrategy } from "./plantCapacity.js";
+import { strategyLevers } from "./nppCorpStrategy.js";
+import { effectiveSectorCapacity } from "./strategyRetooling.js";
 
 // Current Game capacityEconomy.CAPACITY_BUILD_TURNS, non-founding orders.
 const BUILD_TURNS: Record<string, number> = {
@@ -110,6 +112,7 @@ export function applyNppSourceFounding(world: WorldState): void {
   const year = Number(world.meta.date.slice(0, 4));
   for (const corp of Object.values(world.corporations).sort((a, b) => a.id.localeCompare(b.id))) {
     if (corp.suspended || isCorpStateOwned(corp) || (corp.ceoType ?? "npp") !== "npp") continue;
+    if (!strategyLevers(corp.nppStrategy?.id ?? "expand").allowExpansion) continue;
     const sectorCount = Object.values(assets).filter((asset) => asset.corporationId === corp.id).length;
     if (sectorCount >= sourceLogisticsSupportedSectorCount(corp.logisticsStrength)) continue;
     // Source has one greenfield entry per issuer per turn.
@@ -346,6 +349,7 @@ export function sourceExtractionHeadroomByRegion(world: WorldState): Map<string,
 export function applyNppCapacityReplacement(world: WorldState): void {
   const year = Number(world.meta.date.slice(0, 4));
   const extractionHeadroom = sourceExtractionHeadroomByRegion(world);
+  const basePrices = corporateSectorBasePrices(world);
   const assets = Object.values(corporateSectorAssets(world)).sort((a, b) => a.id.localeCompare(b.id));
   const stateControlled = new Set(assets.filter((row) => {
     const owner = world.corporations[row.corporationId];
@@ -375,7 +379,7 @@ export function applyNppCapacityReplacement(world: WorldState): void {
     const queue = asset.buildQueue ?? [];
     if (!(capitalStock > 0) || !(produced > 0) || fill < NPP_REINVEST_MIN_FILL || queue.length >= NPP_REINVEST_MAX_QUEUE_DEPTH) continue;
     if (asset.stateId && stateControlled.has(`${asset.stateId}:${asset.sectorType}`)) continue;
-    const productionCapacity = asset.operatingCapacityUnits ?? capitalStock;
+    const productionCapacity = effectiveSectorCapacity(asset, basePrices, world.meta.turn);
     const utilization = productionCapacity > 0 ? Math.min(1, Math.max(0, produced / productionCapacity)) : 0;
     const runUnits = capitalStock * utilization;
     const buildCycle = BUILD_TURNS[asset.sectorType] ?? 48;
@@ -396,7 +400,8 @@ export function applyNppCapacityReplacement(world: WorldState): void {
     // margin. Older saves without this source P&L evidence do not get treated
     // as profitable by default.
     const profitable = asset.plantsPnl !== undefined && asset.plantsPnl.profit > 0;
-    const canGrow = (profitable || criticalShortage)
+    const canGrow = strategyLevers(corp.nppStrategy?.id ?? "expand").allowGrowthCapex
+      && (profitable || criticalShortage)
       && queue.length < NPP_REINVEST_MAX_GROWTH_QUEUE_DEPTH
       && shortage.mean > NPP_GROWTH_MIN_SHORTAGE
       && utilization >= NPP_GROWTH_MIN_UTILIZATION;

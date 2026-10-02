@@ -183,8 +183,9 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v63: source primary National Corporation identity and cross-sector routing.
 // v64: allocated seatsHeld weights needed by winner, ballot and government
 // continuation. Older readers cannot consume this state.
-// v65: source NPP physical replacement, cash-write and corporate FX-spread
-// witnesses; older readers cannot continue these finance flows.
+// v65: source NPP strategy memory, physical replacement, cash-write and
+// corporate FX-spread witnesses; older readers cannot continue these choices
+// and finance flows.
 export const SCHEMA_VERSION = 65;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */

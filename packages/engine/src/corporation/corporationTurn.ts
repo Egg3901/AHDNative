@@ -69,6 +69,8 @@ import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { makeRdInnovationRng } from "./rdInnovationRng.js";
 import { applyNppSourceStrategyRetools, strategyTransitionMarginModifier } from "./strategyRetooling.js";
 import { applyNppCapacityReplacement, applyNppSourceFounding } from "./nppCapacityReinvestment.js";
+import { advanceNppCorporationStrategies } from "./nppStrategyTurn.js";
+import { strategyLevers } from "./nppCorpStrategy.js";
 import { unlockNppCorporationTech } from "./techTree/nppUnlock.js";
 import { getSectorTechEffects } from "./techTree/selectors.js";
 import { assembleSourcePlantPnl, sourcePlantPolicyCredit } from "./physicalPlantCosts.js";
@@ -315,12 +317,13 @@ export function updateNppCorporationFinancialPolicy(
     else if (margin >= 10) rdPct = 0.01;
   }
   const modifiers = CEO_ARCHETYPE_MODIFIERS[corp.archetype];
-  corp.rdBudgetPerTurn = Math.round(revenue * rdPct * modifiers.rdMult);
+  const strategy = strategyLevers(corp.nppStrategy?.id ?? "expand");
+  corp.rdBudgetPerTurn = Math.round(revenue * rdPct * modifiers.rdMult * strategy.rdMult);
 
   let dividendRate = 0;
   if (income > 0 && corp.liquidCapital > cashFloorLocal && margin >= 15) {
     const base = margin >= 30 ? 8 : margin >= 20 ? 5 : 3;
-    dividendRate = Math.min(25, Math.round(base * modifiers.dividendMult));
+    dividendRate = Math.min(25, Math.round(base * modifiers.dividendMult * strategy.dividendMult));
   }
   corp.dividendRate = dividendRate;
 }
@@ -432,6 +435,10 @@ export const corporationTurnPhase: TurnPhase = {
       // Source insolvency uses management, separately from creator ownership.
       // Legacy absent management is the procedural NPP founding contract.
       if (!corp.countryOwnerId && (corp.ceoType ?? "npp") === "npp") checkInsolvency(corp, world.meta.turn);
+      // Source computes the new NPP brain after current P&L, then uses that
+      // decision for this turn's entry/capex and the financial targets it
+      // writes for the next turn.
+      advanceNppCorporationStrategies(world, corp.id);
       updateNppCorporationFinancialPolicy(corp, world.meta.era, fx);
     }
     // Game runs NPP strategy decisions after the current sector and issuer

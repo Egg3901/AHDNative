@@ -33,6 +33,7 @@
  * CORPORATION_TYPES (verbatim order).
  */
 import type { BankCharter } from "../banking/types.js";
+import type { NppStrategyState } from "./nppCorpStrategy.js";
 
 export const CORPORATION_TYPES = [
   "financial",
@@ -137,6 +138,8 @@ export interface Corporation {
   /** Source one-time technology grants accumulated by unlocked nodes. */
   marketingStrength?: number;
   logisticsStrength?: number;
+  /** Source NPP strategy memory and evaluation baseline. */
+  nppStrategy?: NppStrategyState;
   /** R&D cash actually charged last turn, in local currency per Native turn. */
   lastRdSpendPerTurn?: number;
   /** Plant stock added by the latest R&D breakthrough, in source output units/day. */

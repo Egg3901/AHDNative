@@ -6,7 +6,7 @@ import { applyNppCapacityReplacement, applyNppSourceFounding, findSourceNppEntry
 import { validateCorporateCashLedger } from "./corporateCashLedger.js";
 import { getEraNominalScale } from "../commodity/constants.js";
 import { getRateForCountry } from "../forex/conversion.js";
-import { corporateSectorAssets } from "./corporateSectorAssets.js";
+import { corporateSectorAssets, type CorporateSectorAsset } from "./corporateSectorAssets.js";
 import { CEO_ARCHETYPE_MODIFIERS } from "./constants.js";
 
 describe("source NPP capacity replacement", () => {
@@ -327,7 +327,7 @@ describe("source NPP capacity replacement", () => {
     for (const other of Object.values(world.corporations)) if (other.id !== corp.id) other.suspended = true;
     corp.liquidCapital = 100_000_000;
     const assetId = "corporate-sector:US:manufacturing:US-manufacturing";
-    const asset = {
+    const asset: CorporateSectorAsset = {
       id: assetId, corporationId: corp.id, countryId: "US", stateId: null,
       sectorType: "manufacturing" as const, capitalStock: 1_000, producedUnits: 950,
       soldUnits: 902.5, effectiveProfitMargin: 35, revenue: 10_000,
@@ -374,7 +374,7 @@ describe("source NPP capacity replacement", () => {
       const id = `ranked-plant-${index}`;
       return [id, {
         id, corporationId: corp.id, countryId: "US", stateId: regionIds[index],
-        sectorType: "manufacturing" as const, capitalStock: 1_000, operatingCapacityUnits: 1_000,
+        sectorType: "manufacturing" as const, capitalStock: 1_000,
         producedUnits: 1_000, soldUnits: fill * 1_000, revenue: 10_000,
         plantsPnl: { turn: world.meta.turn, revenue: 10_000, inputs: 1_000, otherOpex: 0, policyCredit: 0, growth: 0, operatingCost: 1_000, totalCost: 1_000, profit: 9_000 },
         workers: 1, representingUnionId: null, forSale: null, owner: "corporation" as const,
@@ -386,6 +386,28 @@ describe("source NPP capacity replacement", () => {
     expect(Object.values(world.corporateSectors!).filter((asset) => (asset.buildQueue?.length ?? 0) > 0).map((asset) => asset.id).sort())
       .toEqual(["ranked-plant-1", "ranked-plant-2", "ranked-plant-3", "ranked-plant-4"]);
     expect(world.corporateCashLedger).toHaveLength(4);
+  });
+
+  it("keeps depreciation replacement while a saved harvest strategy bars growth capex", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-harvest-replacement-only", playerName: "Alex" });
+    const corp = world.corporations["US-manufacturing"]!;
+    for (const other of Object.values(world.corporations)) if (other.id !== corp.id) other.suspended = true;
+    corp.liquidCapital = 100_000_000;
+    corp.nppStrategy = { id: "harvest", adoptedTurn: world.meta.turn, baselineScore: 20 };
+    const assetId = "corporate-sector:US:manufacturing:US-manufacturing";
+    const asset: CorporateSectorAsset = {
+      id: assetId, corporationId: corp.id, countryId: "US", stateId: null,
+      sectorType: "manufacturing" as const, capitalStock: 1_000, producedUnits: 950,
+      soldUnits: 902.5, revenue: 10_000,
+      plantsPnl: { turn: world.meta.turn, revenue: 10_000, inputs: 1_000, otherOpex: 0, policyCredit: 0, growth: 0, operatingCost: 1_000, totalCost: 1_000, profit: 9_000 },
+      workers: 1, representingUnionId: null, forSale: null, owner: "corporation" as const,
+    };
+    world.corporateSectors = { [assetId]: asset };
+    for (const price of Object.values(world.commodityPrices)) price.globalPrice = price.basePrice;
+    applyNppCapacityReplacement(world);
+    expect(asset.buildQueue?.[0]?.unitsOrdered).toBeCloseTo(950 * 0.0005 * (0.5 + 0.5 * ((0.95 - 0.85) / 0.15)), 10);
+    expect(corp.liquidCapital).toBeLessThan(100_000_000);
+    expect(world.corporateCashLedger?.[0]?.type).toBe("corp_capacity_build");
   });
 
   it("does not replace an underfilled, state-owned, or doubly queued asset", () => {

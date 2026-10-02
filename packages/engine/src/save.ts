@@ -55,6 +55,7 @@ import { validateNationalizationEligibilityState } from "./corporation/nationali
 import { validateNationalCorporations } from "./corporation/nationalCorporation.js";
 import { validateStateOwnershipLedger } from "./corporation/stateOwnershipLedger.js";
 import { validateCorporateCashLedger } from "./corporation/corporateCashLedger.js";
+import { validateNppStrategyState } from "./corporation/nppCorpStrategy.js";
 import { charterTypeOf, sumPositionMarks } from "./banking/propTrading.js";
 import { isValidContributionRate, validatePensionLedger, validatePensionSchemes } from "./unions/pension.js";
 import {
@@ -3761,6 +3762,7 @@ export function deserializeSave(raw: string): WorldState {
   validateNationalizationEligibilityState(save.world);
   validateNationalCorporations(save.world);
   validateCanvassState(save.world);
+  for (const corporation of Object.values(save.world.corporations)) validateNppStrategyState(corporation.nppStrategy);
   // #295: persisted sector-owner default. Saves written before the
   // acquisition slice carry materialized assets without the field; missing
   // degrades to the #293 default ("corporation") and keeps every loaded row
