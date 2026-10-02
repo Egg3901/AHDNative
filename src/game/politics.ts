@@ -463,6 +463,14 @@ export interface PoliticsReferendumRequestView {
   action: ActionView;
 }
 
+export interface PoliticsCommonsRecallView {
+  id: string; regionId: string; targetName: string; status: string; trigger: string;
+  signatureCount: number; signaturesRequired: number; turnsToSignatureExpiry: number | null;
+  checkEndTurn: number | null; removeDeclarations: number; retainDeclarations: number;
+  playerSignatureRecorded: boolean; playerDeclaration: "retain" | "remove" | null;
+  vacancyId: string | null;
+}
+
 export interface PoliticalMetricsView {
   countryId: string; countryName: string;
   politicalMetrics?: PoliticalRegistryView;
@@ -482,6 +490,7 @@ export interface PoliticsView {
   referendums: PoliticsReferendumView[];
   referendumRequest: PoliticsReferendumRequestView;
   politicians: PoliticsPoliticianView[];
+  commonsRecalls?: PoliticsCommonsRecallView[];
   politicalMetrics?: PoliticalRegistryView;
 }
 
@@ -1623,5 +1632,16 @@ export function projectPolitics(world: WorldState): PoliticsView {
       || b.requestedTurn - a.requestedTurn)
     .map((record) => projectReferendum(world, record));
 
-  return { countryId: country.id, countryName: country.name, currency: world.budgets[country.id]?.currencyCode ?? world.exchangeRates[country.id]?.currencyCode ?? "XXX", playerPartyId: player.partyId, parties, elections, referendums, referendumRequest: projectReferendumRequest(world), politicians, politicalMetrics: politicalMetricsForCountry(world, country.id) };
+  const commonsRecalls = player.countryId === "UK" ? (world.ukCommonsRecallPetitions ?? []).map((petition) => ({
+    id: petition.id, regionId: petition.regionId, targetName: petition.targetName, status: petition.status, trigger: petition.trigger,
+    signatureCount: petition.signatures.length, signaturesRequired: 5,
+    turnsToSignatureExpiry: petition.status === "open" && petition.openedTurn !== undefined ? Math.max(0, petition.openedTurn + 12 - world.meta.turn) : null,
+    checkEndTurn: petition.checkEndTurn ?? null,
+    removeDeclarations: petition.declarations.filter((row) => row.side === "remove").length,
+    retainDeclarations: petition.declarations.filter((row) => row.side === "retain").length,
+    playerSignatureRecorded: petition.signatures.some((row) => row.actorId === "player"),
+    playerDeclaration: petition.declarations.find((row) => row.actorId === "player")?.side ?? null,
+    vacancyId: petition.vacancyId ?? null,
+  })) : [];
+  return { countryId: country.id, countryName: country.name, currency: world.budgets[country.id]?.currencyCode ?? world.exchangeRates[country.id]?.currencyCode ?? "XXX", playerPartyId: player.partyId, parties, elections, referendums, referendumRequest: projectReferendumRequest(world), politicians, commonsRecalls, politicalMetrics: politicalMetricsForCountry(world, country.id) };
 }

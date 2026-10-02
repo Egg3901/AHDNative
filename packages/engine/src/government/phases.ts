@@ -5,6 +5,7 @@ import { isRecordedSingleplayerHeadOfGovernment, seatSingleplayerHeadOfGovernmen
 import type { Chamber, WorldState } from "../types.js";
 import { computeFormation, selectPm } from "./formation.js";
 import { cancelUkCommonsSpecialsForSnap, scheduleUkCommonsByElections, vacateRetiredUkCommonsOfficials } from "../elections/ukCommonsVacancies.js";
+import { advanceUkCommonsRecallPetitions } from "../elections/ukCommonsRecall.js";
 import { recomputeComposition } from "../elections/orchestration.js";
 import { liveChamberSeatsByParty } from "./seatWeights.js";
 import {
@@ -316,7 +317,12 @@ export const governmentVacancyWatcherPhase: TurnPhase = {
 export const ukCommonsVacancyWatcherPhase: TurnPhase = {
   name: "ukCommonsVacancyWatcher",
   run(world) {
-    if (vacateRetiredUkCommonsOfficials(world) > 0) recomputeComposition(world, "UK", "commons");
+    const retired = vacateRetiredUkCommonsOfficials(world);
+    const commonsWeight = () => Object.values(liveChamberSeatsByParty(world, "UK", "commons")).reduce((sum, seats) => sum + seats, 0);
+    const occupiedBeforeRecall = commonsWeight();
+    advanceUkCommonsRecallPetitions(world);
+    const occupiedAfterRecall = commonsWeight();
+    if (retired > 0 || occupiedBeforeRecall !== occupiedAfterRecall) recomputeComposition(world, "UK", "commons");
     scheduleUkCommonsByElections(world);
   },
 };

@@ -415,6 +415,8 @@ export interface WorldState {
   northernIrelandPeacePoll?: import("./livingConflict/northernIreland.js").NorthernIrelandPeacePoll;
   /** Source-shaped UK Commons vacancy ledger. Absent on saves predating #2886 parity work. */
   ukCommonsVacancies?: import("./elections/ukCommonsVacancies.js").UkCommonsVacancy[];
+  /** Source-shaped MP recall petition pipeline; absent on legacy saves. Schema v65. */
+  ukCommonsRecallPetitions?: import("./elections/ukCommonsRecall.js").UkCommonsRecallPetition[];
   governorAddresses: import("./governor/types.js").GovernorAddress[];
   governorOrders: import("./governor/types.js").GovernorOrder[];
   /**

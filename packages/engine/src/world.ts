@@ -187,8 +187,9 @@ import { isPlayerImageUrl, MAX_PLAYER_AVATAR_BYTES, MAX_PLAYER_HEADER_BYTES } fr
 // v64: allocated seatsHeld weights must survive winner, ballot and government
 // continuation; older readers count one vote per office and must refuse them.
 // v65: annual source statehood-admission continuation and admittedYear region
-// stamps, plus source UK devolution institutions and Northern Ireland conflict
-// state. Older readers must refuse these continuations.
+// stamps, source UK devolution institutions/Northern Ireland conflict state,
+// and UK Commons recall petition clocks/signatures/declarations/support samples.
+// Older readers must refuse these continuations.
 export const SCHEMA_VERSION = 65;
 
 /** Treasury overrides per party id where mainline diverges from the 1M default. */

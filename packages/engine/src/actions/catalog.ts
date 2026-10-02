@@ -75,6 +75,8 @@ export type ActionId =
   | "withdrawCandidacy"
   | "resignCommonsSeat"
   | "defectCommonsSeat"
+  | "signCommonsRecallPetition"
+  | "declareCommonsRecall"
   | "contestPartyLeadership"
   | "votePartyLeadership"
   | "issuePartyWhip"
@@ -600,6 +602,20 @@ export const ACTION_CATALOG: Record<ActionId, ActionCatalogEntry> = {
     fundCost: 0,
     systems: ["elections", "ukCommonsVacancies", "parties"],
     status: "available",
+  },
+  signCommonsRecallPetition: {
+    id: "signCommonsRecallPetition",
+    name: "Sign Commons Recall Petition",
+    description: "Add your character's signature to an open UK Commons recall petition.",
+    baseCost: 0, cooldown: 0, fundCost: 0,
+    systems: ["elections", "ukCommonsRecall"], status: "available",
+  },
+  declareCommonsRecall: {
+    id: "declareCommonsRecall",
+    name: "Declare Recall Position",
+    description: "Record or change your position during a UK Commons recall support check.",
+    baseCost: 0, cooldown: 0, fundCost: 0,
+    systems: ["elections", "ukCommonsRecall"], status: "available",
   },
   contestPartyLeadership: {
     id: "contestPartyLeadership",

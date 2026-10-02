@@ -79,6 +79,7 @@ import { castPmAppointmentVote, proposePmAppointment, pmAppointmentExecutiveTitl
 import { endorsePresidentialCandidate, withdrawPresidentialGovernorEndorsement } from "../governor/powers.js";
 import { chooseNorthernIrelandLivingConflictOption, campaignNorthernIrelandPeacePoll } from "../livingConflict/northernIreland.js";
 import { resignUkCommonsSeat, validateUkCommonsDefection, vacatePlayerCommonsSeat } from "../elections/ukCommonsVacancies.js";
+import { declareUkCommonsRecall, signUkCommonsRecallPetition } from "../elections/ukCommonsRecall.js";
 import { recomputeComposition } from "../elections/orchestration.js";
 
 export type ExecuteActionParams = {
@@ -100,6 +101,8 @@ export type ExecuteActionParams = {
   endorsedType?: "party" | "politician";
   endorsementId?: string;
   electionId?: string;
+  petitionId?: string;
+  recallSide?: "retain" | "remove";
   // Legislation
   catalogId?: string;
   /** Source-generated program-law option id (`l0` through `l4`). */
@@ -653,6 +656,16 @@ function executeActionInner(
     if (!result.ok) return result;
     recomputeComposition(world, "UK", "commons");
     return { ok: true, message: `You defected; your former ${result.vacancy.regionId} Commons office is due for a by-election.` };
+  }
+  if (actionId === "signCommonsRecallPetition") {
+    if (found.kind !== "player" || world.player.countryId !== "UK") return { ok: false, error: "Only a UK player may sign a Commons recall petition." };
+    const result = signUkCommonsRecallPetition(world, params.petitionId ?? "");
+    return result.ok ? { ok: true, message: `Signature recorded (${result.signatures} of 5).` } : result;
+  }
+  if (actionId === "declareCommonsRecall") {
+    if (found.kind !== "player" || world.player.countryId !== "UK") return { ok: false, error: "Only a UK player may declare a position in a Commons recall check." };
+    const result = declareUkCommonsRecall(world, params.petitionId ?? "", params.recallSide ?? "retain");
+    return result.ok ? { ok: true, message: `Your ${params.recallSide ?? "retain"} position was recorded.` } : result;
   }
 
   if (actionId === "fundraise") {
@@ -2644,6 +2657,11 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return null;
     case "defectCommonsSeat":
       return params.partyId ? null : "defectCommonsSeat requires partyId";
+    case "signCommonsRecallPetition":
+      return params.petitionId ? null : "signCommonsRecallPetition requires petitionId";
+    case "declareCommonsRecall":
+      return params.petitionId && params.recallSide && ["retain", "remove"].includes(params.recallSide)
+        ? null : "declareCommonsRecall requires petitionId and recallSide (retain or remove)";
     case "referendumCampaignSpend":
       return params.referendumId && params.units !== undefined
         ? null

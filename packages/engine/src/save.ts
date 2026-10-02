@@ -995,6 +995,68 @@ function assertCurrentWorldState(world: WorldState): void {
     }
   }
 
+  const recallPetitions = value["ukCommonsRecallPetitions"];
+  if (recallPetitions !== undefined) {
+    const petitionKeys = ["id", "countryId", "regionId", "officialId", "targetName", "targetPartyId", "status", "trigger", "lowStreak", "lastEvaluatedTurn", "signatures", "declarations", "supportSamples", "openedTurn", "checkStartTurn", "checkEndTurn", "resolvedTurn", "outcome", "vacancyId", "expireReason"];
+    const ids = new Set<string>();
+    const liveOfficials = new Set<string>();
+    const recallVacancies = new Map((Array.isArray(ukCommonsVacancies) ? ukCommonsVacancies : []).filter(isRecord).map((row) => [String(row["id"]), row]));
+    const currentTurn = isRecord(value["meta"]) && Number.isSafeInteger(value["meta"]["turn"]) ? value["meta"]["turn"] as number : -1;
+    if (!Array.isArray(recallPetitions)) throw new Error("Not a valid save file: invalid UK Commons recall ledger");
+    for (const petition of recallPetitions) {
+      if (!isRecord(petition) || Object.keys(petition).some((key) => !petitionKeys.includes(key)) ||
+        typeof petition["id"] !== "string" || !petition["id"] || ids.has(petition["id"]) || petition["countryId"] !== "UK" ||
+        typeof petition["regionId"] !== "string" || !petition["regionId"] || typeof petition["officialId"] !== "string" || !petition["officialId"] ||
+        typeof petition["targetName"] !== "string" || !["watch", "open", "check", "retained", "vacated", "expired"].includes(String(petition["status"])) ||
+        !["infamy", "lowApproval"].includes(String(petition["trigger"])) || !Number.isSafeInteger(petition["lowStreak"]) || (petition["lowStreak"] as number) < 0 ||
+        !Number.isSafeInteger(petition["lastEvaluatedTurn"]) || (petition["lastEvaluatedTurn"] as number) < -1 ||
+        (petition["targetPartyId"] !== undefined && typeof petition["targetPartyId"] !== "string") ||
+        !Array.isArray(petition["signatures"]) || !Array.isArray(petition["declarations"]) || !Array.isArray(petition["supportSamples"])) {
+        throw new Error("Not a valid save file: invalid UK Commons recall petition");
+      }
+      ids.add(petition["id"]);
+      const live = ["watch", "open", "check"].includes(String(petition["status"]));
+      if (live && liveOfficials.has(petition["officialId"])) throw new Error("Not a valid save file: duplicate live UK Commons recall office");
+      if (live) liveOfficials.add(petition["officialId"]);
+      const uniqueActors = new Set<string>();
+      for (const signature of petition["signatures"]) {
+        if (!isRecord(signature) || Object.keys(signature).some((key) => !["actorId", "turn"].includes(key)) || typeof signature["actorId"] !== "string" || !signature["actorId"] || !Number.isSafeInteger(signature["turn"]) || (signature["turn"] as number) < 0 || uniqueActors.has(signature["actorId"])) throw new Error("Not a valid save file: invalid UK Commons recall signature");
+        uniqueActors.add(signature["actorId"]);
+        if ((petition["openedTurn"] !== undefined && (signature["turn"] as number) < (petition["openedTurn"] as number)) || (currentTurn >= 0 && (signature["turn"] as number) > currentTurn)) throw new Error("Not a valid save file: UK Commons recall signature outside petition clock");
+      }
+      uniqueActors.clear();
+      for (const declaration of petition["declarations"]) {
+        if (!isRecord(declaration) || Object.keys(declaration).some((key) => !["actorId", "side", "turn"].includes(key)) || typeof declaration["actorId"] !== "string" || !declaration["actorId"] || !["retain", "remove"].includes(String(declaration["side"])) || !Number.isSafeInteger(declaration["turn"]) || (declaration["turn"] as number) < 0 || uniqueActors.has(declaration["actorId"])) throw new Error("Not a valid save file: invalid UK Commons recall declaration");
+        uniqueActors.add(declaration["actorId"]);
+        if ((petition["checkStartTurn"] !== undefined && (declaration["turn"] as number) < (petition["checkStartTurn"] as number)) || (petition["checkEndTurn"] !== undefined && (declaration["turn"] as number) > (petition["checkEndTurn"] as number)) || (currentTurn >= 0 && (declaration["turn"] as number) > currentTurn)) throw new Error("Not a valid save file: UK Commons recall declaration outside check clock");
+      }
+      let priorSampleTurn = -1;
+      for (const sample of petition["supportSamples"]) {
+        if (!isRecord(sample) || Object.keys(sample).some((key) => !["turn", "favorability"].includes(key)) || !Number.isSafeInteger(sample["turn"]) || (sample["turn"] as number) < 0 || (sample["turn"] as number) <= priorSampleTurn || typeof sample["favorability"] !== "number" || !Number.isFinite(sample["favorability"]) || sample["favorability"] < 0 || sample["favorability"] > 100) throw new Error("Not a valid save file: invalid UK Commons recall support sample");
+        priorSampleTurn = sample["turn"] as number;
+        if ((petition["checkStartTurn"] !== undefined && priorSampleTurn < (petition["checkStartTurn"] as number)) || (currentTurn >= 0 && priorSampleTurn > currentTurn)) throw new Error("Not a valid save file: UK Commons recall sample outside check clock");
+      }
+      const turnFields = ["openedTurn", "checkStartTurn", "checkEndTurn", "resolvedTurn"] as const;
+      for (const key of turnFields) if (petition[key] !== undefined && (!Number.isSafeInteger(petition[key]) || (petition[key] as number) < 0)) throw new Error("Not a valid save file: invalid UK Commons recall clock");
+      if ((petition["status"] === "watch" && ((petition["lowStreak"] as number) > 3 || petition["openedTurn"] !== undefined || petition["checkStartTurn"] !== undefined || petition["checkEndTurn"] !== undefined || petition["resolvedTurn"] !== undefined || petition["signatures"].length !== 0 || petition["declarations"].length !== 0 || petition["supportSamples"].length !== 0)) ||
+        (petition["status"] === "open" && (!Number.isSafeInteger(petition["openedTurn"]) || petition["checkStartTurn"] !== undefined || petition["checkEndTurn"] !== undefined || petition["resolvedTurn"] !== undefined)) ||
+        (petition["status"] === "open" && ((petition["openedTurn"] as number) > currentTurn || petition["outcome"] !== undefined || petition["vacancyId"] !== undefined || petition["expireReason"] !== undefined || petition["declarations"].length !== 0 || petition["supportSamples"].length !== 0)) ||
+        (petition["status"] === "check" && (!Number.isSafeInteger(petition["openedTurn"]) || !Number.isSafeInteger(petition["checkStartTurn"]) || !Number.isSafeInteger(petition["checkEndTurn"]) || (petition["checkEndTurn"] as number) !== (petition["checkStartTurn"] as number) + 6 || (petition["checkStartTurn"] as number) > currentTurn || petition["resolvedTurn"] !== undefined || petition["outcome"] !== undefined || petition["vacancyId"] !== undefined || petition["expireReason"] !== undefined || petition["signatures"].length < 5)) ||
+        (["retained", "vacated", "expired"].includes(String(petition["status"])) && (petition["openedTurn"] === undefined || (petition["openedTurn"] as number) > currentTurn || petition["declarations"].length > 0 && petition["checkStartTurn"] === undefined)) ||
+        (["retained", "vacated", "expired"].includes(String(petition["status"])) && !Number.isSafeInteger(petition["resolvedTurn"])) ||
+        (petition["status"] === "vacated" && (petition["outcome"] !== "vacated" || typeof petition["vacancyId"] !== "string" || !recallVacancies.has(petition["vacancyId"] as string) || recallVacancies.get(petition["vacancyId"] as string)?.["formerHolderId"] !== petition["officialId"] || recallVacancies.get(petition["vacancyId"] as string)?.["reason"] !== "recall")) ||
+        (petition["status"] === "retained" && (petition["outcome"] !== "retained" || petition["checkStartTurn"] === undefined || petition["supportSamples"].length === 0)) ||
+        (petition["status"] === "expired" && (typeof petition["expireReason"] !== "string" || petition["expireReason"] !== "fewer than 5 signatures within 12 turns" || petition["outcome"] !== undefined || petition["signatures"].length >= 5 || petition["openedTurn"] === undefined || petition["checkStartTurn"] !== undefined || petition["checkEndTurn"] !== undefined || petition["declarations"].length !== 0 || petition["supportSamples"].length !== 0 || (petition["resolvedTurn"] as number) < (petition["openedTurn"] as number) + 12)) ||
+        (petition["status"] !== "vacated" && petition["vacancyId"] !== undefined) ||
+        (petition["status"] !== "expired" && petition["expireReason"] !== undefined) ||
+        (petition["status"] !== "retained" && petition["status"] !== "vacated" && petition["outcome"] !== undefined) ||
+        (petition["status"] === "vacated" && (petition["checkStartTurn"] === undefined || petition["supportSamples"].length === 0)) ||
+        ((petition["status"] === "retained" || petition["status"] === "vacated") && (petition["checkEndTurn"] === undefined || (petition["resolvedTurn"] as number) < (petition["checkEndTurn"] as number))) ||
+        (petition["status"] !== "watch" && petition["status"] !== "open" && !Number.isSafeInteger(petition["resolvedTurn"])) ||
+        (currentTurn >= 0 && Number.isSafeInteger(petition["lastEvaluatedTurn"]) && (petition["lastEvaluatedTurn"] as number) > currentTurn)) throw new Error("Not a valid save file: inconsistent UK Commons recall petition phase");
+    }
+  }
+
   const hasValidSeatWeight = (holder: Record<string, unknown>): boolean =>
     holder["seatsHeld"] === undefined ||
     (Number.isSafeInteger(holder["seatsHeld"]) && (holder["seatsHeld"] as number) >= 1);
