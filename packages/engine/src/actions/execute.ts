@@ -32,6 +32,8 @@ import * as CampaignManager from "./campaignManager.js";
 import * as CampaignCanvass from "./campaignCanvass.js";
 import * as CampaignTargetedAd from "./campaignTargetedAd.js";
 import * as CampaignContribute from "./campaignContribute.js";
+import { buildStatePresence } from "./campaignPresence.js";
+import { setPrimaryCampaignState, usePrimaryHomeStateSurge } from "./primaryCampaign.js";
 import * as Referendum from "../referendum/request.js";
 import * as ReferendumCampaign from "../referendum/campaign.js";
 import * as ReferendumGroundGame from "../referendum/groundGame.js";
@@ -58,6 +60,7 @@ import { rollDebatePrep } from "../stats/debatePrep.js";
 import { isCorpStateOwned, issueCorporateBond, validateBondIssuerIdentity } from "../bonds/corporateBonds.js";
 import { quoteCorporateBondIssuance } from "../bonds/corporateBondQuote.js";
 import { buybackCorporateBondUnits } from "../bonds/corporateBondServicing.js";
+import { setCorporateSectorStrategy } from "../corporation/strategyRetooling.js";
 import { BOND_UNIT_FACE_VALUE } from "../bonds/constants.js";
 import { rngFromState } from "../rng.js";
 import { isOrderFlowPriceEligible } from "../market/orderFlow.js";
@@ -71,7 +74,8 @@ import { applyRecruitCaucusNpp, quoteRecruitCaucusNpp } from "../npp/caucusRecru
 import { proposalNpiCost, BILL_PROPOSE_ACTION_COST } from "../legislation/proposalCosts.js";
 import { applyBillEffects } from "../legislation/billLifecycle.js";
 import { isLegislationFrozen, LEGISLATION_FREEZE_MESSAGE } from "../legislation/freeze.js";
-import { castPmAppointmentVote, proposePmAppointment } from "../government/pmAppointment.js";
+import { castPmAppointmentVote, proposePmAppointment, pmAppointmentExecutiveTitle } from "../government/pmAppointment.js";
+import { endorsePresidentialCandidate, withdrawPresidentialGovernorEndorsement } from "../governor/powers.js";
 
 export type ExecuteActionParams = {
   regionId?: string;
@@ -131,7 +135,9 @@ export type ExecuteActionParams = {
   // W10 markets
   corpId?: string;
   corporationId?: string;
-  tier?: "seizure";
+  sectorId?: string;
+  strategyId?: string;
+  tier?: "fair" | "discounted" | "seizure";
   shares?: number;
   // W13 bonds
   bondId?: string;
@@ -411,17 +417,17 @@ function executeActionInner(
   // These source commands are recorded in parliamentary state, not charged
   // through generic action points or action counters.
   if (actionId === "proposePmAppointment") {
-    if (found.kind !== "player") return { ok: false, error: "Only the player can nominate a Taoiseach." };
+    if (found.kind !== "player") return { ok: false, error: "Only the player can nominate a head of government." };
     const result = proposePmAppointment(world);
     return result.ok
-      ? { ok: true, message: `Opened Taoiseach appointment vote ${result.vote.id}.` }
+      ? { ok: true, message: `Opened ${pmAppointmentExecutiveTitle(result.vote.countryId)} appointment vote ${result.vote.id}.` }
       : { ok: false, error: result.error };
   }
   if (actionId === "votePmAppointment") {
-    if (found.kind !== "player") return { ok: false, error: "Only the player can vote on a Taoiseach appointment." };
+    if (found.kind !== "player") return { ok: false, error: "Only the player can vote on a government appointment." };
     const result = castPmAppointmentVote(world, params.pmAppointmentVoteId ?? "", params.pmVote ?? "aye");
     return result.ok
-      ? { ok: true, message: `Recorded ${params.pmVote} on Taoiseach appointment ${params.pmAppointmentVoteId}.` }
+      ? { ok: true, message: `Recorded ${params.pmVote} on ${pmAppointmentExecutiveTitle(result.vote.countryId)} appointment ${params.pmAppointmentVoteId}.` }
       : { ok: false, error: result.error };
   }
   // A pending parliamentary government freezes bill proposals before any
@@ -433,6 +439,33 @@ function executeActionInner(
     !(world.player.mode === "hos" && world.player.permanentHeadOfState === true)
   ) {
     return { ok: false, error: LEGISLATION_FREEZE_MESSAGE };
+  }
+
+  // Campaign presence is charged to the active campaign's own source pools,
+  // not to the character. Resolve it before generic player AP/accounting.
+  if (actionId === "buildStatePresence") {
+    const result = buildStatePresence(world, actorId, params.regionId);
+    return result.ok ? { ok: true, message: result.message } : result;
+  }
+  if (actionId === "setPrimaryCampaignState") {
+    const result = setPrimaryCampaignState(world, actorId, params.electionId, params.regionId);
+    return result.ok ? { ok: true, message: result.message } : result;
+  }
+  if (actionId === "usePrimaryHomeStateSurge") {
+    const result = usePrimaryHomeStateSurge(world, actorId, params.electionId);
+    return result.ok ? { ok: true, message: result.message } : result;
+  }
+  if (actionId === "governorEndorsePresidentialCandidate") {
+    if (actorId !== "player") return { ok: false, error: "Only the player governor may use this action." };
+    const result = endorsePresidentialCandidate(world, params.regionId!, params.electionId!, params.candidateId!);
+    return result.ok
+      ? { ok: true, message: `Endorsed candidate in ${params.regionId}.` }
+      : { ok: false, error: result.error ?? "Governor endorsement failed." };
+  }
+  if (actionId === "withdrawGovernorEndorsement") {
+    if (actorId !== "player") return { ok: false, error: "Only the player governor may use this action." };
+    const result = withdrawPresidentialGovernorEndorsement(world, params.electionId!, params.endorsementId!);
+    return result.ok ? { ok: true, message: "Governor endorsement withdrawn." } : result;
   }
 
   // Cost check (dynamic). Party/caucus actions charge from the shared
@@ -2014,6 +2047,19 @@ function executeActionInner(
     return { ok: true, message: `Sold ${shares} shares of ${corp.tickerSymbol} for ${notional}` };
   }
 
+  if (actionId === "setCorporateSectorStrategy") {
+    const result = setCorporateSectorStrategy(
+      world,
+      actorId,
+      params.corpId!,
+      params.sectorId!,
+      params.strategyId!,
+    );
+    return result.ok
+      ? { ok: true, message: `Retooling started; ${result.transitionTurns}-turn transition began at source retool cost ${result.feeLocal}` }
+      : result;
+  }
+
   // W13 bonds — player buy/sell sovereign bond units at mainline pricing.
   // #307 extends the same seam to corporate issues with issuer/owner invariant
   // enforcement below (corporate servicing itself is #308).
@@ -2514,11 +2560,11 @@ function executeActionInner(
       actor.actions += cost;
       return { ok: false, error: "Only the sitting head of government may order an executive nationalization." };
     }
-    if (params.tier !== "seizure") {
+    if (params.tier !== "seizure" && params.tier !== "discounted" && params.tier !== "fair") {
       actor.actions += cost;
-      return { ok: false, error: "Executive nationalization currently supports only the source seizure tier." };
+      return { ok: false, error: "Choose a valid nationalization compensation tier." };
     }
-    const result = nationalizeDistressedCorporation(world, params.corporationId ?? "", actorId);
+    const result = nationalizeDistressedCorporation(world, params.corporationId ?? "", actorId, params.tier);
     if (!result.ok) {
       actor.actions += cost;
       return result;
@@ -2537,6 +2583,12 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.regionId ? null : `Action ${actionId} requires a regionId`;
     case "requestReferendum":
       return params.regionId ? null : "requestReferendum requires regionId";
+    case "governorEndorsePresidentialCandidate":
+      return params.regionId && params.electionId && params.candidateId
+        ? null : "governorEndorsePresidentialCandidate requires regionId, electionId, and candidateId";
+    case "withdrawGovernorEndorsement":
+      return params.electionId && params.endorsementId
+        ? null : "withdrawGovernorEndorsement requires electionId and endorsementId";
     case "referendumCampaignSpend":
       return params.referendumId && params.units !== undefined
         ? null
@@ -2584,6 +2636,12 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
       return params.electionId && Object.prototype.hasOwnProperty.call(params, "managerId")
         ? null
         : "campaignManager requires electionId and managerId";
+    case "buildStatePresence":
+      return params.regionId ? null : `${actionId} requires regionId`;
+    case "setPrimaryCampaignState":
+      return params.electionId && params.regionId ? null : `${actionId} requires electionId and regionId`;
+    case "usePrimaryHomeStateSurge":
+      return params.electionId ? null : `${actionId} requires electionId`;
     case "campaignCanvass":
       return params.electionId && params.regionId && params.demographicCategory && params.demographicGroup
         ? null
@@ -2636,9 +2694,9 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
         ? null
         : `${actionId} requires corpId and a positive integer shares amount`;
     case "nationalizeCorporation":
-      return params.corporationId && params.tier === "seizure"
+      return params.corporationId && (params.tier === "seizure" || params.tier === "discounted" || params.tier === "fair")
         ? null
-        : "nationalizeCorporation requires corporationId and tier 'seizure'";
+        : "nationalizeCorporation requires corporationId and a valid compensation tier";
     case "voteCeo":
       return params.corpId && params.candidateId ? null : "voteCeo requires corpId and candidateId";
     case "acceptCeoAppointment":
@@ -2649,6 +2707,10 @@ function validateRequiredActionParams(actionId: string, params: ExecuteActionPar
         (params.rdBudgetPerTurn === undefined || Number.isFinite(params.rdBudgetPerTurn))
         ? null
         : "setCorporationCompensation requires corpId, salaryPerTurn, dividendRate, and optional rdBudgetPerTurn";
+    case "setCorporateSectorStrategy":
+      return params.corpId && params.sectorId && params.strategyId
+        ? null
+        : "setCorporateSectorStrategy requires corpId, sectorId, and strategyId";
     case "buyBond":
     case "sellBond":
       return params.bondId && params.units !== undefined && Number.isInteger(params.units) && params.units > 0

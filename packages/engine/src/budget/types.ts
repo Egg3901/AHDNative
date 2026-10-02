@@ -104,11 +104,11 @@ export interface CountryBudget {
    * W14: State Ownership Concentration Index, 0..100. Ports
    * src/lib/nationalization/concentration.ts's stored
    * FederalBudget.stateOwnershipConcentration field. See
-   * economy/stateOwnershipConcentration.ts file doc for the plannedShare
-   * substitution (AHDClient has no per-corp nationalization flag). 0 for every
-   * market country; only RU/DD carry a live value.
+   * economy/stateOwnershipConcentration.ts for the explicit source/Native
+   * asset currency mapping and actual host-state ownership measurement.
    */
   stateOwnershipConcentration: number;
+  stateOwnershipConcentrationUpdatedAtTurn?: number;
   /** Source FederalBudget.unionsBanned; absent on historical saves means no enacted ban. */
   unionsBanned?: boolean;
   /** Source FederalBudget.unionLawBias, -50 right-to-work to +50 collective bargaining. */

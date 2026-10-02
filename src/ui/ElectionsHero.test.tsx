@@ -183,3 +183,34 @@ describe("Elections hero band", () => {
     expect(screen.getByLabelText("Race")).toBeVisible();
   });
 });
+
+describe("presidential governor endorsement controls", () => {
+  it("renders the source governor action at phone widths and dispatches its exact target", () => {
+    for (const width of [320, 390]) {
+      Object.defineProperty(window, "innerWidth", { value: width, configurable: true });
+      const action = vi.fn();
+      const presidentialRace = makeRace({
+        id: "president:US:-:c1",
+        title: "president",
+        presidential: {
+          applicable: true, hasStateTallies: false, totalElectoralVotes: 0, majorityThreshold: 0,
+          electors: [], states: [], resolved: false, winnerId: null, winnerName: null,
+          note: "No general votes yet.",
+          governorActions: [{
+            actionId: "governorEndorsePresidentialCandidate", electionId: "president:US:-:c1",
+            stateId: "CA", candidateId: "candidate-1", candidateName: "Candidate One", available: true,
+          }],
+        },
+      });
+      const { unmount } = render(
+        <PoliticsPanel politics={makePolitics([presidentialRace])} section="presidential" clock={CLOCK} busy={false} onAction={action} />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Endorse Candidate One from CA" }));
+      expect(action).toHaveBeenCalledWith("governorEndorsePresidentialCandidate", {
+        electionId: "president:US:-:c1", regionId: "CA", candidateId: "candidate-1",
+      });
+      expect(screen.getByText(/one governor office action point/i)).toBeInTheDocument();
+      unmount();
+    }
+  });
+});

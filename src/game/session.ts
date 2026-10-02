@@ -1276,6 +1276,8 @@ function projectLegislature(world: WorldState): LegislatureView {
   const government = world.governments[player.countryId];
   const pmVotes = world.pmAppointmentVotes.filter((vote) => vote.countryId === player.countryId);
   const appointmentEligibility = getPmAppointmentEligibility(world);
+  const executiveTitle = pmAppointmentExecutiveTitle(player.countryId);
+  const formationChamberName = player.countryId === "IE" ? "Dáil" : world.legislatures[player.countryId]?.chambers.find(chamber => chamber.key === government?.chamberKey)?.name ?? "Parliament";
   const activePartyVote = pmVotes.some((vote) => vote.status === "active" && vote.partyId === player.partyId);
   const nominationReason = activePartyVote ? "Your party already has an active PM appointment vote" : appointmentEligibility.reason;
   return {
@@ -1283,10 +1285,11 @@ function projectLegislature(world: WorldState): LegislatureView {
       : player.mode === "hos" ? "Head of state" : null,
     countryId: player.countryId,
     unionLawBanned: world.budgets[player.countryId]?.unionsBanned === true,
-    ...(player.countryId === "IE" && government ? {
+    ...(executiveTitle && government ? {
       governmentFormation: {
         status: government.status,
-        executiveTitle: "Taoiseach",
+        executiveTitle,
+        chamberName: formationChamberName,
         officeholderName: government.pmPoliticianId === "player"
           ? player.name
           : world.politicians.find((politician) => politician.id === government.pmPoliticianId)?.name ?? null,
@@ -1294,8 +1297,8 @@ function projectLegislature(world: WorldState): LegislatureView {
         ...(nominationReason ? { nomineeDisabledReason: nominationReason } : {}),
         nomination: {
           id: "proposePmAppointment",
-          name: "Nominate Taoiseach",
-          description: "Party-chair nomination followed by a Dáil appointment vote.",
+          name: `Nominate ${executiveTitle}`,
+          description: `Party-chair nomination followed by a ${formationChamberName} appointment vote.`,
           cost: 0,
           available: government.status === "pending" && !nominationReason,
           ...(nominationReason ? { disabledReason: nominationReason } : {}),
@@ -1303,7 +1306,7 @@ function projectLegislature(world: WorldState): LegislatureView {
         votes: pmVotes.map((vote) => {
           const seat = player.legislativeSeat;
           const voteReason = !seat || seat.countryId !== vote.countryId || seat.chamberKey !== vote.chamberKey
-            ? "You must be an elected Dáil member to vote on a Taoiseach appointment"
+            ? `You must be an elected ${formationChamberName} member to vote on a ${executiveTitle} appointment`
             : vote.status !== "active"
               ? "This vote has already closed"
               : world.meta.turn >= vote.closesTurn
@@ -1320,8 +1323,8 @@ function projectLegislature(world: WorldState): LegislatureView {
             playerVote: vote.votes.player ?? null,
             voting: {
               id: "votePmAppointment",
-              name: "Vote on Taoiseach Appointment",
-              description: "Dáil members vote aye or nay.",
+              name: `Vote on ${executiveTitle} Appointment`,
+              description: `${formationChamberName} members vote aye or nay.`,
               cost: 0,
               available: !voteReason,
               ...(voteReason ? { disabledReason: voteReason } : {}),

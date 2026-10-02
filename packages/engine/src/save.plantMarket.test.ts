@@ -89,4 +89,27 @@ describe("plants settlement save boundary", () => {
       error: expect.stringContaining("Plant production"),
     });
   });
+
+  it("refuses a nonstandard source strategy because the historical reader cannot operate it", () => {
+    const world = loadHistoricalFresh();
+    const save = JSON.parse(serializeSave(world, SAVED_AT)) as { world: Record<string, unknown> };
+    save.world["corporateSectors"] = {
+      "source-shaped-extraction": {
+        id: "source-shaped-extraction",
+        corporationId: "US-extraction",
+        countryId: "US",
+        stateId: null,
+        sectorType: "extraction",
+        strategyId: "rare_earth_mining",
+        workers: 0,
+        representingUnionId: null,
+        forSale: null,
+        owner: "corporation",
+      },
+    };
+    expect(projectSaveToV42(JSON.stringify(save))).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("Plant production"),
+    });
+  });
 });

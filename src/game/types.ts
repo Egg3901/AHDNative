@@ -177,6 +177,7 @@ export interface LegislatureView {
   governmentFormation?: {
     status: "pending" | "formed";
     executiveTitle: string;
+    chamberName?: string;
     officeholderName: string | null;
     nomineeAvailable: boolean;
     nomineeDisabledReason?: string;

@@ -1,9 +1,9 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { LegislaturePanel } from "./LegislaturePanel";
 import type { LegislatureView } from "../game/types";
 import { LEGISLATURE_NAV_STORAGE_KEY } from "../game/legislature";
-import { LegislaturePanel } from "./LegislaturePanel";
 
 // World clock anchoring the reference calendar for in-game dates (#226).
 const CLOCK = { turn: 1, date: "1953-01-13" };
@@ -33,12 +33,10 @@ function makeLegislature(overrides: Partial<LegislatureView> = {}): LegislatureV
 }
 
 const renderPanel = () => LegislaturePanel;
-
 describe("LegislaturePanel", () => {
   it("renders the pending Taoiseach nomination and appointment ballot in the Dáil hierarchy", async () => {
     const user = userEvent.setup();
     const onAction = vi.fn();
-    const LegislaturePanel = await renderPanel();
     const legislature = makeLegislature({
       governmentFormation: {
         status: "pending",
@@ -60,8 +58,23 @@ describe("LegislaturePanel", () => {
     expect(onAction).toHaveBeenCalledWith("votePmAppointment", { pmAppointmentVoteId: "pm-1", pmVote: "aye" });
     expect(screen.getByText(/4 ayes · 1 nays · closes turn 24/)).toBeInTheDocument();
   });
+  it.each([["Bundestag", "Chancellor"], ["National People's Congress", "Premier"]])("uses the %s appointment controls and title", async (chamberName, executiveTitle) => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const legislature = makeLegislature({ governmentFormation: {
+      status: "pending", chamberName, executiveTitle, officeholderName: null, nomineeAvailable: true,
+      nomination: { id: "proposePmAppointment", name: `Nominate ${executiveTitle}`, description: "", cost: 0, available: true },
+      votes: [{ id: "pm-country", nomineeName: "Alex", partyName: "Party", status: "active", votesFor: 1, votesAgainst: 0, closesTurn: 24, playerVote: null,
+        voting: { id: "votePmAppointment", name: "Vote", description: "", cost: 0, available: true } }],
+    } });
+    render(<LegislaturePanel legislature={legislature} busy={false} onAction={onAction} clock={CLOCK} />);
+    expect(screen.getByRole("region", { name: `${chamberName} government formation` })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: `Nominate yourself as ${executiveTitle}` }));
+    expect(onAction).toHaveBeenCalledWith("proposePmAppointment");
+    await user.click(screen.getByRole("button", { name: `Aye on ${executiveTitle} appointment for Alex` }));
+    expect(onAction).toHaveBeenCalledWith("votePmAppointment", { pmAppointmentVoteId: "pm-country", pmVote: "aye" });
+  });
   it("shows the player office, or No legislative seat without one", async () => {
-    const LegislaturePanel = await renderPanel();
     const { rerender } = render(
       <LegislaturePanel legislature={makeLegislature()} clock={CLOCK} busy={false} onAction={vi.fn()} />,
     );
@@ -73,7 +86,6 @@ describe("LegislaturePanel", () => {
   it("sponsors the selected proposal via Legislation select with description", async () => {
     const user = userEvent.setup();
     const onAction = vi.fn();
-    const LegislaturePanel = await renderPanel();
     render(<LegislaturePanel legislature={makeLegislature()} clock={CLOCK} busy={false} onAction={onAction} />);
     const select = screen.getByLabelText("Legislation") as HTMLSelectElement;
     expect(screen.getByText("Workplace rules.")).toBeInTheDocument();
@@ -86,7 +98,6 @@ describe("LegislaturePanel", () => {
   it("authors an economy-wide trade tariff through the public legislature form", async () => {
     const user = userEvent.setup();
     const onAction = vi.fn();
-    const LegislaturePanel = await renderPanel();
     render(<LegislaturePanel legislature={makeLegislature()} clock={CLOCK} busy={false} onAction={onAction} />);
     await user.clear(screen.getByRole("spinbutton", { name: "Customs tariff rate" }));
     await user.type(screen.getByRole("spinbutton", { name: "Customs tariff rate" }), "17.5");
@@ -124,7 +135,6 @@ describe("LegislaturePanel", () => {
   });
 
   it("disables Sponsor bill when busy, sponsor unavailable, or nothing valid to sponsor", async () => {
-    const LegislaturePanel = await renderPanel();
     const { rerender } = render(
       <LegislaturePanel legislature={makeLegislature()} clock={CLOCK} busy={true} onAction={vi.fn()} />,
     );
@@ -147,7 +157,6 @@ describe("LegislaturePanel", () => {
   it("shows bill status, chamber, sponsor, tallies and recorded vote; votes dispatch voteOnBill", async () => {
     const user = userEvent.setup();
     const onAction = vi.fn();
-    const LegislaturePanel = await renderPanel();
     render(
       <LegislaturePanel
         legislature={makeLegislature({
@@ -178,7 +187,6 @@ describe("LegislaturePanel", () => {
 
   it("gates vote buttons on voting availability and busy, showing the reason", async () => {
     const onAction = vi.fn();
-    const LegislaturePanel = await renderPanel();
     const { rerender } = render(
       <LegislaturePanel
         legislature={makeLegislature({
@@ -213,7 +221,6 @@ describe("LegislaturePanel", () => {
 
   it("paginates bills 20 per page with clamping", async () => {
     const user = userEvent.setup();
-    const LegislaturePanel = await renderPanel();
     const bills = Array.from({ length: 25 }, (_, i) => ({
       id: `b${i}`, title: `Bill ${i}`, status: "active", chamber: "house", sponsorName: "Ada",
       votesFor: 1, votesAgainst: 0, votesAbstain: 0,
@@ -244,7 +251,6 @@ describe("LegislaturePanel", () => {
 
   it("renders chamber destinations from config and filters bills to the selection", async () => {
     const user = userEvent.setup();
-    const LegislaturePanel = await renderPanel();
     render(<LegislaturePanel
       legislature={makeLegislature({
         countryId: "US",
@@ -264,7 +270,6 @@ describe("LegislaturePanel", () => {
   });
 
   it("shows chamber committees with their queues and the floor schedule", async () => {
-    const LegislaturePanel = await renderPanel();
     render(<LegislaturePanel
       legislature={makeLegislature({
         countryId: "US",
@@ -291,7 +296,6 @@ describe("LegislaturePanel", () => {
   it("sponsors a bill in the selected chamber", async () => {
     const user = userEvent.setup();
     const onAction = vi.fn();
-    const LegislaturePanel = await renderPanel();
     render(<LegislaturePanel
       legislature={makeLegislature({ countryId: "US", chambers: [houseChamber, senateChamber] })}
       clock={CLOCK} busy={false}
@@ -304,7 +308,6 @@ describe("LegislaturePanel", () => {
 
   it("lets the bills pager wrap at 320px without losing pager semantics", async () => {
     const user = userEvent.setup();
-    const LegislaturePanel = await renderPanel();
     const bills = Array.from({ length: 25 }, (_, i) => ({
       id: `b${i}`, title: `Bill ${i}`, status: "active", chamber: "house", sponsorName: "Ada",
       votesFor: 1, votesAgainst: 0, votesAbstain: 0,
@@ -349,7 +352,6 @@ describe("LegislaturePanel", () => {
 
   it("draws the seating diagram for the chamber view from engine seat data", async () => {
     const user = userEvent.setup();
-    const LegislaturePanel = await renderPanel();
     const { container } = render(<LegislaturePanel
       legislature={makeLegislature({
         countryId: "US",
@@ -374,7 +376,6 @@ describe("LegislaturePanel", () => {
   });
 
   it("shows an explicit empty state for a chamber with no seats", async () => {
-    const LegislaturePanel = await renderPanel();
     const { container } = render(<LegislaturePanel
       legislature={makeLegislature({
         countryId: "US",
@@ -390,7 +391,6 @@ describe("LegislaturePanel", () => {
 
   it("restores the persisted chamber context across a reload", async () => {
     window.localStorage.setItem(LEGISLATURE_NAV_STORAGE_KEY, JSON.stringify({ US: { chamberKey: "senate", billId: null } }));
-    const LegislaturePanel = await renderPanel();
     render(<LegislaturePanel
       legislature={makeLegislature({
         countryId: "US",

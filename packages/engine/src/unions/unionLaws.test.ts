@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createWorld } from "../world.js";
+import { createWorld, SCHEMA_VERSION } from "../world.js";
 import { applyUnionLawProvision, lawAdjustedUnionizationThreshold } from "./unionLaws.js";
 import { executeAction } from "../actions/execute.js";
 import { deserializeSave, projectSaveToV42, serializeSave } from "../save.js";
@@ -106,7 +106,7 @@ describe("enacted union law state", () => {
     expect(world.bills.at(-1)?.provisions[0]).toMatchObject({ type: "union_law", bias: 0, banAction: "ban" });
 
     const loaded = deserializeSave(serializeSave(world, "2026-10-02T00:00:00.000Z"));
-    expect(loaded.meta.schemaVersion).toBe(59);
+    expect(loaded.meta.schemaVersion).toBe(SCHEMA_VERSION);
     expect(loaded.budgets.US?.unionsBanned).toBe(true);
     expect(loaded.unions[union.id]?.suspended).toBe(true);
     const loadedAsset = Object.values(corporateSectorAssets(loaded)).find((row) => row.id === asset.id)!;
@@ -164,7 +164,7 @@ describe("enacted union law state", () => {
     parsed.schemaVersion = 58;
     parsed.world.meta.schemaVersion = 58;
     const migrated = deserializeSave(JSON.stringify(parsed));
-    expect(migrated.meta.schemaVersion).toBe(59);
+    expect(migrated.meta.schemaVersion).toBe(SCHEMA_VERSION);
     expect(migrated.budgets.US?.unionsBanned).toBeUndefined();
     expect(migrated.budgets.US?.unionLawBias).toBeUndefined();
   });

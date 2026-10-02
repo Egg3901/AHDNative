@@ -742,6 +742,15 @@ export interface Campaign {
   createdAtTurn: number;
 }
 
+/** Native projection of a source CharacterStateOrg row for presidential primaries. */
+export interface PrimaryStateOrganization {
+  level: number;
+  totalInvested: number;
+  updatedAtTurn: number;
+  lastBuildTurn: number;
+  lastBuildFunds: number;
+}
+
 export interface Politician {
   /** Deterministic id sequential per country, e.g. "US-1" */
   id: string;
@@ -1011,6 +1020,8 @@ export interface PlayerCharacter {
   countryId: string;
   /** Home state or region for the State navigation cluster. Null on migrated saves that never chose one. */
   homeRegionId?: string | null;
+  /** Source CharacterStateOrg rows keyed by US state. */
+  primaryStateOrganizations?: Record<string, PrimaryStateOrganization>;
   /** One normalized UK office constituency selection, valid only in its saved region. */
   constituency?: { id: string; name: string; regionId: string };
   cash: number;
