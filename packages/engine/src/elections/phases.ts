@@ -1,5 +1,9 @@
 import type { TurnPhase } from "../phases/types.js";
-import { runElectionResolution, runElectionTimers, runVoteAccumulation } from "./orchestration.js";
+import {
+  runElectionResolution,
+  runElectionTimers,
+  runVoteAccumulation,
+} from "./orchestration.js";
 import { detectFoundingComplete } from "./founding.js";
 import { resolvePrimaries } from "./primaryResolution.js";
 
@@ -10,8 +14,8 @@ import { resolvePrimaries } from "./primaryResolution.js";
 
 export const voteAccumulationPhase: TurnPhase = {
   name: "voteAccumulation",
-  run(world, rng) {
-    runVoteAccumulation(world, rng);
+  run(world, rng, context) {
+    runVoteAccumulation(world, rng, context?.observeElectionTallyInput);
   },
 };
 

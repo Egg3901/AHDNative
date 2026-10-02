@@ -10,6 +10,7 @@ import type {
   TallyInput,
   TallyStatePartyOrgInput,
   TallyTurnoutInput,
+  VoteDistributionDiagnosticSnapshot,
 } from "../electionEngine/tally/types.js";
 import { enrichCandidates } from "../electionEngine/candidateEnrichment.js";
 import type {
@@ -59,9 +60,14 @@ function deriveTurnoutFrom(
   let weighted = 0;
   let weightSum = 0;
   for (const [groupId, group] of Object.entries(demo.groups)) {
-    const turnout = Math.max(0, Math.min(100,
-      (typeof group.turnout === "number" ? group.turnout : 55) + (campaignModifiers[groupId] ?? 0),
-    ));
+    const turnout = Math.max(
+      0,
+      Math.min(
+        100,
+        (typeof group.turnout === "number" ? group.turnout : 55) +
+          (campaignModifiers[groupId] ?? 0),
+      ),
+    );
     byGroup[groupId] = turnout;
     const wgt = demo.categoryWeights[groupId] ?? 0;
     weighted += wgt * turnout;
@@ -71,12 +77,18 @@ function deriveTurnoutFrom(
   return { totalPool: Math.round((vep * avgTurnout) / 100), byGroup };
 }
 
-function campaignTurnoutModifiers(world: WorldState, electionId: string | undefined): Record<string, number> {
+function campaignTurnoutModifiers(
+  world: WorldState,
+  electionId: string | undefined,
+): Record<string, number> {
   if (!electionId) return {};
   const modifiers: Record<string, number> = {};
   for (const campaign of Object.values(world.campaigns)) {
-    if (campaign.electionId !== electionId || campaign.status !== "active") continue;
-    for (const [key, value] of Object.entries(campaign.canvassModifiers ?? {})) {
+    if (campaign.electionId !== electionId || campaign.status !== "active")
+      continue;
+    for (const [key, value] of Object.entries(
+      campaign.canvassModifiers ?? {},
+    )) {
       const separator = key.indexOf(":");
       if (separator < 0 || !Number.isFinite(value)) continue;
       const groupId = key.slice(separator + 1);
@@ -94,7 +106,9 @@ function campaignTargetedAdBonuses(
   const campaign = world.campaigns[campaignKey(electionId, candidateId)];
   if (!campaign || campaign.status !== "active") return undefined;
   const bonuses: Record<string, number> = {};
-  for (const [key, value] of Object.entries(campaign.targetedAdModifiers ?? {})) {
+  for (const [key, value] of Object.entries(
+    campaign.targetedAdModifiers ?? {},
+  )) {
     const separator = key.indexOf(":");
     if (separator < 0 || !Number.isFinite(value)) continue;
     const groupId = key.slice(separator + 1);
@@ -132,12 +146,17 @@ function buildCampaignStrengthVoteMultipliers(
     if (campaign.electionId !== electionId) continue;
     const strength = campaign.campaignStrength ?? 0;
     if (strength <= 0) continue;
-    multipliers[campaign.candidateId] = campaignStrengthVoteMultiplier(strength);
+    multipliers[campaign.candidateId] =
+      campaignStrengthVoteMultiplier(strength);
   }
   return Object.keys(multipliers).length > 0 ? multipliers : undefined;
 }
 
-function deriveTurnout(world: WorldState, stateId: string, electionId?: string): TallyTurnoutInput | null {
+function deriveTurnout(
+  world: WorldState,
+  stateId: string,
+  electionId?: string,
+): TallyTurnoutInput | null {
   const demo = world.stateDemographics[stateId];
   const region = world.regions[stateId];
   if (!demo || !region) return null;
@@ -145,13 +164,18 @@ function deriveTurnout(world: WorldState, stateId: string, electionId?: string):
   const modifiers = campaignTurnoutModifiers(world, electionId);
   const regional = world.regionTurnouts[stateId]?.campaignModifiers;
   for (const groups of Object.values(regional ?? {})) {
-    for (const [group, value] of Object.entries(groups)) modifiers[group] = (modifiers[group] ?? 0) + value;
+    for (const [group, value] of Object.entries(groups))
+      modifiers[group] = (modifiers[group] ?? 0) + value;
   }
   return deriveTurnoutFrom(demo, vep, modifiers);
 }
 
 /** Resolved regional turnout pool shared by general and primary ballot paths. */
-export function turnoutPoolForElection(world: WorldState, stateId: string, electionId?: string): number | null {
+export function turnoutPoolForElection(
+  world: WorldState,
+  stateId: string,
+  electionId?: string,
+): number | null {
   return deriveTurnout(world, stateId, electionId)?.totalPool ?? null;
 }
 
@@ -162,20 +186,32 @@ export function turnoutPoolForElection(world: WorldState, stateId: string, elect
  * need to route through the heavier `StatePartyOrg` shape
  * `buildNationwideElectoratePreload` returns).
  */
-function nationalPartyOrgs(world: WorldState, countryId: string): TallyStatePartyOrgInput[] {
-  const byParty = new Map<string, { orgWeighted: number; regWeighted: number; weight: number }>();
+function nationalPartyOrgs(
+  world: WorldState,
+  countryId: string,
+): TallyStatePartyOrgInput[] {
+  const byParty = new Map<
+    string,
+    { orgWeighted: number; regWeighted: number; weight: number }
+  >();
   for (const pr of Object.values(world.partyRegions)) {
     if (pr.countryId !== countryId) continue;
     const weight = world.regions[pr.regionId]?.population ?? 0;
     if (weight <= 0) continue;
-    const acc = byParty.get(pr.partyId) ?? { orgWeighted: 0, regWeighted: 0, weight: 0 };
+    const acc = byParty.get(pr.partyId) ?? {
+      orgWeighted: 0,
+      regWeighted: 0,
+      weight: 0,
+    };
     acc.orgWeighted += pr.organization * weight;
     acc.regWeighted += (pr.registration ?? 0) * weight;
     acc.weight += weight;
     byParty.set(pr.partyId, acc);
   }
   const result: TallyStatePartyOrgInput[] = [];
-  for (const [partyId, acc] of [...byParty.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+  for (const [partyId, acc] of [...byParty.entries()].sort((a, b) =>
+    a[0].localeCompare(b[0]),
+  )) {
     if (acc.weight <= 0) continue;
     result.push({
       stateId: countryId,
@@ -187,14 +223,22 @@ function nationalPartyOrgs(world: WorldState, countryId: string): TallyStatePart
   return result;
 }
 
-function derivedInputs(world: WorldState, rec: ElectionRecord): TallyDerivedInputs {
+function derivedInputs(
+  world: WorldState,
+  rec: ElectionRecord,
+): TallyDerivedInputs {
   const incumbentSeatShareByParty = new Map<string, number>();
   const leg = world.legislatures[rec.countryId];
   const chamber = leg?.chambers.find((c) => c.key === rec.chamberKey);
   if (chamber) {
-    const held = Object.values(chamber.composition.seatsByParty).reduce((a, b) => a + b, 0);
+    const held = Object.values(chamber.composition.seatsByParty).reduce(
+      (a, b) => a + b,
+      0,
+    );
     if (held > 0) {
-      for (const [pid, seats] of Object.entries(chamber.composition.seatsByParty)) {
+      for (const [pid, seats] of Object.entries(
+        chamber.composition.seatsByParty,
+      )) {
         incumbentSeatShareByParty.set(pid, seats / held);
       }
     }
@@ -220,7 +264,9 @@ function derivedInputs(world: WorldState, rec: ElectionRecord): TallyDerivedInpu
   // there). Approval is PORT-STUB neutral (50) — no approval-rating system
   // exists yet for the executive.
   const exec = world.executives[rec.countryId];
-  const president = exec?.presidentId ? { partyId: exec.presidentParty ?? "independent", approval: 50 } : null;
+  const president = exec?.presidentId
+    ? { partyId: exec.presidentParty ?? "independent", approval: 50 }
+    : null;
 
   return {
     // PORT-STUB: no approval system yet; mainline neutral.
@@ -229,21 +275,30 @@ function derivedInputs(world: WorldState, rec: ElectionRecord): TallyDerivedInpu
     incumbentSeatShareByParty,
     govExecutive: null,
     president,
-    isOnePartyState: world.countryPolitics[rec.countryId]?.regime === "one-party",
+    isOnePartyState:
+      world.countryPolitics[rec.countryId]?.regime === "one-party",
   } as TallyDerivedInputs;
 }
 
 export interface StateSlice {
   /** Tally unit id — a real state id for down-ballot races, `countryId` for the nationwide president aggregate. */
   stateId: string;
-  state: { name: string; population: number; votingEligiblePopulation: number | null };
+  state: {
+    name: string;
+    population: number;
+    votingEligiblePopulation: number | null;
+  };
   demographics: EngineStateDemographics;
   turnout: TallyTurnoutInput;
   statePartyOrgs: TallyStatePartyOrgInput[];
 }
 
 /** Per-state slice (house/senate/governor/...): real region + demographic table lookups. */
-function stateSliceFor(world: WorldState, stateId: string, electionId?: string): StateSlice | null {
+function stateSliceFor(
+  world: WorldState,
+  stateId: string,
+  electionId?: string,
+): StateSlice | null {
   const demoRaw = world.stateDemographics[stateId];
   const region = world.regions[stateId];
   if (!demoRaw || !region) return null;
@@ -263,7 +318,10 @@ function stateSliceFor(world: WorldState, stateId: string, electionId?: string):
 
   // World demographics persist lastUpdated as an ISO string for JSON safety;
   // the tally contract mirrors the Mongo doc with a Date.
-  const demographics = { ...demoRaw, lastUpdated: new Date(demoRaw.lastUpdated) } as unknown as EngineStateDemographics;
+  const demographics = {
+    ...demoRaw,
+    lastUpdated: new Date(demoRaw.lastUpdated),
+  } as unknown as EngineStateDemographics;
 
   return {
     stateId,
@@ -286,8 +344,14 @@ function stateSliceFor(world: WorldState, stateId: string, electionId?: string):
  * orgs are aggregated separately (`nationalPartyOrgs`) since the caller only
  * needs the simple `{partyId, organization, registration}` shape.
  */
-function nationwideSliceFor(world: WorldState, countryId: string, electionId?: string): StateSlice | null {
-  const regions = Object.values(world.regions).filter((r) => r.countryId === countryId);
+function nationwideSliceFor(
+  world: WorldState,
+  countryId: string,
+  electionId?: string,
+): StateSlice | null {
+  const regions = Object.values(world.regions).filter(
+    (r) => r.countryId === countryId,
+  );
   if (regions.length === 0) return null;
 
   const statesPlain = regions.map((r) => ({
@@ -307,20 +371,40 @@ function nationwideSliceFor(world: WorldState, countryId: string, electionId?: s
   const demoPlain = regions
     .map((r) => world.stateDemographics[r.id])
     .filter((d): d is NonNullable<typeof d> => d != null)
-    .map((d) => ({ ...d, lastUpdated: new Date(d.lastUpdated) })) as unknown as EngineStateDemographics[];
+    .map((d) => ({
+      ...d,
+      lastUpdated: new Date(d.lastUpdated),
+    })) as unknown as EngineStateDemographics[];
   if (demoPlain.length === 0) return null;
 
   const now = worldNow(world);
   const turnoutPlain = regions.map((r) => {
     const rt = world.regionTurnouts[r.id];
-    return { _id: r.id, countryId, modifiers: rt?.modifiers ?? {}, lastDecayApplied: now, lastUpdated: now };
+    return {
+      _id: r.id,
+      countryId,
+      modifiers: rt?.modifiers ?? {},
+      lastDecayApplied: now,
+      lastUpdated: now,
+    };
   }) as unknown as EngineStateDemographicTurnout[];
 
-  const preload = buildNationwideElectoratePreload(countryId, statesPlain, demoPlain, turnoutPlain, []);
+  const preload = buildNationwideElectoratePreload(
+    countryId,
+    statesPlain,
+    demoPlain,
+    turnoutPlain,
+    [],
+  );
   if (!preload) return null;
 
-  const vep = preload.state.votingEligiblePopulation ?? preload.state.population;
-  const turnout = deriveTurnoutFrom(preload.demographics, vep, campaignTurnoutModifiers(world, electionId));
+  const vep =
+    preload.state.votingEligiblePopulation ?? preload.state.population;
+  const turnout = deriveTurnoutFrom(
+    preload.demographics,
+    vep,
+    campaignTurnoutModifiers(world, electionId),
+  );
 
   return {
     stateId: countryId,
@@ -336,8 +420,21 @@ function nationwideSliceFor(world: WorldState, countryId: string, electionId?: s
 }
 
 /** Shared accumulate core: mirrors mainline's per-turn tally write against a resolved state/nationwide slice. */
-function runAccumulate(world: WorldState, rng: WorldRng, rec: ElectionRecord, slice: StateSlice): boolean {
-  const result = runAccumulateCore(world, rng, rec, slice, rec.tallyState);
+function runAccumulate(
+  world: WorldState,
+  rng: WorldRng,
+  rec: ElectionRecord,
+  slice: StateSlice,
+  observeInput?: (snapshot: VoteDistributionDiagnosticSnapshot) => void,
+): boolean {
+  const result = runAccumulateCore(
+    world,
+    rng,
+    rec,
+    slice,
+    rec.tallyState,
+    observeInput,
+  );
   if (!result) return false;
   rec.tallyState = result.tallyState as unknown as ElectionRecord["tallyState"];
   rec.tally = { ...result.totals };
@@ -357,6 +454,7 @@ function runAccumulateCore(
   rec: ElectionRecord,
   slice: StateSlice,
   priorTallyState: unknown,
+  observeInput?: (snapshot: VoteDistributionDiagnosticSnapshot) => void,
 ): { tallyState: unknown; totals: Record<string, number> } | null {
   const { stateId, state, demographics, turnout, statePartyOrgs } = slice;
 
@@ -401,14 +499,18 @@ function runAccumulateCore(
           ...(typeof player.nationalInfluence === "number"
             ? { nationalInfluence: player.nationalInfluence }
             : {}),
-          ...(typeof player.partyInfluence === "number" ? { partyInfluence: player.partyInfluence } : {}),
+          ...(typeof player.partyInfluence === "number"
+            ? { partyInfluence: player.partyInfluence }
+            : {}),
           infamy: player.infamy,
         },
       ]
     : [];
   const npps = rec.candidates.flatMap((candidate) => {
     if (!candidate.isNPP) return [];
-    const politician = world.politicians.find((entry) => entry.id === candidate.id);
+    const politician = world.politicians.find(
+      (entry) => entry.id === candidate.id,
+    );
     if (!politician) return [];
     return [
       {
@@ -431,7 +533,9 @@ function runAccumulateCore(
       party: c.party,
       isNPP: c.isNPP ?? true,
       ...(typeof c.support === "number" ? { support: c.support } : {}),
-      ...(c.targetedAdBonuses ? { targetedAdBonuses: c.targetedAdBonuses } : {}),
+      ...(c.targetedAdBonuses
+        ? { targetedAdBonuses: c.targetedAdBonuses }
+        : {}),
     })),
     {
       parties: Object.values(world.parties)
@@ -469,7 +573,9 @@ function runAccumulateCore(
       endTurn: rec.endTurn,
       primaryEndTurn: rec.primaryEndTurn,
       totalSeats: rec.totalSeats,
-      endTime: new Date(now.getTime() + (rec.endTurn - world.meta.turn) * 3600_000),
+      endTime: new Date(
+        now.getTime() + (rec.endTurn - world.meta.turn) * 3600_000,
+      ),
       createdAt: now,
     },
     candidates,
@@ -496,6 +602,7 @@ function runAccumulateCore(
     rng,
     isGeneralElection,
     ...(voteMultiplierByCandidateId ? { voteMultiplierByCandidateId } : {}),
+    ...(observeInput ? { diagnosticObserver: observeInput } : {}),
   };
 
   const result = accumulateVoteTurn(input);
@@ -526,8 +633,15 @@ function runAccumulateCore(
  * in practice; it exists for future eras/content packs that ship states
  * without demographics yet.
  */
-function realAccumulatePresident(world: WorldState, rng: WorldRng, rec: ElectionRecord): boolean {
-  const regions = Object.values(world.regions).filter((r) => r.countryId === rec.countryId);
+function realAccumulatePresident(
+  world: WorldState,
+  rng: WorldRng,
+  rec: ElectionRecord,
+  observeInput?: (snapshot: VoteDistributionDiagnosticSnapshot) => void,
+): boolean {
+  const regions = Object.values(world.regions).filter(
+    (r) => r.countryId === rec.countryId,
+  );
   const stateIds = regions.map((r) => r.id).sort((a, b) => a.localeCompare(b));
 
   const slices = new Map<string, StateSlice>();
@@ -544,7 +658,7 @@ function realAccumulatePresident(world: WorldState, rng: WorldRng, rec: Election
   if (slices.size === 0) {
     const nw = nationwideSliceFor(world, rec.countryId, rec.id);
     if (!nw) return false;
-    return runAccumulate(world, rng, rec, nw);
+    return runAccumulate(world, rng, rec, nw, observeInput);
   }
 
   const stateTallyStates = { ...(rec.stateTallyStates ?? {}) };
@@ -552,7 +666,14 @@ function realAccumulatePresident(world: WorldState, rng: WorldRng, rec: Election
   let ranAny = false;
 
   for (const [stateId, slice] of slices) {
-    const result = runAccumulateCore(world, rng, rec, slice, stateTallyStates[stateId]);
+    const result = runAccumulateCore(
+      world,
+      rng,
+      rec,
+      slice,
+      stateTallyStates[stateId],
+      observeInput,
+    );
     if (!result) continue;
     ranAny = true;
     stateTallyStates[stateId] = result.tallyState;
@@ -568,27 +689,62 @@ function realAccumulatePresident(world: WorldState, rng: WorldRng, rec: Election
 }
 
 /** Returns true when the real tally ran; false = caller falls back to the stub. */
-export function realAccumulate(world: WorldState, rng: WorldRng, rec: ElectionRecord): boolean {
+export function realAccumulate(
+  world: WorldState,
+  rng: WorldRng,
+  rec: ElectionRecord,
+  observeInput?: (snapshot: unknown) => void,
+): boolean {
   if (rec.electionType === "president") {
-    return realAccumulatePresident(world, rng, rec);
+    return realAccumulatePresident(
+      world,
+      rng,
+      rec,
+      observeInput as
+        ((snapshot: VoteDistributionDiagnosticSnapshot) => void) | undefined,
+    );
   }
-  const regionalSlice = rec.state ? stateSliceFor(world, rec.state, rec.id) : null;
+  const regionalSlice = rec.state
+    ? stateSliceFor(world, rec.state, rec.id)
+    : null;
   if (!regionalSlice) return false;
-  const carve = rec.electionType === "special_commons" ? rec.byElectionCarve : undefined;
-  const slice = typeof carve === "number" && carve > 0 && carve < 1
-    ? {
-        ...regionalSlice,
-        state: {
-          ...regionalSlice.state,
-          population: regionalSlice.state.population * carve,
-          votingEligiblePopulation: regionalSlice.state.votingEligiblePopulation == null ? null : regionalSlice.state.votingEligiblePopulation * carve,
-        },
-        demographics: {
-          ...regionalSlice.demographics,
-          groups: Object.fromEntries(Object.entries(regionalSlice.demographics.groups).map(([id, group]) => [id, { ...group, population: group.population * carve }])),
-        },
-        turnout: { ...regionalSlice.turnout, totalPool: regionalSlice.turnout.totalPool * carve },
-      }
-    : regionalSlice;
-  return runAccumulate(world, rng, rec, slice);
+  const carve =
+    rec.electionType === "special_commons" ? rec.byElectionCarve : undefined;
+  const slice =
+    typeof carve === "number" && carve > 0 && carve < 1
+      ? {
+          ...regionalSlice,
+          state: {
+            ...regionalSlice.state,
+            population: regionalSlice.state.population * carve,
+            votingEligiblePopulation:
+              regionalSlice.state.votingEligiblePopulation == null
+                ? null
+                : regionalSlice.state.votingEligiblePopulation * carve,
+          },
+          demographics: {
+            ...regionalSlice.demographics,
+            groups: Object.fromEntries(
+              Object.entries(regionalSlice.demographics.groups).map(
+                ([id, group]) => [
+                  id,
+                  { ...group, population: group.population * carve },
+                ],
+              ),
+            ),
+          },
+          turnout: {
+            ...regionalSlice.turnout,
+            totalPool: regionalSlice.turnout.totalPool * carve,
+          },
+        }
+      : regionalSlice;
+  return runAccumulate(
+    world,
+    rng,
+    rec,
+    slice,
+    observeInput as
+      ((snapshot: VoteDistributionDiagnosticSnapshot) => void) | undefined,
+  );
 }

@@ -7,7 +7,12 @@ import {
   type ElectionPlan,
 } from "../electionEngine/resolution/electionSpawning.js";
 import type { CycleAnchorContext } from "../electionEngine/resolution/cycleAnchorContext.js";
-import { eraToPreset, getStartingYearForPreset, getUkCommonsSeats, DEFAULT_DURATIONS } from "../electionEngine/resolution/constants.js";
+import {
+  eraToPreset,
+  getStartingYearForPreset,
+  getUkCommonsSeats,
+  DEFAULT_DURATIONS,
+} from "../electionEngine/resolution/constants.js";
 import {
   resolveGeneralElectionPure,
   type CandidateInput,
@@ -16,14 +21,29 @@ import {
 import { generateNpcNameAndGender } from "../npp/nameGenerator.js";
 import { liveChamberSeatsByParty } from "../government/seatWeights.js";
 import { buildTallyTurnIndex, realAccumulate } from "./tallyAdapter.js";
-import { ensureCampaignsForElection, archiveCampaignsForElection } from "../campaigns/lifecycle.js";
+import {
+  ensureCampaignsForElection,
+  archiveCampaignsForElection,
+} from "../campaigns/lifecycle.js";
 import { applyPresidentialResolution } from "./presidentialResolution.js";
 import { declareCandidacy } from "./candidacy.js";
 import { closeUkCommonsVacancies } from "./ukCommonsVacancies.js";
-import { recordPrimarySnapshots, requiresPrimaryResolution } from "./primaryResolution.js";
-import { GOVERNOR_COUNTRIES, LOWER_CHAMBER_PER_REGION, SUBNATIONAL_CHAMBER_PER_REGION, JP_SANGIIN_SEATS, UK_DEVOLVED_GOVERNOR_REGIONS } from "../government/constants.js";
+import {
+  recordPrimarySnapshots,
+  requiresPrimaryResolution,
+} from "./primaryResolution.js";
+import {
+  GOVERNOR_COUNTRIES,
+  LOWER_CHAMBER_PER_REGION,
+  SUBNATIONAL_CHAMBER_PER_REGION,
+  JP_SANGIIN_SEATS,
+  UK_DEVOLVED_GOVERNOR_REGIONS,
+} from "../government/constants.js";
 import { getCycleAnchors } from "../electionEngine/resolution/cycleAnchorContext.js";
-import { nppAutonomyLevelAtLeast, resolveNppAutonomyLevel } from "../nppAutonomyLevel.js";
+import {
+  nppAutonomyLevelAtLeast,
+  resolveNppAutonomyLevel,
+} from "../nppAutonomyLevel.js";
 import { UK_REGIONAL_COUNCIL_COHORT_BY_REGION } from "../electionEngine/midtermOppositionBoost.js";
 import {
   applyUKDevolutionPolicy,
@@ -72,7 +92,10 @@ export function cycleContextForWorld(world: WorldState): CycleAnchorContext {
   } as CycleAnchorContext;
 }
 
-export function electionRecordId(plan: ElectionPlan, senateClass?: number): string {
+export function electionRecordId(
+  plan: ElectionPlan,
+  senateClass?: number,
+): string {
   const cls = senateClass ? `:cl${senateClass}` : "";
   return `${plan.electionType}:${plan.countryId}:${plan.state ?? "-"}${cls}:c${plan.cycle}`;
 }
@@ -80,7 +103,6 @@ export function electionRecordId(plan: ElectionPlan, senateClass?: number): stri
 function worldNow(world: WorldState): Date {
   return new Date(`${world.meta.date}T00:00:00Z`);
 }
-
 
 /** Election series solo currently schedules, per playable country. */
 export interface SeriesSpec {
@@ -97,27 +119,37 @@ export interface SeriesSpec {
 }
 
 function initialUKInstitutionsForWorld(world: WorldState): UKDevolutionState {
-  const initial = initialUKDevolutionState(cycleContextForWorld(world).startingYear);
+  const initial = initialUKDevolutionState(
+    cycleContextForWorld(world).startingYear,
+  );
   // AHDGame's lazy initial-state read preserves an already seated regional
   // executive even when the authored start-year threshold predates it.
   for (const region of UK_EXECUTIVE_REGIONS) {
-    if (world.governors[region]?.governorId) initial.regions[region].active = true;
+    if (world.governors[region]?.governorId)
+      initial.regions[region].active = true;
   }
   return initial;
 }
 
-function currentUKDevolutionPolicy(world: WorldState): EnactedDevolutionPolicy | null {
+function currentUKDevolutionPolicy(
+  world: WorldState,
+): EnactedDevolutionPolicy | null {
   const current = Object.values(world.policyLedger)
-    .filter((entry) =>
-      entry.countryId === "UK" &&
-      entry.scope === "national" &&
-      entry.legislationTypeId === "uk_devolution_local_powers" &&
-      entry.repealedAtTurn === undefined &&
-      !entry.isRepeal,
+    .filter(
+      (entry) =>
+        entry.countryId === "UK" &&
+        entry.scope === "national" &&
+        entry.legislationTypeId === "uk_devolution_local_powers" &&
+        entry.repealedAtTurn === undefined &&
+        !entry.isRepeal,
     )
     .sort((a, b) => b.enactedTurn - a.enactedTurn)[0];
   if (!current || !/^(0|[1-6])$/.test(current.policyOptionId)) return null;
-  return { billId: current.id, optionIndex: Number(current.policyOptionId), enactedTurn: current.enactedTurn };
+  return {
+    billId: current.id,
+    optionIndex: Number(current.policyOptionId),
+    enactedTurn: current.enactedTurn,
+  };
 }
 
 /** Apply an enacted source settlement before the election family reconciles. */
@@ -125,10 +157,19 @@ function reconcileUKDevolutionForTurn(world: WorldState): void {
   const state = world.ukDevolution ?? initialUKInstitutionsForWorld(world);
   const completedCycles: Partial<Record<UKExecutiveRegion, number>> = {};
   for (const election of world.elections) {
-    if (election.countryId !== "UK" || election.electionType !== "governor" || election.status !== "resolved" || !election.state) continue;
+    if (
+      election.countryId !== "UK" ||
+      election.electionType !== "governor" ||
+      election.status !== "resolved" ||
+      !election.state
+    )
+      continue;
     const region = election.state as UKExecutiveRegion;
     if (!UK_EXECUTIVE_REGIONS.includes(region)) continue;
-    completedCycles[region] = Math.max(completedCycles[region] ?? 0, election.cycle);
+    completedCycles[region] = Math.max(
+      completedCycles[region] ?? 0,
+      election.cycle,
+    );
   }
   const next = applyUKDevolutionPolicy(
     state,
@@ -138,10 +179,18 @@ function reconcileUKDevolutionForTurn(world: WorldState): void {
   );
   if (next !== state) world.ukDevolution = next;
   const effective = world.ukDevolution ?? state;
-  const inactive = new Set(UK_EXECUTIVE_REGIONS.filter((region) => !effective.regions[region].active));
+  const inactive = new Set(
+    UK_EXECUTIVE_REGIONS.filter((region) => !effective.regions[region].active),
+  );
   if (inactive.size === 0) return;
   for (const election of world.elections) {
-    if (election.countryId === "UK" && election.electionType === "governor" && election.state && inactive.has(election.state as UKExecutiveRegion) && election.status !== "resolved") {
+    if (
+      election.countryId === "UK" &&
+      election.electionType === "governor" &&
+      election.state &&
+      inactive.has(election.state as UKExecutiveRegion) &&
+      election.status !== "resolved"
+    ) {
       election.status = "cancelled";
     }
   }
@@ -166,27 +215,50 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
   // from not being this save's selected country.
   const sourceNppCountryLive = (countryId: string): boolean => {
     const statusIsLive = world.countries[countryId]?.playable === true;
-    return statusIsLive || nppAutonomyLevelAtLeast(resolveNppAutonomyLevel(world.nppAutonomyLevel), "v1");
+    return (
+      statusIsLive ||
+      nppAutonomyLevelAtLeast(
+        resolveNppAutonomyLevel(world.nppAutonomyLevel),
+        "v1",
+      )
+    );
   };
   const regions = world.regions ?? {};
   const cycleContext = cycleContextForWorld(world);
   const cycleAnchors = getCycleAnchors(cycleContext);
-  const ukInstitutionState = world.ukDevolution ?? initialUKInstitutionsForWorld(world);
+  const ukInstitutionState =
+    world.ukDevolution ?? initialUKInstitutionsForWorld(world);
   // US: house per state (apportioned seats), senate per state per class.
   // Governor per state - Source: src/lib/elections/canonicalCycle.ts governor case
   // uses anchors.governorStateSenate (shared with stateSenate). Duration 192
   // (src/lib/constants/electionDurations.ts DEFAULT_DURATIONS.governor).
   for (const region of Object.values(regions)) {
     const r = region as unknown as {
-      id: string; countryId: string; houseSeats?: number;
-      senateClasses?: [number, number]; senateSeats?: number;
+      id: string;
+      countryId: string;
+      houseSeats?: number;
+      senateClasses?: [number, number];
+      senateSeats?: number;
     };
     if (r.countryId !== "US") continue;
     if (typeof r.houseSeats === "number" && r.houseSeats > 0) {
-      specs.push({ electionType: "house", countryId: "US", chamberKey: "house", state: r.id, totalSeats: r.houseSeats });
+      specs.push({
+        electionType: "house",
+        countryId: "US",
+        chamberKey: "house",
+        state: r.id,
+        totalSeats: r.houseSeats,
+      });
     }
     for (const cls of r.senateClasses ?? []) {
-      specs.push({ electionType: "senate", countryId: "US", chamberKey: "senate", state: r.id, senateClass: cls as 1 | 2 | 3, totalSeats: 1 });
+      specs.push({
+        electionType: "senate",
+        countryId: "US",
+        chamberKey: "senate",
+        state: r.id,
+        senateClass: cls as 1 | 2 | 3,
+        totalSeats: 1,
+      });
     }
   }
   // US governor per state - must wire same way house/senate do, using canonical
@@ -194,7 +266,11 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
   for (const region of Object.values(regions)) {
     const r = region as unknown as { id: string; countryId: string };
     if (!GOVERNOR_COUNTRIES.has(r.countryId)) continue;
-    if ((r.countryId === "RU" || r.countryId === "DD") && !sourceNppCountryLive(r.countryId)) continue;
+    if (
+      (r.countryId === "RU" || r.countryId === "DD") &&
+      !sourceNppCountryLive(r.countryId)
+    )
+      continue;
     if (r.countryId === "UK") {
       if (!UK_DEVOLVED_GOVERNOR_REGIONS.has(r.id)) continue;
       const institution = ukInstitutionState.regions[r.id as UKExecutiveRegion];
@@ -207,12 +283,23 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
         totalSeats: 1,
         firstCycle: institution.firstCycle,
         ...(institution.firstElectionEndTurn !== undefined
-          ? { customCycle1EndTurn: executiveCycleAnchor(institution, DEFAULT_DURATIONS.governor.durationHours) }
+          ? {
+              customCycle1EndTurn: executiveCycleAnchor(
+                institution,
+                DEFAULT_DURATIONS.governor.durationHours,
+              ),
+            }
           : {}),
       });
       continue;
     }
-    specs.push({ electionType: "governor", countryId: r.countryId, chamberKey: "governor", state: r.id, totalSeats: 1 });
+    specs.push({
+      electionType: "governor",
+      countryId: r.countryId,
+      chamberKey: "governor",
+      state: r.id,
+      totalSeats: 1,
+    });
   }
   // W61 post-Cold-War roster (1991: JP/DE/CN/BR/IE; 2019: JP/DE/CN/IE). Every
   // lower chamber is contested per region with totalSeats = the region's
@@ -228,41 +315,94 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
   // ensureIEUachtaranElections, one nationwide single-winner race.
   const LOWER_PER_REGION = LOWER_CHAMBER_PER_REGION;
   for (const region of Object.values(regions)) {
-    const r = region as unknown as { id: string; countryId: string; houseSeats?: number; senateSeats?: number };
+    const r = region as unknown as {
+      id: string;
+      countryId: string;
+      houseSeats?: number;
+      senateSeats?: number;
+    };
     const lower = LOWER_PER_REGION[r.countryId];
     if (!lower) continue;
     const leg = world.legislatures[r.countryId];
     if (!leg) continue;
     const chamber = leg.chambers.find((c) => c.key === lower.chamberKey);
-    if (chamber && chamber.elected && typeof r.houseSeats === "number" && r.houseSeats > 0) {
-      specs.push({ electionType: lower.electionType, countryId: r.countryId, chamberKey: lower.chamberKey, state: r.id, totalSeats: r.houseSeats });
+    if (
+      chamber &&
+      chamber.elected &&
+      typeof r.houseSeats === "number" &&
+      r.houseSeats > 0
+    ) {
+      specs.push({
+        electionType: lower.electionType,
+        countryId: r.countryId,
+        chamberKey: lower.chamberKey,
+        state: r.id,
+        totalSeats: r.houseSeats,
+      });
     }
-    if (r.countryId === "BR" && typeof r.senateSeats === "number" && r.senateSeats > 0) {
+    if (
+      r.countryId === "BR" &&
+      typeof r.senateSeats === "number" &&
+      r.senateSeats > 0
+    ) {
       const senate = leg.chambers.find((c) => c.key === "senate");
-      if (senate && senate.elected) specs.push({ electionType: "senate", countryId: "BR", chamberKey: "senate", state: r.id, totalSeats: r.senateSeats });
+      if (senate && senate.elected)
+        specs.push({
+          electionType: "senate",
+          countryId: "BR",
+          chamberKey: "senate",
+          state: r.id,
+          totalSeats: r.senateSeats,
+        });
     }
     if (r.countryId === "JP") {
       const sangiin = leg.chambers.find((c) => c.key === "sangiin");
       const n = JP_SANGIIN_SEATS[r.id];
       if (sangiin && sangiin.elected && n) {
-        specs.push({ electionType: "sangiin", countryId: "JP", chamberKey: "sangiin", state: r.id, chamberClass: 1, totalSeats: Math.ceil(n / 2) });
-        specs.push({ electionType: "sangiin", countryId: "JP", chamberKey: "sangiin", state: r.id, chamberClass: 2, totalSeats: Math.floor(n / 2) });
+        specs.push({
+          electionType: "sangiin",
+          countryId: "JP",
+          chamberKey: "sangiin",
+          state: r.id,
+          chamberClass: 1,
+          totalSeats: Math.ceil(n / 2),
+        });
+        specs.push({
+          electionType: "sangiin",
+          countryId: "JP",
+          chamberKey: "sangiin",
+          state: r.id,
+          chamberClass: 2,
+          totalSeats: Math.floor(n / 2),
+        });
       }
     }
   }
   if (world.legislatures["IE"]) {
-    specs.push({ electionType: "uachtaran", countryId: "IE", chamberKey: "president", totalSeats: 1 });
+    specs.push({
+      electionType: "uachtaran",
+      countryId: "IE",
+      chamberKey: "president",
+      totalSeats: 1,
+    });
   }
   // US president (W24): one nationwide record, no `state`. Scope is US only -
   // see executive/types.ts file doc for why other presidential countries are
   // PORT-STUB this wave.
   if (world.legislatures["US"]) {
-    specs.push({ electionType: "president", countryId: "US", chamberKey: "president", totalSeats: 1 });
+    specs.push({
+      electionType: "president",
+      countryId: "US",
+      chamberKey: "president",
+      totalSeats: 1,
+    });
   }
   // Source: AHDGame `ensureUKElections` creates one Commons election per UK
   // state/region. Its active preset selects the 625-seat 1953 map or the
   // modern 650-seat regional map; every race remains part of the Commons.
-  const ukCommons = world.legislatures["UK"]?.chambers.find((c) => c.key === "commons");
+  const ukCommons = world.legislatures["UK"]?.chambers.find(
+    (c) => c.key === "commons",
+  );
   if (ukCommons?.elected) {
     const seatsByRegion = getUkCommonsSeats(eraToPreset(world.meta.era));
     for (const region of Object.values(regions)) {
@@ -270,19 +410,42 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
       if (r.countryId !== "UK") continue;
       const totalSeats = seatsByRegion[r.id];
       if (totalSeats === undefined) continue;
-      specs.push({ electionType: "commons", countryId: "UK", chamberKey: "commons", state: r.id, totalSeats });
+      specs.push({
+        electionType: "commons",
+        countryId: "UK",
+        chamberKey: "commons",
+        state: r.id,
+        totalSeats,
+      });
     }
   }
   // RU: supreme soviet chambers; DD: volkskammer. Single-list national races.
   if (world.legislatures["RU"] && sourceNppCountryLive("RU")) {
-    for (const [type, key] of [["supremeSovietDeputy", "sovietOfTheUnion"], ["nationalitiesDeputy", "sovietOfNationalities"]] as const) {
+    for (const [type, key] of [
+      ["supremeSovietDeputy", "sovietOfTheUnion"],
+      ["nationalitiesDeputy", "sovietOfNationalities"],
+    ] as const) {
       const ch = world.legislatures["RU"].chambers.find((c) => c.key === key);
-      if (ch && ch.elected) specs.push({ electionType: type, countryId: "RU", chamberKey: ch.key, totalSeats: ch.seats });
+      if (ch && ch.elected)
+        specs.push({
+          electionType: type,
+          countryId: "RU",
+          chamberKey: ch.key,
+          totalSeats: ch.seats,
+        });
     }
   }
   if (world.legislatures["DD"] && sourceNppCountryLive("DD")) {
-    const vk = world.legislatures["DD"].chambers.find((c) => c.key === "volkskammer");
-    if (vk && vk.elected) specs.push({ electionType: "volkskammerDeputy", countryId: "DD", chamberKey: "volkskammer", totalSeats: vk.seats });
+    const vk = world.legislatures["DD"].chambers.find(
+      (c) => c.key === "volkskammer",
+    );
+    if (vk && vk.elected)
+      specs.push({
+        electionType: "volkskammerDeputy",
+        countryId: "DD",
+        chamberKey: "volkskammer",
+        totalSeats: vk.seats,
+      });
   }
   // W40: subnational/regional chambers, per-region records mirroring the US
   // house loop above — mainline confirms all four run real per-region races
@@ -303,10 +466,18 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
   // separate `UK_REGIONAL_COUNCIL_SEATS` table — no change needed there.
   const SUBNATIONAL_CHAMBERS = SUBNATIONAL_CHAMBER_PER_REGION;
   for (const region of Object.values(regions)) {
-    const r = region as unknown as { id: string; countryId: string; senateSeats?: number };
+    const r = region as unknown as {
+      id: string;
+      countryId: string;
+      senateSeats?: number;
+    };
     const spec = SUBNATIONAL_CHAMBERS[r.countryId];
     if (!spec) continue;
-    if ((r.countryId === "RU" || r.countryId === "DD") && !sourceNppCountryLive(r.countryId)) continue;
+    if (
+      (r.countryId === "RU" || r.countryId === "DD") &&
+      !sourceNppCountryLive(r.countryId)
+    )
+      continue;
     if (typeof r.senateSeats !== "number" || r.senateSeats <= 0) continue;
     const leg = world.legislatures[r.countryId];
     const chamber = leg?.chambers.find((c) => c.key === spec.chamberKey);
@@ -323,7 +494,8 @@ export function electionSeriesForWorld(world: WorldState): SeriesSpec[] {
             // close one to five years after the Commons anchor, retaining
             // five-year cycles while avoiding a single nationwide wipe.
             customCycle1EndTurn:
-              cycleAnchors.ukCommons + UK_REGIONAL_COUNCIL_COHORT_BY_REGION[r.id] * 48,
+              cycleAnchors.ukCommons +
+              UK_REGIONAL_COUNCIL_COHORT_BY_REGION[r.id] * 48,
           }
         : {}),
     });
@@ -341,10 +513,14 @@ export function recordSeriesKey(r: ElectionRecord): string {
 }
 
 /** Politicians currently holding the contested seats. */
-export function seatHolders(world: WorldState, rec: ElectionRecord): Politician[] {
+export function seatHolders(
+  world: WorldState,
+  rec: ElectionRecord,
+): Politician[] {
   // A UK special Commons record contests only the vacancies it claims; the
   // remaining regional MPs do not stand or risk losing their offices.
-  if (rec.countryId === "UK" && rec.electionType === "special_commons") return [];
+  if (rec.countryId === "UK" && rec.electionType === "special_commons")
+    return [];
   return world.politicians.filter(
     (p) =>
       p.countryId === rec.countryId &&
@@ -369,11 +545,13 @@ export function seatHolders(world: WorldState, rec: ElectionRecord): Politician[
  */
 export function cullOrphanedGenerated(world: WorldState): void {
   const protectedIds = new Set<string>();
-  for (const g of Object.values(world.governors)) if (g.governorId) protectedIds.add(g.governorId);
+  for (const g of Object.values(world.governors))
+    if (g.governorId) protectedIds.add(g.governorId);
   const collect = (v: unknown): void => {
     if (typeof v === "string") protectedIds.add(v);
     else if (Array.isArray(v)) v.forEach(collect);
-    else if (v && typeof v === "object") Object.values(v as Record<string, unknown>).forEach(collect);
+    else if (v && typeof v === "object")
+      Object.values(v as Record<string, unknown>).forEach(collect);
   };
   collect(world.executives);
   collect(world.cabinetMembers);
@@ -385,16 +563,28 @@ export function cullOrphanedGenerated(world: WorldState): void {
     for (const c of e.candidates) protectedIds.add(c.id);
   }
   world.politicians = world.politicians.filter(
-    (p) => !(p.id.includes("-CH") && p.chamberKey === "" && !protectedIds.has(p.id)),
+    (p) =>
+      !(p.id.includes("-CH") && p.chamberKey === "" && !protectedIds.has(p.id)),
   );
 }
 
-function makeChallenger(world: WorldState, rng: WorldRng, rec: ElectionRecord, partyId: string, slateIndex: number): Politician {
+function makeChallenger(
+  world: WorldState,
+  rng: WorldRng,
+  rec: ElectionRecord,
+  partyId: string,
+  slateIndex: number,
+): Politician {
   const party = world.parties[partyId];
-  const { name, gender } = generateNpcNameAndGender(rng, rec.countryId, world.meta.era);
+  const { name, gender } = generateNpcNameAndGender(
+    rng,
+    rec.countryId,
+    world.meta.era,
+  );
   // Ideology jitter mirrors politician generation (generator.ts quality 0, +-1.2).
   const jitter = () => Math.round((rng.next() * 2.4 - 1.2) * 10) / 10;
-  const clamp5 = (v: number) => Math.max(-5, Math.min(5, Math.round(v * 10) / 10));
+  const clamp5 = (v: number) =>
+    Math.max(-5, Math.min(5, Math.round(v * 10) / 10));
   // Deterministic per world: election record id + party + slate position.
   const id = `${rec.countryId}-CH:${rec.id}:${partyId}:${slateIndex}`;
   return {
@@ -436,12 +626,21 @@ function makeChallenger(world: WorldState, rng: WorldRng, rec: ElectionRecord, p
  * see src/lib/campaigns/isCampaignEligible.ts; solo's
  * campaigns/isCampaignEligible.ts already includes governor for US.
  */
-function fillGovernorCandidates(world: WorldState, rng: WorldRng, rec: ElectionRecord): void {
+function fillGovernorCandidates(
+  world: WorldState,
+  rng: WorldRng,
+  rec: ElectionRecord,
+): void {
   const seen = new Set(rec.candidates.map((c) => c.id));
   const gov = rec.state ? world.governors[rec.state] : undefined;
   if (gov?.governorId && !seen.has(gov.governorId)) {
     const id = gov.governorId;
-    const name = id === "player" ? world.player.name : (world.politicians.find((p) => p.id === id)?.name ?? gov.governorName ?? id);
+    const name =
+      id === "player"
+        ? world.player.name
+        : (world.politicians.find((p) => p.id === id)?.name ??
+          gov.governorName ??
+          id);
     rec.candidates.push({
       id,
       name,
@@ -453,7 +652,9 @@ function fillGovernorCandidates(world: WorldState, rng: WorldRng, rec: ElectionR
   }
   const incumbentPartyId = gov?.governorId ? gov.governorParty : null;
   const majorParties = Object.values(world.parties).filter(
-    (p) => p.countryId === rec.countryId && (p.tier === "major" || p.id === incumbentPartyId),
+    (p) =>
+      p.countryId === rec.countryId &&
+      (p.tier === "major" || p.id === incumbentPartyId),
   );
   for (const party of majorParties.sort((a, b) => a.id.localeCompare(b.id))) {
     if (rec.candidates.some((c) => c.partyId === party.id)) continue;
@@ -478,13 +679,20 @@ function fillGovernorCandidates(world: WorldState, rng: WorldRng, rec: ElectionR
  * with the id's "-CH:" marker swapped for "-VP:" so the running mate is
  * distinguishable in NPC-population cleanup (applyPresidentialResolution).
  */
-function fillPresidentialCandidates(world: WorldState, rng: WorldRng, rec: ElectionRecord): void {
+function fillPresidentialCandidates(
+  world: WorldState,
+  rng: WorldRng,
+  rec: ElectionRecord,
+): void {
   const seen = new Set(rec.candidates.map((c) => c.id));
   const exec = world.executives[rec.countryId];
 
   if (exec?.presidentId && !seen.has(exec.presidentId)) {
     const id = exec.presidentId;
-    const name = id === "player" ? world.player.name : (world.politicians.find((p) => p.id === id)?.name ?? id);
+    const name =
+      id === "player"
+        ? world.player.name
+        : (world.politicians.find((p) => p.id === id)?.name ?? id);
     rec.candidates.push({
       id,
       name,
@@ -498,7 +706,9 @@ function fillPresidentialCandidates(world: WorldState, rng: WorldRng, rec: Elect
 
   const incumbentPartyId = exec?.presidentId ? exec.presidentParty : null;
   const majorParties = Object.values(world.parties).filter(
-    (p) => p.countryId === rec.countryId && (p.tier === "major" || p.id === incumbentPartyId),
+    (p) =>
+      p.countryId === rec.countryId &&
+      (p.tier === "major" || p.id === incumbentPartyId),
   );
   for (const party of majorParties.sort((a, b) => a.id.localeCompare(b.id))) {
     if (rec.candidates.some((c) => c.partyId === party.id)) continue;
@@ -527,29 +737,53 @@ function fillPresidentialCandidates(world: WorldState, rng: WorldRng, rec: Elect
  * The incumbent comes from `world.executives.IE` like the US president; no
  * running mate (the office has none). Winner seats as executives.IE.presidentId.
  */
-function fillUachtaranCandidates(world: WorldState, rng: WorldRng, rec: ElectionRecord): void {
+function fillUachtaranCandidates(
+  world: WorldState,
+  rng: WorldRng,
+  rec: ElectionRecord,
+): void {
   const seen = new Set(rec.candidates.map((c) => c.id));
   const exec = world.executives[rec.countryId];
   if (exec?.presidentId && !seen.has(exec.presidentId)) {
     const id = exec.presidentId;
-    const name = id === "player" ? world.player.name : (world.politicians.find((p) => p.id === id)?.name ?? id);
-    rec.candidates.push({ id, name, partyId: exec.presidentParty ?? "independent", isNPP: id !== "player", incumbent: true });
+    const name =
+      id === "player"
+        ? world.player.name
+        : (world.politicians.find((p) => p.id === id)?.name ?? id);
+    rec.candidates.push({
+      id,
+      name,
+      partyId: exec.presidentParty ?? "independent",
+      isNPP: id !== "player",
+      incumbent: true,
+    });
     seen.add(id);
   }
   const incumbentPartyId = exec?.presidentId ? exec.presidentParty : null;
   const majorParties = Object.values(world.parties).filter(
-    (p) => p.countryId === rec.countryId && (p.tier === "major" || p.id === incumbentPartyId),
+    (p) =>
+      p.countryId === rec.countryId &&
+      (p.tier === "major" || p.id === incumbentPartyId),
   );
   for (const party of majorParties.sort((a, b) => a.id.localeCompare(b.id))) {
     if (rec.candidates.some((c) => c.partyId === party.id)) continue;
     const ch = makeChallenger(world, rng, rec, party.id, 0);
     world.politicians.push(ch);
-    rec.candidates.push({ id: ch.id, name: ch.name, partyId: party.id, isNPP: true, incumbent: false });
+    rec.candidates.push({
+      id: ch.id,
+      name: ch.name,
+      partyId: party.id,
+      isNPP: true,
+      incumbent: false,
+    });
   }
   ensureCampaignsForElection(world, rec);
 }
 
-function applyUachtaranResolution(world: WorldState, rec: ElectionRecord): void {
+function applyUachtaranResolution(
+  world: WorldState,
+  rec: ElectionRecord,
+): void {
   const candidates: CandidateInput[] = rec.candidates.map((c) => ({
     _id: c.id,
     electionId: rec.id,
@@ -559,7 +793,14 @@ function applyUachtaranResolution(world: WorldState, rec: ElectionRecord): void 
     isNPP: c.isNPP,
   }));
   const input: GeneralResolutionInput = {
-    election: { _id: rec.id, electionType: rec.electionType, countryId: rec.countryId, state: rec.state, cycle: rec.cycle, status: rec.status } as GeneralResolutionInput["election"],
+    election: {
+      _id: rec.id,
+      electionType: rec.electionType,
+      countryId: rec.countryId,
+      state: rec.state,
+      cycle: rec.cycle,
+      status: rec.status,
+    } as GeneralResolutionInput["election"],
     tally: { electionId: rec.id, totalVotes: rec.tally, finalized: true },
     candidates,
     totalSeats: 1,
@@ -569,13 +810,24 @@ function applyUachtaranResolution(world: WorldState, rec: ElectionRecord): void 
   let winnerId: string | null = null;
   let maxSeats = 0;
   for (const [candId, seats] of Object.entries(result?.seatsEstimate ?? {})) {
-    if (seats > maxSeats) { maxSeats = seats; winnerId = candId; }
+    if (seats > maxSeats) {
+      maxSeats = seats;
+      winnerId = candId;
+    }
   }
   if (!winnerId) {
     let best = -1;
-    for (const c of rec.candidates) { const v = rec.tally[c.id] ?? 0; if (v > best) { best = v; winnerId = c.id; } }
+    for (const c of rec.candidates) {
+      const v = rec.tally[c.id] ?? 0;
+      if (v > best) {
+        best = v;
+        winnerId = c.id;
+      }
+    }
   }
-  const winner = winnerId ? rec.candidates.find((c) => c.id === winnerId) : undefined;
+  const winner = winnerId
+    ? rec.candidates.find((c) => c.id === winnerId)
+    : undefined;
   if (winner) {
     world.executives[rec.countryId] = {
       countryId: rec.countryId,
@@ -592,12 +844,19 @@ function applyUachtaranResolution(world: WorldState, rec: ElectionRecord): void 
   cullOrphanedGenerated(world);
 }
 
-export function fillCandidates(world: WorldState, rng: WorldRng, rec: ElectionRecord): void {
+export function fillCandidates(
+  world: WorldState,
+  rng: WorldRng,
+  rec: ElectionRecord,
+): void {
   if (rec.electionType === "president") {
     fillPresidentialCandidates(world, rng, rec);
     return;
   }
-  if (rec.electionType === "governor" || rec.electionType === "special_governor") {
+  if (
+    rec.electionType === "governor" ||
+    rec.electionType === "special_governor"
+  ) {
     fillGovernorCandidates(world, rng, rec);
     return;
   }
@@ -609,12 +868,20 @@ export function fillCandidates(world: WorldState, rng: WorldRng, rec: ElectionRe
   const seen = new Set(rec.candidates.map((c) => c.id));
   for (const h of holders) {
     if (!seen.has(h.id)) {
-      rec.candidates.push({ id: h.id, name: h.name, partyId: h.partyId, isNPP: true, incumbent: true });
+      rec.candidates.push({
+        id: h.id,
+        name: h.name,
+        partyId: h.partyId,
+        isNPP: true,
+        incumbent: true,
+      });
       seen.add(h.id);
     }
   }
   const majorParties = Object.values(world.parties).filter(
-    (p) => p.countryId === rec.countryId && (p.tier === "major" || holders.some((h) => h.partyId === p.id)),
+    (p) =>
+      p.countryId === rec.countryId &&
+      (p.tier === "major" || holders.some((h) => h.partyId === p.id)),
   );
   // Full slates: each fielding party runs enough candidates to take every
   // contested seat (mainline pads slates; short slates caused phantom
@@ -624,7 +891,13 @@ export function fillCandidates(world: WorldState, rng: WorldRng, rec: ElectionRe
     while (have < rec.totalSeats) {
       const ch = makeChallenger(world, rng, rec, party.id, have);
       world.politicians.push(ch);
-      rec.candidates.push({ id: ch.id, name: ch.name, partyId: party.id, isNPP: true, incumbent: false });
+      rec.candidates.push({
+        id: ch.id,
+        name: ch.name,
+        partyId: party.id,
+        isNPP: true,
+        incumbent: false,
+      });
       have++;
     }
   }
@@ -645,15 +918,28 @@ export function stubAccumulate(
   rec: ElectionRecord,
   politicianById?: Map<string, Politician>,
 ): void {
-  const byId = politicianById ?? new Map(world.politicians.map((p) => [p.id, p]));
-  const regionKey = rec.state ?? Object.values(world.regions ?? {}).find((r) => (r as { countryId: string }).countryId === rec.countryId);
+  const byId =
+    politicianById ?? new Map(world.politicians.map((p) => [p.id, p]));
+  const regionKey =
+    rec.state ??
+    Object.values(world.regions ?? {}).find(
+      (r) => (r as { countryId: string }).countryId === rec.countryId,
+    );
   for (const cand of rec.candidates) {
     const party = world.parties[cand.partyId];
-    const pr = rec.state ? world.partyRegions?.[`${rec.state}:${cand.partyId}`] : undefined;
-    const reg = (pr as { registration?: number } | undefined)?.registration ?? 20;
-    const org = (pr as { organization?: number } | undefined)?.organization ?? party?.organization ?? 10;
+    const pr = rec.state
+      ? world.partyRegions?.[`${rec.state}:${cand.partyId}`]
+      : undefined;
+    const reg =
+      (pr as { registration?: number } | undefined)?.registration ?? 20;
+    const org =
+      (pr as { organization?: number } | undefined)?.organization ??
+      party?.organization ??
+      10;
     const pol = byId.get(cand.id);
-    const fav = pol?.favorability ?? (cand.id === "player" ? world.player.favorability ?? 50 : 50);
+    const fav =
+      pol?.favorability ??
+      (cand.id === "player" ? (world.player.favorability ?? 50) : 50);
     const base = reg * 3 + org + (fav - 50) / 5 + (cand.incumbent ? 5 : 0);
     const votes = Math.max(0, base * 100 + Math.floor(rng.next() * 100));
     rec.tally[cand.id] = (rec.tally[cand.id] ?? 0) + votes;
@@ -661,14 +947,24 @@ export function stubAccumulate(
   void regionKey;
 }
 
-export function recomputeComposition(world: WorldState, countryId: string, chamberKey: string): void {
+export function recomputeComposition(
+  world: WorldState,
+  countryId: string,
+  chamberKey: string,
+): void {
   const leg = world.legislatures[countryId];
   if (!leg) return;
   const chamber = leg.chambers.find((c) => c.key === chamberKey);
   if (!chamber) return;
   const seatsByParty = liveChamberSeatsByParty(world, countryId, chamberKey);
-  const held = Object.values(seatsByParty).reduce((sum, seats) => sum + seats, 0);
-  chamber.composition = { seatsByParty, vacancies: Math.max(0, chamber.seats - held) };
+  const held = Object.values(seatsByParty).reduce(
+    (sum, seats) => sum + seats,
+    0,
+  );
+  chamber.composition = {
+    seatsByParty,
+    vacancies: Math.max(0, chamber.seats - held),
+  };
 }
 
 function applyGovernorResolution(world: WorldState, rec: ElectionRecord): void {
@@ -715,7 +1011,10 @@ function applyGovernorResolution(world: WorldState, rec: ElectionRecord): void {
     let best = -1;
     for (const c of rec.candidates) {
       const v = rec.tally[c.id] ?? 0;
-      if (v > best) { best = v; winnerId = c.id; }
+      if (v > best) {
+        best = v;
+        winnerId = c.id;
+      }
     }
   }
   if (!winnerId) return;
@@ -731,7 +1030,6 @@ function applyGovernorResolution(world: WorldState, rec: ElectionRecord): void {
   gov.gubernatorialActions = 3;
   gov.lastActionGrantedTurn = world.meta.turn;
   gov.lastAddressTurn = null;
-
 
   rec.status = "resolved";
   cullOrphanedGenerated(world);
@@ -756,7 +1054,10 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
     applyPresidentialResolution(world, rec);
     return;
   }
-  if (rec.electionType === "governor" || rec.electionType === "special_governor") {
+  if (
+    rec.electionType === "governor" ||
+    rec.electionType === "special_governor"
+  ) {
     applyGovernorResolution(world, rec);
     return;
   }
@@ -788,7 +1089,12 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
     // Without this, house allocation falls back to mainline's 2020-census
     // HOUSE_SEATS table (TX 38, PA 17...); solo worlds carry era apportionment.
     ...(rec.state !== undefined
-      ? { apportionment: { houseSeats: { [rec.state]: rec.totalSeats }, commonsSeats: {} } }
+      ? {
+          apportionment: {
+            houseSeats: { [rec.state]: rec.totalSeats },
+            commonsSeats: {},
+          },
+        }
       : {}),
   };
   const result = resolveGeneralElectionPure(input);
@@ -839,15 +1145,29 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
   }
 
   if (rec.electionType === "special_commons" && rec.vacancyIds?.length) {
-    const winners = [...winnerIds].sort((a, b) => (rec.tally[b] ?? 0) - (rec.tally[a] ?? 0) || a.localeCompare(b));
+    const winners = [...winnerIds].sort(
+      (a, b) => (rec.tally[b] ?? 0) - (rec.tally[a] ?? 0) || a.localeCompare(b),
+    );
     // Source marks every claim on the completed regional election as filled;
     // it does not map a departed office row to a particular replacement.
     // Preserve Native's winner pointer only when the regional result has one
     // actual holder, whose seatsHeld now captures the full allocation.
-    closeUkCommonsVacancies(world, rec.vacancyIds, winners.length === 1 ? winners[0] : undefined);
-  } else if (rec.countryId === "UK" && ["commons", "snap_commons"].includes(rec.electionType) && (rec.state || rec.electionType === "snap_commons")) {
+    closeUkCommonsVacancies(
+      world,
+      rec.vacancyIds,
+      winners.length === 1 ? winners[0] : undefined,
+    );
+  } else if (
+    rec.countryId === "UK" &&
+    ["commons", "snap_commons"].includes(rec.electionType) &&
+    (rec.state || rec.electionType === "snap_commons")
+  ) {
     for (const vacancy of world.ukCommonsVacancies ?? []) {
-      if ((rec.state && vacancy.regionId !== rec.state) || (vacancy.status !== "open" && vacancy.status !== "scheduled")) continue;
+      if (
+        (rec.state && vacancy.regionId !== rec.state) ||
+        (vacancy.status !== "open" && vacancy.status !== "scheduled")
+      )
+        continue;
       vacancy.status = "subsumed";
       delete vacancy.electionId;
     }
@@ -863,7 +1183,9 @@ export function applyResolution(world: WorldState, rec: ElectionRecord): void {
   // deleting so history stays inspectable).
   archiveCampaignsForElection(world, rec.id);
 
-  const label = rec.state ? `${rec.state} ${rec.electionType}` : `${rec.countryId} ${rec.electionType}`;
+  const label = rec.state
+    ? `${rec.state} ${rec.electionType}`
+    : `${rec.countryId} ${rec.electionType}`;
   const topWinner = rec.candidates.find((c) => winnerIds.has(c.id));
   world.news.push({
     id: `election:${rec.id}:resolved`,
@@ -891,7 +1213,8 @@ export function runElectionTimers(world: WorldState, rng: WorldRng): void {
   let lastCycleBySeries = new Map<string, number>();
   for (const rec of world.elections) {
     const key = recordSeriesKey(rec);
-    if (rec.status === "active" || rec.status === "upcoming") unresolvedBySeries.set(key, rec);
+    if (rec.status === "active" || rec.status === "upcoming")
+      unresolvedBySeries.set(key, rec);
     if (rec.status === "cancelled") continue;
     const prev = lastCycleBySeries.get(key) ?? 0;
     if (rec.cycle > prev) lastCycleBySeries.set(key, rec.cycle);
@@ -900,11 +1223,24 @@ export function runElectionTimers(world: WorldState, rng: WorldRng): void {
   for (const spec of electionSeriesForWorld(world)) {
     const key = seriesKey(spec);
     if (unresolvedBySeries.has(key)) continue;
-    const prevCycle = Math.max(lastCycleBySeries.get(key) ?? 0, (spec.firstCycle ?? 1) - 1);
-    const base = { _id: key, electionType: spec.electionType, countryId: spec.countryId, ...(spec.state !== undefined ? { state: spec.state } : {}), cycle: prevCycle };
+    const prevCycle = Math.max(
+      lastCycleBySeries.get(key) ?? 0,
+      (spec.firstCycle ?? 1) - 1,
+    );
+    const base = {
+      _id: key,
+      electionType: spec.electionType,
+      countryId: spec.countryId,
+      ...(spec.state !== undefined ? { state: spec.state } : {}),
+      cycle: prevCycle,
+    };
     const plan =
       spec.electionType === "house"
-        ? planNextHouseElection(base, { currentTurn: turn, ctx, now }, spec.state ? { [spec.state]: spec.totalSeats } : undefined)
+        ? planNextHouseElection(
+            base,
+            { currentTurn: turn, ctx, now },
+            spec.state ? { [spec.state]: spec.totalSeats } : undefined,
+          )
         : planNextElectionForType({
             electionType: spec.electionType,
             prevCycle,
@@ -912,7 +1248,10 @@ export function runElectionTimers(world: WorldState, rng: WorldRng): void {
             // The source suppresses founding elections while its world is in
             // pre-iteration, except when a restored UK institution carries an
             // explicit first-election deadline from enacted policy.
-            ctx: spec.customCycle1EndTurn !== undefined ? { ...ctx, preIterationActive: false } : ctx,
+            ctx:
+              spec.customCycle1EndTurn !== undefined
+                ? { ...ctx, preIterationActive: false }
+                : ctx,
             now,
             countryId: spec.countryId,
             state: spec.state,
@@ -921,7 +1260,10 @@ export function runElectionTimers(world: WorldState, rng: WorldRng): void {
             chamberClass: spec.chamberClass,
           } as unknown as Parameters<typeof planNextElectionForType>[0]);
     if (!plan) continue;
-    const electionIdBase = electionRecordId(plan, spec.senateClass ?? spec.chamberClass);
+    const electionIdBase = electionRecordId(
+      plan,
+      spec.senateClass ?? spec.chamberClass,
+    );
     let electionId = electionIdBase;
     let reuseOrdinal = 2;
     while (world.elections.some((existing) => existing.id === electionId)) {
@@ -934,7 +1276,8 @@ export function runElectionTimers(world: WorldState, rng: WorldRng): void {
       state: spec.state,
       // JP Sangiin class rides the senateClass slot: seat matching (seatHolders)
       // and record ids key on it exactly like US Senate classes.
-      senateClass: (spec.senateClass ?? spec.chamberClass) as 1 | 2 | 3 | undefined,
+      senateClass: (spec.senateClass ?? spec.chamberClass) as
+        1 | 2 | 3 | undefined,
       cycle: plan.cycle,
       status: plan.status,
       startTurn: plan.startTurn,
@@ -949,7 +1292,9 @@ export function runElectionTimers(world: WorldState, rng: WorldRng): void {
   }
 
   // Status transitions + candidate fill on activation (sorted for determinism).
-  for (const rec of [...world.elections].sort((a, b) => a.id.localeCompare(b.id))) {
+  for (const rec of [...world.elections].sort((a, b) =>
+    a.id.localeCompare(b.id),
+  )) {
     if (rec.status === "upcoming" && turn >= rec.startTurn) {
       rec.status = "active";
     }
@@ -987,7 +1332,8 @@ interface AutoReelectionTarget {
 }
 
 function playerContestedElection(rec: ElectionRecord): boolean {
-  if (rec.candidates.some((candidate) => candidate.id === "player")) return true;
+  if (rec.candidates.some((candidate) => candidate.id === "player"))
+    return true;
   return Object.values(rec.primaryResults?.byParty ?? {}).some((entries) =>
     entries.some((entry) => entry.candidateId === "player"),
   );
@@ -1008,7 +1354,8 @@ function latestLostRaceTarget(world: WorldState): AutoReelectionTarget | null {
     )
     .sort(
       (a, b) =>
-        (b.resolvedTurn ?? b.endTurn) - (a.resolvedTurn ?? a.endTurn) || b.id.localeCompare(a.id),
+        (b.resolvedTurn ?? b.endTurn) - (a.resolvedTurn ?? a.endTurn) ||
+        b.id.localeCompare(a.id),
     )[0];
   if (!prior) return null;
   return {
@@ -1016,7 +1363,9 @@ function latestLostRaceTarget(world: WorldState): AutoReelectionTarget | null {
     chamberKey: prior.chamberKey,
     electionType: prior.electionType,
     ...(prior.state !== undefined ? { state: prior.state } : {}),
-    ...(prior.senateClass !== undefined ? { senateClass: prior.senateClass } : {}),
+    ...(prior.senateClass !== undefined
+      ? { senateClass: prior.senateClass }
+      : {}),
   };
 }
 
@@ -1027,26 +1376,48 @@ export function runAutoReelectionEntry(world: WorldState): void {
     ? { countryId: seat.countryId, chamberKey: seat.chamberKey }
     : (latestLostRaceTarget(world) ?? { countryId: "", chamberKey: "" });
   if (!target.countryId) return;
-  for (const rec of [...world.elections].sort((a, b) => a.id.localeCompare(b.id))) {
+  for (const rec of [...world.elections].sort((a, b) =>
+    a.id.localeCompare(b.id),
+  )) {
     if (rec.status === "resolved") continue;
-    if (rec.electionType === "president" || rec.electionType === "uachtaran") continue;
-    if (rec.countryId !== target.countryId || rec.chamberKey !== target.chamberKey) continue;
-    if (target.electionType !== undefined && rec.electionType !== target.electionType) continue;
+    if (rec.electionType === "president" || rec.electionType === "uachtaran")
+      continue;
+    if (
+      rec.countryId !== target.countryId ||
+      rec.chamberKey !== target.chamberKey
+    )
+      continue;
+    if (
+      target.electionType !== undefined &&
+      rec.electionType !== target.electionType
+    )
+      continue;
     if (target.state !== undefined && rec.state !== target.state) continue;
-    if (target.senateClass !== undefined && rec.senateClass !== target.senateClass) continue;
+    if (
+      target.senateClass !== undefined &&
+      rec.senateClass !== target.senateClass
+    )
+      continue;
     if (world.meta.turn > rec.primaryEndTurn) continue;
     if (rec.candidates.some((c) => c.id === "player")) continue;
     declareCandidacy(world, rec.id);
   }
 }
 
-export function runVoteAccumulation(world: WorldState, rng: WorldRng): void {
+export function runVoteAccumulation(
+  world: WorldState,
+  rng: WorldRng,
+  observeInput?: (snapshot: unknown) => void,
+): void {
   // Primary snapshots and ballot accrual run before the general-only tally
   // gate. Their ledger is deliberately separate from rec.tally, which starts
   // accumulating general votes only after the primary nominee is stamped.
   recordPrimarySnapshots(world);
   const inWindow = world.elections.filter(
-    (rec) => rec.status === "active" && world.meta.turn > rec.primaryEndTurn && world.meta.turn <= rec.endTurn &&
+    (rec) =>
+      rec.status === "active" &&
+      world.meta.turn > rec.primaryEndTurn &&
+      world.meta.turn <= rec.endTurn &&
       (!requiresPrimaryResolution(rec) || rec.primaryResults !== undefined),
   );
   if (inWindow.length === 0) return;
@@ -1056,14 +1427,16 @@ export function runVoteAccumulation(world: WorldState, rng: WorldRng): void {
   for (const rec of inWindow.sort((a, b) => a.id.localeCompare(b.id))) {
     // Real mainline tally where demographics exist (US, W16); stub elsewhere
     // until W39 brings UK/RU/DD tables.
-    if (!realAccumulate(world, rng, rec)) {
+    if (!realAccumulate(world, rng, rec, observeInput)) {
       stubAccumulate(world, rng, rec, byId);
     }
   }
 }
 
 export function runElectionResolution(world: WorldState): void {
-  for (const rec of [...world.elections].sort((a, b) => a.id.localeCompare(b.id))) {
+  for (const rec of [...world.elections].sort((a, b) =>
+    a.id.localeCompare(b.id),
+  )) {
     if (rec.status === "active" && world.meta.turn >= rec.endTurn) {
       applyResolution(world, rec);
     }
@@ -1071,7 +1444,9 @@ export function runElectionResolution(world: WorldState): void {
   // Retention: keep the last 400 resolved records.
   const resolved = world.elections.filter((e) => e.status === "resolved");
   if (resolved.length > 400) {
-    const cutoff = new Set(resolved.slice(0, resolved.length - 400).map((e) => e.id));
+    const cutoff = new Set(
+      resolved.slice(0, resolved.length - 400).map((e) => e.id),
+    );
     world.elections = world.elections.filter((e) => !cutoff.has(e.id));
   }
 }

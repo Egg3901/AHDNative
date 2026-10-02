@@ -166,7 +166,10 @@ export interface TallyDerivedInputs {
   /** Per-candidate executive endorsement ids */
   executiveEndorsedCandidateIds?: Set<string>;
   /** Single-seat legislative incumbency */
-  legislativeIncumbency?: { incumbentPartyId: string; tenureTerms: number } | null;
+  legislativeIncumbency?: {
+    incumbentPartyId: string;
+    tenureTerms: number;
+  } | null;
   /** House multi-incumbent tenures */
   houseIncumbentTenureTermsByCandidateId?: Map<string, number>;
   /** Manifesto multipliers — PORT-STUB if solo lacks UK manifesto system */
@@ -197,7 +200,10 @@ export type DistributeFn = (
   categories: import("../types.js").DemographicCategory[],
   partyOrgByParty: Map<string, number>,
   options: Record<string, unknown>,
-) => { votesPerCandidate: Record<string, number>; sharesPct: Record<string, number> };
+) => {
+  votesPerCandidate: Record<string, number>;
+  sharesPct: Record<string, number>;
+};
 
 // ─── accumulateVoteTurn result ─────────────────────────────────────────
 
@@ -231,6 +237,24 @@ export interface AccumulateVoteTurnInput {
    * byte-identically to before.
    */
   voteMultiplierByCandidateId?: Record<string, number>;
+  /** Ephemeral diagnostic observer for exact pure-distributor input comparison. */
+  diagnosticObserver?: (snapshot: VoteDistributionDiagnosticSnapshot) => void;
+}
+
+export interface VoteDistributionDiagnosticSnapshot {
+  election: TallyElectionInput;
+  candidates: EnrichedCandidate[];
+  effectiveTurnPool: number;
+  totalPool: number;
+  electorate: number;
+  demographics: import("../types.js").StateDemographics;
+  categories: import("../types.js").DemographicCategory[];
+  partyOrgByParty: Array<[string, number]>;
+  options: Record<string, unknown>;
+  turnNumber: number;
+  rngState?: import("../../rng.js").RngState;
+  nativeVotesPerCandidate: Record<string, number>;
+  nativeSharesPct: Record<string, number>;
 }
 
 export interface AccumulateVoteTurnResult {
