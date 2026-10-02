@@ -1,6 +1,6 @@
 import type { TurnPhase } from "./types.js";
 import { advanceCalendarPhase } from "./advanceCalendar.js";
-import { macroCountryTurnPhase } from "./macroCountryTurn.js";
+import { macroCountryTurnPhase, sourceTfpGrowthPhase } from "./macroCountryTurn.js";
 import { actionRefreshPhase } from "../actions/actionRefresh.js";
 import { fundGenerationPhase } from "../actions/fundGenerationPhase.js";
 import { commodityPricesPhase } from "../commodity/commodityPrices.js";
@@ -278,14 +278,9 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // JP and DE are economy entries, not player countries, in the 1991/2019 packs.
   // The generic processor consumes recorded regional budget rows, not playable flags.
   //
-  // W8 tradeGrowthPhase inserted immediately before fiscalBaseGrowthPhase,
-  // mirroring mainline's real ordering (stateEffectsPhase.ts runs
-  // computeNationalMetrics — which recomputes economic.tradeGrowth — before
-  // processFiscalBaseGrowth reads it, per fiscalBaseGrowth.ts's own file-doc
-  // citation of tradeGrowthMirror running AFTER it). RNG-free, so this
-  // insertion does not shift any other phase's rng draws.
+  // Advance the Native trade signal here; the source fiscal consumer runs later,
+  // after the current metric-engine output has been nationally aggregated.
   tradeGrowthPhase,
-  fiscalBaseGrowthPhase,
   subsidyBudgetPhase,
   fiscalYearPhase,
   regionalBudgetProcessingPhase,
@@ -539,6 +534,7 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   // referendum actuation transfers jurisdictions. It consumes the previous
   // cabinet snapshot before ministerialOrders replaces it below.
   politicalCabinetResidualPhase,
+  sourceTfpGrowthPhase,
   independenceDesireDriftPhase,
   referendumLifecyclePhase,
   // W6 metric engine cluster at END before newsMaintenance — ordering deviation:
@@ -566,6 +562,10 @@ export const TURN_PHASES: readonly TurnPhase[] = [
   metricDecayPhase,
   investorConfidenceDecayPhase,
   nationalMetricsPhase,
+  // Source edge: computeNationalMetrics -> fiscalBaseGrowth -> economicModel.
+  // The corrected same-turn TFP growth must reach current tax bases and revenue
+  // exactly once, after the national growth metric is available.
+  fiscalBaseGrowthPhase,
   economicModelPhase,
   inflationRecalcPhase,
   // Source ordering: inflationRecalc (118) < centralBankChairTurn (124).
