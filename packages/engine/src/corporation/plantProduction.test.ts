@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { advancePlantCapitalTurn, DEFAULT_SECTOR_OUTPUT_MIX } from "./plantCapacity.js";
+import { advancePlantCapitalTurn, DEFAULT_SECTOR_OUTPUT_MIX, EXTRACTION_STRATEGIES } from "./plantCapacity.js";
 import { corporatePlantProductionPhase, demandThrottleFactor, throttleSoldUnits } from "./plantProduction.js";
 import { runCorporationTurn } from "./corporationTurn.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { createWorld } from "../world.js";
+import { rngFromState } from "../rng.js";
 import { advanceTurn } from "../engine.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { rebuildCorporatePlantInputDemand } from "./plantDemand.js";
@@ -62,7 +63,7 @@ describe("plants-tier corporate production", () => {
     world.commodityPrices.building_materials!.globalDemand = expectedStock / 1.1 * expectedMixWeight - 38_000;
     world.commodityPrices.steel!.globalSupply = expectedStock * expectedMixWeight;
     world.commodityPrices.building_materials!.globalSupply = expectedStock * expectedMixWeight;
-    corporatePlantProductionPhase.run(world);
+    corporatePlantProductionPhase.run(world, rngFromState(world.meta.rng));
 
     const asset = world.corporateSectors[id]!;
     // Source translation: Game `plantsRevenue.ts` records hourly receipts as
@@ -79,6 +80,52 @@ describe("plants-tier corporate production", () => {
       expectedStock * expectedMixWeight + asset.producedUnits! * expectedMixWeight,
       6,
     );
+  });
+
+  it("advances a source-authored extraction method through save/reload and deterministic turns", () => {
+    const one = createWorld({ era: "1953", countryId: "US", seed: "rare-earth-strategy-turn", playerName: "Alex" });
+    const id = "corporate-sector:US:extraction:US-extraction";
+    one.corporateSectors = { [id]: {
+      id,
+      corporationId: "US-extraction",
+      countryId: "US",
+      stateId: null,
+      sectorType: "extraction",
+      strategyId: "rare_earth_mining",
+      capitalStock: 10_000,
+      capacityBookAnchor: 12_541_666.666666665,
+      workers: 1,
+      representingUnionId: null,
+      forSale: null,
+      owner: "corporation",
+    } };
+    one.corporations = { ["US-extraction"]: one.corporations["US-extraction"]! };
+    one.commodityPrices.rare_earth!.globalSupply = 1_000_000_000;
+    one.commodityPrices.rare_earth!.globalDemand = 1_000_000_000;
+
+    // Immutable Game cb66acdf helpers independently executed with the
+    // rare_earth_mining source recipe, era-unit scale 69.76744186046511, 10k
+    // daily nameplate units, 0.05% depreciation, and full demand clearing:
+    // capacityPricePerUnit=1254.1666666666665 and produced/sold=9995/day.
+    // The recipe and list price follow persisted strategyId, not standard.
+    expect(EXTRACTION_STRATEGIES.rare_earth_mining.supply).toEqual({ rare_earth: 0.72 });
+    const two = deserializeSave(serializeSave(one, "2026-10-01T00:00:00.000Z"));
+    advanceTurn(one);
+    advanceTurn(two);
+    const firstAsset = one.corporateSectors![id]!;
+    const replayAsset = two.corporateSectors![id]!;
+    expect(firstAsset.strategyId).toBe("rare_earth_mining");
+    expect(firstAsset.producedUnits).toBeCloseTo(9_995, 8);
+    expect(firstAsset.soldUnits).toBeCloseTo(9_995, 8);
+    expect(firstAsset.realizedRevenue).toBeGreaterThan(0);
+    expect(one.plantMarketDemand?.corporateInputs.ordnance).toBeGreaterThan(0);
+    expect(one.plantMarketDemand?.corporateInputs.chemicals).toBeGreaterThan(0);
+    expect(replayAsset).toEqual(firstAsset);
+    const resumed = deserializeSave(serializeSave(one, "2026-10-08T00:00:00.000Z"));
+    const twin = deserializeSave(serializeSave(one, "2026-10-08T00:00:00.000Z"));
+    advanceTurn(resumed);
+    advanceTurn(twin);
+    expect(resumed.corporateSectors![id]).toEqual(twin.corporateSectors![id]);
   });
 
   it("rebuilds the 1953 manufacturing buyer leg from source intermediate-demand rates", () => {
@@ -123,7 +170,7 @@ describe("plants-tier corporate production", () => {
       representingUnionId: null, forSale: null, owner: "corporation",
     } };
 
-    corporatePlantProductionPhase.run(world);
+    corporatePlantProductionPhase.run(world, rngFromState(world.meta.rng));
 
     const regionalSupply = world.plantMarketDemand!.corporateOutputSupplyByState![region.id]!;
     const nationalSupply = world.plantMarketDemand!.corporateOutputSupplyByCountry!.US!;
@@ -193,7 +240,7 @@ describe("plants-tier corporate production", () => {
     };
     const assets = corporateSectorAssets(world);
     assets[secondId]!.capitalStock = (assets[secondId]!.capitalStock ?? 0) / 2;
-    corporatePlantProductionPhase.run(world);
+    corporatePlantProductionPhase.run(world, rngFromState(world.meta.rng));
 
     const first = world.corporateSectors[baseId]!;
     const second = world.corporateSectors[secondId]!;
@@ -223,7 +270,7 @@ describe("plants-tier corporate production", () => {
         forSale: null, owner: "corporation",
       },
     };
-    corporatePlantProductionPhase.run(world);
+    corporatePlantProductionPhase.run(world, rngFromState(world.meta.rng));
     const corp = world.corporations[corpId]!;
     const receipts = corp.revenue;
     expect(receipts).toBe(world.corporateSectors[baseId]!.realizedRevenue);

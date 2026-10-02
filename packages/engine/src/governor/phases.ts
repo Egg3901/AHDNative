@@ -17,6 +17,7 @@
 
 import type { TurnPhase } from "../phases/types.js";
 import type { WorldState } from "../types.js";
+import type { GovernorEndorsement } from "./types.js";
 import {
   BY_ELECTION_RETRY_COOLDOWN_TURNS,
   EXEC_ORDER_GRANT_BUMP_PER_STEP,
@@ -212,10 +213,22 @@ export const governorLegislationQueuePhase: TurnPhase = {
 
 export const governorEndorsementsPhase: TurnPhase = {
   name: "governorEndorsements",
-  run(_world: WorldState) {
-    // PORT-STUB: would sweep GovernorEndorsement per
-    // src/lib/turn/governorEndorsements.ts processGovernorEndorsements.
-    // Solo has no GovernorEndorsement ledger this wave.
+  run(world: WorldState) {
+    for (const race of world.elections) {
+      for (const endorsement of race.governorEndorsements ?? []) {
+        if (!endorsement.isActive) continue;
+        let reason: GovernorEndorsement["withdrawnReason"];
+        const candidate = race.candidates.find((row) => row.id === endorsement.candidateId);
+        if (race.status !== "active") reason = "election_ended";
+        else if (!candidate || (candidate.status ?? "active") !== "active") reason = "candidate_inactive";
+        else if (world.governors[endorsement.stateId]?.governorId !== endorsement.endorsedById) reason = "governor_left_office";
+        if (reason) {
+          endorsement.isActive = false;
+          endorsement.withdrawnAtTurn = world.meta.turn;
+          endorsement.withdrawnReason = reason;
+        }
+      }
+    }
   },
 };
 

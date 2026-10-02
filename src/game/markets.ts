@@ -24,6 +24,7 @@ const EARNINGS_HISTORY_BOUND = 52;
 
 import { CROSS_CURRENCY_UNAVAILABLE, evaluateShareTrade, type TradeListing } from "./shareTrade";
 import { projectTradeRoutes, type TradeRouteSummary } from "./tradeRoutes";
+import { projectNationalization, type NationalizationView } from "./nationalization";
 export { CROSS_CURRENCY_UNAVAILABLE, shareNotional, parseShareCount, evaluateShareTrade } from "./shareTrade";
 export type { TradeRouteSummary } from "./tradeRoutes";
 
@@ -333,6 +334,8 @@ export const SECTOR_LIST_OWNER_ONLY =
 export const SECTOR_LIST_STATE_OWNED = "State enterprises cannot list production for private sale.";
 
 export interface MarketsView {
+  /** Recorded government authority and current eligible wizard targets. */
+  nationalization?: NationalizationView;
   playerCountryId: string;
   playerHomeRegionId?: string | null;
   playerCash: number;
@@ -683,6 +686,7 @@ export function projectMarkets(world: WorldState): MarketsView {
     .sort((a, b) => a.sectorLabel.localeCompare(b.sectorLabel) || a.sectorType.localeCompare(b.sectorType));
 
   return {
+    nationalization: projectNationalization(world),
     playerCountryId: player.countryId,
     playerHomeRegionId: player.homeRegionId,
     playerCash: player.cash,

@@ -390,12 +390,18 @@ export function accumulateVoteTurn(
     const raw = votesPerCandidate[ec.candidateId] ?? 0;
     const endorsementMultiplier = endorsedIds.has(ec.candidateId) ? EXECUTIVE_ENDORSEMENT_VOTE_BONUS : 1.0;
     let turnVotes = Math.round(raw * endorsementMultiplier);
+    // Presidential unit-local source modifiers (legacy lean, VP home state,
+    // governor endorsement) precede campaign strength in AHDGame's ordered
+    // integer pipeline. Sequential rounding
     // #68: campaign-strength vote multiplier (AHDGame presidentialElectionEngine
     // applies it here, on the current unit's per-turn votes, after the other
     // passive multipliers and before the cumulative write). Sequential rounding
     // matches the reference's per-stage `Math.round`; a multiplier of exactly 1
     // (every non-presidential race and every zero-strength campaign) leaves
     // `turnVotes` untouched, so this is a strict no-op for existing saves.
+    for (const multiplier of input.additionalVoteMultipliersByCandidateId?.[ec.candidateId] ?? []) {
+      if (multiplier !== 1) turnVotes = Math.round(turnVotes * multiplier);
+    }
     const strengthMultiplier = voteMultiplierByCandidateId?.[ec.candidateId] ?? 1;
     if (strengthMultiplier !== 1) turnVotes = Math.round(turnVotes * strengthMultiplier);
     newTotals[ec.candidateId] = (tally.totalVotes[ec.candidateId] ?? 0) + turnVotes;

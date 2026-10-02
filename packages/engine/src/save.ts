@@ -1,3 +1,5 @@
+import { pmAppointmentExecutiveTitle } from "./government/pmAppointment.js";
+import { GOVERNMENT_CHAMBER_BY_COUNTRY } from "./government/constants.js";
 import { validateCanvassState } from "./actions/canvass.js";
 import { EXTERNAL_BROAD_MONEY_GDP_SHARE, SCHEMA_VERSION } from "./world.js";
 import { getPackByEra } from "@ahdclient/content";
@@ -12,6 +14,7 @@ import { normalizeShares } from "./alignment/alignment.js";
 import { validateAlignmentRecords } from "./alignment/recordValidation.js";
 import { seedInternationalOrgs } from "./internationalOrgs/seed.js";
 import { assignUsSeatGeography } from "./elections/seatGeography.js";
+import { PRIMARY_WAVES } from "./elections/data/usPrimaryCalendar.js";
 import { CENTRAL_BANK_COUNTRY_ANCHORS, CHAIR_TERM_TURNS } from "./centralBank/constants.js";
 import { seedCorporations, tickerForSector, SOURCE_NPP_HEADQUARTERS_REGION, corporationIdentity } from "./corporation/founding.js";
 import { rngFromSeed } from "./rng.js";
@@ -543,7 +546,10 @@ export function projectSaveToV42(contents: string): ProjectSaveToV42Result {
   // Keeping unfamiliar JSON keys cannot continue the recorded production.
   const sectorAssets = world["corporateSectors"];
   const hasPlantCapacity = isRecord(sectorAssets) && Object.values(sectorAssets).some(asset =>
-    isRecord(asset) && ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity"].some(field => hasOwn(asset, field)),
+    isRecord(asset) && (
+      ["capitalStock", "capacityBookAnchor", "producedUnits", "soldUnits", "soldFraction", "realizedRevenue", "soldByCommodity", "transitionFromStrategyId", "transitionStartTurn", "transitionCooldownUntilTurn", "retoolRescaleApplied"].some(field => hasOwn(asset, field)) ||
+      (hasOwn(asset, "strategyId") && asset["strategyId"] !== undefined && asset["strategyId"] !== "standard")
+    ),
   );
   if (hasOwn(world, "plantMarketDemand") || hasOwn(world, "corporateTradeSnapshot") || hasPlantCapacity) {
     return { ok: false, error: `Plant production and market state cannot be continued by schema 42. Keep this save as schema ${SCHEMA_VERSION}` };
@@ -743,10 +749,11 @@ function validatePmAppointmentVotes(world: WorldState): void {
     const turnFields = [vote["openedTurn"], vote["closesTurn"]];
     if (
       typeof vote["id"] !== "string" || vote["id"].length === 0 || ids.has(vote["id"]) ||
-      vote["countryId"] !== "IE" || vote["chamberKey"] !== "dail" ||
-      typeof vote["partyId"] !== "string" || !world.parties[vote["partyId"]] ||
-      (vote["coalitionId"] !== null && (typeof vote["coalitionId"] !== "string" || !world.coalitions.some((coalition) => coalition.id === vote["coalitionId"]))) ||
-      (vote["coalitionPartyIds"] !== null && (!Array.isArray(vote["coalitionPartyIds"]) || vote["coalitionPartyIds"].length < 2 || new Set(vote["coalitionPartyIds"]).size !== vote["coalitionPartyIds"].length || !vote["coalitionPartyIds"].every((partyId) => typeof partyId === "string" && world.parties[partyId]?.countryId === "IE"))) ||
+      typeof vote["countryId"] !== "string" || !pmAppointmentExecutiveTitle(vote["countryId"]) ||
+      vote["chamberKey"] !== GOVERNMENT_CHAMBER_BY_COUNTRY[vote["countryId"]] ||
+      typeof vote["partyId"] !== "string" || world.parties[vote["partyId"]]?.countryId !== vote["countryId"] ||
+      (vote["coalitionId"] !== null && (typeof vote["coalitionId"] !== "string" || !world.coalitions.some((coalition) => coalition.id === vote["coalitionId"] && coalition.countryId === vote["countryId"]))) ||
+      (vote["coalitionPartyIds"] !== null && (!Array.isArray(vote["coalitionPartyIds"]) || vote["coalitionPartyIds"].length < 2 || new Set(vote["coalitionPartyIds"]).size !== vote["coalitionPartyIds"].length || !vote["coalitionPartyIds"].every((partyId) => typeof partyId === "string" && world.parties[partyId]?.countryId === vote["countryId"]))) ||
       vote["nomineeId"] !== "player" || typeof vote["nomineeName"] !== "string" || vote["nomineeName"].length === 0 ||
       (vote["formationType"] !== "majority" && vote["formationType"] !== "minority" && vote["formationType"] !== "coalition") ||
       !turnFields.every((turn) => typeof turn === "number" && Number.isSafeInteger(turn) && turn >= 0) ||
@@ -1338,6 +1345,222 @@ function validateSoeSave(world: WorldState): void {
       throw new Error(`Not a valid save file: ${corporation.id} SOE directorId must be a character ID or null`);
     }
   }
+}
+
+function validatePresidentialPrimaryLedger(world: WorldState): void {
+  for (const rawRace of world.elections as unknown[]) {
+    if (!isRecord(rawRace)) continue;
+    const race = rawRace;
+    const hasLedger = [
+      "primaryStateVotes", "primaryDelegates", "primaryDelegatesByState",
+      "primaryAllocationByState", "primaryWaveHistory", "primaryStaggerWavesRun",
+      "primaryRulesetVersion", "primaryConventionResults",
+      "primaryCampaignState", "primaryCampaignTicks", "primarySurgeUsed", "primarySurgeBoost",
+    ].some((key) => race[key] !== undefined) ||
+      (Array.isArray(race["candidates"]) && race["candidates"].some((candidate) =>
+        isRecord(candidate) && ["primaryCampaignState", "primaryCampaignTicks", "primarySurgeUsed", "primarySurgeBoost"]
+          .some((key) => candidate[key] !== undefined),
+      ));
+    if (!hasLedger) continue;
+    if (race["countryId"] !== "US" || race["electionType"] !== "president") {
+      throw new Error("Not a valid save file: presidential primary ledger belongs only to a US presidential race");
+    }
+    const version = race["primaryRulesetVersion"];
+    if (version !== undefined && (!Number.isSafeInteger(version) || (version as number) < 1)) {
+      throw new Error("Not a valid save file: invalid presidential primary ruleset version");
+    }
+    if (Array.isArray(race["candidates"])) {
+      for (const rawCandidate of race["candidates"]) {
+        if (!isRecord(rawCandidate)) continue;
+        const stateId = rawCandidate["primaryCampaignState"];
+        const ticks = rawCandidate["primaryCampaignTicks"];
+        const surgeUsed = rawCandidate["primarySurgeUsed"];
+        const surgeBoost = rawCandidate["primarySurgeBoost"];
+        if (
+          (stateId !== undefined && (race["countryId"] !== "US" || race["electionType"] !== "president" ||
+            typeof stateId !== "string" || world.regions[stateId]?.countryId !== "US")) ||
+          (ticks !== undefined && (!Number.isSafeInteger(ticks) || (ticks as number) < 0 || (ticks as number) > 5 ||
+            ((ticks as number) > 0 && typeof stateId !== "string"))) ||
+          (surgeUsed !== undefined && typeof surgeUsed !== "boolean") ||
+          (surgeBoost !== undefined && (typeof surgeBoost !== "number" || !Number.isFinite(surgeBoost) || surgeBoost < 0 || surgeBoost > 100))
+        ) {
+          throw new Error("Not a valid save file: invalid presidential primary candidate campaign state");
+        }
+      }
+    }
+    const stretchedOffsets = [40, 32, 24, 16, 8, 0];
+    const history = race["primaryWaveHistory"];
+    if (history !== undefined) {
+      if (!Array.isArray(history) || history.length > PRIMARY_WAVES.length) {
+        throw new Error("Not a valid save file: invalid presidential primary wave history");
+      }
+      for (let index = 0; index < history.length; index += 1) {
+        const entry = history[index];
+        const sourceWave = PRIMARY_WAVES[index];
+        const turnsRemaining = ((version as number | undefined) ?? 1) >= 3
+          ? stretchedOffsets[index]
+          : sourceWave?.turnsRemaining;
+        if (
+          !isRecord(entry) || !sourceWave || entry["wave"] !== index ||
+          entry["turnsRemaining"] !== turnsRemaining ||
+          !Number.isSafeInteger(entry["turn"]) || (entry["turn"] as number) < 0 ||
+          (entry["turn"] as number) > world.meta.turn ||
+          (index > 0 && (entry["turn"] as number) < ((history[index - 1] as Record<string, unknown>)["turn"] as number)) ||
+          !Array.isArray(entry["statesVoted"]) ||
+          JSON.stringify(entry["statesVoted"]) !== JSON.stringify(sourceWave.states)
+        ) {
+          throw new Error("Not a valid save file: invalid presidential primary wave history entry");
+        }
+      }
+      const wavesRun = race["primaryStaggerWavesRun"];
+      if (wavesRun !== undefined && (!Number.isSafeInteger(wavesRun) || wavesRun !== history.length)) {
+        throw new Error("Not a valid save file: presidential primary wave count disagrees with its history");
+      }
+    }
+    const validateNumberTree = (value: unknown, label: string, depth: number): void => {
+      if (depth === 0 || !isRecord(value)) throw new Error(`Not a valid save file: invalid presidential primary ${label}`);
+      for (const [key, child] of Object.entries(value)) {
+        if (!key.trim()) throw new Error(`Not a valid save file: invalid presidential primary ${label} key`);
+        if (typeof child === "number") {
+          if (!Number.isSafeInteger(child) || child < 0) throw new Error(`Not a valid save file: invalid presidential primary ${label} value`);
+        } else {
+          validateNumberTree(child, label, depth - 1);
+        }
+      }
+    };
+    for (const key of ["primaryStateVotes", "primaryDelegates", "primaryDelegatesByState"] as const) {
+      if (race[key] !== undefined) validateNumberTree(race[key], key, key === "primaryDelegates" ? 2 : 3);
+    }
+    const knownCandidates = new Set(
+      Array.isArray(race["candidates"])
+        ? race["candidates"].flatMap((candidate) =>
+            isRecord(candidate) && typeof candidate["id"] === "string" ? [candidate["id"]] : [],
+          )
+        : [],
+    );
+    for (const key of ["primaryStateVotes", "primaryDelegates", "primaryDelegatesByState"] as const) {
+      const tree = race[key];
+      if (!isRecord(tree)) continue;
+      for (const [partyId, branch] of Object.entries(tree)) {
+        if (!world.parties[partyId] || !isRecord(branch)) {
+          throw new Error(`Not a valid save file: presidential primary ${key} references an unknown party`);
+        }
+        for (const [stateOrCandidateId, values] of Object.entries(branch)) {
+          if (key === "primaryDelegates" && !knownCandidates.has(stateOrCandidateId)) {
+            throw new Error("Not a valid save file: presidential primary delegates reference an unknown candidate");
+          }
+          if (key !== "primaryDelegates" && !world.regions[stateOrCandidateId]) {
+            throw new Error(`Not a valid save file: presidential primary ${key} references an unknown state`);
+          }
+          if (key === "primaryDelegates") continue;
+          if (!isRecord(values)) continue;
+          for (const candidateId of Object.keys(values)) {
+            if (!knownCandidates.has(candidateId)) {
+              throw new Error(`Not a valid save file: presidential primary ${key} references an unknown candidate`);
+            }
+          }
+        }
+      }
+    }
+    const allocation = race["primaryAllocationByState"];
+    if (allocation !== undefined) {
+      if (!isRecord(allocation)) throw new Error("Not a valid save file: invalid presidential primary allocations");
+      for (const byState of Object.values(allocation)) {
+        if (!isRecord(byState) || Object.values(byState).some((method) => method !== "PR" && method !== "WTA")) {
+          throw new Error("Not a valid save file: invalid presidential primary allocation method");
+        }
+      }
+      for (const [partyId, byState] of Object.entries(allocation)) {
+        if (!world.parties[partyId]) throw new Error("Not a valid save file: presidential primary allocation references an unknown party");
+        if (!isRecord(byState)) continue;
+        for (const stateId of Object.keys(byState)) {
+          if (!world.regions[stateId]) throw new Error("Not a valid save file: presidential primary allocation references an unknown state");
+        }
+      }
+    }
+    const wavesRun = race["primaryStaggerWavesRun"];
+    if (wavesRun !== undefined && (!Number.isSafeInteger(wavesRun) || (wavesRun as number) < 0 || (wavesRun as number) > PRIMARY_WAVES.length)) {
+      throw new Error("Not a valid save file: invalid presidential primary wave count");
+    }
+    const conventions = race["primaryConventionResults"];
+    if (conventions !== undefined) {
+      if (!isRecord(conventions)) throw new Error("Not a valid save file: invalid presidential primary convention results");
+      for (const [partyId, result] of Object.entries(conventions)) {
+        if (!partyId.trim() || !isRecord(result) ||
+            (result["mode"] !== "delegate_majority" && result["mode"] !== "convention") ||
+            typeof result["winnerCandidateId"] !== "string" || !result["winnerCandidateId"].trim() ||
+            typeof result["firstBallotLeaderId"] !== "string" || !result["firstBallotLeaderId"].trim() ||
+            !Number.isSafeInteger(result["majorityThreshold"]) || (result["majorityThreshold"] as number) <= 0 ||
+            typeof result["resolvedAt"] !== "string" || !Number.isFinite(Date.parse(result["resolvedAt"]))) {
+          throw new Error("Not a valid save file: invalid presidential primary convention result");
+        }
+      }
+    }
+  }
+}
+
+function validatePresidentialGeneralMechanics(world: WorldState): void {
+  for (const rawRace of world.elections as unknown[]) {
+    if (!isRecord(rawRace)) continue;
+    const version = rawRace["presidentialRulesetVersion"];
+    const endorsements = rawRace["governorEndorsements"];
+    if (version !== undefined && (rawRace["countryId"] !== "US" || rawRace["electionType"] !== "president" ||
+      !Number.isSafeInteger(version) || (version as number) < 1)) {
+      throw new Error("Not a valid save file: invalid presidential general ruleset stamp");
+    }
+    if (endorsements === undefined) continue;
+    if (rawRace["countryId"] !== "US" || rawRace["electionType"] !== "president" || !Array.isArray(endorsements)) {
+      throw new Error("Not a valid save file: governor endorsement ledger belongs only to a US presidential race");
+    }
+    const ids = new Set<string>();
+    const activeGovernorStates = new Set<string>();
+    for (const row of endorsements) {
+      if (!isRecord(row) || typeof row["id"] !== "string" || row["id"].length === 0 || ids.has(row["id"]) ||
+        typeof row["stateId"] !== "string" || world.regions[row["stateId"]]?.countryId !== "US" ||
+        typeof row["candidateId"] !== "string" || typeof row["endorsedById"] !== "string" ||
+        !Number.isSafeInteger(row["createdAtTurn"]) || (row["createdAtTurn"] as number) < 0 ||
+        (row["isActive"] !== true && row["isActive"] !== false) ||
+        (row["withdrawnAtTurn"] !== undefined && (!Number.isSafeInteger(row["withdrawnAtTurn"]) ||
+          (row["withdrawnAtTurn"] as number) < (row["createdAtTurn"] as number))) ||
+        (row["withdrawnReason"] !== undefined && !["manual", "election_ended", "candidate_inactive", "governor_left_office"].includes(String(row["withdrawnReason"])))) {
+        throw new Error("Not a valid save file: invalid presidential governor endorsement");
+      }
+      if (row["isActive"] === true && activeGovernorStates.has(row["stateId"] as string)) {
+        throw new Error("Not a valid save file: multiple active governor endorsements for one state and race");
+      }
+      ids.add(row["id"] as string);
+      if (row["isActive"] === true) activeGovernorStates.add(row["stateId"] as string);
+    }
+  }
+}
+
+function validatePrimaryStateOrganizations(world: WorldState): void {
+  const validateOwner = (
+    ownerId: string,
+    ownerCountryId: string,
+    raw: unknown,
+  ): void => {
+    if (raw === undefined) return;
+    if (ownerCountryId !== "US" || !isRecord(raw)) {
+      throw new Error(`Not a valid save file: ${ownerId} has invalid primary state organizations`);
+    }
+    for (const [stateId, value] of Object.entries(raw)) {
+      if (
+        !world.regions[stateId] ||
+        world.regions[stateId]!.countryId !== "US" ||
+        !isRecord(value) ||
+        !Number.isSafeInteger(value["level"]) || (value["level"] as number) < 1 ||
+        !Number.isFinite(value["totalInvested"]) || (value["totalInvested"] as number) < 0 ||
+        !Number.isSafeInteger(value["updatedAtTurn"]) || (value["updatedAtTurn"] as number) < 0 || (value["updatedAtTurn"] as number) > world.meta.turn ||
+        !Number.isSafeInteger(value["lastBuildTurn"]) || (value["lastBuildTurn"] as number) < 0 ||
+        (value["lastBuildTurn"] as number) > (value["updatedAtTurn"] as number) ||
+        !Number.isFinite(value["lastBuildFunds"]) || (value["lastBuildFunds"] as number) < 0
+      ) {
+        throw new Error(`Not a valid save file: ${ownerId} has invalid primary state organization for ${stateId}`);
+      }
+    }
+  };
+  validateOwner("player", world.player.countryId, world.player.primaryStateOrganizations);
 }
 
 export function deserializeSave(raw: string): WorldState {
@@ -3386,10 +3609,22 @@ export function deserializeSave(raw: string): WorldState {
   if (save.schemaVersion < 52) save.world.meta.schemaVersion = 52;
   // No creator or grace history is invented for earlier Native issuers.
   if (save.schemaVersion < 53) save.world.meta.schemaVersion = 53;
-  // Political labour snapshots change the next-turn regional board. Keep
-  // absent history absent; the version bump makes older readers refuse new
-  // saves rather than silently retaining a snapshot they cannot consume.
+  // Source labour political snapshots and primary waves/delegates/campaign
+  // records preserve historical absence until their actual producers run.
   if (save.schemaVersion < 54) save.world.meta.schemaVersion = 54;
+  if (save.schemaVersion < 55) save.world.meta.schemaVersion = 55;
+  // Source strategy transitions are absent until an actual retool is ordered.
+  if (save.schemaVersion < 56) save.world.meta.schemaVersion = 56;
+  // Paid tiers and their political/ownership continuation require the new
+  // reader. No historical acquisitions or confidence records are invented.
+  if (save.schemaVersion < 57) save.world.meta.schemaVersion = 57;
+  // v57 -> v58: general presidential ruleset stamps are absent=>v1 (source
+  // compatibility), and the election-scoped governor endorsement ledger is
+  // optional/empty on legacy races. Do not stamp existing elections v3.
+  if (save.schemaVersion < 58) save.world.meta.schemaVersion = 58;
+  // Earlier readers only understood Irish PM votes. No appointment history
+  // can be reconstructed; existing Irish records continue unchanged.
+  if (save.schemaVersion < 61) save.world.meta.schemaVersion = 61;
   // Issues #334/#345 difficulty and autonomy need no migration block:
   // both axes are optional with absent-means-default, so saves written
   // before either contract already carry the canonical default — the same
@@ -3437,6 +3672,9 @@ export function deserializeSave(raw: string): WorldState {
   validateGovernmentDirectives(save.world);
   backfillSourceSeededSoeState(save.world);
   assertCurrentWorldState(save.world);
+  validatePresidentialPrimaryLedger(save.world);
+  validatePresidentialGeneralMechanics(save.world);
+  validatePrimaryStateOrganizations(save.world);
   validateCommandEconomySave(save.world);
   validateSoeSave(save.world);
   validateBankingState(save.world);

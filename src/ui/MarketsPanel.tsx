@@ -27,6 +27,7 @@ import { UnionManagementPanel } from "./UnionManagementPanel";
 import type { UnionManagementView } from "../game/unionManagement";
 import { DetailQuery } from "./DetailQuery";
 import { StateOwnershipPanel } from "./StateOwnershipPanel";
+import { NationalizeWizard } from "./NationalizeWizard";
 
 export interface MarketsPanelProps {
   markets: MarketsView;
@@ -793,10 +794,12 @@ function CompanyDetail({
   hideBrowseBack?: boolean;
   onOpenCompany?: (id: string) => void;
 }) {
-  const [companyTab, setCompanyTab] = useState(initialCompanyTab);
+  const [companyTab, setCompanyTab] = useState<"overview" | "register" | "nationalize">(initialCompanyTab);
+  const [officialView, setOfficialView] = useState(false);
   const registerAvailable = listing.nationalCountryId !== undefined && loadStateOwnership !== undefined;
+  const nationalization = markets.nationalization?.countryId === listing.nationalCountryId ? markets.nationalization : undefined;
   const loadRegister = useCallback(() => loadStateOwnership!(listing.nationalCountryId), [loadStateOwnership, listing.nationalCountryId]);
-  useEffect(() => { setCompanyTab(initialCompanyTab); }, [listing.id, initialCompanyTab]);
+  useEffect(() => { setCompanyTab(initialCompanyTab); setOfficialView(false); }, [listing.id, initialCompanyTab]);
   const [shares, setShares] = useState("");
   const [salaryPerTurn, setSalaryPerTurn] = useState(String(listing.ceoSalaryPerTurn ?? 0));
   const [dividendRate, setDividendRate] = useState(String(listing.dividendRate ?? 0));
@@ -878,11 +881,19 @@ function CompanyDetail({
 
   const companyHeroView = <RouteHero image={companyHero(listing.sectorType)} alt={companyHeroAlt(listing.sectorType)} eyebrow={listing.sectorLabel} title={listing.name} />;
   const companyTabs = registerAvailable && <div role="tablist" aria-label="National Corporation" style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-    {(["overview", "register"] as const).map(tab => <button type="button" role="tab" aria-selected={companyTab === tab}
-      key={tab} className={`ahd-btn ahd-btn-sm ${companyTab === tab ? "" : "ahd-btn-ghost"}`} onClick={() => setCompanyTab(tab)}>{tab === "overview" ? "Overview" : "Register"}</button>)}
+    {(["overview", "register", ...(nationalization && officialView ? ["nationalize"] as const : [])] as const).map(tab => <button type="button" role="tab" aria-selected={companyTab === tab}
+      key={tab} className={`ahd-btn ahd-btn-sm ${companyTab === tab ? "" : "ahd-btn-ghost"}`} onClick={() => setCompanyTab(tab)}>{tab === "overview" ? "Overview" : tab === "register" ? "Register" : "Nationalize"}</button>)}
+  </div>;
+  const roleToggle = registerAvailable && nationalization && <div role="group" aria-label="National Corporation view" style={{ display: "flex", gap: "0.5rem" }}>
+    <button type="button" className="ahd-btn ahd-btn-sm" aria-pressed={!officialView} onClick={() => { setOfficialView(false); if (companyTab === "nationalize") setCompanyTab("overview"); }}>Public</button>
+    <button type="button" className="ahd-btn ahd-btn-sm" aria-pressed={officialView} onClick={() => setOfficialView(true)}>Official</button>
+  </div>;
+  if (registerAvailable && companyTab === "nationalize" && nationalization && officialView) return <div className="ahd-stack" data-pane="detail">
+    {companyHeroView}{roleToggle}{companyTabs}
+    <NationalizeWizard view={nationalization} currency={listing.currency} busy={busy} onAction={onAction} />
   </div>;
   if (registerAvailable && companyTab === "register") return <div className="ahd-stack" data-pane="detail">
-    {companyHeroView}{companyTabs}
+    {companyHeroView}{roleToggle}{companyTabs}
     <DetailQuery load={loadRegister} revision={markets} label="State ownership register">
       {ownership => <StateOwnershipPanel ownership={ownership} onOpenCompany={id => {
         if (id === listing.id) setCompanyTab("overview");
@@ -908,6 +919,7 @@ function CompanyDetail({
         the existing listing and the bundled set.
       */}
       {companyHeroView}
+      {roleToggle}
       {companyTabs}
 
       <div className="ahd-card ahd-card-pad">
