@@ -2,13 +2,47 @@ import { describe, expect, it } from "vitest";
 import { createWorld } from "../world.js";
 import { deserializeSave, serializeSave } from "../save.js";
 import { capacityPricePerUnitAnchor, corporateSectorBasePrices } from "./plantCapacity.js";
-import { applyNppCapacityReplacement, applyNppSourceFounding, findSourceNppEntryCandidate, sourceExpansionFrontierStates, sourceExtractionHeadroomByRegion, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
+import { applyNppCapacityReplacement, applyNppSourceFounding, findSourceNppEntryCandidate, sourceExpansionFrontierStates, sourceExtractionHeadroomByRegion, sourceLogisticsSupportedSectorCount, sourceUnownedHeadroomUnits } from "./nppCapacityReinvestment.js";
 import { validateCorporateCashLedger } from "./corporateCashLedger.js";
 import { getEraNominalScale } from "../commodity/constants.js";
 import { corporateSectorAssets } from "./corporateSectorAssets.js";
 import { CEO_ARCHETYPE_MODIFIERS } from "./constants.js";
 
 describe("source NPP capacity replacement", () => {
+  it("applies the source logistics-supported footprint cap to greenfield entry", () => {
+    const world = createWorld({ era: "1953", countryId: "US", seed: "npp-logistics-footprint", playerName: "Alex" });
+    const corp = world.corporations["US-manufacturing"]!;
+    for (const other of Object.values(world.corporations)) if (other.id !== corp.id) other.suspended = true;
+    corp.liquidCapital = 100_000_000;
+    corp.profitMargin = 35;
+    corp.effectiveProfitMargin = 35;
+    corp.logisticsStrength = 0;
+    const regions = Object.values(world.regions).filter((region) => region.countryId === corp.countryId && !region.corporationHeadquartersOnly);
+    const occupiedRegions = regions.slice(0, 15);
+    const targetRegion = regions.find((region) => !occupiedRegions.some((occupied) => occupied.id === region.id))!;
+    world.unownedSectors = {
+      [`US:${targetRegion.id}:manufacturing`]: { countryId: "US", sectorType: "manufacturing", regionId: targetRegion.id, revenue: 50_000_000 },
+    };
+    world.corporateSectors = Object.fromEntries(occupiedRegions.map((region, index) => {
+      const id = `npp-footprint:${index}`;
+      return [id, {
+        id, corporationId: corp.id, countryId: corp.countryId, stateId: region.id,
+        sectorType: "manufacturing" as const, workers: 1, representingUnionId: null,
+        forSale: null, owner: "corporation" as const,
+      }];
+    }));
+    expect(sourceLogisticsSupportedSectorCount(corp.logisticsStrength)).toBe(15);
+    applyNppSourceFounding(world);
+    expect(Object.keys(world.corporateSectors ?? {})).toHaveLength(15);
+    expect(world.corporateCashLedger ?? []).toHaveLength(0);
+
+    corp.logisticsStrength = 200;
+    expect(sourceLogisticsSupportedSectorCount(corp.logisticsStrength)).toBe(30);
+    applyNppSourceFounding(world);
+    expect(Object.keys(world.corporateSectors ?? {})).toHaveLength(16);
+    expect(world.corporateCashLedger).toHaveLength(1);
+  });
+
   it("uses Game's deposit-value headroom and founds a source-bounded extraction plant", () => {
     const world = createWorld({ era: "1953", countryId: "US", seed: "npp-source-extraction-entry", playerName: "Alex" });
     const corp = world.corporations["US-manufacturing"]!;

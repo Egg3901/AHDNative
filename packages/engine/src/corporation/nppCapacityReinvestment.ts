@@ -36,6 +36,14 @@ const NPP_EXTRACTION_FOUNDING_MAX_FACILITIES = 8;
 const EXTRACTION_OUTPUT_SCALE: Partial<Record<(typeof EXTRACTABLE_RESOURCES)[number], number>> = {
   rare_earth: 2.5, natural_gas: 2, iron: 1.8, timber: 1.6, oil: 1.4,
 };
+const SOURCE_SPRAWL_SECTOR_THRESHOLD = 15;
+const SOURCE_LOGISTICS_MAX_SPRAWL_EFFECT = 200;
+
+/** Game getLogisticsSupportedSectorCount: source footprint limit for NPP entry. */
+export function sourceLogisticsSupportedSectorCount(logisticsStrength: number | undefined): number {
+  const strength = Number.isFinite(logisticsStrength) ? Math.max(0, logisticsStrength!) : 0;
+  return Math.floor(SOURCE_SPRAWL_SECTOR_THRESHOLD * (1 + strength / SOURCE_LOGISTICS_MAX_SPRAWL_EFFECT));
+}
 
 /** Source NPP greenfield entry: source candidate → located newborn asset → pool draw and cash witness. */
 export function applyNppSourceFounding(world: WorldState): void {
@@ -46,6 +54,8 @@ export function applyNppSourceFounding(world: WorldState): void {
   const year = Number(world.meta.date.slice(0, 4));
   for (const corp of Object.values(world.corporations).sort((a, b) => a.id.localeCompare(b.id))) {
     if (corp.suspended || isCorpStateOwned(corp) || (corp.ceoType ?? "npp") !== "npp") continue;
+    const sectorCount = Object.values(assets).filter((asset) => asset.corporationId === corp.id).length;
+    if (sectorCount >= sourceLogisticsSupportedSectorCount(corp.logisticsStrength)) continue;
     // Source has one greenfield entry per issuer per turn.
     if (ledger.some((row) => row.type === "corp_sector_founding" && row.corporationId === corp.id && row.turn === world.meta.turn)) continue;
     const candidate = findSourceNppEntryCandidate(world, corp);
