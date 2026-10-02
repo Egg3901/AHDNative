@@ -11,14 +11,7 @@ const TAX_SOURCE_VECTOR: Record<string, readonly [string, string, string, readon
   cn_provincial_resource_tax: ["CN", "state", "salesTax", [0, 1, 2, 4, 5, 6, 8, 10, 12, 16, 20]],
   cn_stamp_duty: ["CN", "national", "stampDuty", [0, .01, .02, .03, .04, .05, .1, .3, .5, 1, 2]],
   cn_urban_maintenance_construction_tax: ["CN", "national", "urbanMaintenanceTax", [0, 1, 2, 3, 5, 7, 9, 11, 12, 14, 15]],
-  de_customs_tariff_rate: ["DE", "national", "tariffs", [0, 1, 2, 3, 4, 5, 6, 8, 10, 14, 20]],
-  de_domestic_corporate_tax_rate: ["DE", "national", "domesticCorporateTax", [0, 3, 5, 8, 12, 15, 18, 20, 22, 25, 30]],
-  de_foreign_corporate_tax_rate: ["DE", "national", "foreignCorporateTax", [0, 3, 5, 8, 12, 15, 18, 20, 22, 25, 30]],
-  de_income_tax_rate: ["DE", "national", "incomeTax", [0, 10, 20, 28, 35, 42, 45, 50, 55, 60, 65]],
-  de_payroll_social_insurance: ["DE", "national", "payrollTax", [0, 5, 10, 13, 16, 20, 22, 24, 26, 28, 30]],
-  de_solidarity_surcharge: ["DE", "national", "solidaritySurcharge", [0, .5, 1, 2, 4, 5.5, 6.5, 7.5, 8.5, 9.5, 10]],
   de_trade_tax: ["DE", "state", "tradeTax", [200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600]],
-  de_vat_rate: ["DE", "national", "salesTax", [0, 5, 7, 10, 16, 19, 20, 22, 24, 25, 28]],
   ie_capital_gains_tax: ["IE", "national", "capitalGainsTax", [0, 5, 10, 15, 20, 25, 33, 40, 45, 50, 55]],
   ie_corporate_tax_rate: ["IE", "national", "domesticCorporateTax", [0, 5, 9, 12.5, 15, 18, 20, 23, 26, 30, 33]],
   ie_customs_tariff_rate: ["IE", "national", "tariffs", [0, 2, 5, 8, 12, 16, 20, 25, 30, 40, 50]],
@@ -45,11 +38,11 @@ const UNMATCHED_SOURCE_VECTOR = [
 
 describe("unavailable law source inventory", () => {
   it("matches the pinned source vector independently of the Native catalog", () => {
-    expect(UNAVAILABLE_LAW_INVENTORY).toHaveLength(261);
+    expect(UNAVAILABLE_LAW_INVENTORY).toHaveLength(254);
     expect(Object.fromEntries(["JP", "DE", "IE", "CN", "BR", "US", "UK", "RU", "DD"].map((countryId) => [
       countryId,
       UNAVAILABLE_LAW_INVENTORY.filter((row) => row.countryId === countryId).length,
-    ]))).toEqual({ JP: 62, DE: 60, IE: 57, CN: 57, BR: 13, US: 9, UK: 1, RU: 1, DD: 1 });
+    ]))).toEqual({ JP: 62, DE: 53, IE: 57, CN: 57, BR: 13, US: 9, UK: 1, RU: 1, DD: 1 });
     for (const id of ["de_trade_tax", "cn_provincial_resource_tax", "jp_resident_tax", "jp_fixed_asset_tax"]) {
       expect(UNAVAILABLE_LAW_INVENTORY.find((row) => row.id === id), id).toMatchObject({
         nativeScope: "regional",
@@ -61,7 +54,7 @@ describe("unavailable law source inventory", () => {
     expect(UNAVAILABLE_LAW_INVENTORY.find((row) => row.id === "de_trade_tax")?.authoredRateOptions.map((option) => option.rate)).toEqual([200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600]);
     expect(UNAVAILABLE_LAW_INVENTORY.find((row) => row.id === "cn_provincial_resource_tax")?.authoredRateOptions.map((option) => option.rate)).toEqual([0, 1, 2, 4, 5, 6, 8, 10, 12, 16, 20]);
     const taxes = UNAVAILABLE_LAW_INVENTORY.filter((row) => row.taxRateChange !== null);
-    expect(Object.keys(TAX_SOURCE_VECTOR)).toHaveLength(33);
+    expect(Object.keys(TAX_SOURCE_VECTOR)).toHaveLength(26);
     expect(Object.fromEntries(taxes.map((tax) => [tax.id, [
       tax.countryId, tax.sourceScope, tax.taxRateChange!.taxType,
       tax.authoredRateOptions.map((option) => option.rate),
@@ -79,10 +72,10 @@ describe("unavailable law source inventory", () => {
   });
 
   it("names source provenance, eligibility prerequisites, effects, and the real blocker", () => {
-    expect(UNAVAILABLE_LAW_SOURCE_REVISION).toBe("e364c04954ed628beef73a993a8e9e156650a31e");
+    expect(UNAVAILABLE_LAW_SOURCE_REVISION).toBe("96831835fb6b28983aa14fe66cb6eae9ecfde84c");
     for (const row of UNAVAILABLE_LAW_INVENTORY) {
       const catalog = CATALOG.find((entry) => entry.id === row.id)!;
-      expect(row.sourcePath, row.id).toMatch(/^(src\/lib\/(seeds|politicalLegislation\/laws)\/|NO_AHDGAME_SOURCE_MATCH$)/);
+      expect(row.sourcePath, row.id).toMatch(/^(src\/lib\/(seeds|countries|politicalLegislation\/laws)\/|NO_AHDGAME_SOURCE_MATCH$)/);
       expect(row.nativeScope, row.id).toBe(catalog.allowedScope);
       expect(row.blockingSystem, row.id).toBe(catalog.blockingSystem);
       if (row.sourceMatch === "matched") {

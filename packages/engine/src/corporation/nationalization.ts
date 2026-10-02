@@ -2,6 +2,9 @@ import type { WorldState } from "../types.js";
 import { isCorpStateOwned } from "../bonds/corporateBonds.js";
 import { corporateSectorAssets, type CorporateSectorAsset } from "./corporateSectorAssets.js";
 import { mergeCorporateSectorPhysicalLedger } from "./physicalAssetMerge.js";
+import { EXECUTIVE_OFFICE_BY_COUNTRY } from "../actions/officeRegistry.js";
+import { GOVERNMENT_CHAMBER_BY_COUNTRY } from "../government/constants.js";
+import { isRecordedSingleplayerHeadOfGovernment } from "../government/singleplayerHeadOfGovernment.js";
 
 /** Source `NATIONALIZATION_REVENUE_HAIRCUT` for an executive taking. */
 export const NATIONALIZATION_REVENUE_KEEP = 0.85;
@@ -11,14 +14,18 @@ export type NationalizationResult =
   | { ok: false; error: string };
 
 /**
- * The source route authorizes a sitting human head of government. The Native
- * world has a real, playable presidential election record for the US; a
- * permanent Head-of-State sandbox identity is deliberately not an elected
- * mandate. Parliamentary authority is accepted only when the recorded PM and
- * the player's recorded office agree.
+ * The source route authorizes a sitting human head of government. Presidential
+ * authority resolves through the canonical executive record; parliamentary
+ * authority resolves through the formed government record. HoS mode is valid
+ * only when its permanent player projection agrees with that canonical state.
  */
 export function isRecordedSittingHeadOfGovernment(world: WorldState, countryId: string): boolean {
-  if (world.player.countryId !== countryId || world.player.mode !== "career" || world.player.permanentHeadOfState) return false;
+  if (world.player.countryId !== countryId) return false;
+
+  if (world.player.mode === "hos") {
+    return isRecordedSingleplayerHeadOfGovernment(world, countryId);
+  }
+  if (world.player.mode !== "career" || world.player.permanentHeadOfState) return false;
 
   const executive = world.executives[countryId];
   if (executive?.presidentId === "player") {
@@ -32,10 +39,12 @@ export function isRecordedSittingHeadOfGovernment(world: WorldState, countryId: 
   }
 
   const government = world.governments[countryId];
+  const expectedOfficeType = EXECUTIVE_OFFICE_BY_COUNTRY[countryId];
   return government?.status === "formed" &&
     government.pmPoliticianId === "player" &&
+    government.chamberKey === GOVERNMENT_CHAMBER_BY_COUNTRY[countryId] &&
     world.player.currentOffice?.countryId === countryId &&
-    world.player.currentOffice.type === "primeMinister" &&
+    world.player.currentOffice.type === expectedOfficeType &&
     world.player.legislativeSeat?.countryId === countryId;
 }
 
